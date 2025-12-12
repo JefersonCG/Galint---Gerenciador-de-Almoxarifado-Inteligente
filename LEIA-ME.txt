@@ -1,0 +1,70 @@
+═══════════════════════════════════════════════════════════════
+         GALINT MOBILE - GUIA RAPIDO DE INSTALACAO
+═══════════════════════════════════════════════════════════════
+
+📱 REQUISITOS:
+--------------
+1. Node.js (versao 16 ou superior)
+   Download: https://nodejs.org/
+
+2. Smartphone Android com app "Expo Go" instalado
+   Play Store: https://play.google.com/store/apps/details?id=host.exp.exponent
+
+3. Computador e smartphone na MESMA REDE Wi-Fi
+
+
+🚀 INSTALACAO AUTOMATICA (RECOMENDADO):
+---------------------------------------
+1. Clique com botao direito em "instalar_e_rodar.ps1"
+2. Selecione "Executar com PowerShell"
+3. Aguarde a instalacao (3-5 minutos)
+4. Um QR Code aparecera no terminal
+
+
+📱 USAR NO CELULAR:
+------------------
+1. Abra o app "Expo Go" no Android
+2. Toque em "Scan QR Code"
+3. Aponte a camera para o QR Code no computador
+4. O app GALINT abrira automaticamente!
+
+
+⚙️ CONFIGURACAO INICIAL NO APP:
+-------------------------------
+IP do Servidor: 10.0.0.245
+Porta:          5443 (HTTPS) ou 5000 (HTTP)
+Usar HTTPS:     ✓ Ativado
+
+1. Digite o IP e porta
+2. Clique em "Testar Conexao"
+3. Se OK, faca login com suas credenciais
+
+
+🔧 INSTALACAO MANUAL (se precisar):
+-----------------------------------
+Abra PowerShell nesta pasta e execute:
+
+  npm install
+  npm start
+
+
+❓ PROBLEMAS COMUNS:
+-------------------
+• "Node.js nao encontrado"
+  → Instale de: https://nodejs.org/
+
+• "Cannot connect to Metro"
+  → Execute: npm start -c
+
+• QR Code nao aparece
+  → Pressione 'w' no terminal para abrir no navegador
+
+• "Network request failed" no app
+  → Verifique se o servidor Flask esta rodando
+  → Confirme IP e porta corretos
+  → Tente com HTTP (porta 5000) primeiro
+
+
+📞 SUPORTE:
+----------
+Desenvolvido para GALINT - © 2025

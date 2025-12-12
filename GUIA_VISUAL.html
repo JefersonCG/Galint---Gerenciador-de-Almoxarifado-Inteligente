@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GALINT Mobile - Guia de Instalação</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            color: #667eea;
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 40px;
+            font-size: 1.2em;
+        }
+
+        .step {
+            background: #f8f9fa;
+            border-left: 5px solid #667eea;
+            padding: 25px;
+            margin-bottom: 25px;
+            border-radius: 10px;
+            transition: transform 0.2s;
+        }
+
+        .step:hover {
+            transform: translateX(5px);
+        }
+
+        .step-number {
+            background: #667eea;
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.2em;
+            margin-right: 15px;
+        }
+
+        .step-title {
+            color: #333;
+            font-size: 1.3em;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .step-content {
+            color: #555;
+            line-height: 1.8;
+            margin-left: 55px;
+        }
+
+        .step-content li {
+            margin: 8px 0;
+        }
+
+        .config-box {
+            background: #e3f2fd;
+            border: 2px dashed #2196F3;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            font-family: 'Courier New', monospace;
+        }
+
+        .config-box strong {
+            color: #1976D2;
+        }
+
+        .success-box {
+            background: #e8f5e9;
+            border-left: 5px solid #4CAF50;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 30px 0;
+            text-align: center;
+        }
+
+        .success-box h2 {
+            color: #2E7D32;
+            margin-bottom: 10px;
+        }
+
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 30px 0;
+        }
+
+        .feature {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            font-weight: 500;
+        }
+
+        .warning {
+            background: #fff3cd;
+            border-left: 5px solid #ffc107;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+        }
+
+        .warning strong {
+            color: #856404;
+        }
+
+        code {
+            background: #f1f3f4;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            color: #d63384;
+        }
+
+        .emoji {
+            font-size: 1.5em;
+            margin-right: 10px;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 40px;
+            color: #666;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>📱 GALINT Mobile</h1>
+        <div class="subtitle">Guia Completo de Instalação - Android</div>
+
+        <div class="features">
+            <div class="feature">✅ Scanner de Barras</div>
+            <div class="feature">📦 Gestão de Estoque</div>
+            <div class="feature">🔐 Login Seguro</div>
+            <div class="feature">🚀 Cadastro Rápido</div>
+        </div>
+
+        <!-- Passo 1 -->
+        <div class="step">
+            <div class="step-title">
+                <span class="step-number">1</span>
+                <span class="emoji">📱</span>
+                Instalar Expo Go no Celular
+            </div>
+            <div class="step-content">
+                <ol>
+                    <li>Abra a <strong>Play Store</strong> no seu Android</li>
+                    <li>Pesquise por <code>Expo Go</code></li>
+                    <li>Instale o aplicativo</li>
+                    <li>Abra uma vez para configurar</li>
+                </ol>
+                <div class="warning">
+                    <strong>⚠️ Importante:</strong> Certifique-se de que o celular está na MESMA rede Wi-Fi que o
+                    computador!
+                </div>
+            </div>
+        </div>
+
+        <!-- Passo 2 -->
+        <div class="step">
+            <div class="step-title">
+                <span class="step-number">2</span>
+                <span class="emoji">💻</span>
+                Verificar Node.js no Computador
+            </div>
+            <div class="step-content">
+                <p>Abra o PowerShell e digite: <code>node --version</code></p>
+                <ul>
+                    <li><strong>Se aparecer a versão:</strong> Perfeito! Prossiga para o próximo passo.</li>
+                    <li><strong>Se der erro:</strong> Baixe e instale Node.js de <a href="https://nodejs.org/"
+                            target="_blank">nodejs.org</a></li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Passo 3 -->
+        <div class="step">
+            <div class="step-title">
+                <span class="step-number">3</span>
+                <span class="emoji">🚀</span>
+                Executar Instalador Automático
+            </div>
+            <div class="step-content">
+                <ol>
+                    <li>Abra a pasta <code>galint-mobile</code></li>
+                    <li>Localize o arquivo <code>instalar_e_rodar.ps1</code></li>
+                    <li>Clique com botão direito → <strong>"Executar com PowerShell"</strong></li>
+                    <li>Aguarde a instalação (3-5 minutos)</li>
+                </ol>
+                <div class="warning">
+                    <strong>📥 Instalação:</strong> O script baixará aproximadamente 500MB de dependências. Aguarde
+                    pacientemente!
+                </div>
+            </div>
+        </div>
+
+        <!-- Passo 4 -->
+        <div class="step">
+            <div class="step-title">
+                <span class="step-number">4</span>
+                <span class="emoji">📷</span>
+                Escanear QR Code
+            </div>
+            <div class="step-content">
+                <ol>
+                    <li>Após a instalação, um <strong>QR Code</strong> aparecerá no terminal</li>
+                    <li>Abra o app <strong>Expo Go</strong> no celular</li>
+                    <li>Toque em <strong>"Scan QR Code"</strong></li>
+                    <li>Aponte a câmera para o QR Code no computador</li>
+                    <li>O app GALINT abrirá automaticamente (pode demorar 30-60s na primeira vez)</li>
+                </ol>
+            </div>
+        </div>
+
+        <!-- Passo 5 -->
+        <div class="step">
+            <div class="step-title">
+                <span class="step-number">5</span>
+                <span class="emoji">⚙️</span>
+                Configurar Servidor no App
+            </div>
+            <div class="step-content">
+                <p>Na primeira tela do app, configure:</p>
+                <div class="config-box">
+                    <strong>IP do Servidor:</strong> 10.0.0.245<br>
+                    <strong>Porta:</strong> 5443<br>
+                    <strong>Usar HTTPS:</strong> ✓ Ativado
+                </div>
+                <ol>
+                    <li>Preencha os campos acima</li>
+                    <li>Clique em <strong>"Testar Conexão"</strong></li>
+                    <li>Aguarde aparecer <strong>"Conexão OK!"</strong></li>
+                    <li>Digite suas credenciais (matrícula e senha)</li>
+                    <li>Marque <strong>"Lembrar de mim"</strong> se desejar</li>
+                    <li>Clique em <strong>"Entrar"</strong></li>
+                </ol>
+            </div>
+        </div>
+
+        <!-- Sucesso -->
+        <div class="success-box">
+            <h2>🎉 Tudo Pronto!</h2>
+            <p>Agora você pode usar o GALINT Mobile para:</p>
+            <div class="features" style="margin-top: 20px;">
+                <div class="feature">Escanear Códigos de Barras</div>
+                <div class="feature">Cadastrar Itens</div>
+                <div class="feature">Pesquisar no Estoque</div>
+                <div class="feature">Consultar em Tempo Real</div>
+            </div>
+        </div>
+
+        <!-- Como Usar -->
+        <div class="step">
+            <div class="step-title">
+                <span class="emoji">📸</span>
+                Como Usar o Scanner
+            </div>
+            <div class="step-content">
+                <ol>
+                    <li>Na tela de Estoque, toque no botão de <strong>câmera</strong> (flutuante)</li>
+                    <li>Permita acesso à câmera quando solicitado</li>
+                    <li>Aponte para o código de barras</li>
+                    <li>O app detecta automaticamente e vibra</li>
+                    <li><strong>Item encontrado:</strong> Mostra detalhes</li>
+                    <li><strong>Item não encontrado:</strong> Abre tela de cadastro</li>
+                </ol>
+            </div>
+        </div>
+
+        <!-- Problemas Comuns -->
+        <div class="step">
+            <div class="step-title">
+                <span class="emoji">❓</span>
+                Problemas Comuns
+            </div>
+            <div class="step-content">
+                <p><strong>"Network request failed"</strong></p>
+                <ul>
+                    <li>Verifique se o servidor Flask está rodando</li>
+                    <li>Confirme se está na mesma rede Wi-Fi</li>
+                    <li>Tente com HTTP (porta 5000)</li>
+                </ul>
+
+                <p style="margin-top: 15px;"><strong>"Cannot connect to Metro"</strong></p>
+                <ul>
+                    <li>Execute no PowerShell: <code>npm start -c</code></li>
+                </ul>
+
+                <p style="margin-top: 15px;"><strong>QR Code não aparece</strong></p>
+                <ul>
+                    <li>Pressione <code>w</code> no terminal</li>
+                    <li>Ou pressione <code>i</code> para ver URL manual</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Arquivos de Ajuda -->
+        <div class="step" style="background: #f1f8ff; border-left-color: #0366d6;">
+            <div class="step-title">
+                <span class="emoji">📚</span>
+                Arquivos de Ajuda Disponíveis
+            </div>
+            <div class="step-content">
+                <ul>
+                    <li><code>INICIO_RAPIDO.txt</code> - Resumo em 5 passos</li>
+                    <li><code>LEIA-ME.txt</code> - Instruções básicas</li>
+                    <li><code>CHECKLIST_INSTALACAO.txt</code> - Lista completa de verificação</li>
+                    <li><code>GUIA_COMPLETO.md</code> - Manual detalhado passo-a-passo</li>
+                    <li><code>API_ENDPOINTS.md</code> - Documentação técnica</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p><strong>Desenvolvido para GALINT</strong></p>
+            <p>© 2025 - Sistema de Gerenciamento de Almoxarifado</p>
+        </div>
+    </div>
+</body>
+
+</html>

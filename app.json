@@ -1,0 +1,31 @@
+{
+    "expo": {
+        "name": "GALINT Mobile",
+        "slug": "galint-mobile",
+        "version": "1.0.0",
+        "orientation": "portrait",
+        "userInterfaceStyle": "light",
+        "assetBundlePatterns": [
+            "**/*"
+        ],
+        "ios": {
+            "supportsTablet": true,
+            "bundleIdentifier": "com.galint.mobile"
+        },
+        "android": {
+            "package": "com.galint.mobile",
+            "permissions": [
+                "CAMERA",
+                "INTERNET"
+            ]
+        },
+        "plugins": [
+            [
+                "expo-camera",
+                {
+                    "cameraPermission": "Permitir que $(PRODUCT_NAME) acesse sua câmera para escanear códigos de barras."
+                }
+            ]
+        ]
+    }
+}

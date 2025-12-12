@@ -1,0 +1,30 @@
+# Ignorar node_modules
+node_modules/
+
+# Ignorar builds
+.expo/
+dist/
+npm-debug.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+web-build/
+
+# Ignorar configurações do sistema
+.DS_Store
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# Logs
+logs
+*.log
+
+# Temporários
+tmp/
+temp/

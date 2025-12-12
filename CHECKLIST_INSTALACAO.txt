@@ -1,0 +1,210 @@
+╔══════════════════════════════════════════════════════════════╗
+║                                                              ║
+║        CHECKLIST - INSTALAR GALINT NO CELULAR                ║
+║                                                              ║
+╚══════════════════════════════════════════════════════════════╝
+
+📋 PREPARACAO (FAZER UMA VEZ):
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+□ 1. INSTALAR NODE.JS NO COMPUTADOR
+   └─ Download: https://nodejs.org/
+   └─ Versao: LTS (recomendada)
+   └─ Apos instalar: Reiniciar PowerShell
+
+□ 2. INSTALAR EXPO GO NO CELULAR
+   └─ Abrir Play Store no Android
+   └─ Pesquisar: "Expo Go"
+   └─ Instalar e abrir uma vez
+
+□ 3. CONECTAR NA MESMA REDE WI-FI
+   └─ Celular: Conectar no Wi-Fi
+   └─ Computador: Mesma rede
+   └─ Verificar: Ambos com internet
+
+
+📱 INSTALACAO DO APP (FAZER UMA VEZ):
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+OPCAO A - SCRIPT AUTOMATICO (RECOMENDADO):
+
+□ 4. Abrir pasta "galint-mobile"
+   └─ Caminho: C:\Users\LUIS\Desktop\GALINT FLASK\galint-mobile
+
+□ 5. Executar instalador
+   └─ Botao direito em "instalar_e_rodar.ps1"
+   └─ Clicar: "Executar com PowerShell"
+   └─ Aguardar: 3-5 minutos (instalacao automatica)
+
+□ 6. Aguardar QR Code aparecer no terminal
+   └─ Se nao aparecer: Pressionar 'w' no terminal
+
+
+OPCAO B - INSTALACAO MANUAL:
+
+□ 4. Abrir PowerShell na pasta galint-mobile
+
+□ 5. Executar comandos:
+   └─ npm install
+   └─ npm start
+
+□ 6. Aguardar QR Code aparecer
+
+
+🎯 PRIMEIRA EXECUCAO (NO CELULAR):
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+□ 7. Abrir Expo Go no celular
+
+□ 8. Tocar em "Scan QR code"
+
+□ 9. Apontar camera para o QR Code no computador
+   └─ Aguardar: App abrindo (pode demorar 30-60s na 1ª vez)
+
+□ 10. CONFIGURAR SERVIDOR na primeira tela:
+   └─ IP do Servidor:  10.0.0.245
+   └─ Porta:           5443
+   └─ Usar HTTPS:      ☑ Marcado
+
+□ 11. Clicar em "Testar Conexao"
+   └─ Deve aparecer: "Conexao OK!"
+   └─ Se erro: Ver secao PROBLEMAS abaixo
+
+□ 12. Fazer LOGIN:
+   └─ Usuario: (sua matricula)
+   └─ Senha:   (sua senha)
+   └─ Clicar:  "Entrar"
+
+□ 13. PRONTO! App funcionando ✓
+
+
+🔄 PROXIMAS EXECUCOES (MAIS SIMPLES):
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Para usar novamente (depois da primeira vez):
+
+□ 1. Iniciar servidor Flask (se nao estiver rodando)
+   └─ Executar: INICIAR_APP_MOBILE.ps1
+   └─ OU manualmente: python app.py
+
+□ 2. Abrir Expo Go no celular
+
+□ 3. Escolher "GALINT" na lista de apps recentes
+   └─ OU escanear QR Code novamente
+
+□ 4. Fazer login (se nao marcou "Lembrar de mim")
+
+□ 5. Usar normalmente!
+
+
+📸 USAR O SCANNER:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+□ Na tela de Estoque, tocar no botao de CAMERA (flutuante)
+
+□ Permitir acesso a camera (se solicitado)
+
+□ Apontar para codigo de barras
+   └─ Deteccao automatica
+   └─ Vibra quando ler
+
+□ Se item existe: Mostra detalhes
+
+□ Se nao existe: Abre cadastro automaticamente
+
+
+➕ CADASTRAR ITEM:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+□ Tocar no botao "+" OU usar scanner em item nao encontrado
+
+□ Preencher campos:
+   └─ Codigo (automatico se via scanner)
+   └─ Descricao
+   └─ Categoria
+   └─ Quantidade
+   └─ Unidade
+   └─ Localizacao (opcional)
+   └─ Marca (opcional)
+
+□ Tocar em "Cadastrar"
+
+□ Item aparece no estoque imediatamente!
+
+
+❌ PROBLEMAS E SOLUCOES:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PROBLEMA: "Node.js nao encontrado"
+└─ SOLUCAO: Instalar Node.js e reiniciar PowerShell
+
+PROBLEMA: "Cannot connect to Metro"
+└─ SOLUCAO: Executar "npm start -c" (limpa cache)
+
+PROBLEMA: "Network request failed"
+└─ SOLUCAO 1: Verificar se Flask esta rodando
+└─ SOLUCAO 2: Testar com HTTP (porta 5000)
+└─ SOLUCAO 3: Verificar mesma rede Wi-Fi
+
+PROBLEMA: QR Code nao aparece
+└─ SOLUCAO: Pressionar 'w' no terminal
+
+PROBLEMA: Camera nao funciona
+└─ SOLUCAO: Permitir camera em Config > Apps > Expo Go
+
+PROBLEMA: App demora muito
+└─ NORMAL: Primeira vez demora 1-2 minutos
+└─ SOLUCAO: Se continuar, executar "npm start -c"
+
+PROBLEMA: "Token invalido"
+└─ SOLUCAO 1: Testar conexao antes de logar
+└─ SOLUCAO 2: Verificar IP/porta corretos
+└─ SOLUCAO 3: Verificar se usuario existe
+
+
+🎓 ARQUIVOS IMPORTANTES:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📄 LEIA-ME.txt
+   └─ Instrucoes resumidas
+
+📄 GUIA_COMPLETO.md
+   └─ Manual detalhado passo-a-passo
+
+📄 API_ENDPOINTS.md
+   └─ Documentacao tecnica da API
+
+📄 instalar_e_rodar.ps1
+   └─ Script de instalacao automatica
+
+📄 README.md
+   └─ Documentacao do projeto
+
+
+✅ VERIFICACAO FINAL:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Antes de usar, confirmar:
+
+□ Node.js instalado (node --version funciona)
+□ Expo Go instalado no Android
+□ Servidor Flask rodando
+□ Celular e PC na mesma rede Wi-Fi
+□ Firewall liberando portas 5000/5443
+□ App abrindo no Expo Go
+□ Login funcionando
+
+
+🎉 TUDO CERTO!
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Agora voce pode:
+✅ Pesquisar itens
+✅ Escanear codigos de barras
+✅ Cadastrar produtos
+✅ Consultar estoque em tempo real
+
+
+═══════════════════════════════════════════════════════════════
+Desenvolvido para GALINT - © 2025
+═══════════════════════════════════════════════════════════════

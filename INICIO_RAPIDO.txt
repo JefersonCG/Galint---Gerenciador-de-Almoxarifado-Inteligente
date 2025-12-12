@@ -1,0 +1,41 @@
+═══════════════════════════════════════════════════════════════
+                  INSTALACAO SUPER RAPIDA
+                   GALINT Mobile - 5 Passos
+═══════════════════════════════════════════════════════════════
+
+📱 PASSO 1: INSTALAR NO CELULAR
+   ├─ Abrir Play Store
+   ├─ Pesquisar: "Expo Go"
+   └─ Instalar
+
+💻 PASSO 2: EXECUTAR INSTALADOR NO PC
+   ├─ Abrir pasta: galint-mobile
+   ├─ Botao direito em: instalar_e_rodar.ps1
+   └─ Clicar: "Executar com PowerShell"
+   
+⏳ PASSO 3: AGUARDAR
+   └─ Instalacao automatica (3-5 minutos)
+
+📷 PASSO 4: ESCANEAR QR CODE
+   ├─ Abrir Expo Go no celular
+   ├─ Tocar: "Scan QR Code"
+   └─ Apontar para QR Code no computador
+
+⚙️ PASSO 5: CONFIGURAR E LOGAR
+   ├─ IP: 10.0.0.245
+   ├─ Porta: 5443
+   ├─ HTTPS: Ativado
+   ├─ Testar Conexao
+   └─ Fazer Login
+
+✅ PRONTO! App funcionando!
+
+═══════════════════════════════════════════════════════════════
+
+❓ PROBLEMAS?
+   └─ Abrir arquivo: CHECKLIST_INSTALACAO.txt
+
+📖 MANUAL COMPLETO?
+   └─ Abrir arquivo: GUIA_COMPLETO.md
+
+═══════════════════════════════════════════════════════════════
