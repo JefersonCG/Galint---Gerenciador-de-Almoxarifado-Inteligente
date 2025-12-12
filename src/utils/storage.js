@@ -30,6 +30,14 @@ export const loadServerConfig = async () => {
     }
 };
 
+export const clearServerConfig = async () => {
+    try {
+        await AsyncStorage.multiRemove(['serverIP', 'serverPort', 'useHttps']);
+    } catch (error) {
+        console.error('Erro ao limpar configuração:', error);
+    }
+};
+
 export const saveCredentials = async (username, password, remember) => {
     try {
         if (remember) {

@@ -14,12 +14,12 @@ import {
     Switch
 } from 'react-native';
 import ApiService from '../services/api';
-import { loadServerConfig, saveServerConfig, loadCredentials, saveCredentials } from '../utils/storage';
+import { loadServerConfig, saveServerConfig, clearServerConfig, loadCredentials, saveCredentials } from '../utils/storage';
 
 export default function LoginScreen({ navigation }) {
     const [serverIP, setServerIP] = useState('10.0.0.245');
-    const [serverPort, setServerPort] = useState('5443');
-    const [useHttps, setUseHttps] = useState(true);
+    const [serverPort, setServerPort] = useState('5000');
+    const [useHttps, setUseHttps] = useState(false);
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [rememberMe, setRememberMe] = useState(false);
@@ -49,6 +49,15 @@ export default function LoginScreen({ navigation }) {
         }
     };
 
+    const handleClearConfig = async () => {
+        await clearServerConfig();
+        setServerPort('5000');
+        setUseHttps(false);
+        setShowConfig(true);
+        setConnectionStatus(null);
+        Alert.alert('OK', 'Configuração do servidor limpa. Configure novamente e teste a conexão.');
+    };
+
     const handleTestConnection = async () => {
         if (!serverIP || !serverPort) {
             Alert.alert('Erro', 'Preencha IP e Porta do servidor');
@@ -72,7 +81,9 @@ export default function LoginScreen({ navigation }) {
             }
         } catch (error) {
             setConnectionStatus('error');
-            Alert.alert('Erro', 'Não foi possível conectar ao servidor');
+            const url = `${useHttps ? 'https' : 'http'}://${serverIP}:${serverPort}/api/mobile/health`;
+            const details = error?.message ? `\n\nDetalhes: ${error.message}` : '';
+            Alert.alert('Erro', `Não foi possível conectar ao servidor.\n\nTeste: ${url}${details}`);
         } finally {
             setTesting(false);
         }
@@ -189,6 +200,14 @@ export default function LoginScreen({ navigation }) {
                                         {connectionStatus === 'success' ? '✓ Testar Novamente' : 'Testar Conexão'}
                                     </Text>
                                 )}
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={styles.clearButton}
+                                onPress={handleClearConfig}
+                                disabled={testing || loading}
+                            >
+                                <Text style={styles.clearButtonText}>Limpar configuração</Text>
                             </TouchableOpacity>
                         </>
                     )}
@@ -359,6 +378,20 @@ const styles = StyleSheet.create({
         borderRadius: 8,
         alignItems: 'center',
         marginTop: 10,
+    },
+    clearButton: {
+        borderWidth: 1,
+        borderColor: '#6c757d',
+        padding: 12,
+        borderRadius: 8,
+        alignItems: 'center',
+        marginTop: 10,
+        backgroundColor: '#fff',
+    },
+    clearButtonText: {
+        color: '#6c757d',
+        fontSize: 14,
+        fontWeight: '600',
     },
     loginButton: {
         backgroundColor: '#0d6efd',
