@@ -14,6 +14,7 @@
         },
         "android": {
             "package": "com.galint.mobile",
+            "usesCleartextTraffic": true,
             "permissions": [
                 "CAMERA",
                 "INTERNET"
@@ -26,6 +27,11 @@
                     "cameraPermission": "Permitir que $(PRODUCT_NAME) acesse sua câmera para escanear códigos de barras."
                 }
             ]
-        ]
+        ],
+        "extra": {
+            "eas": {
+                "projectId": "fd58974d-64a8-45a0-a4ae-ca65716e5ddd"
+            }
+        }
     }
 }

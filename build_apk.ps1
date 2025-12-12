@@ -4,6 +4,15 @@ Param(
 
 $ErrorActionPreference = 'Stop'
 
+# Sempre roda a partir da pasta do projeto (evita erro do EAS sobre "project directory")
+try {
+    if ($PSScriptRoot) {
+        Set-Location -Path $PSScriptRoot
+    }
+}
+catch {
+}
+
 # Evita caracteres quebrados no terminal
 try {
     [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new()
@@ -41,6 +50,7 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 # Na primeira vez pode perguntar para criar o projeto EAS e gerar a keystore.
-eas build -p android --profile $Profile
+# Depois de configurado, rodar em modo não-interativo evita prompts (ex.: instalar em emulador/ADB).
+eas build -p android --profile $Profile --non-interactive
 
 Write-Host "Build finalizada. ExitCode=$LASTEXITCODE" -ForegroundColor Cyan

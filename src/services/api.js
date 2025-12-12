@@ -8,7 +8,7 @@ class ApiService {
         this.client = null;
     }
 
-    async initialize(serverIP, serverPort, useHttps = true) {
+    async initialize(serverIP, serverPort, useHttps = false) {
         const protocol = useHttps ? 'https' : 'http';
         this.baseURL = `${protocol}://${serverIP}:${serverPort}`;
 
@@ -17,11 +17,7 @@ class ApiService {
             timeout: 10000,
             headers: {
                 'Content-Type': 'application/json',
-            },
-            // Aceitar certificados auto-assinados (apenas para desenvolvimento!)
-            httpsAgent: useHttps ? {
-                rejectUnauthorized: false
-            } : undefined
+            }
         });
 
         // Adicionar token em todas as requisições
@@ -67,7 +63,7 @@ class ApiService {
             }
             return {
                 success: false,
-                message: error.response?.data?.message || 'Erro ao conectar'
+                message: error.response?.data?.message || error.message || 'Erro ao conectar'
             };
         }
     }
