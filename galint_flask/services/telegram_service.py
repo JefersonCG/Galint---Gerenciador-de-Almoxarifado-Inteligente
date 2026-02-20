@@ -2033,6 +2033,14 @@ class TelegramService:
         """Formata quantidade da saída considerando unidade original informada pelo modal."""
 
         try:
+            # Tentar usar formatação inteligente com embalagens
+            from ..services.embalagem_service import EmbalagemService
+            quantidade_fmt = EmbalagemService.formatar_quantidade(saida.quantidade, item)
+            return quantidade_fmt
+        except Exception:
+            pass
+
+        try:
 
             observacao = (saida.observacao or "").upper()
 

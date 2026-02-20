@@ -287,6 +287,129 @@ class EmbalagemService:
         return f"{embalagens:.0f} {nome_emb}"
     
     @staticmethod
+    def formatar_quantidade(quantidade: float, item: Item) -> str:
+        """
+        Formata uma quantidade específica para exibição com embalagens inteligentes.
+        
+        Args:
+            quantidade: Quantidade a ser formatada (em unidades base)
+            item: Item do estoque (contém info de embalagens)
+        
+        Returns:
+            String formatada, ex: "2 Latas + 16.67 litros" ou "3 caixas + 4 unidades"
+        """
+        if quantidade <= 0:
+            return "0"
+        
+        # Rolo Legacy
+        if EmbalagemService.tem_rolo_legacy(item):
+            total_metros = quantidade * item.grandeza_referencia
+            qtde_rolos = quantidade
+            nome_rolo = "rolo" if qtde_rolos == 1 else "rolos"
+            return f"{total_metros:g} metros ({qtde_rolos:g} {nome_rolo})"
+
+        # Lata/balde com volume em litros
+        if (item.litros_por_embalagem and item.litros_por_embalagem > 0 and 
+            (item.unidade and item.unidade.lower() in ['lata', 'litro', 'balde'] or
+             item.tipo_embalagem_novo and item.tipo_embalagem_novo.lower() in ['lata', 'litro', 'balde'])):
+            
+            usa_sistema_novo = EmbalagemService.tem_embalagem(item)
+            litros_por_emb = item.litros_por_embalagem
+            
+            # Calcula embalagens completas e resto
+            qtde_embalagens = int(quantidade // 1) if usa_sistema_novo else quantidade
+            resto_litros = (quantidade % 1) * litros_por_emb if usa_sistema_novo else 0
+            volume_total = quantidade * litros_por_emb
+            
+            nome_emb = item.get_nome_embalagem_plural() if qtde_embalagens != 1 else item.get_nome_embalagem() if usa_sistema_novo else (item.unidade or "embalagem")
+            if not usa_sistema_novo and qtde_embalagens != 1:
+                nome_emb = nome_emb + ("s" if not nome_emb.endswith('s') else "")
+            
+            if qtde_embalagens == 0:
+                return f"{volume_total:.2f} litros"
+            elif resto_litros > 0.01:  # Tem embalagens completas + resto
+                return f"{int(qtde_embalagens)} {nome_emb} + {resto_litros:.2f} litros"
+            else:  # Quantidade exata de embalagens
+                return f"{volume_total:.2f} litros ({int(qtde_embalagens)} {nome_emb})"
+        
+        # Lata/balde com peso em kg
+        if (item.grandeza_referencia and item.grandeza_referencia > 0 and
+            (item.unidade and item.unidade.lower() in ['lata', 'balde'] or
+             item.tipo_embalagem_novo and item.tipo_embalagem_novo.lower() in ['lata', 'balde'])):
+            
+            usa_sistema_novo = EmbalagemService.tem_embalagem(item)
+            kg_por_emb = item.grandeza_referencia
+            
+            # Calcula embalagens completas e resto
+            qtde_embalagens = int(quantidade // 1) if usa_sistema_novo else quantidade
+            resto_kg = (quantidade % 1) * kg_por_emb if usa_sistema_novo else 0
+            peso_total = quantidade * kg_por_emb
+            
+            nome_emb = item.get_nome_embalagem_plural() if qtde_embalagens != 1 else item.get_nome_embalagem() if usa_sistema_novo else (item.unidade or "embalagem")
+            if not usa_sistema_novo and qtde_embalagens != 1:
+                nome_emb = nome_emb + ("s" if not nome_emb.endswith('s') else "")
+            
+            if qtde_embalagens == 0:
+                return f"{peso_total:.2f} kg"
+            elif resto_kg > 0.01:  # Tem embalagens completas + resto
+                return f"{int(qtde_embalagens)} {nome_emb} + {resto_kg:.2f} kg"
+            else:  # Quantidade exata de embalagens
+                return f"{peso_total:.2f} kg ({int(qtde_embalagens)} {nome_emb})"
+        
+        # Sistema de embalagens unificado (rolos, pacotes, caixas)
+        if EmbalagemService.tem_embalagem(item):
+            tipo_emb = (item.tipo_embalagem_novo or "").strip().lower()
+            unidades_por = item.unidades_por_embalagem or 1
+            
+            # Calcula embalagens completas e unidades soltas
+            embalagens = int(quantidade)
+            # Para quantidade fracionada, calcular resto em unidades
+            resto = (quantidade - embalagens) * unidades_por if quantidade % 1 != 0 else 0
+            
+            nome_emb = item.get_nome_embalagem_plural() if embalagens != 1 else item.get_nome_embalagem()
+            
+            # Para rolos: mostrar em metros
+            if tipo_emb == 'rolo':
+                total_metros = (embalagens * unidades_por) + resto
+                if embalagens == 0:
+                    return f"{total_metros:g} metros"
+                if resto > 0:
+                    return f"{int(embalagens)} {nome_emb} + {resto:g} metros"
+                return f"{total_metros:g} metros ({embalagens} {nome_emb})"
+            
+            # Para pacotes e caixas: mostrar unidades internas
+            if tipo_emb in ['pacote', 'caixa']:
+                total_unidades = (embalagens * unidades_por) + resto
+                if embalagens == 0:
+                    return f"{total_unidades:g} unidades"
+                if resto > 0:
+                    return f"{int(embalagens)} {nome_emb} + {resto:g} unidades"
+                return f"{total_unidades:g} unidades ({embalagens} {nome_emb})"
+            
+            # Outros tipos de embalagem
+            if resto > 0:
+                return f"{embalagens} {nome_emb} + {resto:g} unidades"
+            return f"{embalagens} {nome_emb}"
+        
+        # Legacy: rolo/pacote/caixa no campo unidade
+        unidade_lower = (item.unidade or "").strip().lower()
+        if unidade_lower in ['rolo', 'pacote', 'caixa'] and item.unidades_por_embalagem:
+            unidades_por = item.unidades_por_embalagem
+            total_interno = quantidade * unidades_por
+            
+            nome_singular = {'rolo': 'rolo', 'pacote': 'pacote', 'caixa': 'caixa'}.get(unidade_lower, unidade_lower)
+            nome_plural = {'rolo': 'rolos', 'pacote': 'pacotes', 'caixa': 'caixas'}.get(unidade_lower, unidade_lower + 's')
+            nome_emb_display = nome_singular if quantidade == 1 else nome_plural
+            
+            if unidade_lower == 'rolo':
+                return f"{total_interno:g} metros ({quantidade:g} {nome_emb_display})"
+            else:
+                return f"{total_interno:g} unidades ({quantidade:g} {nome_emb_display})"
+        
+        # Quantidade simples (sem embalagem)
+        return f"{quantidade:g} {item.unidade or 'unidades'}"
+    
+    @staticmethod
     def converter_para_embalagens(quantidade_unidades: float, unidades_por_embalagem: float) -> float:
         """Converte quantidade em unidades para embalagens."""
         if unidades_por_embalagem <= 0:
