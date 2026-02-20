@@ -2041,10 +2041,21 @@ def criar_item_estoque():
         # Adiciona saldo inicial se fornecido (entrada)
         quantidade_inicial = int(data.get("quantidade", 0))
         if quantidade_inicial > 0:
+            # Se o item tem embalagens configuradas, converter quantidade de embalagens para unidades totais
+            quantidade_total = quantidade_inicial
+            if unidades_por_emb not in (None, ""):
+                try:
+                    unidades_float = float(unidades_por_emb)
+                    if unidades_float > 0:
+                        # Usuário digitou número de embalagens, converter para unidades totais
+                        quantidade_total = int(quantidade_inicial * unidades_float)
+                except (ValueError, TypeError):
+                    pass  # Mantém quantidade original se conversão falhar
+            
             inventory_service.registrar_entrada(
                 MovimentoPayload(
                     codigo=codigo_criado,
-                    quantidade=quantidade_inicial,
+                    quantidade=quantidade_total,
                     matricula=user.matricula,
                     nota_fiscal=None,
                     em_embalagens=None,
