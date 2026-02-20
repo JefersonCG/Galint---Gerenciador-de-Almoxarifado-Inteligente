@@ -1530,7 +1530,7 @@ def devolver_ferramenta_mobile(current_user: Usuario):
             retirada.status = 'devolvida'
             retirada.data_devolucao = datetime.utcnow()
 
-        inventory_service.registrar_entrada(
+        entrada = inventory_service.registrar_entrada(
             MovimentoPayload(
                 codigo=item.codigo_item,
                 quantidade=quantidade_int,
@@ -1538,6 +1538,13 @@ def devolver_ferramenta_mobile(current_user: Usuario):
                 nota_fiscal=None,
             )
         )
+
+        # Notificar via Telegram (opcional)
+        try:
+            if entrada and hasattr(entrada, 'id_entrada'):
+                TelegramService.notify_new_entry(entrada.id_entrada, is_devolucao=True)
+        except Exception as e:
+            logger.warning(f"Falha ao enviar notificação Telegram: {e}")
 
         try:
             novo_saldo = round(float(item.get_saldo_atual() or 0), 6)
@@ -1610,7 +1617,7 @@ def devolver_material_mobile(current_user: Usuario):
             if not devolvedor_user:
                 return jsonify({"success": False, "message": "Usuário devolvedor não encontrado"}), 404
 
-        inventory_service.registrar_entrada(
+        entrada = inventory_service.registrar_entrada(
             MovimentoPayload(
                 codigo=item.codigo_item,
                 quantidade=quantidade_int,
@@ -1619,6 +1626,13 @@ def devolver_material_mobile(current_user: Usuario):
                 is_devolucao=True,
             )
         )
+
+        # Notificar via Telegram (opcional)
+        try:
+            if entrada and hasattr(entrada, 'id_entrada'):
+                TelegramService.notify_new_entry(entrada.id_entrada, is_devolucao=True)
+        except Exception as e:
+            logger.warning(f"Falha ao enviar notificação Telegram: {e}")
 
         try:
             novo_saldo = round(float(item.get_saldo_atual() or 0), 6)
