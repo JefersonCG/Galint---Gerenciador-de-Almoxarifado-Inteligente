@@ -923,85 +923,50 @@ export default function RetiradaScreen({ navigation, route }) {
                     )}
 
                     {isFerramenta && (
-                        <>
-                            <View style={styles.inputGroup}>
-                                <Text style={styles.label}>Tipo de Ferramenta *</Text>
-                                <View style={styles.custodiaRow}>
-                                    <TouchableOpacity
+                        <View style={styles.inputGroup}>
+                            <Text style={styles.label}>Custódia *</Text>
+                            <View style={styles.custodiaRow}>
+                                <TouchableOpacity
+                                    style={[
+                                        styles.custodiaButton,
+                                        tipoCustodia === 'temporaria' && styles.custodiaButtonActive,
+                                    ]}
+                                    onPress={() => {
+                                        setTipoCustodia('temporaria');
+                                        setTipoFerramenta('diaria');
+                                    }}
+                                >
+                                    <Text
                                         style={[
-                                            styles.custodiaButton,
-                                            tipoFerramenta === 'diaria' && styles.custodiaButtonActive,
+                                            styles.custodiaButtonText,
+                                            tipoCustodia === 'temporaria' && styles.custodiaButtonTextActive,
                                         ]}
-                                        onPress={() => setTipoFerramenta('diaria')}
                                     >
-                                        <Text
-                                            style={[
-                                                styles.custodiaButtonText,
-                                                tipoFerramenta === 'diaria' && styles.custodiaButtonTextActive,
-                                            ]}
-                                        >
-                                            Ferramenta Diária
-                                        </Text>
-                                    </TouchableOpacity>
+                                        Custódia Diária
+                                    </Text>
+                                </TouchableOpacity>
 
-                                    <TouchableOpacity
+                                <TouchableOpacity
+                                    style={[
+                                        styles.custodiaButton,
+                                        tipoCustodia === 'permanente' && styles.custodiaButtonActive,
+                                    ]}
+                                    onPress={() => {
+                                        setTipoCustodia('permanente');
+                                        setTipoFerramenta('permanente');
+                                    }}
+                                >
+                                    <Text
                                         style={[
-                                            styles.custodiaButton,
-                                            tipoFerramenta === 'permanente' && styles.custodiaButtonActive,
+                                            styles.custodiaButtonText,
+                                            tipoCustodia === 'permanente' && styles.custodiaButtonTextActive,
                                         ]}
-                                        onPress={() => setTipoFerramenta('permanente')}
                                     >
-                                        <Text
-                                            style={[
-                                                styles.custodiaButtonText,
-                                                tipoFerramenta === 'permanente' && styles.custodiaButtonTextActive,
-                                            ]}
-                                        >
-                                            Ferramenta Permanente
-                                        </Text>
-                                    </TouchableOpacity>
-                                </View>
+                                        Custódia Permanente
+                                    </Text>
+                                </TouchableOpacity>
                             </View>
-
-                            <View style={styles.inputGroup}>
-                                <Text style={styles.label}>Custódia *</Text>
-                                <View style={styles.custodiaRow}>
-                                    <TouchableOpacity
-                                        style={[
-                                            styles.custodiaButton,
-                                            tipoCustodia === 'temporaria' && styles.custodiaButtonActive,
-                                        ]}
-                                        onPress={() => setTipoCustodia('temporaria')}
-                                    >
-                                        <Text
-                                            style={[
-                                                styles.custodiaButtonText,
-                                                tipoCustodia === 'temporaria' && styles.custodiaButtonTextActive,
-                                            ]}
-                                        >
-                                            Diária
-                                        </Text>
-                                    </TouchableOpacity>
-
-                                    <TouchableOpacity
-                                        style={[
-                                            styles.custodiaButton,
-                                            tipoCustodia === 'permanente' && styles.custodiaButtonActive,
-                                        ]}
-                                        onPress={() => setTipoCustodia('permanente')}
-                                    >
-                                        <Text
-                                            style={[
-                                                styles.custodiaButtonText,
-                                                tipoCustodia === 'permanente' && styles.custodiaButtonTextActive,
-                                            ]}
-                                        >
-                                            Permanente
-                                        </Text>
-                                    </TouchableOpacity>
-                                </View>
-                            </View>
-                        </>
+                        </View>
                     )}
 
                     <View style={styles.inputGroup}>

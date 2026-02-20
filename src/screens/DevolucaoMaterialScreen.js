@@ -193,7 +193,11 @@ export default function DevolucaoMaterialScreen({ navigation, route }) {
                     {ultimoResponsavel && !loadingUltimoResponsavel && (
                         <View style={styles.infoBox}>
                             <Text style={styles.infoTitle}>📋 Última Retirada</Text>
-                            <Text style={styles.infoText}>Responsável: {ultimoResponsavel.nome}</Text>
+                            <Text style={styles.infoText}>
+                                Responsável: {ultimoResponsavel.nome && !ultimoResponsavel.nome.startsWith('Matrícula') 
+                                    ? ultimoResponsavel.nome 
+                                    : `Funcionário (Mat. ${ultimoResponsavel.matricula})`}
+                            </Text>
                             <Text style={styles.infoText}>
                                 Data: {new Date(ultimoResponsavel.data_saida).toLocaleDateString('pt-BR')}
                             </Text>

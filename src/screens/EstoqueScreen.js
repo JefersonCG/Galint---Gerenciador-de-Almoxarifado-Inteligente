@@ -559,12 +559,6 @@ export default function EstoqueScreen({ navigation, route }) {
                         </View>
                     </View>
                 )}
-
-                <View style={styles.listTitleContainer}>
-                     <Text style={styles.listTitle}>
-                                {searchQuery ? `Resultados para "${searchQuery}"` : 'Estoque completo'}
-                     </Text>
-                </View>
             </View>
         );
     };
