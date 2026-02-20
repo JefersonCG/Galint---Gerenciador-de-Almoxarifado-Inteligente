@@ -15,10 +15,6 @@ import EditarItemScreen from './src/screens/EditarItemScreen';
 import RetiradaScreen from './src/screens/RetiradaScreen';
 import DevolucaoFerramentaScreen from './src/screens/DevolucaoFerramentaScreen';
 import DevolucaoMaterialScreen from './src/screens/DevolucaoMaterialScreen';
-import FerramentasScreen from './src/screens/FerramentasScreen';
-import RetiradaMultiplaFerramentasScreen from './src/screens/RetiradaMultiplaFerramentasScreen';
-import DevolucaoMultiplaFerramentasScreen from './src/screens/DevolucaoMultiplaFerramentasScreen';
-import DevolucaoMultiplaMateriaisScreen from './src/screens/DevolucaoMultiplaMateriaisScreen';
 import ConfigScreen from './src/screens/ConfigScreen';
 import MenuScreen from './src/screens/MenuScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
@@ -237,26 +233,6 @@ export default function App() {
                         name="DevolucaoMaterial"
                         component={DevolucaoMaterialScreen}
                         options={{ title: 'Devolver Material' }}
-                    />
-                    <Stack.Screen
-                        name="Ferramentas"
-                        component={FerramentasScreen}
-                        options={{ title: 'Controle de Ferramentas' }}
-                    />
-                    <Stack.Screen
-                        name="RetiradaMultiplaFerramentas"
-                        component={RetiradaMultiplaFerramentasScreen}
-                        options={{ title: 'Retirada Múltipla - Ferramentas' }}
-                    />
-                    <Stack.Screen
-                        name="DevolucaoMultiplaFerramentas"
-                        component={DevolucaoMultiplaFerramentasScreen}
-                        options={{ title: 'Devolução Múltipla - Ferramentas' }}
-                    />
-                    <Stack.Screen
-                        name="DevolucaoMultiplaMateriais"
-                        component={DevolucaoMultiplaMateriaisScreen}
-                        options={{ title: 'Devolução Múltipla - Materiais' }}
                     />
                     <Stack.Screen
                         name="Config"
