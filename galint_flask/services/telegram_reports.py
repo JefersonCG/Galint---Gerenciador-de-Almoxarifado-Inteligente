@@ -162,6 +162,25 @@ class TelegramReportService:
         wb = Workbook()
         ws = wb.active
         ws.title = "Retiradas"
+
+        # Cabecalho (titulo + empresa)
+        from ..utils.report_branding import get_company_header_lines
+
+        period_text = TelegramReportService.MONTHS.get(months, f"{months} meses")
+        scope_label = {
+            "tools": "Ferramentas",
+            "materials": "Materiais",
+            "all": "Geral",
+        }.get(scope, "Geral")
+        category_text = f"Categoria: {category}" if category else "Categoria: Todas"
+
+        ws.append(["RELATORIO DE RETIRADAS"])
+        for line in get_company_header_lines():
+            ws.append([line])
+        ws.append([f"Periodo: {period_text} | Escopo: {scope_label}"])
+        ws.append([category_text])
+        ws.append([f"Total de registros: {len(data)}"])
+        ws.append([])
         
         # Cabeçalhos
         headers = [
@@ -188,8 +207,9 @@ class TelegramReportService:
             bottom=Side(style="thin"),
         )
         
+        header_row_index = ws.max_row + 1
         ws.append(headers)
-        for cell in ws[1]:
+        for cell in ws[header_row_index]:
             cell.font = header_font
             cell.fill = header_fill
             cell.alignment = header_alignment
@@ -227,7 +247,8 @@ class TelegramReportService:
             ])
         
         # Aplicar estilo de dados
-        for row in ws.iter_rows(min_row=2, max_row=ws.max_row):
+        data_start_row = header_row_index + 1
+        for row in ws.iter_rows(min_row=data_start_row, max_row=ws.max_row):
             for cell in row:
                 cell.border = border
                 cell.alignment = data_alignment
@@ -235,6 +256,13 @@ class TelegramReportService:
         # Resumo por categoria (segunda aba)
         if not category:  # Apenas se não filtrada por categoria
             summary_ws = wb.create_sheet("Resumo por Categoria")
+
+            summary_ws.append(["RELATORIO DE RETIRADAS - RESUMO POR CATEGORIA"])
+            for line in get_company_header_lines():
+                summary_ws.append([line])
+            summary_ws.append([f"Periodo: {period_text} | Escopo: {scope_label}"])
+            summary_ws.append(["Categoria: Todas"])
+            summary_ws.append([])
             
             category_summary = db.session.query(
                 Item.categoria,
@@ -258,9 +286,10 @@ class TelegramReportService:
             ).all()
             
             summary_headers = ["Categoria", "Movimentações", "Quantidade Total"]
+            summary_header_row = summary_ws.max_row + 1
             summary_ws.append(summary_headers)
-            
-            for cell in summary_ws[1]:
+
+            for cell in summary_ws[summary_header_row]:
                 cell.font = header_font
                 cell.fill = header_fill
                 cell.alignment = header_alignment
@@ -277,7 +306,8 @@ class TelegramReportService:
                     float(row_data.quantidade_total or 0),
                 ])
             
-            for row in summary_ws.iter_rows(min_row=2, max_row=summary_ws.max_row):
+            summary_data_start = summary_header_row + 1
+            for row in summary_ws.iter_rows(min_row=summary_data_start, max_row=summary_ws.max_row):
                 for cell in row:
                     cell.border = border
                     cell.alignment = data_alignment
@@ -425,6 +455,22 @@ class TelegramReportService:
         ws = wb.active
         ws.title = "Saídas do Dia"
 
+        # Cabecalho (titulo + empresa)
+        from ..utils.report_branding import get_company_header_lines
+
+        scope_label = {
+            "tools": "Ferramentas",
+            "materials": "Materiais",
+            "all": "Geral",
+        }.get(scope, "Geral")
+
+        ws.append(["RELATORIO DE SAIDAS DO DIA"])
+        for line in get_company_header_lines():
+            ws.append([line])
+        ws.append([f"Periodo: {TimeService.format_local(start_local, '%d/%m/%Y')} | Escopo: {scope_label}"])
+        ws.append([f"Total de registros: {len(data)}"])
+        ws.append([])
+
         headers = ["Data", "Código", "Descrição", "Categoria", "Marca", "Quantidade", "Usuário", "Local"]
         header_font = Font(bold=True, color="FFFFFF", size=11)
         header_fill = PatternFill(start_color="0066CC", end_color="0066CC", fill_type="solid")
@@ -436,8 +482,9 @@ class TelegramReportService:
             bottom=Side(style="thin"),
         )
 
+        header_row_index = ws.max_row + 1
         ws.append(headers)
-        for cell in ws[1]:
+        for cell in ws[header_row_index]:
             cell.font = header_font
             cell.fill = header_fill
             cell.alignment = header_alignment
@@ -475,7 +522,8 @@ class TelegramReportService:
                 local_info[:200],
             ])
 
-        for row_cells in ws.iter_rows(min_row=2, max_row=ws.max_row):
+        data_start_row = header_row_index + 1
+        for row_cells in ws.iter_rows(min_row=data_start_row, max_row=ws.max_row):
             for cell in row_cells:
                 cell.border = border
                 cell.alignment = data_alignment
@@ -496,6 +544,22 @@ class TelegramReportService:
         ws = wb.active
         ws.title = "Retiradas Mensais"
 
+        # Cabecalho (titulo + empresa)
+        from ..utils.report_branding import get_company_header_lines
+
+        scope_label = {
+            "tools": "Ferramentas",
+            "materials": "Materiais",
+            "all": "Geral",
+        }.get(scope, "Geral")
+
+        ws.append(["RELATORIO DE RETIRADAS - MENSAL"])
+        for line in get_company_header_lines():
+            ws.append([line])
+        ws.append([f"Periodo: {month:02d}/{year} | Escopo: {scope_label}"])
+        ws.append([f"Total de registros: {len(data)}"])
+        ws.append([])
+
         headers = ["Data", "Código", "Descrição", "Categoria", "Marca", "Quantidade", "Usuário", "Local"]
         header_font = Font(bold=True, color="FFFFFF", size=11)
         header_fill = PatternFill(start_color="0066CC", end_color="0066CC", fill_type="solid")
@@ -507,8 +571,9 @@ class TelegramReportService:
             bottom=Side(style="thin"),
         )
 
+        header_row_index = ws.max_row + 1
         ws.append(headers)
-        for cell in ws[1]:
+        for cell in ws[header_row_index]:
             cell.font = header_font
             cell.fill = header_fill
             cell.alignment = header_alignment
@@ -536,7 +601,8 @@ class TelegramReportService:
                 (row.get("local_info") or "N/D")[:200],
             ])
 
-        for row_cells in ws.iter_rows(min_row=2, max_row=ws.max_row):
+        data_start_row = header_row_index + 1
+        for row_cells in ws.iter_rows(min_row=data_start_row, max_row=ws.max_row):
             for cell in row_cells:
                 cell.border = border
                 cell.alignment = data_alignment
