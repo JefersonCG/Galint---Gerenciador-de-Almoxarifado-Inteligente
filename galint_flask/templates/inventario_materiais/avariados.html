@@ -1,0 +1,255 @@
+{% extends "base.html" %}
+{% block title %}Produtos Avariados{% endblock %}
+{% block extra_css %}
+<link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+{% endblock %}
+{% block page_header %}
+<h2>Produtos Avariados</h2>
+<p class="text-muted">Gestione os itens danificados que foram registrados como refugo e gere o relatório oficial para
+    descarte autorizado.</p>
+{% endblock %}
+{% block content %}
+<div class="row gy-4">
+    <div class="col-lg-5">
+        <div class="card">
+            <div class="card-header">
+                <strong>Autorizar descarte</strong>
+            </div>
+            <div class="card-body">
+                <div class="mb-4" id="damage-search-panel">
+                    <label class="form-label">Buscar produto cadastrado</label>
+                    <div class="input-group">
+                        <input class="form-control" id="damage-search-input" autocomplete="off"
+                            placeholder="Digite ou bipar o código de barras" spellcheck="false">
+                        <button class="btn btn-outline-secondary" type="button" id="damage-search-clear"
+                            aria-label="Limpar busca">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    </div>
+                    <div id="damage-search-results" class="list-group mt-2 d-none"></div>
+                </div>
+                <form id="relatorio-form" method="post"
+                    action="{{ url_for('inventario_materiais.autorizar_avariados') }}">
+                    <div class="mb-3">
+                        <label class="form-label">Gerente responsável</label>
+                        <input class="form-control" name="gerente_nome" required
+                            placeholder="Informe o nome completo do gerente">
+                        <div class="form-text">A assinatura será colocada no Word final.</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Comentário adicional</label>
+                        <textarea class="form-control" name="comentario" rows="2"
+                            placeholder="Contextualize as causas do refugo"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Editor de texto (estilo Word)</label>
+                        <div id="report-editor" class="border rounded" style="min-height: 220px;"></div>
+                        <input type="hidden" name="relatorio_html" id="relatorio_html">
+                    </div>
+                    <button class="btn btn-primary w-100" type="submit">Gerar Word e autorizar descarte</button>
+                </form>
+            </div>
+        </div>
+        <div class="card mt-3">
+            <div class="card-body">
+                <p class="mb-0 text-muted small">O relatório inclui cabeçalho da empresa, data e lista dos produtos
+                    avariados para que o gerente possa assinar e autorizar o descarte oficial.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-7">
+        <div class="card mb-3">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <strong>Relatório rápido</strong>
+                <span class="text-muted small">Últimos {{ entries|length }}</span>
+            </div>
+            <div class="card-body p-0">
+                {% if entries %}
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Data</th>
+                                <th>Saída</th>
+                                <th>Código</th>
+                                <th>Quantidade</th>
+                                <th>Responsável</th>
+                                <th>Descrição</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for entry in entries %}
+                            <tr>
+                                <td>{{ entry.data.strftime('%d/%m/%Y %H:%M') if entry.data else '-' }}</td>
+                                <td>
+                                    {% if entry.saida_id %}
+                                    #{{ entry.saida_id }}
+                                    {% if entry.saida_data %}· {{ entry.saida_data.strftime('%d/%m/%Y') }}{% endif %}
+                                    {% else %}-{% endif %}
+                                </td>
+                                <td>{{ entry.codigo or '-' }}</td>
+                                <td>{{ entry.quantidade }}</td>
+                                <td>{{ entry.responsavel or '-' }}</td>
+                                <td>
+                                    <div class="fw-semibold">{{ entry.descricao or 'Sem descrição' }}</div>
+                                    {% if entry.observacoes %}
+                                    <div class="text-muted small">{{ entry.observacoes }}</div>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="p-3 text-muted">Nenhum produto avariado registrado.</p>
+                {% endif %}
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <strong>Autorizações realizadas</strong>
+                <span class="text-muted small">Últimos {{ authorizations|length }}</span>
+            </div>
+            <div class="card-body p-0">
+                {% if authorizations %}
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0">
+                        <thead>
+                            <tr>
+                                <th>Data</th>
+                                <th>Gerente</th>
+                                <th>Comentário</th>
+                                <th>Arquivo</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for auth in authorizations %}
+                            <tr>
+                                <td>{{ auth.data.strftime('%d/%m/%Y %H:%M') if auth.data else '-' }}</td>
+                                <td>{{ auth.gerente }}</td>
+                                <td>{{ auth.comentario or '-' }}</td>
+                                <td>
+                                    <a class="text-primary"
+                                        href="{{ url_for('inventario_materiais.download_relatorio', filename=auth.arquivo) }}">Download</a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="p-3 text-muted">Nenhuma autorização registrada ainda.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
+<script>
+    const editor = new Quill('#report-editor', {
+        theme: 'snow',
+        placeholder: 'Descreva o cenário do refugo, causas e observações importantes...',
+        modules: {
+            toolbar: [
+                ['bold', 'italic', 'underline', 'strike'],
+                [{ 'header': [1, 2, 3, false] }],
+                [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+                ['blockquote', 'code-block'],
+                ['clean']
+            ]
+        }
+    });
+    document.getElementById('relatorio-form')?.addEventListener('submit', function () {
+        const htmlInput = document.getElementById('relatorio_html');
+        if (htmlInput) {
+            htmlInput.value = editor.root.innerHTML;
+        }
+    });
+
+    const damageInventoryItems = {{ inventory_items | tojson | safe }};
+    const damageSearchInput = document.getElementById('damage-search-input');
+    const damageSearchClear = document.getElementById('damage-search-clear');
+    const damageResults = document.getElementById('damage-search-results');
+
+    const normalizeDamage = (value) => {
+        return String(value ?? '')
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^a-z0-9\s\-]/g, '')
+            .trim();
+    };
+
+    const renderDamageResults = (matches, query) => {
+        if (!damageResults) {
+            return;
+        }
+        damageResults.innerHTML = '';
+        if (!query) {
+            damageResults.classList.add('d-none');
+            return;
+        }
+        damageResults.classList.remove('d-none');
+        if (!matches.length) {
+            damageResults.innerHTML = '<div class="list-group-item list-group-item-action disabled">Nenhum produto cadastrado encontrado.</div>';
+            return;
+        }
+        matches.slice(0, 6).forEach((item) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-start gap-2';
+            button.innerHTML = `
+                <div>
+                    <div class="fw-semibold">${item.descricao || 'Produto sem descrição'}</div>
+                    <div class="text-muted small">Código ${item.codigo || '—'} • ${item.categoria || 'Sem categoria'}</div>
+                </div>
+                <span class="badge bg-primary rounded-pill">Saldo ${item.saldo ?? '0'}</span>
+            `;
+            button.addEventListener('click', () => {
+                appendItemToEditor(item);
+                damageSearchInput.value = '';
+                renderDamageResults([], '');
+                damageSearchInput.focus();
+            });
+            damageResults.appendChild(button);
+        });
+    };
+
+    const appendItemToEditor = (item) => {
+        if (!editor) {
+            return;
+        }
+        const snippet = `Produto: ${item.descricao || 'Sem descrição'}\nCódigo: ${item.codigo || '—'}\nCategoria: ${item.categoria || '—'}\nSaldo: ${item.saldo ?? '0'} unidades\n\n`;
+        editor.insertText(editor.getLength(), snippet, { 'bold': false });
+        editor.setSelection(editor.getLength(), 0);
+    };
+
+    if (damageSearchInput) {
+        damageSearchInput.addEventListener('input', (event) => {
+            const value = event.target.value;
+            const normalized = normalizeDamage(value);
+            if (!normalized) {
+                renderDamageResults([], '');
+                return;
+            }
+            const matches = damageInventoryItems.filter((item) => {
+                const description = normalizeDamage(item.descricao);
+                const codigo = normalizeDamage(item.codigo);
+                return description.includes(normalized) || codigo.includes(normalized);
+            });
+            renderDamageResults(matches, value);
+        });
+    }
+
+    damageSearchClear?.addEventListener('click', () => {
+        if (damageSearchInput) {
+            damageSearchInput.value = '';
+            damageSearchInput.focus();
+        }
+        renderDamageResults([], '');
+    });
+</script>
+{% endblock %}

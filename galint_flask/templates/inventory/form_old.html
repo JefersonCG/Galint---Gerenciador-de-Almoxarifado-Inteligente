@@ -1,0 +1,389 @@
+{% extends "base.html" %}
+{% set form_item = item if item else form_data %}
+{% block title %}{% if item %}Editar{% else %}Novo{% endif %} Item{% endblock %}
+{% block content %}
+<h1 class="h3 mb-3">{% if item %}Editar{% else %}Novo{% endif %} item</h1>
+<form method="post">
+    <div class="row g-4">
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Identificação</h5>
+                    <div class="mb-3">
+                        <label class="form-label" for="codigo">Código de barras</label>
+                        <input class="form-control" id="codigo" name="codigo"
+                            value="{{ form_item.codigo if form_item else '' }}" {% if item and not current_user.is_admin %}readonly{% endif %}
+                            required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="nota_fiscal">Número da NF</label>
+                        <input class="form-control" id="nota_fiscal" name="nota_fiscal"
+                            value="{{ form_item.nota_fiscal if form_item else '' }}">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="descricao">Produto</label>
+                        <input class="form-control" id="descricao" name="descricao"
+                            value="{{ form_item.descricao if form_item else '' }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="marca">Marca / Fabricante</label>
+                        <input class="form-control" id="marca" name="marca"
+                            value="{{ form_item.marca if form_item and form_item.marca else '' }}">
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Classificação</h5>
+                    <div class="mb-3">
+                        <label class="form-label" for="categoria">Categoria</label>
+                        <select class="form-select" id="categoria" name="categoria" required>
+                            {% set categoria = form_item.categoria if form_item else 'Material Elétrico' %}
+                            {% if categoria == 'Material Pintura' %}
+                            {% set categoria = 'Material de Pintura/Drywall' %}
+                            {% endif %}
+                            {% for choice in [
+                            'Material Elétrico',
+                            'Material Hidráulico',
+                            'Material Piscina',
+                            'Material de Pintura/Drywall',
+                            'Materiais de Limpeza',
+                            'Material Construção',
+                            'Ferramentas',
+                            'Material de EP',
+                            'Material/Uso geral'
+                            ] %}
+                            <option value="{{ choice }}" {% if categoria==choice %}selected{% endif %}>{{ choice }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div id="ferramentas-extra" class="mb-3" style="display: none;">
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" id="habilitar-serie-modelo" name="habilitar_serie_modelo">
+                            <label class="form-check-label" for="habilitar-serie-modelo">
+                                Adicionar número de série e modelo
+                            </label>
+                        </div>
+                        <div id="serie-modelo-fields" style="display: none;">
+                            <div class="mb-3">
+                                <label class="form-label" for="numero-serie">Número de Série</label>
+                                <input class="form-control" id="numero-serie" name="numero_serie" 
+                                    value="{{ form_item.numero_serie if form_item and form_item.numero_serie else '' }}">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label" for="modelo">Modelo</label>
+                                <input class="form-control" id="modelo" name="modelo"
+                                    value="{{ form_item.modelo if form_item and form_item.modelo else '' }}">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="localizacao">Localização</label>
+                        <input class="form-control" id="localizacao" name="localizacao"
+                            value="{{ form_item.localizacao if form_item else '' }}">
+                    </div>
+                    {% set saldo_base = 0 %}
+                    {% if saldo_desejado is not none %}
+                    {% set saldo_base = saldo_desejado|int %}
+                    {% elif form_item and form_item.saldo is not none %}
+                    {% set saldo_base = form_item.saldo|int %}
+                    {% endif %}
+                    <div class="mb-3">
+                        <label class="form-label" for="saldo_atual">Saldo em estoque (unidades)</label>
+                        <input class="form-control" id="saldo_atual" name="saldo_atual" type="number" min="0" step="1"
+                            value="{{ saldo_base|int }}">
+                        <div class="form-text">Ajustes geram eventos de inventário (não criam registros de
+                            Entrada/Saída).</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="unidade">Unidade de medida</label>
+                        <select class="form-select" id="unidade" name="unidade" required>
+                            {% set unidade_atual = form_item.unidade if form_item and form_item.unidade else 'Unidade' %}
+                            {% for choice in [
+                            'Unidade',
+                            'Galão',
+                            'Lata',
+                            'Litro',
+                            'Quilo',
+                            'Metro',
+                            'Caixa',
+                            'Pacote',
+                            'Rolo',
+                            'Balde',
+                            'Tambor',
+                            'Par',
+                            'Peça'
+                            ] %}
+                            <option value="{{ choice }}" {% if unidade_atual==choice %}selected{% endif %}>{{ choice }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">Escolha como você contabiliza este item no estoque.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Nova seção: Rastreabilidade -->
+    <div class="row g-4 mt-1">
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Rastreabilidade</h5>
+                    <div class="mb-3">
+                        <label class="form-label" for="data_entrada">Data de Entrada</label>
+                        <input class="form-control" id="data_entrada" name="data_entrada" type="date"
+                            value="{{ form_item.data_entrada if form_item and form_item.data_entrada else '' }}">
+                        <div class="form-text">Data em que o item entrou no estoque</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="lote">Lote</label>
+                        <input class="form-control" id="lote" name="lote"
+                            value="{{ form_item.lote if form_item and form_item.lote else '' }}" readonly>
+                        <div class="form-text">Gerado automaticamente no formato LOTE-YYYYMMDD-XXXX</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="data_fabricacao">Data de Fabricação</label>
+                        <input class="form-control" id="data_fabricacao" name="data_fabricacao" type="date"
+                            value="{{ form_item.data_fabricacao if form_item and form_item.data_fabricacao else '' }}">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="data_validade">Data de Validade</label>
+                        <input class="form-control" id="data_validade" name="data_validade" type="date"
+                            value="{{ form_item.data_validade if form_item and form_item.data_validade else '' }}">
+                        <div class="form-text" id="dias_validade"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Unidades Dinâmicas</h5>
+                    <div class="mb-3">
+                        <label class="form-label d-block">Tipo de Embalagem</label>
+                        {% set tipo_emb = form_item.tipo_embalagem if form_item and form_item.tipo_embalagem else '' %}
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="radio" name="tipo_embalagem" id="tipo_lata" value="Lata" {% if tipo_emb=='Lata' %}checked{% endif %}>
+                            <label class="form-check-label" for="tipo_lata">Lata</label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="radio" name="tipo_embalagem" id="tipo_rolo" value="Rolo" {% if tipo_emb=='Rolo' %}checked{% endif %}>
+                            <label class="form-check-label" for="tipo_rolo">Rolo</label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="radio" name="tipo_embalagem" id="tipo_pacote" value="Pacote" {% if tipo_emb=='Pacote' %}checked{% endif %}>
+                            <label class="form-check-label" for="tipo_pacote">Pacote</label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="radio" name="tipo_embalagem" id="tipo_caixa" value="Caixa" {% if tipo_emb=='Caixa' %}checked{% endif %}>
+                            <label class="form-check-label" for="tipo_caixa">Caixa</label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="radio" name="tipo_embalagem" id="tipo_nenhum" value="" {% if not tipo_emb %}checked{% endif %}>
+                            <label class="form-check-label" for="tipo_nenhum">Nenhum</label>
+                        </div>
+                        <div class="form-text">Para conversões automáticas de unidades</div>
+                    </div>
+                    <div id="conversao-fields" style="display: none;">
+                        <div class="mb-3">
+                            <label class="form-label" for="grandeza_referencia" id="label_grandeza">Grandeza de Referência</label>
+                            <input class="form-control" id="grandeza_referencia" name="grandeza_referencia" type="number" step="0.001"
+                                value="{{ form_item.grandeza_referencia if form_item and form_item.grandeza_referencia else '' }}">
+                            <div class="form-text" id="help_grandeza">Ex: 18 kg por lata</div>
+                        </div>
+                        <div class="mb-3" id="densidade-field">
+                            <label class="form-label" for="densidade">Densidade (kg/L)</label>
+                            <input class="form-control" id="densidade" name="densidade" type="number" step="0.001"
+                                value="{{ form_item.densidade if form_item and form_item.densidade else '' }}">
+                            <div class="form-text">Para converter kg em litros</div>
+                        </div>
+                        <div class="alert alert-secondary" id="preview-conversao" style="display: none;">
+                            <strong>Preview de Conversão:</strong>
+                            <div id="conversao-output"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="alert alert-info mt-4" role="alert">
+        O estoque mínimo é calculado automaticamente em 5% do saldo atual do item e alimenta os alertas do dashboard.
+    </div>
+    <div class="mt-4 d-flex gap-2">
+        <button class="btn btn-primary" type="submit">Salvar</button>
+        <a class="btn btn-secondary" href="{{ url_for('inventory.list_items') }}">Cancelar</a>
+    </div>
+</form>
+{% endblock %}
+{% block scripts %}
+<script>
+    // Controle de exibição de campos extras para Ferramentas
+    const categoriaSelect = document.getElementById('categoria');
+    const ferramentasExtra = document.getElementById('ferramentas-extra');
+    const habilitarCheckbox = document.getElementById('habilitar-serie-modelo');
+    const serieModeloFields = document.getElementById('serie-modelo-fields');
+
+    function toggleFerramentasFields() {
+        if (categoriaSelect.value === 'Ferramentas') {
+            ferramentasExtra.style.display = 'block';
+        } else {
+            ferramentasExtra.style.display = 'none';
+            habilitarCheckbox.checked = false;
+            serieModeloFields.style.display = 'none';
+        }
+    }
+
+    function toggleSerieModeloFields() {
+        if (habilitarCheckbox.checked) {
+            serieModeloFields.style.display = 'block';
+        } else {
+            serieModeloFields.style.display = 'none';
+        }
+    }
+
+    categoriaSelect.addEventListener('change', toggleFerramentasFields);
+    habilitarCheckbox.addEventListener('change', toggleSerieModeloFields);
+
+    // Inicializar estado correto ao carregar
+    toggleFerramentasFields();
+    if (habilitarCheckbox.checked) {
+        toggleSerieModeloFields();
+    }
+
+    // ==========================================
+    // RASTREABILIDADE E CONVERSÃO DE UNIDADES
+    // ==========================================
+
+    // Elementos
+    const tipoEmbalagemRadios = document.querySelectorAll('input[name="tipo_embalagem"]');
+    const conversaoFields = document.getElementById('conversao-fields');
+    const densidadeField = document.getElementById('densidade-field');
+    const labelGrandeza = document.getElementById('label_grandeza');
+    const helpGrandeza = document.getElementById('help_grandeza');
+    const previewConversao = document.getElementById('preview-conversao');
+    const conversaoOutput = document.getElementById('conversao-output');
+    const dataValidadeInput = document.getElementById('data_validade');
+    const diasValidadeDiv = document.getElementById('dias_validade');
+
+    // Atualizar labels e campos baseado no tipo de embalagem
+    function atualizarCamposEmbalagem() {
+        const tipoSelecionado = document.querySelector('input[name="tipo_embalagem"]:checked')?.value;
+        
+        if (!tipoSelecionado) {
+            conversaoFields.style.display = 'none';
+            previewConversao.style.display = 'none';
+            return;
+        }
+
+        conversaoFields.style.display = 'block';
+
+        switch(tipoSelecionado) {
+            case 'Lata':
+                labelGrandeza.textContent = 'Peso por Lata (kg)';
+                helpGrandeza.textContent = 'Ex: 18 kg por lata';
+                densidadeField.style.display = 'block';
+                break;
+            case 'Rolo':
+                labelGrandeza.textContent = 'Comprimento por Rolo (metros)';
+                helpGrandeza.textContent = 'Ex: 100 metros por rolo';
+                densidadeField.style.display = 'none';
+                break;
+            case 'Pacote':
+                labelGrandeza.textContent = 'Unidades por Pacote';
+                helpGrandeza.textContent = 'Ex: 50 unidades por pacote';
+                densidadeField.style.display = 'none';
+                break;
+            case 'Caixa':
+                labelGrandeza.textContent = 'Unidades por Caixa';
+                helpGrandeza.textContent = 'Ex: 100 unidades por caixa';
+                densidadeField.style.display = 'none';
+                break;
+        }
+
+        calcularConversao();
+    }
+
+    // Calcular conversão em tempo real
+    function calcularConversao() {
+        const tipoSelecionado = document.querySelector('input[name="tipo_embalagem"]:checked')?.value;
+        const quantidade = parseFloat(document.getElementById('saldo_atual').value) || 0;
+        const grandeza = parseFloat(document.getElementById('grandeza_referencia').value) || 0;
+        const densidade = parseFloat(document.getElementById('densidade').value) || 0;
+
+        if (!tipoSelecionado || quantidade === 0 || grandeza === 0) {
+            previewConversao.style.display = 'none';
+            return;
+        }
+
+        let resultado = '';
+
+        switch(tipoSelecionado) {
+            case 'Lata':
+                const quilos = quantidade * grandeza;
+                resultado = `<div>${quantidade} latas = ${quilos.toFixed(2)} kg</div>`;
+                if (densidade > 0) {
+                    const litros = quilos / densidade;
+                    resultado += `<div>${quilos.toFixed(2)} kg = ${litros.toFixed(2)} litros</div>`;
+                }
+                break;
+            case 'Rolo':
+                const metros = quantidade * grandeza;
+                const centimetros = metros * 100;
+                resultado = `<div>${quantidade} rolos = ${metros.toFixed(2)} metros</div>`;
+                resultado += `<div>${metros.toFixed(2)} m = ${centimetros.toFixed(0)} cm</div>`;
+                break;
+            case 'Pacote':
+            case 'Caixa':
+                const unidades = quantidade * grandeza;
+                const tipo = tipoSelecionado === 'Pacote' ? 'pacotes' : 'caixas';
+                resultado = `<div>${quantidade} ${tipo} = ${unidades.toFixed(0)} unidades</div>`;
+                break;
+        }
+
+        conversaoOutput.innerHTML = resultado;
+        previewConversao.style.display = resultado ? 'block' : 'none';
+    }
+
+    // Calcular dias até a validade
+    function calcularDiasValidade() {
+        const dataValidade = dataValidadeInput.value;
+        if (!dataValidade) {
+            diasValidadeDiv.innerHTML = '';
+            return;
+        }
+
+        const hoje = new Date();
+        const validade = new Date(dataValidade + 'T00:00:00');
+        const diffTime = validade - hoje;
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+        if (diffDays < 0) {
+            diasValidadeDiv.innerHTML = '<span class="text-danger">⚠️ Produto vencido há ' + Math.abs(diffDays) + ' dias</span>';
+        } else if (diffDays <= 30) {
+            diasValidadeDiv.innerHTML = '<span class="text-warning">⚠️ Vence em ' + diffDays + ' dias</span>';
+        } else {
+            diasValidadeDiv.innerHTML = '<span class="text-success">✓ Vence em ' + diffDays + ' dias</span>';
+        }
+    }
+
+    // Event listeners
+    tipoEmbalagemRadios.forEach(radio => {
+        radio.addEventListener('change', atualizarCamposEmbalagem);
+    });
+
+    document.getElementById('saldo_atual').addEventListener('input', calcularConversao);
+    document.getElementById('grandeza_referencia').addEventListener('input', calcularConversao);
+    document.getElementById('densidade').addEventListener('input', calcularConversao);
+    dataValidadeInput.addEventListener('change', calcularDiasValidade);
+
+    // Inicializar ao carregar
+    atualizarCamposEmbalagem();
+    calcularDiasValidade();
+</script>
+{% endblock %}

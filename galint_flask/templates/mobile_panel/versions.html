@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+{% block title %}Versões APK - Painel Mobile{% endblock %}
+
+{% block page_header %}
+<h2 class="mb-0">Versões APK</h2>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <strong>Versões APK</strong>
+            <button class="btn btn-sm btn-outline-secondary" id="refresh-versions">
+                <i class="bi bi-arrow-clockwise"></i>
+            </button>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-striped mb-0" id="versions-table">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Versão</th>
+                            <th>Canal</th>
+                            <th>Code</th>
+                            <th>Obrigatória</th>
+                            <th>Bloqueada</th>
+                            <th class="text-end">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const tableBody = document.querySelector('#versions-table tbody');
+    const refreshBtn = document.getElementById('refresh-versions');
+
+    async function fetchJson(url, options = {}) {
+        const res = await fetch(url, {
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            ...options,
+        });
+        if (!res.ok) throw new Error('Falha na requisição');
+        return res.json();
+    }
+
+    function renderVersions(versions) {
+        tableBody.innerHTML = '';
+        versions.forEach((version) => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${version.version_name}</td>
+                <td>${version.channel}</td>
+                <td>${version.version_code}</td>
+                <td>${version.is_mandatory ? 'Sim' : 'Não'}</td>
+                <td>${version.is_blocked ? 'Sim' : 'Não'}</td>
+                <td class="text-end">
+                    <button class="btn btn-sm btn-outline-danger" data-action="block">Bloquear</button>
+                </td>
+            `;
+
+            row.querySelector('button[data-action="block"]').addEventListener('click', async () => {
+                try {
+                    await fetchJson(`/admin/versions/${version.id}/block`, { method: 'POST' });
+                    await loadVersions();
+                } catch (err) {
+                    alert('Falha ao bloquear versão.');
+                }
+            });
+
+            tableBody.appendChild(row);
+        });
+    }
+
+    async function loadVersions() {
+        try {
+            const resp = await fetchJson('/admin/versions');
+            renderVersions(resp.data || []);
+        } catch (err) {
+            tableBody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Erro ao carregar versões.</td></tr>';
+        }
+    }
+
+    refreshBtn?.addEventListener('click', loadVersions);
+    loadVersions();
+</script>
+{% endblock %}

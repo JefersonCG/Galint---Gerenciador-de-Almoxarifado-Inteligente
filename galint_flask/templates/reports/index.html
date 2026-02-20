@@ -1,0 +1,625 @@
+{% extends "base.html" %}
+
+{% block title %}Relatórios Gerais - GALINT{% endblock %}
+
+{% block extra_css %}
+<style>
+    .filter-card {
+        background: var(--bs-dark);
+        border: 1px solid var(--bs-border-color);
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .stats-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 8px;
+        padding: 1rem;
+        color: white;
+        margin-bottom: 1.5rem;
+    }
+    
+    /* Cards de relatórios */
+    .report-card {
+        background: var(--bs-dark);
+        border: 1px solid var(--bs-border-color);
+        border-radius: 8px;
+        padding: 1.25rem;
+        height: 100%;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .report-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+        border-color: var(--bs-primary);
+    }
+    
+    .report-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: start;
+        margin-bottom: 0.75rem;
+    }
+    
+    .report-icon {
+        font-size: 2rem;
+        opacity: 0.8;
+        margin-bottom: 0.5rem;
+    }
+    
+    .report-title {
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: white;
+        margin-bottom: 0.25rem;
+    }
+    
+    .report-date {
+        font-size: 0.8rem;
+        color: var(--bs-secondary);
+    }
+    
+    .report-meta {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: 0.75rem;
+        flex-wrap: wrap;
+    }
+    
+    .report-actions {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: 1rem;
+    }
+    
+    /* Visualização em tabela compacta */
+    .report-table {
+        background: var(--bs-dark);
+        border-radius: 8px;
+        overflow: hidden;
+    }
+    
+    .report-row {
+        border-bottom: 1px solid var(--bs-border-color);
+        transition: background-color 0.2s;
+    }
+    
+    .report-row:hover {
+        background-color: rgba(255, 255, 255, 0.05);
+    }
+    
+    /* Badges */
+    .format-badge {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-weight: 600;
+    }
+    
+    .format-pdf { background-color: #dc3545; color: white; }
+    .format-xlsx { background-color: #28a745; color: white; }
+    .format-jpeg { background-color: #17a2b8; color: white; }
+    
+    .scope-badge {
+        font-size: 0.7rem;
+        padding: 0.2rem 0.4rem;
+        border-radius: 3px;
+        background-color: rgba(255, 255, 255, 0.1);
+        color: var(--bs-light);
+    }
+    
+    /* Paginação */
+    .pagination-wrapper {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 1rem;
+        margin-top: 2rem;
+        padding: 1rem;
+        background: var(--bs-dark);
+        border-radius: 8px;
+    }
+    
+    .page-info {
+        color: var(--bs-light);
+        font-size: 0.9rem;
+    }
+    
+    /* Busca rápida */
+    .quick-search {
+        position: relative;
+    }
+    
+    .quick-search i {
+        position: absolute;
+        left: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--bs-secondary);
+    }
+    
+    .quick-search input {
+        padding-left: 2.5rem;
+    }
+    
+    /* Toggle de visualização */
+    .view-toggle {
+        display: flex;
+        gap: 0.5rem;
+    }
+    
+    .view-toggle .btn {
+        padding: 0.5rem 1rem;
+    }
+    
+    .view-toggle .btn.active {
+        background-color: var(--bs-primary);
+        border-color: var(--bs-primary);
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 3rem;
+        color: var(--bs-secondary);
+    }
+    
+    .empty-state i {
+        font-size: 4rem;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
+    
+    /* Forçar texto branco para melhor legibilidade */
+    .form-label, .text-muted, label, p {
+        color: var(--bs-light) !important;
+    }
+    
+    .report-type, .report-date {
+        color: white !important;
+    }
+    
+    /* Responsividade */
+    @media (max-width: 768px) {
+        .stats-card h3 {
+            font-size: 1.5rem;
+        }
+        
+        .filter-card {
+            padding: 1rem;
+        }
+        
+        .report-card {
+            padding: 1rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block page_header %}
+<div>
+    <h2 class="mb-1" style="color: #000 !important;">📊 Relatórios Gerais</h2>
+    <p class="text-muted mb-0" style="color: #000 !important;">Acesse e baixe todos os relatórios gerados pelo sistema</p>
+</div>
+{% endblock %}
+
+{% block content %}
+<!-- Estatísticas -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3 col-sm-6">
+        <div class="stats-card">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <small class="opacity-75">Total de Relatórios</small>
+                    <h3 class="mb-0">{{ stats.total }}</h3>
+                </div>
+                <i class="bi bi-file-earmark-text" style="font-size: 2rem; opacity: 0.6;"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-sm-6">
+        <div class="stats-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <small class="opacity-75">Arquivos PDF</small>
+                    <h3 class="mb-0">{{ stats.pdf_count }}</h3>
+                </div>
+                <i class="bi bi-file-pdf" style="font-size: 2rem; opacity: 0.6;"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-sm-6">
+        <div class="stats-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <small class="opacity-75">Planilhas XLSX</small>
+                    <h3 class="mb-0">{{ stats.xlsx_count }}</h3>
+                </div>
+                <i class="bi bi-file-excel" style="font-size: 2rem; opacity: 0.6;"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-sm-6">
+        <div class="stats-card" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <small class="opacity-75">Espaço Usado</small>
+                    <h3 class="mb-0">{{ stats.total_size_mb }} MB</h3>
+                </div>
+                <i class="bi bi-hdd" style="font-size: 2rem; opacity: 0.6;"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filtros -->
+<div class="filter-card">
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+        <h5 class="mb-0 text-white"><i class="bi bi-funnel"></i> Filtros e Pesquisa</h5>
+        <div class="d-flex gap-2 flex-wrap">
+            <!-- Toggle de visualização -->
+            <div class="view-toggle">
+                <a href="?view=cards{% for key, value in request.args.items() %}{% if key != 'view' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" 
+                   class="btn btn-sm btn-outline-light {% if view_mode == 'cards' %}active{% endif %}">
+                    <i class="bi bi-grid-3x3-gap"></i> Cards
+                </a>
+                <a href="?view=table{% for key, value in request.args.items() %}{% if key != 'view' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" 
+                   class="btn btn-sm btn-outline-light {% if view_mode == 'table' %}active{% endif %}">
+                    <i class="bi bi-table"></i> Tabela
+                </a>
+            </div>
+            <a href="{{ url_for('reports.by_item') }}" class="btn btn-success btn-sm">
+                <i class="bi bi-search"></i> Buscar por Item
+            </a>
+        </div>
+    </div>
+    <hr class="my-3" style="opacity: 0.1;">
+    
+    <!-- Busca rápida -->
+    <form method="get" action="{{ url_for('reports.index') }}" class="mb-4">
+        <!-- Preservar view mode -->
+        <input type="hidden" name="view" value="{{ view_mode }}">
+        
+        <div class="quick-search" style="max-width: 400px;">
+            <i class="bi bi-search"></i>
+            <input type="text" class="form-control" name="search" 
+                   placeholder="Busca rápida por nome ou tipo..."
+                   value="{{ search_query or '' }}">
+        </div>
+        <small class="text-muted d-block mt-1">
+            <i class="bi bi-info-circle"></i> Digite e pressione Enter para filtrar a lista
+        </small>
+    </form>
+    
+    <!-- Filtros e Geração de Relatórios -->
+    <form method="get" action="{{ url_for('reports.index') }}" id="filterForm">
+        <!-- Preservar busca e view mode -->
+        <input type="hidden" name="view" value="{{ view_mode }}">
+        {% if search_query %}
+        <input type="hidden" name="search" value="{{ search_query }}">
+        {% endif %}
+        
+        <div class="row g-3 mb-3">
+            <div class="col-md-3">
+                <label class="form-label">
+                    <i class="bi bi-calendar-event"></i> Data Início
+                </label>
+                <input type="date" class="form-control" name="date_from" id="date_from"
+                       value="{{ filters.date_from or '' }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">
+                    <i class="bi bi-calendar-check"></i> Data Fim
+                </label>
+                <input type="date" class="form-control" name="date_to" id="date_to"
+                       value="{{ filters.date_to or '' }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">
+                    <i class="bi bi-filter"></i> Tipo de Relatório
+                </label>
+                <select class="form-select" name="type" id="report_type">
+                    <option value="all" {% if not filters.type or filters.type == 'all' %}selected{% endif %}>
+                        Todos os tipos
+                    </option>
+                    <option value="saidas" {% if filters.type == 'saidas' %}selected{% endif %}>
+                        Saídas no Período
+                    </option>
+                    <option value="entrada" {% if filters.type == 'entrada' %}selected{% endif %}>
+                        Entradas no Período
+                    </option>
+                    <option value="estoque" {% if filters.type == 'estoque' %}selected{% endif %}>
+                        Estoque Atual
+                    </option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">
+                    <i class="bi bi-file-earmark"></i> Formato
+                </label>
+                <select class="form-select" name="format" id="report_format">
+                    <option value="all" {% if not filters.format or filters.format == 'all' %}selected{% endif %}>
+                        Todos os formatos
+                    </option>
+                    <option value="pdf" {% if filters.format == 'pdf' %}selected{% endif %}>PDF</option>
+                    <option value="xlsx" {% if filters.format == 'xlsx' %}selected{% endif %}>XLSX</option>
+                    <option value="jpeg" {% if filters.format == 'jpeg' %}selected{% endif %}>JPEG</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="d-flex gap-2 flex-wrap">
+            <button type="submit" class="btn btn-primary">
+                <i class="bi bi-funnel-fill"></i> Aplicar Filtros
+            </button>
+            <a href="{{ url_for('reports.index') }}?view={{ view_mode }}" class="btn btn-secondary">
+                <i class="bi bi-x-circle"></i> Limpar Tudo
+            </a>
+            <button type="button" class="btn btn-success" onclick="generateReport()">
+                <i class="bi bi-file-earmark-arrow-down"></i> Gerar Relatório
+            </button>
+        </div>
+    </form>
+    
+    <script>
+    function generateReport() {
+        const dateFrom = document.getElementById('date_from').value;
+        const dateTo = document.getElementById('date_to').value;
+        const type = document.getElementById('report_type').value;
+        const format = document.getElementById('report_format').value;
+        
+        // Validar campos obrigatórios
+        if (!dateFrom || !dateTo) {
+            alert('Por favor, preencha as datas de início e fim.');
+            return;
+        }
+        
+        if (type === 'all') {
+            alert('Por favor, selecione um tipo específico de relatório.');
+            return;
+        }
+        
+        if (format === 'all') {
+            alert('Por favor, selecione um formato específico.');
+            return;
+        }
+        
+        // Criar formulário temporário para POST
+        const tempForm = document.createElement('form');
+        tempForm.method = 'POST';
+        tempForm.action = '{{ url_for("reports.gerar_relatorio") }}';
+        
+        // Adicionar campos
+        const fields = {
+            'date_from': dateFrom,
+            'date_to': dateTo,
+            'type': type,
+            'format': format
+        };
+        
+        for (const [name, value] of Object.entries(fields)) {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = name;
+            input.value = value;
+            tempForm.appendChild(input);
+        }
+        
+        document.body.appendChild(tempForm);
+        tempForm.submit();
+    }
+    </script>
+</div>
+
+<!-- Listagem de Relatórios -->
+{% if reports %}
+    {% if view_mode == 'cards' %}
+        <!-- Visualização em Cards -->
+        <div class="row g-3">
+            {% for report in reports %}
+            <div class="col-lg-4 col-md-6 col-12">
+                <div class="report-card">
+                    <div class="report-icon">
+                        {% if report.format == 'PDF' %}
+                            <i class="bi bi-file-pdf-fill text-danger"></i>
+                        {% elif report.format == 'XLSX' %}
+                            <i class="bi bi-file-excel-fill text-success"></i>
+                        {% elif report.format in ['JPEG', 'JPG'] %}
+                            <i class="bi bi-file-image-fill text-info"></i>
+                        {% else %}
+                            <i class="bi bi-file-earmark-fill text-secondary"></i>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="report-title">{{ report.type }}</div>
+                    <div class="report-date">
+                        <i class="bi bi-calendar-event"></i>
+                        {{ report.date.strftime('%d/%m/%Y às %H:%M') }}
+                    </div>
+                    
+                    <div class="report-meta">
+                        <span class="format-badge format-{{ report.format.lower() }}">
+                            {{ report.format }}
+                        </span>
+                        <span class="scope-badge">
+                            <i class="bi bi-hdd"></i> {{ report.size_mb }} MB
+                        </span>
+                        {% if report.scope and report.scope != 'all' %}
+                        <span class="scope-badge">
+                            {% if report.scope == 'tools' %}🔧 Ferramentas
+                            {% elif report.scope == 'materials' %}📦 Materiais
+                            {% else %}{{ report.scope }}
+                            {% endif %}
+                        </span>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="report-actions">
+                        <a href="{{ url_for('reports.download', filename=report.filename) }}" 
+                           class="btn btn-success btn-sm flex-grow-1" 
+                           title="Baixar relatório">
+                            <i class="bi bi-download"></i> Baixar
+                        </a>
+                        {% if current_user.tipo == 'admin' %}
+                        <button type="button" class="btn btn-danger btn-sm" 
+                                onclick="confirmDelete('{{ report.filename }}')" 
+                                title="Deletar relatório">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <!-- Visualização em Tabela -->
+        <div class="report-table">
+            <div class="table-responsive">
+                <table class="table table-dark table-hover mb-0">
+                    <thead>
+                        <tr style="border-bottom: 2px solid var(--bs-border-color);">
+                            <th width="25%">
+                                <i class="bi bi-calendar3"></i> Data/Hora
+                            </th>
+                            <th width="30%">
+                                <i class="bi bi-file-text"></i> Tipo
+                            </th>
+                            <th width="10%" class="text-center">
+                                <i class="bi bi-tag"></i> Formato
+                            </th>
+                            <th width="10%" class="text-center">
+                                <i class="bi bi-hdd"></i> Tamanho
+                            </th>
+                            <th width="25%" class="text-end">
+                                <i class="bi bi-gear"></i> Ações
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for report in reports %}
+                        <tr class="report-row">
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <i class="bi bi-clock me-2 text-muted"></i>
+                                    <div>
+                                        <div>{{ report.date.strftime('%d/%m/%Y') }}</div>
+                                        <small class="text-muted">{{ report.date.strftime('%H:%M:%S') }}</small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <div>{{ report.type }}</div>
+                                {% if report.scope and report.scope != 'all' %}
+                                <span class="scope-badge">
+                                    {% if report.scope == 'tools' %}🔧 Ferramentas
+                                    {% elif report.scope == 'materials' %}📦 Materiais
+                                    {% else %}{{ report.scope }}
+                                    {% endif %}
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                <span class="format-badge format-{{ report.format.lower() }}">
+                                    {{ report.format }}
+                                </span>
+                            </td>
+                            <td class="text-center text-muted">
+                                {{ report.size_mb }} MB
+                            </td>
+                            <td class="text-end">
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <a href="{{ url_for('reports.download', filename=report.filename) }}" 
+                                       class="btn btn-outline-success" 
+                                       title="Baixar relatório">
+                                        <i class="bi bi-download"></i> Baixar
+                                    </a>
+                                    {% if current_user.tipo == 'admin' %}
+                                    <button type="button" class="btn btn-outline-danger" 
+                                            onclick="confirmDelete('{{ report.filename }}')" 
+                                            title="Deletar relatório">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    {% endif %}
+    
+    <!-- Paginação -->
+    {% if total_pages > 1 %}
+    <div class="pagination-wrapper">
+        <a href="?page={{ page - 1 }}{% for key, value in request.args.items() %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" 
+           class="btn btn-outline-light btn-sm {% if page <= 1 %}disabled{% endif %}">
+            <i class="bi bi-chevron-left"></i> Anterior
+        </a>
+        
+        <div class="page-info">
+            <strong>Página {{ page }} de {{ total_pages }}</strong>
+            <span class="text-muted"> ({{ total_reports }} relatórios)</span>
+        </div>
+        
+        <a href="?page={{ page + 1 }}{% for key, value in request.args.items() %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" 
+           class="btn btn-outline-light btn-sm {% if page >= total_pages %}disabled{% endif %}">
+            Próximo <i class="bi bi-chevron-right"></i>
+        </a>
+    </div>
+    {% endif %}
+    
+{% else %}
+    <!-- Estado vazio -->
+    <div class="empty-state">
+        <i class="bi bi-inbox"></i>
+        <h4>Nenhum relatório encontrado</h4>
+        <p class="text-muted">
+            {% if search_query %}
+            Sua busca por "{{ search_query }}" não retornou resultados.
+            {% elif filters %}
+            Tente ajustar os filtros para visualizar mais resultados.
+            {% else %}
+            Os relatórios gerados aparecerão aqui automaticamente.
+            {% endif %}
+        </p>
+        <a href="{{ url_for('reports.index') }}" class="btn btn-primary mt-2">
+            <i class="bi bi-arrow-counterclockwise"></i> Ver Todos os Relatórios
+        </a>
+    </div>
+{% endif %}
+
+<!-- Modal de Confirmação de Exclusão (apenas para admins) -->
+{% if current_user.tipo == 'admin' %}
+<form id="deleteForm" method="post" action="">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+</form>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+function confirmDelete(filename) {
+    if (confirm('Tem certeza que deseja deletar o relatório "' + filename + '"?\n\nEsta ação não pode ser desfeita.')) {
+        const form = document.getElementById('deleteForm');
+        form.action = "{{ url_for('reports.delete', filename='FILENAME') }}".replace('FILENAME', filename);
+        form.submit();
+    }
+}
+
+// Auto-submit form when date inputs change (opcional)
+document.querySelectorAll('input[type="date"]').forEach(input => {
+    input.addEventListener('change', function() {
+        // Opcional: descomentar para auto-submit
+        // this.form.submit();
+    });
+});
+</script>
+{% endblock %}

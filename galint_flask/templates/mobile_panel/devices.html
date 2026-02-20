@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+
+{% block title %}Dispositivos - Painel Mobile{% endblock %}
+
+{% block page_header %}
+<h2 class="mb-0">Dispositivos</h2>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <strong>Dispositivos</strong>
+            <button class="btn btn-sm btn-outline-secondary" id="refresh-devices">
+                <i class="bi bi-arrow-clockwise"></i>
+            </button>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-striped mb-0" id="devices-table">
+                    <thead class="table-light">
+                        <tr>
+                            <th>UUID</th>
+                            <th>Modelo</th>
+                            <th>Usuário</th>
+                            <th>Versão</th>
+                            <th>Status</th>
+                            <th>Heartbeat</th>
+                            <th class="text-end">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const tableBody = document.querySelector('#devices-table tbody');
+    const refreshBtn = document.getElementById('refresh-devices');
+
+    const statusBadge = (status) => {
+        if (status === 'blocked') return '<span class="badge bg-danger">bloqueado</span>';
+        if (status === 'active') return '<span class="badge bg-success">ativo</span>';
+        return `<span class="badge bg-secondary">${status || 'n/a'}</span>`;
+    };
+
+    const lastSeen = (value) => value ? new Date(value).toLocaleString('pt-BR') : '-';
+
+    async function fetchJson(url, options = {}) {
+        const res = await fetch(url, {
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            ...options,
+        });
+        if (!res.ok) throw new Error('Falha na requisição');
+        return res.json();
+    }
+
+    async function postAction(url, payload) {
+        return fetchJson(url, { method: 'POST', body: JSON.stringify(payload || {}) });
+    }
+
+    function formatUser(device) {
+        const name = device.current_user_name || '';
+        const matricula = device.current_user_id || '';
+        if (!name && !matricula) return '-';
+        if (name && matricula) return `${name} (${matricula})`;
+        return name || matricula;
+    }
+
+    function renderDevices(devices) {
+        tableBody.innerHTML = '';
+        devices.forEach((device) => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${device.device_uuid || '-'}</td>
+                <td>${[device.manufacturer, device.model].filter(Boolean).join(' ') || '-'}</td>
+                <td>${formatUser(device)}</td>
+                <td>${device.apk_version || '-'} (${device.apk_channel || '-'})</td>
+                <td>${statusBadge(device.status)}</td>
+                <td>${lastSeen(device.last_heartbeat_at)}</td>
+                <td class="text-end">
+                    <button class="btn btn-sm btn-outline-danger me-1" data-action="block">Bloquear</button>
+                    <button class="btn btn-sm btn-outline-success me-1" data-action="unblock">Desbloquear</button>
+                    <button class="btn btn-sm btn-outline-secondary" data-action="logout">Logout</button>
+                </td>
+            `;
+
+            row.querySelectorAll('button[data-action]').forEach((btn) => {
+                btn.addEventListener('click', async () => {
+                    const action = btn.getAttribute('data-action');
+                    try {
+                        if (action === 'block') {
+                            const reason = prompt('Motivo do bloqueio:', 'Bloqueado pelo administrador');
+                            if (!reason) return;
+                            await postAction(`/admin/devices/${device.id}/block`, { reason });
+                        }
+                        if (action === 'unblock') {
+                            await postAction(`/admin/devices/${device.id}/unblock`);
+                        }
+                        if (action === 'logout') {
+                            await postAction(`/admin/devices/${device.id}/logout`);
+                        }
+                        await loadDevices();
+                    } catch (err) {
+                        alert('Falha ao executar ação.');
+                    }
+                });
+            });
+
+            tableBody.appendChild(row);
+        });
+    }
+
+    async function loadDevices() {
+        try {
+            const resp = await fetchJson('/admin/devices');
+            renderDevices(resp.data || []);
+        } catch (err) {
+            tableBody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">Erro ao carregar dispositivos.</td></tr>';
+        }
+    }
+
+    refreshBtn?.addEventListener('click', loadDevices);
+    loadDevices();
+</script>
+{% endblock %}

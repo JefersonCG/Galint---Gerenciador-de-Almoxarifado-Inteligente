@@ -1,0 +1,382 @@
+{% extends "base.html" %}
+
+{% block title %}Painel Mobile - GALINT{% endblock %}
+
+{% block page_header %}
+<h2 class="mb-0">Painel Mobile</h2>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+    <!-- Cards KPI Clicáveis -->
+    <div class="row g-3 mb-3">
+        <div class="col-md-3">
+            <div class="card bg-success text-white cursor-pointer" id="card-online" style="cursor: pointer;">
+                <div class="card-body">
+                    <h6 class="card-title">Dispositivos Online</h6>
+                    <h3 class="mb-0" id="kpi-online">--</h3>
+                    <small>últimos 5 minutos</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-dark cursor-pointer" id="card-offline" style="cursor: pointer;">
+                <div class="card-body">
+                    <h6 class="card-title">Dispositivos Offline</h6>
+                    <h3 class="mb-0" id="kpi-offline">--</h3>
+                    <small>sem heartbeat</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-danger text-white cursor-pointer" id="card-blocked" style="cursor: pointer;">
+                <div class="card-body">
+                    <h6 class="card-title">Bloqueados</h6>
+                    <h3 class="mb-0" id="kpi-blocked">--</h3>
+                    <small>admin</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <h6 class="card-title">Versão Atual</h6>
+                    <h3 class="mb-0" id="kpi-version">--</h3>
+                    <small>produção</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alertas Inteligentes -->
+    <div id="alerts-container"></div>
+
+    <!-- Ações Rápidas -->
+    <div class="d-flex flex-wrap gap-2 mb-3 align-items-center">
+        <button class="btn btn-outline-secondary btn-sm" id="btn-clear-filter">
+            <i class="bi bi-x-circle me-1"></i> Limpar Filtro
+        </button>
+        <span class="text-muted ms-2" id="filter-status">Mostrando todos</span>
+        <div class="ms-auto">
+            <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('mobile_panel.versions') }}">
+                <i class="bi bi-tag me-1"></i> Versões
+            </a>
+            <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('mobile_panel.features') }}">
+                <i class="bi bi-toggle-on me-1"></i> Features
+            </a>
+            <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('mobile_panel.audit') }}">
+                <i class="bi bi-journal-text me-1"></i> Auditoria
+            </a>
+        </div>
+    </div>
+
+    <!-- Tabela Principal de Dispositivos -->
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <strong>Dispositivos Ativos</strong>
+            <button class="btn btn-sm btn-outline-secondary" id="refresh-devices">
+                <i class="bi bi-arrow-clockwise"></i>
+            </button>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover table-sm mb-0" id="devices-table">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 100px;">ID</th>
+                            <th>Usuário</th>
+                            <th style="width: 120px;">Status</th>
+                            <th style="width: 180px;">Última Atividade</th>
+                            <th>Versão</th>
+                            <th class="text-end" style="width: 200px;">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let allDevices = [];
+    let currentFilter = null;
+
+    // Helpers
+    const toDate = (value) => value ? new Date(value) : null;
+    const hoursSince = (date) => date ? (Date.now() - date.getTime()) / (60 * 60 * 1000) : null;
+    const daysSince = (date) => date ? (Date.now() - date.getTime()) / (24 * 60 * 60 * 1000) : null;
+    const shortId = (uuid) => uuid ? uuid.substring(0, 8) : '-';
+    
+    const timeAgo = (dateStr) => {
+        if (!dateStr) return '-';
+        const date = new Date(dateStr);
+        const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
+        
+        if (seconds < 60) return 'agora';
+        if (seconds < 3600) return `${Math.floor(seconds / 60)} min atrás`;
+        if (seconds < 86400) return `${Math.floor(seconds / 3600)}h atrás`;
+        const days = Math.floor(seconds / 86400);
+        return `há ${days} dia${days > 1 ? 's' : ''}`;
+    };
+
+    async function fetchJson(url, options = {}) {
+        const res = await fetch(url, { credentials: 'same-origin', ...options });
+        if (!res.ok) throw new Error('Falha ao carregar dados');
+        return res.json();
+    }
+
+    async function postAction(url, payload) {
+        return fetchJson(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload || {}),
+        });
+    }
+
+    function setText(id, value) {
+        const el = document.getElementById(id);
+        if (el) el.textContent = value;
+    }
+
+    function isOnline(device) {
+        if (device.status === 'blocked') return false;
+        const last = toDate(device.last_heartbeat_at);
+        return last && (Date.now() - last.getTime()) <= 5 * 60 * 1000;
+    }
+
+    function getDeviceStatus(device) {
+        if (device.status === 'blocked') return 'blocked';
+        return isOnline(device) ? 'online' : 'offline';
+    }
+
+    function statusBadge(status) {
+        const badges = {
+            online: '<span class="badge bg-success">🟢 Online</span>',
+            offline: '<span class="badge bg-warning text-dark">🟡 Offline</span>',
+            blocked: '<span class="badge bg-danger">🔴 Bloqueado</span>',
+        };
+        return badges[status] || '<span class="badge bg-secondary">-</span>';
+    }
+
+    function generateAlerts(devices) {
+        const alerts = [];
+        const now = Date.now();
+
+        // Alerta: dispositivos bloqueados há mais de 7 dias
+        const staleBlocked = devices.filter(d => {
+            if (d.status !== 'blocked' || !d.blocked_at) return false;
+            return daysSince(toDate(d.blocked_at)) > 7;
+        });
+        if (staleBlocked.length > 0) {
+            alerts.push({
+                level: 'danger',
+                icon: 'bi-exclamation-triangle-fill',
+                msg: `${staleBlocked.length} dispositivo(s) bloqueado há mais de 7 dias`,
+                action: () => filterDevices('stale-blocked'),
+            });
+        }
+
+        // Alerta: dispositivos offline há mais de 48h
+        const longOffline = devices.filter(d => {
+            if (d.status === 'blocked') return false;
+            const hours = hoursSince(toDate(d.last_heartbeat_at));
+            return hours && hours > 48;
+        });
+        if (longOffline.length > 2) {
+            alerts.push({
+                level: 'warning',
+                icon: 'bi-info-circle',
+                msg: `${longOffline.length} dispositivos offline há mais de 2 dias`,
+            });
+        }
+
+        // Alerta: múltiplos devices por usuário
+        const userDevices = {};
+        devices.filter(d => isOnline(d)).forEach(d => {
+            if (d.current_user_id) {
+                userDevices[d.current_user_id] = (userDevices[d.current_user_id] || 0) + 1;
+            }
+        });
+        const multiDevice = Object.entries(userDevices).filter(([_, count]) => count >= 3);
+        if (multiDevice.length > 0) {
+            alerts.push({
+                level: 'info',
+                icon: 'bi-person-fill',
+                msg: `${multiDevice.length} usuário(s) com 3+ dispositivos online simultaneamente`,
+            });
+        }
+
+        return alerts;
+    }
+
+    function renderAlerts(alerts) {
+        const container = document.getElementById('alerts-container');
+        if (!container) return;
+        
+        container.innerHTML = '';
+        alerts.forEach(alert => {
+            const div = document.createElement('div');
+            div.className = `alert alert-${alert.level} alert-dismissible fade show mb-2`;
+            div.innerHTML = `
+                <i class="bi ${alert.icon} me-2"></i>${alert.msg}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            if (alert.action) {
+                div.style.cursor = 'pointer';
+                div.addEventListener('click', alert.action);
+            }
+            container.appendChild(div);
+        });
+    }
+
+    function renderDevices(devices) {
+        const tbody = document.querySelector('#devices-table tbody');
+        if (!tbody) return;
+
+        tbody.innerHTML = '';
+        
+        if (devices.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">Nenhum dispositivo encontrado</td></tr>';
+            return;
+        }
+
+        devices.forEach((device) => {
+            const status = getDeviceStatus(device);
+            const row = document.createElement('tr');
+            
+            row.innerHTML = `
+                <td class="font-monospace small">${shortId(device.device_uuid)}</td>
+                <td>${device.current_user_id || '<em class="text-muted">-</em>'}</td>
+                <td>${statusBadge(status)}</td>
+                <td class="text-muted small">${timeAgo(device.last_heartbeat_at)}</td>
+                <td class="small">${device.apk_version || '-'}</td>
+                <td class="text-end">
+                    <div class="btn-group btn-group-sm" role="group">
+                        ${device.status === 'blocked' 
+                            ? `<button class="btn btn-outline-success" data-action="unblock" title="Desbloquear">
+                                <i class="bi bi-unlock"></i>
+                               </button>`
+                            : `<button class="btn btn-outline-danger" data-action="block" title="Bloquear">
+                                <i class="bi bi-shield-lock"></i>
+                               </button>`
+                        }
+                        <button class="btn btn-outline-secondary" data-action="logout" title="Forçar Logout">
+                            <i class="bi bi-box-arrow-right"></i>
+                        </button>
+                        <button class="btn btn-outline-info" data-action="details" title="Detalhes">
+                            <i class="bi bi-info-circle"></i>
+                        </button>
+                    </div>
+                </td>
+            `;
+
+            row.querySelectorAll('button[data-action]').forEach((btn) => {
+                btn.addEventListener('click', async () => {
+                    const action = btn.getAttribute('data-action');
+                    try {
+                        if (action === 'block') {
+                            const reason = prompt('Motivo do bloqueio:', 'Bloqueado pelo administrador');
+                            if (!reason) return;
+                            await postAction(`/admin/devices/${device.id}/block`, { reason });
+                        } else if (action === 'unblock') {
+                            await postAction(`/admin/devices/${device.id}/unblock`);
+                        } else if (action === 'logout') {
+                            if (!confirm('Forçar logout deste dispositivo?')) return;
+                            await postAction(`/admin/devices/${device.id}/logout`);
+                        } else if (action === 'details') {
+                            alert(`Device: ${device.device_uuid}\nModelo: ${device.manufacturer} ${device.model}\nOS: ${device.os_version}\nIP: ${device.last_ip_address || '-'}`);
+                            return;
+                        }
+                        await loadDashboard();
+                    } catch (err) {
+                        alert('Falha ao executar ação: ' + err.message);
+                    }
+                });
+            });
+
+            tbody.appendChild(row);
+        });
+    }
+
+    function filterDevices(filter) {
+        currentFilter = filter;
+        let filtered = [...allDevices];
+
+        if (filter === 'online') {
+            filtered = filtered.filter(d => getDeviceStatus(d) === 'online');
+            setText('filter-status', 'Mostrando apenas dispositivos online');
+        } else if (filter === 'offline') {
+            filtered = filtered.filter(d => getDeviceStatus(d) === 'offline');
+            setText('filter-status', 'Mostrando apenas dispositivos offline');
+        } else if (filter === 'blocked') {
+            filtered = filtered.filter(d => d.status === 'blocked');
+            setText('filter-status', 'Mostrando apenas dispositivos bloqueados');
+        } else if (filter === 'stale-blocked') {
+            filtered = filtered.filter(d => {
+                if (d.status !== 'blocked' || !d.blocked_at) return false;
+                return daysSince(toDate(d.blocked_at)) > 7;
+            });
+            setText('filter-status', 'Mostrando bloqueados há mais de 7 dias');
+        } else {
+            currentFilter = null;
+            setText('filter-status', 'Mostrando todos');
+        }
+
+        renderDevices(filtered);
+    }
+
+    async function loadDashboard() {
+        try {
+            const [devicesResp, versionsResp] = await Promise.all([
+                fetchJson('/admin/devices'),
+                fetchJson('/admin/versions'),
+            ]);
+
+            allDevices = devicesResp.data || [];
+            const versions = versionsResp.data || [];
+
+            // Calcular métricas
+            let online = 0;
+            let offline = 0;
+            let blocked = 0;
+
+            allDevices.forEach((device) => {
+                const status = getDeviceStatus(device);
+                if (status === 'online') online++;
+                else if (status === 'offline') offline++;
+                else if (status === 'blocked') blocked++;
+            });
+
+            setText('kpi-online', online);
+            setText('kpi-offline', offline);
+            setText('kpi-blocked', blocked);
+
+            const prod = versions.find(v => v.channel === 'production');
+            setText('kpi-version', prod ? prod.version_name : '--');
+
+            // Gerar alertas
+            const alerts = generateAlerts(allDevices);
+            renderAlerts(alerts);
+
+            // Renderizar tabela (respeitando filtro ativo)
+            filterDevices(currentFilter);
+
+        } catch (err) {
+            alert('Erro ao carregar dashboard: ' + err.message);
+        }
+    }
+
+    // Event listeners
+    document.getElementById('card-online')?.addEventListener('click', () => filterDevices('online'));
+    document.getElementById('card-offline')?.addEventListener('click', () => filterDevices('offline'));
+    document.getElementById('card-blocked')?.addEventListener('click', () => filterDevices('blocked'));
+    document.getElementById('btn-clear-filter')?.addEventListener('click', () => filterDevices(null));
+    document.getElementById('refresh-devices')?.addEventListener('click', loadDashboard);
+
+    // Carregar na inicialização
+    loadDashboard();
+</script>
+{% endblock %}

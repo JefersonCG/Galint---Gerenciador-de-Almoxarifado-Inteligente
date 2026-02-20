@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="pt-br">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      @page { size: A4 landscape; margin: 10mm; }
+      body { font-family: sans-serif; font-size: 10px; color: #111; }
+      .center { text-align: center; }
+      h1 { margin: 0; font-size: 18px; }
+      h2 { margin: 2px 0 6px 0; font-size: 12px; font-weight: 700; }
+      .company { margin: 0 0 8px 0; line-height: 1.25; }
+      .meta { margin: 6px 0 8px 0; }
+      table { width: 100%; border-collapse: collapse; }
+      th, td { border: 1px solid #cfcfcf; padding: 4px 6px; vertical-align: top; }
+      th { font-weight: 700; background: #f3f3f3; }
+      .nowrap { white-space: nowrap; }
+    </style>
+  </head>
+  <body>
+    <div class="center">
+      <h1>{{ titulo }}</h1>
+      <h2>{{ subtitulo }}</h2>
+      <div class="company">{{ company_html | safe }}</div>
+    </div>
+
+    <div class="meta">
+      <div>Período: <strong>{{ periodo }}</strong></div>
+      <div>Total de registros: {{ total_registros }}</div>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th class="nowrap">Data</th>
+          <th class="nowrap">Hora</th>
+          <th>Funcionário</th>
+          <th>Ferramenta</th>
+          <th class="nowrap">Qtd.</th>
+          <th>Local</th>
+          <th class="nowrap">Devolvido?</th>
+          <th class="nowrap">Data Devolução</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+          <tr>
+            <td class="nowrap">{{ row.data }}</td>
+            <td class="nowrap">{{ row.hora }}</td>
+            <td>{{ row.funcionario }}</td>
+            <td>{{ row.ferramenta }}</td>
+            <td class="nowrap">{{ row.qtd }}</td>
+            <td>{{ row.local }}</td>
+            <td class="nowrap">{{ row.devolvido }}</td>
+            <td class="nowrap">{{ row.data_devolucao }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </body>
+</html>

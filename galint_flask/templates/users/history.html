@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Histórico de retiradas{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h1 class="h3 mb-1">Histórico de retiradas</h1>
+        <p class="text-muted mb-0">Registro das saídas de materiais realizadas por {{ usuario.nome }} (matrícula {{
+            usuario.matricula }}).</p>
+    </div>
+    <div class="btn-group">
+        <a class="btn btn-outline-primary"
+            href="{{ url_for('users.user_history_pdf', matricula=usuario.matricula) }}">Exportar PDF</a>
+        <a class="btn btn-outline-secondary" href="{{ url_for('users.list_users') }}">Voltar</a>
+    </div>
+</div>
+<div class="card">
+    <div class="card-body">
+        {% if saidas %}
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Código</th>
+                        <th>Descrição</th>
+                        <th>Quantidade</th>
+                        <th>Data</th>
+                        <th>Observação</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for registro in saidas %}
+                    <tr>
+                        <td>{{ registro.codigo or '-' }}</td>
+                        <td>{{ registro.descricao or 'Item removido' }}</td>
+                        <td>{{ registro.quantidade }}</td>
+                        <td>{{ registro.data.strftime('%d/%m/%Y %H:%M') }}</td>
+                        <td>{{ registro.observacao or '-' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted mb-0">Nenhuma retirada registrada para este usuário.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

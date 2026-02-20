@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Rede{% endblock %}
+{% block page_header %}
+<h2>Rede</h2>
+<p class="text-muted">Configurações de rede e modos de operação.</p>
+{% endblock %}
+{% block content %}
+<div class="card">
+    <div class="card-body">
+        <h5 class="card-title">Compartilhamento do Dashboard</h5>
+        <p class="card-text text-muted">
+            Somente o painel principal pode ser disponibilizado para a rede. Utilize o link abaixo para exibição em
+            televisores ou navegadores sem autenticação.
+        </p>
+        {% if token_configured and share_url %}
+        <div class="alert alert-success" role="alert">
+            Link público ativo:<br>
+            <a href="{{ share_url }}" class="text-break" target="_blank" rel="noopener">{{ share_url }}</a>
+        </div>
+        <p class="text-muted small">Compartilhe o endereço apenas com pessoas autorizadas. Para revogar o acesso,
+            atualize a variável de ambiente <code>GALINT_DASHBOARD_TOKEN</code>.</p>
+        {% else %}
+        <div class="alert alert-warning" role="alert">
+            Nenhum token de compartilhamento foi definido. Configure a variável de ambiente
+            <code>GALINT_DASHBOARD_TOKEN</code> e reinicie o sistema para gerar um link seguro.
+        </div>
+        {% endif %}
+        <hr>
+        <p class="text-muted mb-0">Outras áreas do sistema permanecem restritas e exigem login individual.</p>
+    </div>
+</div>
+{% endblock %}

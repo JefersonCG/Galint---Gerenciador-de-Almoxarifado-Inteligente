@@ -1,0 +1,210 @@
+{% extends "base.html" %}
+
+{% block title %}Configuração da Empresa{% endblock %}
+
+{% block extra_css %}
+<style>
+    .config-card {
+        background: white;
+        border-radius: 12px;
+        padding: 2rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        margin-bottom: 2rem;
+    }
+    
+    .config-header {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 2rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid #e9ecef;
+    }
+    
+    .config-header i {
+        font-size: 2rem;
+        color: #0d6efd;
+    }
+    
+    .form-section {
+        margin-bottom: 2rem;
+    }
+    
+    .form-section h4 {
+        color: #495057;
+        font-size: 1.1rem;
+        font-weight: 600;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid #dee2e6;
+    }
+    
+    .logo-preview {
+        max-width: 300px;
+        max-height: 200px;
+        border: 2px dashed #dee2e6;
+        border-radius: 8px;
+        padding: 1rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #f8f9fa;
+    }
+    
+    .logo-preview img {
+        max-width: 100%;
+        max-height: 100%;
+    }
+    
+    .logo-placeholder {
+        color: #6c757d;
+        text-align: center;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="config-card">
+        <div class="config-header">
+            <i class="bi bi-building"></i>
+            <div>
+                <h2 class="mb-0">Configuração da Empresa</h2>
+                <small class="text-muted">Personalize os dados da sua empresa</small>
+            </div>
+        </div>
+        
+        <form method="POST" enctype="multipart/form-data">
+            <!-- Dados da Empresa -->
+            <div class="form-section">
+                <h4><i class="bi bi-info-circle me-2"></i>Dados da Empresa</h4>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="nome_empresa" class="form-label">Nome da Empresa *</label>
+                        <input type="text" class="form-control" id="nome_empresa" name="nome_empresa" 
+                               value="{{ empresa_config.nome_empresa }}" required>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="nome_fantasia" class="form-label">Nome Fantasia</label>
+                        <input type="text" class="form-control" id="nome_fantasia" name="nome_fantasia" 
+                               value="{{ empresa_config.nome_fantasia or '' }}">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="cnpj" class="form-label">CNPJ</label>
+                        <input type="text" class="form-control" id="cnpj" name="cnpj" 
+                               value="{{ empresa_config.cnpj or '' }}" placeholder="00.000.000/0000-00">
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Endereço -->
+            <div class="form-section">
+                <h4><i class="bi bi-geo-alt me-2"></i>Endereço</h4>
+                <div class="row">
+                    <div class="col-md-8 mb-3">
+                        <label for="endereco_rua" class="form-label">Rua/Avenida</label>
+                        <input type="text" class="form-control" id="endereco_rua" name="endereco_rua" 
+                               value="{{ empresa_config.endereco_rua or '' }}">
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label for="endereco_numero" class="form-label">Número</label>
+                        <input type="text" class="form-control" id="endereco_numero" name="endereco_numero" 
+                               value="{{ empresa_config.endereco_numero or '' }}">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="endereco_complemento" class="form-label">Complemento</label>
+                        <input type="text" class="form-control" id="endereco_complemento" name="endereco_complemento" 
+                               value="{{ empresa_config.endereco_complemento or '' }}">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="endereco_bairro" class="form-label">Bairro</label>
+                        <input type="text" class="form-control" id="endereco_bairro" name="endereco_bairro" 
+                               value="{{ empresa_config.endereco_bairro or '' }}">
+                    </div>
+                    <div class="col-md-5 mb-3">
+                        <label for="endereco_cidade" class="form-label">Cidade</label>
+                        <input type="text" class="form-control" id="endereco_cidade" name="endereco_cidade" 
+                               value="{{ empresa_config.endereco_cidade or '' }}">
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label for="endereco_estado" class="form-label">Estado</label>
+                        <select class="form-select" id="endereco_estado" name="endereco_estado">
+                            <option value="">Selecione...</option>
+                            {% for uf in ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'] %}
+                            <option value="{{ uf }}" {% if empresa_config.endereco_estado == uf %}selected{% endif %}>{{ uf }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label for="endereco_cep" class="form-label">CEP</label>
+                        <input type="text" class="form-control" id="endereco_cep" name="endereco_cep" 
+                               value="{{ empresa_config.endereco_cep or '' }}" placeholder="00000-000">
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Contato -->
+            <div class="form-section">
+                <h4><i class="bi bi-telephone me-2"></i>Contato</h4>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="telefone" class="form-label">Telefone Principal</label>
+                        <input type="text" class="form-control" id="telefone" name="telefone" 
+                               value="{{ empresa_config.telefone or '' }}" placeholder="(00) 0000-0000">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="telefone_secundario" class="form-label">Telefone Secundário</label>
+                        <input type="text" class="form-control" id="telefone_secundario" name="telefone_secundario" 
+                               value="{{ empresa_config.telefone_secundario or '' }}" placeholder="(00) 0000-0000">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="email" class="form-label">E-mail</label>
+                        <input type="email" class="form-control" id="email" name="email" 
+                               value="{{ empresa_config.email or '' }}" placeholder="contato@empresa.com.br">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="site" class="form-label">Website</label>
+                        <input type="text" class="form-control" id="site" name="site" 
+                               value="{{ empresa_config.site or '' }}" placeholder="www.empresa.com.br">
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Logo -->
+            <div class="form-section">
+                <h4><i class="bi bi-image me-2"></i>Logo da Empresa</h4>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="logo" class="form-label">Upload do Logo</label>
+                        <input type="file" class="form-control" id="logo" name="logo" accept="image/*">
+                        <small class="text-muted">Formatos: PNG, JPG, GIF, WEBP (máx. 2MB)</small>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Preview do Logo</label>
+                        <div class="logo-preview">
+                            {% if empresa_config.logo_path %}
+                            <img src="{{ url_for('static', filename=empresa_config.logo_path) }}" alt="Logo da empresa">
+                            {% else %}
+                            <div class="logo-placeholder">
+                                <i class="bi bi-image" style="font-size: 3rem;"></i>
+                                <p class="mb-0">Nenhum logo definido</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Botões -->
+            <div class="d-flex gap-3 justify-content-end mt-4">
+                <a href="{{ url_for('dashboard.index') }}" class="btn btn-secondary">
+                    <i class="bi bi-arrow-left me-2"></i>Voltar
+                </a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-check-lg me-2"></i>Salvar Configurações
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

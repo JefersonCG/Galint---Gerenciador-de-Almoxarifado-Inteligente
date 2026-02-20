@@ -1,0 +1,168 @@
+<div class="sidebar-wrapper">
+    <div class="sidebar-brand px-3 py-4 text-uppercase text-light">
+        <strong>GALINT</strong>
+        <small class="text-white-50 d-block">Gestão de Almoxarifado</small>
+    </div>
+    <div class="sidebar-scroll">
+        {% set p = request.path %}
+        <nav class="sidebar-menu">
+            {% set saidas_fracionadas_url = url_for('movements.saidas_fracionadas_page') if endpoint_exists('movements.saidas_fracionadas_page') else None %}
+            {% set saida_fracionada_url = url_for('movements.saida_fracionada_page') if endpoint_exists('movements.saida_fracionada_page') else None %}
+            {% set ferramentas_retirar_url = url_for('ferramentas.retirar_page') if endpoint_exists('ferramentas.retirar_page') else None %}
+            {% set ferramentas_painel_url = url_for('ferramentas.painel') if endpoint_exists('ferramentas.painel') else None %}
+            <a class="sidebar-link {% if p == url_for('dashboard.index') %}active{% endif %}"
+                href="{{ url_for('dashboard.index') }}">
+                <i class="bi bi-speedometer2"></i>
+                <span>Dashboard</span>
+            </a>
+            <!-- Grupo removido: -->
+            <!-- Mantemos links diretos para registros e controles relacionados ao estoque -->
+            {% set lancamentos_active = p.startswith(url_for('movements.index')) or
+            p.startswith(url_for('movements.saida_page')) or
+            (saida_fracionada_url and p.startswith(saida_fracionada_url)) or
+            p.startswith(url_for('movements.entrada_page')) or
+            (ferramentas_retirar_url and p.startswith(ferramentas_retirar_url)) or
+            (saidas_fracionadas_url and p.startswith(saidas_fracionadas_url)) %}
+            <button
+                class="sidebar-link d-flex justify-content-between align-items-center border-0 bg-transparent text-start w-100 {{ 'active' if lancamentos_active else 'collapsed' }}"
+                type="button" data-bs-toggle="collapse" data-bs-target="#lancamentosMenu"
+                aria-expanded="{{ 'true' if lancamentos_active else 'false' }}">
+                <span>
+                    <i class="bi bi-box-seam"></i>
+                    <span>Lançamentos</span>
+                </span>
+                <i class="bi bi-chevron-down small"></i>
+            </button>
+            <div id="lancamentosMenu" class="collapse {{ 'show' if lancamentos_active else '' }}">
+                <a class="sidebar-link ps-4 {% if p.startswith(url_for('movements.saida_page')) %}active{% endif %}"
+                    href="{{ url_for('movements.saida_page') }}">
+                    <i class="bi bi-arrow-up-right"></i>
+                    <span>Registro de Saída</span>
+                </a>
+                {% if saida_fracionada_url %}
+                <a class="sidebar-link ps-4 {% if p.startswith(saida_fracionada_url) %}active{% endif %}"
+                    href="{{ saida_fracionada_url }}">
+                    <i class="bi bi-droplet-half"></i>
+                    <span>Registro de Saída Fracionada</span>
+                </a>
+                {% endif %}
+                <a class="sidebar-link ps-4 {% if p.startswith(url_for('movements.entrada_page')) %}active{% endif %}"
+                    href="{{ url_for('movements.entrada_page') }}">
+                    <i class="bi bi-arrow-return-left"></i>
+                    <span>Registro de Devolução</span>
+                </a>
+                {% if ferramentas_retirar_url %}
+                <a class="sidebar-link ps-4 {% if p.startswith(ferramentas_retirar_url) %}active{% endif %}"
+                    href="{{ ferramentas_retirar_url }}">
+                    <i class="bi bi-tools"></i>
+                    <span>Retirada de Ferramentas</span>
+                </a>
+                {% endif %}
+                {% if saidas_fracionadas_url %}
+                <a class="sidebar-link ps-4 {% if p.startswith(saidas_fracionadas_url) %}active{% endif %}"
+                    href="{{ saidas_fracionadas_url }}">
+                    <i class="bi bi-droplet-half"></i>
+                    <span>Saídas Fracionadas</span>
+                </a>
+                {% endif %}
+            </div>
+            <a class="sidebar-link {% if p.startswith(url_for('inventory.list_items')) %}active{% endif %}"
+                href="{{ url_for('inventory.list_items') }}">
+                <i class="bi bi-boxes"></i>
+                <span>Estoque</span>
+            </a>
+            {% if endpoint_exists('tool_custody.index') %}
+            <a class="sidebar-link {% if p.startswith(url_for('tool_custody.index')) %}active{% endif %}"
+                href="{{ url_for('tool_custody.index') }}">
+                <i class="bi bi-search"></i>
+                <span>Auditar Ferramentas</span>
+            </a>
+            {% endif %}
+            {% if endpoint_exists('reparo.listar_reparos') %}
+            <a class="sidebar-link {% if p.startswith(url_for('reparo.listar_reparos')) %}active{% endif %}"
+                href="{{ url_for('reparo.listar_reparos') }}">
+                <i class="bi bi-tools"></i>
+                <span>Equipamentos em Reparo</span>
+            </a>
+            {% endif %}
+            {% if config.get('FEATURE_NOTAS_ENABLED', True) %}
+            <a class="sidebar-link {% if p.startswith(url_for('nf.nf_index')) %}active{% endif %}"
+                href="{{ url_for('nf.nf_index') }}">
+                <i class="bi bi-receipt"></i>
+                <span>Notas Fiscais</span>
+            </a>
+            {% endif %}
+            {% if endpoint_exists('reports.index') %}
+            <a class="sidebar-link {% if p.startswith(url_for('reports.index')) %}active{% endif %}"
+                href="{{ url_for('reports.index') }}">
+                <i class="bi bi-file-earmark-bar-graph"></i>
+                <span>Relatórios Gerais</span>
+            </a>
+            {% endif %}
+            {% if current_user.is_authenticated and current_user.is_admin %}
+            <a class="sidebar-link {% if p.startswith(url_for('users.list_users')) %}active{% endif %}"
+                href="{{ url_for('users.list_users') }}">
+                <i class="bi bi-people-fill"></i>
+                <span>Usuários</span>
+            </a>
+            <a class="sidebar-link {% if p.startswith('/mobile-panel') %}active{% endif %}"
+                href="/mobile-panel">
+                <i class="bi bi-phone-fill"></i>
+                <span>Painel Mobile</span>
+            </a>
+            <div class="sidebar-divider"></div>
+
+            {% set configuracoes_active = p.startswith(url_for('pages.config')) %}
+            <button
+                class="sidebar-link d-flex justify-content-between align-items-center border-0 bg-transparent text-start w-100 {{ 'active' if configuracoes_active else 'collapsed' }}"
+                type="button" data-bs-toggle="collapse" data-bs-target="#configuracoesMenu"
+                aria-expanded="{{ 'true' if configuracoes_active else 'false' }}">
+                <span>
+                    <i class="bi bi-gear-fill"></i>
+                    <span>Configurações</span>
+                </span>
+                <i class="bi bi-chevron-down small"></i>
+            </button>
+            <div id="configuracoesMenu" class="collapse {{ 'show' if configuracoes_active else '' }}">
+                <a class="sidebar-link ps-4 {% if p.startswith(url_for('config.empresa')) %}active{% endif %}"
+                    href="{{ url_for('config.empresa') }}">
+                    <i class="bi bi-building"></i>
+                    <span>Empresa</span>
+                </a>
+                <a class="sidebar-link ps-4 {% if p.startswith(url_for('config.relatorios')) %}active{% endif %}"
+                    href="{{ url_for('config.relatorios') }}">
+                    <i class="bi bi-file-earmark-text"></i>
+                    <span>Relatórios</span>
+                </a>
+                <a class="sidebar-link ps-4 {% if p.startswith(url_for('updates.index')) %}active{% endif %}"
+                    href="{{ url_for('updates.index') }}">
+                    <i class="bi bi-arrow-clockwise"></i>
+                    <span>Atualizações</span>
+                </a>
+                <a class="sidebar-link ps-4 {% if p.startswith(url_for('pages.config_rede')) %}active{% endif %}"
+                    href="{{ url_for('pages.config_rede') }}">
+                    <i class="bi bi-wifi"></i>
+                    <span>Rede</span>
+                </a>
+                <a class="sidebar-link ps-4 {% if p.startswith(url_for('telegram_config.index')) %}active{% endif %}"
+                    href="{{ url_for('telegram_config.index') }}">
+                    <i class="bi bi-telegram"></i>
+                    <span>Telegram</span>
+                </a>
+                <a class="sidebar-link ps-4 {% if p.startswith(url_for('pages.config_backup')) or p.startswith(url_for('pages.restore_backup')) %}active{% endif %}"
+                    href="{{ url_for('pages.config_backup') }}">
+                    <i class="bi bi-database"></i>
+                    <span>Backup</span>
+                </a>
+            </div>
+            {% endif %}
+            <div class="sidebar-divider"></div>
+            <a class="sidebar-link {% if p == url_for('pages.sobre') %}active{% endif %}"
+                href="{{ url_for('pages.sobre') }}">Sobre</a>
+        </nav>
+    </div>
+    <div class="sidebar-footer px-3 py-3">
+        <small class="text-muted">Usuário: {% if current_user.is_authenticated %}{{ current_user.nome }}{% else
+            %}Visitante{% endif %}</small>
+    </div>
+</div>

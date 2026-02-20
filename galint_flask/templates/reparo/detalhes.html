@@ -1,0 +1,287 @@
+{% extends "base.html" %}
+{% block title %}Detalhes do Reparo #{{ reparo.id }}{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <a href="{{ url_for('reparo.listar_reparos') }}" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left me-1"></i>Voltar
+    </a>
+</div>
+
+<div class="row g-4">
+    <!-- Coluna Principal -->
+    <div class="col-lg-8">
+        <!-- Informações do Equipamento -->
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-white border-bottom">
+                <h5 class="mb-0">
+                    <i class="bi bi-info-circle me-2"></i>Informações do Equipamento
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="text-muted small">Código do Item</label>
+                        <div class="fw-medium"><code class="fs-5">{{ reparo.codigo_item }}</code></div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="text-muted small">Status</label>
+                        <div>
+                            {% if reparo.status == 'aguardando_orcamento' %}
+                            <span class="badge bg-warning text-dark fs-6">
+                                <i class="bi bi-clock-history me-1"></i>{{ reparo.status_display }}
+                            </span>
+                            {% elif reparo.status == 'em_reparo' %}
+                            <span class="badge bg-info fs-6">
+                                <i class="bi bi-gear-fill me-1"></i>{{ reparo.status_display }}
+                            </span>
+                            {% elif reparo.status == 'concluido' %}
+                            <span class="badge bg-success fs-6">
+                                <i class="bi bi-check-circle-fill me-1"></i>{{ reparo.status_display }}
+                            </span>
+                            {% elif reparo.status == 'sem_conserto' %}
+                            <span class="badge bg-danger fs-6">
+                                <i class="bi bi-x-circle-fill me-1"></i>{{ reparo.status_display }}
+                            </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <label class="text-muted small">Descrição</label>
+                        <div class="fw-medium">{{ reparo.item.descricao if reparo.item else '-' }}</div>
+                        {% if reparo.item %}
+                        <small class="text-muted">Categoria: {{ reparo.item.categoria }}</small>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Problema e Solução -->
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-white border-bottom">
+                <h5 class="mb-0">
+                    <i class="bi bi-exclamation-triangle me-2"></i>Problema e Solução
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-4">
+                    <label class="text-muted small">Problema Descrito</label>
+                    <div class="bg-light p-3 rounded">{{ reparo.problema_descrito }}</div>
+                </div>
+                {% if reparo.solucao_aplicada %}
+                <div>
+                    <label class="text-muted small">Solução Aplicada</label>
+                    <div class="bg-success bg-opacity-10 p-3 rounded border border-success border-opacity-25">
+                        {{ reparo.solucao_aplicada }}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Observações -->
+        {% if reparo.observacoes %}
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-white border-bottom">
+                <h5 class="mb-0">
+                    <i class="bi bi-journal-text me-2"></i>Observações
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="bg-light p-3 rounded" style="white-space: pre-wrap;">{{ reparo.observacoes }}</div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Formulário de Atualização (apenas admin/supervisor) -->
+        {% if current_user.is_admin or 'supervisor' in (current_user.setor or '').lower() or 'supervisor' in (current_user.cargo or '').lower() %}
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-white border-bottom">
+                <h5 class="mb-0">
+                    <i class="bi bi-pencil-square me-2"></i>Atualizar Reparo
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="post" action="{{ url_for('reparo.atualizar_reparo', reparo_id=reparo.id) }}">
+                    <div class="mb-3">
+                        <label class="form-label">Status</label>
+                        <select name="status" class="form-select" required>
+                            <option value="aguardando_orcamento" {% if reparo.status == 'aguardando_orcamento' %}selected{% endif %}>Aguardando Orçamento</option>
+                            <option value="em_reparo" {% if reparo.status == 'em_reparo' %}selected{% endif %}>Em Reparo</option>
+                            <option value="concluido" {% if reparo.status == 'concluido' %}selected{% endif %}>Concluído</option>
+                            <option value="sem_conserto" {% if reparo.status == 'sem_conserto' %}selected{% endif %}>Sem Conserto</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Solução Aplicada</label>
+                        <textarea name="solucao_aplicada" class="form-control" rows="3" placeholder="Descreva a solução aplicada">{{ reparo.solucao_aplicada or '' }}</textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Custo Real (R$)</label>
+                        <input type="text" name="custo_real" class="form-control" placeholder="0.00" value="{{ reparo.custo_real or '' }}">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Observações Adicionais</label>
+                        <textarea name="observacoes" class="form-control" rows="2" placeholder="Adicione novas observações"></textarea>
+                        <small class="text-muted">As observações serão adicionadas ao histórico existente</small>
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-save me-1"></i>Salvar Alterações
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Finalizar Reparo -->
+        {% if reparo.status not in ['concluido', 'sem_conserto'] %}
+        <div class="card border-0 shadow-sm border-success mb-4">
+            <div class="card-header bg-success bg-opacity-10 border-bottom border-success">
+                <h5 class="mb-0 text-success">
+                    <i class="bi bi-check-circle me-2"></i>Finalizar Reparo
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="post" action="{{ url_for('reparo.finalizar_reparo', reparo_id=reparo.id) }}">
+                    <div class="mb-3">
+                        <label class="form-label">Status Final</label>
+                        <select name="status_final" class="form-select" required>
+                            <option value="concluido">Concluído (reparo bem-sucedido)</option>
+                            <option value="sem_conserto">Sem Conserto (impossível reparar)</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Solução Aplicada</label>
+                        <textarea name="solucao_aplicada" class="form-control" rows="2" placeholder="Descreva o que foi feito"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Custo Real (R$)</label>
+                        <input type="text" name="custo_real" class="form-control" placeholder="0.00">
+                    </div>
+                    <button type="submit" class="btn btn-success" onclick="return confirm('Deseja finalizar este reparo?')">
+                        <i class="bi bi-check-circle-fill me-1"></i>Finalizar Reparo
+                    </button>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+        {% endif %}
+    </div>
+
+    <!-- Coluna Lateral -->
+    <div class="col-lg-4">
+        <!-- Datas e Prazos -->
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-white border-bottom">
+                <h6 class="mb-0">
+                    <i class="bi bi-calendar-event me-2"></i>Datas e Prazos
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="text-muted small">Data de Envio</label>
+                    <div class="fw-medium">
+                        {{ reparo.data_envio.strftime('%d/%m/%Y às %H:%M') if reparo.data_envio else '-' }}
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="text-muted small">Prazo Previsto</label>
+                    <div class="fw-medium">
+                        {{ reparo.prazo_previsto.strftime('%d/%m/%Y') if reparo.prazo_previsto else 'Não definido' }}
+                    </div>
+                </div>
+                {% if reparo.data_retorno %}
+                <div class="mb-3">
+                    <label class="text-muted small">Data de Retorno</label>
+                    <div class="fw-medium text-success">
+                        {{ reparo.data_retorno.strftime('%d/%m/%Y às %H:%M') }}
+                    </div>
+                </div>
+                {% endif %}
+                <div>
+                    <label class="text-muted small">Tempo Decorrido</label>
+                    <div>
+                        <span class="badge {% if reparo.dias_em_reparo > 30 %}bg-danger{% elif reparo.dias_em_reparo > 15 %}bg-warning text-dark{% else %}bg-secondary{% endif %} fs-6">
+                            {{ reparo.dias_em_reparo or 0 }} dias
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Custos -->
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-white border-bottom">
+                <h6 class="mb-0">
+                    <i class="bi bi-cash-coin me-2"></i>Custos
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="text-muted small">Custo Estimado</label>
+                    <div class="fw-medium">
+                        {% if reparo.custo_estimado %}
+                        R$ {{ "%.2f"|format(reparo.custo_estimado) }}
+                        {% else %}
+                        Não informado
+                        {% endif %}
+                    </div>
+                </div>
+                <div>
+                    <label class="text-muted small">Custo Real</label>
+                    <div class="fw-medium">
+                        {% if reparo.custo_real %}
+                        <span class="text-success fs-5">R$ {{ "%.2f"|format(reparo.custo_real) }}</span>
+                        {% else %}
+                        Não informado
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Fornecedor -->
+        {% if reparo.fornecedor_oficina %}
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-white border-bottom">
+                <h6 class="mb-0">
+                    <i class="bi bi-building me-2"></i>Fornecedor/Oficina
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="fw-medium">{{ reparo.fornecedor_oficina }}</div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Responsável -->
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-white border-bottom">
+                <h6 class="mb-0">
+                    <i class="bi bi-person-badge me-2"></i>Responsável
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="mb-2">
+                    <label class="text-muted small">Enviado por</label>
+                    <div class="fw-medium">
+                        {{ reparo.responsavel.name if reparo.responsavel else reparo.matricula_responsavel }}
+                    </div>
+                    <small class="text-muted">{{ reparo.matricula_responsavel }}</small>
+                </div>
+                {% if reparo.atualizado_por %}
+                <div class="mt-3">
+                    <label class="text-muted small">Última atualização</label>
+                    <div>
+                        <small class="text-muted">
+                            {{ reparo.atualizado_em.strftime('%d/%m/%Y %H:%M') if reparo.atualizado_em else '-' }}
+                        </small>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

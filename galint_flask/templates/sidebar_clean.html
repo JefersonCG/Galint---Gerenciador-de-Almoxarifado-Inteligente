@@ -1,0 +1,52 @@
+<div class="d-flex flex-column vh-100 text-light sidebar-root">
+    <div class="sidebar-header p-3">
+        <h5 class="mb-0">GALINT</h5>
+        <small class="text-muted">Almoxarifado</small>
+    </div>
+    <nav class="nav flex-column p-2 sidebar-nav" aria-label="Main menu">
+        {% set p = request.path %}
+        <a class="nav-link text-light {% if p.startswith(url_for('dashboard.index')) %}active{% endif %}"
+            href="{{ url_for('dashboard.index') }}">
+            <i class="bi bi-house-door-fill me-2"></i> Estoque
+        </a>
+
+        {% if current_user.is_authenticated and (current_user.is_admin or current_user.is_standard) %}
+        <a class="nav-link text-light {% if p.startswith(url_for('movements.index')) %}active{% endif %}"
+            href="{{ url_for('movements.index') }}">
+            <i class="bi bi-box-seam me-2"></i> Lançamentos
+        </a>
+        {% endif %}
+
+        {% if config.get('FEATURE_NOTAS_ENABLED', True) %}
+        <a class="nav-link text-light {% if p.startswith(url_for('nf.nf_index')) %}active{% endif %}"
+            href="{{ url_for('nf.nf_index') }}">
+            <i class="bi bi-receipt me-2"></i> Lançamento NF
+        </a>
+        {% endif %}
+
+        <a class="nav-link text-light {% if p.startswith(url_for('inventory.list_items')) %}active{% endif %}"
+            href="{{ url_for('inventory.list_items') }}">
+            <i class="bi bi-card-list me-2"></i> Cadastro de Itens
+        </a>
+
+        {% if current_user.is_authenticated and current_user.is_admin %}
+        <a class="nav-link text-light {% if p.startswith(url_for('users.list_users')) %}active{% endif %}"
+            href="{{ url_for('users.list_users') }}">
+            <i class="bi bi-people-fill me-2"></i> Usuários
+        </a>
+        <a class="nav-link text-light {% if p.startswith('/mobile-panel') %}active{% endif %}"
+            href="/mobile-panel">
+            <i class="bi bi-phone-fill me-2"></i> Painel Mobile
+        </a>
+        <a class="nav-link text-light" href="#"> <i class="bi bi-tools me-2"></i> Ferramentas</a>
+        <a class="nav-link text-light" href="#"> <i class="bi bi-gear-fill me-2"></i> Configurações</a>
+        <a class="nav-link text-light" href="#"> <i class="bi bi-globe2 me-2"></i> Rede</a>
+        <hr class="sidebar-sep" />
+        <a class="nav-link text-light" href="#"> <i class="bi bi-info-circle me-2"></i> Sobre</a>
+        {% endif %}
+    </nav>
+    <div class="mt-auto p-3 sidebar-footer">
+        <small class="text-muted">Usuário: {% if current_user.is_authenticated %}{{ current_user.nome }}{% else
+            %}Visitante{% endif %}</small>
+    </div>
+</div>

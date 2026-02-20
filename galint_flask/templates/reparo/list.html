@@ -1,0 +1,343 @@
+{% extends "base.html" %}
+{% block title %}Equipamentos em Reparo{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+    <h1 class="h3 mb-0">
+        <i class="bi bi-tools me-2"></i>Equipamentos em Reparo
+    </h1>
+    <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modalNovoReparo">
+        <i class="bi bi-plus-circle me-1"></i>Enviar para Reparo
+    </button>
+</div>
+
+<!-- Cards de Estatísticas -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm bg-warning bg-opacity-10">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <p class="text-muted small mb-1">Aguardando Orçamento</p>
+                        <h3 class="mb-0">{{ stats.aguardando_orcamento }}</h3>
+                    </div>
+                    <div class="fs-2 text-warning">
+                        <i class="bi bi-clock-history"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm bg-info bg-opacity-10">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <p class="text-muted small mb-1">Em Reparo</p>
+                        <h3 class="mb-0">{{ stats.em_reparo }}</h3>
+                    </div>
+                    <div class="fs-2 text-info">
+                        <i class="bi bi-gear-fill"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm bg-success bg-opacity-10">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <p class="text-muted small mb-1">Concluídos</p>
+                        <h3 class="mb-0">{{ stats.concluido }}</h3>
+                    </div>
+                    <div class="fs-2 text-success">
+                        <i class="bi bi-check-circle-fill"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm bg-danger bg-opacity-10">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <p class="text-muted small mb-1">Sem Conserto</p>
+                        <h3 class="mb-0">{{ stats.sem_conserto }}</h3>
+                    </div>
+                    <div class="fs-2 text-danger">
+                        <i class="bi bi-x-circle-fill"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filtros e Busca -->
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body">
+        <form method="get" action="{{ url_for('reparo.listar_reparos') }}">
+            <div class="row g-3 align-items-end">
+                <div class="col-md-4">
+                    <label class="form-label small text-muted">Buscar</label>
+                    <input type="text" name="busca" class="form-control" placeholder="Código, descrição ou fornecedor" value="{{ busca or '' }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small text-muted">Status</label>
+                    <select name="status" class="form-select">
+                        <option value="">Todos</option>
+                        <option value="aguardando_orcamento" {% if status_filtro == 'aguardando_orcamento' %}selected{% endif %}>Aguardando Orçamento</option>
+                        <option value="em_reparo" {% if status_filtro == 'em_reparo' %}selected{% endif %}>Em Reparo</option>
+                        <option value="concluido" {% if status_filtro == 'concluido' %}selected{% endif %}>Concluído</option>
+                        <option value="sem_conserto" {% if status_filtro == 'sem_conserto' %}selected{% endif %}>Sem Conserto</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <div class="form-check">
+                        <input type="checkbox" name="abertos" value="1" class="form-check-input" id="checkAbertos" {% if apenas_abertos %}checked{% endif %}>
+                        <label class="form-check-label" for="checkAbertos">
+                            Apenas abertos
+                        </label>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-search me-1"></i>Filtrar
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Listagem de Reparos -->
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-white border-bottom">
+        <h5 class="mb-0">Listagem de Reparos</h5>
+    </div>
+    <div class="card-body p-0">
+        {% if reparos %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>ID</th>
+                        <th>Código</th>
+                        <th>Descrição</th>
+                        <th>Problema</th>
+                        <th>Status</th>
+                        <th>Enviado em</th>
+                        <th>Dias</th>
+                        <th>Custo</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for reparo in reparos %}
+                    <tr>
+                        <td class="text-muted">#{{ reparo.id }}</td>
+                        <td><code>{{ reparo.codigo_item }}</code></td>
+                        <td>
+                            <div class="fw-medium">{{ reparo.item.descricao if reparo.item else reparo.codigo_item }}</div>
+                            <small class="text-muted">{{ reparo.item.categoria if reparo.item else '' }}</small>
+                        </td>
+                        <td>
+                            <div class="text-truncate" style="max-width: 200px;" title="{{ reparo.problema_descrito }}">
+                                {{ reparo.problema_descrito }}
+                            </div>
+                        </td>
+                        <td>
+                            {% if reparo.status == 'aguardando_orcamento' %}
+                            <span class="badge bg-warning text-dark">
+                                <i class="bi bi-clock-history me-1"></i>{{ reparo.status_display }}
+                            </span>
+                            {% elif reparo.status == 'em_reparo' %}
+                            <span class="badge bg-info">
+                                <i class="bi bi-gear-fill me-1"></i>{{ reparo.status_display }}
+                            </span>
+                            {% elif reparo.status == 'concluido' %}
+                            <span class="badge bg-success">
+                                <i class="bi bi-check-circle-fill me-1"></i>{{ reparo.status_display }}
+                            </span>
+                            {% elif reparo.status == 'sem_conserto' %}
+                            <span class="badge bg-danger">
+                                <i class="bi bi-x-circle-fill me-1"></i>{{ reparo.status_display }}
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div>{{ reparo.data_envio.strftime('%d/%m/%Y') if reparo.data_envio else '-' }}</div>
+                            <small class="text-muted">{{ reparo.data_envio.strftime('%H:%M') if reparo.data_envio else '' }}</small>
+                        </td>
+                        <td>
+                            {% if reparo.dias_em_reparo is not none %}
+                            <span class="badge {% if reparo.dias_em_reparo > 30 %}bg-danger{% elif reparo.dias_em_reparo > 15 %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+                                {{ reparo.dias_em_reparo }} dias
+                            </span>
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if reparo.custo_real %}
+                            <span class="text-success fw-medium">R$ {{ "%.2f"|format(reparo.custo_real) }}</span>
+                            {% elif reparo.custo_estimado %}
+                            <span class="text-muted">~R$ {{ "%.2f"|format(reparo.custo_estimado) }}</span>
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{{ url_for('reparo.detalhes_reparo', reparo_id=reparo.id) }}" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-eye me-1"></i>Ver
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="bi bi-inbox display-1 text-muted"></i>
+            <p class="text-muted mt-3">Nenhum reparo encontrado</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Modal: Novo Reparo -->
+<div class="modal fade" id="modalNovoReparo" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{{ url_for('reparo.enviar_para_reparo') }}">
+                <div class="modal-header" style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: white;">
+                    <h5 class="modal-title">
+                        <i class="bi bi-tools me-2"></i>Enviar Equipamento para Reparo
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Código do Item <span class="text-danger">*</span></label>
+                        <input type="text" name="codigo_item" id="inputCodigoItem" class="form-control" required autocomplete="off">
+                        <div id="suggestionsCodigoItem" class="list-group position-absolute" style="z-index: 9999; max-height: 200px; overflow-y: auto; display: none;"></div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Problema Descrito <span class="text-danger">*</span></label>
+                        <textarea name="problema_descrito" class="form-control" rows="3" required placeholder="Descreva o problema encontrado no equipamento"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Fornecedor/Oficina</label>
+                        <input type="text" name="fornecedor_oficina" class="form-control" placeholder="Nome do fornecedor ou oficina">
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Custo Estimado (R$)</label>
+                            <input type="text" name="custo_estimado" class="form-control" placeholder="0.00">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Prazo Previsto</label>
+                            <input type="date" name="prazo_previsto" class="form-control">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Observações</label>
+                        <textarea name="observacoes" class="form-control" rows="2" placeholder="Observações adicionais (opcional)"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="bi bi-send me-1"></i>Enviar para Reparo
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// Autocomplete para código de item
+(function() {
+    const input = document.getElementById('inputCodigoItem');
+    const suggestions = document.getElementById('suggestionsCodigoItem');
+    let timeoutId = null;
+
+    if (!input || !suggestions) return;
+
+    input.addEventListener('input', function() {
+        clearTimeout(timeoutId);
+        const termo = this.value.trim();
+
+        if (termo.length < 2) {
+            suggestions.style.display = 'none';
+            return;
+        }
+
+        timeoutId = setTimeout(() => {
+            fetch(`{{ url_for('reparo.autocomplete_itens') }}?q=${encodeURIComponent(termo)}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.length === 0) {
+                        suggestions.style.display = 'none';
+                        return;
+                    }
+
+                    suggestions.innerHTML = data.map(item => `
+                        <button type="button" class="list-group-item list-group-item-action" data-codigo="${item.codigo}">
+                            <div class="fw-medium">${item.codigo}</div>
+                            <small class="text-muted">${item.descricao}</small>
+                            <small class="badge bg-secondary ms-2">${item.categoria}</small>
+                        </button>
+                    `).join('');
+
+                    suggestions.style.display = 'block';
+
+                    // Adicionar eventos de clique
+                    suggestions.querySelectorAll('button').forEach(btn => {
+                        btn.addEventListener('click', function() {
+                            input.value = this.dataset.codigo;
+                            suggestions.style.display = 'none';
+                        });
+                    });
+                })
+                .catch(err => {
+                    console.error('Erro no autocomplete:', err);
+                    suggestions.style.display = 'none';
+                });
+        }, 300);
+    });
+
+    // Fechar ao clicar fora
+    document.addEventListener('click', function(e) {
+        if (!input.contains(e.target) && !suggestions.contains(e.target)) {
+            suggestions.style.display = 'none';
+        }
+    });
+
+    // Verificar se há código_item na URL e abrir modal automaticamente
+    const urlParams = new URLSearchParams(window.location.search);
+    const codigoItem = urlParams.get('codigo_item');
+    if (codigoItem) {
+        input.value = codigoItem;
+        const modal = new bootstrap.Modal(document.getElementById('modalNovoReparo'));
+        modal.show();
+        // Limpar a URL sem recarregar a página
+        window.history.replaceState({}, document.title, window.location.pathname);
+    }
+})();
+</script>
+
+<style>
+#suggestionsCodigoItem {
+    width: calc(100% - 2rem);
+    margin-top: 2px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    border: 1px solid #dee2e6;
+}
+</style>
+
+{% endblock %}

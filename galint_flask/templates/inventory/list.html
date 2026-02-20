@@ -1,0 +1,1033 @@
+{% extends "base.html" %}
+{% block title %}Itens{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <h1 class="h3 mb-0">Itens cadastrados</h1>
+    <div class="d-flex gap-2 flex-wrap">
+        {% if can_manage and endpoint_exists('inventory.generate_all_barcodes') %}
+        <form method="post" action="{{ url_for('inventory.generate_all_barcodes') }}" class="d-inline">
+            <button class="btn btn-outline-primary" type="submit">Gerar códigos de barras</button>
+        </form>
+        {% endif %}
+        {% if can_create %}
+        <a class="btn btn-success" href="{{ url_for('inventory.new_item_form') }}">Novo item</a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="section-panel mb-5" data-inventory-search>
+    <div class="d-flex justify-content-between flex-wrap gap-2 align-items-end mb-2">
+        <div>
+            <h3 class="h5 mb-1">Busca rápida</h3>
+            <p class="text-muted small mb-0">Digite o nome ou escaneie o código de barras e pressione Enter para abrir o
+                item.</p>
+        </div>
+        <button class="btn btn-outline-light btn-sm" type="button" id="inventory-search-clear"
+            aria-label="Limpar busca">Limpar</button>
+    </div>
+    <div class="input-group input-group-lg">
+        <input class="form-control" type="search" id="inventory-search" placeholder="Buscar por descrição ou código"
+            autocomplete="off" spellcheck="false">
+        <span class="input-group-text" id="inventory-search-badge">0 resultado</span>
+    </div>
+    <div id="inventory-search-results" class="list-group mt-3 d-none" aria-live="polite"></div>
+</div>
+
+{% if category_cards %}
+<style>
+    .category-card {
+        border-radius: 16px;
+        border: 1px solid rgba(15, 23, 42, 0.4);
+        background: linear-gradient(135deg, #0f172a, #1e293b 60%);
+        color: #ffffff;
+        box-shadow: 0 24px 55px rgba(15, 23, 42, 0.45);
+        transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+        cursor: pointer;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .category-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(147, 51, 234, 0.1));
+        opacity: 0;
+        transition: opacity 0.2s ease;
+        pointer-events: none;
+    }
+
+    .category-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 32px 70px rgba(15, 23, 42, 0.55);
+        border-color: rgba(59, 130, 246, 0.6);
+    }
+
+    .category-card:hover::before {
+        opacity: 1;
+    }
+
+    .category-card:focus {
+        outline: 2px solid #3b82f6;
+        outline-offset: 2px;
+    }
+
+    .category-card .card-body * {
+        pointer-events: none;
+        position: relative;
+        z-index: 1;
+    }
+
+    .category-card .category-pill {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.35rem;
+        padding: 0.25rem 0.75rem;
+        border-radius: 999px;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        background: rgba(59, 130, 246, 0.2);
+        color: #bfdbfe;
+        margin-bottom: 0.25rem;
+    }
+
+    .category-card .category-count {
+        font-size: 2.5rem;
+        font-weight: 600;
+        margin-bottom: 0;
+    }
+
+    .category-card .category-subtitle {
+        color: rgba(255, 255, 255, 0.9);
+        margin-bottom: 0.4rem;
+    }
+
+    .category-modal-list .list-group-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+        padding: 1rem 1.25rem;
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+        border: 1px solid rgba(148, 163, 184, 0.25);
+        border-radius: 0.75rem;
+        margin-bottom: 0.75rem;
+        transition: all 0.2s ease;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .category-modal-list .list-group-item:hover {
+        transform: translateX(4px);
+        border-color: rgba(59, 130, 246, 0.5);
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+    }
+
+    .category-modal-list .item-meta {
+        flex: 1;
+    }
+
+    .category-modal-list .item-meta strong {
+        font-size: 1.05rem;
+        display: block;
+        color: #f8fafc;
+        font-weight: 600;
+        margin-bottom: 0.35rem;
+    }
+
+    .category-modal-list .item-meta .text-muted {
+        color: rgba(248, 250, 252, 0.75) !important;
+    }
+
+    .category-modal-list .action-group {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        align-items: center;
+        justify-content: flex-end;
+        min-width: fit-content;
+    }
+
+    .category-modal-list .action-group .btn-group {
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+        border-radius: 0.375rem;
+    }
+
+    .category-modal-list .action-group .btn {
+        font-size: 0.825rem;
+        padding: 0.4rem 0.75rem;
+        white-space: nowrap;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        transition: all 0.2s ease;
+        border-width: 1.5px;
+    }
+
+    .category-modal-list .action-group .btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    .category-modal-list .action-group .btn:active {
+        transform: translateY(0);
+    }
+
+    .category-modal-list .action-group .btn i {
+        font-size: 0.9rem;
+    }
+
+    .category-modal-list .action-group .btn-success {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        border-color: #10b981;
+    }
+
+    .category-modal-list .action-group .btn-success:hover {
+        background: linear-gradient(135deg, #059669 0%, #047857 100%);
+        border-color: #059669;
+    }
+
+    .category-modal-list .action-group form {
+        margin: 0;
+    }
+
+    @media (max-width: 991.98px) {
+        .category-modal-list .list-group-item {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .category-modal-list .action-group {
+            justify-content: stretch;
+            width: 100%;
+        }
+
+        .category-modal-list .action-group .btn-group {
+            flex: 1;
+        }
+
+        .category-modal-list .action-group .btn {
+            flex: 1;
+            justify-content: center;
+        }
+    }
+</style>
+<div class="section-panel mb-5">
+    <h3>Estoque por categoria</h3>
+    <p class="text-muted">Clique em cada card para editar os itens cadastrados nesta categoria.</p>
+    <div class="row g-3">
+        {% for category in category_cards %}
+        <div class="col-xl-3 col-lg-4 col-md-6">
+            <div class="card h-100 category-card" role="button" tabindex="0" data-category="{{ category.categoria }}"
+                data-category-template="category-template-{{ loop.index }}">
+                <div class="card-body d-flex flex-column justify-content-between h-100">
+                    <div>
+                        <div class="category-pill">{{ category.total }} item{% if category.total != 1 %}s{% endif %}
+                        </div>
+                        <h5 class="card-title text-truncate mb-1" title="{{ category.categoria
+                            }}">{{ category.categoria
+                            }}</h5>
+                        <p class="category-count">{{ category.total }}</p>
+                        <p class="category-subtitle">Saldo total: {{ category.saldo_total | round(2) }}</p>
+                    </div>
+                    <p class="text-muted small mb-0 mt-3">Clique para abrir a lista de itens e editar.</p>
+                </div>
+            </div>
+        </div>
+        <template id="category-template-{{ loop.index }}">
+            <p class="text-muted small mb-2">
+                {{ category.total }} item{% if category.total != 1 %}s{% endif %} nesta categoria.
+            </p>
+            <div class="category-modal-list">
+                {% for item in category.entries %}
+                <div class="list-group-item">
+                    <div class="item-meta">
+                        <strong>{{ item.descricao }}</strong>
+                        <div class="text-muted small mt-1">Código {{ item.codigo }} • Marca {{ item.marca or item.setor
+                            or '—' }}</div>
+                        <div class="text-muted small">Saldo: {{ item.saldo }} • Min.: {{ item.estoque_minimo }} •
+                            Unidade: {{ item.unidade or '—' }}</div>
+                        {% if item.ultima_edicao_em %}
+                        <div class="text-muted small" style="color: green; font-style: italic;">
+                            Item editado <span class="js-last-edit" data-iso="{{ item.ultima_edicao_em }}"></span>
+                            {% if item.ultima_edicao_por %} por {{ item.ultima_edicao_por }}{% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="action-group d-flex flex-wrap gap-2 align-items-center">
+                        {% if can_manage and item.codigo %}
+                        <div class="btn-group" role="group">
+                            <a class="btn btn-outline-light btn-sm"
+                                href="{{ url_for('inventory.edit_item_form', codigo=item.codigo|e) }}"
+                                title="Editar item">
+                                <i class="bi bi-pencil"></i> Editar
+                            </a>
+                            <a class="btn btn-outline-primary btn-sm"
+                                href="{{ url_for('patrimonio.listar_codigos', codigo_item=item.codigo|e) }}"
+                                title="Ver patrimônios">
+                                <i class="bi bi-archive"></i> Patrimônio
+                            </a>
+                        </div>
+                        <div class="btn-group" role="group">
+                            <form method="post" action="{{ url_for('inventory.notify_item', codigo=item.codigo|e) }}"
+                                class="d-inline">
+                                <button class="btn btn-outline-info btn-sm" type="submit" title="Enviar notificação">
+                                    <i class="bi bi-bell"></i> Notificar
+                                </button>
+                            </form>
+                            {% set categoria_lower = (item.categoria or '')|lower %}
+                            {% if 'ferramenta' in categoria_lower or 'epi' in categoria_lower or ('material' in categoria_lower and 'ep' in categoria_lower) %}
+                            <button class="btn btn-success btn-sm" type="button" 
+                                onclick="openAssignModal('{{ item.codigo|e }}', '{{ item.descricao|e }}', {tipo_embalagem_novo: '{{ item.tipo_embalagem_novo or '' }}', unidade: '{{ item.unidade or '' }}', unidades_por_embalagem: {{ item.unidades_por_embalagem or 'null' }}})"
+                                title="Atribuir a funcionário">
+                                <i class="bi bi-person-check"></i> Atribuir
+                            </button>
+                            {% endif %}
+                        </div>
+                        {% else %}
+                        <span class="text-muted small">Apenas administradores podem editar.</span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </template>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+<div class="modal fade" id="categoryModal" tabindex="-1" aria-labelledby="categoryModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="categoryModalLabel">Categoria</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted mb-0">Selecione uma categoria para visualizar os itens.</p>
+            </div>
+            <div class="modal-footer d-flex justify-content-between">
+                <div>
+                    {% if can_manage %}
+                    <button class="btn btn-danger" type="button" id="delete-category-btn" data-category="">Excluir categoria</button>
+                    {% endif %}
+                </div>
+                <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Fechar</button>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="modal fade" id="inventoryItemModal" tabindex="-1" aria-labelledby="inventoryItemModalLabel"
+    aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="inventoryItemModalLabel">Detalhes do item</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted mb-0">Use a busca para localizar um item específico.</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Fechar</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<style>
+    #assignModal .modal-content {
+        background: #ffffff;
+        border: none;
+        border-radius: 0.75rem;
+        box-shadow: 0 15px 40px rgba(0, 0, 0, 0.25);
+    }
+    
+    #assignModal .modal-header {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        border-radius: 0.75rem 0.75rem 0 0;
+        padding: 1rem 1.25rem;
+        border: none;
+    }
+    
+    #assignModal .modal-title {
+        font-size: 1.15rem;
+        font-weight: 600;
+        color: #ffffff;
+    }
+    
+    #assignModal .modal-body {
+        padding: 1.25rem;
+        background: #f8fafc;
+    }
+    
+    #assignModal .alert-info {
+        background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+        border: 1.5px solid #3b82f6;
+        border-radius: 0.5rem;
+        color: #1e40af;
+        padding: 0.75rem;
+        font-size: 0.875rem;
+    }
+    
+    #assignModal .alert-info strong {
+        color: #1e3a8a;
+        font-size: 0.95rem;
+    }
+    
+    #assignModal .form-label {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #1e293b;
+        margin-bottom: 0.4rem;
+    }
+    
+    #assignModal #assignItemDesc {
+        background: #ffffff;
+        border: 1.5px solid #e2e8f0;
+        color: #0f172a;
+        font-size: 0.95rem;
+        font-weight: 500;
+        padding: 0.65rem;
+        border-radius: 0.4rem;
+        min-height: 40px;
+    }
+    
+    #assignModal .form-control {
+        background: #ffffff;
+        border: 1.5px solid #cbd5e1;
+        color: #0f172a;
+        font-size: 0.95rem;
+        padding: 0.6rem 0.875rem;
+        border-radius: 0.4rem;
+        transition: all 0.2s;
+        height: auto;
+    }
+    
+    #assignModal .form-control:focus {
+        background: #ffffff;
+        border-color: #10b981;
+        box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+        outline: none;
+    }
+    
+    #assignModal .form-text {
+        color: #64748b;
+        font-size: 0.8rem;
+        margin-top: 0.35rem;
+    }
+    
+    #assignModal .modal-footer {
+        background: #f8fafc;
+        border: none;
+        padding: 1rem 1.25rem;
+        border-radius: 0 0 0.75rem 0.75rem;
+    }
+    
+    #assignModal .btn {
+        font-size: 0.9rem;
+        font-weight: 600;
+        padding: 0.6rem 1.25rem;
+        border-radius: 0.4rem;
+        transition: all 0.2s;
+    }
+    
+    #assignModal .btn-secondary {
+        background: #e2e8f0;
+        border: 1.5px solid #cbd5e1;
+        color: #475569;
+    }
+    
+    #assignModal .btn-secondary:hover {
+        background: #cbd5e1;
+        border-color: #94a3b8;
+        color: #334155;
+    }
+    
+    #assignModal .btn-success {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        border: none;
+        color: #ffffff;
+        box-shadow: 0 3px 8px rgba(16, 185, 129, 0.25);
+    }
+    
+    #assignModal .btn-success:hover {
+        background: linear-gradient(135deg, #059669 0%, #047857 100%);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35);
+    }
+    
+    /* Autocomplete customizado */
+    #assignMatricula-suggestions {
+        position: absolute;
+        z-index: 1060;
+        background: #ffffff;
+        border: 1.5px solid #cbd5e1;
+        border-top: none;
+        border-radius: 0 0 0.4rem 0.4rem;
+        max-height: 200px;
+        overflow-y: auto;
+        width: 100%;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+    
+    #assignMatricula-suggestions .autocomplete-item {
+        padding: 0.65rem 0.875rem;
+        cursor: pointer;
+        border-bottom: 1px solid #f1f5f9;
+        transition: background 0.15s;
+    }
+    
+    #assignMatricula-suggestions .autocomplete-item:last-child {
+        border-bottom: none;
+    }
+    
+    #assignMatricula-suggestions .autocomplete-item:hover,
+    #assignMatricula-suggestions .autocomplete-item.active {
+        background: #f1f9f5;
+    }
+    
+    #assignMatricula-suggestions .autocomplete-item strong {
+        color: #0f172a;
+        display: block;
+        font-size: 0.9rem;
+    }
+    
+    #assignMatricula-suggestions .autocomplete-item small {
+        color: #64748b;
+        font-size: 0.8rem;
+    }
+</style>
+
+<div class="modal fade" id="assignModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form class="modal-content" method="POST" id="assignForm">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-person-check-fill me-2"></i>
+                    Atribuir Ferramenta
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info d-flex align-items-start mb-3" role="alert">
+                    <i class="bi bi-info-circle-fill me-2" style="font-size: 1.1rem;"></i>
+                    <div>
+                        <strong>Custódia Permanente</strong><br>
+                        <small>O funcionário será responsável permanente por esta ferramenta até devolução.</small>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">
+                        <i class="bi bi-tools me-1"></i>
+                        Item selecionado
+                    </label>
+                    <div class="form-control-plaintext border rounded" id="assignItemDesc" style="background: #ffffff;">-</div>
+                </div>
+                
+                <input type="hidden" name="tipo_custodia" value="permanente">
+                
+                <div class="mb-3 position-relative">
+                    <label for="assignMatricula" class="form-label">
+                        <i class="bi bi-person-fill me-1"></i>
+                        Funcionário responsável
+                    </label>
+                    <input class="form-control" id="assignMatricula" 
+                        name="matricula" placeholder="Digite nome ou matrícula..." required autocomplete="off">
+                    <div id="assignMatricula-suggestions" style="display: none;"></div>
+                    <div class="form-text">
+                        <i class="bi bi-search me-1"></i>
+                        Digite para pesquisar
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label for="assignQuantity" class="form-label">
+                        <i class="bi bi-hash me-1"></i>
+                        Quantidade
+                    </label>
+                    <input type="number" class="form-control" id="assignQuantity" 
+                        name="quantidade" value="1" min="0.01" step="0.01" required>
+                </div>
+
+                <!-- Seletor de tipo de saída para Unidades Dinâmicas -->
+                <div class="mb-3" id="assignTipoSaida" style="display: none;">
+                    <label class="form-label">
+                        <i class="bi bi-box-seam me-1"></i>
+                        Como deseja retirar?
+                    </label>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="tipo_saida" id="assignTipoEmbalagem" value="embalagem" checked>
+                        <label class="form-check-label" for="assignTipoEmbalagem">
+                            <strong id="assignLabelEmbalagem">Embalagem completa</strong> (fechada/lacrada)
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="tipo_saida" id="assignTipoUnidades" value="unidades">
+                        <label class="form-check-label" for="assignTipoUnidades">
+                            <strong>Unidades avulsas</strong> (sistema abre embalagem se necessário)
+                        </label>
+                    </div>
+                    <small class="form-text text-muted">
+                        <i class="bi bi-info-circle me-1"></i>
+                        <span id="assignHelpText">Se escolher unidades, o sistema abrirá caixas automaticamente conforme necessário</span>
+                    </small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="bi bi-x-circle me-1"></i>
+                    Cancelar
+                </button>
+                <button type="submit" class="btn btn-success">
+                    <i class="bi bi-check-circle me-1"></i>
+                    Atribuir
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    (function () {
+    // Modal de Atribuição
+    const assignModalEl = document.getElementById('assignModal');
+    let assignModalInstance = null;
+    if (assignModalEl) {
+        assignModalInstance = new bootstrap.Modal(assignModalEl);
+    }
+    
+    window.openAssignModal = function(codigo, descricao, itemData = {}) {
+        if (!assignModalInstance) return;
+        
+        const descEl = document.getElementById('assignItemDesc');
+        if(descEl) descEl.textContent = descricao;
+        
+        // Detectar se item tem unidades dinâmicas
+        const temUnidadesDinamicas = itemData.tipo_embalagem_novo || 
+            (itemData.unidade && ['Rolo', 'Pacote', 'Caixa'].includes(itemData.unidade) && itemData.unidades_por_embalagem);
+        
+        const tipoSaidaDiv = document.getElementById('assignTipoSaida');
+        if (tipoSaidaDiv) {
+            if (temUnidadesDinamicas) {
+                // Mostrar seletor e adaptar labels
+                tipoSaidaDiv.style.display = 'block';
+                
+                const tipoEmb = itemData.tipo_embalagem_novo || (itemData.unidade || '').toLowerCase();
+                const labelEmb = document.getElementById('assignLabelEmbalagem');
+                const helpText = document.getElementById('assignHelpText');
+                
+                const nomes = {
+                    'rolo': { singular: 'Rolo', plural: 'rolos', unidade: 'metros' },
+                    'pacote': { singular: 'Pacote', plural: 'pacotes', unidade: 'unidades' },
+                    'caixa': { singular: 'Caixa', plural: 'caixas', unidade: 'unidades' }
+                };
+                
+                const info = nomes[tipoEmb] || { singular: 'Embalagem', plural: 'embalagens', unidade: 'unidades' };
+                
+                if (labelEmb) {
+                    labelEmb.textContent = `${info.singular} completa`;
+                }
+                
+                if (helpText) {
+                    helpText.textContent = `Se escolher unidades, o sistema abrirá ${info.plural} automaticamente conforme necessário`;
+                }
+                
+                // Resetar para embalagem completa
+                document.getElementById('assignTipoEmbalagem').checked = true;
+            } else {
+                // Esconder seletor para itens normais
+                tipoSaidaDiv.style.display = 'none';
+            }
+        }
+        
+        // Atualizar action do form
+        const form = document.getElementById('assignForm');
+        if(form) {
+            form.action = `/itens/${encodeURIComponent(codigo)}/saida`;
+            const qInput = document.getElementById('assignQuantity');
+            if(qInput) qInput.value = "1";
+            const mInput = document.getElementById('assignMatricula');
+            if(mInput) {
+                mInput.value = "";
+                // Esconder sugestões ao abrir modal
+                const suggestions = document.getElementById('assignMatricula-suggestions');
+                if(suggestions) suggestions.style.display = 'none';
+            }
+        }
+        
+        assignModalInstance.show();
+    };
+
+    // Função para enviar item para reparo (redireciona para página de reparos)
+    window.sendToRepair = function(codigo, descricao) {
+        // Redirecionar para a página de reparos com parâmetro de código
+        {% if endpoint_exists('reparo.listar_reparos') %}
+        const url = `{{ url_for('reparo.listar_reparos') }}?codigo_item=${encodeURIComponent(codigo)}`;
+        window.location.href = url;
+        {% else %}
+        alert("O módulo de reparos foi instalado mas o servidor precisa ser reiniciado para ativá-lo.\n\nPor favor, reinicie o servidor.");
+        {% endif %}
+    };
+
+    // Autocomplete para funcionários
+    const usersList = [
+        {% if users_list %}
+        {% for u in users_list %}
+        { matricula: "{{ u.matricula|e }}", nome: "{{ u.nome|e }}" },
+        {% endfor %}
+        {% endif %}
+    ];
+
+    const matriculaInput = document.getElementById('assignMatricula');
+    const suggestionsDiv = document.getElementById('assignMatricula-suggestions');
+    let currentSuggestionIndex = -1;
+
+    if (matriculaInput && suggestionsDiv) {
+        matriculaInput.addEventListener('input', function(e) {
+            const query = e.target.value.trim().toLowerCase();
+            
+            if (!query || query.length < 2) {
+                suggestionsDiv.style.display = 'none';
+                return;
+            }
+
+            const filtered = usersList.filter(user => {
+                const nome = user.nome.toLowerCase();
+                const matricula = user.matricula.toLowerCase();
+                return nome.includes(query) || matricula.includes(query);
+            });
+
+            if (filtered.length === 0) {
+                suggestionsDiv.style.display = 'none';
+                return;
+            }
+
+            suggestionsDiv.innerHTML = '';
+            filtered.slice(0, 8).forEach((user, index) => {
+                const div = document.createElement('div');
+                div.className = 'autocomplete-item';
+                div.innerHTML = `<strong>${escapeHtml(user.nome)}</strong><br><small>Matrícula: ${escapeHtml(user.matricula)}</small>`;
+                div.addEventListener('click', function() {
+                    matriculaInput.value = user.matricula;
+                    suggestionsDiv.style.display = 'none';
+                });
+                suggestionsDiv.appendChild(div);
+            });
+
+            suggestionsDiv.style.display = 'block';
+            currentSuggestionIndex = -1;
+        });
+
+        matriculaInput.addEventListener('keydown', function(e) {
+            const items = suggestionsDiv.querySelectorAll('.autocomplete-item');
+            
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                currentSuggestionIndex = Math.min(currentSuggestionIndex + 1, items.length - 1);
+                updateActiveSuggestion(items);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                currentSuggestionIndex = Math.max(currentSuggestionIndex - 1, -1);
+                updateActiveSuggestion(items);
+            } else if (e.key === 'Enter' && currentSuggestionIndex >= 0) {
+                e.preventDefault();
+                items[currentSuggestionIndex].click();
+            } else if (e.key === 'Escape') {
+                suggestionsDiv.style.display = 'none';
+            }
+        });
+
+        function updateActiveSuggestion(items) {
+            items.forEach((item, index) => {
+                if (index === currentSuggestionIndex) {
+                    item.classList.add('active');
+                    item.scrollIntoView({ block: 'nearest' });
+                } else {
+                    item.classList.remove('active');
+                }
+            });
+        }
+
+        // Fechar sugestões ao clicar fora
+        document.addEventListener('click', function(e) {
+            if (e.target !== matriculaInput && !suggestionsDiv.contains(e.target)) {
+                suggestionsDiv.style.display = 'none';
+            }
+        });
+    }
+
+        const escapeHtml = (value) => {
+            return String(value ?? "")
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#39;");
+        };
+
+        const normalize = (value) => {
+            return String(value ?? "")
+                .toLowerCase()
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "")
+                .replace(/[^a-z0-9\s\-]/g, "")
+                .trim();
+        };
+
+        const items = {{ itens | tojson | safe
+    }};
+        const canManage = {{ 'true' if can_manage else 'false' }};
+        const selectedCategory = {{ selected_category | tojson | safe }};
+
+    const searchInput = document.getElementById('inventory-search');
+    const searchClear = document.getElementById('inventory-search-clear');
+    const badge = document.getElementById('inventory-search-badge');
+    const resultsContainer = document.getElementById('inventory-search-results');
+    const itemModalElement = document.getElementById('inventoryItemModal');
+    const itemModalTitle = itemModalElement ? itemModalElement.querySelector('.modal-title') : null;
+    const itemModalBody = itemModalElement ? itemModalElement.querySelector('.modal-body') : null;
+    const itemModalInstance = itemModalElement ? new bootstrap.Modal(itemModalElement) : null;
+
+    const updateBadge = (total, hasQuery) => {
+        if (!badge) {
+            return;
+        }
+        if (!hasQuery) {
+            badge.textContent = '0 resultados';
+            return;
+        }
+        badge.textContent = total === 1 ? '1 resultado' : `${total} resultados`;
+    };
+
+    const renderResults = (matches, query) => {
+        if (!resultsContainer) {
+            return;
+        }
+        resultsContainer.innerHTML = '';
+        if (!query) {
+            resultsContainer.classList.add('d-none');
+            updateBadge(0, false);
+            return;
+        }
+        updateBadge(matches.length, true);
+        const newItemUrl = `{{ url_for('inventory.new_item_form') }}?codigo=${encodeURIComponent(query)}`;
+        const isNumericCode = /^\d{8,}$/.test(query);
+
+        if (!matches.length) {
+            resultsContainer.classList.remove('d-none');
+            if (canManage && isNumericCode) {
+                resultsContainer.innerHTML = `
+                    <div class="list-group-item">
+                        <p class="mb-2">O item com código <strong>${escapeHtml(query)}</strong> não foi encontrado.</p>
+                        <p class="mb-0">Deseja cadastrá-lo agora?</p>
+                        <a href="${newItemUrl}" class="btn btn-success btn-sm mt-2">Sim, cadastrar novo item</a>
+                    </div>
+                `;
+            } else {
+                resultsContainer.innerHTML = '<div class="list-group-item list-group-item-action disabled">Nenhum item encontrado.</div>';
+            }
+            return;
+        }
+        resultsContainer.classList.remove('d-none');
+        matches.slice(0, 10).forEach((item) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-start';
+            button.innerHTML = `
+                    <div class="me-3">
+                        <div class="fw-semibold">${escapeHtml(item.descricao)}</div>
+                        <div class="small text-muted">Código ${escapeHtml(item.codigo)} • Categoria ${escapeHtml(item.categoria || '—')}</div>
+                    </div>
+                    <span class="badge bg-primary rounded-pill">Saldo ${escapeHtml(item.saldo)}</span>
+                `;
+            button.addEventListener('click', () => openItemModal(item));
+            resultsContainer.appendChild(button);
+        });
+    };
+
+    const findMatches = (query) => {
+        const normalized = normalize(query);
+        if (!normalized) {
+            return [];
+        }
+        return items.filter((item) => {
+            const description = normalize(item.descricao);
+            const codigo = normalize(item.codigo);
+            return description.includes(normalized) || codigo.includes(normalized);
+        });
+    };
+
+    const openItemModal = (item) => {
+        if (!itemModalInstance || !itemModalTitle || !itemModalBody) {
+            return;
+        }
+        itemModalTitle.textContent = item.descricao || 'Item';
+        const metaRows = [
+            `<p class="mb-1"><strong>Código:</strong> ${escapeHtml(item.codigo)}</p>`,
+            `<p class="mb-1"><strong>Categoria:</strong> ${escapeHtml(item.categoria || '—')}</p>`,
+            `<p class="mb-1"><strong>Marca / Fabricante:</strong> ${escapeHtml(item.marca || item.setor || '—')}</p>`,
+            `<p class="mb-1"><strong>Saldo atual:</strong> ${escapeHtml(item.saldo)}</p>`,
+            `<p class="mb-3"><strong>Unidade:</strong> ${escapeHtml(item.unidade || '—')}</p>`
+        ];
+        const hasManageLinks = Boolean(item.edit_url);
+        const categoria_lower = (item.categoria || '').toLowerCase();
+        const canAssign = categoria_lower.includes('ferramenta') || categoria_lower.includes('epi') || (categoria_lower.includes('material') && categoria_lower.includes('ep'));
+        const itemData = {tipo_embalagem_novo: item.tipo_embalagem_novo || '', unidade: item.unidade || '', unidades_por_embalagem: item.unidades_por_embalagem || null};
+        const assignButton = canAssign ? `
+                    <button class="btn btn-success" type="button" onclick='openAssignModal("${escapeHtml(item.codigo)}", "${escapeHtml(item.descricao)}", ${JSON.stringify(itemData)})'>
+                        <i class="bi bi-person-check me-1"></i> Atribuir
+                    </button>` : '';
+        const repairButton = canAssign ? `
+                    <button class="btn btn-warning" type="button" onclick="sendToRepair('${escapeHtml(item.codigo)}', '${escapeHtml(item.descricao)}')">
+                        <i class="bi bi-tools me-1"></i> Enviado para Reparo
+                    </button>` : '';
+        const actionButtons = canManage && hasManageLinks ? `
+                <div class="d-flex flex-wrap gap-2">
+                    <a class="btn btn-primary" href="${escapeHtml(item.edit_url)}">
+                        <i class="bi bi-pencil me-1"></i> Editar item
+                    </a>
+                    ${assignButton}
+                    ${repairButton}
+                </div>
+            ` : canManage ? '<p class="text-muted">Não foi possível gerar as ações rápidas para este item.</p>' : '<p class="text-muted">Apenas administradores podem editar os itens.</p>';
+        itemModalBody.innerHTML = `
+                <div class="mb-3">
+                    ${metaRows.join('')}
+                </div>
+                ${actionButtons}
+            `;
+        itemModalInstance.show();
+    };
+
+    const formatLastEdit = (root) => {
+        if (!root) {
+            return;
+        }
+        root.querySelectorAll('.js-last-edit').forEach((el) => {
+            const raw = el.getAttribute('data-iso') || '';
+            const date = new Date(raw);
+            if (Number.isNaN(date.getTime())) {
+                return;
+            }
+            const data = date.toLocaleDateString('pt-BR');
+            const hora = date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            el.textContent = `${data} às ${hora}`;
+        });
+    };
+
+    if (searchInput) {
+        searchInput.addEventListener('input', (event) => {
+            const matches = findMatches(event.target.value);
+            renderResults(matches, event.target.value);
+        });
+        searchInput.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                const matches = findMatches(event.target.value);
+                if (matches.length) {
+                    openItemModal(matches[0]);
+                }
+            } else if (event.key === 'Escape') {
+                searchInput.value = '';
+                renderResults([], '');
+            }
+        });
+    }
+
+    if (searchClear) {
+        searchClear.addEventListener('click', () => {
+            if (searchInput) {
+                searchInput.value = '';
+                searchInput.focus();
+            }
+            renderResults([], '');
+        });
+    }
+
+    const modalElement = document.getElementById('categoryModal');
+    if (!modalElement) {
+        return;
+    }
+    const modalTitle = modalElement.querySelector('.modal-title');
+    const modalBody = modalElement.querySelector('.modal-body');
+    const modalInstance = new bootstrap.Modal(modalElement);
+    const deleteCategoryBtn = document.getElementById('delete-category-btn');
+    let currentCategory = null;
+
+    function openCategoryModal(card) {
+        const category = card.getAttribute('data-category');
+        const templateId = card.getAttribute('data-category-template');
+        const template = document.getElementById(templateId);
+        if (!category || !template || !modalTitle || !modalBody) {
+            return;
+        }
+        currentCategory = category;
+        modalTitle.textContent = category;
+        modalBody.innerHTML = template.innerHTML;
+        formatLastEdit(modalBody);
+        
+        // Atualizar o botão de exclusão com a categoria atual
+        if (deleteCategoryBtn) {
+            deleteCategoryBtn.setAttribute('data-category', category);
+            deleteCategoryBtn.style.display = canManage ? 'inline-block' : 'none';
+        }
+        
+        modalInstance.show();
+    }
+
+    // Handler para exclusão de categoria
+    if (deleteCategoryBtn && canManage) {
+        deleteCategoryBtn.addEventListener('click', () => {
+            const category = deleteCategoryBtn.getAttribute('data-category');
+            if (!category) {
+                return;
+            }
+            
+            const confirmed = confirm(
+                `Tem certeza que deseja excluir TODOS os itens da categoria "${category}"?\n\n` +
+                `Esta ação NÃO pode ser desfeita e todos os itens desta categoria serão permanentemente removidos.`
+            );
+            
+            if (confirmed) {
+                // Criar e submeter formulário para exclusão
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = `/itens/categoria/${encodeURIComponent(category)}/excluir`;
+                document.body.appendChild(form);
+                form.submit();
+            }
+        });
+    }
+
+    document.querySelectorAll('.category-card').forEach((card) => {
+        card.addEventListener('click', () => openCategoryModal(card));
+        card.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                openCategoryModal(card);
+            }
+        });
+    });
+    formatLastEdit(document);
+    if (selectedCategory) {
+        const normalizedTarget = normalize(selectedCategory);
+        const match = Array.from(document.querySelectorAll('.category-card')).find((card) => {
+            const cat = card.getAttribute('data-category');
+            return normalize(cat) === normalizedTarget;
+        });
+        if (match) {
+            openCategoryModal(match);
+        }
+    }
+    }) ();
+</script>
+{% endblock %}

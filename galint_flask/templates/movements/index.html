@@ -1,0 +1,292 @@
+<!-- Template legado mantido apenas para referência. Versão ativa renderizada via Mako em templates_mako/movements/index.mako -->
+{% extends "base.html" %}
+{% block title %}Lançamentos{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <p class="text-muted mb-1">Registro de movimentações</p>
+        <h2 class="fw-bold">Controle de Saídas e Devoluções</h2>
+    </div>
+    <span class="tag-pill">Bip conectado</span>
+</div>
+<p class="text-muted">
+    Para registrar, aproxime o crachá do leitor (matrícula ou código de barras) e o código do item.
+    As seções abaixo exibem os últimos registros e mantêm a separação de Saídas e Devoluções.
+</p>
+
+<div class="movement-stack">
+    <section class="movement-panel mb-4">
+        <div class="panel-header mb-3">
+            <h3 class="mb-0">Registro de Saída</h3>
+            <small class="text-muted">Bipe confirmado após cada envio.</small>
+        </div>
+        {% if can_manage %}
+        <form class="scan-form" data-liquid-form="true" method="post"
+            action="{{ url_for('movements.registrar_saida') }}">
+            <input type="hidden" name="liquido_habilitado" value="0" data-liquid-field="enabled">
+            <input type="hidden" name="liquido_fracao_numerador" data-liquid-field="numerator">
+            <input type="hidden" name="liquido_fracao_denominador" data-liquid-field="denominator">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Crachá/Matrícula</label>
+                    <input class="form-control" name="usuario" list="usuario-list"
+                        placeholder="Leia ou digite o código do crachá" autocomplete="off" required>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Código do item</label>
+                    <input class="form-control" name="codigo" list="item-list"
+                        placeholder="Leia ou digite o código do item" autocomplete="off" required>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Quantidade</label>
+                    <input class="form-control" type="number" name="quantidade" value="1" min="0.01" step="0.01"
+                        data-liquid-element="quantity" required>
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button class="btn btn-primary w-100" type="submit">Registrar Saída</button>
+                </div>
+                <div class="col-12">
+                    <label class="form-check form-switch d-inline-flex align-items-center gap-2 mb-2">
+                        <input class="form-check-input" type="checkbox" data-liquid-toggle>
+                        <span class="form-check-label" data-liquid-toggle-label>Habilitar cálculo por frações (produtos
+                            liquefeitos)</span>
+                    </label>
+                    <small class="form-text text-muted" data-liquid-hint="toggle">Opcional: ative o seletor quando
+                        quiser
+                        calcular frações.</small>
+                </div>
+                <div class="col-12" data-liquid-panel hidden>
+                    <div class="card bg-dark border-info">
+                        <div class="card-body">
+                            <div class="row g-3">
+                                <div class="col-lg-4 col-md-6">
+                                    <label class="form-label">Tipo de produto</label>
+                                    <select class="form-select" name="liquido_tipo_produto"
+                                        data-liquid-element="type-select">
+                                        {% for tipo in liquid_types %}
+                                        <option value="{{ tipo.id }}">
+                                            {{ tipo.label }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-lg-4 col-md-6">
+                                    <label class="form-label">Capacidade total da embalagem</label>
+                                    <input class="form-control" type="number" min="0.01" step="0.01"
+                                        name="liquido_total_embalagem" placeholder="Ex.: 18"
+                                        data-liquid-element="total">
+                                    <div class="form-text" data-liquid-output="embalagem-unidade">Informe na unidade do
+                                        item.</div>
+                                </div>
+                                <div class="col-lg-4 col-md-6">
+                                    <label class="form-label">&nbsp;</label>
+                                    <input class="form-control" type="text" value="-" readonly disabled>
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label">Selecione a fração</label>
+                                    <div class="d-flex flex-wrap gap-2" data-liquid-element="fractions">
+                                        {% for frac in liquid_fractions %}
+                                        <button class="btn btn-outline-light btn-sm" type="button" data-liquid-fraction
+                                            data-num="{{ frac[0] }}" data-den="{{ frac[1] }}">
+                                            {{ frac[0] }}/{{ frac[1] }}
+                                        </button>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                <div class="col-12">
+                                    <div class="row g-3">
+                                        <div class="col-md-3 col-sm-6">
+                                            <div class="liquid-summary border rounded p-3 h-100">
+                                                <p class="text-muted mb-1">Litros calculados</p>
+                                                <strong data-liquid-output="litros">-</strong>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3 col-sm-6">
+                                            <div class="liquid-summary border rounded p-3 h-100">
+                                                <p class="text-muted mb-1">Quilos calculados</p>
+                                                <strong data-liquid-output="quilos">-</strong>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3 col-sm-6">
+                                            <div class="liquid-summary border rounded p-3 h-100">
+                                                <p class="text-muted mb-1">Fração aplicada</p>
+                                                <strong data-liquid-output="fracao">-</strong>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3 col-sm-6">
+                                            <div class="liquid-summary border rounded p-3 h-100">
+                                                <p class="text-muted mb-1">Quantidade restante</p>
+                                                <strong data-liquid-output="restante">-</strong>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-12">
+                                    <button class="btn btn-outline-secondary btn-sm" type="button" data-liquid-disable>
+                                        Desativar cálculo por frações
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </form>
+        {% else %}
+        <div class="alert alert-info mb-0" role="alert">
+            Apenas administradores podem registrar novas saídas.
+        </div>
+        {% endif %}
+        <div class="mt-4">
+            <h4 class="h6 text-uppercase text-muted">Últimas saídas</h4>
+            <div class="table-responsive">
+                <table class="table table-dark table-striped mb-0">
+                    <thead>
+                        <tr>
+                            <th>Usuário</th>
+                            <th>Matrícula</th>
+                            <th>Item</th>
+                            <th>Qtd.</th>
+                            <th>Data</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if saidas %}
+                        {% for saida in saidas[:6] %}
+                        <tr>
+                            <td>{{ saida.usuario or '-' }}</td>
+                            <td>{{ saida.matricula or '-' }}</td>
+                            <td>{{ saida.descricao or saida.codigo }}</td>
+                            <td>{{ saida.quantidade }}</td>
+                            <td>{{ saida.data }}</td>
+                        </tr>
+                        {% endfor %}
+                        {% else %}
+                        <tr>
+                            <td colspan="5" class="text-center text-muted">Nenhuma saída recente.</td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <section class="movement-panel">
+        <div class="panel-header mb-3">
+            <h3 class="mb-0">Registro de Devolução</h3>
+            <small class="text-muted">Observações são registradas junto à entrada.</small>
+        </div>
+        {% if can_manage %}
+        <form class="scan-form" method="post" action="{{ url_for('movements.registrar_entrada') }}">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Crachá/Matrícula</label>
+                    <input class="form-control" name="usuario" list="usuario-list"
+                        placeholder="Leia ou digite o código do crachá" autocomplete="off" required>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Código do item</label>
+                    <input class="form-control" name="codigo" list="item-list"
+                        placeholder="Leia ou digite o código do item" autocomplete="off" required>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Quantidade</label>
+                    <input class="form-control" type="number" name="quantidade" value="1" min="1" required>
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button class="btn btn-success w-100" type="submit">Registrar Devolução</button>
+                </div>
+            </div>
+        </form>
+        {% else %}
+        <div class="alert alert-info mb-0" role="alert">
+            Apenas administradores podem registrar novas entradas.
+        </div>
+        {% endif %}
+        <div class="mt-4">
+            <h4 class="h6 text-uppercase text-muted">Últimas devoluções</h4>
+            <div class="table-responsive">
+                <table class="table table-dark table-striped mb-0">
+                    <thead>
+                        <tr>
+                            <th>Usuário</th>
+                            <th>Matrícula</th>
+                            <th>Item</th>
+                            <th>Qtd.</th>
+                            <th>Observação</th>
+                            <th>Data</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if entradas %}
+                        {% for entrada in entradas[:6] %}
+                        <tr>
+                            <td>{{ entrada.usuario or '-' }}</td>
+                            <td>{{ entrada.matricula or '-' }}</td>
+                            <td>{{ entrada.descricao or entrada.codigo }}</td>
+                            <td>{{ entrada.quantidade }}</td>
+                            <td>{{ entrada.nota_fiscal or '-' }}</td>
+                            <td>{{ entrada.data }}</td>
+                        </tr>
+                        {% endfor %}
+                        {% else %}
+                        <tr>
+                            <td colspan="6" class="text-center text-muted">Nenhuma entrada recente.</td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+</div>
+
+<datalist id="usuario-list">
+    {% for usuario in usuarios %}
+    <option value="{{ usuario.barcode_token or usuario.matricula }}">{{ usuario.nome }} - {{ usuario.matricula }}
+    </option>
+    {% endfor %}
+</datalist>
+<datalist id="item-list">
+    {% for item in itens %}
+    <option value="{{ item.codigo }}">{{ item.descricao }}</option>
+    {% endfor %}
+</datalist>
+
+{% endblock %}
+{% block scripts %}
+{{ super() }}
+<script src="{{ url_for('static', filename='js/liquid-fractions.js') }}"></script>
+<script>
+    (function () {
+        if (window.initLiquidFractionForms) {
+            window.initLiquidFractionForms({
+                fractions: {{ liquid_fractions | tojson }
+    },
+        types: { { liquid_types | tojson } },
+    itemInfoUrlTemplate: "{{ url_for('movements.item_info', codigo='__codigo__') }}",
+            });
+        }
+
+    function playBeep() {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.frequency.value = 880;
+        gain.gain.value = 0.2;
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        setTimeout(() => {
+            osc.stop();
+            ctx.close();
+        }, 120);
+    }
+
+    document.querySelectorAll('.scan-form').forEach((form) => {
+        form.addEventListener('submit', () => playBeep());
+    });
+    }());
+</script>
+{% endblock %}
