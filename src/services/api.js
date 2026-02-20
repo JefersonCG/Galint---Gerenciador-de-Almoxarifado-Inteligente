@@ -971,6 +971,61 @@ class ApiService {
         }
     }
 
+    async cadastrarItensMultiplos({ itens, matricula }) {
+        try {
+            await this.ensureOfflineReady();
+            const online = await this.isOnline();
+            
+            let sucessos = 0;
+            let falhas = 0;
+            let mensagensErro = [];
+            
+            for (const item of itens) {
+                try {
+                    const itemCompleto = {
+                        ...item,
+                        matricula_cadastro: matricula
+                    };
+                    
+                    const resultado = await this.cadastrarItem(itemCompleto);
+                    
+                    if (resultado.success) {
+                        sucessos++;
+                    } else {
+                        falhas++;
+                        mensagensErro.push(`${item.descricao}: ${resultado.message || 'Erro desconhecido'}`);
+                    }
+                } catch (error) {
+                    falhas++;
+                    mensagensErro.push(`${item.descricao}: ${error.message || 'Erro ao processar'}`);
+                }
+            }
+            
+            if (sucessos === itens.length) {
+                return {
+                    success: true,
+                    offline: !online,
+                    message: online ? `${sucessos} item(ns) cadastrado(s) com sucesso!` : 'Cadastros salvos offline. Serão sincronizados quando houver conexão.'
+                };
+            } else if (sucessos > 0) {
+                return {
+                    success: false,
+                    message: `${sucessos} item(ns) cadastrado(s), ${falhas} falharam:\n${mensagensErro.join('\n')}`
+                };
+            } else {
+                return {
+                    success: false,
+                    message: `Nenhum item foi cadastrado:\n${mensagensErro.join('\n')}`
+                };
+            }
+        } catch (error) {
+            return {
+                success: false,
+                message: error.message || 'Erro ao cadastrar itens múltiplos'
+            };
+        }
+    }
+
     async atualizarItem(itemId, itemData) {
         try {
             const response = await this.client.put(`/api/mobile/estoque/${itemId}`, itemData);
