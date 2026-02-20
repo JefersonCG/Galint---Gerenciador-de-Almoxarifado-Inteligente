@@ -32,8 +32,8 @@
 ⚙️ CONFIGURACAO INICIAL NO APP:
 -------------------------------
 IP do Servidor: 10.0.0.245
-Porta:          5443 (HTTPS) ou 5000 (HTTP)
-Usar HTTPS:     ✓ Ativado
+Porta:          5000 (HTTP)
+Protocolo:      HTTP
 
 1. Digite o IP e porta
 2. Clique em "Testar Conexao"

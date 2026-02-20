@@ -1,37 +1,67 @@
 {
-    "expo": {
-        "name": "GALINT Mobile",
-        "slug": "galint-mobile",
-        "version": "1.0.0",
-        "orientation": "portrait",
-        "userInterfaceStyle": "light",
-        "assetBundlePatterns": [
-            "**/*"
-        ],
-        "ios": {
-            "supportsTablet": true,
-            "bundleIdentifier": "com.galint.mobile"
-        },
-        "android": {
-            "package": "com.galint.mobile",
-            "usesCleartextTraffic": true,
-            "permissions": [
-                "CAMERA",
-                "INTERNET"
-            ]
-        },
-        "plugins": [
-            [
-                "expo-camera",
-                {
-                    "cameraPermission": "Permitir que $(PRODUCT_NAME) acesse sua câmera para escanear códigos de barras."
-                }
-            ]
-        ],
-        "extra": {
-            "eas": {
-                "projectId": "fd58974d-64a8-45a0-a4ae-ca65716e5ddd"
-            }
+  "expo": {
+    "name": "GALINT - Sublime Max",
+    "slug": "galint-mobile",
+    "version": "2.0.0",
+    "runtimeVersion": "2.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "icon": "./assets/icone1.png",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "splash": {
+      "image": "./assets/galint-logo1.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0b3a82"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.galint.mobile"
+    },
+    "android": {
+      "package": "com.galint.mobile",
+      "versionCode": 9,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icone1.png",
+        "backgroundColor": "#0d6efd"
+      },
+      "permissions": [
+        "CAMERA",
+        "INTERNET",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ]
+    },
+    "updates": {
+      "enabled": true,
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 3000,
+      "url": "https://u.expo.dev/47cfed74-518d-4f0f-8ab5-05efa0a33d83"
+    },
+    "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
         }
-    }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Permitir que $(PRODUCT_NAME) acesse sua câmera para escanear códigos de barras."
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "47cfed74-518d-4f0f-8ab5-05efa0a33d83"
+      }
+    },
+    "owner": "jeferson-bitcoin"
+  }
 }

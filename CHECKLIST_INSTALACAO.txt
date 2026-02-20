@@ -63,8 +63,8 @@ OPCAO B - INSTALACAO MANUAL:
 
 □ 10. CONFIGURAR SERVIDOR na primeira tela:
    └─ IP do Servidor:  10.0.0.245
-   └─ Porta:           5443
-   └─ Usar HTTPS:      ☑ Marcado
+   └─ Porta:           5000
+   └─ Protocolo:       HTTP
 
 □ 11. Clicar em "Testar Conexao"
    └─ Deve aparecer: "Conexao OK!"
@@ -190,7 +190,7 @@ Antes de usar, confirmar:
 □ Expo Go instalado no Android
 □ Servidor Flask rodando
 □ Celular e PC na mesma rede Wi-Fi
-□ Firewall liberando portas 5000/5443
+□ Firewall liberando porta 5000
 □ App abrindo no Expo Go
 □ Login funcionando
 

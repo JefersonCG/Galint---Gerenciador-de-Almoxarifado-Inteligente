@@ -44,8 +44,7 @@ npm start
 ## 🔧 Configuração Inicial no App
 
 1. **IP do Servidor:** `10.0.0.245`
-2. **Porta:** `5443` (HTTPS) ou `5000` (HTTP)
-3. **Usar HTTPS:** Ativado
+2. **Porta:** `5000`
 4. Clique em **"Testar Conexão"**
 5. Se OK, faça login com suas credenciais
 
@@ -75,10 +74,7 @@ npm run android
 O smartphone e o servidor Flask devem estar na **mesma rede Wi-Fi** para comunicação local.
 
 ### Firewall
-Certifique-se de que o firewall do Windows permite conexões na porta 5000/5443.
-
-### HTTPS
-Certificados auto-assinados são aceitos automaticamente no app.
+Certifique-se de que o firewall do Windows permite conexões na porta 5000.
 
 ## ❓ Problemas Comuns
 
@@ -91,7 +87,7 @@ npm start -c
 ### "Network request failed"
 - Verifique se o servidor Flask está rodando
 - Confirme IP e porta corretos
-- Teste com HTTP primeiro (porta 5000)
+- Porta padrão: 5000
 
 ### QR Code não aparece
 ```powershell

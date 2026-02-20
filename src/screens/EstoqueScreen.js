@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import {
     View,
     Text,
@@ -9,170 +9,664 @@ import {
     Alert,
     RefreshControl,
     ActivityIndicator,
+    Platform,
+    Image,
+    Keyboard,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import NetInfo from '@react-native-community/netinfo';
 import ApiService from '../services/api';
+import HeartbeatService from '../services/heartbeatService';
+import InactivityService from '../services/inactivityService';
+import SyncService from '../services/dbSync';
+import { 
+    getOnlineSnapshot, 
+    getOfflineDelta, 
+    saveOnlineSnapshot, 
+    searchItems as searchOfflineItems, // Alias para deixar claro que é local
+    upsertItems,
+    listPendingOps
+} from '../services/offlineDb';
+
+// Função Centralizada de Permissões
+function getUserRole(user) {
+    if (!user) return 'operacional'; // Default seguro se não tiver user
+    
+    // Normalização segura
+    const cargo = (user.cargo || '').toString().toLowerCase().trim();
+    const setor = (user.setor || '').toString().toLowerCase().trim();
+    
+    // Check Admin explicito '1' ou true
+    const isAdmin = user.is_admin === true || user.is_admin === 1 || String(user.is_admin || '').trim() === '1';
+    
+    // Check Legacy
+    const isManagerLegacy = !!user.is_manager; 
+
+    // 1. MASTER (Almoxarifes e Admins)
+    if (isAdmin || cargo.includes('almoxarif') || cargo === 'master') {
+        return 'master';
+    }
+
+    // 2. GERENCIA (inclui supervisor)
+    if (
+        cargo.includes('gerente') ||
+        setor.includes('gerenc') ||
+        setor.includes('adm') ||
+        cargo.includes('supervisor') ||
+        setor.includes('supervisor')
+    ) {
+        return 'gerencia';
+    }
+
+    // 3. OPERACIONAL (Default)
+    return 'operacional'; 
+}
 
 export default function EstoqueScreen({ navigation, route }) {
     const [items, setItems] = useState([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
-    const user = route.params?.user;
+    const [categoriaStats, setCategoriaStats] = useState({});
+    const [selectedCategoria, setSelectedCategoria] = useState(null);
+    const [offlineSnapshot, setOfflineSnapshot] = useState(null); // { totalItens, totalQuantidade }
+    const [offlineDelta, setOfflineDelta] = useState({ entradas: 0, retiradas: 0 });
+    const [isOfflineMode, setIsOfflineMode] = useState(false);
+    const [kpiServer, setKpiServer] = useState(null);
+    const [user, setUser] = useState(route.params?.user || null);
+    
+    // 🔄 Estados para Banner de Conexão
+    const [connectionStatus, setConnectionStatus] = useState('online'); // 'online' | 'offline' | 'syncing'
+    const [pendingOpsCount, setPendingOpsCount] = useState(0);
+    const [isSyncing, setIsSyncing] = useState(false);
 
+    // Determinar permissão
+    const role = useMemo(() => getUserRole(user), [user]);
+
+    // Carregar usuário inicial e iniciar serviços
     useEffect(() => {
-        loadEstoque();
+        // Se verificação de usuário
+        if (!route.params?.user) {
+            AsyncStorage.getItem('user')
+                .then((stored) => {
+                    if (stored) {
+                        try {
+                            setUser(JSON.parse(stored));
+                        } catch (error) {
+                            setUser(null);
+                        }
+                    }
+                })
+                .catch(() => {});
+        } else {
+             // Atualizar storage com o user vindo da navegação (provavelmente login fresco)
+             AsyncStorage.setItem('user', JSON.stringify(route.params.user)).catch(()=>{});
+        }
+        
+        // Iniciar Sync Service (Ciclo de 5s)
+        SyncService.start();
+
+        // Listener de Sync para atualizar a tela automaticamente
+        const removeSyncListener = SyncService.addListener(() => {
+            // Quando ocorrer um sync, recarregamos dados locais e KPIs
+            // console.log('[EstoqueScreen] Sync detectado, atualizando UI...');
+            loadEstoque(searchQuery, true); // true = silent update
+        });
+        
+        // Carregamento inicial direto
+        (async () => {
+             // Tenta carregar local imediatamente para ser rápido
+             const local = await searchOfflineItems('');
+             if(local && local.length > 0) {
+                 setItems(local);
+                 calcularCategoriaStats(local);
+                 setLoading(false);
+             } else {
+                 // Cache vazio! Verificar se está online e fazer pre-load
+                 console.log('[EstoqueScreen] ⚠️ Cache SQLite vazio - verificando conexão...');
+                 try {
+                     const online = await ApiService.isOnline();
+                     if (online) {
+                         console.log('[EstoqueScreen] 🌐 Online detectado - iniciando pre-load automático...');
+                         const preloadResult = await ApiService.preloadEstoqueCompleto();
+                         if (preloadResult.success) {
+                             console.log(`[EstoqueScreen] ✅ Pre-load concluído: ${preloadResult.totalItens} itens`);
+                             // Recarregar do cache após pre-load
+                             const localAfterPreload = await searchOfflineItems('');
+                             if (localAfterPreload && localAfterPreload.length > 0) {
+                                 setItems(localAfterPreload);
+                                 calcularCategoriaStats(localAfterPreload);
+                             }
+                         } else {
+                             console.log('[EstoqueScreen] ⚠️ Pre-load falhou');
+                         }
+                     } else {
+                         console.log('[EstoqueScreen] 📵 Modo offline - não é possível carregar dados');
+                         Alert.alert(
+                             'Sem Dados Disponíveis', 
+                             'O cache local está vazio e você está offline.\\n\\nConecte-se à internet para carregar os dados.',
+                             [{ text: 'OK' }]
+                         );
+                     }
+                 } catch (error) {
+                     console.error('[EstoqueScreen] Erro ao verificar pre-load:', error);
+                 }
+                 setLoading(false);
+             }
+             // Depois roda o full load
+             loadEstoque('', false);
+        })();
+
+        HeartbeatService.start();
+        
+        InactivityService.start((reason) => {
+            Alert.alert(
+                'Sessão Expirada',
+                'Você foi desconectado por inatividade (6 minutos sem uso).',
+                [
+                    {
+                        text: 'OK',
+                        onPress: () => {
+                            HeartbeatService.stop();
+                            InactivityService.stop();
+                            SyncService.stop();
+                            ApiService.logout().catch(() => {});
+                            navigation.reset({
+                                index: 0,
+                                routes: [{ name: 'Login' }],
+                            });
+                        }
+                    }
+                ],
+                { cancelable: false }
+            );
+        });
+
+        return () => {
+            HeartbeatService.stop();
+            InactivityService.stop();
+            SyncService.stop();
+            removeSyncListener();
+        };
+    }, [navigation]);
+
+    // 📡 Monitorar Conexão e Operações Pendentes
+    useEffect(() => {
+        // Atualizar contador de operações pendentes periodicamente
+        const updatePendingOps = async () => {
+            const pending = await listPendingOps();
+            setPendingOpsCount(pending.length);
+        };
+
+        updatePendingOps(); // Inicial
+        const timer = setInterval(updatePendingOps, 3000); // A cada 3s
+
+        // Listener do NetInfo
+        const unsubscribeNetInfo = NetInfo.addEventListener(state => {
+            const isConnected = state.isConnected && state.isInternetReachable !== false;
+            setConnectionStatus(isConnected ? 'online' : 'offline');
+        });
+
+        return () => {
+            clearInterval(timer);
+            unsubscribeNetInfo();
+        };
     }, []);
 
-    const loadEstoque = async (search = '') => {
+    useEffect(() => {
+        const unsubscribe = navigation.addListener('focus', () => {
+             // Ao focar, tenta dar um refresh suave
+             loadEstoque(searchQuery, true);
+        });
+        return unsubscribe;
+    }, [navigation, searchQuery]);
+
+    // Função Principal de Carga de Dados
+    // Estratégia: Local First -> Network Update
+    const loadEstoque = async (search = '', silent = false) => {
+        if (!silent && items.length === 0) setLoading(true);
+        
         try {
-            const result = await ApiService.getEstoque(search);
-            if (result.success) {
-                setItems(result.data);
-            } else {
-                Alert.alert('Erro', result.message);
+            // 1. Carregar do Banco Local (Sempre, para garantir que estamos vendo o que o user tem)
+            const localItems = await searchOfflineItems(search);
+            // Se tiver dados locais, use-os como source of truth imediato
+            // Por quê? Porque o SyncService está atualizando o sqlite em background.
+            // Então ler do SQLite é ler o estado mais atual 'sincronizado'.
+            if (localItems) {
+                setItems(localItems);
+                calcularCategoriaStats(localItems);
             }
+
+            // 2. Se NÃO for silent, força um request de rede para garantir que o SyncService não está dormindo
+            // ou se for a primeira carga. Mas o ideal é deixar o SyncService rodar sozinho.
+            // Porem, user quer ver atualizações "na hora".
+            // Se estivermos offline, isOfflineMode ficará true naturalmente pelo SyncService se falhar?
+            // O SyncService não exporta estado de conexão reativo fácil, mas podemos checar ApiService.isOnline se quisermos badge.
+            
+            // Vamos confiar no SyncService para dados pesados e update, mas verificar flag de offline
+            const snapshot = await getOnlineSnapshot();
+            const delta = await getOfflineDelta();
+            setOfflineSnapshot(snapshot);
+            setOfflineDelta(delta);
+            
+            // Verifica se tem pendencias
+            setIsOfflineMode(delta.entradas > 0 || delta.retiradas > 0); 
+            // Ou checa API simples
+            // const online = await ApiService.testConnection(); ... (muito pesado para loop)
+
         } catch (error) {
-            Alert.alert('Erro', 'Falha ao carregar estoque');
+            console.log('Erro loadEstoque', error);
         } finally {
-            setLoading(false);
+            if (!silent) setLoading(false);
             setRefreshing(false);
         }
     };
 
-    const handleSearch = () => {
-        setLoading(true);
-        loadEstoque(searchQuery);
+    const calcularCategoriaStats = (currentItems) => {
+        if (!currentItems) return;
+        const stats = {};
+        currentItems.forEach(item => {
+            const cat = item.categoria || 'Outros';
+            if (!stats[cat]) {
+                stats[cat] = { total: 0, quantidade: 0, nome: cat };
+            }
+            stats[cat].total += 1;
+            stats[cat].quantidade += Number(item.quantidade || 0);
+        });
+        setCategoriaStats(stats);
+    };
+
+    // Autocomplete Logic: Filter items locally based on search query
+    // O items já vem filtrado do sqlite se passamos search no searchOfflineItems,
+    // ENTRETANTO, para performance de digitação, melhor filtrar em memória o que já temos
+    // e disparar a busca no sqlite (que é async) com debounce.
+    const filteredItems = useMemo(() => {
+        if (!searchQuery) return items;
+        const lower = searchQuery.toLowerCase();
+        return items.filter(i => 
+            (i.nome || '').toLowerCase().includes(lower) || 
+            (i.descricao || '').toLowerCase().includes(lower) ||
+            (i.categoria || '').toLowerCase().includes(lower) ||
+            (i.codigo_barras || '').includes(lower)
+        );
+    }, [items, searchQuery]);
+
+    // REMOVIDO: debounce causava fechamento do teclado
+    // A filtragem acontece em memória via useMemo (filteredItems)
+
+    const handleSearch = (text) => {
+        setSearchQuery(text);
+        // O useEffect cuida do reload
     };
 
     const handleRefresh = () => {
         setRefreshing(true);
-        loadEstoque(searchQuery);
+        // Forçar um sync Cycle agora
+        SyncService.runSync().finally(() => {
+            loadEstoque(searchQuery);
+            setRefreshing(false);
+        });
     };
 
-    const handleLogout = () => {
-        Alert.alert(
-            'Sair',
-            'Deseja realmente sair?',
-            [
-                { text: 'Cancelar', style: 'cancel' },
-                {
-                    text: 'Sair',
-                    style: 'destructive',
-                    onPress: async () => {
-                        await ApiService.logout();
-                        navigation.replace('Login');
-                    },
-                },
-            ]
-        );
+    // 🔄 Sincronização Manual (botão no banner offline)
+    const handleManualSync = async () => {
+        try {
+            setIsSyncing(true);
+            setConnectionStatus('syncing');
+            
+            console.log('[ManualSync] Iniciando sincronização manual...');
+            
+            // Forçar sync de operações pendentes
+            await SyncService.runSync();
+            
+            // Recarregar estoque
+            await loadEstoque(searchQuery, true);
+            
+            // Atualizar contador
+            const pending = await listPendingOps();
+            setPendingOpsCount(pending.length);
+            
+            if (pending.length === 0) {
+                Alert.alert('Sucesso', '✅ Todas as operações foram sincronizadas');
+            } else {
+                Alert.alert('Sucesso', `✅ Sincronização concluída\n${pending.length} operação(ões) ainda pendente(s)`);
+            }
+            
+            console.log(`[ManualSync] ✅ Sincronização completa. Pendentes: ${pending.length}`);
+        } catch (error) {
+            console.error('[ManualSync] Erro:', error);
+            Alert.alert('Erro', 'Falha ao sincronizar. Verifique sua conexão.');
+        } finally {
+            setIsSyncing(false);
+            // Restaurar status baseado na conexão real
+            const netState = await NetInfo.fetch();
+            const isConnected = netState.isConnected && netState.isInternetReachable !== false;
+            setConnectionStatus(isConnected ? 'online' : 'offline');
+        }
     };
 
-    const renderItem = ({ item }) => (
-        <View style={styles.itemCard}>
+    // Navigation Handlers
+    const handleAction = (action, params = {}) => {
+        InactivityService.recordActivity();
+        navigation.navigate(action, { user, ...params });
+    };
+
+    const getCategoriaIcon = (categoria) => {
+        const icons = {
+            'Material Elétrico': '⚡',
+            'Material Hidráulico': '💧',
+            'Material de Construção': '🔨',
+            'Materiais de Limpeza': '🧽',
+            'Material Descartável': '🧽',
+            'Ferramentas': '🔧',
+            'EPI': '🦺',
+        };
+        return icons[categoria] || '📦';
+    };
+
+    const handleItemPress = (item) => {
+        if (role === 'master') {
+            navigation.navigate('EditarItem', { user, item });
+        }
+    };
+
+    const handleCategoriaPress = (categoria) => {
+        setSearchQuery(categoria);
+    };
+
+    const renderItem = useCallback(({ item }) => {
+        const q = Number(item?.quantidade ?? 0);
+        const quantidadeInt = Number.isFinite(q) ? Math.trunc(q) : 0;
+        return (
+        <TouchableOpacity
+            style={styles.itemCard}
+            activeOpacity={role === 'master' ? 0.7 : 1}
+            onPress={() => handleItemPress(item)}
+        >
             <View style={styles.itemHeader}>
                 <Text style={styles.itemName}>{item.descricao || item.nome}</Text>
                 <View style={[
                     styles.badge,
-                    item.quantidade > 10 ? styles.badgeSuccess :
-                        item.quantidade > 0 ? styles.badgeWarning : styles.badgeDanger
+                    quantidadeInt > 10 ? styles.badgeSuccess :
+                        quantidadeInt > 0 ? styles.badgeWarning : styles.badgeDanger
                 ]}>
-                    <Text style={styles.badgeText}>{item.quantidade || 0}</Text>
+                    <Text style={styles.badgeText}>{quantidadeInt}</Text>
                 </View>
             </View>
 
-            {item.codigo_barras && (
-                <Text style={styles.itemBarcode}>📊 {item.codigo_barras}</Text>
-            )}
+            {item.codigo_barras ? (
+                <Text style={styles.itemBarcode}>Código: {item.codigo_barras}</Text>
+            ) : null}
 
             <View style={styles.itemDetails}>
-                {item.categoria && (
-                    <Text style={styles.itemDetail}>🏷️ {item.categoria}</Text>
-                )}
-                {item.localizacao && (
-                    <Text style={styles.itemDetail}>📍 {item.localizacao}</Text>
-                )}
-                {item.marca && (
-                    <Text style={styles.itemDetail}>🏭 {item.marca}</Text>
-                )}
+                {item.categoria ? (
+                    <Text style={styles.itemDetail}>Categoria: {item.categoria}</Text>
+                ) : null}
+                {item.localizacao ? (
+                    <Text style={styles.itemDetail}>Local: {item.localizacao}</Text>
+                ) : null}
+                {item.marca ? (
+                    <Text style={styles.itemDetail}>Marca: {item.marca}</Text>
+                ) : null}
             </View>
-        </View>
-    );
+        </TouchableOpacity>
+        );
+    }, [role]);
 
-    if (loading && !refreshing) {
+    const renderCategoryCard = (catName) => {
+        const stats = categoriaStats[catName] || { total: 0 };
         return (
-            <View style={styles.centerContainer}>
-                <ActivityIndicator size="large" color="#0d6efd" />
-                <Text style={styles.loadingText}>Carregando estoque...</Text>
+            <TouchableOpacity 
+                key={catName}
+                style={styles.categoryCard} 
+                onPress={() => handleCategoriaPress(catName)}
+                activeOpacity={0.8}
+            >
+                <Text style={styles.categoryIcon}>{getCategoriaIcon(catName)}</Text>
+                <Text style={styles.categoryTitle}>{catName}</Text>
+                <Text style={styles.categoryCount}>{stats.total} itens</Text>
+            </TouchableOpacity>
+        );
+    };
+
+    // Componente de Header da Lista (Tudo que fica acima dos itens)
+    const renderListHeader = () => {
+        const availableCategories = Object.keys(categoriaStats);
+        
+        return (
+            <View>
+                {/* Header Topo */}
+                <View style={styles.modernHeader}>
+                    <View style={styles.headerTop}>
+                        <View style={styles.headerTextContainer}>
+                            <Text style={styles.headerTitle}>{user?.nome || user?.username || 'Usuário'}</Text>
+                            <Text style={styles.headerSubtitle}>{role.toUpperCase()} - {user?.matricula || ''}</Text>
+                        </View>
+                        <TouchableOpacity
+                            onPress={() => navigation.navigate('Menu')}
+                            style={styles.modernMenuButton}
+                        >
+                            <Text style={styles.modernMenuIcon}>Menu</Text>
+                        </TouchableOpacity>
+                    </View>
+                    
+                    {/* Search Bar */}
+                    <View style={styles.headerSearchContainer}>
+                        <Text style={styles.searchIcon}>🔍</Text>
+                        <TextInput
+                            style={styles.headerSearchInput}
+                            placeholder="Pesquisar (Autocomplete)..."
+                            placeholderTextColor="#a3d9a5"
+                            value={searchQuery}
+                            onChangeText={handleSearch}
+                            returnKeyType="search"
+                        />
+                        {searchQuery !== '' && (
+                            <TouchableOpacity onPress={() => setSearchQuery('')}>
+                                <Text style={styles.clearSearchIcon}>✕</Text>
+                            </TouchableOpacity>
+                        )}
+                    </View>
+                </View>
+
+                {/* KPI Offline */}
+                {isOfflineMode && (
+                    <View style={styles.kpiSection}>
+                        <View style={styles.kpiHeader}>
+                            <Text style={styles.kpiTitle}>📊 Indicador</Text>
+                            <View style={styles.offlineModeBadge}>
+                                <Text style={styles.offlineModeText}>Modo offline</Text>
+                            </View>
+                        </View>
+                        <View style={styles.kpiGrid}>
+                            <View style={[styles.kpiCard, styles.kpiOfflineEntradas]}>
+                                <View style={styles.kpiValueContainer}>
+                                    <Text style={styles.kpiValue}>
+                                        {offlineDelta.entradas + offlineDelta.retiradas}
+                                    </Text>
+                                </View>
+                                <Text style={styles.kpiLabel}>Operações pendentes</Text>
+                            </View>
+                        </View>
+                    </View>
+                )}
+
+                {/* VISÃO GERENCIA: CATEGORIAS */}
+                {role === 'gerencia' && (
+                    <View style={styles.actionsSection}>
+                        <View style={styles.actionsTitleContainer}>
+                            <Text style={styles.actionsTitle}>📂 Categorias</Text>
+                        </View>
+                        <View style={styles.actionsGrid}>
+                            {availableCategories.map(cat => renderCategoryCard(cat))}
+                            {availableCategories.length === 0 && (
+                                <Text style={styles.emptyText}>Sem categorias disponíveis</Text>
+                            )}
+                        </View>
+                    </View>
+                )}
+
+                {/* VISÃO OPERACIONAL e MASTER: AÇÕES */}
+                {(role === 'operacional' || role === 'master') && (
+                    <View style={styles.actionsSection}>
+                        <View style={styles.actionsTitleContainer}>
+                            <Text style={styles.actionsTitle}>Ações rápidas</Text>
+                        </View>
+                        <View style={styles.actionsGrid}>
+                            <TouchableOpacity
+                                style={[styles.actionCard, styles.materialCard]}
+                                onPress={() => handleAction('Scanner', { mode: 'withdraw' })}
+                                activeOpacity={0.8}
+                            >
+                                <Text style={styles.actionLabel}>Retirar Material</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={[styles.actionCard, styles.returnMaterialCard]}
+                                onPress={() => handleAction('Scanner', { mode: 'material_return' })}
+                                activeOpacity={0.8}
+                            >
+                                <Text style={styles.actionLabel}>Devolver Material</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={[styles.actionCard, styles.multipleCard]}
+                                onPress={() => handleAction('Retirada', { multi: true, items: [] })}
+                                activeOpacity={0.8}
+                            >
+                                <Text style={styles.actionLabel}>Retirada Múltipla</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={[styles.actionCard, styles.fractionCard]}
+                                onPress={() => handleAction('Scanner', { mode: 'withdraw_fraction' })}
+                                activeOpacity={0.8}
+                            >
+                                <Text style={styles.actionLabel}>Retirada Fracionada</Text>
+                            </TouchableOpacity>
+
+                            {/* OPERAÇÕES MÚLTIPLAS - MASTER OU GERENCIA */}
+                            {(role === 'master' || role === 'gerencia') && (
+                                <>
+                                    <TouchableOpacity
+                                        style={[styles.actionCard, styles.multipleToolsCard]}
+                                        onPress={() => handleAction('RetiradaMultiplaFerramentas')}
+                                        activeOpacity={0.8}
+                                    >
+                                        <Text style={styles.actionLabel}>Retirada Múltipla Ferramentas</Text>
+                                    </TouchableOpacity>
+
+                                    <TouchableOpacity
+                                        style={[styles.actionCard, styles.multipleReturnToolsCard]}
+                                        onPress={() => handleAction('DevolucaoMultiplaFerramentas')}
+                                        activeOpacity={0.8}
+                                    >
+                                        <Text style={styles.actionLabel}>Devolução Múltipla Ferramentas</Text>
+                                    </TouchableOpacity>
+
+                                    <TouchableOpacity
+                                        style={[styles.actionCard, styles.multipleReturnMaterialsCard]}
+                                        onPress={() => handleAction('DevolucaoMultiplaMateriais')}
+                                        activeOpacity={0.8}
+                                    >
+                                        <Text style={styles.actionLabel}>Devolução Múltipla Materiais</Text>
+                                    </TouchableOpacity>
+                                </>
+                            )}
+
+                            {/* CADASTRAR - MASTER OU GERENCIA */}
+                            {(role === 'master' || role === 'gerencia') && (
+                                <TouchableOpacity
+                                    style={[styles.actionCard, styles.cadastroCard]}
+                                    onPress={() => handleAction('CadastroMultiplo')}
+                                    activeOpacity={0.8}
+                                >
+                                    <Text style={styles.actionLabel}>Cadastrar Itens</Text>
+                                </TouchableOpacity>
+                            )}
+
+                            {/* CONTROLE DE FERRAMENTAS - APENAS ADMIN (MASTER) */}
+                            {role === 'master' && (
+                                <TouchableOpacity
+                                    style={[styles.actionCard, styles.ferramentasCard]}
+                                    onPress={() => handleAction('Ferramentas')}
+                                    activeOpacity={0.8}
+                                >
+                                    <Text style={styles.actionLabel}>Controle de Ferramentas</Text>
+                                </TouchableOpacity>
+                            )}
+                        </View>
+                    </View>
+                )}
+
+                <View style={styles.listTitleContainer}>
+                     <Text style={styles.listTitle}>
+                                {searchQuery ? `Resultados para "${searchQuery}"` : 'Estoque completo'}
+                     </Text>
+                </View>
             </View>
         );
-    }
+    };
 
     return (
         <View style={styles.container}>
-            {/* Header com usuário */}
-            <View style={styles.userHeader}>
-                <View>
-                    <Text style={styles.welcomeText}>Olá, {user?.nome || user?.username || 'Usuário'}</Text>
-                    <Text style={styles.roleText}>{user?.setor || 'Almoxarifado'}</Text>
+            {/* 🌐 Banner de Status de Conexão */}
+            {connectionStatus === 'offline' && (
+                <View style={styles.offlineBanner}>
+                    <View style={styles.offlineBannerContent}>
+                        <Text style={styles.offlineBannerText}>
+                            Modo offline
+                            {pendingOpsCount > 0 && ` - ${pendingOpsCount} operação(ões) pendente(s)`}
+                        </Text>
+                        <TouchableOpacity
+                            style={styles.syncButton}
+                            onPress={handleManualSync}
+                            disabled={isSyncing}
+                        >
+                            <Text style={styles.syncButtonText}>
+                                {isSyncing ? 'Sincronizando...' : 'Sincronizar'}
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
                 </View>
-                <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
-                    <Text style={styles.logoutText}>Sair</Text>
-                </TouchableOpacity>
-            </View>
-
-            {/* Barra de Pesquisa */}
-            <View style={styles.searchContainer}>
-                <TextInput
-                    style={styles.searchInput}
-                    placeholder="Pesquisar itens..."
-                    value={searchQuery}
-                    onChangeText={setSearchQuery}
-                    onSubmitEditing={handleSearch}
-                    returnKeyType="search"
-                />
-                <TouchableOpacity style={styles.searchButton} onPress={handleSearch}>
-                    <Text style={styles.searchButtonText}>🔍</Text>
-                </TouchableOpacity>
-            </View>
-
-            {/* Botões de Ação */}
-            <View style={styles.actionButtons}>
-                <TouchableOpacity
-                    style={[styles.actionButton, styles.scanButton]}
-                    onPress={() => navigation.navigate('Scanner')}
-                >
-                    <Text style={styles.actionButtonIcon}>📷</Text>
-                    <Text style={styles.actionButtonText}>Escanear</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                    style={[styles.actionButton, styles.addButton]}
-                    onPress={() => navigation.navigate('Cadastro')}
-                >
-                    <Text style={styles.actionButtonIcon}>➕</Text>
-                    <Text style={styles.actionButtonText}>Cadastrar</Text>
-                </TouchableOpacity>
-            </View>
-
-            {/* Lista de Itens */}
-            <FlatList
-                data={items}
-                renderItem={renderItem}
-                keyExtractor={(item) => item.id?.toString() || Math.random().toString()}
-                contentContainerStyle={styles.listContainer}
-                refreshControl={
-                    <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
-                }
-                ListEmptyComponent={
-                    <View style={styles.emptyContainer}>
-                        <Text style={styles.emptyIcon}>📦</Text>
-                        <Text style={styles.emptyText}>Nenhum item encontrado</Text>
-                        <Text style={styles.emptySubtext}>
-                            {searchQuery ? 'Tente outra pesquisa' : 'Comece cadastrando itens'}
+            )}
+            {connectionStatus === 'syncing' && (
+                <View style={[styles.offlineBanner, styles.syncingBanner]}>
+                    <View style={styles.offlineBannerContent}>
+                        <Text style={styles.offlineBannerText}>
+                            Sincronizando operações...
                         </Text>
                     </View>
+                </View>
+            )}
+            
+            <FlatList
+                data={filteredItems}
+                renderItem={renderItem}
+                keyExtractor={(item) => item.codigo_barras || item.id?.toString() || Math.random().toString()}
+                contentContainerStyle={styles.listContainer}
+                ListHeaderComponent={renderListHeader}
+                refreshControl={
+                    <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={['#22c55e']} />
+                }
+                initialNumToRender={10}
+                maxToRenderPerBatch={10}
+                windowSize={5}
+                removeClippedSubviews={true}
+                ListEmptyComponent={
+                    !loading && (
+                        <View style={styles.emptyContainer}>
+                            <Text style={styles.emptyText}>Nenhum item encontrado</Text>
+                        </View>
+                    )
                 }
             />
+            {loading && !refreshing && items.length === 0 && (
+                 <View style={styles.loadingOverlay}>
+                    <ActivityIndicator size="large" color="#22c55e" />
+                    <Text style={styles.loadingText}>Sincronizando...</Text>
+                 </View>
+            )}
         </View>
     );
 }
@@ -182,100 +676,248 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: '#f5f5f5',
     },
-    centerContainer: {
-        flex: 1,
+    listContainer: {
+        paddingBottom: 20,
+    },
+    loadingOverlay: {
+        position: 'absolute',
+        top: 0, left: 0, right: 0, bottom: 0,
+        backgroundColor: 'rgba(245,245,245,0.8)',
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: '#f5f5f5',
+        zIndex: 10,
     },
     loadingText: {
         marginTop: 10,
-        fontSize: 16,
-        color: '#666',
+        color: '#16a34a',
+        fontWeight: 'bold',
     },
-    userHeader: {
+    // ========== HEADER ==========
+    modernHeader: {
+        backgroundColor: '#22c55e',
+        paddingTop: Platform.OS === 'ios' ? 50 : 15,
+        paddingBottom: 15,
+        paddingHorizontal: 16,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 6,
+        elevation: 8,
+    },
+    headerTop: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        backgroundColor: '#fff',
-        padding: 15,
-        borderBottomWidth: 1,
-        borderBottomColor: '#e0e0e0',
+        marginBottom: 14,
     },
-    welcomeText: {
+    headerTextContainer: {
+        flex: 1,
+    },
+    headerTitle: {
         fontSize: 18,
-        fontWeight: '600',
-        color: '#333',
+        fontWeight: '800',
+        color: '#ffffff',
+        letterSpacing: 0.5,
     },
-    roleText: {
-        fontSize: 14,
-        color: '#666',
+    headerSubtitle: {
+        fontSize: 13,
+        fontWeight: '500',
+        color: '#e0ffe6',
         marginTop: 2,
     },
-    logoutButton: {
-        paddingHorizontal: 15,
-        paddingVertical: 8,
-        backgroundColor: '#dc3545',
-        borderRadius: 6,
+    modernMenuButton: {
+        backgroundColor: 'rgba(255, 255, 255, 0.25)',
+        borderRadius: 10,
+        padding: 10,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
-    logoutText: {
-        color: '#fff',
-        fontWeight: '600',
+    modernMenuIcon: {
+        fontSize: 22,
     },
-    searchContainer: {
+    headerSearchContainer: {
         flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+        borderRadius: 25,
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
+    },
+    searchIcon: {
+        fontSize: 18,
+        marginRight: 10,
+        color: '#16a34a',
+    },
+    headerSearchInput: {
+        flex: 1,
+        fontSize: 15,
+        color: '#111827',
+        fontWeight: '500',
+    },
+    clearSearchIcon: {
+        fontSize: 18,
+        color: '#9ca3af',
+        paddingLeft: 8,
+    },
+    // ========== KPI ==========
+    kpiSection: {
         padding: 15,
         backgroundColor: '#fff',
-        borderBottomWidth: 1,
-        borderBottomColor: '#e0e0e0',
+        marginBottom: 10,
     },
-    searchInput: {
-        flex: 1,
-        backgroundColor: '#f5f5f5',
-        borderRadius: 8,
-        paddingHorizontal: 15,
-        paddingVertical: 10,
-        fontSize: 16,
-        marginRight: 10,
-    },
-    searchButton: {
-        backgroundColor: '#0d6efd',
-        borderRadius: 8,
-        paddingHorizontal: 20,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    searchButtonText: {
-        fontSize: 20,
-    },
-    actionButtons: {
+    kpiHeader: {
         flexDirection: 'row',
-        padding: 15,
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 12,
+    },
+    kpiTitle: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: '#111827',
+    },
+    offlineModeBadge: {
+        backgroundColor: '#fee2e2',
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#fecaca',
+    },
+    offlineModeText: {
+        fontSize: 11,
+        fontWeight: '600',
+        color: '#dc2626',
+    },
+    kpiGrid: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
         gap: 10,
     },
-    actionButton: {
+    kpiCard: {
         flex: 1,
+        borderRadius: 12,
+        paddingVertical: 14,
+        alignItems: 'center',
+        borderWidth: 1,
+    },
+    kpiOfflineEntradas: {
+        backgroundColor: '#f59e0b',
+        minHeight: 120,
+        borderColor: '#fbbf24',
+    },
+    kpiValue: {
+        fontSize: 20,
+        fontWeight: '800',
+        color: '#111827',
+    },
+    kpiLabel: {
+        marginTop: 4,
+        fontSize: 12,
+        fontWeight: '600',
+        color: '#374151',
+    },
+    kpiValueContainer: {
         flexDirection: 'row',
+        justifyContent: 'center',
+    },
+    // ========== AÇÕES / CARDS ==========
+    actionsSection: {
+        paddingHorizontal: 15,
+        paddingBottom: 10,
+        backgroundColor: '#fff',
+        marginBottom: 10,
+        borderTopWidth: 1,
+        borderTopColor: '#f0f0f0',
+    },
+    actionsTitleContainer: {
+        paddingVertical: 10,
+    },
+    actionsTitle: {
+        fontSize: 14,
+        fontWeight: '700',
+        color: '#111827',
+    },
+    actionsGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        justifyContent: 'space-between',
+        gap: 10,
+        paddingBottom: 10,
+    },
+    actionCard: {
+        width: '48%',
+        minHeight: 92,
+        borderRadius: 12,
+        paddingVertical: 14,
+        paddingHorizontal: 10,
         alignItems: 'center',
         justifyContent: 'center',
-        padding: 15,
-        borderRadius: 10,
-        gap: 8,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.12,
+        shadowRadius: 4,
+        elevation: 3,
     },
-    scanButton: {
-        backgroundColor: '#6610f2',
+    categoryCard: {
+        width: '48%',
+        backgroundColor: '#ffffff',
+        borderRadius: 12,
+        padding: 16,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: '#e5e7eb',
+        marginBottom: 6,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 2,
+        elevation: 2,
     },
-    addButton: {
-        backgroundColor: '#198754',
+    categoryIcon: {
+        fontSize: 32,
+        marginBottom: 8,
     },
-    actionButtonIcon: {
+    categoryTitle: {
+        fontSize: 14,
+        fontWeight: '700',
+        color: '#1f2937',
+        textAlign: 'center',
+        marginBottom: 4,
+    },
+    categoryCount: {
+        fontSize: 12,
+        color: '#6b7280',
+    },
+    actionIcon: {
         fontSize: 24,
+        marginBottom: 6,
     },
-    actionButtonText: {
-        color: '#fff',
-        fontSize: 16,
-        fontWeight: '600',
+    actionLabel: {
+        color: '#1f2937',
+        fontWeight: '700',
+        fontSize: 13,
+        lineHeight: 16,
+        textAlign: 'center',
     },
+    materialCard: { backgroundColor: '#dbeafe' },
+    multipleCard: { backgroundColor: '#f3e8ff' },
+    toolCard: { backgroundColor: '#ffedd5' },
+    returnCard: { backgroundColor: '#fee2e2' },
+    returnMaterialCard: { backgroundColor: '#d1fae5' },
+    fractionCard: { backgroundColor: '#cffafe' },
+    multipleToolsCard: { backgroundColor: '#fef3c7', borderWidth: 1, borderColor: '#f59e0b' },
+    multipleReturnToolsCard: { backgroundColor: '#ddd6fe', borderWidth: 1, borderColor: '#8b5cf6' },
+    multipleReturnMaterialsCard: { backgroundColor: '#bbf7d0', borderWidth: 1, borderColor: '#16a34a' },
+    cadastroCard: { backgroundColor: '#dcfce7', borderWidth: 1, borderColor: '#16a34a' },
+    ferramentasCard: { backgroundColor: '#e0e7ff', borderWidth: 2, borderColor: '#4f46e5' },
+    
     listContainer: {
         padding: 15,
         paddingTop: 10,
@@ -311,15 +953,9 @@ const styles = StyleSheet.create({
         minWidth: 45,
         alignItems: 'center',
     },
-    badgeSuccess: {
-        backgroundColor: '#198754',
-    },
-    badgeWarning: {
-        backgroundColor: '#ffc107',
-    },
-    badgeDanger: {
-        backgroundColor: '#dc3545',
-    },
+    badgeSuccess: { backgroundColor: '#198754' },
+    badgeWarning: { backgroundColor: '#ffc107' },
+    badgeDanger: { backgroundColor: '#dc3545' },
     badgeText: {
         color: '#fff',
         fontWeight: 'bold',
@@ -358,5 +994,40 @@ const styles = StyleSheet.create({
     emptySubtext: {
         fontSize: 14,
         color: '#999',
+    },
+    // ========== BANNER DE CONEXÃO ==========
+    offlineBanner: {
+        backgroundColor: '#ff9800', // Laranja para modo offline
+        paddingVertical: 10,
+        paddingHorizontal: 16,
+        borderBottomWidth: 1,
+        borderBottomColor: '#f57c00',
+    },
+    syncingBanner: {
+        backgroundColor: '#2196f3', // Azul para sincronizando
+        borderBottomColor: '#1976d2',
+    },
+    offlineBannerContent: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    offlineBannerText: {
+        color: '#fff',
+        fontSize: 14,
+        fontWeight: '600',
+        flex: 1,
+    },
+    syncButton: {
+        backgroundColor: 'rgba(255,255,255,0.3)',
+        paddingVertical: 6,
+        paddingHorizontal: 12,
+        borderRadius: 6,
+        marginLeft: 8,
+    },
+    syncButtonText: {
+        color: '#000',
+        fontSize: 12,
+        fontWeight: '700',
     },
 });

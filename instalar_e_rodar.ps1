@@ -12,7 +12,8 @@ Write-Host "[1/4] Verificando Node.js..." -ForegroundColor Yellow
 try {
     $nodeVersion = node --version
     Write-Host "  Node.js encontrado: $nodeVersion" -ForegroundColor Green
-} catch {
+}
+catch {
     Write-Host "  ERRO: Node.js nao encontrado!" -ForegroundColor Red
     Write-Host "  Por favor, instale Node.js de: https://nodejs.org/" -ForegroundColor Yellow
     Read-Host "Pressione Enter para sair"
@@ -24,7 +25,8 @@ Write-Host "[2/4] Verificando npm..." -ForegroundColor Yellow
 try {
     $npmVersion = npm --version
     Write-Host "  npm encontrado: v$npmVersion" -ForegroundColor Green
-} catch {
+}
+catch {
     Write-Host "  ERRO: npm nao encontrado!" -ForegroundColor Red
     Read-Host "Pressione Enter para sair"
     exit 1
@@ -39,12 +41,14 @@ if (-Not (Test-Path "node_modules")) {
     
     if ($LASTEXITCODE -eq 0) {
         Write-Host "  Dependencias instaladas com sucesso!" -ForegroundColor Green
-    } else {
+    }
+    else {
         Write-Host "  ERRO ao instalar dependencias!" -ForegroundColor Red
         Read-Host "Pressione Enter para sair"
         exit 1
     }
-} else {
+}
+else {
     Write-Host "[3/4] Dependencias ja instaladas!" -ForegroundColor Green
 }
 
@@ -61,8 +65,7 @@ Write-Host "4. Aponte para o QR Code na tela" -ForegroundColor White
 Write-Host "5. O app GALINT abrira automaticamente!" -ForegroundColor White
 Write-Host ""
 Write-Host "Servidor/IP: 10.0.0.245" -ForegroundColor Cyan
-Write-Host "Porta HTTPS: 5443" -ForegroundColor Cyan
-Write-Host "Porta HTTP:  5000" -ForegroundColor Cyan
+Write-Host "Porta: 5000 (HTTP)" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "Pressione Ctrl+C para parar o servidor" -ForegroundColor Yellow
 Write-Host "========================================" -ForegroundColor Cyan

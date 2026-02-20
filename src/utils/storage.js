@@ -1,10 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export const saveServerConfig = async (serverIP, serverPort, useHttps) => {
+export const saveServerConfig = async (serverIP, serverPort) => {
     try {
         await AsyncStorage.setItem('serverIP', serverIP);
         await AsyncStorage.setItem('serverPort', serverPort.toString());
-        await AsyncStorage.setItem('useHttps', useHttps.toString());
     } catch (error) {
         console.error('Erro ao salvar configuração:', error);
     }
@@ -14,13 +13,11 @@ export const loadServerConfig = async () => {
     try {
         const serverIP = await AsyncStorage.getItem('serverIP');
         const serverPort = await AsyncStorage.getItem('serverPort');
-        const useHttps = await AsyncStorage.getItem('useHttps');
 
         if (serverIP && serverPort) {
             return {
                 serverIP,
-                serverPort: parseInt(serverPort),
-                useHttps: useHttps === 'true'
+                serverPort: parseInt(serverPort)
             };
         }
         return null;
@@ -32,7 +29,7 @@ export const loadServerConfig = async () => {
 
 export const clearServerConfig = async () => {
     try {
-        await AsyncStorage.multiRemove(['serverIP', 'serverPort', 'useHttps']);
+        await AsyncStorage.multiRemove(['serverIP', 'serverPort']);
     } catch (error) {
         console.error('Erro ao limpar configuração:', error);
     }

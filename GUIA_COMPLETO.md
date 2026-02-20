@@ -22,7 +22,7 @@
 
 2. **Servidor Flask** rodando
    - Certifique-se de que o servidor está ativo
-   - URL: `https://10.0.0.245:5443` ou `http://10.0.0.245:5000`
+   - URL: `http://10.0.0.245:5000`
 
 ### No Celular Android:
 
@@ -108,9 +108,7 @@ Na primeira vez que abrir, você verá:
 │  [10.0.0.245        ]       │
 │                             │
 │  Porta:                     │
-│  [5443              ]       │
-│                             │
-│  □ Usar HTTPS               │
+│  [5000              ]       │
 │                             │
 │  [Testar Conexão]           │
 │                             │
@@ -120,8 +118,7 @@ Na primeira vez que abrir, você verá:
 ### Preencha:
 
 1. **IP do Servidor:** `10.0.0.245`
-2. **Porta:** `5443` (HTTPS) ou `5000` (HTTP)
-3. **Usar HTTPS:** ✓ Marque a caixa
+2. **Porta:** `5000`
 4. Clique em **"Testar Conexão"**
 
 ### Se aparecer "Conexão OK!":
@@ -207,7 +204,7 @@ npm start -c
 
 2. **Testar conexão manual:**
    - Abra navegador no celular
-   - Digite: `https://10.0.0.245:5443`
+   - Digite: `http://10.0.0.245:5000`
    - Deve carregar a página do GALINT
 
 3. **Verificar rede Wi-Fi:**
@@ -216,7 +213,7 @@ npm start -c
 
 4. **Tentar HTTP:**
    - Use porta `5000` (HTTP)
-   - Desmarque "Usar HTTPS"
+   - Confirme que a porta está em 5000
 
 ---
 
@@ -291,7 +288,7 @@ Antes de usar, confirme:
 - [ ] Expo Go instalado no Android
 - [ ] Servidor Flask rodando
 - [ ] Celular e PC na mesma rede Wi-Fi
-- [ ] Firewall liberando portas 5000/5443
+- [ ] Firewall liberando porta 5000
 - [ ] QR Code visível no terminal
 - [ ] App abrindo no Expo Go
 
@@ -303,7 +300,7 @@ Antes de usar, confirme:
 
 2. **Evite troca de rede:** Mude para rede móvel desconecta
 
-3. **Use HTTPS:** Mais seguro, especialmente em rede compartilhada
+3. **Use HTTP:** Porta 5000 na rede local
 
 4. **Cache automático:** App funciona offline após carregar dados
 

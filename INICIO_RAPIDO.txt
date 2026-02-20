@@ -23,8 +23,8 @@
 
 ⚙️ PASSO 5: CONFIGURAR E LOGAR
    ├─ IP: 10.0.0.245
-   ├─ Porta: 5443
-   ├─ HTTPS: Ativado
+   ├─ Porta: 5000
+   ├─ Protocolo: HTTP
    ├─ Testar Conexao
    └─ Fazer Login
 

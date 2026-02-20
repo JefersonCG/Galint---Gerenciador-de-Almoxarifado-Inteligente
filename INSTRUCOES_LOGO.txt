@@ -1,0 +1,76 @@
+=====================================================
+INSTRUÇÕES: ADICIONAR LOGO GALINT AO APLICATIVO
+=====================================================
+
+✅ PASSO 1: SALVAR A IMAGEM DA LOGO
+
+1. Abra a primeira imagem anexada (logo GALINT colorida)
+2. Clique com botão direito → "Salvar imagem como..."
+3. Navegue até a pasta:
+   C:\Users\Ronaldo\OneDrive\Desktop\GALINT_FLASK_COPIA_FULL_20251231_085800\galint-mobile\assets
+4. Salve com o nome EXATO: galint-logo.png
+
+⚠️ IMPORTANTE: O nome deve ser exatamente "galint-logo.png" (minúsculas, com hífen)
+
+=====================================================
+
+✅ PASSO 2: TESTAR NO APLICATIVO
+
+Após salvar a imagem, execute:
+
+cd galint-mobile
+npm start
+
+Ou use o script:
+.\instalar_e_rodar.ps1
+
+=====================================================
+
+🎨 PERSONALIZAÇÕES APLICADAS:
+
+✓ Logo GALINT substituiu o texto "GALINT"
+✓ Subtítulo mudou de "Mobile App" para "Sublime Max Condominium"
+✓ Logo com tamanho 220x100 pixels
+✓ Nome do condomínio em azul (#0d6efd) destacado
+
+=====================================================
+
+📱 RESULTADO ESPERADO:
+
+Na tela de login você verá:
+
+  [LOGO GALINT COLORIDA]
+   
+  Gestão de Almoxarifado
+  
+  Sublime Max Condominium
+  
+  [Formulário de Login]
+
+=====================================================
+
+🔧 CASO A LOGO NÃO APAREÇA:
+
+1. Verifique se o arquivo está em:
+   galint-mobile/assets/galint-logo.png
+
+2. Verifique o nome do arquivo (exatamente "galint-logo.png")
+
+3. Reinicie o Expo:
+   - Pare o servidor (Ctrl+C)
+   - Execute novamente: npm start
+
+4. Se necessário, limpe o cache:
+   npm start -- --clear
+
+=====================================================
+
+✨ PRÓXIMOS PASSOS:
+
+Após confirmar que a logo aparece corretamente no Expo Go,
+gere um novo APK para produção:
+
+cd galint-mobile
+.\build_apk.ps1 -Profile "preview" -ExpoToken "SEU_TOKEN"
+
+=====================================================

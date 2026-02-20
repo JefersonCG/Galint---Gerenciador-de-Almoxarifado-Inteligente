@@ -137,8 +137,8 @@ MÉTODO MAIS FÁCIL (3 cliques):
 CONFIGURAÇÃO NO APP:
 
    IP:    10.0.0.245
-   Porta: 5443
-   HTTPS: ✓ Ativado
+   Porta: 5000
+   Protocolo: HTTP
 
    Testar → Login → Pronto!
 
@@ -240,7 +240,7 @@ Antes de instalar, confirme:
 □ Expo Go instalado no Android
 □ Servidor Flask funcionando
 □ PC e celular na mesma rede Wi-Fi
-□ Firewall liberando portas 5000/5443
+□ Firewall liberando porta 5000
 
 
 ╔══════════════════════════════════════════════════════════════╗
