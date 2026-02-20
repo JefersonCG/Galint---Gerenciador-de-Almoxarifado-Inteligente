@@ -27,6 +27,7 @@ import {
     upsertItems,
     listPendingOps
 } from '../services/offlineDb';
+import { formatQuantityWithPackaging } from '../utils/formatQuantity';
 
 // Função Centralizada de Permissões
 function getUserRole(user) {
@@ -431,6 +432,7 @@ export default function EstoqueScreen({ navigation, route }) {
     const renderItem = useCallback(({ item }) => {
         const q = Number(item?.quantidade ?? 0);
         const quantidadeInt = Number.isFinite(q) ? Math.trunc(q) : 0;
+        const quantidadeFormatada = formatQuantityWithPackaging(item.quantidade, item);
         return (
         <TouchableOpacity
             style={styles.itemCard}
@@ -444,7 +446,7 @@ export default function EstoqueScreen({ navigation, route }) {
                     quantidadeInt > 10 ? styles.badgeSuccess :
                         quantidadeInt > 0 ? styles.badgeWarning : styles.badgeDanger
                 ]}>
-                    <Text style={styles.badgeText}>{quantidadeInt}</Text>
+                    <Text style={styles.badgeText}>{quantidadeFormatada}</Text>
                 </View>
             </View>
 
@@ -590,10 +592,10 @@ export default function EstoqueScreen({ navigation, route }) {
 
                             <TouchableOpacity
                                 style={[styles.actionCard, styles.returnMaterialCard]}
-                                onPress={() => handleAction('Scanner', { mode: 'material_return' })}
+                                onPress={() => handleAction('Scanner', { mode: 'return' })}
                                 activeOpacity={0.8}
                             >
-                                <Text style={styles.actionLabel}>Devolver Material</Text>
+                                <Text style={styles.actionLabel}>Devolver</Text>
                             </TouchableOpacity>
 
                             <TouchableOpacity

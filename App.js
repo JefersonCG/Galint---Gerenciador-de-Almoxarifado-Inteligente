@@ -13,8 +13,7 @@ import CadastroMultiploScreen from './src/screens/CadastroMultiploScreen';
 import ScannerScreen from './src/screens/ScannerScreen';
 import EditarItemScreen from './src/screens/EditarItemScreen';
 import RetiradaScreen from './src/screens/RetiradaScreen';
-import DevolucaoFerramentaScreen from './src/screens/DevolucaoFerramentaScreen';
-import DevolucaoMaterialScreen from './src/screens/DevolucaoMaterialScreen';
+import DevolverScreen from './src/screens/DevolverScreen';
 import ConfigScreen from './src/screens/ConfigScreen';
 import MenuScreen from './src/screens/MenuScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
@@ -225,14 +224,9 @@ export default function App() {
                     />
 
                     <Stack.Screen
-                        name="DevolucaoFerramenta"
-                        component={DevolucaoFerramentaScreen}
-                        options={{ title: 'Devolver Ferramenta' }}
-                    />
-                    <Stack.Screen
-                        name="DevolucaoMaterial"
-                        component={DevolucaoMaterialScreen}
-                        options={{ title: 'Devolver Material' }}
+                        name="Devolver"
+                        component={DevolverScreen}
+                        options={{ title: 'Devolução' }}
                     />
                     <Stack.Screen
                         name="Config"

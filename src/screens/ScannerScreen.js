@@ -101,7 +101,7 @@ export default function ScannerScreen({ navigation, route }) {
                 return;
             }
 
-            if (mode === 'withdraw' || mode === 'withdraw_fraction' || mode === 'tool_withdraw' || mode === 'tool_return' || mode === 'material_return') {
+            if (mode === 'withdraw' || mode === 'withdraw_fraction' || mode === 'tool_withdraw' || mode === 'tool_return' || mode === 'material_return' || mode === 'return') {
                 const item = await ApiService.buscarItemPorCodigo(data);
                 if (!item) {
                     Alert.alert('Erro', 'Item não encontrado');
@@ -122,23 +122,9 @@ export default function ScannerScreen({ navigation, route }) {
                     return;
                 }
 
-                if (mode === 'tool_return') {
-                    if (!isFerramenta) {
-                        Alert.alert('Atenção', 'Este item não é da categoria Ferramentas.');
-                        setScanned(false);
-                        return;
-                    }
-                    navigation.navigate('DevolucaoFerramenta', { item, user });
-                    return;
-                }
-
-                if (mode === 'material_return') {
-                    if (isFerramenta) {
-                        Alert.alert('Atenção', 'Para devolver ferramentas, use a opção "Ferramentas > Devolução".');
-                        setScanned(false);
-                        return;
-                    }
-                    navigation.navigate('DevolucaoMaterial', { item, user });
+                // Mode 'return' unificado - suporta material e ferramenta
+                if (mode === 'return' || mode === 'tool_return' || mode === 'material_return') {
+                    navigation.navigate('Devolver', { item, user });
                     return;
                 }
 
