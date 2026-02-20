@@ -382,11 +382,14 @@ def registrar_saida_multipla():
 @login_required
 def registrar_saida():
     _require_admin()
-    codigo = (request.form.get("codigo") or "").strip()
+    codigo_raw = request.form.get("codigo")
+    codigo = (codigo_raw or "").strip() if codigo_raw is not None else ""
     identificador = request.form.get("usuario")
     quantidade = _parse_quantidade(request.form.get("quantidade"))
-    observacao = (request.form.get("observacao") or "").strip() or None
-    local_servico = (request.form.get("local_servico") or "").strip() or None
+    obs_raw = request.form.get("observacao")
+    observacao = (obs_raw or "").strip() if obs_raw is not None else None
+    local_raw = request.form.get("local_servico")
+    local_servico = (local_raw or "").strip() if local_raw is not None else None
 
     usa_fracao = request.form.get("liquido_habilitado") == "1"
     

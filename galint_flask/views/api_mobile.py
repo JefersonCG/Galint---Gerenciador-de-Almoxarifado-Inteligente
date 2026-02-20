@@ -1630,9 +1630,11 @@ def devolver_material_mobile(current_user: Usuario):
         # Notificar via Telegram (opcional)
         try:
             if entrada and hasattr(entrada, 'id_entrada'):
+                logger.info(f"[DEVOLVER_MATERIAL] Enviando notificação Telegram para entrada {entrada.id_entrada}")
                 TelegramService.notify_new_entry(entrada.id_entrada, is_devolucao=True)
+                logger.info(f"[DEVOLVER_MATERIAL] Notificação Telegram enviada com sucesso")
         except Exception as e:
-            logger.warning(f"Falha ao enviar notificação Telegram: {e}")
+            logger.error(f"[DEVOLVER_MATERIAL] Falha ao enviar notificação Telegram: {e}", exc_info=True)
 
         try:
             novo_saldo = round(float(item.get_saldo_atual() or 0), 6)
