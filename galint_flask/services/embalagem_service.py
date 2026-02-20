@@ -292,7 +292,7 @@ class EmbalagemService:
         Formata uma quantidade específica para exibição com embalagens inteligentes.
         
         Args:
-            quantidade: Quantidade a ser formatada (em unidades base)
+            quantidade: Quantidade a ser formatada (em UNIDADES TOTAIS)
             item: Item do estoque (contém info de embalagens)
         
         Returns:
@@ -303,6 +303,7 @@ class EmbalagemService:
         
         # Rolo Legacy
         if EmbalagemService.tem_rolo_legacy(item):
+            # No sistema legacy, quantidade representa número de rolos
             total_metros = quantidade * item.grandeza_referencia
             qtde_rolos = quantidade
             nome_rolo = "rolo" if qtde_rolos == 1 else "rolos"
@@ -316,21 +317,26 @@ class EmbalagemService:
             usa_sistema_novo = EmbalagemService.tem_embalagem(item)
             litros_por_emb = item.litros_por_embalagem
             
-            # Calcula embalagens completas e resto
-            qtde_embalagens = int(quantidade // 1) if usa_sistema_novo else quantidade
-            resto_litros = (quantidade % 1) * litros_por_emb if usa_sistema_novo else 0
-            volume_total = quantidade * litros_por_emb
-            
-            nome_emb = item.get_nome_embalagem_plural() if qtde_embalagens != 1 else item.get_nome_embalagem() if usa_sistema_novo else (item.unidade or "embalagem")
-            if not usa_sistema_novo and qtde_embalagens != 1:
-                nome_emb = nome_emb + ("s" if not nome_emb.endswith('s') else "")
-            
-            if qtde_embalagens == 0:
-                return f"{volume_total:.2f} litros"
-            elif resto_litros > 0.01:  # Tem embalagens completas + resto
-                return f"{int(qtde_embalagens)} {nome_emb} + {resto_litros:.2f} litros"
-            else:  # Quantidade exata de embalagens
-                return f"{volume_total:.2f} litros ({int(qtde_embalagens)} {nome_emb})"
+            if usa_sistema_novo:
+                # Quantidade vem em UNIDADES (embalagens), precisa converter para litros
+                qtde_embalagens_int = int(quantidade)
+                resto_embalagens = quantidade - qtde_embalagens_int
+                volume_total = quantidade * litros_por_emb
+                resto_litros = resto_embalagens * litros_por_emb
+                
+                nome_emb = item.get_nome_embalagem_plural() if qtde_embalagens_int != 1 else item.get_nome_embalagem()
+                
+                if qtde_embalagens_int == 0:
+                    return f"{volume_total:.2f} litros"
+                elif resto_litros > 0.01:
+                    return f"{qtde_embalagens_int} {nome_emb} + {resto_litros:.2f} litros"
+                else:
+                    return f"{volume_total:.2f} litros ({qtde_embalagens_int} {nome_emb})"
+            else:
+                # Sistema legacy: quantidade já representa embalagens
+                volume_total = quantidade * litros_por_emb
+                nome_emb = (item.unidade or "embalagem") + ("s" if quantidade != 1 and not (item.unidade or "").endswith('s') else "")
+                return f"{volume_total:.2f} litros ({quantidade:g} {nome_emb})"
         
         # Lata/balde com peso em kg
         if (item.grandeza_referencia and item.grandeza_referencia > 0 and
@@ -340,60 +346,65 @@ class EmbalagemService:
             usa_sistema_novo = EmbalagemService.tem_embalagem(item)
             kg_por_emb = item.grandeza_referencia
             
-            # Calcula embalagens completas e resto
-            qtde_embalagens = int(quantidade // 1) if usa_sistema_novo else quantidade
-            resto_kg = (quantidade % 1) * kg_por_emb if usa_sistema_novo else 0
-            peso_total = quantidade * kg_por_emb
-            
-            nome_emb = item.get_nome_embalagem_plural() if qtde_embalagens != 1 else item.get_nome_embalagem() if usa_sistema_novo else (item.unidade or "embalagem")
-            if not usa_sistema_novo and qtde_embalagens != 1:
-                nome_emb = nome_emb + ("s" if not nome_emb.endswith('s') else "")
-            
-            if qtde_embalagens == 0:
-                return f"{peso_total:.2f} kg"
-            elif resto_kg > 0.01:  # Tem embalagens completas + resto
-                return f"{int(qtde_embalagens)} {nome_emb} + {resto_kg:.2f} kg"
-            else:  # Quantidade exata de embalagens
-                return f"{peso_total:.2f} kg ({int(qtde_embalagens)} {nome_emb})"
+            if usa_sistema_novo:
+                # Quantidade vem em UNIDADES (embalagens), precisa converter para kg
+                qtde_embalagens_int = int(quantidade)
+                resto_embalagens = quantidade - qtde_embalagens_int
+                peso_total = quantidade * kg_por_emb
+                resto_kg = resto_embalagens * kg_por_emb
+                
+                nome_emb = item.get_nome_embalagem_plural() if qtde_embalagens_int != 1 else item.get_nome_embalagem()
+                
+                if qtde_embalagens_int == 0:
+                    return f"{peso_total:.2f} kg"
+                elif resto_kg > 0.01:
+                    return f"{qtde_embalagens_int} {nome_emb} + {resto_kg:.2f} kg"
+                else:
+                    return f"{peso_total:.2f} kg ({qtde_embalagens_int} {nome_emb})"
+            else:
+                # Sistema legacy: quantidade já representa embalagens
+                peso_total = quantidade * kg_por_emb
+                nome_emb = (item.unidade or "embalagem") + ("s" if quantidade != 1 and not (item.unidade or "").endswith('s') else "")
+                return f"{peso_total:.2f} kg ({quantidade:g} {nome_emb})"
         
         # Sistema de embalagens unificado (rolos, pacotes, caixas)
         if EmbalagemService.tem_embalagem(item):
             tipo_emb = (item.tipo_embalagem_novo or "").strip().lower()
             unidades_por = item.unidades_por_embalagem or 1
             
-            # Calcula embalagens completas e unidades soltas
-            embalagens = int(quantidade)
-            # Para quantidade fracionada, calcular resto em unidades
-            resto = (quantidade - embalagens) * unidades_por if quantidade % 1 != 0 else 0
+            # CORREÇÃO: Quantidade vem em UNIDADES TOTAIS, precisa converter para embalagens + resto
+            embalagens_completas = int(quantidade / unidades_por) if unidades_por > 0 else 0
+            resto = quantidade - (embalagens_completas * unidades_por)
             
-            nome_emb = item.get_nome_embalagem_plural() if embalagens != 1 else item.get_nome_embalagem()
+            nome_emb = item.get_nome_embalagem_plural() if embalagens_completas != 1 else item.get_nome_embalagem()
             
             # Para rolos: mostrar em metros
             if tipo_emb == 'rolo':
-                total_metros = (embalagens * unidades_por) + resto
-                if embalagens == 0:
+                total_metros = quantidade
+                if embalagens_completas == 0:
                     return f"{total_metros:g} metros"
-                if resto > 0:
-                    return f"{int(embalagens)} {nome_emb} + {resto:g} metros"
-                return f"{total_metros:g} metros ({embalagens} {nome_emb})"
+                if resto > 0.01:
+                    return f"{embalagens_completas} {nome_emb} + {resto:g} metros"
+                return f"{total_metros:g} metros ({embalagens_completas} {nome_emb})"
             
             # Para pacotes e caixas: mostrar unidades internas
             if tipo_emb in ['pacote', 'caixa']:
-                total_unidades = (embalagens * unidades_por) + resto
-                if embalagens == 0:
+                total_unidades = quantidade
+                if embalagens_completas == 0:
                     return f"{total_unidades:g} unidades"
-                if resto > 0:
-                    return f"{int(embalagens)} {nome_emb} + {resto:g} unidades"
-                return f"{total_unidades:g} unidades ({embalagens} {nome_emb})"
+                if resto > 0.01:
+                    return f"{embalagens_completas} {nome_emb} + {resto:g} unidades"
+                return f"{total_unidades:g} unidades ({embalagens_completas} {nome_emb})"
             
             # Outros tipos de embalagem
-            if resto > 0:
-                return f"{embalagens} {nome_emb} + {resto:g} unidades"
-            return f"{embalagens} {nome_emb}"
+            if resto > 0.01:
+                return f"{embalagens_completas} {nome_emb} + {resto:g} unidades"
+            return f"{embalagens_completas} {nome_emb}"
         
         # Legacy: rolo/pacote/caixa no campo unidade
         unidade_lower = (item.unidade or "").strip().lower()
         if unidade_lower in ['rolo', 'pacote', 'caixa'] and item.unidades_por_embalagem:
+            # No sistema legacy, quantidade representa número de embalagens
             unidades_por = item.unidades_por_embalagem
             total_interno = quantidade * unidades_por
             
