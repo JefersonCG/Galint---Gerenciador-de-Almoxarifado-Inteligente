@@ -79,6 +79,7 @@ export default function EstoqueScreen({ navigation, route }) {
     const [connectionStatus, setConnectionStatus] = useState('online'); // 'online' | 'offline' | 'syncing'
     const [pendingOpsCount, setPendingOpsCount] = useState(0);
     const [isSyncing, setIsSyncing] = useState(false);
+    const [downloadingDatabase, setDownloadingDatabase] = useState(false);
 
     // Determinar permissão
     const role = useMemo(() => getUserRole(user), [user]);
@@ -351,6 +352,59 @@ export default function EstoqueScreen({ navigation, route }) {
         navigation.navigate(action, { user, ...params });
     };
 
+    // 📥 Função para baixar/atualizar base de dados completa
+    const handleDownloadDatabase = async () => {
+        const online = await ApiService.isOnline();
+        if (!online) {
+            Alert.alert(
+                'Sem Conexão',
+                'Você precisa estar online para baixar a base de dados.',
+                [{ text: 'OK' }]
+            );
+            return;
+        }
+
+        Alert.alert(
+            'Baixar Base de Dados',
+            'Deseja baixar todos os itens do estoque? Isso pode levar alguns segundos.',
+            [
+                { text: 'Cancelar', style: 'cancel' },
+                {
+                    text: 'Baixar',
+                    onPress: async () => {
+                        setDownloadingDatabase(true);
+                        try {
+                            const result = await ApiService.preloadEstoqueCompleto();
+                            if (result.success) {
+                                Alert.alert(
+                                    '✅ Sucesso',
+                                    `Base de dados atualizada!\n\n${result.totalItens} itens baixados para o cache local.`,
+                                    [{ text: 'OK' }]
+                                );
+                                // Recarregar dados após download
+                                await loadEstoque('', false);
+                            } else {
+                                Alert.alert(
+                                    '⚠️ Erro',
+                                    result.message || 'Não foi possível baixar a base de dados.',
+                                    [{ text: 'OK' }]
+                                );
+                            }
+                        } catch (error) {
+                            Alert.alert(
+                                '❌ Erro',
+                                'Falha ao baixar base de dados. Tente novamente.',
+                                [{ text: 'OK' }]
+                            );
+                        } finally {
+                            setDownloadingDatabase(false);
+                        }
+                    }
+                }
+            ]
+        );
+    };
+
     const getCategoriaIcon = (categoria) => {
         const icons = {
             'Material Elétrico': '⚡',
@@ -442,12 +496,25 @@ export default function EstoqueScreen({ navigation, route }) {
                             <Text style={styles.headerTitle}>{user?.nome || user?.username || 'Usuário'}</Text>
                             <Text style={styles.headerSubtitle}>{role.toUpperCase()} - {user?.matricula || ''}</Text>
                         </View>
-                        <TouchableOpacity
-                            onPress={() => navigation.navigate('Menu')}
-                            style={styles.modernMenuButton}
-                        >
-                            <Text style={styles.modernMenuIcon}>Menu</Text>
-                        </TouchableOpacity>
+                        <View style={styles.headerButtons}>
+                            <TouchableOpacity
+                                onPress={handleDownloadDatabase}
+                                style={[styles.modernMenuButton, styles.syncButton]}
+                                disabled={downloadingDatabase}
+                            >
+                                {downloadingDatabase ? (
+                                    <ActivityIndicator size="small" color="#fff" />
+                                ) : (
+                                    <Text style={styles.modernMenuIcon}>📥</Text>
+                                )}
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                onPress={() => navigation.navigate('Menu')}
+                                style={styles.modernMenuButton}
+                            >
+                                <Text style={styles.modernMenuIcon}>Menu</Text>
+                            </TouchableOpacity>
+                        </View>
                     </View>
                     
                     {/* Search Bar */}
@@ -686,6 +753,13 @@ const styles = StyleSheet.create({
         padding: 11,
         justifyContent: 'center',
         alignItems: 'center',
+    },
+    headerButtons: {
+        flexDirection: 'row',
+        gap: 10,
+    },
+    syncButton: {
+        minWidth: 44,
     },
     modernMenuIcon: {
         fontSize: 22,
