@@ -2032,23 +2032,28 @@ class TelegramService:
 
         """Formata quantidade da saída considerando unidade original informada pelo modal."""
 
-        try:
-            # Tentar usar formatação inteligente com embalagens
-            from ..services.embalagem_service import EmbalagemService
-            quantidade_fmt = EmbalagemService.formatar_quantidade(saida.quantidade, item)
-            return quantidade_fmt
-        except Exception:
-            pass
+        def _fmt_number_pt(value: float, *, decimals: int = 3) -> str:
+            try:
+                value_f = float(value)
+            except Exception:
+                return "0"
+            if abs(value_f - round(value_f)) < 1e-9:
+                return str(int(round(value_f)))
+            txt = f"{value_f:.{decimals}f}".rstrip("0").rstrip(".")
+            return txt.replace(".", ",")
 
         try:
-
             observacao = (saida.observacao or "").upper()
-
         except Exception:
-
             observacao = ""
 
-
+        # Se a saída foi registrada como fracionada em KG, priorizar exibição em KG
+        try:
+            qtd_quilos = getattr(saida, "quantidade_retirada_em_quilos", None)
+            if qtd_quilos is not None and float(qtd_quilos) > 0:
+                return f"{_fmt_number_pt(float(qtd_quilos), decimals=3)} KG"
+        except Exception:
+            pass
 
         unidade_map = {
 
@@ -2058,7 +2063,7 @@ class TelegramService:
 
             "LITROS": "litros",
 
-            "KG": "kg",
+            "KG": "KG",
 
             "UNIDADES": "unidades",
 
@@ -2103,6 +2108,16 @@ class TelegramService:
                     return f"{qtd_fmt} {unidade_fmt}"
 
                 return f"{saida.quantidade:g} {unidade_fmt}"
+
+
+
+        try:
+            # Tentar usar formatação inteligente com embalagens
+            from ..services.embalagem_service import EmbalagemService
+            quantidade_fmt = EmbalagemService.formatar_quantidade(saida.quantidade, item)
+            return quantidade_fmt
+        except Exception:
+            pass
 
 
 
@@ -2296,7 +2311,15 @@ class TelegramService:
 
 
     @staticmethod
-    def format_withdrawal_message_user(saida: Saida, usuario: Usuario, item: Item) -> str:
+    def format_withdrawal_message_user(
+        saida: Saida,
+        usuario: Usuario,
+        item: Item,
+        *,
+        balance_before: float | None = None,
+        balance_after: float | None = None,
+        balance_unit: str | None = None,
+    ) -> str:
         """Formata mensagem de retirada para o funcionário - Modelo 3: Ficha Técnica."""
         categoria = (item.categoria or "Geral").strip() or "Geral"
         local = (saida.local_servico or "NÃO INFORMADO").strip() or "NÃO INFORMADO"
@@ -2340,15 +2363,126 @@ class TelegramService:
                     return str(int(round(value_f)))
                 return f"{value_f:.{decimals}f}".rstrip("0").rstrip(".")
 
-            saldo_atual = float(item.get_saldo_atual() or 0)
-            saldo_anterior = saldo_atual + float(saida.quantidade or 0)
-            unidade = item.unidade or "unidades"
-            msg += f"   • Saldo anterior: {_fmt_amount(saldo_anterior)} {unidade}\n"
-            msg += f"   • Nova disponibilidade: <b>{_fmt_amount(saldo_atual)} {unidade}</b>\n"
-            if saldo_atual <= 0:
-                msg += "   • ⚠️ <b>STATUS: ESTOQUE ZERADO</b>\n"
-            elif saldo_atual < 3:
-                msg += "   • ⚠️ STATUS: Estoque baixo\n"
+            unidade = (balance_unit or item.unidade or "unidades")
+
+            try:
+                from ..services.embalagem_service import EmbalagemService
+
+                has_packaging = bool(EmbalagemService.tem_embalagem(item) or EmbalagemService.tem_rolo_legacy(item))
+            except Exception:
+                has_packaging = False
+
+            if balance_after is not None:
+                saldo_atual = float(balance_after)
+            else:
+                if has_packaging:
+                    saldo_atual = float(EmbalagemService.calcular_estoque_total(item) or 0)  # type: ignore[name-defined]
+                else:
+                    saldo_atual = float(item.get_saldo_atual() or 0)
+
+            def _fmt_number_pt(value: float, *, decimals: int = 3) -> str:
+                try:
+                    value_f = float(value)
+                except Exception:
+                    return "0"
+                if abs(value_f - round(value_f)) < 1e-9:
+                    return str(int(round(value_f)))
+                txt = f"{value_f:.{decimals}f}".rstrip("0").rstrip(".")
+                return txt.replace(".", ",")
+
+            def _lata_ou_balde(item: Item) -> bool:
+                try:
+                    if (item.tipo_embalagem_novo or "").strip().lower() in {"lata", "balde"}:
+                        return True
+                except Exception:
+                    pass
+                try:
+                    if (item.unidade or "").strip().lower() in {"lata", "balde"}:
+                        return True
+                except Exception:
+                    pass
+                return False
+
+            def _kg_por_embalagem(saida: Saida, item: Item) -> float | None:
+                for attr in ("quantidade_total_embalagem",):
+                    try:
+                        value = getattr(saida, attr, None)
+                        if value is not None and float(value) > 0:
+                            return float(value)
+                    except Exception:
+                        continue
+                for attr in ("grandeza_referencia", "unidades_por_embalagem"):
+                    try:
+                        value = getattr(item, attr, None)
+                        if value is not None and float(value) > 0:
+                            return float(value)
+                    except Exception:
+                        continue
+                return None
+
+            def _format_latas_mais_kg(total_kg: float, kg_por_emb: float, item: Item) -> str:
+                if kg_por_emb <= 0:
+                    return f"{_fmt_number_pt(total_kg, decimals=3)} KG"
+                latas_int = int(total_kg // kg_por_emb)
+                resto_kg = float(total_kg) - (latas_int * float(kg_por_emb))
+                if abs(resto_kg) < 1e-9:
+                    resto_kg = 0.0
+
+                nome_singular = item.get_nome_embalagem() if hasattr(item, "get_nome_embalagem") else "lata"
+                nome_plural = item.get_nome_embalagem_plural() if hasattr(item, "get_nome_embalagem_plural") else "latas"
+
+                if latas_int <= 0:
+                    return f"{_fmt_number_pt(resto_kg, decimals=3)} KG"
+                nome_emb = nome_singular if latas_int == 1 else nome_plural
+                if resto_kg > 0:
+                    return f"{latas_int} {nome_emb} + {_fmt_number_pt(resto_kg, decimals=3)} KG"
+                return f"{latas_int} {nome_emb}"
+
+            try:
+                obs_upper = (saida.observacao or "").upper()
+            except Exception:
+                obs_upper = ""
+
+            unidade_lower = (unidade or "").strip().lower()
+            kg_por_emb = _kg_por_embalagem(saida, item)
+            usa_view_kg = bool(
+                kg_por_emb
+                and kg_por_emb > 0
+                and _lata_ou_balde(item)
+                and (
+                    bool(getattr(saida, "quantidade_retirada_em_quilos", None))
+                    or bool(getattr(saida, "usou_fracao", False))
+                    or "UNIDADE=KG" in obs_upper
+                    or unidade_lower in {"kg", "quilo", "quilos"}
+                )
+            )
+
+            if usa_view_kg and balance_before is not None:
+                def _to_kg(value: float) -> float:
+                    if unidade_lower in {"kg", "quilo", "quilos"}:
+                        return float(value)
+                    return float(value) * float(kg_por_emb)
+
+                saldo_anterior_kg = _to_kg(float(balance_before))
+                saldo_atual_kg = _to_kg(float(saldo_atual))
+
+                msg += f"   • Saldo anterior: {_fmt_number_pt(saldo_anterior_kg, decimals=3)} KG\n"
+                msg += f"   • Nova disponibilidade: <b>{_format_latas_mais_kg(saldo_atual_kg, float(kg_por_emb), item)}</b>\n"
+                if saldo_atual_kg <= 0:
+                    msg += "   • ⚠️ <b>STATUS: ESTOQUE ZERADO</b>\n"
+            else:
+                if balance_before is not None:
+                    saldo_anterior = float(balance_before)
+                    msg += f"   • Saldo anterior: {_fmt_amount(saldo_anterior)} {unidade}\n"
+                elif not has_packaging:
+                    saldo_anterior = saldo_atual + float(saida.quantidade or 0)
+                    msg += f"   • Saldo anterior: {_fmt_amount(saldo_anterior)} {unidade}\n"
+
+                msg += f"   • Nova disponibilidade: <b>{_fmt_amount(saldo_atual)} {unidade}</b>\n"
+                if saldo_atual <= 0:
+                    msg += "   • ⚠️ <b>STATUS: ESTOQUE ZERADO</b>\n"
+                elif saldo_atual < 3:
+                    msg += "   • ⚠️ STATUS: Estoque baixo\n"
         except Exception:
             pass
 
@@ -2360,7 +2494,15 @@ class TelegramService:
 
 
     @staticmethod
-    def format_withdrawal_message_supervisor(saida: Saida, usuario: Usuario, item: Item) -> str:
+    def format_withdrawal_message_supervisor(
+        saida: Saida,
+        usuario: Usuario,
+        item: Item,
+        *,
+        balance_before: float | None = None,
+        balance_after: float | None = None,
+        balance_unit: str | None = None,
+    ) -> str:
         """Formata mensagem de retirada para supervisão - Modelo 3: Ficha Técnica."""
         categoria = (item.categoria or "Geral").strip() or "Geral"
         local = (saida.local_servico or "NÃO INFORMADO").strip() or "NÃO INFORMADO"
@@ -2406,15 +2548,126 @@ class TelegramService:
                     return str(int(round(value_f)))
                 return f"{value_f:.{decimals}f}".rstrip("0").rstrip(".")
 
-            saldo_atual = float(item.get_saldo_atual() or 0)
-            saldo_anterior = saldo_atual + float(saida.quantidade or 0)
-            unidade = item.unidade or "unidades"
-            msg += f"   • Saldo anterior: {_fmt_amount(saldo_anterior)} {unidade}\n"
-            msg += f"   • Nova disponibilidade: <b>{_fmt_amount(saldo_atual)} {unidade}</b>\n"
-            if saldo_atual <= 0:
-                msg += "   • ⚠️ <b>STATUS: ESTOQUE ZERADO</b>\n"
-            elif saldo_atual < 3:
-                msg += "   • ⚠️ STATUS: Estoque baixo\n"
+            unidade = (balance_unit or item.unidade or "unidades")
+
+            try:
+                from ..services.embalagem_service import EmbalagemService
+
+                has_packaging = bool(EmbalagemService.tem_embalagem(item) or EmbalagemService.tem_rolo_legacy(item))
+            except Exception:
+                has_packaging = False
+
+            if balance_after is not None:
+                saldo_atual = float(balance_after)
+            else:
+                if has_packaging:
+                    saldo_atual = float(EmbalagemService.calcular_estoque_total(item) or 0)  # type: ignore[name-defined]
+                else:
+                    saldo_atual = float(item.get_saldo_atual() or 0)
+
+            def _fmt_number_pt(value: float, *, decimals: int = 3) -> str:
+                try:
+                    value_f = float(value)
+                except Exception:
+                    return "0"
+                if abs(value_f - round(value_f)) < 1e-9:
+                    return str(int(round(value_f)))
+                txt = f"{value_f:.{decimals}f}".rstrip("0").rstrip(".")
+                return txt.replace(".", ",")
+
+            def _lata_ou_balde(item: Item) -> bool:
+                try:
+                    if (item.tipo_embalagem_novo or "").strip().lower() in {"lata", "balde"}:
+                        return True
+                except Exception:
+                    pass
+                try:
+                    if (item.unidade or "").strip().lower() in {"lata", "balde"}:
+                        return True
+                except Exception:
+                    pass
+                return False
+
+            def _kg_por_embalagem(saida: Saida, item: Item) -> float | None:
+                for attr in ("quantidade_total_embalagem",):
+                    try:
+                        value = getattr(saida, attr, None)
+                        if value is not None and float(value) > 0:
+                            return float(value)
+                    except Exception:
+                        continue
+                for attr in ("grandeza_referencia", "unidades_por_embalagem"):
+                    try:
+                        value = getattr(item, attr, None)
+                        if value is not None and float(value) > 0:
+                            return float(value)
+                    except Exception:
+                        continue
+                return None
+
+            def _format_latas_mais_kg(total_kg: float, kg_por_emb: float, item: Item) -> str:
+                if kg_por_emb <= 0:
+                    return f"{_fmt_number_pt(total_kg, decimals=3)} KG"
+                latas_int = int(total_kg // kg_por_emb)
+                resto_kg = float(total_kg) - (latas_int * float(kg_por_emb))
+                if abs(resto_kg) < 1e-9:
+                    resto_kg = 0.0
+
+                nome_singular = item.get_nome_embalagem() if hasattr(item, "get_nome_embalagem") else "lata"
+                nome_plural = item.get_nome_embalagem_plural() if hasattr(item, "get_nome_embalagem_plural") else "latas"
+
+                if latas_int <= 0:
+                    return f"{_fmt_number_pt(resto_kg, decimals=3)} KG"
+                nome_emb = nome_singular if latas_int == 1 else nome_plural
+                if resto_kg > 0:
+                    return f"{latas_int} {nome_emb} + {_fmt_number_pt(resto_kg, decimals=3)} KG"
+                return f"{latas_int} {nome_emb}"
+
+            try:
+                obs_upper = (saida.observacao or "").upper()
+            except Exception:
+                obs_upper = ""
+
+            unidade_lower = (unidade or "").strip().lower()
+            kg_por_emb = _kg_por_embalagem(saida, item)
+            usa_view_kg = bool(
+                kg_por_emb
+                and kg_por_emb > 0
+                and _lata_ou_balde(item)
+                and (
+                    bool(getattr(saida, "quantidade_retirada_em_quilos", None))
+                    or bool(getattr(saida, "usou_fracao", False))
+                    or "UNIDADE=KG" in obs_upper
+                    or unidade_lower in {"kg", "quilo", "quilos"}
+                )
+            )
+
+            if usa_view_kg and balance_before is not None:
+                def _to_kg(value: float) -> float:
+                    if unidade_lower in {"kg", "quilo", "quilos"}:
+                        return float(value)
+                    return float(value) * float(kg_por_emb)
+
+                saldo_anterior_kg = _to_kg(float(balance_before))
+                saldo_atual_kg = _to_kg(float(saldo_atual))
+
+                msg += f"   • Saldo anterior: {_fmt_number_pt(saldo_anterior_kg, decimals=3)} KG\n"
+                msg += f"   • Nova disponibilidade: <b>{_format_latas_mais_kg(saldo_atual_kg, float(kg_por_emb), item)}</b>\n"
+                if saldo_atual_kg <= 0:
+                    msg += "   • ⚠️ <b>STATUS: ESTOQUE ZERADO</b>\n"
+            else:
+                if balance_before is not None:
+                    saldo_anterior = float(balance_before)
+                    msg += f"   • Saldo anterior: {_fmt_amount(saldo_anterior)} {unidade}\n"
+                elif not has_packaging:
+                    saldo_anterior = saldo_atual + float(saida.quantidade or 0)
+                    msg += f"   • Saldo anterior: {_fmt_amount(saldo_anterior)} {unidade}\n"
+
+                msg += f"   • Nova disponibilidade: <b>{_fmt_amount(saldo_atual)} {unidade}</b>\n"
+                if saldo_atual <= 0:
+                    msg += "   • ⚠️ <b>STATUS: ESTOQUE ZERADO</b>\n"
+                elif saldo_atual < 3:
+                    msg += "   • ⚠️ STATUS: Estoque baixo\n"
         except Exception:
             pass
 
@@ -3804,7 +4057,14 @@ class TelegramService:
 
     @staticmethod
 
-    def notify_withdrawal(saida_id: int, force_single: bool = False) -> dict[str, Any]:
+    def notify_withdrawal(
+        saida_id: int,
+        force_single: bool = False,
+        *,
+        balance_before: float | None = None,
+        balance_after: float | None = None,
+        balance_unit: str | None = None,
+    ) -> dict[str, Any]:
 
         """Envia notificações para retirada de ferramenta.
 
@@ -3923,7 +4183,12 @@ class TelegramService:
 
                 message_text = TelegramService.format_withdrawal_message_user(
 
-                    saida, saida.usuario, saida.item
+                    saida,
+                    saida.usuario,
+                    saida.item,
+                    balance_before=balance_before,
+                    balance_after=balance_after,
+                    balance_unit=balance_unit,
 
                 )
 
@@ -3978,7 +4243,12 @@ class TelegramService:
 
             message_text = TelegramService.format_withdrawal_message_supervisor(
 
-                saida, saida.usuario, saida.item
+                saida,
+                saida.usuario,
+                saida.item,
+                balance_before=balance_before,
+                balance_after=balance_after,
+                balance_unit=balance_unit,
 
             )
 

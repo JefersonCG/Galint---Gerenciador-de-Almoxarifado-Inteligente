@@ -945,7 +945,7 @@ def devolver_multipla_ferramentas_mobile(current_user: Usuario):
         else:
             retirante_user = current_user
 
-        entradas_criadas = []
+        eventos_criados = []
         resultados = []
 
         # Processar cada item
@@ -982,17 +982,20 @@ def devolver_multipla_ferramentas_mobile(current_user: Usuario):
                 })
                 continue
 
-            # Criar entrada
-            entrada = Entrada()
-            entrada.codigo_item = item.codigo_item
-            entrada.quantidade = quantidade_int
-            entrada.matricula = retirante_user.matricula
-            entrada.data_entrada = datetime.utcnow()
-            
-            obs_final = observacao_item or observacao_geral
-            entrada.observacao = str(obs_final or "DEVOLUÇÃO MÚLTIPLA").upper()
+            obs_final = (observacao_item or observacao_geral or "").strip() or None
 
-            db.session.add(entrada)
+            evento = InventarioEvento(
+                codigo_item=item.codigo_item,
+                matricula=retirante_user.matricula,
+                quantidade=float(quantidade_int),
+                tipo="devolucao_ferramenta",
+                descricao=(
+                    obs_final
+                    or f"Devolução de Ferramenta (mobile múltipla): {item.descricao or 'Item'}"
+                ),
+                data_evento=datetime.utcnow(),
+            )
+            db.session.add(evento)
 
             # Atualizar status de retirada
             try:
@@ -1008,7 +1011,7 @@ def devolver_multipla_ferramentas_mobile(current_user: Usuario):
             except Exception:
                 pass
 
-            entradas_criadas.append(entrada)
+            eventos_criados.append(evento)
             resultados.append({
                 "index": idx,
                 "codigo": codigo,
@@ -1017,7 +1020,7 @@ def devolver_multipla_ferramentas_mobile(current_user: Usuario):
                 "quantidade": quantidade_int
             })
 
-        if not entradas_criadas:
+        if not eventos_criados:
             return jsonify({
                 "success": False,
                 "message": "Nenhuma ferramenta foi devolvida",
@@ -1026,9 +1029,17 @@ def devolver_multipla_ferramentas_mobile(current_user: Usuario):
 
         db.session.commit()
 
+        # Notificar via Telegram (opcional)
+        try:
+            from ..services.telegram_service import TelegramService
+            for evento in eventos_criados:
+                TelegramService.notify_inventory_event(evento.id_evento)
+        except Exception:
+            pass
+
         return jsonify({
             "success": True,
-            "message": f"{len(entradas_criadas)} ferramenta(s) devolvida(s) com sucesso",
+            "message": f"{len(eventos_criados)} ferramenta(s) devolvida(s) com sucesso",
             "resultados": resultados
         }), 201
 
@@ -1066,7 +1077,7 @@ def devolver_multipla_materiais_mobile(current_user: Usuario):
         else:
             retirante_user = current_user
 
-        entradas_criadas = []
+        eventos_criados = []
         resultados = []
 
         # Processar cada item
@@ -1103,27 +1114,32 @@ def devolver_multipla_materiais_mobile(current_user: Usuario):
                 })
                 continue
 
-            # Criar entrada
-            entrada = Entrada()
-            entrada.codigo_item = item.codigo_item
-            entrada.quantidade = quantidade_int
-            entrada.matricula = retirante_user.matricula
-            entrada.data_entrada = datetime.utcnow()
-            
-            obs_final = observacao_item or observacao_geral
-            entrada.observacao = str(obs_final or "DEVOLUÇÃO MÚLTIPLA MATERIAL").upper()
+            obs_final = (observacao_item or observacao_geral or "").strip() or None
+            try:
+                evento = inventory_service.registrar_devolucao_material(
+                    codigo=item.codigo_item,
+                    quantidade=quantidade_int,
+                    matricula=retirante_user.matricula,
+                    observacao=obs_final,
+                    commit=False,
+                )
+                eventos_criados.append(evento)
+                resultados.append({
+                    "index": idx,
+                    "codigo": codigo,
+                    "success": True,
+                    "descricao": item.descricao,
+                    "quantidade": quantidade_int
+                })
+            except Exception as e:
+                resultados.append({
+                    "index": idx,
+                    "codigo": codigo,
+                    "success": False,
+                    "message": str(e),
+                })
 
-            db.session.add(entrada)
-            entradas_criadas.append(entrada)
-            resultados.append({
-                "index": idx,
-                "codigo": codigo,
-                "success": True,
-                "descricao": item.descricao,
-                "quantidade": quantidade_int
-            })
-
-        if not entradas_criadas:
+        if not eventos_criados:
             return jsonify({
                 "success": False,
                 "message": "Nenhum material foi devolvido",
@@ -1132,9 +1148,17 @@ def devolver_multipla_materiais_mobile(current_user: Usuario):
 
         db.session.commit()
 
+        # Notificar via Telegram (opcional)
+        try:
+            from ..services.telegram_service import TelegramService
+            for evento in eventos_criados:
+                TelegramService.notify_inventory_event(evento.id_evento)
+        except Exception:
+            pass
+
         return jsonify({
             "success": True,
-            "message": f"{len(entradas_criadas)} material(is) devolvido(s) com sucesso",
+            "message": f"{len(eventos_criados)} material(is) devolvido(s) com sucesso",
             "resultados": resultados
         }), 201
 
@@ -1293,8 +1317,10 @@ def retirar_mobile(current_user: Usuario):
             if quantidade_para_saida <= 0:
                 return jsonify({"success": False, "message": "Quantidade calculada deve ser positiva"}), 400
 
-            retirada_litros = round(retirada_litros, 6)
-            retirada_quilos = round(retirada_quilos, 6)
+            if retirada_litros is not None:
+                retirada_litros = round(retirada_litros, 6)
+            if retirada_quilos is not None:
+                retirada_quilos = round(retirada_quilos, 6)
             quantidade_para_saida = round(quantidade_para_saida, 6)
             restante = round(restante, 6)
 
@@ -1468,7 +1494,8 @@ def retirar_mobile(current_user: Usuario):
 def devolver_ferramenta_mobile(current_user: Usuario):
     """Registra devolução de ferramenta (categoria Ferramentas) pelo app mobile.
 
-    Gera registro em Entrada para aparecer no histórico de entradas.
+    Importante: devolução de ferramenta NÃO é "entrada" (não deve criar Entrada).
+    A devolução é registrada como InventarioEvento (tipo: devolucao_ferramenta).
     """
     try:
         if not _is_admin_or_manager(current_user):
@@ -1494,7 +1521,7 @@ def devolver_ferramenta_mobile(current_user: Usuario):
             return jsonify({"success": False, "message": "Item não encontrado"}), 404
 
         categoria = (item.categoria or "").strip().lower()
-        if categoria != "ferramentas":
+        if "ferrament" not in categoria:
             return jsonify({
                 "success": False,
                 "message": "Somente itens da categoria 'Ferramentas' podem ser devolvidos.",
@@ -1530,19 +1557,22 @@ def devolver_ferramenta_mobile(current_user: Usuario):
             retirada.status = 'devolvida'
             retirada.data_devolucao = datetime.utcnow()
 
-        entrada = inventory_service.registrar_entrada(
-            MovimentoPayload(
-                codigo=item.codigo_item,
-                quantidade=quantidade_int,
-                matricula=devolvedor_user.matricula,
-                nota_fiscal=None,
-            )
+        # Registrar devolução como evento de inventário (evita tratar como adição/Entrada)
+        evento = InventarioEvento(
+            codigo_item=item.codigo_item,
+            matricula=devolvedor_user.matricula,
+            quantidade=float(quantidade_int),
+            tipo="devolucao_ferramenta",
+            descricao=f"Devolução de Ferramenta (mobile): {item.descricao or 'Item'}",
+            data_evento=datetime.utcnow(),
         )
+        db.session.add(evento)
+        db.session.commit()
 
         # Notificar via Telegram (opcional)
         try:
-            if entrada and hasattr(entrada, 'id_entrada'):
-                TelegramService.notify_new_entry(entrada.id_entrada, is_devolucao=True)
+            from ..services.telegram_service import TelegramService
+            TelegramService.notify_inventory_event(evento.id_evento)
         except Exception as e:
             logger.warning(f"Falha ao enviar notificação Telegram: {e}")
 
@@ -1603,11 +1633,6 @@ def devolver_material_mobile(current_user: Usuario):
             return jsonify({"success": False, "message": "Item não encontrado"}), 404
 
         categoria = (item.categoria or "").strip().lower()
-        if categoria == "ferramentas":
-            return jsonify({
-                "success": False,
-                "message": "Use a rota /devolver para itens da categoria Ferramentas.",
-            }), 400
 
         devolvedor_user = current_user
         if matricula_devolvedor and matricula_devolvedor != current_user.matricula:
@@ -1617,22 +1642,79 @@ def devolver_material_mobile(current_user: Usuario):
             if not devolvedor_user:
                 return jsonify({"success": False, "message": "Usuário devolvedor não encontrado"}), 404
 
-        entrada = inventory_service.registrar_entrada(
-            MovimentoPayload(
-                codigo=item.codigo_item,
-                quantidade=quantidade_int,
-                matricula=devolvedor_user.matricula,
-                nota_fiscal=None,
-                is_devolucao=True,
+        # Compatibilidade: se o app chamar /devolver_material para Ferramentas,
+        # executar o fluxo correto (InventarioEvento + baixa de custódia), sem criar Entrada.
+        if "ferrament" in categoria:
+            retiradas_ativas = (
+                RetiradaFerramenta.query.filter(
+                    RetiradaFerramenta.codigo_item == item.codigo_item,
+                    RetiradaFerramenta.matricula == devolvedor_user.matricula,
+                    RetiradaFerramenta.status == 'em_uso',
+                )
+                .order_by(RetiradaFerramenta.data_retirada)
+                .limit(quantidade_int)
+                .all()
             )
+
+            if len(retiradas_ativas) < quantidade_int:
+                return jsonify({
+                    "success": False,
+                    "message": "Devolução não permitida: esta ferramenta não possui retirada em custódia diária em aberto.",
+                }), 400
+
+            for retirada in retiradas_ativas:
+                retirada.status = 'devolvida'
+                retirada.data_devolucao = datetime.utcnow()
+
+            evento = InventarioEvento(
+                codigo_item=item.codigo_item,
+                matricula=devolvedor_user.matricula,
+                quantidade=float(quantidade_int),
+                tipo="devolucao_ferramenta",
+                descricao=f"Devolução de Ferramenta (mobile via /devolver_material): {item.descricao or 'Item'}",
+                data_evento=datetime.utcnow(),
+            )
+            db.session.add(evento)
+            db.session.commit()
+
+            try:
+                from ..services.telegram_service import TelegramService
+                TelegramService.notify_inventory_event(evento.id_evento)
+            except Exception as e:
+                logger.warning(f"Falha ao enviar notificação Telegram: {e}")
+
+            try:
+                novo_saldo = round(float(item.get_saldo_atual() or 0), 6)
+            except Exception:
+                novo_saldo = None
+
+            return jsonify({
+                "success": True,
+                "message": "Ferramenta devolvida com sucesso",
+                "data": {
+                    "item": {
+                        "codigo": item.codigo_item,
+                        "descricao": item.descricao,
+                        "saldo": novo_saldo,
+                    }
+                },
+            }), 201
+
+        evento = inventory_service.registrar_devolucao_material(
+            codigo=item.codigo_item,
+            quantidade=quantidade_int,
+            matricula=devolvedor_user.matricula,
+            observacao=None,
+            commit=True,
         )
 
         # Notificar via Telegram (opcional)
         try:
-            if entrada and hasattr(entrada, 'id_entrada'):
-                logger.info(f"[DEVOLVER_MATERIAL] Enviando notificação Telegram para entrada {entrada.id_entrada}")
-                TelegramService.notify_new_entry(entrada.id_entrada, is_devolucao=True)
-                logger.info(f"[DEVOLVER_MATERIAL] Notificação Telegram enviada com sucesso")
+            if evento and hasattr(evento, 'id_evento'):
+                from ..services.telegram_service import TelegramService
+                logger.info(f"[DEVOLVER_MATERIAL] Enviando notificação Telegram para evento {evento.id_evento}")
+                TelegramService.notify_inventory_event(evento.id_evento)
+                logger.info("[DEVOLVER_MATERIAL] Notificação Telegram enviada com sucesso")
         except Exception as e:
             logger.error(f"[DEVOLVER_MATERIAL] Falha ao enviar notificação Telegram: {e}", exc_info=True)
 
@@ -1652,6 +1734,13 @@ def devolver_material_mobile(current_user: Usuario):
                 }
             },
         }), 201
+
+    except ValueError as e:
+        db.session.rollback()
+        return jsonify({
+            "success": False,
+            "message": str(e),
+        }), 400
 
     except Exception as e:
         db.session.rollback()
@@ -1801,13 +1890,13 @@ def cadastrar_produto():
 
     try:
         payload = {
-            "codigo": data.get("codigo", "").strip(),
-            "descricao": data.get("descricao", "").strip(),
+            "codigo": (data.get("codigo") or "").strip(),
+            "descricao": (data.get("descricao") or "").strip(),
             "categoria": data.get("categoria", "Material Elétrico"),
-            "marca": data.get("marca", "").strip() or None,
-            "unidade": data.get("unidade", "").strip(),
-            "nota_fiscal": data.get("nota_fiscal", "").strip() or None,
-            "localizacao": data.get("localizacao", "").strip() or None,
+            "marca": (data.get("marca") or "").strip() or None,
+            "unidade": (data.get("unidade") or "").strip(),
+            "nota_fiscal": (data.get("nota_fiscal") or "").strip() or None,
+            "localizacao": (data.get("localizacao") or "").strip() or None,
         }
 
         if not payload["codigo"] or not payload["descricao"]:
@@ -2006,8 +2095,8 @@ def criar_item_estoque():
     
     data = request.get_json() or {}
     
-    codigo = data.get("codigo_barras", "").strip()
-    descricao = data.get("descricao", "").strip()
+    codigo = (data.get("codigo_barras") or "").strip()
+    descricao = (data.get("descricao") or "").strip()
     
     if not codigo or not descricao:
         return jsonify({"error": "Código e descrição são obrigatórios"}), 400
@@ -2028,9 +2117,9 @@ def criar_item_estoque():
             "codigo": codigo,
             "descricao": descricao,
             "categoria": data.get("categoria", "Material Elétrico"),
-            "marca": data.get("marca", "").strip() or None,
+            "marca": (data.get("marca") or "").strip() or None,
             "unidade": (data.get("unidade") or "Unidade").strip() or "Unidade",
-            "localizacao": data.get("localizacao", "").strip() or None,
+            "localizacao": (data.get("localizacao") or "").strip() or None,
             "nota_fiscal": None,
             "tipo_embalagem_novo": tipo_emb_novo or None,
             "unidades_por_embalagem": float(unidades_por_emb) if unidades_por_emb not in (None, "") else None,
@@ -2041,24 +2130,21 @@ def criar_item_estoque():
         # Adiciona saldo inicial se fornecido (entrada)
         quantidade_inicial = int(data.get("quantidade", 0))
         if quantidade_inicial > 0:
-            # Se o item tem embalagens configuradas, converter quantidade de embalagens para unidades totais
-            quantidade_total = quantidade_inicial
-            if unidades_por_emb not in (None, ""):
+            em_embalagens = None
+            if tipo_emb_novo and unidades_por_emb not in (None, ""):
                 try:
-                    unidades_float = float(unidades_por_emb)
-                    if unidades_float > 0:
-                        # Usuário digitou número de embalagens, converter para unidades totais
-                        quantidade_total = int(quantidade_inicial * unidades_float)
+                    if float(unidades_por_emb) > 0:
+                        em_embalagens = True
                 except (ValueError, TypeError):
-                    pass  # Mantém quantidade original se conversão falhar
-            
+                    em_embalagens = None
+
             inventory_service.registrar_entrada(
                 MovimentoPayload(
                     codigo=codigo_criado,
-                    quantidade=quantidade_total,
+                    quantidade=quantidade_inicial,
                     matricula=user.matricula,
                     nota_fiscal=None,
-                    em_embalagens=None,
+                    em_embalagens=em_embalagens,
                 )
             )
         

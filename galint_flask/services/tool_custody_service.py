@@ -6,7 +6,7 @@ from typing import Any
 
 from sqlalchemy import func, or_
 from ..extensions import db
-from ..models import Item, RetiradaFerramenta, Saida, Usuario, InventarioEvento
+from ..models import Entrada, Item, RetiradaFerramenta, Saida, Usuario, InventarioEvento
 from ..utils.time_service import TimeService
 
 
@@ -52,7 +52,7 @@ class ToolCustodyService:
             )
             .join(Saida, Usuario.matricula == Saida.matricula)
             .join(Item, Saida.codigo_item == Item.codigo_item)
-            .filter(Item.categoria == "Ferramentas")
+            .filter(func.lower(Item.categoria).contains("ferrament"))
             .group_by(Usuario.matricula, Usuario.nome, Usuario.setor, Usuario.cargo)
             .order_by(Usuario.nome)
         )
@@ -102,7 +102,7 @@ class ToolCustodyService:
             .join(Item, Saida.codigo_item == Item.codigo_item)
             .filter(
                 Saida.matricula == matricula,
-                Item.categoria == "Ferramentas"
+                func.lower(Item.categoria).contains("ferrament")
             )
             .order_by(Saida.data_saida.desc())
             .all()
@@ -127,8 +127,33 @@ class ToolCustodyService:
                 )
                 .first()
             )
+
+            # Compatibilidade (legado mobile): algumas devoluções antigas de ferramentas geravam
+            # Entrada com NF = NULL. Isso não deve ser tratado como "adição" no histórico, mas
+            # precisamos reconhecer como devolução para não bloquear a custódia.
+            entrada_legado = (
+                db.session.query(Entrada.id_entrada)
+                .filter(
+                    Entrada.codigo_item == saida.codigo_item,
+                    Entrada.matricula == matricula,
+                    Entrada.nota_fiscal.is_(None),
+                    Entrada.data_entrada >= saida.data_saida,
+                )
+                .first()
+            )
+
+            retirada_devolvida = (
+                db.session.query(RetiradaFerramenta.id)
+                .filter(
+                    RetiradaFerramenta.codigo_item == saida.codigo_item,
+                    RetiradaFerramenta.matricula == matricula,
+                    RetiradaFerramenta.status.in_(["devolvida", "para_reparo"]),
+                    RetiradaFerramenta.data_retirada >= saida.data_saida,
+                )
+                .first()
+            )
             
-            if not devolucao:
+            if not devolucao and not entrada_legado and not retirada_devolvida:
                 days_in_use = (datetime.utcnow() - saida.data_saida).days
                 # Tratar NULL como 'temporaria' (getattr não trata None)
                 tipo_custodia = ToolCustodyService._infer_tipo_custodia(saida, days_in_use)
@@ -226,16 +251,51 @@ class ToolCustodyService:
 
     @staticmethod
     def register_return(retirada_id: int, observacao: str | None = None) -> None:
-        """Registra devolução de ferramenta (custódia diária)."""
-        retirada = RetiradaFerramenta.query.get(retirada_id)
+        """Registra devolução de ferramenta (custódia diária).
 
-        if not retirada:
-            # Compatibilidade: alguns fluxos enviam id da Saida
-            saida = Saida.query.get(retirada_id)
-            if not saida:
-                raise ValueError("Retirada não encontrada")
+        Importante: os endpoints desta aplicação enviam `Saida.id_saida`.
+        Por isso, tentamos resolver primeiro como Saida para evitar colisão
+        com `RetiradaFerramenta.id` (pode haver ids iguais em tabelas distintas).
+        """
 
-            # Garantir que é ferramenta
+        def _has_return_evidence(matricula: str, codigo_item: str, data_base: datetime) -> tuple[bool, int | None]:
+            devolucao_evento = (
+                db.session.query(InventarioEvento.id_evento)
+                .filter(
+                    InventarioEvento.matricula == matricula,
+                    InventarioEvento.codigo_item == codigo_item,
+                    InventarioEvento.tipo.in_(
+                        [
+                            "devolucao_ferramenta",
+                            "devolucao_material",
+                            "quebra_ferramenta",
+                            "reparo_ferramenta",
+                        ]
+                    ),
+                    InventarioEvento.data_evento >= data_base,
+                )
+                .first()
+            )
+            if devolucao_evento:
+                return True, None
+
+            entrada_legado = (
+                db.session.query(Entrada.id_entrada)
+                .filter(
+                    Entrada.codigo_item == codigo_item,
+                    Entrada.matricula == matricula,
+                    Entrada.nota_fiscal.is_(None),
+                    Entrada.data_entrada >= data_base,
+                )
+                .order_by(Entrada.data_entrada.asc())
+                .first()
+            )
+            if entrada_legado:
+                return True, int(entrada_legado[0])
+            return False, None
+
+        saida = Saida.query.get(retirada_id)
+        if saida:
             categoria = (saida.item.categoria or "").lower() if saida.item else ""
             if "ferrament" not in categoria:
                 raise ValueError("Saída não é ferramenta")
@@ -250,8 +310,86 @@ class ToolCustodyService:
                 .order_by(RetiradaFerramenta.data_retirada.desc())
                 .first()
             )
+
+            has_evidence, entrada_legado_id = _has_return_evidence(
+                saida.matricula,
+                saida.codigo_item,
+                saida.data_saida,
+            )
+
+            # Se a devolução já foi registrada no estoque por outro caminho,
+            # só “dá baixa” na custódia (não duplica ajuste no saldo).
+            if retirada and has_evidence:
+                if retirada.status == "para_reparo":
+                    raise ValueError("Ferramenta está marcada para reparo")
+
+                observacao_final = observacao or "Devolução conciliada (já registrada no estoque)"
+                if entrada_legado_id:
+                    observacao_final = f"{observacao_final} | entrada legada id={entrada_legado_id}"
+
+                retirada.registrar_devolucao(observacao_final)
+                db.session.commit()
+                return
+
+            # Se não há RetiradaFerramenta aberta, ainda podemos reconciliar a devolução
+            # (mantém compatibilidade para casos legados/fora de fluxo).
             if not retirada:
-                raise ValueError("Retirada não encontrada")
+                if has_evidence:
+                    raise ValueError("Ferramenta já foi devolvida")
+
+                quantidade_evento = float(saida.quantidade or 1)
+                descricao_base = observacao or f"Devolução de Ferramenta: {saida.item.descricao if saida.item else 'Item'}"
+
+                evento = InventarioEvento(
+                    codigo_item=saida.codigo_item,
+                    matricula=saida.matricula,
+                    quantidade=quantidade_evento,
+                    tipo="devolucao_ferramenta",
+                    descricao=descricao_base,
+                    data_evento=datetime.utcnow(),
+                )
+                db.session.add(evento)
+                db.session.commit()
+
+                try:
+                    from ..services.telegram_service import TelegramService
+
+                    TelegramService.notify_inventory_event(evento.id_evento)
+                except Exception:
+                    pass
+                return
+
+            # Fluxo normal quando há custódia aberta e ainda não há devolução registrada.
+            if retirada.status == "devolvida":
+                raise ValueError("Ferramenta já foi devolvida")
+            if retirada.status == "para_reparo":
+                raise ValueError("Ferramenta está marcada para reparo")
+
+            retirada.registrar_devolucao(observacao)
+
+            evento = InventarioEvento(
+                codigo_item=retirada.codigo_item,
+                matricula=retirada.matricula,
+                quantidade=retirada.quantidade,
+                tipo="devolucao_ferramenta",
+                descricao=observacao or f"Devolução de Ferramenta: {retirada.item.descricao if retirada.item else 'Item'}",
+                data_evento=datetime.utcnow(),
+            )
+            db.session.add(evento)
+            db.session.commit()
+
+            try:
+                from ..services.telegram_service import TelegramService
+
+                TelegramService.notify_inventory_event(evento.id_evento)
+            except Exception:
+                pass
+            return
+
+        # Fallback: compatibilidade para lugares que enviem `RetiradaFerramenta.id`
+        retirada = RetiradaFerramenta.query.get(retirada_id)
+        if not retirada:
+            raise ValueError("Retirada não encontrada")
 
         if retirada.status == "devolvida":
             raise ValueError("Ferramenta já foi devolvida")
@@ -259,9 +397,22 @@ class ToolCustodyService:
         if retirada.status == "para_reparo":
             raise ValueError("Ferramenta está marcada para reparo")
 
+        # Se já existe devolução/entrada legada após a retirada, concilia e não duplica estoque.
+        has_evidence, entrada_legado_id = _has_return_evidence(
+            retirada.matricula,
+            retirada.codigo_item,
+            retirada.data_retirada,
+        )
+        if has_evidence:
+            observacao_final = observacao or "Devolução conciliada (já registrada no estoque)"
+            if entrada_legado_id:
+                observacao_final = f"{observacao_final} | entrada legada id={entrada_legado_id}"
+            retirada.registrar_devolucao(observacao_final)
+            db.session.commit()
+            return
+
         retirada.registrar_devolucao(observacao)
 
-        # Criar evento de devolução (sem ajustar estoque aqui)
         evento = InventarioEvento(
             codigo_item=retirada.codigo_item,
             matricula=retirada.matricula,
@@ -273,7 +424,6 @@ class ToolCustodyService:
         db.session.add(evento)
         db.session.commit()
 
-        # Notificação opcional
         try:
             from ..services.telegram_service import TelegramService
 
@@ -384,11 +534,16 @@ class ToolCustodyService:
         saida = Saida.query.get(saida_id)
         if not saida:
             raise ValueError("Registro não encontrado")
-        
-        if novo_tipo not in ["temporaria", "permanente"]:
+
+        raw = (novo_tipo or "").strip().lower()
+        # Compat: evitar persistir o valor legado "diaria".
+        if raw in {"diaria", "diária", "daily", "d"}:
+            raw = "temporaria"
+
+        if raw not in ["temporaria", "permanente"]:
             raise ValueError("Tipo inválido. Use 'temporaria' ou 'permanente'")
-        
-        saida.tipo_custodia = novo_tipo
+
+        saida.tipo_custodia = raw
         db.session.commit()
 
     @staticmethod
@@ -421,6 +576,17 @@ class ToolCustodyService:
         ).first()
         
         if devolucao:
+            raise ValueError("Ferramenta já foi devolvida")
+
+        # Compatibilidade (legado): tratar Entrada sem NF pós-saída como devolução já registrada.
+        entrada_legado = db.session.query(Entrada.id_entrada).filter(
+            Entrada.codigo_item == saida_obj.codigo_item,
+            Entrada.matricula == saida_obj.matricula,
+            Entrada.nota_fiscal.is_(None),
+            Entrada.data_entrada >= saida_obj.data_saida,
+        ).first()
+
+        if entrada_legado:
             raise ValueError("Ferramenta já foi devolvida")
         
         try:
