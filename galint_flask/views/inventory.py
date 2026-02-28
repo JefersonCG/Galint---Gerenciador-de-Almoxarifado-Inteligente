@@ -6,13 +6,15 @@ from datetime import datetime
 
 from io import BytesIO
 
-from flask import Blueprint, abort, flash, make_response, redirect, render_template, request, url_for
+from flask import Blueprint, abort, flash, make_response, redirect, render_template, request, send_file, url_for
 from flask_login import login_required, current_user
 
 from ..models import Item, Usuario
 from ..services.inventory import MovimentoPayload, inventory_service
+from ..services.item_foto_service import ItemFotoService
 from ..services.telegram_service import TelegramService
 from ..utils.barcode_generator import generate_barcode, get_barcode_path
+from ..utils.time_service import TimeService
 from .movements import LIQUID_PRODUCT_TYPES
 
 blueprint = Blueprint("inventory", __name__, url_prefix="/itens")
@@ -63,6 +65,31 @@ def _safe_float(value: str | int | float | None) -> float:
         return float(value)
     except (TypeError, ValueError):
         return 0.0
+
+
+def _safe_text(value) -> str:
+    if value is None:
+        return ""
+    try:
+        return str(value)
+    except Exception:
+        return ""
+
+
+def _sanitize_filename_component(value: str) -> str:
+    value = (value or "").strip()
+    if not value:
+        return "categoria"
+    # manter apenas caracteres seguros para nome de arquivo
+    sanitized = []
+    for ch in value:
+        if ch.isalnum() or ch in ("_", "-", "."):
+            sanitized.append(ch)
+        elif ch.isspace() or ch in ("/", "\\", ":"):
+            sanitized.append("_")
+        # ignora o resto
+    result = "".join(sanitized).strip("_-")
+    return result or "categoria"
 
 
 @blueprint.get("/")
@@ -167,6 +194,10 @@ def create_item():
         unidades_var = float(unidades_por_emb_raw) if unidades_por_emb_raw and unidades_por_emb_raw.strip() else None
     elif tipo_novo == "litro":
         litros_var = float(unidades_por_emb_raw) if unidades_por_emb_raw and unidades_por_emb_raw.strip() else None
+
+    em_embalagens = None
+    if tipo_novo in ["rolo", "pacote", "caixa"] and unidades_var and unidades_var > 0:
+        em_embalagens = True
     
     payload = {
         "codigo": form.get("codigo", "").strip(),
@@ -201,6 +232,16 @@ def create_item():
             raise ValueError("Código e descrição são obrigatórios")
         if saldo_desejado < 0:
             raise ValueError("Informe uma quantidade inicial válida")
+        
+        # Processar upload de foto (se enviado)
+        foto_file = request.files.get('foto')
+        if foto_file and foto_file.filename:
+            try:
+                foto_path = ItemFotoService.upload_foto(foto_file, payload["codigo"])
+                payload["foto_path"] = foto_path
+            except ValueError as e:
+                flash(f"Erro no upload da foto: {str(e)}", "warning")
+        
         resultado = inventory_service.create_item(payload)
         
         # Verificar se foi atualização de item existente (lote diferente)
@@ -218,6 +259,7 @@ def create_item():
                     quantidade=saldo_desejado,
                     matricula=current_user.id,
                     nota_fiscal=payload["nota_fiscal"],
+                    em_embalagens=em_embalagens,
                 ),
                 skip_notification=True  # Não enviar notificação separada de entrada
             )
@@ -360,6 +402,27 @@ def update_item(codigo: str):
 
         if saldo_desejado < 0:
             raise ValueError("Informe uma quantidade válida")
+        
+        # Processar upload de foto (se enviado)
+        foto_file = request.files.get('foto')
+        remover_foto = form.get('remover_foto')
+        
+        if remover_foto:
+            # Remover foto existente
+            if prev_item and prev_item.get('foto_path'):
+                ItemFotoService.deletar_foto(prev_item['foto_path'])
+            payload['foto_path'] = None
+        elif foto_file and foto_file.filename:
+            # Upload de nova foto
+            try:
+                # Deletar foto antiga se existir
+                if prev_item and prev_item.get('foto_path'):
+                    ItemFotoService.deletar_foto(prev_item['foto_path'])
+                
+                foto_path = ItemFotoService.upload_foto(foto_file, codigo)
+                payload['foto_path'] = foto_path
+            except ValueError as e:
+                flash(f"Erro no upload da foto: {str(e)}", "warning")
 
         updated_codigo = inventory_service.update_item(codigo, payload)
 
@@ -427,7 +490,14 @@ def registrar_entrada(codigo: str):
 def registrar_saida(codigo: str):
     _require_admin()
     quantidade = float(request.form.get("quantidade", "0") or 0)
-    tipo_custodia = request.form.get("tipo_custodia", "temporaria")
+    tipo_custodia = (request.form.get("tipo_custodia", "temporaria") or "").strip().lower()
+    # Compat: instalações antigas usavam "diaria" para empréstimo temporário.
+    if tipo_custodia in {"diaria", "diária", "daily", "d"}:
+        tipo_custodia = "temporaria"
+    if tipo_custodia in {"perm", "p"}:
+        tipo_custodia = "permanente"
+    if tipo_custodia not in {"temporaria", "permanente"}:
+        tipo_custodia = "temporaria"
     matricula = request.form.get("matricula") or current_user.id
     
     # Capturar tipo de saída para unidades dinâmicas
@@ -501,6 +571,249 @@ def delete_category(categoria: str):
     except Exception as exc:
         flash(f"Erro ao excluir categoria: {exc}", "danger")
     return redirect(url_for('inventory.list_items'))
+
+
+@blueprint.post('/categoria/<categoria>/excluir_inativos')
+@login_required
+def delete_inactive_items_by_category(categoria: str):
+    """Exclui itens "inativos" (saldo 0) de uma categoria.
+
+    Observação: aqui tratamos como inativo o item cujo saldo atual é <= 0.
+    """
+    _require_admin()
+    try:
+        itens = inventory_service.list_items()
+        itens_categoria = [item for item in itens if item.get("categoria") == categoria]
+
+        if not itens_categoria:
+            flash(f"Nenhum item encontrado na categoria '{categoria}'.", "warning")
+            return redirect(url_for('inventory.list_items', categoria=categoria))
+
+        inativos = [item for item in itens_categoria if _safe_float(item.get("saldo")) <= 0]
+        if not inativos:
+            flash(f"Nenhum item inativo (saldo 0) encontrado na categoria '{categoria}'.", "info")
+            return redirect(url_for('inventory.list_items', categoria=categoria))
+
+        deleted_count = 0
+        failed_count = 0
+        for item in inativos:
+            codigo = item.get("codigo")
+            if not codigo:
+                continue
+            try:
+                inventory_service.delete_item(codigo)
+                deleted_count += 1
+            except Exception:
+                failed_count += 1
+
+        if deleted_count:
+            msg = f"Itens inativos excluídos na categoria '{categoria}': {deleted_count}."
+            if failed_count:
+                msg += f" Falharam: {failed_count}."
+            flash(msg, "success")
+        else:
+            flash(f"Não foi possível excluir itens inativos na categoria '{categoria}'.", "danger")
+    except Exception as exc:
+        flash(f"Erro ao excluir itens inativos: {exc}", "danger")
+    return redirect(url_for('inventory.list_items', categoria=categoria))
+
+
+@blueprint.get('/categoria/<categoria>/relatorio')
+@login_required
+def category_report(categoria: str):
+    """Gera relatório de itens de uma categoria em PDF ou XLSX."""
+    format_type = (request.args.get("format") or "pdf").strip().lower()
+    if format_type not in {"pdf", "xlsx"}:
+        flash("Formato inválido. Use PDF ou XLSX.", "danger")
+        return redirect(url_for("inventory.list_items", categoria=categoria))
+
+    itens = inventory_service.list_items()
+    itens_categoria = [item for item in itens if item.get("categoria") == categoria]
+    if not itens_categoria:
+        flash(f"Nenhum item encontrado na categoria '{categoria}'.", "warning")
+        return redirect(url_for("inventory.list_items", categoria=categoria))
+
+    itens_categoria.sort(key=lambda x: _safe_text(x.get("descricao")).lower())
+
+    timestamp = TimeService.now_local().strftime('%Y%m%d_%H%M%S')
+    category_slug = _sanitize_filename_component(categoria)
+
+    if format_type == "xlsx":
+        try:
+            from openpyxl import Workbook
+            from openpyxl.styles import Alignment, Font, PatternFill
+        except Exception:
+            flash("Não foi possível gerar XLSX (dependência openpyxl).", "danger")
+            return redirect(url_for("inventory.list_items", categoria=categoria))
+
+        from ..utils.report_branding import get_company_header_lines
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Categoria"
+
+        ws.append(["RELATÓRIO DE ITENS - CATEGORIA"])
+        for line in get_company_header_lines():
+            ws.append([line])
+        ws.append([f"Categoria: {categoria}"])
+        ws.append([f"Total de itens: {len(itens_categoria)}"])
+        ws.append([f"Gerado em: {TimeService.now_local().strftime('%d/%m/%Y %H:%M')}"])
+        ws.append([])
+
+        header_fill = PatternFill(start_color="1f2937", end_color="1f2937", fill_type="solid")
+        header_font = Font(color="FFFFFF", bold=True)
+
+        headers = [
+            "Código",
+            "Descrição",
+            "Marca",
+            "Unidade",
+            "Saldo",
+            "Mín.",
+            "Localização",
+            "Última edição",
+            "Editado por",
+        ]
+        header_row_index = ws.max_row + 1
+        ws.append(headers)
+        for cell in ws[header_row_index]:
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = Alignment(horizontal="center")
+
+        for item in itens_categoria:
+            saldo = _safe_float(item.get("saldo"))
+            minimo = item.get("estoque_minimo")
+            ultima_edicao_em = item.get("ultima_edicao_em")
+            ws.append(
+                [
+                    _safe_text(item.get("codigo")),
+                    _safe_text(item.get("descricao")),
+                    _safe_text(item.get("marca")) or "N/D",
+                    _safe_text(item.get("unidade")) or "N/D",
+                    saldo,
+                    minimo if minimo is not None else "",
+                    _safe_text(item.get("localizacao")) or "",
+                    _safe_text(ultima_edicao_em) or "",
+                    _safe_text(item.get("ultima_edicao_por")) or "",
+                ]
+            )
+
+        ws.column_dimensions["A"].width = 16
+        ws.column_dimensions["B"].width = 50
+        ws.column_dimensions["C"].width = 22
+        ws.column_dimensions["D"].width = 12
+        ws.column_dimensions["E"].width = 10
+        ws.column_dimensions["F"].width = 8
+        ws.column_dimensions["G"].width = 25
+        ws.column_dimensions["H"].width = 24
+        ws.column_dimensions["I"].width = 22
+
+        buffer = BytesIO()
+        wb.save(buffer)
+        buffer.seek(0)
+
+        filename = f"relatorio_categoria_{category_slug}_{timestamp}.xlsx"
+        return send_file(
+            buffer,
+            as_attachment=True,
+            download_name=filename,
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+
+    # PDF
+    try:
+        from reportlab.lib import colors
+        from reportlab.lib.pagesizes import A4, landscape
+        from reportlab.lib.styles import getSampleStyleSheet
+        from reportlab.lib.units import cm
+        from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+    except Exception:
+        flash("Não foi possível gerar PDF (dependência reportlab). Gere em XLSX.", "danger")
+        return redirect(url_for("inventory.list_items", categoria=categoria))
+
+    from ..utils.report_branding import get_company_header_html
+
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=landscape(A4),
+        leftMargin=0.5 * cm,
+        rightMargin=0.5 * cm,
+        topMargin=0.5 * cm,
+        bottomMargin=0.5 * cm,
+        title="Relatório de Itens por Categoria",
+        author="GALINT",
+    )
+    styles = getSampleStyleSheet()
+    body_style = styles["BodyText"]
+    body_style.fontSize = 8
+    body_style.leading = 9
+    story = []
+
+    title_style = styles["Title"]
+    title_style.alignment = 1
+    title_style.fontSize = 16
+    subtitle_style = styles["Normal"]
+    subtitle_style.alignment = 1
+
+    story.append(Paragraph("RELATÓRIO DE ITENS - CATEGORIA", title_style))
+    story.append(Paragraph(get_company_header_html(), subtitle_style))
+    story.append(Spacer(1, 0.2 * cm))
+
+    story.append(Paragraph(f"Categoria: <b>{_safe_text(categoria)}</b>", styles["Normal"]))
+    story.append(Paragraph(f"Total de itens: {len(itens_categoria)}", styles["Normal"]))
+    story.append(Paragraph(f"Gerado em: {TimeService.now_local().strftime('%d/%m/%Y %H:%M')}", styles["Normal"]))
+    story.append(Spacer(1, 0.4 * cm))
+
+    header = ["Código", "Descrição", "Marca", "Unidade", "Saldo", "Mín.", "Localização"]
+    data = [header]
+    for item in itens_categoria:
+        data.append(
+            [
+                _safe_text(item.get("codigo")),
+                Paragraph(_safe_text(item.get("descricao"))[:80], body_style),
+                Paragraph((_safe_text(item.get("marca")) or "N/D")[:30], body_style),
+                _safe_text(item.get("unidade")) or "N/D",
+                _safe_text(item.get("saldo")),
+                _safe_text(item.get("estoque_minimo")),
+                Paragraph((_safe_text(item.get("localizacao")) or "")[:60], body_style),
+            ]
+        )
+
+    table = Table(
+        data,
+        colWidths=[3.2 * cm, 10.0 * cm, 4.2 * cm, 2.4 * cm, 2.0 * cm, 1.6 * cm, 6.0 * cm],
+        repeatRows=1,
+    )
+    table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1f2937")),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("FONTSIZE", (0, 0), (-1, -1), 8),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("GRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#d1d5db")),
+                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f3f4f6")]),
+                ("LEFTPADDING", (0, 0), (-1, -1), 4),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+                ("TOPPADDING", (0, 0), (-1, -1), 3),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+            ]
+        )
+    )
+    story.append(table)
+    doc.build(story)
+
+    buffer.seek(0)
+    filename = f"relatorio_categoria_{category_slug}_{timestamp}.pdf"
+    return send_file(
+        buffer,
+        as_attachment=True,
+        download_name=filename,
+        mimetype="application/pdf",
+    )
 
 
 @blueprint.post('/barcodes/gerar')

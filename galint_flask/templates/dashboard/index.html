@@ -437,6 +437,7 @@
         'material de pintura/drywall': {'icon': '🖌️', 'color': '#6366f1'},
         'material de pintura/drywal': {'icon': '🖌️', 'color': '#6366f1'},
         'material pintura/drywall': {'icon': '🖌️', 'color': '#6366f1'},
+        'mat. pintura e drywall': {'icon': '🖌️', 'color': '#6366f1'},
         'materiais de limpeza': {'icon': '🧽', 'color': '#6366f1'},
         'material descartável': {'icon': '🧽', 'color': '#6366f1'},
         'material descartavel': {'icon': '🧽', 'color': '#6366f1'},
@@ -1180,7 +1181,7 @@
                     </div>
                     <div class="galint-custody-actions">
                         <a href="/controle-ferramentas/funcionario/${item.matricula_full || item.matricula}" class="galint-custody-btn galint-custody-btn-secondary">Ver funcionário</a>
-                        <button data-id="${item.id}" data-desc="${(item.descricao || '').replace(/"/g, '&quot;')}" data-matricula="${item.matricula_full || item.matricula || ''}" onclick="devolverFerramenta(this)" class="galint-custody-btn galint-custody-btn-primary">Dar baixa</button>
+                        <button data-id="${item.id}" data-codigo="${item.codigo || ''}" data-desc="${(item.descricao || '').replace(/"/g, '&quot;')}" data-matricula="${item.matricula_full || item.matricula || ''}" onclick="devolverFerramenta(this)" class="galint-custody-btn galint-custody-btn-primary">Dar baixa</button>
                     </div>
                 `;
                 fragment.appendChild(wrapper);
@@ -1210,60 +1211,73 @@
             }
         }
 
+        // Função global para devolver ferramenta (precisa ser global por causa do onclick)
+        window.devolverFerramenta = async function(buttonEl) {
+            const retiradaId = buttonEl?.getAttribute('data-id');
+            const matricula = buttonEl?.getAttribute('data-matricula');
+            const codigoItem = buttonEl?.getAttribute('data-codigo');
+
+            if (!retiradaId) {
+                window.alert('Não foi possível identificar a retirada para dar baixa.');
+                return;
+            }
+
+            if (buttonEl) {
+                buttonEl.disabled = true;
+                buttonEl.textContent = 'Baixando...';
+            }
+
+            try {
+                const payload = new URLSearchParams();
+                payload.append('matricula', matricula || '');
+                payload.append('codigo_item', codigoItem || '');
+                payload.append('observacao', 'Devolução registrada via dashboard');
+
+                const response = await fetch(`/controle-ferramentas/devolucao/${retiradaId}/api`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+                        'Accept': 'application/json'
+                    },
+                    body: payload.toString(),
+                    credentials: 'same-origin'
+                });
+
+                const contentType = (response.headers.get('content-type') || '').toLowerCase();
+                const isJson = contentType.includes('application/json');
+
+                if (!response.ok) {
+                    const errorPayload = isJson ? await response.json().catch(() => ({})) : {};
+                    throw new Error(errorPayload.message || `Erro ${response.status}`);
+                }
+
+                const result = isJson ? await response.json().catch(() => ({})) : {};
+                if (result && result.success === false) {
+                    throw new Error(result.message || 'Erro ao registrar devolução');
+                }
+
+                // Remove o card imediatamente
+                const card = buttonEl ? buttonEl.closest('.galint-custody-card') : null;
+                if (card) {
+                    card.remove();
+                }
+
+                // Recarrega para garantir consistência
+                await load();
+            } catch (error) {
+                console.error('Falha ao registrar devolução:', error);
+                window.alert(`Falha ao dar baixa: ${error?.message || 'erro desconhecido'}`);
+            } finally {
+                if (buttonEl) {
+                    buttonEl.disabled = false;
+                    buttonEl.textContent = 'Dar baixa';
+                }
+            }
+        };
+
         load();
         setInterval(() => load(), 30000); // Atualiza a cada 30 segundos
     }());
-    
-    // Função global para devolver ferramenta
-    window.devolverFerramenta = async function(buttonEl) {
-        const retiradaId = buttonEl.getAttribute('data-id');
-        const matricula = buttonEl.getAttribute('data-matricula');
-
-        if (buttonEl) {
-            buttonEl.disabled = true;
-            buttonEl.textContent = 'Baixando...';
-        }
-
-        try {
-            const payload = new URLSearchParams();
-            payload.append('matricula', matricula || '');
-            payload.append('observacao', 'Devolução registrada via dashboard');
-
-            const response = await fetch(`/controle-ferramentas/devolucao/${retiradaId}/api`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
-                    'Accept': 'application/json'
-                },
-                body: payload.toString(),
-                credentials: 'same-origin'
-            });
-
-            if (!response.ok) {
-                const errorPayload = await response.json().catch(() => ({}));
-                throw new Error(errorPayload.message || `Erro ${response.status}`);
-            }
-            const result = await response.json().catch(() => ({}));
-            if (result && result.success === false) {
-                throw new Error(result.message || 'Erro ao registrar devolucao');
-            }
-
-            // Remove o card imediatamente
-            const card = buttonEl ? buttonEl.closest('.galint-custody-card') : null;
-            if (card) {
-                card.remove();
-            }
-            // Recarrega para garantir consistencia
-            load();
-        } catch (error) {
-            console.error('Falha ao registrar devolução:', error);
-        } finally {
-            if (buttonEl) {
-                buttonEl.disabled = false;
-                buttonEl.textContent = 'Dar baixa';
-            }
-        }
-    };
 </script>
 <script>
     (function () {

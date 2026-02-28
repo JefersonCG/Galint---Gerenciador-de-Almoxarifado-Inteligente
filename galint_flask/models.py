@@ -47,6 +47,9 @@ class Item(db.Model):
     
     # Código de barras
     barcode_image_path: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    
+    # Foto do item
+    foto_path: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     # Histórico de Edição
     ultima_edicao_em: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
@@ -91,6 +94,7 @@ class Item(db.Model):
             "estoque_embalagens": self.estoque_embalagens,
             "estoque_unidades_soltas": self.estoque_unidades_soltas,
             "barcode_image_path": self.barcode_image_path,
+            "foto_path": self.foto_path,
         }
         if include_balance:
             data["saldo"] = self.get_saldo_atual()
@@ -134,14 +138,26 @@ class Item(db.Model):
 
         Observação: o saldo pode ser fracionário (ex.: saídas fracionadas em LATA).
         """
-        entradas = sum(entrada.quantidade for entrada in self.entradas)
-        saidas = sum(saida.quantidade for saida in self.saidas)
+        if not self.codigo_item:
+            return 0.0
+
+        entradas = (
+            db.session.query(func.coalesce(func.sum(Entrada.quantidade), 0.0))
+            .filter(Entrada.codigo_item == self.codigo_item)
+            .scalar()
+        )
+        saidas = (
+            db.session.query(func.coalesce(func.sum(Saida.quantidade), 0.0))
+            .filter(Saida.codigo_item == self.codigo_item)
+            .scalar()
+        )
         ajustes = (
-            db.session.query(func.coalesce(func.sum(InventarioEvento.quantidade), 0))
+            db.session.query(func.coalesce(func.sum(InventarioEvento.quantidade), 0.0))
             .filter(InventarioEvento.codigo_item == self.codigo_item)
             .scalar()
         )
-        return entradas - saidas + (ajustes or 0)
+
+        return float(entradas or 0.0) - float(saidas or 0.0) + float(ajustes or 0.0)
 
     @staticmethod
     def get_saldo_total_by_codigo(codigo: str) -> float:

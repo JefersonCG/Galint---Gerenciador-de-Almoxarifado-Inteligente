@@ -225,15 +225,15 @@
                     <!-- Ações para Custódia Permanente -->
                     <div class="tool-actions">
                         <button class="btn btn-warning btn-sm" 
-                                onclick='showDamageModal({{ tool.saida_id }}, {{ tool.descricao|tojson }}, {{ employee.matricula|tojson }})'>
+                                onclick='showDamageModal({{ tool.saida_id }}, {{ tool.descricao|tojson }}, {{ tool.codigo_item|tojson }}, {{ employee.matricula|tojson }})'>
                             <i class="bi bi-x-circle"></i> Quebrada
                         </button>
                         <button class="btn btn-info btn-sm" 
-                                onclick='showRepairModal({{ tool.saida_id }}, {{ tool.descricao|tojson }}, {{ employee.matricula|tojson }})'>
+                                onclick='showRepairModal({{ tool.saida_id }}, {{ tool.descricao|tojson }}, {{ tool.codigo_item|tojson }}, {{ employee.matricula|tojson }})'>
                             <i class="bi bi-wrench"></i> Reparo
                         </button>
                         <button class="btn btn-secondary btn-sm" 
-                                onclick='showCustodyModal({{ tool.saida_id }}, {{ tool.descricao|tojson }}, {{ employee.matricula|tojson }}, "temporaria")'>
+                                onclick='showCustodyModal({{ tool.saida_id }}, {{ tool.descricao|tojson }}, {{ tool.codigo_item|tojson }}, {{ employee.matricula|tojson }}, "temporaria")'>
                             <i class="bi bi-arrow-repeat"></i> P/ Temp.
                         </button>
                     </div>
@@ -290,23 +290,23 @@
                     <!-- Ações para Custódia Diária -->
                     <div class="tool-actions">
                         <button class="btn btn-success btn-sm" 
-                                onclick='showReturnModal({{ tool.saida_id }}, {{ tool.descricao|tojson }}, {{ employee.matricula|tojson }})'>
+                                onclick='showReturnModal({{ tool.saida_id }}, {{ tool.descricao|tojson }}, {{ tool.codigo_item|tojson }}, {{ employee.matricula|tojson }})'>
                             <i class="bi bi-arrow-return-left"></i> Devolver
                         </button>
                         <button class="btn btn-warning btn-sm" 
-                                onclick='showDamageModal({{ tool.saida_id }}, {{ tool.descricao|tojson }}, {{ employee.matricula|tojson }})'>
+                                onclick='showDamageModal({{ tool.saida_id }}, {{ tool.descricao|tojson }}, {{ tool.codigo_item|tojson }}, {{ employee.matricula|tojson }})'>
                             <i class="bi bi-x-circle"></i> Quebrada
                         </button>
                         <button class="btn btn-info btn-sm" 
-                                onclick='showRepairModal({{ tool.saida_id }}, {{ tool.descricao|tojson }}, {{ employee.matricula|tojson }})'>
+                                onclick='showRepairModal({{ tool.saida_id }}, {{ tool.descricao|tojson }}, {{ tool.codigo_item|tojson }}, {{ employee.matricula|tojson }})'>
                             <i class="bi bi-wrench"></i> Reparo
                         </button>
                         <button class="btn btn-primary btn-sm" 
-                                onclick='showCustodyModal({{ tool.saida_id }}, {{ tool.descricao|tojson }}, {{ employee.matricula|tojson }}, "permanente")'>
+                                onclick='showCustodyModal({{ tool.saida_id }}, {{ tool.descricao|tojson }}, {{ tool.codigo_item|tojson }}, {{ employee.matricula|tojson }}, "permanente")'>
                             <i class="bi bi-shield-check"></i> P/ Perm.
                         </button>
                         <button class="btn btn-danger btn-sm" 
-                                onclick='showAlertModal({{ tool.saida_id }}, {{ tool.descricao|tojson }}, {{ employee.matricula|tojson }}, {{ employee.nome|tojson }})'>
+                                onclick='showAlertModal({{ tool.saida_id }}, {{ tool.descricao|tojson }}, {{ tool.codigo_item|tojson }}, {{ employee.matricula|tojson }}, {{ employee.nome|tojson }})'>
                             <i class="bi bi-bell"></i> Alertar
                         </button>
                     </div>
@@ -378,6 +378,12 @@
                     <p class="text-white">
                         Confirma a devolução da ferramenta <strong id="returnToolName"></strong>?
                     </p>
+                    <div class="mt-3" id="returnBarcodeSection" style="display: none;">
+                        <div class="text-muted small mb-1">Código de barras</div>
+                        <div class="bg-white p-2 rounded border d-inline-block">
+                            <svg id="returnBarcodeSvg" class="js-galint-barcode" data-galint-barcode-value=""></svg>
+                        </div>
+                    </div>
                     <div class="mb-3">
                         <label class="form-label text-white">Observações (opcional)</label>
                         <textarea class="form-control" name="observacao" rows="3" 
@@ -411,6 +417,12 @@
                     <p class="text-white">
                         Registrar que a ferramenta <strong id="damageToolName"></strong> foi quebrada ou danificada?
                     </p>
+                    <div class="mt-3" id="damageBarcodeSection" style="display: none;">
+                        <div class="text-muted small mb-1">Código de barras</div>
+                        <div class="bg-white p-2 rounded border d-inline-block">
+                            <svg id="damageBarcodeSvg" class="js-galint-barcode" data-galint-barcode-value=""></svg>
+                        </div>
+                    </div>
                     <div class="mb-3">
                         <label class="form-label text-white">Descrição do Dano (obrigatório)</label>
                         <textarea class="form-control" name="observacao" rows="3" required
@@ -444,6 +456,12 @@
                     <p class="text-white">
                         Registrar envio da ferramenta <strong id="repairToolName"></strong> para reparo?
                     </p>
+                    <div class="mt-3" id="repairBarcodeSection" style="display: none;">
+                        <div class="text-muted small mb-1">Código de barras</div>
+                        <div class="bg-white p-2 rounded border d-inline-block">
+                            <svg id="repairBarcodeSvg" class="js-galint-barcode" data-galint-barcode-value=""></svg>
+                        </div>
+                    </div>
                     <div class="mb-3">
                         <label class="form-label text-white">Motivo do Reparo (obrigatório)</label>
                         <textarea class="form-control" name="observacao" rows="3" required
@@ -481,6 +499,12 @@
                     <p class="text-white">
                         Confirma a <strong>exclusão permanente</strong> do registro da ferramenta <strong id="deleteToolName"></strong>?
                     </p>
+                    <div class="mt-3" id="deleteBarcodeSection" style="display: none;">
+                        <div class="text-muted small mb-1">Código de barras</div>
+                        <div class="bg-white p-2 rounded border d-inline-block">
+                            <svg id="deleteBarcodeSvg" class="js-galint-barcode" data-galint-barcode-value=""></svg>
+                        </div>
+                    </div>
                     <p class="text-muted">
                         <small>Esta ação irá remover o registro de saída e todos os eventos relacionados do sistema.</small>
                     </p>
@@ -520,6 +544,13 @@
                                 <small class="text-muted d-block mb-1">Ferramenta:</small>
                                 <h6 class="text-white mb-0" id="custodyToolName"></h6>
                             </div>
+                        </div>
+                    </div>
+
+                    <div class="text-center mb-4" id="custodyBarcodeSection" style="display: none;">
+                        <div class="text-muted small mb-1">Código de barras</div>
+                        <div class="bg-white p-2 rounded border d-inline-block">
+                            <svg id="custodyBarcodeSvg" class="js-galint-barcode" data-galint-barcode-value=""></svg>
                         </div>
                     </div>
                     
@@ -636,6 +667,12 @@
                     <p class="text-white">
                         Enviar alerta informando que <strong id="alertEmployeeName"></strong> não devolveu a ferramenta <strong id="alertToolName"></strong>?
                     </p>
+                    <div class="mt-3" id="alertBarcodeSection" style="display: none;">
+                        <div class="text-muted small mb-1">Código de barras</div>
+                        <div class="bg-white p-2 rounded border d-inline-block">
+                            <svg id="alertBarcodeSvg" class="js-galint-barcode" data-galint-barcode-value=""></svg>
+                        </div>
+                    </div>
                     <p class="text-muted">
                         <small>
                             {% if telegram_recipients %}
@@ -684,36 +721,76 @@
         });
     })();
 
-    function showReturnModal(saidaId, toolName, matricula) {
+    function showReturnModal(saidaId, toolName, toolCode, matricula) {
         document.getElementById('returnToolName').textContent = toolName;
+        const section = document.getElementById('returnBarcodeSection');
+        const svg = document.getElementById('returnBarcodeSvg');
+        if (section && svg) {
+            const raw = String(toolCode || '').trim();
+            section.style.display = raw ? 'block' : 'none';
+            svg.setAttribute('data-galint-barcode-value', raw);
+            window.GalintBarcode?.render(section);
+        }
         document.getElementById('returnForm').action = 
             "{{ url_for('tool_custody.return_tool', saida_id=0) }}".replace('0', saidaId);
         new bootstrap.Modal(document.getElementById('returnModal')).show();
     }
     
-    function showDamageModal(saidaId, toolName, matricula) {
+    function showDamageModal(saidaId, toolName, toolCode, matricula) {
         document.getElementById('damageToolName').textContent = toolName;
+        const section = document.getElementById('damageBarcodeSection');
+        const svg = document.getElementById('damageBarcodeSvg');
+        if (section && svg) {
+            const raw = String(toolCode || '').trim();
+            section.style.display = raw ? 'block' : 'none';
+            svg.setAttribute('data-galint-barcode-value', raw);
+            window.GalintBarcode?.render(section);
+        }
         document.getElementById('damageForm').action = 
             "{{ url_for('tool_custody.damage_tool', saida_id=0) }}".replace('0', saidaId);
         new bootstrap.Modal(document.getElementById('damageModal')).show();
     }
     
-    function showRepairModal(saidaId, toolName, matricula) {
+    function showRepairModal(saidaId, toolName, toolCode, matricula) {
         document.getElementById('repairToolName').textContent = toolName;
+        const section = document.getElementById('repairBarcodeSection');
+        const svg = document.getElementById('repairBarcodeSvg');
+        if (section && svg) {
+            const raw = String(toolCode || '').trim();
+            section.style.display = raw ? 'block' : 'none';
+            svg.setAttribute('data-galint-barcode-value', raw);
+            window.GalintBarcode?.render(section);
+        }
         document.getElementById('repairForm').action = 
             "{{ url_for('tool_custody.repair_tool', saida_id=0) }}".replace('0', saidaId);
         new bootstrap.Modal(document.getElementById('repairModal')).show();
     }
     
-    function showDeleteModal(saidaId, toolName, matricula) {
+    function showDeleteModal(saidaId, toolName, toolCode, matricula) {
         document.getElementById('deleteToolName').textContent = toolName;
+        const section = document.getElementById('deleteBarcodeSection');
+        const svg = document.getElementById('deleteBarcodeSvg');
+        if (section && svg) {
+            const raw = String(toolCode || '').trim();
+            section.style.display = raw ? 'block' : 'none';
+            svg.setAttribute('data-galint-barcode-value', raw);
+            window.GalintBarcode?.render(section);
+        }
         document.getElementById('deleteForm').action = 
             "{{ url_for('tool_custody.delete_tool_record', saida_id=0) }}".replace('0', saidaId);
         new bootstrap.Modal(document.getElementById('deleteModal')).show();
     }
     
-    function showCustodyModal(saidaId, toolName, matricula, novoTipo) {
+    function showCustodyModal(saidaId, toolName, toolCode, matricula, novoTipo) {
         document.getElementById('custodyToolName').textContent = toolName;
+        const section = document.getElementById('custodyBarcodeSection');
+        const svg = document.getElementById('custodyBarcodeSvg');
+        if (section && svg) {
+            const raw = String(toolCode || '').trim();
+            section.style.display = raw ? 'block' : 'none';
+            svg.setAttribute('data-galint-barcode-value', raw);
+            window.GalintBarcode?.render(section);
+        }
         document.getElementById('custodyType').value = novoTipo;
         document.getElementById('custodyTypeLabel').textContent = 
             novoTipo === 'permanente' ? 'Custódia Permanente' : 'Empréstimo Temporário';
@@ -722,9 +799,19 @@
         new bootstrap.Modal(document.getElementById('custodyModal')).show();
     }
     
-    function showAlertModal(saidaId, toolName, matricula, employeeName) {
+    function showAlertModal(saidaId, toolName, toolCode, matricula, employeeName) {
         document.getElementById('alertToolName').textContent = toolName;
         document.getElementById('alertEmployeeName').textContent = employeeName;
+
+        const section = document.getElementById('alertBarcodeSection');
+        const svg = document.getElementById('alertBarcodeSvg');
+        if (section && svg) {
+            const raw = String(toolCode || '').trim();
+            section.style.display = raw ? 'block' : 'none';
+            svg.setAttribute('data-galint-barcode-value', raw);
+            window.GalintBarcode?.render(section);
+        }
+
         document.getElementById('alertForm').action = 
             "{{ url_for('tool_custody.send_telegram_alert', saida_id=0) }}".replace('0', saidaId);
         new bootstrap.Modal(document.getElementById('alertModal')).show();

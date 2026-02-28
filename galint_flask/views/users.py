@@ -252,9 +252,19 @@ def delete_user(matricula: str):
     if matricula == current_user.id:
         flash("Não é possível remover o usuário logado.", "danger")
         return redirect(url_for("users.list_users"))
+    
+    # Verificar se é exclusão forçada com reatribuição
+    force_delete = request.form.get("force_delete") == "true"
+    reatribuir_para = request.form.get("reatribuir_para", "").strip() or None
+    
     try:
-        user_service.delete_user(matricula)
-        flash("Usuário removido.", "success")
+        user_service.delete_user(matricula, force_delete=force_delete, reatribuir_para=reatribuir_para)
+        if reatribuir_para:
+            flash(f"Usuário removido e registros reatribuídos com sucesso.", "success")
+        elif force_delete:
+            flash("Usuário removido. Registros vinculados foram desvinculados.", "success")
+        else:
+            flash("Usuário removido.", "success")
     except ValueError as exc:
         flash(str(exc), "danger")
     return redirect(url_for("users.list_users"))

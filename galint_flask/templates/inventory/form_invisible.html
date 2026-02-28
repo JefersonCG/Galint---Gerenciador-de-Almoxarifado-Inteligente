@@ -310,13 +310,17 @@
             <select class="form-select" id="categoria" name="categoria" required>
                 {% set categoria = form_item.categoria if form_item else 'Material Elétrico' %}
                 {% if categoria == 'Material Pintura' %}
-                {% set categoria = 'Material de Pintura/Drywall' %}
+                {% set categoria = 'Mat. Pintura e Drywall' %}
+                {% elif categoria == 'Material de Pintura/Drywall' %}
+                {% set categoria = 'Mat. Pintura e Drywall' %}
+                {% elif categoria == 'Mat. Pintura E Drywall' %}
+                {% set categoria = 'Mat. Pintura e Drywall' %}
                 {% endif %}
                 {% for choice in [
                 'Material Elétrico',
                 'Material Hidráulico',
                 'Material Piscina',
-                'Material de Pintura/Drywall',
+                'Mat. Pintura e Drywall',
                 'Materiais de Limpeza',
                 'Material Construção',
                 'Ferramentas',

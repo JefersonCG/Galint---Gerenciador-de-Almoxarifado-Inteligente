@@ -124,7 +124,43 @@ def return_tool_api(saida_id: int):
         tool_custody_service.register_return(saida_id, observacao or None)
         return jsonify({"success": True, "message": "Ferramenta devolvida com sucesso"})
     except ValueError as e:
-        return jsonify({"success": False, "message": str(e)}), 400
+        message = str(e)
+
+        # Idempotência: se já foi devolvida, consideramos sucesso (o card deve sumir do feed).
+        if message.strip().lower() == "ferramenta já foi devolvida":
+            return jsonify({"success": True, "message": message})
+
+        # Fallback: se o id não resolve (dados legados/ids divergentes), tenta por matrícula+código.
+        if message.strip().lower() == "retirada não encontrada":
+            from ..models import Item, Saida
+
+            matricula = (request.form.get("matricula") or "").strip()
+            codigo_item = (request.form.get("codigo_item") or "").strip()
+
+            if matricula and codigo_item:
+                saida = (
+                    db.session.query(Saida)
+                    .join(Item, Saida.codigo_item == Item.codigo_item)
+                    .filter(
+                        Saida.matricula == matricula,
+                        Saida.codigo_item == codigo_item,
+                        Item.categoria == "Ferramentas",
+                    )
+                    .order_by(Saida.data_saida.desc())
+                    .first()
+                )
+
+                if saida:
+                    try:
+                        tool_custody_service.register_return(saida.id_saida, observacao or None)
+                        return jsonify({"success": True, "message": "Ferramenta devolvida com sucesso"})
+                    except ValueError as inner:
+                        inner_msg = str(inner)
+                        if inner_msg.strip().lower() == "ferramenta já foi devolvida":
+                            return jsonify({"success": True, "message": inner_msg})
+                        return jsonify({"success": False, "message": inner_msg}), 400
+
+        return jsonify({"success": False, "message": message}), 400
     except SQLAlchemyError as e:
         return jsonify({"success": False, "message": f"Erro ao registrar devolucao: {str(e)}"}), 500
 
@@ -180,7 +216,11 @@ def api_stats():
 def toggle_custody_type(saida_id: int):
     """Alterna tipo de custódia entre permanente e temporária."""
     try:
-        novo_tipo = request.form.get("novo_tipo", "temporaria").strip()
+        novo_tipo = (request.form.get("novo_tipo", "temporaria") or "").strip().lower()
+        # Compat: algumas telas/instalações antigas usavam "diaria" para empréstimo temporário.
+        if novo_tipo in {"diaria", "diária", "daily", "d"}:
+            novo_tipo = "temporaria"
+
         if novo_tipo not in ["temporaria", "permanente"]:
             raise ValueError("Tipo de custódia inválido")
         
@@ -704,3 +744,193 @@ def generate_tool_report():
         logger.exception("Erro ao gerar relatório de ferramentas")
         flash(f"Erro ao gerar relatório: {str(e)}", "danger")
         return _redirect_back()
+
+
+@bp.route("/api/funcionarios/buscar")
+@login_required
+def search_employees():
+    """Busca funcionários por nome ou matrícula (API)."""
+    from ..models import Usuario
+    
+    query = request.args.get("q", "").strip()
+    
+    if not query or len(query) < 2:
+        return jsonify([])
+    
+    # Buscar usuários que correspondem à query
+    usuarios = (
+        Usuario.query.filter(
+            or_(
+                Usuario.nome.ilike(f"%{query}%"),
+                Usuario.matricula.ilike(f"%{query}%")
+            )
+        )
+        .limit(20)
+        .all()
+    )
+    
+    return jsonify([{
+        "matricula": u.matricula,
+        "nome": u.nome,
+        "cargo": u.cargo or "N/D",
+        "setor": u.setor or "N/D"
+    } for u in usuarios])
+
+
+@bp.route("/api/funcionario/<matricula>/historico")
+@login_required
+def get_employee_full_history(matricula: str):
+    """Retorna histórico completo de materiais E ferramentas do funcionário (API)."""
+    from ..models import Saida, Item, Usuario, InventarioEvento
+    from ..utils.time_service import TimeService
+    
+    # Verificar se funcionário existe
+    usuario = Usuario.query.filter_by(matricula=matricula).first()
+    if not usuario:
+        return jsonify({"success": False, "error": "Funcionário não encontrado"}), 404
+    
+    # Buscar TODAS as saídas do funcionário (sem limite de tempo)
+    saidas = (
+        db.session.query(Saida, Item)
+        .join(Item, Saida.codigo_item == Item.codigo_item)
+        .filter(Saida.matricula == matricula)
+        .order_by(Saida.data_saida.desc())
+        .all()
+    )
+    
+    # Separar por categoria
+    materiais = []
+    ferramentas = []
+    
+    for saida, item in saidas:
+        data_formatada = TimeService.format_local(saida.data_saida, "%d/%m/%Y")
+        hora = TimeService.format_local(saida.data_saida, "%H:%M")
+        
+        # Para ferramentas, verificar se foi devolvida
+        status_devolucao = ""
+        categoria_lower = (item.categoria or "").lower()
+        if "ferrament" in categoria_lower:
+            # Buscar devolução no InventarioEvento
+            devolucao = (
+                db.session.query(InventarioEvento)
+                .filter(
+                    InventarioEvento.matricula == matricula,
+                    InventarioEvento.codigo_item == item.codigo_item,
+                    InventarioEvento.tipo.in_(["devolucao_ferramenta", "devolucao"]),
+                    InventarioEvento.data_evento >= saida.data_saida
+                )
+                .first()
+            )
+            status_devolucao = "✅ Devolvido ao estoque" if devolucao else "⚠️ Pendência !!"
+        
+        data = {
+            "id": saida.id_saida,
+            "data_formatada": data_formatada,
+            "hora": hora,
+            "item": item.descricao or "Item removido",
+            "codigo": item.codigo_item or "N/D",
+            "quantidade": saida.quantidade or 0,
+            "local": saida.local_servico or "",
+            "observacao": saida.observacao or "",
+            "status_devolucao": status_devolucao
+        }
+        
+        # Classificar por categoria
+        if "ferrament" in categoria_lower:
+            ferramentas.append(data)
+        else:
+            materiais.append(data)
+    
+    return jsonify({
+        "success": True,
+        "usuario": {
+            "nome": usuario.nome,
+            "matricula": usuario.matricula,
+            "cargo": usuario.cargo or "N/D"
+        },
+        "materiais": materiais,
+        "ferramentas": ferramentas
+    })
+
+
+@bp.route("/api/funcionario/<matricula>/relatorio.pdf")
+@login_required
+def download_employee_report(matricula: str):
+    """Gera e baixa relatório (PDF) do histórico de um funcionário.
+
+    Querystring:
+      - aba: "materiais" | "ferramentas" | "all" (padrão: all)
+    """
+    from io import BytesIO
+
+    from ..models import Saida, Usuario
+    from ..utils.time_service import TimeService
+    from ..views.reports import _generate_usuario_report_pdf
+
+    aba = (request.args.get("aba") or "all").strip().lower()
+    if aba not in {"materiais", "ferramentas", "all"}:
+        aba = "all"
+    
+    # Verificar se funcionário existe
+    usuario = Usuario.query.filter_by(matricula=matricula).first()
+    if not usuario:
+        flash("Funcionário não encontrado", "danger")
+        return redirect(url_for("tool_custody.index"))
+    
+    # Buscar todas as saídas
+    saidas_query = (
+        db.session.query(Saida)
+        .filter(Saida.matricula == matricula)
+        .order_by(Saida.data_saida.desc())
+        .all()
+    )
+    
+    # Converter para formato compatível com o gerador de PDF
+    saidas_data = []
+    for saida in saidas_query:
+        categoria_lower = ""
+        if getattr(saida, "item", None) and getattr(saida.item, "categoria", None):
+            categoria_lower = (saida.item.categoria or "").lower()
+
+        is_ferramenta = "ferrament" in categoria_lower
+        if aba == "ferramentas" and not is_ferramenta:
+            continue
+        if aba == "materiais" and is_ferramenta:
+            continue
+
+        saidas_data.append({
+            "data": saida.data_saida,
+            "item_descricao": saida.item.descricao if saida.item else "Item removido",
+            "codigo_item": saida.codigo_item,
+            "quantidade": saida.quantidade,
+            "periodo": TimeService.get_business_day_tag(saida.data_saida),
+            "observacao": saida.observacao,
+            "local_servico": saida.local_servico,
+            "tipo": "Retirada"
+        })
+    
+    usuario_data = {
+        "nome": usuario.nome,
+        "matricula": usuario.matricula,
+        "cargo": usuario.cargo or "N/D"
+    }
+    
+    try:
+        # Gerar PDF usando a função existente
+        pdf_bytes = _generate_usuario_report_pdf(
+            usuario=usuario_data,
+            saidas=saidas_data,
+            period_days=0,  # 0 = todo o histórico
+            time_service=TimeService
+        )
+        
+        # Retornar o arquivo PDF
+        return send_file(
+            BytesIO(pdf_bytes),
+            mimetype="application/pdf",
+            as_attachment=True,
+            download_name=f"relatorio_{usuario.nome.replace(' ', '_')}_{matricula}.pdf"
+        )
+    except Exception as e:
+        flash(f"Erro ao gerar relatório: {str(e)}", "danger")
+        return redirect(url_for("tool_custody.index"))

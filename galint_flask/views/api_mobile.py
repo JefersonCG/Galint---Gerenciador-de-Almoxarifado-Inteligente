@@ -27,6 +27,7 @@ from ..services.auth import (
     get_mobile_user,
 )
 from ..services.inventory import inventory_service, MovimentoPayload
+from ..services.item_foto_service import ItemFotoService
 from ..services.telegram_reports import TelegramReportService
 from ..services.telegram_service import TelegramService
 from ..utils.time_service import TimeService
@@ -2093,7 +2094,11 @@ def criar_item_estoque():
     if not _is_admin_or_supervisor(user):
         return jsonify({"error": "Apenas administradores ou supervisores podem cadastrar itens"}), 403
     
-    data = request.get_json() or {}
+    # Suportar tanto JSON quanto multipart/form-data (para upload de foto)
+    if request.content_type and 'multipart/form-data' in request.content_type:
+        data = request.form.to_dict()
+    else:
+        data = request.get_json() or {}
     
     codigo = (data.get("codigo_barras") or "").strip()
     descricao = (data.get("descricao") or "").strip()
@@ -2107,6 +2112,16 @@ def criar_item_estoque():
         return jsonify({"error": "Item com este código já existe"}), 409
     
     try:
+        # Processar foto se fornecida
+        foto_path = None
+        if 'foto' in request.files:
+            foto_file = request.files['foto']
+            if foto_file and foto_file.filename:
+                try:
+                    foto_path = ItemFotoService.upload_foto(foto_file, codigo)
+                except ValueError as foto_error:
+                    return jsonify({"error": f"Erro ao fazer upload da foto: {str(foto_error)}"}), 400
+        
         # Suportar novo sistema de embalagens (compatível com app antigo)
         tipo_emb_novo = (data.get("tipo_embalagem_novo") or data.get("tipo_embalagem") or "").strip().lower()
         unidades_por_emb = data.get("unidades_por_embalagem")
@@ -2123,6 +2138,7 @@ def criar_item_estoque():
             "nota_fiscal": None,
             "tipo_embalagem_novo": tipo_emb_novo or None,
             "unidades_por_embalagem": float(unidades_por_emb) if unidades_por_emb not in (None, "") else None,
+            "foto_path": foto_path,
         }
         
         codigo_criado = inventory_service.create_item(payload)
@@ -2164,7 +2180,7 @@ def atualizar_item_estoque(codigo: str):
     """Atualiza dados de um item do estoque (edição via app).
 
     Permitido apenas para Administrador ou Gerente.
-    Campos aceitos: descricao, categoria, marca, unidade, localizacao, nota_fiscal.
+    Campos aceitos: descricao, categoria, marca, unidade, localizacao, nota_fiscal, foto.
     """
     user = g.mobile_user
     if not _is_admin_or_manager(user):
@@ -2174,12 +2190,34 @@ def atualizar_item_estoque(codigo: str):
     if not codigo:
         return jsonify({"error": "Código não fornecido"}), 400
 
-    data = request.get_json() or {}
+    # Suportar tanto JSON quanto multipart/form-data (para upload de foto)
+    if request.content_type and 'multipart/form-data' in request.content_type:
+        data = request.form.to_dict()
+    else:
+        data = request.get_json() or {}
 
     try:
         existing = inventory_service.get_item(codigo)
         if not existing:
             return jsonify({"error": "Item não encontrado"}), 404
+
+        # Processar foto se fornecida
+        foto_path = None
+        if 'foto' in request.files:
+            foto_file = request.files['foto']
+            if foto_file and foto_file.filename:
+                try:
+                    # Deletar foto antiga se existir
+                    if existing.get('foto_path'):
+                        ItemFotoService.deletar_foto(existing['foto_path'])
+                    foto_path = ItemFotoService.upload_foto(foto_file, codigo)
+                except ValueError as foto_error:
+                    return jsonify({"error": f"Erro ao fazer upload da foto: {str(foto_error)}"}), 400
+        elif data.get('remover_foto') == 'true' or data.get('remover_foto') is True:
+            # Remover foto existente
+            if existing.get('foto_path'):
+                ItemFotoService.deletar_foto(existing['foto_path'])
+            foto_path = None  # Será setado no payload para limpar
 
         tipo_emb_novo = (data.get("tipo_embalagem_novo") or data.get("tipo_embalagem") or "").strip().lower()
         unidades_por_emb = data.get("unidades_por_embalagem")
@@ -2196,6 +2234,10 @@ def atualizar_item_estoque(codigo: str):
             "tipo_embalagem_novo": tipo_emb_novo or existing.get("tipo_embalagem_novo"),
             "unidades_por_embalagem": float(unidades_por_emb) if unidades_por_emb not in (None, "") else existing.get("unidades_por_embalagem"),
         }
+        
+        # Adicionar foto_path ao payload se foi modificada
+        if foto_path is not None or data.get('remover_foto'):
+            payload["foto_path"] = foto_path
 
         if not payload["descricao"]:
             raise ValueError("Descrição é obrigatória")

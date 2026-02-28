@@ -44,6 +44,138 @@ class MovimentoPayload:
 class InventoryService:
     """Facade responsável por CRUD de itens e lançamentos de estoque."""
 
+    @staticmethod
+    def _as_positive_float(value: object) -> float:
+        try:
+            f = float(value)  # type: ignore[arg-type]
+        except (TypeError, ValueError):
+            return 0.0
+        if math.isnan(f) or math.isinf(f):
+            return 0.0
+        return f
+
+    def get_material_return_pending(self, *, codigo: str, matricula: str) -> float:
+        """Retorna quanto ainda pode ser devolvido (estornado) para um material.
+
+        Regra:
+        - Pendente = total_saidas(matricula,codigo) - total_devolucoes(matricula,codigo)
+        - total_devolucoes considera:
+          1) eventos tipo 'devolucao_material' (novo padrão)
+          2) entradas legadas sem NF (rota antiga do mobile), para não permitir dupla devolução.
+        """
+        codigo_norm = (codigo or "").strip()
+        matricula_norm = (matricula or "").strip()
+        if not codigo_norm or not matricula_norm:
+            return 0.0
+
+        total_saidas = (
+            db.session.query(func.coalesce(func.sum(Saida.quantidade), 0.0))
+            .filter(Saida.codigo_item == codigo_norm, Saida.matricula == matricula_norm)
+            .scalar()
+        )
+        total_eventos = (
+            db.session.query(func.coalesce(func.sum(InventarioEvento.quantidade), 0.0))
+            .filter(
+                InventarioEvento.codigo_item == codigo_norm,
+                InventarioEvento.matricula == matricula_norm,
+                InventarioEvento.tipo == "devolucao_material",
+            )
+            .scalar()
+        )
+        # Legado: devoluções antigas do mobile geravam Entrada com NF = NULL.
+        total_entradas_legado = (
+            db.session.query(func.coalesce(func.sum(Entrada.quantidade), 0.0))
+            .filter(
+                Entrada.codigo_item == codigo_norm,
+                Entrada.matricula == matricula_norm,
+                Entrada.nota_fiscal.is_(None),
+            )
+            .scalar()
+        )
+
+        saidas_f = self._as_positive_float(total_saidas)
+        devolucoes_f = self._as_positive_float(total_eventos) + self._as_positive_float(total_entradas_legado)
+        pendente = saidas_f - devolucoes_f
+        if pendente < 0:
+            return 0.0
+        return float(pendente)
+
+    def registrar_devolucao_material(
+        self,
+        *,
+        codigo: str,
+        quantidade: float,
+        matricula: str,
+        observacao: str | None = None,
+        commit: bool = True,
+    ) -> InventarioEvento:
+        """Registra devolução de material como um InventarioEvento.
+
+        Importante:
+        - Não cria Entrada (evita devolução virar 'adição' duplicada).
+        - Bloqueia devolução acima do pendente por funcionário/item.
+        """
+        codigo_norm = (codigo or "").strip()
+        matricula_norm = (matricula or "").strip()
+        if not codigo_norm:
+            raise ValueError("Código do item é obrigatório")
+        if not matricula_norm:
+            raise ValueError("Matrícula é obrigatória")
+
+        quantidade_f = self._as_positive_float(quantidade)
+        if quantidade_f <= 0:
+            raise ValueError("Quantidade inválida")
+
+        item = Item.query.get(codigo_norm)
+        if not item:
+            raise ValueError("Item não encontrado")
+
+        categoria_text = (item.categoria or "").strip().lower()
+        if "ferrament" in categoria_text:
+            raise ValueError("Use a devolução de ferramentas para este item")
+
+        pendente = self.get_material_return_pending(codigo=codigo_norm, matricula=matricula_norm)
+        # Tolerância mínima para float.
+        if pendente <= 1e-9:
+            raise ValueError("Devolução não permitida: não há retirada pendente para este material.")
+        if quantidade_f > pendente + 1e-9:
+            raise ValueError(f"Devolução excede o pendente. Pendente: {pendente:g}")
+
+        descricao_base = f"Devolução de Material: {item.descricao or 'Item'}"
+        obs = (observacao or "").strip()
+        descricao = f"{descricao_base} | {obs}" if obs else descricao_base
+
+        evento = InventarioEvento(
+            codigo_item=item.codigo_item,
+            matricula=matricula_norm,
+            tipo="devolucao_material",
+            quantidade=float(quantidade_f),
+            descricao=descricao,
+            data_evento=datetime.utcnow(),
+        )
+        db.session.add(evento)
+        db.session.flush()
+
+        try:
+            saldo_atualizado = float(item.get_saldo_atual() or 0.0)
+        except Exception:
+            saldo_atualizado = 0.0
+        item.estoque_minimo = _calculate_min_stock(saldo_atualizado)
+
+        if commit:
+            db.session.commit()
+
+        return evento
+
+    @staticmethod
+    def _normalize_tipo_custodia(value: str | None) -> str:
+        raw = (value or "").strip().lower()
+        if raw in {"permanente", "perm", "p"}:
+            return "permanente"
+        if raw in {"temporaria", "temporária", "diaria", "diária", "daily", "d"}:
+            return "temporaria"
+        return "temporaria"
+
     def _bulk_saldos(self, codigos: list[str] | None = None) -> dict[str, float]:
         # Importante: evitar IN com listas enormes (pode estourar limite de parâmetros
         # e/ou degradar performance). Só aplicamos filtro quando a lista é pequena.
@@ -219,6 +351,9 @@ class InventoryService:
                     "ultima_edicao_em": item.ultima_edicao_em.isoformat() if item.ultima_edicao_em else None,
                     "ultima_edicao_por": item.ultima_edicao_por,
                     "saldo": saldo,
+                    "foto_path": item.foto_path,
+                    "tipo_embalagem_novo": item.tipo_embalagem_novo,
+                    "unidades_por_embalagem": item.unidades_por_embalagem,
                 }
             )
         if atualizado:
@@ -271,8 +406,11 @@ class InventoryService:
                 raise ValueError("Código já cadastrado com este lote. Use 'Registro de Entrada' para adicionar estoque.")
             else:
                 # Lote diferente: registrar como nova entrada e atualizar dados do item
-                # Atualizar campos do item com os novos dados (lote, validade, etc.)
-                item_existente.lote = lote
+                # Campos estruturais de rastreabilidade são imutáveis após definidos.
+                # Permitimos apenas o primeiro preenchimento (write-once) para manter
+                # compatibilidade com bases antigas que tinham valores nulos.
+                if not (item_existente.lote or "").strip() and lote:
+                    item_existente.lote = lote
                 item_existente.data_entrada = data_entrada
                 
                 # Atualizar datas de fabricação e validade se informadas
@@ -284,7 +422,7 @@ class InventoryService:
                         pass
                 
                 data_validade = payload.get("data_validade")
-                if data_validade and isinstance(data_validade, str):
+                if item_existente.data_validade is None and data_validade and isinstance(data_validade, str):
                     try:
                         item_existente.data_validade = datetime.strptime(data_validade, '%Y-%m-%d').date()
                     except ValueError:
@@ -294,6 +432,19 @@ class InventoryService:
                 quantidade = payload.get("quantidade") or payload.get("saldo") or 0
                 if quantidade and int(quantidade) > 0:
                     nota_fiscal = payload.get("nota_fiscal")
+
+                    try:
+                        from ..services.embalagem_service import embalagem_service
+
+                        if embalagem_service.tem_embalagem(item_existente):
+                            novas_emb, novas_soltas = embalagem_service.processar_entrada(
+                                item_existente, float(quantidade), True
+                            )
+                            item_existente.estoque_embalagens = novas_emb
+                            item_existente.estoque_unidades_soltas = novas_soltas
+                    except Exception:
+                        pass
+
                     entrada = Entrada(
                         codigo_item=codigo,
                         quantidade=int(quantidade),
@@ -393,6 +544,8 @@ class InventoryService:
             voltagem=payload.get("voltagem"),
             amperagem=payload.get("amperagem"),
             local_instalacao=payload.get("local_instalacao"),
+            # Foto do item
+            foto_path=payload.get("foto_path"),
         )
         item.estoque_minimo = 0
         db.session.add(item)
@@ -464,10 +617,12 @@ class InventoryService:
 
         auto_lote = bool(payload.get("gerar_lote_automatico"))
         lote_manual = (payload.get("lote") or "").strip() or None
-        if lote_manual:
-            item.lote = lote_manual
-        elif auto_lote and not item.lote and item.data_entrada:
-            item.lote = generate_lote(datetime.combine(item.data_entrada, datetime.min.time()))
+        # Lote é write-once: só pode ser preenchido se estiver vazio.
+        if not (item.lote or "").strip():
+            if lote_manual:
+                item.lote = lote_manual
+            elif auto_lote and item.data_entrada:
+                item.lote = generate_lote(datetime.combine(item.data_entrada, datetime.min.time()))
         
         data_fabricacao = payload.get("data_fabricacao")
         if data_fabricacao is not None:
@@ -480,7 +635,8 @@ class InventoryService:
                 item.data_fabricacao = data_fabricacao
         
         data_validade = payload.get("data_validade")
-        if data_validade is not None:
+        # data_validade é write-once: só pode ser preenchida se estiver nula.
+        if item.data_validade is None and data_validade is not None:
             if isinstance(data_validade, str):
                 try:
                     item.data_validade = datetime.strptime(data_validade, '%Y-%m-%d').date()
@@ -547,6 +703,10 @@ class InventoryService:
             item.amperagem = payload["amperagem"]
         if "local_instalacao" in payload:
             item.local_instalacao = payload["local_instalacao"]
+
+        # Foto do item
+        if "foto_path" in payload:
+            item.foto_path = payload["foto_path"]
 
         # Regenerar barcode se descrição mudou
         if payload.get("descricao") and item.descricao:
@@ -980,8 +1140,26 @@ class InventoryService:
                 )
 
         # Verificar se o item usa sistema de embalagens
-        from ..services.embalagem_service import embalagem_service
+        from ..services.embalagem_service import EmbalagemService, embalagem_service
         tem_embalagem = embalagem_service.tem_embalagem(item)
+
+        # Contexto de saldo para notificação (evita divergências de unidades no Telegram)
+        telegram_balance_before: float | None = None
+        telegram_balance_after: float | None = None
+        telegram_balance_unit: str | None = None
+
+        if not is_entrada:
+            telegram_balance_unit = item.unidade or "un"
+            if tem_embalagem and payload.em_embalagens is not None:
+                try:
+                    telegram_balance_before = float(EmbalagemService.calcular_estoque_total(item) or 0)
+                except Exception:
+                    telegram_balance_before = None
+            else:
+                try:
+                    telegram_balance_before = float(item.get_saldo_atual() or 0)
+                except Exception:
+                    telegram_balance_before = None
         
         # Processar embalagens ANTES de verificar saldo ou criar movimento
         if tem_embalagem and payload.em_embalagens is not None:
@@ -1001,6 +1179,12 @@ class InventoryService:
                     raise ValueError("Saldo insuficiente para a saída solicitada")
                 item.estoque_embalagens = novas_emb
                 item.estoque_unidades_soltas = novas_soltas
+
+                # Saldo após a saída (em UNIDADES totais) para notificação
+                try:
+                    telegram_balance_after = float(EmbalagemService.calcular_estoque_total(item) or 0)
+                except Exception:
+                    telegram_balance_after = None
 
         # Validação de saldo para itens sem embalagem
         if not tem_embalagem and not is_entrada:
@@ -1047,7 +1231,7 @@ class InventoryService:
             
             # Persistir tipo_custodia se for saída
             if not is_entrada and hasattr(movimento, "tipo_custodia"):
-                movimento.tipo_custodia = payload.tipo_custodia
+                movimento.tipo_custodia = self._normalize_tipo_custodia(getattr(payload, "tipo_custodia", None))
 
         db.session.add(movimento)
         db.session.flush()
@@ -1075,7 +1259,13 @@ class InventoryService:
                         if tipo_custodia == "permanente" and hasattr(TelegramService, "notify_permanent_custody"):
                             TelegramService.notify_permanent_custody(saida_id)
                         else:
-                            TelegramService.notify_withdrawal(saida_id, force_single=True)
+                            TelegramService.notify_withdrawal(
+                                saida_id,
+                                force_single=True,
+                                balance_before=telegram_balance_before,
+                                balance_after=telegram_balance_after,
+                                balance_unit=telegram_balance_unit,
+                            )
             except Exception:
                 # Não bloquear a operação por falha na notificação
                 pass

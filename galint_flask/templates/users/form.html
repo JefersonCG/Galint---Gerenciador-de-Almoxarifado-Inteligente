@@ -37,6 +37,9 @@
                         <label class="form-label" for="setor-field">Setor</label>
                         <select id="setor-field" class="form-select" name="setor" required>
                             {% set setor_atual = usuario.setor if usuario else '' %}
+                            {% if setor_atual == 'SERVIÇOS GERAIS' %}
+                                {% set setor_atual = 'TERCERIZADOS' %}
+                            {% endif %}
                             {% for setor_opcao in [
                                 '1/2 OFICIAL DE MANUTENÇÃO',
                                 'OFICIAL DE MANUTENÇÃO',
@@ -47,7 +50,7 @@
                                 'ENCARREGADO',
                                 'PINTOR',
                                 'PISCINA',
-                                'SERVIÇOS GERAIS',
+                                'TERCERIZADOS',
                                 'SUPERVISOR',
                                 'ZELADOR',
                                 'TÉCNICO CFTV'

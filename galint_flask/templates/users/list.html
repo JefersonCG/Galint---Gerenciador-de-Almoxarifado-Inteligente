@@ -4,7 +4,6 @@
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
     <h1 class="h3 mb-0">Usuários</h1>
     <div class="d-flex gap-2">
-        <button class="btn btn-outline-primary" id="toggle-users-table">Ocultar tabela</button>
         <a class="btn btn-success" href="{{ url_for('users.new_user_form') }}">Novo usuário</a>
     </div>
 </div>
@@ -161,10 +160,10 @@
                         <a class="btn btn-outline-primary"
                             href="{{ url_for('users.user_history', matricula=membro.matricula) }}">Histórico</a>
                         {% if current_user.is_admin and membro.matricula != current_user.id %}
-                        <form class="d-inline m-0" method="post"
-                            action="{{ url_for('users.delete_user', matricula=membro.matricula) }}">
-                            <button class="btn btn-outline-danger btn-sm" type="submit">Excluir</button>
-                        </form>
+                        <button class="btn btn-outline-danger btn-sm" type="button" 
+                                onclick="openDeleteModal('{{ membro.matricula }}', '{{ membro.nome|e }}')">
+                            Excluir
+                        </button>
                         {% endif %}
                     </div>
                 </div>
@@ -175,46 +174,71 @@
     </div>
 </div>
 {% endif %}
-<div id="user-table-wrapper">
-    <table class="table table-dark table-striped">
-        <thead>
-            <tr>
-                <th>Matrícula</th>
-                <th>Nome</th>
-                <th>Setor</th>
-                <th>Admin</th>
-                <th>Padrão</th>
-                <th>Ações</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for u in usuarios %}
-            <tr>
-                <td>{{ u.matricula }}</td>
-                <td>{{ u.nome }}</td>
-                <td>{{ u.setor }}</td>
-                <td>{{ 'Sim' if u.is_admin else 'Não' }}</td>
-                <td>{{ 'Sim' if u.is_standard else 'Não' }}</td>
-                <td>
-                    <a class="btn btn-sm btn-outline-light"
-                        href="{{ url_for('users.edit_user_form', matricula=u.matricula) }}">Editar</a>
-                    {% if current_user.is_admin %}
-                    <form class="d-inline" method="post"
-                        action="{{ url_for('users.delete_user', matricula=u.matricula) }}">
-                        <button class="btn btn-sm btn-outline-danger" type="submit" 
-                            {% if u.matricula == current_user.id %}disabled title="Não é possível excluir o usuário logado"{% endif %}>Excluir</button>
-                    </form>
-                    {% endif %}
-                </td>
-            </tr>
-            {% else %}
-            <tr>
-                <td colspan="6" class="text-center">Nenhum usuário cadastrado.</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+
+<!-- Modal de Exclusão Avançada -->
+<div class="modal fade" id="deleteUserModal" tabindex="-1" aria-labelledby="deleteUserModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="deleteUserModalLabel">Excluir Usuário</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <form id="deleteUserForm" method="post" action="">
+                <div class="modal-body">
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        <strong>Atenção!</strong> Você está prestes a excluir o usuário <strong id="deleteUserName"></strong>.
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Escolha como deseja excluir:</label>
+                        
+                        <div class="form-check mb-3 border rounded p-3">
+                            <input class="form-check-input" type="radio" name="delete_option" id="deleteReatribuir" value="reatribuir" checked>
+                            <label class="form-check-label" for="deleteReatribuir">
+                                <strong class="text-primary">✓ Reatribuir e Excluir (Recomendado)</strong>
+                                <small class="d-block text-muted mt-1">Transfere todos os registros (saídas, entradas, eventos) para outro usuário antes de excluir. <strong>Preserva o histórico completo.</strong></small>
+                            </label>
+                            
+                            <div id="reatribuirOptions" class="mt-2">
+                                <label for="usuarioDestino" class="form-label small fw-bold">Selecione o usuário de destino:</label>
+                                <select class="form-select form-select-sm" id="usuarioDestino" name="reatribuir_para" required>
+                                    <option value="">-- Selecione um usuário --</option>
+                                    {% for u in usuarios %}
+                                        <option value="{{ u.matricula }}" data-user-id="{{ u.matricula }}">{{ u.nome }} ({{ u.matricula }})</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-check mb-3 border rounded p-3">
+                            <input class="form-check-input" type="radio" name="delete_option" id="deleteForcado" value="force">
+                            <label class="form-check-label" for="deleteForcado">
+                                <strong class="text-warning">⚠️ Excluir Forçadamente</strong>
+                                <small class="d-block text-muted mt-1">Remove o usuário e desvincula todos os registros (matrícula vira NULL). <strong>Use apenas se não puder reatribuir.</strong></small>
+                            </label>
+                        </div>
+
+                        <div class="form-check mb-2 border rounded p-3">
+                            <input class="form-check-input" type="radio" name="delete_option" id="deleteSimple" value="simple">
+                            <label class="form-check-label" for="deleteSimple">
+                                <strong class="text-muted">Exclusão Simples</strong>
+                                <small class="d-block text-muted mt-1">❌ Só funciona se o usuário <u>não tiver nenhum registro vinculado</u>. Se houver registros, mostrará erro.</small>
+                            </label>
+                        </div>
+                    </div>
+
+                    <input type="hidden" name="force_delete" id="forceDeleteInput" value="false">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-danger" id="confirmDeleteBtn">Excluir</button>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>
+
 <div class="modal fade" id="sectorModal" tabindex="-1" aria-labelledby="sectorModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">
@@ -268,27 +292,79 @@
         });
     })();
 
-    (function () {
-        const toggleBtn = document.getElementById('toggle-users-table');
-        const tableWrapper = document.getElementById('user-table-wrapper');
-        if (!toggleBtn || !tableWrapper) {
-            return;
-        }
-        toggleBtn.addEventListener('click', () => {
-            tableWrapper.classList.toggle('d-none');
-            const hidden = tableWrapper.classList.contains('d-none');
-            toggleBtn.textContent = hidden ? 'Mostrar tabela' : 'Ocultar tabela';
+    // Sistema de exclusão avançada de usuários
+    (function() {
+        const deleteModal = document.getElementById('deleteUserModal');
+        if (!deleteModal) return;
+        
+        const deleteModalBootstrap = new bootstrap.Modal(deleteModal);
+        const deleteForm = document.getElementById('deleteUserForm');
+        const deleteUserNameEl = document.getElementById('deleteUserName');
+        const forceDeleteInput = document.getElementById('forceDeleteInput');
+        const reatribuirOptions = document.getElementById('reatribuirOptions');
+        const usuarioDestino = document.getElementById('usuarioDestino');
+        
+        // Função para abrir o modal
+        window.openDeleteModal = function(matricula, nome) {
+            deleteUserNameEl.textContent = nome;
+            deleteForm.action = `/usuarios/${matricula}/excluir`;
+            
+            // Remover opção do próprio usuário da lista
+            const options = usuarioDestino.querySelectorAll('option');
+            options.forEach(opt => {
+                if (opt.getAttribute('data-user-id') === matricula) {
+                    opt.style.display = 'none';
+                    opt.disabled = true;
+                } else {
+                    opt.style.display = '';
+                    opt.disabled = false;
+                }
+            });
+            
+            // Reset form - opção "reatribuir" é padrão
+            document.getElementById('deleteReatribuir').checked = true;
+            reatribuirOptions.style.display = 'block';
+            usuarioDestino.value = '';
+            forceDeleteInput.value = 'true';
+            
+            deleteModalBootstrap.show();
+        };
+        
+        // Controlar exibição de opções de reatribuição
+        document.querySelectorAll('input[name="delete_option"]').forEach(radio => {
+            radio.addEventListener('change', function() {
+                if (this.value === 'reatribuir') {
+                    reatribuirOptions.style.display = 'block';
+                    usuarioDestino.setAttribute('required', 'required');
+                    forceDeleteInput.value = 'true';
+                } else {
+                    reatribuirOptions.style.display = 'none';
+                    usuarioDestino.removeAttribute('required');
+                    usuarioDestino.value = '';
+                    forceDeleteInput.value = this.value === 'force' ? 'true' : 'false';
+                }
+            });
         });
-    })();
-
-    // Adiciona event listeners aos formulários de exclusão na tabela principal
-    document.querySelectorAll('form[action*="/excluir"]').forEach(form => {
-        form.addEventListener('submit', function(e) {
-            const userName = this.closest('tr')?.querySelector('td:nth-child(2)')?.textContent || 'este usuário';
-            if (!confirm(`Tem certeza que deseja excluir ${userName}? Esta ação não pode ser desfeita.`)) {
+        
+        // Validar antes de enviar
+        deleteForm.addEventListener('submit', function(e) {
+            const selectedOption = document.querySelector('input[name="delete_option"]:checked').value;
+            
+            if (selectedOption === 'reatribuir' && !usuarioDestino.value) {
                 e.preventDefault();
+                alert('Por favor, selecione um usuário para reatribuir os registros.');
+                return;
+            }
+            
+            // Se foi reatribuir, limpar force_delete mas manter reatribuir_para
+            if (selectedOption !== 'reatribuir') {
+                // Remover campo reatribuir_para se não for reatribuir
+                const reatribuirInput = deleteForm.querySelector('[name="reatribuir_para"]');
+                if (reatribuirInput && selectedOption !== 'reatribuir') {
+                    reatribuirInput.disabled = true;
+                }
             }
         });
-    });
+    })();
 </script>
 {% endblock %}

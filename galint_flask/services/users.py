@@ -113,7 +113,7 @@ class UserService:
 
         db.session.commit()
 
-    def delete_user(self, matricula: str) -> None:
+    def delete_user(self, matricula: str, force_delete: bool = False, reatribuir_para: str | None = None) -> None:
         usuario = Usuario.query.get(matricula)
         if not usuario:
             raise ValueError("Usuário não encontrado")
@@ -128,19 +128,62 @@ class UserService:
         total_registros = num_saidas + num_entradas + num_eventos
         
         if total_registros > 0:
-            detalhes = []
-            if num_saidas > 0:
-                detalhes.append(f"{num_saidas} saída(s)")
-            if num_entradas > 0:
-                detalhes.append(f"{num_entradas} entrada(s)")
-            if num_eventos > 0:
-                detalhes.append(f"{num_eventos} evento(s) de inventário")
+            # Se force_delete está ativo e há um usuário para reatribuir
+            if force_delete and reatribuir_para:
+                # Validar que o usuário de destino existe
+                usuario_destino = Usuario.query.get(reatribuir_para)
+                if not usuario_destino:
+                    raise ValueError(f"Usuário de destino '{reatribuir_para}' não encontrado")
+                
+                # Reatribuir saídas
+                db.session.query(Saida).filter_by(matricula=matricula).update(
+                    {"matricula": reatribuir_para}, synchronize_session=False
+                )
+                
+                # Reatribuir entradas
+                db.session.query(Entrada).filter_by(matricula=matricula).update(
+                    {"matricula": reatribuir_para}, synchronize_session=False
+                )
+                
+                # Reatribuir eventos de inventário
+                db.session.query(InventarioEvento).filter_by(matricula=matricula).update(
+                    {"matricula": reatribuir_para}, synchronize_session=False
+                )
+                
+                db.session.flush()
             
-            raise ValueError(
-                f"Não é possível excluir o usuário {usuario.nome}. "
-                f"Existem {total_registros} registro(s) vinculado(s): {', '.join(detalhes)}. "
-                f"Para excluir este usuário, primeiro remova ou reatribua estes registros."
-            )
+            # Se force_delete está ativo mas sem reatribuir, define matrícula como NULL
+            elif force_delete:
+                # Definir matrícula como NULL nos registros
+                db.session.query(Saida).filter_by(matricula=matricula).update(
+                    {"matricula": None}, synchronize_session=False
+                )
+                
+                db.session.query(Entrada).filter_by(matricula=matricula).update(
+                    {"matricula": None}, synchronize_session=False
+                )
+                
+                db.session.query(InventarioEvento).filter_by(matricula=matricula).update(
+                    {"matricula": None}, synchronize_session=False
+                )
+                
+                db.session.flush()
+            
+            # Se não há force_delete, lançar erro como antes
+            else:
+                detalhes = []
+                if num_saidas > 0:
+                    detalhes.append(f"{num_saidas} saída(s)")
+                if num_entradas > 0:
+                    detalhes.append(f"{num_entradas} entrada(s)")
+                if num_eventos > 0:
+                    detalhes.append(f"{num_eventos} evento(s) de inventário")
+                
+                raise ValueError(
+                    f"Não é possível excluir o usuário {usuario.nome}. "
+                    f"Existem {total_registros} registro(s) vinculado(s): {', '.join(detalhes)}. "
+                    f"Para excluir este usuário, primeiro remova ou reatribua estes registros."
+                )
         
         # Remover vinculação do Telegram se existir
         telegram_user = db.session.query(TelegramUser).filter_by(matricula=matricula).first()

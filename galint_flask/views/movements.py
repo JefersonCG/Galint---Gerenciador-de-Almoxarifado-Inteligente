@@ -235,9 +235,9 @@ def registrar_saida_multipla():
         
         # Processar cada item
         for idx, item_data in enumerate(itens, 1):
-            codigo = item_data.get("codigo", "").strip()
+            codigo = (item_data.get("codigo") or "").strip()
             quantidade = _parse_quantidade(item_data.get("quantidade"))
-            observacao = item_data.get("observacao", "").strip() or None
+            observacao = (item_data.get("observacao") or "").strip() or None
             em_embalagens_raw = item_data.get("em_embalagens")
             em_embalagens = None
             if em_embalagens_raw is not None:

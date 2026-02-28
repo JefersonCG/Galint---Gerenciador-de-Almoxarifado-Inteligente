@@ -437,7 +437,7 @@
     </div>
     {% endif %}
 
-    <form method="post">
+    <form method="post" enctype="multipart/form-data">
         <div class="soft-depth-card">
             <!-- Tabs Navigation -->
             <div class="tabs-nav">
@@ -478,6 +478,27 @@
                         <input class="form-control" id="marca" name="marca"
                             value="{{ form_item.marca if form_item and form_item.marca else '' }}">
                     </div>
+                    
+                    <!-- Upload de Foto -->
+                    <div class="form-group">
+                        <label class="form-label" for="foto">Foto do Item</label>
+                        {% if form_item and form_item.foto_path %}
+                        <div class="mb-2">
+                            <img src="{{ url_for('static', filename=form_item.foto_path) }}" 
+                                 alt="Foto atual"
+                                 style="max-width: 200px; max-height: 200px; border-radius: 8px; border: 2px solid #e2e8f0;">
+                            <div class="form-check mt-2">
+                                <input class="form-check-input" type="checkbox" id="remover_foto" name="remover_foto">
+                                <label class="form-check-label" for="remover_foto">
+                                    Remover foto atual
+                                </label>
+                            </div>
+                        </div>
+                        {% endif %}
+                        <input class="form-control" type="file" id="foto" name="foto" 
+                               accept="image/png,image/jpeg,image/jpg,image/webp,image/gif">
+                        <small class="form-text">Formatos: PNG, JPG, WEBP, GIF. Máx: 5MB. A foto aparecerá nos modais de detalhes.</small>
+                    </div>
                 </div>
 
             <!-- Tab 2: Classificação -->
@@ -488,13 +509,17 @@
                             <select class="form-select" id="categoria" name="categoria" required>
                                 {% set categoria = form_item.categoria if form_item else 'Material Elétrico' %}
                                 {% if categoria == 'Material Pintura' %}
-                                {% set categoria = 'Material de Pintura/Drywall' %}
+                                {% set categoria = 'Mat. Pintura e Drywall' %}
+                                {% elif categoria == 'Material de Pintura/Drywall' %}
+                                {% set categoria = 'Mat. Pintura e Drywall' %}
+                                {% elif categoria == 'Mat. Pintura E Drywall' %}
+                                {% set categoria = 'Mat. Pintura e Drywall' %}
                                 {% endif %}
                                 {% for choice in [
                                 'Material Elétrico',
                                 'Material Hidráulico',
                                 'Material Piscina',
-                                'Material de Pintura/Drywall',
+                                'Mat. Pintura e Drywall',
                                 'Materiais de Limpeza',
                                 'Material Construção',
                                 'Ferramentas',

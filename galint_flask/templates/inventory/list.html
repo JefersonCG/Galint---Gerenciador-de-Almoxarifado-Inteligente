@@ -127,6 +127,15 @@
         box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
     }
 
+    .category-modal-list .list-group-item:focus,
+    .category-modal-list .list-group-item:active,
+    .category-modal-list .list-group-item:focus-visible {
+        background: linear-gradient(135deg, #1e293b 0%, #334155 100%) !important;
+        border-color: rgba(59, 130, 246, 0.6) !important;
+        outline: 2px solid rgba(59, 130, 246, 0.3);
+        outline-offset: 2px;
+    }
+
     .category-modal-list .item-meta {
         flex: 1;
     }
@@ -273,10 +282,10 @@
                             </a>
                         </div>
                         <div class="btn-group" role="group">
-                            <form method="post" action="{{ url_for('inventory.notify_item', codigo=item.codigo|e) }}"
-                                class="d-inline">
-                                <button class="btn btn-outline-info btn-sm" type="submit" title="Enviar notificação">
-                                    <i class="bi bi-bell"></i> Notificar
+                            <form method="post" action="{{ url_for('inventory.delete_item', codigo=item.codigo|e) }}"
+                                class="d-inline" onsubmit="return confirm('Tem certeza que deseja excluir este item?\n\nEsta ação NÃO pode ser desfeita.');">
+                                <button class="btn btn-outline-danger btn-sm" type="submit" title="Excluir item">
+                                    <i class="bi bi-trash"></i> Excluir item
                                 </button>
                             </form>
                             {% set categoria_lower = (item.categoria or '')|lower %}
@@ -311,7 +320,9 @@
                 <p class="text-muted mb-0">Selecione uma categoria para visualizar os itens.</p>
             </div>
             <div class="modal-footer d-flex justify-content-between">
-                <div>
+                <div class="d-flex flex-wrap gap-2">
+                    <button class="btn btn-outline-primary" type="button" id="category-report-pdf-btn" data-category="">Relatório PDF</button>
+                    <button class="btn btn-outline-success" type="button" id="category-report-xlsx-btn" data-category="">Relatório XLSX</button>
                     {% if can_manage %}
                     <button class="btn btn-danger" type="button" id="delete-category-btn" data-category="">Excluir categoria</button>
                     {% endif %}
@@ -517,11 +528,11 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <div class="alert alert-info d-flex align-items-start mb-3" role="alert">
+                <div class="alert alert-info d-flex align-items-start mb-3" role="alert" id="assignCustodyAlert">
                     <i class="bi bi-info-circle-fill me-2" style="font-size: 1.1rem;"></i>
                     <div>
-                        <strong>Custódia Permanente</strong><br>
-                        <small>O funcionário será responsável permanente por esta ferramenta até devolução.</small>
+                        <strong id="assignCustodyTitle">Custódia Permanente</strong><br>
+                        <small id="assignCustodyText">O funcionário será responsável permanente por esta ferramenta até devolução.</small>
                     </div>
                 </div>
                 
@@ -532,8 +543,40 @@
                     </label>
                     <div class="form-control-plaintext border rounded" id="assignItemDesc" style="background: #ffffff;">-</div>
                 </div>
-                
-                <input type="hidden" name="tipo_custodia" value="permanente">
+
+                <div class="mb-3" id="assignBarcodeSection" style="display: none;">
+                    <label class="form-label">
+                        <i class="bi bi-upc-scan me-1"></i>
+                        Código de barras
+                    </label>
+                    <div class="bg-white p-2 rounded border d-inline-block">
+                        <svg id="assignBarcodeSvg" class="js-galint-barcode" data-galint-barcode-value=""></svg>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">
+                        <i class="bi bi-shield-check me-1"></i>
+                        Tipo de custódia
+                    </label>
+                    <div class="d-flex align-items-center gap-4">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="tipo_custodia" id="assignCustodiaDiaria" value="temporaria">
+                            <label class="form-check-label" for="assignCustodiaDiaria">
+                                Custódia Diária
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="tipo_custodia" id="assignCustodiaPermanente" value="permanente" checked>
+                            <label class="form-check-label" for="assignCustodiaPermanente">
+                                Custódia Permanente
+                            </label>
+                        </div>
+                    </div>
+                    <div class="form-text">
+                        A opção escolhida já será gravada nesta atribuição.
+                    </div>
+                </div>
                 
                 <div class="mb-3 position-relative">
                     <label for="assignMatricula" class="form-label">
@@ -610,6 +653,20 @@
         
         const descEl = document.getElementById('assignItemDesc');
         if(descEl) descEl.textContent = descricao;
+
+        const barcodeSection = document.getElementById('assignBarcodeSection');
+        const barcodeSvg = document.getElementById('assignBarcodeSvg');
+        if (barcodeSection && barcodeSvg) {
+            const raw = String(codigo || '').trim();
+            if (raw) {
+                barcodeSection.style.display = 'block';
+                barcodeSvg.setAttribute('data-galint-barcode-value', raw);
+                window.GalintBarcode?.render(assignModalEl);
+            } else {
+                barcodeSection.style.display = 'none';
+                barcodeSvg.setAttribute('data-galint-barcode-value', '');
+            }
+        }
         
         // Detectar se item tem unidades dinâmicas
         const temUnidadesDinamicas = itemData.tipo_embalagem_novo || 
@@ -662,10 +719,48 @@
                 const suggestions = document.getElementById('assignMatricula-suggestions');
                 if(suggestions) suggestions.style.display = 'none';
             }
+
+            // Resetar tipo de custódia padrão ao abrir
+            const radioPerm = document.getElementById('assignCustodiaPermanente');
+            if (radioPerm) {
+                radioPerm.checked = true;
+            }
+            updateAssignCustodyAlert();
         }
         
         assignModalInstance.show();
     };
+
+    function updateAssignCustodyAlert() {
+        const radioDiaria = document.getElementById('assignCustodiaDiaria');
+        const selected = (radioDiaria && radioDiaria.checked) ? 'temporaria' : 'permanente';
+
+        const titleEl = document.getElementById('assignCustodyTitle');
+        const textEl = document.getElementById('assignCustodyText');
+
+        if (!titleEl || !textEl) {
+            return;
+        }
+
+        if (selected === 'temporaria') {
+            titleEl.textContent = 'Custódia Diária';
+            textEl.textContent = 'Ferramenta emprestada para uso pontual (exige devolução diária).';
+        } else {
+            titleEl.textContent = 'Custódia Permanente';
+            textEl.textContent = 'O funcionário será responsável permanente por esta ferramenta até devolução.';
+        }
+    }
+
+    (function bindAssignCustodyRadios() {
+        const radioDiaria = document.getElementById('assignCustodiaDiaria');
+        const radioPerm = document.getElementById('assignCustodiaPermanente');
+        if (radioDiaria) {
+            radioDiaria.addEventListener('change', updateAssignCustodyAlert);
+        }
+        if (radioPerm) {
+            radioPerm.addEventListener('change', updateAssignCustodyAlert);
+        }
+    })();
 
     // Função para enviar item para reparo (redireciona para página de reparos)
     window.sendToRepair = function(codigo, descricao) {
@@ -871,6 +966,22 @@
             return;
         }
         itemModalTitle.textContent = item.descricao || 'Item';
+        const barcodeBlock = item.codigo ? `
+                <div class="mt-3">
+                    <p class="mb-1"><strong>Código de barras:</strong></p>
+                    <div class="bg-white p-2 rounded border d-inline-block">
+                        <svg class="js-galint-barcode" data-galint-barcode-value="${escapeHtml(item.codigo)}"></svg>
+                    </div>
+                </div>
+            ` : '';
+        const fotoBlock = item.foto_path ? `
+                <div class="mt-3">
+                    <p class="mb-1"><strong>Imagem do item:</strong></p>
+                    <div class="bg-white p-2 rounded border d-inline-block">
+                        <img src="/static/${escapeHtml(item.foto_path)}" alt="Foto do item" style="max-width: 300px; max-height: 300px; border-radius: 0.375rem;" />
+                    </div>
+                </div>
+            ` : '';
         const metaRows = [
             `<p class="mb-1"><strong>Código:</strong> ${escapeHtml(item.codigo)}</p>`,
             `<p class="mb-1"><strong>Categoria:</strong> ${escapeHtml(item.categoria || '—')}</p>`,
@@ -902,9 +1013,12 @@
         itemModalBody.innerHTML = `
                 <div class="mb-3">
                     ${metaRows.join('')}
+                    ${fotoBlock}
+                    ${barcodeBlock}
                 </div>
                 ${actionButtons}
             `;
+        window.GalintBarcode?.render(itemModalBody);
         itemModalInstance.show();
     };
 
@@ -960,6 +1074,8 @@
     const modalTitle = modalElement.querySelector('.modal-title');
     const modalBody = modalElement.querySelector('.modal-body');
     const modalInstance = new bootstrap.Modal(modalElement);
+    const reportPdfBtn = document.getElementById('category-report-pdf-btn');
+    const reportXlsxBtn = document.getElementById('category-report-xlsx-btn');
     const deleteCategoryBtn = document.getElementById('delete-category-btn');
     let currentCategory = null;
 
@@ -974,6 +1090,15 @@
         modalTitle.textContent = category;
         modalBody.innerHTML = template.innerHTML;
         formatLastEdit(modalBody);
+
+        if (reportPdfBtn) {
+            reportPdfBtn.setAttribute('data-category', category);
+            reportPdfBtn.style.display = 'inline-block';
+        }
+        if (reportXlsxBtn) {
+            reportXlsxBtn.setAttribute('data-category', category);
+            reportXlsxBtn.style.display = 'inline-block';
+        }
         
         // Atualizar o botão de exclusão com a categoria atual
         if (deleteCategoryBtn) {
@@ -982,6 +1107,26 @@
         }
         
         modalInstance.show();
+    }
+
+    if (reportPdfBtn) {
+        reportPdfBtn.addEventListener('click', () => {
+            const category = reportPdfBtn.getAttribute('data-category');
+            if (!category) {
+                return;
+            }
+            window.location.href = `/itens/categoria/${encodeURIComponent(category)}/relatorio?format=pdf`;
+        });
+    }
+
+    if (reportXlsxBtn) {
+        reportXlsxBtn.addEventListener('click', () => {
+            const category = reportXlsxBtn.getAttribute('data-category');
+            if (!category) {
+                return;
+            }
+            window.location.href = `/itens/categoria/${encodeURIComponent(category)}/relatorio?format=xlsx`;
+        });
     }
 
     // Handler para exclusão de categoria
