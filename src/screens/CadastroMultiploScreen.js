@@ -49,7 +49,7 @@ export default function CadastroMultiploScreen({ navigation, route }) {
         'Material Elétrico',
         'Material Hidráulico',
         'Material Piscina',
-        'Material de Pintura/Drywall',
+        'Mat. Pintura e Drywall',
         'Materiais de Limpeza',
         'Material Construção',
         'Ferramentas',

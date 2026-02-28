@@ -10,7 +10,9 @@ import {
     ActivityIndicator,
     KeyboardAvoidingView,
     Platform,
+    Image,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import ApiService from '../services/api';
 
 function toUpper(text) {
@@ -41,6 +43,8 @@ export default function EditarItemScreen({ navigation, route }) {
     const [loading, setLoading] = useState(false);
     const [showCategoriaOptions, setShowCategoriaOptions] = useState(false);
     const [showUnidadeOptions, setShowUnidadeOptions] = useState(false);
+    const [fotoSelecionada, setFotoSelecionada] = useState(null);
+    const [removerFotoExistente, setRemoverFotoExistente] = useState(false);
     
     const unidades = [
         'Unidade',
@@ -72,7 +76,7 @@ export default function EditarItemScreen({ navigation, route }) {
         'Material Elétrico',
         'Material Hidráulico',
         'Material Piscina',
-        'Material de Pintura/Drywall',
+        'Mat. Pintura e Drywall',
         'Materiais de Limpeza',
         'Material Construção',
         'Ferramentas',
@@ -84,7 +88,88 @@ export default function EditarItemScreen({ navigation, route }) {
         const q = Number(item?.quantidade ?? 0);
         return Number.isFinite(q) ? Math.trunc(q) : 0;
     }, [item]);
+    const handleSelecionarFoto = async () => {
+        try {
+            const permissao = await ImagePicker.requestMediaLibraryPermissionsAsync();
+            
+            if (!permissao.granted) {
+                Alert.alert(
+                    'Permissão necessária',
+                    'É necessário permitir acesso à galeria de fotos para selecionar uma imagem.'
+                );
+                return;
+            }
 
+            const resultado = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: true,
+                aspect: [4, 3],
+                quality: 0.7,
+            });
+
+            if (!resultado.canceled && resultado.assets && resultado.assets.length > 0) {
+                setFotoSelecionada(resultado.assets[0]);
+                setRemoverFotoExistente(false);
+            }
+        } catch (error) {
+            Alert.alert('Erro', 'Não foi possível selecionar a imagem');
+        }
+    };
+
+    const handleTirarFoto = async () => {
+        try {
+            const permissao = await ImagePicker.requestCameraPermissionsAsync();
+            
+            if (!permissao.granted) {
+                Alert.alert(
+                    'Permissão necessária',
+                    'É necessário permitir acesso à câmera para tirar uma foto.'
+                );
+                return;
+            }
+
+            const resultado = await ImagePicker.launchCameraAsync({
+                allowsEditing: true,
+                aspect: [4, 3],
+                quality: 0.7,
+            });
+
+            if (!resultado.canceled && resultado.assets && resultado.assets.length > 0) {
+                setFotoSelecionada(resultado.assets[0]);
+                setRemoverFotoExistente(false);
+            }
+        } catch (error) {
+            Alert.alert('Erro', 'Não foi possível tirar a foto');
+        }
+    };
+
+    const handleRemoverFoto = () => {
+        setFotoSelecionada(null);
+        if (item?.foto_path) {
+            setRemoverFotoExistente(true);
+        }
+    };
+
+    const handleEscolherFoto = () => {
+        Alert.alert(
+            'Adicionar Foto',
+            'Escolha uma opção:',
+            [
+                {
+                    text: 'Tirar Foto',
+                    onPress: handleTirarFoto,
+                },
+                {
+                    text: 'Selecionar da Galeria',
+                    onPress: handleSelecionarFoto,
+                },
+                {
+                    text: 'Cancelar',
+                    style: 'cancel',
+                },
+            ]
+        );
+    };
     const handleSubmit = async () => {
         if (!canEdit) {
             Alert.alert('Acesso negado', 'Apenas administrador ou gerente pode editar itens.');
@@ -117,6 +202,13 @@ export default function EditarItemScreen({ navigation, route }) {
                 unidade: String(formData.unidade || 'Unidade').trim() || 'Unidade',
                 nota_fiscal: String(formData.nota_fiscal || '').trim(),
             };
+
+            // Adicionar foto se selecionada
+            if (fotoSelecionada) {
+                payload.foto = fotoSelecionada;
+            } else if (removerFotoExistente) {
+                payload.remover_foto = true;
+            }
 
             const result = await ApiService.atualizarItem(item.id, payload);
 
@@ -248,6 +340,67 @@ export default function EditarItemScreen({ navigation, route }) {
                                     setFormData((prev) => ({ ...prev, marca: toUpper(prev.marca) }))
                                 }
                             />
+                        </View>
+
+                        <View style={styles.inputGroup}>
+                            <Text style={styles.label}>Foto do Item</Text>
+                            {fotoSelecionada ? (
+                                <View style={styles.fotoContainer}>
+                                    <Image
+                                        source={{ uri: fotoSelecionada.uri }}
+                                        style={styles.fotoPreview}
+                                        resizeMode="cover"
+                                    />
+                                    <View style={styles.fotoActions}>
+                                        <TouchableOpacity
+                                            style={styles.fotoButton}
+                                            onPress={handleEscolherFoto}
+                                        >
+                                            <Text style={styles.fotoButtonText}>🔄 Trocar Foto</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity
+                                            style={[styles.fotoButton, styles.fotoButtonRemove]}
+                                            onPress={handleRemoverFoto}
+                                        >
+                                            <Text style={styles.fotoButtonText}>🗑️ Remover</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                </View>
+                            ) : item?.foto_path && !removerFotoExistente ? (
+                                <View style={styles.fotoContainer}>
+                                    <Image
+                                        source={{ uri: `${ApiService.baseURL}/static/${item.foto_path}` }}
+                                        style={styles.fotoPreview}
+                                        resizeMode="cover"
+                                    />
+                                    <View style={styles.fotoActions}>
+                                        <TouchableOpacity
+                                            style={styles.fotoButton}
+                                            onPress={handleEscolherFoto}
+                                        >
+                                            <Text style={styles.fotoButtonText}>🔄 Trocar Foto</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity
+                                            style={[styles.fotoButton, styles.fotoButtonRemove]}
+                                            onPress={handleRemoverFoto}
+                                        >
+                                            <Text style={styles.fotoButtonText}>🗑️ Remover</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                </View>
+                            ) : (
+                                <TouchableOpacity
+                                    style={styles.fotoUploadButton}
+                                    onPress={handleEscolherFoto}
+                                >
+                                    <Text style={styles.fotoUploadIcon}>📷</Text>
+                                    <Text style={styles.fotoUploadText}>Adicionar Foto</Text>
+                                    <Text style={styles.fotoUploadHint}>Toque para tirar ou selecionar</Text>
+                                </TouchableOpacity>
+                            )}
+                            <Text style={styles.hintText}>
+                                Opcional: Adicione uma foto para facilitar a identificação do item
+                            </Text>
                         </View>
 
                         <View style={styles.inputGroup}>
@@ -568,5 +721,57 @@ const styles = StyleSheet.create({
         color: '#dc3545',
         textAlign: 'center',
         fontWeight: '600',
+    },
+    fotoContainer: {
+        gap: 12,
+    },
+    fotoPreview: {
+        width: '100%',
+        height: 240,
+        borderRadius: 8,
+        backgroundColor: '#f1f5f9',
+    },
+    fotoActions: {
+        flexDirection: 'row',
+        gap: 12,
+    },
+    fotoButton: {
+        flex: 1,
+        backgroundColor: '#3b82f6',
+        paddingVertical: 12,
+        borderRadius: 8,
+        alignItems: 'center',
+    },
+    fotoButtonRemove: {
+        backgroundColor: '#ef4444',
+    },
+    fotoButtonText: {
+        color: '#fff',
+        fontSize: 14,
+        fontWeight: '600',
+    },
+    fotoUploadButton: {
+        backgroundColor: '#f1f5f9',
+        borderWidth: 2,
+        borderColor: '#cbd5e1',
+        borderStyle: 'dashed',
+        borderRadius: 8,
+        paddingVertical: 40,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    fotoUploadIcon: {
+        fontSize: 48,
+        marginBottom: 8,
+    },
+    fotoUploadText: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#475569',
+        marginBottom: 4,
+    },
+    fotoUploadHint: {
+        fontSize: 12,
+        color: '#94a3b8',
     },
 });

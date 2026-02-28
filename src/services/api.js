@@ -950,7 +950,43 @@ class ApiService {
                     message: 'Cadastro registrado offline. Sincronização pendente.'
                 };
             }
-            const response = await this.client.post('/api/mobile/estoque', itemData);
+            
+            // Se itemData contém foto, usar FormData senão JSON
+            let requestData;
+            let headers = {};
+            
+            if (itemData.foto) {
+                // Criar FormData para upload de foto
+                const formData = new FormData();
+                
+                // Adicionar campos do item
+                Object.keys(itemData).forEach((key) => {
+                    if (key !== 'foto') {
+                        formData.append(key, itemData[key]);
+                    }
+                });
+                
+                // Adicionar arquivo de foto
+                const uriParts = itemData.foto.uri.split('.');
+                const fileType = uriParts[uriParts.length - 1];
+                
+                formData.append('foto', {
+                    uri: itemData.foto.uri,
+                    name: `foto_${Date.now()}.${fileType}`,
+                    type: `image/${fileType}`,
+                });
+                
+                requestData = formData;
+                headers['Content-Type'] = 'multipart/form-data';
+            } else {
+                // Usar JSON normal
+                requestData = itemData;
+            }
+            
+            const response = await this.client.post('/api/mobile/estoque', requestData, {
+                headers
+            });
+            
             if (response.data) {
                 await upsertItem(response.data?.data || response.data);
             }
@@ -1028,14 +1064,74 @@ class ApiService {
 
     async atualizarItem(itemId, itemData) {
         try {
-            const response = await this.client.put(`/api/mobile/estoque/${itemId}`, itemData);
+            // Se itemData contém foto, usar FormData senão JSON
+            let requestData;
+            let headers = {};
+            
+            if (itemData.foto) {
+                // Criar FormData para upload de foto
+                const formData = new FormData();
+                
+                // Adicionar campos do item
+                Object.keys(itemData).forEach((key) => {
+                    if (key !== 'foto') {
+                        formData.append(key, itemData[key]);
+                    }
+                });
+                
+                // Adicionar arquivo de foto
+                const uriParts = itemData.foto.uri.split('.');
+                const fileType = uriParts[uriParts.length - 1];
+                
+                formData.append('foto', {
+                    uri: itemData.foto.uri,
+                    name: `foto_${Date.now()}.${fileType}`,
+                    type: `image/${fileType}`,
+                });
+                
+                requestData = formData;
+                headers['Content-Type'] = 'multipart/form-data';
+            } else {
+                // Usar JSON normal
+                requestData = itemData;
+            }
+            
+            const response = await this.client.put(`/api/mobile/estoque/${itemId}`, requestData, {
+                headers
+            });
             return { success: true, data: response.data };
         } catch (error) {
             // Alguns ambientes/proxies bloqueiam PUT/DELETE. Tentar POST como fallback.
             try {
                 const status = error?.response?.status;
                 if (!error?.response || status === 405) {
-                    const response = await this.client.post(`/api/mobile/estoque/${itemId}`, itemData);
+                    // Preparar requestData novamente para fallback
+                    let requestData;
+                    let headers = {};
+                    
+                    if (itemData.foto) {
+                        const formData = new FormData();
+                        Object.keys(itemData).forEach((key) => {
+                            if (key !== 'foto') {
+                                formData.append(key, itemData[key]);
+                            }
+                        });
+                        const uriParts = itemData.foto.uri.split('.');
+                        const fileType = uriParts[uriParts.length - 1];
+                        formData.append('foto', {
+                            uri: itemData.foto.uri,
+                            name: `foto_${Date.now()}.${fileType}`,
+                            type: `image/${fileType}`,
+                        });
+                        requestData = formData;
+                        headers['Content-Type'] = 'multipart/form-data';
+                    } else {
+                        requestData = itemData;
+                    }
+                    
+                    const response = await this.client.post(`/api/mobile/estoque/${itemId}`, requestData, {
+                        headers
+                    });
                     return { success: true, data: response.data };
                 }
             } catch (fallbackError) {

@@ -2,8 +2,8 @@
   "expo": {
     "name": "GALINT - Sublime Max",
     "slug": "galint-mobile",
-    "version": "2.0.0",
-    "runtimeVersion": "2.0.0",
+    "version": "2.0.1",
+    "runtimeVersion": "2.0.1",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "icon": "./assets/icone1.png",
@@ -21,7 +21,7 @@
     },
     "android": {
       "package": "com.galint.mobile",
-      "versionCode": 9,
+      "versionCode": 10,
       "adaptiveIcon": {
         "foregroundImage": "./assets/icone1.png",
         "backgroundColor": "#0d6efd"
@@ -54,6 +54,13 @@
         "expo-camera",
         {
           "cameraPermission": "Permitir que $(PRODUCT_NAME) acesse sua câmera para escanear códigos de barras."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "O aplicativo precisa acessar suas fotos para adicionar imagens aos itens.",
+          "cameraPermission": "O aplicativo precisa acessar sua câmera para tirar fotos dos itens."
         }
       ]
     ],

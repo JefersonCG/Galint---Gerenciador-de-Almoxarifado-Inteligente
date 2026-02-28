@@ -10,9 +10,11 @@ import {
     ActivityIndicator,
     KeyboardAvoidingView,
     Platform,
+    Image,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import * as ImagePicker from 'expo-image-picker';
 import ApiService from '../services/api';
 
 function toUpper(text) {
@@ -52,6 +54,7 @@ export default function CadastroScreen({ navigation, route }) {
     });
 
     const [habilitarSerieModelo, setHabilitarSerieModelo] = useState(false);
+    const [fotoSelecionada, setFotoSelecionada] = useState(null);
     const [showDatePicker, setShowDatePicker] = useState({
         data_entrada: false,
         data_fabricacao: false,
@@ -135,7 +138,7 @@ export default function CadastroScreen({ navigation, route }) {
         'Material Elétrico',
         'Material Hidráulico',
         'Material Piscina',
-        'Material de Pintura/Drywall',
+        'Mat. Pintura e Drywall',
         'Materiais de Limpeza',
         'Material Construção',
         'Ferramentas',
@@ -251,6 +254,11 @@ export default function CadastroScreen({ navigation, route }) {
                 unidade: String(formData.unidade || 'Unidade').trim() || 'Unidade',
             };
 
+            // Adicionar foto se selecionada
+            if (fotoSelecionada) {
+                dataToSend.foto = fotoSelecionada;
+            }
+
             // Adicionar campos de rastreabilidade
             if (formData.data_entrada) dataToSend.data_entrada = formData.data_entrada;
             if (formData.data_fabricacao) dataToSend.data_fabricacao = formData.data_fabricacao;
@@ -300,6 +308,7 @@ export default function CadastroScreen({ navigation, route }) {
                                     grandeza_referencia: '',
                                     grandeza_tipo: 'kg',
                                 });
+                                setFotoSelecionada(null);
                                 setHabilitarSerieModelo(false);
                             },
                         },
@@ -335,6 +344,7 @@ export default function CadastroScreen({ navigation, route }) {
                                     grandeza_referencia: '',
                                     grandeza_tipo: 'kg',
                                 });
+                                setFotoSelecionada(null);
                                 setHabilitarSerieModelo(false);
                             },
                         },
@@ -356,6 +366,84 @@ export default function CadastroScreen({ navigation, route }) {
 
     const handleScanBarcode = () => {
         navigation.navigate('Scanner');
+    };
+
+    const handleSelecionarFoto = async () => {
+        try {
+            const permissao = await ImagePicker.requestMediaLibraryPermissionsAsync();
+            
+            if (!permissao.granted) {
+                Alert.alert(
+                    'Permissão necessária',
+                    'É necessário permitir acesso à galeria de fotos para selecionar uma imagem.'
+                );
+                return;
+            }
+
+            const resultado = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                allowsEditing: true,
+                aspect: [4, 3],
+                quality: 0.7,
+            });
+
+            if (!resultado.canceled && resultado.assets && resultado.assets.length > 0) {
+                setFotoSelecionada(resultado.assets[0]);
+            }
+        } catch (error) {
+            Alert.alert('Erro', 'Não foi possível selecionar a imagem');
+        }
+    };
+
+    const handleTirarFoto = async () => {
+        try {
+            const permissao = await ImagePicker.requestCameraPermissionsAsync();
+            
+            if (!permissao.granted) {
+                Alert.alert(
+                    'Permissão necessária',
+                    'É necessário permitir acesso à câmera para tirar uma foto.'
+                );
+                return;
+            }
+
+            const resultado = await ImagePicker.launchCameraAsync({
+                allowsEditing: true,
+                aspect: [4, 3],
+                quality: 0.7,
+            });
+
+            if (!resultado.canceled && resultado.assets && resultado.assets.length > 0) {
+                setFotoSelecionada(resultado.assets[0]);
+            }
+        } catch (error) {
+            Alert.alert('Erro', 'Não foi possível tirar a foto');
+        }
+    };
+
+    const handleRemoverFoto = () => {
+        setFotoSelecionada(null);
+    };
+
+    const handleEscolherFoto = () => {
+        Alert.alert(
+            'Adicionar Foto',
+            'Escolha uma opção:',
+            [
+                {
+                    text: 'Tirar Foto',
+                    onPress: handleTirarFoto,
+                },
+                {
+                    text: 'Selecionar da Galeria',
+                    onPress: handleSelecionarFoto,
+                },
+                {
+                    text: 'Cancelar',
+                    style: 'cancel',
+                },
+            ]
+        );
     };
 
     return (
@@ -444,6 +532,45 @@ export default function CadastroScreen({ navigation, route }) {
                                     setFormData((prev) => ({ ...prev, marca: toUpper(prev.marca) }))
                                 }
                             />
+                        </View>
+
+                        <View style={styles.inputGroup}>
+                            <Text style={styles.label}>Foto do Item</Text>
+                            {fotoSelecionada ? (
+                                <View style={styles.fotoContainer}>
+                                    <Image
+                                        source={{ uri: fotoSelecionada.uri }}
+                                        style={styles.fotoPreview}
+                                        resizeMode="cover"
+                                    />
+                                    <View style={styles.fotoActions}>
+                                        <TouchableOpacity
+                                            style={styles.fotoButton}
+                                            onPress={handleEscolherFoto}
+                                        >
+                                            <Text style={styles.fotoButtonText}>🔄 Trocar Foto</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity
+                                            style={[styles.fotoButton, styles.fotoButtonRemove]}
+                                            onPress={handleRemoverFoto}
+                                        >
+                                            <Text style={styles.fotoButtonText}>🗑️ Remover</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                </View>
+                            ) : (
+                                <TouchableOpacity
+                                    style={styles.fotoUploadButton}
+                                    onPress={handleEscolherFoto}
+                                >
+                                    <Text style={styles.fotoUploadIcon}>📷</Text>
+                                    <Text style={styles.fotoUploadText}>Adicionar Foto</Text>
+                                    <Text style={styles.fotoUploadHint}>Toque para tirar ou selecionar</Text>
+                                </TouchableOpacity>
+                            )}
+                            <Text style={styles.hintText}>
+                                Opcional: Adicione uma foto para facilitar a identificação do item
+                            </Text>
                         </View>
                     </View>
 
@@ -1196,5 +1323,57 @@ const styles = StyleSheet.create({
     },
     serieModeloFields: {
         gap: 0,
+    },
+    fotoContainer: {
+        gap: 12,
+    },
+    fotoPreview: {
+        width: '100%',
+        height: 240,
+        borderRadius: 8,
+        backgroundColor: '#f1f5f9',
+    },
+    fotoActions: {
+        flexDirection: 'row',
+        gap: 12,
+    },
+    fotoButton: {
+        flex: 1,
+        backgroundColor: '#3b82f6',
+        paddingVertical: 12,
+        borderRadius: 8,
+        alignItems: 'center',
+    },
+    fotoButtonRemove: {
+        backgroundColor: '#ef4444',
+    },
+    fotoButtonText: {
+        color: '#fff',
+        fontSize: 14,
+        fontWeight: '600',
+    },
+    fotoUploadButton: {
+        backgroundColor: '#f1f5f9',
+        borderWidth: 2,
+        borderColor: '#cbd5e1',
+        borderStyle: 'dashed',
+        borderRadius: 8,
+        paddingVertical: 40,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    fotoUploadIcon: {
+        fontSize: 48,
+        marginBottom: 8,
+    },
+    fotoUploadText: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#475569',
+        marginBottom: 4,
+    },
+    fotoUploadHint: {
+        fontSize: 12,
+        color: '#94a3b8',
     },
 });
