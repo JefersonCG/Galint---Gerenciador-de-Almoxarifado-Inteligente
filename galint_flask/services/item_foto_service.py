@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 class ItemFotoService:
     """Serviço para upload e gerenciamento de fotos de itens."""
 
-    EXTENSOES_PERMITIDAS = {'png', 'jpg', 'jpeg', 'webp', 'gif'}
+    EXTENSOES_PERMITIDAS = {'png', 'jpg', 'jpeg', 'jpe', 'webp', 'gif'}
     TAMANHO_MAXIMO_MB = 5
 
     @staticmethod

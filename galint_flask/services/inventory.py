@@ -427,6 +427,19 @@ class InventoryService:
                         item_existente.data_validade = datetime.strptime(data_validade, '%Y-%m-%d').date()
                     except ValueError:
                         pass
+
+                # Foto: se foi enviada no formulário, persistir também.
+                # (Antes, o fluxo de "lote diferente" ignorava foto_path.)
+                if "foto_path" in payload:
+                    nova_foto = payload.get("foto_path")
+                    try:
+                        if nova_foto and item_existente.foto_path and item_existente.foto_path != nova_foto:
+                            from .item_foto_service import ItemFotoService
+
+                            ItemFotoService.deletar_foto(item_existente.foto_path)
+                    except Exception:
+                        pass
+                    item_existente.foto_path = nova_foto
                 
                 # Registrar entrada com a quantidade
                 quantidade = payload.get("quantidade") or payload.get("saldo") or 0

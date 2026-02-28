@@ -343,7 +343,7 @@
             <div class="modal-body">
                 <p class="text-muted mb-0">Use a busca para localizar um item específico.</p>
             </div>
-            <div class="modal-footer">
+            <div class="modal-footer" id="inventoryItemModalFooter">
                 <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Fechar</button>
             </div>
         </div>
@@ -890,6 +890,7 @@
     const itemModalElement = document.getElementById('inventoryItemModal');
     const itemModalTitle = itemModalElement ? itemModalElement.querySelector('.modal-title') : null;
     const itemModalBody = itemModalElement ? itemModalElement.querySelector('.modal-body') : null;
+    const itemModalFooter = document.getElementById('inventoryItemModalFooter');
     const itemModalInstance = itemModalElement ? new bootstrap.Modal(itemModalElement) : null;
 
     const updateBadge = (total, hasQuery) => {
@@ -962,7 +963,7 @@
     };
 
     const openItemModal = (item) => {
-        if (!itemModalInstance || !itemModalTitle || !itemModalBody) {
+        if (!itemModalInstance || !itemModalTitle || !itemModalBody || !itemModalFooter) {
             return;
         }
         itemModalTitle.textContent = item.descricao || 'Item';
@@ -993,31 +994,41 @@
         const categoria_lower = (item.categoria || '').toLowerCase();
         const canAssign = categoria_lower.includes('ferramenta') || categoria_lower.includes('epi') || (categoria_lower.includes('material') && categoria_lower.includes('ep'));
         const itemData = {tipo_embalagem_novo: item.tipo_embalagem_novo || '', unidade: item.unidade || '', unidades_por_embalagem: item.unidades_por_embalagem || null};
-        const assignButton = canAssign ? `
-                    <button class="btn btn-success" type="button" onclick='openAssignModal("${escapeHtml(item.codigo)}", "${escapeHtml(item.descricao)}", ${JSON.stringify(itemData)})'>
-                        <i class="bi bi-person-check me-1"></i> Atribuir
-                    </button>` : '';
-        const repairButton = canAssign ? `
-                    <button class="btn btn-warning" type="button" onclick="sendToRepair('${escapeHtml(item.codigo)}', '${escapeHtml(item.descricao)}')">
-                        <i class="bi bi-tools me-1"></i> Enviado para Reparo
-                    </button>` : '';
-        const actionButtons = canManage && hasManageLinks ? `
-                <div class="d-flex flex-wrap gap-2">
-                    <a class="btn btn-primary" href="${escapeHtml(item.edit_url)}">
-                        <i class="bi bi-pencil me-1"></i> Editar item
-                    </a>
-                    ${assignButton}
-                    ${repairButton}
-                </div>
-            ` : canManage ? '<p class="text-muted">Não foi possível gerar as ações rápidas para este item.</p>' : '<p class="text-muted">Apenas administradores podem editar os itens.</p>';
+        
+        // Renderizar corpo do modal (sem botões)
         itemModalBody.innerHTML = `
                 <div class="mb-3">
                     ${metaRows.join('')}
                     ${fotoBlock}
                     ${barcodeBlock}
                 </div>
-                ${actionButtons}
             `;
+        
+        // Renderizar botões no footer
+        const editButton = canManage && hasManageLinks ? `
+                <a class="btn btn-primary" href="${escapeHtml(item.edit_url)}">
+                    <i class="bi bi-pencil me-1"></i> Editar item
+                </a>` : '';
+        const assignButton = canManage && canAssign ? `
+                <button class="btn btn-success" type="button" onclick='openAssignModal("${escapeHtml(item.codigo)}", "${escapeHtml(item.descricao)}", ${JSON.stringify(itemData)})'>
+                    <i class="bi bi-person-check me-1"></i> Atribuir
+                </button>` : '';
+        const repairButton = canManage && canAssign ? `
+                <button class="btn btn-warning" type="button" onclick="sendToRepair('${escapeHtml(item.codigo)}', '${escapeHtml(item.descricao)}')">
+                    <i class="bi bi-tools me-1"></i> Enviado para Reparo
+                </button>` : '';
+        
+        itemModalFooter.innerHTML = `
+                <div class="d-flex justify-content-between align-items-center w-100">
+                    <div class="d-flex flex-wrap gap-2">
+                        ${editButton}
+                        ${assignButton}
+                        ${repairButton}
+                    </div>
+                    <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Fechar</button>
+                </div>
+            `;
+        
         window.GalintBarcode?.render(itemModalBody);
         itemModalInstance.show();
     };
