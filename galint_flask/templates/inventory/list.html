@@ -373,7 +373,7 @@
                                 <div id="item-barcode-small" class="mt-3">
                                     <p class="mb-2"><strong>Código de barras:</strong></p>
                                     <div class="galint-barcode-container-small">
-                                        <svg class="js-galint-barcode-small" data-galint-barcode-value=""></svg>
+                                        <svg id="item-barcode-small-svg" class="js-galint-barcode" data-galint-barcode-value=""></svg>
                                     </div>
                                 </div>
                             </div>
@@ -406,7 +406,7 @@
                     <div class="text-center">
                         <p class="mb-3"><strong>Código:</strong> <span id="barcode-codigo" class="fs-4">—</span></p>
                         <div class="galint-barcode-container">
-                            <svg class="js-galint-barcode-large" data-galint-barcode-value=""></svg>
+                            <svg id="item-barcode-large-svg" class="js-galint-barcode" data-galint-barcode-value=""></svg>
                         </div>
                     </div>
                 </div>
@@ -1387,7 +1387,7 @@
         
         // Código de barras pequeno (esquerda na aba Informações)
         const barcodeSmallContainer = document.getElementById('item-barcode-small');
-        const barcodeSmallSvg = barcodeSmallContainer.querySelector('.js-galint-barcode-small');
+        const barcodeSmallSvg = document.getElementById('item-barcode-small-svg');
         if (item.codigo) {
             barcodeSmallContainer.style.display = 'block';
             barcodeSmallSvg.setAttribute('data-galint-barcode-value', item.codigo);
@@ -1403,7 +1403,7 @@
         
         // Popular aba Código de Barras
         document.getElementById('barcode-codigo').textContent = item.codigo || '—';
-        const barcodeLargeSvg = document.querySelector('.js-galint-barcode-large');
+        const barcodeLargeSvg = document.getElementById('item-barcode-large-svg');
         if (item.codigo) {
             barcodeLargeSvg.setAttribute('data-galint-barcode-value', item.codigo);
         }
@@ -1444,8 +1444,8 @@
             <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Fechar</button>
         `;
         
-        // Renderizar códigos de barras
-        window.GalintBarcode?.render(itemModalBody);
+        // Renderizar códigos de barras em todo o modal
+        window.GalintBarcode?.render(itemModalElement);
         
         // Resetar para primeira aba
         switchTab('info');
