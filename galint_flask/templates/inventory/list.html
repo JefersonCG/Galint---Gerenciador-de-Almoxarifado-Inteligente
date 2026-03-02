@@ -334,16 +334,109 @@
 </div>
 <div class="modal fade" id="inventoryItemModal" tabindex="-1" aria-labelledby="inventoryItemModalLabel"
     aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-scrollable">
-        <div class="modal-content">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content galint-item-modal">
             <div class="modal-header">
                 <h5 class="modal-title" id="inventoryItemModalLabel">Detalhes do item</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
             </div>
-            <div class="modal-body">
-                <p class="text-muted mb-0">Use a busca para localizar um item específico.</p>
+            
+            <!-- Sistema de Abas -->
+            <div class="galint-modal-tabs">
+                <button class="galint-tab-btn active" data-tab="info">
+                    <i class="bi bi-info-circle me-1"></i>Informações
+                </button>
+                <button class="galint-tab-btn" data-tab="stock">
+                    <i class="bi bi-box-seam me-1"></i>Estoque
+                </button>
+                <button class="galint-tab-btn" data-tab="barcode">
+                    <i class="bi bi-upc-scan me-1"></i>Código de Barras
+                </button>
+                <button class="galint-tab-btn" data-tab="history">
+                    <i class="bi bi-clock-history me-1"></i>Histórico
+                </button>
             </div>
-            <div class="modal-footer" id="inventoryItemModalFooter">
+            
+            <div class="modal-body">
+                <!-- Aba Informações -->
+                <div class="galint-tab-content active" id="tab-info">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="galint-info-card">
+                                <p class="mb-2"><strong>Código:</strong> <span id="item-codigo">—</span></p>
+                                <p class="mb-2"><strong>Categoria:</strong> <span id="item-categoria">—</span></p>
+                                <p class="mb-2"><strong>Marca / Fabricante:</strong> <span id="item-marca">—</span></p>
+                                <p class="mb-2"><strong>Saldo atual:</strong> <span class="badge bg-success" id="item-saldo">—</span></p>
+                                <p class="mb-3"><strong>Unidade:</strong> <span id="item-unidade">—</span></p>
+                                
+                                <!-- Código de barras pequeno -->
+                                <div id="item-barcode-small" class="mt-3">
+                                    <p class="mb-2"><strong>Código de barras:</strong></p>
+                                    <div class="galint-barcode-container-small">
+                                        <svg class="js-galint-barcode-small" data-galint-barcode-value=""></svg>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <!-- Imagem grande à direita -->
+                            <div id="item-image-large" class="galint-image-container">
+                                <img src="" alt="Imagem do produto" id="item-image-src" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Aba Estoque -->
+                <div class="galint-tab-content" id="tab-stock">
+                    <div class="galint-stock-info">
+                        <h6 class="mb-3">Status de Estoque</h6>
+                        <p class="mb-2"><strong>Saldo disponível:</strong> <span id="stock-saldo" class="fs-4 text-success">—</span></p>
+                        <div class="stock-bar-container mt-3">
+                            <div class="stock-bar">
+                                <div class="stock-bar-fill" id="stock-bar-fill" style="width: 0%"></div>
+                            </div>
+                            <p class="text-muted small mt-2">Nível de estoque visual</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Aba Código de Barras -->
+                <div class="galint-tab-content" id="tab-barcode">
+                    <div class="text-center">
+                        <p class="mb-3"><strong>Código:</strong> <span id="barcode-codigo" class="fs-4">—</span></p>
+                        <div class="galint-barcode-container">
+                            <svg class="js-galint-barcode-large" data-galint-barcode-value=""></svg>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Aba Histórico -->
+                <div class="galint-tab-content" id="tab-history">
+                    <div class="galint-history-info">
+                        <h6 class="mb-3">Movimentações Recentes</h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Data</th>
+                                        <th>Tipo</th>
+                                        <th>Quantidade</th>
+                                        <th>Responsável</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="history-tbody">
+                                    <tr>
+                                        <td colspan="4" class="text-center text-muted">Histórico não disponível no momento</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="modal-footer galint-modal-footer" id="inventoryItemModalFooter">
                 <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Fechar</button>
             </div>
         </div>
@@ -514,6 +607,308 @@
     #assignMatricula-suggestions .autocomplete-item small {
         color: #64748b;
         font-size: 0.8rem;
+    }
+
+    /* ===== MODAL DE ITEM MODERNO ===== */
+    #inventoryItemModal .galint-item-modal {
+        border: none;
+        border-radius: 12px;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+        overflow: hidden;
+    }
+
+    #inventoryItemModal .modal-header {
+        background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+        border: none;
+        padding: 1.25rem 1.5rem;
+        color: #ffffff;
+    }
+
+    #inventoryItemModal .modal-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #ffffff;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    #inventoryItemModal .btn-close {
+        filter: brightness(0) invert(1);
+        opacity: 0.8;
+    }
+
+    #inventoryItemModal .btn-close:hover {
+        opacity: 1;
+    }
+
+    /* Sistema de Abas */
+    .galint-modal-tabs {
+        display: flex;
+        background: #f8fafc;
+        border-bottom: 2px solid #e2e8f0;
+        padding: 0;
+        margin: 0;
+        overflow-x: auto;
+    }
+
+    .galint-tab-btn {
+        flex: 1;
+        background: transparent;
+        border: none;
+        border-bottom: 3px solid transparent;
+        padding: 1rem 1.5rem;
+        font-size: 0.925rem;
+        font-weight: 600;
+        color: #64748b;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        white-space: nowrap;
+        min-width: max-content;
+    }
+
+    .galint-tab-btn:hover {
+        background: #f1f5f9;
+        color: #334155;
+    }
+
+    .galint-tab-btn.active {
+        color: #3b82f6;
+        border-bottom-color: #3b82f6;
+        background: #ffffff;
+    }
+
+    .galint-tab-btn i {
+        font-size: 1rem;
+    }
+
+    /* Conteúdo das Abas */
+    .galint-tab-content {
+        display: none;
+    }
+
+    .galint-tab-content.active {
+        display: block;
+        animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    #inventoryItemModal .modal-body {
+        padding: 1.5rem;
+        background: #ffffff;
+        min-height: 300px;
+    }
+
+    /* Aba Informações */
+    .galint-info-card {
+        background: #f8fafc;
+        padding: 1.25rem;
+        border-radius: 8px;
+        border: 1px solid #e2e8f0;
+    }
+
+    .galint-info-card p {
+        font-size: 0.95rem;
+        color: #334155;
+    }
+
+    .galint-info-card strong {
+        color: #0f172a;
+        font-weight: 600;
+    }
+
+    /* Container de Imagem Grande */
+    .galint-image-container {
+        background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+        border: 2px solid #cbd5e1;
+        border-radius: 12px;
+        padding: 1.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 400px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .galint-image-container::before {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 80%;
+        height: 80%;
+        background: radial-gradient(circle, rgba(59, 130, 246, 0.05) 0%, transparent 70%);
+        pointer-events: none;
+    }
+
+    .galint-image-container img {
+        max-width: 100%;
+        max-height: 400px;
+        object-fit: contain;
+        border-radius: 8px;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+        position: relative;
+        z-index: 1;
+    }
+
+    .galint-image-container.no-image {
+        background: #f1f5f9;
+        border-style: dashed;
+    }
+
+    .galint-image-container.no-image::after {
+        content: 'Sem imagem disponível';
+        color: #94a3b8;
+        font-size: 1rem;
+        font-weight: 500;
+        position: relative;
+        z-index: 1;
+    }
+
+    /* Código de Barras Pequeno */
+    .galint-barcode-container-small {
+        background: #ffffff;
+        padding: 0.75rem;
+        border-radius: 6px;
+        border: 1px solid #e2e8f0;
+        display: inline-block;
+        max-width: 100%;
+    }
+
+    .galint-barcode-container-small svg {
+        max-width: 100%;
+        height: auto;
+        max-height: 60px;
+    }
+
+    /* Código de Barras Grande */
+    .galint-barcode-container {
+        background: #ffffff;
+        padding: 2rem;
+        border-radius: 8px;
+        border: 2px solid #e2e8f0;
+        display: inline-block;
+        max-width: 100%;
+    }
+
+    .galint-barcode-container svg {
+        max-width: 100%;
+        height: auto;
+        max-height: 150px;
+    }
+
+    /* Aba Estoque */
+    .galint-stock-info {
+        padding: 1rem;
+    }
+
+    .stock-bar-container {
+        margin-top: 1.5rem;
+    }
+
+    .stock-bar {
+        width: 100%;
+        height: 24px;
+        background: #e2e8f0;
+        border-radius: 12px;
+        overflow: hidden;
+        position: relative;
+    }
+
+    .stock-bar-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #10b981 0%, #059669 100%);
+        transition: width 0.5s ease;
+        border-radius: 12px;
+    }
+
+    /* Footer do Modal */
+    .galint-modal-footer {
+        background: #f8fafc;
+        border-top: 1px solid #e2e8f0;
+        padding: 1rem 1.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+    }
+
+    .galint-modal-footer .btn {
+        font-size: 0.9rem;
+        font-weight: 600;
+        padding: 0.6rem 1.25rem;
+        border-radius: 6px;
+        transition: all 0.2s;
+    }
+
+    .galint-modal-footer .btn-primary {
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        border: none;
+        box-shadow: 0 2px 8px rgba(59, 130, 246, 0.25);
+    }
+
+    .galint-modal-footer .btn-primary:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.35);
+    }
+
+    .galint-modal-footer .btn-success {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        border: none;
+        box-shadow: 0 2px 8px rgba(16, 185, 129, 0.25);
+    }
+
+    .galint-modal-footer .btn-success:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35);
+    }
+
+    .galint-modal-footer .btn-warning {
+        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        border: none;
+        color: #ffffff;
+        box-shadow: 0 2px 8px rgba(245, 158, 11, 0.25);
+    }
+
+    .galint-modal-footer .btn-warning:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(245, 158, 11, 0.35);
+    }
+
+    /* Responsividade */
+    @media (max-width: 768px) {
+        .galint-tab-btn {
+            font-size: 0.85rem;
+            padding: 0.875rem 1rem;
+        }
+
+        .galint-image-container {
+            min-height: 250px;
+        }
+
+        .galint-image-container img {
+            max-height: 250px;
+        }
+
+        #inventoryItemModal .modal-body {
+            padding: 1rem;
+        }
+
+        .galint-info-card {
+            margin-bottom: 1rem;
+        }
     }
 </style>
 
@@ -966,72 +1361,124 @@
         if (!itemModalInstance || !itemModalTitle || !itemModalBody || !itemModalFooter) {
             return;
         }
+        
+        // Atualizar título do modal
         itemModalTitle.textContent = item.descricao || 'Item';
-        const barcodeBlock = item.codigo ? `
-                <div class="mt-3">
-                    <p class="mb-1"><strong>Código de barras:</strong></p>
-                    <div class="bg-white p-2 rounded border d-inline-block">
-                        <svg class="js-galint-barcode" data-galint-barcode-value="${escapeHtml(item.codigo)}"></svg>
-                    </div>
-                </div>
-            ` : '';
-        const fotoBlock = item.foto_path ? `
-                <div class="mt-3">
-                    <p class="mb-1"><strong>Imagem do item:</strong></p>
-                    <div class="bg-white p-2 rounded border d-inline-block">
-                        <img src="/static/${escapeHtml(item.foto_path)}" alt="Foto do item" style="max-width: 300px; max-height: 300px; border-radius: 0.375rem;" />
-                    </div>
-                </div>
-            ` : '';
-        const metaRows = [
-            `<p class="mb-1"><strong>Código:</strong> ${escapeHtml(item.codigo)}</p>`,
-            `<p class="mb-1"><strong>Categoria:</strong> ${escapeHtml(item.categoria || '—')}</p>`,
-            `<p class="mb-1"><strong>Marca / Fabricante:</strong> ${escapeHtml(item.marca || item.setor || '—')}</p>`,
-            `<p class="mb-1"><strong>Saldo atual:</strong> ${escapeHtml(item.saldo)}</p>`,
-            `<p class="mb-3"><strong>Unidade:</strong> ${escapeHtml(item.unidade || '—')}</p>`
-        ];
+        
+        // Popular aba Informações
+        document.getElementById('item-codigo').textContent = item.codigo || '—';
+        document.getElementById('item-categoria').textContent = item.categoria || '—';
+        document.getElementById('item-marca').textContent = item.marca || item.setor || '—';
+        document.getElementById('item-saldo').textContent = item.saldo || '0';
+        document.getElementById('item-unidade').textContent = item.unidade || '—';
+        
+        // Imagem do produto (grande à direita)
+        const imageContainer = document.getElementById('item-image-large');
+        const imageSrc = document.getElementById('item-image-src');
+        if (item.foto_path) {
+            imageContainer.classList.remove('no-image');
+            imageSrc.src = `/static/${item.foto_path}`;
+            imageSrc.alt = `Imagem de ${item.descricao}`;
+            imageSrc.style.display = 'block';
+        } else {
+            imageContainer.classList.add('no-image');
+            imageSrc.style.display = 'none';
+        }
+        
+        // Código de barras pequeno (esquerda na aba Informações)
+        const barcodeSmallContainer = document.getElementById('item-barcode-small');
+        const barcodeSmallSvg = barcodeSmallContainer.querySelector('.js-galint-barcode-small');
+        if (item.codigo) {
+            barcodeSmallContainer.style.display = 'block';
+            barcodeSmallSvg.setAttribute('data-galint-barcode-value', item.codigo);
+        } else {
+            barcodeSmallContainer.style.display = 'none';
+        }
+        
+        // Popular aba Estoque
+        document.getElementById('stock-saldo').textContent = `${item.saldo || 0} ${item.unidade || 'unidades'}`;
+        const stockBarFill = document.getElementById('stock-bar-fill');
+        const stockPercent = Math.min(100, Math.max(0, (parseInt(item.saldo) || 0) * 5)); // Ajuste conforme necessário
+        stockBarFill.style.width = `${stockPercent}%`;
+        
+        // Popular aba Código de Barras
+        document.getElementById('barcode-codigo').textContent = item.codigo || '—';
+        const barcodeLargeSvg = document.querySelector('.js-galint-barcode-large');
+        if (item.codigo) {
+            barcodeLargeSvg.setAttribute('data-galint-barcode-value', item.codigo);
+        }
+        
+        // Popular aba Histórico (placeholder por enquanto)
+        const historyTbody = document.getElementById('history-tbody');
+        historyTbody.innerHTML = `
+            <tr>
+                <td colspan="4" class="text-center text-muted">Histórico não disponível no momento</td>
+            </tr>
+        `;
+        
+        // Preparar botões do footer
         const hasManageLinks = Boolean(item.edit_url);
         const categoria_lower = (item.categoria || '').toLowerCase();
         const canAssign = categoria_lower.includes('ferramenta') || categoria_lower.includes('epi') || (categoria_lower.includes('material') && categoria_lower.includes('ep'));
         const itemData = {tipo_embalagem_novo: item.tipo_embalagem_novo || '', unidade: item.unidade || '', unidades_por_embalagem: item.unidades_por_embalagem || null};
         
-        // Renderizar corpo do modal (sem botões)
-        itemModalBody.innerHTML = `
-                <div class="mb-3">
-                    ${metaRows.join('')}
-                    ${fotoBlock}
-                    ${barcodeBlock}
-                </div>
-            `;
-        
-        // Renderizar botões no footer
         const editButton = canManage && hasManageLinks ? `
-                <a class="btn btn-primary" href="${escapeHtml(item.edit_url)}">
-                    <i class="bi bi-pencil me-1"></i> Editar item
-                </a>` : '';
+            <a class="btn btn-primary" href="${escapeHtml(item.edit_url)}">
+                <i class="bi bi-pencil me-1"></i> Editar item
+            </a>` : '';
         const assignButton = canManage && canAssign ? `
-                <button class="btn btn-success" type="button" onclick='openAssignModal("${escapeHtml(item.codigo)}", "${escapeHtml(item.descricao)}", ${JSON.stringify(itemData)})'>
-                    <i class="bi bi-person-check me-1"></i> Atribuir
-                </button>` : '';
+            <button class="btn btn-success" type="button" onclick='openAssignModal("${escapeHtml(item.codigo)}", "${escapeHtml(item.descricao)}", ${JSON.stringify(itemData)})'>
+                <i class="bi bi-person-check me-1"></i> Atribuir
+            </button>` : '';
         const repairButton = canManage && canAssign ? `
-                <button class="btn btn-warning" type="button" onclick="sendToRepair('${escapeHtml(item.codigo)}', '${escapeHtml(item.descricao)}')">
-                    <i class="bi bi-tools me-1"></i> Enviado para Reparo
-                </button>` : '';
+            <button class="btn btn-warning" type="button" onclick="sendToRepair('${escapeHtml(item.codigo)}', '${escapeHtml(item.descricao)}')">
+                <i class="bi bi-tools me-1"></i> Enviado para Reparo
+            </button>` : '';
         
         itemModalFooter.innerHTML = `
-                <div class="d-flex justify-content-between align-items-center w-100">
-                    <div class="d-flex flex-wrap gap-2">
-                        ${editButton}
-                        ${assignButton}
-                        ${repairButton}
-                    </div>
-                    <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Fechar</button>
-                </div>
-            `;
+            <div class="d-flex flex-wrap gap-2">
+                ${editButton}
+                ${assignButton}
+                ${repairButton}
+            </div>
+            <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Fechar</button>
+        `;
         
+        // Renderizar códigos de barras
         window.GalintBarcode?.render(itemModalBody);
+        
+        // Resetar para primeira aba
+        switchTab('info');
+        
+        // Mostrar modal
         itemModalInstance.show();
     };
+    
+    // Função para trocar de aba
+    function switchTab(tabName) {
+        // Desativar todas as abas
+        document.querySelectorAll('.galint-tab-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        document.querySelectorAll('.galint-tab-content').forEach(content => {
+            content.classList.remove('active');
+        });
+        
+        // Ativar aba selecionada
+        const activeBtn = document.querySelector(`.galint-tab-btn[data-tab="${tabName}"]`);
+        const activeContent = document.getElementById(`tab-${tabName}`);
+        
+        if (activeBtn) activeBtn.classList.add('active');
+        if (activeContent) activeContent.classList.add('active');
+    }
+    
+    // Event listeners para as abas
+    document.querySelectorAll('.galint-tab-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const tabName = this.getAttribute('data-tab');
+            switchTab(tabName);
+        });
+    });
 
     const formatLastEdit = (root) => {
         if (!root) {
