@@ -446,6 +446,8 @@
 
 {% block scripts %}
 {{ super() }}
+<!-- SweetAlert2 para modais amigáveis -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <style>
     #assignModal .modal-content {
         background: #ffffff;
@@ -607,6 +609,114 @@
     #assignMatricula-suggestions .autocomplete-item small {
         color: #64748b;
         font-size: 0.8rem;
+    }
+
+    /* ===== LISTA DE FUNCIONÁRIOS (ATRIBUIÇÃO MÚLTIPLA) ===== */
+    #employeesList .employee-item {
+        padding: 0.75rem;
+        border-bottom: 1px solid #e2e8f0;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    #employeesList .employee-item:last-child {
+        border-bottom: none;
+    }
+
+    #employeesList .employee-item:hover {
+        background: #f8fafc;
+    }
+
+    #employeesList .employee-item.selected {
+        background: #ecfdf5;
+        border-left: 3px solid #10b981;
+    }
+
+    #employeesList .employee-item.disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        background: #f9fafb;
+    }
+
+    #employeesList .employee-item.disabled:hover {
+        background: #f9fafb;
+    }
+
+    #employeesList .employee-item input[type="checkbox"] {
+        cursor: pointer;
+        width: 18px;
+        height: 18px;
+        flex-shrink: 0;
+    }
+
+    #employeesList .employee-item input[type="checkbox"]:disabled {
+        cursor: not-allowed;
+    }
+
+    #employeesList .employee-info {
+        flex: 1;
+        min-width: 0;
+    }
+
+    #employeesList .employee-name {
+        font-weight: 600;
+        color: #0f172a;
+        font-size: 0.9rem;
+        margin-bottom: 0.15rem;
+        display: block;
+    }
+
+    #employeesList .employee-meta {
+        color: #64748b;
+        font-size: 0.8rem;
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    #employeesList .employee-meta span {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+
+    #employeesList .no-employees {
+        padding: 2rem 1rem;
+        text-align: center;
+        color: #94a3b8;
+    }
+
+    /* Contador de selecionados */
+    #selectedCount {
+        color: #10b981;
+    }
+
+    #selectedCount.warning {
+        color: #f59e0b;
+    }
+
+    #selectedCount.error {
+        color: #ef4444;
+    }
+
+    /* Tabs do modal */
+    #assignMethodTabs .nav-link {
+        color: #64748b;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+
+    #assignMethodTabs .nav-link.active {
+        color: #10b981;
+        border-bottom-color: #10b981;
+    }
+
+    #assignMethodTabs .nav-link:hover:not(.active) {
+        color: #334155;
+        border-color: transparent;
     }
 
     /* ===== MODAL DE ITEM MODERNO ===== */
@@ -973,27 +1083,92 @@
                     </div>
                 </div>
                 
-                <div class="mb-3 position-relative">
-                    <label for="assignMatricula" class="form-label">
-                        <i class="bi bi-person-fill me-1"></i>
-                        Funcionário responsável
-                    </label>
-                    <input class="form-control" id="assignMatricula" 
-                        name="matricula" placeholder="Digite nome ou matrícula..." required autocomplete="off">
-                    <div id="assignMatricula-suggestions" style="display: none;"></div>
-                    <div class="form-text">
-                        <i class="bi bi-search me-1"></i>
-                        Digite para pesquisar
-                    </div>
-                </div>
+                <!-- Métodos de seleção com abas -->
+                <ul class="nav nav-tabs mb-3" id="assignMethodTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="single-tab" data-bs-toggle="tab" data-bs-target="#single-method" type="button" role="tab">
+                            <i class="bi bi-person-fill me-1"></i> Individual
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="multiple-tab" data-bs-toggle="tab" data-bs-target="#multiple-method" type="button" role="tab">
+                            <i class="bi bi-people-fill me-1"></i> Múltiplos
+                        </button>
+                    </li>
+                </ul>
 
-                <div class="mb-3">
-                    <label for="assignQuantity" class="form-label">
-                        <i class="bi bi-hash me-1"></i>
-                        Quantidade
-                    </label>
-                    <input type="number" class="form-control" id="assignQuantity" 
-                        name="quantidade" value="1" min="0.01" step="0.01" required>
+                <div class="tab-content" id="assignMethodContent">
+                    <!-- Método Individual (original) -->
+                    <div class="tab-pane fade show active" id="single-method" role="tabpanel">
+                        <div class="mb-3 position-relative">
+                            <label for="assignMatricula" class="form-label">
+                                <i class="bi bi-person-fill me-1"></i>
+                                Funcionário responsável
+                            </label>
+                            <input class="form-control" id="assignMatricula" 
+                                name="matricula" placeholder="Digite nome ou matrícula..." autocomplete="off">
+                            <div id="assignMatricula-suggestions" style="display: none;"></div>
+                            <div class="form-text">
+                                <i class="bi bi-search me-1"></i>
+                                Digite para pesquisar
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="assignQuantity" class="form-label">
+                                <i class="bi bi-hash me-1"></i>
+                                Quantidade
+                            </label>
+                            <input type="number" class="form-control" id="assignQuantity" 
+                                name="quantidade" value="1" min="0.01" step="0.01">
+                        </div>
+                    </div>
+
+                    <!-- Método Múltiplo (novo) -->
+                    <div class="tab-pane fade" id="multiple-method" role="tabpanel">
+                        <div class="alert alert-info d-flex align-items-start mb-3">
+                            <i class="bi bi-info-circle-fill me-2"></i>
+                            <div>
+                                <strong>Atribuição em lote</strong><br>
+                                <small>Selecione múltiplos funcionários para atribuir 1 unidade desta ferramenta para cada.</small>
+                            </div>
+                        </div>
+
+                        <!-- Contador e estoque disponível -->
+                        <div class="d-flex justify-content-between align-items-center mb-3 p-2 bg-light rounded">
+                            <div>
+                                <i class="bi bi-check2-square me-1"></i>
+                                <strong id="selectedCount">0</strong> selecionado(s)
+                            </div>
+                            <div>
+                                <i class="bi bi-box-seam me-1"></i>
+                                <strong id="availableStock">0</strong> em estoque
+                            </div>
+                        </div>
+
+                        <!-- Campo de busca -->
+                        <div class="mb-3">
+                            <input type="text" class="form-control" id="employeeSearch" placeholder="Buscar funcionário...">
+                        </div>
+
+                        <!-- Botões de ação -->
+                        <div class="d-flex gap-2 mb-3">
+                            <button type="button" class="btn btn-sm btn-outline-primary" id="selectAllBtn">
+                                <i class="bi bi-check-all me-1"></i> Selecionar todos
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" id="deselectAllBtn">
+                                <i class="bi bi-x-square me-1"></i> Desmarcar todos
+                            </button>
+                        </div>
+
+                        <!-- Lista de funcionários com checkboxes -->
+                        <div class="border rounded p-2" style="max-height: 300px; overflow-y: auto;" id="employeesList">
+                            <div class="text-center text-muted py-3">
+                                <i class="bi bi-people"></i>
+                                <p class="mb-0">Carregando funcionários...</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Seletor de tipo de saída para Unidades Dinâmicas -->
@@ -1123,8 +1298,359 @@
             updateAssignCustodyAlert();
         }
         
+        // Inicializar modo múltiplo
+        initMultipleAssign(codigo, itemData);
+        
         assignModalInstance.show();
     };
+
+    // ===== GERENCIAMENTO DE ATRIBUIÇÃO MÚLTIPLA =====
+    let currentItemStock = 0;
+    let currentItemCode = '';
+    let selectedEmployees = new Set();
+    
+    function initMultipleAssign(codigo, itemData) {
+        currentItemCode = codigo;
+        
+        // Pegar o saldo do item atual da lista de itens
+        const item = items.find(i => i.codigo === codigo);
+        currentItemStock = item ? parseInt(item.saldo) || 0 : 0;
+        
+        // Atualizar display de estoque disponível
+        const stockEl = document.getElementById('availableStock');
+        if (stockEl) {
+            stockEl.textContent = currentItemStock;
+        }
+        
+        // Resetar seleção
+        selectedEmployees.clear();
+        updateSelectedCount();
+        
+        // Renderizar lista de funcionários
+        renderEmployeesList();
+        
+        // Resetar para aba individual
+        const singleTab = document.getElementById('single-tab');
+        if (singleTab) {
+            singleTab.click();
+        }
+    }
+    
+    function renderEmployeesList() {
+        const employeesListEl = document.getElementById('employeesList');
+        if (!employeesListEl) return;
+        
+        if (!usersList || usersList.length === 0) {
+            employeesListEl.innerHTML = `
+                <div class="no-employees">
+                    <i class="bi bi-people" style="font-size: 2rem;"></i>
+                    <p class="mb-0 mt-2">Nenhum funcionário cadastrado</p>
+                </div>
+            `;
+            return;
+        }
+        
+        // Renderizar lista
+        employeesListEl.innerHTML = usersList.map(user => {
+            const isSelected = selectedEmployees.has(user.matricula);
+            const isDisabled = !isSelected && selectedEmployees.size >= currentItemStock;
+            
+            return `
+                <div class="employee-item ${isSelected ? 'selected' : ''} ${isDisabled ? 'disabled' : ''}" 
+                     data-matricula="${escapeHtml(user.matricula)}">
+                    <input type="checkbox" 
+                           ${isSelected ? 'checked' : ''} 
+                           ${isDisabled ? 'disabled' : ''}
+                           data-matricula="${escapeHtml(user.matricula)}">
+                    <div class="employee-info">
+                        <span class="employee-name">${escapeHtml(user.nome)}</span>
+                        <div class="employee-meta">
+                            <span><i class="bi bi-person-badge"></i> ${escapeHtml(user.matricula)}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+        // Adicionar event listeners
+        employeesListEl.querySelectorAll('.employee-item').forEach(item => {
+            const checkbox = item.querySelector('input[type="checkbox"]');
+            const matricula = item.dataset.matricula;
+            
+            // Click no item
+            item.addEventListener('click', (e) => {
+                if (e.target.tagName !== 'INPUT' && !item.classList.contains('disabled')) {
+                    checkbox.checked = !checkbox.checked;
+                    toggleEmployeeSelection(matricula, checkbox.checked);
+                }
+            });
+            
+            // Change no checkbox
+            checkbox.addEventListener('change', (e) => {
+                e.stopPropagation();
+                toggleEmployeeSelection(matricula, checkbox.checked);
+            });
+        });
+    }
+    
+    function toggleEmployeeSelection(matricula, selected) {
+        if (selected) {
+            // Verificar se já atingiu o limite
+            if (selectedEmployees.size >= currentItemStock) {
+                showStockWarning();
+                renderEmployeesList(); // Re-renderizar para atualizar estado
+                return;
+            }
+            selectedEmployees.add(matricula);
+        } else {
+            selectedEmployees.delete(matricula);
+        }
+        
+        updateSelectedCount();
+        renderEmployeesList();
+    }
+    
+    function updateSelectedCount() {
+        const countEl = document.getElementById('selectedCount');
+        if (!countEl) return;
+        
+        const count = selectedEmployees.size;
+        countEl.textContent = count;
+        
+        // Atualizar cor baseado no estoque
+        countEl.classList.remove('warning', 'error');
+        if (count > currentItemStock) {
+            countEl.classList.add('error');
+        } else if (count === currentItemStock && currentItemStock > 0) {
+            countEl.classList.add('warning');
+        }
+    }
+    
+    function showStockWarning() {
+        const needed = selectedEmployees.size + 1;
+        const missing = needed - currentItemStock;
+        
+        Swal.fire({
+            icon: 'warning',
+            title: 'Estoque insuficiente!',
+            html: `
+                <p>Você tentou selecionar mais funcionários do que temos em estoque.</p>
+                <div class="alert alert-warning mt-3">
+                    <strong>Situação:</strong><br>
+                    • Funcionários selecionados: <strong>${selectedEmployees.size}</strong><br>
+                    • Estoque disponível: <strong>${currentItemStock}</strong> unidades<br>
+                    ${missing > 0 ? `• <span class="text-danger">Faltam <strong>${missing}</strong> unidades!</span>` : ''}
+                </div>
+                <p class="mt-2 mb-0"><small>Desmarque alguns funcionários ou aguarde reposição de estoque.</small></p>
+            `,
+            confirmButtonText: 'Entendi',
+            confirmButtonColor: '#10b981'
+        });
+    }
+    
+    // Botão Selecionar todos
+    const selectAllBtn = document.getElementById('selectAllBtn');
+    if (selectAllBtn) {
+        selectAllBtn.addEventListener('click', () => {
+            const canSelectAll = usersList.length <= currentItemStock;
+            
+            if (!canSelectAll) {
+                Swal.fire({
+                    icon: 'info',
+                    title: 'Não é possível selecionar todos',
+                    html: `
+                        <p>Existem <strong>${usersList.length}</strong> funcionários cadastrados,<br>
+                        mas temos apenas <strong>${currentItemStock}</strong> unidades em estoque.</p>
+                        <div class="alert alert-warning mt-3">
+                            <strong>Você precisa de mais ${usersList.length - currentItemStock} unidades</strong> para atribuir a todos!
+                        </div>
+                        <p class="mt-2 mb-0"><small>Por enquanto, só é possível selecionar os primeiros ${currentItemStock} funcionários.</small></p>
+                    `,
+                    showCancelButton: true,
+                    confirmButtonText: `Selecionar ${currentItemStock} primeiros`,
+                    cancelButtonText: 'Cancelar',
+                    confirmButtonColor: '#10b981'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        selectedEmployees.clear();
+                        usersList.slice(0, currentItemStock).forEach(user => {
+                            selectedEmployees.add(user.matricula);
+                        });
+                        updateSelectedCount();
+                        renderEmployeesList();
+                    }
+                });
+                return;
+            }
+            
+            // Selecionar todos
+            selectedEmployees.clear();
+            usersList.forEach(user => {
+                selectedEmployees.add(user.matricula);
+            });
+            updateSelectedCount();
+            renderEmployeesList();
+        });
+    }
+    
+    // Botão Desmarcar todos
+    const deselectAllBtn = document.getElementById('deselectAllBtn');
+    if (deselectAllBtn) {
+        deselectAllBtn.addEventListener('click', () => {
+            selectedEmployees.clear();
+            updateSelectedCount();
+            renderEmployeesList();
+        });
+    }
+    
+    // Campo de busca
+    const employeeSearch = document.getElementById('employeeSearch');
+    if (employeeSearch) {
+        employeeSearch.addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase();
+            const items = document.querySelectorAll('#employeesList .employee-item');
+            
+            items.forEach(item => {
+                const text = item.textContent.toLowerCase();
+                item.style.display = text.includes(query) ? 'flex' : 'none';
+            });
+        });
+    }
+    
+    // ===== SUBMIT DO FORMULÁRIO (INDIVIDUAL OU MÚLTIPLO) =====
+    const assignForm = document.getElementById('assignForm');
+    if (assignForm) {
+        assignForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            // Verificar qual aba está ativa
+            const multipleTab = document.getElementById('multiple-method');
+            const isMultipleMode = multipleTab && multipleTab.classList.contains('active');
+            
+            if (isMultipleMode) {
+                // Modo múltiplo
+                await handleMultipleAssign();
+            } else {
+                // Modo individual (comportamento original)
+                handleSingleAssign();
+            }
+        });
+    }
+    
+    async function handleMultipleAssign() {
+        // Validar seleção
+        if (selectedEmployees.size === 0) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Nenhum funcionário selecionado',
+                text: 'Selecione pelo menos um funcionário para atribuir.',
+                confirmButtonColor: '#10b981'
+            });
+            return;
+        }
+        
+        // Validar estoque
+        if (selectedEmployees.size > currentItemStock) {
+            showStockWarning();
+            return;
+        }
+        
+        // Pegar tipo de custódia
+        const tipoCustodia = document.querySelector('input[name="tipo_custodia"]:checked')?.value || 'permanente';
+        
+        // Confirmar atribuição
+        const result = await Swal.fire({
+            icon: 'question',
+            title: 'Confirmar atribuição em lote?',
+            html: `
+                <p>Você está prestes a atribuir <strong>1 unidade</strong> desta ferram enta para:</p>
+                <div class="alert alert-info mt-2">
+                    <strong>${selectedEmployees.size}</strong> funcionário(s) selecionado(s)
+                </div>
+                <p class="mb-0"><small>Tipo de custódia: <strong>${tipoCustodia === 'temporaria' ? 'Diária' : 'Permanente'}</strong></small></p>
+            `,
+            showCancelButton: true,
+            confirmButtonText: 'Sim, atribuir',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#10b981',
+            showLoaderOnConfirm: true,
+            preConfirm: async () => {
+                return await performBatchAssignment(tipoCustodia);
+            },
+            allowOutsideClick: () => !Swal.isLoading()
+        });
+        
+        if (result.isConfirmed && result.value) {
+            const { success, failed } = result.value;
+            
+            // Mostrar resultado
+            if (failed === 0) {
+                await Swal.fire({
+                    icon: 'success',
+                    title: 'Atribuição concluída!',
+                    html: `<p>Todas as <strong>${success}</strong> atribuições foram realizadas com sucesso!</p>`,
+                    confirmButtonColor: '#10b981'
+                });
+            } else {
+                await Swal.fire({
+                    icon: 'warning',
+                    title: 'Atribuição parcialmente concluída',
+                    html: `
+                        <p>Atribuições bem-sucedidas: <strong class="text-success">${success}</strong></p>
+                        <p>Atribuições com falha: <strong class="text-danger">${failed}</strong></p>
+                        <p class="mt-2 mb-0"><small>Verifique o estoque ou contate o administrador.</small></p>
+                    `,
+                    confirmButtonColor: '#10b981'
+                });
+            }
+            
+            // Fechar modal e recarregar
+            if (assignModalInstance) {
+                assignModalInstance.hide();
+            }
+            window.location.reload();
+        }
+    }
+    
+    async function performBatchAssignment(tipoCustodia) {
+        let success = 0;
+        let failed = 0;
+        
+        const tipo_saida = document.querySelector('input[name="tipo_saida"]:checked')?.value || 'embalagem';
+        
+        // Processar cada funcionário sequencialmente
+        for (const matricula of selectedEmployees) {
+            try {
+                const formData = new FormData();
+                formData.append('matricula', matricula);
+                formData.append('quantidade', '1');
+                formData.append('tipo_custodia', tipoCustodia);
+                formData.append('tipo_saida', tipo_saida);
+                
+                const response = await fetch(`/itens/${encodeURIComponent(currentItemCode)}/saida`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (response.ok) {
+                    success++;
+                } else {
+                    failed++;
+                    console.error(`Falha ao atribuir para ${matricula}:`, await response.text());
+                }
+            } catch (error) {
+                failed++;
+                console.error(`Erro ao atribuir para ${matricula}:`, error);
+            }
+        }
+        
+        return { success, failed };
+    }
+    
+    function handleSingleAssign() {
+        // Submit normal do formulário (comportamento original)
+        assignForm.submit();
+    }
 
     function updateAssignCustodyAlert() {
         const radioDiaria = document.getElementById('assignCustodiaDiaria');
