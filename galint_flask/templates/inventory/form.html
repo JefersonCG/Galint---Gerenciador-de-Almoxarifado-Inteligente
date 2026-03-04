@@ -1509,88 +1509,111 @@
             return;
         }
 
-        // 1. Bloquear TODOS os campos do formulário
         const form = document.querySelector('form');
-        const todosInputs = form.querySelectorAll('input, select, textarea');
+
+        // IDs dos campos que devem permanecer EDITÁVEIS
+        const camposEditaveisIds = [
+            'saldo_atual',                          // Saldo em estoque
+            'nota_fiscal',                          // Número da NF
+            // Aba Unidades Dinâmicas (todos os campos)
+            'tipo_embalagem_novo_rolo',
+            'tipo_embalagem_novo_pacote', 
+            'tipo_embalagem_novo_caixa',
+            'unidade_embalagem_kg',
+            'unidade_embalagem_metro',
+            'unidade_embalagem_unidade',
+            'unidades_por_embalagem'
+        ];
+
+        // 1. Percorrer TODOS os campos e bloquear, exceto os editáveis
+        const todosInputs = form.querySelectorAll('input:not([type="hidden"]), select, textarea');
         todosInputs.forEach(campo => {
-            campo.setAttribute('readonly', 'readonly');
-            campo.setAttribute('disabled', 'disabled');
-        });
-
-        // 2. Desbloquear campos EDITÁVEIS
-        const camposEditaveis = [
-            'saldo_atual',           // Saldo em estoque
-            'nota_fiscal'            // Número da NF
-        ];
-
-        camposEditaveis.forEach(id => {
-            const campo = document.getElementById(id);
-            if (campo) {
+            const campoId = campo.getAttribute('id');
+            const isEditavel = camposEditaveisIds.includes(campoId);
+            
+            if (isEditavel) {
+                // Deixar editável com destaque visual
                 campo.removeAttribute('readonly');
                 campo.removeAttribute('disabled');
-                campo.style.background = '#fff3cd';  // Destaque amarelo claro
+                campo.style.background = '#fff3cd';
                 campo.style.borderColor = '#ffc107';
+            } else {
+                // Bloquear campo
+                if (campo.tagName === 'SELECT') {
+                    campo.setAttribute('disabled', 'disabled');
+                } else {
+                    campo.setAttribute('readonly', 'readonly');
+                }
+                campo.style.background = '#f3f4f6';
+                campo.style.cursor = 'not-allowed';
+                campo.style.opacity = '0.7';
             }
         });
 
-        // 3. Desbloquear TODA a aba "Unidades Dinâmicas"
-        const tabUnidades = document.getElementById('tab-unidades');
-        if (tabUnidades) {
-            const camposUnidades = tabUnidades.querySelectorAll('input, select, textarea');
-            camposUnidades.forEach(campo => {
-                campo.removeAttribute('readonly');
+        // 2. Bloquear especificamente checkboxes e radios (exceto os editáveis)
+        const checkboxesRadios = form.querySelectorAll('input[type="checkbox"], input[type="radio"]');
+        checkboxesRadios.forEach(campo => {
+            const campoId = campo.getAttribute('id');
+            const isEditavel = camposEditaveisIds.includes(campoId);
+            
+            if (!isEditavel) {
+                campo.setAttribute('disabled', 'disabled');
+                if (campo.parentElement) {
+                    campo.parentElement.style.opacity = '0.5';
+                    campo.parentElement.style.cursor = 'not-allowed';
+                }
+            } else {
                 campo.removeAttribute('disabled');
-                campo.style.background = '#fff3cd';  // Destaque amarelo claro
-                campo.style.borderColor = '#ffc107';
-            });
-        }
-
-        // 4. Desbloquear checkboxes e radios explicitamente
-        const checkRadios = ['tipo_embalagem_novo_rolo', 'tipo_embalagem_novo_pacote', 'tipo_embalagem_novo_caixa', 
-                             'unidade_embalagem_kg', 'unidade_embalagem_metro', 'unidade_embalagem_unidade'];
-        checkRadios.forEach(id => {
-            const campo = document.getElementById(id);
-            if (campo) {
-                campo.removeAttribute('disabled');
-                campo.parentElement.style.opacity = '1';
+                if (campo.parentElement) {
+                    campo.parentElement.style.opacity = '1';
+                }
             }
         });
 
-        // 5. Limpar campos que devem ser novos na entrada
+        // 3. Bloquear botões/inputs file (upload de foto)
+        const inputsFile = form.querySelectorAll('input[type="file"]');
+        inputsFile.forEach(input => {
+            input.setAttribute('disabled', 'disabled');
+            input.style.opacity = '0.5';
+        });
+
+        // 4. Limpar campos que devem ser novos na entrada
         const camposLimpar = [
-            'lote',
-            'data_entrada',
-            'data_fabricacao',
-            'data_validade'
+            { id: 'nota_fiscal', valor: '' },  // Limpar para novo NF
+            { id: 'lote', valor: '' },
+            { id: 'data_entrada', valor: '' },
+            { id: 'data_fabricacao', valor: '' },
+            { id: 'data_validade', valor: '' }
         ];
 
-        camposLimpar.forEach(id => {
+        camposLimpar.forEach(({ id, valor }) => {
             const campo = document.getElementById(id);
-            if (campo) {
-                campo.value = '';
+            if (campo && !campo.hasAttribute('readonly')) {
+                campo.value = valor;
             }
         });
 
-        // 6. Focar no campo Número da NF
-        const campoNF = document.getElementById('nota_fiscal');
-        if (campoNF) {
-            campoNF.value = '';  // Limpar NF também
-            campoNF.focus();
-            campoNF.select();
-        }
+        // 5. Focar no campo Número da NF
+        setTimeout(() => {
+            const campoNF = document.getElementById('nota_fiscal');
+            if (campoNF) {
+                campoNF.focus();
+                campoNF.select();
+            }
+        }, 100);
 
-        // 7. Mudar título da página
-        const titulo = document.querySelector('h1, .page-title, .soft-depth-card h2');
+        // 6. Mudar título da página
+        const titulo = document.querySelector('h1, .page-title');
         if (titulo) {
             titulo.textContent = '📦 Nova Entrada/NF';
             titulo.style.color = '#f59e0b';
         }
 
-        // 8. Adicionar indicador visual
+        // 7. Adicionar indicador visual
         const form_container = document.querySelector('.soft-depth-form');
-        if (form_container) {
+        if (form_container && !document.querySelector('.alerta-nova-entrada')) {
             const alerta = document.createElement('div');
-            alerta.className = 'alert alert-warning';
+            alerta.className = 'alert alert-warning alerta-nova-entrada';
             alerta.style.marginBottom = '1rem';
             alerta.innerHTML = `
                 <strong>⚠️ Modo: Nova Entrada/NF</strong><br>
@@ -1599,7 +1622,7 @@
             form_container.insertBefore(alerta, form);
         }
 
-        // 9. Alterar botão Salvar
+        // 8. Alterar botão Salvar
         const btnSalvar = form.querySelector('button[type="submit"]');
         if (btnSalvar) {
             btnSalvar.textContent = '✓ Criar Nova Entrada';
@@ -1607,13 +1630,13 @@
             btnSalvar.classList.add('btn-warning');
         }
 
-        // 10. Esconder botão "Nova Entrada/NF"
+        // 9. Esconder botão "Nova Entrada/NF"
         const btnNovaEntrada = document.getElementById('btnNovaEntradaNF');
         if (btnNovaEntrada) {
             btnNovaEntrada.style.display = 'none';
         }
 
-        // 11. Scroll para o topo
+        // 10. Scroll para o topo
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 </script>
