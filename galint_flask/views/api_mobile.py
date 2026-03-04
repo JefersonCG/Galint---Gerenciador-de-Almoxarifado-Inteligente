@@ -1255,11 +1255,10 @@ def retirar_mobile(current_user: Usuario):
         if not item:
             return jsonify({"success": False, "message": "Item não encontrado"}), 404
 
-        try:
-            saldo_atual = float(item.get_saldo_atual() or 0)
-        except Exception:
-            saldo_atual = 0.0
-
+        # Obter parâmetros de embalagens (se enviados pelo mobile)
+        retirada_embalagens_raw = data.get("retirada_embalagens")
+        retirada_unidades_soltas_raw = data.get("retirada_unidades_soltas")
+        
         quantidade_operacao = float(quantidade_int or 0)
         fracao_payload: dict[str, Any] = {}
         if usa_fracao:
@@ -1353,11 +1352,47 @@ def retirar_mobile(current_user: Usuario):
                 "quantidade_restante": restante,
             }
 
-        if saldo_atual < quantidade_operacao:
-            return jsonify({
-                "success": False,
-                "message": f"Saldo insuficiente. Disponível: {int(saldo_atual) if saldo_atual.is_integer() else saldo_atual}",
-            }), 400
+        # Validar saldo considerando sistema de embalagens
+        from galint_flask.services.embalagem_service import EmbalagemService
+        
+        # Determinar se a retirada é em embalagens ou unidades
+        em_embalagens = False
+        if retirada_embalagens_raw is not None and retirada_embalagens_raw > 0:
+            em_embalagens = True
+            quantidade_operacao = float(retirada_embalagens_raw)
+        elif retirada_unidades_soltas_raw is not None and retirada_unidades_soltas_raw > 0:
+            em_embalagens = False
+            quantidade_operacao = float(retirada_unidades_soltas_raw)
+        
+        if EmbalagemService.tem_embalagem(item) and not usa_fracao:
+            # Sistema de embalagens: calcular saldo em unidades totais
+            saldo_atual_unidades = EmbalagemService.calcular_estoque_total(item)
+            
+            # Converter quantidade para unidades se necessário
+            if em_embalagens:
+                # Retirada em embalagens: converter para unidades
+                quantidade_em_unidades = quantidade_operacao * (item.unidades_por_embalagem or 1)
+            else:
+                # Retirada em unidades: usar quantidade diretamente
+                quantidade_em_unidades = quantidade_operacao
+            
+            if saldo_atual_unidades < quantidade_em_unidades:
+                return jsonify({
+                    "success": False,
+                    "message": f"Saldo insuficiente. Disponível: {int(saldo_atual_unidades)} unidades",
+                }), 400
+        else:
+            # Sistema tradicional ou fração
+            try:
+                saldo_atual = float(item.get_saldo_atual() or 0)
+            except Exception:
+                saldo_atual = 0.0
+
+            if saldo_atual < quantidade_operacao:
+                return jsonify({
+                    "success": False,
+                    "message": f"Saldo insuficiente. Disponível: {int(saldo_atual) if saldo_atual.is_integer() else saldo_atual}",
+                }), 400
 
         matricula_retirante = (matricula_retirante_raw or "").strip()
         retirante_user = None

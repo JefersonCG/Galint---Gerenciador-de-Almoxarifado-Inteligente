@@ -256,14 +256,32 @@ def registrar_saida_multipla():
                 if not item:
                     raise ValueError("Item não encontrado")
                 
-                # Verificar saldo (similar ao mobile)
-                try:
-                    saldo_atual = float(item.get_saldo_atual() or 0)
-                except Exception:
-                    saldo_atual = 0.0
+                # Verificar saldo considerando sistema de embalagens
+                from galint_flask.services.embalagem_service import EmbalagemService
                 
-                if saldo_atual < quantidade:
-                    raise ValueError(f"Saldo insuficiente. Disponível: {int(saldo_atual)}")
+                if EmbalagemService.tem_embalagem(item):
+                    # Sistema de embalagens: calcular saldo em unidades totais
+                    saldo_atual_unidades = EmbalagemService.calcular_estoque_total(item)
+                    
+                    # Converter quantidade para unidades se necessário
+                    if em_embalagens:
+                        # Saída em embalagens: converter para unidades
+                        quantidade_em_unidades = quantidade * (item.unidades_por_embalagem or 1)
+                    else:
+                        # Saída em unidades: usar quantidade diretamente
+                        quantidade_em_unidades = quantidade
+                    
+                    if saldo_atual_unidades < quantidade_em_unidades:
+                        raise ValueError(f"Saldo insuficiente. Disponível: {int(saldo_atual_unidades)} unidades")
+                else:
+                    # Sistema tradicional (sem embalagens)
+                    try:
+                        saldo_atual = float(item.get_saldo_atual() or 0)
+                    except Exception:
+                        saldo_atual = 0.0
+                    
+                    if saldo_atual < quantidade:
+                        raise ValueError(f"Saldo insuficiente. Disponível: {int(saldo_atual)}")
                 
                 # Criar saída diretamente (como no mobile)
                 saida = Saida()
