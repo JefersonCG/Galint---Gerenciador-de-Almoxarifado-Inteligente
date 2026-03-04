@@ -1515,13 +1515,16 @@
         const camposEditaveisIds = [
             'saldo_atual',                          // Saldo em estoque
             'nota_fiscal',                          // Número da NF
-            // Aba Unidades Dinâmicas (todos os campos)
-            'tipo_embalagem_novo_rolo',
-            'tipo_embalagem_novo_pacote', 
-            'tipo_embalagem_novo_caixa',
-            'unidade_embalagem_kg',
-            'unidade_embalagem_metro',
-            'unidade_embalagem_unidade',
+            // Aba Unidades Dinâmicas (todos os campos corretos)
+            'tipo_novo_lata',
+            'tipo_novo_rolo',
+            'tipo_novo_pacote', 
+            'tipo_novo_caixa',
+            'tipo_novo_litro',
+            'tipo_novo_balde',
+            'tipo_novo_nenhum',
+            'unidade_emb_litro',
+            'unidade_emb_kg',
             'unidades_por_embalagem'
         ];
 
@@ -1566,6 +1569,9 @@
                 campo.removeAttribute('disabled');
                 if (campo.parentElement) {
                     campo.parentElement.style.opacity = '1';
+                    campo.parentElement.style.background = '#fff3cd';
+                    campo.parentElement.style.padding = '0.25rem 0.5rem';
+                    campo.parentElement.style.borderRadius = '4px';
                 }
             }
         });
