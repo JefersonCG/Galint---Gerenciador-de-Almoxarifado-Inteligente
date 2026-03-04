@@ -858,7 +858,7 @@
             <div class="button-group">
                 <button class="btn btn-primary" type="submit">✓ Salvar</button>
                 {% if item %}
-                <a class="btn btn-secondary" href="{{ url_for('inventory.new_item_form', codigo=form_item.codigo) }}">＋ Nova Entrada/Lote</a>
+                <button class="btn btn-secondary" type="button" id="btnNovaEntradaNF" onclick="prepararNovaEntrada()">＋ Nova Entrada/NF</button>
                 {% endif %}
                 <a class="btn btn-secondary" href="{{ url_for('inventory.list_items') }}">← Cancelar</a>
             </div>
@@ -1499,5 +1499,122 @@
     // Inicializar
     toggleTabUnidadesDinamicas();
     atualizarCamposEmbalagemNovo();
+
+    // ==========================================
+    // FUNÇÃO: NOVA ENTRADA/NF
+    // ==========================================
+    window.prepararNovaEntrada = function() {
+        // Confirmar ação
+        if (!confirm('Criar uma nova entrada/NF baseada neste item?\n\nTodos os dados serão copiados, mas apenas o Saldo, Número da NF e Unidades Dinâmicas poderão ser editados.')) {
+            return;
+        }
+
+        // 1. Bloquear TODOS os campos do formulário
+        const form = document.querySelector('form');
+        const todosInputs = form.querySelectorAll('input, select, textarea');
+        todosInputs.forEach(campo => {
+            campo.setAttribute('readonly', 'readonly');
+            campo.setAttribute('disabled', 'disabled');
+        });
+
+        // 2. Desbloquear campos EDITÁVEIS
+        const camposEditaveis = [
+            'saldo_atual',           // Saldo em estoque
+            'nota_fiscal'            // Número da NF
+        ];
+
+        camposEditaveis.forEach(id => {
+            const campo = document.getElementById(id);
+            if (campo) {
+                campo.removeAttribute('readonly');
+                campo.removeAttribute('disabled');
+                campo.style.background = '#fff3cd';  // Destaque amarelo claro
+                campo.style.borderColor = '#ffc107';
+            }
+        });
+
+        // 3. Desbloquear TODA a aba "Unidades Dinâmicas"
+        const tabUnidades = document.getElementById('tab-unidades');
+        if (tabUnidades) {
+            const camposUnidades = tabUnidades.querySelectorAll('input, select, textarea');
+            camposUnidades.forEach(campo => {
+                campo.removeAttribute('readonly');
+                campo.removeAttribute('disabled');
+                campo.style.background = '#fff3cd';  // Destaque amarelo claro
+                campo.style.borderColor = '#ffc107';
+            });
+        }
+
+        // 4. Desbloquear checkboxes e radios explicitamente
+        const checkRadios = ['tipo_embalagem_novo_rolo', 'tipo_embalagem_novo_pacote', 'tipo_embalagem_novo_caixa', 
+                             'unidade_embalagem_kg', 'unidade_embalagem_metro', 'unidade_embalagem_unidade'];
+        checkRadios.forEach(id => {
+            const campo = document.getElementById(id);
+            if (campo) {
+                campo.removeAttribute('disabled');
+                campo.parentElement.style.opacity = '1';
+            }
+        });
+
+        // 5. Limpar campos que devem ser novos na entrada
+        const camposLimpar = [
+            'lote',
+            'data_entrada',
+            'data_fabricacao',
+            'data_validade'
+        ];
+
+        camposLimpar.forEach(id => {
+            const campo = document.getElementById(id);
+            if (campo) {
+                campo.value = '';
+            }
+        });
+
+        // 6. Focar no campo Número da NF
+        const campoNF = document.getElementById('nota_fiscal');
+        if (campoNF) {
+            campoNF.value = '';  // Limpar NF também
+            campoNF.focus();
+            campoNF.select();
+        }
+
+        // 7. Mudar título da página
+        const titulo = document.querySelector('h1, .page-title, .soft-depth-card h2');
+        if (titulo) {
+            titulo.textContent = '📦 Nova Entrada/NF';
+            titulo.style.color = '#f59e0b';
+        }
+
+        // 8. Adicionar indicador visual
+        const form_container = document.querySelector('.soft-depth-form');
+        if (form_container) {
+            const alerta = document.createElement('div');
+            alerta.className = 'alert alert-warning';
+            alerta.style.marginBottom = '1rem';
+            alerta.innerHTML = `
+                <strong>⚠️ Modo: Nova Entrada/NF</strong><br>
+                <small>Os dados do item foram copiados. Edite apenas o <strong>Saldo</strong>, <strong>Número da NF</strong> e <strong>Unidades Dinâmicas</strong>.</small>
+            `;
+            form_container.insertBefore(alerta, form);
+        }
+
+        // 9. Alterar botão Salvar
+        const btnSalvar = form.querySelector('button[type="submit"]');
+        if (btnSalvar) {
+            btnSalvar.textContent = '✓ Criar Nova Entrada';
+            btnSalvar.classList.remove('btn-primary');
+            btnSalvar.classList.add('btn-warning');
+        }
+
+        // 10. Esconder botão "Nova Entrada/NF"
+        const btnNovaEntrada = document.getElementById('btnNovaEntradaNF');
+        if (btnNovaEntrada) {
+            btnNovaEntrada.style.display = 'none';
+        }
+
+        // 11. Scroll para o topo
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
 </script>
 {% endblock %}
