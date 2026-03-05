@@ -1181,7 +1181,7 @@
                     </div>
                     <div class="galint-custody-actions">
                         <a href="/controle-ferramentas/funcionario/${item.matricula_full || item.matricula}" class="galint-custody-btn galint-custody-btn-secondary">Ver funcionário</a>
-                        <button data-id="${item.id}" data-codigo="${item.codigo || ''}" data-desc="${(item.descricao || '').replace(/"/g, '&quot;')}" data-matricula="${item.matricula_full || item.matricula || ''}" onclick="devolverFerramenta(this)" class="galint-custody-btn galint-custody-btn-primary">Dar baixa</button>
+                        <button data-id="${item.id}" data-source="${item.source || 'saida'}" data-codigo="${item.codigo || ''}" data-desc="${(item.descricao || '').replace(/"/g, '&quot;')}" data-matricula="${item.matricula_full || item.matricula || ''}" onclick="devolverFerramenta(this)" class="galint-custody-btn galint-custody-btn-primary">Dar baixa</button>
                     </div>
                 `;
                 fragment.appendChild(wrapper);
@@ -1214,6 +1214,7 @@
         // Função global para devolver ferramenta (precisa ser global por causa do onclick)
         window.devolverFerramenta = async function(buttonEl) {
             const retiradaId = buttonEl?.getAttribute('data-id');
+            const source = (buttonEl?.getAttribute('data-source') || 'saida').toLowerCase();
             const matricula = buttonEl?.getAttribute('data-matricula');
             const codigoItem = buttonEl?.getAttribute('data-codigo');
 
@@ -1233,7 +1234,11 @@
                 payload.append('codigo_item', codigoItem || '');
                 payload.append('observacao', 'Devolução registrada via dashboard');
 
-                const response = await fetch(`/controle-ferramentas/devolucao/${retiradaId}/api`, {
+                const endpointUrl = (source === 'retirada_ferramenta')
+                    ? `/ferramentas/devolver/${retiradaId}/api`
+                    : `/controle-ferramentas/devolucao/${retiradaId}/api`;
+
+                const response = await fetch(endpointUrl, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',

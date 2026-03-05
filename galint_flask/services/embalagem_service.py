@@ -50,20 +50,21 @@ class EmbalagemService:
         if not EmbalagemService.tem_embalagem(item):
             return (0, 0)
         
-        embalagens_atuais = item.estoque_embalagens or 0
-        soltas_atuais = item.estoque_unidades_soltas or 0
+        embalagens_atuais = float(item.estoque_embalagens or 0)
+        soltas_atuais = float(item.estoque_unidades_soltas or 0)
+        unidades_por = float(item.unidades_por_embalagem or 1)
         
         if em_embalagens:
             # Entrada de embalagens fechadas
-            embalagens_atuais += quantidade
+            embalagens_atuais += float(quantidade)
         else:
             # Entrada de unidades soltas
-            soltas_atuais += quantidade
+            soltas_atuais += float(quantidade)
             
             # Se acumular unidades suficientes, "fecha" embalagens
-            while soltas_atuais >= item.unidades_por_embalagem:
-                soltas_atuais -= item.unidades_por_embalagem
-                embalagens_atuais += 1
+            while soltas_atuais >= unidades_por:
+                soltas_atuais -= unidades_por
+                embalagens_atuais += 1.0
         
         return (embalagens_atuais, soltas_atuais)
     
@@ -88,12 +89,13 @@ class EmbalagemService:
         if not EmbalagemService.tem_embalagem(item):
             return (0, 0, False)
         
-        embalagens_atuais = item.estoque_embalagens or 0
-        soltas_atuais = item.estoque_unidades_soltas or 0
+        embalagens_atuais = float(item.estoque_embalagens or 0)
+        soltas_atuais = float(item.estoque_unidades_soltas or 0)
+        unidades_por = float(item.unidades_por_embalagem or 1)
         
         if em_embalagens:
             # Saída de embalagens fechadas
-            quantidade_embalagens = quantidade
+            quantidade_embalagens = float(quantidade)
             
             if embalagens_atuais < quantidade_embalagens:
                 return (embalagens_atuais, soltas_atuais, False)
@@ -108,8 +110,9 @@ class EmbalagemService:
                 soltas_atuais -= quantidade_unidades
             else:
                 # Precisa abrir embalagens
+                import math
                 faltam = quantidade_unidades - soltas_atuais
-                embalagens_necessarias = int((faltam + item.unidades_por_embalagem - 1) / item.unidades_por_embalagem)
+                embalagens_necessarias = math.ceil(faltam / item.unidades_por_embalagem)
                 
                 if embalagens_atuais < embalagens_necessarias:
                     # Não tem estoque suficiente
@@ -150,10 +153,11 @@ class EmbalagemService:
         if not EmbalagemService.tem_embalagem(item):
             return item.get_saldo_atual()
         
-        embalagens = item.estoque_embalagens or 0
-        soltas = item.estoque_unidades_soltas or 0
+        embalagens = float(item.estoque_embalagens or 0)
+        soltas = float(item.estoque_unidades_soltas or 0)
+        unidades_por = float(item.unidades_por_embalagem or 0)
         
-        return (embalagens * item.unidades_por_embalagem) + soltas
+        return (embalagens * unidades_por) + soltas
 
     @staticmethod
     def tentar_sincronizar_estoque_de_legacy(item: Item) -> bool:
@@ -402,9 +406,10 @@ class EmbalagemService:
             
             if usa_sistema_novo:
                 # Quantidade vem em UNIDADES (embalagens), precisa converter para litros
-                qtde_embalagens_int = int(quantidade)
-                resto_embalagens = quantidade - qtde_embalagens_int
-                volume_total = quantidade * litros_por_emb
+                qtde_embalagens = float(quantidade)
+                qtde_embalagens_int = int(qtde_embalagens)
+                resto_embalagens = qtde_embalagens - qtde_embalagens_int
+                volume_total = qtde_embalagens * litros_por_emb
                 resto_litros = resto_embalagens * litros_por_emb
                 
                 nome_emb = item.get_nome_embalagem_plural() if qtde_embalagens_int != 1 else item.get_nome_embalagem()
@@ -431,9 +436,10 @@ class EmbalagemService:
             
             if usa_sistema_novo:
                 # Quantidade vem em UNIDADES (embalagens), precisa converter para kg
-                qtde_embalagens_int = int(quantidade)
-                resto_embalagens = quantidade - qtde_embalagens_int
-                peso_total = quantidade * kg_por_emb
+                qtde_embalagens = float(quantidade)
+                qtde_embalagens_int = int(qtde_embalagens)
+                resto_embalagens = qtde_embalagens - qtde_embalagens_int
+                peso_total = qtde_embalagens * kg_por_emb
                 resto_kg = resto_embalagens * kg_por_emb
                 
                 nome_emb = item.get_nome_embalagem_plural() if qtde_embalagens_int != 1 else item.get_nome_embalagem()
@@ -453,17 +459,18 @@ class EmbalagemService:
         # Sistema de embalagens unificado (rolos, pacotes, caixas)
         if EmbalagemService.tem_embalagem(item):
             tipo_emb = (item.tipo_embalagem_novo or "").strip().lower()
-            unidades_por = item.unidades_por_embalagem or 1
+            unidades_por = float(item.unidades_por_embalagem or 1)
             
             # CORREÇÃO: Quantidade vem em UNIDADES TOTAIS, precisa converter para embalagens + resto
-            embalagens_completas = int(quantidade / unidades_por) if unidades_por > 0 else 0
-            resto = quantidade - (embalagens_completas * unidades_por)
+            quantidade_float = float(quantidade)
+            embalagens_completas = int(quantidade_float // unidades_por) if unidades_por > 0 else 0
+            resto = quantidade_float - (embalagens_completas * unidades_por)
             
             nome_emb = item.get_nome_embalagem_plural() if embalagens_completas != 1 else item.get_nome_embalagem()
             
             # Para rolos: mostrar em metros
             if tipo_emb == 'rolo':
-                total_metros = quantidade
+                total_metros = quantidade_float
                 if embalagens_completas == 0:
                     return f"{total_metros:g} metros"
                 if resto > 0.01:
@@ -472,7 +479,7 @@ class EmbalagemService:
             
             # Para pacotes e caixas: mostrar unidades internas
             if tipo_emb in ['pacote', 'caixa']:
-                total_unidades = quantidade
+                total_unidades = quantidade_float
                 if embalagens_completas == 0:
                     return f"{total_unidades:g} unidades"
                 if resto > 0.01:

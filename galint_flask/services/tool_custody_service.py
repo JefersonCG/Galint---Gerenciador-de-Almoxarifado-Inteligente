@@ -24,16 +24,26 @@ class ToolCustodyService:
     )
 
     @classmethod
-    def _infer_tipo_custodia(cls, saida: Saida, days_in_use: int) -> str:
-        raw = (getattr(saida, "tipo_custodia", None) or "").strip().lower()
+    def is_permanent_custody(cls, *, tipo_custodia_raw: str | None = None, local_servico: str | None = None, observacao: str | None = None, days_in_use: int = 0) -> bool:
+        raw = (tipo_custodia_raw or "").strip().lower()
         if raw == "permanente":
-            return "permanente"
+            return True
 
-        texto = f"{saida.local_servico or ''} {saida.observacao or ''}".lower()
+        texto = f"{local_servico or ''} {observacao or ''}".lower()
         if any(marker in texto for marker in cls._PERMANENT_MARKERS):
-            return "permanente"
+            return True
 
-        if days_in_use >= 90:
+        # Se ficar muito tempo em posse, assume custódia permanente para evitar alerta indevido.
+        return days_in_use >= 30
+
+    @classmethod
+    def _infer_tipo_custodia(cls, saida: Saida, days_in_use: int) -> str:
+        if cls.is_permanent_custody(
+            tipo_custodia_raw=getattr(saida, "tipo_custodia", None),
+            local_servico=saida.local_servico,
+            observacao=saida.observacao,
+            days_in_use=days_in_use,
+        ):
             return "permanente"
         return "temporaria"
 
@@ -68,8 +78,8 @@ class ToolCustodyService:
                 
             days_oldest = (datetime.utcnow() - row.mais_antiga).days if row.mais_antiga else 0
             
-            # Contar alertas (ferramentas há mais de 30 dias)
-            alerts = sum(1 for tool in active_tools if tool["days_in_use"] > 30)
+            # Contar alertas apenas em ferramentas temporárias atrasadas.
+            alerts = sum(1 for tool in active_tools if tool.get("is_alert", False))
             
             # Separar por tipo de custódia
             tools_temporaria = [t for t in active_tools if t.get("tipo_custodia") == "temporaria"]

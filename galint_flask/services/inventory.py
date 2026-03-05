@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 import logging
 import math
 from typing import Any
@@ -365,6 +365,9 @@ class InventoryService:
                     "ultima_edicao_em": item.ultima_edicao_em.isoformat() if item.ultima_edicao_em else None,
                     "ultima_edicao_por": item.ultima_edicao_por,
                     "saldo": saldo,
+                    "saldo_unidades_total": saldo,
+                    "saldo_embalagens": item.estoque_embalagens,
+                    "saldo_unidades_soltas": item.estoque_unidades_soltas,
                     "foto_path": item.foto_path,
                     "tipo_embalagem_novo": item.tipo_embalagem_novo,
                     "unidades_por_embalagem": item.unidades_por_embalagem,
@@ -1051,7 +1054,7 @@ class InventoryService:
         self,
         *,
         codigo: str,
-        novo_saldo: int,
+        novo_saldo: float,
         matricula: str,
         nota_fiscal: str | None = None,
         tipo: str | None = None,
@@ -1074,15 +1077,34 @@ class InventoryService:
         descricao_final = descricao or descricao_base
         tipo_final = tipo or "ajuste_estoque"
 
+        descricao_evento = f"{descricao_final}: de {saldo_atual} para {novo_saldo}"
+        if nota_fiscal:
+            descricao_evento = f"{descricao_evento} (NF: {nota_fiscal})"
+
+        # Evitar eventos duplicados na mesma janela de tempo.
+        try:
+            cutoff = datetime.utcnow() - timedelta(seconds=60)
+            existe_duplicado = (
+                InventarioEvento.query
+                .filter(InventarioEvento.codigo_item == codigo)
+                .filter(InventarioEvento.matricula == matricula)
+                .filter(InventarioEvento.tipo == tipo_final)
+                .filter(InventarioEvento.descricao == descricao_evento)
+                .filter(InventarioEvento.data_evento >= cutoff)
+                .first()
+            )
+            if existe_duplicado:
+                return
+        except Exception:
+            pass
+
         evento = InventarioEvento(
             codigo_item=codigo,
             matricula=matricula,
             tipo=tipo_final,
             quantidade=delta,
-            descricao=f"{descricao_final}: de {saldo_atual} para {novo_saldo}",
+            descricao=descricao_evento,
         )
-        if nota_fiscal:
-            evento.descricao = f"{evento.descricao} (NF: {nota_fiscal})"
 
         db.session.add(evento)
         item.estoque_minimo = _calculate_min_stock(novo_saldo)

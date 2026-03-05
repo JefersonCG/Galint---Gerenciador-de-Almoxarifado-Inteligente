@@ -197,6 +197,13 @@ class TelegramService:
         return max(5, TelegramService._env_int("GALINT_TELEGRAM_OUTBOX_MAX_DELAY_SECONDS", 21600))
 
 
+    @staticmethod
+
+    def _outbox_dedupe_window_seconds() -> int:
+
+        return max(10, TelegramService._env_int("GALINT_TELEGRAM_OUTBOX_DEDUPE_WINDOW_SECONDS", 120))
+
+
 
     @staticmethod
 
@@ -472,6 +479,66 @@ class TelegramService:
         if not TelegramService._outbox_enabled():
 
             return {"success": False, "error": "Outbox desabilitado por configuração"}
+
+
+        # Dedupe curto para evitar mensagens identicas em sequencia no mesmo chat.
+
+        try:
+
+            dedupe_window = TelegramService._outbox_dedupe_window_seconds()
+
+            cutoff = datetime.utcnow() - timedelta(seconds=int(dedupe_window))
+
+            recent_same = (
+
+                db.session.query(TelegramNotification)
+
+                .filter(TelegramNotification.chat_id == str(chat_id))
+
+                .filter(TelegramNotification.message_type == message_type)
+
+                .filter(TelegramNotification.message_text == message_text)
+
+                .filter(TelegramNotification.sent_at >= cutoff)
+
+                .first()
+
+            )
+
+            if recent_same:
+                logger.info(f"[DEDUPE] Ignorando mensagem já enviada: {chat_id}")
+                return {
+                    "success": True,
+                    "queued": False,
+                    "deduped": True,
+                    "reason": "recent_same_message",
+                    "notification_id": recent_same.id,
+                }
+            
+            # Verificação também na tabela TelegramOutbox (fila de pendentes)
+            recent_pending = (
+                db.session.query(TelegramOutbox)
+                .filter(TelegramOutbox.chat_id == str(chat_id))
+                .filter(TelegramOutbox.message_type == message_type)
+                .filter(TelegramOutbox.message_text == message_text)
+                .filter(TelegramOutbox.created_at >= cutoff)
+                .filter(TelegramOutbox.status.in_(["pending", "processing"]))
+                .first()
+            )
+
+            if recent_pending:
+                logger.info(f"[DEDUPE] Ignorando mensagem pendente na fila: {chat_id}")
+                return {
+                    "success": True,
+                    "queued": False,
+                    "deduped": True,
+                    "reason": "recent_pending_message",
+                    "outbox_id": recent_pending.id,
+                }
+
+        except Exception:
+
+            pass
 
 
 

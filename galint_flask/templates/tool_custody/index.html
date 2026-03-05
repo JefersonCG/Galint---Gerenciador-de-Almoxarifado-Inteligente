@@ -124,6 +124,36 @@
     .quick-search input {
         padding-left: 2.5rem;
     }
+
+    .search-results {
+        position: absolute;
+        top: calc(100% + 4px);
+        left: 0;
+        right: 0;
+        z-index: 1050;
+        background: #1f2128;
+        border: 1px solid rgba(148, 163, 184, 0.25);
+        border-radius: 6px;
+        max-height: 280px;
+        overflow-y: auto;
+        display: none;
+    }
+
+    .search-results .result-item {
+        width: 100%;
+        text-align: left;
+        padding: 0.5rem 0.75rem;
+        border: 0;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+        background: transparent;
+        color: #f8fafc;
+    }
+
+    .search-results .result-item:hover,
+    .search-results .result-item:focus {
+        background: rgba(59, 130, 246, 0.15);
+        outline: none;
+    }
     
     .empty-state {
         text-align: center;
@@ -260,16 +290,17 @@
     </div>
 
     <!-- Filtros Unificados -->
-    <form method="get" action="{{ url_for('tool_custody.index') }}">
+    <form method="get" action="{{ url_for('tool_custody.index') }}" id="tool-custody-filter-form">
         <div class="row g-3 align-items-end">
             <!-- Busca -->
             <div class="col-md-5">
                 <label class="form-label small text-muted text-uppercase fw-bold mb-1">Pesquisar</label>
-                <div class="input-group">
+                <div class="input-group" style="position: relative;">
                     <span class="input-group-text bg-dark border-secondary text-secondary"><i class="bi bi-search"></i></span>
                     <input type="text" class="form-control bg-dark border-secondary text-light" name="search" 
                            placeholder="Buscar por nome, matrícula ou código de barras..."
-                           value="{{ search or '' }}">
+                           value="{{ search or '' }}" autocomplete="off" id="tool-custody-search">
+                    <div class="search-results" id="tool-custody-search-results" role="listbox" aria-label="Resultados de busca"></div>
                 </div>
             </div>
 
@@ -277,9 +308,9 @@
             <div class="col-md-2">
                 <label class="form-label small text-muted text-uppercase fw-bold mb-1">Tipo Custódia</label>
                 <select class="form-select bg-dark border-secondary text-light" name="tipo_custodia">
-                    <option value="diaria" {% if tipo_custodia_filter == 'diaria' or not tipo_custodia_filter %}selected{% endif %}>Custódia Diária</option>
+                    <option value="diaria" {% if tipo_custodia_filter == 'diaria' %}selected{% endif %}>Custódia Diária</option>
                     <option value="permanente" {% if tipo_custodia_filter == 'permanente' %}selected{% endif %}>Custódia Permanente</option>
-                    <option value="todos" {% if tipo_custodia_filter == 'todos' %}selected{% endif %}>Todos</option>
+                    <option value="todos" {% if tipo_custodia_filter == 'todos' or not tipo_custodia_filter %}selected{% endif %}>Todos</option>
                 </select>
             </div>
             
@@ -380,4 +411,74 @@
         </p>
     </div>
 {% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+    (function() {
+        const form = document.getElementById('tool-custody-filter-form');
+        const input = document.getElementById('tool-custody-search');
+        const results = document.getElementById('tool-custody-search-results');
+        if (!form || !input || !results) return;
+
+        let searchTimeout = null;
+
+        const hideResults = () => {
+            results.style.display = 'none';
+            results.innerHTML = '';
+        };
+
+        const renderEmpty = (message) => {
+            results.innerHTML = `<div class="result-item" role="option">${message}</div>`;
+            results.style.display = 'block';
+        };
+
+        input.addEventListener('input', function() {
+            const query = this.value.trim();
+            clearTimeout(searchTimeout);
+
+            if (query.length < 2) {
+                hideResults();
+                return;
+            }
+
+            searchTimeout = setTimeout(() => {
+                fetch(`/controle-ferramentas/api/funcionarios/buscar?q=${encodeURIComponent(query)}`)
+                    .then((res) => res.json())
+                    .then((data) => {
+                        if (!Array.isArray(data) || data.length === 0) {
+                            renderEmpty('Nenhum funcionario encontrado');
+                            return;
+                        }
+
+                        results.innerHTML = data.map((func) => `
+                            <button type="button" class="result-item" role="option"
+                                data-nome="${func.nome}" data-matricula="${func.matricula}">
+                                <strong>${func.nome}</strong><br>
+                                <small style="color: #9aa0a6;">Matricula: ${func.matricula} | Cargo: ${func.cargo || 'N/D'}</small>
+                            </button>
+                        `).join('');
+                        results.style.display = 'block';
+
+                        results.querySelectorAll('button').forEach((btn) => {
+                            btn.addEventListener('click', () => {
+                                input.value = btn.dataset.nome || '';
+                                hideResults();
+                                form.submit();
+                            });
+                        });
+                    })
+                    .catch(() => {
+                        renderEmpty('Erro ao buscar funcionarios');
+                    });
+            }, 250);
+        });
+
+        document.addEventListener('click', (event) => {
+            if (!results.contains(event.target) && event.target !== input) {
+                hideResults();
+            }
+        });
+    })();
+</script>
 {% endblock %}

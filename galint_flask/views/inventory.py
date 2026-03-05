@@ -20,6 +20,19 @@ from .movements import LIQUID_PRODUCT_TYPES
 blueprint = Blueprint("inventory", __name__, url_prefix="/itens")
 
 
+def _uses_packaging_system(item_data: dict | None) -> bool:
+    if not item_data:
+        return False
+    tipo = (item_data.get("tipo_embalagem_novo") or "").strip().lower()
+    if tipo not in {"lata", "rolo", "pacote", "caixa", "litro", "balde"}:
+        return False
+    try:
+        unidades_por = float(item_data.get("unidades_por_embalagem") or 0)
+    except (TypeError, ValueError):
+        return False
+    return unidades_por > 0
+
+
 @blueprint.after_request
 def flush_withdrawal_notifications(response):
     """Finaliza e envia notificações agrupadas de saídas após cada requisição."""
@@ -186,6 +199,7 @@ def create_item():
 
     if tipo_novo in ["lata", "balde"]:
         val = float(unidades_por_emb_raw) if unidades_por_emb_raw and unidades_por_emb_raw.strip() else None
+        unidades_var = val
         if unidade_embalagem_novo == "litro":
             litros_var = val
         elif unidade_embalagem_novo == "kg":
@@ -194,9 +208,10 @@ def create_item():
         unidades_var = float(unidades_por_emb_raw) if unidades_por_emb_raw and unidades_por_emb_raw.strip() else None
     elif tipo_novo == "litro":
         litros_var = float(unidades_por_emb_raw) if unidades_por_emb_raw and unidades_por_emb_raw.strip() else None
+        unidades_var = litros_var
 
     em_embalagens = None
-    if tipo_novo in ["rolo", "pacote", "caixa"] and unidades_var and unidades_var > 0:
+    if tipo_novo in ["lata", "rolo", "pacote", "caixa", "litro", "balde"] and unidades_var and unidades_var > 0:
         em_embalagens = True
     
     payload = {
@@ -307,12 +322,16 @@ def edit_item_form(codigo: str):
     
     # Calcular saldo total de todos os lotes com o mesmo EAN
     saldo_total = Item.get_saldo_total_by_codigo(codigo)
+
+    saldo_display = item.get("saldo", 0)
+    if _uses_packaging_system(item):
+        saldo_display = item.get("estoque_embalagens", saldo_display)
     
     return render_template(
         "inventory/form.html",
         item=item,
         form_data=None,
-        saldo_desejado=item.get("saldo", 0),
+        saldo_desejado=saldo_display,
         saldo_total_ean=saldo_total,
         liquid_types=LIQUID_PRODUCT_TYPES,
     )
@@ -340,6 +359,7 @@ def update_item(codigo: str):
     
     if tipo_novo in ['lata', 'balde']:
         val = float(unidades_por_emb_raw) if unidades_por_emb_raw and unidades_por_emb_raw.strip() else None
+        unidades_var = val
         if unidade_embalagem_novo == 'litro':
             litros_var = val
         elif unidade_embalagem_novo == 'kg':
@@ -352,6 +372,7 @@ def update_item(codigo: str):
     elif tipo_novo == 'litro':
         val = float(unidades_por_emb_raw) if unidades_por_emb_raw and unidades_por_emb_raw.strip() else None
         litros_var = val
+        unidades_var = val
     
     # Se tipo_novo for None (Nenhum), limpa tudo
     
@@ -427,13 +448,33 @@ def update_item(codigo: str):
         updated_codigo = inventory_service.update_item(codigo, payload)
 
         if saldo_desejado >= 0:
-            inventory_service.adjust_item_balance(
-                codigo=updated_codigo,
-                novo_saldo=saldo_desejado,
-                matricula=current_user.id,
-                nota_fiscal=payload.get("nota_fiscal"),
-                descricao="Ajuste manual via edição do item",
-            )
+            from ..services.embalagem_service import EmbalagemService
+
+            item_atualizado = Item.query.get(updated_codigo)
+            if item_atualizado and EmbalagemService.tem_embalagem(item_atualizado):
+                saldo_embalagens = float(saldo_desejado)
+                unidades_por_embalagem = float(item_atualizado.unidades_por_embalagem or 1)
+                novo_saldo_unidades = saldo_embalagens * unidades_por_embalagem
+
+                # Para itens com embalagem, o saldo do formulário representa embalagens.
+                item_atualizado.estoque_embalagens = saldo_embalagens
+                item_atualizado.estoque_unidades_soltas = 0.0
+
+                inventory_service.adjust_item_balance(
+                    codigo=updated_codigo,
+                    novo_saldo=novo_saldo_unidades,
+                    matricula=current_user.id,
+                    nota_fiscal=payload.get("nota_fiscal"),
+                    descricao="Ajuste manual via edição do item (saldo em embalagens)",
+                )
+            else:
+                inventory_service.adjust_item_balance(
+                    codigo=updated_codigo,
+                    novo_saldo=saldo_desejado,
+                    matricula=current_user.id,
+                    nota_fiscal=payload.get("nota_fiscal"),
+                    descricao="Ajuste manual via edição do item",
+                )
         
         # Notificar atualização: enviar resumo do que mudou
         try:

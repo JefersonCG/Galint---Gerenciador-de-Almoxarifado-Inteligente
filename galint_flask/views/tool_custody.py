@@ -20,7 +20,7 @@ def index():
     search = request.args.get("search", "").strip()
     setor_filter = request.args.get("setor", "")
     alert_only = request.args.get("alert_only", "") == "true"
-    tipo_custodia_filter = request.args.get("tipo_custodia", "diaria")  # Padrão: mostrar apenas diária
+    tipo_custodia_filter = request.args.get("tipo_custodia", "todos")  # Padrão: mostrar todos
     
     # Obter lista de funcionários
     employees = tool_custody_service.get_all_employees_with_tools()

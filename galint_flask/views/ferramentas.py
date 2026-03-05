@@ -212,6 +212,24 @@ def devolver(retirada_id: int):
     return redirect(url_for("ferramentas.retirar_page"))
 
 
+@blueprint.post("/devolver/<int:retirada_id>/api")
+@login_required
+def devolver_api(retirada_id: int):
+    """Registra devolução de ferramenta via API (JSON)."""
+    _require_admin()
+
+    observacao = (request.form.get("observacao") or "").strip() or None
+
+    try:
+        ferramentas_service.devolver_ferramenta(retirada_id, observacao)
+        return jsonify({"success": True, "message": "Ferramenta devolvida com sucesso"})
+    except ValueError as exc:
+        message = str(exc)
+        if message.strip().lower() == "ferramenta já foi devolvida":
+            return jsonify({"success": True, "message": message})
+        return jsonify({"success": False, "message": message}), 400
+
+
 @blueprint.post("/marcar-reparo/<int:retirada_id>")
 @login_required
 def marcar_reparo(retirada_id: int):
