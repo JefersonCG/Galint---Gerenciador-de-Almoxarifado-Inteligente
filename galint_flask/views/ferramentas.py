@@ -8,6 +8,8 @@ from ..mako_renderer import render_mako_template
 from ..services.ferramentas import ferramentas_service
 from ..services.inventory import inventory_service
 from ..services.users import user_service
+from ..models import RetiradaFerramenta
+from ..extensions import db
 
 blueprint = Blueprint("ferramentas", __name__, url_prefix="/ferramentas")
 
@@ -71,6 +73,123 @@ def retirar():
     except ValueError as exc:
         flash(str(exc), "danger")
         return redirect(url_for("ferramentas.retirar_page"))
+
+
+@blueprint.post("/retirar-multipla")
+def retirar_multipla():
+    """Processa retirada de múltiplas ferramentas (JSON).
+
+    Espera payload:
+    {
+      "matricula": "...",
+      "local_servico": "..." | null,
+      "observacao": "..." | null,
+      "itens": [{"codigo": "...", "quantidade": 1}, ...]
+    }
+
+    Retorna resultados por item (sucesso parcial).
+    """
+    # Endpoint chamado via fetch; para evitar HTML de redirect do Flask-Login (login_required),
+    # retornamos sempre JSON em casos de não autenticado/não autorizado.
+    if not bool(getattr(current_user, "is_authenticated", False)):
+        return jsonify({"success": False, "message": "Sessão expirada. Faça login novamente."}), 401
+
+    if not bool(getattr(current_user, "is_admin", False)):
+        return jsonify({"success": False, "message": "Acesso negado."}), 403
+
+    payload = request.get_json(silent=True) or {}
+    matricula = (payload.get("matricula") or "").strip()
+    local_servico = (payload.get("local_servico") or "").strip() or None
+    observacao = (payload.get("observacao") or "").strip() or None
+    itens = payload.get("itens") or []
+
+    if not matricula:
+        return jsonify({"success": False, "message": "Informe a matrícula do funcionário"}), 400
+
+    if not isinstance(itens, list) or len(itens) == 0:
+        return jsonify({"success": False, "message": "Adicione pelo menos uma ferramenta"}), 400
+
+    resultados: list[dict[str, object]] = []
+    retirada_ids_ok: list[int] = []
+
+    for idx, item in enumerate(itens):
+        codigo = ((item or {}).get("codigo") or "").strip()
+        quantidade_raw = (item or {}).get("quantidade")
+
+        if not codigo:
+            resultados.append({
+                "index": idx,
+                "codigo": codigo,
+                "success": False,
+                "message": "Código inválido",
+            })
+            continue
+
+        try:
+            quantidade = int(quantidade_raw) if quantidade_raw is not None else 1
+            if quantidade < 1:
+                raise ValueError
+        except Exception:
+            resultados.append({
+                "index": idx,
+                "codigo": codigo,
+                "success": False,
+                "message": "Quantidade inválida",
+            })
+            continue
+
+        try:
+            retirada_id = ferramentas_service.retirar_ferramenta(
+                codigo_item=codigo,
+                matricula=matricula,
+                quantidade=quantidade,
+                local_servico=local_servico,
+                observacao=observacao,
+                notify_telegram=False,
+            )
+            retirada_ids_ok.append(int(retirada_id))
+            resultados.append({
+                "index": idx,
+                "codigo": codigo,
+                "success": True,
+                "retirada_id": retirada_id,
+                "message": "Retirada registrada",
+            })
+        except ValueError as exc:
+            resultados.append({
+                "index": idx,
+                "codigo": codigo,
+                "success": False,
+                "message": str(exc),
+            })
+
+    total_ok = sum(1 for r in resultados if r.get("success"))
+    total = len(resultados)
+    success = (total_ok == total)
+
+    if success:
+        message = f"Retirada registrada para {total_ok} ferramenta(s)."
+    else:
+        message = f"Retirada parcial: {total_ok}/{total} registrada(s)."
+
+    # Notificação consolidada (uma mensagem para o lote)
+    if retirada_ids_ok:
+        try:
+            retiradas_ok = (
+                db.session.query(RetiradaFerramenta)
+                .filter(RetiradaFerramenta.id.in_(retirada_ids_ok))
+                .order_by(RetiradaFerramenta.id.asc())
+                .all()
+            )
+            ferramentas_service._notificar_retirada_multipla_telegram(retiradas_ok)  # type: ignore[attr-defined]
+        except Exception:
+            pass
+
+    return jsonify({
+        "success": success,
+        "message": message,
+        "resultados": resultados,
+    })
 
 
 # Rota do painel separada removida - agora está integrado na página de retirada

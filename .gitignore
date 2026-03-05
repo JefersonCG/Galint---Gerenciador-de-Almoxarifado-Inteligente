@@ -97,3 +97,7 @@ galint-mobile/build_inspect/
 # Cache
 *.cache
 .cache/
+
+# Runtime / uploads (gerados pela aplicação)
+.galint_server.lock
+galint_flask/static/uploads/

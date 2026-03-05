@@ -238,9 +238,16 @@ class InventoryService:
         )
 
         saldo_map = self._bulk_saldos([item.codigo_item for item in rows])
+        from ..services.embalagem_service import EmbalagemService
         results: list[dict[str, Any]] = []
         for item in rows:
-            saldo = saldo_map.get(item.codigo_item)
+            if EmbalagemService.tem_embalagem(item):
+                try:
+                    saldo = float(EmbalagemService.calcular_estoque_total(item) or 0)
+                except Exception:
+                    saldo = 0.0
+            else:
+                saldo = float(saldo_map.get(item.codigo_item, 0.0) or 0.0)
             results.append(
                 {
                     "codigo": item.codigo_item,
@@ -331,8 +338,15 @@ class InventoryService:
         saldo_map = self._bulk_saldos()
         resultado: list[dict[str, Any]] = []
         atualizado = False
+        from ..services.embalagem_service import EmbalagemService
         for item in itens:
-            saldo = saldo_map.get(item.codigo_item, 0.0)
+            if EmbalagemService.tem_embalagem(item):
+                try:
+                    saldo = float(EmbalagemService.calcular_estoque_total(item) or 0)
+                except Exception:
+                    saldo = 0.0
+            else:
+                saldo = saldo_map.get(item.codigo_item, 0.0)
             minimo = _calculate_min_stock(saldo)
             if item.estoque_minimo != minimo:
                 item.estoque_minimo = minimo
@@ -364,7 +378,14 @@ class InventoryService:
         item = Item.query.get(codigo)
         if not item:
             return None
-        saldo = item.get_saldo_atual()
+        from ..services.embalagem_service import EmbalagemService
+        if EmbalagemService.tem_embalagem(item):
+            try:
+                saldo = float(EmbalagemService.calcular_estoque_total(item) or 0)
+            except Exception:
+                saldo = 0.0
+        else:
+            saldo = item.get_saldo_atual()
         minimo = _calculate_min_stock(saldo)
         if item.estoque_minimo != minimo:
             item.estoque_minimo = minimo
@@ -784,8 +805,15 @@ class InventoryService:
         saldo_map = self._bulk_saldos()
         resumo: list[dict[str, Any]] = []
         atualizado = False
+        from ..services.embalagem_service import EmbalagemService
         for item in itens:
-            saldo = saldo_map.get(item.codigo_item, 0.0)
+            if EmbalagemService.tem_embalagem(item):
+                try:
+                    saldo = float(EmbalagemService.calcular_estoque_total(item) or 0)
+                except Exception:
+                    saldo = 0.0
+            else:
+                saldo = saldo_map.get(item.codigo_item, 0.0)
             minimo = _calculate_min_stock(saldo)
             if item.estoque_minimo != minimo:
                 item.estoque_minimo = minimo
@@ -1176,6 +1204,13 @@ class InventoryService:
         
         # Processar embalagens ANTES de verificar saldo ou criar movimento
         if tem_embalagem and payload.em_embalagens is not None:
+            # Itens antigos podem ter saldo legado, mas estoque novo ainda não inicializado.
+            # Sincroniza de forma conservadora antes de processar a operação.
+            try:
+                EmbalagemService.tentar_sincronizar_estoque_de_legacy(item)
+            except Exception:
+                pass
+
             if is_entrada:
                 # Entrada/Devolução
                 novas_emb, novas_soltas = embalagem_service.processar_entrada(

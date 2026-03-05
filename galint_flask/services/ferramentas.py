@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta
+import hashlib
 from typing import Any
 
 from sqlalchemy import and_, or_
@@ -46,6 +47,7 @@ class FerramentasService:
         local_servico: str | None = None,
         observacao: str | None = None,
         dias_previstos: int = 0,
+        notify_telegram: bool = True,
     ) -> int:
         """Registra retirada de ferramenta."""
         # Valida item
@@ -96,11 +98,175 @@ class FerramentasService:
         
         db.session.add(retirada)
         db.session.commit()
+
+        # Notificar retirada via Telegram
+        if notify_telegram:
+            try:
+                self._notificar_retirada_telegram(retirada)
+            except Exception as e:
+                # Não falhar a retirada por causa de erro no Telegram
+                print(f"Erro ao notificar retirada via Telegram: {e}")
         
         # Atualizar status de atrasadas automaticamente
         self._atualizar_status_atrasadas()
         
         return retirada.id
+
+    def _notificar_retirada_telegram(self, retirada: RetiradaFerramenta):
+        """Envia notificação de retirada de ferramenta via Telegram."""
+        from .telegram_service import TelegramService
+        from ..models import TelegramUser
+        from ..utils.time_service import TimeService
+
+        if not TelegramService.is_enabled():
+            return
+
+        item = Item.query.get(retirada.codigo_item)
+        usuario = Usuario.query.get(retirada.matricula)
+        if not item:
+            return
+
+        categoria = (item.categoria or "Ferramentas").strip().upper()
+        emoji = "🔧" if "FERRAMENT" in categoria else "📦"
+
+        data_fmt = TimeService.format_local(retirada.data_retirada, "%d/%m/%Y %H:%M")
+        nome_usuario = usuario.nome if usuario else f"Matrícula {retirada.matricula}"
+
+        message = f"📤 <b>RETIRADA DE FERRAMENTA</b>\n\n"
+        message += f"{emoji} <b>{item.descricao}</b>\n"
+        message += f"🏷️ Código: <code>{item.codigo_item}</code>\n"
+        message += f"📦 Quantidade: <b>{retirada.quantidade}</b> {item.unidade or 'un.'}\n\n"
+        message += f"👤 <b>Funcionário:</b> {nome_usuario}\n"
+        message += f"📅 <b>Data:</b> {data_fmt}\n"
+
+        if retirada.local_servico:
+            message += f"📍 <b>Local:</b> {retirada.local_servico}\n"
+        if retirada.observacao:
+            message += f"📝 <b>Obs:</b> {retirada.observacao}\n"
+
+        admins = (
+            db.session.query(TelegramUser)
+            .join(Usuario, Usuario.matricula == TelegramUser.matricula)
+            .filter(Usuario.is_admin == 1)
+            .filter(TelegramUser.enabled == True)
+            .filter(TelegramUser.chat_id.isnot(None))
+            .all()
+        )
+
+        for admin in admins:
+            try:
+                key = f"tool_withdraw:{retirada.id}:admin:{admin.chat_id}"
+                TelegramService.enqueue_outbox_message(
+                    chat_id=str(admin.chat_id),
+                    recipient_name=admin.usuario.nome if getattr(admin, "usuario", None) else None,
+                    message_type="tool_withdraw",
+                    message_text=message,
+                    idempotency_key=key,
+                    commit=False,
+                )
+            except Exception:
+                pass
+
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+    def _notificar_retirada_multipla_telegram(self, retiradas: list[RetiradaFerramenta]) -> None:
+        """Envia uma única notificação consolidada para múltiplas retiradas.
+
+        Importante:
+        - Deve ser usada quando a retirada foi registrada via operação em lote.
+        - Evita spam de uma mensagem por item.
+        """
+        from .telegram_service import TelegramService
+        from ..models import TelegramUser
+        from ..utils.time_service import TimeService
+
+        if not retiradas:
+            return
+
+        if not TelegramService.is_enabled():
+            return
+
+        # Normalizar/ordenar
+        retiradas_sorted = sorted(retiradas, key=lambda r: (getattr(r, "data_retirada", None) or datetime.min, r.id))
+
+        matricula = retiradas_sorted[0].matricula
+        usuario = Usuario.query.get(matricula)
+        nome_usuario = usuario.nome if usuario else f"Matrícula {matricula}"
+
+        # Itens (descrição/código/qtde)
+        linhas_itens: list[str] = []
+        for r in retiradas_sorted:
+            item = Item.query.get(r.codigo_item)
+            if not item:
+                continue
+            unidade = item.unidade or "un."
+            linhas_itens.append(
+                f"• <b>{item.descricao}</b> (cód: <code>{item.codigo_item}</code>) — <b>{r.quantidade}</b> {unidade}"
+            )
+
+        if not linhas_itens:
+            return
+
+        # Campos compartilhados (se forem iguais entre os itens)
+        local_servico = retiradas_sorted[0].local_servico
+        if any((r.local_servico or None) != (local_servico or None) for r in retiradas_sorted):
+            local_servico = None
+
+        observacao = retiradas_sorted[0].observacao
+        if any((r.observacao or None) != (observacao or None) for r in retiradas_sorted):
+            observacao = None
+
+        data_base = retiradas_sorted[-1].data_retirada
+        data_fmt = TimeService.format_local(data_base, "%d/%m/%Y %H:%M")
+
+        total_itens = len(linhas_itens)
+        total_qtde = sum(int(getattr(r, "quantidade", 0) or 0) for r in retiradas_sorted)
+
+        message = "📤 <b>RETIRADA MÚLTIPLA DE FERRAMENTAS</b>\n\n"
+        message += f"👤 <b>Funcionário:</b> {nome_usuario}\n"
+        message += f"📅 <b>Data:</b> {data_fmt}\n"
+        message += f"📦 <b>Itens:</b> {total_itens} (qtde total {total_qtde})\n\n"
+        message += "\n".join(linhas_itens)
+
+        if local_servico:
+            message += f"\n\n📍 <b>Local:</b> {local_servico}"
+        if observacao:
+            message += f"\n📝 <b>Obs:</b> {observacao}"
+
+        admins = (
+            db.session.query(TelegramUser)
+            .join(Usuario, Usuario.matricula == TelegramUser.matricula)
+            .filter(Usuario.is_admin == 1)
+            .filter(TelegramUser.enabled == True)
+            .filter(TelegramUser.chat_id.isnot(None))
+            .all()
+        )
+
+        # Idempotência por conjunto de retiradas
+        ids = [str(r.id) for r in retiradas_sorted]
+        digest = hashlib.sha1(",".join(ids).encode("utf-8")).hexdigest()[:16]
+
+        for admin in admins:
+            try:
+                key = f"tool_withdraw_batch:{matricula}:{digest}:admin:{admin.chat_id}"
+                TelegramService.enqueue_outbox_message(
+                    chat_id=str(admin.chat_id),
+                    recipient_name=admin.usuario.nome if getattr(admin, "usuario", None) else None,
+                    message_type="tool_withdraw_batch",
+                    message_text=message,
+                    idempotency_key=key,
+                    commit=False,
+                )
+            except Exception:
+                pass
+
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
     
     def devolver_ferramenta(self, retirada_id: int, observacao: str | None = None):
         """Registra devolução de ferramenta."""
@@ -128,7 +294,7 @@ class FerramentasService:
         """Envia notificação de devolução de ferramenta via Telegram."""
         from .telegram_service import TelegramService
         from ..models import TelegramUser
-        from .time_service import TimeService
+        from ..utils.time_service import TimeService
         
         if not TelegramService.is_enabled():
             return
@@ -189,7 +355,10 @@ class FerramentasService:
         # Enviar para administradores usando sistema de outbox com idempotência
         admins = (
             db.session.query(TelegramUser)
-            .filter(TelegramUser.is_admin == True, TelegramUser.chat_id.isnot(None))
+            .join(Usuario, Usuario.matricula == TelegramUser.matricula)
+            .filter(Usuario.is_admin == 1)
+            .filter(TelegramUser.enabled == True)
+            .filter(TelegramUser.chat_id.isnot(None))
             .all()
         )
         

@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from typing import Dict, Tuple
 from ..models import Item
-from ..extensions import db
 
 
 class EmbalagemService:
@@ -155,6 +154,90 @@ class EmbalagemService:
         soltas = item.estoque_unidades_soltas or 0
         
         return (embalagens * item.unidades_por_embalagem) + soltas
+
+    @staticmethod
+    def tentar_sincronizar_estoque_de_legacy(item: Item) -> bool:
+        """Tenta sincronizar o estoque novo (embalagens/unidades soltas) a partir do saldo legado.
+
+        Contexto:
+        - O sistema legado calcula saldo via somatório de entradas/saídas/ajustes.
+        - O sistema novo de embalagens usa os campos `Item.estoque_embalagens` e
+          `Item.estoque_unidades_soltas`.
+
+        Problema comum:
+        - Itens antigos podem ter saldo legado positivo (ex.: 1 caixa), mas o estoque novo
+          permanece em 0 embalagens, causando "Saldo insuficiente" ao retirar unidades.
+
+        Heurística (conservadora):
+        - Só sincroniza quando o item tem embalagem e o estoque novo ainda não tem embalagens.
+        - Usa o saldo legado apenas quando ele parece inteiro (caso típico de caixas/pacotes).
+        - Nunca diminui o estoque novo; só aumenta quando o legado implicar mais unidades.
+
+        Retorna True quando realizou sincronização (sem commit).
+        """
+        if not EmbalagemService.tem_embalagem(item):
+            return False
+
+        unidades_por = float(item.unidades_por_embalagem or 0)
+        if unidades_por <= 0:
+            return False
+
+        try:
+            estoque_emb_atual = float(item.estoque_embalagens or 0)
+            estoque_soltas_atual = float(item.estoque_unidades_soltas or 0)
+        except Exception:
+            estoque_emb_atual = 0.0
+            estoque_soltas_atual = 0.0
+
+        try:
+            saldo_legacy = float(item.get_saldo_atual() or 0)
+        except Exception:
+            return False
+
+        if saldo_legacy <= 0:
+            return False
+
+        saldo_legacy_int = int(round(saldo_legacy))
+        if abs(saldo_legacy - saldo_legacy_int) > 1e-6:
+            # Saldo legado fracionário é ambíguo; não sincroniza automaticamente.
+            return False
+
+        # Proteção contra valores absurdos (evita explosões em casos de unidade errada).
+        if saldo_legacy_int > 100000:
+            return False
+
+        # Caso 1: já existem embalagens no sistema novo, mas o legado sugere mais.
+        # Só aumenta (nunca diminui) e só quando não há unidades soltas.
+        if estoque_emb_atual > 0:
+            if estoque_soltas_atual != 0:
+                return False
+            if saldo_legacy_int <= int(round(estoque_emb_atual)):
+                return False
+            item.estoque_embalagens = float(saldo_legacy_int)
+            item.estoque_unidades_soltas = float(estoque_soltas_atual)
+            return True
+
+        unidades_implicadas = float(saldo_legacy_int) * unidades_por
+        estoque_total_atual = (estoque_emb_atual * unidades_por) + estoque_soltas_atual
+
+        # Caso 2: estoque novo aparenta estar "não inicializado" (sem embalagens)
+        # e com poucas unidades soltas (<= 1 embalagem).
+        if estoque_total_atual > unidades_por:
+            return False
+
+        # Só sincroniza se o legado implicar mais unidades do que o estoque atual.
+        if unidades_implicadas <= estoque_total_atual:
+            return False
+
+        # Para evitar inflar estoque por ruído legado vs soltas, aplica esta regra:
+        # - se já existem unidades soltas registradas, preserva-as (normalizando para < unidades_por)
+        # - caso contrário, inicia com 0 soltas.
+        if estoque_soltas_atual >= unidades_por:
+            estoque_soltas_atual = float(estoque_soltas_atual % unidades_por)
+
+        item.estoque_embalagens = float(saldo_legacy_int)
+        item.estoque_unidades_soltas = float(estoque_soltas_atual)
+        return True
     
     @staticmethod
     def formatar_estoque(item: Item) -> str:

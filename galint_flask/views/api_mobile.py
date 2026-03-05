@@ -1352,8 +1352,8 @@ def retirar_mobile(current_user: Usuario):
                 "quantidade_restante": restante,
             }
 
-        # Validar saldo considerando sistema de embalagens
-        from galint_flask.services.embalagem_service import EmbalagemService
+        # Validar/Processar saldo considerando sistema de embalagens
+        from galint_flask.services.embalagem_service import EmbalagemService, embalagem_service
         
         # Determinar se a retirada é em embalagens ou unidades
         em_embalagens = False
@@ -1364,18 +1364,24 @@ def retirar_mobile(current_user: Usuario):
             em_embalagens = False
             quantidade_operacao = float(retirada_unidades_soltas_raw)
         
-        if EmbalagemService.tem_embalagem(item) and not usa_fracao:
-            # Sistema de embalagens: calcular saldo em unidades totais
-            saldo_atual_unidades = EmbalagemService.calcular_estoque_total(item)
-            
-            # Converter quantidade para unidades se necessário
+        usa_embalagens = EmbalagemService.tem_embalagem(item) and not usa_fracao
+        saldo_atual = 0.0
+        if usa_embalagens:
+            # Tenta sincronizar estoque novo a partir do legado (itens antigos)
+            try:
+                EmbalagemService.tentar_sincronizar_estoque_de_legacy(item)
+            except Exception:
+                pass
+
+            try:
+                saldo_atual_unidades = float(EmbalagemService.calcular_estoque_total(item) or 0)
+            except Exception:
+                saldo_atual_unidades = 0.0
+
+            quantidade_em_unidades = float(quantidade_operacao or 0)
             if em_embalagens:
-                # Retirada em embalagens: converter para unidades
-                quantidade_em_unidades = quantidade_operacao * (item.unidades_por_embalagem or 1)
-            else:
-                # Retirada em unidades: usar quantidade diretamente
-                quantidade_em_unidades = quantidade_operacao
-            
+                quantidade_em_unidades = float(quantidade_operacao or 0) * float(item.unidades_por_embalagem or 1)
+
             if saldo_atual_unidades < quantidade_em_unidades:
                 return jsonify({
                     "success": False,
@@ -1388,7 +1394,7 @@ def retirar_mobile(current_user: Usuario):
             except Exception:
                 saldo_atual = 0.0
 
-            if saldo_atual < quantidade_operacao:
+            if saldo_atual < float(quantidade_operacao or 0):
                 return jsonify({
                     "success": False,
                     "message": f"Saldo insuficiente. Disponível: {int(saldo_atual) if saldo_atual.is_integer() else saldo_atual}",
@@ -1410,6 +1416,19 @@ def retirar_mobile(current_user: Usuario):
                 }), 400
         else:
             retirante_user = current_user
+
+        # Debitar estoque de embalagens/unidades soltas (quando aplicável)
+        if usa_embalagens:
+            novas_emb, novas_soltas, sucesso = embalagem_service.processar_saida(
+                item, float(quantidade_operacao or 0), bool(em_embalagens)
+            )
+            if not sucesso:
+                return jsonify({
+                    "success": False,
+                    "message": "Saldo insuficiente para a retirada solicitada",
+                }), 400
+            item.estoque_embalagens = novas_emb
+            item.estoque_unidades_soltas = novas_soltas
 
         saida = Saida()
         saida.codigo_item = item.codigo_item
@@ -1457,7 +1476,15 @@ def retirar_mobile(current_user: Usuario):
                     RetiradaFerramenta.status == 'em_uso'
                 ).scalar() or 0
                 
-                saldo_disponivel_ferramenta = saldo_atual - quantidade_em_uso
+                try:
+                    if usa_embalagens:
+                        saldo_atual_ferramenta = float(EmbalagemService.calcular_estoque_total(item) or 0)
+                    else:
+                        saldo_atual_ferramenta = float(item.get_saldo_atual() or 0)
+                except Exception:
+                    saldo_atual_ferramenta = 0.0
+
+                saldo_disponivel_ferramenta = saldo_atual_ferramenta - quantidade_em_uso
                 
                 if saldo_disponivel_ferramenta < qtd:
                     db.session.rollback()
@@ -1486,7 +1513,10 @@ def retirar_mobile(current_user: Usuario):
         db.session.commit()
 
         try:
-            novo_saldo = round(float(item.get_saldo_atual() or 0), 6)
+            if usa_embalagens:
+                novo_saldo = round(float(EmbalagemService.calcular_estoque_total(item) or 0), 6)
+            else:
+                novo_saldo = round(float(item.get_saldo_atual() or 0), 6)
         except Exception:
             novo_saldo = None
 

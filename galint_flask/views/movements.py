@@ -251,39 +251,62 @@ def registrar_saida_multipla():
                 resultados.append({"index": idx, "codigo": codigo, "success": False, "message": "Quantidade inválida"})
                 continue
             
+            savepoint = None
             try:
+                savepoint = db.session.begin_nested()
+
                 item = Item.query.filter_by(codigo_item=codigo).first()
                 if not item:
                     raise ValueError("Item não encontrado")
                 
                 # Verificar saldo considerando sistema de embalagens
-                from galint_flask.services.embalagem_service import EmbalagemService
-                
-                if EmbalagemService.tem_embalagem(item):
-                    # Sistema de embalagens: calcular saldo em unidades totais
-                    saldo_atual_unidades = EmbalagemService.calcular_estoque_total(item)
-                    
-                    # Converter quantidade para unidades se necessário
+                from galint_flask.services.embalagem_service import EmbalagemService, embalagem_service
+
+                usa_embalagens = EmbalagemService.tem_embalagem(item) and em_embalagens is not None
+                saldo_atual = 0.0
+                saldo_atual_unidades = 0.0
+
+                if usa_embalagens:
+                    # Itens antigos podem ter saldo legado, mas estoque novo zerado.
+                    try:
+                        EmbalagemService.tentar_sincronizar_estoque_de_legacy(item)
+                    except Exception:
+                        pass
+
+                    try:
+                        saldo_atual_unidades = float(EmbalagemService.calcular_estoque_total(item) or 0)
+                    except Exception:
+                        saldo_atual_unidades = 0.0
+
+                    quantidade_em_unidades = float(quantidade)
                     if em_embalagens:
-                        # Saída em embalagens: converter para unidades
-                        quantidade_em_unidades = quantidade * (item.unidades_por_embalagem or 1)
-                    else:
-                        # Saída em unidades: usar quantidade diretamente
-                        quantidade_em_unidades = quantidade
-                    
+                        quantidade_em_unidades = float(quantidade) * float(item.unidades_por_embalagem or 1)
+
                     if saldo_atual_unidades < quantidade_em_unidades:
-                        raise ValueError(f"Saldo insuficiente. Disponível: {int(saldo_atual_unidades)} unidades")
+                        raise ValueError(
+                            f"Saldo insuficiente. Disponível: {int(saldo_atual_unidades)} unidades"
+                        )
                 else:
-                    # Sistema tradicional (sem embalagens)
+                    # Sistema tradicional (sem embalagens) OU saída sem informar em_embalagens
                     try:
                         saldo_atual = float(item.get_saldo_atual() or 0)
                     except Exception:
                         saldo_atual = 0.0
-                    
+
                     if saldo_atual < quantidade:
                         raise ValueError(f"Saldo insuficiente. Disponível: {int(saldo_atual)}")
                 
-                # Criar saída diretamente (como no mobile)
+                # Debitar estoque de embalagens/unidades soltas (quando aplicável)
+                if usa_embalagens:
+                    novas_emb, novas_soltas, sucesso = embalagem_service.processar_saida(
+                        item, float(quantidade), bool(em_embalagens)
+                    )
+                    if not sucesso:
+                        raise ValueError("Saldo insuficiente para a saída solicitada")
+                    item.estoque_embalagens = novas_emb
+                    item.estoque_unidades_soltas = novas_soltas
+
+                # Criar saída diretamente
                 saida = Saida()
                 saida.codigo_item = item.codigo_item
                 saida.quantidade = quantidade
@@ -291,11 +314,11 @@ def registrar_saida_multipla():
                 saida.data_saida = datetime.now(timezone.utc)
                 saida.observacao = str(observacao or "").upper() if observacao else None
                 saida.local_servico = str(local_servico_geral or "").upper() if local_servico_geral else None
-                
-                # Se tiver parâmetro de embalagem, adicionar
+
+                # Se tiver parâmetro de embalagem, adicionar (caso modelo suporte)
                 if em_embalagens is not None and hasattr(saida, 'em_embalagens'):
                     saida.em_embalagens = em_embalagens
-                
+
                 db.session.add(saida)
                 
                 # Se for ferramenta, criar registro em retiradas_ferramentas
@@ -311,7 +334,13 @@ def registrar_saida_multipla():
                             RetiradaFerramenta.status == 'em_uso'
                         ).scalar() or 0
                         
-                        saldo_disponivel_ferramenta = saldo_atual - quantidade_em_uso
+                        # Ferramentas usam controle tradicional (quantidade em uso vs saldo total)
+                        try:
+                            saldo_atual_ferramenta = float(item.get_saldo_atual() or 0)
+                        except Exception:
+                            saldo_atual_ferramenta = 0.0
+
+                        saldo_disponivel_ferramenta = saldo_atual_ferramenta - quantidade_em_uso
                         
                         if saldo_disponivel_ferramenta < quantidade:
                             raise ValueError(
@@ -335,6 +364,13 @@ def registrar_saida_multipla():
                     current_app.logger.warning(f"Erro ao criar RetiradaFerramenta para {item.codigo_item}: {e}")
                 
                 db.session.flush()
+
+                # Confirma o savepoint deste item (outer commit acontece ao final)
+                try:
+                    savepoint.commit()
+                except Exception:
+                    # Se falhar aqui, cai no except geral abaixo
+                    raise
                 
                 saida_id = saida.id_saida
                 if saida_id:
@@ -354,7 +390,11 @@ def registrar_saida_multipla():
                         "message": "Erro ao criar saída"
                     })
             except Exception as e:
-                db.session.rollback()
+                if savepoint is not None:
+                    try:
+                        savepoint.rollback()
+                    except Exception:
+                        pass
                 resultados.append({
                     "index": idx,
                     "codigo": codigo,
