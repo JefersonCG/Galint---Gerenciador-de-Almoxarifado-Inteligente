@@ -2565,29 +2565,15 @@ class TelegramService:
                 if saldo_atual_kg <= 0:
                     msg += "   • ⚠️ <b>STATUS: ESTOQUE ZERADO</b>\n"
             else:
-                # Tentar usar formato lata+kg mesmo quando não usou view_kg
-                if _lata_ou_balde(item) and kg_por_emb and kg_por_emb > 0:
-                    # Converter para kg se necessário
-                    if unidade_lower not in {"kg", "quilo", "quilos"}:
-                        saldo_atual_kg = saldo_atual * kg_por_emb
-                        if balance_before is not None:
-                            saldo_anterior_kg = float(balance_before) * kg_por_emb
-                            msg += f"   • Saldo anterior: {_fmt_number_pt(saldo_anterior_kg, decimals=3)} KG\n"
-                        msg += f"   • Nova disponibilidade: <b>{_format_latas_mais_kg(saldo_atual_kg, kg_por_emb, item)}</b>\n"
-                    else:
-                        if balance_before is not None:
-                            msg += f"   • Saldo anterior: {_fmt_number_pt(float(balance_before), decimals=3)} KG\n"
-                        msg += f"   • Nova disponibilidade: <b>{_format_latas_mais_kg(saldo_atual, kg_por_emb, item)}</b>\n"
-                else:
-                    # Formato padrão para itens sem embalagem especial
-                    if balance_before is not None:
-                        saldo_anterior = float(balance_before)
-                        msg += f"   • Saldo anterior: {_fmt_amount(saldo_anterior)} {unidade}\n"
-                    elif not has_packaging:
-                        saldo_anterior = saldo_atual + float(saida.quantidade or 0)
-                        msg += f"   • Saldo anterior: {_fmt_amount(saldo_anterior)} {unidade}\n"
-                    msg += f"   • Nova disponibilidade: <b>{_fmt_amount(saldo_atual)} {unidade}</b>\n"
-                
+                # Formato padrão: respeita a unidade registrada SEM conversão
+                if balance_before is not None:
+                    saldo_anterior = float(balance_before)
+                    msg += f"   • Saldo anterior: {_fmt_amount(saldo_anterior)} {unidade}\n"
+                elif not has_packaging:
+                    saldo_anterior = saldo_atual + float(saida.quantidade or 0)
+                    msg += f"   • Saldo anterior: {_fmt_amount(saldo_anterior)} {unidade}\n"
+
+                msg += f"   • Nova disponibilidade: <b>{_fmt_amount(saldo_atual)} {unidade}</b>\n"
                 if saldo_atual <= 0:
                     msg += "   • ⚠️ <b>STATUS: ESTOQUE ZERADO</b>\n"
                 elif saldo_atual < 3:
@@ -2770,29 +2756,15 @@ class TelegramService:
                 if saldo_atual_kg <= 0:
                     msg += "   • ⚠️ <b>STATUS: ESTOQUE ZERADO</b>\n"
             else:
-                # Tentar usar formato lata+kg mesmo quando não usou view_kg
-                if _lata_ou_balde(item) and kg_por_emb and kg_por_emb > 0:
-                    # Converter para kg se necessário
-                    if unidade_lower not in {"kg", "quilo", "quilos"}:
-                        saldo_atual_kg = saldo_atual * kg_por_emb
-                        if balance_before is not None:
-                            saldo_anterior_kg = float(balance_before) * kg_por_emb
-                            msg += f"   • Saldo anterior: {_fmt_number_pt(saldo_anterior_kg, decimals=3)} KG\n"
-                        msg += f"   • Nova disponibilidade: <b>{_format_latas_mais_kg(saldo_atual_kg, kg_por_emb, item)}</b>\n"
-                    else:
-                        if balance_before is not None:
-                            msg += f"   • Saldo anterior: {_fmt_number_pt(float(balance_before), decimals=3)} KG\n"
-                        msg += f"   • Nova disponibilidade: <b>{_format_latas_mais_kg(saldo_atual, kg_por_emb, item)}</b>\n"
-                else:
-                    # Formato padrão para itens sem embalagem especial
-                    if balance_before is not None:
-                        saldo_anterior = float(balance_before)
-                        msg += f"   • Saldo anterior: {_fmt_amount(saldo_anterior)} {unidade}\n"
-                    elif not has_packaging:
-                        saldo_anterior = saldo_atual + float(saida.quantidade or 0)
-                        msg += f"   • Saldo anterior: {_fmt_amount(saldo_anterior)} {unidade}\n"
-                    msg += f"   • Nova disponibilidade: <b>{_fmt_amount(saldo_atual)} {unidade}</b>\n"
-                
+                # Formato padrão: respeita a unidade registrada SEM conversão
+                if balance_before is not None:
+                    saldo_anterior = float(balance_before)
+                    msg += f"   • Saldo anterior: {_fmt_amount(saldo_anterior)} {unidade}\n"
+                elif not has_packaging:
+                    saldo_anterior = saldo_atual + float(saida.quantidade or 0)
+                    msg += f"   • Saldo anterior: {_fmt_amount(saldo_anterior)} {unidade}\n"
+
+                msg += f"   • Nova disponibilidade: <b>{_fmt_amount(saldo_atual)} {unidade}</b>\n"
                 if saldo_atual <= 0:
                     msg += "   • ⚠️ <b>STATUS: ESTOQUE ZERADO</b>\n"
                 elif saldo_atual < 3:
@@ -2959,24 +2931,9 @@ class TelegramService:
             saldo_atual = float(item.get_saldo_atual() or 0)
             saldo_anterior = saldo_atual + float(saida.quantidade or 0)
             unidade = (item.unidade or "unidades").strip()
-            unidade_lower = unidade.lower()
-            
-            kg_por_emb = _kg_por_embalagem(item)
-            
-            # Usar formato lata+kg quando apropriado
-            if _lata_ou_balde(item) and kg_por_emb and kg_por_emb > 0:
-                if unidade_lower not in {"kg", "quilo", "quilos"}:
-                    saldo_atual_kg = saldo_atual * kg_por_emb
-                    saldo_anterior_kg = saldo_anterior * kg_por_emb
-                    msg += f"   • Saldo anterior: {_fmt_number_pt(saldo_anterior_kg, decimals=3)} KG\n"
-                    msg += f"   • Nova disponibilidade: <b>{_format_latas_mais_kg(saldo_atual_kg, kg_por_emb, item)}</b>\n"
-                else:
-                    msg += f"   • Saldo anterior: {_fmt_number_pt(saldo_anterior, decimals=3)} KG\n"
-                    msg += f"   • Nova disponibilidade: <b>{_format_latas_mais_kg(saldo_atual, kg_por_emb, item)}</b>\n"
-            else:
-                msg += f"   • Saldo anterior: {_fmt_amount(saldo_anterior)} {unidade}\n"
-                msg += f"   • Nova disponibilidade: <b>{_fmt_amount(saldo_atual)} {unidade}</b>\n"
-            
+
+            msg += f"   • Saldo anterior: {_fmt_amount(saldo_anterior)} {unidade}\n"
+            msg += f"   • Nova disponibilidade: <b>{_fmt_amount(saldo_atual)} {unidade}</b>\n"
             if saldo_atual <= 0:
                 msg += "   • ⚠️ <b>STATUS: ESTOQUE ZERADO</b>\n"
             elif saldo_atual < 3:
