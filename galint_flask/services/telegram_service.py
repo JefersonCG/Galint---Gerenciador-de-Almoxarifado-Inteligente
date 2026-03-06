@@ -2497,39 +2497,52 @@ class TelegramService:
                     pass
                 return False
 
-            def _kg_por_embalagem(saida: Saida, item: Item) -> float | None:
+            def _unidade_por_embalagem(saida: Saida, item: Item) -> tuple[float, str] | None:
+                """Retorna (valor_por_embalagem, 'KG' ou 'L')."""
+                # Prioridade 1: litros_por_embalagem do item
+                try:
+                    litros_value = getattr(item, "litros_por_embalagem", None)
+                    if litros_value is not None and float(litros_value) > 0:
+                        return (float(litros_value), "L")
+                except Exception:
+                    pass
+                
+                # Prioridade 2: quantidade_total_embalagem da saída (KG)
                 for attr in ("quantidade_total_embalagem",):
                     try:
                         value = getattr(saida, attr, None)
                         if value is not None and float(value) > 0:
-                            return float(value)
+                            return (float(value), "KG")
                     except Exception:
                         continue
+                
+                # Prioridade 3: grandeza_referencia do item (KG)
                 for attr in ("grandeza_referencia", "unidades_por_embalagem"):
                     try:
                         value = getattr(item, attr, None)
                         if value is not None and float(value) > 0:
-                            return float(value)
+                            return (float(value), "KG")
                     except Exception:
                         continue
+                
                 return None
 
-            def _format_latas_mais_kg(total_kg: float, kg_por_emb: float, item: Item) -> str:
-                if kg_por_emb <= 0:
-                    return f"{_fmt_number_pt(total_kg, decimals=3)} KG"
-                latas_int = int(total_kg // kg_por_emb)
-                resto_kg = float(total_kg) - (latas_int * float(kg_por_emb))
-                if abs(resto_kg) < 1e-9:
-                    resto_kg = 0.0
+            def _format_latas_mais_unidade(total_value: float, value_per_emb: float, item: Item, unit_type: str) -> str:
+                if value_per_emb <= 0:
+                    return f"{_fmt_number_pt(total_value, decimals=3)} {unit_type}"
+                latas_int = int(total_value // value_per_emb)
+                resto = float(total_value) - (latas_int * float(value_per_emb))
+                if abs(resto) < 1e-9:
+                    resto = 0.0
 
                 nome_singular = item.get_nome_embalagem() if hasattr(item, "get_nome_embalagem") else "lata"
                 nome_plural = item.get_nome_embalagem_plural() if hasattr(item, "get_nome_embalagem_plural") else "latas"
 
                 if latas_int <= 0:
-                    return f"{_fmt_number_pt(resto_kg, decimals=3)} KG"
+                    return f"{_fmt_number_pt(resto, decimals=3)} {unit_type}"
                 nome_emb = nome_singular if latas_int == 1 else nome_plural
-                if resto_kg > 0:
-                    return f"{latas_int} {nome_emb} + {_fmt_number_pt(resto_kg, decimals=3)} KG"
+                if resto > 0:
+                    return f"{latas_int} {nome_emb} + {_fmt_number_pt(resto, decimals=3)} {unit_type}"
                 return f"{latas_int} {nome_emb}"
 
             try:
@@ -2538,31 +2551,36 @@ class TelegramService:
                 obs_upper = ""
 
             unidade_lower = (unidade or "").strip().lower()
-            kg_por_emb = _kg_por_embalagem(saida, item)
-            usa_view_kg = bool(
-                kg_por_emb
-                and kg_por_emb > 0
+            unidade_info = _unidade_por_embalagem(saida, item)
+            usa_view_fracionada = bool(
+                unidade_info
+                and unidade_info[0] > 0
                 and _lata_ou_balde(item)
                 and (
                     bool(getattr(saida, "quantidade_retirada_em_quilos", None))
                     or bool(getattr(saida, "usou_fracao", False))
                     or "UNIDADE=KG" in obs_upper
-                    or unidade_lower in {"kg", "quilo", "quilos"}
+                    or "UNIDADE=L" in obs_upper
+                    or unidade_lower in {"kg", "quilo", "quilos", "l", "litro", "litros"}
                 )
             )
 
-            if usa_view_kg and balance_before is not None:
-                def _to_kg(value: float) -> float:
-                    if unidade_lower in {"kg", "quilo", "quilos"}:
+            if usa_view_fracionada and balance_before is not None and unidade_info:
+                value_per_emb, unit_type = unidade_info
+                
+                def _to_unit(value: float) -> float:
+                    if unidade_lower in {"kg", "quilo", "quilos"} and unit_type == "KG":
                         return float(value)
-                    return float(value) * float(kg_por_emb)
+                    if unidade_lower in {"l", "litro", "litros"} and unit_type == "L":
+                        return float(value)
+                    return float(value) * float(value_per_emb)
 
-                saldo_anterior_kg = _to_kg(float(balance_before))
-                saldo_atual_kg = _to_kg(float(saldo_atual))
+                saldo_anterior_convertido = _to_unit(float(balance_before))
+                saldo_atual_convertido = _to_unit(float(saldo_atual))
 
-                msg += f"   • Saldo anterior: {_fmt_number_pt(saldo_anterior_kg, decimals=3)} KG\n"
-                msg += f"   • Nova disponibilidade: <b>{_format_latas_mais_kg(saldo_atual_kg, float(kg_por_emb), item)}</b>\n"
-                if saldo_atual_kg <= 0:
+                msg += f"   • Saldo anterior: {_fmt_number_pt(saldo_anterior_convertido, decimals=3)} {unit_type}\n"
+                msg += f"   • Nova disponibilidade: <b>{_format_latas_mais_unidade(saldo_atual_convertido, float(value_per_emb), item, unit_type)}</b>\n"
+                if saldo_atual_convertido <= 0:
                     msg += "   • ⚠️ <b>STATUS: ESTOQUE ZERADO</b>\n"
             else:
                 # Formato padrão: respeita a unidade registrada SEM conversão
@@ -2688,39 +2706,52 @@ class TelegramService:
                     pass
                 return False
 
-            def _kg_por_embalagem(saida: Saida, item: Item) -> float | None:
+            def _unidade_por_embalagem(saida: Saida, item: Item) -> tuple[float, str] | None:
+                """Retorna (valor_por_embalagem, 'KG' ou 'L')."""
+                # Prioridade 1: litros_por_embalagem do item
+                try:
+                    litros_value = getattr(item, "litros_por_embalagem", None)
+                    if litros_value is not None and float(litros_value) > 0:
+                        return (float(litros_value), "L")
+                except Exception:
+                    pass
+                
+                # Prioridade 2: quantidade_total_embalagem da saída (KG)
                 for attr in ("quantidade_total_embalagem",):
                     try:
                         value = getattr(saida, attr, None)
                         if value is not None and float(value) > 0:
-                            return float(value)
+                            return (float(value), "KG")
                     except Exception:
                         continue
+                
+                # Prioridade 3: grandeza_referencia do item (KG)
                 for attr in ("grandeza_referencia", "unidades_por_embalagem"):
                     try:
                         value = getattr(item, attr, None)
                         if value is not None and float(value) > 0:
-                            return float(value)
+                            return (float(value), "KG")
                     except Exception:
                         continue
+                
                 return None
 
-            def _format_latas_mais_kg(total_kg: float, kg_por_emb: float, item: Item) -> str:
-                if kg_por_emb <= 0:
-                    return f"{_fmt_number_pt(total_kg, decimals=3)} KG"
-                latas_int = int(total_kg // kg_por_emb)
-                resto_kg = float(total_kg) - (latas_int * float(kg_por_emb))
-                if abs(resto_kg) < 1e-9:
-                    resto_kg = 0.0
+            def _format_latas_mais_unidade(total_value: float, value_per_emb: float, item: Item, unit_type: str) -> str:
+                if value_per_emb <= 0:
+                    return f"{_fmt_number_pt(total_value, decimals=3)} {unit_type}"
+                latas_int = int(total_value // value_per_emb)
+                resto = float(total_value) - (latas_int * float(value_per_emb))
+                if abs(resto) < 1e-9:
+                    resto = 0.0
 
                 nome_singular = item.get_nome_embalagem() if hasattr(item, "get_nome_embalagem") else "lata"
                 nome_plural = item.get_nome_embalagem_plural() if hasattr(item, "get_nome_embalagem_plural") else "latas"
 
                 if latas_int <= 0:
-                    return f"{_fmt_number_pt(resto_kg, decimals=3)} KG"
+                    return f"{_fmt_number_pt(resto, decimals=3)} {unit_type}"
                 nome_emb = nome_singular if latas_int == 1 else nome_plural
-                if resto_kg > 0:
-                    return f"{latas_int} {nome_emb} + {_fmt_number_pt(resto_kg, decimals=3)} KG"
+                if resto > 0:
+                    return f"{latas_int} {nome_emb} + {_fmt_number_pt(resto, decimals=3)} {unit_type}"
                 return f"{latas_int} {nome_emb}"
 
             try:
@@ -2729,31 +2760,36 @@ class TelegramService:
                 obs_upper = ""
 
             unidade_lower = (unidade or "").strip().lower()
-            kg_por_emb = _kg_por_embalagem(saida, item)
-            usa_view_kg = bool(
-                kg_por_emb
-                and kg_por_emb > 0
+            unidade_info = _unidade_por_embalagem(saida, item)
+            usa_view_fracionada = bool(
+                unidade_info
+                and unidade_info[0] > 0
                 and _lata_ou_balde(item)
                 and (
                     bool(getattr(saida, "quantidade_retirada_em_quilos", None))
                     or bool(getattr(saida, "usou_fracao", False))
                     or "UNIDADE=KG" in obs_upper
-                    or unidade_lower in {"kg", "quilo", "quilos"}
+                    or "UNIDADE=L" in obs_upper
+                    or unidade_lower in {"kg", "quilo", "quilos", "l", "litro", "litros"}
                 )
             )
 
-            if usa_view_kg and balance_before is not None:
-                def _to_kg(value: float) -> float:
-                    if unidade_lower in {"kg", "quilo", "quilos"}:
+            if usa_view_fracionada and balance_before is not None and unidade_info:
+                value_per_emb, unit_type = unidade_info
+                
+                def _to_unit(value: float) -> float:
+                    if unidade_lower in {"kg", "quilo", "quilos"} and unit_type == "KG":
                         return float(value)
-                    return float(value) * float(kg_por_emb)
+                    if unidade_lower in {"l", "litro", "litros"} and unit_type == "L":
+                        return float(value)
+                    return float(value) * float(value_per_emb)
 
-                saldo_anterior_kg = _to_kg(float(balance_before))
-                saldo_atual_kg = _to_kg(float(saldo_atual))
+                saldo_anterior_convertido = _to_unit(float(balance_before))
+                saldo_atual_convertido = _to_unit(float(saldo_atual))
 
-                msg += f"   • Saldo anterior: {_fmt_number_pt(saldo_anterior_kg, decimals=3)} KG\n"
-                msg += f"   • Nova disponibilidade: <b>{_format_latas_mais_kg(saldo_atual_kg, float(kg_por_emb), item)}</b>\n"
-                if saldo_atual_kg <= 0:
+                msg += f"   • Saldo anterior: {_fmt_number_pt(saldo_anterior_convertido, decimals=3)} {unit_type}\n"
+                msg += f"   • Nova disponibilidade: <b>{_format_latas_mais_unidade(saldo_atual_convertido, float(value_per_emb), item, unit_type)}</b>\n"
+                if saldo_atual_convertido <= 0:
                     msg += "   • ⚠️ <b>STATUS: ESTOQUE ZERADO</b>\n"
             else:
                 # Formato padrão: respeita a unidade registrada SEM conversão
