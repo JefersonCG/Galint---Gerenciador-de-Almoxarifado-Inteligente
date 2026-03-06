@@ -18,7 +18,7 @@ function initItemAutocomplete(inputElement, dropdownElement, apiUrl) {
         clearTimeout(debounceTimer);
         const query = this.value.trim();
         
-        if (query.length < 2) {
+        if (query.length < 1) {
             dropdownElement.classList.remove('show');
             return;
         }

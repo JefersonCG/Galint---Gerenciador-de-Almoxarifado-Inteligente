@@ -387,7 +387,7 @@ $${parent.scripts()}
         clearTimeout(debounceTimerMatricula);
         const query = this.value.trim();
         
-        if (query.length < 2) {
+        if (query.length < 1) {
             dropdownMatricula.classList.remove('show');
             return;
         }
@@ -479,7 +479,7 @@ $${parent.scripts()}
         clearTimeout(debounceTimer);
         const query = this.value.trim();
         
-        if (query.length < 2) {
+        if (query.length < 1) {
             dropdown.classList.remove('show');
             return;
         }

@@ -1711,7 +1711,7 @@
         matriculaInput.addEventListener('input', function(e) {
             const query = e.target.value.trim().toLowerCase();
             
-            if (!query || query.length < 2) {
+            if (!query || query.length < 1) {
                 suggestionsDiv.style.display = 'none';
                 return;
             }

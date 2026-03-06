@@ -338,7 +338,7 @@ ${parent.scripts()}
             const query = this.value.trim();
             clearTimeout(debounceTimer);
             
-            if (query.length < 2) {
+            if (query.length < 1) {
                 dropdownElement.classList.remove('show');
                 return;
             }

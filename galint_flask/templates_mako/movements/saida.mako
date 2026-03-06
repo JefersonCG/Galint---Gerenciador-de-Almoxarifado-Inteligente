@@ -453,7 +453,7 @@ $${parent.scripts()}
         const query = this.value.trim();
         clearTimeout(debounceTimerUsuario);
         
-        if (query.length < 2) {
+        if (query.length < 1) {
             dropdownUsuario.classList.remove('show');
             return;
         }
@@ -541,7 +541,7 @@ $${parent.scripts()}
         const query = this.value.trim();
         clearTimeout(debounceTimerCodigo);
         
-        if (query.length < 2) {
+        if (query.length < 1) {
             dropdownCodigo.classList.remove('show');
             return;
         }
