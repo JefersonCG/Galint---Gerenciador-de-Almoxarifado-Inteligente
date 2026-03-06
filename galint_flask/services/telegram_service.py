@@ -2194,9 +2194,15 @@ class TelegramService:
 
     @staticmethod
 
-    def _format_balance_totals(item: Item, prefix: str = "   ") -> str:
+    def _format_balance_totals(item: Item, prefix: str = "   ", saldo_override: float = None) -> str:
 
-        """Gera linhas de saldo total em Kg/Litros/Metros e detalhes de caixa/pacote."""
+        """Gera linhas de saldo total em Kg/Litros/Metros e detalhes de caixa/pacote.
+        
+        Args:
+            item: Item do estoque
+            prefix: Prefixo para cada linha
+            saldo_override: Se fornecido, usa este saldo ao invés de ler do banco (útil em notificações)
+        """
 
         lines: list[str] = []
 
@@ -2231,7 +2237,23 @@ class TelegramService:
 
         try:
 
-            if EmbalagemService and EmbalagemService.tem_embalagem(item):
+            # Se saldo_override foi fornecido, usar ele ao invés de ler do banco
+
+            if saldo_override is not None:
+
+                saldo_total_units = float(saldo_override)
+
+                # Para itens com embalagens, calcular quantas embalagens + soltas baseado no saldo
+
+                if EmbalagemService and EmbalagemService.tem_embalagem(item):
+
+                    unidades_por = item.unidades_por_embalagem or 1
+
+                    embalagens = int(saldo_total_units // unidades_por)
+
+                    soltas = saldo_total_units % unidades_por
+
+            elif EmbalagemService and EmbalagemService.tem_embalagem(item):
 
                 embalagens = item.estoque_embalagens or 0
 
@@ -2319,7 +2341,7 @@ class TelegramService:
 
         if EmbalagemService and EmbalagemService.tem_rolo_legacy(item):
 
-            total_metros = (item.get_saldo_atual() or 0) * (item.grandeza_referencia or 0)
+            total_metros = (saldo_total_units or 0) * (item.grandeza_referencia or 0)
 
         elif EmbalagemService and EmbalagemService.tem_embalagem(item) and tipo_emb == "rolo":
 
@@ -2329,7 +2351,7 @@ class TelegramService:
 
             # Para ROLO usando campo unidade (legacy) com unidades_por_embalagem configurado
 
-            total_metros = (item.get_saldo_atual() or 0) * (item.unidades_por_embalagem or 0)
+            total_metros = (saldo_total_units or 0) * (item.unidades_por_embalagem or 0)
 
         elif unidade_raw in ("metro", "metros", "m"):
 
@@ -2349,7 +2371,7 @@ class TelegramService:
 
             # Para PACOTE/CAIXA usando campo unidade (legacy) com unidades_por_embalagem configurado
 
-            total_interno_unidades = (item.get_saldo_atual() or 0) * (item.unidades_por_embalagem or 0)
+            total_interno_unidades = (saldo_total_units or 0) * (item.unidades_por_embalagem or 0)
 
 
 
@@ -2405,14 +2427,19 @@ class TelegramService:
             "líquido": "💧",
         }
         emoji = emoji_map.get(categoria.lower(), "📦")
+        
+        # Determinar se é ferramenta ou material
+        is_ferramenta = "ferrament" in categoria.lower()
+        tipo_item = "🔧 FERRAMENTA" if is_ferramenta else "📦 MATERIAL"
 
         msg = f"📤 <b>NOVA RETIRADA REGISTRADA</b>\n\n"
         msg += f"━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        msg += f"{tipo_item}\n"
         msg += f"{emoji} <b>{item.descricao}</b>\n"
         msg += f"━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
         msg += f"👤 <b>VOCÊ RETIROU</b>\n"
         msg += f"   • Data/Hora: {data_fmt}\n\n"
-        msg += f"📋 <b>INFORMAÇÕES DO MATERIAL</b>\n"
+        msg += f"📋 <b>INFORMAÇÕES</b>\n"
         msg += f"   • Categoria: {categoria}\n"
         msg += f"   • Quantidade retirada: {quantidade_fmt}\n"
         if hasattr(item, "lote") and item.lote:
@@ -2538,14 +2565,29 @@ class TelegramService:
                 if saldo_atual_kg <= 0:
                     msg += "   • ⚠️ <b>STATUS: ESTOQUE ZERADO</b>\n"
             else:
-                if balance_before is not None:
-                    saldo_anterior = float(balance_before)
-                    msg += f"   • Saldo anterior: {_fmt_amount(saldo_anterior)} {unidade}\n"
-                elif not has_packaging:
-                    saldo_anterior = saldo_atual + float(saida.quantidade or 0)
-                    msg += f"   • Saldo anterior: {_fmt_amount(saldo_anterior)} {unidade}\n"
-
-                msg += f"   • Nova disponibilidade: <b>{_fmt_amount(saldo_atual)} {unidade}</b>\n"
+                # Tentar usar formato lata+kg mesmo quando não usou view_kg
+                if _lata_ou_balde(item) and kg_por_emb and kg_por_emb > 0:
+                    # Converter para kg se necessário
+                    if unidade_lower not in {"kg", "quilo", "quilos"}:
+                        saldo_atual_kg = saldo_atual * kg_por_emb
+                        if balance_before is not None:
+                            saldo_anterior_kg = float(balance_before) * kg_por_emb
+                            msg += f"   • Saldo anterior: {_fmt_number_pt(saldo_anterior_kg, decimals=3)} KG\n"
+                        msg += f"   • Nova disponibilidade: <b>{_format_latas_mais_kg(saldo_atual_kg, kg_por_emb, item)}</b>\n"
+                    else:
+                        if balance_before is not None:
+                            msg += f"   • Saldo anterior: {_fmt_number_pt(float(balance_before), decimals=3)} KG\n"
+                        msg += f"   • Nova disponibilidade: <b>{_format_latas_mais_kg(saldo_atual, kg_por_emb, item)}</b>\n"
+                else:
+                    # Formato padrão para itens sem embalagem especial
+                    if balance_before is not None:
+                        saldo_anterior = float(balance_before)
+                        msg += f"   • Saldo anterior: {_fmt_amount(saldo_anterior)} {unidade}\n"
+                    elif not has_packaging:
+                        saldo_anterior = saldo_atual + float(saida.quantidade or 0)
+                        msg += f"   • Saldo anterior: {_fmt_amount(saldo_anterior)} {unidade}\n"
+                    msg += f"   • Nova disponibilidade: <b>{_fmt_amount(saldo_atual)} {unidade}</b>\n"
+                
                 if saldo_atual <= 0:
                     msg += "   • ⚠️ <b>STATUS: ESTOQUE ZERADO</b>\n"
                 elif saldo_atual < 3:
@@ -2588,16 +2630,21 @@ class TelegramService:
             "líquido": "💧",
         }
         emoji = emoji_map.get(categoria.lower(), "📦")
+        
+        # Determinar se é ferramenta ou material
+        is_ferramenta = "ferrament" in categoria.lower()
+        tipo_item = "🔧 FERRAMENTA" if is_ferramenta else "📦 MATERIAL"
 
         msg = f"📤 <b>NOVA RETIRADA REGISTRADA</b>\n\n"
         msg += f"━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        msg += f"{tipo_item}\n"
         msg += f"{emoji} <b>{item.descricao}</b>\n"
         msg += f"━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
         msg += "👤 <b>RESPONSÁVEL PELA RETIRADA</b>\n"
         msg += f"   • Nome: {usuario.nome}\n"
         msg += f"   • Matrícula: {usuario.matricula}\n"
         msg += f"   • Data/Hora: {data_fmt}\n\n"
-        msg += "📋 <b>INFORMAÇÕES DO MATERIAL</b>\n"
+        msg += "📋 <b>INFORMAÇÕES</b>\n"
         msg += f"   • Categoria: {categoria}\n"
         msg += f"   • Quantidade retirada: {quantidade_fmt}\n"
         if hasattr(item, "lote") and item.lote:
@@ -2723,14 +2770,29 @@ class TelegramService:
                 if saldo_atual_kg <= 0:
                     msg += "   • ⚠️ <b>STATUS: ESTOQUE ZERADO</b>\n"
             else:
-                if balance_before is not None:
-                    saldo_anterior = float(balance_before)
-                    msg += f"   • Saldo anterior: {_fmt_amount(saldo_anterior)} {unidade}\n"
-                elif not has_packaging:
-                    saldo_anterior = saldo_atual + float(saida.quantidade or 0)
-                    msg += f"   • Saldo anterior: {_fmt_amount(saldo_anterior)} {unidade}\n"
-
-                msg += f"   • Nova disponibilidade: <b>{_fmt_amount(saldo_atual)} {unidade}</b>\n"
+                # Tentar usar formato lata+kg mesmo quando não usou view_kg
+                if _lata_ou_balde(item) and kg_por_emb and kg_por_emb > 0:
+                    # Converter para kg se necessário
+                    if unidade_lower not in {"kg", "quilo", "quilos"}:
+                        saldo_atual_kg = saldo_atual * kg_por_emb
+                        if balance_before is not None:
+                            saldo_anterior_kg = float(balance_before) * kg_por_emb
+                            msg += f"   • Saldo anterior: {_fmt_number_pt(saldo_anterior_kg, decimals=3)} KG\n"
+                        msg += f"   • Nova disponibilidade: <b>{_format_latas_mais_kg(saldo_atual_kg, kg_por_emb, item)}</b>\n"
+                    else:
+                        if balance_before is not None:
+                            msg += f"   • Saldo anterior: {_fmt_number_pt(float(balance_before), decimals=3)} KG\n"
+                        msg += f"   • Nova disponibilidade: <b>{_format_latas_mais_kg(saldo_atual, kg_por_emb, item)}</b>\n"
+                else:
+                    # Formato padrão para itens sem embalagem especial
+                    if balance_before is not None:
+                        saldo_anterior = float(balance_before)
+                        msg += f"   • Saldo anterior: {_fmt_amount(saldo_anterior)} {unidade}\n"
+                    elif not has_packaging:
+                        saldo_anterior = saldo_atual + float(saida.quantidade or 0)
+                        msg += f"   • Saldo anterior: {_fmt_amount(saldo_anterior)} {unidade}\n"
+                    msg += f"   • Nova disponibilidade: <b>{_fmt_amount(saldo_atual)} {unidade}</b>\n"
+                
                 if saldo_atual <= 0:
                     msg += "   • ⚠️ <b>STATUS: ESTOQUE ZERADO</b>\n"
                 elif saldo_atual < 3:
@@ -2761,9 +2823,14 @@ class TelegramService:
             "líquido": "💧",
         }
         emoji = emoji_map.get(categoria.lower(), "📦")
+        
+        # Determinar se é ferramenta ou material
+        is_ferramenta = "ferrament" in categoria.lower()
+        tipo_item = "🔧 FERRAMENTA" if is_ferramenta else "📦 MATERIAL"
 
         msg = f"🔐 <b>CUSTÓDIA PERMANENTE ATRIBUÍDA</b>\n\n"
         msg += f"━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        msg += f"{tipo_item}\n"
         msg += f"{emoji} <b>{item.descricao}</b>\n"
         msg += f"━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
         msg += f"👤 <b>VOCÊ ESTÁ RESPONSÁVEL POR:</b>\n"
@@ -2803,9 +2870,14 @@ class TelegramService:
             "líquido": "💧",
         }
         emoji = emoji_map.get(categoria.lower(), "📦")
+        
+        # Determinar se é ferramenta ou material
+        is_ferramenta = "ferrament" in categoria.lower()
+        tipo_item = "🔧 FERRAMENTA" if is_ferramenta else "📦 MATERIAL"
 
         msg = f"🔐 <b>CUSTÓDIA PERMANENTE ATRIBUÍDA</b>\n\n"
         msg += f"━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        msg += f"{tipo_item}\n"
         msg += f"{emoji} <b>{item.descricao}</b>\n"
         msg += f"━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
         msg += "👤 <b>RESPONSÁVEL PELA CUSTÓDIA</b>\n"
@@ -2832,12 +2904,79 @@ class TelegramService:
                 if abs(value_f - round(value_f)) < 1e-9:
                     return str(int(round(value_f)))
                 return f"{value_f:.{decimals}f}".rstrip("0").rstrip(".")
+            
+            def _fmt_number_pt(value: float, *, decimals: int = 3) -> str:
+                try:
+                    value_f = float(value)
+                except Exception:
+                    return "0"
+                if abs(value_f - round(value_f)) < 1e-9:
+                    return str(int(round(value_f)))
+                txt = f"{value_f:.{decimals}f}".rstrip("0").rstrip(".")
+                return txt.replace(".", ",")
+            
+            def _lata_ou_balde(item: Item) -> bool:
+                try:
+                    if (item.tipo_embalagem_novo or "").strip().lower() in {"lata", "balde"}:
+                        return True
+                except Exception:
+                    pass
+                try:
+                    if (item.unidade or "").strip().lower() in {"lata", "balde"}:
+                        return True
+                except Exception:
+                    pass
+                return False
+            
+            def _kg_por_embalagem(item: Item) -> float | None:
+                for attr in ("grandeza_referencia", "unidades_por_embalagem"):
+                    try:
+                        value = getattr(item, attr, None)
+                        if value is not None and float(value) > 0:
+                            return float(value)
+                    except Exception:
+                        continue
+                return None
+            
+            def _format_latas_mais_kg(total_kg: float, kg_por_emb: float, item: Item) -> str:
+                if kg_por_emb <= 0:
+                    return f"{_fmt_number_pt(total_kg, decimals=3)} KG"
+                latas_int = int(total_kg // kg_por_emb)
+                resto_kg = float(total_kg) - (latas_int * float(kg_por_emb))
+                if abs(resto_kg) < 1e-9:
+                    resto_kg = 0.0
+
+                nome_singular = item.get_nome_embalagem() if hasattr(item, "get_nome_embalagem") else "lata"
+                nome_plural = item.get_nome_embalagem_plural() if hasattr(item, "get_nome_embalagem_plural") else "latas"
+
+                if latas_int <= 0:
+                    return f"{_fmt_number_pt(resto_kg, decimals=3)} KG"
+                nome_emb = nome_singular if latas_int == 1 else nome_plural
+                if resto_kg > 0:
+                    return f"{latas_int} {nome_emb} + {_fmt_number_pt(resto_kg, decimals=3)} KG"
+                return f"{latas_int} {nome_emb}"
 
             saldo_atual = float(item.get_saldo_atual() or 0)
             saldo_anterior = saldo_atual + float(saida.quantidade or 0)
-            unidade = item.unidade or "unidades"
-            msg += f"   • Saldo anterior: {_fmt_amount(saldo_anterior)} {unidade}\n"
-            msg += f"   • Nova disponibilidade: <b>{_fmt_amount(saldo_atual)} {unidade}</b>\n"
+            unidade = (item.unidade or "unidades").strip()
+            unidade_lower = unidade.lower()
+            
+            kg_por_emb = _kg_por_embalagem(item)
+            
+            # Usar formato lata+kg quando apropriado
+            if _lata_ou_balde(item) and kg_por_emb and kg_por_emb > 0:
+                if unidade_lower not in {"kg", "quilo", "quilos"}:
+                    saldo_atual_kg = saldo_atual * kg_por_emb
+                    saldo_anterior_kg = saldo_anterior * kg_por_emb
+                    msg += f"   • Saldo anterior: {_fmt_number_pt(saldo_anterior_kg, decimals=3)} KG\n"
+                    msg += f"   • Nova disponibilidade: <b>{_format_latas_mais_kg(saldo_atual_kg, kg_por_emb, item)}</b>\n"
+                else:
+                    msg += f"   • Saldo anterior: {_fmt_number_pt(saldo_anterior, decimals=3)} KG\n"
+                    msg += f"   • Nova disponibilidade: <b>{_format_latas_mais_kg(saldo_atual, kg_por_emb, item)}</b>\n"
+            else:
+                msg += f"   • Saldo anterior: {_fmt_amount(saldo_anterior)} {unidade}\n"
+                msg += f"   • Nova disponibilidade: <b>{_fmt_amount(saldo_atual)} {unidade}</b>\n"
+            
             if saldo_atual <= 0:
                 msg += "   • ⚠️ <b>STATUS: ESTOQUE ZERADO</b>\n"
             elif saldo_atual < 3:
@@ -5482,7 +5621,9 @@ class TelegramService:
 
                     if item and (EmbalagemService.tem_embalagem(item) or EmbalagemService.tem_rolo_legacy(item)):
 
-                        estoque_str = EmbalagemService.formatar_estoque(item)
+                        # IMPORTANTE: usar saldo_novo calculado, não o valor do banco (pode estar desatualizado)
+
+                        estoque_str = EmbalagemService.formatar_quantidade(item, saldo_novo)
 
                         message_text += f"└─ Saldo atual: <b>{estoque_str}</b>\n\n"
 
@@ -5498,7 +5639,7 @@ class TelegramService:
 
                 if item:
 
-                    totals = TelegramService._format_balance_totals(item, prefix="")
+                    totals = TelegramService._format_balance_totals(item, prefix="", saldo_override=saldo_novo)
 
                     if totals:
 
