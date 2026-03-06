@@ -1,0 +1,690 @@
+{% extends "base.html" %}
+{% block title %}Documentação do Sistema{% endblock %}
+{% block page_header %}
+<h2>Documentação Completa do GALINT</h2>
+<p class="text-muted">Guia completo de funcionalidades e fluxo de dados do sistema.</p>
+{% endblock %}
+{% block content %}
+<style>
+    .doc-section {
+        margin-bottom: 3rem;
+    }
+
+    .doc-card {
+        background: #ffffff;
+        border-left: 4px solid #0d6efd;
+        margin-bottom: 1.5rem;
+    }
+
+    .step-number {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        background: #0d6efd;
+        color: white;
+        border-radius: 50%;
+        font-weight: bold;
+        margin-right: 0.5rem;
+    }
+
+    .flow-diagram {
+        background: #f8f9fa;
+        padding: 1.5rem;
+        border-radius: 8px;
+        border: 2px solid #dee2e6;
+        margin: 1rem 0;
+    }
+
+    .flow-arrow {
+        text-align: center;
+        color: #0d6efd;
+        font-size: 1.5rem;
+        margin: 0.5rem 0;
+    }
+
+    .feature-badge {
+        display: inline-block;
+        padding: 0.35em 0.65em;
+        font-size: 0.875rem;
+        font-weight: 600;
+        line-height: 1;
+        color: #fff;
+        text-align: center;
+        white-space: nowrap;
+        vertical-align: baseline;
+        border-radius: 0.25rem;
+        margin: 0.25rem;
+    }
+</style>
+
+<div class="container py-4">
+    <div class="row">
+        <div class="col-lg-10 mx-auto">
+            <!-- Índice -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <h4 class="card-title mb-3">
+                        <i class="bi bi-list-ul text-primary me-2"></i>
+                        Índice
+                    </h4>
+                    <ul>
+                        <li><a href="#fluxo-geral">Fluxo Geral do Sistema</a></li>
+                        <li><a href="#autenticacao">1. Autenticação e Controle de Acesso</a></li>
+                        <li><a href="#dashboard">2. Dashboard e Visualização</a></li>
+                        <li><a href="#inventario">3. Gestão de Inventário</a></li>
+                        <li><a href="#movimentacoes">4. Movimentações (Entrada/Saída)</a></li>
+                        <li><a href="#fracao">5. Cálculo por Frações (Produtos Líquidos)</a></li>
+                        <li><a href="#notas-fiscais">6. Notas Fiscais</a></li>
+                        <li><a href="#avariados">7. Materiais Avariados e Descarte</a></li>
+                        <li><a href="#backup">8. Backup e Restauração</a></li>
+                        <li><a href="#rede">9. Rede Galint (Compartilhamento Público)</a></li>
+                        <li><a href="#usuarios">10. Gestão de Usuários</a></li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Fluxo Geral -->
+            <div class="doc-section" id="fluxo-geral">
+                <h3 class="mb-3">
+                    <i class="bi bi-diagram-3 text-primary me-2"></i>
+                    Fluxo Geral do Sistema
+                </h3>
+                <div class="flow-diagram">
+                    <div class="text-center fw-bold mb-3">ENTRADA DE DADOS</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="text-center">
+                        <strong>Cadastro de Itens</strong><br>
+                        <small class="text-muted">Descrição, categoria, localização, marca, unidade, estoque
+                            mínimo</small>
+                    </div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="text-center">
+                        <strong>Registro de Notas Fiscais</strong><br>
+                        <small class="text-muted">NF, fornecedor, data, valor (opcional)</small>
+                    </div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="text-center">
+                        <strong>Movimentações de Entrada</strong><br>
+                        <small class="text-muted">Devoluções aumentam quantidade em estoque</small>
+                    </div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="text-center fw-bold my-3">PROCESSAMENTO</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="text-center">
+                        <strong>Dashboard</strong><br>
+                        <small class="text-muted">Indicadores por categoria, alertas de estoque baixo</small>
+                    </div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="text-center">
+                        <strong>Movimentações de Saída</strong><br>
+                        <small class="text-muted">Retiradas diminuem quantidade (com observações e cálculo de
+                            frações)</small>
+                    </div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="text-center">
+                        <strong>Registro de Materiais Avariados</strong><br>
+                        <small class="text-muted">Associados à saída original, com motivo e quantidade</small>
+                    </div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="text-center">
+                        <strong>Relatório de Descarte</strong><br>
+                        <small class="text-muted">Geração de documento .docx para autorização gerencial</small>
+                    </div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="text-center fw-bold mt-3">SAÍDA DE DADOS</div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="text-center">
+                        <strong>Backup Automático/Manual</strong><br>
+                        <small class="text-muted">PostgreSQL (pg_dump)</small>
+                    </div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="text-center">
+                        <strong>Compartilhamento via Rede Galint</strong><br>
+                        <small class="text-muted">Dashboard público protegido por token</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Autenticação -->
+            <div class="doc-section" id="autenticacao">
+                <div class="card doc-card shadow-sm">
+                    <div class="card-body">
+                        <h4 class="card-title mb-3">
+                            <span class="step-number">1</span>
+                            Autenticação e Controle de Acesso
+                        </h4>
+                        <p><strong>Rota:</strong> <code>/login</code></p>
+                        <p><strong>Funcionamento:</strong></p>
+                        <ul>
+                            <li>Sistema utiliza <strong>Flask-Login</strong> para gerenciar sessões</li>
+                            <li>Senhas armazenadas com hash seguro via <strong>Werkzeug</strong></li>
+                            <li>Dois níveis de acesso: <strong>Admin</strong> e <strong>Usuário Padrão</strong></li>
+                            <li>Admins podem: criar backups, restaurar, gerenciar usuários, autorizar descartes</li>
+                            <li>Usuários padrão: visualização e registro de movimentações básicas</li>
+                        </ul>
+                        <p><strong>Fluxo de Dados:</strong></p>
+                        <ol>
+                            <li>Usuário insere nome de usuário e senha</li>
+                            <li>Sistema valida credenciais no banco de dados (tabela <code>users</code>)</li>
+                            <li>Se válido, cria sessão e redireciona para dashboard</li>
+                            <li>Caso contrário, exibe mensagem de erro</li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dashboard -->
+            <div class="doc-section" id="dashboard">
+                <div class="card doc-card shadow-sm">
+                    <div class="card-body">
+                        <h4 class="card-title mb-3">
+                            <span class="step-number">2</span>
+                            Dashboard e Visualização
+                        </h4>
+                        <p><strong>Rota:</strong> <code>/</code> (página inicial)</p>
+                        <p><strong>Funcionamento:</strong></p>
+                        <ul>
+                            <li>Exibe resumo do inventário agrupado por <strong>categoria</strong></li>
+                            <li>Cada categoria mostra: total de itens, quantidade em estoque, alertas de estoque baixo
+                            </li>
+                            <li>Cards coloridos com ícones Bootstrap Icons</li>
+                            <li>Dados atualizados conforme movimentações registradas</li>
+                        </ul>
+                        <p><strong>Fluxo de Dados:</strong></p>
+                        <ol>
+                            <li>Sistema consulta tabela <code>inventory_items</code></li>
+                            <li>Agrupa itens por <code>categoria</code></li>
+                            <li>Calcula totais, médias e identifica itens abaixo do estoque mínimo</li>
+                            <li>Renderiza template <code>dashboard/index.html</code> com dados processados</li>
+                        </ol>
+                        <div class="alert alert-info mt-3">
+                            <i class="bi bi-info-circle me-2"></i>
+                            <strong>Nova Funcionalidade:</strong> Dashboard pode ser compartilhado via <strong>Rede
+                                Galint</strong> com stakeholders externos usando link protegido por token.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Inventário -->
+            <div class="doc-section" id="inventario">
+                <div class="card doc-card shadow-sm">
+                    <div class="card-body">
+                        <h4 class="card-title mb-3">
+                            <span class="step-number">3</span>
+                            Gestão de Inventário
+                        </h4>
+                        <p><strong>Rotas:</strong> <code>/inventario</code>, <code>/inventario/novo</code>,
+                            <code>/inventario/&lt;id&gt;/editar</code>
+                        </p>
+                        <p><strong>Funcionamento:</strong></p>
+                        <ul>
+                            <li>Cadastro completo de itens com campos: descrição, categoria, localização,
+                                <strong>marca/fabricante</strong>, unidade, estoque mínimo
+                            </li>
+                            <li>Listagem com filtros por categoria e busca textual</li>
+                            <li>Edição e exclusão de itens existentes</li>
+                            <li>Validação de dados antes de salvar</li>
+                        </ul>
+                        <p><strong>Fluxo de Dados:</strong></p>
+                        <ol>
+                            <li>Usuário preenche formulário em <code>/inventario/novo</code></li>
+                            <li>Sistema valida campos obrigatórios (descrição, categoria, unidade)</li>
+                            <li>Dados são salvos na tabela <code>inventory_items</code> via SQLAlchemy</li>
+                            <li>Sistema redireciona para listagem com mensagem de sucesso</li>
+                            <li>Para edição, carrega item existente e atualiza campos modificados</li>
+                        </ol>
+                        <div class="mt-3">
+                            <strong>Campos do Modelo:</strong>
+                            <span class="feature-badge bg-secondary">id</span>
+                            <span class="feature-badge bg-secondary">descricao</span>
+                            <span class="feature-badge bg-secondary">categoria</span>
+                            <span class="feature-badge bg-secondary">localizacao</span>
+                            <span class="feature-badge bg-secondary">marca</span>
+                            <span class="feature-badge bg-secondary">unidade</span>
+                            <span class="feature-badge bg-secondary">quantidade</span>
+                            <span class="feature-badge bg-secondary">estoque_minimo</span>
+                            <span class="feature-badge bg-secondary">tipo_id</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Movimentações -->
+            <div class="doc-section" id="movimentacoes">
+                <div class="card doc-card shadow-sm">
+                    <div class="card-body">
+                        <h4 class="card-title mb-3">
+                            <span class="step-number">4</span>
+                            Movimentações (Entrada/Saída)
+                        </h4>
+                        <p><strong>Rotas:</strong> <code>/movimentos</code>, <code>/movimentos/entrada/page</code>,
+                            <code>/movimentos/saida/page</code>
+                        </p>
+                        <p><strong>Funcionamento:</strong></p>
+
+                        <h6 class="mt-3"><i class="bi bi-box-arrow-in-down text-success me-2"></i>Entrada (Devolução):
+                        </h6>
+                        <ul>
+                            <li>Registra devoluções de itens ao estoque</li>
+                            <li>Aumenta quantidade disponível do item</li>
+                            <li>Campos: item, quantidade, observação</li>
+                            <li>Grava na tabela <code>entradas</code></li>
+                        </ul>
+
+                        <h6 class="mt-3"><i class="bi bi-box-arrow-right text-danger me-2"></i>Saída:</h6>
+                        <ul>
+                            <li>Registra retiradas de itens do estoque</li>
+                            <li>Diminui quantidade disponível do item</li>
+                            <li>Campos: item, quantidade, <strong>observação/anotações</strong> (rastreabilidade)</li>
+                            <li>Grava na tabela <code>saidas</code></li>
+                            <li><strong>Nova funcionalidade:</strong> Suporte a cálculo por frações para produtos
+                                líquidos</li>
+                        </ul>
+
+                        <p class="mt-3"><strong>Fluxo de Dados:</strong></p>
+                        <ol>
+                            <li>Usuário seleciona item do inventário (autocomplete ou dropdown)</li>
+                            <li>Insere quantidade e observação</li>
+                            <li>Sistema valida se quantidade disponível é suficiente (para saídas)</li>
+                            <li>Atualiza <code>inventory_items.quantidade</code> (+/- conforme operação)</li>
+                            <li>Registra movimentação na tabela correspondente (<code>entradas</code> ou
+                                <code>saidas</code>)
+                            </li>
+                            <li>Exibe confirmação e atualiza dashboard automaticamente</li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Frações -->
+            <div class="doc-section" id="fracao">
+                <div class="card doc-card shadow-sm">
+                    <div class="card-body">
+                        <h4 class="card-title mb-3">
+                            <span class="step-number">5</span>
+                            Cálculo por Frações (Produtos Líquidos)
+                        </h4>
+                        <p><strong>Módulo:</strong> <code>liquid-fractions.js</code> + <code>saida.mako</code></p>
+                        <p><strong>Funcionamento:</strong></p>
+                        <ul>
+                            <li>Interface dedicada para calcular quantidades de produtos líquidos em frações (galões,
+                                latas, baldes)</li>
+                            <li>Suporta 7 tipos de produtos: Massa Acrílica, Tinta Acrílica, Tinta PVA, Verniz, Selador,
+                                Textura, Esmalte Sintético</li>
+                            <li>Frações disponíveis: 1/4, 1/2, 3/4, 1 (galão/lata/balde completo)</li>
+                            <li><strong>Modo Automático:</strong> Detecta produto selecionado e preenche
+                                unidade automaticamente</li>
+                            <li><strong>Modo Manual:</strong> Permite cálculo sem selecionar item do inventário (usando
+                                apenas tipo de produto)</li>
+                        </ul>
+
+                        <p><strong>Fluxo de Dados:</strong></p>
+                        <ol>
+                            <li>Usuário ativa switch "Calcular por Frações" na página de saída</li>
+                            <li>Seleciona tipo de produto (ex: Tinta Acrílica)</li>
+                            <li>Sistema exibe a unidade padrão (litro ou quilo)</li>
+                            <li>Usuário insere capacidade do recipiente (ex: 18 litros)</li>
+                            <li>Clica em botão de fração desejada (ex: 1/2)</li>
+                            <li>JavaScript calcula:
+                                <ul>
+                                    <li><strong>Usado:</strong> capacidade × fração (na unidade principal)</li>
+                                    <li><strong>Restante:</strong> capacidade - usado (na mesma unidade)</li>
+                                </ul>
+                            </li>
+                            <li>Valores calculados preenchem campos de resultado (somente leitura)</li>
+                            <li>Ao desativar switch, campos são limpos e formulário volta ao padrão</li>
+                        </ol>
+
+                        <div class="alert alert-success mt-3">
+                            <i class="bi bi-lightbulb me-2"></i>
+                            <strong>Exemplo Prático:</strong> Para 1/2 galão de Tinta Acrílica (18L):
+                            <ul class="mb-0 mt-2">
+                                <li>Litros utilizados: 9L (18 × 0.5)</li>
+                                <li>Restante no galão: 9L</li>
+                            </ul>
+                        </div>
+
+                        <div class="mt-3">
+                            <strong>Tipos de Produtos Suportados:</strong>
+                            <span class="feature-badge bg-info">Massa Acrílica</span>
+                            <span class="feature-badge bg-info">Tinta Acrílica</span>
+                            <span class="feature-badge bg-info">Tinta PVA</span>
+                            <span class="feature-badge bg-info">Verniz</span>
+                            <span class="feature-badge bg-info">Selador</span>
+                            <span class="feature-badge bg-info">Textura</span>
+                            <span class="feature-badge bg-info">Esmalte Sintético</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Notas Fiscais -->
+            <div class="doc-section" id="notas-fiscais">
+                <div class="card doc-card shadow-sm">
+                    <div class="card-body">
+                        <h4 class="card-title mb-3">
+                            <span class="step-number">6</span>
+                            Notas Fiscais
+                        </h4>
+                        <p><strong>Rota:</strong> <code>/nf</code></p>
+                        <p><strong>Funcionamento:</strong></p>
+                        <ul>
+                            <li>Registro de documentos fiscais de entrada de mercadorias</li>
+                            <li>Campos: número NF, fornecedor, data de emissão, valor (opcional)</li>
+                            <li>Listagem com busca e filtros</li>
+                            <li>Vinculação opcional com itens do inventário</li>
+                        </ul>
+                        <p><strong>Fluxo de Dados:</strong></p>
+                        <ol>
+                            <li>Usuário acessa formulário de nova nota fiscal</li>
+                            <li>Preenche dados obrigatórios (número, fornecedor, data)</li>
+                            <li>Sistema salva na tabela <code>notas_fiscais</code></li>
+                            <li>Nota fica disponível para consulta e auditoria</li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Avariados -->
+            <div class="doc-section" id="avariados">
+                <div class="card doc-card shadow-sm">
+                    <div class="card-body">
+                        <h4 class="card-title mb-3">
+                            <span class="step-number">7</span>
+                            Materiais Avariados e Descarte
+                        </h4>
+                        <p><strong>Rotas:</strong> <code>/inventario-materiais</code>,
+                            <code>/inventario-materiais/avariados</code>
+                        </p>
+                        <p><strong>Funcionamento:</strong></p>
+
+                        <h6 class="mt-3"><i class="bi bi-exclamation-triangle text-warning me-2"></i>Registro de
+                            Avariados:</h6>
+                        <ul>
+                            <li>Associa material danificado à <strong>saída original</strong></li>
+                            <li>Campos: item, quantidade avariada, motivo, observações</li>
+                            <li>Grava na tabela <code>materiais_avariados</code></li>
+                            <li>Mantém histórico completo de danos</li>
+                        </ul>
+
+                        <h6 class="mt-3"><i class="bi bi-file-earmark-text text-primary me-2"></i>Relatório de Descarte:
+                        </h6>
+                        <ul>
+                            <li>Editor de texto rico estilo <strong>Word</strong> (Quill Editor)</li>
+                            <li>Formatação completa: negrito, itálico, listas, títulos, cores</li>
+                            <li>Geração de documento <strong>.docx</strong> para assinatura do gerente</li>
+                            <li>Download automático do arquivo</li>
+                        </ul>
+
+                        <p><strong>Fluxo de Dados:</strong></p>
+                        <ol>
+                            <li>Usuário registra material avariado vinculado a uma saída específica</li>
+                            <li>Sistema armazena registro com timestamp e responsável</li>
+                            <li>Acessa página de avariados e clica em "Criar Relatório de Descarte"</li>
+                            <li>Editor Quill carrega com template padrão (pode ser editado)</li>
+                            <li>Usuário formata texto conforme necessário</li>
+                            <li>Clica em "Gerar Documento"</li>
+                            <li>Backend usa <strong>python-docx</strong> para converter HTML → .docx</li>
+                            <li>Arquivo é enviado para download com nome
+                                <code>relatorio_descarte_[timestamp].docx</code>
+                            </li>
+                            <li>Registro é salvo na tabela <code>descarte_autorizacoes</code></li>
+                        </ol>
+
+                        <div class="alert alert-warning mt-3">
+                            <i class="bi bi-shield-check me-2"></i>
+                            <strong>Controle de Segurança:</strong> Apenas administradores podem autorizar descartes
+                            finais e gerar documentos oficiais.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Backup -->
+            <div class="doc-section" id="backup">
+                <div class="card doc-card shadow-sm">
+                    <div class="card-body">
+                        <h4 class="card-title mb-3">
+                            <span class="step-number">8</span>
+                            Backup e Restauração
+                        </h4>
+                        <p><strong>Rota:</strong> <code>/configuracoes</code></p>
+                        <p><strong>Funcionamento:</strong></p>
+                        <ul>
+                            <li>Suporte para <strong>PostgreSQL</strong></li>
+                            <li>Backup manual via interface web (apenas admins)</li>
+                            <li>Opção de backup automático agendado (via CLI)</li>
+                            <li>Restauração seletiva de backups anteriores</li>
+                            <li>Gestão de backups: listagem, exclusão, limpeza automática de antigos</li>
+                        </ul>
+
+                        <p><strong>Fluxo de Dados:</strong></p>
+
+                        <h6 class="mt-3">Criação de Backup:</h6>
+                        <ol>
+                            <li>Admin acessa página de configurações</li>
+                            <li>Clica em "Criar Backup"</li>
+                            <li>Sistema identifica tipo de banco configurado:
+                                <ul>
+                                    <li><strong>PostgreSQL:</strong> Executa <code>pg_dump</code> via subprocess</li>
+                                </ul>
+                            </li>
+                            <li>Arquivo salvo com timestamp: <code>galint_backup_YYYYMMDD_HHMMSS.sql</code></li>
+                            <li>Flash message confirma sucesso</li>
+                        </ol>
+
+                        <h6 class="mt-3">Restauração:</h6>
+                        <ol>
+                            <li>Admin seleciona backup da lista</li>
+                            <li>Confirma ação (alerta de sobrescrita de dados)</li>
+                            <li>Sistema para aplicação temporariamente</li>
+                            <li>Restaura banco de dados:
+                                <ul>
+                                    <li><strong>PostgreSQL:</strong> Executa <code>psql</code> para importar dump</li>
+                                </ul>
+                            </li>
+                            <li>Reinicia aplicação com dados restaurados</li>
+                        </ol>
+
+                        <div class="alert alert-danger mt-3">
+                            <i class="bi bi-exclamation-octagon me-2"></i>
+                            <strong>Atenção:</strong> Restaurar backup sobrescreve todos os dados atuais. Certifique-se
+                            de criar um backup antes de restaurar.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Rede Galint -->
+            <div class="doc-section" id="rede">
+                <div class="card doc-card shadow-sm">
+                    <div class="card-body">
+                        <h4 class="card-title mb-3">
+                            <span class="step-number">9</span>
+                            Rede Galint (Compartilhamento Público)
+                        </h4>
+                        <p><strong>Rota:</strong> <code>/rede-galint?token=&lt;TOKEN&gt;</code></p>
+                        <p><strong>Funcionamento:</strong></p>
+                        <ul>
+                            <li>Permite compartilhar dashboard com stakeholders externos (gerentes, auditores,
+                                fornecedores)</li>
+                            <li>Acesso protegido por <strong>token de segurança</strong> configurado em variável de
+                                ambiente</li>
+                            <li>Não requer login, apenas conhecimento do link com token</li>
+                            <li>Visualização <strong>somente leitura</strong> do dashboard</li>
+                            <li>Sem acesso a funcionalidades de edição ou dados sensíveis</li>
+                        </ul>
+
+                        <p><strong>Fluxo de Dados:</strong></p>
+                        <ol>
+                            <li>Admin configura <code>DASHBOARD_SHARE_TOKEN</code> no arquivo <code>.env</code></li>
+                            <li>Acessa página de configurações e copia link da Rede Galint</li>
+                            <li>Compartilha link com stakeholder externo</li>
+                            <li>Stakeholder acessa URL: <code>https://dominio.com/rede-galint?token=ABC123</code></li>
+                            <li>Sistema valida token contra configuração</li>
+                            <li>Se válido, renderiza dashboard público (sem sidebar, sem opções de edição)</li>
+                            <li>Se inválido, retorna erro 403 (Acesso Negado)</li>
+                        </ol>
+
+                        <div class="alert alert-info mt-3">
+                            <i class="bi bi-share me-2"></i>
+                            <strong>Caso de Uso:</strong> Gerente remoto pode acompanhar status do estoque
+                            sem precisar de conta no sistema.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Usuários -->
+            <div class="doc-section" id="usuarios">
+                <div class="card doc-card shadow-sm">
+                    <div class="card-body">
+                        <h4 class="card-title mb-3">
+                            <span class="step-number">10</span>
+                            Gestão de Usuários
+                        </h4>
+                        <p><strong>Rota:</strong> <code>/usuarios</code></p>
+                        <p><strong>Funcionamento:</strong></p>
+                        <ul>
+                            <li>Apenas <strong>administradores</strong> podem gerenciar usuários</li>
+                            <li>Criação de novos usuários com nome, username, senha e nível de acesso</li>
+                            <li>Edição de usuários existentes (alterar senha, promover/rebaixar admin)</li>
+                            <li>Exclusão de usuários (com validação para não excluir si próprio)</li>
+                            <li>Listagem com cards coloridos mostrando setor de cada usuário</li>
+                        </ul>
+
+                        <p><strong>Fluxo de Dados:</strong></p>
+                        <ol>
+                            <li>Admin acessa <code>/usuarios</code></li>
+                            <li>Clica em "Novo Usuário"</li>
+                            <li>Preenche formulário (nome completo, username único, senha forte, checkbox admin)</li>
+                            <li>Sistema valida:
+                                <ul>
+                                    <li>Username não duplicado</li>
+                                    <li>Senha com mínimo 6 caracteres</li>
+                                    <li>Nome completo preenchido</li>
+                                </ul>
+                            </li>
+                            <li>Hash da senha é gerado via <code>generate_password_hash()</code></li>
+                            <li>Usuário salvo na tabela <code>users</code></li>
+                            <li>Listagem atualizada com novo card de usuário</li>
+                        </ol>
+
+                        <div class="mt-3">
+                            <strong>Campos do Modelo User:</strong>
+                            <span class="feature-badge bg-primary">id</span>
+                            <span class="feature-badge bg-primary">username</span>
+                            <span class="feature-badge bg-primary">password_hash</span>
+                            <span class="feature-badge bg-primary">name</span>
+                            <span class="feature-badge bg-primary">is_admin</span>
+                            <span class="feature-badge bg-primary">setor</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tecnologias -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <h4 class="card-title mb-3">
+                        <i class="bi bi-stack text-success me-2"></i>
+                        Stack Tecnológico Completo
+                    </h4>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="fw-bold">Backend:</h6>
+                            <ul>
+                                <li><strong>Flask 3.0.3:</strong> Framework web Python</li>
+                                <li><strong>SQLAlchemy:</strong> ORM para banco de dados</li>
+                                <li><strong>Flask-Login:</strong> Gerenciamento de sessões</li>
+                                <li><strong>Werkzeug:</strong> Hash de senhas e utilitários</li>
+                                <li><strong>python-docx:</strong> Geração de documentos Word</li>
+                                <li><strong>Mako 1.3.5:</strong> Template engine para páginas dinâmicas</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="fw-bold">Frontend:</h6>
+                            <ul>
+                                <li><strong>Bootstrap 5.3.3:</strong> Framework CSS responsivo</li>
+                                <li><strong>Bootstrap Icons:</strong> Biblioteca de ícones</li>
+                                <li><strong>Quill Editor:</strong> Editor WYSIWYG para relatórios</li>
+                                <li><strong>JavaScript Vanilla:</strong> Calculadora de frações, formulários dinâmicos
+                                </li>
+                            </ul>
+                            <h6 class="fw-bold mt-3">Banco de Dados:</h6>
+                            <ul>
+                                <li><strong>PostgreSQL:</strong> Banco principal (produção)</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Arquitetura -->
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h4 class="card-title mb-3">
+                        <i class="bi bi-diagram-2 text-danger me-2"></i>
+                        Arquitetura do Sistema
+                    </h4>
+                    <pre class="bg-light p-3 rounded"><code>galint_flask/
+├── __init__.py              # Factory pattern, inicialização da app
+├── config.py                # Configurações (database, secret key, backup)
+├── models.py                # Modelos SQLAlchemy (User, InventoryItem, etc.)
+├── extensions.py            # Extensões Flask (db, login_manager, migrate)
+├── cli.py                   # Comandos CLI (backup, init-db)
+│
+├── views/                   # Blueprints (rotas)
+│   ├── auth.py              # Login, logout
+│   ├── dashboard.py         # Dashboard e Rede Galint
+│   ├── inventory.py         # CRUD de itens
+│   ├── movements.py         # Entradas e saídas
+│   ├── inventario_materiais.py  # Avariados e descarte
+│   ├── nf.py                # Notas fiscais
+│   ├── users.py             # Gestão de usuários
+│   └── pages.py             # Sobre, configurações
+│
+├── services/                # Lógica de negócio
+│   ├── backup.py            # Backup/restauração
+│   ├── inventory.py         # Operações de inventário
+│   └── users.py             # Operações de usuários
+│
+├── templates/               # Templates Jinja2
+│   ├── base.html            # Layout base
+│   ├── dashboard/
+│   ├── inventory/
+│   ├── movements/
+│   └── ...
+│
+├── templates_mako/          # Templates Mako (movimentações)
+│   ├── base.mako
+│   └── movements/
+│       ├── index.mako
+│       ├── entrada.mako
+│       └── saida.mako
+│
+├── static/
+│   ├── css/                 # Estilos customizados
+│   ├── js/
+│   │   └── liquid-fractions.js  # Calculadora de frações
+│   └── logo/                # Imagens
+│
+└── utils/
+    └── backup.py            # Utilitários de backup</code></pre>
+                </div>
+            </div>
+
+            <!-- Rodapé -->
+            <div class="text-center mt-5 mb-4">
+                <a href="{{ url_for('pages.sobre') }}" class="btn btn-outline-primary">
+                    <i class="bi bi-arrow-left me-2"></i>
+                    Voltar para Sobre
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

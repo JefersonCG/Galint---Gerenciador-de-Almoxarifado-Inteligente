@@ -1,0 +1,216 @@
+{% extends "base.html" %}
+{% block title %}Preferências de Notificações - {{ telegram_user.usuario.nome }}{% endblock %}
+
+{% block page_header %}
+<div class="d-flex justify-content-between align-items-center">
+    <div>
+        <h2><i class="bi bi-bell-fill text-warning me-2"></i>Preferências de Notificações</h2>
+        <p class="text-muted mb-0">
+            <i class="bi bi-person-circle me-1"></i>{{ telegram_user.usuario.nome }} 
+            <span class="badge bg-info ms-2">{{ telegram_user.usuario.cargo or 'Sem cargo' }}</span>
+        </p>
+    </div>
+    <a href="{{ url_for('telegram_config.index') }}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left me-1"></i>Voltar
+    </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-gradient-primary text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="bi bi-funnel-fill me-2"></i>Filtros de Notificações por Categoria
+                        </h5>
+                        <span class="badge bg-light text-dark">
+                            <i class="bi bi-info-circle me-1"></i>Marque as notificações que deseja receber
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="card-body">
+                    <!-- Informações do usuário -->
+                    <div class="alert alert-info d-flex align-items-center mb-4" role="alert">
+                        <i class="bi bi-lightbulb-fill fs-4 me-3"></i>
+                        <div>
+                            <strong>Como funciona:</strong> Selecione abaixo quais tipos de movimentações você deseja 
+                            ser notificado via Telegram. Você pode escolher receber notificações de <strong>retiradas</strong> 
+                            e/ou <strong>devoluções</strong> para cada categoria de material.
+                        </div>
+                    </div>
+
+                    <form method="POST" action="{{ url_for('telegram_config.salvar_preferencias', telegram_user_id=telegram_user.id) }}">
+                        <div class="table-responsive">
+                            <table class="table table-hover table-bordered align-middle">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th style="width: 30%;">
+                                            <i class="bi bi-tags-fill me-2"></i>Categoria
+                                        </th>
+                                        <th class="text-center" style="width: 35%;">
+                                            <i class="bi bi-box-arrow-right text-danger me-2"></i>Retirada
+                                        </th>
+                                        <th class="text-center" style="width: 35%;">
+                                            <i class="bi bi-box-arrow-in-left text-success me-2"></i>Devolução
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for categoria in categorias %}
+                                    <tr>
+                                        <td>
+                                            <strong class="text-primary">
+                                                {% if categoria.key == 'ferramenta' %}
+                                                    <i class="bi bi-tools me-2"></i>
+                                                {% elif categoria.key == 'limpeza' %}
+                                                    <i class="bi bi-droplet-fill me-2"></i>
+                                                {% elif categoria.key == 'eletrico' %}
+                                                    <i class="bi bi-lightning-fill me-2"></i>
+                                                {% elif categoria.key == 'hidraulico' %}
+                                                    <i class="bi bi-water me-2"></i>
+                                                {% elif categoria.key == 'construcao' %}
+                                                    <i class="bi bi-bricks me-2"></i>
+                                                {% elif categoria.key == 'pintura' %}
+                                                    <i class="bi bi-brush-fill me-2"></i>
+                                                {% elif categoria.key == 'piscina' %}
+                                                    <i class="bi bi-water me-2"></i>
+                                                {% elif categoria.key == 'epi' %}
+                                                    <i class="bi bi-shield-fill-check me-2"></i>
+                                                {% endif %}
+                                                {{ categoria.label }}
+                                            </strong>
+                                        </td>
+                                        <td class="text-center">
+                                            <div class="form-check form-switch d-flex justify-content-center">
+                                                <input 
+                                                    class="form-check-input fs-5" 
+                                                    type="checkbox" 
+                                                    role="switch"
+                                                    id="{{ categoria.key }}_withdrawal" 
+                                                    name="{{ categoria.key }}_withdrawal"
+                                                    {% if preferences["notify_" + categoria.key + "_withdrawal"] %}checked{% endif %}
+                                                >
+                                                <label class="form-check-label visually-hidden" for="{{ categoria.key }}_withdrawal">
+                                                    Notificar retirada de {{ categoria.label }}
+                                                </label>
+                                            </div>
+                                        </td>
+                                        <td class="text-center">
+                                            <div class="form-check form-switch d-flex justify-content-center">
+                                                <input 
+                                                    class="form-check-input fs-5" 
+                                                    type="checkbox" 
+                                                    role="switch"
+                                                    id="{{ categoria.key }}_return" 
+                                                    name="{{ categoria.key }}_return"
+                                                    {% if preferences["notify_" + categoria.key + "_return"] %}checked{% endif %}
+                                                >
+                                                <label class="form-check-label visually-hidden" for="{{ categoria.key }}_return">
+                                                    Notificar devolução de {{ categoria.label }}
+                                                </label>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Botões de ação rápida -->
+                        <div class="row mt-4 mb-3">
+                            <div class="col-md-6">
+                                <div class="d-grid gap-2">
+                                    <button type="button" class="btn btn-outline-success" onclick="marcarTodos()">
+                                        <i class="bi bi-check-all me-2"></i>Marcar Todos
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="d-grid gap-2">
+                                    <button type="button" class="btn btn-outline-danger" onclick="desmarcarTodos()">
+                                        <i class="bi bi-x-lg me-2"></i>Desmarcar Todos
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Botão salvar -->
+                        <div class="d-grid gap-2 mt-4">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="bi bi-save-fill me-2"></i>Salvar Preferências
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="card-footer text-muted">
+                    <small>
+                        <i class="bi bi-clock-history me-1"></i>
+                        Última atualização: {{ preferences.updated_at.strftime('%d/%m/%Y %H:%M') if preferences.updated_at else 'Nunca' }}
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function marcarTodos() {
+    document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+        checkbox.checked = true;
+    });
+}
+
+function desmarcarTodos() {
+    document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+        checkbox.checked = false;
+    });
+}
+
+// Feedback visual ao alterar switches
+document.querySelectorAll('.form-check-input').forEach(input => {
+    input.addEventListener('change', function() {
+        const row = this.closest('tr');
+        if (this.checked) {
+            row.style.backgroundColor = '#d1e7dd';
+            setTimeout(() => {
+                row.style.backgroundColor = '';
+            }, 300);
+        } else {
+            row.style.backgroundColor = '#f8d7da';
+            setTimeout(() => {
+                row.style.backgroundColor = '';
+            }, 300);
+        }
+    });
+});
+</script>
+
+<style>
+.bg-gradient-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.table tbody tr {
+    transition: all 0.3s ease;
+}
+
+.table tbody tr:hover {
+    transform: scale(1.01);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.form-check-input:checked {
+    background-color: #198754;
+    border-color: #198754;
+}
+
+.form-check-input {
+    cursor: pointer;
+}
+</style>
+{% endblock %}

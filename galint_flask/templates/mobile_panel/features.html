@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block title %}Feature Flags - Painel Mobile{% endblock %}
+
+{% block page_header %}
+<h2 class="mb-0">Feature Flags</h2>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <strong>Feature Flags</strong>
+            <button class="btn btn-sm btn-outline-secondary" id="refresh-features">
+                <i class="bi bi-arrow-clockwise"></i>
+            </button>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-striped mb-0" id="features-table">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Chave</th>
+                            <th>Nome</th>
+                            <th>Tipo</th>
+                            <th>Min. Versão</th>
+                            <th>Ativa</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const tableBody = document.querySelector('#features-table tbody');
+    const refreshBtn = document.getElementById('refresh-features');
+
+    async function fetchJson(url, options = {}) {
+        const res = await fetch(url, {
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            ...options,
+        });
+        if (!res.ok) throw new Error('Falha na requisição');
+        return res.json();
+    }
+
+    function renderFeatures(features) {
+        tableBody.innerHTML = '';
+        features.forEach((feature) => {
+            const row = document.createElement('tr');
+            const checked = feature.is_enabled ? 'checked' : '';
+            row.innerHTML = `
+                <td>${feature.flag_key}</td>
+                <td>${feature.display_name}</td>
+                <td>${feature.flag_type}</td>
+                <td>${feature.min_app_version || '-'}</td>
+                <td>
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" ${checked} data-flag="${feature.id}">
+                    </div>
+                </td>
+            `;
+            row.querySelector('input[data-flag]').addEventListener('change', async (evt) => {
+                try {
+                    await fetchJson(`/admin/features/${feature.id}`, {
+                        method: 'PUT',
+                        body: JSON.stringify({ is_enabled: evt.target.checked }),
+                    });
+                } catch (err) {
+                    alert('Falha ao atualizar feature.');
+                    evt.target.checked = !evt.target.checked;
+                }
+            });
+            tableBody.appendChild(row);
+        });
+    }
+
+    async function loadFeatures() {
+        try {
+            const resp = await fetchJson('/admin/features');
+            renderFeatures(resp.data || []);
+        } catch (err) {
+            tableBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Erro ao carregar features.</td></tr>';
+        }
+    }
+
+    refreshBtn?.addEventListener('click', loadFeatures);
+    loadFeatures();
+</script>
+{% endblock %}

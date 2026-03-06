@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Backups{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3">Backups</h1>
+    <a class="btn btn-secondary" href="{{ url_for('backups.list_backups') }}">Atualizar</a>
+</div>
+<div class="table-responsive">
+    <table class="table table-dark table-striped">
+        <thead>
+            <tr>
+                <th>Arquivo</th>
+                <th>Tamanho (bytes)</th>
+                <th>Modificado</th>
+                <th>Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for b in backups %}
+            <tr>
+                <td>{{ b.name }}</td>
+                <td>{{ b.size }}</td>
+                <td>{{ b.mtime }}</td>
+                <td>
+                    <form method="post" action="{{ url_for('backups.restore_backup') }}" class="d-inline">
+                        <input type="hidden" name="filename" value="{{ b.name }}">
+                        <button class="btn btn-sm btn-outline-success" type="submit">Restaurar</button>
+                    </form>
+                    <form method="post" action="{{ url_for('backups.delete_backup') }}" class="d-inline"
+                        onsubmit="return confirm('Remover backup?');">
+                        <input type="hidden" name="filename" value="{{ b.name }}">
+                        <button class="btn btn-sm btn-outline-danger" type="submit">Excluir</button>
+                    </form>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="4" class="text-center">Nenhum backup encontrado.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

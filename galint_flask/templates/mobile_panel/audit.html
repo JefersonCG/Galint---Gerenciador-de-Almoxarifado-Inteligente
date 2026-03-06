@@ -1,0 +1,212 @@
+{% extends "base.html" %}
+
+{% block title %}Auditoria - Painel Mobile{% endblock %}
+
+{% block page_header %}
+<h2 class="mb-0">Auditoria</h2>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3">
+    <div class="card">
+        <div class="card-header">
+            <strong>Auditoria de Ações</strong>
+        </div>
+        <div class="card-body">
+            <!-- Filtros -->
+            <div class="row g-2 mb-3">
+                <div class="col-md-2">
+                    <label class="form-label small text-muted">Tipo de Ação</label>
+                    <select class="form-select form-select-sm" id="filter-action-type">
+                        <option value="">Todas</option>
+                        <option value="login">Login</option>
+                        <option value="logout">Logout</option>
+                        <option value="block">Bloqueio</option>
+                        <option value="unblock">Desbloqueio</option>
+                        <option value="update_feature">Atualização Feature</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small text-muted">Resultado</label>
+                    <select class="form-select form-select-sm" id="filter-result">
+                        <option value="">Todos</option>
+                        <option value="success">Sucesso</option>
+                        <option value="failed">Falha</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small text-muted">Período</label>
+                    <select class="form-select form-select-sm" id="filter-time">
+                        <option value="">Todos</option>
+                        <option value="24h">Últimas 24h</option>
+                        <option value="7d">Últimos 7 dias</option>
+                        <option value="30d">Últimos 30 dias</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small text-muted">Device ID</label>
+                    <input type="text" class="form-control form-control-sm" placeholder="ID" id="filter-device">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small text-muted">Usuário</label>
+                    <input type="text" class="form-control form-control-sm" placeholder="Matrícula" id="filter-user">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small text-muted">Admin</label>
+                    <input type="text" class="form-control form-control-sm" placeholder="Matrícula" id="filter-admin">
+                </div>
+            </div>
+            <div class="d-flex gap-2 mb-3">
+                <button class="btn btn-sm btn-primary" id="apply-filters">
+                    <i class="bi bi-funnel"></i> Aplicar Filtros
+                </button>
+                <button class="btn btn-sm btn-outline-secondary" id="clear-filters">
+                    <i class="bi bi-x-circle"></i> Limpar
+                </button>
+                <button class="btn btn-sm btn-outline-secondary" id="refresh-audit">
+                    <i class="bi bi-arrow-clockwise"></i> Atualizar
+                </button>
+                <span class="text-muted small ms-auto align-self-center" id="result-count">-</span>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-striped table-hover table-sm mb-0" id="audit-table">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 160px;">Data/Hora</th>
+                            <th>Ação</th>
+                            <th style="width: 100px;">Resultado</th>
+                            <th>Usuário</th>
+                            <th>Device</th>
+                            <th>Admin</th>
+                            <th>Detalhes</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const tableBody = document.querySelector('#audit-table tbody');
+    const resultCount = document.getElementById('result-count');
+
+    async function fetchJson(url, options = {}) {
+        const res = await fetch(url, {
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            ...options,
+        });
+        if (!res.ok) throw new Error('Falha na requisição');
+        return res.json();
+    }
+
+    function resultBadge(result) {
+        if (result === 'success') return '<span class="badge bg-success">Sucesso</span>';
+        if (result === 'failed') return '<span class="badge bg-danger">Falha</span>';
+        return `<span class="badge bg-secondary">${result || '-'}</span>`;
+    }
+
+    function actionLabel(action) {
+        const labels = {
+            login: 'Login',
+            logout: 'Logout',
+            block: 'Bloqueio',
+            unblock: 'Desbloqueio',
+            update_feature: 'Atualização Feature',
+        };
+        return labels[action] || action || '-';
+    }
+
+    function formatDetails(details) {
+        if (!details || typeof details !== 'object') return '-';
+        const keys = Object.keys(details);
+        if (keys.length === 0) return '-';
+        if (keys.length === 1) return `${keys[0]}: ${details[keys[0]]}`;
+        return `${keys.length} campos`;
+    }
+
+    function renderLogs(logs) {
+        tableBody.innerHTML = '';
+        
+        if (logs.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">Nenhum registro encontrado</td></tr>';
+            resultCount.textContent = '0 registros';
+            return;
+        }
+
+        resultCount.textContent = `${logs.length} registro${logs.length > 1 ? 's' : ''}`;
+
+        logs.forEach((log) => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td class="small">${log.occurred_at ? new Date(log.occurred_at).toLocaleString('pt-BR') : '-'}</td>
+                <td>${actionLabel(log.action_type)}</td>
+                <td>${resultBadge(log.action_result)}</td>
+                <td class="font-monospace small">${log.user_id || '-'}</td>
+                <td class="font-monospace small">${log.device_id || '-'}</td>
+                <td class="font-monospace small">${log.admin_id || '-'}</td>
+                <td class="small text-muted">${formatDetails(log.details)}</td>
+            `;
+            tableBody.appendChild(row);
+        });
+    }
+
+    async function loadAudit() {
+        try {
+            const params = new URLSearchParams();
+            
+            const actionType = document.getElementById('filter-action-type').value;
+            const result = document.getElementById('filter-result').value;
+            const timeRange = document.getElementById('filter-time').value;
+            const deviceId = document.getElementById('filter-device').value.trim();
+            const userId = document.getElementById('filter-user').value.trim();
+            const adminId = document.getElementById('filter-admin').value.trim();
+
+            if (actionType) params.set('action_type', actionType);
+            if (result) params.set('action_result', result);
+            if (timeRange) params.set('time_range', timeRange);
+            if (deviceId) params.set('device_id', deviceId);
+            if (userId) params.set('user_id', userId);
+            if (adminId) params.set('admin_id', adminId);
+            params.set('limit', '500');
+
+            const resp = await fetchJson(`/admin/audit?${params.toString()}`);
+            renderLogs(resp.data || []);
+        } catch (err) {
+            tableBody.innerHTML = '<tr><td colspan="7" class="text-center text-danger py-4">Erro ao carregar auditoria</td></tr>';
+            resultCount.textContent = 'Erro';
+        }
+    }
+
+    function clearFilters() {
+        document.getElementById('filter-action-type').value = '';
+        document.getElementById('filter-result').value = '';
+        document.getElementById('filter-time').value = '';
+        document.getElementById('filter-device').value = '';
+        document.getElementById('filter-user').value = '';
+        document.getElementById('filter-admin').value = '';
+        loadAudit();
+    }
+
+    // Event listeners
+    document.getElementById('apply-filters')?.addEventListener('click', loadAudit);
+    document.getElementById('clear-filters')?.addEventListener('click', clearFilters);
+    document.getElementById('refresh-audit')?.addEventListener('click', loadAudit);
+
+    // Aplicar filtro ao pressionar Enter nos inputs
+    ['filter-device', 'filter-user', 'filter-admin'].forEach(id => {
+        document.getElementById(id)?.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') loadAudit();
+        });
+    });
+
+    // Carregar na inicialização
+    loadAudit();
+</script>
+{% endblock %}

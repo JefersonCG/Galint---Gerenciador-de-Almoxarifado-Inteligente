@@ -1,0 +1,361 @@
+{% extends "base.html" %}
+
+{% block title %}Relatório por Item - GALINT{% endblock %}
+
+{% block extra_css %}
+<style>
+    .search-card {
+        background: var(--bs-dark);
+        border: 1px solid var(--bs-border-color);
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .item-info-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 8px;
+        padding: 1.5rem;
+        color: white;
+        margin-bottom: 1.5rem;
+    }
+    
+    .results-table {
+        background: var(--bs-dark);
+        border-radius: 8px;
+        overflow: hidden;
+    }
+    
+    .result-row {
+        border-bottom: 1px solid var(--bs-border-color);
+        transition: background-color 0.2s;
+    }
+    
+    .result-row:hover {
+        background-color: rgba(255, 255, 255, 0.05);
+    }
+    
+    .periodo-badge {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        background-color: #dc3545;
+        color: white;
+        font-weight: 600;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 3rem;
+        color: var(--bs-light);
+    }
+    
+    .empty-state i {
+        font-size: 4rem;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
+    
+    /* Forçar texto branco para melhor legibilidade */
+    .form-label, .text-muted, label, p {
+        color: var(--bs-light) !important;
+    }
+</style>
+{% endblock %}
+
+{% block page_header %}
+<div class="d-flex justify-content-between align-items-center">
+    <div>
+        <h2 class="mb-1" style="color: #000 !important;">🔍 Relatório por Item</h2>
+        <p class="text-muted mb-0" style="color: #000 !important;">Busque quem retirou um material ou ferramenta específica</p>
+    </div>
+    <a href="{{ url_for('reports.index') }}" class="btn btn-outline-light">
+        <i class="bi bi-arrow-left"></i> Voltar
+    </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<!-- Formulário de Busca -->
+<div class="search-card">
+    <form method="get" action="{{ url_for('reports.by_item') }}">
+        <div class="row g-3 mb-3">
+            <div class="col-md-12">
+                <label class="form-label" style="color: white !important;">
+                    <i class="bi bi-funnel"></i> Tipo de Relatório
+                </label>
+                <div class="btn-group w-100" role="group">
+                    <input type="radio" class="btn-check" name="type" id="type_item" value="item" {% if search_type == 'item' or not search_type %}checked{% endif %}>
+                    <label class="btn btn-outline-primary" for="type_item">
+                        <i class="bi bi-box-seam"></i> Buscar por Item
+                    </label>
+                    
+                    <input type="radio" class="btn-check" name="type" id="type_usuario" value="usuario" {% if search_type == 'usuario' %}checked{% endif %}>
+                    <label class="btn btn-outline-success" for="type_usuario">
+                        <i class="bi bi-person"></i> Buscar por Funcionário
+                    </label>
+                </div>
+            </div>
+        </div>
+        <div class="row g-3">
+            <div class="col-md-5">
+                <label class="form-label" style="color: white !important;">
+                    <i class="bi bi-search"></i> <span id="search_label">Buscar (Nome/Código/Matrícula)</span>
+                </label>
+                <input 
+                    type="text" 
+                    class="form-control" 
+                    name="search" 
+                    value="{{ search_term }}"
+                    placeholder="Digite para buscar..."
+                    required
+                    autocomplete="off">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label" style="color: white !important;">
+                    <i class="bi bi-calendar-range"></i> Período
+                </label>
+                <select class="form-select" name="period">
+                    <option value="7" {% if period_days == 7 %}selected{% endif %}>Últimos 7 dias</option>
+                    <option value="30" {% if period_days == 30 %}selected{% endif %}>Últimos 30 dias</option>
+                    <option value="90" {% if period_days == 90 %}selected{% endif %}>Últimos 3 meses</option>
+                    <option value="180" {% if period_days == 180 %}selected{% endif %}>Últimos 6 meses</option>
+                    <option value="365" {% if period_days == 365 %}selected{% endif %}>Último ano</option>
+                    <option value="0" {% if period_days == 0 %}selected{% endif %}>Todo o histórico</option>
+                </select>
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary me-2">
+                    <i class="bi bi-search"></i> Buscar
+                </button>
+                {% if search_term and (item_info or usuario_info) %}
+                <a href="{{ url_for('reports.by_item_download', search=search_term, type=search_type, period=period_days, format='xlsx') }}" 
+                   class="btn btn-success me-2">
+                    <i class="bi bi-download"></i> XLSX
+                </a>
+                <a href="{{ url_for('reports.by_item_download', search=search_term, type=search_type, period=period_days, format='pdf') }}" 
+                   class="btn btn-danger me-2">
+                    <i class="bi bi-filetype-pdf"></i> PDF
+                </a>
+                <a href="{{ url_for('reports.by_item_download', search=search_term, type=search_type, period=period_days, format='jpeg') }}" 
+                   class="btn btn-info">
+                    <i class="bi bi-image"></i> JPEG
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+// Atualizar label do campo de busca baseado no tipo selecionado
+document.querySelectorAll('input[name="type"]').forEach(radio => {
+    radio.addEventListener('change', function() {
+        const label = document.getElementById('search_label');
+        if (this.value === 'item') {
+            label.textContent = 'Buscar Item (Nome ou Código)';
+        } else {
+            label.textContent = 'Buscar Funcionário (Nome ou Matrícula)';
+        }
+    });
+});
+// Inicializar label correto
+if (document.getElementById('type_usuario').checked) {
+    document.getElementById('search_label').textContent = 'Buscar Funcionário (Nome ou Matrícula)';
+}
+</script>
+
+{% if usuario_info %}
+<!-- Informações do Funcionário -->
+<div class="item-info-card">
+    <div class="row">
+        <div class="col-md-8">
+            <h4 class="mb-3" style="color: white !important;">👤 {{ usuario_info.nome }}</h4>
+            <div class="row">
+                <div class="col-md-6">
+                    <p class="mb-1" style="color: rgba(255,255,255,0.9) !important;"><strong>Matrícula:</strong> {{ usuario_info.matricula }}</p>
+                    <p class="mb-1" style="color: rgba(255,255,255,0.9) !important;"><strong>Cargo:</strong> {{ usuario_info.cargo or 'N/D' }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 text-end">
+            <div style="background: rgba(255,255,255,0.2); border-radius: 8px; padding: 1rem;">
+                <h2 class="mb-0" style="color: white !important;">{{ results|length }}</h2>
+                <p class="mb-0" style="color: rgba(255,255,255,0.9) !important;">Movimentações</p>
+                <hr style="border-color: rgba(255,255,255,0.3); margin: 0.5rem 0;">
+                <h3 class="mb-0" style="color: white !important;">{{ total_quantidade }}</h3>
+                <p class="mb-0" style="color: rgba(255,255,255,0.9) !important;">Total Movimentado</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Checklist do dia -->
+<div class="search-card">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <h5 class="mb-0" style="color: white !important;">🧾 Checklist do dia</h5>
+        <span class="periodo-badge">{{ today_label or "Hoje" }}</span>
+    </div>
+    {% if today_withdrawals %}
+    <div class="table-responsive">
+        <table class="table table-dark table-hover mb-0">
+            <thead>
+                <tr style="border-bottom: 2px solid var(--bs-border-color);">
+                    <th><i class="bi bi-box-seam"></i> Item</th>
+                    <th width="15%"><i class="bi bi-upc"></i> Código</th>
+                    <th width="10%" class="text-center"><i class="bi bi-box"></i> Qtd.</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in today_withdrawals %}
+                <tr class="result-row">
+                    <td style="color: white;">{{ item.item_descricao }}</td>
+                    <td style="color: white;">{{ item.item_codigo }}</td>
+                    <td class="text-center" style="color: white;"><strong>{{ item.quantidade }}</strong></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="text-muted mb-0">Nenhuma retirada registrada hoje.</p>
+    {% endif %}
+</div>
+{% endif %}
+
+{% if item_info %}
+<!-- Informações do Item -->
+<div class="item-info-card">
+    <div class="row">
+        <div class="col-md-8">
+            <h4 class="mb-3" style="color: white !important;">📦 {{ item_info.descricao }}</h4>
+            <div class="row">
+                <div class="col-md-6">
+                    <p class="mb-1" style="color: rgba(255,255,255,0.9) !important;"><strong>Código:</strong> {{ item_info.codigo }}</p>
+                    <p class="mb-1" style="color: rgba(255,255,255,0.9) !important;"><strong>Categoria:</strong> {{ item_info.categoria or 'N/D' }}</p>
+                </div>
+                <div class="col-md-6">
+                    <p class="mb-1" style="color: rgba(255,255,255,0.9) !important;"><strong>Marca:</strong> {{ item_info.marca or 'N/D' }}</p>
+                    <p class="mb-1" style="color: rgba(255,255,255,0.9) !important;"><strong>Saldo Atual:</strong> {{ item_info.saldo_atual }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 text-end">
+            <div style="background: rgba(255,255,255,0.2); border-radius: 8px; padding: 1rem;">
+                <h2 class="mb-0" style="color: white !important;">{{ results|length }}</h2>
+                <p class="mb-0" style="color: rgba(255,255,255,0.9) !important;">Retiradas</p>
+                <hr style="border-color: rgba(255,255,255,0.3); margin: 0.5rem 0;">
+                <h3 class="mb-0" style="color: white !important;">{{ total_quantidade }}</h3>
+                <p class="mb-0" style="color: rgba(255,255,255,0.9) !important;">Total Retirado</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endif %}
+
+{% if usuario_info or item_info %}
+<!-- Resultados -->
+{% if results %}
+<div class="results-table">
+    <div class="table-responsive">
+        <table class="table table-dark table-hover mb-0">
+            <thead>
+                <tr style="border-bottom: 2px solid var(--bs-border-color);">
+                    <th width="10%"><i class="bi bi-calendar3"></i> Data</th>
+                    <th width="8%"><i class="bi bi-clock"></i> Hora</th>
+                    {% if search_type == 'usuario' %}
+                    <th width="25%"><i class="bi bi-box-seam"></i> Item</th>
+                    <th width="10%"><i class="bi bi-upc"></i> Código</th>
+                    <th width="10%"><i class="bi bi-arrow-repeat"></i> Tipo</th>
+                    {% else %}
+                    <th width="25%"><i class="bi bi-person"></i> Usuário</th>
+                    <th width="12%"><i class="bi bi-badge-tm"></i> Matrícula</th>
+                    {% endif %}
+                    <th width="10%" class="text-center"><i class="bi bi-box"></i> Qtd.</th>
+                    <th width="15%"><i class="bi bi-calendar-event"></i> Período</th>
+                    <th width="20%"><i class="bi bi-geo-alt"></i> Local</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for result in results %}
+                <tr class="result-row">
+                    <td style="color: white;">{{ result.data_formatada }}</td>
+                    <td style="color: white;">{{ result.hora_formatada }}</td>
+                    {% if search_type == 'usuario' %}
+                    <td style="color: white;">{{ result.item_descricao }}</td>
+                    <td style="color: white;">{{ result.item_codigo }}</td>
+                    <td style="color: white;">{{ result.tipo }}</td>
+                    {% else %}
+                    <td style="color: white;">{{ result.usuario_nome }}</td>
+                    <td style="color: white;">{{ result.usuario_matricula }}</td>
+                    {% endif %}
+                    <td class="text-center" style="color: white;"><strong>{{ result.quantidade }}</strong></td>
+                    <td>
+                        {% if result.periodo %}
+                        <span class="periodo-badge">{{ result.periodo }}</span>
+                        {% else %}
+                        <span style="color: #28a745;">✓ Expediente</span>
+                        {% endif %}
+                    </td>
+                    {% set local_info = result.local_servico or 'N/D' %}
+                    {% if result.observacao and result.observacao|trim %}
+                    {% set local_info = local_info ~ ' | ' ~ result.observacao %}
+                    {% endif %}
+                    <td style="color: rgba(255,255,255,0.8);">{{ local_info[:70] }}{% if local_info|length > 70 %}...{% endif %}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="empty-state">
+    <i class="bi bi-inbox"></i>
+    <h4 style="color: var(--bs-light);">Nenhuma movimentação encontrada</h4>
+    <p style="color: rgba(255,255,255,0.7);">
+        {% if search_type == 'usuario' %}
+        Este funcionário não teve movimentações no período selecionado.
+        {% else %}
+        Este item não teve retiradas no período selecionado.
+        {% endif %}
+    </p>
+</div>
+{% endif %}
+
+{% elif search_term %}
+<!-- Não encontrado -->
+<div class="empty-state">
+    <i class="bi bi-exclamation-triangle"></i>
+    <h4 style="color: var(--bs-light);">
+        {% if search_type == 'usuario' %}
+        Funcionário não encontrado
+        {% else %}
+        Item não encontrado
+        {% endif %}
+    </h4>
+    <p style="color: rgba(255,255,255,0.7);">
+        {% if search_type == 'usuario' %}
+        Nenhum funcionário encontrado com o termo "{{ search_term }}".
+        {% else %}
+        Nenhum item encontrado com o termo "{{ search_term }}".
+        {% endif %}
+    </p>
+    <p style="color: rgba(255,255,255,0.6);">
+        {% if search_type == 'usuario' %}
+        Tente buscar por nome completo ou matrícula.
+        {% else %}
+        Tente buscar por nome, código ou parte da descrição.
+        {% endif %}
+    </p>
+</div>
+{% else %}
+<!-- Estado inicial -->
+<div class="empty-state">
+    <i class="bi bi-search"></i>
+    <h4 style="color: var(--bs-light);">Faça uma busca</h4>
+    <p style="color: rgba(255,255,255,0.7);">Digite o nome/código do item ou o nome/matrícula do funcionário.</p>
+</div>
+{% endif %}
+
+{% endblock %}

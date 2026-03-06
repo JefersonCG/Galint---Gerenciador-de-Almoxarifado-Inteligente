@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Eventos de Inventário{% endblock %}
+{% block page_header %}
+<h2>Eventos de Inventário</h2>
+<p class="text-muted">Registro histórico de ajustes, contagens e auditorias.</p>
+{% endblock %}
+{% block content %}
+<div class="card">
+    <div class="card-body">
+        {% if eventos %}
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Data</th>
+                        <th>Código</th>
+                        <th>Tipo</th>
+                        <th>Quantidade</th>
+                        <th>Responsável</th>
+                        <th>Descrição</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ev in eventos %}
+                    <tr>
+                        <td>{{ ev.data_evento.strftime('%Y-%m-%d %H:%M') }}</td>
+                        <td>{{ ev.codigo_item or '-' }}</td>
+                        <td>{{ ev.tipo }}</td>
+                        <td>{{ ev.quantidade }}</td>
+                        <td>{{ ev.matricula or '-' }}</td>
+                        <td>{{ ev.descricao or '' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted">Nenhum evento registrado.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,1649 @@
+{% extends "base.html" %}
+{% set form_item = item if item else form_data %}
+{% set saldo_total_ean = saldo_total_ean if saldo_total_ean is defined else None %}
+{% block title %}{% if item %}Editar{% else %}Novo{% endif %} Item{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* ============================================
+       SOFT DEPTH DESIGN SYSTEM COM TABS
+       ============================================ */
+    
+    :root {
+        --soft-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        --soft-shadow-hover: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        --inner-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);
+        --primary-blue: #3b82f6;
+        --primary-blue-light: #dbeafe;
+        --gray-50: #f9fafb;
+        --gray-100: #f3f4f6;
+        --gray-200: #e5e7eb;
+        --gray-300: #d1d5db;
+        --gray-700: #374151;
+        --gray-900: #111827;
+        --success-green: #10b981;
+        --warning-orange: #f59e0b;
+        --danger-red: #ef4444;
+        --border-radius: 12px;
+        --border-radius-sm: 8px;
+        --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    body {
+        background: #f1f5f9;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    }
+
+    /* Container Principal */
+    .soft-depth-form {
+        margin: 1.5rem auto;
+        max-width: 900px;
+    }
+
+    /* Cards Soft Depth */
+    .soft-depth-card {
+        background: #ffffff;
+        border-radius: 14px;
+        box-shadow: 0 10px 25px rgba(15, 23, 42, 0.08);
+        padding: 0;
+        transition: var(--transition);
+    }
+
+    .soft-depth-card:hover {
+        box-shadow: 0 14px 30px rgba(15, 23, 42, 0.12);
+    }
+
+    /* Tabs Navigation */
+    .tabs-nav {
+        display: flex;
+        border-bottom: 2px solid #e2e8f0;
+        padding: 0 1.5rem;
+        gap: 0.5rem;
+        overflow-x: auto;
+    }
+
+    .tab-button {
+        background: transparent;
+        border: none;
+        padding: 0.875rem 1.25rem;
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: var(--gray-700);
+        cursor: pointer;
+        position: relative;
+        transition: var(--transition);
+        white-space: nowrap;
+    }
+
+    .tab-button:hover {
+        color: var(--primary-blue);
+        background: rgba(59, 130, 246, 0.05);
+    }
+
+    .tab-button.active {
+        color: var(--primary-blue);
+    }
+
+    .tab-button.active::after {
+        content: '';
+        position: absolute;
+        bottom: -2px;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: var(--primary-blue);
+        animation: slideIn 0.3s ease-out;
+    }
+
+    @keyframes slideIn {
+        from {
+            transform: scaleX(0);
+        }
+        to {
+            transform: scaleX(1);
+        }
+    }
+
+    /* Tab Content */
+    .tab-content {
+        padding: 1.5rem;
+    }
+
+    .tab-pane {
+        display: none;
+        animation: fadeIn 0.3s ease-out;
+    }
+
+    .tab-pane.active {
+        display: block;
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* Título Principal */
+    .form-title {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: var(--gray-900);
+        margin-bottom: 0.25rem;
+        letter-spacing: -0.025em;
+    }
+
+    .form-subtitle {
+        font-size: 0.95rem;
+        color: var(--gray-700);
+        margin-bottom: 1.5rem;
+        font-weight: 400;
+    }
+
+    /* Seções dentro das tabs */
+    .section {
+        margin-bottom: 1.5rem;
+    }
+
+    .section:last-child {
+        margin-bottom: 0;
+    }
+
+    .section-title {
+        font-size: 1.05rem;
+        font-weight: 700;
+        color: var(--gray-900);
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    /* Campos de Formulário */
+    .form-group {
+        margin-bottom: 1.25rem;
+    }
+
+    .form-label {
+        display: block;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #334155;
+        margin-bottom: 0.4rem;
+    }
+
+    .form-control,
+    .form-select {
+        width: 100%;
+        padding: 0.7rem 0.9rem;
+        font-size: 0.975rem;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        background: #ffffff;
+        color: #0f172a;
+        transition: var(--transition);
+        font-family: inherit;
+    }
+
+    .form-control:focus,
+    .form-select:focus {
+        outline: none;
+        border-color: #93c5fd;
+        box-shadow: 0 0 0 4px rgba(147, 197, 253, 0.35);
+    }
+
+    .form-control:disabled,
+    .form-control:read-only {
+        background: var(--gray-100);
+        cursor: not-allowed;
+    }
+
+    .form-text {
+        font-size: 0.8125rem;
+        color: var(--gray-700);
+        margin-top: 0.375rem;
+        display: block;
+    }
+
+    /* Checkboxes e Radio Buttons */
+    .form-check {
+        display: flex;
+        align-items: center;
+        margin-bottom: 0.75rem;
+    }
+
+    .form-check-inline {
+        display: inline-flex;
+        align-items: center;
+        margin-right: 1.5rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .form-check-input {
+        width: 1.25rem;
+        height: 1.25rem;
+        margin-right: 0.5rem;
+        cursor: pointer;
+        accent-color: var(--primary-blue);
+    }
+
+    .form-check-label {
+        font-size: 0.9375rem;
+        color: var(--gray-700);
+        cursor: pointer;
+        user-select: none;
+    }
+
+    /* Campos Condicionais com Destaque Dinâmico */
+    .conditional-fields {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 1.25rem;
+        margin-top: 1rem;
+        box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.06);
+        animation: slideDown 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    @keyframes slideDown {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .conditional-fields .form-group:last-child {
+        margin-bottom: 0;
+    }
+
+    /* Preview de Conversão - Card de Destaque */
+    .conversion-preview {
+        background: linear-gradient(135deg, #dbeafe 0%, #e0f2fe 100%);
+        border-left: 4px solid var(--primary-blue);
+        border-radius: var(--border-radius-sm);
+        padding: 1rem 1.25rem;
+        margin-top: 1rem;
+    }
+
+    .conversion-preview strong {
+        font-size: 0.875rem;
+        font-weight: 700;
+        color: var(--primary-blue);
+        display: block;
+        margin-bottom: 0.5rem;
+    }
+
+    .conversion-preview div {
+        font-size: 0.9375rem;
+        color: var(--gray-700);
+        line-height: 1.6;
+    }
+
+    /* Alertas e Mensagens */
+    .alert {
+        padding: 1rem 1.25rem;
+        border-radius: var(--border-radius-sm);
+        font-size: 0.9375rem;
+        margin-top: 1.5rem;
+        border-left: 4px solid;
+    }
+
+    .alert-info {
+        background: var(--primary-blue-light);
+        color: #1e40af;
+        border-left-color: var(--primary-blue);
+    }
+
+    .alert-success {
+        background: #d1fae5;
+        color: #065f46;
+        border-left-color: var(--success-green);
+    }
+
+    .alert-warning {
+        background: #fef3c7;
+        color: #92400e;
+        border-left-color: var(--warning-orange);
+    }
+
+    .alert-danger {
+        background: #fee2e2;
+        color: #991b1b;
+        border-left-color: var(--danger-red);
+    }
+
+    /* Botões */
+    .btn {
+        padding: 0.75rem 1.75rem;
+        font-size: 1rem;
+        font-weight: 600;
+        border-radius: var(--border-radius-sm);
+        border: none;
+        cursor: pointer;
+        transition: var(--transition);
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+    }
+
+    .btn-primary {
+        background: var(--primary-blue);
+        color: white;
+        box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
+    }
+
+    .btn-primary:hover {
+        background: #2563eb;
+        box-shadow: 0 4px 6px rgba(59, 130, 246, 0.4);
+        transform: translateY(-1px);
+    }
+
+    .btn-secondary {
+        background: var(--gray-200);
+        color: var(--gray-700);
+    }
+
+    .btn-secondary:hover {
+        background: var(--gray-300);
+    }
+
+    .button-group {
+        display: flex;
+        gap: 1rem;
+        margin-top: 1.5rem;
+        padding: 0 1.5rem 1.5rem;
+        border-top: 1px solid var(--gray-200);
+        padding-top: 1.5rem;
+    }
+
+    /* Responsividade Mobile-First */
+    @media (max-width: 768px) {
+        .soft-depth-form {
+            padding: 1rem;
+            margin: 1rem;
+        }
+
+        .form-title {
+            font-size: 1.5rem;
+        }
+
+        .tab-content {
+            padding: 1.5rem;
+        }
+
+        .tabs-nav {
+            padding: 0 1rem;
+        }
+
+        .tab-button {
+            padding: 0.875rem 1rem;
+            font-size: 0.875rem;
+        }
+
+        .button-group {
+            flex-direction: column;
+            padding: 0 1.5rem 1.5rem;
+        }
+
+        .btn {
+            width: 100%;
+        }
+
+        .form-check-inline {
+            display: flex;
+            width: 100%;
+            margin-right: 0;
+        }
+    }
+
+    /* Grid para layout lado a lado no desktop */
+    .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.5rem;
+    }
+
+    @media (max-width: 768px) {
+        .form-row {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="soft-depth-form">
+    <h1 class="form-title">{% if item %}Editar{% else %}Novo{% endif %} Item</h1>
+    <p class="form-subtitle">Preencha os campos abaixo com as informações do produto</p>
+    {% if form_item and form_item.codigo %}
+    <div class="alert alert-info">
+        <strong>Códigos patrimoniais:</strong>
+        <a href="{{ url_for('patrimonio.listar_codigos', codigo_item=form_item.codigo) }}">clique aqui para cadastrar/gerenciar</a>.
+    </div>
+    {% else %}
+    <div class="alert alert-warning">
+        <strong>Para cadastrar códigos patrimoniais</strong>, salve o item primeiro.
+    </div>
+    {% endif %}
+
+    <form method="post" enctype="multipart/form-data">
+        <div class="soft-depth-card">
+            <!-- Tabs Navigation -->
+            <div class="tabs-nav">
+                <button type="button" class="tab-button active" data-tab="identificacao">📋 Identificação</button>
+                <button type="button" class="tab-button" data-tab="classificacao">🏷️ Classificação</button>
+                <button type="button" class="tab-button" data-tab="rastreabilidade">📦 Rastreabilidade</button>
+                <button type="button" class="tab-button" data-tab="equipamento" id="tab-equipamento-button" style="display: none;">⚙️ Equipamentos/Máquinas</button>
+                <button type="button" class="tab-button" data-tab="unidades" id="tab-unidades-button">⚖️ Unidades Dinâmicas</button>
+            </div>
+
+            <!-- Tab 1: Identificação -->
+            <div class="tab-content">
+                <div class="tab-pane active" id="tab-identificacao">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label" for="codigo">Código de barras</label>
+                            <input class="form-control" id="codigo" name="codigo"
+                                value="{{ form_item.codigo if form_item else '' }}" 
+                                {% if item %}readonly{% endif %}
+                                required>
+                            {% if item %}
+                            <small class="form-text">Para alterar o código, crie um novo item.</small>
+                            {% endif %}
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="nota_fiscal">Número da NF</label>
+                            <input class="form-control" id="nota_fiscal" name="nota_fiscal"
+                                value="{{ form_item.nota_fiscal if form_item else '' }}">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="descricao">Produto</label>
+                        <input class="form-control" id="descricao" name="descricao"
+                            value="{{ form_item.descricao if form_item else '' }}" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="marca">Marca / Fabricante</label>
+                        <input class="form-control" id="marca" name="marca"
+                            value="{{ form_item.marca if form_item and form_item.marca else '' }}">
+                    </div>
+                    
+                    <!-- Upload de Foto -->
+                    <div class="form-group">
+                        <label class="form-label" for="foto">Foto do Item</label>
+                        {% if form_item and form_item.foto_path %}
+                        <div class="mb-2">
+                            <img src="{{ url_for('static', filename=form_item.foto_path) }}" 
+                                 alt="Foto atual"
+                                 style="max-width: 200px; max-height: 200px; border-radius: 8px; border: 2px solid #e2e8f0;">
+                            <div class="form-check mt-2">
+                                <input class="form-check-input" type="checkbox" id="remover_foto" name="remover_foto">
+                                <label class="form-check-label" for="remover_foto">
+                                    Remover foto atual
+                                </label>
+                            </div>
+                        </div>
+                        {% endif %}
+                        <input class="form-control" type="file" id="foto" name="foto" 
+                               accept="image/png,image/jpeg,image/jpg,image/webp,image/gif">
+                        <small class="form-text">Formatos: PNG, JPG, WEBP, GIF. Máx: 5MB. A foto aparecerá nos modais de detalhes.</small>
+                    </div>
+                </div>
+
+            <!-- Tab 2: Classificação -->
+                <div class="tab-pane" id="tab-classificacao">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label" for="categoria">Categoria</label>
+                            <select class="form-select" id="categoria" name="categoria" required>
+                                {% set categoria = form_item.categoria if form_item else 'Material Elétrico' %}
+                                {% if categoria == 'Material Pintura' %}
+                                {% set categoria = 'Mat. Pintura e Drywall' %}
+                                {% elif categoria == 'Material de Pintura/Drywall' %}
+                                {% set categoria = 'Mat. Pintura e Drywall' %}
+                                {% elif categoria == 'Mat. Pintura E Drywall' %}
+                                {% set categoria = 'Mat. Pintura e Drywall' %}
+                                {% endif %}
+                                {% for choice in [
+                                'Material Elétrico',
+                                'Material Hidráulico',
+                                'Material Piscina',
+                                'Mat. Pintura e Drywall',
+                                'Materiais de Limpeza',
+                                'Material Construção',
+                                'Ferramentas',
+                                'Equipamento',
+                                'Material de EP',
+                                'Material/Uso geral'
+                                ] %}
+                                <option value="{{ choice }}" {% if categoria==choice %}selected{% endif %}>{{ choice }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="localizacao">Localização</label>
+                            <input class="form-control" id="localizacao" name="localizacao"
+                                value="{{ form_item.localizacao if form_item else '' }}">
+                        </div>
+                    </div>
+
+                    <!-- Campos condicionais: Ferramentas -->
+                    <div id="ferramentas-extra" style="display: none;">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="habilitar-serie-modelo" name="habilitar_serie_modelo">
+                            <label class="form-check-label" for="habilitar-serie-modelo">
+                                Adicionar número de série e modelo
+                            </label>
+                        </div>
+                        <div id="serie-modelo-fields" class="conditional-fields" style="display: none;">
+                            <div class="form-group">
+                                <label class="form-label" for="numero_serie_ferramenta">Número de Série</label>
+                                <input class="form-control serie-modelo-field" id="numero_serie_ferramenta" name="numero_serie" 
+                                    value="{{ form_item.numero_serie if form_item and form_item.numero_serie else '' }}"
+                                    placeholder="Ex: SN123456">
+                                <small class="form-text">Número de série do fabricante</small>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="modelo_ferramenta">Modelo</label>
+                                <input class="form-control serie-modelo-field" id="modelo_ferramenta" name="modelo"
+                                    value="{{ form_item.modelo if form_item and form_item.modelo else '' }}"
+                                    placeholder="Ex: Pro-2024, X-500">
+                                <small class="form-text">Modelo ou versão do equipamento</small>
+                            </div>
+                            {% if form_item and form_item.codigo_item %}
+                            <div class="form-group">
+                                <div class="alert alert-info">
+                                    <i class="bi bi-upc-scan"></i>
+                                    <strong>Códigos Patrimoniais:</strong>
+                                    Para adicionar múltiplos códigos patrimoniais (ex: PAT-001 a PAT-020),
+                                    <a href="{{ url_for('patrimonio.listar_codigos', codigo_item=form_item.codigo_item) }}">clique aqui</a>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="form-row" style="margin-top: 1rem;">
+                        <div class="form-group">
+                            {% set saldo_base = 0 %}
+                            {% if saldo_desejado is not none %}
+                            {% set saldo_base = saldo_desejado|int %}
+                            {% elif form_item and form_item.saldo is not none %}
+                            {% set saldo_base = form_item.saldo|int %}
+                            {% endif %}
+                            <label class="form-label" for="saldo_atual">Saldo em estoque</label>
+                            <input class="form-control" id="saldo_atual" name="saldo_atual" type="number" min="0" step="1"
+                                value="{{ saldo_base|int }}">
+                            <small class="form-text">Ajustes geram eventos de inventário</small>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="unidade">Unidade de medida</label>
+                            <select class="form-select" id="unidade" name="unidade" required>
+                                {% set unidade_atual = form_item.unidade if form_item and form_item.unidade else 'Unidade' %}
+                                {% for choice in [
+                                'Unidade',
+                                'Lata',
+                                'Litro',
+                                'Quilo',
+                                'Caixa',
+                                'Pacote',
+                                'Rolo',
+                                'Balde',
+                                'Par',
+                                'Peça'
+                                ] %}
+                                <option value="{{ choice }}" {% if unidade_atual==choice %}selected{% endif %}>{{ choice }}</option>
+                                {% endfor %}
+                            </select>
+                            <small class="form-text">Como você contabiliza este item</small>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-info">
+                        💡 O estoque mínimo é calculado automaticamente em 5% do saldo atual e alimenta os alertas do dashboard.
+                    </div>
+
+                    {% if saldo_total_ean is not none and saldo_total_ean > 0 %}
+                    <!-- Card de Saldo Total por EAN -->
+                    <div class="conversion-preview" style="display: block; background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); border-left-color: var(--success-green);">
+                        <strong style="color: var(--success-green); font-size: 1rem;">📦 Saldo Total em Estoque (mesmo EAN)</strong>
+                        <div style="font-size: 1.5rem; font-weight: 700; color: var(--gray-900); margin-top: 0.5rem;">
+                            {{ saldo_total_ean }} {{ form_item.unidade if form_item and form_item.unidade else 'unidades' }}
+                        </div>
+                        <small style="color: var(--gray-700); font-size: 0.85rem; display: block; margin-top: 0.25rem;">
+                            {% if item %}
+                            Soma de todos os lotes com o código <strong>{{ form_item.codigo }}</strong>
+                            {% else %}
+                            ⚠️ Já existem lotes deste produto no sistema. Esta é uma <strong>Nova Entrada</strong>.
+                            {% endif %}
+                        </small>
+                    </div>
+                    {% endif %}
+                </div>
+
+            <!-- Tab 3: Rastreabilidade -->
+                <div class="tab-pane" id="tab-rastreabilidade">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label" for="data_entrada">Data de Entrada</label>
+                            <input class="form-control rastreabilidade-field" id="data_entrada" name="data_entrada" type="date"
+                                value="{{ form_item.data_entrada if form_item and form_item.data_entrada else '' }}">
+                            <small class="form-text">Data de entrada do lote</small>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="lote">Lote</label>
+                            <input class="form-control" id="lote" name="lote"
+                                value="{{ form_item.lote if form_item and form_item.lote else '' }}">
+                            <small class="form-text">Informe o lote quando existir. Se não houver, use o botão de lote automático.</small>
+                            {% if not form_item or not form_item.lote %}
+                            <div class="form-check" style="margin-top: 0.5rem;">
+                                <input class="form-check-input" type="checkbox" id="gerar-lote-automatico" name="gerar_lote_automatico">
+                                <label class="form-check-label" for="gerar-lote-automatico">
+                                    Gerar lote automático
+                                </label>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label" for="data_fabricacao">Data de Fabricação</label>
+                            <input class="form-control rastreabilidade-field" id="data_fabricacao" name="data_fabricacao" type="date"
+                                value="{{ form_item.data_fabricacao if form_item and form_item.data_fabricacao else '' }}">
+                            <small class="form-text">Informe a data de fabricação quando aplicável</small>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="data_validade">Data de Validade</label>
+                            <input class="form-control rastreabilidade-field" id="data_validade" name="data_validade" type="date"
+                                value="{{ form_item.data_validade if form_item and form_item.data_validade else '' }}">
+                            <small class="form-text" id="dias_validade"></small>
+                            <div class="form-check" style="margin-top: 0.5rem;">
+                                <input class="form-check-input" type="checkbox" id="validade-indeterminada" name="validade_indeterminada">
+                                <label class="form-check-label" for="validade-indeterminada">
+                                    Validade indeterminada (bloquear campos)
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            <!-- Tab 4: Equipamentos/Máquinas -->
+                <div class="tab-pane" id="tab-equipamento">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label" for="modelo">Modelo</label>
+                            <input class="form-control equipamento-field" id="modelo" name="modelo"
+                                value="{{ form_item.modelo if form_item and form_item.modelo else '' }}"
+                                placeholder="Ex: XYZ-2000, Modelo A, V3.2">
+                            <small class="form-text">Modelo ou versão do equipamento</small>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="numero_serie">Serial Number</label>
+                            <input class="form-control equipamento-field" id="numero_serie" name="numero_serie"
+                                value="{{ form_item.numero_serie if form_item and form_item.numero_serie else '' }}"
+                                placeholder="Ex: ABC123456, SN-2024-001">
+                            <small class="form-text">Número de série único do equipamento</small>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label" for="voltagem">Voltagem</label>
+                            <input class="form-control equipamento-field" id="voltagem" name="voltagem"
+                                value="{{ form_item.voltagem if form_item and form_item.voltagem else '' }}"
+                                placeholder="Ex: 220V, 380V, 12V">
+                            <small class="form-text">Voltagem de operação do equipamento</small>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="amperagem">Amperagem</label>
+                            <input class="form-control equipamento-field" id="amperagem" name="amperagem"
+                                value="{{ form_item.amperagem if form_item and form_item.amperagem else '' }}"
+                                placeholder="Ex: 10A, 5.5A, 220mA">
+                            <small class="form-text">Corrente elétrica consumida</small>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="local_instalacao">Local da Instalação/Retirada</label>
+                        <textarea class="form-control equipamento-field" id="local_instalacao" name="local_instalacao" rows="3"
+                            placeholder="Descreva onde o equipamento foi/será instalado ou retirado">{{ form_item.local_instalacao if form_item and form_item.local_instalacao else '' }}</textarea>
+                        <small class="form-text">Local específico de instalação, setor, sala, coordenadas, etc.</small>
+                    </div>
+                </div>
+
+            <!-- Tab 5: Unidades Dinâmicas -->
+                <div class="tab-pane" id="tab-unidades">
+                    <!-- Sistema de Embalagens -->
+                    <div class="form-group">
+                        <label class="form-label">Tipo de Embalagem</label>
+                        {% set tipo_emb_novo = form_item.tipo_embalagem_novo if form_item and form_item.tipo_embalagem_novo else '' %}
+                        <p class="form-text" style="margin-bottom: 0.75rem; font-size: 0.9rem; color: #64748b;">
+                            Para conversões automáticas de unidades
+                        </p>
+                        <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="tipo_embalagem_novo" id="tipo_novo_lata" value="lata" {% if tipo_emb_novo=='lata' %}checked{% endif %}>
+                                <label class="form-check-label" for="tipo_novo_lata">Lata</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="tipo_embalagem_novo" id="tipo_novo_rolo" value="rolo" {% if tipo_emb_novo=='rolo' %}checked{% endif %}>
+                                <label class="form-check-label" for="tipo_novo_rolo">Rolo</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="tipo_embalagem_novo" id="tipo_novo_pacote" value="pacote" {% if tipo_emb_novo=='pacote' %}checked{% endif %}>
+                                <label class="form-check-label" for="tipo_novo_pacote">Pacote</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="tipo_embalagem_novo" id="tipo_novo_caixa" value="caixa" {% if tipo_emb_novo=='caixa' %}checked{% endif %}>
+                                <label class="form-check-label" for="tipo_novo_caixa">Caixa</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="tipo_embalagem_novo" id="tipo_novo_litro" value="litro" {% if tipo_emb_novo=='litro' %}checked{% endif %}>
+                                <label class="form-check-label" for="tipo_novo_litro">Litro</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="tipo_embalagem_novo" id="tipo_novo_balde" value="balde" {% if tipo_emb_novo=='balde' %}checked{% endif %}>
+                                <label class="form-check-label" for="tipo_novo_balde">Balde</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="tipo_embalagem_novo" id="tipo_novo_nenhum" value="" {% if not tipo_emb_novo %}checked{% endif %}>
+                                <label class="form-check-label" for="tipo_novo_nenhum">Nenhum</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="unidade-embalagem-field" style="display: none; margin-top: 0.75rem;">
+                        <label class="form-label">Unidade da embalagem</label>
+                        <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="unidade_embalagem_novo" id="unidade_emb_litro" value="litro" 
+                                {% if form_item and form_item.litros_por_embalagem %}checked{% endif %}>
+                                <label class="form-check-label" for="unidade_emb_litro">Litros</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="unidade_embalagem_novo" id="unidade_emb_kg" value="kg"
+                                {% if form_item and form_item.grandeza_referencia and not form_item.litros_por_embalagem %}checked{% endif %}>
+                                <label class="form-check-label" for="unidade_emb_kg">Kg</label>
+                            </div>
+                        </div>
+                        <small class="form-text">Escolha se a embalagem sera preenchida em kg ou litros.</small>
+                    </div>
+
+                    <!-- Campo condicional: Unidades por Embalagem -->
+                    <div id="unidades-embalagem-field" style="display: {% if tipo_emb_novo %}block{% else %}none{% endif %};">
+                        <div class="form-group">
+                            <label class="form-label" for="unidades_por_embalagem">Unidades por <span id="nome-embalagem">Embalagem</span></label>
+                            {% set val_inicial = form_item.unidades_por_embalagem if form_item and form_item.unidades_por_embalagem else '' %}
+                            {% if form_item and form_item.litros_por_embalagem %}
+                                {% set val_inicial = form_item.litros_por_embalagem %}
+                            {% elif form_item and form_item.grandeza_referencia and (tipo_emb_novo == 'lata' or tipo_emb_novo == 'balde') %}
+                                {% set val_inicial = form_item.grandeza_referencia %}
+                            {% endif %}
+                            <input class="form-control" id="unidades_por_embalagem" name="unidades_por_embalagem" type="number" step="0.01" min="0"
+                                value="{{ val_inicial }}"
+                                placeholder="Ex: 100 unidades por caixa">
+                            <small class="form-text" id="help-unidades-embalagem">Ex: 100 unidades por caixa</small>
+                        </div>
+
+                        <!-- Preview de Conversão -->
+                        <div class="alert alert-info" id="preview-embalagem" style="display: none; margin-top: 1rem;">
+                            <strong>Preview de Conversão:</strong>
+                            <div id="preview-texto"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {% if item and item.codigo %}
+            <div class="section" style="margin-top: 1.5rem; padding: 0 1.5rem;">
+                <h2 class="section-title">Código de barras</h2>
+                <div class="row g-3 align-items-start">
+                    <div class="col-md-7">
+                        <div class="p-3 border rounded bg-white">
+                            <img class="img-fluid" style="max-height: 180px;"
+                                src="{{ url_for('inventory.item_barcode_png', codigo=item.codigo) }}"
+                                alt="Código de barras do item {{ item.codigo }}">
+                        </div>
+                    </div>
+                    <div class="col-md-5">
+                        <div class="d-grid gap-2">
+                            <a class="btn btn-outline-primary btn-sm"
+                                href="{{ url_for('inventory.item_barcode_png', codigo=item.codigo) }}" target="_blank">
+                                Baixar PNG
+                            </a>
+                            <a class="btn btn-outline-secondary btn-sm"
+                                href="{{ url_for('inventory.item_barcode_svg', codigo=item.codigo) }}" target="_blank">
+                                Baixar SVG
+                            </a>
+                        </div>
+                        <small class="form-text">Imprima e fixe no item.</small>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Histórico de Edição -->
+            {% if form_item and form_item.ultima_edicao_em %}
+            <div style="margin-top: 1.5rem; text-align: center; margin-bottom: 1rem;">
+                <small style="color: green; font-style: italic;">
+                    Item editado <span id="hist-data-edit">{{ form_item.ultima_edicao_em }}</span>
+                    {% if form_item.ultima_edicao_por %} por {{ form_item.ultima_edicao_por }}{% endif %}
+                </small>
+                <script>
+                    (function() {
+                        try {
+                            const el = document.getElementById('hist-data-edit');
+                            const raw = el.textContent.trim();
+                            // Tenta parsear ISO
+                            const date = new Date(raw);
+                            if (!isNaN(date.getTime())) {
+                                el.textContent = date.toLocaleDateString('pt-BR') + ' às ' + date.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
+                            }
+                        } catch(e) {}
+                    })();
+                </script>
+            </div>
+            {% endif %}
+
+            <!-- Botões de Ação -->
+            <div class="button-group">
+                <button class="btn btn-primary" type="submit">✓ Salvar</button>
+                {% if item %}
+                <button class="btn btn-secondary" type="button" id="btnNovaEntradaNF" onclick="prepararNovaEntrada()">＋ Nova Entrada/NF</button>
+                {% endif %}
+                <a class="btn btn-secondary" href="{{ url_for('inventory.list_items') }}">← Cancelar</a>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // ==========================================
+    // SISTEMA DE TABS
+    // ==========================================
+    const tabButtons = document.querySelectorAll('.tab-button');
+    const tabPanes = document.querySelectorAll('.tab-pane');
+
+    tabButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            const targetTab = button.dataset.tab;
+            
+            // Remove active de todos os botões e panes
+            tabButtons.forEach(btn => btn.classList.remove('active'));
+            tabPanes.forEach(pane => pane.classList.remove('active'));
+            
+            // Adiciona active no clicado
+            button.classList.add('active');
+            document.getElementById(`tab-${targetTab}`).classList.add('active');
+        });
+    });
+
+    // ==========================================
+    // CONTROLE DE CAMPOS CONDICIONAIS
+    // ==========================================
+
+    const categoriaSelect = document.getElementById('categoria');
+    const ferramentasExtra = document.getElementById('ferramentas-extra');
+    const habilitarCheckbox = document.getElementById('habilitar-serie-modelo');
+    const serieModeloFields = document.getElementById('serie-modelo-fields');
+    const equipamentoFields = document.querySelectorAll('.equipamento-field');
+    const serieModeloInputs = document.querySelectorAll('.serie-modelo-field');
+
+    function setFieldsEnabled(fields, enabled) {
+        fields.forEach(field => {
+            field.disabled = !enabled;
+        });
+    }
+
+    function toggleFerramentasFields() {
+        const isFerramentas = categoriaSelect && categoriaSelect.value === 'Ferramentas';
+        if (isFerramentas) {
+            ferramentasExtra.style.display = 'block';
+        } else {
+            ferramentasExtra.style.display = 'none';
+            if (habilitarCheckbox) {
+                habilitarCheckbox.checked = false;
+            }
+            if (serieModeloFields) {
+                serieModeloFields.style.display = 'none';
+            }
+        }
+        setFieldsEnabled(serieModeloInputs, isFerramentas && habilitarCheckbox && habilitarCheckbox.checked);
+    }
+
+    function toggleSerieModeloFields() {
+        const enabled = habilitarCheckbox && habilitarCheckbox.checked && categoriaSelect && categoriaSelect.value === 'Ferramentas';
+        if (serieModeloFields) {
+            serieModeloFields.style.display = enabled ? 'block' : 'none';
+        }
+        setFieldsEnabled(serieModeloInputs, enabled);
+    }
+
+    function toggleEquipamentoTab() {
+        const equipamentoButton = document.getElementById('tab-equipamento-button');
+        const isEquipamento = categoriaSelect && categoriaSelect.value === 'Equipamento';
+        if (equipamentoButton) {
+            equipamentoButton.style.display = isEquipamento ? 'block' : 'none';
+        }
+        setFieldsEnabled(equipamentoFields, isEquipamento);
+        if (!isEquipamento) {
+            // Se estava na aba equipamento, voltar para identificação
+            const activeTab = document.querySelector('.tab-button.active');
+            if (activeTab && activeTab.dataset.tab === 'equipamento') {
+                document.querySelector('[data-tab="identificacao"]').click();
+            }
+        }
+    }
+
+    // ==========================================
+    // DESBLOQUEIO CONDICIONAL RASTREABILIDADE
+    // ==========================================
+    function toggleRastreabilidadeReadonly() {
+        const rastreabilidadeFields = document.querySelectorAll('.rastreabilidade-field');
+        rastreabilidadeFields.forEach(field => {
+            field.removeAttribute('readonly');
+            field.style.background = '#ffffff';
+            field.style.cursor = 'text';
+        });
+    }
+
+    // Event listeners para categoria
+    if (categoriaSelect && ferramentasExtra) {
+        categoriaSelect.addEventListener('change', () => {
+            toggleFerramentasFields();
+            toggleEquipamentoTab();
+            toggleSerieModeloFields();
+            toggleRastreabilidadeReadonly(); // Verifica se deve desbloquear campos
+        });
+        toggleFerramentasFields();
+        toggleEquipamentoTab();
+        toggleRastreabilidadeReadonly(); // Inicializar estado
+    }
+    if (habilitarCheckbox && serieModeloFields) {
+        habilitarCheckbox.addEventListener('change', toggleSerieModeloFields);
+        if (habilitarCheckbox.checked) {
+            toggleSerieModeloFields();
+        }
+    }
+
+    // ==========================================
+    // RASTREABILIDADE E CONVERSÃO DE UNIDADES
+    // ==========================================
+
+    const tipoEmbalagemRadios = document.querySelectorAll('input[name="tipo_embalagem"]');
+    const conversaoFields = document.getElementById('conversao-fields');
+    const densidadeField = document.getElementById('densidade-field');
+    const labelGrandeza = document.getElementById('label_grandeza');
+    const helpGrandeza = document.getElementById('help_grandeza');
+    const previewConversao = document.getElementById('preview-conversao');
+    const conversaoOutput = document.getElementById('conversao-output');
+    const dataValidadeInput = document.getElementById('data_validade');
+    const diasValidadeDiv = document.getElementById('dias_validade');
+    const unidadeSelect = document.getElementById('unidade');
+    const grandezaField = document.getElementById('grandeza-field');
+    const grandezaInput = document.getElementById('grandeza_referencia');
+    const lataConteudoField = document.getElementById('lata-conteudo-field');
+    const lataConteudoSelect = document.getElementById('lata_conteudo_unidade');
+    const lataPesoField = document.getElementById('lata-peso-field');
+    const lataPesoInput = document.getElementById('lata_peso');
+    const lataLitrosField = document.getElementById('lata-litros-field');
+    const lataLitrosInput = document.getElementById('lata_litros');
+    // OBS: lógica de densidade removida (não converter kg↔L)
+    const litroEmbalagemField = document.getElementById('litro-embalagem-field');
+    const litrosPorEmbalagemInput = document.getElementById('litros_por_embalagem');
+    const tabUnidadesButton = document.getElementById('tab-unidades-button');
+    const tabUnidadesPane = document.getElementById('tab-unidades');
+    const tabClassificacaoButton = document.querySelector('[data-tab="classificacao"]');
+
+    function isLataSelecionada(tipoSelecionado) {
+        const unidadeSelecionada = unidadeSelect ? unidadeSelect.value : '';
+        return tipoSelecionado === 'Lata' || unidadeSelecionada === 'Lata';
+    }
+
+    function atualizarCamposEmbalagem() {
+        if (!conversaoFields || !previewConversao) {
+            return;
+        }
+        const tipoSelecionado = document.querySelector('input[name="tipo_embalagem"]:checked')?.value;
+        const isLata = isLataSelecionada(tipoSelecionado);
+        const isLitro = tipoSelecionado === 'Litro';
+
+        if (!tipoSelecionado && !isLata) {
+            conversaoFields.style.display = 'none';
+            previewConversao.style.display = 'none';
+            if (litroEmbalagemField) litroEmbalagemField.style.display = 'none';
+            return;
+        }
+
+        conversaoFields.style.display = 'block';
+
+        // Controle do campo de Litros por Embalagem
+        if (litroEmbalagemField) {
+            litroEmbalagemField.style.display = isLitro ? 'block' : 'none';
+        }
+
+        if (isLata) {
+            if (grandezaField) {
+                grandezaField.style.display = 'none';
+            }
+            if (lataConteudoField) {
+                lataConteudoField.style.display = 'block';
+            }
+            if (lataPesoField) {
+                lataPesoField.style.display = 'block';
+            }
+            if (lataLitrosField) {
+                lataLitrosField.style.display = 'block';
+            }
+            densidadeField.style.display = 'none';
+        } else if (isLitro) {
+            // Tipo Litro: esconde campos de lata, mostra campo de litros por embalagem
+            if (grandezaField) grandezaField.style.display = 'none';
+            if (lataConteudoField) lataConteudoField.style.display = 'none';
+            if (lataPesoField) lataPesoField.style.display = 'none';
+            if (lataLitrosField) lataLitrosField.style.display = 'none';
+            densidadeField.style.display = 'none';
+        } else {
+            if (grandezaField) {
+                grandezaField.style.display = 'block';
+            }
+            if (lataConteudoField) {
+                lataConteudoField.style.display = 'none';
+            }
+            if (lataPesoField) {
+                lataPesoField.style.display = 'none';
+            }
+            if (lataLitrosField) {
+                lataLitrosField.style.display = 'none';
+            }
+            densidadeField.style.display = 'none';
+        }
+
+        switch(tipoSelecionado) {
+            case 'Rolo':
+                labelGrandeza.textContent = 'Comprimento por Rolo (metros)';
+                helpGrandeza.textContent = 'Ex: 100 metros por rolo';
+                densidadeField.style.display = 'none';
+                break;
+            case 'Pacote':
+                labelGrandeza.textContent = 'Unidades por Pacote';
+                helpGrandeza.textContent = 'Ex: 50 unidades por pacote';
+                densidadeField.style.display = 'none';
+                break;
+            case 'Caixa':
+                labelGrandeza.textContent = 'Unidades por Caixa';
+                helpGrandeza.textContent = 'Ex: 100 unidades por caixa';
+                densidadeField.style.display = 'none';
+                break;
+            case 'Litro':
+                // Litro: campo de litragem por embalagem é exibido separadamente
+                densidadeField.style.display = 'none';
+                break;
+            default:
+                if (!isLata) {
+                    labelGrandeza.textContent = 'Grandeza de Referência';
+                    helpGrandeza.textContent = 'Informe a grandeza por embalagem';
+                }
+        }
+
+        calcularConversao();
+    }
+
+    // ==========================================
+    // ABA UNIDADES DINAMICAS (EXIBIR CONDICIONAL)
+    // ==========================================
+    const unidadesDinamicasPermitidas = ['Lata', 'Litro', 'Balde', 'Rolo', 'Caixa', 'Pacote'];
+
+    function toggleTabUnidadesDinamicas() {
+        if (!unidadeSelect || !tabUnidadesButton || !tabUnidadesPane) return;
+        const deveMostrar = unidadesDinamicasPermitidas.includes(unidadeSelect.value);
+        tabUnidadesButton.style.display = deveMostrar ? '' : 'none';
+        tabUnidadesPane.style.display = deveMostrar ? '' : 'none';
+
+        if (!deveMostrar && tabUnidadesButton.classList.contains('active') && tabClassificacaoButton) {
+            tabClassificacaoButton.click();
+        }
+    }
+
+    function syncGrandezaLata() {
+        const tipoSelecionado = document.querySelector('input[name="tipo_embalagem"]:checked')?.value;
+        const isLata = isLataSelecionada(tipoSelecionado);
+        if (!isLata) return;
+        const conteudoRef = lataConteudoSelect?.value || 'kg';
+
+        if (!grandezaInput) return;
+
+        if (conteudoRef === 'litro') {
+            const litros = parseFloat(lataLitrosInput?.value || '') || 0;
+            grandezaInput.value = litros > 0 ? litros.toFixed(3) : '';
+        } else {
+            const peso = parseFloat(lataPesoInput?.value || '') || 0;
+            grandezaInput.value = peso > 0 ? peso.toFixed(3) : '';
+        }
+    }
+
+    function calcularConversao() {
+        if (!previewConversao || !conversaoOutput) {
+            return;
+        }
+        const tipoSelecionado = document.querySelector('input[name="tipo_embalagem"]:checked')?.value;
+        const quantidade = parseFloat(document.getElementById('saldo_atual').value) || 0;
+        const isLata = isLataSelecionada(tipoSelecionado);
+        const isLitro = tipoSelecionado === 'Litro';
+        
+        // Determinar a grandeza baseada no tipo e seleção
+        let grandeza = 0;
+        let conteudoRef = 'kg'; // padrão
+        
+        if (isLata) {
+             conteudoRef = lataConteudoSelect?.value || 'kg';
+             if (conteudoRef === 'litro') {
+                 grandeza = parseFloat(lataLitrosInput?.value || '') || 0;
+             } else {
+                 grandeza = parseFloat(lataPesoInput?.value || '') || 0;
+             }
+        } else if (isLitro) {
+             // Para tipo Litro, usa o campo de litros por embalagem
+             grandeza = parseFloat(litrosPorEmbalagemInput?.value || '') || 0;
+        } else {
+             grandeza = parseFloat(grandezaInput?.value || '') || 0;
+        }
+
+        // Para tipo Litro, permitir calcular mesmo com grandeza = 0 quando não preenchido
+        if (!tipoSelecionado || quantidade === 0 || (grandeza === 0 && !isLitro)) {
+            previewConversao.style.display = 'none';
+            return;
+        }
+        
+        // Para tipo Litro, se grandeza for 0, não exibe preview
+        if (isLitro && grandeza === 0) {
+            previewConversao.style.display = 'none';
+            return;
+        }
+
+        let resultado = '';
+
+        switch(tipoSelecionado || (isLata ? 'Lata' : '')) {
+            case 'Lata':
+                const total = quantidade * grandeza;
+                if (conteudoRef === 'litro') {
+                     resultado = `<div>${quantidade} latas = ${total.toFixed(2)} litros</div>`;
+                } else {
+                    resultado = `<div>${quantidade} latas = ${total.toFixed(2)} kg</div>`;
+                }
+                break;
+            case 'Litro':
+                // Cálculo: quantidade de embalagens × litros por embalagem
+                const totalLitros = quantidade * grandeza;
+                const unidadeMedida = unidadeSelect?.value || 'Unidade';
+                const nomeEmbalagem = unidadeMedida.toLowerCase();
+                resultado = `<div>📦 ${quantidade} ${nomeEmbalagem}${quantidade > 1 ? 's' : ''} × ${grandeza} L = <strong>${totalLitros.toFixed(2)} litros</strong></div>`;
+                // Conversão adicional para mL se for menos de 1 litro ou se for útil
+                if (totalLitros < 10) {
+                    const ml = totalLitros * 1000;
+                    resultado += `<div>💧 ${totalLitros.toFixed(2)} L = ${ml.toFixed(0)} mL</div>`;
+                }
+                break;
+            case 'Rolo':
+                const metros = quantidade * grandeza;
+                const centimetros = metros * 100;
+                resultado = `<div>${quantidade} rolos = ${metros.toFixed(2)} metros</div>`;
+                resultado += `<div>${metros.toFixed(2)} m = ${centimetros.toFixed(0)} cm</div>`;
+                break;
+            case 'Pacote':
+            case 'Caixa':
+                const unidades = quantidade * grandeza;
+                const tipo = tipoSelecionado === 'Pacote' ? 'pacotes' : 'caixas';
+                resultado = `<div>${quantidade} ${tipo} = ${unidades.toFixed(0)} unidades</div>`;
+                break;
+        }
+
+        conversaoOutput.innerHTML = resultado;
+        previewConversao.style.display = resultado ? 'block' : 'none';
+    }
+
+    function calcularDiasValidade() {
+        const dataValidade = dataValidadeInput.value;
+        if (!dataValidade) {
+            diasValidadeDiv.innerHTML = '';
+            return;
+        }
+
+        const hoje = new Date();
+        const validade = new Date(dataValidade + 'T00:00:00');
+        const diffTime = validade - hoje;
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+        if (diffDays < 0) {
+            diasValidadeDiv.innerHTML = '<span style="color: var(--danger-red); font-weight: 600;">⚠️ Produto vencido há ' + Math.abs(diffDays) + ' dias</span>';
+        } else if (diffDays <= 30) {
+            diasValidadeDiv.innerHTML = '<span style="color: var(--warning-orange); font-weight: 600;">⚠️ Vence em ' + diffDays + ' dias</span>';
+        } else {
+            diasValidadeDiv.innerHTML = '<span style="color: var(--success-green); font-weight: 600;">✓ Vence em ' + diffDays + ' dias</span>';
+        }
+    }
+
+    // Event listeners
+    tipoEmbalagemRadios.forEach(radio => {
+        radio.addEventListener('change', atualizarCamposEmbalagem);
+    });
+
+    if (lataConteudoSelect) {
+        lataConteudoSelect.addEventListener('change', () => {
+            syncGrandezaLata();
+            calcularConversao();
+        });
+    }
+
+    document.getElementById('saldo_atual').addEventListener('input', calcularConversao);
+    if (grandezaInput) {
+        grandezaInput.addEventListener('input', calcularConversao);
+    }
+    // Event listener para o campo de litros por embalagem
+    if (litrosPorEmbalagemInput) {
+        litrosPorEmbalagemInput.addEventListener('input', calcularConversao);
+    }
+    if (lataPesoInput) {
+        lataPesoInput.addEventListener('input', () => {
+            syncGrandezaLata();
+            calcularConversao();
+        });
+    }
+    if (lataLitrosInput) {
+        lataLitrosInput.addEventListener('input', () => {
+            syncGrandezaLata();
+            calcularConversao();
+        });
+    }
+    if (dataValidadeInput) {
+        dataValidadeInput.addEventListener('change', calcularDiasValidade);
+    }
+
+    // ==========================================
+    // VALIDADE INDETERMINADA + LOTE AUTOMÁTICO
+    // ==========================================
+    const validadeIndeterminada = document.getElementById('validade-indeterminada');
+    const dataFabricacaoInput = document.getElementById('data_fabricacao');
+    const loteInput = document.getElementById('lote');
+    const gerarLoteAutomatico = document.getElementById('gerar-lote-automatico');
+
+    function toggleValidadeIndeterminada() {
+        if (!validadeIndeterminada) return;
+        const bloquear = validadeIndeterminada.checked;
+        if (dataFabricacaoInput) {
+            dataFabricacaoInput.readOnly = bloquear;
+            dataFabricacaoInput.disabled = bloquear;
+            if (bloquear) dataFabricacaoInput.value = '';
+        }
+        if (dataValidadeInput) {
+            dataValidadeInput.readOnly = bloquear;
+            dataValidadeInput.disabled = bloquear;
+            if (bloquear) dataValidadeInput.value = '';
+        }
+        if (diasValidadeDiv && bloquear) {
+            diasValidadeDiv.innerHTML = '<span style="color: var(--gray-700);">Validade indeterminada</span>';
+        } else if (dataValidadeInput) {
+            calcularDiasValidade();
+        }
+    }
+
+    function toggleLoteAutomatico() {
+        if (!gerarLoteAutomatico || !loteInput) return;
+        const auto = gerarLoteAutomatico.checked;
+        loteInput.readOnly = auto;
+        if (auto) {
+            loteInput.value = '';
+        }
+    }
+
+    // Inicializar ao carregar
+    atualizarCamposEmbalagem();
+    syncGrandezaLata();
+    if (dataValidadeInput) {
+        calcularDiasValidade();
+    }
+    if (validadeIndeterminada) {
+        validadeIndeterminada.addEventListener('change', toggleValidadeIndeterminada);
+        toggleValidadeIndeterminada();
+    }
+    if (gerarLoteAutomatico) {
+        gerarLoteAutomatico.addEventListener('change', toggleLoteAutomatico);
+        toggleLoteAutomatico();
+    }
+
+    // ==========================================
+    // SELEÇÃO AUTOMÁTICA DE TIPO LITRO
+    // ==========================================
+    // Quando unidade de medida for "Litro", sugerir tipo de embalagem "Litro"
+    if (unidadeSelect) {
+        unidadeSelect.addEventListener('change', function() {
+            toggleTabUnidadesDinamicas();
+            if (this.value === 'Litro') {
+                // Selecionar automaticamente o tipo de embalagem "Litro"
+                const tipoLitroRadio = document.getElementById('tipo_litro');
+                if (tipoLitroRadio && !document.querySelector('input[name="tipo_embalagem"]:checked')?.value) {
+                    tipoLitroRadio.checked = true;
+                    atualizarCamposEmbalagem();
+                    
+                    // Mostrar alerta amigável
+                    const tabUnidades = document.querySelector('[data-tab="unidades"]');
+                    if (tabUnidades) {
+                        tabUnidades.click(); // Ir para aba de Unidades Dinâmicas
+                    }
+                }
+            }
+        });
+        
+        // Inicializar: se já estiver em Litro e não houver tipo selecionado
+        if (unidadeSelect.value === 'Litro') {
+            const tipoAtual = document.querySelector('input[name="tipo_embalagem"]:checked')?.value;
+            if (!tipoAtual) {
+                const tipoLitroRadio = document.getElementById('tipo_litro');
+                if (tipoLitroRadio) {
+                    tipoLitroRadio.checked = true;
+                    atualizarCamposEmbalagem();
+                }
+            }
+        }
+    }
+
+    // ==========================================
+    // NOVO SISTEMA DE EMBALAGENS
+    // ==========================================
+    const tiposEmbalagemNovo = document.querySelectorAll('input[name="tipo_embalagem_novo"]');
+    const unidadesEmbalagemField = document.getElementById('unidades-embalagem-field');
+    const unidadeEmbalagemField = document.getElementById('unidade-embalagem-field');
+    const unidadeEmbalagemRadios = document.querySelectorAll('input[name="unidade_embalagem_novo"]');
+    const unidadesPorEmbalagemInput = document.getElementById('unidades_por_embalagem');
+    const nomeEmbalagemSpan = document.getElementById('nome-embalagem');
+    const helpUnidadesEmbalagem = document.getElementById('help-unidades-embalagem');
+    const previewEmbalagem = document.getElementById('preview-embalagem');
+    const previewTexto = document.getElementById('preview-texto');
+    
+    const nomesEmbalagem = {
+        'lata': 'Lata',
+        'rolo': 'Rolo',
+        'pacote': 'Pacote',
+        'caixa': 'Caixa',
+        'litro': 'Litro',
+        'balde': 'Balde'
+    };
+    
+    const exemplosEmbalagem = {
+        'lata': '18 litros por lata',
+        'rolo': '100 metros por rolo',
+        'pacote': '100 unidades por pacote',
+        'caixa': '500 unidades por caixa',
+        'litro': '20 litros por galão',
+        'balde': '25 kg por balde'
+    };
+
+    const unidadeBaseEmbalagem = {
+        'rolo': 'metros',
+        'pacote': 'unidades',
+        'caixa': 'unidades',
+        'litro': 'litros'
+    };
+
+    function getUnidadeBaseEmbalagem(tipoSelecionado) {
+        if (tipoSelecionado === 'lata' || tipoSelecionado === 'balde') {
+            const unidadeSelecionada = document.querySelector('input[name="unidade_embalagem_novo"]:checked')?.value;
+            if (unidadeSelecionada === 'kg') return 'kg';
+            return 'litros';
+        }
+        return unidadeBaseEmbalagem[tipoSelecionado] || 'unidades';
+    }
+    
+    function atualizarCamposEmbalagemNovo() {
+        const tipoSelecionado = document.querySelector('input[name="tipo_embalagem_novo"]:checked')?.value;
+        const precisaUnidadeEmbalagem = tipoSelecionado === 'lata' || tipoSelecionado === 'balde';
+
+        if (unidadeEmbalagemField) {
+            unidadeEmbalagemField.style.display = precisaUnidadeEmbalagem ? 'block' : 'none';
+        }
+        if (precisaUnidadeEmbalagem) {
+            const unidadeSelecionada = document.querySelector('input[name="unidade_embalagem_novo"]:checked')?.value;
+            if (!unidadeSelecionada) {
+                const defaultId = tipoSelecionado === 'balde' ? 'unidade_emb_kg' : 'unidade_emb_litro';
+                const defaultRadio = document.getElementById(defaultId);
+                if (defaultRadio) defaultRadio.checked = true;
+            }
+        }
+
+        if (tipoSelecionado && tipoSelecionado !== '') {
+            unidadesEmbalagemField.style.display = 'block';
+            const nome = nomesEmbalagem[tipoSelecionado] || 'Embalagem';
+            let exemplo = exemplosEmbalagem[tipoSelecionado] || 'Quantidade por embalagem';
+            const unidadeBase = getUnidadeBaseEmbalagem(tipoSelecionado);
+
+            if (tipoSelecionado === 'lata' || tipoSelecionado === 'balde') {
+                exemplo = `18 ${unidadeBase} por ${nome.toLowerCase()}`;
+            }
+            
+            nomeEmbalagemSpan.textContent = nome;
+            helpUnidadesEmbalagem.textContent = 'Ex: ' + exemplo;
+            unidadesPorEmbalagemInput.placeholder = exemplo;
+        } else {
+            unidadesEmbalagemField.style.display = 'none';
+            previewEmbalagem.style.display = 'none';
+        }
+        
+        atualizarPreviewEmbalagem();
+    }
+
+    function atualizarPreviewEmbalagem() {
+        const tipoSelecionado = document.querySelector('input[name="tipo_embalagem_novo"]:checked')?.value;
+        const unidades = parseFloat(unidadesPorEmbalagemInput.value);
+        const saldoAtual = parseFloat(document.getElementById('saldo_atual')?.value || '') || 0;
+        
+        if (tipoSelecionado && tipoSelecionado !== '' && unidades && unidades > 0) {
+            const nomeEmb = nomesEmbalagem[tipoSelecionado].toLowerCase();
+            const nomeEmbPlural = {
+                'lata': 'latas',
+                'rolo': 'rolos',
+                'pacote': 'pacotes',
+                'caixa': 'caixas',
+                'litro': 'litros',
+                'balde': 'baldes'
+            }[tipoSelecionado] || 'embalagens';
+            const unidadeBase = getUnidadeBaseEmbalagem(tipoSelecionado);
+            const total = saldoAtual > 0 ? (saldoAtual * unidades) : 0;
+            const nomeEmbSaldo = saldoAtual === 1 ? nomeEmb : nomeEmbPlural;
+            const totalFormatado = Number.isFinite(total) ? total.toLocaleString('pt-BR', { maximumFractionDigits: 2 }) : '0';
+            const unidadesFormatadas = Number.isFinite(unidades) ? unidades.toLocaleString('pt-BR', { maximumFractionDigits: 2 }) : unidades;
+            const saldoFormatado = Number.isFinite(saldoAtual) ? saldoAtual.toLocaleString('pt-BR', { maximumFractionDigits: 2 }) : saldoAtual;
+            
+            if (saldoAtual > 0) {
+                previewTexto.innerHTML = `1 ${nomeEmb} = <strong>${unidadesFormatadas}</strong> ${unidadeBase}<br>`
+                    + `<strong>${saldoFormatado}</strong> ${nomeEmbSaldo} = <strong>${totalFormatado}</strong> ${unidadeBase}`;
+            } else {
+                previewTexto.innerHTML = `1 ${nomeEmb} = <strong>${unidadesFormatadas}</strong> ${unidadeBase}`;
+            }
+            previewEmbalagem.style.display = 'block';
+        } else {
+            previewEmbalagem.style.display = 'none';
+        }
+    }
+
+    // Event listeners
+    tiposEmbalagemNovo.forEach(radio => {
+        radio.addEventListener('change', atualizarCamposEmbalagemNovo);
+    });
+
+    unidadeEmbalagemRadios.forEach(radio => {
+        radio.addEventListener('change', () => {
+            atualizarCamposEmbalagemNovo();
+            atualizarPreviewEmbalagem();
+        });
+    });
+    
+    if (unidadesPorEmbalagemInput) {
+        unidadesPorEmbalagemInput.addEventListener('input', atualizarPreviewEmbalagem);
+    }
+    const saldoAtualInput = document.getElementById('saldo_atual');
+    if (saldoAtualInput) {
+        saldoAtualInput.addEventListener('input', atualizarPreviewEmbalagem);
+    }
+
+    // Inicializar
+    toggleTabUnidadesDinamicas();
+    atualizarCamposEmbalagemNovo();
+
+    // ==========================================
+    // FUNÇÃO: NOVA ENTRADA/NF
+    // ==========================================
+    window.prepararNovaEntrada = function() {
+        // Confirmar ação
+        if (!confirm('Criar uma nova entrada/NF baseada neste item?\n\nTodos os dados serão copiados, mas apenas o Saldo, Número da NF e Unidades Dinâmicas poderão ser editados.')) {
+            return;
+        }
+
+        const form = document.querySelector('form');
+
+        // IDs dos campos que devem permanecer EDITÁVEIS
+        const camposEditaveisIds = [
+            'saldo_atual',                          // Saldo em estoque
+            'nota_fiscal',                          // Número da NF
+            // Aba Unidades Dinâmicas (todos os campos corretos)
+            'tipo_novo_lata',
+            'tipo_novo_rolo',
+            'tipo_novo_pacote', 
+            'tipo_novo_caixa',
+            'tipo_novo_litro',
+            'tipo_novo_balde',
+            'tipo_novo_nenhum',
+            'unidade_emb_litro',
+            'unidade_emb_kg',
+            'unidades_por_embalagem'
+        ];
+
+        // 1. Percorrer TODOS os campos e bloquear, exceto os editáveis
+        const todosInputs = form.querySelectorAll('input:not([type="hidden"]), select, textarea');
+        todosInputs.forEach(campo => {
+            const campoId = campo.getAttribute('id');
+            const isEditavel = camposEditaveisIds.includes(campoId);
+            
+            if (isEditavel) {
+                // Deixar editável com destaque visual
+                campo.removeAttribute('readonly');
+                campo.removeAttribute('disabled');
+                campo.style.background = '#fff3cd';
+                campo.style.borderColor = '#ffc107';
+            } else {
+                // Bloquear campo
+                if (campo.tagName === 'SELECT') {
+                    campo.setAttribute('disabled', 'disabled');
+                } else {
+                    campo.setAttribute('readonly', 'readonly');
+                }
+                campo.style.background = '#f3f4f6';
+                campo.style.cursor = 'not-allowed';
+                campo.style.opacity = '0.7';
+            }
+        });
+
+        // 2. Bloquear especificamente checkboxes e radios (exceto os editáveis)
+        const checkboxesRadios = form.querySelectorAll('input[type="checkbox"], input[type="radio"]');
+        checkboxesRadios.forEach(campo => {
+            const campoId = campo.getAttribute('id');
+            const isEditavel = camposEditaveisIds.includes(campoId);
+            
+            if (!isEditavel) {
+                campo.setAttribute('disabled', 'disabled');
+                if (campo.parentElement) {
+                    campo.parentElement.style.opacity = '0.5';
+                    campo.parentElement.style.cursor = 'not-allowed';
+                }
+            } else {
+                campo.removeAttribute('disabled');
+                if (campo.parentElement) {
+                    campo.parentElement.style.opacity = '1';
+                    campo.parentElement.style.background = '#fff3cd';
+                    campo.parentElement.style.padding = '0.25rem 0.5rem';
+                    campo.parentElement.style.borderRadius = '4px';
+                }
+            }
+        });
+
+        // 3. Bloquear botões/inputs file (upload de foto)
+        const inputsFile = form.querySelectorAll('input[type="file"]');
+        inputsFile.forEach(input => {
+            input.setAttribute('disabled', 'disabled');
+            input.style.opacity = '0.5';
+        });
+
+        // 4. Limpar campos que devem ser novos na entrada
+        const camposLimpar = [
+            { id: 'nota_fiscal', valor: '' },  // Limpar para novo NF
+            { id: 'lote', valor: '' },
+            { id: 'data_entrada', valor: '' },
+            { id: 'data_fabricacao', valor: '' },
+            { id: 'data_validade', valor: '' }
+        ];
+
+        camposLimpar.forEach(({ id, valor }) => {
+            const campo = document.getElementById(id);
+            if (campo && !campo.hasAttribute('readonly')) {
+                campo.value = valor;
+            }
+        });
+
+        // 5. Focar no campo Número da NF
+        setTimeout(() => {
+            const campoNF = document.getElementById('nota_fiscal');
+            if (campoNF) {
+                campoNF.focus();
+                campoNF.select();
+            }
+        }, 100);
+
+        // 6. Mudar título da página
+        const titulo = document.querySelector('h1, .page-title');
+        if (titulo) {
+            titulo.textContent = '📦 Nova Entrada/NF';
+            titulo.style.color = '#f59e0b';
+        }
+
+        // 7. Adicionar indicador visual
+        const form_container = document.querySelector('.soft-depth-form');
+        if (form_container && !document.querySelector('.alerta-nova-entrada')) {
+            const alerta = document.createElement('div');
+            alerta.className = 'alert alert-warning alerta-nova-entrada';
+            alerta.style.marginBottom = '1rem';
+            alerta.innerHTML = `
+                <strong>⚠️ Modo: Nova Entrada/NF</strong><br>
+                <small>Os dados do item foram copiados. Edite apenas o <strong>Saldo</strong>, <strong>Número da NF</strong> e <strong>Unidades Dinâmicas</strong>.</small>
+            `;
+            form_container.insertBefore(alerta, form);
+        }
+
+        // 8. Alterar botão Salvar
+        const btnSalvar = form.querySelector('button[type="submit"]');
+        if (btnSalvar) {
+            btnSalvar.textContent = '✓ Criar Nova Entrada';
+            btnSalvar.classList.remove('btn-primary');
+            btnSalvar.classList.add('btn-warning');
+        }
+
+        // 9. Esconder botão "Nova Entrada/NF"
+        const btnNovaEntrada = document.getElementById('btnNovaEntradaNF');
+        if (btnNovaEntrada) {
+            btnNovaEntrada.style.display = 'none';
+        }
+
+        // 10. Scroll para o topo
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+</script>
+{% endblock %}

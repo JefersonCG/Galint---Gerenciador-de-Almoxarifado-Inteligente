@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Contingência{% endblock %}
+{% block page_header %}
+<h2>Fila de Contingência</h2>
+<p class="text-muted">Registros aguardando sincronização com o banco de dados.</p>
+{% endblock %}
+{% block content %}
+<div class="card">
+    <div class="card-body">
+        {% if entries %}
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Código</th>
+                    <th>Descrição</th>
+                    <th>Qtd</th>
+                    <th>Status</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for e in entries %}
+                <tr>
+                    <td>{{ e.id }}</td>
+                    <td>{{ e.codigo_item }}</td>
+                    <td>{{ e.descricao }}</td>
+                    <td>{{ e.quantidade_inicial }}</td>
+                    <td>{{ e.status }}</td>
+                    <td>
+                        <form style="display:inline" method="post"
+                            action="{{ url_for('contingency.delete_entry', entry_id=e.id) }}">
+                            <button class="btn btn-sm btn-danger">Remover</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <form method="post" action="{{ url_for('contingency.sync_queue') }}">
+            <button class="btn btn-primary">Sincronizar agora</button>
+        </form>
+        {% else %}
+        <p class="text-muted">Nenhum registro em fila.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,358 @@
+{% extends "base.html" %}
+
+{% block title %}Configuração de Relatórios{% endblock %}
+
+{% block extra_css %}
+<style>
+    .config-card {
+        background: white;
+        border-radius: 12px;
+        padding: 2rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        margin-bottom: 2rem;
+    }
+    
+    .config-header {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 2rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid #e9ecef;
+    }
+    
+    .config-header i {
+        font-size: 2rem;
+        color: #0d6efd;
+    }
+    
+    .form-section {
+        margin-bottom: 2rem;
+    }
+    
+    .form-section h4 {
+        color: #495057;
+        font-size: 1.1rem;
+        font-weight: 600;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid #dee2e6;
+    }
+    
+    .preview-box {
+        background: #f8f9fa;
+        border: 2px solid #dee2e6;
+        border-radius: 8px;
+        padding: 1.5rem;
+        min-height: 120px;
+        font-family: monospace;
+        white-space: pre-wrap;
+        margin-top: 1rem;
+    }
+    
+    .variaveis-disponiveis {
+        background: #e7f1ff;
+        border-left: 4px solid #0d6efd;
+        padding: 1rem;
+        border-radius: 4px;
+        margin-top: 1rem;
+    }
+    
+    .variaveis-disponiveis code {
+        background: white;
+        padding: 0.2rem 0.5rem;
+        border-radius: 4px;
+        margin: 0.2rem;
+        display: inline-block;
+    }
+    
+    .color-input-group {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+    }
+    
+    .color-input-group input[type="color"] {
+        width: 60px;
+        height: 38px;
+        border: none;
+        border-radius: 4px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="config-card">
+        <div class="config-header">
+            <i class="bi bi-file-earmark-text"></i>
+            <div>
+                <h2 class="mb-0">Configuração de Relatórios</h2>
+                <small class="text-muted">Personalize cabeçalhos, rodapés e aparência dos relatórios</small>
+            </div>
+        </div>
+        
+        <form method="POST">
+            <!-- Cabeçalho -->
+            <div class="form-section">
+                <h4><i class="bi bi-file-text me-2"></i>Cabeçalho dos Relatórios</h4>
+                
+                <div class="row">
+                    <div class="col-12 mb-3">
+                        <label for="cabecalho_template" class="form-label">Template do Cabeçalho</label>
+                        <textarea class="form-control" id="cabecalho_template" name="cabecalho_template" 
+                                  rows="5">{{ relatorio_config.cabecalho_template }}</textarea>
+                        
+                        <div class="variaveis-disponiveis">
+                            <strong><i class="bi bi-info-circle me-2"></i>Variáveis Disponíveis:</strong><br>
+                            <code>{{nome_empresa}}</code>
+                            <code>{{nome_fantasia}}</code>
+                            <code>{{cnpj}}</code>
+                            <code>{{telefone}}</code>
+                            <code>{{email}}</code>
+                            <code>{{endereco_completo}}</code>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-4 mb-3">
+                        <label for="cabecalho_altura_mm" class="form-label">Altura (mm)</label>
+                        <input type="number" class="form-control" id="cabecalho_altura_mm" name="cabecalho_altura_mm" 
+                               value="{{ relatorio_config.cabecalho_altura_mm }}" min="20" max="100">
+                    </div>
+                    
+                    <div class="col-md-4 mb-3">
+                        <label for="cabecalho_cor_texto" class="form-label">Cor do Texto</label>
+                        <div class="color-input-group">
+                            <input type="color" id="cabecalho_cor_texto" name="cabecalho_cor_texto" 
+                                value="{{ relatorio_config.cabecalho_cor_texto }}">
+                            <input type="text" class="form-control" value="{{ relatorio_config.cabecalho_cor_texto }}" readonly>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-4 mb-3">
+                        <label for="cabecalho_fonte" class="form-label">Fonte</label>
+                        <select class="form-select" id="cabecalho_fonte" name="cabecalho_fonte">
+                            <option value="Helvetica" {% if relatorio_config.cabecalho_fonte == 'Helvetica' %}selected{% endif %}>Helvetica</option>
+                            <option value="Courier" {% if relatorio_config.cabecalho_fonte == 'Courier' %}selected{% endif %}>Courier</option>
+                            <option value="Times-Roman" {% if relatorio_config.cabecalho_fonte == 'Times-Roman' %}selected{% endif %}>Times Roman</option>
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-3 mb-3">
+                        <label for="cabecalho_tamanho_fonte" class="form-label">Tamanho Fonte</label>
+                        <input type="number" class="form-control" id="cabecalho_tamanho_fonte" name="cabecalho_tamanho_fonte" 
+                               value="{{ relatorio_config.cabecalho_tamanho_fonte }}" min="8" max="20">
+                    </div>
+                    
+                    <div class="col-md-3 mb-3">
+                        <div class="form-check mt-4">
+                            <input class="form-check-input" type="checkbox" id="cabecalho_mostrar_logo" 
+                                   name="cabecalho_mostrar_logo" {% if relatorio_config.cabecalho_mostrar_logo %}checked{% endif %}>
+                            <label class="form-check-label" for="cabecalho_mostrar_logo">
+                                Mostrar Logo
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="col-12">
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="previewCabecalho()">
+                            <i class="bi bi-eye me-2"></i>Visualizar Preview
+                        </button>
+                        <div class="preview-box" id="preview-cabecalho" style="display:none;">
+                            <!-- Preview será carregado aqui -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Rodapé -->
+            <div class="form-section">
+                <h4><i class="bi bi-file-earmark-text me-2"></i>Rodapé dos Relatórios</h4>
+                
+                <div class="row">
+                    <div class="col-12 mb-3">
+                        <label for="rodape_template" class="form-label">Template do Rodapé</label>
+                        <textarea class="form-control" id="rodape_template" name="rodape_template" 
+                                  rows="3">{{ relatorio_config.rodape_template }}</textarea>
+                        
+                        <div class="variaveis_disponiveis">
+                            <strong><i class="bi bi-info-circle me-2"></i>Variáveis Disponíveis:</strong><br>
+                            <code>{{data_geracao}}</code>
+                            <code>{{hora_geracao}}</code>
+                            <code>{{versao}}</code>
+                            <code>{{pagina}}</code>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-3 mb-3">
+                        <label for="rodape_altura_mm" class="form-label">Altura (mm)</label>
+                        <input type="number" class="form-control" id="rodape_altura_mm" name="rodape_altura_mm" 
+                               value="{{ relatorio_config.rodape_altura_mm }}" min="15" max="50">
+                    </div>
+                    
+                    <div class="col-md-3 mb-3">
+                        <label for="rodape_cor_texto" class="form-label">Cor do Texto</label>
+                        <div class="color-input-group">
+                            <input type="color" id="rodape_cor_texto" name="rodape_cor_texto" 
+                                value="{{ relatorio_config.rodape_cor_texto }}">
+                            <input type="text" class="form-control" value="{{ relatorio_config.rodape_cor_texto }}" readonly>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-3 mb-3">
+                        <label for="rodape_tamanho_fonte" class="form-label">Tamanho Fonte</label>
+                        <input type="number" class="form-control" id="rodape_tamanho_fonte" name="rodape_tamanho_fonte" 
+                               value="{{ relatorio_config.rodape_tamanho_fonte }}" min="6" max="14">
+                    </div>
+                    
+                    <div class="col-md-3 mb-3">
+                        <div class="form-check mt-4">
+                            <input class="form-check-input" type="checkbox" id="rodape_mostrar_data" 
+                                   name="rodape_mostrar_data" {% if relatorio_config.rodape_mostrar_data %}checked{% endif %}>
+                            <label class="form-check-label" for="rodape_mostrar_data">
+                                Mostrar Data
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="rodape_mostrar_pagina" 
+                                   name="rodape_mostrar_pagina" {% if relatorio_config.rodape_mostrar_pagina %}checked{% endif %}>
+                            <label class="form-check-label" for="rodape_mostrar_pagina">
+                                Mostrar Página
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="col-12">
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="previewRodape()">
+                            <i class="bi bi-eye me-2"></i>Visualizar Preview
+                        </button>
+                        <div class="preview-box" id="preview-rodape" style="display:none;">
+                            <!-- Preview será carregado aqui -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Cores do Sistema -->
+            <div class="form-section">
+                <h4><i class="bi bi-palette me-2"></i>Cores do Sistema</h4>
+                
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="cor_primaria" class="form-label">Cor Primária</label>
+                        <div class="color-input-group">
+                            <input type="color" id="cor_primaria" name="cor_primaria" 
+                                value="{{ relatorio_config.cor_primaria }}">
+                            <input type="text" class="form-control" value="{{ relatorio_config.cor_primaria }}" readonly>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6 mb-3">
+                        <label for="cor_secundaria" class="form-label">Cor Secundária</label>
+                        <div class="color-input-group">
+                            <input type="color" id="cor_secundaria" name="cor_secundaria" 
+                                value="{{ relatorio_config.cor_secundaria }}">
+                            <input type="text" class="form-control" value="{{ relatorio_config.cor_secundaria }}" readonly>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6 mb-3">
+                        <label for="fonte_principal" class="form-label">Fonte Principal</label>
+                        <select class="form-select" id="fonte_principal" name="fonte_principal">
+                            <option value="Helvetica" {% if relatorio_config.fonte_principal == 'Helvetica' %}selected{% endif %}>Helvetica</option>
+                            <option value="Courier" {% if relatorio_config.fonte_principal == 'Courier' %}selected{% endif %}>Courier</option>
+                            <option value="Times-Roman" {% if relatorio_config.fonte_principal == 'Times-Roman' %}selected{% endif %}>Times Roman</option>
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-6 mb-3">
+                        <label for="fonte_tabelas" class="form-label">Fonte para Tabelas</label>
+                        <select class="form-select" id="fonte_tabelas" name="fonte_tabelas">
+                            <option value="Courier" {% if relatorio_config.fonte_tabelas == 'Courier' %}selected{% endif %}>Courier</option>
+                            <option value="Helvetica" {% if relatorio_config.fonte_tabelas == 'Helvetica' %}selected{% endif %}>Helvetica</option>
+                            <option value="Times-Roman" {% if relatorio_config.fonte_tabelas == 'Times-Roman' %}selected{% endif %}>Times Roman</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Botões -->
+            <div class="d-flex gap-3 justify-content-between mt-4">
+                <button type="button" class="btn btn-outline-warning" onclick="resetarTemplates()">
+                    <i class="bi bi-arrow-counterclockwise me-2"></i>Resetar para Padrão
+                </button>
+                
+                <div class="d-flex gap-3">
+                    <a href="{{ url_for('dashboard.index') }}" class="btn btn-secondary">
+                        <i class="bi bi-arrow-left me-2"></i>Voltar
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-lg me-2"></i>Salvar Configurações
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function previewCabecalho() {
+    fetch('{{ url_for("config.preview_cabecalho") }}')
+        .then(response => response.json())
+        .then(data => {
+            const previewBox = document.getElementById('preview-cabecalho');
+            previewBox.textContent = data.cabecalho;
+            previewBox.style.display = 'block';
+        })
+        .catch(error => {
+            alert('Erro ao gerar preview: ' + error);
+        });
+}
+
+function previewRodape() {
+    fetch('{{ url_for("config.preview_rodape") }}')
+        .then(response => response.json())
+        .then(data => {
+            const previewBox = document.getElementById('preview-rodape');
+            previewBox.textContent = data.rodape;
+            previewBox.style.display = 'block';
+        })
+        .catch (error => {
+            alert('Erro ao gerar preview: ' + error);
+        });
+}
+
+function resetarTemplates() {
+    if (confirm('Tem certeza que deseja resetar os templates para os valores padrão?')) {
+        fetch('{{ url_for("config.resetar_templates") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                location.reload();
+            } else {
+                alert('Erro: ' + data.error);
+            }
+        })
+        .catch(error => {
+            alert('Erro ao resetar templates: ' + error);
+        });
+    }
+}
+
+// Atualizar valor do input de texto quando a cor muda
+document.querySelectorAll('input[type="color"]').forEach(input => {
+    input.addEventListener('change', function() {
+        const textInput = this.nextElementSibling;
+        if (textInput && textInput.type === 'text') {
+            textInput.value = this.value;
+        }
+    });
+});
+</script>
+{% endblock %}

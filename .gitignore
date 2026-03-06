@@ -1,0 +1,103 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+*.pyc
+
+# Virtual Environments
+.venv/
+.venv_broken/
+.venv_build/
+venv/
+ENV/
+env/
+
+# Flask
+instance/
+*.db
+*.sqlite
+*.sqlite3
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+log/
+logs/
+
+# Backups
+*.bak
+*.backup
+*_backup.*
+
+# Compiled files
+*.spec
+*.exe
+*.msi
+
+# Temporary files
+*.tmp
+*.temp
+temp/
+tmp/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Certificates
+*.pem
+*.key
+*.crt
+*.pfx
+*.p12
+
+# Database dumps
+*.sql
+*.dump
+
+# Reports
+instance/reports/*.pdf
+instance/reports/*.jpeg
+instance/reports/*.jpg
+instance/reports/*.png
+
+# Barcodes
+instance/barcodes/*.png
+
+# Node modules (mobile)
+galint-mobile/node_modules/
+galint-mobile/.expo/
+galint-mobile/build/
+galint-mobile/dist/
+galint-mobile/build_inspect/
+
+# Mobile builds
+*.apk
+*.aab
+*.ipa
+
+# Cache
+*.cache
+.cache/
+
+# Runtime / uploads (gerados pela aplicação)
+.galint_server.lock
+galint_flask/static/uploads/

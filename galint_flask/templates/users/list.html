@@ -1,0 +1,370 @@
+{% extends "base.html" %}
+{% block title %}Usuários{% endblock %}
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <h1 class="h3 mb-0">Usuários</h1>
+    <div class="d-flex gap-2">
+        <a class="btn btn-success" href="{{ url_for('users.new_user_form') }}">Novo usuário</a>
+    </div>
+</div>
+{# Cards por cargo #}
+{% if setor_cards %}
+<style>
+    .user-role-card {
+        border-radius: 12px;
+        border: 1px solid rgba(17, 25, 40, 0.35);
+        box-shadow: 0 16px 40px rgba(15, 23, 42, 0.18);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        cursor: pointer;
+        background: #0f172a;
+        color: #e2e8f0;
+    }
+
+    .user-role-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 20px 45px rgba(15, 23, 42, 0.28);
+    }
+
+    .user-role-card .display-6 {
+        font-size: 2rem;
+        font-weight: 600;
+        color: #ffffff;
+    }
+
+    .user-role-card .user-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        padding: 0.25rem 0.65rem;
+        border-radius: 999px;
+        background: rgba(59, 130, 246, 0.22);
+        color: #93c5fd;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+    }
+
+    .user-role-card .user-list {
+        list-style: none;
+        padding-left: 0;
+        margin-bottom: 0;
+        display: grid;
+        gap: 0.35rem;
+    }
+
+    .user-role-card .user-list li {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.75rem;
+        font-size: 0.95rem;
+        color: #cbd5f5;
+    }
+
+    .user-role-card .user-list li .badge {
+        white-space: nowrap;
+    }
+
+    .user-role-card .card-body {
+        pointer-events: none;
+    }
+
+    .user-role-card .card-body * {
+        pointer-events: none;
+    }
+
+    .user-role-card:focus-visible {
+        outline: 3px solid rgba(59, 130, 246, 0.45);
+        outline-offset: 2px;
+    }
+
+    .sector-modal-list .list-group-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+        background: #0f172a;
+        color: #e2e8f0;
+        border-color: rgba(148, 163, 184, 0.2);
+    }
+
+    .sector-modal-list .list-group-item .user-meta {
+        flex: 1;
+    }
+
+    .sector-modal-list .list-group-item .btn-group {
+        white-space: nowrap;
+        display: flex;
+        gap: 0.25rem;
+    }
+
+    .sector-modal-list .list-group-item .btn-group form {
+        margin: 0;
+        display: inline;
+    }
+
+    @media (max-width: 767.98px) {
+        .user-role-card .display-6 {
+            font-size: 1.5rem;
+        }
+        
+        .sector-modal-list .list-group-item {
+            flex-direction: column;
+            align-items: stretch;
+        }
+        
+        .sector-modal-list .list-group-item .btn-group {
+            width: 100%;
+            margin-top: 0.5rem;
+        }
+    }
+</style>
+<div class="section-panel mb-4">
+    <h3>Distribuição por setor</h3>
+    <p class="text-muted">Equipe agrupada por departamento com total de colaboradores e perfis.</p>
+    <div class="row g-3">
+        {% for card in setor_cards %}
+        <div class="col-xl-3 col-lg-4 col-md-6">
+            <div class="card h-100 user-role-card sector-card" role="button" tabindex="0" data-sector="{{ card.setor }}"
+                data-sector-template="sector-template-{{ loop.index }}">
+                <div class="card-body d-flex flex-column">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <h5 class="card-title mb-0 text-truncate text-light" title="{{ card.setor }}">{{ card.setor }}
+                        </h5>
+                        <span class="user-pill">{{ card.total }} colaborador{% if card.total != 1 %}es{% endif %}</span>
+                    </div>
+                    <p class="display-6 mb-1">{{ card.total }}</p>
+                    <p class="mb-0" style="color: rgba(226, 232, 240, 0.8);">
+                        {{ card.admins }} admin{% if card.admins != 1 %}s{% endif %}
+                        • {{ card.standards }} padrão{% if card.standards != 1 %}es{% endif %}
+                    </p>
+                    <p class="small mt-3 mb-0" style="color: rgba(148, 163, 184, 0.85);">Clique para visualizar todos os
+                        usuários do setor.</p>
+                </div>
+            </div>
+        </div>
+        <template id="sector-template-{{ loop.index }}">
+            <p class="text-muted small">{{ card.total }} colaborador{% if card.total != 1 %}es{% endif %} neste setor.
+            </p>
+            <div class="list-group sector-modal-list">
+                {% for membro in card.membros %}
+                <div class="list-group-item">
+                    <div class="user-meta">
+                        <strong>{{ membro.nome }}</strong>
+                        <div class="text-white small">Matrícula {{ membro.matricula }}{% if membro.cargo %} • {{
+                            membro.cargo }}{% endif %}</div>
+                    </div>
+                    <div class="btn-group btn-group-sm" role="group" aria-label="Ações">
+                        <a class="btn btn-outline-secondary"
+                            href="{{ url_for('users.edit_user_form', matricula=membro.matricula) }}">Editar</a>
+                        <a class="btn btn-outline-primary"
+                            href="{{ url_for('users.user_history', matricula=membro.matricula) }}">Histórico</a>
+                        {% if current_user.is_admin and membro.matricula != current_user.id %}
+                        <button class="btn btn-outline-danger btn-sm" type="button" 
+                                onclick="openDeleteModal('{{ membro.matricula }}', '{{ membro.nome|e }}')">
+                            Excluir
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </template>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Modal de Exclusão Avançada -->
+<div class="modal fade" id="deleteUserModal" tabindex="-1" aria-labelledby="deleteUserModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="deleteUserModalLabel">Excluir Usuário</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <form id="deleteUserForm" method="post" action="">
+                <div class="modal-body">
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        <strong>Atenção!</strong> Você está prestes a excluir o usuário <strong id="deleteUserName"></strong>.
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Escolha como deseja excluir:</label>
+                        
+                        <div class="form-check mb-3 border rounded p-3">
+                            <input class="form-check-input" type="radio" name="delete_option" id="deleteReatribuir" value="reatribuir" checked>
+                            <label class="form-check-label" for="deleteReatribuir">
+                                <strong class="text-primary">✓ Reatribuir e Excluir (Recomendado)</strong>
+                                <small class="d-block text-muted mt-1">Transfere todos os registros (saídas, entradas, eventos) para outro usuário antes de excluir. <strong>Preserva o histórico completo.</strong></small>
+                            </label>
+                            
+                            <div id="reatribuirOptions" class="mt-2">
+                                <label for="usuarioDestino" class="form-label small fw-bold">Selecione o usuário de destino:</label>
+                                <select class="form-select form-select-sm" id="usuarioDestino" name="reatribuir_para" required>
+                                    <option value="">-- Selecione um usuário --</option>
+                                    {% for u in usuarios %}
+                                        <option value="{{ u.matricula }}" data-user-id="{{ u.matricula }}">{{ u.nome }} ({{ u.matricula }})</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-check mb-3 border rounded p-3">
+                            <input class="form-check-input" type="radio" name="delete_option" id="deleteForcado" value="force">
+                            <label class="form-check-label" for="deleteForcado">
+                                <strong class="text-warning">⚠️ Excluir Forçadamente</strong>
+                                <small class="d-block text-muted mt-1">Remove o usuário e desvincula todos os registros (matrícula vira NULL). <strong>Use apenas se não puder reatribuir.</strong></small>
+                            </label>
+                        </div>
+
+                        <div class="form-check mb-2 border rounded p-3">
+                            <input class="form-check-input" type="radio" name="delete_option" id="deleteSimple" value="simple">
+                            <label class="form-check-label" for="deleteSimple">
+                                <strong class="text-muted">Exclusão Simples</strong>
+                                <small class="d-block text-muted mt-1">❌ Só funciona se o usuário <u>não tiver nenhum registro vinculado</u>. Se houver registros, mostrará erro.</small>
+                            </label>
+                        </div>
+                    </div>
+
+                    <input type="hidden" name="force_delete" id="forceDeleteInput" value="false">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-danger" id="confirmDeleteBtn">Excluir</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="sectorModal" tabindex="-1" aria-labelledby="sectorModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="sectorModalLabel">Setor</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted mb-0">Carregando colaboradores...</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Fechar</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    (function () {
+        const modalElement = document.getElementById('sectorModal');
+        if (!modalElement) {
+            return;
+        }
+        const modalTitle = modalElement.querySelector('.modal-title');
+        const modalBody = modalElement.querySelector('.modal-body');
+        const modal = new bootstrap.Modal(modalElement);
+
+        function openModalFromTemplate(card) {
+            const setor = card.getAttribute('data-sector');
+            const templateId = card.getAttribute('data-sector-template');
+            const template = document.getElementById(templateId);
+            if (!template || !modalTitle || !modalBody) {
+                return;
+            }
+            modalTitle.textContent = setor;
+            modalBody.innerHTML = template.innerHTML;
+            modal.show();
+        }
+
+        document.querySelectorAll('.sector-card').forEach((card) => {
+            card.addEventListener('click', () => openModalFromTemplate(card));
+            card.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    openModalFromTemplate(card);
+                }
+            });
+        });
+    })();
+
+    // Sistema de exclusão avançada de usuários
+    (function() {
+        const deleteModal = document.getElementById('deleteUserModal');
+        if (!deleteModal) return;
+        
+        const deleteModalBootstrap = new bootstrap.Modal(deleteModal);
+        const deleteForm = document.getElementById('deleteUserForm');
+        const deleteUserNameEl = document.getElementById('deleteUserName');
+        const forceDeleteInput = document.getElementById('forceDeleteInput');
+        const reatribuirOptions = document.getElementById('reatribuirOptions');
+        const usuarioDestino = document.getElementById('usuarioDestino');
+        
+        // Função para abrir o modal
+        window.openDeleteModal = function(matricula, nome) {
+            deleteUserNameEl.textContent = nome;
+            deleteForm.action = `/usuarios/${matricula}/excluir`;
+            
+            // Remover opção do próprio usuário da lista
+            const options = usuarioDestino.querySelectorAll('option');
+            options.forEach(opt => {
+                if (opt.getAttribute('data-user-id') === matricula) {
+                    opt.style.display = 'none';
+                    opt.disabled = true;
+                } else {
+                    opt.style.display = '';
+                    opt.disabled = false;
+                }
+            });
+            
+            // Reset form - opção "reatribuir" é padrão
+            document.getElementById('deleteReatribuir').checked = true;
+            reatribuirOptions.style.display = 'block';
+            usuarioDestino.value = '';
+            forceDeleteInput.value = 'true';
+            
+            deleteModalBootstrap.show();
+        };
+        
+        // Controlar exibição de opções de reatribuição
+        document.querySelectorAll('input[name="delete_option"]').forEach(radio => {
+            radio.addEventListener('change', function() {
+                if (this.value === 'reatribuir') {
+                    reatribuirOptions.style.display = 'block';
+                    usuarioDestino.setAttribute('required', 'required');
+                    forceDeleteInput.value = 'true';
+                } else {
+                    reatribuirOptions.style.display = 'none';
+                    usuarioDestino.removeAttribute('required');
+                    usuarioDestino.value = '';
+                    forceDeleteInput.value = this.value === 'force' ? 'true' : 'false';
+                }
+            });
+        });
+        
+        // Validar antes de enviar
+        deleteForm.addEventListener('submit', function(e) {
+            const selectedOption = document.querySelector('input[name="delete_option"]:checked').value;
+            
+            if (selectedOption === 'reatribuir' && !usuarioDestino.value) {
+                e.preventDefault();
+                alert('Por favor, selecione um usuário para reatribuir os registros.');
+                return;
+            }
+            
+            // Se foi reatribuir, limpar force_delete mas manter reatribuir_para
+            if (selectedOption !== 'reatribuir') {
+                // Remover campo reatribuir_para se não for reatribuir
+                const reatribuirInput = deleteForm.querySelector('[name="reatribuir_para"]');
+                if (reatribuirInput && selectedOption !== 'reatribuir') {
+                    reatribuirInput.disabled = true;
+                }
+            }
+        });
+    })();
+</script>
+{% endblock %}

@@ -1,0 +1,484 @@
+{% extends "base.html" %}
+
+{% block title %}Auditar Ferramentas - GALINT{% endblock %}
+
+{% block extra_css %}
+<style>
+    .filter-card {
+        background: var(--bs-dark);
+        border: 1px solid var(--bs-border-color);
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .stats-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 8px;
+        padding: 1rem;
+        color: white;
+        margin-bottom: 1.5rem;
+    }
+    
+    /* Cards de funcionários */
+    .employee-card {
+        background: var(--bs-dark);
+        border: 1px solid var(--bs-border-color);
+        border-radius: 8px;
+        padding: 1.25rem;
+        height: 100%;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .employee-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+        border-color: var(--bs-primary);
+        cursor: pointer;
+    }
+    
+    .employee-card.has-alert {
+        border-left: 4px solid #ffc107;
+    }
+    
+    .employee-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: start;
+        margin-bottom: 0.75rem;
+    }
+    
+    .employee-icon {
+        font-size: 2.5rem;
+        opacity: 0.8;
+        margin-bottom: 0.5rem;
+    }
+    
+    .employee-name {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: white;
+        margin-bottom: 0.25rem;
+    }
+    
+    .employee-matricula {
+        font-size: 0.8rem;
+        color: var(--bs-secondary);
+    }
+    
+    .employee-info {
+        margin-top: 0.75rem;
+        padding-top: 0.75rem;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .employee-meta {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: 0.75rem;
+        flex-wrap: wrap;
+    }
+    
+    /* Badges */
+    .tool-count-badge {
+        font-size: 1.2rem;
+        padding: 0.4rem 0.8rem;
+        border-radius: 6px;
+        font-weight: 700;
+        background-color: #28a745;
+        color: white;
+    }
+    
+    .alert-badge {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-weight: 600;
+        background-color: #ffc107;
+        color: #000;
+    }
+    
+    .info-badge {
+        font-size: 0.7rem;
+        padding: 0.2rem 0.4rem;
+        border-radius: 3px;
+        background-color: rgba(255, 255, 255, 0.1);
+        color: var(--bs-light);
+    }
+    
+    /* Busca rápida */
+    .quick-search {
+        position: relative;
+    }
+    
+    .quick-search i {
+        position: absolute;
+        left: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--bs-secondary);
+    }
+    
+    .quick-search input {
+        padding-left: 2.5rem;
+    }
+
+    .search-results {
+        position: absolute;
+        top: calc(100% + 4px);
+        left: 0;
+        right: 0;
+        z-index: 1050;
+        background: #1f2128;
+        border: 1px solid rgba(148, 163, 184, 0.25);
+        border-radius: 6px;
+        max-height: 280px;
+        overflow-y: auto;
+        display: none;
+    }
+
+    .search-results .result-item {
+        width: 100%;
+        text-align: left;
+        padding: 0.5rem 0.75rem;
+        border: 0;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+        background: transparent;
+        color: #f8fafc;
+    }
+
+    .search-results .result-item:hover,
+    .search-results .result-item:focus {
+        background: rgba(59, 130, 246, 0.15);
+        outline: none;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 3rem;
+        color: var(--bs-secondary);
+    }
+    
+    .empty-state i {
+        font-size: 4rem;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
+    
+    /* Forçar texto branco para melhor legibilidade */
+    .form-label, .text-muted, label, p {
+        color: var(--bs-light) !important;
+    }
+    
+    /* Responsividade */
+    @media (max-width: 768px) {
+        .stats-card h3 {
+            font-size: 1.5rem;
+        }
+        
+        .filter-card {
+            padding: 1rem;
+        }
+        
+        .employee-card {
+            padding: 1rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block page_header %}
+<div>
+    <h2 class="mb-1" style="color: #000 !important;"><i class="bi bi-search"></i> Auditar Ferramentas</h2>
+    <p class="text-muted mb-0" style="color: #000 !important;">Gerencie ferramentas em posse dos funcionários</p>
+</div>
+{% endblock %}
+
+{% block content %}
+<!-- Estatísticas -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3 col-sm-6">
+        <div class="stats-card">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <small class="opacity-75">Funcionários com Ferramentas</small>
+                    <h3 class="mb-0">{{ stats.total_employees }}</h3>
+                </div>
+                <i class="bi bi-people-fill" style="font-size: 2rem; opacity: 0.6;"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-sm-6">
+        <div class="stats-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <small class="opacity-75">Total de Ferramentas</small>
+                    <h3 class="mb-0">{{ stats.total_tools }}</h3>
+                </div>
+                <i class="bi bi-tools" style="font-size: 2rem; opacity: 0.6;"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-sm-6">
+        <div class="stats-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <small class="opacity-75">Alertas (>30 dias)</small>
+                    <h3 class="mb-0">{{ stats.total_alerts }}</h3>
+                </div>
+                <i class="bi bi-exclamation-triangle-fill" style="font-size: 2rem; opacity: 0.6;"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-sm-6">
+        <div class="stats-card" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <small class="opacity-75">Devoluções Hoje</small>
+                    <h3 class="mb-0">{{ stats.returns_today }}</h3>
+                </div>
+                <i class="bi bi-arrow-return-left" style="font-size: 2rem; opacity: 0.6;"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filtros -->
+<div class="filter-card">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h5 class="mb-0 text-white"><i class="bi bi-funnel"></i> Filtros e Gestão</h5>
+    </div>
+
+    <!-- Gerar Relatório (Área destacada) -->
+    <div class="p-3 mb-4 rounded bg-dark border border-secondary" style="--bs-bg-opacity: .2; border-style: dashed !important;">
+        <div class="d-flex align-items-center mb-3 text-info">
+             <i class="bi bi-file-earmark-bar-graph fs-5 me-2"></i>
+             <span class="fw-bold">Gerar Relatório de Ferramentas</span>
+        </div>
+        <form method="post" action="{{ url_for('tool_custody.generate_tool_report') }}">
+            <div class="row g-2 align-items-end">
+                <div class="col-md-3">
+                    <label class="form-label small text-muted text-uppercase fw-bold mb-1">Data Início</label>
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-dark border-secondary text-secondary"><i class="bi bi-calendar"></i></span>
+                        <input type="date" class="form-control form-control-sm bg-dark border-secondary text-light" name="date_from" required>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small text-muted text-uppercase fw-bold mb-1">Data Fim</label>
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-dark border-secondary text-secondary"><i class="bi bi-calendar-check"></i></span>
+                        <input type="date" class="form-control form-control-sm bg-dark border-secondary text-light" name="date_to" required>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small text-muted text-uppercase fw-bold mb-1">Formato</label>
+                    <select class="form-select form-select-sm bg-dark border-secondary text-light" name="format" required>
+                        <option value="pdf">PDF</option>
+                        <option value="xlsx">XLSX</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                     <button type="submit" class="btn btn-sm btn-success w-100">
+                        <i class="bi bi-download me-1"></i> Baixar Relatório
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Filtros Unificados -->
+    <form method="get" action="{{ url_for('tool_custody.index') }}" id="tool-custody-filter-form">
+        <div class="row g-3 align-items-end">
+            <!-- Busca -->
+            <div class="col-md-5">
+                <label class="form-label small text-muted text-uppercase fw-bold mb-1">Pesquisar</label>
+                <div class="input-group" style="position: relative;">
+                    <span class="input-group-text bg-dark border-secondary text-secondary"><i class="bi bi-search"></i></span>
+                    <input type="text" class="form-control bg-dark border-secondary text-light" name="search" 
+                           placeholder="Buscar por nome, matrícula ou código de barras..."
+                           value="{{ search or '' }}" autocomplete="off" id="tool-custody-search">
+                    <div class="search-results" id="tool-custody-search-results" role="listbox" aria-label="Resultados de busca"></div>
+                </div>
+            </div>
+
+            <!-- Filtros -->
+            <div class="col-md-2">
+                <label class="form-label small text-muted text-uppercase fw-bold mb-1">Tipo Custódia</label>
+                <select class="form-select bg-dark border-secondary text-light" name="tipo_custodia">
+                    <option value="diaria" {% if tipo_custodia_filter == 'diaria' %}selected{% endif %}>Custódia Diária</option>
+                    <option value="permanente" {% if tipo_custodia_filter == 'permanente' %}selected{% endif %}>Custódia Permanente</option>
+                    <option value="todos" {% if tipo_custodia_filter == 'todos' or not tipo_custodia_filter %}selected{% endif %}>Todos</option>
+                </select>
+            </div>
+            
+            <div class="col-md-2">
+                <label class="form-label small text-muted text-uppercase fw-bold mb-1">Setor</label>
+                <select class="form-select bg-dark border-secondary text-light" name="setor">
+                    <option value="" {% if not setor_filter %}selected{% endif %}>Todos os setores</option>
+                    {% for setor in setores %}
+                    <option value="{{ setor }}" {% if setor_filter == setor %}selected{% endif %}>{{ setor }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="col-md-1">
+                <label class="form-label small text-muted text-uppercase fw-bold mb-1">Alertas</label>
+                <select class="form-select bg-dark border-secondary text-light" name="alert_only">
+                    <option value="false" {% if not alert_only %}selected{% endif %}>Todos</option>
+                    <option value="true" {% if alert_only %}selected{% endif %}>⚠️</option>
+                </select>
+            </div>
+
+            <!-- Botões -->
+            <div class="col-md-2 d-flex gap-2">
+                <button type="submit" class="btn btn-primary w-100" title="Aplicar Filtros">
+                    <i class="bi bi-funnel-fill"></i> Filtrar
+                </button>
+                <a href="{{ url_for('tool_custody.index') }}" class="btn btn-outline-secondary px-3" title="Limpar">
+                    <i class="bi bi-x-lg"></i>
+                </a>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- Listagem de Funcionários -->
+{% if employees %}
+    <div class="row g-3">
+        {% for employee in employees %}
+        <div class="col-lg-4 col-md-6 col-12">
+            <a href="{{ url_for('tool_custody.employee_detail', matricula=employee.matricula) }}" 
+               class="text-decoration-none">
+                <div class="employee-card {% if employee.has_alerts %}has-alert{% endif %}">
+                    <div class="employee-icon text-center">
+                        👤
+                    </div>
+                    
+                    <div class="employee-name text-center">{{ employee.nome }}</div>
+                    <div class="employee-matricula text-center">
+                        Matrícula: {{ employee.matricula }}
+                    </div>
+                    
+                    <div class="employee-info">
+                        <div class="mb-2">
+                            <small class="text-muted d-block">
+                                <i class="bi bi-building"></i> Setor: <strong class="text-white">{{ employee.setor }}</strong>
+                            </small>
+                            <small class="text-muted d-block">
+                                <i class="bi bi-person-badge"></i> Cargo: <strong class="text-white">{{ employee.cargo }}</strong>
+                            </small>
+                        </div>
+                        
+                        <div class="employee-meta">
+                            <span class="tool-count-badge">
+                                <i class="bi bi-tools"></i> {{ employee.total_ferramentas }}
+                            </span>
+                            
+                            {% if employee.has_alerts %}
+                            <span class="alert-badge">
+                                <i class="bi bi-exclamation-triangle"></i> {{ employee.alerts_count }} alerta(s)
+                            </span>
+                            {% endif %}
+                            
+                            <span class="info-badge">
+                                <i class="bi bi-calendar-event"></i> 
+                                Há {{ employee.days_oldest }} dia(s)
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+        {% endfor %}
+    </div>
+{% else %}
+    <div class="empty-state">
+        <i class="bi bi-inbox"></i>
+        <h4>Nenhum funcionário encontrado</h4>
+        <p>
+            {% if search or setor_filter or alert_only %}
+                Não há funcionários que correspondam aos filtros aplicados.
+                <br>
+                <a href="{{ url_for('tool_custody.index') }}" class="btn btn-outline-light mt-3">
+                    <i class="bi bi-x-circle"></i> Limpar Filtros
+                </a>
+            {% else %}
+                Não há funcionários com ferramentas em sua posse no momento.
+            {% endif %}
+        </p>
+    </div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+    (function() {
+        const form = document.getElementById('tool-custody-filter-form');
+        const input = document.getElementById('tool-custody-search');
+        const results = document.getElementById('tool-custody-search-results');
+        if (!form || !input || !results) return;
+
+        let searchTimeout = null;
+
+        const hideResults = () => {
+            results.style.display = 'none';
+            results.innerHTML = '';
+        };
+
+        const renderEmpty = (message) => {
+            results.innerHTML = `<div class="result-item" role="option">${message}</div>`;
+            results.style.display = 'block';
+        };
+
+        input.addEventListener('input', function() {
+            const query = this.value.trim();
+            clearTimeout(searchTimeout);
+
+            if (query.length < 2) {
+                hideResults();
+                return;
+            }
+
+            searchTimeout = setTimeout(() => {
+                fetch(`/controle-ferramentas/api/funcionarios/buscar?q=${encodeURIComponent(query)}`)
+                    .then((res) => res.json())
+                    .then((data) => {
+                        if (!Array.isArray(data) || data.length === 0) {
+                            renderEmpty('Nenhum funcionario encontrado');
+                            return;
+                        }
+
+                        results.innerHTML = data.map((func) => `
+                            <button type="button" class="result-item" role="option"
+                                data-nome="${func.nome}" data-matricula="${func.matricula}">
+                                <strong>${func.nome}</strong><br>
+                                <small style="color: #9aa0a6;">Matricula: ${func.matricula} | Cargo: ${func.cargo || 'N/D'}</small>
+                            </button>
+                        `).join('');
+                        results.style.display = 'block';
+
+                        results.querySelectorAll('button').forEach((btn) => {
+                            btn.addEventListener('click', () => {
+                                input.value = btn.dataset.nome || '';
+                                hideResults();
+                                form.submit();
+                            });
+                        });
+                    })
+                    .catch(() => {
+                        renderEmpty('Erro ao buscar funcionarios');
+                    });
+            }, 250);
+        });
+
+        document.addEventListener('click', (event) => {
+            if (!results.contains(event.target) && event.target !== input) {
+                hideResults();
+            }
+        });
+    })();
+</script>
+{% endblock %}

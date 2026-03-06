@@ -1,0 +1,185 @@
+{% extends "base.html" %}
+{% block title %}Usuário{% endblock %}
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <div>
+        <p class="text-muted mb-1">Cadastro de usuários</p>
+        <h1 class="h3 mb-0">{% if usuario %}{{ usuario.matricula }}{% else %}Novo usuário{% endif %}</h1>
+    </div>
+    <a class="btn btn-outline-secondary" href="{{ url_for('users.list_users') }}">Voltar</a>
+</div>
+
+<form method="post"
+    action="{{ url_for('users.create_user') if not usuario else url_for('users.update_user', matricula=usuario.matricula) }}">
+    <div class="row g-4">
+        <div class="col-lg-7">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Dados do usuário</h5>
+                    <div class="mb-3">
+                        <label class="form-label" for="matricula-field">Matrícula</label>
+                        <div class="d-flex gap-2">
+                            <input id="matricula-field" class="form-control" name="matricula"
+                                value="{{ usuario.matricula if usuario else matricula_sugerida }}" autocomplete="off">
+                            {% if not usuario %}
+                            <button id="refresh-matricula" type="button" class="btn btn-outline-secondary">Gerar
+                                outro</button>
+                            {% endif %}
+                        </div>
+                        <div class="form-text">Esta matrícula é o conteúdo do QR Code do crachá.</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="nome-field">Nome</label>
+                        <input id="nome-field" class="form-control" name="nome"
+                            value="{{ usuario.nome if usuario else '' }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="setor-field">Setor</label>
+                        <select id="setor-field" class="form-select" name="setor" required>
+                            {% set setor_atual = usuario.setor if usuario else '' %}
+                            {% if setor_atual == 'SERVIÇOS GERAIS' %}
+                                {% set setor_atual = 'TERCERIZADOS' %}
+                            {% endif %}
+                            {% for setor_opcao in [
+                                '1/2 OFICIAL DE MANUTENÇÃO',
+                                'OFICIAL DE MANUTENÇÃO',
+                                'OFICIAL DE ELÉTRICA',
+                                'BOMBEIRO HIDRÁULICO',
+                                'GERENTE',
+                                'ALMOXARIFADO',
+                                'ENCARREGADO',
+                                'PINTOR',
+                                'PISCINA',
+                                'TERCERIZADOS',
+                                'SUPERVISOR',
+                                'ZELADOR',
+                                'TÉCNICO CFTV'
+                            ] %}
+                            <option value="{{ setor_opcao }}" {% if setor_atual == setor_opcao %}selected{% endif %}>
+                                {{ setor_opcao }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="senha-field">Senha</label>
+                        <input id="senha-field" class="form-control" name="senha" type="password"
+                            autocomplete="new-password">
+                        <div class="form-text">Preencha apenas se quiser definir/alterar a senha.</div>
+                    </div>
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="is-admin" name="is_admin" {% if
+                                    usuario and usuario.is_admin %}checked{% endif %}>
+                                <label class="form-check-label" for="is-admin">Administrador</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="is-standard" name="is_standard" {%
+                                    if usuario and usuario.is_standard %}checked{% endif %}>
+                                <label class="form-check-label" for="is-standard">Usuário padrão</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 d-flex gap-2">
+                        <button class="btn btn-primary" type="submit">Salvar</button>
+                        <a class="btn btn-secondary" href="{{ url_for('users.list_users') }}">Cancelar</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-5">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Crachá</h5>
+                    {% if usuario %}
+                    <p class="text-muted mb-3">Imprima o QR Code e/ou o código de barras e cole no crachá do
+                        colaborador.</p>
+
+                    <ul class="nav nav-tabs" id="badgeTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="qr-tab" data-bs-toggle="tab" data-bs-target="#qr-pane"
+                                type="button" role="tab" aria-controls="qr-pane" aria-selected="true">QR Code</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="barcode-tab" data-bs-toggle="tab"
+                                data-bs-target="#barcode-pane" type="button" role="tab" aria-controls="barcode-pane"
+                                aria-selected="false">Código de barras</button>
+                        </li>
+                    </ul>
+
+                    <div class="tab-content border border-top-0 rounded-bottom p-3 bg-body" id="badgeTabsContent">
+                        <div class="tab-pane fade show active" id="qr-pane" role="tabpanel" aria-labelledby="qr-tab">
+                            <div class="d-flex justify-content-center">
+                                <img src="{{ url_for('users.user_qrcode_png', matricula=usuario.matricula) }}"
+                                    alt="QR Code da matrícula {{ usuario.matricula }}"
+                                    class="img-fluid border rounded p-2 bg-white"
+                                    style="max-width: 320px; image-rendering: pixelated;" />
+                            </div>
+                            <div class="mt-3 d-flex justify-content-between align-items-center gap-2 flex-wrap">
+                                <div class="small text-muted">Matrícula: <strong class="text-body">{{ usuario.matricula
+                                        }}</strong></div>
+                                <div class="btn-group" role="group" aria-label="Download do QR Code">
+                                    <a class="btn btn-outline-primary btn-sm" target="_blank" rel="noopener"
+                                        href="{{ url_for('users.user_qrcode_png', matricula=usuario.matricula) }}">Baixar
+                                        PNG</a>
+                                    <a class="btn btn-outline-secondary btn-sm" target="_blank" rel="noopener"
+                                        href="{{ url_for('users.user_qrcode_svg', matricula=usuario.matricula) }}">SVG</a>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="tab-pane fade" id="barcode-pane" role="tabpanel" aria-labelledby="barcode-tab">
+                            <div class="d-flex justify-content-center">
+                                <img src="/usuarios/{{ usuario.matricula }}/barcode.png?v=2"
+                                    alt="Código de barras da matrícula {{ usuario.matricula }}"
+                                    class="img-fluid border rounded p-2 bg-white"
+                                    style="max-width: 520px; width: 100%; height: auto; image-rendering: auto;" />
+                            </div>
+                            <div class="mt-3 d-flex justify-content-between align-items-center gap-2 flex-wrap">
+                                <div class="small text-muted">Matrícula: <strong class="text-body">{{ usuario.matricula
+                                        }}</strong></div>
+                                <div class="btn-group" role="group" aria-label="Download do código de barras">
+                                    <a class="btn btn-outline-primary btn-sm" target="_blank" rel="noopener"
+                                        href="/usuarios/{{ usuario.matricula }}/barcode.png?v=2">Baixar PNG</a>
+                                    <a class="btn btn-outline-secondary btn-sm" target="_blank" rel="noopener"
+                                        href="/usuarios/{{ usuario.matricula }}/barcode.svg?v=2">SVG</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-info mt-3 mb-0" role="alert">
+                        No lançamento de saída/devolução, o leitor deve preencher o campo de usuário com a matrícula
+                        lida do QR Code.
+                    </div>
+                    {% else %}
+                    <p class="text-muted mb-0">O QR Code fica disponível após salvar o usuário.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+{% endblock %}
+{% block scripts %}
+{% if not usuario %}
+<script>
+    document.getElementById('refresh-matricula')?.addEventListener('click', () => {
+        fetch('{{ url_for('users.matricula_sugerida') }}')
+            .then((res) => res.json())
+            .then((payload) => {
+                const field = document.getElementById('matricula-field');
+                if (field && payload.matricula) {
+                    field.value = payload.matricula;
+                }
+            });
+    });
+</script>
+{% endif %}
+{% endblock %}

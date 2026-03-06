@@ -1,0 +1,13 @@
+1) Update stock computation to use adjustment events instead of movement records - status: complete
+2) Refactor service/routes to record adjustments without populating feeds - status: complete
+3) Add category summary data for dashboard and render cards - status: complete
+4) Verify dashboards and feeds reflect new logic - status: complete
+5) Agrupar usuários por cargo e expor API/serviço - status: complete
+6) Renderizar cards de usuários por cargo inspirados no dashboard - status: complete
+7) Ajustar agrupamento para setores na view de usuários - status: complete
+8) Atualizar cards para exibir usuários por setor - status: complete
+9) Criar interação ao clicar em cards de setor abrindo detalhes - status: complete
+10) Adicionar botão de histórico de retiradas no painel de usuários - status: complete
+11) Adicionar registro fracionado para produtos liquefeitos - status: in_progress
+12) Persistir dados adicionais de saída liquefeita - status: pending
+

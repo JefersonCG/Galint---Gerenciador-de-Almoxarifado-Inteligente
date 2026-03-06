@@ -1,0 +1,503 @@
+{% extends "base.html" %}
+{% block title %}Sobre{% endblock %}
+{% block page_header %}
+<h2>Sobre o Sistema GALINT</h2>
+<p class="text-muted">Sistema completo de gestão de almoxarifado com rastreabilidade e relatórios profissionais.</p>
+{% endblock %}
+{% block content %}
+<div class="container py-4">
+    <div class="row">
+        <div class="col-lg-10 mx-auto">
+            <!-- Tabs de Navegação -->
+            <ul class="nav nav-tabs mb-4" id="aboutTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="overview-tab" data-bs-toggle="tab" data-bs-target="#overview" type="button" role="tab">
+                        <i class="bi bi-info-circle me-1"></i> Visão Geral
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="features-tab" data-bs-toggle="tab" data-bs-target="#features" type="button" role="tab">
+                        <i class="bi bi-star me-1"></i> Funcionalidades
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="traceability-tab" data-bs-toggle="tab" data-bs-target="#traceability" type="button" role="tab">
+                        <i class="bi bi-box-seam me-1"></i> Rastreabilidade
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="reports-tab" data-bs-toggle="tab" data-bs-target="#reports" type="button" role="tab">
+                        <i class="bi bi-file-earmark-text me-1"></i> Relatórios
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="telegram-tab" data-bs-toggle="tab" data-bs-target="#telegram" type="button" role="tab">
+                        <i class="bi bi-telegram me-1"></i> Telegram
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="tech-tab" data-bs-toggle="tab" data-bs-target="#tech" type="button" role="tab">
+                        <i class="bi bi-code-slash me-1"></i> Tecnologias
+                    </button>
+                </li>
+            </ul>
+
+            <!-- Conteúdo das Tabs -->
+            <div class="tab-content" id="aboutTabsContent">
+                
+                <!-- Tab 1: Visão Geral -->
+                <div class="tab-pane fade show active" id="overview" role="tabpanel">
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-body">
+                            <h4 class="card-title mb-3">
+                                <i class="bi bi-box-seam text-primary me-2"></i>
+                                GALINT - Gestão de Almoxarifado Integrada
+                            </h4>
+                            <p class="lead">
+                                Sistema web profissional desenvolvido para gerenciar operações de almoxarifado com controle completo de
+                                estoque, rastreabilidade de lotes, movimentações e inventário.
+                            </p>
+                            <hr>
+                            <div class="row g-3 mt-3">
+                                <div class="col-md-4 text-center">
+                                    <i class="bi bi-shield-check text-success" style="font-size: 3rem;"></i>
+                                    <h5 class="mt-2">Confiabilidade</h5>
+                                    <p class="small text-muted">Dados imutáveis com auditoria completa</p>
+                                </div>
+                                <div class="col-md-4 text-center">
+                                    <i class="bi bi-bar-chart text-primary" style="font-size: 3rem;"></i>
+                                    <h5 class="mt-2">Relatórios Pro</h5>
+                                    <p class="small text-muted">PDF, XLSX, JPEG com rastreabilidade</p>
+                                </div>
+                                <div class="col-md-4 text-center">
+                                    <i class="bi bi-bell text-warning" style="font-size: 3rem;"></i>
+                                    <h5 class="mt-2">Notificações</h5>
+                                    <p class="small text-muted">Alertas em tempo real via Telegram</p>
+                                </div>
+                            </div>
+                            <div class="text-center mt-4">
+                                <a href="{{ url_for('pages.documentacao') }}" class="btn btn-primary btn-lg">
+                                    <i class="bi bi-book me-2"></i>
+                                    Ver Documentação Completa
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab 2: Funcionalidades -->
+                <div class="tab-pane fade" id="features" role="tabpanel">
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-body">
+                            <h5 class="mb-4">
+                                <i class="bi bi-star-fill text-warning me-2"></i>
+                                Principais Funcionalidades
+                            </h5>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <div class="border rounded p-3 h-100">
+                                        <h6><i class="bi bi-speedometer2 text-primary me-2"></i>Dashboard Completo</h6>
+                                        <p class="small mb-0">Visualize status do estoque com indicadores por categoria, saldo total e alertas de estoque baixo</p>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="border rounded p-3 h-100">
+                                        <h6><i class="bi bi-box-arrow-down text-success me-2"></i>Registro de Entradas</h6>
+                                        <p class="small mb-0">Controle completo de entradas com nota fiscal, lote automático e rastreabilidade</p>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="border rounded p-3 h-100">
+                                        <h6><i class="bi bi-box-arrow-up text-danger me-2"></i>Registro de Saídas</h6>
+                                        <p class="small mb-0">Formulário com campo de observação, local de serviço e validação de saldo</p>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="border rounded p-3 h-100">
+                                        <h6><i class="bi bi-droplet text-info me-2"></i>Cálculo por Frações</h6>
+                                        <p class="small mb-0">Interface para produtos líquidos com conversão automática (Kg/Litros) por fração</p>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="border rounded p-3 h-100">
+                                        <h6><i class="bi bi-arrow-return-left text-warning me-2"></i>Devoluções</h6>
+                                        <p class="small mb-0">Página separada para registro de devoluções como eventos de inventário</p>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="border rounded p-3 h-100">
+                                        <h6><i class="bi bi-people text-primary me-2"></i>Gestão de Usuários</h6>
+                                        <p class="small mb-0">Controle de acessos com perfis (Admin/Padrão/Supervisor) e interface de setores</p>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="border rounded p-3 h-100">
+                                        <h6><i class="bi bi-exclamation-triangle text-danger me-2"></i>Materiais Danificados</h6>
+                                        <p class="small mb-0">Registro oficial de itens avariados com associação à saída original</p>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="border rounded p-3 h-100">
+                                        <h6><i class="bi bi-shield-lock text-success me-2"></i>Backup Automático</h6>
+                                        <p class="small mb-0">PostgreSQL via pg_dump com agendamento e gestão na interface</p>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="border rounded p-3 h-100">
+                                        <h6><i class="bi bi-phone text-info me-2"></i>App Mobile</h6>
+                                        <p class="small mb-0">React Native com cadastro, edição e exclusão de itens via API</p>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="border rounded p-3 h-100">
+                                        <h6><i class="bi bi-share text-primary me-2"></i>Rede Galint</h6>
+                                        <p class="small mb-0">Dashboard público protegido por token para stakeholders</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab 3: Rastreabilidade -->
+                <div class="tab-pane fade" id="traceability" role="tabpanel">
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-body">
+                            <h5 class="mb-3">
+                                <i class="bi bi-diagram-3 text-success me-2"></i>
+                                Sistema de Rastreabilidade Completo
+                            </h5>
+                            <p class="mb-3">Implementado sistema profissional com 8 novos campos e interface "Soft Depth" para controle total do ciclo de vida dos itens.</p>
+                            
+                            <div class="accordion" id="accordionTraceability">
+                                <!-- Campos de Rastreabilidade -->
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header">
+                                        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFields">
+                                            <i class="bi bi-list-check me-2"></i> Campos Implementados
+                                        </button>
+                                    </h2>
+                                    <div id="collapseFields" class="accordion-collapse collapse show">
+                                        <div class="accordion-body">
+                                            <ul class="list-unstyled mb-0">
+                                                <li class="mb-2"><i class="bi bi-calendar-check text-primary me-2"></i><strong>Data de Entrada:</strong> Timestamp imutável do servidor</li>
+                                                <li class="mb-2"><i class="bi bi-tag text-success me-2"></i><strong>Lote:</strong> Geração automática no formato LOTE-YYYYMMDD-XXXX ou manual</li>
+                                                <li class="mb-2"><i class="bi bi-calendar text-info me-2"></i><strong>Data de Fabricação:</strong> Rastreio de origem</li>
+                                                <li class="mb-2"><i class="bi bi-calendar-x text-warning me-2"></i><strong>Data de Validade:</strong> Com contador de dias e alertas</li>
+                                                <li class="mb-2"><i class="bi bi-box text-primary me-2"></i><strong>Tipo de Embalagem:</strong> Lata, Rolo, Pacote, Caixa</li>
+                                                <li class="mb-2"><i class="bi bi-calculator text-success me-2"></i><strong>Grandeza de Referência:</strong> Peso/volume por unidade</li>
+                                                <li class="mb-0"><i class="bi bi-upc-scan text-dark me-2"></i><strong>Código de Barras:</strong> PNG Code128 gerado automaticamente</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Conversões Dinâmicas -->
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header">
+                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseConversions">
+                                            <i class="bi bi-arrow-left-right me-2"></i> Conversões em Tempo Real
+                                        </button>
+                                    </h2>
+                                    <div id="collapseConversions" class="accordion-collapse collapse">
+                                        <div class="accordion-body">
+                                            <div class="row g-3">
+                                                <div class="col-md-6">
+                                                    <h6 class="text-primary"><i class="bi bi-droplet me-2"></i>Lata (Líquidos)</h6>
+                                                    <p class="small mb-0">Quantidade → Total em KG <em>ou</em> Litros (sem conversão entre unidades)</p>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <h6 class="text-success"><i class="bi bi-rulers me-2"></i>Rolo</h6>
+                                                    <p class="small mb-0">Quantidade → Metros → Centímetros</p>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <h6 class="text-info"><i class="bi bi-box me-2"></i>Pacote/Caixa</h6>
+                                                    <p class="small mb-0">Embalagens → Unidades totais</p>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <h6 class="text-warning"><i class="bi bi-infinity me-2"></i>Validade Indeterminada</h6>
+                                                    <p class="small mb-0">Checkbox para itens sem prazo (ferramentas, equipamentos)</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Design Soft Depth -->
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header">
+                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseDesign">
+                                            <i class="bi bi-palette me-2"></i> Interface Soft Depth
+                                        </button>
+                                    </h2>
+                                    <div id="collapseDesign" class="accordion-collapse collapse">
+                                        <div class="accordion-body">
+                                            <ul class="small mb-0">
+                                                <li>Página única contínua sem cards pesados</li>
+                                                <li>Sombras suaves para profundidade visual</li>
+                                                <li>Campos condicionais com destaque dinâmico</li>
+                                                <li>Animações suaves (slideDown/fadeIn)</li>
+                                                <li>Mobile-first responsivo</li>
+                                                <li>Preview de conversões em tempo real</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab 4: Relatórios -->
+                <div class="tab-pane fade" id="reports" role="tabpanel">
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-body">
+                            <h5 class="mb-3">
+                                <i class="bi bi-file-earmark-text text-primary me-2"></i>
+                                Relatórios Profissionais
+                            </h5>
+                            <p class="mb-4">Sistema completo de geração de relatórios em múltiplos formatos com busca inteligente e filtros avançados.</p>
+                            
+                            <div class="row g-3 mb-4">
+                                <div class="col-md-4 text-center">
+                                    <i class="bi bi-file-pdf text-danger" style="font-size: 3rem;"></i>
+                                    <h6 class="mt-2">Relatórios PDF</h6>
+                                    <p class="small text-muted">Layout profissional com logomarca e rastreabilidade completa</p>
+                                </div>
+                                <div class="col-md-4 text-center">
+                                    <i class="bi bi-file-earmark-excel text-success" style="font-size: 3rem;"></i>
+                                    <h6 class="mt-2">Planilhas XLSX</h6>
+                                    <p class="small text-muted">Formatação automática com colunas dinâmicas</p>
+                                </div>
+                                <div class="col-md-4 text-center">
+                                    <i class="bi bi-image text-info" style="font-size: 3rem;"></i>
+                                    <h6 class="mt-2">Imagens JPEG</h6>
+                                    <p class="small text-muted">Conversão de PDF para compartilhamento rápido</p>
+                                </div>
+                            </div>
+
+                            <h6 class="mb-3"><i class="bi bi-search me-2"></i>Busca Inteligente</h6>
+                            <ul class="list-unstyled mb-3">
+                                <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i>Normalização de acentos: "fibraco" encontra "FIBRAÇO"</li>
+                                <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i>Busca por item ou funcionário com filtros de período</li>
+                                <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i>Exibição de responsável mesmo se usuário foi removido</li>
+                                <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i>Download direto em XLSX, PDF ou JPEG</li>
+                            </ul>
+
+                            <h6 class="mb-3"><i class="bi bi-clipboard-data me-2"></i>Tipos de Relatórios</h6>
+                            <div class="row g-2">
+                                <div class="col-md-6">
+                                    <div class="border rounded p-2 small">
+                                        <strong>Diário:</strong> Saídas do dia por setor
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="border rounded p-2 small">
+                                        <strong>Mensal:</strong> Movimentações completas
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="border rounded p-2 small">
+                                        <strong>Por Item:</strong> Histórico de retiradas
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="border rounded p-2 small">
+                                        <strong>Por Funcionário:</strong> Todas movimentações
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="border rounded p-2 small">
+                                        <strong>Estoque Baixo:</strong> Itens abaixo do mínimo
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="border rounded p-2 small">
+                                        <strong>Fracionados:</strong> Saídas com conversão Kg/L
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab 5: Telegram -->
+                <div class="tab-pane fade" id="telegram" role="tabpanel">
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-body">
+                            <h5 class="mb-3">
+                                <i class="bi bi-telegram text-info me-2"></i>
+                                Integração com Telegram
+                            </h5>
+                            <p class="mb-4">Sistema completo de notificações em tempo real com menu interativo e preferências personalizadas.</p>
+                            
+                            <div class="accordion" id="accordionTelegram">
+                                <!-- Notificações -->
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header">
+                                        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTelegramNotif">
+                                            <i class="bi bi-bell me-2"></i> Notificações Automáticas
+                                        </button>
+                                    </h2>
+                                    <div id="collapseTelegramNotif" class="accordion-collapse collapse show">
+                                        <div class="accordion-body">
+                                            <div class="row g-3">
+                                                <div class="col-md-6">
+                                                    <h6 class="text-primary">Para Funcionários</h6>
+                                                    <ul class="small mb-0">
+                                                        <li>Confirmação de retirada</li>
+                                                        <li>Lembrete de devolução</li>
+                                                        <li>Alertas de validade</li>
+                                                    </ul>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <h6 class="text-success">Para Supervisores</h6>
+                                                    <ul class="small mb-0">
+                                                        <li>Alertas em grupo</li>
+                                                        <li>Local de serviço</li>
+                                                        <li>Lembretes agendados</li>
+                                                    </ul>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Menu Interativo -->
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header">
+                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTelegramMenu">
+                                            <i class="bi bi-list-task me-2"></i> Menu Interativo
+                                        </button>
+                                    </h2>
+                                    <div id="collapseTelegramMenu" class="accordion-collapse collapse">
+                                        <div class="accordion-body">
+                                            <h6 class="text-danger">Menu Admin</h6>
+                                            <ul class="small mb-3">
+                                                <li>Retiradas de Ferramentas</li>
+                                                <li>Retiradas de Materiais</li>
+                                                <li>Itens Cadastrados em tempo real</li>
+                                                <li>Download de planilha estoque baixo</li>
+                                            </ul>
+                                            <h6 class="text-primary">Menu Setores</h6>
+                                            <ul class="small mb-0">
+                                                <li>Ferramentas retiradas</li>
+                                                <li>Devolvidas</li>
+                                                <li>Pendentes</li>
+                                                <li>Local de uso</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Preferências -->
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header">
+                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTelegramPref">
+                                            <i class="bi bi-sliders me-2"></i> Preferências Personalizadas
+                                        </button>
+                                    </h2>
+                                    <div id="collapseTelegramPref" class="accordion-collapse collapse">
+                                        <div class="accordion-body">
+                                            <p class="small mb-2">Cada usuário configura individualmente:</p>
+                                            <ul class="small mb-0">
+                                                <li>Notificações por categoria (Ferramentas, Elétrico, Limpeza, etc.)</li>
+                                                <li>Retiradas e/ou Devoluções</li>
+                                                <li>Alertas de estoque baixo</li>
+                                                <li>Relatórios semanais</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab 6: Tecnologias -->
+                <div class="tab-pane fade" id="tech" role="tabpanel">
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-body">
+                            <h5 class="mb-4">
+                                <i class="bi bi-code-slash text-info me-2"></i>
+                                Tecnologias Utilizadas
+                            </h5>
+                            <div class="row g-4">
+                                <div class="col-md-6">
+                                    <h6 class="text-primary mb-3">Backend</h6>
+                                    <div class="d-flex flex-wrap gap-2">
+                                        <span class="badge bg-primary">Python 3.10.0</span>
+                                        <span class="badge bg-primary">Flask 3.0.3</span>
+                                        <span class="badge bg-primary">SQLAlchemy 2.0.45</span>
+                                        <span class="badge bg-primary">PostgreSQL</span>
+                                        <span class="badge bg-primary">Flask-Login</span>
+                                        <span class="badge bg-primary">APScheduler</span>
+                                        <span class="badge bg-primary">python-docx</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6 class="text-success mb-3">Frontend</h6>
+                                    <div class="d-flex flex-wrap gap-2">
+                                        <span class="badge bg-success">Bootstrap 5.3</span>
+                                        <span class="badge bg-success">Jinja2</span>
+                                        <span class="badge bg-success">Quill Editor</span>
+                                        <span class="badge bg-success">Chart.js</span>
+                                        <span class="badge bg-success">Bootstrap Icons</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6 class="text-info mb-3">Mobile</h6>
+                                    <div class="d-flex flex-wrap gap-2">
+                                        <span class="badge bg-info">React Native</span>
+                                        <span class="badge bg-info">Expo SDK 51</span>
+                                        <span class="badge bg-info">React Navigation</span>
+                                        <span class="badge bg-info">Axios</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6 class="text-warning mb-3">Integrações</h6>
+                                    <div class="d-flex flex-wrap gap-2">
+                                        <span class="badge bg-warning">Telegram Bot API</span>
+                                        <span class="badge bg-warning">ReportLab</span>
+                                        <span class="badge bg-warning">OpenPyXL</span>
+                                        <span class="badge bg-warning">python-barcode</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <hr class="my-4">
+
+                            <div class="alert alert-info mb-0">
+                                <h6 class="alert-heading">
+                                    <i class="bi bi-info-circle me-2"></i>
+                                    Requisitos de Sistema
+                                </h6>
+                                <ul class="mb-0 small">
+                                    <li><strong>Python:</strong> Versão 3.10.0 (obrigatório)</li>
+                                    <li><strong>PostgreSQL:</strong> 12.x ou superior</li>
+                                    <li><strong>Rede:</strong> HTTP porta 5000 (local) ou HTTPS para webhook</li>
+                                    <li><strong>Mobile:</strong> Android 5.0+ ou iOS 11.0+</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Copyright -->
+                    <div class="card shadow-sm">
+                        <div class="card-body text-center">
+                            <p class="mb-2">
+                                <i class="bi bi-c-circle me-1"></i>
+                                <strong>Copyright © 2025-2026 Jeferson dos Santos Paula</strong>
+                            </p>
+                            <p class="text-muted small mb-0">
+                                Todos os direitos reservados. Sistema desenvolvido para gestão eficiente de almoxarifado.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

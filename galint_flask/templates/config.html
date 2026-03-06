@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Configurações{% endblock %}
+{% block page_header %}
+<h2>Configurações</h2>
+<p class="text-muted">Ajustes do sistema e operações administrativas.</p>
+{% endblock %}
+{% block content %}
+<div class="row gy-4">
+    <div class="col-lg-6">
+        <a href="{{ url_for('pages.config_backup') }}" class="text-decoration-none">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title text-dark">Backup</h5>
+                    <p class="card-text text-muted">Gerar backups e restaurar cópias do banco de dados.</p>
+                    <span class="btn btn-outline-primary">Abrir</span>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-lg-6">
+        <a href="{{ url_for('pages.config_rede') }}" class="text-decoration-none">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title text-dark">Rede</h5>
+                    <p class="card-text text-muted">Fixar IP/porta do servidor e testar comunicação com o GALINT Mobile.
+                    </p>
+                    <span class="btn btn-outline-primary">Abrir</span>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-lg-6">
+        <a href="{{ url_for('telegram_config.index') }}" class="text-decoration-none">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title text-dark">
+                        <i class="bi bi-telegram text-info me-2"></i>Telegram
+                    </h5>
+                    <p class="card-text text-muted">Configurar notificações automáticas para retiradas de ferramentas e
+                        alertas agendados.</p>
+                    <span class="btn btn-outline-primary">Abrir</span>
+                </div>
+            </div>
+        </a>
+    </div>
+</div>
+{% endblock %}

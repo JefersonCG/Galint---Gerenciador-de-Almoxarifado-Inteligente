@@ -1,0 +1,379 @@
+{% extends "base.html" %}
+{% block title %}Configurações Telegram{% endblock %}
+{% block page_header %}
+<h2><i class="bi bi-telegram text-info me-2"></i>Configurações Telegram</h2>
+<p class="text-muted">Gerenciar notificações automáticas via Telegram Bot</p>
+{% endblock %}
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Coluna Principal (Esquerda) -->
+        <div class="col-lg-7 mb-4">
+            <!-- Usuários Vinculados -->
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="bi bi-person-check-fill me-2"></i>Usuários Vinculados</h5>
+                </div>
+                <div class="card-body">
+                    <!-- Formulário de Vinculação -->
+                    <form method="POST" action="{{ url_for('telegram_config.vincular_usuario') }}" class="mb-4">
+                        <div class="row g-2 align-items-end">
+                            <div class="col-md-4">
+                                <label class="form-label small">Usuário</label>
+                                <select class="form-select form-select-sm" name="matricula" required>
+                                    <option value="">Selecione...</option>
+                                    {% for usuario in usuarios_sem_telegram %}
+                                    <option value="{{ usuario.matricula }}">{{ usuario.nome }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small">Chat ID</label>
+                                <input type="text" class="form-control form-control-sm" name="chat_id"
+                                    placeholder="123456789" required>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label small">Celular</label>
+                                <input type="text" class="form-control form-control-sm" name="celular"
+                                    placeholder="+5511999998888" required>
+                            </div>
+                            <div class="col-md-2">
+                                <button type="submit" class="btn btn-success btn-sm w-100">
+                                    <i class="bi bi-plus-circle me-1"></i>Vincular
+                                </button>
+                            </div>
+                        </div>
+                        <small class="text-muted d-block mt-2">
+                            <i class="bi bi-info-circle me-1"></i>
+                            Usuário deve enviar /start para o bot e informar seu celular
+                        </small>
+                    </form>
+
+                    <!-- Tabela de Usuários -->
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm align-middle mb-0">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th><i class="bi bi-person"></i> Nome</th>
+                                    <th><i class="bi bi-chat-dots"></i> Chat ID</th>
+                                    <th><i class="bi bi-phone"></i> Celular</th>
+                                    <th class="text-center"><i class="bi bi-toggle-on"></i></th>
+                                    <th class="text-center"><i class="bi bi-camera"></i></th>
+                                    <th class="text-center"><i class="bi bi-plus-circle"></i></th>
+                                    <th class="text-center" style="width: 140px;"><i class="bi bi-gear"></i></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for tu in telegram_users %}
+                                <tr>
+                                    <td><strong>{{ tu.usuario.nome }}</strong></td>
+                                    <td><code class="small">{{ tu.chat_id }}</code></td>
+                                    <td class="small">{{ tu.celular or '-' }}</td>
+                                    <td class="text-center">
+                                        {% if tu.enabled %}
+                                        <span class="badge bg-success">Ativo</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">Inativo</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="form-check form-switch d-inline-block">
+                                            <input class="form-check-input" type="checkbox" 
+                                                   id="withdrawal_{{ tu.id }}"
+                                                   {{ 'checked' if tu.can_withdraw_via_telegram else '' }}
+                                                   onchange="toggleWithdrawalPermission({{ tu.id }}, this.checked)"
+                                                   {{ 'disabled' if not tu.enabled else '' }}>
+                                        </div>
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="form-check form-switch d-inline-block">
+                                            <input class="form-check-input" type="checkbox" 
+                                                   id="itemcreate_{{ tu.id }}"
+                                                   {{ 'checked' if tu.can_create_item_via_telegram else '' }}
+                                                   onchange="toggleItemCreatePermission({{ tu.id }}, this.checked)"
+                                                   {{ 'disabled' if not tu.enabled else '' }}>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            {% if endpoint_exists('telegram_config.preferencias_notificacoes') %}
+                                            <a href="{{ url_for('telegram_config.preferencias_notificacoes', telegram_user_id=tu.id) }}"
+                                                class="btn btn-outline-warning" title="Preferências">
+                                                <i class="bi bi-bell-fill"></i>
+                                            </a>
+                                            {% else %}
+                                            <button class="btn btn-outline-warning" disabled>
+                                                <i class="bi bi-bell-fill"></i>
+                                            </button>
+                                            {% endif %}
+                                            <a href="{{ url_for('telegram_config.toggle_usuario', user_id=tu.id) }}"
+                                                class="btn btn-outline-primary" title="{{ 'Desativar' if tu.enabled else 'Ativar' }}">
+                                                <i class="bi bi-toggle-{{ 'on' if tu.enabled else 'off' }}"></i>
+                                            </a>
+                                            <a href="{{ url_for('telegram_config.desvincular_usuario', user_id=tu.id) }}"
+                                                class="btn btn-outline-danger"
+                                                onclick="return confirm('Desvincular {{ tu.usuario.nome }}?')" title="Desvincular">
+                                                <i class="bi bi-trash"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="7" class="text-center text-muted py-4">
+                                        <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                                        Nenhum usuário vinculado
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Coluna Lateral (Direita) -->
+        <div class="col-lg-5">
+            <!-- Configuração Geral -->
+            <div class="card shadow-sm mb-3">
+                <div class="card-header bg-primary text-white">
+                    <h6 class="mb-0"><i class="bi bi-gear-fill me-2"></i>Configuração Geral</h6>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('telegram_config.update_config') }}">
+                        <div class="mb-3">
+                            <label for="bot_token" class="form-label">Token do Bot</label>
+                            <input type="text" class="form-control form-control-sm" id="bot_token" name="bot_token"
+                                value="{{ telegram_config.bot_token or '' }}"
+                                placeholder="123456789:ABCdefGHIjklMNOpqrsTUVwxyz">
+                            <div class="form-text small">Obtenha com @BotFather no Telegram</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="enabled" name="enabled" 
+                                    {{ 'checked' if telegram_config.enabled else '' }}>
+                                <label class="form-check-label" for="enabled">
+                                    {% if telegram_config.enabled %}
+                                    <span class="badge bg-success">Ativado</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">Desativado</span>
+                                    {% endif %}
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="form-check form-switch mb-2">
+                                <input class="form-check-input" type="checkbox" id="notify_on_withdrawal"
+                                    name="notify_on_withdrawal" {{ 'checked' if telegram_config.notify_on_withdrawal else '' }}>
+                                <label class="form-check-label small" for="notify_on_withdrawal">
+                                    Notificar retiradas de materiais
+                                </label>
+                            </div>
+                            <div class="form-check form-switch mb-2">
+                                <input class="form-check-input" type="checkbox" id="alert_enabled" name="alert_enabled"
+                                    {{ 'checked' if telegram_config.alert_enabled else '' }}>
+                                <label class="form-check-label small" for="alert_enabled">
+                                    Alertas agendados habilitados
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label small">Horários dos Alertas</label>
+                            <div class="input-group input-group-sm mb-2">
+                                <span class="input-group-text">Seg-Sex</span>
+                                <input type="time" class="form-control" name="alert_weekday_time"
+                                    value="{{ telegram_config.alert_weekday_time or '16:20' }}">
+                            </div>
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text">Sábado</span>
+                                <input type="time" class="form-control" name="alert_saturday_time"
+                                    value="{{ telegram_config.alert_saturday_time or '11:00' }}">
+                            </div>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary btn-sm">
+                                <i class="bi bi-save me-2"></i>Salvar
+                            </button>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{{ url_for('telegram_config.test_connection') }}" class="btn btn-outline-success">
+                                    <i class="bi bi-wifi me-1"></i>Testar
+                                </a>
+                                <a href="{{ url_for('telegram_config.executar_alerta') }}" class="btn btn-outline-warning">
+                                    <i class="bi bi-bell me-1"></i>Alerta
+                                </a>
+                                <a href="{{ url_for('telegram_config.historico') }}" class="btn btn-outline-info">
+                                    <i class="bi bi-clock-history me-1"></i>Histórico
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Webhook -->
+            <div class="card shadow-sm mb-3">
+                <div class="card-header bg-info text-white">
+                    <h6 class="mb-0"><i class="bi bi-chat-dots-fill me-2"></i>Respostas em Português</h6>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted small mb-3">
+                        Configure o webhook para respostas em português aos comandos /start, /ajuda, /meuid
+                    </p>
+                    <form method="POST" action="{{ url_for('telegram_config.configurar_webhook') }}" class="mb-3">
+                        <label for="webhook_url" class="form-label small">URL do Servidor</label>
+                        <input type="url" class="form-control form-control-sm mb-2" id="webhook_url" name="webhook_url"
+                            placeholder="https://seu-servidor.com" required>
+                        <div class="form-text small mb-3">
+                            <i class="bi bi-info-circle me-1"></i>
+                            Ex: https://seuservidor.com
+                        </div>
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-info btn-sm">
+                                <i class="bi bi-link-45deg me-2"></i>Configurar
+                            </button>
+                            <a href="{{ url_for('telegram_config.remover_webhook') }}" class="btn btn-outline-danger btn-sm">
+                                <i class="bi bi-x-circle me-2"></i>Remover
+                            </a>
+                        </div>
+                    </form>
+                    <div class="alert alert-light border mb-0 p-2">
+                        <div class="small"><strong><i class="bi bi-lightbulb me-1"></i>Comandos:</strong></div>
+                        <ul class="small mb-0 mt-1 ps-3">
+                            <li><code>/start</code> - Chat ID + instruções</li>
+                            <li><code>/ajuda</code> - Ajuda em português</li>
+                            <li><code>/meuid</code> - Exibe Chat ID</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Enviar Mensagem de Teste -->
+    <div class="card shadow-sm">
+        <div class="card-header bg-secondary text-white">
+            <h6 class="mb-0"><i class="bi bi-send-fill me-2"></i>Enviar Mensagem de Teste</h6>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('telegram_config.enviar_teste') }}">
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-3">
+                        <label for="test_chat_id" class="form-label small">Destinatário</label>
+                        <select class="form-select form-select-sm" id="test_chat_id" name="chat_id" required>
+                            <option value="">Selecione...</option>
+                            {% for tu in telegram_users %}
+                            <option value="{{ tu.chat_id }}">{{ tu.usuario.nome }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-7">
+                        <label for="test_message" class="form-label small">Mensagem</label>
+                        <textarea class="form-control form-control-sm" id="test_message" name="message" rows="2" required
+                            placeholder="Digite a mensagem de teste..."></textarea>
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-secondary btn-sm w-100">
+                            <i class="bi bi-send me-2"></i>Enviar
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleWithdrawalPermission(userId, enabled) {
+    const checkbox = document.getElementById(`withdrawal_${userId}`);
+    checkbox.disabled = true;
+    
+    fetch(`/configuracoes/telegram/usuario/${userId}/toggle-withdrawal`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ can_withdraw: enabled })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('success', data.message || 'Permissão atualizada!');
+        } else {
+            checkbox.checked = !enabled;
+            showToast('error', data.error || 'Erro ao atualizar permissão');
+        }
+    })
+    .catch(error => {
+        checkbox.checked = !enabled;
+        showToast('error', 'Erro de conexão: ' + error.message);
+    })
+    .finally(() => {
+        checkbox.disabled = false;
+    });
+}
+
+function toggleItemCreatePermission(userId, enabled) {
+    const checkbox = document.getElementById(`itemcreate_${userId}`);
+    checkbox.disabled = true;
+    
+    fetch(`/configuracoes/telegram/usuario/${userId}/toggle-item-create`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ can_create_item: enabled })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('success', data.message || 'Permissão atualizada!');
+        } else {
+            checkbox.checked = !enabled;
+            showToast('error', data.error || 'Erro ao atualizar permissão');
+        }
+    })
+    .catch(error => {
+        checkbox.checked = !enabled;
+        showToast('error', 'Erro de conexão: ' + error.message);
+    })
+    .finally(() => {
+        checkbox.disabled = false;
+    });
+}
+
+function showToast(type, message) {
+    const toastContainer = document.getElementById('toast-container') || createToastContainer();
+    const toastId = 'toast-' + Date.now();
+    const bgClass = type === 'success' ? 'bg-success' : 'bg-danger';
+    const icon = type === 'success' ? 'check-circle-fill' : 'exclamation-triangle-fill';
+    
+    const toastHTML = `
+        <div id="${toastId}" class="toast align-items-center text-white ${bgClass} border-0" role="alert">
+            <div class="d-flex">
+                <div class="toast-body">
+                    <i class="bi bi-${icon} me-2"></i>${message}
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+            </div>
+        </div>
+    `;
+    
+    toastContainer.insertAdjacentHTML('beforeend', toastHTML);
+    const toastElement = document.getElementById(toastId);
+    const toast = new bootstrap.Toast(toastElement, { delay: 3000 });
+    toast.show();
+    toastElement.addEventListener('hidden.bs.toast', () => toastElement.remove());
+}
+
+function createToastContainer() {
+    const container = document.createElement('div');
+    container.id = 'toast-container';
+    container.className = 'toast-container position-fixed top-0 end-0 p-3';
+    container.style.zIndex = '9999';
+    document.body.appendChild(container);
+    return container;
+}
+</script>
+
+{% endblock %}

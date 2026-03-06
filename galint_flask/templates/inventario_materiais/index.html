@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}Inventário de Materiais{% endblock %}
+{% block page_header %}
+<h2>Inventário de Materiais</h2>
+<p class="text-muted">Registre materiais devolvidos danificados, mantendo o histórico completo com o usuário que retirou
+    e os dados da saída original.</p>
+{% endblock %}
+{% block content %}
+<div class="row gy-4">
+    <div class="col-lg-5">
+        <div class="card">
+            <div class="card-header">
+                <strong>Registrar dano</strong>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    <div class="mb-3">
+                        <label class="form-label" for="saida_id">Saída associada</label>
+                        <select class="form-select" id="saida_id" name="saida_id" required>
+                            <option value="">Selecione a saída que originou o material</option>
+                            {% for saida in saidas %}
+                            <option value="{{ saida.id }}">
+                                #{{ saida.id }} · {{ saida.codigo }} · {{ saida.quantidade }} un · {{ saida.usuario or
+                                saida.matricula }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="quantidade">Quantidade danificada</label>
+                        <input class="form-control" type="number" min="1" step="1" id="quantidade" name="quantidade"
+                            value="{{ saidas[0].quantidade if saidas else 1 }}" required>
+                        <div class="form-text">Informe quantas unidades retornaram danificadas.</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="descricao">Descrição do ocorrido</label>
+                        <textarea class="form-control" id="descricao" name="descricao" rows="3" required></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="observacoes">Observações complementares</label>
+                        <textarea class="form-control" id="observacoes" name="observacoes" rows="2"></textarea>
+                    </div>
+                    <button class="btn btn-primary w-100" type="submit">Registrar dano</button>
+                </form>
+            </div>
+        </div>
+        {% if saidas %}
+        <div class="card mt-3">
+            <div class="card-body">
+                <p class="mb-0 text-muted small">As saídas listadas acima ainda não foram registradas como danificadas.
+                    Se não houver saídas disponíveis, verifique se o estoque registrou corretamente a retirada.</p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    <div class="col-lg-7">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <strong>Registros de danos</strong>
+                <span class="text-muted small">Últimos {{ entries|length }}</span>
+            </div>
+            <div class="card-body p-0">
+                {% if entries %}
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0">
+                        <thead>
+                            <tr>
+                                <th>Data</th>
+                                <th>Saída</th>
+                                <th>Código</th>
+                                <th>Quantidade</th>
+                                <th>Usuário</th>
+                                <th>Descrição</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for entry in entries %}
+                            <tr>
+                                <td>{{ entry.data.strftime('%d/%m/%Y %H:%M') if entry.data else '-' }}</td>
+                                <td>
+                                    {% if entry.saida_id %}
+                                    #{{ entry.saida_id }}
+                                    {% if entry.saida_data %}
+                                    · {{ entry.saida_data.strftime('%d/%m/%Y') }}
+                                    {% endif %}
+                                    {% else %}-{% endif %}
+                                </td>
+                                <td>{{ entry.codigo or '-' }}</td>
+                                <td>{{ entry.quantidade }}</td>
+                                <td>{{ entry.responsavel or '-' }}</td>
+                                <td>
+                                    {{ entry.descricao or '-' }}
+                                    {% if entry.observacoes %}
+                                    <div class="text-muted small">{{ entry.observacoes }}</div>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="p-3 text-muted">Nenhum incidente registrado até o momento.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

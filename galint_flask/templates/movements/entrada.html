@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% block title %}Registro de Devolução{% endblock %}
+{% block extra_css %}
+<style>
+    .page-header {
+        background: linear-gradient(120deg, #2563eb 0%, #3b82f6 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 12px;
+        margin-bottom: 2rem;
+        box-shadow: 0 4px 20px rgba(37, 99, 235, 0.4);
+    }
+    
+    .page-header h2 {
+        margin: 0;
+        font-weight: 700;
+        font-size: 1.75rem;
+    }
+    
+    .page-header p {
+        margin: 0.5rem 0 0 0;
+        opacity: 0.95;
+        font-size: 0.95rem;
+    }
+</style>
+{% endblock %}
+{% block content %}
+<div class="page-header">
+    <h2><i class="bi bi-arrow-return-left me-2"></i>Registro de Devolução</h2>
+    <p>Registre a devolução/entrada do material</p>
+</div>
+<form method="post" action="{{ url_for('movements.registrar_entrada') }}" id="formEntrada">
+    <div class="row g-3">
+        <div class="col-md-4">
+            <label class="form-label">Crachá/Matrícula</label>
+            <input class="form-control" name="usuario" placeholder="Leia ou digite o código do crachá"
+                autocomplete="off" required>
+        </div>
+        <div class="col-md-4">
+            <label class="form-label">Código do item</label>
+            <input class="form-control" id="inputCodigo" name="codigo" placeholder="Leia ou digite o código do item" autocomplete="off"
+                value="{{ codigo_prefill or '' }}" required>
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">Quantidade</label>
+            <input class="form-control" type="number" name="quantidade" value="1" min="1" required>
+        </div>
+        
+        <!-- Seletor de tipo de entrada (unidades dinâmicas) -->
+        <div class="col-12" id="entradaTipoEntrada" style="display:none;">
+            <div class="card bg-light">
+                <div class="card-body">
+                    <label class="form-label fw-bold">Tipo de entrada:</label>
+                    <div class="d-flex gap-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="tipo_entrada" id="entrada_embalagem" value="embalagem" checked>
+                            <label class="form-check-label" for="entrada_embalagem">
+                                <strong id="labelEmbalagemEntrada">Embalagem fechada</strong>
+                                <br><small class="text-muted" id="descEmbalagemEntrada">Entrada de embalagens completas</small>
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="tipo_entrada" id="entrada_unidades" value="unidades">
+                            <label class="form-check-label" for="entrada_unidades">
+                                <strong id="labelUnidadesEntrada">Unidades soltas</strong>
+                                <br><small class="text-muted" id="descUnidadesEntrada">Entrada de unidades avulsas</small>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-2 d-flex align-items-end">
+            <button class="btn btn-primary w-100" type="submit">Registrar Devolução</button>
+        </div>
+    </div>
+</form>
+
+<script>
+document.getElementById('inputCodigo').addEventListener('blur', async function() {
+    const codigo = this.value.trim();
+    if (!codigo) return;
+    
+    try {
+        const response = await fetch(`/itens/api/${codigo}`);
+        if (response.ok) {
+            const item = await response.json();
+            const temUnidadesDinamicas = item.tipo_embalagem_novo || 
+                (['Rolo', 'Pacote', 'Caixa'].includes(item.unidade) && item.unidades_por_embalagem);
+            
+            if (temUnidadesDinamicas) {
+                document.getElementById('entradaTipoEntrada').style.display = 'block';
+                
+                // Adaptar labels
+                const tipo = item.tipo_embalagem_novo || item.unidade;
+                if (tipo === 'Rolo') {
+                    document.getElementById('labelEmbalagemEntrada').textContent = 'Rolo completo';
+                    document.getElementById('descEmbalagemEntrada').textContent = 'Entrada de rolos fechados';
+                    document.getElementById('labelUnidadesEntrada').textContent = 'Metros avulsos';
+                    document.getElementById('descUnidadesEntrada').textContent = 'Entrada de metros soltos';
+                } else if (tipo === 'Pacote') {
+                    document.getElementById('labelEmbalagemEntrada').textContent = 'Pacote completo';
+                    document.getElementById('descEmbalagemEntrada').textContent = 'Entrada de pacotes fechados';
+                    document.getElementById('labelUnidadesEntrada').textContent = 'Unidades avulsas';
+                    document.getElementById('descUnidadesEntrada').textContent = 'Entrada de unidades soltas';
+                } else if (tipo === 'Caixa') {
+                    document.getElementById('labelEmbalagemEntrada').textContent = 'Caixa completa';
+                    document.getElementById('descEmbalagemEntrada').textContent = 'Entrada de caixas fechadas';
+                    document.getElementById('labelUnidadesEntrada').textContent = 'Unidades avulsas';
+                    document.getElementById('descUnidadesEntrada').textContent = 'Entrada de unidades soltas';
+                }
+            } else {
+                document.getElementById('entradaTipoEntrada').style.display = 'none';
+            }
+        }
+    } catch (error) {
+        console.error('Erro ao buscar item:', error);
+    }
+});
+</script>
+{% endblock %}

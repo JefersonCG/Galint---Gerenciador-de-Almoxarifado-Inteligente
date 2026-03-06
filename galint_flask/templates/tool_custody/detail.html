@@ -1,0 +1,820 @@
+{% extends "base.html" %}
+
+{% block title %}{{ employee.nome }} - Auditar Ferramentas - GALINT{% endblock %}
+
+{% block extra_css %}
+<style>
+    .employee-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 8px;
+        padding: 2rem;
+        color: white;
+        margin-bottom: 1.5rem;
+    }
+    
+    .employee-avatar {
+        font-size: 5rem;
+        text-align: center;
+        margin-bottom: 1rem;
+    }
+    
+    .section-card {
+        background: var(--bs-dark);
+        border: 1px solid var(--bs-border-color);
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .tool-item {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--bs-border-color);
+        border-radius: 6px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        transition: all 0.2s;
+    }
+    
+    .tool-item:hover {
+        background: rgba(255, 255, 255, 0.08);
+        border-color: var(--bs-primary);
+    }
+    
+    .tool-item.alert {
+        border-left: 4px solid #ffc107;
+    }
+    
+    .tool-name {
+        font-size: 1rem;
+        font-weight: 600;
+        color: white;
+        margin-bottom: 0.25rem;
+    }
+    
+    .tool-code {
+        font-size: 0.85rem;
+        color: var(--bs-secondary);
+    }
+    
+    .tool-meta {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: 0.5rem;
+        flex-wrap: wrap;
+    }
+    
+    .tool-actions {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: 0.75rem;
+        flex-wrap: wrap;
+    }
+    
+    .history-item {
+        border-left: 3px solid var(--bs-primary);
+        padding-left: 1rem;
+        margin-bottom: 1rem;
+    }
+    
+    .history-date {
+        font-size: 0.8rem;
+        color: var(--bs-secondary);
+    }
+    
+    .history-action {
+        font-weight: 600;
+        color: white;
+    }
+    
+    .badge-days {
+        background-color: rgba(255, 255, 255, 0.1);
+        color: white;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.75rem;
+    }
+    
+    .badge-alert {
+        background-color: #ffc107;
+        color: #000;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 2rem;
+        color: var(--bs-secondary);
+    }
+    
+    .form-label, .text-muted, label, p {
+        color: var(--bs-light) !important;
+    }
+    
+    @media (max-width: 768px) {
+        .employee-header {
+            padding: 1.5rem;
+        }
+        
+        .tool-actions {
+            flex-direction: column;
+        }
+        
+        .tool-actions .btn {
+            width: 100%;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block page_header %}
+<div class="d-flex justify-content-between align-items-center">
+    <div>
+        <h2 class="mb-1" style="color: #000 !important;">👤 Detalhes do Funcionário</h2>
+        <p class="text-muted mb-0" style="color: #000 !important;">Ferramentas em posse e histórico</p>
+    </div>
+    <a href="{{ url_for('tool_custody.index') }}" class="btn btn-outline-dark">
+        <i class="bi bi-arrow-left"></i> Voltar
+    </a>
+</div>
+{% endblock %}
+
+{% block content %}
+<!-- Cabeçalho do Funcionário -->
+<div class="employee-header">
+    <div class="employee-avatar">
+        👤
+    </div>
+    <div class="text-center">
+        <h3 class="mb-2">{{ employee.nome }}</h3>
+        <p class="mb-3">
+            <strong>Matrícula:</strong> {{ employee.matricula }} &nbsp;|&nbsp;
+            <strong>Setor:</strong> {{ employee.setor }} &nbsp;|&nbsp;
+            <strong>Cargo:</strong> {{ employee.cargo }}
+        </p>
+        <div class="d-flex justify-content-center gap-3">
+            <div>
+                <h4 class="mb-0">{{ employee.total_active }}</h4>
+                <small>Ferramentas Ativas</small>
+            </div>
+            <div style="border-left: 1px solid rgba(255,255,255,0.3); height: 50px;"></div>
+            <div>
+                <h4 class="mb-0">{{ employee.total_history }}</h4>
+                <small>Ações nos últimos 30 dias</small>
+            </div>
+        </div>
+        
+        <!-- Botão para enviar alerta agrupado -->
+        {% set overdue_count = employee.tools_temporaria | selectattr('is_alert', 'equalto', true) | list | length %}
+        {% if overdue_count > 0 %}
+        <div class="mt-3">
+            <form method="POST" action="{{ url_for('tool_custody.send_grouped_alert', matricula=employee.matricula) }}" style="display: inline;">
+                <button type="submit" class="btn btn-warning" onclick="return confirm('Enviar alerta via Telegram com {{ overdue_count }} ferramenta(s) atrasada(s)?')">
+                    <i class="bi bi-telegram"></i> 
+                    {% if overdue_count == 1 %}
+                        Alertar Ferramenta Atrasada
+                    {% else %}
+                        Alertar {{ overdue_count }} Ferramentas Atrasadas
+                    {% endif %}
+                </button>
+            </form>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Ferramentas em Posse (2 Colunas) -->
+<div class="row g-3 mb-4">
+    <!-- Coluna Esquerda: Custódia Permanente -->
+    <div class="col-md-6">
+        <div class="section-card" style="border-left: 4px solid #17a2b8;">
+            <h5 class="text-white mb-3">
+                <i class="bi bi-shield-check"></i> Custódia Permanente
+                <span class="badge bg-info ms-2">{{ employee.tools_permanente|length }}</span>
+            </h5>
+            
+            {% if employee.tools_permanente %}
+                {% for tool in employee.tools_permanente %}
+                <div class="tool-item">
+                    <div class="tool-name">{{ tool.descricao }}</div>
+                    <div class="tool-code">
+                        <i class="bi bi-upc-scan"></i> {{ tool.codigo_item }}
+                        {% if tool.marca != 'N/D' %} | <i class="bi bi-bookmark"></i> {{ tool.marca }}{% endif %}
+                    </div>
+                    
+                    <div class="tool-meta">
+                        <span class="badge-days">
+                            <i class="bi bi-calendar-event"></i> 
+                            Desde: {{ tool.data_saida_formatada }}
+                        </span>
+                        <span class="badge-days">
+                            <i class="bi bi-hash"></i> Qtd: {{ tool.quantidade }}
+                        </span>
+                    </div>
+                    
+                    {% if tool.observacao %}
+                    <div class="mt-2">
+                        <small class="text-muted">
+                            <i class="bi bi-chat-left-text"></i> {{ tool.observacao }}
+                        </small>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Ações para Custódia Permanente -->
+                    <div class="tool-actions">
+                        <button class="btn btn-warning btn-sm" 
+                                onclick='showDamageModal({{ tool.saida_id }}, {{ tool.descricao|tojson }}, {{ tool.codigo_item|tojson }}, {{ employee.matricula|tojson }})'>
+                            <i class="bi bi-x-circle"></i> Quebrada
+                        </button>
+                        <button class="btn btn-info btn-sm" 
+                                onclick='showRepairModal({{ tool.saida_id }}, {{ tool.descricao|tojson }}, {{ tool.codigo_item|tojson }}, {{ employee.matricula|tojson }})'>
+                            <i class="bi bi-wrench"></i> Reparo
+                        </button>
+                        <button class="btn btn-secondary btn-sm" 
+                                onclick='showCustodyModal({{ tool.saida_id }}, {{ tool.descricao|tojson }}, {{ tool.codigo_item|tojson }}, {{ employee.matricula|tojson }}, "temporaria")'>
+                            <i class="bi bi-arrow-repeat"></i> P/ Temp.
+                        </button>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state">
+                    <i class="bi bi-inbox" style="font-size: 2rem; opacity: 0.3;"></i>
+                    <p class="mb-0 small">Nenhuma ferramenta em custódia permanente</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Coluna Direita: Custódia Diária (Empréstimo) -->
+    <div class="col-md-6">
+        <div class="section-card" style="border-left: 4px solid #6c757d;">
+            <h5 class="text-white mb-3">
+                <i class="bi bi-clock-history"></i> Custódia Diária (Empréstimo)
+                <span class="badge bg-secondary ms-2">{{ employee.tools_temporaria|length }}</span>
+            </h5>
+            
+            {% if employee.tools_temporaria %}
+                {% for tool in employee.tools_temporaria %}
+                <div class="tool-item {% if tool.is_alert %}alert{% endif %}">
+                    <div class="tool-name">{{ tool.descricao }}</div>
+                    <div class="tool-code">
+                        <i class="bi bi-upc-scan"></i> {{ tool.codigo_item }}
+                        {% if tool.marca != 'N/D' %} | <i class="bi bi-bookmark"></i> {{ tool.marca }}{% endif %}
+                    </div>
+                    
+                    <div class="tool-meta">
+                        <span class="badge-days">
+                            <i class="bi bi-calendar-event"></i> 
+                            Desde: {{ tool.data_saida_formatada }}
+                        </span>
+                        <span class="badge-days {% if tool.is_alert %}badge-alert{% endif %}">
+                            <i class="bi bi-clock"></i> 
+                            {{ tool.days_in_use }} dia(s)
+                        </span>
+                        <span class="badge-days">
+                            <i class="bi bi-hash"></i> Qtd: {{ tool.quantidade }}
+                        </span>
+                    </div>
+                    
+                    {% if tool.observacao %}
+                    <div class="mt-2">
+                        <small class="text-muted">
+                            <i class="bi bi-geo-alt"></i> Local: {{ tool.observacao }}
+                        </small>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Ações para Custódia Diária -->
+                    <div class="tool-actions">
+                        <button class="btn btn-success btn-sm" 
+                                onclick='showReturnModal({{ tool.saida_id }}, {{ tool.descricao|tojson }}, {{ tool.codigo_item|tojson }}, {{ employee.matricula|tojson }})'>
+                            <i class="bi bi-arrow-return-left"></i> Devolver
+                        </button>
+                        <button class="btn btn-warning btn-sm" 
+                                onclick='showDamageModal({{ tool.saida_id }}, {{ tool.descricao|tojson }}, {{ tool.codigo_item|tojson }}, {{ employee.matricula|tojson }})'>
+                            <i class="bi bi-x-circle"></i> Quebrada
+                        </button>
+                        <button class="btn btn-info btn-sm" 
+                                onclick='showRepairModal({{ tool.saida_id }}, {{ tool.descricao|tojson }}, {{ tool.codigo_item|tojson }}, {{ employee.matricula|tojson }})'>
+                            <i class="bi bi-wrench"></i> Reparo
+                        </button>
+                        <button class="btn btn-primary btn-sm" 
+                                onclick='showCustodyModal({{ tool.saida_id }}, {{ tool.descricao|tojson }}, {{ tool.codigo_item|tojson }}, {{ employee.matricula|tojson }}, "permanente")'>
+                            <i class="bi bi-shield-check"></i> P/ Perm.
+                        </button>
+                        <button class="btn btn-danger btn-sm" 
+                                onclick='showAlertModal({{ tool.saida_id }}, {{ tool.descricao|tojson }}, {{ tool.codigo_item|tojson }}, {{ employee.matricula|tojson }}, {{ employee.nome|tojson }})'>
+                            <i class="bi bi-bell"></i> Alertar
+                        </button>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state">
+                    <i class="bi bi-inbox" style="font-size: 2rem; opacity: 0.3;"></i>
+                    <p class="mb-0 small">Nenhuma ferramenta emprestada</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Histórico Recente -->
+<div class="section-card">
+    <h5 class="text-white mb-3">
+        <i class="bi bi-clock-history"></i> Histórico dos Últimos 30 Dias
+    </h5>
+    
+    {% if employee.history %}
+        {% for item in employee.history %}
+        <div class="history-item">
+            <div class="history-date">
+                <i class="bi bi-calendar-event"></i> 
+                {{ item.data.strftime('%d/%m/%Y às %H:%M') }}
+            </div>
+            <div class="history-action">
+                {{ item.tipo }}: {{ item.descricao }}
+            </div>
+            {% if item.devolvido_por %}
+            <div>
+                <small class="text-info">
+                    <i class="bi bi-person-check"></i> Devolvido por: {{ item.devolvido_por }} ({{ item.matricula_dev }})
+                </small>
+            </div>
+            {% endif %}
+            {% if item.observacao %}
+            <div>
+                <small class="text-muted">
+                    <i class="bi bi-chat-left-text"></i> {{ item.observacao }}
+                </small>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="empty-state">
+            <i class="bi bi-inbox" style="font-size: 3rem; opacity: 0.3;"></i>
+            <p class="mb-0">Nenhum histórico nos últimos 30 dias</p>
+        </div>
+    {% endif %}
+</div>
+
+<!-- Modal de Devolução -->
+<div class="modal fade" id="returnModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark">
+            <div class="modal-header">
+                <h5 class="modal-title text-white">
+                    <i class="bi bi-arrow-return-left"></i> Devolver Ferramenta
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" id="returnForm">
+                <div class="modal-body">
+                    <input type="hidden" name="matricula" value="{{ employee.matricula }}">
+                    <p class="text-white">
+                        Confirma a devolução da ferramenta <strong id="returnToolName"></strong>?
+                    </p>
+                    <div class="mt-3" id="returnBarcodeSection" style="display: none;">
+                        <div class="text-muted small mb-1">Código de barras</div>
+                        <div class="bg-white p-2 rounded border d-inline-block">
+                            <svg id="returnBarcodeSvg" class="js-galint-barcode" data-galint-barcode-value=""></svg>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-white">Observações (opcional)</label>
+                        <textarea class="form-control" name="observacao" rows="3" 
+                                  placeholder="Adicione observações sobre o estado da ferramenta..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="bi bi-check-circle"></i> Confirmar Devolução
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Quebra/Dano -->
+<div class="modal fade" id="damageModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark">
+            <div class="modal-header">
+                <h5 class="modal-title text-white">
+                    <i class="bi bi-x-circle"></i> Marcar como Quebrada/Danificada
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" id="damageForm">
+                <div class="modal-body">
+                    <input type="hidden" name="matricula" value="{{ employee.matricula }}">
+                    <p class="text-white">
+                        Registrar que a ferramenta <strong id="damageToolName"></strong> foi quebrada ou danificada?
+                    </p>
+                    <div class="mt-3" id="damageBarcodeSection" style="display: none;">
+                        <div class="text-muted small mb-1">Código de barras</div>
+                        <div class="bg-white p-2 rounded border d-inline-block">
+                            <svg id="damageBarcodeSvg" class="js-galint-barcode" data-galint-barcode-value=""></svg>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-white">Descrição do Dano (obrigatório)</label>
+                        <textarea class="form-control" name="observacao" rows="3" required
+                                  placeholder="Descreva o tipo de dano ou perda..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="bi bi-exclamation-triangle"></i> Confirmar Dano
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Reparo -->
+<div class="modal fade" id="repairModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark">
+            <div class="modal-header">
+                <h5 class="modal-title text-white">
+                    <i class="bi bi-wrench"></i> Enviar para Reparo
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" id="repairForm">
+                <div class="modal-body">
+                    <input type="hidden" name="matricula" value="{{ employee.matricula }}">
+                    <p class="text-white">
+                        Registrar envio da ferramenta <strong id="repairToolName"></strong> para reparo?
+                    </p>
+                    <div class="mt-3" id="repairBarcodeSection" style="display: none;">
+                        <div class="text-muted small mb-1">Código de barras</div>
+                        <div class="bg-white p-2 rounded border d-inline-block">
+                            <svg id="repairBarcodeSvg" class="js-galint-barcode" data-galint-barcode-value=""></svg>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-white">Motivo do Reparo (obrigatório)</label>
+                        <textarea class="form-control" name="observacao" rows="3" required
+                                  placeholder="Descreva o problema que requer reparo..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-info">
+                        <i class="bi bi-send"></i> Confirmar Envio
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Exclusão (APENAS ADMIN) -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark">
+            <div class="modal-header">
+                <h5 class="modal-title text-white">
+                    <i class="bi bi-trash"></i> Excluir Registro de Ferramenta
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" id="deleteForm">
+                <div class="modal-body">
+                    <input type="hidden" name="matricula" value="{{ employee.matricula }}">
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-triangle"></i>
+                        <strong>ATENÇÃO:</strong> Esta ação NÃO pode ser desfeita!
+                    </div>
+                    <p class="text-white">
+                        Confirma a <strong>exclusão permanente</strong> do registro da ferramenta <strong id="deleteToolName"></strong>?
+                    </p>
+                    <div class="mt-3" id="deleteBarcodeSection" style="display: none;">
+                        <div class="text-muted small mb-1">Código de barras</div>
+                        <div class="bg-white p-2 rounded border d-inline-block">
+                            <svg id="deleteBarcodeSvg" class="js-galint-barcode" data-galint-barcode-value=""></svg>
+                        </div>
+                    </div>
+                    <p class="text-muted">
+                        <small>Esta ação irá remover o registro de saída e todos os eventos relacionados do sistema.</small>
+                    </p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-trash"></i> Confirmar Exclusão
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Alteração de Custódia -->
+<div class="modal fade" id="custodyModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content bg-dark">
+            <div class="modal-header border-0" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                <h5 class="modal-title text-white d-flex align-items-center">
+                    <i class="bi bi-arrow-repeat-circle fs-4 me-2"></i> 
+                    <span>Alterar Tipo de Custódia</span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" id="custodyForm">
+                <div class="modal-body p-4">
+                    <input type="hidden" name="matricula" value="{{ employee.matricula }}">
+                    <input type="hidden" name="novo_tipo" id="custodyType">
+                    
+                    <!-- Ferramenta em questão -->
+                    <div class="text-center mb-4">
+                        <div class="d-inline-flex align-items-center bg-secondary bg-opacity-25 px-4 py-3 rounded-3">
+                            <i class="bi bi-tools fs-3 text-info me-3"></i>
+                            <div class="text-start">
+                                <small class="text-muted d-block mb-1">Ferramenta:</small>
+                                <h6 class="text-white mb-0" id="custodyToolName"></h6>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="text-center mb-4" id="custodyBarcodeSection" style="display: none;">
+                        <div class="text-muted small mb-1">Código de barras</div>
+                        <div class="bg-white p-2 rounded border d-inline-block">
+                            <svg id="custodyBarcodeSvg" class="js-galint-barcode" data-galint-barcode-value=""></svg>
+                        </div>
+                    </div>
+                    
+                    <!-- Ação -->
+                    <div class="text-center mb-4">
+                        <p class="text-white fs-5 mb-0">
+                            Alterar para: <strong class="text-info" id="custodyTypeLabel"></strong>
+                        </p>
+                    </div>
+                    
+                    <!-- Cards Comparativos -->
+                    <div class="row g-3">
+                        <!-- Custódia Permanente -->
+                        <div class="col-md-6">
+                            <div class="card h-100 border-info" style="background-color: rgba(23, 162, 184, 0.1);">
+                                <div class="card-body">
+                                    <div class="text-center mb-3">
+                                        <i class="bi bi-shield-check display-4 text-info"></i>
+                                    </div>
+                                    <h6 class="card-title text-info text-center mb-3">
+                                        <i class="bi bi-lock-fill"></i> Custódia Permanente
+                                    </h6>
+                                    <ul class="list-unstyled text-white-50 small">
+                                        <li class="mb-2">
+                                            <i class="bi bi-check-circle-fill text-success me-2"></i>
+                                            Ferramenta atribuída permanentemente
+                                        </li>
+                                        <li class="mb-2">
+                                            <i class="bi bi-check-circle-fill text-success me-2"></i>
+                                            Sem necessidade de devolução diária
+                                        </li>
+                                        <li class="mb-2">
+                                            <i class="bi bi-check-circle-fill text-success me-2"></i>
+                                            Não gera alertas de atraso
+                                        </li>
+                                        <li class="mb-0">
+                                            <i class="bi bi-check-circle-fill text-success me-2"></i>
+                                            Responsabilidade fixa do funcionário
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Empréstimo Temporário -->
+                        <div class="col-md-6">
+                            <div class="card h-100 border-secondary" style="background-color: rgba(108, 117, 125, 0.1);">
+                                <div class="card-body">
+                                    <div class="text-center mb-3">
+                                        <i class="bi bi-clock-history display-4 text-secondary"></i>
+                                    </div>
+                                    <h6 class="card-title text-secondary text-center mb-3">
+                                        <i class="bi bi-arrow-repeat"></i> Empréstimo Temporário
+                                    </h6>
+                                    <ul class="list-unstyled text-white-50 small">
+                                        <li class="mb-2">
+                                            <i class="bi bi-arrow-return-left text-warning me-2"></i>
+                                            Ferramenta emprestada pontualmente
+                                        </li>
+                                        <li class="mb-2">
+                                            <i class="bi bi-arrow-return-left text-warning me-2"></i>
+                                            Exige devolução diária
+                                        </li>
+                                        <li class="mb-2">
+                                            <i class="bi bi-arrow-return-left text-warning me-2"></i>
+                                            Gera alertas após 30 dias
+                                        </li>
+                                        <li class="mb-0">
+                                            <i class="bi bi-arrow-return-left text-warning me-2"></i>
+                                            Responsabilidade temporária
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Nota informativa -->
+                    <div class="alert alert-dark border-secondary mt-4 mb-0">
+                        <i class="bi bi-info-circle me-2"></i>
+                        <small>Esta alteração será registrada imediatamente no sistema e afetará relatórios e alertas.</small>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 bg-dark bg-opacity-50">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="bi bi-x-circle me-1"></i> Cancelar
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-circle me-1"></i> Confirmar Alteração
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Alerta Telegram -->
+<div class="modal fade" id="alertModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark">
+            <div class="modal-header bg-danger">
+                <h5 class="modal-title text-white">
+                    <i class="bi bi-exclamation-triangle"></i> Enviar Alerta via Telegram
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" id="alertForm">
+                <div class="modal-body">
+                    <input type="hidden" name="matricula" value="{{ employee.matricula }}">
+                    <div class="alert alert-warning">
+                        <i class="bi bi-bell"></i>
+                        <strong>NOTIFICAÇÃO:</strong> Um alerta será enviado via Telegram.
+                    </div>
+                    <p class="text-white">
+                        Enviar alerta informando que <strong id="alertEmployeeName"></strong> não devolveu a ferramenta <strong id="alertToolName"></strong>?
+                    </p>
+                    <div class="mt-3" id="alertBarcodeSection" style="display: none;">
+                        <div class="text-muted small mb-1">Código de barras</div>
+                        <div class="bg-white p-2 rounded border d-inline-block">
+                            <svg id="alertBarcodeSvg" class="js-galint-barcode" data-galint-barcode-value=""></svg>
+                        </div>
+                    </div>
+                    <p class="text-muted">
+                        <small>
+                            {% if telegram_recipients %}
+                                A notificação será enviada para todos os usuários Telegram habilitados:
+                                <br>
+                                <strong>{{ telegram_recipients|join(', ') }}</strong>
+                            {% else %}
+                                Nenhum usuário Telegram habilitado para receber notificações.
+                            {% endif %}
+                        </small>
+                    </p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-send"></i> Enviar Alerta
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    (function () {
+        const alertForm = document.getElementById('alertForm');
+        const alertModalEl = document.getElementById('alertModal');
+        if (!alertForm || !alertModalEl || typeof bootstrap === 'undefined') {
+            return;
+        }
+
+        alertForm.addEventListener('submit', function (event) {
+            // Em alguns cenários (ex.: builds/handlers globais), o submit pode ser impedido.
+            // Aqui garantimos o fechamento do modal e forçamos o envio do POST.
+            event.preventDefault();
+
+            const modal = bootstrap.Modal.getOrCreateInstance(alertModalEl);
+            modal.hide();
+
+            // Envia o POST após iniciar o fechamento do modal.
+            window.setTimeout(function () {
+                alertForm.submit();
+            }, 150);
+        });
+    })();
+
+    function showReturnModal(saidaId, toolName, toolCode, matricula) {
+        document.getElementById('returnToolName').textContent = toolName;
+        const section = document.getElementById('returnBarcodeSection');
+        const svg = document.getElementById('returnBarcodeSvg');
+        if (section && svg) {
+            const raw = String(toolCode || '').trim();
+            section.style.display = raw ? 'block' : 'none';
+            svg.setAttribute('data-galint-barcode-value', raw);
+            window.GalintBarcode?.render(section);
+        }
+        document.getElementById('returnForm').action = 
+            "{{ url_for('tool_custody.return_tool', saida_id=0) }}".replace('0', saidaId);
+        new bootstrap.Modal(document.getElementById('returnModal')).show();
+    }
+    
+    function showDamageModal(saidaId, toolName, toolCode, matricula) {
+        document.getElementById('damageToolName').textContent = toolName;
+        const section = document.getElementById('damageBarcodeSection');
+        const svg = document.getElementById('damageBarcodeSvg');
+        if (section && svg) {
+            const raw = String(toolCode || '').trim();
+            section.style.display = raw ? 'block' : 'none';
+            svg.setAttribute('data-galint-barcode-value', raw);
+            window.GalintBarcode?.render(section);
+        }
+        document.getElementById('damageForm').action = 
+            "{{ url_for('tool_custody.damage_tool', saida_id=0) }}".replace('0', saidaId);
+        new bootstrap.Modal(document.getElementById('damageModal')).show();
+    }
+    
+    function showRepairModal(saidaId, toolName, toolCode, matricula) {
+        document.getElementById('repairToolName').textContent = toolName;
+        const section = document.getElementById('repairBarcodeSection');
+        const svg = document.getElementById('repairBarcodeSvg');
+        if (section && svg) {
+            const raw = String(toolCode || '').trim();
+            section.style.display = raw ? 'block' : 'none';
+            svg.setAttribute('data-galint-barcode-value', raw);
+            window.GalintBarcode?.render(section);
+        }
+        document.getElementById('repairForm').action = 
+            "{{ url_for('tool_custody.repair_tool', saida_id=0) }}".replace('0', saidaId);
+        new bootstrap.Modal(document.getElementById('repairModal')).show();
+    }
+    
+    function showDeleteModal(saidaId, toolName, toolCode, matricula) {
+        document.getElementById('deleteToolName').textContent = toolName;
+        const section = document.getElementById('deleteBarcodeSection');
+        const svg = document.getElementById('deleteBarcodeSvg');
+        if (section && svg) {
+            const raw = String(toolCode || '').trim();
+            section.style.display = raw ? 'block' : 'none';
+            svg.setAttribute('data-galint-barcode-value', raw);
+            window.GalintBarcode?.render(section);
+        }
+        document.getElementById('deleteForm').action = 
+            "{{ url_for('tool_custody.delete_tool_record', saida_id=0) }}".replace('0', saidaId);
+        new bootstrap.Modal(document.getElementById('deleteModal')).show();
+    }
+    
+    function showCustodyModal(saidaId, toolName, toolCode, matricula, novoTipo) {
+        document.getElementById('custodyToolName').textContent = toolName;
+        const section = document.getElementById('custodyBarcodeSection');
+        const svg = document.getElementById('custodyBarcodeSvg');
+        if (section && svg) {
+            const raw = String(toolCode || '').trim();
+            section.style.display = raw ? 'block' : 'none';
+            svg.setAttribute('data-galint-barcode-value', raw);
+            window.GalintBarcode?.render(section);
+        }
+        document.getElementById('custodyType').value = novoTipo;
+        document.getElementById('custodyTypeLabel').textContent = 
+            novoTipo === 'permanente' ? 'Custódia Permanente' : 'Empréstimo Temporário';
+        document.getElementById('custodyForm').action = 
+            "{{ url_for('tool_custody.toggle_custody_type', saida_id=0) }}".replace('0', saidaId);
+        new bootstrap.Modal(document.getElementById('custodyModal')).show();
+    }
+    
+    function showAlertModal(saidaId, toolName, toolCode, matricula, employeeName) {
+        document.getElementById('alertToolName').textContent = toolName;
+        document.getElementById('alertEmployeeName').textContent = employeeName;
+
+        const section = document.getElementById('alertBarcodeSection');
+        const svg = document.getElementById('alertBarcodeSvg');
+        if (section && svg) {
+            const raw = String(toolCode || '').trim();
+            section.style.display = raw ? 'block' : 'none';
+            svg.setAttribute('data-galint-barcode-value', raw);
+            window.GalintBarcode?.render(section);
+        }
+
+        document.getElementById('alertForm').action = 
+            "{{ url_for('tool_custody.send_telegram_alert', saida_id=0) }}".replace('0', saidaId);
+        new bootstrap.Modal(document.getElementById('alertModal')).show();
+    }
+</script>
+{% endblock %}
