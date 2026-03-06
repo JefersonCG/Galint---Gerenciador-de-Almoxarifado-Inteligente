@@ -113,6 +113,44 @@
         color: var(--bs-light) !important;
     }
     
+    /* Autocomplete para observações */
+    .autocomplete-dropdown {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        max-height: 250px;
+        overflow-y: auto;
+        background: #2b3035;
+        border: 1px solid #495057;
+        border-top: none;
+        border-radius: 0 0 6px 6px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        z-index: 1050;
+        display: none;
+    }
+    
+    .autocomplete-dropdown.show {
+        display: block;
+    }
+    
+    .autocomplete-item {
+        padding: 0.75rem 1rem;
+        cursor: pointer;
+        border-bottom: 1px solid #495057;
+        transition: background 0.2s;
+        color: #e9ecef;
+    }
+    
+    .autocomplete-item:hover,
+    .autocomplete-item.active {
+        background: #3a4046;
+    }
+    
+    .autocomplete-item:last-child {
+        border-bottom: none;
+    }
+    
     @media (max-width: 768px) {
         .employee-header {
             padding: 1.5rem;
@@ -386,8 +424,11 @@
                     </div>
                     <div class="mb-3">
                         <label class="form-label text-white">Observações (opcional)</label>
-                        <textarea class="form-control" name="observacao" rows="3" 
-                                  placeholder="Adicione observações sobre o estado da ferramenta..."></textarea>
+                        <div class="position-relative">
+                            <textarea class="form-control" name="observacao" id="returnObservacao" rows="3" 
+                                      placeholder="Adicione observações sobre o estado da ferramenta..." autocomplete="off"></textarea>
+                            <div class="autocomplete-dropdown" id="returnObservacaoDropdown"></div>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -699,6 +740,125 @@
 
 {% block scripts %}
 <script>
+    // Autocomplete para observações de devolução
+    (function() {
+        const textarea = document.getElementById('returnObservacao');
+        const dropdown = document.getElementById('returnObservacaoDropdown');
+        
+        if (!textarea || !dropdown) return;
+
+        // Sugestões comuns para devolução
+        const suggestions = [
+            'Ferramenta devolvida em perfeito estado',
+            'Ferramenta devolvida com sinais de desgaste normal',
+            'Ferramenta devolvida limpa e funcional',
+            'Devolvida após conclusão do serviço',
+            'Devolução antecipada - serviço cancelado',
+            'Ferramenta não foi utilizada',
+            'Devolvida ao final do expediente',
+            'Entregue em bom estado de conservação',
+            'Ferramenta limpa e revisada',
+            'Devolução conforme previsto'
+        ];
+        
+        let currentFocus = -1;
+        let filteredSuggestions = [];
+        
+        textarea.addEventListener('input', function() {
+            const value = this.value.trim().toLowerCase();
+            currentFocus = -1;
+            
+            if (value.length < 2) {
+                dropdown.classList.remove('show');
+                return;
+            }
+            
+            filteredSuggestions = suggestions.filter(s => 
+                s.toLowerCase().includes(value)
+            );
+            
+            if (filteredSuggestions.length === 0) {
+                dropdown.classList.remove('show');
+                return;
+            }
+            
+            dropdown.innerHTML = filteredSuggestions
+                .map((s, idx) => `<div class="autocomplete-item" data-index="${idx}">${escapeHtml(s)}</div>`)
+                .join('');
+            
+            dropdown.classList.add('show');
+            
+            // Adicionar event listeners nos itens
+            dropdown.querySelectorAll('.autocomplete-item').forEach(item => {
+                item.addEventListener('click', function() {
+                    const idx = parseInt(this.getAttribute('data-index'));
+                    selectSuggestion(idx);
+                });
+            });
+        });
+        
+        textarea.addEventListener('keydown', function(e) {
+            const items = dropdown.querySelectorAll('.autocomplete-item');
+            
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                currentFocus++;
+                if (currentFocus >= items.length) currentFocus = 0;
+                setActive(items);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                currentFocus--;
+                if (currentFocus < 0) currentFocus = items.length - 1;
+                setActive(items);
+            } else if (e.key === 'Enter' && currentFocus > -1 && dropdown.classList.contains('show')) {
+                e.preventDefault();
+                selectSuggestion(currentFocus);
+            } else if (e.key === 'Escape') {
+                dropdown.classList.remove('show');
+            }
+        });
+        
+        function setActive(items) {
+            items.forEach((item, index) => {
+                item.classList.toggle('active', index === currentFocus);
+            });
+            
+            if (items[currentFocus]) {
+                items[currentFocus].scrollIntoView({ block: 'nearest' });
+            }
+        }
+        
+        function selectSuggestion(index) {
+            if (index >= 0 && index < filteredSuggestions.length) {
+                textarea.value = filteredSuggestions[index];
+                dropdown.classList.remove('show');
+                textarea.focus();
+            }
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // Fechar dropdown ao clicar fora
+        document.addEventListener('click', function(e) {
+            if (e.target !== textarea && !dropdown.contains(e.target)) {
+                dropdown.classList.remove('show');
+            }
+        });
+        
+        // Limpar campo ao abrir modal
+        const returnModal = document.getElementById('returnModal');
+        if (returnModal) {
+            returnModal.addEventListener('show.bs.modal', function() {
+                textarea.value = '';
+                dropdown.classList.remove('show');
+            });
+        }
+    })();
+
     (function () {
         const alertForm = document.getElementById('alertForm');
         const alertModalEl = document.getElementById('alertModal');
