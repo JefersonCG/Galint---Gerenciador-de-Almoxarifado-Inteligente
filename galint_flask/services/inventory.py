@@ -226,7 +226,7 @@ class InventoryService:
 
     def search_items_for_autocomplete(self, query: str, limit: int = 20) -> list[dict[str, Any]]:
         q = (query or "").strip()
-        if not q or len(q) < 2:
+        if not q or len(q) < 1:
             return []
 
         like = f"%{q}%"
@@ -1212,7 +1212,31 @@ class InventoryService:
         telegram_balance_unit: str | None = None
 
         if not is_entrada:
-            telegram_balance_unit = item.unidade or "un"
+            # Corrigir unidade quando confundida com tipo_embalagem_novo
+            unidade_item = item.unidade or "un"
+            tipo_emb = (item.tipo_embalagem_novo or "").lower().strip()
+            
+            # Se a unidade está igual ao tipo de embalagem, inferir a unidade correta
+            if unidade_item.lower().strip() == tipo_emb:
+                if tipo_emb == "rolo":
+                    telegram_balance_unit = "metros"
+                elif tipo_emb in ("lata", "balde"):
+                    # Para lata/balde, usar a unidade de referência (L ou KG)
+                    if item.litros_por_embalagem and float(item.litros_por_embalagem) > 0:
+                        telegram_balance_unit = "L"
+                    elif item.grandeza_referencia and float(item.grandeza_referencia) > 0:
+                        telegram_balance_unit = "KG"
+                    else:
+                        telegram_balance_unit = "un"
+                elif tipo_emb in ("pacote", "caixa"):
+                    telegram_balance_unit = "un"
+                elif tipo_emb == "litro":
+                    telegram_balance_unit = "L"
+                else:
+                    telegram_balance_unit = "un"
+            else:
+                telegram_balance_unit = unidade_item
+            
             if tem_embalagem and payload.em_embalagens is not None:
                 try:
                     telegram_balance_before = float(EmbalagemService.calcular_estoque_total(item) or 0)
