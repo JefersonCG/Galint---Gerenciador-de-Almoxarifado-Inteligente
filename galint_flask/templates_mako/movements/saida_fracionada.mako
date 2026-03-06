@@ -1,12 +1,14 @@
 <%inherit file="/base.mako"/>
-<%!
-    import json
-%>
 
 <%block name="title">Registro de Saída Fracionada</%block>
 
 <%block name="extra_css">
 <style>
+    .saida-container {
+        max-width: 900px;
+        margin: 0 auto;
+    }
+    
     .page-header {
         background: linear-gradient(120deg, #2563eb 0%, #3b82f6 100%);
         color: white;
@@ -27,151 +29,58 @@
         opacity: 0.95;
         font-size: 0.95rem;
     }
-
-    .card-fracoes {
-        background: #1b2333;
-        padding: 16px;
-        border-radius: 10px;
-        border: 1px solid #2f3a4c;
-        color: #ffffff;
-        margin-top: 20px;
+    
+    .input-card {
+        background: #ffffff;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+        margin-bottom: 1.5rem;
+        border: 1px solid #e9ecef;
     }
-
-    .titulo-fracoes {
-        color: #3b82f6;
-        margin-bottom: 10px;
-        font-size: 20px;
-        font-weight: 700;
-        display: flex;
-        align-items: center;
-        gap: 6px;
-    }
-
-    .rotulo {
-        display: block;
-        font-size: 14px;
+    
+    .input-card .form-label {
         font-weight: 600;
-        color: #ffffff;
-        margin-bottom: 6px;
+        color: #495057;
+        margin-bottom: 0.5rem;
+        font-size: 0.9rem;
     }
-
-    .info-bloco {
-        background: rgba(255, 255, 255, 0.04);
+    
+    .input-card .form-control {
         border-radius: 8px;
-        padding: 12px;
-        margin-bottom: 16px;
-        line-height: 1.5;
+        border: 2px solid #e9ecef;
+        padding: 0.75rem 1rem;
+        transition: all 0.3s ease;
+        font-size: 1rem;
     }
-
-    .info-linha {
-        margin: 0;
-        font-size: 14px;
-        color: #d4dde8;
-    }
-
-    .info-linha + .info-linha {
-        margin-top: 6px;
-    }
-
-    .info-titulo {
-        color: #8fb5ff;
-    }
-
-    .fraction-grid {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 6px;
-        margin-bottom: 16px;
-    }
-
-    .botao-fracao {
-        padding: 8px;
-        border-radius: 6px;
-        border: 1px solid #3b82f6;
-        background: #e0edff;
-        color: #0a3d91;
-        cursor: pointer;
-        font-weight: 600;
-        text-align: center;
-        transition: background 0.2s, color 0.2s, transform 0.2s;
-        width: 100%;
-    }
-
-    .botao-fracao:hover,
-    .botao-fracao:focus {
-        background: #c4dbff;
-        color: #083572;
-        outline: none;
-        transform: translateY(-1px);
-    }
-
-    .botao-fracao.selecionada,
-    .botao-fracao.active {
-        background: linear-gradient(120deg, #2563eb 0%, #3b82f6 100%);
-        color: #ffffff;
+    
+    .input-card .form-control:focus {
         border-color: #3b82f6;
+        box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.15);
     }
-
-    .input-text {
-        width: 100%;
-        background: #121726;
-        border: 1px solid #2f3a4c;
+    
+    .btn-register {
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        border: none;
         border-radius: 8px;
-        padding: 10px;
-        color: #ffffff;
-        font-size: 14px;
+        padding: 1rem 2rem;
+        font-weight: 700;
+        color: white;
+        font-size: 1.1rem;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 12px rgba(17, 153, 142, 0.3);
     }
-
-    .input-text:focus {
-        border-color: #4db8ff;
-        box-shadow: 0 0 0 0.15rem rgba(77, 184, 255, 0.25);
-        outline: none;
+    
+    .btn-register:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(17, 153, 142, 0.4);
     }
-
-    .input-text[readonly] {
-        background: #151d2c;
-        cursor: default;
+    
+    .btn-register:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
     }
-
-    .hint-text {
-        display: block;
-        margin-top: 4px;
-        font-size: 12px;
-        color: #9ca9c9;
-    }
-
-    .resultado-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-        gap: 12px;
-    }
-
-    .botao-desativar {
-        border-color: #4db8ff;
-        color: #4db8ff;
-    }
-
-    .botao-desativar:hover,
-    .botao-desativar:focus {
-        background: rgba(77, 184, 255, 0.12);
-        border-color: #4db8ff;
-        color: #ffffff;
-    }
-
-    @media (max-width: 768px) {
-        .fraction-grid {
-            grid-template-columns: repeat(3, 1fr);
-        }
-    }
-
-    @media (max-width: 576px) {
-        .fraction-grid {
-            grid-template-columns: repeat(2, 1fr);
-        }
-    }
-</style>
-<link rel="stylesheet" href="${url_for('static', filename='css/autocomplete.css')}">
-<style>
+    
     .autocomplete-dropdown {
         position: absolute;
         top: 100%;
@@ -227,209 +136,146 @@
 </%block>
 
 <%block name="content">
-<div class="page-header">
-    <h2><i class="bi bi-droplet-half me-2"></i>Registro de Saída Fracionada</h2>
-    <p>Use esta tela para registrar saídas fracionadas de líquidos. A quantidade é calculada automaticamente pela fração</p>
-</div>
-<form method="post" action="${url_for('movements.registrar_saida')}" data-liquid-form="true">
-    <input type="hidden" name="liquido_habilitado" value="1" data-liquid-field="enabled">
-    <input type="hidden" name="liquido_fracao_numerador" data-liquid-field="numerator">
-    <input type="hidden" name="liquido_fracao_denominador" data-liquid-field="denominator">
-    <div class="row g-3">
-        <div class="col-md-4 position-relative">
-            <label class="form-label">Crachá/Matrícula</label>
-            <input id="input-usuario-fracionada" class="form-control" name="usuario" placeholder="Leia ou digite o crachá ou nome" autocomplete="off" required>
-            <div id="autocomplete-dropdown-usuario-fracionada" class="autocomplete-dropdown"></div>
-        </div>
-        <div class="col-md-4 autocomplete-wrapper position-relative">
-            <label class="form-label">Código do item</label>
-            <input id="input-codigo-fracionada" class="form-control" name="codigo" placeholder="Digite o nome ou código do item" autocomplete="off" required>
-            <div id="autocomplete-dropdown-fracionada" class="autocomplete-dropdown"></div>
-        </div>
-        <div class="col-md-2">
-            <label class="form-label">Quantidade (calculada)</label>
-            <input class="form-control" type="number" name="quantidade" value="0" min="0.01" step="0.01" data-liquid-element="quantity" readonly required>
-        </div>
-        <div class="col-md-2 d-flex align-items-end">
-            <button class="btn btn-primary w-100" type="submit">Registrar Saída Fracionada</button>
-        </div>
-        <div class="col-12">
-            <label class="form-check form-switch d-inline-flex align-items-center gap-2 mb-2">
-                <input class="form-check-input" type="checkbox" data-liquid-toggle checked>
-                <span class="form-check-label" data-liquid-toggle-label>Habilitar cálculo por frações</span>
-            </label>
-            <small class="form-text text-muted" data-liquid-hint="toggle">Calculadora fracionada ativa.</small>
-        </div>
-        <div class="col-12" data-liquid-panel>
-            <div class="card-fracoes">
-                <h3 class="titulo-fracoes">Cálculo por Frações</h3>
-                <div class="info-bloco">
-                    <p class="info-linha"><span class="info-titulo">Produto selecionado:</span> <span data-liquid-output="produto">-</span></p>
-                </div>
-                <div class="mb-3">
-                    <label class="rotulo" for="tipoProduto">Tipo de produto</label>
-                    <select class="input-text" name="liquido_tipo_produto" data-liquid-element="type-select" id="tipoProduto">
-                        % for tipo in liquid_types:
-                            <option value="${tipo['id']}">${tipo['label']}</option>
-                        % endfor
-                    </select>
-                </div>
-                <div class="mb-3">
-                    <label class="rotulo">Escolha a fração</label>
-                    <div class="fraction-grid" data-liquid-element="fractions">
-                        % for frac in liquid_fractions:
-                            <button class="botao-fracao" type="button" data-liquid-fraction data-num="${frac[0]}" data-den="${frac[1]}">
-                                ${frac[0]}/${frac[1]}
-                            </button>
-                        % endfor
-                    </div>
-                </div>
-                <div class="mb-3">
-                    <label class="rotulo" for="totalEmbalagem">Quantidade total da embalagem</label>
-                    <input class="input-text" type="number" min="0.01" step="0.01" name="liquido_total_embalagem" placeholder="Ex.: 18" data-liquid-element="total" id="totalEmbalagem">
-                    <small class="hint-text" data-liquid-output="embalagem-unidade">Informe na unidade do item.</small>
-                </div>
-                <div class="mb-3">
-                    <label class="rotulo">Resultado da fração</label>
-                    <div class="resultado-grid">
-                        <div>
-                            <label class="rotulo" for="litrosCalculados">Litros calculados</label>
-                            <input class="input-text" type="text" data-liquid-output="litros" id="litrosCalculados" readonly placeholder="-">
-                        </div>
-                        <div>
-                            <label class="rotulo" for="quilosCalculados">Quilos calculados</label>
-                            <input class="input-text" type="text" data-liquid-output="quilos" id="quilosCalculados" readonly placeholder="-">
-                        </div>
-                        <div>
-                            <label class="rotulo" for="fracaoAplicada">Fração aplicada</label>
-                            <input class="input-text" type="text" data-liquid-output="fracao" id="fracaoAplicada" readonly placeholder="-">
-                        </div>
-                    </div>
-                </div>
-                <div class="mb-3">
-                    <label class="rotulo" for="quantidadeRestante">Quantidade restante</label>
-                    <input class="input-text" type="text" data-liquid-output="restante" id="quantidadeRestante" readonly placeholder="-">
-                </div>
-                <div class="text-end">
-                    <button class="btn btn-outline-secondary btn-sm botao-desativar" type="button" data-liquid-disable>
-                        Desativar cálculo por frações
-                    </button>
-                </div>
+<div class="saida-container">
+    <div class="page-header">
+        <h2><i class="bi bi-droplet-half me-2"></i>Registro de Saída Fracionada</h2>
+        <p>Insira manualmente a quantidade pesada para itens fracionados (Lata, Rolo, Pacote, Caixa, Litro)</p>
+    </div>
+    
+    <div class="input-card">
+        <div class="row g-3">
+            <div class="col-md-6 position-relative">
+                <label class="form-label"><i class="bi bi-person-badge me-1"></i>Crachá/Matrícula</label>
+                <input class="form-control" id="input-usuario" placeholder="Leia ou digite o crachá ou nome" autocomplete="off" required>
+                <div id="autocomplete-dropdown-usuario" class="autocomplete-dropdown"></div>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label"><i class="bi bi-geo-alt me-1"></i>Local do Serviço / Finalidade</label>
+                <input class="form-control" id="input-local" placeholder="Ex: Pintura do bloco 5" autocomplete="off">
             </div>
         </div>
-        <div class="col-12">
-            <label class="form-label">Local do Serviço / Finalidade</label>
-            <textarea name="local_servico" id="local_servico" class="form-control" rows="3" 
-                placeholder="Onde o material será utilizado? (Ex: Instalação elétrica no bloco 5, Serra granito no hall de entrada)"></textarea>
-            <small class="form-text text-muted">
-                <i class="bi bi-info-circle"></i> Opcional, mas recomendado para rastreabilidade.
-            </small>
+        
+        <hr class="my-3">
+        
+        <div class="row g-3">
+            <div class="col-md-8 position-relative">
+                <label class="form-label"><i class="bi bi-upc-scan me-1"></i>Código do Item</label>
+                <input class="form-control" id="input-codigo" placeholder="Leia ou digite o código do item" autocomplete="off" required>
+                <div id="autocomplete-dropdown-codigo" class="autocomplete-dropdown"></div>
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+                <button class="btn btn-register w-100" type="button" id="btn-registrar" disabled>
+                    <i class="bi bi-check-circle me-2"></i>Registrar Saída
+                </button>
+            </div>
         </div>
     </div>
+</div>
+
+<!-- Modal de Quantidade Manual -->
+<div class="modal fade" id="modalQuantidade" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header" style="background: linear-gradient(120deg, #2563eb 0%, #3b82f6 100%); color: white;">
+                <h5 class="modal-title"><i class="bi bi-calculator me-2"></i>Quantidade Retirada</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-2">Item: <strong id="modal-item-desc"></strong></p>
+                <p class="mb-3">Unidade: <strong id="modal-item-unidade"></strong></p>
+                
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Digite a quantidade retirada:</label>
+                    <div class="input-group input-group-lg">
+                        <input type="number" class="form-control" id="modal-quantidade-input" 
+                               min="0.001" step="0.001" placeholder="Ex: 0.400" autofocus>
+                        <span class="input-group-text" id="modal-quantidade-unidade">kg</span>
+                    </div>
+                    <small class="text-muted">Informe o valor pesado na balança</small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="btn-confirmar-quantidade">Confirmar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<form method="post" action="${url_for('movements.registrar_saida')}" id="hidden-form" style="display: none;">
+    <input type="hidden" name="usuario" id="hidden-usuario">
+    <input type="hidden" name="local_servico" id="hidden-local">
+    <input type="hidden" name="codigo" id="hidden-codigo">
+    <input type="hidden" name="quantidade" id="hidden-quantidade">
 </form>
 
-<datalist id="usuario-list">
-    % for usuario in usuarios:
-        <option value="${usuario.get('nome')} — ${usuario.get('matricula')}">${usuario.get('matricula')}</option>
-    % endfor
-</datalist>
 </%block>
 
 <%block name="scripts">
 ${parent.scripts()}
-<script src="${url_for('static', filename='js/autocomplete-itens.js')}"></script>
-<script src="${url_for('static', filename='js/liquid-fractions.js')}"></script>
 <script>
-    // Inicializar autocomplete
-    document.addEventListener('DOMContentLoaded', function() {
-        const inputFracionada = document.getElementById('input-codigo-fracionada');
-        const dropdownFracionada = document.getElementById('autocomplete-dropdown-fracionada');
-        const inputUsuarioFracionada = document.getElementById('input-usuario-fracionada');
-        const dropdownUsuarioFracionada = document.getElementById('autocomplete-dropdown-usuario-fracionada');
-        
-        // Autocomplete de item
-        if (inputFracionada && dropdownFracionada) {
-            initItemAutocomplete(inputFracionada, dropdownFracionada, '/movimentos/api/buscar-item');
-        }
-        
-        // Autocomplete de usuário
-        if (inputUsuarioFracionada && dropdownUsuarioFracionada) {
-            initUsuarioAutocompleteFrac(inputUsuarioFracionada, dropdownUsuarioFracionada);
-        }
-    });
-    
-    // Função de autocomplete para usuário
-    function initUsuarioAutocompleteFrac(inputElement, dropdownElement) {
-        let debounceTimer = null;
-        let currentFuncionarios = [];
-        
-        inputElement.addEventListener('input', function() {
-            const query = this.value.trim();
-            clearTimeout(debounceTimer);
-            
-            if (query.length < 1) {
-                dropdownElement.classList.remove('show');
-                return;
-            }
-            
-            debounceTimer = setTimeout(async () => {
-                try {
-                    const response = await fetch('/ferramentas/buscar-funcionario?q=' + encodeURIComponent(query));
-                    if (response.ok) {
-                        const data = await response.json();
-                        currentFuncionarios = data.funcionarios || [];
-                        showAutocompleteFuncFrac(dropdownElement, currentFuncionarios);
-                    }
-                } catch (error) {
-                    console.error('Erro ao buscar funcionário:', error);
-                }
-            }, 300);
-        });
-        
-        // Keyboard navigation
-        inputElement.addEventListener('keydown', function(e) {
-            const items = dropdownElement.querySelectorAll('.autocomplete-item');
-            const activeItem = dropdownElement.querySelector('.autocomplete-item.active');
-            let currentIndex = -1;
-            
-            if (activeItem) {
-                currentIndex = Array.from(items).indexOf(activeItem);
-            }
-            
-            if (e.key === 'ArrowDown') {
-                e.preventDefault();
-                if (currentIndex < items.length - 1) {
-                    setActiveFrac(items, currentIndex + 1);
-                }
-            } else if (e.key === 'ArrowUp') {
-                e.preventDefault();
-                if (currentIndex > 0) {
-                    setActiveFrac(items, currentIndex - 1);
-                }
-            } else if (e.key === 'Enter' && activeItem) {
-                e.preventDefault();
-                const index = parseInt(activeItem.getAttribute('data-index'));
-                selectUsuarioFrac(inputElement, dropdownElement, currentFuncionarios[index]);
-            } else if (e.key === 'Escape') {
-                dropdownElement.classList.remove('show');
-            }
-        });
-        
-        // Click fora fecha dropdown
-        document.addEventListener('click', function(e) {
-            if (e.target !== inputElement && !dropdownElement.contains(e.target)) {
-                dropdownElement.classList.remove('show');
-            }
-        });
+(function() {
+    let pendingItem = null;
+    const usuariosAutocompleteData = ${tojson(usuarios)|n};
+    const itensAutocompleteData = ${tojson(itens)|n};
+
+    function normalizeAutocompleteText(value) {
+        return String(value || '')
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase()
+            .trim();
     }
     
-    function showAutocompleteFuncFrac(dropdownElement, funcionarios) {
-        if (funcionarios.length === 0) {
-            dropdownElement.classList.remove('show');
+    const inputUsuario = document.getElementById('input-usuario');
+    const inputLocal = document.getElementById('input-local');
+    const inputCodigo = document.getElementById('input-codigo');
+    const btnRegistrar = document.getElementById('btn-registrar');
+    
+    // Modal
+    const modalQuantidade = new bootstrap.Modal(document.getElementById('modalQuantidade'));
+    const modalItemDesc = document.getElementById('modal-item-desc');
+    const modalItemUnidade = document.getElementById('modal-item-unidade');
+    const modalQuantidadeInput = document.getElementById('modal-quantidade-input');
+    const modalQuantidadeUnidade = document.getElementById('modal-quantidade-unidade');
+    const btnConfirmarQuantidade = document.getElementById('btn-confirmar-quantidade');
+    
+    const dropdownUsuario = document.getElementById('autocomplete-dropdown-usuario');
+    const dropdownCodigo = document.getElementById('autocomplete-dropdown-codigo');
+    let debounceTimerUsuario = null;
+    let debounceTimerCodigo = null;
+    let currentFuncionarios = [];
+    let currentItens = [];
+    
+    // Autocomplete de usuário
+    inputUsuario.addEventListener('input', function() {
+        const query = this.value.trim();
+        clearTimeout(debounceTimerUsuario);
+        
+        if (query.length < 1) {
+            dropdownUsuario.classList.remove('show');
             return;
         }
         
-        dropdownElement.innerHTML = funcionarios.map((func, index) => {
+        debounceTimerUsuario = setTimeout(() => {
+            const normalizedQuery = normalizeAutocompleteText(query);
+            currentFuncionarios = usuariosAutocompleteData.filter(func => {
+                const nome = normalizeAutocompleteText(func.nome);
+                const matricula = normalizeAutocompleteText(func.matricula);
+                return nome.includes(normalizedQuery) || matricula.includes(normalizedQuery);
+            }).slice(0, 20);
+
+            showAutocompleteUsuario(currentFuncionarios);
+        }, 150);
+    });
+    
+    function showAutocompleteUsuario(funcionarios) {
+        if (funcionarios.length === 0) {
+            dropdownUsuario.classList.remove('show');
+            return;
+        }
+        
+        dropdownUsuario.innerHTML = funcionarios.map((func, index) => {
             return '<div class=\"autocomplete-item\" data-index=\"' + index + '\">' +
                 '<div class=\"autocomplete-item-title\">' + func.nome + '</div>' +
                 '<div class=\"autocomplete-item-details\">Matrícula: ' + func.matricula +
@@ -438,44 +284,269 @@ ${parent.scripts()}
                 '</div>';
         }).join('');
         
-        dropdownElement.classList.add('show');
+        dropdownUsuario.classList.add('show');
         
-        dropdownElement.querySelectorAll('.autocomplete-item').forEach(item => {
+        dropdownUsuario.querySelectorAll('.autocomplete-item').forEach(item => {
             item.addEventListener('click', function() {
                 const index = parseInt(this.getAttribute('data-index'));
-                const inputElement = dropdownElement.previousElementSibling;
-                selectUsuarioFrac(inputElement, dropdownElement, funcionarios[index]);
+                selectUsuario(currentFuncionarios[index]);
             });
         });
     }
     
-    function selectUsuarioFrac(inputElement, dropdownElement, func) {
-        inputElement.value = func.nome + ' — ' + func.matricula;
-        dropdownElement.classList.remove('show');
+    function selectUsuario(func) {
+        inputUsuario.value = func.nome + ' — ' + func.matricula;
+        inputUsuario.dataset.matricula = func.matricula;
+        dropdownUsuario.classList.remove('show');
+        if (!inputLocal.value) {
+            inputLocal.focus();
+        } else {
+            inputCodigo.focus();
+        }
+        updateButtonState();
     }
     
-    function setActiveFrac(items, index) {
+    // Keyboard navigation para usuário
+    inputUsuario.addEventListener('keydown', function(e) {
+        const items = dropdownUsuario.querySelectorAll('.autocomplete-item');
+        const activeItem = dropdownUsuario.querySelector('.autocomplete-item.active');
+        let currentIndex = -1;
+        
+        if (activeItem) {
+            currentIndex = Array.from(items).indexOf(activeItem);
+        }
+        
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            if (currentIndex < items.length - 1) {
+                setActiveItem(items, currentIndex + 1);
+            }
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (currentIndex > 0) {
+                setActiveItem(items, currentIndex - 1);
+            }
+        } else if (e.key === 'Enter' && activeItem) {
+            e.preventDefault();
+            const index = parseInt(activeItem.getAttribute('data-index'));
+            selectUsuario(currentFuncionarios[index]);
+        } else if (e.key === 'Escape') {
+            dropdownUsuario.classList.remove('show');
+        }
+    });
+    
+    // Autocomplete de código
+    inputCodigo.addEventListener('input', function() {
+        const query = this.value.trim();
+        clearTimeout(debounceTimerCodigo);
+        
+        if (query.length < 1) {
+            dropdownCodigo.classList.remove('show');
+            return;
+        }
+        
+        debounceTimerCodigo = setTimeout(() => {
+            const normalizedQuery = normalizeAutocompleteText(query);
+            currentItens = itensAutocompleteData.filter(item => {
+                const codigo = normalizeAutocompleteText(item.codigo);
+                const descricao = normalizeAutocompleteText(item.descricao);
+                return codigo.includes(normalizedQuery) || descricao.includes(normalizedQuery);
+            }).slice(0, 20);
+
+            showAutocompleteCodigo(currentItens);
+        }, 150);
+    });
+    
+    function showAutocompleteCodigo(itens) {
+        if (itens.length === 0) {
+            dropdownCodigo.classList.remove('show');
+            return;
+        }
+        
+        dropdownCodigo.innerHTML = itens.map((item, index) => {
+            return '<div class=\"autocomplete-item\" data-index=\"' + index + '\">' +
+                '<div class=\"autocomplete-item-title\">' + (item.descricao || item.codigo) + '</div>' +
+                '<div class=\"autocomplete-item-details\">' +
+                '<span class=\"autocomplete-item-code\">Código: ' + item.codigo + '</span>' +
+                (item.saldo !== undefined ? ' | Saldo: ' + item.saldo : '') +
+                (item.categoria ? ' | Categoria: ' + item.categoria : '') + '</div>' +
+                '</div>';
+        }).join('');
+        
+        dropdownCodigo.classList.add('show');
+        
+        dropdownCodigo.querySelectorAll('.autocomplete-item').forEach(item => {
+            item.addEventListener('click', function() {
+                const index = parseInt(this.getAttribute('data-index'));
+                selectCodigo(currentItens[index]);
+            });
+        });
+    }
+    
+    function selectCodigo(item) {
+        inputCodigo.value = item.codigo;
+        inputCodigo.dataset.descricao = item.descricao;
+        inputCodigo.dataset.unidade = item.unidade;
+        dropdownCodigo.classList.remove('show');
+        updateButtonState();
+    }
+    
+    // Keyboard navigation para código
+    inputCodigo.addEventListener('keydown', function(e) {
+        const items = dropdownCodigo.querySelectorAll('.autocomplete-item');
+        const activeItem = dropdownCodigo.querySelector('.autocomplete-item.active');
+        let currentIndex = -1;
+        
+        if (activeItem) {
+            currentIndex = Array.from(items).indexOf(activeItem);
+        }
+        
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            if (currentIndex < items.length - 1) {
+                setActiveItem(items, currentIndex + 1);
+            }
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (currentIndex > 0) {
+                setActiveItem(items, currentIndex - 1);
+            }
+        } else if (e.key === 'Enter' && activeItem) {
+            e.preventDefault();
+            const index = parseInt(activeItem.getAttribute('data-index'));
+            selectCodigo(currentItens[index]);
+        } else if (e.key === 'Escape') {
+            dropdownCodigo.classList.remove('show');
+        }
+    });
+    
+    function setActiveItem(items, index) {
         items.forEach(item => item.classList.remove('active'));
         if (items[index]) {
             items[index].classList.add('active');
             items[index].scrollIntoView({ block: 'nearest' });
         }
     }
-
-    (function () {
-        if (window.initLiquidFractionForms) {
-            window.initLiquidFractionForms({
-                fractions: ${json.dumps(liquid_fractions) | n},
-                types: ${json.dumps(liquid_types) | n},
-                itemInfoUrlTemplate: "${url_for('movements.item_info', codigo='__codigo__')}"
-            });
+    
+    // Fechar dropdowns ao clicar fora
+    document.addEventListener('click', function(e) {
+        if (e.target !== inputUsuario && !dropdownUsuario.contains(e.target)) {
+            dropdownUsuario.classList.remove('show');
         }
-
-        const toggle = document.querySelector('[data-liquid-toggle]');
-        if (toggle) {
-            toggle.checked = true;
-            toggle.dispatchEvent(new Event('change', { bubbles: true }));
+        if (e.target !== inputCodigo && !dropdownCodigo.contains(e.target)) {
+            dropdownCodigo.classList.remove('show');
         }
-    }());
+    });
+    
+    function updateButtonState() {
+        const hasUsuario = inputUsuario.value.trim() && inputUsuario.dataset.matricula;
+        const hasCodigo = inputCodigo.value.trim();
+        btnRegistrar.disabled = !(hasUsuario && hasCodigo);
+    }
+    
+    inputUsuario.addEventListener('input', updateButtonState);
+    inputCodigo.addEventListener('input', updateButtonState);
+    
+    btnRegistrar.addEventListener('click', async function() {
+        const usuario = inputUsuario.value.trim();
+        const local = inputLocal.value.trim();
+        const codigo = inputCodigo.value.trim();
+        
+        if (!usuario) {
+            alert('Informe o crachá/matrícula');
+            inputUsuario.focus();
+            return;
+        }
+        
+        if (!codigo) {
+            alert('Informe o código do item');
+            inputCodigo.focus();
+            return;
+        }
+        
+        // Buscar informações do item
+        btnRegistrar.disabled = true;
+        btnRegistrar.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Buscando...';
+        
+        try {
+            const response = await fetch('/movimentos/item-info/' + encodeURIComponent(codigo));
+            const data = await response.json();
+            
+            if (!data.found || !data.descricao) {
+                throw new Error('Item não encontrado');
+            }
+            
+            // Verificar se é item fracionável (Lata, Rolo, Pacote, Caixa, Litro)
+            const tiposFracionaveis = ['lata', 'rolo', 'pacote', 'caixa', 'litro', 'balde'];
+            if (data.tipo_embalagem_novo && tiposFracionaveis.includes(data.tipo_embalagem_novo.toLowerCase())) {
+                // Abre modal para entrada manual
+                pendingItem = {
+                    codigo: codigo,
+                    descricao: data.descricao,
+                    unidade: data.unidade || 'un',
+                    usuario: usuario,
+                    local: local
+                };
+                
+                mostrarModalQuantidade(pendingItem);
+                
+            } else {
+                // Item não fracionável - não pode usar esta tela
+                alert('Este item não requer entrada fracionada. Use a tela de "Registro de Saída" normal.');
+                inputCodigo.value = '';
+                inputCodigo.focus();
+            }
+            
+        } catch (error) {
+            alert(error.message || 'Erro ao buscar item');
+        } finally {
+            btnRegistrar.disabled = false;
+            btnRegistrar.innerHTML = '<i class="bi bi-check-circle me-2"></i>Registrar Saída';
+        }
+    });
+    
+    function mostrarModalQuantidade(item) {
+        modalItemDesc.textContent = item.descricao;
+        modalItemUnidade.textContent = item.unidade;
+        modalQuantidadeUnidade.textContent = item.unidade;
+        modalQuantidadeInput.value = '';
+        modalQuantidade.show();
+        
+        // Foco no input quando modal abre
+        document.getElementById('modalQuantidade').addEventListener('shown.bs.modal', function() {
+            modalQuantidadeInput.focus();
+        }, { once: true });
+    }
+    
+    btnConfirmarQuantidade.addEventListener('click', function() {
+        const quantidade = parseFloat(modalQuantidadeInput.value);
+        
+        if (!quantidade || quantidade <= 0) {
+            alert('Informe uma quantidade válida maior que zero');
+            modalQuantidadeInput.focus();
+            return;
+        }
+        
+        // Preencher form hidden e submeter
+        document.getElementById('hidden-usuario').value = pendingItem.usuario;
+        document.getElementById('hidden-local').value = pendingItem.local;
+        document.getElementById('hidden-codigo').value = pendingItem.codigo;
+        document.getElementById('hidden-quantidade').value = quantidade;
+        
+        modalQuantidade.hide();
+        document.getElementById('hidden-form').submit();
+    });
+    
+    // Enter no modal confirma
+    modalQuantidadeInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            btnConfirmarQuantidade.click();
+        }
+    });
+    
+    // Foco inicial
+    inputUsuario.focus();
+})();
 </script>
 </%block>

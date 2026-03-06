@@ -26,11 +26,11 @@ def buscar_item():
     """API: Busca itens por código ou nome (parcial)."""
     query = (request.args.get("q") or "").strip()
     
-    if not query or len(query) < 2:
-        return jsonify({"items": []})
+    if not query or len(query) < 1:
+        return jsonify({"items": [], "itens": []})
     
     resultados = inventory_service.search_items_for_autocomplete(query, limit=20)
-    return jsonify({"items": resultados})
+    return jsonify({"items": resultados, "itens": resultados})
 
 
 @blueprint.after_request
@@ -58,6 +58,12 @@ LIQUID_PRODUCT_TYPES: list[dict[str, Any]] = [
         "label": "Tinta para Piso (base água / acrílica)",
         "default_unit": "litro",
         "keywords": ["tinta piso", "piso acrilica", "piso base agua"],
+    },
+    {
+        "id": "tinta_asfaltica",
+        "label": "Tinta Asfáltica",
+        "default_unit": "litro",
+        "keywords": ["tinta asfaltica", "asfaltica"],
     },
     {
         "id": "tinta_epoxi_piso",
@@ -448,19 +454,12 @@ def registrar_saida():
     observacao = (obs_raw or "").strip() if obs_raw is not None else None
     local_raw = request.form.get("local_servico")
     local_servico = (local_raw or "").strip() if local_raw is not None else None
-
-    usa_fracao = request.form.get("liquido_habilitado") == "1"
     
     # Novo: processar sistema de embalagens
     em_embalagens_raw = request.form.get("em_embalagens")
     em_embalagens = None
     if em_embalagens_raw is not None:
         em_embalagens = em_embalagens_raw == "1"
-
-    tipo_id = request.form.get("liquido_tipo_produto") or None
-    fracao_numerador = request.form.get("liquido_fracao_numerador")
-    fracao_denominador = request.form.get("liquido_fracao_denominador")
-    total_embalagem_raw = request.form.get("liquido_total_embalagem")
 
     try:
         usuario = _resolve_usuario(identificador)
@@ -479,90 +478,6 @@ def registrar_saida():
             "local_servico": local_servico,
             "em_embalagens": em_embalagens,
         }
-
-        if usa_fracao:
-            entry = LIQUID_PRODUCT_TYPES_BY_ID.get(tipo_id or "")
-            if not entry:
-                raise ValueError("Tipo de produto líquido não reconhecido")
-            try:
-                numerador = int(fracao_numerador or 0)
-                denominador = int(fracao_denominador or 0)
-            except ValueError as exc:
-                raise ValueError("Selecione uma fração válida") from exc
-            if numerador <= 0 or denominador <= 0 or numerador > denominador:
-                raise ValueError("Fração selecionada é inválida")
-            try:
-                total_embalagem = float(total_embalagem_raw or 0)
-            except ValueError as exc:
-                raise ValueError("Informe a capacidade total da embalagem") from exc
-            if total_embalagem <= 0:
-                raise ValueError("Informe a capacidade total da embalagem")
-
-            # Tenta inferir a unidade do item; se não for litro/quilo, usa a unidade padrão do tipo de produto
-            unidade_item_raw = (item_info.get("unidade") or "").strip()
-            unidade_item = _infer_unidade(unidade_item_raw)
-            unidade_calculo = unidade_item
-            if unidade_item not in {"litro", "quilo"}:
-                unidade_calculo = _infer_unidade(entry.get("default_unit") or "litro")
-            if unidade_calculo not in {"litro", "quilo"}:
-                # Fallback seguro para manter a operação funcional
-                unidade_calculo = "litro"
-
-            fracao = numerador / denominador
-            quantidade_calculada = total_embalagem * fracao
-
-            retirada_litros: float | None = None
-            retirada_quilos: float | None = None
-
-            if unidade_calculo == "litro":
-                retirada_litros = quantidade_calculada
-                quantidade_para_saida = retirada_litros
-                restante = max(total_embalagem - retirada_litros, 0.0)
-            else:
-                retirada_quilos = quantidade_calculada
-                quantidade_para_saida = retirada_quilos
-                restante = max(total_embalagem - retirada_quilos, 0.0)
-
-            # Se a unidade de estoque não é litro/quilo (ex.: lata/galão/unidade), registra fração da embalagem
-            if unidade_item not in {"litro", "quilo"}:
-                quantidade_para_saida = fracao
-
-            if quantidade_para_saida <= 0:
-                raise ValueError("Quantidade calculada deve ser positiva")
-
-            # Arredondamento para evitar ruídos de ponto flutuante nas persistências
-            retirada_litros = round(retirada_litros, 6)
-            retirada_quilos = round(retirada_quilos, 6)
-            quantidade_para_saida = round(quantidade_para_saida, 6)
-            restante = round(restante, 6)
-
-            unidade_display = unidade_item_raw or ("litro" if unidade_calculo == "litro" else "quilo")
-            unidade_retirada = "L" if unidade_calculo == "litro" else "kg"
-            retirada_valor = retirada_litros if unidade_calculo == "litro" else retirada_quilos
-            retirada_valor = float(retirada_valor or 0)
-            resumo_observacao = (
-                f"Saída fracionada {numerador}/{denominador} de {total_embalagem:.2f} {unidade_display}. "
-                f"Retirada: {retirada_valor:.2f} {unidade_retirada}. "
-                f"Restante estimado: {restante:.2f} {unidade_display}."
-            )
-            if unidade_item not in {"litro", "quilo"}:
-                resumo_observacao += f" Quantidade registrada: {quantidade_para_saida:.3f} {unidade_display or 'un'}"
-            if observacao:
-                payload_kwargs["observacao"] = f"{observacao} | {resumo_observacao}"
-            else:
-                payload_kwargs["observacao"] = resumo_observacao
-
-            payload_kwargs.update(
-                quantidade=quantidade_para_saida,
-                modo_fracionado=True,
-                tipo_produto=entry["label"],
-                fracao_numerador=numerador,
-                fracao_denominador=denominador,
-                quantidade_total_embalagem=total_embalagem,
-                quantidade_retirada_em_litros=retirada_litros,
-                quantidade_retirada_em_quilos=retirada_quilos,
-                quantidade_restante=restante,
-            )
 
         payload = MovimentoPayload(**payload_kwargs)
         saida_id = inventory_service.registrar_saida(payload)
@@ -616,6 +531,7 @@ def saida_page():
     return render_mako_template(
         'movements/saida.mako',
         usuarios=user_service.list_users(),
+        itens=inventory_service.list_items(),
         liquid_types=LIQUID_PRODUCT_TYPES,
         liquid_fractions=LIQUID_FRACTIONS,
     )
@@ -624,13 +540,12 @@ def saida_page():
 @blueprint.get('/saida-fracionada/page')
 @login_required
 def saida_fracionada_page():
-    """Página separada para Registro de Saída Fracionada (líquidos)."""
+    """Página separada para Registro de Saída Fracionada (entrada manual pesada)."""
     _require_admin()
     return render_mako_template(
         'movements/saida_fracionada.mako',
         usuarios=user_service.list_users(),
-        liquid_types=LIQUID_PRODUCT_TYPES,
-        liquid_fractions=LIQUID_FRACTIONS,
+        itens=inventory_service.list_items(),
     )
 
 
@@ -649,7 +564,12 @@ def entrada_page():
     """Página separada para Registro de Devolução."""
     _require_admin()
     codigo_prefill = (request.args.get("codigo") or "").strip()
-    return render_template('movements/entrada.html', codigo_prefill=codigo_prefill)
+    return render_template(
+        'movements/entrada.html',
+        codigo_prefill=codigo_prefill,
+        usuarios=user_service.list_users(),
+        itens=inventory_service.list_items(),
+    )
 
 
 @blueprint.post("/entrada")

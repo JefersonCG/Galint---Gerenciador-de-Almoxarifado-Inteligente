@@ -48,7 +48,7 @@
     <div class="container-fluid">
         <div class="page-header">
             <h2><i class="bi bi-droplet-half me-2"></i>Saídas Fracionadas</h2>
-            <p>Histórico de retiradas fracionadas (líquidos) por fração da embalagem</p>
+            <p>Histórico de retiradas fracionadas (entrada manual pesada)</p>
         </div>
 
         <div class="card shadow-sm">
@@ -62,11 +62,9 @@
                                 <tr>
                                     <th>Data</th>
                                     <th>Item</th>
-                                    <th>Fração</th>
-                                    <th>Embalagem</th>
-                                    <th>Litros</th>
-                                    <th>Quilos</th>
+                                    <th>Quantidade</th>
                                     <th>Retirado por</th>
+                                    <th>Local/Finalidade</th>
                                     <th>Observação</th>
                                 </tr>
                             </thead>
@@ -79,19 +77,14 @@
                                             <div class="text-muted small">Código: ${s.get('codigo') or '-'}</div>
                                         </td>
                                         <td>
-                                            % if s.get('fracao_numerador') and s.get('fracao_denominador'):
-                                                ${s.get('fracao_numerador')}/${s.get('fracao_denominador')}
-                                            % else:
-                                                -
-                                            % endif
+                                            ${fmt_num(s.get('quantidade'))}
+                                            <span class="text-muted small">${s.get('unidade') or 'un'}</span>
                                         </td>
-                                        <td>${fmt_num(s.get('quantidade_total_embalagem'))}</td>
-                                        <td>${fmt_num(s.get('quantidade_retirada_em_litros'))}</td>
-                                        <td>${fmt_num(s.get('quantidade_retirada_em_quilos'))}</td>
                                         <td>
                                             <div>${s.get('usuario') or '-'}</div>
                                             <div class="text-muted small">Mat: ${s.get('matricula') or '-'}</div>
                                         </td>
+                                        <td>${s.get('local_servico') or '-'}</td>
                                         <td>${s.get('observacao') or '-'}</td>
                                     </tr>
                                 % endfor
