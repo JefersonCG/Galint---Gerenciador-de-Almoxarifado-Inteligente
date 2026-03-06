@@ -204,6 +204,58 @@
         border-radius: 20px;
         font-weight: 600;
     }
+    
+    .autocomplete-dropdown {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        max-height: 300px;
+        overflow-y: auto;
+        background: white;
+        border: 2px solid #3b82f6;
+        border-top: none;
+        border-radius: 0 0 8px 8px;
+        z-index: 1000;
+        display: none;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+    
+    .autocomplete-dropdown.show {
+        display: block;
+    }
+    
+    .autocomplete-item {
+        padding: 0.75rem 1rem;
+        cursor: pointer;
+        border-bottom: 1px solid #f0f0f0;
+        transition: background 0.15s ease;
+    }
+    
+    .autocomplete-item:last-child {
+        border-bottom: none;
+    }
+    
+    .autocomplete-item:hover,
+    .autocomplete-item.active {
+        background: #e7f3ff;
+    }
+    
+    .autocomplete-item-title {
+        font-weight: 600;
+        color: #212529;
+        margin-bottom: 0.25rem;
+    }
+    
+    .autocomplete-item-details {
+        font-size: 0.85rem;
+        color: #6c757d;
+    }
+    
+    .autocomplete-item-code {
+        color: #0d6efd;
+        font-family: monospace;
+    }
 </style>
 </%block>
 
@@ -216,9 +268,10 @@
     
     <div class="input-card">
         <div class="row g-3">
-            <div class="col-md-6">
+            <div class="col-md-6 position-relative">
                 <label class="form-label"><i class="bi bi-person-badge me-1"></i>Crachá/Matrícula</label>
-                <input class="form-control" id="input-usuario" list="usuario-list" placeholder="Leia ou digite o crachá ou nome" autocomplete="off">
+                <input class="form-control" id="input-usuario" placeholder="Leia ou digite o crachá ou nome" autocomplete="off">
+                <div id="autocomplete-dropdown-usuario" class="autocomplete-dropdown"></div>
             </div>
             <div class="col-md-6">
                 <label class="form-label"><i class="bi bi-geo-alt me-1"></i>Local do Serviço / Finalidade</label>
@@ -229,9 +282,10 @@
         <hr class="my-3">
         
         <div class="row g-3">
-            <div class="col-md-6">
+            <div class="col-md-6 position-relative">
                 <label class="form-label"><i class="bi bi-upc-scan me-1"></i>Código do Item</label>
                 <input class="form-control" id="input-codigo" placeholder="Leia ou digite o código do item" autocomplete="off">
+                <div id="autocomplete-dropdown-codigo" class="autocomplete-dropdown"></div>
             </div>
             <div class="col-md-3">
                 <label class="form-label"><i class="bi bi-hash me-1"></i>Quantidade (inteira)</label>
@@ -374,6 +428,216 @@ $${parent.scripts()}
     const nomesEmbalagem = {
         'lata': { singular: 'lata', plural: 'latas' },
         'rolo': { singular: 'rolo', plural: 'rolos' },
+        'pacote': { singular: 'pacote', plural: 'pacotes' },
+        'caixa': { singular: 'caixa', plural: 'caixas' },
+        'balde': { singular: 'balde', plural: 'baldes' }
+    };
+    
+    const unidadeBaseEmbalagem = {
+        'lata': 'litros',
+        'rolo': 'metros',
+        'pacote': 'unidades',
+        'caixa': 'unidades',
+        'balde': 'kg'
+    };
+    
+    const dropdownUsuario = document.getElementById('autocomplete-dropdown-usuario');
+    const dropdownCodigo = document.getElementById('autocomplete-dropdown-codigo');
+    let debounceTimerUsuario = null;
+    let debounceTimerCodigo = null;
+    let currentFuncionarios = [];
+    let currentItens = [];
+    
+    // Autocomplete de usuário
+    inputUsuario.addEventListener('input', function() {
+        const query = this.value.trim();
+        clearTimeout(debounceTimerUsuario);
+        
+        if (query.length < 2) {
+            dropdownUsuario.classList.remove('show');
+            return;
+        }
+        
+        debounceTimerUsuario = setTimeout(async () => {
+            try {
+                const response = await fetch('/ferramentas/buscar-funcionario?q=' + encodeURIComponent(query));
+                if (response.ok) {
+                    const data = await response.json();
+                    currentFuncionarios = data.funcionarios || [];
+                    showAutocompleteUsuario(currentFuncionarios);
+                }
+            } catch (error) {
+                console.error('Erro ao buscar funcionário:', error);
+            }
+        }, 300);
+    });
+    
+    function showAutocompleteUsuario(funcionarios) {
+        if (funcionarios.length === 0) {
+            dropdownUsuario.classList.remove('show');
+            return;
+        }
+        
+        dropdownUsuario.innerHTML = funcionarios.map((func, index) => {
+            return '<div class=\"autocomplete-item\" data-index=\"' + index + '\">' +
+                '<div class=\"autocomplete-item-title\">' + func.nome + '</div>' +
+                '<div class=\"autocomplete-item-details\">Matrícula: ' + func.matricula +
+                (func.setor ? ' | Setor: ' + func.setor : '') +
+                (func.cargo ? ' | Cargo: ' + func.cargo : '') + '</div>' +
+                '</div>';
+        }).join('');
+        
+        dropdownUsuario.classList.add('show');
+        
+        dropdownUsuario.querySelectorAll('.autocomplete-item').forEach(item => {
+            item.addEventListener('click', function() {
+                const index = parseInt(this.getAttribute('data-index'));
+                selectUsuario(currentFuncionarios[index]);
+            });
+        });
+    }
+    
+    function selectUsuario(func) {
+        inputUsuario.value = func.nome + ' — ' + func.matricula;
+        dropdownUsuario.classList.remove('show');
+        if (!inputLocal.value) {
+            inputLocal.focus();
+        } else {
+            inputCodigo.focus();
+        }
+    }
+    
+    // Keyboard navigation para usuário
+    inputUsuario.addEventListener('keydown', function(e) {
+        const items = dropdownUsuario.querySelectorAll('.autocomplete-item');
+        const activeItem = dropdownUsuario.querySelector('.autocomplete-item.active');
+        let currentIndex = -1;
+        
+        if (activeItem) {
+            currentIndex = Array.from(items).indexOf(activeItem);
+        }
+        
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            if (currentIndex < items.length - 1) {
+                setActiveItem(items, currentIndex + 1);
+            }
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (currentIndex > 0) {
+                setActiveItem(items, currentIndex - 1);
+            }
+        } else if (e.key === 'Enter' && activeItem) {
+            e.preventDefault();
+            const index = parseInt(activeItem.getAttribute('data-index'));
+            selectUsuario(currentFuncionarios[index]);
+        } else if (e.key === 'Escape') {
+            dropdownUsuario.classList.remove('show');
+        }
+    });
+    
+    // Autocomplete de código
+    inputCodigo.addEventListener('input', function() {
+        const query = this.value.trim();
+        clearTimeout(debounceTimerCodigo);
+        
+        if (query.length < 2) {
+            dropdownCodigo.classList.remove('show');
+            return;
+        }
+        
+        debounceTimerCodigo = setTimeout(async () => {
+            try {
+                const response = await fetch('/movimentos/api/buscar-item?q=' + encodeURIComponent(query));
+                if (response.ok) {
+                    const data = await response.json();
+                    currentItens = data.itens || [];
+                    showAutocompleteCodigo(currentItens);
+                }
+            } catch (error) {
+                console.error('Erro ao buscar item:', error);
+            }
+        }, 300);
+    });
+    
+    function showAutocompleteCodigo(itens) {
+        if (itens.length === 0) {
+            dropdownCodigo.classList.remove('show');
+            return;
+        }
+        
+        dropdownCodigo.innerHTML = itens.map((item, index) => {
+            return '<div class=\"autocomplete-item\" data-index=\"' + index + '\">' +
+                '<div class=\"autocomplete-item-title\">' + (item.descricao || item.codigo) + '</div>' +
+                '<div class=\"autocomplete-item-details\">' +
+                '<span class=\"autocomplete-item-code\">Código: ' + item.codigo + '</span>' +
+                (item.saldo !== undefined ? ' | Saldo: ' + item.saldo : '') +
+                (item.categoria ? ' | Categoria: ' + item.categoria : '') + '</div>' +
+                '</div>';
+        }).join('');
+        
+        dropdownCodigo.classList.add('show');
+        
+        dropdownCodigo.querySelectorAll('.autocomplete-item').forEach(item => {
+            item.addEventListener('click', function() {
+                const index = parseInt(this.getAttribute('data-index'));
+                selectCodigo(currentItens[index]);
+            });
+        });
+    }
+    
+    function selectCodigo(item) {
+        inputCodigo.value = item.codigo;
+        dropdownCodigo.classList.remove('show');
+        inputQuantidade.focus();
+    }
+    
+    // Keyboard navigation para código
+    inputCodigo.addEventListener('keydown', function(e) {
+        const items = dropdownCodigo.querySelectorAll('.autocomplete-item');
+        const activeItem = dropdownCodigo.querySelector('.autocomplete-item.active');
+        let currentIndex = -1;
+        
+        if (activeItem) {
+            currentIndex = Array.from(items).indexOf(activeItem);
+        }
+        
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            if (currentIndex < items.length - 1) {
+                setActiveItem(items, currentIndex + 1);
+            }
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (currentIndex > 0) {
+                setActiveItem(items, currentIndex - 1);
+            }
+        } else if (e.key === 'Enter' && activeItem) {
+            e.preventDefault();
+            const index = parseInt(activeItem.getAttribute('data-index'));
+            selectCodigo(currentItens[index]);
+        } else if (e.key === 'Escape') {
+            dropdownCodigo.classList.remove('show');
+        }
+    });
+    
+    function setActiveItem(items, index) {
+        items.forEach(item => item.classList.remove('active'));
+        if (items[index]) {
+            items[index].classList.add('active');
+            items[index].scrollIntoView({ block: 'nearest' });
+        }
+    }
+    
+    // Fechar dropdowns ao clicar fora
+    document.addEventListener('click', function(e) {
+        if (e.target !== inputUsuario && !dropdownUsuario.contains(e.target)) {
+            dropdownUsuario.classList.remove('show');
+        }
+        if (e.target !== inputCodigo && !dropdownCodigo.contains(e.target)) {
+            dropdownCodigo.classList.remove('show');
+        }
+    });
         'pacote': { singular: 'pacote', plural: 'pacotes' },
         'caixa': { singular: 'caixa', plural: 'caixas' },
         'litro': { singular: 'litro', plural: 'litros' },

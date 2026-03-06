@@ -171,6 +171,59 @@
     }
 </style>
 <link rel="stylesheet" href="${url_for('static', filename='css/autocomplete.css')}">
+<style>
+    .autocomplete-dropdown {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        max-height: 300px;
+        overflow-y: auto;
+        background: white;
+        border: 2px solid #3b82f6;
+        border-top: none;
+        border-radius: 0 0 8px 8px;
+        z-index: 1000;
+        display: none;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+    
+    .autocomplete-dropdown.show {
+        display: block;
+    }
+    
+    .autocomplete-item {
+        padding: 0.75rem 1rem;
+        cursor: pointer;
+        border-bottom: 1px solid #f0f0f0;
+        transition: background 0.15s ease;
+    }
+    
+    .autocomplete-item:last-child {
+        border-bottom: none;
+    }
+    
+    .autocomplete-item:hover,
+    .autocomplete-item.active {
+        background: #e7f3ff;
+    }
+    
+    .autocomplete-item-title {
+        font-weight: 600;
+        color: #212529;
+        margin-bottom: 0.25rem;
+    }
+    
+    .autocomplete-item-details {
+        font-size: 0.85rem;
+        color: #6c757d;
+    }
+    
+    .autocomplete-item-code {
+        color: #0d6efd;
+        font-family: monospace;
+    }
+</style>
 </%block>
 
 <%block name="content">
@@ -183,11 +236,12 @@
     <input type="hidden" name="liquido_fracao_numerador" data-liquid-field="numerator">
     <input type="hidden" name="liquido_fracao_denominador" data-liquid-field="denominator">
     <div class="row g-3">
-        <div class="col-md-4">
+        <div class="col-md-4 position-relative">
             <label class="form-label">Crachá/Matrícula</label>
-            <input class="form-control" name="usuario" list="usuario-list" placeholder="Leia ou digite o crachá ou nome" autocomplete="off" required>
+            <input id="input-usuario-fracionada" class="form-control" name="usuario" placeholder="Leia ou digite o crachá ou nome" autocomplete="off" required>
+            <div id="autocomplete-dropdown-usuario-fracionada" class="autocomplete-dropdown"></div>
         </div>
-        <div class="col-md-4 autocomplete-wrapper">
+        <div class="col-md-4 autocomplete-wrapper position-relative">
             <label class="form-label">Código do item</label>
             <input id="input-codigo-fracionada" class="form-control" name="codigo" placeholder="Digite o nome ou código do item" autocomplete="off" required>
             <div id="autocomplete-dropdown-fracionada" class="autocomplete-dropdown"></div>
@@ -290,11 +344,123 @@ ${parent.scripts()}
     document.addEventListener('DOMContentLoaded', function() {
         const inputFracionada = document.getElementById('input-codigo-fracionada');
         const dropdownFracionada = document.getElementById('autocomplete-dropdown-fracionada');
+        const inputUsuarioFracionada = document.getElementById('input-usuario-fracionada');
+        const dropdownUsuarioFracionada = document.getElementById('autocomplete-dropdown-usuario-fracionada');
         
+        // Autocomplete de item
         if (inputFracionada && dropdownFracionada) {
             initItemAutocomplete(inputFracionada, dropdownFracionada, '/movimentos/api/buscar-item');
         }
+        
+        // Autocomplete de usuário
+        if (inputUsuarioFracionada && dropdownUsuarioFracionada) {
+            initUsuarioAutocompleteFrac(inputUsuarioFracionada, dropdownUsuarioFracionada);
+        }
     });
+    
+    // Função de autocomplete para usuário
+    function initUsuarioAutocompleteFrac(inputElement, dropdownElement) {
+        let debounceTimer = null;
+        let currentFuncionarios = [];
+        
+        inputElement.addEventListener('input', function() {
+            const query = this.value.trim();
+            clearTimeout(debounceTimer);
+            
+            if (query.length < 2) {
+                dropdownElement.classList.remove('show');
+                return;
+            }
+            
+            debounceTimer = setTimeout(async () => {
+                try {
+                    const response = await fetch('/ferramentas/buscar-funcionario?q=' + encodeURIComponent(query));
+                    if (response.ok) {
+                        const data = await response.json();
+                        currentFuncionarios = data.funcionarios || [];
+                        showAutocompleteFuncFrac(dropdownElement, currentFuncionarios);
+                    }
+                } catch (error) {
+                    console.error('Erro ao buscar funcionário:', error);
+                }
+            }, 300);
+        });
+        
+        // Keyboard navigation
+        inputElement.addEventListener('keydown', function(e) {
+            const items = dropdownElement.querySelectorAll('.autocomplete-item');
+            const activeItem = dropdownElement.querySelector('.autocomplete-item.active');
+            let currentIndex = -1;
+            
+            if (activeItem) {
+                currentIndex = Array.from(items).indexOf(activeItem);
+            }
+            
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (currentIndex < items.length - 1) {
+                    setActiveFrac(items, currentIndex + 1);
+                }
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (currentIndex > 0) {
+                    setActiveFrac(items, currentIndex - 1);
+                }
+            } else if (e.key === 'Enter' && activeItem) {
+                e.preventDefault();
+                const index = parseInt(activeItem.getAttribute('data-index'));
+                selectUsuarioFrac(inputElement, dropdownElement, currentFuncionarios[index]);
+            } else if (e.key === 'Escape') {
+                dropdownElement.classList.remove('show');
+            }
+        });
+        
+        // Click fora fecha dropdown
+        document.addEventListener('click', function(e) {
+            if (e.target !== inputElement && !dropdownElement.contains(e.target)) {
+                dropdownElement.classList.remove('show');
+            }
+        });
+    }
+    
+    function showAutocompleteFuncFrac(dropdownElement, funcionarios) {
+        if (funcionarios.length === 0) {
+            dropdownElement.classList.remove('show');
+            return;
+        }
+        
+        dropdownElement.innerHTML = funcionarios.map((func, index) => {
+            return '<div class=\"autocomplete-item\" data-index=\"' + index + '\">' +
+                '<div class=\"autocomplete-item-title\">' + func.nome + '</div>' +
+                '<div class=\"autocomplete-item-details\">Matrícula: ' + func.matricula +
+                (func.setor ? ' | Setor: ' + func.setor : '') +
+                (func.cargo ? ' | Cargo: ' + func.cargo : '') + '</div>' +
+                '</div>';
+        }).join('');
+        
+        dropdownElement.classList.add('show');
+        
+        dropdownElement.querySelectorAll('.autocomplete-item').forEach(item => {
+            item.addEventListener('click', function() {
+                const index = parseInt(this.getAttribute('data-index'));
+                const inputElement = dropdownElement.previousElementSibling;
+                selectUsuarioFrac(inputElement, dropdownElement, funcionarios[index]);
+            });
+        });
+    }
+    
+    function selectUsuarioFrac(inputElement, dropdownElement, func) {
+        inputElement.value = func.nome + ' — ' + func.matricula;
+        dropdownElement.classList.remove('show');
+    }
+    
+    function setActiveFrac(items, index) {
+        items.forEach(item => item.classList.remove('active'));
+        if (items[index]) {
+            items[index].classList.add('active');
+            items[index].scrollIntoView({ block: 'nearest' });
+        }
+    }
 
     (function () {
         if (window.initLiquidFractionForms) {

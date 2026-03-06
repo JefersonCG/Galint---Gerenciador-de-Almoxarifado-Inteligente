@@ -7,6 +7,63 @@
 
 <%block name="extra_css">
 <link rel="stylesheet" href="${url_for('static', filename='css/autocomplete.css')}">
+<style>
+    .autocomplete-dropdown {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        max-height: 300px;
+        overflow-y: auto;
+        background: white;
+        border: 2px solid #3b82f6;
+        border-top: none;
+        border-radius: 0 0 8px 8px;
+        z-index: 1000;
+        display: none;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+    
+    .autocomplete-dropdown.show {
+        display: block;
+    }
+    
+    .autocomplete-item {
+        padding: 0.75rem 1rem;
+        cursor: pointer;
+        border-bottom: 1px solid #f0f0f0;
+        transition: background 0.15s ease;
+    }
+    
+    .autocomplete-item:last-child {
+        border-bottom: none;
+    }
+    
+    .autocomplete-item:hover,
+    .autocomplete-item.active {
+        background: #e7f3ff;
+    }
+    
+    .autocomplete-item-title {
+        font-weight: 600;
+        color: #212529;
+        margin-bottom: 0.25rem;
+    }
+    
+    .autocomplete-item-details {
+        font-size: 0.85rem;
+        color: #6c757d;
+    }
+    
+    .autocomplete-item-code {
+        color: #0d6efd;
+        font-family: monospace;
+    }
+    
+    .autocomplete-wrapper {
+        position: relative;
+    }
+</style>
 </%block>
 
 <%block name="content">
@@ -109,14 +166,15 @@
         % if can_manage:
         <form class="scan-form" method="post" action="${url_for('movements.registrar_entrada')}">
             <div class="row g-3">
-                <div class="col-md-4">
+                <div class="col-md-4 autocomplete-wrapper">
                     <label class="form-label">Crachá/Matrícula</label>
-                    <input class="form-control" name="usuario" list="usuario-list"
+                    <input id="input-usuario-devolucao" class="form-control" name="usuario"
                         placeholder="Leia ou digite o crachá ou nome" autocomplete="off" required>
+                    <div id="autocomplete-dropdown-usuario-devolucao" class="autocomplete-dropdown"></div>
                 </div>
                 <div class="col-md-4 autocomplete-wrapper">
                     <label class="form-label">Código do item</label>
-                    <input id="input-codigo-devolucao" class="form-control" name="codigo" list="item-list"
+                    <input id="input-codigo-devolucao" class="form-control" name="codigo"
                         placeholder="Digite o nome ou código do item" autocomplete="off" required>
                     <div id="autocomplete-dropdown-devolucao" class="autocomplete-dropdown"></div>
                 </div>
@@ -247,6 +305,12 @@ ${parent.scripts()}
         const inputDevolucao = document.getElementById('input-codigo-devolucao');
         const dropdownDevolucao = document.getElementById('autocomplete-dropdown-devolucao');
         
+        const inputUsuarioSaida = document.getElementById('input-usuario-saida');
+        const dropdownUsuarioSaida = document.getElementById('autocomplete-dropdown-usuario-saida');
+        const inputUsuarioDevolucao = document.getElementById('input-usuario-devolucao');
+        const dropdownUsuarioDevolucao = document.getElementById('autocomplete-dropdown-usuario-devolucao');
+        
+        // Autocomplete de item
         if (inputSaida && dropdownSaida) {
             initItemAutocomplete(inputSaida, dropdownSaida, '/movimentos/api/buscar-item');
         }
@@ -254,7 +318,120 @@ ${parent.scripts()}
         if (inputDevolucao && dropdownDevolucao) {
             initItemAutocomplete(inputDevolucao, dropdownDevolucao, '/movimentos/api/buscar-item');
         }
+        
+        // Autocomplete de usuário
+        if (inputUsuarioSaida && dropdownUsuarioSaida) {
+            initUsuarioAutocomplete(inputUsuarioSaida, dropdownUsuarioSaida);
+        }
+        
+        if (inputUsuarioDevolucao && dropdownUsuarioDevolucao) {
+            initUsuarioAutocomplete(inputUsuarioDevolucao, dropdownUsuarioDevolucao);
+        }
     });
+    
+    // Função de autocomplete para usuário
+    function initUsuarioAutocomplete(inputElement, dropdownElement) {
+        let debounceTimer = null;
+        let currentFuncionarios = [];
+        
+        inputElement.addEventListener('input', function() {
+            const query = this.value.trim();
+            clearTimeout(debounceTimer);
+            
+            if (query.length < 2) {
+                dropdownElement.classList.remove('show');
+                return;
+            }
+            
+            debounceTimer = setTimeout(async () => {
+                try {
+                    const response = await fetch('/ferramentas/buscar-funcionario?q=' + encodeURIComponent(query));
+                    if (response.ok) {
+                        const data = await response.json();
+                        currentFuncionarios = data.funcionarios || [];
+                        showAutocompleteUsuario(dropdownElement, currentFuncionarios);
+                    }
+                } catch (error) {
+                    console.error('Erro ao buscar funcionário:', error);
+                }
+            }, 300);
+        });
+        
+        // Keyboard navigation
+        inputElement.addEventListener('keydown', function(e) {
+            const items = dropdownElement.querySelectorAll('.autocomplete-item');
+            const activeItem = dropdownElement.querySelector('.autocomplete-item.active');
+            let currentIndex = -1;
+            
+            if (activeItem) {
+                currentIndex = Array.from(items).indexOf(activeItem);
+            }
+            
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (currentIndex < items.length - 1) {
+                    setActive(items, currentIndex + 1);
+                }
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (currentIndex > 0) {
+                    setActive(items, currentIndex - 1);
+                }
+            } else if (e.key === 'Enter' && activeItem) {
+                e.preventDefault();
+                const index = parseInt(activeItem.getAttribute('data-index'));
+                selectUsuario(inputElement, dropdownElement, currentFuncionarios[index]);
+            } else if (e.key === 'Escape') {
+                dropdownElement.classList.remove('show');
+            }
+        });
+        
+        // Click fora fecha dropdown
+        document.addEventListener('click', function(e) {
+            if (e.target !== inputElement && !dropdownElement.contains(e.target)) {
+                dropdownElement.classList.remove('show');
+            }
+        });
+    }
+    
+    function showAutocompleteUsuario(dropdownElement, funcionarios) {
+        if (funcionarios.length === 0) {
+            dropdownElement.classList.remove('show');
+            return;
+        }
+        
+        dropdownElement.innerHTML = funcionarios.map((func, index) => {
+            return '<div class="autocomplete-item" data-index="' + index + '">' +
+                '<div class="autocomplete-item-title">' + func.nome + '</div>' +
+                '<div class="autocomplete-item-details">Matrícula: ' + func.matricula +
+                (func.setor ? ' | Setor: ' + func.setor : '') +
+                (func.cargo ? ' | Cargo: ' + func.cargo : '') + '</div>' +
+                '</div>';
+        }).join('');
+        
+        dropdownElement.classList.add('show');
+        
+        dropdownElement.querySelectorAll('.autocomplete-item').forEach(item => {
+            item.addEventListener('click', function() {
+                const index = parseInt(this.getAttribute('data-index'));
+                const inputElement = dropdownElement.previousElementSibling;
+                selectUsuario(inputElement, dropdownElement, funcionarios[index]);
+            });
+        });
+    }
+    
+    function selectUsuario(inputElement, dropdownElement, func) {
+        inputElement.value = func.nome + ' — ' + func.matricula;
+        dropdownElement.classList.remove('show');
+    }
+    
+    function setActive(items, index) {
+        items.forEach(item => item.classList.remove('active'));
+        if (items[index]) {
+            items[index].classList.add('active');
+            items[index].scrollIntoView({ block: 'nearest' });
+        }
+    }
 
     const unidadeBaseEmbalagem = {
         'lata': 'litros',
