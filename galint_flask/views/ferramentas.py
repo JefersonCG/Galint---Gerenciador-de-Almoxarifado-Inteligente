@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
+from sqlalchemy import or_
 
 from ..mako_renderer import render_mako_template
 from ..services.ferramentas import ferramentas_service
@@ -286,3 +287,43 @@ def buscar_item():
     
     resultados = inventory_service.search_items_for_autocomplete(query, limit=20)
     return jsonify({"items": resultados})
+
+
+@blueprint.get("/buscar-funcionario")
+@login_required
+def buscar_funcionario():
+    """API: Busca funcionários por nome ou matrícula (parcial)."""
+    _require_admin()
+    query = (request.args.get("q") or "").strip()
+    
+    if not query or len(query) < 2:
+        return jsonify({"funcionarios": []})
+    
+    # Buscar funcionários que correspondam ao query (nome ou matrícula)
+    from ..models import Usuario as UsuarioModel
+    
+    query_lower = query.lower()
+    funcionarios_list = (
+        db.session.query(UsuarioModel)
+        .filter(
+            or_(
+                UsuarioModel.nome.ilike(f"%{query}%"),
+                UsuarioModel.matricula.ilike(f"%{query}%")
+            )
+        )
+        .order_by(UsuarioModel.nome)
+        .limit(20)
+        .all()
+    )
+    
+    resultados = [
+        {
+            "matricula": f.matricula,
+            "nome": f.nome,
+            "setor": f.setor or "N/D",
+            "cargo": f.cargo or "N/D",
+        }
+        for f in funcionarios_list
+    ]
+    
+    return jsonify({"funcionarios": resultados})

@@ -226,12 +226,17 @@
             <div class="row g-3">
                 <div class="col-md-6">
                     <label class="form-label"><i class="bi bi-person-badge me-1"></i>Matrícula do Funcionário</label>
-                    <input class="form-control" id="input-matricula" name="matricula" list="usuario-list" placeholder="Leia ou digite a matrícula" autocomplete="off" required autofocus>
+                    <div class="position-relative">
+                        <input class="form-control" id="input-matricula" name="matricula" placeholder="Digite o nome ou matrícula" autocomplete="off" required autofocus>
+                        <div id="autocomplete-matricula-dropdown" class="autocomplete-dropdown"></div>
+                    </div>
                 </div>
                 <div class="col-md-6">
                     <label class="form-label"><i class="bi bi-tools me-1"></i>Código da Ferramenta</label>
-                    <input class="form-control" id="input-codigo" name="codigo" placeholder="Digite o nome ou código da ferramenta" autocomplete="off" required>
-                    <div id="autocomplete-dropdown" class="autocomplete-dropdown"></div>
+                    <div class="position-relative">
+                        <input class="form-control" id="input-codigo" name="codigo" placeholder="Digite o nome ou código da ferramenta" autocomplete="off" required>
+                        <div id="autocomplete-dropdown" class="autocomplete-dropdown"></div>
+                    </div>
                 </div>
                 <div class="col-md-6">
                     <label class="form-label"><i class="bi bi-hash me-1"></i>Quantidade</label>
@@ -327,6 +332,7 @@ $${parent.scripts()}
     const inputLocal = document.getElementById('input-local');
     const inputObservacao = document.querySelector('textarea[name="observacao"]');
     const dropdown = document.getElementById('autocomplete-dropdown');
+    const dropdownMatricula = document.getElementById('autocomplete-matricula-dropdown');
     const formEl = document.getElementById('form-retirada');
     const btnAdicionar = document.getElementById('btn-adicionar');
     const btnRegistrar = document.getElementById('btn-registrar');
@@ -337,8 +343,11 @@ $${parent.scripts()}
     const items = [];
     let itemCounter = 0;
     let debounceTimer;
+    let debounceTimerMatricula;
     let currentFocus = -1;
+    let currentFocusMatricula = -1;
     let currentItems = [];
+    let currentFuncionarios = [];
 
     // Nunca permitir submit "normal" do form (fluxo é via JS + endpoint em lote)
     if (formEl) {
@@ -373,8 +382,99 @@ $${parent.scripts()}
             this.value = '1';
         }
     });
+        // Autocomplete para matrícula/nome do funcionário
+    inputMatricula.addEventListener('input', function() {
+        clearTimeout(debounceTimerMatricula);
+        const query = this.value.trim();
+        
+        if (query.length < 2) {
+            dropdownMatricula.classList.remove('show');
+            return;
+        }
+        
+        debounceTimerMatricula = setTimeout(async function() {
+            try {
+                const response = await fetch('/ferramentas/buscar-funcionario?q=' + encodeURIComponent(query));
+                const data = await response.json();
+                
+                if (data.funcionarios && data.funcionarios.length > 0) {
+                    showAutocompleteFuncionario(data.funcionarios);
+                } else {
+                    dropdownMatricula.classList.remove('show');
+                }
+            } catch (error) {
+                console.error('Erro ao buscar funcionários:', error);
+                dropdownMatricula.classList.remove('show');
+            }
+        }, 300);
+    });
     
-    // Autocomplete para busca por nome ou código
+    function showAutocompleteFuncionario(funcionarios) {
+        currentFuncionarios = funcionarios;
+        currentFocusMatricula = -1;
+        dropdownMatricula.innerHTML = '';
+        
+        funcionarios.forEach((func, index) => {
+            const div = document.createElement('div');
+            div.className = 'autocomplete-item';
+            div.innerHTML = 
+                '<div class="autocomplete-item-title">' + escapeHtml(func.nome) + '</div>' +
+                '<div class="autocomplete-item-details">' +
+                '  <span class="autocomplete-item-code">Matrícula: ' + escapeHtml(func.matricula) + '</span>' +
+                (func.setor !== 'N/D' ? ' | Setor: ' + escapeHtml(func.setor) : '') +
+                (func.cargo !== 'N/D' ? ' | ' + escapeHtml(func.cargo) : '') +
+                '</div>';
+            
+            div.addEventListener('click', function() {
+                selectFuncionario(func);
+            });
+            
+            dropdownMatricula.appendChild(div);
+        });
+        
+        dropdownMatricula.classList.add('show');
+    }
+    
+    function selectFuncionario(func) {
+        inputMatricula.value = func.matricula;
+        dropdownMatricula.classList.remove('show');
+        inputCodigo.focus();
+    }
+    
+    // Navegação por teclado no dropdown de matrícula
+    inputMatricula.addEventListener('keydown', function(e) {
+        const items = dropdownMatricula.querySelectorAll('.autocomplete-item');
+        
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            currentFocusMatricula++;
+            if (currentFocusMatricula >= items.length) currentFocusMatricula = 0;
+            setActiveMatricula(items);
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            currentFocusMatricula--;
+            if (currentFocusMatricula < 0) currentFocusMatricula = items.length - 1;
+            setActiveMatricula(items);
+        } else if (e.key === 'Enter' && currentFocusMatricula > -1) {
+            e.preventDefault();
+            if (items[currentFocusMatricula]) {
+                selectFuncionario(currentFuncionarios[currentFocusMatricula]);
+            }
+        } else if (e.key === 'Escape') {
+            dropdownMatricula.classList.remove('show');
+        }
+    });
+    
+    function setActiveMatricula(items) {
+        items.forEach((item, index) => {
+            item.classList.toggle('active', index === currentFocusMatricula);
+        });
+        
+        if (items[currentFocusMatricula]) {
+            items[currentFocusMatricula].scrollIntoView({ block: 'nearest' });
+        }
+    }
+        // Autocomplete para busca por nome ou código
     inputCodigo.addEventListener('input', function() {
         clearTimeout(debounceTimer);
         const query = this.value.trim();
@@ -744,6 +844,9 @@ $${parent.scripts()}
     document.addEventListener('click', function(e) {
         if (e.target !== inputCodigo && !dropdown.contains(e.target)) {
             dropdown.classList.remove('show');
+        }
+        if (e.target !== inputMatricula && !dropdownMatricula.contains(e.target)) {
+            dropdownMatricula.classList.remove('show');
         }
     });
 })();
