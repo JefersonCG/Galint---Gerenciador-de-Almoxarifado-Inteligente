@@ -139,7 +139,7 @@
 <div class="saida-container">
     <div class="page-header">
         <h2><i class="bi bi-droplet-half me-2"></i>Registro de Saída Fracionada</h2>
-        <p>Insira manualmente a quantidade pesada para itens fracionados (Lata, Rolo, Pacote, Caixa, Litro)</p>
+        <p>Insira manualmente a quantidade pesada para qualquer item (balança, escala ou medição manual)</p>
     </div>
     
     <div class="input-card">
@@ -476,26 +476,16 @@ ${parent.scripts()}
                 throw new Error('Item não encontrado');
             }
             
-            // Verificar se é item fracionável (Lata, Rolo, Pacote, Caixa, Litro)
-            const tiposFracionaveis = ['lata', 'rolo', 'pacote', 'caixa', 'litro', 'balde'];
-            if (data.tipo_embalagem_novo && tiposFracionaveis.includes(data.tipo_embalagem_novo.toLowerCase())) {
-                // Abre modal para entrada manual
-                pendingItem = {
-                    codigo: codigo,
-                    descricao: data.descricao,
-                    unidade: data.unidade || 'un',
-                    usuario: usuario,
-                    local: local
-                };
-                
-                mostrarModalQuantidade(pendingItem);
-                
-            } else {
-                // Item não fracionável - não pode usar esta tela
-                alert('Este item não requer entrada fracionada. Use a tela de "Registro de Saída" normal.');
-                inputCodigo.value = '';
-                inputCodigo.focus();
-            }
+            // TODOS os itens podem usar esta tela - modal abre para entrada manual
+            pendingItem = {
+                codigo: codigo,
+                descricao: data.descricao,
+                unidade: data.unidade || 'un',
+                usuario: usuario,
+                local: local
+            };
+            
+            mostrarModalQuantidade(pendingItem);
             
         } catch (error) {
             alert(error.message || 'Erro ao buscar item');

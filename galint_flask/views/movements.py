@@ -540,7 +540,7 @@ def saida_page():
 @blueprint.get('/saida-fracionada/page')
 @login_required
 def saida_fracionada_page():
-    """Página separada para Registro de Saída Fracionada (entrada manual pesada)."""
+    """Página separada para Registro de Saída Fracionada (entrada manual via balança/pesagem)."""
     _require_admin()
     return render_mako_template(
         'movements/saida_fracionada.mako',
