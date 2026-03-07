@@ -40,6 +40,12 @@ const LIQUID_PRODUCT_TYPES = [
         keywords: ['tinta piso', 'piso acrilica', 'piso base agua'],
     },
     {
+        id: 'tinta_asfaltica',
+        label: 'Tinta Asfáltica',
+        default_unit: 'litro',
+        keywords: ['tinta asfaltica', 'asfaltica'],
+    },
+    {
         id: 'tinta_epoxi_piso',
         label: 'Tinta Epóxi para Piso (bicomp / industrial)',
         default_unit: 'litro',
