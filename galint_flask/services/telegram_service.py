@@ -3572,11 +3572,21 @@ class TelegramService:
 
             msg += f"   🏷️ {categoria}\n"
 
-            msg += f"   📊 Qtd: <b>+{entrada.quantidade}</b> {item.unidade or 'un'}\n"
+            
+
+            # Para devolução múltipla, não usar o símbolo + (acréscimo)
+
+            if is_devolucao:
+
+                msg += f"   📊 Qtd Devolvida: <b>{entrada.quantidade}</b> {item.unidade or 'un'}\n"
+
+            else:
+
+                msg += f"   📊 Qtd: <b>+{entrada.quantidade}</b> {item.unidade or 'un'}\n"
 
             
 
-            # Saldo após entrada
+            # Saldo após entrada/devolução
 
             try:
 
@@ -3586,13 +3596,25 @@ class TelegramService:
 
                     estoque_str = EmbalagemService.formatar_estoque(item)
 
-                    msg += f"   💼 Novo Saldo: {estoque_str}\n"
+                    if is_devolucao:
+
+                        msg += f"   ✅ Estoque atualizado: {estoque_str}\n"
+
+                    else:
+
+                        msg += f"   💼 Novo Saldo: {estoque_str}\n"
 
                 else:
 
                     saldo_atual = int(item.get_saldo_atual() or 0)
 
-                    msg += f"   💼 Novo Saldo: {saldo_atual} {item.unidade or 'un'}\n"
+                    if is_devolucao:
+
+                        msg += f"   ✅ Estoque atualizado: {saldo_atual} {item.unidade or 'un'}\n"
+
+                    else:
+
+                        msg += f"   💼 Novo Saldo: {saldo_atual} {item.unidade or 'un'}\n"
 
             except Exception:
 
@@ -3600,7 +3622,13 @@ class TelegramService:
 
                     saldo_atual = int(item.get_saldo_atual() or 0)
 
-                    msg += f"   💼 Novo Saldo: {saldo_atual} {item.unidade or 'un'}\n"
+                    if is_devolucao:
+
+                        msg += f"   ✅ Estoque atualizado: {saldo_atual} {item.unidade or 'un'}\n"
+
+                    else:
+
+                        msg += f"   💼 Novo Saldo: {saldo_atual} {item.unidade or 'un'}\n"
 
                 except Exception:
 
@@ -4864,11 +4892,19 @@ class TelegramService:
 
         msg += f"   🏷️ {categoria}\n"
 
-        msg += f"   📊 Qtd: <b>+{quantidade}</b> {unidade}\n"
+        # Para devolução, não usar o símbolo + (acréscimo)
+
+        if is_devolucao:
+
+            msg += f"   📊 Qtd Devolvida: <b>{quantidade}</b> {unidade}\n"
+
+        else:
+
+            msg += f"   📊 Qtd: <b>+{quantidade}</b> {unidade}\n"
 
         
 
-        # Saldo após entrada
+        # Saldo após entrada/devolução
 
         if item:
 
@@ -4880,13 +4916,25 @@ class TelegramService:
 
                     estoque_str = EmbalagemService.formatar_estoque(item)
 
-                    msg += f"   💼 Novo Saldo: {estoque_str}"
+                    if is_devolucao:
+
+                        msg += f"   ✅ Estoque atualizado: {estoque_str}"
+
+                    else:
+
+                        msg += f"   💼 Novo Saldo: {estoque_str}"
 
                 else:
 
                     saldo_atual = int(item.get_saldo_atual() or 0)
 
-                    msg += f"   💼 Novo Saldo: {saldo_atual} {unidade}"
+                    if is_devolucao:
+
+                        msg += f"   ✅ Estoque atualizado: {saldo_atual} {unidade}"
+
+                    else:
+
+                        msg += f"   💼 Novo Saldo: {saldo_atual} {unidade}"
 
             except Exception:
 
@@ -4894,7 +4942,13 @@ class TelegramService:
 
                     saldo_atual = int(item.get_saldo_atual() or 0)
 
-                    msg += f"   💼 Novo Saldo: {saldo_atual} {unidade}"
+                    if is_devolucao:
+
+                        msg += f"   ✅ Estoque atualizado: {saldo_atual} {unidade}"
+
+                    else:
+
+                        msg += f"   💼 Novo Saldo: {saldo_atual} {unidade}"
 
                 except Exception:
 
@@ -5261,7 +5315,21 @@ class TelegramService:
 
                 
 
-                key = f"new_entry:{entrada_id}:admin:{admin.chat_id}"
+                # Usar message_type e key apropriados para devolução
+
+                if is_devolucao:
+
+                    msg_type = "devolucao_material"
+
+                    key = f"devolucao:{entrada_id}:admin:{admin.chat_id}"
+
+                else:
+
+                    msg_type = "new_entry"
+
+                    key = f"new_entry:{entrada_id}:admin:{admin.chat_id}"
+
+                
 
                 q = TelegramService.enqueue_outbox_message(
 
@@ -5269,7 +5337,7 @@ class TelegramService:
 
                     recipient_name=admin.usuario.nome if getattr(admin, 'usuario', None) else None,
 
-                    message_type="new_entry",
+                    message_type=msg_type,
 
                     message_text=message_text,
 
