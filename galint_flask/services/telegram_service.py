@@ -4970,7 +4970,7 @@ class TelegramService:
 
 
     @staticmethod
-    def format_devolucao_message(evento, item) -> str:
+    def format_devolucao_message(evento: InventarioEvento, item: Item | None) -> str:
         """Formata mensagem personalizada para devolução de material - Modelo 3: Tabela Descritiva."""
         from ..models import Saida
 
@@ -5467,348 +5467,255 @@ class TelegramService:
 
     @staticmethod
 
-    def notify_inventory_event(event_id: int) -> dict[str, Any]:
+    def format_inventory_event_message(
+        evento: InventarioEvento, item: Item | None
+    ) -> tuple[str, str, bool]:
+        """Formata a mensagem de evento de inventário.
 
+        Retorna (message_text, message_type, is_devolucao).
+        """
+
+        tipo_evento = getattr(evento, "tipo", "") or ""
+        descricao_evento = getattr(evento, "descricao", "") or ""
+        is_devolucao = (
+            "devolu" in tipo_evento.lower() or "devolu" in descricao_evento.lower()
+        )
+
+        if is_devolucao:
+            message_text = TelegramService.format_devolucao_message(evento, item)
+            message_type = "devolucao_material"
+            return message_text, message_type, True
+
+        # Mensagem detalhada de ajuste manual de estoque
+        data_fmt = TimeService.format_local(getattr(evento, "data_evento", None))
+
+        # Extrair informações do ajuste da descrição
+        descricao = getattr(evento, "descricao", "") or ""
+        saldo_anterior = None
+        saldo_novo = None
+
+        # Parsear "de X para Y" da descrição (suporta float)
+        import re
+
+        match = re.search(
+            r"de\s+([0-9]+(?:\.[0-9]+)?)\s+para\s+([0-9]+(?:\.[0-9]+)?)",
+            descricao,
+        )
+        if match:
+            try:
+                saldo_anterior = float(match.group(1))
+                saldo_novo = float(match.group(2))
+            except Exception:
+                saldo_anterior = None
+                saldo_novo = None
+
+        quantidade = float(getattr(evento, "quantidade", 0) or 0)
+
+        # Calcular saldo atual se não foi parseado
+        if saldo_novo is None and item:
+            try:
+                # Para itens com embalagem, a fonte da verdade é o estoque físico (embalagens + soltas)
+                from galint_flask.services.embalagem_service import EmbalagemService
+
+                if EmbalagemService.tem_embalagem(item) or EmbalagemService.tem_rolo_legacy(item):
+                    saldo_novo = float(EmbalagemService.calcular_estoque_total(item))
+                else:
+                    saldo_novo = float(item.get_saldo_atual() or 0)
+            except Exception:
+                saldo_novo = float(item.get_saldo_atual() or 0)
+            try:
+                saldo_anterior = float(saldo_novo) - float(quantidade)
+            except Exception:
+                saldo_anterior = None
+
+        # Obter informações do responsável
+        from ..models import Usuario
+
+        responsavel = None
+        if evento.matricula:
+            responsavel = (
+                db.session.query(Usuario).filter_by(matricula=evento.matricula).first()
+            )
+
+        # Emojis baseados na categoria
+        emoji_map = {
+            "ferramentas": "🔧",
+            "material elétrico": "⚡",
+            "material eletrico": "âš¡",
+            "material hidráulico": "🚰",
+            "material hidraulico": "🚰",
+            "material piscina": "🏊",
+            "liquido": "💧",
+            "líquido": "💧",
+        }
+        categoria = (item.categoria or "Geral").strip() if item else "Geral"
+        emoji = emoji_map.get(categoria.lower(), "📦")
+
+        # Determinar tipo de ajuste
+        if quantidade > 0:
+            tipo_ajuste = "ENTRADA MANUAL"
+            icone_tipo = "📥"
+            variacao_icon = "📈"
+        else:
+            tipo_ajuste = "RETIRADA MANUAL"
+            icone_tipo = "📤"
+            variacao_icon = "📉"
+
+        # Montar mensagem rica
+        message_text = f"{icone_tipo} <b>AJUSTE DE ESTOQUE - {tipo_ajuste}</b>\n\n"
+        message_text += f"{emoji} <b>{item.descricao if item else 'Item desconhecido'}</b>\n"
+        message_text += f"🏷️ Código: <code>{evento.codigo_item or 'N/D'}</code>\n"
+        message_text += f"📂 Categoria: {categoria}\n"
+        if item and item.marca:
+            message_text += f"🏭 Marca: {item.marca}\n"
+        message_text += "\n━━━━━━━━━━━━━━━━━\n\n"
+
+        if saldo_anterior is not None and saldo_novo is not None:
+            message_text += "📊 <b>MOVIMENTAÇÃO</b>\n"
+
+            try:
+                from galint_flask.services.embalagem_service import EmbalagemService
+
+                tem_emb = item and (
+                    EmbalagemService.tem_embalagem(item)
+                    or EmbalagemService.tem_rolo_legacy(item)
+                )
+            except Exception:
+                EmbalagemService = None
+                tem_emb = False
+
+            # Caso especial: ajuste via edição do item em "saldo em embalagens" — os números do texto são embalagens.
+            ajuste_em_embalagens = "saldo em embalagens" in (descricao or "").lower()
+            if tem_emb and ajuste_em_embalagens and EmbalagemService:
+                nome_emb_sing = (
+                    item.get_nome_embalagem() if hasattr(item, "get_nome_embalagem") else (item.tipo_embalagem_novo or "embalagem")
+                )
+                nome_emb_pl = (
+                    item.get_nome_embalagem_plural() if hasattr(item, "get_nome_embalagem_plural") else (nome_emb_sing + "s")
+                )
+
+                def _nome(q: float) -> str:
+                    return nome_emb_sing if abs(float(q) - 1.0) < 1e-9 else nome_emb_pl
+
+                variacao_emb = float(saldo_novo) - float(saldo_anterior)
+                message_text += f"├─ Saldo anterior: <b>{saldo_anterior:g}</b> {_nome(saldo_anterior)}\n"
+                message_text += f"├─ Variação: <b>{variacao_emb:+g}</b> {_nome(variacao_emb)} {variacao_icon}\n"
+                message_text += f"└─ Saldo atual: <b>{saldo_novo:g}</b> {_nome(saldo_novo)}\n"
+
+                try:
+                    estoque_fisico = EmbalagemService.formatar_estoque(item)
+                    message_text += f"\n📦 <b>Estoque físico:</b> {estoque_fisico}\n"
+                    totals = TelegramService._format_balance_totals(
+                        item,
+                        prefix="",
+                        saldo_override=float(EmbalagemService.calcular_estoque_total(item)),
+                    )
+                    if totals:
+                        message_text += totals + "\n"
+                    message_text += "\n"
+                except Exception:
+                    message_text += "\n"
+            else:
+                unidade_mov = (item.unidade or "un") if item else "un"
+                message_text += f"├─ Saldo anterior: <b>{saldo_anterior:g}</b> {unidade_mov}\n"
+                message_text += f"├─ Variação: <b>{quantidade:+g}</b> {unidade_mov} {variacao_icon}\n"
+
+                if tem_emb and EmbalagemService and item:
+                    try:
+                        estoque_fisico = EmbalagemService.formatar_estoque(item)
+                        message_text += f"└─ Saldo atual: <b>{estoque_fisico}</b>\n\n"
+                        totals = TelegramService._format_balance_totals(item, prefix="")
+                        if totals:
+                            message_text += totals + "\n\n"
+                    except Exception:
+                        message_text += f"└─ Saldo atual: <b>{saldo_novo:g}</b> {unidade_mov}\n\n"
+                else:
+                    message_text += f"└─ Saldo atual: <b>{saldo_novo:g}</b> {unidade_mov}\n\n"
+
+            # Totais finais: no ajuste via "saldo em embalagens", saldo_novo/saldo_anterior
+            # representam quantidade de embalagens (ex.: latas). Os totais internos (ex.: Litros)
+            # já foram adicionados com base no estoque físico, então não repetir aqui.
+            if item and not (tem_emb and ajuste_em_embalagens and EmbalagemService):
+                totals = TelegramService._format_balance_totals(
+                    item, prefix="", saldo_override=saldo_novo
+                )
+                if totals:
+                    message_text += totals + "\n\n"
+        else:
+            message_text += f"📊 <b>Variação:</b> {quantidade:+g} {item.unidade or 'un'}\n\n"
+
+        if responsavel:
+            message_text += f"👤 <b>Responsável:</b> {responsavel.nome} (Mat. {responsavel.matricula})\n"
+        elif evento.matricula:
+            message_text += f"👤 <b>Matrícula:</b> {evento.matricula}\n"
+
+        # Extrair motivo da descrição
+        motivo = descricao.split(":")[0] if ":" in descricao else "Ajuste manual"
+        message_text += f"📝 <b>Motivo:</b> {motivo}\n"
+        message_text += f"⏰ <b>Data/Hora:</b> {data_fmt}"
+
+        return message_text, "inventory_adjustment", False
+
+
+    @staticmethod
+    def notify_inventory_event(event_id: int) -> dict[str, Any]:
         """Notifica administradores sobre eventos de inventário (InventarioEvento)."""
 
         if not TelegramService.is_enabled():
-
             return {"success": False, "error": "Telegram não está habilitado"}
-
-
 
         # Ajustes de estoque (delta > 0) são usados como "entrada/devolução" em algumas rotas.
         # Para garantir que a entrada não passe despercebida, o padrão agora é NOTIFICAR.
-
         if os.environ.get("GALINT_TELEGRAM_NOTIFY_INVENTORY_ADJUSTMENTS", "true").strip().lower() not in (
-
             "1",
-
             "true",
-
             "yes",
-
         ):
-
             return {"success": True, "skipped": True, "reason": "inventory adjustments notifications disabled"}
 
-
-
         evento = db.session.get(InventarioEvento, event_id)
-
         if not evento:
-
             return {"success": False, "error": "Evento não encontrado"}
-
-
 
         # Somente notificar se for aumento de estoque
         quantidade = float(getattr(evento, "quantidade", 0) or 0)
         if quantidade <= 0:
             return {"success": False, "error": "Evento não é entrada"}
 
+        item = db.session.get(Item, evento.codigo_item) if evento.codigo_item else None
 
-
-        item = None
-
-        if evento.codigo_item:
-
-            item = db.session.get(Item, evento.codigo_item)
-
-
-
-        # Detectar se é devolução e usar mensagem personalizada
-
-        tipo_evento = getattr(evento, "tipo", "") or ""
-
-        descricao_evento = getattr(evento, "descricao", "") or ""
-
-        is_devolucao = (
-
-            "devolu" in tipo_evento.lower()
-
-            or "devolu" in descricao_evento.lower()
-
+        message_text, message_type, is_devolucao = TelegramService.format_inventory_event_message(
+            evento, item
         )
 
-        
-
-        if is_devolucao:
-
-            # Usar mensagem personalizada de devolução
-
-            message_text = TelegramService.format_devolucao_message(evento, item)
-
-            message_type = "devolucao_material"
-
-        else:
-
-            # Mensagem detalhada de ajuste manual de estoque
-
-            data_fmt = TimeService.format_local(getattr(evento, "data_evento", None))
-
-            
-
-            # Extrair informações do ajuste da descrição
-
-            descricao = getattr(evento, "descricao", "") or ""
-
-            saldo_anterior = None
-
-            saldo_novo = None
-
-            
-
-            # Parsear "de X para Y" da descrição (suporta float)
-            import re
-            match = re.search(r'de\s+([0-9]+(?:\.[0-9]+)?)\s+para\s+([0-9]+(?:\.[0-9]+)?)', descricao)
-            if match:
-                try:
-                    saldo_anterior = float(match.group(1))
-                    saldo_novo = float(match.group(2))
-                except Exception:
-                    saldo_anterior = None
-                    saldo_novo = None
-
-            
-
-            # Calcular saldo atual se não foi parseado
-            if saldo_novo is None and item:
-                try:
-                    # Para itens com embalagem, a fonte da verdade é o estoque físico (embalagens + soltas)
-                    from galint_flask.services.embalagem_service import EmbalagemService
-                    if EmbalagemService.tem_embalagem(item) or EmbalagemService.tem_rolo_legacy(item):
-                        saldo_novo = float(EmbalagemService.calcular_estoque_total(item))
-                    else:
-                        saldo_novo = float(item.get_saldo_atual() or 0)
-                except Exception:
-                    saldo_novo = float(item.get_saldo_atual() or 0)
-                try:
-                    saldo_anterior = float(saldo_novo) - float(quantidade)
-                except Exception:
-                    saldo_anterior = None
-
-            
-
-            # Obter informações do responsável
-
-            from ..models import Usuario
-
-            responsavel = None
-
-            if evento.matricula:
-
-                responsavel = db.session.query(Usuario).filter_by(matricula=evento.matricula).first()
-
-            
-
-            # Emojis baseados na categoria
-
-            emoji_map = {
-
-                "ferramentas": "🔧",
-
-                "material elétrico": "⚡",
-
-                "material eletrico": "âš¡",
-
-                "material hidráulico": "🚰",
-
-                "material hidraulico": "🚰",
-
-                "material piscina": "🏊",
-
-                "liquido": "💧",
-
-                "líquido": "💧",
-
-            }
-
-            categoria = (item.categoria or "Geral").strip() if item else "Geral"
-
-            emoji = emoji_map.get(categoria.lower(), "📦")
-
-            
-
-            # Determinar tipo de ajuste
-            if quantidade > 0:
-                tipo_ajuste = "ENTRADA MANUAL"
-                icone_tipo = "📥"
-                variacao_icon = "📈"
-            else:
-                tipo_ajuste = "RETIRADA MANUAL"
-                icone_tipo = "📤"
-                variacao_icon = "📉"
-
-            
-
-            # Montar mensagem rica
-
-            message_text = f"{icone_tipo} <b>AJUSTE DE ESTOQUE - {tipo_ajuste}</b>\n\n"
-
-            message_text += f"{emoji} <b>{item.descricao if item else 'Item desconhecido'}</b>\n"
-
-            message_text += f"🏷️ Código: <code>{evento.codigo_item or 'N/D'}</code>\n"
-
-            message_text += f"📂 Categoria: {categoria}\n"
-
-            if item and item.marca:
-
-                message_text += f"🏭 Marca: {item.marca}\n"
-
-            message_text += f"\n━━━━━━━━━━━━━━━━━\n\n"
-
-            
-
-            if saldo_anterior is not None and saldo_novo is not None:
-                message_text += f"📊 <b>MOVIMENTAÇÃO</b>\n"
-
-                try:
-                    from galint_flask.services.embalagem_service import EmbalagemService
-                    tem_emb = item and (EmbalagemService.tem_embalagem(item) or EmbalagemService.tem_rolo_legacy(item))
-                except Exception:
-                    EmbalagemService = None
-                    tem_emb = False
-
-                # Caso especial: ajuste via edição do item em "saldo em embalagens" — os números do texto são embalagens.
-                ajuste_em_embalagens = "saldo em embalagens" in (descricao or "").lower()
-                if tem_emb and ajuste_em_embalagens and EmbalagemService:
-                    nome_emb_sing = item.get_nome_embalagem() if hasattr(item, "get_nome_embalagem") else (item.tipo_embalagem_novo or "embalagem")
-                    nome_emb_pl = item.get_nome_embalagem_plural() if hasattr(item, "get_nome_embalagem_plural") else (nome_emb_sing + "s")
-                    def _nome(q: float) -> str:
-                        return nome_emb_sing if abs(float(q) - 1.0) < 1e-9 else nome_emb_pl
-
-                    variacao_emb = float(saldo_novo) - float(saldo_anterior)
-                    message_text += f"├─ Saldo anterior: <b>{saldo_anterior:g}</b> {_nome(saldo_anterior)}\n"
-                    message_text += f"├─ Variação: <b>{variacao_emb:+g}</b> {_nome(variacao_emb)} {variacao_icon}\n"
-                    message_text += f"└─ Saldo atual: <b>{saldo_novo:g}</b> {_nome(saldo_novo)}\n"
-
-                    try:
-                        estoque_fisico = EmbalagemService.formatar_estoque(item)
-                        message_text += f"\n📦 <b>Estoque físico:</b> {estoque_fisico}\n"
-                        totals = TelegramService._format_balance_totals(item, prefix="", saldo_override=float(EmbalagemService.calcular_estoque_total(item)))
-                        if totals:
-                            message_text += totals + "\n"
-                        message_text += "\n"
-                    except Exception:
-                        message_text += "\n"
-
-                else:
-                    unidade_mov = (item.unidade or "un") if item else "un"
-                    message_text += f"├─ Saldo anterior: <b>{saldo_anterior:g}</b> {unidade_mov}\n"
-                    message_text += f"├─ Variação: <b>{quantidade:+g}</b> {unidade_mov} {variacao_icon}\n"
-
-                    if tem_emb and EmbalagemService and item:
-                        try:
-                            estoque_fisico = EmbalagemService.formatar_estoque(item)
-                            message_text += f"└─ Saldo atual: <b>{estoque_fisico}</b>\n\n"
-                            totals = TelegramService._format_balance_totals(item, prefix="")
-                            if totals:
-                                message_text += totals + "\n\n"
-                        except Exception:
-                            message_text += f"└─ Saldo atual: <b>{saldo_novo:g}</b> {unidade_mov}\n\n"
-                    else:
-                        message_text += f"└─ Saldo atual: <b>{saldo_novo:g}</b> {unidade_mov}\n\n"
-
-
-
-                if item:
-
-                    totals = TelegramService._format_balance_totals(item, prefix="", saldo_override=saldo_novo)
-
-                    if totals:
-
-                        message_text += totals + "\n\n"
-
-            else:
-
-                message_text += f"📊 <b>Variação:</b> {quantidade:+g} {item.unidade or 'un'}\n\n"
-
-            
-
-            if responsavel:
-
-                message_text += f"👤 <b>Responsável:</b> {responsavel.nome} (Mat. {responsavel.matricula})\n"
-
-            elif evento.matricula:
-
-                message_text += f"👤 <b>Matrícula:</b> {evento.matricula}\n"
-
-            
-
-            # Extrair motivo da descrição
-
-            motivo = descricao.split(':')[0] if ':' in descricao else "Ajuste manual"
-
-            message_text += f"📝 <b>Motivo:</b> {motivo}\n"
-
-            message_text += f"⏰ <b>Data/Hora:</b> {data_fmt}"
-
-            
-
-            message_type = "inventory_adjustment"
-
-
-
         results = {"queued": [], "failed": []}
-
-
-
         admins = TelegramService._privileged_users_query().all()
 
-
-
         for admin in admins:
-
             try:
-
                 key_suffix = "devolucao" if is_devolucao else "adjustment"
-
                 key = f"inventory_event:{event_id}:{key_suffix}:admin:{admin.chat_id}"
-
                 q = TelegramService.enqueue_outbox_message(
-
                     chat_id=str(admin.chat_id),
-
-                    recipient_name=admin.usuario.nome if getattr(admin, 'usuario', None) else None,
-
+                    recipient_name=admin.usuario.nome if getattr(admin, "usuario", None) else None,
                     message_type=message_type,
-
                     message_text=message_text,
-
                     idempotency_key=key,
-
                     inventario_evento_id=event_id,
-
                     commit=False,
-
                 )
-
                 if q.get("success"):
-
                     results["queued"].append(str(admin.chat_id))
-
                 else:
-
                     results["failed"].append(f"{admin.chat_id}: {q.get('error')}")
-
             except Exception as e:
-
                 results["failed"].append(f"{admin.chat_id}: {e}")
 
-
-
         try:
-
             db.session.commit()
-
         except Exception:
-
             db.session.rollback()
-
             return {"success": False, "error": "Falha ao persistir enfileiramento de inventory_event"}
-
-
 
         return {"success": True, "sent": results["queued"], "queued": results["queued"], "failed": results["failed"]}
 

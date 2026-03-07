@@ -17,6 +17,20 @@ import re
 import os
 
 
+def _background_services_disabled() -> bool:
+    """Permite desabilitar efeitos colaterais (scheduler/polling/saudação) via env.
+
+    Útil para diagnósticos e testes de formatação sem iniciar threads nem tocar
+    em integrações externas.
+    """
+
+    return os.environ.get("GALINT_DISABLE_BACKGROUND_SERVICES", "false").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+    )
+
+
 def _should_run_startup_side_effects() -> bool:
     """Evita executar efeitos colaterais duas vezes no modo debug com reloader.
 
@@ -103,7 +117,12 @@ def create_app(config_name: str | None = None) -> Flask:
         pass
     
     # Inicializar scheduler do Telegram
-    _initialize_scheduler(app)
+    if not _background_services_disabled():
+        _initialize_scheduler(app)
+    else:
+        app.logger.info(
+            "Serviços em background desabilitados via GALINT_DISABLE_BACKGROUND_SERVICES=true"
+        )
     # Aplicar filtro de sanitização de logs para evitar dump de bytes binários
     class _SanitizeFilter(logging.Filter):
         def filter(self, record):
@@ -121,7 +140,13 @@ def create_app(config_name: str | None = None) -> Flask:
     app.logger.addFilter(sanitize)
     # Iniciar polling do Telegram automaticamente se indicado pela env
     try:
-        if os.environ.get("GALINT_TELEGRAM_POLLING", "true").strip().lower() in ("1", "true", "yes"):
+        if _background_services_disabled():
+            pass
+        elif os.environ.get("GALINT_TELEGRAM_POLLING", "true").strip().lower() in (
+            "1",
+            "true",
+            "yes",
+        ):
             # Em debug com reloader, o Werkzeug cria 2 processos. Para evitar dois bots
             # respondendo ao mesmo tempo, só iniciamos o polling no processo "real".
             # Se use_reloader=False, WERKZEUG_RUN_MAIN não é setado, então iniciamos normalmente.
@@ -138,9 +163,14 @@ def create_app(config_name: str | None = None) -> Flask:
 
     # Saudação no startup via Telegram (não bloquear init)
     try:
-        if _should_run_startup_side_effects() and os.environ.get(
+        if (
+            (not _background_services_disabled())
+            and _should_run_startup_side_effects()
+            and os.environ.get(
             "GALINT_TELEGRAM_STARTUP_GREETING", "true"
-        ).strip().lower() in ("1", "true", "yes"):
+            ).strip().lower()
+            in ("1", "true", "yes")
+        ):
             from .services.telegram_service import TelegramService
             from .utils.action_logger import log_action
 
@@ -219,6 +249,9 @@ def _register_inactivity_middleware(app: Flask) -> None:
 def _initialize_scheduler(app: Flask) -> None:
     """Inicializa o agendador de tarefas do Telegram."""
     try:
+        if _background_services_disabled():
+            return
+
         # Evitar duplicidade no reloader do Flask (debug)
         # Se use_reloader=False, WERKZEUG_RUN_MAIN não é setado, então iniciamos normalmente.
         try:
