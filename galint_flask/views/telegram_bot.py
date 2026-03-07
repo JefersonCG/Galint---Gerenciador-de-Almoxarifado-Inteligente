@@ -116,7 +116,7 @@ def enviar_relatorio_falta(bot, chat_id: str) -> dict:
     rows = []
     for it in items:
         try:
-            saldo = it.get_saldo_atual()
+            saldo = it.get_saldo_fisico_display()
         except Exception:
             saldo = 0
         minimo = it.estoque_minimo or 0
@@ -404,7 +404,7 @@ def webhook():
                 msgs = []
                 for it in itens:
                     try:
-                        saldo = it.get_saldo_atual()
+                        saldo = it.get_saldo_fisico_display()
                     except Exception:
                         saldo = "N/A"
                     msgs.append(f"• {it.codigo_item} — {it.descricao} — Saldo: {saldo}")

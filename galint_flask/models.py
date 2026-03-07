@@ -97,7 +97,9 @@ class Item(db.Model):
             "foto_path": self.foto_path,
         }
         if include_balance:
-            data["saldo"] = self.get_saldo_atual()
+            # Para itens com embalagem, o saldo deve refletir o estoque físico (embalagens + soltas).
+            data["saldo"] = self.get_saldo_fisico_total()
+            data["saldo_display"] = self.get_saldo_fisico_display()
             if self.tipo_embalagem_novo and self.unidades_por_embalagem:
                 data["saldo_embalagens"] = self.estoque_embalagens
                 data["saldo_unidades_soltas"] = self.estoque_unidades_soltas
@@ -108,6 +110,56 @@ class Item(db.Model):
         if self.tipo_embalagem_novo and self.unidades_por_embalagem:
             return (self.estoque_embalagens * self.unidades_por_embalagem) + self.estoque_unidades_soltas
         return self.get_saldo_atual()
+
+    def get_unidade_interna_display(self) -> str | None:
+        """Unidade interna para exibição do total (L/Kg/m/un).
+
+        Obs: não substitui `unidade` (que é a unidade 'de entrada'), apenas define como o total deve ser interpretado.
+        """
+        try:
+            if (self.litros_por_embalagem or 0) > 0:
+                return "L"
+            if (self.grandeza_referencia or 0) > 0 and (self.tipo_embalagem_novo or "").strip().lower() in ("lata", "balde"):
+                return "Kg"
+            if (self.tipo_embalagem_novo or "").strip().lower() == "rolo":
+                return "m"
+            if (self.tipo_embalagem_novo or "").strip().lower() in ("caixa", "pacote"):
+                return "un"
+        except Exception:
+            pass
+
+        unidade_raw = (self.unidade or "").strip().lower()
+        if unidade_raw in ("litro", "litros", "l", "lt", "lts"):
+            return "L"
+        if unidade_raw in ("kg", "quilo", "quilos"):
+            return "Kg"
+        if unidade_raw in ("metro", "metros", "m"):
+            return "m"
+        return self.unidade or None
+
+    def get_saldo_fisico_total(self) -> float:
+        """Saldo que deve ser considerado como 'físico' para todo o sistema."""
+        if self.tipo_embalagem_novo and self.unidades_por_embalagem:
+            return float(self.get_estoque_total_com_embalagens() or 0.0)
+        return float(self.get_saldo_atual() or 0.0)
+
+    def get_saldo_fisico_display(self) -> str:
+        """Mescla: estoque físico detalhado + total interno (quando aplicável)."""
+        total = float(self.get_saldo_fisico_total() or 0.0)
+        unidade_total = self.get_unidade_interna_display() or "un"
+
+        try:
+            from .services.embalagem_service import EmbalagemService
+
+            if EmbalagemService.tem_embalagem(self) or EmbalagemService.tem_rolo_legacy(self):
+                fisico = EmbalagemService.formatar_estoque(self)
+                # Ex.: "5 latas + 9 Litros | Total: 99L"
+                return f"{fisico} | Total: {total:g}{unidade_total}"
+        except Exception:
+            pass
+
+        # Itens sem embalagem: mantém o padrão simples.
+        return f"{total:g} {self.unidade or 'un'}"
     
     def get_nome_embalagem(self) -> str:
         """Retorna o nome da embalagem no singular."""

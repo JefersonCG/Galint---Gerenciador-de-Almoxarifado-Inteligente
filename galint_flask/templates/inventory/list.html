@@ -258,7 +258,7 @@
                         <strong>{{ item.descricao }}</strong>
                         <div class="text-muted small mt-1">Código {{ item.codigo }} • Marca {{ item.marca or item.setor
                             or '—' }}</div>
-                        <div class="text-muted small">Saldo: {{ item.saldo }} • Min.: {{ item.estoque_minimo }} •
+                        <div class="text-muted small">Saldo: {{ item.saldo_display if item.saldo_display is defined and item.saldo_display else item.saldo }} • Min.: {{ item.estoque_minimo }} •
                             Unidade: {{ item.unidade or '—' }}</div>
                         {% if item.ultima_edicao_em %}
                         <div class="text-muted small" style="color: green; font-style: italic;">

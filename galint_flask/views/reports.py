@@ -1140,7 +1140,7 @@ def by_item():
                 "descricao": item.descricao,
                 "categoria": item.categoria,
                 "marca": item.marca,
-                "saldo_atual": item.get_saldo_atual(),
+                "saldo_atual": item.get_saldo_fisico_total(),
             }
             
             # Buscar todas as saídas deste item

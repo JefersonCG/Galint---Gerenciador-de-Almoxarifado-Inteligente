@@ -527,7 +527,7 @@ def webhook():
                         items = Item.query.all()
                         for it in items:
                             try:
-                                saldo = it.get_saldo_atual()
+                                saldo = it.get_saldo_fisico_display()
                             except Exception:
                                 saldo = 0
                             minimo = it.estoque_minimo or 0
