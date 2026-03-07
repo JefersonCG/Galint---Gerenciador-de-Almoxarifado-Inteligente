@@ -343,8 +343,11 @@ def update_item(codigo: str):
     _require_admin()
     form = request.form
     saldo_raw = form.get("saldo_atual", "0").strip()
+    saldo_unidades_soltas_raw = (form.get("saldo_unidades_soltas") or "").strip()
+    # Por padrão, o saldo do formulário é inteiro (itens normais). Para itens com embalagem,
+    # o saldo representa EMBALAGENS e pode ser float (mas o input do form usa step=1).
     try:
-        saldo_desejado = int(saldo_raw or 0)
+        saldo_desejado = float(saldo_raw or 0)
     except ValueError:
         saldo_desejado = -1
 
@@ -452,25 +455,54 @@ def update_item(codigo: str):
 
             item_atualizado = Item.query.get(updated_codigo)
             if item_atualizado and EmbalagemService.tem_embalagem(item_atualizado):
+                saldo_embalagens_anterior = float(item_atualizado.estoque_embalagens or 0.0)
+                saldo_soltas_anterior = float(item_atualizado.estoque_unidades_soltas or 0.0)
                 saldo_embalagens = float(saldo_desejado)
+
+                # Unidades soltas são a parte "aberta" na grandeza interna:
+                # - lata/balde com litros: litros
+                # - lata/balde com kg: kg
+                # - rolo: metros
+                # - caixa/pacote: unidades
+                # Se o campo não veio no form, preserva o que já existe.
+                if saldo_unidades_soltas_raw == "":
+                    saldo_unidades_soltas = float(item_atualizado.estoque_unidades_soltas or 0.0)
+                else:
+                    try:
+                        saldo_unidades_soltas = float(saldo_unidades_soltas_raw)
+                    except ValueError:
+                        saldo_unidades_soltas = -1
+
+                if saldo_unidades_soltas < 0:
+                    raise ValueError("Informe uma quantidade válida para unidades soltas")
+
                 unidades_por_embalagem = float(item_atualizado.unidades_por_embalagem or 1)
-                novo_saldo_unidades = saldo_embalagens * unidades_por_embalagem
+                novo_saldo_unidades = (saldo_embalagens * unidades_por_embalagem) + float(saldo_unidades_soltas)
 
                 # Para itens com embalagem, o saldo do formulário representa embalagens.
                 item_atualizado.estoque_embalagens = saldo_embalagens
-                item_atualizado.estoque_unidades_soltas = 0.0
+                item_atualizado.estoque_unidades_soltas = float(saldo_unidades_soltas)
+
+                descricao_evento = (
+                    f"Ajuste manual via edição do item (saldo em embalagens): de {saldo_embalagens_anterior:g} para {saldo_embalagens:g}"
+                )
+                if abs(saldo_soltas_anterior - float(saldo_unidades_soltas)) > 1e-9:
+                    descricao_evento += (
+                        f" | soltas: de {saldo_soltas_anterior:g} para {float(saldo_unidades_soltas):g}"
+                    )
 
                 inventory_service.adjust_item_balance(
                     codigo=updated_codigo,
                     novo_saldo=novo_saldo_unidades,
                     matricula=current_user.id,
                     nota_fiscal=payload.get("nota_fiscal"),
-                    descricao="Ajuste manual via edição do item (saldo em embalagens)",
+                    descricao=descricao_evento,
                 )
             else:
+                # Itens sem embalagem: saldo do form representa o saldo total na própria unidade.
                 inventory_service.adjust_item_balance(
                     codigo=updated_codigo,
-                    novo_saldo=saldo_desejado,
+                    novo_saldo=float(saldo_desejado),
                     matricula=current_user.id,
                     nota_fiscal=payload.get("nota_fiscal"),
                     descricao="Ajuste manual via edição do item",

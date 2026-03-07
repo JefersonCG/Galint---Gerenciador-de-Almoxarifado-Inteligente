@@ -2289,7 +2289,7 @@ class TelegramService:
 
             if soltas:
 
-                lines.append(f"{prefix}âž• Unidades soltas: {soltas:g} un")
+                lines.append(f"{prefix}+ Unidades soltas: {soltas:g} un")
 
 
 
@@ -2301,11 +2301,8 @@ class TelegramService:
 
             if EmbalagemService and EmbalagemService.tem_embalagem(item):
 
-                total_litros = (embalagens or 0) * litros_por_emb
-
-                if tipo_emb == "litro":
-
-                    total_litros += (soltas or 0)
+                # Em itens de volume com embalagem (lata/balde/litro), unidades soltas são litros.
+                total_litros = (embalagens or 0) * litros_por_emb + (soltas or 0)
 
             else:
 
@@ -2319,21 +2316,25 @@ class TelegramService:
 
         total_kg = None
 
-        kg_por_emb = getattr(item, "grandeza_referencia", None)
+        # Se o item é de litros (litros_por_embalagem definido), não exibir KG mesmo que exista valor legado em grandeza_referencia.
+        if not litros_por_emb:
 
-        if kg_por_emb:
+            kg_por_emb = getattr(item, "grandeza_referencia", None)
 
-            if EmbalagemService and EmbalagemService.tem_embalagem(item):
+            if kg_por_emb:
 
-                total_kg = (embalagens or 0) * kg_por_emb
+                if EmbalagemService and EmbalagemService.tem_embalagem(item):
 
-            else:
+                    # Em itens de peso com embalagem, unidades soltas são kg.
+                    total_kg = (embalagens or 0) * kg_por_emb + (soltas or 0)
 
-                total_kg = (saldo_total_units or 0) * kg_por_emb
+                else:
 
-        elif unidade_raw in ("kg", "quilo", "quilos"):
+                    total_kg = (saldo_total_units or 0) * kg_por_emb
 
-            total_kg = saldo_total_units
+            elif unidade_raw in ("kg", "quilo", "quilos"):
+
+                total_kg = saldo_total_units
 
 
 
@@ -5477,7 +5478,6 @@ class TelegramService:
 
 
         # Ajustes de estoque (delta > 0) são usados como "entrada/devolução" em algumas rotas.
-
         # Para garantir que a entrada não passe despercebida, o padrão agora é NOTIFICAR.
 
         if os.environ.get("GALINT_TELEGRAM_NOTIFY_INVENTORY_ADJUSTMENTS", "true").strip().lower() not in (
@@ -5503,11 +5503,8 @@ class TelegramService:
 
 
         # Somente notificar se for aumento de estoque
-
         quantidade = float(getattr(evento, "quantidade", 0) or 0)
-
         if quantidade <= 0:
-
             return {"success": False, "error": "Evento não é entrada"}
 
 
@@ -5562,27 +5559,34 @@ class TelegramService:
 
             
 
-            # Parsear "de X para Y" da descrição
-
+            # Parsear "de X para Y" da descrição (suporta float)
             import re
-
-            match = re.search(r'de (\d+) para (\d+)', descricao)
-
+            match = re.search(r'de\s+([0-9]+(?:\.[0-9]+)?)\s+para\s+([0-9]+(?:\.[0-9]+)?)', descricao)
             if match:
-
-                saldo_anterior = int(match.group(1))
-
-                saldo_novo = int(match.group(2))
+                try:
+                    saldo_anterior = float(match.group(1))
+                    saldo_novo = float(match.group(2))
+                except Exception:
+                    saldo_anterior = None
+                    saldo_novo = None
 
             
 
             # Calcular saldo atual se não foi parseado
-
             if saldo_novo is None and item:
-
-                saldo_novo = int(item.get_saldo_atual() or 0)
-
-                saldo_anterior = saldo_novo - int(quantidade)
+                try:
+                    # Para itens com embalagem, a fonte da verdade é o estoque físico (embalagens + soltas)
+                    from galint_flask.services.embalagem_service import EmbalagemService
+                    if EmbalagemService.tem_embalagem(item) or EmbalagemService.tem_rolo_legacy(item):
+                        saldo_novo = float(EmbalagemService.calcular_estoque_total(item))
+                    else:
+                        saldo_novo = float(item.get_saldo_atual() or 0)
+                except Exception:
+                    saldo_novo = float(item.get_saldo_atual() or 0)
+                try:
+                    saldo_anterior = float(saldo_novo) - float(quantidade)
+                except Exception:
+                    saldo_anterior = None
 
             
 
@@ -5627,21 +5631,13 @@ class TelegramService:
             
 
             # Determinar tipo de ajuste
-
             if quantidade > 0:
-
                 tipo_ajuste = "ENTRADA MANUAL"
-
                 icone_tipo = "📥"
-
                 variacao_icon = "📈"
-
             else:
-
                 tipo_ajuste = "RETIRADA MANUAL"
-
                 icone_tipo = "📤"
-
                 variacao_icon = "📉"
 
             
@@ -5665,36 +5661,54 @@ class TelegramService:
             
 
             if saldo_anterior is not None and saldo_novo is not None:
-
                 message_text += f"📊 <b>MOVIMENTAÇÃO</b>\n"
 
-                message_text += f"├─ Saldo anterior: <b>{saldo_anterior}</b> {item.unidade or 'un'}\n"
-
-                message_text += f"├─ Variação: <b>{quantidade:+g}</b> {item.unidade or 'un'} {variacao_icon}\n"
-
-                
-
-                # Mostrar saldo com embalagens se aplicável
-
                 try:
-
                     from galint_flask.services.embalagem_service import EmbalagemService
-
-                    if item and (EmbalagemService.tem_embalagem(item) or EmbalagemService.tem_rolo_legacy(item)):
-
-                        # IMPORTANTE: usar saldo_novo calculado, não o valor do banco (pode estar desatualizado)
-
-                        estoque_str = EmbalagemService.formatar_quantidade(item, saldo_novo)
-
-                        message_text += f"└─ Saldo atual: <b>{estoque_str}</b>\n\n"
-
-                    else:
-
-                        message_text += f"└─ Saldo atual: <b>{saldo_novo}</b> {item.unidade or 'un'}\n\n"
-
+                    tem_emb = item and (EmbalagemService.tem_embalagem(item) or EmbalagemService.tem_rolo_legacy(item))
                 except Exception:
+                    EmbalagemService = None
+                    tem_emb = False
 
-                    message_text += f"└─ Saldo atual: <b>{saldo_novo}</b> {item.unidade or 'un'}\n\n"
+                # Caso especial: ajuste via edição do item em "saldo em embalagens" — os números do texto são embalagens.
+                ajuste_em_embalagens = "saldo em embalagens" in (descricao or "").lower()
+                if tem_emb and ajuste_em_embalagens and EmbalagemService:
+                    nome_emb_sing = item.get_nome_embalagem() if hasattr(item, "get_nome_embalagem") else (item.tipo_embalagem_novo or "embalagem")
+                    nome_emb_pl = item.get_nome_embalagem_plural() if hasattr(item, "get_nome_embalagem_plural") else (nome_emb_sing + "s")
+                    def _nome(q: float) -> str:
+                        return nome_emb_sing if abs(float(q) - 1.0) < 1e-9 else nome_emb_pl
+
+                    variacao_emb = float(saldo_novo) - float(saldo_anterior)
+                    message_text += f"├─ Saldo anterior: <b>{saldo_anterior:g}</b> {_nome(saldo_anterior)}\n"
+                    message_text += f"├─ Variação: <b>{variacao_emb:+g}</b> {_nome(variacao_emb)} {variacao_icon}\n"
+                    message_text += f"└─ Saldo atual: <b>{saldo_novo:g}</b> {_nome(saldo_novo)}\n"
+
+                    try:
+                        estoque_fisico = EmbalagemService.formatar_estoque(item)
+                        message_text += f"\n📦 <b>Estoque físico:</b> {estoque_fisico}\n"
+                        totals = TelegramService._format_balance_totals(item, prefix="", saldo_override=float(EmbalagemService.calcular_estoque_total(item)))
+                        if totals:
+                            message_text += totals + "\n"
+                        message_text += "\n"
+                    except Exception:
+                        message_text += "\n"
+
+                else:
+                    unidade_mov = (item.unidade or "un") if item else "un"
+                    message_text += f"├─ Saldo anterior: <b>{saldo_anterior:g}</b> {unidade_mov}\n"
+                    message_text += f"├─ Variação: <b>{quantidade:+g}</b> {unidade_mov} {variacao_icon}\n"
+
+                    if tem_emb and EmbalagemService and item:
+                        try:
+                            estoque_fisico = EmbalagemService.formatar_estoque(item)
+                            message_text += f"└─ Saldo atual: <b>{estoque_fisico}</b>\n\n"
+                            totals = TelegramService._format_balance_totals(item, prefix="")
+                            if totals:
+                                message_text += totals + "\n\n"
+                        except Exception:
+                            message_text += f"└─ Saldo atual: <b>{saldo_novo:g}</b> {unidade_mov}\n\n"
+                    else:
+                        message_text += f"└─ Saldo atual: <b>{saldo_novo:g}</b> {unidade_mov}\n\n"
 
 
 
@@ -10291,37 +10305,42 @@ class TelegramService:
 
         try:
 
-            # Obter saldo
+            # Alterações de saldo
 
-            try:
+            if houve_alteracao_saldo:
+                delta = new_balance - prev_balance
 
-                saldo = int(item.get_saldo_atual() or 0)
-
-            except Exception:
-
-                saldo = 0
-
-            
-
-            # Formatar estoque com embalagens se aplicável
-
-            estoque_str = f"{saldo} {item.unidade or 'un'}"
-
-            try:
+                text += f"📊 <b>MOVIMENTAÇÃO</b>\n"
 
                 from galint_flask.services.embalagem_service import EmbalagemService
+                tem_emb = EmbalagemService.tem_embalagem(item) or EmbalagemService.tem_rolo_legacy(item)
 
-                if EmbalagemService.tem_embalagem(item) or EmbalagemService.tem_rolo_legacy(item):
+                # Para itens com embalagem, o saldo numérico é em unidade interna (L/Kg/m/un). Evitar rotular como "Lata".
+                unidade_mov = item.unidade or 'un'
+                if tem_emb:
+                    tipo_emb = (item.tipo_embalagem_novo or '').strip().lower()
+                    if getattr(item, 'litros_por_embalagem', None):
+                        unidade_mov = 'L'
+                    elif getattr(item, 'grandeza_referencia', None):
+                        unidade_mov = 'Kg'
+                    elif tipo_emb == 'rolo':
+                        unidade_mov = 'm'
+                    elif tipo_emb in ('caixa', 'pacote'):
+                        unidade_mov = 'un'
 
-                    estoque_str = EmbalagemService.formatar_estoque(item)
+                text += f"├─ Saldo anterior: <b>{prev_balance:g}</b> {unidade_mov}\n"
+                text += f"├─ Variação: <b>{delta:+g}</b> {unidade_mov} {variacao_icon}\n"
+                text += f"└─ Saldo atual: <b>{new_balance:g}</b> {unidade_mov}\n"
 
-            except Exception:
+                # Sempre anexar o estoque físico (embalagens + soltas) quando aplicável
+                if tem_emb:
+                    estoque_detalhado = EmbalagemService.formatar_estoque(item)
+                    text += f"📦 <b>Estoque físico:</b> {estoque_detalhado}\n"
 
-                pass
-
-            
-
-            # Categoria e emoji
+                totals = TelegramService._format_balance_totals(item, prefix="")
+                if totals:
+                    text += totals + "\n"
+                text += "\n"
 
             categoria = (item.categoria or "Material").strip()
 

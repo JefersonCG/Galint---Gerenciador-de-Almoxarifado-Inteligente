@@ -686,31 +686,41 @@ class InventoryService:
         if tipo_embalagem is not None:
             item.tipo_embalagem = tipo_embalagem
         
-        grandeza_referencia = payload.get("grandeza_referencia")
-        if grandeza_referencia is not None:
-            try:
-                item.grandeza_referencia = float(grandeza_referencia)
-            except (ValueError, TypeError):
-                pass
-        
-        litros_por_embalagem = payload.get("litros_por_embalagem")
-        if litros_por_embalagem is not None:
-            try:
-                item.litros_por_embalagem = float(litros_por_embalagem)
-            except (ValueError, TypeError):
-                pass
+        # Campos numéricos (suportar "limpar" quando o formulário troca de grandeza)
+        if "grandeza_referencia" in payload:
+            grandeza_referencia = payload.get("grandeza_referencia")
+            if grandeza_referencia in (None, ""):
+                item.grandeza_referencia = None
+            else:
+                try:
+                    item.grandeza_referencia = float(grandeza_referencia)
+                except (ValueError, TypeError):
+                    pass
+
+        if "litros_por_embalagem" in payload:
+            litros_por_embalagem = payload.get("litros_por_embalagem")
+            if litros_por_embalagem in (None, ""):
+                item.litros_por_embalagem = None
+            else:
+                try:
+                    item.litros_por_embalagem = float(litros_por_embalagem)
+                except (ValueError, TypeError):
+                    pass
         
         # Novos campos de embalagem
         tipo_embalagem_novo = payload.get("tipo_embalagem_novo")
         if tipo_embalagem_novo is not None:
             item.tipo_embalagem_novo = tipo_embalagem_novo if tipo_embalagem_novo else None
         
-        unidades_por_embalagem = payload.get("unidades_por_embalagem")
-        if unidades_por_embalagem is not None:
-            try:
-                item.unidades_por_embalagem = float(unidades_por_embalagem) if unidades_por_embalagem else None
-            except (ValueError, TypeError):
+        if "unidades_por_embalagem" in payload:
+            unidades_por_embalagem = payload.get("unidades_por_embalagem")
+            if unidades_por_embalagem in (None, ""):
                 item.unidades_por_embalagem = None
+            else:
+                try:
+                    item.unidades_por_embalagem = float(unidades_por_embalagem)
+                except (ValueError, TypeError):
+                    item.unidades_por_embalagem = None
         
         estoque_embalagens = payload.get("estoque_embalagens")
         if estoque_embalagens is not None:

@@ -257,30 +257,36 @@ class EmbalagemService:
             nome_rolo = "rolo" if saldo_atual == 1 else "rolos"
             return f"{total_metros:g} metros ({saldo_atual:g} {nome_rolo})"
 
-        # Para lata/balde com volume em litros definido (Compatível com Legacy e Novo Sistema)
+        # Para lata/balde com volume em litros definido (Compatível com Legacy APENAS)
+        # IMPORTANTE: Este bloco NÃO deve ser usado quando há estoque_unidades_soltas
         if (item.litros_por_embalagem and item.litros_por_embalagem > 0 and 
             (item.unidade and item.unidade.lower() in ['lata', 'litro', 'balde'] or
              item.tipo_embalagem_novo and item.tipo_embalagem_novo.lower() in ['lata', 'litro', 'balde'])):
             
             # Determina a quantidade de embalagens baseada no sistema (Novo vs Legacy)
             usa_sistema_novo = EmbalagemService.tem_embalagem(item)
-            qtde_embalagens = (item.estoque_embalagens or 0) if usa_sistema_novo else (item.get_saldo_atual() or 0)
             
-            # Calcula volume total em litros
-            volume_total = qtde_embalagens * item.litros_por_embalagem
-            
-            # Determina o nome da embalagem
-            if usa_sistema_novo:
-                nome_emb = item.get_nome_embalagem_plural() if qtde_embalagens != 1 else item.get_nome_embalagem()
+            # Se usa sistema novo E tem unidades soltas, pula este bloco (será tratado depois)
+            if usa_sistema_novo and (item.estoque_unidades_soltas or 0) > 0:
+                pass  # Será tratado no bloco específico de lata/balde/litro com soltas
             else:
-                nome_emb = (item.unidade or "embalagem") + ("s" if qtde_embalagens != 1 and not (item.unidade or "").endswith('s') else "")
+                qtde_embalagens = (item.estoque_embalagens or 0) if usa_sistema_novo else (item.get_saldo_atual() or 0)
+                
+                # Calcula volume total em litros
+                volume_total = qtde_embalagens * item.litros_por_embalagem
+                
+                # Determina o nome da embalagem
+                if usa_sistema_novo:
+                    nome_emb = item.get_nome_embalagem_plural() if qtde_embalagens != 1 else item.get_nome_embalagem()
+                else:
+                    nome_emb = (item.unidade or "embalagem") + ("s" if qtde_embalagens != 1 and not (item.unidade or "").endswith('s') else "")
 
-            if qtde_embalagens == 0:
-                return f"0 litros"
-            elif qtde_embalagens == 1:
-                return f"{volume_total:.1f} litros (1 {item.get_nome_embalagem() if usa_sistema_novo else (item.unidade or 'embalagem')})"
-            else:
-                return f"{volume_total:.1f} litros ({qtde_embalagens:.0f} {nome_emb})"
+                if qtde_embalagens == 0:
+                    return f"0 litros"
+                elif qtde_embalagens == 1:
+                    return f"{volume_total:.1f} litros (1 {item.get_nome_embalagem() if usa_sistema_novo else (item.unidade or 'embalagem')})"
+                else:
+                    return f"{volume_total:.1f} litros ({qtde_embalagens:.0f} {nome_emb})"
         
         # Para lata/balde com peso em kg definido (grandeza_referencia = kg por embalagem)
         # Compatível com Legacy e Novo Sistema
@@ -345,9 +351,15 @@ class EmbalagemService:
             total_metros = (embalagens * metros_por_rolo) + soltas
 
             if embalagens == 0:
+                # Se tem menos de 1 metro, mostrar em centímetros
+                if total_metros < 1:
+                    return f"{total_metros * 100:g} centímetros"
                 return f"{total_metros:g} metros"
             if soltas > 0:
-                return f"{total_metros:g} metros ({embalagens:.0f} {nome_emb} + {soltas:g} metros)"
+                # Se soltas < 1, mostrar em centímetros
+                if soltas < 1:
+                    return f"{embalagens:.0f} {nome_emb} + {soltas * 100:g} centímetros"
+                return f"{embalagens:.0f} {nome_emb} + {soltas:g} metros"
             return f"{total_metros:g} metros ({embalagens:.0f} {nome_emb})"
         
         # Para pacotes e caixas: mostrar total de unidades internas
@@ -358,8 +370,48 @@ class EmbalagemService:
             if embalagens == 0:
                 return f"{total_unidades:g} unidades"
             if soltas > 0:
-                return f"{total_unidades:g} unidades ({embalagens:.0f} {nome_emb} + {soltas:g} unidades)"
+                return f"{embalagens:.0f} {nome_emb} + {soltas:g} unidades"
             return f"{total_unidades:g} unidades ({embalagens:.0f} {nome_emb})"
+        
+        # Para lata/balde/litro: mostrar litros ou kg com unidades menores quando aplicável
+        if item.tipo_embalagem_novo and item.tipo_embalagem_novo.lower() in ['lata', 'balde', 'litro']:
+            # Se tem litros_por_embalagem, é volume (litros)
+            if item.litros_por_embalagem and item.litros_por_embalagem > 0:
+                litros_por_emb = item.litros_por_embalagem
+                litros_soltos = soltas
+                
+                if embalagens == 0:
+                    # Se tem menos de 1 litro, mostrar em mililitros
+                    if litros_soltos < 1:
+                        return f"{litros_soltos * 1000:g} ml"
+                    return f"{litros_soltos:g} Litros"
+                if soltas > 0:
+                    # Se soltas < 1, mostrar em ml
+                    if litros_soltos < 1:
+                        return f"{embalagens:.0f} {nome_emb} + {litros_soltos * 1000:g} ml"
+                    return f"{embalagens:.0f} {nome_emb} + {litros_soltos:g} Litros"
+                # Apenas embalagens
+                volume_total = embalagens * litros_por_emb
+                return f"{volume_total:g} Litros ({embalagens:.0f} {nome_emb})"
+            
+            # Se tem grandeza_referencia, é peso (kg)
+            elif item.grandeza_referencia and item.grandeza_referencia > 0:
+                kg_por_emb = item.grandeza_referencia
+                kg_soltos = soltas
+                
+                if embalagens == 0:
+                    # Se tem menos de 1 kg, mostrar em gramas
+                    if kg_soltos < 1:
+                        return f"{kg_soltos * 1000:g} gramas"
+                    return f"{kg_soltos:g} Kg"
+                if soltas > 0:
+                    # Se soltas < 1, mostrar em gramas
+                    if kg_soltos < 1:
+                        return f"{embalagens:.0f} {nome_emb} + {kg_soltos * 1000:g} gramas"
+                    return f"{embalagens:.0f} {nome_emb} + {kg_soltos:g} Kg"
+                # Apenas embalagens
+                peso_total = embalagens * kg_por_emb
+                return f"{peso_total:g} Kg ({embalagens:.0f} {nome_emb})"
         
         # Para outros produtos (sistema normal de embalagens + unidades)
         # Se não tem embalagens fechadas, mostrar só unidades soltas
@@ -415,8 +467,12 @@ class EmbalagemService:
                 nome_emb = item.get_nome_embalagem_plural() if qtde_embalagens_int != 1 else item.get_nome_embalagem()
                 
                 if qtde_embalagens_int == 0:
+                    if volume_total < 1:
+                        return f"{volume_total * 1000:.0f} ml"
                     return f"{volume_total:.2f} litros"
                 elif resto_litros > 0.01:
+                    if resto_litros < 1:
+                        return f"{qtde_embalagens_int} {nome_emb} + {resto_litros * 1000:.0f} ml"
                     return f"{qtde_embalagens_int} {nome_emb} + {resto_litros:.2f} litros"
                 else:
                     return f"{volume_total:.2f} litros ({qtde_embalagens_int} {nome_emb})"
@@ -445,8 +501,12 @@ class EmbalagemService:
                 nome_emb = item.get_nome_embalagem_plural() if qtde_embalagens_int != 1 else item.get_nome_embalagem()
                 
                 if qtde_embalagens_int == 0:
+                    if peso_total < 1:
+                        return f"{peso_total * 1000:.0f} gramas"
                     return f"{peso_total:.2f} kg"
                 elif resto_kg > 0.01:
+                    if resto_kg < 1:
+                        return f"{qtde_embalagens_int} {nome_emb} + {resto_kg * 1000:.0f} gramas"
                     return f"{qtde_embalagens_int} {nome_emb} + {resto_kg:.2f} kg"
                 else:
                     return f"{peso_total:.2f} kg ({qtde_embalagens_int} {nome_emb})"
@@ -472,8 +532,12 @@ class EmbalagemService:
             if tipo_emb == 'rolo':
                 total_metros = quantidade_float
                 if embalagens_completas == 0:
+                    if total_metros < 1:
+                        return f"{total_metros * 100:.0f} centímetros"
                     return f"{total_metros:g} metros"
                 if resto > 0.01:
+                    if resto < 1:
+                        return f"{embalagens_completas} {nome_emb} + {resto * 100:.0f} centímetros"
                     return f"{embalagens_completas} {nome_emb} + {resto:g} metros"
                 return f"{total_metros:g} metros ({embalagens_completas} {nome_emb})"
             

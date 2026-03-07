@@ -578,15 +578,42 @@
                         <div class="form-group">
                             {% set saldo_base = 0 %}
                             {% if saldo_desejado is not none %}
-                            {% set saldo_base = saldo_desejado|int %}
+                            {% set saldo_base = saldo_desejado %}
                             {% elif form_item and form_item.saldo is not none %}
-                            {% set saldo_base = form_item.saldo|int %}
+                            {% set saldo_base = form_item.saldo %}
                             {% endif %}
-                            <label class="form-label" for="saldo_atual">Saldo em estoque</label>
+
+                            {% set tem_embalagem = form_item and form_item.tipo_embalagem_novo and form_item.unidades_por_embalagem %}
+                            <label class="form-label" for="saldo_atual">
+                                {% if tem_embalagem %}Saldo em embalagens{% else %}Saldo em estoque{% endif %}
+                            </label>
                             <input class="form-control" id="saldo_atual" name="saldo_atual" type="number" min="0" step="1"
                                 value="{{ saldo_base|int }}">
-                            <small class="form-text">Ajustes geram eventos de inventário</small>
+                            <small class="form-text">
+                                Ajustes geram eventos de inventário{% if tem_embalagem %} (este campo representa <strong>embalagens</strong>){% endif %}
+                            </small>
                         </div>
+
+                        {% if tem_embalagem %}
+                        <div class="form-group">
+                            {% set tipo_emb = (form_item.tipo_embalagem_novo or '')|lower %}
+                            {% set unidades_soltas = (form_item.estoque_unidades_soltas or 0) %}
+                            {% set label_solta = 'Unidades soltas' %}
+                            {% if tipo_emb == 'rolo' %}
+                                {% set label_solta = 'Metros soltos' %}
+                            {% elif tipo_emb in ['caixa', 'pacote'] %}
+                                {% set label_solta = 'Unidades soltas' %}
+                            {% elif tipo_emb in ['lata', 'balde', 'litro'] and form_item.litros_por_embalagem %}
+                                {% set label_solta = 'Litros soltos' %}
+                            {% elif tipo_emb in ['lata', 'balde'] and form_item.grandeza_referencia %}
+                                {% set label_solta = 'Kg soltos' %}
+                            {% endif %}
+                            <label class="form-label" for="saldo_unidades_soltas">{{ label_solta }}</label>
+                            <input class="form-control" id="saldo_unidades_soltas" name="saldo_unidades_soltas" type="number" min="0" step="0.01"
+                                value="{{ unidades_soltas }}">
+                            <small class="form-text">Parte aberta/solta do estoque</small>
+                        </div>
+                        {% endif %}
                         <div class="form-group">
                             <label class="form-label" for="unidade">Unidade de medida</label>
                             <select class="form-select" id="unidade" name="unidade" required>
