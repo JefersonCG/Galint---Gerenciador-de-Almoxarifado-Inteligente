@@ -30,6 +30,7 @@ def retirar_page():
     return render_mako_template(
         'ferramentas/retirar.mako',
         usuarios=user_service.list_users(),
+        itens=inventory_service.list_items(),
     )
 
 
@@ -282,11 +283,11 @@ def buscar_item():
     _require_admin()
     query = (request.args.get("q") or "").strip()
     
-    if not query or len(query) < 2:
-        return jsonify({"items": []})
+    if not query or len(query) < 1:
+        return jsonify({"items": [], "itens": []})
     
     resultados = inventory_service.search_items_for_autocomplete(query, limit=20)
-    return jsonify({"items": resultados})
+    return jsonify({"items": resultados, "itens": resultados})
 
 
 @blueprint.get("/buscar-funcionario")
@@ -296,7 +297,7 @@ def buscar_funcionario():
     _require_admin()
     query = (request.args.get("q") or "").strip()
     
-    if not query or len(query) < 2:
+    if not query or len(query) < 1:
         return jsonify({"funcionarios": []})
     
     # Buscar funcionários que correspondam ao query (nome ou matrícula)

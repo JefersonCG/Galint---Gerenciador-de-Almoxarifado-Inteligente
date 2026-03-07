@@ -1,6 +1,5 @@
 <%inherit file="/base.mako"/>
 <%!
-    import json
 %>
 
 <%block name="title">Registro de Saída</%block>
@@ -377,20 +376,25 @@
     <input type="hidden" name="liquido_habilitado" value="0">
 </form>
 
-<datalist id="usuario-list">
-    % for usuario in usuarios:
-        <option value="${usuario.get('nome')} — ${usuario.get('matricula')}">${usuario.get('matricula')}</option>
-    % endfor
-</datalist>
 </%block>
 
 <%block name="scripts">
-$${parent.scripts()}
+${parent.scripts()}
 <script>
 (function() {
     const items = [];
     let itemCounter = 0;
     let pendingItem = null; // Item aguardando escolha de unidade
+    const usuariosAutocompleteData = ${tojson(usuarios)|n};
+    const itensAutocompleteData = ${tojson(itens)|n};
+
+    function normalizeAutocompleteText(value) {
+        return String(value || '')
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase()
+            .trim();
+    }
     
     const inputUsuario = document.getElementById('input-usuario');
     const inputLocal = document.getElementById('input-local');
@@ -458,18 +462,16 @@ $${parent.scripts()}
             return;
         }
         
-        debounceTimerUsuario = setTimeout(async () => {
-            try {
-                const response = await fetch('/ferramentas/buscar-funcionario?q=' + encodeURIComponent(query));
-                if (response.ok) {
-                    const data = await response.json();
-                    currentFuncionarios = data.funcionarios || [];
-                    showAutocompleteUsuario(currentFuncionarios);
-                }
-            } catch (error) {
-                console.error('Erro ao buscar funcionário:', error);
-            }
-        }, 300);
+        debounceTimerUsuario = setTimeout(() => {
+            const normalizedQuery = normalizeAutocompleteText(query);
+            currentFuncionarios = usuariosAutocompleteData.filter(func => {
+                const nome = normalizeAutocompleteText(func.nome);
+                const matricula = normalizeAutocompleteText(func.matricula);
+                return nome.includes(normalizedQuery) || matricula.includes(normalizedQuery);
+            }).slice(0, 20);
+
+            showAutocompleteUsuario(currentFuncionarios);
+        }, 150);
     });
     
     function showAutocompleteUsuario(funcionarios) {
@@ -546,18 +548,16 @@ $${parent.scripts()}
             return;
         }
         
-        debounceTimerCodigo = setTimeout(async () => {
-            try {
-                const response = await fetch('/movimentos/api/buscar-item?q=' + encodeURIComponent(query));
-                if (response.ok) {
-                    const data = await response.json();
-                    currentItens = data.itens || [];
-                    showAutocompleteCodigo(currentItens);
-                }
-            } catch (error) {
-                console.error('Erro ao buscar item:', error);
-            }
-        }, 300);
+        debounceTimerCodigo = setTimeout(() => {
+            const normalizedQuery = normalizeAutocompleteText(query);
+            currentItens = itensAutocompleteData.filter(item => {
+                const codigo = normalizeAutocompleteText(item.codigo);
+                const descricao = normalizeAutocompleteText(item.descricao);
+                return codigo.includes(normalizedQuery) || descricao.includes(normalizedQuery);
+            }).slice(0, 20);
+
+            showAutocompleteCodigo(currentItens);
+        }, 150);
     });
     
     function showAutocompleteCodigo(itens) {
@@ -638,20 +638,6 @@ $${parent.scripts()}
             dropdownCodigo.classList.remove('show');
         }
     });
-        'pacote': { singular: 'pacote', plural: 'pacotes' },
-        'caixa': { singular: 'caixa', plural: 'caixas' },
-        'litro': { singular: 'litro', plural: 'litros' },
-        'balde': { singular: 'balde', plural: 'baldes' }
-    };
-
-    const unidadeBaseEmbalagem = {
-        'lata': 'litros',
-        'rolo': 'metros',
-        'pacote': 'unidades',
-        'caixa': 'unidades',
-        'litro': 'litros',
-        'balde': 'kg'
-    };
     
     btnEmbalagens.addEventListener('click', () => {
         if (pendingItem) {

@@ -89,10 +89,11 @@
         <form class="scan-form" method="post" action="${url_for('movements.registrar_saida')}">
             <input type="hidden" name="liquido_habilitado" value="0">
             <div class="row g-3">
-                <div class="col-md-4">
+                <div class="col-md-4 autocomplete-wrapper">
                     <label class="form-label">Crachá/Matrícula</label>
-                    <input class="form-control" name="usuario" list="usuario-list"
+                    <input id="input-usuario-saida" class="form-control" name="usuario" list="usuario-list"
                         placeholder="Leia ou digite o crachá ou nome" autocomplete="off" required>
+                    <div id="autocomplete-dropdown-usuario-saida" class="autocomplete-dropdown"></div>
                 </div>
                 <div class="col-md-4 autocomplete-wrapper">
                     <label class="form-label">Código do item</label>

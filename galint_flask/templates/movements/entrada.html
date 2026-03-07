@@ -238,14 +238,14 @@
                 <div class="col-md-6">
                     <label class="form-label"><i class="bi bi-person-badge me-1"></i>Crachá/Matrícula</label>
                     <div class="position-relative">
-                        <input class="form-control" id="input-matricula" name="matricula" placeholder="Leia ou digite o crachá ou nome" autocomplete="off" required autofocus>
+                        <input class="form-control" id="input-matricula" name="matricula" list="usuario-list" placeholder="Leia ou digite o crachá ou nome" autocomplete="off" required autofocus>
                         <div id="autocomplete-matricula-dropdown" class="autocomplete-dropdown"></div>
                     </div>
                 </div>
                 <div class="col-md-6">
                     <label class="form-label"><i class="bi bi-box-seam me-1"></i>Código do Item</label>
                     <div class="position-relative">
-                        <input class="form-control" id="input-codigo" name="codigo" placeholder="Digite o nome ou código do item" autocomplete="off" required>
+                        <input class="form-control" id="input-codigo" name="codigo" list="item-list" placeholder="Digite o nome ou código do item" autocomplete="off" required>
                         <div id="autocomplete-dropdown" class="autocomplete-dropdown"></div>
                     </div>
                 </div>
@@ -301,6 +301,18 @@
     </div>
 </div>
 
+<datalist id="usuario-list">
+    {% for usuario in usuarios %}
+    <option value="{{ usuario.get('nome') }} — {{ usuario.get('matricula') }}">{{ usuario.get('matricula') }}</option>
+    {% endfor %}
+</datalist>
+
+<datalist id="item-list">
+    {% for item in itens %}
+    <option value="{{ item.get('codigo') }}">{{ item.get('descricao') or item.get('codigo') }}</option>
+    {% endfor %}
+</datalist>
+
 <script>
 (function() {
     const items = [];
@@ -309,6 +321,16 @@
     let currentItens = [];
     let debounceTimerMatricula = null;
     let debounceTimerCodigo = null;
+    const usuariosAutocompleteData = {{ usuarios|tojson }};
+    const itensAutocompleteData = {{ itens|tojson }};
+
+    function normalizeAutocompleteText(value) {
+        return String(value || '')
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase()
+            .trim();
+    }
     
     const inputMatricula = document.getElementById('input-matricula');
     const inputCodigo = document.getElementById('input-codigo');
@@ -333,18 +355,16 @@
             return;
         }
         
-        debounceTimerMatricula = setTimeout(async () => {
-            try {
-                const response = await fetch('/ferramentas/buscar-funcionario?q=' + encodeURIComponent(query));
-                if (response.ok) {
-                    const data = await response.json();
-                    currentFuncionarios = data.funcionarios || [];
-                    showAutocompleteFuncionario(currentFuncionarios);
-                }
-            } catch (error) {
-                console.error('Erro ao buscar funcionário:', error);
-            }
-        }, 300);
+        debounceTimerMatricula = setTimeout(() => {
+            const normalizedQuery = normalizeAutocompleteText(query);
+            currentFuncionarios = usuariosAutocompleteData.filter(func => {
+                const nome = normalizeAutocompleteText(func.nome);
+                const matricula = normalizeAutocompleteText(func.matricula);
+                return nome.includes(normalizedQuery) || matricula.includes(normalizedQuery);
+            }).slice(0, 20);
+
+            showAutocompleteFuncionario(currentFuncionarios);
+        }, 150);
     });
     
     function showAutocompleteFuncionario(funcionarios) {
@@ -426,18 +446,16 @@
             return;
         }
         
-        debounceTimerCodigo = setTimeout(async () => {
-            try {
-                const response = await fetch('/movimentos/api/buscar-item?q=' + encodeURIComponent(query));
-                if (response.ok) {
-                    const data = await response.json();
-                    currentItens = data.itens || [];
-                    showAutocompleteItem(currentItens);
-                }
-            } catch (error) {
-                console.error('Erro ao buscar item:', error);
-            }
-        }, 300);
+        debounceTimerCodigo = setTimeout(() => {
+            const normalizedQuery = normalizeAutocompleteText(query);
+            currentItens = itensAutocompleteData.filter(item => {
+                const codigo = normalizeAutocompleteText(item.codigo);
+                const descricao = normalizeAutocompleteText(item.descricao);
+                return codigo.includes(normalizedQuery) || descricao.includes(normalizedQuery);
+            }).slice(0, 20);
+
+            showAutocompleteItem(currentItens);
+        }, 150);
     });
     
     function showAutocompleteItem(itens) {

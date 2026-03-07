@@ -315,17 +315,23 @@
     </div>
 </div>
 
-<datalist id="usuario-list">
-    % for usuario in usuarios:
-        <option value="${usuario.get('matricula')}">${usuario.get('nome')} — ${usuario.get('matricula')}</option>
-    % endfor
-</datalist>
 </%block>
 
 <%block name="scripts">
-$${parent.scripts()}
+${parent.scripts()}
 <script>
 (function() {
+    const usuariosAutocompleteData = ${tojson(usuarios)|n};
+    const itensAutocompleteData = ${tojson(itens)|n};
+
+    function normalizeAutocompleteText(value) {
+        return String(value || '')
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase()
+            .trim();
+    }
+
     const inputMatricula = document.getElementById('input-matricula');
     const inputCodigo = document.getElementById('input-codigo');
     const inputQuantidade = document.getElementById('input-quantidade');
@@ -392,21 +398,20 @@ $${parent.scripts()}
             return;
         }
         
-        debounceTimerMatricula = setTimeout(async function() {
-            try {
-                const response = await fetch('/ferramentas/buscar-funcionario?q=' + encodeURIComponent(query));
-                const data = await response.json();
-                
-                if (data.funcionarios && data.funcionarios.length > 0) {
-                    showAutocompleteFuncionario(data.funcionarios);
-                } else {
-                    dropdownMatricula.classList.remove('show');
-                }
-            } catch (error) {
-                console.error('Erro ao buscar funcionários:', error);
+        debounceTimerMatricula = setTimeout(function() {
+            const normalizedQuery = normalizeAutocompleteText(query);
+            const resultados = usuariosAutocompleteData.filter(func => {
+                const nome = normalizeAutocompleteText(func.nome);
+                const matricula = normalizeAutocompleteText(func.matricula);
+                return nome.includes(normalizedQuery) || matricula.includes(normalizedQuery);
+            }).slice(0, 20);
+
+            if (resultados.length > 0) {
+                showAutocompleteFuncionario(resultados);
+            } else {
                 dropdownMatricula.classList.remove('show');
             }
-        }, 300);
+        }, 150);
     });
     
     function showAutocompleteFuncionario(funcionarios) {
@@ -484,21 +489,20 @@ $${parent.scripts()}
             return;
         }
         
-        debounceTimer = setTimeout(async function() {
-            try {
-                const response = await fetch('/ferramentas/buscar-item?q=' + encodeURIComponent(query));
-                const data = await response.json();
-                
-                if (data.items && data.items.length > 0) {
-                    showAutocomplete(data.items);
-                } else {
-                    dropdown.classList.remove('show');
-                }
-            } catch (error) {
-                console.error('Erro ao buscar itens:', error);
+        debounceTimer = setTimeout(function() {
+            const normalizedQuery = normalizeAutocompleteText(query);
+            const resultados = itensAutocompleteData.filter(item => {
+                const codigo = normalizeAutocompleteText(item.codigo);
+                const descricao = normalizeAutocompleteText(item.descricao);
+                return codigo.includes(normalizedQuery) || descricao.includes(normalizedQuery);
+            }).slice(0, 20);
+
+            if (resultados.length > 0) {
+                showAutocomplete(resultados);
+            } else {
                 dropdown.classList.remove('show');
             }
-        }, 300);
+        }, 150);
     });
     
     function showAutocomplete(items) {
