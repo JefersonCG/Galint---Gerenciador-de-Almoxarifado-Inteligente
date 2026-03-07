@@ -148,6 +148,9 @@ export default function RetiradaScreen({ navigation, route }) {
     const [quantidadeCaixas, setQuantidadeCaixas] = useState('');
     const [quantidadeUnidades, setQuantidadeUnidades] = useState('');
 
+    // Estado para seletor de unidade de retirada
+    const [unidadeRetirada, setUnidadeRetirada] = useState('principal'); // 'principal' ou 'secundaria'
+
     const canChooseRetirante = useMemo(() => {
         if (!user) return false;
         if (user.is_admin) return true;
@@ -240,6 +243,85 @@ export default function RetiradaScreen({ navigation, route }) {
     const saldoAtual = useMemo(() => {
         const q = Number(itemAtual?.item?.quantidade ?? 0);
         return Number.isFinite(q) ? Number(q.toFixed(6)) : 0;
+    }, [itemAtual]);
+
+    // Formatar saldo com detalhes de unidade
+    const saldoDetalhado = useMemo(() => {
+        const item = itemAtual?.item;
+        if (!item) return { principal: '0', secundario: null, unidadePrincipal: 'unidades' };
+        
+        const saldo = saldoAtual;
+        const unidade = (item.unidade || 'Unidade').toString().trim();
+        const unidadesNome = saldo === 1 ? 'unidade' : 'unidades';
+        
+        // Se tem unidades_por_embalagem (ex: 20 metros por rolo)
+        const unidadesPorEmbalagem = Number(item.unidades_por_embalagem);
+        const tipoEmbalagem = (item.tipo_embalagem_novo || '').toString().toLowerCase();
+        
+        if (Number.isFinite(unidadesPorEmbalagem) && unidadesPorEmbalagem > 0) {
+            const totalSecundario = saldo * unidadesPorEmbalagem;
+            const nomeEmbalagem = saldo === 1 
+                ? (tipoEmbalagem || 'unidade')
+                : (tipoEmbalagem === 'rolo' ? 'rolos' : 
+                   tipoEmbalagem === 'lata' ? 'latas' : 
+                   tipoEmbalagem === 'pacote' ? 'pacotes' : 
+                   tipoEmbalagem === 'caixa' ? 'caixas' : 
+                   tipoEmbalagem === 'balde' ? 'baldes' : 'unidades');
+            
+            return {
+                principal: `${saldo} ${nomeEmbalagem}`,
+                secundario: `${totalSecundario.toFixed(2)} ${unidade.toLowerCase()}`,
+                unidadePrincipal: nomeEmbalagem
+            };
+        }
+        
+        // Caso padrão: apenas saldo + unidade
+        return {
+            principal: `${saldo} ${unidadesNome}`,
+            secundario: null,
+            unidadePrincipal: unidadesNome
+        };
+    }, [saldoAtual, itemAtual]);
+
+    // Opções de unidade para retirada
+    const opcoesUnidade = useMemo(() => {
+        const item = itemAtual?.item;
+        if (!item) return [];
+        
+        const opcoes = [];
+        const unidadesPorEmbalagem = Number(item.unidades_por_embalagem);
+        const tipoEmbalagem = (item.tipo_embalagem_novo || '').toString().toLowerCase();
+        const unidade = (item.unidade || 'Unidade').toString().trim();
+        
+        // Opção principal: embalagem/unidade
+        if (Number.isFinite(unidadesPorEmbalagem) && unidadesPorEmbalagem > 0) {
+            const nomeEmbalagem = tipoEmbalagem === 'rolo' ? 'Rolo' : 
+                                 tipoEmbalagem === 'lata' ? 'Lata' : 
+                                 tipoEmbalagem === 'pacote' ? 'Pacote' : 
+                                 tipoEmbalagem === 'caixa' ? 'Caixa' : 
+                                 tipoEmbalagem === 'balde' ? 'Balde' : 'Unidade';
+            opcoes.push({
+                id: 'principal',
+                label: nomeEmbalagem,
+                fator: 1
+            });
+            
+            // Opção secundária: unidade base (metro, kg, litro, etc)
+            opcoes.push({
+                id: 'secundaria',
+                label: unidade,
+                fator: unidadesPorEmbalagem // Ex: 1 rolo = 20 metros, então fator é 20
+            });
+        } else {
+            // Apenas uma opção: a unidade padrão
+            opcoes.push({
+                id: 'principal',
+                label: unidade,
+                fator: 1
+            });
+        }
+        
+        return opcoes;
     }, [itemAtual]);
 
     const unidadeSaldoTotalFracionada = useMemo(() => {
@@ -491,10 +573,54 @@ export default function RetiradaScreen({ navigation, route }) {
             return;
         }
 
-        const quantidadeInt = parseInt(sanitizeIntText(itemAtual.quantidade), 10);
+        let quantidadeInt = parseInt(sanitizeIntText(itemAtual.quantidade), 10);
+        
+        // Converter quantidade baseado na unidade selecionada
+        if (unidadeRetirada === 'secundaria' && opcoesUnidade.length > 1) {
+            const unidadeSecundaria = opcoesUnidade.find(o => o.id === 'secundaria');
+            if (unidadeSecundaria && unidadeSecundaria.fator > 0) {
+                // Se usuário digitou em unidade secundária (metros, kg, litros), converter para principal
+                const quantidadeOriginal = quantidadeInt;
+                const quantidadePrincipal = quantidadeInt / unidadeSecundaria.fator;
+                
+                // Verificar se a conversão é exata
+                if (!Number.isInteger(quantidadePrincipal)) {
+                    const quantidadeArredondada = Math.ceil(quantidadePrincipal);
+                    const totalReal = quantidadeArredondada * unidadeSecundaria.fator;
+                    const unidadePrincipal = opcoesUnidade.find(o => o.id === 'principal');
+                    const nomeSecundaria = unidadeSecundaria.label.toLowerCase();
+                    const nomePrincipal = unidadePrincipal?.label || 'unidade';
+                    
+                    // Perguntar ao usuário se deseja arredondar
+                    const confirmar = await new Promise((resolve) => {
+                        Alert.alert(
+                            'Atenção: Conversão de Unidade',
+                            `A quantidade ${quantidadeOriginal} ${nomeSecundaria} não é divisível exatamente.\n\n` +
+                            `Será retirado ${quantidadeArredondada} ${nomePrincipal}(s), totalizando ${totalReal} ${nomeSecundaria}.\n\n` +
+                            `Deseja continuar?`,
+                            [
+                                { text: 'Cancelar', style: 'cancel', onPress: () => resolve(false) },
+                                { text: 'Continuar', onPress: () => resolve(true) }
+                            ]
+                        );
+                    });
+                    
+                    if (!confirmar) {
+                        setLoading(false);
+                        return;
+                    }
+                    
+                    quantidadeInt = quantidadeArredondada;
+                } else {
+                    quantidadeInt = quantidadePrincipal;
+                }
+            }
+        }
+        
         if (!usarFracao && !itemTemEmbalagens) {
             if (Number.isNaN(quantidadeInt) || quantidadeInt <= 0) {
                 Alert.alert('Erro', 'Informe uma quantidade válida (inteiro > 0).');
+                setLoading(false);
                 return;
             }
         }
@@ -728,7 +854,10 @@ export default function RetiradaScreen({ navigation, route }) {
                                         <Text style={styles.itemLine}>
                                             Código: {(itemAtual.item?.codigo_barras || itemAtual.item?.id || '').toString()}
                                         </Text>
-                                        <Text style={styles.itemLine}>Saldo atual: {saldoAtual}</Text>
+                                        <Text style={styles.itemLine}>Saldo atual: {saldoDetalhado.principal}</Text>
+                                        {saldoDetalhado.secundario && (
+                                            <Text style={styles.itemLineSecondary}>({saldoDetalhado.secundario} no total)</Text>
+                                        )}
                                     </View>
                                 ) : (
                                     <View style={styles.buscarItemContainer}>
@@ -784,7 +913,10 @@ export default function RetiradaScreen({ navigation, route }) {
                             <Text style={styles.itemLine}>
                                 Código: {(itemAtual?.item?.codigo_barras || itemAtual?.item?.id || '').toString()}
                             </Text>
-                            <Text style={styles.itemLine}>Saldo atual: {saldoAtual}</Text>
+                            <Text style={styles.itemLine}>Saldo atual: {saldoDetalhado.principal}</Text>
+                            {saldoDetalhado.secundario && (
+                                <Text style={styles.itemLineSecondary}>({saldoDetalhado.secundario} no total)</Text>
+                            )}
                             {!multi && usarFracao && saldoTotalFracionada != null && (
                                 <Text style={styles.itemLine}>
                                     Saldo total em estoque: {saldoTotalFracionada} {unidadeSaldoTotalFracionada}
@@ -809,6 +941,8 @@ export default function RetiradaScreen({ navigation, route }) {
                             onFocus={() => canChooseRetirante && setShowAutocompleteLista(true)}
                             placeholder="Digite o nome ou matrícula"
                             autoCapitalize="words"
+                            autoCorrect={false}
+                            blurOnSubmit={false}
                         />
                         {canChooseRetirante && showAutocompleteLista && usuariosFiltrados.length > 0 && (
                             <View style={styles.autocompleteContainer}>
@@ -816,7 +950,8 @@ export default function RetiradaScreen({ navigation, route }) {
                                     data={usuariosFiltrados.slice(0, 8)}
                                     keyExtractor={(item) => item.matricula}
                                     style={styles.autocompleteList}
-                                    keyboardShouldPersistTaps="handled"
+                                    keyboardShouldPersistTaps="always"
+                                    nestedScrollEnabled={true}
                                     renderItem={({ item }) => (
                                         <TouchableOpacity
                                             style={styles.autocompleteItem}
@@ -915,17 +1050,46 @@ export default function RetiradaScreen({ navigation, route }) {
                     )}
 
                     {!multi && !usarFracao && (
-                        <View style={styles.inputGroup}>
-                            <Text style={styles.label}>Quantidade *</Text>
-                            <TextInput
-                                style={styles.input}
-                                value={itemAtual.quantidade}
-                                onChangeText={(text) => setItemAtual({ ...itemAtual, quantidade: sanitizeIntText(text) })}
-                                placeholder="Quantidade"
-                                keyboardType="numeric"
-                                returnKeyType="next"
-                            />
-                        </View>
+                        <>
+                            <View style={styles.inputGroup}>
+                                <Text style={styles.label}>Quantidade *</Text>
+                                <TextInput
+                                    style={styles.input}
+                                    value={itemAtual.quantidade}
+                                    onChangeText={(text) => setItemAtual({ ...itemAtual, quantidade: sanitizeIntText(text) })}
+                                    placeholder="Quantidade"
+                                    keyboardType="numeric"
+                                    returnKeyType="next"
+                                />
+                            </View>
+
+                            {opcoesUnidade.length > 1 && (
+                                <View style={styles.inputGroup}>
+                                    <Text style={styles.label}>Unidade de medida</Text>
+                                    <View style={styles.unidadeRow}>
+                                        {opcoesUnidade.map((opcao) => (
+                                            <TouchableOpacity
+                                                key={opcao.id}
+                                                style={[
+                                                    styles.unidadeButton,
+                                                    unidadeRetirada === opcao.id && styles.unidadeButtonActive,
+                                                ]}
+                                                onPress={() => setUnidadeRetirada(opcao.id)}
+                                            >
+                                                <Text
+                                                    style={[
+                                                        styles.unidadeButtonText,
+                                                        unidadeRetirada === opcao.id && styles.unidadeButtonTextActive,
+                                                    ]}
+                                                >
+                                                    {opcao.label}
+                                                </Text>
+                                            </TouchableOpacity>
+                                        ))}
+                                    </View>
+                                </View>
+                            )}
+                        </>
                     )}
 
                     {isFerramenta && (
@@ -1264,6 +1428,13 @@ const styles = StyleSheet.create({
         color: '#666',
         marginTop: 4,
     },
+    itemLineSecondary: {
+        fontSize: 13,
+        color: '#888',
+        fontStyle: 'italic',
+        marginTop: 2,
+        marginLeft: 4,
+    },
     inputGroup: {
         marginBottom: 16,
     },
@@ -1374,6 +1545,30 @@ const styles = StyleSheet.create({
     },
     custodiaButtonTextActive: {
         color: '#000',
+    },
+    unidadeRow: {
+        flexDirection: 'row',
+        gap: 10,
+    },
+    unidadeButton: {
+        flex: 1,
+        borderWidth: 1,
+        borderColor: '#d1d5db',
+        paddingVertical: 10,
+        borderRadius: 10,
+        backgroundColor: '#fff',
+        alignItems: 'center',
+    },
+    unidadeButtonActive: {
+        backgroundColor: '#10b981',
+        borderColor: '#10b981',
+    },
+    unidadeButtonText: {
+        color: '#111827',
+        fontWeight: '600',
+    },
+    unidadeButtonTextActive: {
+        color: '#fff',
     },
     inputText: {
         fontSize: 16,
