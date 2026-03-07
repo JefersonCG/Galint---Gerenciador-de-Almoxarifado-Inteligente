@@ -426,16 +426,6 @@
 <div class="soft-depth-form">
     <h1 class="form-title">{% if item %}Editar{% else %}Novo{% endif %} Item</h1>
     <p class="form-subtitle">Preencha os campos abaixo com as informações do produto</p>
-    {% if form_item and form_item.codigo %}
-    <div class="alert alert-info">
-        <strong>Códigos patrimoniais:</strong>
-        <a href="{{ url_for('patrimonio.listar_codigos', codigo_item=form_item.codigo) }}">clique aqui para cadastrar/gerenciar</a>.
-    </div>
-    {% else %}
-    <div class="alert alert-warning">
-        <strong>Para cadastrar códigos patrimoniais</strong>, salve o item primeiro.
-    </div>
-    {% endif %}
 
     <form method="post" enctype="multipart/form-data">
         <div class="soft-depth-card">
@@ -561,16 +551,6 @@
                                     placeholder="Ex: Pro-2024, X-500">
                                 <small class="form-text">Modelo ou versão do equipamento</small>
                             </div>
-                            {% if form_item and form_item.codigo_item %}
-                            <div class="form-group">
-                                <div class="alert alert-info">
-                                    <i class="bi bi-upc-scan"></i>
-                                    <strong>Códigos Patrimoniais:</strong>
-                                    Para adicionar múltiplos códigos patrimoniais (ex: PAT-001 a PAT-020),
-                                    <a href="{{ url_for('patrimonio.listar_codigos', codigo_item=form_item.codigo_item) }}">clique aqui</a>
-                                </div>
-                            </div>
-                            {% endif %}
                         </div>
                     </div>
 

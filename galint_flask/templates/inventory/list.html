@@ -112,11 +112,11 @@
         justify-content: space-between;
         align-items: flex-start;
         gap: 1rem;
-        padding: 1rem 1.25rem;
+        padding: 0.875rem 1rem;
         background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
         border: 1px solid rgba(148, 163, 184, 0.25);
         border-radius: 0.75rem;
-        margin-bottom: 0.75rem;
+        margin-bottom: 0.65rem;
         transition: all 0.2s ease;
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     }
@@ -136,8 +136,37 @@
         outline-offset: 2px;
     }
 
+    .category-modal-list .item-content {
+        display: flex;
+        gap: 0.875rem;
+        align-items: center;
+        flex: 1;
+        min-width: 0;
+    }
+
+    .category-modal-list .item-photo {
+        width: 85px;
+        height: 85px;
+        border-radius: 8px;
+        object-fit: cover;
+        border: 2px solid rgba(148, 163, 184, 0.3);
+        background: #1e293b;
+        flex-shrink: 0;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    }
+
+    .category-modal-list .item-photo.no-photo {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #64748b;
+        font-size: 1.75rem;
+        border-style: dashed;
+    }
+
     .category-modal-list .item-meta {
         flex: 1;
+        min-width: 0;
     }
 
     .category-modal-list .item-meta strong {
@@ -145,19 +174,62 @@
         display: block;
         color: #f8fafc;
         font-weight: 600;
-        margin-bottom: 0.35rem;
+        margin-bottom: 0.5rem;
+        line-height: 1.3;
     }
 
-    .category-modal-list .item-meta .text-muted {
-        color: rgba(248, 250, 252, 0.75) !important;
+    .category-modal-list .item-details {
+        display: grid;
+        grid-template-columns: auto auto auto;
+        gap: 0.5rem 1rem;
+        font-size: 0.8125rem;
+        color: #cbd5e1;
+        line-height: 1.4;
+    }
+
+    .category-modal-list .item-detail {
+        display: flex;
+        align-items: baseline;
+        gap: 0.35rem;
+    }
+
+    .category-modal-list .item-detail i {
+        font-size: 0.75rem;
+        color: #94a3b8;
+        margin-top: 0.15rem;
+    }
+
+    .category-modal-list .item-detail-label {
+        color: #94a3b8;
+        font-size: 0.75rem;
+    }
+
+    .category-modal-list .item-detail-value {
+        color: #e2e8f0;
+        font-weight: 500;
+    }
+
+    .category-modal-list .item-edit-info {
+        color: #86efac;
+        font-size: 0.7rem;
+        font-style: italic;
+        margin-top: 0.35rem;
+        display: flex;
+        align-items: center;
+        gap: 0.3rem;
+    }
+
+    .category-modal-list .item-edit-info i {
+        font-size: 0.7rem;
     }
 
     .category-modal-list .action-group {
         display: flex;
         flex-wrap: wrap;
-        gap: 0.5rem;
-        align-items: center;
+        gap: 0.45rem;
+        align-items: flex-end;
         justify-content: flex-end;
+        align-self: flex-end;
         min-width: fit-content;
     }
 
@@ -167,12 +239,12 @@
     }
 
     .category-modal-list .action-group .btn {
-        font-size: 0.825rem;
-        padding: 0.4rem 0.75rem;
+        font-size: 0.74rem;
+        padding: 0.36rem 0.675rem;
         white-space: nowrap;
         display: inline-flex;
         align-items: center;
-        gap: 0.35rem;
+        gap: 0.3rem;
         transition: all 0.2s ease;
         border-width: 1.5px;
     }
@@ -208,6 +280,17 @@
         .category-modal-list .list-group-item {
             flex-direction: column;
             align-items: stretch;
+        }
+
+        .category-modal-list .item-content {
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+
+        .category-modal-list .item-photo {
+            width: 120px;
+            height: 120px;
         }
 
         .category-modal-list .action-group {
@@ -254,18 +337,47 @@
             <div class="category-modal-list">
                 {% for item in category.entries %}
                 <div class="list-group-item">
-                    <div class="item-meta">
-                        <strong>{{ item.descricao }}</strong>
-                        <div class="text-muted small mt-1">Código {{ item.codigo }} • Marca {{ item.marca or item.setor
-                            or '—' }}</div>
-                        <div class="text-muted small">Saldo: {{ item.saldo_display if item.saldo_display is defined and item.saldo_display else item.saldo }} • Min.: {{ item.estoque_minimo }} •
-                            Unidade: {{ item.unidade or '—' }}</div>
-                        {% if item.ultima_edicao_em %}
-                        <div class="text-muted small" style="color: green; font-style: italic;">
-                            Item editado <span class="js-last-edit" data-iso="{{ item.ultima_edicao_em }}"></span>
-                            {% if item.ultima_edicao_por %} por {{ item.ultima_edicao_por }}{% endif %}
+                    <div class="item-content">
+                        {% if item.foto_path %}
+                        <img src="/static/{{ item.foto_path }}" alt="{{ item.descricao }}" class="item-photo">
+                        {% else %}
+                        <div class="item-photo no-photo">
+                            <i class="bi bi-image"></i>
                         </div>
                         {% endif %}
+                        <div class="item-meta">
+                            <strong>{{ item.descricao }}</strong>
+                            <div class="item-details">
+                                <div class="item-detail">
+                                    <i class="bi bi-upc-scan"></i>
+                                    <span class="item-detail-value">{{ item.codigo }}</span>
+                                </div>
+                                <div class="item-detail">
+                                    <i class="bi bi-tag"></i>
+                                    <span class="item-detail-value">{{ item.marca or item.setor or '—' }}</span>
+                                </div>
+                                <div class="item-detail">
+                                    <i class="bi bi-box-seam"></i>
+                                    <span class="item-detail-value">{{ item.unidade or '—' }}</span>
+                                </div>
+                                <div class="item-detail">
+                                    <i class="bi bi-stack"></i>
+                                    <span class="item-detail-label">Saldo:</span>
+                                    <span class="item-detail-value">{{ item.saldo_display if item.saldo_display is defined and item.saldo_display else item.saldo }}</span>
+                                </div>
+                                <div class="item-detail">
+                                    <i class="bi bi-exclamation-triangle"></i>
+                                    <span class="item-detail-label">Mín:</span>
+                                    <span class="item-detail-value">{{ item.estoque_minimo }}</span>
+                                </div>
+                            </div>
+                            {% if item.ultima_edicao_em %}
+                            <div class="item-edit-info">
+                                <i class="bi bi-pencil-square"></i>
+                                <span>Editado <span class="js-last-edit" data-iso="{{ item.ultima_edicao_em }}"></span>{% if item.ultima_edicao_por %} por {{ item.ultima_edicao_por }}{% endif %}</span>
+                            </div>
+                            {% endif %}
+                        </div>
                     </div>
                     <div class="action-group d-flex flex-wrap gap-2 align-items-center">
                         {% if can_manage and item.codigo %}
@@ -274,11 +386,6 @@
                                 href="{{ url_for('inventory.edit_item_form', codigo=item.codigo|e) }}"
                                 title="Editar item">
                                 <i class="bi bi-pencil"></i> Editar
-                            </a>
-                            <a class="btn btn-outline-primary btn-sm"
-                                href="{{ url_for('patrimonio.listar_codigos', codigo_item=item.codigo|e) }}"
-                                title="Ver patrimônios">
-                                <i class="bi bi-archive"></i> Patrimônio
                             </a>
                         </div>
                         <div class="btn-group" role="group">
@@ -373,7 +480,7 @@
                                 <div id="item-barcode-small" class="mt-3">
                                     <p class="mb-2"><strong>Código de barras:</strong></p>
                                     <div class="galint-barcode-container-small">
-                                        <svg id="item-barcode-small-svg" class="js-galint-barcode" data-galint-barcode-value=""></svg>
+                                        <img id="item-barcode-small-img" alt="Código de barras do item" />
                                     </div>
                                 </div>
                             </div>
@@ -406,7 +513,7 @@
                     <div class="text-center">
                         <p class="mb-3"><strong>Código:</strong> <span id="barcode-codigo" class="fs-4">—</span></p>
                         <div class="galint-barcode-container">
-                            <svg id="item-barcode-large-svg" class="js-galint-barcode" data-galint-barcode-value=""></svg>
+                            <img id="item-barcode-large-img" alt="Código de barras do item" />
                         </div>
                     </div>
                 </div>
@@ -896,10 +1003,11 @@
         max-width: 100%;
     }
 
-    .galint-barcode-container-small svg {
+    .galint-barcode-container-small img {
         max-width: 100%;
         height: auto;
         max-height: 60px;
+        display: block;
     }
 
     /* Código de Barras Grande */
@@ -912,10 +1020,11 @@
         max-width: 100%;
     }
 
-    .galint-barcode-container svg {
+    .galint-barcode-container img {
         max-width: 100%;
         height: auto;
         max-height: 150px;
+        display: block;
     }
 
     /* Aba Estoque */
@@ -1890,6 +1999,13 @@
         if (!itemModalInstance || !itemModalTitle || !itemModalBody || !itemModalFooter) {
             return;
         }
+
+        const buildBarcodePngUrl = (codigo) => {
+            const raw = String(codigo || '').trim();
+            if (!raw) return '';
+            // Endpoint backend: /itens/<codigo>/barcode.png
+            return `/itens/${encodeURIComponent(raw)}/barcode.png?v=${Date.now()}`;
+        };
         
         // Atualizar título do modal
         itemModalTitle.textContent = item.descricao || 'Item';
@@ -1922,11 +2038,12 @@
         
         // Código de barras pequeno (esquerda na aba Informações)
         const barcodeSmallContainer = document.getElementById('item-barcode-small');
-        const barcodeSmallSvg = document.getElementById('item-barcode-small-svg');
-        if (item.codigo) {
+        const barcodeSmallImg = document.getElementById('item-barcode-small-img');
+        if (item.codigo && barcodeSmallContainer && barcodeSmallImg) {
             barcodeSmallContainer.style.display = 'block';
-            barcodeSmallSvg.setAttribute('data-galint-barcode-value', item.codigo);
-        } else {
+            barcodeSmallImg.src = buildBarcodePngUrl(item.codigo);
+            barcodeSmallImg.alt = `Código de barras do item ${item.codigo}`;
+        } else if (barcodeSmallContainer) {
             barcodeSmallContainer.style.display = 'none';
         }
         
@@ -1940,9 +2057,10 @@
         
         // Popular aba Código de Barras
         document.getElementById('barcode-codigo').textContent = item.codigo || '—';
-        const barcodeLargeSvg = document.getElementById('item-barcode-large-svg');
-        if (item.codigo) {
-            barcodeLargeSvg.setAttribute('data-galint-barcode-value', item.codigo);
+        const barcodeLargeImg = document.getElementById('item-barcode-large-img');
+        if (item.codigo && barcodeLargeImg) {
+            barcodeLargeImg.src = buildBarcodePngUrl(item.codigo);
+            barcodeLargeImg.alt = `Código de barras do item ${item.codigo}`;
         }
         
         // Popular aba Histórico (placeholder por enquanto)
@@ -1981,8 +2099,7 @@
             <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Fechar</button>
         `;
         
-        // Renderizar códigos de barras em todo o modal
-        window.GalintBarcode?.render(itemModalElement);
+        // (barcode agora é imagem PNG gerada no backend)
         
         // Resetar para primeira aba
         switchTab('info');

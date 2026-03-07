@@ -1066,45 +1066,6 @@ class EntradaRegistro30Dias(db.Model):
     data_criacao: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
 
 
-class PatrimonioFerramenta(db.Model):
-    """Códigos patrimoniais individuais para ferramentas.
-    
-    Relacionamento: 1 Item → MÚLTIPLOS códigos patrimoniais
-    Exemplo: 20 furadeiras Bosch = 20 registros (PAT-001 a PAT-020)
-    """
-    __tablename__ = "patrimonio_ferramentas"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    codigo_patrimonial: Mapped[str] = mapped_column(String(100), nullable=False, unique=True, index=True)
-    codigo_item: Mapped[str] = mapped_column(ForeignKey("itens.codigo_item", ondelete="CASCADE"), nullable=False, index=True)
-    status: Mapped[str] = mapped_column(String(20), nullable=False, default='disponivel', index=True)
-    matricula: Mapped[str | None] = mapped_column(ForeignKey("usuarios.matricula", ondelete="SET NULL"), nullable=True, index=True)
-    data_criacao: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
-    observacao: Mapped[str | None] = mapped_column(Text, nullable=True)
-    
-    # Relationships
-    item: Mapped[Item | None] = relationship("Item", foreign_keys=[codigo_item])
-    usuario: Mapped[Usuario | None] = relationship("Usuario", foreign_keys=[matricula])
-    
-    __table_args__ = (
-        CheckConstraint(status.in_(['disponivel', 'em_uso', 'manutencao', 'baixado']), name='ck_patrimonio_status'),
-    )
-    
-    def to_dict(self) -> dict[str, object]:
-        """Converte para dicionário."""
-        return {
-            "id": self.id,
-            "codigo_patrimonial": self.codigo_patrimonial,
-            "codigo_item": self.codigo_item,
-            "item_descricao": self.item.descricao if self.item else None,
-            "status": self.status,
-            "matricula": self.matricula,
-            "usuario_nome": self.usuario.nome if self.usuario else None,
-            "data_criacao": self.data_criacao.isoformat() if self.data_criacao else None,
-            "observacao": self.observacao,
-        }
-
-
 class FerramentaEmUso(db.Model):
     """Registra ferramentas que estão em uso por colaboradores (controle patrimonial)."""
     __tablename__ = "ferramentas_em_uso"

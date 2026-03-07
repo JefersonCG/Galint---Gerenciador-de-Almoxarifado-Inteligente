@@ -5436,6 +5436,8 @@ class TelegramService:
         results = {"queued": [], "failed": []}
         admins = TelegramService._privileged_users_query().all()
 
+        exclude_chat_ids = {str(c).strip() for c in (exclude_chat_ids or set()) if str(c).strip()}
+
         for admin in admins:
             try:
                 key = f"tool_incident:{event_id}:{key_label}:admin:{admin.chat_id}"
@@ -5845,7 +5847,12 @@ class TelegramService:
 
     @staticmethod
 
-    def notify_item_created(codigo: str, entrada_inicial: Any = None) -> dict[str, Any]:
+    def notify_item_created(
+        codigo: str,
+        entrada_inicial: Any = None,
+        *,
+        exclude_chat_ids: set[str] | None = None,
+    ) -> dict[str, Any]:
 
         """Notifica administradores que um novo item foi cadastrado.
 
@@ -6082,6 +6089,10 @@ class TelegramService:
         for adm in admins:
 
             try:
+
+                if str(adm.chat_id) in exclude_chat_ids:
+
+                    continue
 
                 key = f"item_created:{codigo}:admin:{adm.chat_id}"
 
@@ -11423,7 +11434,10 @@ class TelegramService:
 
                 try:
 
-                    TelegramService.notify_item_created(codigo.replace("UPDATED:", ""))
+                    TelegramService.notify_item_created(
+                        codigo.replace("UPDATED:", ""),
+                        exclude_chat_ids={str(chat_id)},
+                    )
 
                 except Exception:
 
