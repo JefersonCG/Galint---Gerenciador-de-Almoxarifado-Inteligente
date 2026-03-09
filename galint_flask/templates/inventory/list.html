@@ -499,6 +499,7 @@
                     <div class="galint-stock-info">
                         <h6 class="mb-3">Status de Estoque</h6>
                         <p class="mb-2"><strong>Saldo disponível:</strong> <span id="stock-saldo" class="fs-4 text-success">—</span></p>
+                        <p id="stock-explicacao" class="text-muted small fst-italic" style="display:none;"></p>
                         <div class="stock-bar-container mt-3">
                             <div class="stock-bar">
                                 <div class="stock-bar-fill" id="stock-bar-fill" style="width: 0%"></div>
@@ -2064,6 +2065,13 @@
         document.getElementById('stock-saldo').textContent = hasPackaging
             ? `${saldoDisplay || 0} ${embalagemNome} (${saldoUnidades || 0} ${unidadeExibicao})`
             : `${item.saldo || 0} ${item.unidade || 'unidades'}`;
+        const stockExplicacao = document.getElementById('stock-explicacao');
+        if (item.explicacao_saldo) {
+            stockExplicacao.textContent = item.explicacao_saldo;
+            stockExplicacao.style.display = 'block';
+        } else {
+            stockExplicacao.style.display = 'none';
+        }
         const stockBarFill = document.getElementById('stock-bar-fill');
         const stockPercent = Math.min(100, Math.max(0, (parseInt(item.saldo) || 0) * 5)); // Ajuste conforme necessário
         stockBarFill.style.width = `${stockPercent}%`;

@@ -100,6 +100,7 @@ class Item(db.Model):
             # Para itens com embalagem, o saldo deve refletir o estoque físico (embalagens + soltas).
             data["saldo"] = self.get_saldo_fisico_total()
             data["saldo_display"] = self.get_saldo_fisico_display()
+            data["explicacao_saldo"] = self.get_explicacao_saldo()
             if self.tipo_embalagem_novo and self.unidades_por_embalagem:
                 data["saldo_embalagens"] = self.estoque_embalagens
                 data["saldo_unidades_soltas"] = self.estoque_unidades_soltas
@@ -160,6 +161,14 @@ class Item(db.Model):
 
         # Itens sem embalagem: mantém o padrão simples.
         return f"{total:g} {self.unidade or 'un'}"
+    
+    def get_explicacao_saldo(self) -> str | None:
+        """Retorna explicação detalhada do saldo para itens com embalagens."""
+        try:
+            from .services.embalagem_service import EmbalagemService
+            return EmbalagemService.gerar_explicacao_saldo(self)
+        except Exception:
+            return None
     
     def get_nome_embalagem(self) -> str:
         """Retorna o nome da embalagem no singular."""

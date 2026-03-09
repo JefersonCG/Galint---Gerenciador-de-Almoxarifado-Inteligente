@@ -355,6 +355,11 @@ class InventoryService:
             if item.estoque_minimo != minimo:
                 item.estoque_minimo = minimo
                 atualizado = True
+            
+            # Obter display formatado e explicação
+            saldo_display = item.get_saldo_fisico_display()
+            explicacao_saldo = item.get_explicacao_saldo()
+            
             resultado.append(
                 {
                     "codigo": item.codigo_item,
@@ -369,6 +374,8 @@ class InventoryService:
                     "ultima_edicao_em": item.ultima_edicao_em.isoformat() if item.ultima_edicao_em else None,
                     "ultima_edicao_por": item.ultima_edicao_por,
                     "saldo": saldo,
+                    "saldo_display": saldo_display,
+                    "explicacao_saldo": explicacao_saldo,
                     "saldo_unidades_total": saldo,
                     "saldo_embalagens": item.estoque_embalagens,
                     "saldo_unidades_soltas": item.estoque_unidades_soltas,

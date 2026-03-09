@@ -389,54 +389,48 @@ ${parent.scripts()}
     });
     
     function formatarSaldoItem(item) {
-        if (item.saldo === undefined || item.saldo === null) return '';
-        
-        const saldo = parseFloat(item.saldo);
-        const tipoEmbalagem = (item.tipo_embalagem_novo || '').toLowerCase();
-        const unidadesPorEmb = parseFloat(item.unidades_por_embalagem || 0);
-        const grandeza = (item.grandeza_referencia || '').toLowerCase();
-        const litrosPorEmb = parseFloat(item.litros_por_embalagem || 0);
-        
-        // Se tem embalagem com unidades_por_embalagem
-        if (tipoEmbalagem && unidadesPorEmb > 0) {
-            const qtdEmbalagens = Math.floor(saldo / unidadesPorEmb);
-            const unidadesSoltas = saldo % unidadesPorEmb;
+        try {
+            if (!item || item.saldo === undefined || item.saldo === null) return '';
             
-            // Para balde/lata com kg ou litros
-            if ((tipoEmbalagem === 'balde' || tipoEmbalagem === 'lata') && grandeza) {
-                if (grandeza === 'kg' || grandeza === 'quilos') {
-                    const partes = [];
-                    if (qtdEmbalagens > 0) partes.push(qtdEmbalagens + ' ' + tipoEmbalagem + (qtdEmbalagens !== 1 ? 's' : ''));
-                    if (unidadesSoltas > 0) partes.push(unidadesSoltas.toFixed(2) + ' kg soltos');
-                    return partes.join(' + ') || saldo.toFixed(2) + ' kg';
+            const saldo = parseFloat(item.saldo) || 0;
+            const tipoEmbalagem = String(item.tipo_embalagem_novo || '').trim().toLowerCase();
+            const unidadesPorEmb = parseFloat(item.unidades_por_embalagem) || 0;
+            const grandezaRef = parseFloat(item.grandeza_referencia) || 0;
+            const litrosPorEmb = parseFloat(item.litros_por_embalagem) || 0;
+            
+            // Se tem embalagem com unidades_por_embalagem
+            if (tipoEmbalagem && unidadesPorEmb > 0) {
+                const qtdEmbalagens = Math.floor(saldo / unidadesPorEmb);
+                const unidadesSoltas = saldo - (qtdEmbalagens * unidadesPorEmb);
+                const plural = (qtdEmbalagens !== 1 ? 's' : '');
+
+                let unidadeSolta = 'un';
+                if (litrosPorEmb > 0) {
+                    unidadeSolta = 'L';
+                } else if (grandezaRef > 0 && (tipoEmbalagem === 'balde' || tipoEmbalagem === 'lata')) {
+                    unidadeSolta = 'kg';
+                } else if (tipoEmbalagem === 'rolo') {
+                    unidadeSolta = 'm';
                 }
-                if (grandeza === 'litros' || grandeza === 'l') {
-                    const partes = [];
-                    if (qtdEmbalagens > 0) partes.push(qtdEmbalagens + ' ' + tipoEmbalagem + (qtdEmbalagens !== 1 ? 's' : ''));
-                    if (unidadesSoltas > 0) partes.push(unidadesSoltas.toFixed(2) + ' L soltos');
-                    return partes.join(' + ') || saldo.toFixed(2) + ' L';
+
+                if (qtdEmbalagens > 0) {
+                    if (unidadesSoltas > 0.000001) {
+                        const soltaTxt = (unidadeSolta === 'un') ? Math.round(unidadesSoltas) : unidadesSoltas.toFixed(2);
+                        return qtdEmbalagens + ' ' + tipoEmbalagem + plural + ' + ' + soltaTxt + ' ' + unidadeSolta;
+                    }
+                    return qtdEmbalagens + ' ' + tipoEmbalagem + plural;
                 }
+
+                const totalTxt = (unidadeSolta === 'un') ? Math.round(saldo) : saldo.toFixed(2);
+                return totalTxt + ' ' + unidadeSolta;
             }
             
-            // Para rolo, pacote, caixa
-            if (tipoEmbalagem === 'rolo' || tipoEmbalagem === 'pacote' || tipoEmbalagem === 'caixa') {
-                if (grandeza === 'metros' || grandeza === 'm') {
-                    const partes = [];
-                    if (qtdEmbalagens > 0) partes.push(qtdEmbalagens + ' ' + tipoEmbalagem + (qtdEmbalagens !== 1 ? 's' : ''));
-                    if (unidadesSoltas > 0) partes.push(unidadesSoltas.toFixed(2) + ' m soltos');
-                    return partes.join(' + ') || saldo.toFixed(2) + ' m';
-                } else {
-                    // Sem grandeza, mostra embalagens e unidades
-                    const partes = [];
-                    if (qtdEmbalagens > 0) partes.push(qtdEmbalagens + ' ' + tipoEmbalagem + (qtdEmbalagens !== 1 ? 's' : ''));
-                    if (unidadesSoltas > 0) partes.push(unidadesSoltas.toFixed(0) + ' un');
-                    return partes.join(' + ') || saldo.toFixed(0) + ' un';
-                }
-            }
+            // Fallback: mostra saldo com unidade genérica
+            return Math.round(saldo) + ' un';
+        } catch (e) {
+            console.error('Erro ao formatar saldo:', e);
+            return item.saldo ? String(item.saldo) : '';
         }
-        
-        // Fallback: mostra saldo com unidade genérica
-        return saldo.toFixed(0) + ' un';
     }
     
     function showAutocompleteCodigo(itens) {

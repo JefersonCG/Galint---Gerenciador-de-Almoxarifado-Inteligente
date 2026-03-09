@@ -585,6 +585,77 @@ class EmbalagemService:
     def converter_para_unidades(quantidade_embalagens: float, unidades_por_embalagem: float) -> float:
         """Converte quantidade em embalagens para unidades."""
         return quantidade_embalagens * unidades_por_embalagem
+    
+    @staticmethod
+    def gerar_explicacao_saldo(item: Item) -> str | None:
+        """
+        Gera explicação detalhada do saldo seguindo o formato:
+        "ou seja, cada Lata contém 18 Litros + 9 Litros soltos de lata aberta anteriormente."
+        
+        Returns:
+            String com explicação ou None se o item não usa embalagens
+        """
+        if not EmbalagemService.tem_embalagem(item):
+            return None
+        
+        embalagens = float(item.estoque_embalagens or 0)
+        soltas = float(item.estoque_unidades_soltas or 0)
+        
+        # Sem explicação se não tem embalagens nem soltas
+        if embalagens == 0 and soltas == 0:
+            return None
+        
+        nome_emb_singular = item.get_nome_embalagem()
+        tipo_emb = (item.tipo_embalagem_novo or "").strip().lower()
+        
+        # Para lata/balde com litros
+        if tipo_emb in ['lata', 'balde'] and item.litros_por_embalagem and item.litros_por_embalagem > 0:
+            litros_por_emb = item.litros_por_embalagem
+            if embalagens > 0 and soltas > 0:
+                return f"ou seja, cada {nome_emb_singular} contém {litros_por_emb:g} litros + {soltas:g} litros soltos de {nome_emb_singular} aberta anteriormente."
+            elif embalagens > 0:
+                return f"ou seja, cada {nome_emb_singular} contém {litros_por_emb:g} litros."
+            else:
+                return f"ou seja, {soltas:g} litros soltos de {nome_emb_singular} aberta anteriormente."
+        
+        # Para lata/balde com kg
+        if tipo_emb in ['lata', 'balde'] and item.grandeza_referencia and item.grandeza_referencia > 0:
+            kg_por_emb = item.grandeza_referencia
+            if embalagens > 0 and soltas > 0:
+                return f"ou seja, cada {nome_emb_singular} contém {kg_por_emb:g}kg + {soltas:g}kg soltos de {nome_emb_singular} aberto anteriormente."
+            elif embalagens > 0:
+                return f"ou seja, cada {nome_emb_singular} contém {kg_por_emb:g}kg."
+            else:
+                return f"ou seja, {soltas:g}kg soltos de {nome_emb_singular} aberto anteriormente."
+        
+        # Para rolo
+        if tipo_emb == 'rolo':
+            metros_por = float(item.unidades_por_embalagem or 0)
+            if embalagens > 0 and soltas > 0:
+                return f"ou seja, cada {nome_emb_singular} contém {metros_por:g}m + {soltas:g}m soltos de {nome_emb_singular} aberto anteriormente."
+            elif embalagens > 0:
+                return f"ou seja, cada {nome_emb_singular} contém {metros_por:g}m."
+            else:
+                return f"ou seja, {soltas:g}m soltos de {nome_emb_singular} aberto anteriormente."
+        
+        # Para caixa/pacote
+        if tipo_emb in ['caixa', 'pacote']:
+            unidades_por = float(item.unidades_por_embalagem or 0)
+            if embalagens > 0 and soltas > 0:
+                return f"ou seja, cada {nome_emb_singular} contém {unidades_por:g} unidades + {soltas:g} unidades soltas de {nome_emb_singular} aberta anteriormente."
+            elif embalagens > 0:
+                return f"ou seja, cada {nome_emb_singular} contém {unidades_por:g} unidades."
+            else:
+                return f"ou seja, {soltas:g} unidades soltas de {nome_emb_singular} aberta anteriormente."
+        
+        # Caso genérico (outras embalagens)
+        unidades_por = float(item.unidades_por_embalagem or 0)
+        if embalagens > 0 and soltas > 0:
+            return f"ou seja, cada {nome_emb_singular} contém {unidades_por:g} unidades + {soltas:g} unidades soltas de {nome_emb_singular} aberta anteriormente."
+        elif embalagens > 0:
+            return f"ou seja, cada {nome_emb_singular} contém {unidades_por:g} unidades."
+        else:
+            return f"ou seja, {soltas:g} unidades soltas de {nome_emb_singular} aberta anteriormente."
 
 
 # Instância global
