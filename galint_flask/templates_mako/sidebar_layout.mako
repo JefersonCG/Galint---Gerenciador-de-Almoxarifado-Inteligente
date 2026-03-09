@@ -30,25 +30,15 @@
                 <i class="bi bi-chevron-down small"></i>
             </button>
             <div id="lancamentosMenu" class="collapse ${'show' if lancamentos_active else ''}">
-                <a class="sidebar-link ps-4 ${'active' if p.startswith(url_for('movements.saida_page')) else ''}"
-                    href="${url_for('movements.saida_page')}">
-                    <i class="bi bi-arrow-up-right"></i>
-                    <span>Registro de Saída</span>
-                </a>
-                <a class="sidebar-link ps-4 ${'active' if p.startswith(url_for('movements.saida_fracionada_page')) else ''}"
-                    href="${url_for('movements.saida_fracionada_page')}">
-                    <i class="bi bi-droplet-half"></i>
-                    <span>Registro de Saída Fracionada</span>
+                <a class="sidebar-link ps-4 ${'active' if p == url_for('movements.index') else ''}"
+                    href="${url_for('movements.index')}">
+                    <i class="bi bi-box-arrow-up-right"></i>
+                    <span>Registro de Saídas</span>
                 </a>
                 <a class="sidebar-link ps-4 ${'active' if p.startswith(url_for('movements.entrada_page')) else ''}"
                     href="${url_for('movements.entrada_page')}">
                     <i class="bi bi-arrow-return-left"></i>
                     <span>Registro de Devolução</span>
-                </a>
-                <a class="sidebar-link ps-4 ${'active' if p.startswith(url_for('ferramentas.retirar_page')) else ''}"
-                    href="${url_for('ferramentas.retirar_page')}">
-                    <i class="bi bi-tools"></i>
-                    <span>Controle de Ferramentas</span>
                 </a>
             </div>
             <a class="sidebar-link ${'active' if p.startswith(url_for('inventory.list_items')) else ''}"

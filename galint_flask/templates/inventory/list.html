@@ -2018,6 +2018,19 @@
         const embalagemNome = item.tipo_embalagem_novo || 'embalagem';
         const saldoDisplay = hasPackaging ? (item.saldo_embalagens ?? item.saldo) : item.saldo;
         const saldoUnidades = item.saldo_unidades_total ?? item.saldo;
+        
+        // Determinar a unidade correta para exibição
+        let unidadeExibicao = 'unidades';
+        if (item.grandeza_referencia && item.grandeza_referencia > 0 && 
+            (item.tipo_embalagem_novo === 'balde' || item.tipo_embalagem_novo === 'lata' || 
+             item.unidade === 'Balde' || item.unidade === 'Lata')) {
+            unidadeExibicao = 'kg';
+        } else if (item.litros_por_embalagem && item.litros_por_embalagem > 0) {
+            unidadeExibicao = 'litros';
+        } else if (item.tipo_embalagem_novo === 'rolo' || item.unidade === 'Rolo') {
+            unidadeExibicao = 'metros';
+        }
+        
         document.getElementById('item-saldo').textContent = hasPackaging
             ? `${saldoDisplay || 0} ${embalagemNome}`
             : (item.saldo || '0');
@@ -2049,7 +2062,7 @@
         
         // Popular aba Estoque
         document.getElementById('stock-saldo').textContent = hasPackaging
-            ? `${saldoDisplay || 0} ${embalagemNome} (${saldoUnidades || 0} unidades)`
+            ? `${saldoDisplay || 0} ${embalagemNome} (${saldoUnidades || 0} ${unidadeExibicao})`
             : `${item.saldo || 0} ${item.unidade || 'unidades'}`;
         const stockBarFill = document.getElementById('stock-bar-fill');
         const stockPercent = Math.min(100, Math.max(0, (parseInt(item.saldo) || 0) * 5)); // Ajuste conforme necessário

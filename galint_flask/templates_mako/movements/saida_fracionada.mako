@@ -184,6 +184,21 @@
                 <p class="mb-2">Item: <strong id="modal-item-desc"></strong></p>
                 <p class="mb-3">Unidade: <strong id="modal-item-unidade"></strong></p>
                 
+                <!-- Opção de escolher entre KG ou LITRO -->
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Escolha a unidade:</label>
+                    <div class="btn-group w-100" role="group">
+                        <input type="radio" class="btn-check" name="unidade-tipo" id="unidade-kg" value="kg" checked>
+                        <label class="btn btn-outline-primary" for="unidade-kg">
+                            <i class="bi bi-box me-1"></i>KG
+                        </label>
+                        <input type="radio" class="btn-check" name="unidade-tipo" id="unidade-litro" value="litro">
+                        <label class="btn btn-outline-primary" for="unidade-litro">
+                            <i class="bi bi-droplet me-1"></i>LITRO
+                        </label>
+                    </div>
+                </div>
+                
                 <div class="mb-3">
                     <label class="form-label fw-bold">Digite a quantidade retirada:</label>
                     <div class="input-group input-group-lg">
@@ -191,7 +206,7 @@
                                min="0.001" step="0.001" placeholder="Ex: 0.400" autofocus>
                         <span class="input-group-text" id="modal-quantidade-unidade">kg</span>
                     </div>
-                    <small class="text-muted">Informe o valor pesado na balança</small>
+                    <small class="text-muted">Informe o valor pesado na balança <span id="hint-unidade">ou LITRO</span></small>
                 </div>
             </div>
             <div class="modal-footer">
@@ -216,6 +231,7 @@ ${parent.scripts()}
 <script>
 (function() {
     let pendingItem = null;
+    const CAN_MANAGE = ${'true' if can_manage else 'false'};
     const usuariosAutocompleteData = ${tojson(usuarios)|n};
     const itensAutocompleteData = ${tojson(itens)|n};
 
@@ -239,6 +255,21 @@ ${parent.scripts()}
     const modalQuantidadeInput = document.getElementById('modal-quantidade-input');
     const modalQuantidadeUnidade = document.getElementById('modal-quantidade-unidade');
     const btnConfirmarQuantidade = document.getElementById('btn-confirmar-quantidade');
+    
+    // Radio buttons de unidade
+    const radioKg = document.getElementById('unidade-kg');
+    const radioLitro = document.getElementById('unidade-litro');
+    const hintUnidade = document.getElementById('hint-unidade');
+    
+    // Atualizar display da unidade selecionada
+    function atualizarUnidadeModal() {
+        const unidadeSelecionada = document.querySelector('input[name="unidade-tipo"]:checked').value;
+        modalQuantidadeUnidade.textContent = unidadeSelecionada === 'kg' ? 'kg' : 'L';
+        hintUnidade.textContent = unidadeSelecionada === 'kg' ? 'ou LITRO' : 'ou KG';
+    }
+    
+    radioKg.addEventListener('change', atualizarUnidadeModal);
+    radioLitro.addEventListener('change', atualizarUnidadeModal);
     
     const dropdownUsuario = document.getElementById('autocomplete-dropdown-usuario');
     const dropdownCodigo = document.getElementById('autocomplete-dropdown-codigo');
@@ -439,6 +470,10 @@ ${parent.scripts()}
     });
     
     function updateButtonState() {
+        if (!CAN_MANAGE) {
+            btnRegistrar.disabled = true;
+            return;
+        }
         const hasUsuario = inputUsuario.value.trim() && inputUsuario.dataset.matricula;
         const hasCodigo = inputCodigo.value.trim();
         btnRegistrar.disabled = !(hasUsuario && hasCodigo);
@@ -448,6 +483,10 @@ ${parent.scripts()}
     inputCodigo.addEventListener('input', updateButtonState);
     
     btnRegistrar.addEventListener('click', async function() {
+        if (!CAN_MANAGE) {
+            alert('Seu usuário não tem permissão para registrar saídas. Solicite acesso de administrador.');
+            return;
+        }
         const usuario = inputUsuario.value.trim();
         const local = inputLocal.value.trim();
         const codigo = inputCodigo.value.trim();
@@ -508,8 +547,12 @@ ${parent.scripts()}
     function mostrarModalQuantidade(item) {
         modalItemDesc.textContent = item.descricao;
         modalItemUnidade.textContent = item.unidade;
-        modalQuantidadeUnidade.textContent = item.unidade;
         modalQuantidadeInput.value = '';
+        
+        // Resetar para KG por padrão
+        radioKg.checked = true;
+        atualizarUnidadeModal();
+        
         modalQuantidade.show();
         
         // Foco no input quando modal abre
@@ -518,7 +561,11 @@ ${parent.scripts()}
         }, { once: true });
     }
     
-    btnConfirmarQuantidade.addEventListener('click', function() {
+    btnConfirmarQuantidade.addEventListener('click', async function() {
+        if (!CAN_MANAGE) {
+            alert('Seu usuário não tem permissão para registrar saídas. Solicite acesso de administrador.');
+            return;
+        }
         const quantidade = parseFloat(modalQuantidadeInput.value);
         
         if (!quantidade || quantidade <= 0) {
@@ -527,14 +574,71 @@ ${parent.scripts()}
             return;
         }
         
-        // Preencher form hidden e submeter
-        document.getElementById('hidden-usuario').value = pendingItem.usuario;
-        document.getElementById('hidden-local').value = pendingItem.local;
-        document.getElementById('hidden-codigo').value = pendingItem.codigo;
-        document.getElementById('hidden-quantidade').value = quantidade;
+        // Capturar unidade selecionada
+        const unidadeSelecionada = document.querySelector('input[name="unidade-tipo"]:checked').value;
         
-        modalQuantidade.hide();
-        document.getElementById('hidden-form').submit();
+        // Desabilitar botão durante processamento
+        btnConfirmarQuantidade.disabled = true;
+        btnConfirmarQuantidade.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Processando...';
+        
+        try {
+            // Enviar via AJAX usando FormData
+            const formData = new FormData();
+            formData.append('usuario', pendingItem.usuario);
+            formData.append('local_servico', pendingItem.local);
+            formData.append('codigo', pendingItem.codigo);
+            formData.append('quantidade', quantidade);
+            formData.append('unidade_fracionada', unidadeSelecionada); // Adicionar unidade
+            // Atenção: não usar template string com ${...} aqui, pois o Mako interpreta e quebra a página.
+            formData.append('observacao', 'Retirada fracionada: ' + quantidade + ' ' + String(unidadeSelecionada || '').toUpperCase());
+            
+            const response = await fetch('${url_for("movements.registrar_saida")}', {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: formData
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                
+                // Sucesso - fechar modal e limpar campos
+                modalQuantidade.hide();
+                
+                // Mostrar mensagem de sucesso
+                alert(data.message || 'Saída registrada com sucesso!');
+                
+                // Limpar campos para nova entrada
+                inputUsuario.value = '';
+                inputLocal.value = '';
+                inputCodigo.value = '';
+                btnRegistrar.disabled = true;
+                pendingItem = null;
+                
+                // Focar no campo de usuário para próxima entrada
+                inputUsuario.focus();
+            } else {
+                // Tentar parsear erro como JSON
+                try {
+                    const errorData = await response.json();
+                    alert('Erro: ' + (errorData.error || 'Erro ao registrar saída'));
+                } catch {
+                    // Se não for JSON, tentar extrair do HTML
+                    const text = await response.text();
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(text, 'text/html');
+                    const alertElement = doc.querySelector('.alert-danger');
+                    const errorMsg = alertElement ? alertElement.textContent.trim() : 'Erro ao registrar saída';
+                    alert('Erro: ' + errorMsg);
+                }
+            }
+        } catch (error) {
+            alert('Erro de conexão: ' + error.message);
+        } finally {
+            btnConfirmarQuantidade.disabled = false;
+            btnConfirmarQuantidade.innerHTML = 'Confirmar';
+        }
     });
     
     // Enter no modal confirma

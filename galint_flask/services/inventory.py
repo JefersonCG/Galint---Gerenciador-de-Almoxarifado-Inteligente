@@ -371,6 +371,8 @@ class InventoryService:
                     "foto_path": item.foto_path,
                     "tipo_embalagem_novo": item.tipo_embalagem_novo,
                     "unidades_por_embalagem": item.unidades_por_embalagem,
+                    "grandeza_referencia": item.grandeza_referencia,
+                    "litros_por_embalagem": item.litros_por_embalagem,
                 }
             )
         if atualizado:

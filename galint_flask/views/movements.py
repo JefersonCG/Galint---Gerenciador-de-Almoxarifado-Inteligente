@@ -196,26 +196,34 @@ def _parse_quantidade(raw: str | None) -> int:
 @blueprint.get("/")
 @login_required
 def index():
-    itens = inventory_service.list_items()
-    entradas = inventory_service.list_entradas(limit=25)
-    saidas = inventory_service.list_saidas(limit=25)
-    usuarios = user_service.list_users()
-    can_manage = bool(getattr(current_user, "is_admin", False))
-    devolucoes = [
-        entrada
-        for entrada in entradas
-        if (entrada.get("categoria") or "").strip().lower() == "ferramentas"
-    ]
-    return render_mako_template(
-        "movements/index.mako",
-        itens=itens,
-        entradas=devolucoes,
-        saidas=saidas,
-        usuarios=usuarios,
-        can_manage=can_manage,
-        liquid_types=LIQUID_PRODUCT_TYPES,
-        liquid_fractions=LIQUID_FRACTIONS,
-    )
+    """Hub unificado de saídas - permite escolher tipo de saída (materiais/ferramentas/fracionados)."""
+    return render_mako_template('movements/saidas_hub.mako')
+
+
+# Página antiga "Controle de Saídas e Devoluções" removida - era inútil
+# @blueprint.get("/")
+# @login_required
+# def index_OLD():
+#     itens = inventory_service.list_items()
+#     entradas = inventory_service.list_entradas(limit=25)
+#     saidas = inventory_service.list_saidas(limit=25)
+#     usuarios = user_service.list_users()
+#     can_manage = bool(getattr(current_user, "is_admin", False))
+#     devolucoes = [
+#         entrada
+#         for entrada in entradas
+#         if (entrada.get("categoria") or "").strip().lower() == "ferramentas"
+#     ]
+#     return render_mako_template(
+#         "movements/index.mako",
+#         itens=itens,
+#         entradas=devolucoes,
+#         saidas=saidas,
+#         usuarios=usuarios,
+#         can_manage=can_manage,
+#         liquid_types=LIQUID_PRODUCT_TYPES,
+#         liquid_fractions=LIQUID_FRACTIONS,
+#     )
 
 
 @blueprint.post("/saida-multipla")
@@ -460,6 +468,9 @@ def registrar_saida():
     em_embalagens = None
     if em_embalagens_raw is not None:
         em_embalagens = em_embalagens_raw == "1"
+    
+    # Novo: processar unidade fracionada (kg ou litro)
+    unidade_fracionada = request.form.get("unidade_fracionada")
 
     try:
         usuario = _resolve_usuario(identificador)
@@ -469,10 +480,27 @@ def registrar_saida():
 
         # Obter categoria para uso posterior (notificações e alertas)
         categoria = (item_info.get("categoria") or "").strip().lower()
+        
+        # Processar unidade fracionada (kg ou litro)
+        # IMPORTANTE: Não converter para embalagens! O serviço de embalagens já faz isso automaticamente
+        quantidade_convertida = quantidade
+        if unidade_fracionada:
+            # Para kg: enviar direto em kg (unidades base)
+            if unidade_fracionada == 'kg':
+                quantidade_convertida = quantidade  # Ex: 0.4 kg
+                em_embalagens = False  # Indicar que é em unidades base (kg, não baldes)
+                if not observacao:
+                    observacao = f"Retirada fracionada: {quantidade} kg"
+            # Para litros: enviar direto em litros (unidades base)
+            elif unidade_fracionada == 'litro':
+                quantidade_convertida = quantidade  # Ex: 2.5 litros
+                em_embalagens = False  # Indicar que é em unidades base (litros, não latas)
+                if not observacao:
+                    observacao = f"Retirada fracionada: {quantidade} L"
 
         payload_kwargs: dict[str, Any] = {
             "codigo": codigo,
-            "quantidade": quantidade,
+            "quantidade": quantidade_convertida,
             "matricula": usuario.id,
             "observacao": observacao,
             "local_servico": local_servico,
@@ -484,10 +512,20 @@ def registrar_saida():
         
         # Notificação Telegram já é enviada automaticamente dentro de inventory_service.registrar_saida()
         
+        # Se for requisição AJAX (feita pelo JavaScript), retornar JSON
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.accept_mimetypes.accept_json:
+            return jsonify({"success": True, "message": "Saída registrada com sucesso."}), 200
+        
         flash("Saída registrada com sucesso.", "success")
     except ValueError as exc:
+        # Se for requisição AJAX, retornar erro em JSON
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.accept_mimetypes.accept_json:
+            return jsonify({"success": False, "error": str(exc)}), 400
+        
         flash(str(exc), "danger")
-    return redirect(url_for("movements.index"))
+    # Não redirecionar mais - manter na mesma página (AJAX)
+    # return redirect(url_for("movements.saida_fracionada_page"))
+    return redirect(url_for("movements.saida_fracionada_page"))
 
 
 @blueprint.get("/item-info/<codigo>")
@@ -511,7 +549,9 @@ def item_info(codigo: str):
         "unidade": item.get("unidade"),
         "saldo": item.get("saldo"),
         "tipo_embalagem_novo": item.get("tipo_embalagem_novo"),
-        "unidades_por_embalagem": item.get("unidades_por_embalagem")
+        "unidades_por_embalagem": item.get("unidades_por_embalagem"),
+        "grandeza_referencia": item.get("grandeza_referencia"),
+        "litros_por_embalagem": item.get("litros_por_embalagem")
     }
     if liquid_type:
         response.update(
@@ -541,11 +581,12 @@ def saida_page():
 @login_required
 def saida_fracionada_page():
     """Página separada para Registro de Saída Fracionada (entrada manual via balança/pesagem)."""
-    _require_admin()
+    can_manage = bool(getattr(current_user, "is_admin", False))
     return render_mako_template(
         'movements/saida_fracionada.mako',
         usuarios=user_service.list_users(),
         itens=inventory_service.list_items(),
+        can_manage=can_manage,
     )
 
 
@@ -605,7 +646,7 @@ def registrar_entrada():
         flash("Entrada registrada.", "success")
     except ValueError as exc:
         flash(str(exc), "danger")
-    return redirect(url_for("movements.index"))
+    return redirect(url_for("movements.saida_fracionada_page"))  # Redirecionar para página principal
 
 
 
