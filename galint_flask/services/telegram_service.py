@@ -6090,7 +6090,7 @@ class TelegramService:
 
             try:
 
-                if str(adm.chat_id) in exclude_chat_ids:
+                if exclude_chat_ids and str(adm.chat_id) in exclude_chat_ids:
 
                     continue
 
