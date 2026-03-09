@@ -560,6 +560,57 @@ ${parent.scripts()}
         }, 150);
     });
     
+    function formatarSaldoItem(item) {
+        if (item.saldo === undefined || item.saldo === null) return '';
+        
+        const saldo = parseFloat(item.saldo);
+        const tipoEmbalagem = (item.tipo_embalagem_novo || '').toLowerCase();
+        const unidadesPorEmb = parseFloat(item.unidades_por_embalagem || 0);
+        const grandeza = (item.grandeza_referencia || '').toLowerCase();
+        const litrosPorEmb = parseFloat(item.litros_por_embalagem || 0);
+        
+        // Se tem embalagem com unidades_por_embalagem
+        if (tipoEmbalagem && unidadesPorEmb > 0) {
+            const qtdEmbalagens = Math.floor(saldo / unidadesPorEmb);
+            const unidadesSoltas = saldo % unidadesPorEmb;
+            
+            // Para balde/lata com kg ou litros
+            if ((tipoEmbalagem === 'balde' || tipoEmbalagem === 'lata') && grandeza) {
+                if (grandeza === 'kg' || grandeza === 'quilos') {
+                    const partes = [];
+                    if (qtdEmbalagens > 0) partes.push(qtdEmbalagens + ' ' + tipoEmbalagem + (qtdEmbalagens !== 1 ? 's' : ''));
+                    if (unidadesSoltas > 0) partes.push(unidadesSoltas.toFixed(2) + ' kg soltos');
+                    return partes.join(' + ') || saldo.toFixed(2) + ' kg';
+                }
+                if (grandeza === 'litros' || grandeza === 'l') {
+                    const partes = [];
+                    if (qtdEmbalagens > 0) partes.push(qtdEmbalagens + ' ' + tipoEmbalagem + (qtdEmbalagens !== 1 ? 's' : ''));
+                    if (unidadesSoltas > 0) partes.push(unidadesSoltas.toFixed(2) + ' L soltos');
+                    return partes.join(' + ') || saldo.toFixed(2) + ' L';
+                }
+            }
+            
+            // Para rolo, pacote, caixa
+            if (tipoEmbalagem === 'rolo' || tipoEmbalagem === 'pacote' || tipoEmbalagem === 'caixa') {
+                if (grandeza === 'metros' || grandeza === 'm') {
+                    const partes = [];
+                    if (qtdEmbalagens > 0) partes.push(qtdEmbalagens + ' ' + tipoEmbalagem + (qtdEmbalagens !== 1 ? 's' : ''));
+                    if (unidadesSoltas > 0) partes.push(unidadesSoltas.toFixed(2) + ' m soltos');
+                    return partes.join(' + ') || saldo.toFixed(2) + ' m';
+                } else {
+                    // Sem grandeza, mostra embalagens e unidades
+                    const partes = [];
+                    if (qtdEmbalagens > 0) partes.push(qtdEmbalagens + ' ' + tipoEmbalagem + (qtdEmbalagens !== 1 ? 's' : ''));
+                    if (unidadesSoltas > 0) partes.push(unidadesSoltas.toFixed(0) + ' un');
+                    return partes.join(' + ') || saldo.toFixed(0) + ' un';
+                }
+            }
+        }
+        
+        // Fallback: mostra saldo com unidade genérica
+        return saldo.toFixed(0) + ' un';
+    }
+    
     function showAutocompleteCodigo(itens) {
         if (itens.length === 0) {
             dropdownCodigo.classList.remove('show');
@@ -567,11 +618,12 @@ ${parent.scripts()}
         }
         
         dropdownCodigo.innerHTML = itens.map((item, index) => {
+            const saldoFormatado = formatarSaldoItem(item);
             return '<div class=\"autocomplete-item\" data-index=\"' + index + '\">' +
                 '<div class=\"autocomplete-item-title\">' + (item.descricao || item.codigo) + '</div>' +
                 '<div class=\"autocomplete-item-details\">' +
                 '<span class=\"autocomplete-item-code\">Código: ' + item.codigo + '</span>' +
-                (item.saldo !== undefined ? ' | Saldo: ' + item.saldo : '') +
+                (saldoFormatado ? ' | Saldo: ' + saldoFormatado : '') +
                 (item.categoria ? ' | Categoria: ' + item.categoria : '') + '</div>' +
                 '</div>';
         }).join('');

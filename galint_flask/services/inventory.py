@@ -254,6 +254,10 @@ class InventoryService:
                     "descricao": item.descricao,
                     "categoria": item.categoria,
                     "saldo": saldo,
+                    "tipo_embalagem_novo": item.tipo_embalagem_novo,
+                    "unidades_por_embalagem": item.unidades_por_embalagem,
+                    "grandeza_referencia": item.grandeza_referencia,
+                    "litros_por_embalagem": item.litros_por_embalagem,
                 }
             )
         return results
