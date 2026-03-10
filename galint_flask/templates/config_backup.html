@@ -118,9 +118,9 @@
         let pollTimer = null;
         let watchdogTimer = null;
         let lastPollOkAt = 0;
+        let lastServerUpdateAt = '';
         let currentJobId = null;
         let startedAt = 0;
-        let pollInFlight = false;
 
         function setProgress(pct, message) {
             const safePct = Math.max(0, Math.min(100, Number(pct) || 0));
@@ -163,12 +163,25 @@
             return data.job_id;
         }
 
-        async function poll(jobId) {
-            const resp = await fetch(`/configuracoes/restaurar/status/${encodeURIComponent(jobId)}`, {
-                method: 'GET',
-                headers: { 'X-Requested-With': 'fetch' },
-                cache: 'no-store',
-            });
+        async function poll(jobId, timeoutMs = 8000) {
+            const controller = new AbortController();
+            const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
+            let resp;
+            try {
+                resp = await fetch(`/configuracoes/restaurar/status/${encodeURIComponent(jobId)}`, {
+                    method: 'GET',
+                    headers: { 'X-Requested-With': 'fetch' },
+                    cache: 'no-store',
+                    signal: controller.signal,
+                });
+            } catch (err) {
+                if (err && err.name === 'AbortError') {
+                    throw new Error('Consulta de progresso excedeu o tempo limite. O servidor ainda pode estar processando.');
+                }
+                throw err;
+            } finally {
+                window.clearTimeout(timeoutId);
+            }
             const data = await resp.json().catch(() => ({}));
             if (!resp.ok || !data.ok) {
                 const err = data.error || 'Falha ao consultar progresso.';
@@ -192,22 +205,21 @@
                 clearInterval(watchdogTimer);
                 watchdogTimer = null;
             }
-            pollInFlight = false;
         }
 
         function setMeta() {
             if (!progressMeta) return;
-            const last = lastPollOkAt ? new Date(lastPollOkAt).toLocaleTimeString() : '—';
+            const last = lastServerUpdateAt || (lastPollOkAt ? new Date(lastPollOkAt).toLocaleTimeString() : '—');
             const job = currentJobId ? `Job: ${currentJobId}` : '';
             progressMeta.textContent = `${job}${job ? ' • ' : ''}Última atualização: ${last}`;
         }
 
         async function tick(jobId) {
-            if (pollInFlight) return;
-            pollInFlight = true;
             try {
                 const state = await poll(jobId);
                 lastPollOkAt = Date.now();
+                lastServerUpdateAt = state.updated_at ? new Date(state.updated_at).toLocaleTimeString() : '';
+                clearError();
                 setMeta();
                 setProgress(state.progress, state.message || 'Processando...');
 
@@ -222,8 +234,21 @@
                     if (closeBtn) closeBtn.disabled = false;
                     showError(state.error || 'Erro ao restaurar.');
                 }
-            } finally {
-                pollInFlight = false;
+            } catch (err) {
+                const message = err?.message || String(err);
+                const isFatal = message.includes('Não autenticado')
+                    || message.includes('Acesso negado')
+                    || message.includes('Job não encontrado')
+                    || message.includes('Recurso não encontrado');
+
+                if (isFatal) {
+                    stopPolling();
+                    if (closeBtn) closeBtn.disabled = false;
+                    showError(message);
+                    throw err;
+                }
+
+                showError(message);
             }
         }
 
@@ -241,6 +266,7 @@
             setProgress(0, 'Iniciando...');
             currentJobId = null;
             lastPollOkAt = 0;
+            lastServerUpdateAt = '';
             startedAt = Date.now();
             setMeta();
             modal.show();
@@ -266,21 +292,13 @@
                     const noUpdateSinceStart = (now - startedAt) > 90000 && !lastPollOkAt;
                     const staleAfterUpdate = lastPollOkAt && (now - lastPollOkAt) > 90000;
                     if (noUpdateSinceStart || staleAfterUpdate) {
-                        showError('Sem atualização do servidor há mais de 90s. Verifique o log do servidor e/ou reinicie o GALINT.');
-                        if (closeBtn) closeBtn.disabled = false;
-                        stopPolling();
+                        showError('Sem atualização do servidor há mais de 90s. O GALINT continuará tentando consultar o progresso automaticamente.');
                     }
                 }, 10000);
 
-                pollTimer = setInterval(async () => {
-                    try {
-                        await tick(jobId);
-                    } catch (err) {
-                        stopPolling();
-                        if (closeBtn) closeBtn.disabled = false;
-                        showError(err?.message || String(err));
-                    }
-                }, 1000);
+                pollTimer = setInterval(() => {
+                    void tick(jobId);
+                }, 3000);
             } catch (err) {
                 if (closeBtn) closeBtn.disabled = false;
                 showError(err?.message || String(err));

@@ -9,10 +9,14 @@ Observação: é um job in-memory (reiniciar o servidor limpa o estado).
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 import threading
-from typing import Any
+from typing import Any, Callable, ContextManager, Protocol
 from uuid import uuid4
+
+
+class _AppWithContext(Protocol):
+    def app_context(self) -> ContextManager[Any]: ...
 
 
 @dataclass
@@ -25,6 +29,7 @@ class RestoreJobState:
     message: str
     error: str | None
     started_at: str
+    updated_at: str
     finished_at: str | None
 
 
@@ -34,7 +39,7 @@ _active_restore_job_id: str | None = None
 
 
 def _now_iso() -> str:
-    return datetime.utcnow().isoformat(timespec="seconds")
+    return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
 def _set_active(job_id: str | None) -> None:
@@ -44,10 +49,10 @@ def _set_active(job_id: str | None) -> None:
 
 def start_restore_job(
     *,
-    app,
+    app: _AppWithContext,
     backup_name: str,
     user_key: str,
-    restore_callable,
+    restore_callable: Callable[[Callable[[int, str], None]], object],
 ) -> str:
     """Inicia (ou reutiliza) um job de restore.
 
@@ -72,6 +77,7 @@ def start_restore_job(
             message="Job criado.",
             error=None,
             started_at=_now_iso(),
+            updated_at=_now_iso(),
             finished_at=None,
         )
         _jobs[job_id] = state
@@ -84,6 +90,7 @@ def start_restore_job(
                 return
             st.progress = max(0, min(100, int(progress)))
             st.message = str(message)
+            st.updated_at = _now_iso()
 
     def _finish_success() -> None:
         with _lock:
@@ -92,6 +99,7 @@ def start_restore_job(
                 st.status = "success"
                 st.progress = 100
                 st.message = "Concluído."
+                st.updated_at = _now_iso()
                 st.finished_at = _now_iso()
             if _active_restore_job_id == job_id:
                 _set_active(None)
@@ -103,6 +111,7 @@ def start_restore_job(
                 st.status = "error"
                 st.error = str(err)
                 st.message = "Erro ao restaurar."
+                st.updated_at = _now_iso()
                 st.finished_at = _now_iso()
             if _active_restore_job_id == job_id:
                 _set_active(None)
