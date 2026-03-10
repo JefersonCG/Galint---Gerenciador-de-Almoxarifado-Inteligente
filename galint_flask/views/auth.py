@@ -1,7 +1,7 @@
 """Authentication views."""
 from __future__ import annotations
 
-from flask import Blueprint, render_template, redirect, url_for, flash, request
+from flask import Blueprint, render_template, redirect, url_for, flash, request, session
 from flask_login import login_required
 
 from ..services.auth import authenticate, end_session
@@ -24,7 +24,12 @@ def login_submit():
     if not matricula or not senha:
         flash("Informe matrícula e senha.", "danger")
         return redirect(url_for("auth.login_form"))
-    if authenticate(matricula, senha):
+    usuario = authenticate(matricula, senha)
+    if usuario:
+        # Guardar flags de autorização na sessão para rotas que precisam evitar consultas ao banco.
+        session["galint_is_admin"] = bool(getattr(usuario, "is_admin", 0))
+        session["galint_user_id"] = str(getattr(usuario, "matricula", ""))
+
         # Aviso de contingência: se Telegram estiver fora, informar ao usuário ao entrar.
         try:
             from ..services.telegram_service import TelegramService

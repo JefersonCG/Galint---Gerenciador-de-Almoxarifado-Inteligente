@@ -72,4 +72,4 @@ if __name__ == "__main__":
     print("🌐 Iniciando servidor em modo HTTP")
     print("   URL: http://localhost:5000")
     print("   LAN: http://SEU_IP:5000 (ex.: http://10.0.0.245:5000)")
-    app.run(host="0.0.0.0", port=5000, debug=True, use_reloader=False)
+    app.run(host="0.0.0.0", port=5000, debug=True, use_reloader=False, threaded=True)

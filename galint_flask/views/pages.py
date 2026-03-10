@@ -4,11 +4,12 @@ from __future__ import annotations
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
-from flask import Blueprint, current_app, flash, redirect, render_template, request, url_for
+from flask import Blueprint, current_app, flash, jsonify, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required
 from werkzeug.exceptions import abort
 
 from ..services.backup import BackupService
+from ..services.backup_restore_jobs import get_job_state, start_restore_job
 from ..services.network_settings import load_network_settings, save_network_settings
 
 
@@ -20,6 +21,20 @@ def _require_admin() -> None:
         abort(403)
 
 
+def _require_admin_session_json() -> tuple[str | None, tuple[object, int] | None]:
+    """Auth leve (sem DB) para endpoints JSON de restore.
+
+    Retorna (user_key, error_response). Se error_response não for None,
+    deve ser retornado diretamente pela view.
+    """
+    user_id = session.get("_user_id")
+    if not user_id:
+        return None, (jsonify({"ok": False, "error": "Não autenticado. Faça login novamente."}), 401)
+    if not bool(session.get("galint_is_admin")):
+        return None, (jsonify({"ok": False, "error": "Acesso negado. Apenas administradores."}), 403)
+    return str(user_id), None
+
+
 @blueprint.get("/configuracoes")
 @login_required
 def config():
@@ -29,6 +44,14 @@ def config():
 @blueprint.get("/configuracoes/backup")
 @login_required
 def config_backup():
+    # Preencher flag de admin na sessão para compatibilidade com sessões existentes.
+    # (Esse request ainda usa login_required e pode consultar DB; é antes da restauração começar.)
+    try:
+        session.setdefault("galint_is_admin", bool(getattr(current_user, "is_admin", 0)))
+        session.setdefault("galint_user_id", str(getattr(current_user, "matricula", "")))
+    except Exception:
+        pass
+
     backups = BackupService(current_app).list_backups()
     return render_template("config_backup.html", backups=backups)
 
@@ -61,6 +84,45 @@ def restore_backup():
     except ValueError as exc:
         flash(str(exc), "danger")
     return redirect(url_for("pages.config_backup"))
+
+
+@blueprint.post("/configuracoes/restaurar/iniciar")
+def start_restore_backup():
+    """Inicia restauração em background e retorna um job_id."""
+    user_key, error = _require_admin_session_json()
+    if error:
+        return error
+    backup_name = (request.form.get("backup_name") or "").strip()
+    if not backup_name:
+        return jsonify({"ok": False, "error": "Selecione um backup para restaurar."}), 400
+
+    app = current_app._get_current_object()
+
+    def _restore(reporter):
+        service = BackupService(app)
+        service.restore_backup_with_progress(backup_name, reporter)
+
+    try:
+        job_id = start_restore_job(
+            app=app,
+            backup_name=backup_name,
+            user_key=user_key,
+            restore_callable=_restore,
+        )
+    except RuntimeError as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 409
+    return jsonify({"ok": True, "job_id": job_id})
+
+
+@blueprint.get("/configuracoes/restaurar/status/<job_id>")
+def restore_backup_status(job_id: str):
+    user_key, error = _require_admin_session_json()
+    if error:
+        return error
+    state = get_job_state(job_id=job_id, user_key=user_key)
+    if not state:
+        return jsonify({"ok": False, "error": "Job não encontrado."}), 404
+    return jsonify({"ok": True, "state": state})
 
 
 @blueprint.post("/configuracoes/backup/excluir")

@@ -1,0 +1,295 @@
+{% extends "base.html" %}
+{% block title %}Backups{% endblock %}
+{% block page_header %}
+<h2>Backups</h2>
+<p class="text-muted">Geração e restauração de backups do sistema.</p>
+{% endblock %}
+{% block content %}
+<div class="row gy-4">
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Backup completo do sistema</h5>
+                <p class="card-text text-muted">Cria uma cópia do banco de dados PostgreSQL configurado usando o
+                    <code>pg_dump</code>.
+                </p>
+                <form method="post" action="{{ url_for('pages.create_backup') }}">
+                    <button class="btn btn-primary w-100" type="submit">Gerar backup agora</button>
+                </form>
+            </div>
+        </div>
+        <div class="mt-3">
+            <a class="btn btn-link px-0" href="{{ url_for('pages.config') }}">&larr; Voltar para Configurações</a>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                <strong>Restaurar backup</strong>
+                <span class="text-muted small d-block">Os dados atuais serão substituídos pela cópia selecionada.</span>
+            </div>
+            <div class="card-body">
+                {% if backups %}
+                <form method="post" action="{{ url_for('pages.restore_backup') }}">
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle mb-3">
+                            <thead>
+                                <tr>
+                                    <th></th>
+                                    <th>Backup</th>
+                                    <th>Data</th>
+                                    <th>Tamanho</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for backup in backups %}
+                                <tr>
+                                    <td>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="backup_name"
+                                                value="{{ backup.name }}" required>
+                                        </div>
+                                    </td>
+                                    <td>{{ backup.name }}</td>
+                                    <td>{{ backup.created }}</td>
+                                    <td>{{ backup.size }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="d-flex justify-content-end gap-2">
+                        <button class="btn btn-outline-danger" type="submit"
+                            formaction="{{ url_for('pages.delete_backup') }}"
+                            onclick="return confirm('Apagar o backup selecionado?');">
+                            Apagar backup
+                        </button>
+                        <button class="btn btn-danger" type="button" id="btn-restore-backup">Restaurar banco de dados</button>
+                    </div>
+                </form>
+                {% else %}
+                <p class="text-muted mb-0">Nenhum backup disponível. Gere um backup antes de realizar a restauração.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Progresso de restauração -->
+<div class="modal fade" id="restoreProgressModal" tabindex="-1" aria-labelledby="restoreProgressModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="restoreProgressModalLabel">Restaurando banco de dados</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted mb-2" id="restoreProgressMessage">Iniciando...</p>
+                <div class="progress" role="progressbar" aria-label="Progresso da restauração" aria-valuemin="0" aria-valuemax="100">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated" id="restoreProgressBar" style="width: 0%">0%</div>
+                </div>
+                <div class="small text-muted mt-2" id="restoreProgressHint">Não feche esta janela até concluir.</div>
+                <div class="small text-muted" id="restoreProgressMeta"></div>
+                <div class="alert alert-danger mt-3 d-none" id="restoreProgressError"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="btn-restore-close" disabled>Fechar</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    (function () {
+        const restoreBtn = document.getElementById('btn-restore-backup');
+        const modalEl = document.getElementById('restoreProgressModal');
+        if (!restoreBtn || !modalEl || typeof bootstrap === 'undefined') return;
+
+        const modal = new bootstrap.Modal(modalEl, { backdrop: 'static', keyboard: false });
+        const progressBar = document.getElementById('restoreProgressBar');
+        const progressMsg = document.getElementById('restoreProgressMessage');
+        const progressErr = document.getElementById('restoreProgressError');
+        const closeBtn = document.getElementById('btn-restore-close');
+        const progressMeta = document.getElementById('restoreProgressMeta');
+
+        let pollTimer = null;
+        let watchdogTimer = null;
+        let lastPollOkAt = 0;
+        let currentJobId = null;
+        let startedAt = 0;
+        let pollInFlight = false;
+
+        function setProgress(pct, message) {
+            const safePct = Math.max(0, Math.min(100, Number(pct) || 0));
+            if (progressBar) {
+                progressBar.style.width = safePct + '%';
+                progressBar.textContent = safePct + '%';
+                progressBar.setAttribute('aria-valuenow', String(safePct));
+            }
+            if (progressMsg && message) progressMsg.textContent = message;
+        }
+
+        function showError(text) {
+            if (!progressErr) return;
+            progressErr.textContent = text;
+            progressErr.classList.remove('d-none');
+        }
+
+        function clearError() {
+            if (!progressErr) return;
+            progressErr.textContent = '';
+            progressErr.classList.add('d-none');
+        }
+
+        async function startRestore(selectedBackupName) {
+            const form = new FormData();
+            form.set('backup_name', selectedBackupName);
+            const resp = await fetch('/configuracoes/restaurar/iniciar', {
+                method: 'POST',
+                body: form,
+                headers: { 'X-Requested-With': 'fetch' },
+                cache: 'no-store',
+            });
+            const data = await resp.json().catch(() => ({}));
+            if (resp.status === 404) {
+                throw new Error('Endpoint de restauração não encontrado. Reinicie o servidor do GALINT e tente novamente.');
+            }
+            if (!resp.ok || !data.ok) {
+                throw new Error(data.error || 'Falha ao iniciar restauração.');
+            }
+            return data.job_id;
+        }
+
+        async function poll(jobId) {
+            const resp = await fetch(`/configuracoes/restaurar/status/${encodeURIComponent(jobId)}`, {
+                method: 'GET',
+                headers: { 'X-Requested-With': 'fetch' },
+                cache: 'no-store',
+            });
+            const data = await resp.json().catch(() => ({}));
+            if (!resp.ok || !data.ok) {
+                const err = data.error || 'Falha ao consultar progresso.';
+                if (resp.status === 404 && String(err).toLowerCase().includes('job')) {
+                    throw new Error('Job não encontrado (o servidor pode ter sido reiniciado). Inicie a restauração novamente.');
+                }
+                if (resp.status === 404) {
+                    throw new Error(err || 'Recurso não encontrado.');
+                }
+                throw new Error(err);
+            }
+            return data.state;
+        }
+
+        function stopPolling() {
+            if (pollTimer) {
+                clearInterval(pollTimer);
+                pollTimer = null;
+            }
+            if (watchdogTimer) {
+                clearInterval(watchdogTimer);
+                watchdogTimer = null;
+            }
+            pollInFlight = false;
+        }
+
+        function setMeta() {
+            if (!progressMeta) return;
+            const last = lastPollOkAt ? new Date(lastPollOkAt).toLocaleTimeString() : '—';
+            const job = currentJobId ? `Job: ${currentJobId}` : '';
+            progressMeta.textContent = `${job}${job ? ' • ' : ''}Última atualização: ${last}`;
+        }
+
+        async function tick(jobId) {
+            if (pollInFlight) return;
+            pollInFlight = true;
+            try {
+                const state = await poll(jobId);
+                lastPollOkAt = Date.now();
+                setMeta();
+                setProgress(state.progress, state.message || 'Processando...');
+
+                if (state.status === 'success') {
+                    stopPolling();
+                    if (progressBar) progressBar.classList.remove('progress-bar-animated');
+                    if (closeBtn) closeBtn.disabled = false;
+                    setTimeout(() => window.location.reload(), 800);
+                } else if (state.status === 'error') {
+                    stopPolling();
+                    if (progressBar) progressBar.classList.remove('progress-bar-animated');
+                    if (closeBtn) closeBtn.disabled = false;
+                    showError(state.error || 'Erro ao restaurar.');
+                }
+            } finally {
+                pollInFlight = false;
+            }
+        }
+
+        restoreBtn.addEventListener('click', async () => {
+            const selected = document.querySelector('input[name="backup_name"]:checked');
+            if (!selected) {
+                alert('Selecione um backup para restaurar.');
+                return;
+            }
+
+            // Reset UI
+            stopPolling();
+            clearError();
+            if (closeBtn) closeBtn.disabled = true;
+            setProgress(0, 'Iniciando...');
+            currentJobId = null;
+            lastPollOkAt = 0;
+            startedAt = Date.now();
+            setMeta();
+            modal.show();
+
+            try {
+                const jobId = await startRestore(selected.value);
+                currentJobId = jobId;
+                setMeta();
+                setProgress(5, 'Job iniciado. Preparando restauração...');
+
+                // Poll imediato (para não parecer travado em 5%).
+                try {
+                    await tick(jobId);
+                } catch (err) {
+                    // Se falhar no primeiro poll, ainda tentamos pelo intervalo.
+                }
+
+                // Watchdog: se não conseguirmos atualizar por um tempo, avisar.
+                watchdogTimer = setInterval(() => {
+                    const now = Date.now();
+                    // Se passou mais de 90s desde o início e ainda não tivemos update,
+                    // OU se já tivemos update e ficou 90s sem resposta, mostrar aviso.
+                    const noUpdateSinceStart = (now - startedAt) > 90000 && !lastPollOkAt;
+                    const staleAfterUpdate = lastPollOkAt && (now - lastPollOkAt) > 90000;
+                    if (noUpdateSinceStart || staleAfterUpdate) {
+                        showError('Sem atualização do servidor há mais de 90s. Verifique o log do servidor e/ou reinicie o GALINT.');
+                        if (closeBtn) closeBtn.disabled = false;
+                        stopPolling();
+                    }
+                }, 10000);
+
+                pollTimer = setInterval(async () => {
+                    try {
+                        await tick(jobId);
+                    } catch (err) {
+                        stopPolling();
+                        if (closeBtn) closeBtn.disabled = false;
+                        showError(err?.message || String(err));
+                    }
+                }, 1000);
+            } catch (err) {
+                if (closeBtn) closeBtn.disabled = false;
+                showError(err?.message || String(err));
+            }
+        });
+
+        modalEl.addEventListener('hidden.bs.modal', () => {
+            stopPolling();
+        });
+    })();
+</script>
+{% endblock %}

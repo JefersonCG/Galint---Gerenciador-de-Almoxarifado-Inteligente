@@ -44,7 +44,10 @@ logs/
 # Backups
 *.bak
 *.backup
-*_backup.*
+
+# Backups de templates (arquivos temporários do editor)
+galint_flask/templates/**/*_backup.html
+!galint_flask/templates/config_backup.html
 
 # Compiled files
 *.spec

@@ -1,6 +1,7 @@
 """Backup e restauração do banco de dados (PostgreSQL-only)."""
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import datetime
 import json
 import os
@@ -8,6 +9,7 @@ from pathlib import Path
 import re
 import shutil
 import subprocess
+import time
 
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import make_url
@@ -25,7 +27,7 @@ class BackupService:
         self._subprocess_timeout_seconds = int(
             os.environ.get("GALINT_BACKUP_TIMEOUT_SECONDS")
             or os.environ.get("BACKUP_TIMEOUT_SECONDS")
-            or 120
+            or 3600
         )
         self._connect_timeout_seconds = int(
             os.environ.get("GALINT_PG_CONNECT_TIMEOUT_SECONDS")
@@ -225,6 +227,23 @@ class BackupService:
         raise ValueError("Somente PostgreSQL é suportado pelo backup automático")
 
     def restore_backup(self, backup_name: str) -> str:
+        return self.restore_backup_with_progress(backup_name)
+
+    def restore_backup_with_progress(
+        self,
+        backup_name: str,
+        reporter: Callable[[int, str], None] | None = None,
+    ) -> str:
+        def _report(progress: int, message: str) -> None:
+            if reporter is None:
+                return
+            try:
+                reporter(int(progress), str(message))
+            except Exception:
+                # Progresso nunca deve quebrar o restore.
+                return
+
+        _report(5, "Validando backup...")
         source = self._backup_root / backup_name
         if not source.exists():
             raise ValueError("Backup selecionado não existe")
@@ -232,10 +251,18 @@ class BackupService:
         if source.suffix.lower() == ".sql":
             if not url.drivername.startswith("postgresql"):
                 raise ValueError("Este backup é de PostgreSQL, mas o banco atual não é PostgreSQL")
+
+            _report(15, "Capturando movimentos pós-backup...")
             cutoff = self._backup_cutoff_from_name(backup_name, source)
-            delta = self._capture_post_backup_delta(cutoff)
+            delta = self._capture_post_backup_delta(cutoff, reporter=_report)
+
+            _report(60, "Restaurando backup no PostgreSQL...")
             self._restore_postgres_backup(source)
-            self._reapply_post_backup_delta(delta)
+
+            _report(85, "Reaplicando movimentos pós-backup...")
+            self._reapply_post_backup_delta(delta, reporter=_report)
+
+            _report(100, "Restauração concluída.")
             return backup_name
         raise ValueError("Formato de backup não reconhecido para restauração")
 
@@ -374,8 +401,16 @@ class BackupService:
         # fallback: usar timestamp do arquivo
         return datetime.fromtimestamp(source.stat().st_mtime)
 
-    def _capture_post_backup_delta(self, cutoff: datetime) -> dict[str, object]:
-        """Captura movimentos ocorridos após o backup para reaplicar depois do restore."""
+    def _capture_post_backup_delta(
+        self,
+        cutoff: datetime,
+        reporter: Callable[[int, str], None] | None = None,
+    ) -> dict[str, object]:
+        """Captura movimentos ocorridos após o backup para reaplicar depois do restore.
+
+        Implementação em lotes para evitar travar o servidor durante operações grandes
+        (e para permitir "heartbeats" no progresso).
+        """
         engine = create_engine(self._ensure_uri(), future=True)
         tables = [
             {"name": "entradas", "time_col": "data_entrada", "pk": "id_entrada"},
@@ -384,21 +419,85 @@ class BackupService:
             {"name": "material_inventario", "time_col": "data_registro", "pk": "id"},
         ]
         payload: dict[str, object] = {"cutoff": cutoff.isoformat(), "tables": {}}
-        with engine.connect() as conn:
-            for table in tables:
-                stmt = text(
-                    f"SELECT * FROM {table['name']} WHERE {table['time_col']} > :cutoff"
-                )
-                rows = conn.execute(stmt, {"cutoff": cutoff}).mappings().all()
-                payload["tables"][table["name"]] = rows
+        last_hb = time.monotonic()
+        batch_size = int(os.environ.get("GALINT_RESTORE_CAPTURE_BATCH_SIZE") or 1000)
+        hb_interval_s = float(os.environ.get("GALINT_RESTORE_HEARTBEAT_SECONDS") or 1.5)
+
+        def _hb(progress: int, message: str) -> None:
+            nonlocal last_hb
+            if reporter is None:
+                return
+            now = time.monotonic()
+            if (now - last_hb) < hb_interval_s:
+                return
+            try:
+                reporter(int(progress), str(message))
+            finally:
+                last_hb = now
+
+        try:
+            with engine.connect() as conn:
+                # stream_results ajuda a não carregar tudo de uma vez quando o driver suporta.
+                conn = conn.execution_options(stream_results=True)
+                total_tables = max(1, len(tables))
+                for index, table in enumerate(tables):
+                    base_progress = 15 + int((index * 40) / total_tables)  # 15..55
+                    table_name = str(table["name"])
+                    _hb(base_progress, f"Capturando movimentos: {table_name}...")
+
+                    stmt = text(f"SELECT * FROM {table_name} WHERE {table['time_col']} > :cutoff")
+                    result = conn.execute(stmt, {"cutoff": cutoff})
+                    mappings = result.mappings()
+
+                    rows: list[dict[str, object]] = []
+                    captured = 0
+                    while True:
+                        batch = mappings.fetchmany(batch_size)
+                        if not batch:
+                            break
+                        rows.extend(batch)
+                        captured += len(batch)
+
+                        _hb(base_progress, f"Capturando movimentos: {table_name}... ({captured} linhas)")
+
+                        # Ceder execução para evitar starvation de outras threads/requests.
+                        if captured % (batch_size * 5) == 0:
+                            time.sleep(0)
+
+                    payload["tables"][table_name] = rows
+        finally:
+            try:
+                engine.dispose()
+            except Exception:
+                pass
         return payload
 
-    def _reapply_post_backup_delta(self, delta: dict[str, object]) -> None:
+    def _reapply_post_backup_delta(
+        self,
+        delta: dict[str, object],
+        reporter: Callable[[int, str], None] | None = None,
+    ) -> None:
         """Reaplica movimentos pós-backup para evitar voltar itens retirados."""
         if not delta or not isinstance(delta.get("tables"), dict):
             return
         tables: dict[str, list[dict[str, object]]] = delta.get("tables", {})  # type: ignore[assignment]
         engine = create_engine(self._ensure_uri(), future=True)
+
+        last_hb = time.monotonic()
+        batch_size = int(os.environ.get("GALINT_RESTORE_REAPPLY_BATCH_SIZE") or 1000)
+        hb_interval_s = float(os.environ.get("GALINT_RESTORE_HEARTBEAT_SECONDS") or 1.5)
+
+        def _hb(progress: int, message: str) -> None:
+            nonlocal last_hb
+            if reporter is None:
+                return
+            now = time.monotonic()
+            if (now - last_hb) < hb_interval_s:
+                return
+            try:
+                reporter(int(progress), str(message))
+            finally:
+                last_hb = now
 
         order = ["entradas", "saidas", "inventario_eventos", "material_inventario"]
         pks = {
@@ -408,24 +507,42 @@ class BackupService:
             "material_inventario": "id",
         }
 
-        with engine.begin() as conn:
-            for table in order:
-                rows = tables.get(table) or []
-                if not rows:
-                    continue
-                cols = list(rows[0].keys())
-                columns = ", ".join(cols)
-                values = ", ".join([f":{c}" for c in cols])
-                pk = pks.get(table)
-                on_conflict = f" ON CONFLICT ({pk}) DO NOTHING" if pk else ""
-                stmt = text(
-                    f"INSERT INTO {table} ({columns}) VALUES ({values}){on_conflict}"
-                )
-                conn.execute(stmt, rows)
+        try:
+            with engine.begin() as conn:
+                for index, table in enumerate(order):
+                    rows = tables.get(table) or []
+                    if not rows:
+                        continue
+
+                    base_progress = 85 + int((index * 12) / max(1, len(order)))  # 85..97
+                    _hb(base_progress, f"Reaplicando movimentos: {table}...")
+
+                    cols = list(rows[0].keys())
+                    columns = ", ".join(cols)
+                    values = ", ".join([f":{c}" for c in cols])
+                    pk = pks.get(table)
+                    on_conflict = f" ON CONFLICT ({pk}) DO NOTHING" if pk else ""
+                    stmt = text(f"INSERT INTO {table} ({columns}) VALUES ({values}){on_conflict}")
+
+                    applied = 0
+                    for start in range(0, len(rows), batch_size):
+                        chunk = rows[start : start + batch_size]
+                        conn.execute(stmt, chunk)
+                        applied += len(chunk)
+                        _hb(base_progress, f"Reaplicando movimentos: {table}... ({applied}/{len(rows)})")
+                        if applied % (batch_size * 5) == 0:
+                            time.sleep(0)
 
             # Ajustar sequências para evitar conflitos futuros
-            for table, pk in pks.items():
-                seq_stmt = text(
-                    f"SELECT setval(pg_get_serial_sequence('{table}', '{pk}'), GREATEST((SELECT COALESCE(MAX({pk}), 0) FROM {table}), 1))"
-                )
-                conn.execute(seq_stmt)
+                # Ajustar sequências para evitar conflitos futuros
+                _hb(98, "Ajustando sequências...")
+                for table, pk in pks.items():
+                    seq_stmt = text(
+                        f"SELECT setval(pg_get_serial_sequence('{table}', '{pk}'), GREATEST((SELECT COALESCE(MAX({pk}), 0) FROM {table}), 1))"
+                    )
+                    conn.execute(seq_stmt)
+        finally:
+            try:
+                engine.dispose()
+            except Exception:
+                pass
