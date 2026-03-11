@@ -4,7 +4,9 @@ from __future__ import annotations
 import logging
 import os
 from io import BytesIO
-from datetime import datetime
+from collections import defaultdict
+from datetime import datetime, timedelta
+from statistics import NormalDist, mean, stdev
 import unicodedata
 from pathlib import Path
 
@@ -756,6 +758,106 @@ def percentual_movimentos():
             values.append(restante)
         return {"labels": labels, "values": values}
 
+    def _as_float(value):
+        try:
+            return float(value or 0)
+        except (TypeError, ValueError):
+            return 0.0
+
+    def _clamp_probability(value):
+        return max(0.0, min(1.0, float(value or 0.0)))
+
+    def _format_window_label(start_dt, end_dt):
+        last_day = end_dt - timedelta(days=1)
+        if last_day < start_dt:
+            last_day = start_dt
+        return f"{start_dt.strftime('%d/%m/%Y')} - {last_day.strftime('%d/%m/%Y')}"
+
+    def _build_sequential_buckets(withdrawal_events, return_events, start_dt, end_dt, bucket_days=30):
+        if not start_dt or not end_dt or start_dt > end_dt:
+            return []
+
+        buckets = []
+        cursor = start_dt
+        while cursor <= end_dt:
+            bucket_end = cursor + timedelta(days=bucket_days)
+            withdrawals_in_bucket = [qty for dt, qty in withdrawal_events if cursor <= dt < bucket_end]
+            returns_in_bucket = [qty for dt, qty in return_events if cursor <= dt < bucket_end]
+            withdrawals_qty = sum(withdrawals_in_bucket)
+            returns_qty = sum(returns_in_bucket)
+            net_qty = max(0.0, withdrawals_qty - returns_qty)
+            buckets.append(
+                {
+                    "start": cursor,
+                    "end": bucket_end,
+                    "label": _format_window_label(cursor, bucket_end),
+                    "withdrawals_qty": withdrawals_qty,
+                    "returns_qty": returns_qty,
+                    "net_qty": net_qty,
+                    "withdrawals_count": len(withdrawals_in_bucket),
+                    "returns_count": len(returns_in_bucket),
+                    "movements_count": len(withdrawals_in_bucket) + len(returns_in_bucket),
+                }
+            )
+            cursor = bucket_end
+
+        return buckets
+
+    def _build_monthly_buckets(withdrawal_events, return_events):
+        monthly_map = {}
+
+        def _get_entry(year, month):
+            key = (year, month)
+            if key not in monthly_map:
+                monthly_map[key] = {
+                    "year": year,
+                    "month": month,
+                    "label": f"{month:02d}/{year}",
+                    "withdrawals_qty": 0.0,
+                    "returns_qty": 0.0,
+                    "net_qty": 0.0,
+                    "withdrawals_count": 0,
+                    "returns_count": 0,
+                    "movements_count": 0,
+                }
+            return monthly_map[key]
+
+        for dt, qty in withdrawal_events:
+            entry = _get_entry(dt.year, dt.month)
+            entry["withdrawals_qty"] += _as_float(qty)
+            entry["withdrawals_count"] += 1
+            entry["movements_count"] += 1
+
+        for dt, qty in return_events:
+            entry = _get_entry(dt.year, dt.month)
+            entry["returns_qty"] += _as_float(qty)
+            entry["returns_count"] += 1
+            entry["movements_count"] += 1
+
+        buckets = []
+        for key in sorted(monthly_map.keys()):
+            entry = monthly_map[key]
+            entry["net_qty"] = max(0.0, entry["withdrawals_qty"] - entry["returns_qty"])
+            buckets.append(entry)
+        return buckets
+
+    def _probability_stockout(threshold, average_demand, std_dev):
+        threshold = _as_float(threshold)
+        average_demand = _as_float(average_demand)
+        std_dev = _as_float(std_dev)
+        if average_demand <= 0 and std_dev <= 0:
+            return 0.0
+        if std_dev <= 1e-9:
+            return 1.0 if average_demand >= threshold else 0.0
+        z_score = (threshold - average_demand) / std_dev
+        return _clamp_probability(1 - NormalDist().cdf(z_score))
+
+    def _ci_95(average_demand, std_dev):
+        average_demand = _as_float(average_demand)
+        std_dev = _as_float(std_dev)
+        margin = 1.96 * std_dev if std_dev > 0 else 0.0
+        return max(0.0, average_demand - margin), max(0.0, average_demand + margin)
+
     tool_filter = func.coalesce(Item.categoria, "").ilike("Ferrament%")
 
     # Funcionarios (materiais)
@@ -861,6 +963,55 @@ def percentual_movimentos():
     for row in devolucoes_ferramentas_rows:
         _merge_return(devolucoes_ferramentas, row[0], row[1], row[2], row[3])
 
+    material_withdrawal_event_rows = (
+        db.session.query(
+            Saida.codigo_item,
+            Item.descricao,
+            Saida.data_saida,
+            func.coalesce(Saida.quantidade, 0),
+        )
+        .join(Item, Saida.codigo_item == Item.codigo_item, isouter=True)
+        .filter(not_(tool_filter))
+        .order_by(Saida.data_saida.asc())
+        .all()
+    )
+    material_return_event_rows = (
+        db.session.query(
+            InventarioEvento.codigo_item,
+            Item.descricao,
+            InventarioEvento.data_evento,
+            func.coalesce(InventarioEvento.quantidade, 0),
+        )
+        .join(Item, InventarioEvento.codigo_item == Item.codigo_item, isouter=True)
+        .filter(InventarioEvento.tipo == "devolucao_material")
+        .order_by(InventarioEvento.data_evento.asc())
+        .all()
+    )
+
+    material_withdrawals_by_item = defaultdict(list)
+    material_returns_by_item = defaultdict(list)
+    material_descriptions = {}
+    all_material_withdrawals = []
+    all_material_returns = []
+
+    for codigo_item, descricao, data_saida, quantidade in material_withdrawal_event_rows:
+        if not codigo_item or not data_saida:
+            continue
+        qty = _as_float(quantidade)
+        material_withdrawals_by_item[codigo_item].append((data_saida, qty))
+        all_material_withdrawals.append((data_saida, qty))
+        if descricao:
+            material_descriptions[codigo_item] = descricao
+
+    for codigo_item, descricao, data_evento, quantidade in material_return_event_rows:
+        if not codigo_item or not data_evento:
+            continue
+        qty = _as_float(quantidade)
+        material_returns_by_item[codigo_item].append((data_evento, qty))
+        all_material_returns.append((data_evento, qty))
+        if descricao:
+            material_descriptions[codigo_item] = descricao
+
     # Consolidacao
     materiais_emps_list = _sort_people(list(materiais_emps.values()))
     ferramentas_emps_list = _sort_people(list(ferramentas_emps.values()))
@@ -910,6 +1061,99 @@ def percentual_movimentos():
     total_materiais_devolucoes_qtd = sum(item.get("devolucoes_qty", 0) for item in devolucoes_materiais.values())
     total_ferramentas_devolucoes_qtd = sum(item.get("devolucoes_qty", 0) for item in devolucoes_ferramentas.values())
 
+    material_forecasts = []
+    now_utc = datetime.utcnow()
+    for codigo_item, withdrawal_events in material_withdrawals_by_item.items():
+        if not withdrawal_events:
+            continue
+
+        item_obj = db.session.get(Item, codigo_item)
+        if not item_obj:
+            continue
+
+        return_events = material_returns_by_item.get(codigo_item, [])
+        first_withdrawal_at = min(event_dt for event_dt, _ in withdrawal_events)
+        rolling_buckets = _build_sequential_buckets(withdrawal_events, return_events, first_withdrawal_at, now_utc, 30)
+        if not rolling_buckets:
+            continue
+
+        bucket_net_values = [bucket["net_qty"] for bucket in rolling_buckets]
+        average_30d = mean(bucket_net_values)
+        std_dev_30d = stdev(bucket_net_values) if len(bucket_net_values) > 1 else 0.0
+        ci_95_low, ci_95_high = _ci_95(average_30d, std_dev_30d)
+        avg_daily = average_30d / 30.0 if average_30d > 0 else 0.0
+        enough_history = len(rolling_buckets) >= 3
+
+        current_stock = _as_float(item_obj.get_saldo_atual())
+        reorder_point = _as_float(item_obj.estoque_minimo)
+        threshold_to_reorder = max(0.0, current_stock - reorder_point)
+        probability_stockout_30d = _probability_stockout(current_stock, average_30d, std_dev_30d) if enough_history else 0.0
+        probability_reorder_30d = (1.0 if current_stock <= reorder_point else _probability_stockout(threshold_to_reorder, average_30d, std_dev_30d)) if enough_history else 0.0
+
+        days_to_zero = (current_stock / avg_daily) if avg_daily > 0 else None
+        days_to_reorder = 0.0 if current_stock <= reorder_point else ((current_stock - reorder_point) / avg_daily if avg_daily > 0 else None)
+
+        reorder_date = (now_utc + timedelta(days=days_to_reorder)).date().isoformat() if days_to_reorder is not None else None
+        stockout_date = (now_utc + timedelta(days=days_to_zero)).date().isoformat() if days_to_zero is not None else None
+
+        material_forecasts.append(
+            {
+                "codigo": codigo_item,
+                "descricao": material_descriptions.get(codigo_item) or item_obj.descricao or "Item sem descrição",
+                "saldo_atual": current_stock,
+                "estoque_minimo": reorder_point,
+                "media_30d": average_30d,
+                "desvio_padrao_30d": std_dev_30d,
+                "ic95_baixo": ci_95_low,
+                "ic95_alto": ci_95_high,
+                "prob_ruptura_30d": probability_stockout_30d,
+                "prob_repor_30d": probability_reorder_30d,
+                "dias_para_ruptura": days_to_zero,
+                "dias_para_reposicao": days_to_reorder,
+                "data_prevista_ruptura": stockout_date,
+                "data_sugerida_pedido": reorder_date,
+                "janelas_30d": len(rolling_buckets),
+                "primeira_retirada": first_withdrawal_at.strftime("%d/%m/%Y"),
+                "confianca_modelo": "Alta" if len(rolling_buckets) >= 6 else "Média" if len(rolling_buckets) >= 3 else "Insuficiente",
+                "historico_suficiente": enough_history,
+            }
+        )
+
+    material_forecasts.sort(
+        key=lambda item: (
+            0 if item.get("historico_suficiente") else 1,
+            -item.get("prob_ruptura_30d", 0),
+            item.get("dias_para_ruptura") if item.get("dias_para_ruptura") is not None else float("inf"),
+            -item.get("media_30d", 0),
+        )
+    )
+
+    eligible_material_forecasts = [item for item in material_forecasts if item.get("historico_suficiente")]
+    top_risk_material = eligible_material_forecasts[0] if eligible_material_forecasts else None
+
+    rolling_30d_materials = []
+    if all_material_withdrawals:
+        overall_first_withdrawal = min(event_dt for event_dt, _ in all_material_withdrawals)
+        rolling_30d_materials = _build_sequential_buckets(
+            all_material_withdrawals,
+            all_material_returns,
+            overall_first_withdrawal,
+            now_utc,
+            30,
+        )
+
+    monthly_materials = _build_monthly_buckets(all_material_withdrawals, all_material_returns)
+    rolling_30d_materials_display = rolling_30d_materials[-12:]
+    monthly_materials_display = monthly_materials[-12:]
+    risk_chart_items = [item for item in eligible_material_forecasts if item.get("prob_ruptura_30d", 0) > 0][:8]
+    forecast_audit = {
+        "materiais_com_historico": len(material_forecasts),
+        "materiais_elegiveis": len(eligible_material_forecasts),
+        "materiais_com_risco": len(risk_chart_items),
+        "janelas_30d_gerais": len(rolling_30d_materials),
+        "meses_gerais": len(monthly_materials),
+    }
+
     chart_data = {
         "overall": {
             "labels": [
@@ -929,6 +1173,24 @@ def percentual_movimentos():
         "employees_tools": _build_pie(ferramentas_emps_list, sum(e.get("movimentos", 0) for e in ferramentas_emps_list), "nome", "movimentos"),
         "items_materials": _build_pie(materiais_itens_list, total_materiais_retiradas, "descricao", "retiradas_count"),
         "items_tools": _build_pie(ferramentas_itens_list, total_ferramentas_retiradas, "descricao", "retiradas_count"),
+        "materials_30d": {
+            "labels": [bucket["label"] for bucket in rolling_30d_materials_display],
+            "withdrawals_qty": [round(bucket["withdrawals_qty"], 2) for bucket in rolling_30d_materials_display],
+            "returns_qty": [round(bucket["returns_qty"], 2) for bucket in rolling_30d_materials_display],
+            "net_qty": [round(bucket["net_qty"], 2) for bucket in rolling_30d_materials_display],
+            "movements_count": [int(bucket["movements_count"]) for bucket in rolling_30d_materials_display],
+        },
+        "materials_monthly": {
+            "labels": [bucket["label"] for bucket in monthly_materials_display],
+            "withdrawals_qty": [round(bucket["withdrawals_qty"], 2) for bucket in monthly_materials_display],
+            "returns_qty": [round(bucket["returns_qty"], 2) for bucket in monthly_materials_display],
+            "net_qty": [round(bucket["net_qty"], 2) for bucket in monthly_materials_display],
+            "movements_count": [int(bucket["movements_count"]) for bucket in monthly_materials_display],
+        },
+        "stockout_risk": {
+            "labels": [item["descricao"][:38] for item in risk_chart_items],
+            "values": [round(item["prob_ruptura_30d"] * 100, 2) for item in risk_chart_items],
+        },
     }
 
     summary = {
@@ -937,6 +1199,10 @@ def percentual_movimentos():
             "retiradas_qty": float(total_materiais_qtd),
             "devolucoes_count": int(total_materiais_devolucoes),
             "devolucoes_qty": float(total_materiais_devolucoes_qtd),
+            "janelas_30d": len(rolling_30d_materials),
+            "meses": len(monthly_materials),
+            "itens_auditados": len(material_forecasts),
+            "itens_elegiveis": len(eligible_material_forecasts),
         },
         "ferramentas": {
             "retiradas_count": int(total_ferramentas_retiradas),
@@ -954,6 +1220,9 @@ def percentual_movimentos():
         ferramentas_emps=ferramentas_emps_list,
         materiais_itens=materiais_itens_list,
         ferramentas_itens=ferramentas_itens_list,
+        material_forecasts=material_forecasts,
+        top_risk_material=top_risk_material,
+        forecast_audit=forecast_audit,
         gerado_em=TimeService.now_local().strftime("%d/%m/%Y %H:%M"),
     )
 

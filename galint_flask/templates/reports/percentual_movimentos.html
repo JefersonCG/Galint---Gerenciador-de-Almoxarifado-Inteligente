@@ -203,6 +203,43 @@
         border-radius: 12px;
         margin: 1rem 0;
     }
+
+    .info-note {
+        margin: 1rem 0 2rem;
+        padding: 1rem 1.25rem;
+        border-radius: 16px;
+        background: linear-gradient(135deg, #eff6ff 0%, #f8fafc 100%);
+        border: 1px solid #bfdbfe;
+        color: #1e3a8a;
+        font-size: 0.92rem;
+    }
+
+    .risk-chip {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 88px;
+        padding: 0.25rem 0.7rem;
+        border-radius: 999px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.03em;
+    }
+
+    .risk-chip.high {
+        background: #fee2e2;
+        color: #b91c1c;
+    }
+
+    .risk-chip.medium {
+        background: #fef3c7;
+        color: #b45309;
+    }
+
+    .risk-chip.low {
+        background: #dcfce7;
+        color: #166534;
+    }
 </style>
 {% endblock %}
 
@@ -210,6 +247,7 @@
 <div class="percent-header">
     <h2>Percentual dos Movimentos do Almoxarifado</h2>
     <small>Ranking de retiradas, devoluções e participação percentual por funcionário, item e categoria.</small>
+    <small>Escalonamento em janelas sequenciais de 30 dias desde a primeira retirada e consolidação mensal.</small>
     <small>Atualizado em {{ gerado_em }}</small>
 </div>
 {% endblock %}
@@ -236,6 +274,31 @@
         <div class="summary-value">{{ "{:,.0f}".format(summary.ferramentas.devolucoes_count) }}</div>
         <div class="summary-meta">Quantidade total: {{ "{:,.2f}".format(summary.ferramentas.devolucoes_qty) }}</div>
     </div>
+    <div class="summary-card">
+        <h6>Janelas de 30 Dias</h6>
+        <div class="summary-value">{{ summary.materiais.janelas_30d }}</div>
+        <div class="summary-meta">Sequência desde a primeira retirada de material.</div>
+    </div>
+    <div class="summary-card">
+        <h6>Meses Consolidados</h6>
+        <div class="summary-value">{{ summary.materiais.meses }}</div>
+        <div class="summary-meta">Movimentações mensais dos materiais.</div>
+    </div>
+    <div class="summary-card">
+        <h6>Maior Risco de Ruptura</h6>
+        <div class="summary-value">{{ "{:.0%}".format(top_risk_material.prob_ruptura_30d) if top_risk_material else "0%" }}</div>
+        <div class="summary-meta">{{ top_risk_material.descricao if top_risk_material else "Sem histórico suficiente" }}</div>
+    </div>
+    <div class="summary-card">
+        <h6>Itens Elegíveis</h6>
+        <div class="summary-value">{{ summary.materiais.itens_elegiveis }}</div>
+        <div class="summary-meta">{{ summary.materiais.itens_auditados }} materiais auditados no total.</div>
+    </div>
+</div>
+
+<div class="info-note">
+    A previsão usa consumo líquido histórico de materiais em janelas sequenciais de 30 dias, desde a primeira retirada de cada item, e apresenta intervalo de confiança estatística de 95%. Isso melhora a previsibilidade, mas não representa garantia de 95% de acerto operacional.
+    Auditoria atual: {{ forecast_audit.materiais_com_historico }} itens com histórico, {{ forecast_audit.materiais_elegiveis }} elegíveis para previsão, {{ forecast_audit.materiais_com_risco }} com risco positivo calculado.
 </div>
 
 <div class="chart-grid">
@@ -283,6 +346,79 @@
         <div class="chart-wrapper">
             <canvas id="chart-items-tools"></canvas>
         </div>
+    </div>
+    <div class="chart-card">
+        <div>
+            <h5>Escalonamento em 30 Dias</h5>
+            <p>Consumo líquido e movimentações em blocos consecutivos de 30 dias desde a primeira retirada.</p>
+        </div>
+        <div class="chart-wrapper">
+            <canvas id="chart-materials-30d"></canvas>
+        </div>
+    </div>
+    <div class="chart-card">
+        <div>
+            <h5>Movimentações Mensais</h5>
+            <p>Retiradas, devoluções e total de movimentos dos materiais por mês.</p>
+        </div>
+        <div class="chart-wrapper">
+            <canvas id="chart-materials-monthly"></canvas>
+        </div>
+    </div>
+    <div class="chart-card">
+        <div>
+            <h5>Probabilidade de Ruptura</h5>
+            <p>Top materiais com maior chance de acabar nos próximos 30 dias.</p>
+        </div>
+        <div class="chart-wrapper">
+            <canvas id="chart-stockout-risk"></canvas>
+        </div>
+    </div>
+</div>
+
+<div class="table-section">
+    <h5>Previsão de Ruptura e Próximo Pedido</h5>
+    <div class="table-responsive">
+        <table class="table table-sm">
+            <thead>
+                <tr>
+                    <th>Material</th>
+                    <th>Código</th>
+                    <th class="text-end">Saldo</th>
+                    <th class="text-end">Mínimo</th>
+                    <th class="text-end">Média 30d</th>
+                    <th class="text-end">IC 95%</th>
+                    <th class="text-end">Ruptura 30d</th>
+                    <th>Risco</th>
+                    <th>Previsão de Ruptura</th>
+                    <th>Próximo Pedido</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if material_forecasts %}
+                {% for row in material_forecasts[:15] %}
+                {% set risk_class = 'high' if row.historico_suficiente and row.prob_ruptura_30d >= 0.7 else 'medium' if row.historico_suficiente and row.prob_ruptura_30d >= 0.35 else 'low' %}
+                <tr>
+                    <td>
+                        <strong>{{ row.descricao }}</strong><br>
+                        <small class="text-muted">1ª retirada: {{ row.primeira_retirada }} | Confiança: {{ row.confianca_modelo }}</small>
+                    </td>
+                    <td><span class="badge-soft">{{ row.codigo }}</span></td>
+                    <td class="text-end">{{ "{:,.2f}".format(row.saldo_atual) }}</td>
+                    <td class="text-end">{{ "{:,.2f}".format(row.estoque_minimo) }}</td>
+                    <td class="text-end">{{ "{:,.2f}".format(row.media_30d) }}</td>
+                    <td class="text-end">{{ "{:,.2f}".format(row.ic95_baixo) }} - {{ "{:,.2f}".format(row.ic95_alto) }}</td>
+                    <td class="text-end">{{ "{:.1%}".format(row.prob_ruptura_30d) if row.historico_suficiente else '--' }}</td>
+                    <td><span class="risk-chip {{ risk_class }}">{{ 'Amostra' if not row.historico_suficiente else 'Alto' if risk_class == 'high' else 'Médio' if risk_class == 'medium' else 'Baixo' }}</span></td>
+                    <td>{{ row.data_prevista_ruptura if row.historico_suficiente else 'Histórico insuficiente' }}</td>
+                    <td>{{ row.data_sugerida_pedido if row.historico_suficiente else 'Acompanhar' }}</td>
+                </tr>
+                {% endfor %}
+                {% else %}
+                <tr><td colspan="10" class="empty-state">Sem histórico suficiente para calcular previsão de ruptura.</td></tr>
+                {% endif %}
+            </tbody>
+        </table>
     </div>
 </div>
 
@@ -471,11 +607,189 @@
             });
         }
 
+        function renderMixedTrend(canvasId, labels, lineDatasets, barDataset) {
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) return;
+            const hasData = (lineDatasets || []).some((dataset) => (dataset.data || []).some((value) => value > 0)) || ((barDataset?.data || []).some((value) => value > 0));
+            if (!hasData) {
+                canvas.parentElement.innerHTML = '<div class="empty-state">Sem dados suficientes.</div>';
+                return;
+            }
+            new Chart(canvas, {
+                data: {
+                    labels,
+                    datasets: [
+                        ...lineDatasets,
+                        barDataset,
+                    ],
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            position: 'left',
+                        },
+                        y1: {
+                            beginAtZero: true,
+                            position: 'right',
+                            grid: {
+                                drawOnChartArea: false,
+                            },
+                        },
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                        },
+                    },
+                },
+            });
+        }
+
+        function renderBar(canvasId, labels, values) {
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) return;
+            const hasData = (values || []).some((value) => value > 0);
+            if (!hasData) {
+                canvas.parentElement.innerHTML = '<div class="empty-state">Sem dados suficientes.</div>';
+                return;
+            }
+            new Chart(canvas, {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: 'Probabilidade (%)',
+                        data: values,
+                        backgroundColor: '#1e3a8a',
+                        borderRadius: 10,
+                    }],
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false,
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `${context.parsed.x.toFixed(2)}%`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            max: 100,
+                        },
+                    },
+                },
+            });
+        }
+
         renderPie('chart-overall', chartData.overall.labels, chartData.overall.values);
         renderPie('chart-emps-materials', chartData.employees_materials.labels, chartData.employees_materials.values);
         renderPie('chart-emps-tools', chartData.employees_tools.labels, chartData.employees_tools.values);
         renderPie('chart-items-materials', chartData.items_materials.labels, chartData.items_materials.values);
         renderPie('chart-items-tools', chartData.items_tools.labels, chartData.items_tools.values);
+
+        renderMixedTrend(
+            'chart-materials-30d',
+            chartData.materials_30d.labels,
+            [
+                {
+                    type: 'line',
+                    label: 'Retiradas',
+                    data: chartData.materials_30d.withdrawals_qty,
+                    borderColor: '#2563eb',
+                    backgroundColor: '#2563eb',
+                    tension: 0.3,
+                    yAxisID: 'y',
+                },
+                {
+                    type: 'line',
+                    label: 'Devoluções',
+                    data: chartData.materials_30d.returns_qty,
+                    borderColor: '#0ea5e9',
+                    backgroundColor: '#0ea5e9',
+                    tension: 0.3,
+                    yAxisID: 'y',
+                },
+                {
+                    type: 'line',
+                    label: 'Consumo líquido',
+                    data: chartData.materials_30d.net_qty,
+                    borderColor: '#1e293b',
+                    backgroundColor: '#1e293b',
+                    tension: 0.3,
+                    yAxisID: 'y',
+                },
+            ],
+            {
+                type: 'bar',
+                label: 'Movimentações',
+                data: chartData.materials_30d.movements_count,
+                backgroundColor: 'rgba(96, 165, 250, 0.28)',
+                borderColor: '#60a5fa',
+                borderWidth: 1,
+                yAxisID: 'y1',
+            }
+        );
+
+        renderMixedTrend(
+            'chart-materials-monthly',
+            chartData.materials_monthly.labels,
+            [
+                {
+                    type: 'line',
+                    label: 'Retiradas',
+                    data: chartData.materials_monthly.withdrawals_qty,
+                    borderColor: '#2563eb',
+                    backgroundColor: '#2563eb',
+                    tension: 0.3,
+                    yAxisID: 'y',
+                },
+                {
+                    type: 'line',
+                    label: 'Devoluções',
+                    data: chartData.materials_monthly.returns_qty,
+                    borderColor: '#0ea5e9',
+                    backgroundColor: '#0ea5e9',
+                    tension: 0.3,
+                    yAxisID: 'y',
+                },
+                {
+                    type: 'line',
+                    label: 'Consumo líquido',
+                    data: chartData.materials_monthly.net_qty,
+                    borderColor: '#1e293b',
+                    backgroundColor: '#1e293b',
+                    tension: 0.3,
+                    yAxisID: 'y',
+                },
+            ],
+            {
+                type: 'bar',
+                label: 'Movimentações',
+                data: chartData.materials_monthly.movements_count,
+                backgroundColor: 'rgba(14, 165, 233, 0.18)',
+                borderColor: '#0ea5e9',
+                borderWidth: 1,
+                yAxisID: 'y1',
+            }
+        );
+
+        renderBar('chart-stockout-risk', chartData.stockout_risk.labels, chartData.stockout_risk.values);
     }());
 </script>
 {% endblock %}
