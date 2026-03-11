@@ -1,6 +1,9 @@
 """Rotas auxiliares: configurações e página sobre."""
 from __future__ import annotations
 
+import html
+import re
+from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -14,6 +17,97 @@ from ..services.network_settings import load_network_settings, save_network_sett
 
 
 blueprint = Blueprint("pages", __name__)
+
+
+def _inline_markdown_to_html(text: str) -> str:
+    escaped = html.escape(text)
+    escaped = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", escaped)
+    escaped = re.sub(r"`([^`]+)`", r"<code>\1</code>", escaped)
+    escaped = re.sub(r"\[(.+?)\]\((.+?)\)", r'<a href="\2">\1</a>', escaped)
+    return escaped
+
+
+def _markdown_file_to_html(file_path: Path) -> str:
+    lines = file_path.read_text(encoding="utf-8").splitlines()
+    parts: list[str] = []
+    in_ul = False
+    in_ol = False
+    in_pre = False
+
+    def close_lists() -> None:
+        nonlocal in_ul, in_ol
+        if in_ul:
+            parts.append("</ul>")
+            in_ul = False
+        if in_ol:
+            parts.append("</ol>")
+            in_ol = False
+
+    for raw_line in lines:
+        line = raw_line.rstrip("\n")
+        stripped = line.strip()
+
+        if stripped.startswith("```"):
+            close_lists()
+            if in_pre:
+                parts.append("</code></pre>")
+                in_pre = False
+            else:
+                parts.append('<pre class="doc-code"><code>')
+                in_pre = True
+            continue
+
+        if in_pre:
+            parts.append(html.escape(line))
+            continue
+
+        if not stripped:
+            close_lists()
+            continue
+
+        if stripped == "---":
+            close_lists()
+            parts.append("<hr>")
+            continue
+
+        if stripped.startswith("### "):
+            close_lists()
+            parts.append(f"<h3>{_inline_markdown_to_html(stripped[4:])}</h3>")
+            continue
+        if stripped.startswith("## "):
+            close_lists()
+            parts.append(f"<h2>{_inline_markdown_to_html(stripped[3:])}</h2>")
+            continue
+        if stripped.startswith("# "):
+            close_lists()
+            parts.append(f"<h1>{_inline_markdown_to_html(stripped[2:])}</h1>")
+            continue
+
+        if re.match(r"^\d+\.\s+", stripped):
+            if not in_ol:
+                close_lists()
+                parts.append('<ol class="doc-list">')
+                in_ol = True
+            item_text = re.sub(r"^\d+\.\s+", "", stripped)
+            parts.append(f"<li>{_inline_markdown_to_html(item_text)}</li>")
+            continue
+
+        if stripped.startswith("- "):
+            if not in_ul:
+                close_lists()
+                parts.append('<ul class="doc-list">')
+                in_ul = True
+            parts.append(f"<li>{_inline_markdown_to_html(stripped[2:])}</li>")
+            continue
+
+        close_lists()
+        parts.append(f"<p>{_inline_markdown_to_html(stripped)}</p>")
+
+    close_lists()
+    if in_pre:
+        parts.append("</code></pre>")
+
+    return "\n".join(parts)
 
 
 def _require_admin() -> None:
@@ -215,3 +309,16 @@ def sobre():
 @login_required
 def documentacao():
     return render_template("documentacao.html")
+
+
+@blueprint.get("/documentacao/percentual-movimentos")
+@login_required
+def documentacao_percentual_movimentos():
+    readme_path = Path(current_app.root_path).parent / "README_PERCENTUAL_MOVIMENTOS.md"
+    if not readme_path.exists():
+        abort(404)
+    content_html = _markdown_file_to_html(readme_path)
+    return render_template(
+        "documentacao_percentual_movimentos.html",
+        content_html=content_html,
+    )

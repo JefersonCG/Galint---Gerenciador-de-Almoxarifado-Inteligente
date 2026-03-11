@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+
+{% block title %}Documentação Percentual Movimentos{% endblock %}
+
+{% block extra_css %}
+<style>
+    .doc-page {
+        max-width: 1080px;
+        margin: 0 auto;
+    }
+
+    .doc-hero {
+        background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 55%, #0ea5e9 100%);
+        color: #fff;
+        border-radius: 24px;
+        padding: 2rem;
+        box-shadow: 0 20px 50px rgba(15, 23, 42, 0.18);
+        margin-bottom: 1.5rem;
+    }
+
+    .doc-hero h2 {
+        margin: 0 0 0.5rem;
+        font-weight: 800;
+    }
+
+    .doc-hero p {
+        margin: 0;
+        color: rgba(255, 255, 255, 0.88);
+    }
+
+    .doc-actions {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        margin-top: 1rem;
+    }
+
+    .doc-shell {
+        background: #fff;
+        border: 1px solid #dbeafe;
+        border-radius: 24px;
+        box-shadow: 0 16px 40px rgba(30, 58, 138, 0.08);
+        padding: 2rem;
+    }
+
+    .doc-content h1,
+    .doc-content h2,
+    .doc-content h3 {
+        color: #0f172a;
+        font-weight: 800;
+        margin-top: 1.6rem;
+    }
+
+    .doc-content h1 { font-size: 2rem; }
+    .doc-content h2 { font-size: 1.45rem; }
+    .doc-content h3 { font-size: 1.1rem; }
+
+    .doc-content p,
+    .doc-content li {
+        color: #334155;
+        line-height: 1.7;
+    }
+
+    .doc-list {
+        padding-left: 1.2rem;
+    }
+
+    .doc-content hr {
+        border: 0;
+        border-top: 1px solid #dbeafe;
+        margin: 1.5rem 0;
+    }
+
+    .doc-content code {
+        background: #eff6ff;
+        color: #1d4ed8;
+        padding: 0.12rem 0.35rem;
+        border-radius: 6px;
+    }
+
+    .doc-code {
+        background: #0f172a;
+        color: #e2e8f0;
+        padding: 1rem;
+        border-radius: 16px;
+        overflow-x: auto;
+    }
+</style>
+{% endblock %}
+
+{% block page_header %}
+<div class="doc-page">
+    <div class="doc-hero">
+        <h2>Documentação da Página Percentual Movimentos</h2>
+        <p>Leitura detalhada da sistemática, cálculos, auditoria, limitações e roadmap da funcionalidade.</p>
+        <div class="doc-actions">
+            <a class="btn btn-light" href="{{ url_for('reports.percentual_movimentos') }}">
+                <i class="bi bi-pie-chart me-2"></i> Abrir a Página
+            </a>
+            <a class="btn btn-outline-light" href="{{ url_for('pages.sobre') }}">
+                <i class="bi bi-info-circle me-2"></i> Voltar para Sobre
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="doc-page">
+    <div class="doc-shell">
+        <article class="doc-content">{{ content_html | safe }}</article>
+    </div>
+</div>
+{% endblock %}

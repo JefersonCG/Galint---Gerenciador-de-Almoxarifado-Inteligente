@@ -91,6 +91,13 @@
                 <i class="bi bi-pie-chart"></i>
                 <span>Percentual Movimentos</span>
             </a>
+            {% if endpoint_exists('pages.documentacao_percentual_movimentos') %}
+            <a class="sidebar-link ps-4 {% if p.startswith(url_for('pages.documentacao_percentual_movimentos')) %}active{% endif %}"
+                href="{{ url_for('pages.documentacao_percentual_movimentos') }}">
+                <i class="bi bi-journal-text"></i>
+                <span>Ajuda Percentual</span>
+            </a>
+            {% endif %}
             {% endif %}
             {% if current_user.is_authenticated and current_user.is_admin %}
             <a class="sidebar-link {% if p.startswith(url_for('users.list_users')) %}active{% endif %}"

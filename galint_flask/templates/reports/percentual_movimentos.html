@@ -240,6 +240,65 @@
         background: #dcfce7;
         color: #166534;
     }
+
+    .context-nav {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        margin: 0 0 1.25rem;
+    }
+
+    .context-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.7rem 1rem;
+        border-radius: 999px;
+        background: #fff;
+        border: 1px solid #bfdbfe;
+        color: #1d4ed8;
+        font-weight: 700;
+        text-decoration: none;
+        box-shadow: 0 8px 20px rgba(30, 58, 138, 0.06);
+    }
+
+    .context-link:hover {
+        background: #eff6ff;
+        color: #1e3a8a;
+    }
+
+    .help-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .help-card {
+        background: #ffffff;
+        border-radius: 20px;
+        border: 1px solid #dbeafe;
+        box-shadow: 0 12px 28px rgba(30, 58, 138, 0.06);
+        padding: 1.25rem;
+    }
+
+    .help-card h6 {
+        color: #0f172a;
+        font-weight: 800;
+        margin-bottom: 0.65rem;
+    }
+
+    .help-card p,
+    .help-card li {
+        color: #475569;
+        font-size: 0.9rem;
+        line-height: 1.6;
+    }
+
+    .help-card ul {
+        padding-left: 1.1rem;
+        margin-bottom: 0;
+    }
 </style>
 {% endblock %}
 
@@ -253,6 +312,16 @@
 {% endblock %}
 
 {% block content %}
+<div class="context-nav">
+    <a class="context-link" href="#secao-ajuda"><i class="bi bi-compass"></i> Guia Rápido</a>
+    <a class="context-link" href="#secao-series"><i class="bi bi-graph-up-arrow"></i> Séries Temporais</a>
+    <a class="context-link" href="#secao-previsao"><i class="bi bi-exclamation-diamond"></i> Previsão</a>
+    <a class="context-link" href="#secao-auditoria"><i class="bi bi-shield-check"></i> Auditoria</a>
+    {% if endpoint_exists('pages.documentacao_percentual_movimentos') %}
+    <a class="context-link" href="{{ url_for('pages.documentacao_percentual_movimentos') }}"><i class="bi bi-journal-text"></i> Documentação Completa</a>
+    {% endif %}
+</div>
+
 <div class="summary-grid">
     <div class="summary-card">
         <h6>Materiais - Retiradas</h6>
@@ -300,6 +369,44 @@
     A previsão usa consumo líquido histórico de materiais em janelas sequenciais de 30 dias, desde a primeira retirada de cada item, e apresenta intervalo de confiança estatística de 95%. Isso melhora a previsibilidade, mas não representa garantia de 95% de acerto operacional.
     Auditoria atual: {{ forecast_audit.materiais_com_historico }} itens com histórico, {{ forecast_audit.materiais_elegiveis }} elegíveis para previsão, {{ forecast_audit.materiais_com_risco }} com risco positivo calculado.
 </div>
+
+<section id="secao-ajuda" class="help-grid">
+    <article class="help-card">
+        <h6>Como Ler os Cards</h6>
+        <ul>
+            <li>Retiradas e devoluções mostram volume consolidado por tipo de item.</li>
+            <li>Janelas de 30 dias usam blocos sequenciais a partir da primeira retirada real.</li>
+            <li>Itens elegíveis mostram quantos materiais têm histórico suficiente para previsão.</li>
+        </ul>
+    </article>
+    <article class="help-card" id="secao-series">
+        <h6>Legenda das Séries</h6>
+        <ul>
+            <li>Retiradas: saída bruta do estoque.</li>
+            <li>Devoluções: retorno registrado via evento de inventário.</li>
+            <li>Consumo líquido: retiradas menos devoluções no mesmo período.</li>
+            <li>Movimentações: quantidade total de registros no bloco.</li>
+        </ul>
+    </article>
+    <article class="help-card" id="secao-previsao">
+        <h6>Como Ler a Previsão</h6>
+        <ul>
+            <li>Média 30d: consumo líquido médio por janela de 30 dias.</li>
+            <li>IC 95%: faixa estatística provável de demanda.</li>
+            <li>Ruptura 30d: chance estimada de o saldo atual não suportar os próximos 30 dias.</li>
+            <li>Próximo pedido: data sugerida para agir antes de atingir o mínimo.</li>
+        </ul>
+    </article>
+    <article class="help-card" id="secao-auditoria">
+        <h6>Regras de Auditoria</h6>
+        <ul>
+            <li>A separação entre materiais e ferramentas é feita pela categoria do item.</li>
+            <li>As retiradas mostradas no painel usam Saida como fonte canônica.</li>
+            <li>Previsão estatística exige pelo menos 3 janelas de 30 dias.</li>
+            <li>Itens sem histórico suficiente continuam auditados, mas não são promovidos ao risco forte.</li>
+        </ul>
+    </article>
+</section>
 
 <div class="chart-grid">
     <div class="chart-card">
