@@ -460,8 +460,18 @@
                     </div>
                     <div class="form-group">
                         <label class="form-label" for="descricao">Produto</label>
-                        <input class="form-control" id="descricao" name="descricao"
-                            value="{{ form_item.descricao if form_item else '' }}" required>
+                        <div class="input-group">
+                            <input class="form-control" id="descricao" name="descricao"
+                                value="{{ form_item.descricao if form_item else '' }}" required>
+                            {% if item %}
+                            <button type="button" class="btn btn-secondary" id="btn-foto-url" title="Buscar foto por URL">
+                                <i class="bi bi-search"></i>
+                            </button>
+                            {% endif %}
+                        </div>
+                        {% if not item %}
+                        <small class="form-text">Salve o item para habilitar a busca de foto por URL.</small>
+                        {% endif %}
                     </div>
                     <div class="form-group">
                         <label class="form-label" for="marca">Marca / Fabricante</label>
@@ -489,6 +499,29 @@
                                accept="image/png,image/jpeg,image/jpg,image/webp,image/gif">
                         <small class="form-text">Formatos: PNG, JPG, WEBP, GIF. Máx: 5MB. A foto aparecerá nos modais de detalhes.</small>
                     </div>
+
+                    {% if item %}
+                    <div class="modal fade" id="modalFotoUrl" tabindex="-1" aria-labelledby="modalFotoUrlLabel" aria-hidden="true">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="modalFotoUrlLabel">Aplicar foto por URL</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <label class="form-label" for="input-foto-url">Cole o link direto da imagem</label>
+                                    <input class="form-control" id="input-foto-url" placeholder="https://site.com/imagem.jpg">
+                                    <small class="form-text">A imagem será baixada, redimensionada e comprimida automaticamente.</small>
+                                    <div class="alert alert-warning mt-3 mb-0" id="alert-foto-url" style="display: none;"></div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                    <button type="button" class="btn btn-primary" id="confirm-foto-url">Aplicar foto</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
                 </div>
 
             <!-- Tab 2: Classificação -->
@@ -1652,5 +1685,87 @@
         // 10. Scroll para o topo
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
+
+    // ==========================================
+    // FOTO POR URL (SEMIAUTOMATICO)
+    // ==========================================
+    const btnFotoUrl = document.getElementById('btn-foto-url');
+    const modalFotoUrlEl = document.getElementById('modalFotoUrl');
+    const inputFotoUrl = document.getElementById('input-foto-url');
+    const alertFotoUrl = document.getElementById('alert-foto-url');
+    const confirmFotoUrl = document.getElementById('confirm-foto-url');
+    const codigoInput = document.getElementById('codigo');
+
+    let modalFotoUrl = null;
+    if (btnFotoUrl && modalFotoUrlEl && window.bootstrap) {
+        modalFotoUrl = new bootstrap.Modal(modalFotoUrlEl);
+        btnFotoUrl.addEventListener('click', () => {
+            if (inputFotoUrl) inputFotoUrl.value = '';
+            if (alertFotoUrl) alertFotoUrl.style.display = 'none';
+            modalFotoUrl.show();
+        });
+    }
+
+    if (confirmFotoUrl) {
+        confirmFotoUrl.addEventListener('click', async () => {
+            const imageUrl = (inputFotoUrl?.value || '').trim();
+            if (!imageUrl) {
+                if (alertFotoUrl) {
+                    alertFotoUrl.textContent = 'Informe a URL da imagem.';
+                    alertFotoUrl.className = 'alert alert-warning mt-3 mb-0';
+                    alertFotoUrl.style.display = 'block';
+                }
+                return;
+            }
+            const codigo = (codigoInput?.value || '').trim();
+            if (!codigo) {
+                if (alertFotoUrl) {
+                    alertFotoUrl.textContent = 'Codigo do item nao identificado.';
+                    alertFotoUrl.className = 'alert alert-danger mt-3 mb-0';
+                    alertFotoUrl.style.display = 'block';
+                }
+                return;
+            }
+            if (confirmFotoUrl) {
+                confirmFotoUrl.disabled = true;
+                confirmFotoUrl.textContent = 'Aplicando...';
+            }
+            try {
+                const payload = new URLSearchParams();
+                payload.append('image_url', imageUrl);
+                const response = await fetch(`/itens/${encodeURIComponent(codigo)}/foto/url`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+                        'Accept': 'application/json'
+                    },
+                    body: payload.toString(),
+                    credentials: 'same-origin'
+                });
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok || data.success === false) {
+                    throw new Error(data.message || `Erro ${response.status}`);
+                }
+                if (alertFotoUrl) {
+                    alertFotoUrl.textContent = 'Foto aplicada com sucesso. Atualizando...';
+                    alertFotoUrl.className = 'alert alert-success mt-3 mb-0';
+                    alertFotoUrl.style.display = 'block';
+                }
+                setTimeout(() => window.location.reload(), 800);
+            } catch (err) {
+                if (alertFotoUrl) {
+                    alertFotoUrl.textContent = err?.message || 'Falha ao aplicar a foto.';
+                    alertFotoUrl.className = 'alert alert-danger mt-3 mb-0';
+                    alertFotoUrl.style.display = 'block';
+                }
+            } finally {
+                if (confirmFotoUrl) {
+                    confirmFotoUrl.disabled = false;
+                    confirmFotoUrl.textContent = 'Aplicar foto';
+                }
+            }
+        });
+    }
+
 </script>
 {% endblock %}

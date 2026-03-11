@@ -520,6 +520,34 @@ def update_item(codigo: str):
     return redirect(url_for("inventory.list_items"))
 
 
+
+
+@blueprint.post("/<codigo>/foto/url")
+@login_required
+def atualizar_foto_por_url(codigo: str):
+    _require_admin()
+    item = Item.query.get(codigo)
+    if not item:
+        return {"success": False, "message": "Item nao encontrado"}, 404
+
+    payload = request.form if request.form else (request.json or {})
+    image_url = (payload.get("image_url") or "").strip()
+    if not image_url:
+        return {"success": False, "message": "URL da imagem nao informada"}, 400
+
+    try:
+        # remover foto anterior (se existir)
+        if item.foto_path:
+            ItemFotoService.deletar_foto(item.foto_path)
+
+        foto_path = ItemFotoService.download_foto_from_url(image_url, codigo)
+        item.foto_path = foto_path
+        db.session.commit()
+        return {"success": True, "message": "Foto atualizada", "foto_path": foto_path}
+    except ValueError as exc:
+        return {"success": False, "message": str(exc)}, 400
+    except Exception:
+        return {"success": False, "message": "Falha inesperada ao atualizar foto"}, 500
 @blueprint.post("/<codigo>/excluir")
 @login_required
 def delete_item(codigo: str):

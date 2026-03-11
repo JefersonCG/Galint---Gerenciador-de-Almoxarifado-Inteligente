@@ -6,6 +6,29 @@ O **GALINT** é um sistema completo para operação de almoxarifado com foco em 
 
 - Página Percentual Movimentos: ver [README_PERCENTUAL_MOVIMENTOS.md](README_PERCENTUAL_MOVIMENTOS.md)
 
+## Atualizacoes realizadas (Hoje)
+
+### Aplicar foto por URL (semiautomatico)
+
+Foi implementado o fluxo semiautomatico para aplicar foto em itens via URL direta da imagem, eliminando o download manual.
+
+**Fluxo:**
+- Botao de busca (lupa) no campo *Produto* ao editar um item
+- Modal para colar a URL da imagem
+- Backend baixa, redimensiona, comprime e salva a foto
+- Foto do item e atualizada automaticamente
+
+**Compressao aplicada:**
+- Redimensionamento para 800x800
+- Conversao para WEBP
+- Qualidade agressiva (60, com reducao automatica se precisar)
+- Limite final de ~200 KB por imagem
+
+**Arquivos impactados:**
+- `galint_flask/services/item_foto_service.py`
+- `galint_flask/views/inventory.py`
+- `galint_flask/templates/inventory/form.html`
+
 ## 🧾 Atualizações realizadas (Hoje)
 
 ### 📈 Página Percentual Movimentos: criação, correções e auditoria
