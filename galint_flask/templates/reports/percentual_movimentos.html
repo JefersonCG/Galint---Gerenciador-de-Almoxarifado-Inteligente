@@ -1,7 +1,7 @@
 
 {% extends "base.html" %}
 
-{% block title %}Percentualidade de Movimentos - GALINT{% endblock %}
+{% block title %}Percentual de Movimentos - GALINT{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -208,8 +208,8 @@
 
 {% block page_header %}
 <div class="percent-header">
-    <h2>Percentualidade dos Movimentos do Almoxarifado</h2>
-    <small>Ranking de retiradas, devolucoes e participacao percentual por funcionario, item e categoria.</small>
+    <h2>Percentual dos Movimentos do Almoxarifado</h2>
+    <small>Ranking de retiradas, devoluções e participação percentual por funcionário, item e categoria.</small>
     <small>Atualizado em {{ gerado_em }}</small>
 </div>
 {% endblock %}
@@ -222,7 +222,7 @@
         <div class="summary-meta">Quantidade total: {{ "{:,.2f}".format(summary.materiais.retiradas_qty) }}</div>
     </div>
     <div class="summary-card">
-        <h6>Materiais - Devolucoes</h6>
+        <h6>Materiais - Devoluções</h6>
         <div class="summary-value">{{ "{:,.0f}".format(summary.materiais.devolucoes_count) }}</div>
         <div class="summary-meta">Quantidade total: {{ "{:,.2f}".format(summary.materiais.devolucoes_qty) }}</div>
     </div>
@@ -232,7 +232,7 @@
         <div class="summary-meta">Quantidade total: {{ "{:,.2f}".format(summary.ferramentas.retiradas_qty) }}</div>
     </div>
     <div class="summary-card">
-        <h6>Ferramentas - Devolucoes</h6>
+        <h6>Ferramentas - Devoluções</h6>
         <div class="summary-value">{{ "{:,.0f}".format(summary.ferramentas.devolucoes_count) }}</div>
         <div class="summary-meta">Quantidade total: {{ "{:,.2f}".format(summary.ferramentas.devolucoes_qty) }}</div>
     </div>
@@ -242,7 +242,7 @@
     <div class="chart-card">
         <div>
             <h5>Movimentos Totais</h5>
-            <p>Percentual geral entre retiradas e devolucoes (materiais e ferramentas).</p>
+            <p>Percentual geral entre retiradas e devoluções de materiais e ferramentas.</p>
         </div>
         <div class="chart-wrapper">
             <canvas id="chart-overall"></canvas>
@@ -250,8 +250,8 @@
     </div>
     <div class="chart-card">
         <div>
-            <h5>Ranking de Funcionarios - Materiais</h5>
-            <p>Participacao percentual por numero de retiradas de materiais.</p>
+            <h5>Ranking de Funcionários - Materiais</h5>
+            <p>Participação percentual por número de retiradas de materiais.</p>
         </div>
         <div class="chart-wrapper">
             <canvas id="chart-emps-materials"></canvas>
@@ -259,8 +259,8 @@
     </div>
     <div class="chart-card">
         <div>
-            <h5>Ranking de Funcionarios - Ferramentas</h5>
-            <p>Participacao percentual por numero de retiradas de ferramentas.</p>
+            <h5>Ranking de Funcionários - Ferramentas</h5>
+            <p>Participação percentual por número de retiradas de ferramentas.</p>
         </div>
         <div class="chart-wrapper">
             <canvas id="chart-emps-tools"></canvas>
@@ -269,7 +269,7 @@
     <div class="chart-card">
         <div>
             <h5>Materiais Mais Retirados</h5>
-            <p>Distribuicao percentual por quantidade de movimentacoes.</p>
+            <p>Distribuição percentual por quantidade de movimentações.</p>
         </div>
         <div class="chart-wrapper">
             <canvas id="chart-items-materials"></canvas>
@@ -278,7 +278,7 @@
     <div class="chart-card">
         <div>
             <h5>Ferramentas Mais Retiradas</h5>
-            <p>Distribuicao percentual por quantidade de movimentacoes.</p>
+            <p>Distribuição percentual por quantidade de movimentações.</p>
         </div>
         <div class="chart-wrapper">
             <canvas id="chart-items-tools"></canvas>
@@ -287,14 +287,14 @@
 </div>
 
 <div class="table-section">
-    <h5>Ranking de Funcionarios - Materiais</h5>
+    <h5>Ranking de Funcionários - Materiais</h5>
     <div class="table-responsive">
         <table class="table table-sm">
             <thead>
                 <tr>
-                    <th>Funcionario</th>
-                    <th>Matricula</th>
-                    <th class="text-end">Movimentacoes</th>
+                    <th>Funcionário</th>
+                    <th>Matrícula</th>
+                    <th class="text-end">Movimentações</th>
                     <th class="text-end">Qtd. Retirada</th>
                 </tr>
             </thead>
@@ -317,14 +317,14 @@
 </div>
 
 <div class="table-section">
-    <h5>Ranking de Funcionarios - Ferramentas</h5>
+    <h5>Ranking de Funcionários - Ferramentas</h5>
     <div class="table-responsive">
         <table class="table table-sm">
             <thead>
                 <tr>
-                    <th>Funcionario</th>
-                    <th>Matricula</th>
-                    <th class="text-end">Movimentacoes</th>
+                    <th>Funcionário</th>
+                    <th>Matrícula</th>
+                    <th class="text-end">Movimentações</th>
                     <th class="text-end">Qtd. Retirada</th>
                 </tr>
             </thead>
@@ -353,10 +353,10 @@
             <thead>
                 <tr>
                     <th>Item</th>
-                    <th>Codigo</th>
+                    <th>Código</th>
                     <th class="text-end">Retiradas</th>
                     <th class="text-end">Qtd. Retirada</th>
-                    <th class="text-end">Devolucoes</th>
+                    <th class="text-end">Devoluções</th>
                     <th class="text-end">Taxa</th>
                 </tr>
             </thead>
@@ -387,10 +387,10 @@
             <thead>
                 <tr>
                     <th>Item</th>
-                    <th>Codigo</th>
+                    <th>Código</th>
                     <th class="text-end">Retiradas</th>
                     <th class="text-end">Qtd. Retirada</th>
-                    <th class="text-end">Devolucoes</th>
+                    <th class="text-end">Devoluções</th>
                     <th class="text-end">Taxa</th>
                 </tr>
             </thead>

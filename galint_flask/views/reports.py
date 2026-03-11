@@ -684,9 +684,9 @@ def index():
 @bp.route("/percentual-movimentos")
 @login_required
 def percentual_movimentos():
-    """Painel de percentualidade e ranking de movimentacoes do almoxarifado."""
+    """Painel de percentualidade e ranking de movimentações do almoxarifado."""
     from ..extensions import db
-    from ..models import InventarioEvento, Item, RetiradaFerramenta, Saida, Usuario
+    from ..models import InventarioEvento, Item, Saida, Usuario
 
     def _merge_employee(target, matricula, nome, movimentos, quantidade):
         key = (matricula or "N/D").strip() or "N/D"
@@ -756,7 +756,7 @@ def percentual_movimentos():
             values.append(restante)
         return {"labels": labels, "values": values}
 
-    tool_filter = or_(func.coalesce(Item.categoria, "").ilike("Ferrament%"), Saida.tipo_custodia.isnot(None))
+    tool_filter = func.coalesce(Item.categoria, "").ilike("Ferrament%")
 
     # Funcionarios (materiais)
     materiais_emps = {}
@@ -776,7 +776,7 @@ def percentual_movimentos():
     for row in materiais_emps_rows:
         _merge_employee(materiais_emps, row[0], row[1], row[2], row[3])
 
-    # Funcionarios (ferramentas) - Saida + RetiradaFerramenta
+    # Funcionários (ferramentas)
     ferramentas_emps = {}
     ferramentas_emps_rows = (
         db.session.query(
@@ -792,20 +792,6 @@ def percentual_movimentos():
         .all()
     )
     for row in ferramentas_emps_rows:
-        _merge_employee(ferramentas_emps, row[0], row[1], row[2], row[3])
-
-    ferramentas_emps_rows_rf = (
-        db.session.query(
-            RetiradaFerramenta.matricula,
-            Usuario.nome,
-            func.count(RetiradaFerramenta.id),
-            func.coalesce(func.sum(RetiradaFerramenta.quantidade), 0),
-        )
-        .join(Usuario, RetiradaFerramenta.matricula == Usuario.matricula, isouter=True)
-        .group_by(RetiradaFerramenta.matricula, Usuario.nome)
-        .all()
-    )
-    for row in ferramentas_emps_rows_rf:
         _merge_employee(ferramentas_emps, row[0], row[1], row[2], row[3])
 
     # Itens (materiais)
@@ -825,7 +811,7 @@ def percentual_movimentos():
     for row in materiais_itens_rows:
         _merge_item(materiais_itens, row[0], row[1], row[2], row[3])
 
-    # Itens (ferramentas) - Saida + RetiradaFerramenta
+    # Itens (ferramentas)
     ferramentas_itens = {}
     ferramentas_itens_rows = (
         db.session.query(
@@ -842,21 +828,7 @@ def percentual_movimentos():
     for row in ferramentas_itens_rows:
         _merge_item(ferramentas_itens, row[0], row[1], row[2], row[3])
 
-    ferramentas_itens_rows_rf = (
-        db.session.query(
-            RetiradaFerramenta.codigo_item,
-            Item.descricao,
-            func.count(RetiradaFerramenta.id),
-            func.coalesce(func.sum(RetiradaFerramenta.quantidade), 0),
-        )
-        .join(Item, RetiradaFerramenta.codigo_item == Item.codigo_item, isouter=True)
-        .group_by(RetiradaFerramenta.codigo_item, Item.descricao)
-        .all()
-    )
-    for row in ferramentas_itens_rows_rf:
-        _merge_item(ferramentas_itens, row[0], row[1], row[2], row[3])
-
-    # Devolucoes por item
+    # Devoluções por item
     devolucoes_materiais = {}
     devolucoes_materiais_rows = (
         db.session.query(
