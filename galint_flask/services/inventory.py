@@ -1131,6 +1131,7 @@ class InventoryService:
 
         db.session.add(evento)
         item.estoque_minimo = _calculate_min_stock(novo_saldo)
+        
         db.session.commit()
         # Notificar administradores apenas quando houver AUMENTO de estoque (entrada)
         # para evitar ruído/confusão com ajustes negativos.

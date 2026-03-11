@@ -132,6 +132,87 @@
         color: #0d6efd;
         font-family: monospace;
     }
+
+    .modal-item-layout {
+        display: grid;
+        grid-template-columns: 96px 1fr;
+        gap: 1rem;
+        align-items: start;
+    }
+
+    .modal-item-photo {
+        width: 96px;
+        height: 96px;
+        border-radius: 12px;
+        object-fit: cover;
+        border: 1px solid #dbe4f0;
+        background: #f8fafc;
+        display: none;
+    }
+
+    .modal-item-photo.show {
+        display: block;
+    }
+
+    .modal-item-photo-empty {
+        width: 96px;
+        height: 96px;
+        border-radius: 12px;
+        border: 1px dashed #cbd5e1;
+        background: #f8fafc;
+        color: #64748b;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+    }
+
+    .modal-item-photo-empty.hide {
+        display: none;
+    }
+
+    .modal-kpi-line {
+        margin: 0.2rem 0;
+        color: #334155;
+    }
+
+    .modal-kpi-line strong {
+        color: #0f172a;
+    }
+
+    .modal-live-summary {
+        background: #f8fafc;
+        border: 1px solid #dbe4f0;
+        border-radius: 10px;
+        padding: 0.85rem 1rem;
+        margin-top: 0.75rem;
+    }
+
+    .modal-live-summary.invalid {
+        background: #fef2f2;
+        border-color: #fecaca;
+    }
+
+    .modal-live-summary .summary-line {
+        margin: 0.15rem 0;
+        color: #334155;
+        font-size: 0.95rem;
+    }
+
+    .modal-live-summary.invalid .summary-line,
+    .modal-live-summary.invalid .summary-warning {
+        color: #b91c1c;
+    }
+
+    .summary-warning {
+        margin-top: 0.45rem;
+        font-size: 0.9rem;
+        display: none;
+    }
+
+    .summary-warning.show {
+        display: block;
+    }
 </style>
 </%block>
 
@@ -181,8 +262,19 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <p class="mb-2">Item: <strong id="modal-item-desc"></strong></p>
-                <p class="mb-3">Unidade: <strong id="modal-item-unidade"></strong></p>
+                <div class="modal-item-layout mb-3">
+                    <div>
+                        <img id="modal-item-photo" class="modal-item-photo" alt="Foto do item">
+                        <div id="modal-item-photo-empty" class="modal-item-photo-empty">
+                            <i class="bi bi-image"></i>
+                        </div>
+                    </div>
+                    <div>
+                        <p class="mb-2">Item: <strong id="modal-item-desc"></strong></p>
+                        <p class="modal-kpi-line">Unidade: <strong id="modal-item-unidade"></strong> <span class="text-muted">|</span> Saldo total: <strong id="modal-saldo-total"></strong></p>
+                        <p class="modal-kpi-line mb-0">Capacidade por embalagem: <strong id="modal-capacidade-embalagem">-</strong></p>
+                    </div>
+                </div>
                 
                 <!-- Opção de escolher entre KG ou LITRO -->
                 <div class="mb-3">
@@ -207,6 +299,11 @@
                         <span class="input-group-text" id="modal-quantidade-unidade">kg</span>
                     </div>
                     <small class="text-muted">Informe o valor pesado na balança <span id="hint-unidade">ou LITRO</span></small>
+                    <div id="modal-live-summary" class="modal-live-summary">
+                        <div class="summary-line">Saldo após retirada: <strong id="modal-saldo-restante">-</strong></div>
+                        <div class="summary-line">Restante estimado: <strong id="modal-restante-embalagens">-</strong></div>
+                        <div id="modal-summary-warning" class="summary-warning">Retirada maior que o saldo disponível.</div>
+                    </div>
                 </div>
             </div>
             <div class="modal-footer">
@@ -252,9 +349,17 @@ ${parent.scripts()}
     const modalQuantidade = new bootstrap.Modal(document.getElementById('modalQuantidade'));
     const modalItemDesc = document.getElementById('modal-item-desc');
     const modalItemUnidade = document.getElementById('modal-item-unidade');
+    const modalSaldoTotal = document.getElementById('modal-saldo-total');
+    const modalCapacidadeEmbalagem = document.getElementById('modal-capacidade-embalagem');
     const modalQuantidadeInput = document.getElementById('modal-quantidade-input');
     const modalQuantidadeUnidade = document.getElementById('modal-quantidade-unidade');
     const btnConfirmarQuantidade = document.getElementById('btn-confirmar-quantidade');
+    const modalItemPhoto = document.getElementById('modal-item-photo');
+    const modalItemPhotoEmpty = document.getElementById('modal-item-photo-empty');
+    const modalLiveSummary = document.getElementById('modal-live-summary');
+    const modalSaldoRestante = document.getElementById('modal-saldo-restante');
+    const modalRestanteEmbalagens = document.getElementById('modal-restante-embalagens');
+    const modalSummaryWarning = document.getElementById('modal-summary-warning');
     
     // Radio buttons de unidade
     const radioKg = document.getElementById('unidade-kg');
@@ -266,6 +371,97 @@ ${parent.scripts()}
         const unidadeSelecionada = document.querySelector('input[name="unidade-tipo"]:checked').value;
         modalQuantidadeUnidade.textContent = unidadeSelecionada === 'kg' ? 'kg' : 'L';
         hintUnidade.textContent = unidadeSelecionada === 'kg' ? 'ou LITRO' : 'ou KG';
+        atualizarResumoRetirada();
+    }
+
+    function formatDecimal(value) {
+        const number = Number(value || 0);
+        if (!Number.isFinite(number)) return '0';
+        return number.toLocaleString('pt-BR', {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 3
+        });
+    }
+
+    function pluralizePackage(count, singular, plural) {
+        return Math.abs(Number(count || 0) - 1) < 0.000001 ? singular : plural;
+    }
+
+    function buildRestanteEmbalagens(item, remainingBase) {
+        const capacidade = Number(item.packageCapacity || 0);
+        const singular = String(item.packageName || 'embalagem');
+        const plural = String(item.packagePlural || 'embalagens');
+        const unidade = String(item.displayUnit || 'L');
+
+        if (!(capacidade > 0)) {
+            return formatDecimal(Math.max(0, remainingBase)) + ' ' + unidade;
+        }
+
+        const embalagensInteiras = Math.floor(Math.max(0, remainingBase) / capacidade + 0.0000001);
+        const sobra = Math.max(0, remainingBase - (embalagensInteiras * capacidade));
+
+        if (embalagensInteiras <= 0 && sobra <= 0.000001) {
+            return 'Sem saldo restante';
+        }
+        if (embalagensInteiras > 0 && sobra > 0.000001) {
+            return formatDecimal(embalagensInteiras) + ' ' + pluralizePackage(embalagensInteiras, singular, plural) + ' + ' + formatDecimal(sobra) + ' ' + unidade;
+        }
+        if (embalagensInteiras > 0) {
+            return formatDecimal(embalagensInteiras) + ' ' + pluralizePackage(embalagensInteiras, singular, plural);
+        }
+        return formatDecimal(sobra) + ' ' + unidade;
+    }
+
+    function atualizarResumoRetirada() {
+        if (!pendingItem) {
+            modalSaldoRestante.textContent = '-';
+            modalRestanteEmbalagens.textContent = '-';
+            modalLiveSummary.classList.remove('invalid');
+            modalSummaryWarning.classList.remove('show');
+            btnConfirmarQuantidade.disabled = false;
+            return;
+        }
+
+        const retirado = parseFloat(modalQuantidadeInput.value || '0');
+        const saldoTotal = Number(pendingItem.totalBase || 0);
+        const remainingBase = saldoTotal - (Number.isFinite(retirado) ? retirado : 0);
+        const displayUnit = String(pendingItem.displayUnit || 'L');
+        const isInvalid = remainingBase < -0.000001;
+
+        modalSaldoRestante.textContent = formatDecimal(Math.max(0, remainingBase)) + ' ' + displayUnit;
+        modalRestanteEmbalagens.textContent = buildRestanteEmbalagens(pendingItem, remainingBase);
+        modalLiveSummary.classList.toggle('invalid', isInvalid);
+        modalSummaryWarning.classList.toggle('show', isInvalid);
+
+        if (isInvalid) {
+            btnConfirmarQuantidade.disabled = true;
+        } else if (CAN_MANAGE) {
+            btnConfirmarQuantidade.disabled = false;
+        }
+    }
+
+    function mostrarPlaceholderFoto() {
+        modalItemPhoto.removeAttribute('src');
+        modalItemPhoto.classList.remove('show');
+        modalItemPhotoEmpty.classList.remove('hide');
+    }
+
+    function exibirFotoItem(url) {
+        if (!url) {
+            mostrarPlaceholderFoto();
+            return;
+        }
+
+        modalItemPhoto.onload = function() {
+            modalItemPhoto.classList.add('show');
+            modalItemPhotoEmpty.classList.add('hide');
+        };
+
+        modalItemPhoto.onerror = function() {
+            mostrarPlaceholderFoto();
+        };
+
+        modalItemPhoto.src = url + (url.includes('?') ? '&' : '?') + 'v=' + Date.now();
     }
     
     radioKg.addEventListener('change', atualizarUnidadeModal);
@@ -561,23 +757,28 @@ ${parent.scripts()}
                 throw new Error('Item não encontrado');
             }
             
-            // Verificar se é item fracionável (Lata, Rolo, Pacote, Caixa, Litro)
-            const tiposFracionaveis = ['lata', 'rolo', 'pacote', 'caixa', 'litro'];
-            if (data.tipo_embalagem_novo && tiposFracionaveis.includes(data.tipo_embalagem_novo.toLowerCase())) {
+            if (data.permite_saida_fracionada) {
                 // Abre modal para entrada manual
                 pendingItem = {
                     codigo: codigo,
                     descricao: data.descricao,
-                    unidade: data.unidade || 'un',
+                    unidade: data.nome_embalagem || data.unidade || 'un',
                     usuario: usuario,
-                    local: local
+                    local: local,
+                    defaultFractionUnit: String(data.fracao_unidade_padrao || '').toLowerCase(),
+                    totalBase: Number(data.saldo_total_fracionado || data.saldo || 0),
+                    displayUnit: String(data.unidade_exibicao_total || 'L'),
+                    packageCapacity: Number(data.capacidade_embalagem || 0),
+                    packageName: String(data.nome_embalagem || 'embalagem'),
+                    packagePlural: String(data.nome_embalagem_plural || 'embalagens'),
+                    fotoUrl: data.foto_url || null
                 };
                 
                 mostrarModalQuantidade(pendingItem);
                 
             } else {
                 // Item não fracionável - não pode usar esta tela
-                alert('Este item não requer entrada fracionada. Use a tela de "Registro de Saída" normal.');
+                alert('Este item não requer saída fracionada. Use a tela de "Registro de Saída" normal.');
                 inputCodigo.value = '';
                 inputCodigo.focus();
             }
@@ -594,10 +795,18 @@ ${parent.scripts()}
         modalItemDesc.textContent = item.descricao;
         modalItemUnidade.textContent = item.unidade;
         modalQuantidadeInput.value = '';
+        modalSaldoTotal.textContent = formatDecimal(item.totalBase) + ' ' + item.displayUnit;
+        modalCapacidadeEmbalagem.textContent = item.packageCapacity > 0
+            ? formatDecimal(item.packageCapacity) + ' ' + item.displayUnit + ' por ' + item.packageName
+            : '-';
+
+        exibirFotoItem(item.fotoUrl);
         
-        // Resetar para KG por padrão
-        radioKg.checked = true;
+        const defaultUnit = String(item.defaultFractionUnit || '').toLowerCase();
+        radioKg.checked = defaultUnit !== 'litro';
+        radioLitro.checked = defaultUnit === 'litro';
         atualizarUnidadeModal();
+        atualizarResumoRetirada();
         
         modalQuantidade.show();
         
@@ -616,6 +825,12 @@ ${parent.scripts()}
         
         if (!quantidade || quantidade <= 0) {
             alert('Informe uma quantidade válida maior que zero');
+            modalQuantidadeInput.focus();
+            return;
+        }
+
+        if (pendingItem && quantidade > Number(pendingItem.totalBase || 0)) {
+            alert('A retirada informada excede o saldo disponível do item.');
             modalQuantidadeInput.focus();
             return;
         }
@@ -694,6 +909,8 @@ ${parent.scripts()}
             btnConfirmarQuantidade.click();
         }
     });
+
+    modalQuantidadeInput.addEventListener('input', atualizarResumoRetirada);
     
     // Foco inicial
     inputUsuario.focus();

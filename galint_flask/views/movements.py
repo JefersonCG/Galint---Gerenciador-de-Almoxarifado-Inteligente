@@ -105,6 +105,25 @@ LIQUID_PRODUCT_TYPES: list[dict[str, Any]] = [
 
 LIQUID_PRODUCT_TYPES_BY_ID = {entry["id"]: entry for entry in LIQUID_PRODUCT_TYPES}
 LIQUID_FRACTIONS: list[tuple[int, int]] = [(1, divisor) for divisor in range(2, 21)]
+FRACTIONABLE_PACKAGING_TYPES = {"lata", "rolo", "pacote", "caixa", "litro", "balde"}
+FRACTIONABLE_LIQUID_HINTS = (
+    "tinta",
+    "resina",
+    "verniz",
+    "solvente",
+    "thinner",
+    "selador",
+    "impermeabilizante",
+    "esmalte",
+)
+FRACTIONABLE_WEIGHT_HINTS = (
+    "massa",
+    "argamassa",
+    "rejunte",
+    "cloro",
+    "cimento",
+    "gesso",
+)
 
 
 def _require_admin() -> None:
@@ -148,6 +167,145 @@ def _infer_unidade(unidade: str | None) -> str:
     if re.search(r"\b(kg|quilo|quilos)\b", normalized):
         return "quilo"
     return normalized
+
+
+def _as_positive_float(value: Any) -> float:
+    try:
+        parsed = float(value or 0)
+    except (TypeError, ValueError):
+        return 0.0
+    return parsed if parsed > 0 else 0.0
+
+
+def _extract_measurement_from_text(text: str, unit_pattern: str) -> float:
+    if not text:
+        return 0.0
+    match = re.search(rf"(\d+(?:[.,]\d+)?)\s*({unit_pattern})\b", text)
+    if not match:
+        return 0.0
+    raw_value = match.group(1).replace(",", ".")
+    try:
+        return float(raw_value)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _infer_package_name(item: dict[str, Any]) -> str:
+    tipo_embalagem = _normalize_text(item.get("tipo_embalagem_novo"))
+    unidade = _normalize_text(item.get("unidade"))
+    descricao = _normalize_text(item.get("descricao"))
+    if tipo_embalagem in FRACTIONABLE_PACKAGING_TYPES:
+        return tipo_embalagem
+    if unidade in FRACTIONABLE_PACKAGING_TYPES:
+        return unidade
+    for candidate in ("lata", "balde", "rolo", "pacote", "caixa"):
+        if candidate in descricao:
+            return candidate
+    if "tinta" in descricao or "resina" in descricao or "verniz" in descricao:
+        return "lata"
+    return "embalagem"
+
+
+def _pluralize_package_name(package_name: str) -> str:
+    package_name = _normalize_text(package_name)
+    mapping = {
+        "lata": "latas",
+        "balde": "baldes",
+        "rolo": "rolos",
+        "pacote": "pacotes",
+        "caixa": "caixas",
+        "litro": "litros",
+        "embalagem": "embalagens",
+    }
+    return mapping.get(package_name, f"{package_name}s" if package_name else "embalagens")
+
+
+def _infer_package_capacity(item: dict[str, Any], *, fractional_info: dict[str, Any]) -> float:
+    unidades_por_embalagem = _as_positive_float(item.get("unidades_por_embalagem"))
+    if unidades_por_embalagem > 0:
+        return unidades_por_embalagem
+
+    litros_por_embalagem = _as_positive_float(item.get("litros_por_embalagem"))
+    if litros_por_embalagem > 0:
+        return litros_por_embalagem
+
+    grandeza_referencia = _as_positive_float(item.get("grandeza_referencia"))
+    if grandeza_referencia > 0:
+        return grandeza_referencia
+
+    texto = f"{_normalize_text(item.get('descricao'))} {_normalize_text(item.get('categoria'))}".strip()
+    default_unit = _normalize_text(fractional_info.get("default_unit"))
+    if default_unit == "litro":
+        return _extract_measurement_from_text(texto, r"l|lt|lts|litro|litros")
+    if default_unit == "quilo":
+        return _extract_measurement_from_text(texto, r"kg|quilo|quilos")
+    return 0.0
+
+
+def _infer_fractional_item(item: dict[str, Any]) -> dict[str, Any]:
+    tipo_embalagem = _normalize_text(item.get("tipo_embalagem_novo"))
+    descricao = _normalize_text(item.get("descricao"))
+    categoria = _normalize_text(item.get("categoria"))
+    unidade = _infer_unidade(item.get("unidade"))
+    grandeza_referencia = _as_positive_float(item.get("grandeza_referencia"))
+    litros_por_embalagem = _as_positive_float(item.get("litros_por_embalagem"))
+    texto = f"{categoria} {descricao}".strip()
+
+    liquid_type = _detect_liquid_type(categoria=item.get("categoria"), descricao=item.get("descricao"))
+    if liquid_type:
+        return {
+            "enabled": True,
+            "default_unit": liquid_type.get("default_unit") or "litro",
+            "source": "liquid_type",
+        }
+
+    if tipo_embalagem in FRACTIONABLE_PACKAGING_TYPES:
+        default_unit = "litro" if tipo_embalagem == "litro" or litros_por_embalagem > 0 else "quilo"
+        if tipo_embalagem == "rolo":
+            default_unit = unidade or "quilo"
+        return {
+            "enabled": True,
+            "default_unit": default_unit,
+            "source": "tipo_embalagem_novo",
+        }
+
+    if litros_por_embalagem > 0:
+        return {
+            "enabled": True,
+            "default_unit": "litro",
+            "source": "litros_por_embalagem",
+        }
+
+    if grandeza_referencia > 0:
+        return {
+            "enabled": True,
+            "default_unit": "quilo",
+            "source": "grandeza_referencia",
+        }
+
+    if re.search(r"\b\d+(?:[.,]\d+)?\s*(l|lt|lts|litro|litros)\b", texto) and any(
+        hint in texto for hint in FRACTIONABLE_LIQUID_HINTS
+    ):
+        return {
+            "enabled": True,
+            "default_unit": "litro",
+            "source": "descricao_liquida",
+        }
+
+    if re.search(r"\b\d+(?:[.,]\d+)?\s*(kg|quilo|quilos)\b", texto) and any(
+        hint in texto for hint in FRACTIONABLE_WEIGHT_HINTS
+    ):
+        return {
+            "enabled": True,
+            "default_unit": "quilo",
+            "source": "descricao_pesavel",
+        }
+
+    return {
+        "enabled": False,
+        "default_unit": "quilo",
+        "source": None,
+    }
 
 
 def _resolve_usuario(identificador: str | None):
@@ -539,8 +697,15 @@ def item_info(codigo: str):
     item = inventory_service.get_item(codigo)
     if not item:
         return jsonify({"found": False}), 404
+    item_model = db.session.get(Item, codigo)
     
     liquid_type = _detect_liquid_type(categoria=item.get("categoria"), descricao=item.get("descricao"))
+    fractional_info = _infer_fractional_item(item)
+    package_name = _infer_package_name(item)
+    package_capacity = _infer_package_capacity(item, fractional_info=fractional_info)
+    package_name_plural = _pluralize_package_name(package_name)
+    saldo_total = _as_positive_float(item.get("saldo"))
+    foto_path = item.get("foto_path")
     response = {
         "found": True,
         "codigo": codigo,
@@ -548,10 +713,22 @@ def item_info(codigo: str):
         "categoria": item.get("categoria"),
         "unidade": item.get("unidade"),
         "saldo": item.get("saldo"),
+        "saldo_total_fracionado": saldo_total,
         "tipo_embalagem_novo": item.get("tipo_embalagem_novo"),
         "unidades_por_embalagem": item.get("unidades_por_embalagem"),
         "grandeza_referencia": item.get("grandeza_referencia"),
-        "litros_por_embalagem": item.get("litros_por_embalagem")
+        "litros_por_embalagem": item.get("litros_por_embalagem"),
+        "saldo_embalagens": item.get("saldo_embalagens"),
+        "saldo_unidades_soltas": item.get("saldo_unidades_soltas"),
+        "permite_saida_fracionada": bool(fractional_info.get("enabled")),
+        "fracao_unidade_padrao": fractional_info.get("default_unit"),
+        "fracao_origem": fractional_info.get("source"),
+        "nome_embalagem": item_model.get_nome_embalagem() if item_model and item_model.tipo_embalagem_novo else package_name,
+        "nome_embalagem_plural": item_model.get_nome_embalagem_plural() if item_model and item_model.tipo_embalagem_novo else package_name_plural,
+        "capacidade_embalagem": package_capacity,
+        "unidade_exibicao_total": "L" if _normalize_text(fractional_info.get("default_unit")) == "litro" else "kg",
+        "foto_path": foto_path,
+        "foto_url": url_for("static", filename=foto_path) if foto_path else None,
     }
     if liquid_type:
         response.update(

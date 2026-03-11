@@ -58,7 +58,6 @@ def start_restore_job(
 
     restore_callable: função que recebe um callback reporter(progress, message).
     """
-
     with _lock:
         if _active_restore_job_id:
             existing = _jobs.get(_active_restore_job_id)

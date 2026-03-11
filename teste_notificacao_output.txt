@@ -1,0 +1,20 @@
+📥 <b>AJUSTE DE ESTOQUE - ENTRADA MANUAL</b>
+
+📦 <b>TINTA BRANCA EMBORRACHADA METALEX 18Litros</b>
+🏷️ Código: <code>7891323113965</code>
+📂 Categoria: Mat. Pintura e Drywall
+🏭 Marca: SHERWIN WILLIAMS
+
+━━━━━━━━━━━━━━━━━
+
+📊 <b>MOVIMENTAÇÃO</b>
+├─ Saldo anterior: <b>2</b> latas
+├─ Variação: <b>+0</b> latas 📈
+└─ Saldo atual: <b>2</b> latas
+
+📦 <b>Estoque físico:</b> 2 latas + 16 Litros
+💧 Saldo total em Litros: 52L
+
+👤 <b>Responsável:</b> JEFERSON DOS SANTOS (Mat. 9840737226325)
+📝 <b>Motivo:</b> Ajuste manual via edição do item (saldo em embalagens)
+⏰ <b>Data/Hora:</b> 09/03/2026 17:16

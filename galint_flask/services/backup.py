@@ -509,13 +509,15 @@ class BackupService:
 
         try:
             with engine.begin() as conn:
-                for index, table in enumerate(order):
+                total_tables = len([t for t in order if tables.get(t)])
+                processed = 0
+                for table in order:
                     rows = tables.get(table) or []
                     if not rows:
                         continue
 
-                    base_progress = 85 + int((index * 12) / max(1, len(order)))  # 85..97
-                    _hb(base_progress, f"Reaplicando movimentos: {table}...")
+                    base_progress = 85 + int((processed * 12) / max(1, total_tables))  # 85..97
+                    _hb(base_progress, f"Reaplicando movimentos: {table}... ({len(rows)} linhas)")
 
                     cols = list(rows[0].keys())
                     columns = ", ".join(cols)
@@ -524,17 +526,16 @@ class BackupService:
                     on_conflict = f" ON CONFLICT ({pk}) DO NOTHING" if pk else ""
                     stmt = text(f"INSERT INTO {table} ({columns}) VALUES ({values}){on_conflict}")
 
-                    applied = 0
                     for start in range(0, len(rows), batch_size):
                         chunk = rows[start : start + batch_size]
                         conn.execute(stmt, chunk)
-                        applied += len(chunk)
+                        applied = min(start + len(chunk), len(rows))
                         _hb(base_progress, f"Reaplicando movimentos: {table}... ({applied}/{len(rows)})")
                         if applied % (batch_size * 5) == 0:
                             time.sleep(0)
 
-            # Ajustar sequências para evitar conflitos futuros
-                # Ajustar sequências para evitar conflitos futuros
+                    processed += 1
+
                 _hb(98, "Ajustando sequências...")
                 for table, pk in pks.items():
                     seq_stmt = text(

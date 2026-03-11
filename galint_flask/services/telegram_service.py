@@ -5495,21 +5495,54 @@ class TelegramService:
         descricao = getattr(evento, "descricao", "") or ""
         saldo_anterior = None
         saldo_novo = None
+        saldo_anterior_embalagens = None
+        saldo_novo_embalagens = None
+
+        # Detectar se é ajuste em embalagens antes de parsear valores
+        ajuste_em_embalagens = "saldo em embalagens" in descricao.lower()
 
         # Parsear "de X para Y" da descrição (suporta float)
         import re
 
-        match = re.search(
-            r"de\s+([0-9]+(?:\.[0-9]+)?)\s+para\s+([0-9]+(?:\.[0-9]+)?)",
-            descricao,
-        )
-        if match:
-            try:
-                saldo_anterior = float(match.group(1))
-                saldo_novo = float(match.group(2))
-            except Exception:
-                saldo_anterior = None
-                saldo_novo = None
+        if ajuste_em_embalagens:
+            # Para ajustes em embalagens, parsear o primeiro "de X para Y" que são as embalagens
+            match = re.search(
+                r"de\s+([0-9]+(?:\.[0-9]+)?)\s+para\s+([0-9]+(?:\.[0-9]+)?)",
+                descricao,
+            )
+            if match:
+                try:
+                    saldo_anterior_embalagens = float(match.group(1))
+                    saldo_novo_embalagens = float(match.group(2))
+                except Exception:
+                    pass
+            # Buscar todos os matches
+            all_matches = list(re.finditer(
+                r"de\s+([0-9]+(?:\.[0-9]+)?)\s+para\s+([0-9]+(?:\.[0-9]+)?)",
+                descricao,
+            ))
+            # Se houver 2+ matches, o último é o total em litros
+            # Formato típico: "de X para Y: de A para B" (embalagens) + (total)
+            # Formato com soltas: "de X para Y | soltas: de A para B: de C para D" (emb) + (soltas) + (total)
+            if len(all_matches) >= 2:
+                # Último match = total em litros
+                try:
+                    saldo_anterior = float(all_matches[-1].group(1))
+                    saldo_novo = float(all_matches[-1].group(2))
+                except Exception:
+                    pass
+        else:
+            match = re.search(
+                r"de\s+([0-9]+(?:\.[0-9]+)?)\s+para\s+([0-9]+(?:\.[0-9]+)?)",
+                descricao,
+            )
+            if match:
+                try:
+                    saldo_anterior = float(match.group(1))
+                    saldo_novo = float(match.group(2))
+                except Exception:
+                    saldo_anterior = None
+                    saldo_novo = None
 
         quantidade = float(getattr(evento, "quantidade", 0) or 0)
 
@@ -5586,8 +5619,8 @@ class TelegramService:
                 EmbalagemService = None
                 tem_emb = False
 
-            # Caso especial: ajuste via edição do item em "saldo em embalagens" — os números do texto são embalagens.
-            ajuste_em_embalagens = "saldo em embalagens" in (descricao or "").lower()
+            # Caso especial: ajuste via edição do item em "saldo em embalagens" — os números representam embalagens.
+            # ajuste_em_embalagens já foi detectado anteriormente no parsing
             if tem_emb and ajuste_em_embalagens and EmbalagemService:
                 nome_emb_sing = (
                     item.get_nome_embalagem() if hasattr(item, "get_nome_embalagem") else (item.tipo_embalagem_novo or "embalagem")
@@ -5599,10 +5632,16 @@ class TelegramService:
                 def _nome(q: float) -> str:
                     return nome_emb_sing if abs(float(q) - 1.0) < 1e-9 else nome_emb_pl
 
-                variacao_emb = float(saldo_novo) - float(saldo_anterior)
-                message_text += f"├─ Saldo anterior: <b>{saldo_anterior:g}</b> {_nome(saldo_anterior)}\n"
-                message_text += f"├─ Variação: <b>{variacao_emb:+g}</b> {_nome(variacao_emb)} {variacao_icon}\n"
-                message_text += f"└─ Saldo atual: <b>{saldo_novo:g}</b> {_nome(saldo_novo)}\n"
+                # Usar os valores parseados de embalagens, se disponíveis
+                if saldo_anterior_embalagens is not None and saldo_novo_embalagens is not None:
+                    variacao_emb = float(saldo_novo_embalagens) - float(saldo_anterior_embalagens)
+                    message_text += f"├─ Saldo anterior: <b>{saldo_anterior_embalagens:g}</b> {_nome(saldo_anterior_embalagens)}\n"
+                    message_text += f"├─ Variação: <b>{variacao_emb:+g}</b> {_nome(variacao_emb)} {variacao_icon}\n"
+                    message_text += f"└─ Saldo atual: <b>{saldo_novo_embalagens:g}</b> {_nome(saldo_novo_embalagens)}\n"
+                else:
+                    # Fallback: usar estoque_embalagens atual
+                    emb_atual = item.estoque_embalagens or 0
+                    message_text += f"└─ Saldo atual: <b>{emb_atual:g}</b> {_nome(emb_atual)}\n"
 
                 try:
                     estoque_fisico = EmbalagemService.formatar_estoque(item)
