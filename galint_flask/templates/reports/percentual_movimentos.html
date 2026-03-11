@@ -1,0 +1,481 @@
+
+{% extends "base.html" %}
+
+{% block title %}Percentualidade de Movimentos - GALINT{% endblock %}
+
+{% block extra_css %}
+<style>
+    .percent-header {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .percent-header h2 {
+        margin: 0;
+        font-weight: 700;
+        color: #0f172a;
+        background: linear-gradient(135deg, #1e3a8a 0%, #0ea5e9 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    .percent-header small {
+        color: #475569;
+    }
+
+    .summary-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 1.25rem;
+        margin-bottom: 2rem;
+    }
+
+    .summary-card {
+        background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
+        border-radius: 20px;
+        padding: 1.5rem 1.75rem;
+        box-shadow: 0 10px 25px rgba(30, 58, 138, 0.15), 0 2px 8px rgba(0, 0, 0, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .summary-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 120px;
+        height: 120px;
+        background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+        border-radius: 50%;
+        transform: translate(40%, -40%);
+    }
+
+    .summary-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 15px 35px rgba(30, 58, 138, 0.2), 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .summary-card h6 {
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        font-size: 0.7rem;
+        color: rgba(255, 255, 255, 0.75);
+        margin-bottom: 0.75rem;
+        font-weight: 600;
+    }
+
+    .summary-value {
+        font-size: 2rem;
+        font-weight: 800;
+        color: #ffffff;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        position: relative;
+        z-index: 1;
+    }
+
+    .summary-meta {
+        color: rgba(255, 255, 255, 0.8);
+        font-size: 0.85rem;
+        margin-top: 0.5rem;
+        position: relative;
+        z-index: 1;
+    }
+
+    .chart-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .chart-card {
+        background: #ffffff;
+        border-radius: 20px;
+        padding: 1.5rem;
+        border: 2px solid #e0e7ff;
+        box-shadow: 0 8px 20px rgba(30, 58, 138, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04);
+        min-height: 380px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    }
+
+    .chart-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 12px 28px rgba(30, 58, 138, 0.12), 0 4px 8px rgba(0, 0, 0, 0.06);
+        border-color: #c7d2fe;
+    }
+
+    .chart-card h5 {
+        margin-bottom: 0.5rem;
+        font-weight: 700;
+        color: #1e3a8a;
+        font-size: 1.1rem;
+    }
+
+    .chart-card p {
+        color: #475569;
+        font-size: 0.85rem;
+        margin-bottom: 1rem;
+        line-height: 1.5;
+    }
+
+    .chart-wrapper {
+        position: relative;
+        height: 240px;
+    }
+
+    .table-section {
+        background: #ffffff;
+        border-radius: 20px;
+        padding: 1.75rem;
+        border: 2px solid #e0e7ff;
+        box-shadow: 0 8px 20px rgba(30, 58, 138, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04);
+        margin-bottom: 1.75rem;
+        transition: box-shadow 0.2s ease;
+    }
+
+    .table-section:hover {
+        box-shadow: 0 12px 28px rgba(30, 58, 138, 0.12), 0 4px 8px rgba(0, 0, 0, 0.06);
+    }
+
+    .table-section h5 {
+        font-weight: 700;
+        color: #1e3a8a;
+        margin-bottom: 1rem;
+        font-size: 1.15rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 2px solid #e0e7ff;
+    }
+
+    .table-section .table {
+        margin-bottom: 0;
+    }
+
+    .table-section .table thead th {
+        background: linear-gradient(135deg, #f1f5f9 0%, #e0e7ff 100%);
+        color: #1e3a8a;
+        font-weight: 600;
+        border: none;
+        padding: 0.85rem 1rem;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .table-section .table tbody tr {
+        transition: background-color 0.15s ease;
+    }
+
+    .table-section .table tbody tr:hover {
+        background-color: #f8fafc;
+    }
+
+    .table-section .table tbody td {
+        padding: 0.9rem 1rem;
+        color: #0f172a;
+        border-color: #e0e7ff;
+    }
+
+    .badge-soft {
+        background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+        color: #1e40af;
+        font-weight: 600;
+        border-radius: 999px;
+        padding: 0.25rem 0.75rem;
+        font-size: 0.75rem;
+        border: 1px solid #93c5fd;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 3rem 1rem;
+        color: #64748b;
+        font-style: italic;
+        background: #f8fafc;
+        border-radius: 12px;
+        margin: 1rem 0;
+    }
+</style>
+{% endblock %}
+
+{% block page_header %}
+<div class="percent-header">
+    <h2>Percentualidade dos Movimentos do Almoxarifado</h2>
+    <small>Ranking de retiradas, devolucoes e participacao percentual por funcionario, item e categoria.</small>
+    <small>Atualizado em {{ gerado_em }}</small>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="summary-grid">
+    <div class="summary-card">
+        <h6>Materiais - Retiradas</h6>
+        <div class="summary-value">{{ "{:,.0f}".format(summary.materiais.retiradas_count) }}</div>
+        <div class="summary-meta">Quantidade total: {{ "{:,.2f}".format(summary.materiais.retiradas_qty) }}</div>
+    </div>
+    <div class="summary-card">
+        <h6>Materiais - Devolucoes</h6>
+        <div class="summary-value">{{ "{:,.0f}".format(summary.materiais.devolucoes_count) }}</div>
+        <div class="summary-meta">Quantidade total: {{ "{:,.2f}".format(summary.materiais.devolucoes_qty) }}</div>
+    </div>
+    <div class="summary-card">
+        <h6>Ferramentas - Retiradas</h6>
+        <div class="summary-value">{{ "{:,.0f}".format(summary.ferramentas.retiradas_count) }}</div>
+        <div class="summary-meta">Quantidade total: {{ "{:,.2f}".format(summary.ferramentas.retiradas_qty) }}</div>
+    </div>
+    <div class="summary-card">
+        <h6>Ferramentas - Devolucoes</h6>
+        <div class="summary-value">{{ "{:,.0f}".format(summary.ferramentas.devolucoes_count) }}</div>
+        <div class="summary-meta">Quantidade total: {{ "{:,.2f}".format(summary.ferramentas.devolucoes_qty) }}</div>
+    </div>
+</div>
+
+<div class="chart-grid">
+    <div class="chart-card">
+        <div>
+            <h5>Movimentos Totais</h5>
+            <p>Percentual geral entre retiradas e devolucoes (materiais e ferramentas).</p>
+        </div>
+        <div class="chart-wrapper">
+            <canvas id="chart-overall"></canvas>
+        </div>
+    </div>
+    <div class="chart-card">
+        <div>
+            <h5>Ranking de Funcionarios - Materiais</h5>
+            <p>Participacao percentual por numero de retiradas de materiais.</p>
+        </div>
+        <div class="chart-wrapper">
+            <canvas id="chart-emps-materials"></canvas>
+        </div>
+    </div>
+    <div class="chart-card">
+        <div>
+            <h5>Ranking de Funcionarios - Ferramentas</h5>
+            <p>Participacao percentual por numero de retiradas de ferramentas.</p>
+        </div>
+        <div class="chart-wrapper">
+            <canvas id="chart-emps-tools"></canvas>
+        </div>
+    </div>
+    <div class="chart-card">
+        <div>
+            <h5>Materiais Mais Retirados</h5>
+            <p>Distribuicao percentual por quantidade de movimentacoes.</p>
+        </div>
+        <div class="chart-wrapper">
+            <canvas id="chart-items-materials"></canvas>
+        </div>
+    </div>
+    <div class="chart-card">
+        <div>
+            <h5>Ferramentas Mais Retiradas</h5>
+            <p>Distribuicao percentual por quantidade de movimentacoes.</p>
+        </div>
+        <div class="chart-wrapper">
+            <canvas id="chart-items-tools"></canvas>
+        </div>
+    </div>
+</div>
+
+<div class="table-section">
+    <h5>Ranking de Funcionarios - Materiais</h5>
+    <div class="table-responsive">
+        <table class="table table-sm">
+            <thead>
+                <tr>
+                    <th>Funcionario</th>
+                    <th>Matricula</th>
+                    <th class="text-end">Movimentacoes</th>
+                    <th class="text-end">Qtd. Retirada</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if materiais_emps %}
+                {% for row in materiais_emps[:10] %}
+                <tr>
+                    <td>{{ row.nome }}</td>
+                    <td><span class="badge-soft">{{ row.matricula }}</span></td>
+                    <td class="text-end">{{ "{:,.0f}".format(row.movimentos) }}</td>
+                    <td class="text-end">{{ "{:,.2f}".format(row.quantidade) }}</td>
+                </tr>
+                {% endfor %}
+                {% else %}
+                <tr><td colspan="4" class="empty-state">Nenhum registro de retirada de materiais.</td></tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="table-section">
+    <h5>Ranking de Funcionarios - Ferramentas</h5>
+    <div class="table-responsive">
+        <table class="table table-sm">
+            <thead>
+                <tr>
+                    <th>Funcionario</th>
+                    <th>Matricula</th>
+                    <th class="text-end">Movimentacoes</th>
+                    <th class="text-end">Qtd. Retirada</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if ferramentas_emps %}
+                {% for row in ferramentas_emps[:10] %}
+                <tr>
+                    <td>{{ row.nome }}</td>
+                    <td><span class="badge-soft">{{ row.matricula }}</span></td>
+                    <td class="text-end">{{ "{:,.0f}".format(row.movimentos) }}</td>
+                    <td class="text-end">{{ "{:,.2f}".format(row.quantidade) }}</td>
+                </tr>
+                {% endfor %}
+                {% else %}
+                <tr><td colspan="4" class="empty-state">Nenhum registro de retirada de ferramentas.</td></tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="table-section">
+    <h5>Materiais Mais Retirados</h5>
+    <div class="table-responsive">
+        <table class="table table-sm">
+            <thead>
+                <tr>
+                    <th>Item</th>
+                    <th>Codigo</th>
+                    <th class="text-end">Retiradas</th>
+                    <th class="text-end">Qtd. Retirada</th>
+                    <th class="text-end">Devolucoes</th>
+                    <th class="text-end">Taxa</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if materiais_itens %}
+                {% for row in materiais_itens[:10] %}
+                <tr>
+                    <td>{{ row.descricao }}</td>
+                    <td><span class="badge-soft">{{ row.codigo }}</span></td>
+                    <td class="text-end">{{ "{:,.0f}".format(row.retiradas_count) }}</td>
+                    <td class="text-end">{{ "{:,.2f}".format(row.retiradas_qty) }}</td>
+                    <td class="text-end">{{ "{:,.0f}".format(row.devolucoes_count) }}</td>
+                    <td class="text-end">{{ "{:.0%}".format(row.taxa_devolucao) }}</td>
+                </tr>
+                {% endfor %}
+                {% else %}
+                <tr><td colspan="6" class="empty-state">Nenhum registro de retirada de materiais.</td></tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="table-section">
+    <h5>Ferramentas Mais Retiradas</h5>
+    <div class="table-responsive">
+        <table class="table table-sm">
+            <thead>
+                <tr>
+                    <th>Item</th>
+                    <th>Codigo</th>
+                    <th class="text-end">Retiradas</th>
+                    <th class="text-end">Qtd. Retirada</th>
+                    <th class="text-end">Devolucoes</th>
+                    <th class="text-end">Taxa</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if ferramentas_itens %}
+                {% for row in ferramentas_itens[:10] %}
+                <tr>
+                    <td>{{ row.descricao }}</td>
+                    <td><span class="badge-soft">{{ row.codigo }}</span></td>
+                    <td class="text-end">{{ "{:,.0f}".format(row.retiradas_count) }}</td>
+                    <td class="text-end">{{ "{:,.2f}".format(row.retiradas_qty) }}</td>
+                    <td class="text-end">{{ "{:,.0f}".format(row.devolucoes_count) }}</td>
+                    <td class="text-end">{{ "{:.0%}".format(row.taxa_devolucao) }}</td>
+                </tr>
+                {% endfor %}
+                {% else %}
+                <tr><td colspan="6" class="empty-state">Nenhum registro de retirada de ferramentas.</td></tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+    (function () {
+        const chartData = {{ chart_data | tojson }};
+        const palette = [
+            '#1e3a8a', '#2563eb', '#3b82f6', '#60a5fa', '#0ea5e9', '#0284c7', '#0369a1', '#1e293b'
+        ];
+
+        function renderPie(canvasId, labels, values) {
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) return;
+            const total = values.reduce((acc, val) => acc + val, 0);
+            if (!total) {
+                canvas.parentElement.innerHTML = '<div class="empty-state">Sem dados suficientes.</div>';
+                return;
+            }
+            const colors = labels.map((_, idx) => palette[idx % palette.length]);
+            new Chart(canvas, {
+                type: 'pie',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: values,
+                        backgroundColor: colors,
+                        borderColor: '#ffffff',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                boxWidth: 12,
+                                boxHeight: 12
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const value = context.parsed || 0;
+                                    const total = context.dataset.data.reduce((acc, val) => acc + val, 0);
+                                    const pct = total ? ((value / total) * 100).toFixed(1) : '0.0';
+                                    return `${context.label}: ${value} (${pct}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        renderPie('chart-overall', chartData.overall.labels, chartData.overall.values);
+        renderPie('chart-emps-materials', chartData.employees_materials.labels, chartData.employees_materials.values);
+        renderPie('chart-emps-tools', chartData.employees_tools.labels, chartData.employees_tools.values);
+        renderPie('chart-items-materials', chartData.items_materials.labels, chartData.items_materials.values);
+        renderPie('chart-items-tools', chartData.items_tools.labels, chartData.items_tools.values);
+    }());
+</script>
+{% endblock %}

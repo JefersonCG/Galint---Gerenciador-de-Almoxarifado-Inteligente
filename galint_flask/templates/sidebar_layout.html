@@ -85,6 +85,13 @@
                 <span>Relatórios Gerais</span>
             </a>
             {% endif %}
+            {% if endpoint_exists('reports.percentual_movimentos') %}
+            <a class="sidebar-link {% if p.startswith(url_for('reports.percentual_movimentos')) %}active{% endif %}"
+                href="{{ url_for('reports.percentual_movimentos') }}">
+                <i class="bi bi-pie-chart"></i>
+                <span>Percentual Movimentos</span>
+            </a>
+            {% endif %}
             {% if current_user.is_authenticated and current_user.is_admin %}
             <a class="sidebar-link {% if p.startswith(url_for('users.list_users')) %}active{% endif %}"
                 href="{{ url_for('users.list_users') }}">

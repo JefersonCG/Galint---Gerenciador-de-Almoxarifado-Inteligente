@@ -11,6 +11,7 @@ from pathlib import Path
 from flask import Blueprint, abort, flash, jsonify, redirect, render_template, request, send_file, url_for
 from flask_login import login_required
 from galint_flask.utils.time_service import TimeService
+from sqlalchemy import func, not_, or_
 
 logger = logging.getLogger(__name__)
 
@@ -675,6 +676,313 @@ def index():
         total_pages=total_pages,
         total_reports=total_reports,
         view_mode=view_mode,
+    )
+
+
+
+
+@bp.route("/percentual-movimentos")
+@login_required
+def percentual_movimentos():
+    """Painel de percentualidade e ranking de movimentacoes do almoxarifado."""
+    from ..extensions import db
+    from ..models import InventarioEvento, Item, RetiradaFerramenta, Saida, Usuario
+
+    def _merge_employee(target, matricula, nome, movimentos, quantidade):
+        key = (matricula or "N/D").strip() or "N/D"
+        entry = target.setdefault(
+            key,
+            {
+                "matricula": key,
+                "nome": (nome or "").strip() or f"Matricula {key}",
+                "movimentos": 0,
+                "quantidade": 0.0,
+            },
+        )
+        entry["movimentos"] += int(movimentos or 0)
+        entry["quantidade"] += float(quantidade or 0)
+        if nome and (not entry.get("nome") or entry["nome"].startswith("Matricula ")):
+            entry["nome"] = nome
+
+    def _merge_item(target, codigo, descricao, retiradas_count, retiradas_qty):
+        key = (codigo or "N/D").strip() or "N/D"
+        entry = target.setdefault(
+            key,
+            {
+                "codigo": key,
+                "descricao": (descricao or "").strip() or "Item removido",
+                "retiradas_count": 0,
+                "retiradas_qty": 0.0,
+            },
+        )
+        entry["retiradas_count"] += int(retiradas_count or 0)
+        entry["retiradas_qty"] += float(retiradas_qty or 0)
+        if descricao and entry.get("descricao") in ("", "Item removido"):
+            entry["descricao"] = descricao
+
+    def _merge_return(target, codigo, descricao, devolucoes_count, devolucoes_qty):
+        key = (codigo or "N/D").strip() or "N/D"
+        entry = target.setdefault(
+            key,
+            {
+                "codigo": key,
+                "descricao": (descricao or "").strip() or "Item removido",
+                "devolucoes_count": 0,
+                "devolucoes_qty": 0.0,
+            },
+        )
+        entry["devolucoes_count"] += int(devolucoes_count or 0)
+        entry["devolucoes_qty"] += float(devolucoes_qty or 0)
+        if descricao and entry.get("descricao") in ("", "Item removido"):
+            entry["descricao"] = descricao
+
+    def _sort_people(values):
+        return sorted(values, key=lambda item: (item.get("quantidade", 0), item.get("movimentos", 0)), reverse=True)
+
+    def _sort_items(values):
+        return sorted(values, key=lambda item: (item.get("retiradas_qty", 0), item.get("retiradas_count", 0)), reverse=True)
+
+    def _build_pie(items, total_value, label_key, value_key, max_slices=6):
+        if total_value <= 0:
+            return {"labels": [], "values": []}
+        sorted_items = sorted(items, key=lambda item: item.get(value_key, 0), reverse=True)
+        top_items = sorted_items[:max_slices]
+        labels = [item.get(label_key, "N/D") for item in top_items]
+        values = [int(item.get(value_key, 0) or 0) for item in top_items]
+        top_sum = sum(values)
+        restante = max(0, int(total_value - top_sum))
+        if restante > 0:
+            labels.append("Outros")
+            values.append(restante)
+        return {"labels": labels, "values": values}
+
+    tool_filter = or_(func.coalesce(Item.categoria, "").ilike("Ferrament%"), Saida.tipo_custodia.isnot(None))
+
+    # Funcionarios (materiais)
+    materiais_emps = {}
+    materiais_emps_rows = (
+        db.session.query(
+            Saida.matricula,
+            Usuario.nome,
+            func.count(Saida.id_saida),
+            func.coalesce(func.sum(Saida.quantidade), 0),
+        )
+        .join(Item, Saida.codigo_item == Item.codigo_item, isouter=True)
+        .join(Usuario, Saida.matricula == Usuario.matricula, isouter=True)
+        .filter(not_(tool_filter))
+        .group_by(Saida.matricula, Usuario.nome)
+        .all()
+    )
+    for row in materiais_emps_rows:
+        _merge_employee(materiais_emps, row[0], row[1], row[2], row[3])
+
+    # Funcionarios (ferramentas) - Saida + RetiradaFerramenta
+    ferramentas_emps = {}
+    ferramentas_emps_rows = (
+        db.session.query(
+            Saida.matricula,
+            Usuario.nome,
+            func.count(Saida.id_saida),
+            func.coalesce(func.sum(Saida.quantidade), 0),
+        )
+        .join(Item, Saida.codigo_item == Item.codigo_item, isouter=True)
+        .join(Usuario, Saida.matricula == Usuario.matricula, isouter=True)
+        .filter(tool_filter)
+        .group_by(Saida.matricula, Usuario.nome)
+        .all()
+    )
+    for row in ferramentas_emps_rows:
+        _merge_employee(ferramentas_emps, row[0], row[1], row[2], row[3])
+
+    ferramentas_emps_rows_rf = (
+        db.session.query(
+            RetiradaFerramenta.matricula,
+            Usuario.nome,
+            func.count(RetiradaFerramenta.id),
+            func.coalesce(func.sum(RetiradaFerramenta.quantidade), 0),
+        )
+        .join(Usuario, RetiradaFerramenta.matricula == Usuario.matricula, isouter=True)
+        .group_by(RetiradaFerramenta.matricula, Usuario.nome)
+        .all()
+    )
+    for row in ferramentas_emps_rows_rf:
+        _merge_employee(ferramentas_emps, row[0], row[1], row[2], row[3])
+
+    # Itens (materiais)
+    materiais_itens = {}
+    materiais_itens_rows = (
+        db.session.query(
+            Saida.codigo_item,
+            Item.descricao,
+            func.count(Saida.id_saida),
+            func.coalesce(func.sum(Saida.quantidade), 0),
+        )
+        .join(Item, Saida.codigo_item == Item.codigo_item, isouter=True)
+        .filter(not_(tool_filter))
+        .group_by(Saida.codigo_item, Item.descricao)
+        .all()
+    )
+    for row in materiais_itens_rows:
+        _merge_item(materiais_itens, row[0], row[1], row[2], row[3])
+
+    # Itens (ferramentas) - Saida + RetiradaFerramenta
+    ferramentas_itens = {}
+    ferramentas_itens_rows = (
+        db.session.query(
+            Saida.codigo_item,
+            Item.descricao,
+            func.count(Saida.id_saida),
+            func.coalesce(func.sum(Saida.quantidade), 0),
+        )
+        .join(Item, Saida.codigo_item == Item.codigo_item, isouter=True)
+        .filter(tool_filter)
+        .group_by(Saida.codigo_item, Item.descricao)
+        .all()
+    )
+    for row in ferramentas_itens_rows:
+        _merge_item(ferramentas_itens, row[0], row[1], row[2], row[3])
+
+    ferramentas_itens_rows_rf = (
+        db.session.query(
+            RetiradaFerramenta.codigo_item,
+            Item.descricao,
+            func.count(RetiradaFerramenta.id),
+            func.coalesce(func.sum(RetiradaFerramenta.quantidade), 0),
+        )
+        .join(Item, RetiradaFerramenta.codigo_item == Item.codigo_item, isouter=True)
+        .group_by(RetiradaFerramenta.codigo_item, Item.descricao)
+        .all()
+    )
+    for row in ferramentas_itens_rows_rf:
+        _merge_item(ferramentas_itens, row[0], row[1], row[2], row[3])
+
+    # Devolucoes por item
+    devolucoes_materiais = {}
+    devolucoes_materiais_rows = (
+        db.session.query(
+            InventarioEvento.codigo_item,
+            Item.descricao,
+            func.count(InventarioEvento.id_evento),
+            func.coalesce(func.sum(InventarioEvento.quantidade), 0),
+        )
+        .join(Item, InventarioEvento.codigo_item == Item.codigo_item, isouter=True)
+        .filter(InventarioEvento.tipo == "devolucao_material")
+        .group_by(InventarioEvento.codigo_item, Item.descricao)
+        .all()
+    )
+    for row in devolucoes_materiais_rows:
+        _merge_return(devolucoes_materiais, row[0], row[1], row[2], row[3])
+
+    devolucoes_ferramentas = {}
+    devolucoes_ferramentas_rows = (
+        db.session.query(
+            InventarioEvento.codigo_item,
+            Item.descricao,
+            func.count(InventarioEvento.id_evento),
+            func.coalesce(func.sum(InventarioEvento.quantidade), 0),
+        )
+        .join(Item, InventarioEvento.codigo_item == Item.codigo_item, isouter=True)
+        .filter(InventarioEvento.tipo.in_(["devolucao_ferramenta", "devolucao"]))
+        .group_by(InventarioEvento.codigo_item, Item.descricao)
+        .all()
+    )
+    for row in devolucoes_ferramentas_rows:
+        _merge_return(devolucoes_ferramentas, row[0], row[1], row[2], row[3])
+
+    # Consolidacao
+    materiais_emps_list = _sort_people(list(materiais_emps.values()))
+    ferramentas_emps_list = _sort_people(list(ferramentas_emps.values()))
+
+    materiais_itens_rows = []
+    for item in materiais_itens.values():
+        devolucao = devolucoes_materiais.get(item["codigo"], {})
+        devol_count = int(devolucao.get("devolucoes_count", 0) or 0)
+        devol_qty = float(devolucao.get("devolucoes_qty", 0) or 0)
+        retiradas_count = int(item.get("retiradas_count", 0) or 0)
+        retiradas_qty = float(item.get("retiradas_qty", 0) or 0)
+        # Taxa calculada por quantidade (não por contagem), limitada a 100%
+        taxa = min(1.0, (devol_qty / retiradas_qty)) if retiradas_qty > 0 else 0.0
+        materiais_itens_rows.append({
+            **item,
+            "devolucoes_count": devol_count,
+            "devolucoes_qty": devol_qty,
+            "taxa_devolucao": taxa,
+        })
+
+    ferramentas_itens_rows = []
+    for item in ferramentas_itens.values():
+        devolucao = devolucoes_ferramentas.get(item["codigo"], {})
+        devol_count = int(devolucao.get("devolucoes_count", 0) or 0)
+        devol_qty = float(devolucao.get("devolucoes_qty", 0) or 0)
+        retiradas_count = int(item.get("retiradas_count", 0) or 0)
+        retiradas_qty = float(item.get("retiradas_qty", 0) or 0)
+        # Taxa calculada por quantidade (não por contagem), limitada a 100%
+        taxa = min(1.0, (devol_qty / retiradas_qty)) if retiradas_qty > 0 else 0.0
+        ferramentas_itens_rows.append({
+            **item,
+            "devolucoes_count": devol_count,
+            "devolucoes_qty": devol_qty,
+            "taxa_devolucao": taxa,
+        })
+
+    materiais_itens_list = _sort_items(materiais_itens_rows)
+    ferramentas_itens_list = _sort_items(ferramentas_itens_rows)
+
+    total_materiais_retiradas = sum(item.get("retiradas_count", 0) for item in materiais_itens_list)
+    total_ferramentas_retiradas = sum(item.get("retiradas_count", 0) for item in ferramentas_itens_list)
+    total_materiais_devolucoes = sum(item.get("devolucoes_count", 0) for item in devolucoes_materiais.values())
+    total_ferramentas_devolucoes = sum(item.get("devolucoes_count", 0) for item in devolucoes_ferramentas.values())
+
+    total_materiais_qtd = sum(item.get("retiradas_qty", 0) for item in materiais_itens_list)
+    total_ferramentas_qtd = sum(item.get("retiradas_qty", 0) for item in ferramentas_itens_list)
+    total_materiais_devolucoes_qtd = sum(item.get("devolucoes_qty", 0) for item in devolucoes_materiais.values())
+    total_ferramentas_devolucoes_qtd = sum(item.get("devolucoes_qty", 0) for item in devolucoes_ferramentas.values())
+
+    chart_data = {
+        "overall": {
+            "labels": [
+                "Retiradas de Materiais",
+                "Retiradas de Ferramentas",
+                "Devolucoes de Materiais",
+                "Devolucoes de Ferramentas",
+            ],
+            "values": [
+                int(total_materiais_retiradas),
+                int(total_ferramentas_retiradas),
+                int(total_materiais_devolucoes),
+                int(total_ferramentas_devolucoes),
+            ],
+        },
+        "employees_materials": _build_pie(materiais_emps_list, sum(e.get("movimentos", 0) for e in materiais_emps_list), "nome", "movimentos"),
+        "employees_tools": _build_pie(ferramentas_emps_list, sum(e.get("movimentos", 0) for e in ferramentas_emps_list), "nome", "movimentos"),
+        "items_materials": _build_pie(materiais_itens_list, total_materiais_retiradas, "descricao", "retiradas_count"),
+        "items_tools": _build_pie(ferramentas_itens_list, total_ferramentas_retiradas, "descricao", "retiradas_count"),
+    }
+
+    summary = {
+        "materiais": {
+            "retiradas_count": int(total_materiais_retiradas),
+            "retiradas_qty": float(total_materiais_qtd),
+            "devolucoes_count": int(total_materiais_devolucoes),
+            "devolucoes_qty": float(total_materiais_devolucoes_qtd),
+        },
+        "ferramentas": {
+            "retiradas_count": int(total_ferramentas_retiradas),
+            "retiradas_qty": float(total_ferramentas_qtd),
+            "devolucoes_count": int(total_ferramentas_devolucoes),
+            "devolucoes_qty": float(total_ferramentas_devolucoes_qtd),
+        },
+    }
+
+    return render_template(
+        "reports/percentual_movimentos.html",
+        summary=summary,
+        chart_data=chart_data,
+        materiais_emps=materiais_emps_list,
+        ferramentas_emps=ferramentas_emps_list,
+        materiais_itens=materiais_itens_list,
+        ferramentas_itens=ferramentas_itens_list,
+        gerado_em=TimeService.now_local().strftime("%d/%m/%Y %H:%M"),
     )
 
 
