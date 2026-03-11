@@ -154,6 +154,12 @@
                                         <p class="small mb-0">Dashboard público protegido por token para stakeholders</p>
                                     </div>
                                 </div>
+                                <div class="col-md-6">
+                                    <div class="border rounded p-3 h-100">
+                                        <h6><i class="bi bi-pie-chart text-primary me-2"></i>Percentual Movimentos</h6>
+                                        <p class="small mb-0">Painel analítico com percentualidade, séries de 30 dias, consolidação mensal e previsão de ruptura</p>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -316,6 +322,70 @@
                                         <strong>Fracionados:</strong> Saídas com conversão Kg/L
                                     </div>
                                 </div>
+                                <div class="col-md-6">
+                                    <div class="border rounded p-2 small">
+                                        <strong>Percentual Movimentos:</strong> Percentuais, ranking, 30 dias, mensal e risco de ruptura
+                                    </div>
+                                </div>
+                            </div>
+
+                            <hr class="my-4">
+
+                            <h6 class="mb-3"><i class="bi bi-pie-chart-fill me-2"></i>Página Percentual Movimentos</h6>
+                            <p class="small mb-3">
+                                A página <strong>Percentual Movimentos</strong> foi criada para consolidar a leitura analítica do almoxarifado em um único painel, reunindo movimentações, taxas de devolução, séries temporais e previsão de risco de ruptura.
+                            </p>
+
+                            <div class="row g-3 mb-3">
+                                <div class="col-md-6">
+                                    <div class="border rounded p-3 h-100">
+                                        <h6 class="mb-2"><i class="bi bi-diagram-3 text-primary me-2"></i>Sistemática da Página</h6>
+                                        <ul class="small mb-0">
+                                            <li>Retiradas lidas a partir de <strong>Saida</strong></li>
+                                            <li>Devoluções lidas a partir de <strong>InventarioEvento</strong></li>
+                                            <li>Separação entre materiais e ferramentas por <strong>categoria do item</strong></li>
+                                            <li>Rankings por funcionário e por item</li>
+                                            <li>Taxa de devolução calculada por quantidade</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="border rounded p-3 h-100">
+                                        <h6 class="mb-2"><i class="bi bi-graph-up-arrow text-success me-2"></i>Análises Temporais</h6>
+                                        <ul class="small mb-0">
+                                            <li>Janelas sequenciais de 30 dias desde a primeira retirada</li>
+                                            <li>Consolidação mensal por competência</li>
+                                            <li>Consumo líquido por período</li>
+                                            <li>Volume total de movimentações por janela</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="border rounded p-3 h-100">
+                                        <h6 class="mb-2"><i class="bi bi-exclamation-diamond text-danger me-2"></i>Previsão de Ruptura</h6>
+                                        <ul class="small mb-0">
+                                            <li>Média de consumo líquido em 30 dias</li>
+                                            <li>Desvio padrão da demanda</li>
+                                            <li>Intervalo de confiança estatística de 95%</li>
+                                            <li>Probabilidade de ruptura e data sugerida para próximo pedido</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="border rounded p-3 h-100">
+                                        <h6 class="mb-2"><i class="bi bi-search-heart text-warning me-2"></i>Correções e Auditoria</h6>
+                                        <ul class="small mb-0">
+                                            <li>Correção de duplicidade nas retiradas de ferramentas</li>
+                                            <li>Correção da classificação errada entre materiais e ferramentas</li>
+                                            <li>Auditoria visível de itens auditados, elegíveis e com risco positivo</li>
+                                            <li>Bloqueio de previsão estatística para histórico insuficiente</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="alert alert-primary small mb-0" role="alert">
+                                A página usa <strong>confiança estatística de 95%</strong> para estimar a faixa provável de demanda, mas não promete 95% de precisão operacional absoluta. A documentação detalhada está disponível no README dedicado da funcionalidade.
                             </div>
                         </div>
                     </div>

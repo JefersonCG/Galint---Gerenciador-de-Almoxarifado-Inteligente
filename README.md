@@ -2,7 +2,48 @@
 
 O **GALINT** é um sistema completo para operação de almoxarifado com foco em **confiabilidade**, **auditabilidade** e **relatórios profissionais**.
 
+## Documentação Dedicada
+
+- Página Percentual Movimentos: ver [README_PERCENTUAL_MOVIMENTOS.md](README_PERCENTUAL_MOVIMENTOS.md)
+
 ## 🧾 Atualizações realizadas (Hoje)
+
+### 📈 Página Percentual Movimentos: criação, correções e auditoria
+
+Foi implementada e estabilizada a página **Percentual Movimentos**, com foco em leitura analítica do almoxarifado, percentualidade operacional, séries temporais e previsão de ruptura de materiais.
+
+**O que foi criado:**
+- Rota dedicada em `/relatorios/percentual-movimentos`
+- Template próprio com cards, gráficos e tabelas analíticas
+- Consolidação por materiais e ferramentas
+- Ranking por funcionário e por item
+- Taxa de devolução por item
+- Séries em janelas sequenciais de 30 dias desde a primeira retirada
+- Consolidação mensal de movimentações de materiais
+- Painel de previsão de ruptura e sugestão de próximo pedido
+
+**O que foi corrigido:**
+- Classificação errada de materiais e ferramentas no backend
+- Duplicidade de retiradas de ferramentas por soma indevida de fontes distintas
+- Textos sem acentuação na interface
+- Exibição enganosa de previsões para itens sem histórico suficiente
+- Gráficos com aparência de vazio por excesso de itens com risco zerado no dataset
+
+**Resultado da auditoria aplicada:**
+- O relatório passou a usar `Saida` como fonte canônica de retiradas exibidas no painel
+- A separação entre materiais e ferramentas passou a respeitar a categoria do item
+- O painel de previsão passou a expor quantos materiais foram auditados, quantos são elegíveis e quantos têm risco positivo calculado
+- O modelo estatístico passou a exigir histórico mínimo para previsão com confiança de 95%
+
+**Arquivos impactados:**
+- `galint_flask/views/reports.py`
+- `galint_flask/templates/reports/percentual_movimentos.html`
+- `galint_flask/templates/sidebar_layout.html`
+- `galint_flask/templates/sobre.html`
+- `README_PERCENTUAL_MOVIMENTOS.md`
+
+**Documentação detalhada:**
+- Consulte [README_PERCENTUAL_MOVIMENTOS.md](README_PERCENTUAL_MOVIMENTOS.md) para arquitetura, lógica, regras de cálculo, limitações e manutenção da página.
 
 ### � Alertas Telegram Agrupados por Funcionário
 
