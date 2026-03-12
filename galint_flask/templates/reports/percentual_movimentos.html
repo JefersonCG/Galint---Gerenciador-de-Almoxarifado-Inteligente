@@ -1,902 +1,694 @@
-
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 
 {% block title %}Percentual de Movimentos - GALINT{% endblock %}
 
 {% block extra_css %}
 <style>
-    .percent-header {
-        display: flex;
-        flex-direction: column;
-        gap: 0.35rem;
-        margin-bottom: 1.5rem;
+    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700;800&family=IBM+Plex+Mono:wght@400;600&display=swap');
+
+    :root {
+        --navy: #0a0e1a;
+        --glass: rgba(30, 58, 138, 0.4);
+        --glass-border: rgba(255, 255, 255, 0.1);
+        --text-strong: #f8fafc;
+        --text-muted: rgba(248, 250, 252, 0.6);
+        --accent: #3b82f6;
+        --accent-warm: #f59e0b;
+        --panel-radius: 16px;
+        --topbar-height: 62px;
     }
 
-    .percent-header h2 {
+    body.layout-shell {
+        background: var(--navy);
+        overflow: hidden;
+        font-family: 'Space Grotesk', 'Segoe UI', sans-serif;
+    }
+
+    .layout-shell .app-body {
+        height: calc(100vh - var(--topbar-height));
+        overflow: hidden;
+    }
+
+    .layout-shell .content-panel {
+        background: var(--navy);
+        color: var(--text-strong);
+        padding: 1.25rem 1.5rem;
+        overflow: hidden;
+    }
+
+    .page-header {
+        margin-bottom: 0.75rem;
+    }
+
+    .dashboard-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .dashboard-title {
         margin: 0;
-        font-weight: 700;
-        color: #0f172a;
-        background: linear-gradient(135deg, #1e3a8a 0%, #0ea5e9 100%);
+        font-size: 1.6rem;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        background: linear-gradient(to bottom, #ffffff, #a1a1a1);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
     }
 
-    .percent-header small {
-        color: #475569;
+    .dashboard-subtitle {
+        margin: 0.15rem 0 0;
+        opacity: 0.6;
+        font-size: 0.9rem;
     }
 
-    .summary-grid {
+    .dashboard-meta {
+        font-size: 0.85rem;
+        opacity: 0.6;
+    }
+
+    .percent-dashboard {
+        height: 100%;
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-        gap: 1.25rem;
-        margin-bottom: 2rem;
+        grid-template-rows: auto 1fr;
+        gap: 0.9rem;
     }
 
-    .summary-card {
-        background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
-        border-radius: 20px;
-        padding: 1.5rem 1.75rem;
-        box-shadow: 0 10px 25px rgba(30, 58, 138, 0.15), 0 2px 8px rgba(0, 0, 0, 0.08);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    .kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(8, minmax(140px, 1fr));
+        gap: 0.6rem;
+    }
+
+    .kpi-card {
+        background: var(--glass);
+        border-radius: var(--panel-radius);
+        border: 1px solid var(--glass-border);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        padding: 0.75rem 0.85rem;
+        text-align: left;
+        color: var(--text-strong);
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+        min-height: 110px;
+        cursor: pointer;
+        transition: transform 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .kpi-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 22px rgba(15, 23, 42, 0.45);
+    }
+
+    .kpi-card.active {
+        outline: 1px solid rgba(148, 163, 184, 0.6);
+        box-shadow: 0 0 0 1px rgba(148, 163, 184, 0.35), 0 12px 24px rgba(15, 23, 42, 0.45);
+    }
+
+    .kpi-label {
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        font-size: 0.62rem;
+        opacity: 0.6;
+        font-weight: 700;
+    }
+
+    .kpi-value {
+        font-size: 1.4rem;
+        font-weight: 800;
+        letter-spacing: 0.03em;
+    }
+
+    .kpi-meta {
+        font-size: 0.75rem;
+        opacity: 0.6;
+    }
+
+    .danger-glow {
         position: relative;
+    }
+
+    .danger-glow::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        box-shadow: 0 0 0 rgba(245, 158, 11, 0.0);
+        animation: dangerPulse 2.4s ease-in-out infinite;
+        pointer-events: none;
+    }
+
+    @keyframes dangerPulse {
+        0% {
+            box-shadow: 0 0 0 rgba(245, 158, 11, 0.0);
+        }
+        50% {
+            box-shadow: 0 0 20px rgba(245, 158, 11, 0.55);
+        }
+        100% {
+            box-shadow: 0 0 0 rgba(245, 158, 11, 0.0);
+        }
+    }
+
+    .dashboard-body {
+        display: grid;
+        grid-template-columns: minmax(260px, 1fr) minmax(0, 3fr);
+        gap: 0.9rem;
+        min-height: 0;
+    }
+
+    .side-panel {
+        display: flex;
+        flex-direction: column;
+        gap: 0.9rem;
+        overflow-y: auto;
+        padding-right: 0.35rem;
+    }
+
+    .main-panel {
+        display: flex;
+        flex-direction: column;
+        gap: 0.9rem;
+        min-height: 0;
         overflow: hidden;
     }
 
-    .summary-card::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        right: 0;
-        width: 120px;
-        height: 120px;
-        background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
-        border-radius: 50%;
-        transform: translate(40%, -40%);
-    }
-
-    .summary-card:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 15px 35px rgba(30, 58, 138, 0.2), 0 4px 12px rgba(0, 0, 0, 0.1);
-    }
-
-    .summary-card h6 {
-        text-transform: uppercase;
-        letter-spacing: 0.1em;
-        font-size: 0.7rem;
-        color: rgba(255, 255, 255, 0.75);
-        margin-bottom: 0.75rem;
-        font-weight: 600;
-    }
-
-    .summary-value {
-        font-size: 2rem;
-        font-weight: 800;
-        color: #ffffff;
-        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        position: relative;
-        z-index: 1;
-    }
-
-    .summary-meta {
-        color: rgba(255, 255, 255, 0.8);
-        font-size: 0.85rem;
-        margin-top: 0.5rem;
-        position: relative;
-        z-index: 1;
-    }
-
-    .chart-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
-        gap: 1.5rem;
-        margin-bottom: 2rem;
-    }
-
-    .chart-card {
-        background: #ffffff;
-        border-radius: 20px;
-        padding: 1.5rem;
-        border: 2px solid #e0e7ff;
-        box-shadow: 0 8px 20px rgba(30, 58, 138, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04);
-        min-height: 380px;
+    .panel-card {
+        background: var(--glass);
+        border-radius: var(--panel-radius);
+        border: 1px solid var(--glass-border);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        padding: 1rem 1.1rem;
         display: flex;
         flex-direction: column;
-        justify-content: space-between;
-        transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+        gap: 0.75rem;
+        min-height: 0;
     }
 
-    .chart-card:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 12px 28px rgba(30, 58, 138, 0.12), 0 4px 8px rgba(0, 0, 0, 0.06);
-        border-color: #c7d2fe;
+    .panel-title {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 800;
+        background: linear-gradient(to bottom, #ffffff, #a1a1a1);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
     }
 
-    .chart-card h5 {
-        margin-bottom: 0.5rem;
-        font-weight: 700;
-        color: #1e3a8a;
-        font-size: 1.1rem;
+    .panel-subtitle {
+        margin: 0;
+        opacity: 0.6;
+        font-size: 0.8rem;
     }
 
-    .chart-card p {
-        color: #475569;
-        font-size: 0.85rem;
-        margin-bottom: 1rem;
-        line-height: 1.5;
+    .panel-scroll {
+        overflow-y: auto;
+        min-height: 0;
+        flex: 1;
     }
 
-    .chart-wrapper {
-        position: relative;
-        height: 240px;
+    .panel-actions {
+        display: flex;
+        justify-content: flex-end;
     }
 
-    .table-section {
-        background: #ffffff;
-        border-radius: 20px;
-        padding: 1.75rem;
-        border: 2px solid #e0e7ff;
-        box-shadow: 0 8px 20px rgba(30, 58, 138, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04);
-        margin-bottom: 1.75rem;
-        transition: box-shadow 0.2s ease;
-    }
-
-    .table-section:hover {
-        box-shadow: 0 12px 28px rgba(30, 58, 138, 0.12), 0 4px 8px rgba(0, 0, 0, 0.06);
-    }
-
-    .table-section h5 {
-        font-weight: 700;
-        color: #1e3a8a;
-        margin-bottom: 1rem;
-        font-size: 1.15rem;
-        padding-bottom: 0.75rem;
-        border-bottom: 2px solid #e0e7ff;
-    }
-
-    .table-section .table {
-        margin-bottom: 0;
-    }
-
-    .table-section .table thead th {
-        background: linear-gradient(135deg, #f1f5f9 0%, #e0e7ff 100%);
-        color: #1e3a8a;
+    .ghost-button {
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        color: var(--text-strong);
+        padding: 0.35rem 0.85rem;
+        border-radius: 999px;
+        font-size: 0.75rem;
         font-weight: 600;
-        border: none;
-        padding: 0.85rem 1rem;
-        font-size: 0.85rem;
+        cursor: pointer;
+    }
+
+    .ghost-button:hover {
+        background: rgba(255, 255, 255, 0.15);
+    }
+
+    .table-monitor {
+        width: 100%;
+        border-collapse: collapse;
+        color: var(--text-strong);
+        font-size: 0.82rem;
+    }
+
+    .table-monitor thead th {
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        font-size: 0.62rem;
+        letter-spacing: 0.1em;
+        font-weight: 700;
+        text-align: left;
+        color: var(--text-muted);
+        padding: 0.5rem 0.4rem;
+        position: sticky;
+        top: 0;
+        background: rgba(10, 14, 26, 0.85);
+        backdrop-filter: blur(8px);
+        border-bottom: 1px solid rgba(148, 163, 184, 0.2);
     }
 
-    .table-section .table tbody tr {
-        transition: background-color 0.15s ease;
+    .table-monitor tbody td {
+        padding: 0.55rem 0.4rem;
+        border: none;
+        vertical-align: top;
     }
 
-    .table-section .table tbody tr:hover {
-        background-color: #f8fafc;
+    .table-monitor tbody tr:nth-child(even) {
+        background: rgba(255, 255, 255, 0.04);
     }
 
-    .table-section .table tbody td {
-        padding: 0.9rem 1rem;
-        color: #0f172a;
-        border-color: #e0e7ff;
+    .table-monitor tbody tr:hover {
+        background: rgba(59, 130, 246, 0.08);
+    }
+
+    .mono {
+        font-family: 'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;
+        font-variant-numeric: tabular-nums;
     }
 
     .badge-soft {
-        background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
-        color: #1e40af;
-        font-weight: 600;
+        background: rgba(59, 130, 246, 0.18);
+        border: 1px solid rgba(59, 130, 246, 0.4);
+        color: #bfdbfe;
         border-radius: 999px;
-        padding: 0.25rem 0.75rem;
-        font-size: 0.75rem;
-        border: 1px solid #93c5fd;
-    }
-
-    .empty-state {
-        text-align: center;
-        padding: 3rem 1rem;
-        color: #64748b;
-        font-style: italic;
-        background: #f8fafc;
-        border-radius: 12px;
-        margin: 1rem 0;
-    }
-
-    .info-note {
-        margin: 1rem 0 2rem;
-        padding: 1rem 1.25rem;
-        border-radius: 16px;
-        background: linear-gradient(135deg, #eff6ff 0%, #f8fafc 100%);
-        border: 1px solid #bfdbfe;
-        color: #1e3a8a;
-        font-size: 0.92rem;
+        padding: 0.1rem 0.5rem;
+        font-size: 0.68rem;
+        font-weight: 600;
     }
 
     .risk-chip {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        min-width: 88px;
-        padding: 0.25rem 0.7rem;
+        min-width: 72px;
+        padding: 0.2rem 0.55rem;
         border-radius: 999px;
-        font-size: 0.75rem;
+        font-size: 0.65rem;
         font-weight: 700;
-        letter-spacing: 0.03em;
+        letter-spacing: 0.05em;
     }
 
     .risk-chip.high {
-        background: #fee2e2;
-        color: #b91c1c;
+        background: rgba(248, 113, 113, 0.2);
+        color: #fecaca;
     }
 
     .risk-chip.medium {
-        background: #fef3c7;
-        color: #b45309;
+        background: rgba(251, 191, 36, 0.2);
+        color: #fef3c7;
     }
 
     .risk-chip.low {
-        background: #dcfce7;
-        color: #166534;
+        background: rgba(34, 197, 94, 0.2);
+        color: #bbf7d0;
     }
 
-    .context-nav {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.75rem;
-        margin: 0 0 1.25rem;
+    .chart-placeholder {
+        flex: 1;
+        border-radius: 14px;
+        background: linear-gradient(135deg, rgba(59, 130, 246, 0.35), rgba(14, 165, 233, 0.12));
+        position: relative;
+        overflow: hidden;
     }
 
-    .context-link {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.45rem;
-        padding: 0.7rem 1rem;
-        border-radius: 999px;
-        background: #fff;
-        border: 1px solid #bfdbfe;
-        color: #1d4ed8;
-        font-weight: 700;
-        text-decoration: none;
-        box-shadow: 0 8px 20px rgba(30, 58, 138, 0.06);
+    .chart-placeholder::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background-image:
+            linear-gradient(transparent 58%, rgba(255, 255, 255, 0.06) 60%, transparent 62%),
+            linear-gradient(90deg, transparent 58%, rgba(255, 255, 255, 0.04) 60%, transparent 62%);
+        background-size: 120px 120px;
+        opacity: 0.5;
     }
 
-    .context-link:hover {
-        background: #eff6ff;
-        color: #1e3a8a;
+    .chart-placeholder::after {
+        content: '';
+        position: absolute;
+        inset: 20% 10% 18% 10%;
+        border-radius: 12px;
+        border: 1px dashed rgba(255, 255, 255, 0.35);
     }
 
-    .help-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-        gap: 1rem;
-        margin-bottom: 1.5rem;
+    .empty-state {
+        text-align: center;
+        color: var(--text-muted);
+        font-style: italic;
+        padding: 1.2rem;
     }
 
-    .help-card {
-        background: #ffffff;
-        border-radius: 20px;
-        border: 1px solid #dbeafe;
-        box-shadow: 0 12px 28px rgba(30, 58, 138, 0.06);
-        padding: 1.25rem;
+    @media (max-width: 1400px) {
+        .kpi-grid {
+            grid-template-columns: repeat(4, minmax(160px, 1fr));
+        }
+
+        .dashboard-body {
+            grid-template-columns: minmax(240px, 1fr) minmax(0, 2fr);
+        }
     }
 
-    .help-card h6 {
-        color: #0f172a;
-        font-weight: 800;
-        margin-bottom: 0.65rem;
-    }
+    @media (max-width: 992px) {
+        .kpi-grid {
+            grid-template-columns: repeat(2, minmax(160px, 1fr));
+        }
 
-    .help-card p,
-    .help-card li {
-        color: #475569;
-        font-size: 0.9rem;
-        line-height: 1.6;
-    }
+        .dashboard-body {
+            grid-template-columns: 1fr;
+        }
 
-    .help-card ul {
-        padding-left: 1.1rem;
-        margin-bottom: 0;
+        .side-panel {
+            max-height: 35vh;
+        }
     }
 </style>
 {% endblock %}
 
 {% block page_header %}
-<div class="percent-header">
-    <h2>Percentual dos Movimentos do Almoxarifado</h2>
-    <small>Ranking de retiradas, devoluções e participação percentual por funcionário, item e categoria.</small>
-    <small>Escalonamento em janelas sequenciais de 30 dias desde a primeira retirada e consolidação mensal.</small>
-    <small>Atualizado em {{ gerado_em }}</small>
+<div class="dashboard-header">
+    <div>
+        <h2 class="dashboard-title">Percentualidade dos Movimentos</h2>
+        <p class="dashboard-subtitle">Ranking de retiradas, devolucoes e participacao percentual por funcionario, item e categoria.</p>
+    </div>
+    <div class="dashboard-meta">Atualizado em {{ gerado_em }}</div>
 </div>
 {% endblock %}
 
 {% block content %}
-<div class="context-nav">
-    <a class="context-link" href="#secao-ajuda"><i class="bi bi-compass"></i> Guia Rápido</a>
-    <a class="context-link" href="#secao-series"><i class="bi bi-graph-up-arrow"></i> Séries Temporais</a>
-    <a class="context-link" href="#secao-previsao"><i class="bi bi-exclamation-diamond"></i> Previsão</a>
-    <a class="context-link" href="#secao-auditoria"><i class="bi bi-shield-check"></i> Auditoria</a>
-    {% if endpoint_exists('pages.documentacao_percentual_movimentos') %}
-    <a class="context-link" href="{{ url_for('pages.documentacao_percentual_movimentos') }}"><i class="bi bi-journal-text"></i> Documentação Completa</a>
-    {% endif %}
-</div>
+<div class="percent-dashboard">
+    <div class="kpi-grid" id="kpi-grid">
+        <button class="kpi-card" type="button" data-kpi="materiais-retiradas" data-title="Materiais - Retiradas" data-subtitle="Volume total de retiradas de materiais.">
+            <span class="kpi-label">Materiais</span>
+            <span class="kpi-value mono">{{ "{:,.0f}".format(summary.materiais.retiradas_count) }}</span>
+            <span class="kpi-meta mono">Qtd: {{ "{:,.2f}".format(summary.materiais.retiradas_qty) }}</span>
+        </button>
+        <button class="kpi-card" type="button" data-kpi="materiais-devolucoes" data-title="Materiais - Devolucoes" data-subtitle="Retorno total registrado de materiais.">
+            <span class="kpi-label">Devolucoes</span>
+            <span class="kpi-value mono">{{ "{:,.0f}".format(summary.materiais.devolucoes_count) }}</span>
+            <span class="kpi-meta mono">Qtd: {{ "{:,.2f}".format(summary.materiais.devolucoes_qty) }}</span>
+        </button>
+        <button class="kpi-card" type="button" data-kpi="ferramentas-retiradas" data-title="Ferramentas - Retiradas" data-subtitle="Volume total de retiradas de ferramentas.">
+            <span class="kpi-label">Ferramentas</span>
+            <span class="kpi-value mono">{{ "{:,.0f}".format(summary.ferramentas.retiradas_count) }}</span>
+            <span class="kpi-meta mono">Qtd: {{ "{:,.2f}".format(summary.ferramentas.retiradas_qty) }}</span>
+        </button>
+        <button class="kpi-card" type="button" data-kpi="ferramentas-devolucoes" data-title="Ferramentas - Devolucoes" data-subtitle="Retorno total registrado de ferramentas.">
+            <span class="kpi-label">Devolucoes</span>
+            <span class="kpi-value mono">{{ "{:,.0f}".format(summary.ferramentas.devolucoes_count) }}</span>
+            <span class="kpi-meta mono">Qtd: {{ "{:,.2f}".format(summary.ferramentas.devolucoes_qty) }}</span>
+        </button>
+        <button class="kpi-card" type="button" data-kpi="janelas" data-title="Janelas 30 Dias" data-subtitle="Blocos sequenciais desde a primeira retirada.">
+            <span class="kpi-label">Janelas 30d</span>
+            <span class="kpi-value mono">{{ summary.materiais.janelas_30d }}</span>
+            <span class="kpi-meta">Sequencia temporal</span>
+        </button>
+        <button class="kpi-card" type="button" data-kpi="meses" data-title="Meses Consolidados" data-subtitle="Consolidacao mensal de movimentos.">
+            <span class="kpi-label">Meses</span>
+            <span class="kpi-value mono">{{ summary.materiais.meses }}</span>
+            <span class="kpi-meta">Movimento mensal</span>
+        </button>
+        <button class="kpi-card danger-glow" type="button" data-kpi="ruptura" data-title="Risco de Ruptura" data-subtitle="Probabilidade de ruptura nos proximos 30 dias.">
+            <span class="kpi-label">Ruptura</span>
+            <span class="kpi-value mono">{{ "{:.0%}".format(top_risk_material.prob_ruptura_30d) if top_risk_material else "0%" }}</span>
+            <span class="kpi-meta">{{ top_risk_material.descricao if top_risk_material else "Sem historico" }}</span>
+        </button>
+        <button class="kpi-card" type="button" data-kpi="elegiveis" data-title="Itens Elegiveis" data-subtitle="Itens com historico suficiente para previsao.">
+            <span class="kpi-label">Elegiveis</span>
+            <span class="kpi-value mono">{{ summary.materiais.itens_elegiveis }}</span>
+            <span class="kpi-meta">Auditados: {{ summary.materiais.itens_auditados }}</span>
+        </button>
+    </div>
 
-<div class="summary-grid">
-    <div class="summary-card">
-        <h6>Materiais - Retiradas</h6>
-        <div class="summary-value">{{ "{:,.0f}".format(summary.materiais.retiradas_count) }}</div>
-        <div class="summary-meta">Quantidade total: {{ "{:,.2f}".format(summary.materiais.retiradas_qty) }}</div>
-    </div>
-    <div class="summary-card">
-        <h6>Materiais - Devoluções</h6>
-        <div class="summary-value">{{ "{:,.0f}".format(summary.materiais.devolucoes_count) }}</div>
-        <div class="summary-meta">Quantidade total: {{ "{:,.2f}".format(summary.materiais.devolucoes_qty) }}</div>
-    </div>
-    <div class="summary-card">
-        <h6>Ferramentas - Retiradas</h6>
-        <div class="summary-value">{{ "{:,.0f}".format(summary.ferramentas.retiradas_count) }}</div>
-        <div class="summary-meta">Quantidade total: {{ "{:,.2f}".format(summary.ferramentas.retiradas_qty) }}</div>
-    </div>
-    <div class="summary-card">
-        <h6>Ferramentas - Devoluções</h6>
-        <div class="summary-value">{{ "{:,.0f}".format(summary.ferramentas.devolucoes_count) }}</div>
-        <div class="summary-meta">Quantidade total: {{ "{:,.2f}".format(summary.ferramentas.devolucoes_qty) }}</div>
-    </div>
-    <div class="summary-card">
-        <h6>Janelas de 30 Dias</h6>
-        <div class="summary-value">{{ summary.materiais.janelas_30d }}</div>
-        <div class="summary-meta">Sequência desde a primeira retirada de material.</div>
-    </div>
-    <div class="summary-card">
-        <h6>Meses Consolidados</h6>
-        <div class="summary-value">{{ summary.materiais.meses }}</div>
-        <div class="summary-meta">Movimentações mensais dos materiais.</div>
-    </div>
-    <div class="summary-card">
-        <h6>Maior Risco de Ruptura</h6>
-        <div class="summary-value">{{ "{:.0%}".format(top_risk_material.prob_ruptura_30d) if top_risk_material else "0%" }}</div>
-        <div class="summary-meta">{{ top_risk_material.descricao if top_risk_material else "Sem histórico suficiente" }}</div>
-    </div>
-    <div class="summary-card">
-        <h6>Itens Elegíveis</h6>
-        <div class="summary-value">{{ summary.materiais.itens_elegiveis }}</div>
-        <div class="summary-meta">{{ summary.materiais.itens_auditados }} materiais auditados no total.</div>
-    </div>
-</div>
+    <div class="dashboard-body">
+        <aside class="side-panel">
+            <div class="panel-card">
+                <div>
+                    <h5 class="panel-title">Legenda Operacional</h5>
+                    <p class="panel-subtitle">Leituras rapidas para analise.</p>
+                </div>
+                <div class="panel-scroll">
+                    <ul style="margin: 0; padding-left: 1rem; color: var(--text-muted); font-size: 0.8rem;">
+                        <li>Retiradas: saida bruta do estoque.</li>
+                        <li>Devolucoes: retorno registrado no inventario.</li>
+                        <li>Consumo liquido: retiradas menos devolucoes.</li>
+                        <li>Ruptura 30d: chance estimada de falta no periodo.</li>
+                        <li>IC 95%: faixa de confianca estatistica.</li>
+                    </ul>
+                </div>
+            </div>
 
-<div class="info-note">
-    A previsão usa consumo líquido histórico de materiais em janelas sequenciais de 30 dias, desde a primeira retirada de cada item, e apresenta intervalo de confiança estatística de 95%. Isso melhora a previsibilidade, mas não representa garantia de 95% de acerto operacional.
-    Auditoria atual: {{ forecast_audit.materiais_com_historico }} itens com histórico, {{ forecast_audit.materiais_elegiveis }} elegíveis para previsão, {{ forecast_audit.materiais_com_risco }} com risco positivo calculado.
-</div>
+            <div class="panel-card">
+                <div>
+                    <h5 class="panel-title">Ranking Funcionarios (Materiais)</h5>
+                    <p class="panel-subtitle">Participacao percentual por retiradas.</p>
+                </div>
+                <div class="panel-scroll">
+                    <table class="table-monitor">
+                        <thead>
+                            <tr>
+                                <th>Funcionario</th>
+                                <th>Matricula</th>
+                                <th class="text-end">Movs</th>
+                                <th class="text-end">Qtd</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if materiais_emps %}
+                            {% for row in materiais_emps[:10] %}
+                            <tr>
+                                <td>{{ row.nome }}</td>
+                                <td><span class="badge-soft mono">{{ row.matricula }}</span></td>
+                                <td class="text-end mono">{{ "{:,.0f}".format(row.movimentos) }}</td>
+                                <td class="text-end mono">{{ "{:,.2f}".format(row.quantidade) }}</td>
+                            </tr>
+                            {% endfor %}
+                            {% else %}
+                            <tr><td colspan="4" class="empty-state">Nenhum registro de retirada de materiais.</td></tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
 
-<section id="secao-ajuda" class="help-grid">
-    <article class="help-card">
-        <h6>Como Ler os Cards</h6>
-        <ul>
-            <li>Retiradas e devoluções mostram volume consolidado por tipo de item.</li>
-            <li>Janelas de 30 dias usam blocos sequenciais a partir da primeira retirada real.</li>
-            <li>Itens elegíveis mostram quantos materiais têm histórico suficiente para previsão.</li>
-        </ul>
-    </article>
-    <article class="help-card" id="secao-series">
-        <h6>Legenda das Séries</h6>
-        <ul>
-            <li>Retiradas: saída bruta do estoque.</li>
-            <li>Devoluções: retorno registrado via evento de inventário.</li>
-            <li>Consumo líquido: retiradas menos devoluções no mesmo período.</li>
-            <li>Movimentações: quantidade total de registros no bloco.</li>
-        </ul>
-    </article>
-    <article class="help-card" id="secao-previsao">
-        <h6>Como Ler a Previsão</h6>
-        <ul>
-            <li>Média 30d: consumo líquido médio por janela de 30 dias.</li>
-            <li>IC 95%: faixa estatística provável de demanda.</li>
-            <li>Ruptura 30d: chance estimada de o saldo atual não suportar os próximos 30 dias.</li>
-            <li>Próximo pedido: data sugerida para agir antes de atingir o mínimo.</li>
-        </ul>
-    </article>
-    <article class="help-card" id="secao-auditoria">
-        <h6>Regras de Auditoria</h6>
-        <ul>
-            <li>A separação entre materiais e ferramentas é feita pela categoria do item.</li>
-            <li>As retiradas mostradas no painel usam Saida como fonte canônica.</li>
-            <li>Previsão estatística exige pelo menos 3 janelas de 30 dias.</li>
-            <li>Itens sem histórico suficiente continuam auditados, mas não são promovidos ao risco forte.</li>
-        </ul>
-    </article>
-</section>
+            <div class="panel-card">
+                <div>
+                    <h5 class="panel-title">Ranking Funcionarios (Ferramentas)</h5>
+                    <p class="panel-subtitle">Participacao percentual por retiradas.</p>
+                </div>
+                <div class="panel-scroll">
+                    <table class="table-monitor">
+                        <thead>
+                            <tr>
+                                <th>Funcionario</th>
+                                <th>Matricula</th>
+                                <th class="text-end">Movs</th>
+                                <th class="text-end">Qtd</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if ferramentas_emps %}
+                            {% for row in ferramentas_emps[:10] %}
+                            <tr>
+                                <td>{{ row.nome }}</td>
+                                <td><span class="badge-soft mono">{{ row.matricula }}</span></td>
+                                <td class="text-end mono">{{ "{:,.0f}".format(row.movimentos) }}</td>
+                                <td class="text-end mono">{{ "{:,.2f}".format(row.quantidade) }}</td>
+                            </tr>
+                            {% endfor %}
+                            {% else %}
+                            <tr><td colspan="4" class="empty-state">Nenhum registro de retirada de ferramentas.</td></tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
 
-<div class="chart-grid">
-    <div class="chart-card">
-        <div>
-            <h5>Movimentos Totais</h5>
-            <p>Percentual geral entre retiradas e devoluções de materiais e ferramentas.</p>
-        </div>
-        <div class="chart-wrapper">
-            <canvas id="chart-overall"></canvas>
-        </div>
-    </div>
-    <div class="chart-card">
-        <div>
-            <h5>Ranking de Funcionários - Materiais</h5>
-            <p>Participação percentual por número de retiradas de materiais.</p>
-        </div>
-        <div class="chart-wrapper">
-            <canvas id="chart-emps-materials"></canvas>
-        </div>
-    </div>
-    <div class="chart-card">
-        <div>
-            <h5>Ranking de Funcionários - Ferramentas</h5>
-            <p>Participação percentual por número de retiradas de ferramentas.</p>
-        </div>
-        <div class="chart-wrapper">
-            <canvas id="chart-emps-tools"></canvas>
-        </div>
-    </div>
-    <div class="chart-card">
-        <div>
-            <h5>Materiais Mais Retirados</h5>
-            <p>Distribuição percentual por quantidade de movimentações.</p>
-        </div>
-        <div class="chart-wrapper">
-            <canvas id="chart-items-materials"></canvas>
-        </div>
-    </div>
-    <div class="chart-card">
-        <div>
-            <h5>Ferramentas Mais Retiradas</h5>
-            <p>Distribuição percentual por quantidade de movimentações.</p>
-        </div>
-        <div class="chart-wrapper">
-            <canvas id="chart-items-tools"></canvas>
-        </div>
-    </div>
-    <div class="chart-card">
-        <div>
-            <h5>Escalonamento em 30 Dias</h5>
-            <p>Consumo líquido e movimentações em blocos consecutivos de 30 dias desde a primeira retirada.</p>
-        </div>
-        <div class="chart-wrapper">
-            <canvas id="chart-materials-30d"></canvas>
-        </div>
-    </div>
-    <div class="chart-card">
-        <div>
-            <h5>Movimentações Mensais</h5>
-            <p>Retiradas, devoluções e total de movimentos dos materiais por mês.</p>
-        </div>
-        <div class="chart-wrapper">
-            <canvas id="chart-materials-monthly"></canvas>
-        </div>
-    </div>
-    <div class="chart-card">
-        <div>
-            <h5>Probabilidade de Ruptura</h5>
-            <p>Top materiais com maior chance de acabar nos próximos 30 dias.</p>
-        </div>
-        <div class="chart-wrapper">
-            <canvas id="chart-stockout-risk"></canvas>
-        </div>
-    </div>
-</div>
+            <div class="panel-card">
+                <div>
+                    <h5 class="panel-title">Materiais Mais Retirados</h5>
+                    <p class="panel-subtitle">Itens com maior volume.</p>
+                </div>
+                <div class="panel-scroll">
+                    <table class="table-monitor">
+                        <thead>
+                            <tr>
+                                <th>Item</th>
+                                <th>Codigo</th>
+                                <th class="text-end">Ret.</th>
+                                <th class="text-end">Dev.</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if materiais_itens %}
+                            {% for row in materiais_itens[:8] %}
+                            <tr>
+                                <td>{{ row.descricao }}</td>
+                                <td><span class="badge-soft mono">{{ row.codigo }}</span></td>
+                                <td class="text-end mono">{{ "{:,.0f}".format(row.retiradas_count) }}</td>
+                                <td class="text-end mono">{{ "{:,.0f}".format(row.devolucoes_count) }}</td>
+                            </tr>
+                            {% endfor %}
+                            {% else %}
+                            <tr><td colspan="4" class="empty-state">Nenhum registro de retirada de materiais.</td></tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
 
-<div class="table-section">
-    <h5>Previsão de Ruptura e Próximo Pedido</h5>
-    <div class="table-responsive">
-        <table class="table table-sm">
-            <thead>
-                <tr>
-                    <th>Material</th>
-                    <th>Código</th>
-                    <th class="text-end">Saldo</th>
-                    <th class="text-end">Mínimo</th>
-                    <th class="text-end">Média 30d</th>
-                    <th class="text-end">IC 95%</th>
-                    <th class="text-end">Ruptura 30d</th>
-                    <th>Risco</th>
-                    <th>Previsão de Ruptura</th>
-                    <th>Próximo Pedido</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% if material_forecasts %}
-                {% for row in material_forecasts[:15] %}
-                {% set risk_class = 'high' if row.historico_suficiente and row.prob_ruptura_30d >= 0.7 else 'medium' if row.historico_suficiente and row.prob_ruptura_30d >= 0.35 else 'low' %}
-                <tr>
-                    <td>
-                        <strong>{{ row.descricao }}</strong><br>
-                        <small class="text-muted">1ª retirada: {{ row.primeira_retirada }} | Confiança: {{ row.confianca_modelo }}</small>
-                    </td>
-                    <td><span class="badge-soft">{{ row.codigo }}</span></td>
-                    <td class="text-end">{{ "{:,.2f}".format(row.saldo_atual) }}</td>
-                    <td class="text-end">{{ "{:,.2f}".format(row.estoque_minimo) }}</td>
-                    <td class="text-end">{{ "{:,.2f}".format(row.media_30d) }}</td>
-                    <td class="text-end">{{ "{:,.2f}".format(row.ic95_baixo) }} - {{ "{:,.2f}".format(row.ic95_alto) }}</td>
-                    <td class="text-end">{{ "{:.1%}".format(row.prob_ruptura_30d) if row.historico_suficiente else '--' }}</td>
-                    <td><span class="risk-chip {{ risk_class }}">{{ 'Amostra' if not row.historico_suficiente else 'Alto' if risk_class == 'high' else 'Médio' if risk_class == 'medium' else 'Baixo' }}</span></td>
-                    <td>{{ row.data_prevista_ruptura if row.historico_suficiente else 'Histórico insuficiente' }}</td>
-                    <td>{{ row.data_sugerida_pedido if row.historico_suficiente else 'Acompanhar' }}</td>
-                </tr>
-                {% endfor %}
-                {% else %}
-                <tr><td colspan="10" class="empty-state">Sem histórico suficiente para calcular previsão de ruptura.</td></tr>
-                {% endif %}
-            </tbody>
-        </table>
-    </div>
-</div>
+            <div class="panel-card">
+                <div>
+                    <h5 class="panel-title">Ferramentas Mais Retiradas</h5>
+                    <p class="panel-subtitle">Itens com maior volume.</p>
+                </div>
+                <div class="panel-scroll">
+                    <table class="table-monitor">
+                        <thead>
+                            <tr>
+                                <th>Item</th>
+                                <th>Codigo</th>
+                                <th class="text-end">Ret.</th>
+                                <th class="text-end">Dev.</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if ferramentas_itens %}
+                            {% for row in ferramentas_itens[:8] %}
+                            <tr>
+                                <td>{{ row.descricao }}</td>
+                                <td><span class="badge-soft mono">{{ row.codigo }}</span></td>
+                                <td class="text-end mono">{{ "{:,.0f}".format(row.retiradas_count) }}</td>
+                                <td class="text-end mono">{{ "{:,.0f}".format(row.devolucoes_count) }}</td>
+                            </tr>
+                            {% endfor %}
+                            {% else %}
+                            <tr><td colspan="4" class="empty-state">Nenhum registro de retirada de ferramentas.</td></tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </aside>
 
-<div class="table-section">
-    <h5>Ranking de Funcionários - Materiais</h5>
-    <div class="table-responsive">
-        <table class="table table-sm">
-            <thead>
-                <tr>
-                    <th>Funcionário</th>
-                    <th>Matrícula</th>
-                    <th class="text-end">Movimentações</th>
-                    <th class="text-end">Qtd. Retirada</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% if materiais_emps %}
-                {% for row in materiais_emps[:10] %}
-                <tr>
-                    <td>{{ row.nome }}</td>
-                    <td><span class="badge-soft">{{ row.matricula }}</span></td>
-                    <td class="text-end">{{ "{:,.0f}".format(row.movimentos) }}</td>
-                    <td class="text-end">{{ "{:,.2f}".format(row.quantidade) }}</td>
-                </tr>
-                {% endfor %}
-                {% else %}
-                <tr><td colspan="4" class="empty-state">Nenhum registro de retirada de materiais.</td></tr>
-                {% endif %}
-            </tbody>
-        </table>
-    </div>
-</div>
+        <main class="main-panel" id="main-panel">
+            <div class="panel-card" id="main-forecast">
+                <div>
+                    <h5 class="panel-title">Previsao de Ruptura e Proximo Pedido</h5>
+                    <p class="panel-subtitle">Consumo liquido em janelas de 30 dias com IC 95%.</p>
+                </div>
+                <div class="panel-scroll">
+                    <table class="table-monitor">
+                        <thead>
+                            <tr>
+                                <th>Material</th>
+                                <th>Codigo</th>
+                                <th class="text-end">Saldo</th>
+                                <th class="text-end">Minimo</th>
+                                <th class="text-end">Media 30d</th>
+                                <th class="text-end">IC 95%</th>
+                                <th class="text-end">Ruptura 30d</th>
+                                <th>Risco</th>
+                                <th>Previsao</th>
+                                <th>Pedido</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if material_forecasts %}
+                            {% for row in material_forecasts[:15] %}
+                            {% set risk_class = 'high' if row.historico_suficiente and row.prob_ruptura_30d >= 0.7 else 'medium' if row.historico_suficiente and row.prob_ruptura_30d >= 0.35 else 'low' %}
+                            <tr>
+                                <td>
+                                    <strong>{{ row.descricao }}</strong><br>
+                                    <small style="opacity:0.6;">1a retirada: {{ row.primeira_retirada }} | Confianca: {{ row.confianca_modelo }}</small>
+                                </td>
+                                <td><span class="badge-soft mono">{{ row.codigo }}</span></td>
+                                <td class="text-end mono">{{ "{:,.2f}".format(row.saldo_atual) }}</td>
+                                <td class="text-end mono">{{ "{:,.2f}".format(row.estoque_minimo) }}</td>
+                                <td class="text-end mono">{{ "{:,.2f}".format(row.media_30d) }}</td>
+                                <td class="text-end mono">{{ "{:,.2f}".format(row.ic95_baixo) }} - {{ "{:,.2f}".format(row.ic95_alto) }}</td>
+                                <td class="text-end mono">{{ "{:.1%}".format(row.prob_ruptura_30d) if row.historico_suficiente else '--' }}</td>
+                                <td><span class="risk-chip {{ risk_class }}">{{ 'Amostra' if not row.historico_suficiente else 'Alto' if risk_class == 'high' else 'Medio' if risk_class == 'medium' else 'Baixo' }}</span></td>
+                                <td>{{ row.data_prevista_ruptura if row.historico_suficiente else 'Historico insuficiente' }}</td>
+                                <td>{{ row.data_sugerida_pedido if row.historico_suficiente else 'Acompanhar' }}</td>
+                            </tr>
+                            {% endfor %}
+                            {% else %}
+                            <tr><td colspan="10" class="empty-state">Sem historico suficiente para calcular previsao de ruptura.</td></tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
 
-<div class="table-section">
-    <h5>Ranking de Funcionários - Ferramentas</h5>
-    <div class="table-responsive">
-        <table class="table table-sm">
-            <thead>
-                <tr>
-                    <th>Funcionário</th>
-                    <th>Matrícula</th>
-                    <th class="text-end">Movimentações</th>
-                    <th class="text-end">Qtd. Retirada</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% if ferramentas_emps %}
-                {% for row in ferramentas_emps[:10] %}
-                <tr>
-                    <td>{{ row.nome }}</td>
-                    <td><span class="badge-soft">{{ row.matricula }}</span></td>
-                    <td class="text-end">{{ "{:,.0f}".format(row.movimentos) }}</td>
-                    <td class="text-end">{{ "{:,.2f}".format(row.quantidade) }}</td>
-                </tr>
-                {% endfor %}
-                {% else %}
-                <tr><td colspan="4" class="empty-state">Nenhum registro de retirada de ferramentas.</td></tr>
-                {% endif %}
-            </tbody>
-        </table>
-    </div>
-</div>
-
-<div class="table-section">
-    <h5>Materiais Mais Retirados</h5>
-    <div class="table-responsive">
-        <table class="table table-sm">
-            <thead>
-                <tr>
-                    <th>Item</th>
-                    <th>Código</th>
-                    <th class="text-end">Retiradas</th>
-                    <th class="text-end">Qtd. Retirada</th>
-                    <th class="text-end">Devoluções</th>
-                    <th class="text-end">Taxa</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% if materiais_itens %}
-                {% for row in materiais_itens[:10] %}
-                <tr>
-                    <td>{{ row.descricao }}</td>
-                    <td><span class="badge-soft">{{ row.codigo }}</span></td>
-                    <td class="text-end">{{ "{:,.0f}".format(row.retiradas_count) }}</td>
-                    <td class="text-end">{{ "{:,.2f}".format(row.retiradas_qty) }}</td>
-                    <td class="text-end">{{ "{:,.0f}".format(row.devolucoes_count) }}</td>
-                    <td class="text-end">{{ "{:.0%}".format(row.taxa_devolucao) }}</td>
-                </tr>
-                {% endfor %}
-                {% else %}
-                <tr><td colspan="6" class="empty-state">Nenhum registro de retirada de materiais.</td></tr>
-                {% endif %}
-            </tbody>
-        </table>
-    </div>
-</div>
-
-<div class="table-section">
-    <h5>Ferramentas Mais Retiradas</h5>
-    <div class="table-responsive">
-        <table class="table table-sm">
-            <thead>
-                <tr>
-                    <th>Item</th>
-                    <th>Código</th>
-                    <th class="text-end">Retiradas</th>
-                    <th class="text-end">Qtd. Retirada</th>
-                    <th class="text-end">Devoluções</th>
-                    <th class="text-end">Taxa</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% if ferramentas_itens %}
-                {% for row in ferramentas_itens[:10] %}
-                <tr>
-                    <td>{{ row.descricao }}</td>
-                    <td><span class="badge-soft">{{ row.codigo }}</span></td>
-                    <td class="text-end">{{ "{:,.0f}".format(row.retiradas_count) }}</td>
-                    <td class="text-end">{{ "{:,.2f}".format(row.retiradas_qty) }}</td>
-                    <td class="text-end">{{ "{:,.0f}".format(row.devolucoes_count) }}</td>
-                    <td class="text-end">{{ "{:.0%}".format(row.taxa_devolucao) }}</td>
-                </tr>
-                {% endfor %}
-                {% else %}
-                <tr><td colspan="6" class="empty-state">Nenhum registro de retirada de ferramentas.</td></tr>
-                {% endif %}
-            </tbody>
-        </table>
+            <div class="panel-card" id="main-chart" style="display: none;">
+                <div>
+                    <h5 class="panel-title" id="chart-title">KPI</h5>
+                    <p class="panel-subtitle" id="chart-subtitle">Selecione um KPI para visualizar o grafico.</p>
+                </div>
+                <div class="panel-actions">
+                    <button class="ghost-button" type="button" id="btn-forecast">Voltar para previsao</button>
+                </div>
+                <div class="chart-placeholder" aria-hidden="true"></div>
+            </div>
+        </main>
     </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 {{ super() }}
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script>
     (function () {
-        const chartData = {{ chart_data | tojson }};
-        const palette = [
-            '#1e3a8a', '#2563eb', '#3b82f6', '#60a5fa', '#0ea5e9', '#0284c7', '#0369a1', '#1e293b'
-        ];
+        const cards = Array.from(document.querySelectorAll('.kpi-card'));
+        const forecastPanel = document.getElementById('main-forecast');
+        const chartPanel = document.getElementById('main-chart');
+        const chartTitle = document.getElementById('chart-title');
+        const chartSubtitle = document.getElementById('chart-subtitle');
+        const btnForecast = document.getElementById('btn-forecast');
 
-        function renderPie(canvasId, labels, values) {
-            const canvas = document.getElementById(canvasId);
-            if (!canvas) return;
-            const total = values.reduce((acc, val) => acc + val, 0);
-            if (!total) {
-                canvas.parentElement.innerHTML = '<div class="empty-state">Sem dados suficientes.</div>';
-                return;
-            }
-            const colors = labels.map((_, idx) => palette[idx % palette.length]);
-            new Chart(canvas, {
-                type: 'pie',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        data: values,
-                        backgroundColor: colors,
-                        borderColor: '#ffffff',
-                        borderWidth: 2
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'bottom',
-                            labels: {
-                                boxWidth: 12,
-                                boxHeight: 12
-                            }
-                        },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    const value = context.parsed || 0;
-                                    const total = context.dataset.data.reduce((acc, val) => acc + val, 0);
-                                    const pct = total ? ((value / total) * 100).toFixed(1) : '0.0';
-                                    return `${context.label}: ${value} (${pct}%)`;
-                                }
-                            }
-                        }
-                    }
+        function clearActive() {
+            cards.forEach((card) => card.classList.remove('active'));
+        }
+
+        function showForecast() {
+            chartPanel.style.display = 'none';
+            forecastPanel.style.display = 'flex';
+            clearActive();
+            const ruptureCard = cards.find((card) => card.dataset.kpi === 'ruptura');
+            if (ruptureCard) ruptureCard.classList.add('active');
+        }
+
+        function showChart(card) {
+            forecastPanel.style.display = 'none';
+            chartPanel.style.display = 'flex';
+            chartTitle.textContent = card.dataset.title || 'KPI';
+            chartSubtitle.textContent = card.dataset.subtitle || 'Grafico dedicado ao indicador selecionado.';
+            clearActive();
+            card.classList.add('active');
+        }
+
+        cards.forEach((card) => {
+            card.addEventListener('click', () => {
+                if (card.dataset.kpi === 'ruptura') {
+                    showForecast();
+                } else {
+                    showChart(card);
                 }
             });
+        });
+
+        if (btnForecast) {
+            btnForecast.addEventListener('click', showForecast);
         }
 
-        function renderMixedTrend(canvasId, labels, lineDatasets, barDataset) {
-            const canvas = document.getElementById(canvasId);
-            if (!canvas) return;
-            const hasData = (lineDatasets || []).some((dataset) => (dataset.data || []).some((value) => value > 0)) || ((barDataset?.data || []).some((value) => value > 0));
-            if (!hasData) {
-                canvas.parentElement.innerHTML = '<div class="empty-state">Sem dados suficientes.</div>';
-                return;
-            }
-            new Chart(canvas, {
-                data: {
-                    labels,
-                    datasets: [
-                        ...lineDatasets,
-                        barDataset,
-                    ],
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    interaction: {
-                        mode: 'index',
-                        intersect: false,
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            position: 'left',
-                        },
-                        y1: {
-                            beginAtZero: true,
-                            position: 'right',
-                            grid: {
-                                drawOnChartArea: false,
-                            },
-                        },
-                    },
-                    plugins: {
-                        legend: {
-                            position: 'bottom',
-                        },
-                    },
-                },
-            });
-        }
-
-        function renderBar(canvasId, labels, values) {
-            const canvas = document.getElementById(canvasId);
-            if (!canvas) return;
-            const hasData = (values || []).some((value) => value > 0);
-            if (!hasData) {
-                canvas.parentElement.innerHTML = '<div class="empty-state">Sem dados suficientes.</div>';
-                return;
-            }
-            new Chart(canvas, {
-                type: 'bar',
-                data: {
-                    labels,
-                    datasets: [{
-                        label: 'Probabilidade (%)',
-                        data: values,
-                        backgroundColor: '#1e3a8a',
-                        borderRadius: 10,
-                    }],
-                },
-                options: {
-                    indexAxis: 'y',
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            display: false,
-                        },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    return `${context.parsed.x.toFixed(2)}%`;
-                                }
-                            }
-                        }
-                    },
-                    scales: {
-                        x: {
-                            beginAtZero: true,
-                            max: 100,
-                        },
-                    },
-                },
-            });
-        }
-
-        renderPie('chart-overall', chartData.overall.labels, chartData.overall.values);
-        renderPie('chart-emps-materials', chartData.employees_materials.labels, chartData.employees_materials.values);
-        renderPie('chart-emps-tools', chartData.employees_tools.labels, chartData.employees_tools.values);
-        renderPie('chart-items-materials', chartData.items_materials.labels, chartData.items_materials.values);
-        renderPie('chart-items-tools', chartData.items_tools.labels, chartData.items_tools.values);
-
-        renderMixedTrend(
-            'chart-materials-30d',
-            chartData.materials_30d.labels,
-            [
-                {
-                    type: 'line',
-                    label: 'Retiradas',
-                    data: chartData.materials_30d.withdrawals_qty,
-                    borderColor: '#2563eb',
-                    backgroundColor: '#2563eb',
-                    tension: 0.3,
-                    yAxisID: 'y',
-                },
-                {
-                    type: 'line',
-                    label: 'Devoluções',
-                    data: chartData.materials_30d.returns_qty,
-                    borderColor: '#0ea5e9',
-                    backgroundColor: '#0ea5e9',
-                    tension: 0.3,
-                    yAxisID: 'y',
-                },
-                {
-                    type: 'line',
-                    label: 'Consumo líquido',
-                    data: chartData.materials_30d.net_qty,
-                    borderColor: '#1e293b',
-                    backgroundColor: '#1e293b',
-                    tension: 0.3,
-                    yAxisID: 'y',
-                },
-            ],
-            {
-                type: 'bar',
-                label: 'Movimentações',
-                data: chartData.materials_30d.movements_count,
-                backgroundColor: 'rgba(96, 165, 250, 0.28)',
-                borderColor: '#60a5fa',
-                borderWidth: 1,
-                yAxisID: 'y1',
-            }
-        );
-
-        renderMixedTrend(
-            'chart-materials-monthly',
-            chartData.materials_monthly.labels,
-            [
-                {
-                    type: 'line',
-                    label: 'Retiradas',
-                    data: chartData.materials_monthly.withdrawals_qty,
-                    borderColor: '#2563eb',
-                    backgroundColor: '#2563eb',
-                    tension: 0.3,
-                    yAxisID: 'y',
-                },
-                {
-                    type: 'line',
-                    label: 'Devoluções',
-                    data: chartData.materials_monthly.returns_qty,
-                    borderColor: '#0ea5e9',
-                    backgroundColor: '#0ea5e9',
-                    tension: 0.3,
-                    yAxisID: 'y',
-                },
-                {
-                    type: 'line',
-                    label: 'Consumo líquido',
-                    data: chartData.materials_monthly.net_qty,
-                    borderColor: '#1e293b',
-                    backgroundColor: '#1e293b',
-                    tension: 0.3,
-                    yAxisID: 'y',
-                },
-            ],
-            {
-                type: 'bar',
-                label: 'Movimentações',
-                data: chartData.materials_monthly.movements_count,
-                backgroundColor: 'rgba(14, 165, 233, 0.18)',
-                borderColor: '#0ea5e9',
-                borderWidth: 1,
-                yAxisID: 'y1',
-            }
-        );
-
-        renderBar('chart-stockout-risk', chartData.stockout_risk.labels, chartData.stockout_risk.values);
-    }());
+        showForecast();
+    })();
 </script>
 {% endblock %}

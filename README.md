@@ -29,6 +29,22 @@ Foi implementado o fluxo semiautomatico para aplicar foto em itens via URL diret
 - `galint_flask/views/inventory.py`
 - `galint_flask/templates/inventory/form.html`
 
+
+### Dashboard Percentual Movimentos (alta densidade)
+
+Refatorada a interface do relatorio Percentual Movimentos para o padrao de dashboard single-page (100vh, sem scroll global), com 8 KPIs em linha e paineis laterais.
+
+**Principais ajustes:**
+- Grid compacto com 8 KPIs no topo e painel principal 75% + sidebar 25%.
+- Cards em glassmorphism com fundo deep-navy e .danger-glow no KPI de ruptura.
+- Tabelas com estilo de monitoramento (monoespacadas, zebra transparente e scroll interno).
+- Interacao: clique no KPI troca o painel principal por um grafico placeholder dedicado.
+
+**Arquivo impactado:**
+- `galint_flask/templates/reports/percentual_movimentos.html`
+
+
+
 ## 🧾 Atualizações realizadas (Hoje)
 
 ### 📈 Página Percentual Movimentos: criação, correções e auditoria
@@ -297,7 +313,23 @@ Implementado sistema completo de controle de custódia de ferramentas com **dois
 - `galint_flask/views/reports.py` - Busca normalizada + correção de matrícula
 - `galint_flask/views/inventory.py` - Novos campos no payload
 - `galint_flask/services/inventory.py` - Lógica de lote manual/automático
-- `galint_flask/templates/inventory/form.html` - Checkboxes de validade e lote
+- `galint_flask/templates/inventory/form.html`
+
+
+### Dashboard Percentual Movimentos (alta densidade)
+
+Refatorada a interface do relatorio Percentual Movimentos para o padrao de dashboard single-page (100vh, sem scroll global), com 8 KPIs em linha e paineis laterais.
+
+**Principais ajustes:**
+- Grid compacto com 8 KPIs no topo e painel principal 75% + sidebar 25%.
+- Cards em glassmorphism com fundo deep-navy e .danger-glow no KPI de ruptura.
+- Tabelas com estilo de monitoramento (monoespacadas, zebra transparente e scroll interno).
+- Interacao: clique no KPI troca o painel principal por um grafico placeholder dedicado.
+
+**Arquivo impactado:**
+- `galint_flask/templates/reports/percentual_movimentos.html`
+
+ - Checkboxes de validade e lote
 - `galint_flask/models.py` - Validador para campos float
 
 ---
@@ -362,7 +394,23 @@ Implementado sistema **profissional de rastreabilidade de lote e validade** com 
 - Preview de conversão em card azul destacado
 
 **Arquivo Implementado:**
-- `galint_flask/templates/inventory/form.html` - 800+ linhas de HTML/CSS/JS otimizado
+- `galint_flask/templates/inventory/form.html`
+
+
+### Dashboard Percentual Movimentos (alta densidade)
+
+Refatorada a interface do relatorio Percentual Movimentos para o padrao de dashboard single-page (100vh, sem scroll global), com 8 KPIs em linha e paineis laterais.
+
+**Principais ajustes:**
+- Grid compacto com 8 KPIs no topo e painel principal 75% + sidebar 25%.
+- Cards em glassmorphism com fundo deep-navy e .danger-glow no KPI de ruptura.
+- Tabelas com estilo de monitoramento (monoespacadas, zebra transparente e scroll interno).
+- Interacao: clique no KPI troca o painel principal por um grafico placeholder dedicado.
+
+**Arquivo impactado:**
+- `galint_flask/templates/reports/percentual_movimentos.html`
+
+ - 800+ linhas de HTML/CSS/JS otimizado
 - Backup do antigo: `form_old.html`
 
 #### **Documentação Mobile Completa:**
@@ -431,7 +479,23 @@ Implementado sistema **profissional de rastreabilidade de lote e validade** com 
 - `galint_flask/utils/barcode_generator.py` - NOVO
 - `galint_flask/services/inventory.py` - Geração automática integrada
 - `galint_flask/views/api.py` - Endpoint /api/calcular-estoque
-- `galint_flask/templates/inventory/form.html` - Redesenhado completo
+- `galint_flask/templates/inventory/form.html`
+
+
+### Dashboard Percentual Movimentos (alta densidade)
+
+Refatorada a interface do relatorio Percentual Movimentos para o padrao de dashboard single-page (100vh, sem scroll global), com 8 KPIs em linha e paineis laterais.
+
+**Principais ajustes:**
+- Grid compacto com 8 KPIs no topo e painel principal 75% + sidebar 25%.
+- Cards em glassmorphism com fundo deep-navy e .danger-glow no KPI de ruptura.
+- Tabelas com estilo de monitoramento (monoespacadas, zebra transparente e scroll interno).
+- Interacao: clique no KPI troca o painel principal por um grafico placeholder dedicado.
+
+**Arquivo impactado:**
+- `galint_flask/templates/reports/percentual_movimentos.html`
+
+ - Redesenhado completo
 - `galint_flask/views/reports.py` - PDFs/XLSX com rastreabilidade
 - `galint_flask/services/telegram_service.py` - Mensagens com lote/validade
 - `migrations/versions/616036e9b6f8_*.py` - Migração aplicada
@@ -1389,4 +1453,5 @@ LIMIT 100;
 
 Observação:
 - A correção é pequena e focada; não altera a estrutura de dados. Se você encontrar outro caso onde `saidas` esteja sendo sobrescrita acidentalmente, procure por atribuições de `saidas =` fora do escopo condicional correspondente.
+
 
