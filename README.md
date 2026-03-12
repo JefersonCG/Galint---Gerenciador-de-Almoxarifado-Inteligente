@@ -8,6 +8,17 @@ O **GALINT** é um sistema completo para operação de almoxarifado com foco em 
 
 ## Atualizacoes realizadas (Hoje)
 
+
+### Foto por URL (endpoint estavel)
+
+Para eliminar 404 em ambientes com prefixo, foi criado um endpoint unico `/itens/foto/url` que recebe `codigo` e `image_url` no POST.
+
+**Arquivos impactados:**
+- `galint_flask/views/inventory.py`
+- `galint_flask/templates/inventory/form.html`
+
+
+
 ### Aplicar foto por URL (semiautomatico)
 
 Foi implementado o fluxo semiautomatico para aplicar foto em itens via URL direta da imagem, eliminando o download manual.

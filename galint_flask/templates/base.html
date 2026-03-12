@@ -12,7 +12,7 @@
     {% block extra_css %}{% endblock %}
 </head>
 
-<body class="layout-shell {% block body_class %}{% endblock %}">
+<body class="layout-shell {% block body_class %}{% endblock %}" {% block body_attributes %}{% endblock %}>
     <header class="topbar shadow-sm">
         <div class="d-flex align-items-center gap-2">
             <button class="btn btn-sm btn-outline-light rounded-circle" id="sidebar-toggle" aria-label="Alternar menu">

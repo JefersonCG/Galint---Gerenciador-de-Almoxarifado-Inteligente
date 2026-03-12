@@ -1,4 +1,6 @@
 {% extends "base.html" %}
+
+{% block body_attributes %}data-script-root="{{ request.script_root }}"{% endblock %}
 {% set form_item = item if item else form_data %}
 {% set saldo_total_ean = saldo_total_ean if saldo_total_ean is defined else None %}
 {% block title %}{% if item %}Editar{% else %}Novo{% endif %} Item{% endblock %}
@@ -1706,7 +1708,11 @@
         });
     }
 
-    if (confirmFotoUrl) {
+    function getScriptRoot() {
+        return document.documentElement?.dataset?.scriptRoot || '';
+    }
+
+if (confirmFotoUrl) {
         confirmFotoUrl.addEventListener('click', async () => {
             const imageUrl = (inputFotoUrl?.value || '').trim();
             if (!imageUrl) {
@@ -1734,46 +1740,31 @@
                 const payload = new URLSearchParams();
                 payload.append('image_url', imageUrl);
 
-                const candidates = new Set();
-                const explicitEndpoint = btnFotoUrl?.dataset?.fotoUrl;
-                if (explicitEndpoint) candidates.add(explicitEndpoint);
+                const payload = new URLSearchParams();
+                payload.append('codigo', codigo);
+                payload.append('image_url', imageUrl);
 
-                const pathName = window.location.pathname || '';
-                const idx = pathName.indexOf('/itens/');
-                if (idx >= 0) {
-                    const prefix = pathName.slice(0, idx);
-                    candidates.add(`${prefix}/itens/${encodeURIComponent(codigo)}/foto/url`);
+                const endpoint = `${window.location.origin}${getScriptRoot()}/itens/foto/url`;
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+                        'Accept': 'application/json'
+                    },
+                    body: payload.toString(),
+                    credentials: 'same-origin'
+                });
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok || data.success === false) {
+                    throw new Error(data.message || `Erro ${response.status}`);
                 }
-                candidates.add(`/itens/${encodeURIComponent(codigo)}/foto/url`);
+                if (alertFotoUrl) {
+                    alertFotoUrl.textContent = 'Foto aplicada com sucesso. Atualizando...';
+                    alertFotoUrl.className = 'alert alert-success mt-3 mb-0';
+                    alertFotoUrl.style.display = 'block';
+                }
+                setTimeout(() => window.location.reload(), 800);
 
-                let lastStatus = null;
-                for (const endpoint of candidates) {
-                    const response = await fetch(endpoint, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
-                            'Accept': 'application/json'
-                        },
-                        body: payload.toString(),
-                        credentials: 'same-origin'
-                    });
-                    if (response.status === 404) {
-                        lastStatus = response.status;
-                        continue;
-                    }
-                    const data = await response.json().catch(() => ({}));
-                    if (!response.ok || data.success === false) {
-                        throw new Error(data.message || `Erro ${response.status}`);
-                    }
-                    if (alertFotoUrl) {
-                        alertFotoUrl.textContent = 'Foto aplicada com sucesso. Atualizando...';
-                        alertFotoUrl.className = 'alert alert-success mt-3 mb-0';
-                        alertFotoUrl.style.display = 'block';
-                    }
-                    setTimeout(() => window.location.reload(), 800);
-                    return;
-                }
-                throw new Error(`Endpoint de foto por URL nao encontrado (HTTP ${lastStatus || 404}).`);
             } catch (err) {
                 if (alertFotoUrl) {
                     alertFotoUrl.textContent = err?.message || 'Falha ao aplicar a foto.';
