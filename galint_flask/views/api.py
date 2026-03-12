@@ -8,6 +8,34 @@ from ..extensions import db
 api_bp = Blueprint('api', __name__, url_prefix='/api')
 
 
+
+@api_bp.post('/itens/foto/url')
+def aplicar_foto_url_api():
+    data = request.form if request.form else (request.json or {})
+    codigo = (data.get('codigo') or '').strip()
+    image_url = (data.get('image_url') or '').strip()
+    if not codigo:
+        return jsonify({'success': False, 'message': 'Codigo do item nao informado'}), 400
+    if not image_url:
+        return jsonify({'success': False, 'message': 'URL da imagem nao informada'}), 400
+
+    item = Item.query.get(codigo)
+    if not item:
+        return jsonify({'success': False, 'message': 'Item nao encontrado'}), 404
+
+    from ..services.item_foto_service import ItemFotoService
+    try:
+        if item.foto_path:
+            ItemFotoService.deletar_foto(item.foto_path)
+        foto_path = ItemFotoService.download_foto_from_url(image_url, codigo)
+        item.foto_path = foto_path
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Foto atualizada', 'foto_path': foto_path})
+    except ValueError as exc:
+        return jsonify({'success': False, 'message': str(exc)}), 400
+    except Exception:
+        return jsonify({'success': False, 'message': 'Falha inesperada ao atualizar foto'}), 500
+
 @api_bp.route('/calcular-estoque', methods=['POST'])
 def calcular_estoque():
     """

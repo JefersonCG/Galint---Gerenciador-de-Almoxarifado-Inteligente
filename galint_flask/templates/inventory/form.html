@@ -1741,7 +1741,7 @@ if (confirmFotoUrl) {
                 payload.append('codigo', codigo);
                 payload.append('image_url', imageUrl);
 
-                const endpoint = `${window.location.origin}${getScriptRoot()}/itens/foto/url`;
+                const endpoint = `${window.location.origin}${getScriptRoot()}/api/itens/foto/url`;
                 const response = await fetch(endpoint, {
                     method: 'POST',
                     headers: {
