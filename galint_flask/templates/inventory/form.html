@@ -464,7 +464,7 @@
                             <input class="form-control" id="descricao" name="descricao"
                                 value="{{ form_item.descricao if form_item else '' }}" required>
                             {% if item %}
-                            <button type="button" class="btn btn-secondary" id="btn-foto-url" title="Buscar foto por URL">
+                            <button type="button" class="btn btn-secondary" id="btn-foto-url" data-foto-url="{{ url_for('inventory.atualizar_foto_por_url', codigo=item.codigo) }}" title="Buscar foto por URL">
                                 <i class="bi bi-search"></i>
                             </button>
                             {% endif %}
@@ -1733,7 +1733,8 @@
             try {
                 const payload = new URLSearchParams();
                 payload.append('image_url', imageUrl);
-                const response = await fetch(`/itens/${encodeURIComponent(codigo)}/foto/url`, {
+                const endpoint = btnFotoUrl?.dataset?.fotoUrl || `/itens/${encodeURIComponent(codigo)}/foto/url`;
+                const response = await fetch(endpoint, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
