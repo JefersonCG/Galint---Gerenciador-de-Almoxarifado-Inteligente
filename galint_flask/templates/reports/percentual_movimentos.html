@@ -4,8 +4,6 @@
 
 {% block extra_css %}
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700;800&family=IBM+Plex+Mono:wght@400;600&display=swap');
-
     :root {
         --navy: #0a0e1a;
         --glass: rgba(30, 58, 138, 0.4);
@@ -21,7 +19,6 @@
     body.layout-shell {
         background: var(--navy);
         overflow: hidden;
-        font-family: 'Space Grotesk', 'Segoe UI', sans-serif;
     }
 
     .layout-shell .app-body {
@@ -270,7 +267,7 @@
     }
 
     .mono {
-        font-family: 'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;
+        font-family: inherit;
         font-variant-numeric: tabular-nums;
     }
 
