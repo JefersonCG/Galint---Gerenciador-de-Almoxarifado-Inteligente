@@ -3,6 +3,43 @@ from galint_flask import create_app
 
 app = create_app()
 
+# Fallback routes for foto por URL (evita 404 se blueprints nao carregarem)
+try:
+    from flask import request, jsonify
+    from galint_flask.models import Item
+    from galint_flask.extensions import db
+    from galint_flask.services.item_foto_service import ItemFotoService
+
+    def _apply_photo_from_url():
+        payload = request.form if request.form else (request.json or {})
+        codigo = (payload.get('codigo') or '').strip()
+        image_url = (payload.get('image_url') or '').strip()
+        if not codigo:
+            return jsonify({'success': False, 'message': 'Codigo do item nao informado'}), 400
+        if not image_url:
+            return jsonify({'success': False, 'message': 'URL da imagem nao informada'}), 400
+        item = Item.query.get(codigo)
+        if not item:
+            return jsonify({'success': False, 'message': 'Item nao encontrado'}), 404
+        try:
+            if item.foto_path:
+                ItemFotoService.deletar_foto(item.foto_path)
+            foto_path = ItemFotoService.download_foto_from_url(image_url, codigo)
+            item.foto_path = foto_path
+            db.session.commit()
+            return jsonify({'success': True, 'message': 'Foto atualizada', 'foto_path': foto_path})
+        except ValueError as exc:
+            return jsonify({'success': False, 'message': str(exc)}), 400
+        except Exception:
+            return jsonify({'success': False, 'message': 'Falha inesperada ao atualizar foto'}), 500
+
+    if 'foto_url_api_fallback' not in app.view_functions:
+        app.add_url_rule('/api/itens/foto/url', endpoint='foto_url_api_fallback', view_func=_apply_photo_from_url, methods=['POST'])
+    if 'foto_url_fallback' not in app.view_functions:
+        app.add_url_rule('/itens/foto/url', endpoint='foto_url_fallback', view_func=_apply_photo_from_url, methods=['POST'])
+except Exception:
+    pass
+
 
 def _load_migration_funcs():
     try:
