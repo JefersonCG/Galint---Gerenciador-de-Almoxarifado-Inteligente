@@ -1733,27 +1733,47 @@
             try {
                 const payload = new URLSearchParams();
                 payload.append('image_url', imageUrl);
-                const defaultEndpoint = window.location.pathname.replace(/\/editar\/?$/, '/foto/url');
-                const endpoint = btnFotoUrl?.dataset?.fotoUrl || defaultEndpoint;
-                const response = await fetch(endpoint, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
-                        'Accept': 'application/json'
-                    },
-                    body: payload.toString(),
-                    credentials: 'same-origin'
-                });
-                const data = await response.json().catch(() => ({}));
-                if (!response.ok || data.success === false) {
-                    throw new Error(data.message || `Erro ${response.status}`);
+
+                const candidates = new Set();
+                const explicitEndpoint = btnFotoUrl?.dataset?.fotoUrl;
+                if (explicitEndpoint) candidates.add(explicitEndpoint);
+
+                const pathName = window.location.pathname || '';
+                const idx = pathName.indexOf('/itens/');
+                if (idx >= 0) {
+                    const prefix = pathName.slice(0, idx);
+                    candidates.add(`${prefix}/itens/${encodeURIComponent(codigo)}/foto/url`);
                 }
-                if (alertFotoUrl) {
-                    alertFotoUrl.textContent = 'Foto aplicada com sucesso. Atualizando...';
-                    alertFotoUrl.className = 'alert alert-success mt-3 mb-0';
-                    alertFotoUrl.style.display = 'block';
+                candidates.add(`/itens/${encodeURIComponent(codigo)}/foto/url`);
+
+                let lastStatus = null;
+                for (const endpoint of candidates) {
+                    const response = await fetch(endpoint, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+                            'Accept': 'application/json'
+                        },
+                        body: payload.toString(),
+                        credentials: 'same-origin'
+                    });
+                    if (response.status === 404) {
+                        lastStatus = response.status;
+                        continue;
+                    }
+                    const data = await response.json().catch(() => ({}));
+                    if (!response.ok || data.success === false) {
+                        throw new Error(data.message || `Erro ${response.status}`);
+                    }
+                    if (alertFotoUrl) {
+                        alertFotoUrl.textContent = 'Foto aplicada com sucesso. Atualizando...';
+                        alertFotoUrl.className = 'alert alert-success mt-3 mb-0';
+                        alertFotoUrl.style.display = 'block';
+                    }
+                    setTimeout(() => window.location.reload(), 800);
+                    return;
                 }
-                setTimeout(() => window.location.reload(), 800);
+                throw new Error(`Endpoint de foto por URL nao encontrado (HTTP ${lastStatus || 404}).`);
             } catch (err) {
                 if (alertFotoUrl) {
                     alertFotoUrl.textContent = err?.message || 'Falha ao aplicar a foto.';
