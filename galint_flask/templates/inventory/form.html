@@ -1733,7 +1733,8 @@
             try {
                 const payload = new URLSearchParams();
                 payload.append('image_url', imageUrl);
-                const endpoint = btnFotoUrl?.dataset?.fotoUrl || `/itens/${encodeURIComponent(codigo)}/foto/url`;
+                const defaultEndpoint = window.location.pathname.replace(/\/editar\/?$/, '/foto/url');
+                const endpoint = btnFotoUrl?.dataset?.fotoUrl || defaultEndpoint;
                 const response = await fetch(endpoint, {
                     method: 'POST',
                     headers: {
