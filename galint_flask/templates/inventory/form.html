@@ -464,7 +464,7 @@
                             <input class="form-control" id="descricao" name="descricao"
                                 value="{{ form_item.descricao if form_item else '' }}" required>
                             {% if item %}
-                            <button type="button" class="btn btn-secondary" id="btn-foto-url" data-foto-url="{{ url_for('inventory.atualizar_foto_por_url', codigo=item.codigo) }}" title="Buscar foto por URL">
+                            <button type="button" class="btn btn-secondary" id="btn-foto-url" data-foto-url="{{ (request.script_root or '') ~ '/itens/' ~ item.codigo ~ '/foto/url' }}" title="Buscar foto por URL">
                                 <i class="bi bi-search"></i>
                             </button>
                             {% endif %}
