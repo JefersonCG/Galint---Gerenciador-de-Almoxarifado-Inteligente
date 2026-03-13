@@ -10,6 +10,8 @@
             {% set saida_fracionada_url = url_for('movements.saida_fracionada_page') if endpoint_exists('movements.saida_fracionada_page') else None %}
             {% set ferramentas_retirar_url = url_for('ferramentas.retirar_page') if endpoint_exists('ferramentas.retirar_page') else None %}
             {% set ferramentas_painel_url = url_for('ferramentas.painel') if endpoint_exists('ferramentas.painel') else None %}
+            {% set tool_custody_url = url_for('tool_custody.index') if endpoint_exists('tool_custody.index') else None %}
+            {% set reparo_url = url_for('reparo.listar_reparos') if endpoint_exists('reparo.listar_reparos') else None %}
             <a class="sidebar-link {% if p == url_for('dashboard.index') %}active{% endif %}"
                 href="{{ url_for('dashboard.index') }}">
                 <i class="bi bi-speedometer2"></i>
@@ -57,20 +59,33 @@
                 <i class="bi bi-boxes"></i>
                 <span>Estoque</span>
             </a>
-            {% if endpoint_exists('tool_custody.index') %}
-            <a class="sidebar-link {% if p.startswith(url_for('tool_custody.index')) %}active{% endif %}"
-                href="{{ url_for('tool_custody.index') }}">
-                <i class="bi bi-search"></i>
-                <span>Auditar Ferramentas</span>
-            </a>
-            {% endif %}
-            {% if endpoint_exists('reparo.listar_reparos') %}
-            <a class="sidebar-link {% if p.startswith(url_for('reparo.listar_reparos')) %}active{% endif %}"
-                href="{{ url_for('reparo.listar_reparos') }}">
-                <i class="bi bi-tools"></i>
-                <span>Equipamentos em Reparo</span>
-            </a>
-            {% endif %}
+            {% set ferramentas_active = (tool_custody_url and p.startswith(tool_custody_url)) or (reparo_url and p.startswith(reparo_url)) %}
+            <button
+                class="sidebar-link d-flex justify-content-between align-items-center border-0 bg-transparent text-start w-100 {{ 'active' if ferramentas_active else 'collapsed' }}"
+                type="button" data-bs-toggle="collapse" data-bs-target="#ferramentasMenu"
+                aria-expanded="{{ 'true' if ferramentas_active else 'false' }}">
+                <span>
+                    <i class="bi bi-tools"></i>
+                    <span>Ferramentas</span>
+                </span>
+                <i class="bi bi-chevron-down small"></i>
+            </button>
+            <div id="ferramentasMenu" class="collapse {{ 'show' if ferramentas_active else '' }}">
+                {% if tool_custody_url %}
+                <a class="sidebar-link ps-4 {{ 'active' if p.startswith(tool_custody_url) else '' }}"
+                    href="{{ tool_custody_url }}">
+                    <i class="bi bi-search"></i>
+                    <span>Auditar Ferramentas</span>
+                </a>
+                {% endif %}
+                {% if reparo_url %}
+                <a class="sidebar-link ps-4 {{ 'active' if p.startswith(reparo_url) else '' }}"
+                    href="{{ reparo_url }}">
+                    <i class="bi bi-wrench-adjustable"></i>
+                    <span>Em reparo...</span>
+                </a>
+                {% endif %}
+            </div>
             {% if config.get('FEATURE_NOTAS_ENABLED', True) %}
             <a class="sidebar-link {% if p.startswith(url_for('nf.nf_index')) %}active{% endif %}"
                 href="{{ url_for('nf.nf_index') }}">
@@ -91,13 +106,6 @@
                 <i class="bi bi-pie-chart"></i>
                 <span>Percentual Movimentos</span>
             </a>
-            {% if endpoint_exists('pages.documentacao_percentual_movimentos') %}
-            <a class="sidebar-link ps-4 {% if p.startswith(url_for('pages.documentacao_percentual_movimentos')) %}active{% endif %}"
-                href="{{ url_for('pages.documentacao_percentual_movimentos') }}">
-                <i class="bi bi-journal-text"></i>
-                <span>Ajuda Percentual</span>
-            </a>
-            {% endif %}
             {% endif %}
             {% if current_user.is_authenticated and current_user.is_admin %}
             <a class="sidebar-link {% if p.startswith(url_for('users.list_users')) %}active{% endif %}"
@@ -105,11 +113,13 @@
                 <i class="bi bi-people-fill"></i>
                 <span>Usuários</span>
             </a>
+            {% if config.get('FEATURE_MOBILE_PANEL_ENABLED', False) %}
             <a class="sidebar-link {% if p.startswith('/mobile-panel') %}active{% endif %}"
                 href="/mobile-panel">
                 <i class="bi bi-phone-fill"></i>
                 <span>Painel Mobile</span>
             </a>
+            {% endif %}
             <div class="sidebar-divider"></div>
 
             {% set configuracoes_active = p.startswith(url_for('pages.config')) %}
@@ -156,7 +166,18 @@
                 </a>
             </div>
             {% endif %}
-            <div class="sidebar-divider"></div>
+                        {% if current_user.is_authenticated %}
+            <div class="sidebar-link d-flex align-items-center justify-content-between" style="cursor: default;">
+                <span>
+                    <i class="bi bi-robot"></i>
+                    <span>Assistente</span>
+                </span>
+                <div class="form-check form-switch m-0">
+                    <input class="form-check-input" type="checkbox" id="assistant-toggle" aria-label="Alternar assistente">
+                </div>
+            </div>
+            {% endif %}
+<div class="sidebar-divider"></div>
             <a class="sidebar-link {% if p == url_for('pages.sobre') %}active{% endif %}"
                 href="{{ url_for('pages.sobre') }}">Sobre</a>
         </nav>

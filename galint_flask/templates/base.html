@@ -534,6 +534,73 @@
         });
     </script>
     {% block scripts %}{% endblock %}
+
+    <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1080;">
+        <div id="assistant-toast" class="toast align-items-center text-bg-primary border-0" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="d-flex">
+                <div class="toast-body">
+                    <strong>Precisa de ajuda?</strong> Eu posso te guiar passo a passo aqui na tela.
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Fechar"></button>
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+        (function () {
+            const userId = "{{ current_user.id if current_user.is_authenticated else 'anon' }}";
+            const assistantKey = `galint_assistant_enabled_${userId}`;
+            const errorKey = `galint_assistant_errors_${userId}`;
+            const toggle = document.getElementById('assistant-toggle');
+            const toastEl = document.getElementById('assistant-toast');
+
+            function isEnabled() {
+                const raw = localStorage.getItem(assistantKey);
+                return raw === null ? true : raw === '1';
+            }
+
+            function setEnabled(value) {
+                localStorage.setItem(assistantKey, value ? '1' : '0');
+            }
+
+            if (toggle) {
+                toggle.checked = isEnabled();
+                toggle.addEventListener('change', () => {
+                    setEnabled(toggle.checked);
+                });
+            }
+
+            function recordError() {
+                const now = Date.now();
+                const windowMs = 2 * 60 * 1000;
+                let items = [];
+                try {
+                    items = JSON.parse(localStorage.getItem(errorKey) || '[]');
+                } catch {
+                    items = [];
+                }
+                items.push(now);
+                items = items.filter((t) => now - t <= windowMs);
+                localStorage.setItem(errorKey, JSON.stringify(items));
+                return items.length;
+            }
+
+            function shouldShowToast() {
+                if (!isEnabled()) return false;
+                const alerts = document.querySelectorAll('.alert-danger');
+                if (!alerts.length) return false;
+                const count = recordError();
+                return count >= 2;
+            }
+
+            if (toastEl && shouldShowToast() && window.bootstrap) {
+                const toast = new bootstrap.Toast(toastEl, { delay: 8000 });
+                toast.show();
+            }
+        })();
+    </script>
+
 </body>
 
 </html>
