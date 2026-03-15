@@ -54,11 +54,29 @@
                 </a>
                 {% endif %}
             </div>
-            <a class="sidebar-link {% if p.startswith(url_for('inventory.list_items')) %}active{% endif %}"
-                href="{{ url_for('inventory.list_items') }}">
-                <i class="bi bi-boxes"></i>
-                <span>Estoque</span>
-            </a>
+            {% set estoque_active = p.startswith('/itens') %}
+            <button
+                class="sidebar-link d-flex justify-content-between align-items-center border-0 bg-transparent text-start w-100 {{ 'active' if estoque_active else 'collapsed' }}"
+                type="button" data-bs-toggle="collapse" data-bs-target="#estoqueMenu"
+                aria-expanded="{{ 'true' if estoque_active else 'false' }}">
+                <span>
+                    <i class="bi bi-boxes"></i>
+                    <span>Estoque</span>
+                </span>
+                <i class="bi bi-chevron-down small"></i>
+            </button>
+            <div id="estoqueMenu" class="collapse {{ 'show' if estoque_active else '' }}">
+                <a class="sidebar-link ps-4 {% if p.startswith(url_for('inventory.list_items')) %}active{% endif %}"
+                    href="{{ url_for('inventory.list_items') }}">
+                    <i class="bi bi-card-list"></i>
+                    <span>Estoque</span>
+                </a>
+                <a class="sidebar-link ps-4 {% if p.startswith(url_for('inventory.valor_estoque')) %}active{% endif %}"
+                    href="{{ url_for('inventory.valor_estoque') }}">
+                    <i class="bi bi-cash-stack"></i>
+                    <span>Valor de Estoque</span>
+                </a>
+            </div>
             {% set ferramentas_active = (tool_custody_url and p.startswith(tool_custody_url)) or (reparo_url and p.startswith(reparo_url)) %}
             <button
                 class="sidebar-link d-flex justify-content-between align-items-center border-0 bg-transparent text-start w-100 {{ 'active' if ferramentas_active else 'collapsed' }}"

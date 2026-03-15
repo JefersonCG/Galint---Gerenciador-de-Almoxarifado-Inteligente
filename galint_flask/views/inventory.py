@@ -9,9 +9,12 @@ from io import BytesIO
 from flask import Blueprint, abort, flash, make_response, redirect, render_template, request, send_file, url_for
 from flask_login import login_required, current_user
 
+from ..extensions import db
 from ..models import Item, Usuario
+from ..services.config_service import ConfigService
 from ..services.inventory import MovimentoPayload, inventory_service
 from ..services.item_foto_service import ItemFotoService
+from ..services.price_suggestion_service import price_suggestion_service
 from ..services.telegram_service import TelegramService
 from ..utils.barcode_generator import generate_barcode, get_barcode_path
 from ..utils.time_service import TimeService
@@ -154,6 +157,54 @@ def list_items():
     )
 
 
+@blueprint.get("/valor-estoque")
+@login_required
+def valor_estoque():
+    _require_admin()
+    itens = inventory_service.list_items()
+
+    total_compra = 0.0
+    total_reposicao = 0.0
+    missing_compra = 0
+    missing_reposicao = 0
+
+    for item in itens:
+        vc = item.get("valor_estoque_compra_total")
+        vr = item.get("valor_estoque_reposicao_total")
+
+        if vc is None:
+            missing_compra += 1
+        else:
+            try:
+                total_compra += float(vc)
+            except (TypeError, ValueError):
+                pass
+
+        if vr is None:
+            missing_reposicao += 1
+        else:
+            try:
+                total_reposicao += float(vr)
+            except (TypeError, ValueError):
+                pass
+
+    uf_empresa = ""
+    try:
+        uf_empresa = (ConfigService.get_empresa_config().endereco_estado or "").strip().upper()
+    except Exception:
+        uf_empresa = ""
+
+    return render_template(
+        "inventory/stock_value.html",
+        itens=itens,
+        total_compra=total_compra,
+        total_reposicao=total_reposicao,
+        missing_compra=missing_compra,
+        missing_reposicao=missing_reposicao,
+        uf_empresa=uf_empresa,
+    )
+
+
 @blueprint.get("/novo")
 @login_required
 def new_item_form():
@@ -237,6 +288,15 @@ def create_item():
         "voltagem": form.get("voltagem", "").strip() or None,
         "amperagem": form.get("amperagem", "").strip() or None,
         "local_instalacao": form.get("local_instalacao", "").strip() or None,
+        # Financeiro
+        "preco_compra_unitario": (form.get("preco_compra_unitario") or "").strip() or None,
+        "preco_compra_fonte": (form.get("preco_compra_fonte") or "").strip() or None,
+        "preco_compra_documento": (form.get("preco_compra_documento") or "").strip() or None,
+        "preco_reposicao_unitario": (form.get("preco_reposicao_unitario") or "").strip() or None,
+        "preco_reposicao_fonte": (form.get("preco_reposicao_fonte") or "").strip() or None,
+        "preco_reposicao_uf": (form.get("preco_reposicao_uf") or "").strip() or None,
+        "preco_reposicao_query": (form.get("preco_reposicao_query") or "").strip() or None,
+        "preco_reposicao_url": (form.get("preco_reposicao_url") or "").strip() or None,
         "quantidade": saldo_desejado,  # Para registrar entrada quando item existe com lote diferente
     }
     if tipo_novo:
@@ -248,6 +308,13 @@ def create_item():
         if saldo_desejado < 0:
             raise ValueError("Informe uma quantidade inicial válida")
         
+        if payload.get("preco_compra_unitario") is not None:
+            payload["preco_compra_atualizado_em"] = datetime.utcnow()
+            payload["preco_compra_atualizado_por"] = current_user.nome if hasattr(current_user, "nome") else current_user.id
+        if payload.get("preco_reposicao_unitario") is not None:
+            payload["preco_reposicao_atualizado_em"] = datetime.utcnow()
+            payload["preco_reposicao_atualizado_por"] = current_user.nome if hasattr(current_user, "nome") else current_user.id
+
         # Processar upload de foto (se enviado)
         foto_file = request.files.get('foto')
         if foto_file and foto_file.filename:
@@ -409,6 +476,15 @@ def update_item(codigo: str):
         "voltagem": form.get("voltagem", "").strip() or None,
         "amperagem": form.get("amperagem", "").strip() or None,
         "local_instalacao": form.get("local_instalacao", "").strip() or None,
+        # Financeiro
+        "preco_compra_unitario": (form.get("preco_compra_unitario") or "").strip() or None,
+        "preco_compra_fonte": (form.get("preco_compra_fonte") or "").strip() or None,
+        "preco_compra_documento": (form.get("preco_compra_documento") or "").strip() or None,
+        "preco_reposicao_unitario": (form.get("preco_reposicao_unitario") or "").strip() or None,
+        "preco_reposicao_fonte": (form.get("preco_reposicao_fonte") or "").strip() or None,
+        "preco_reposicao_uf": (form.get("preco_reposicao_uf") or "").strip() or None,
+        "preco_reposicao_query": (form.get("preco_reposicao_query") or "").strip() or None,
+        "preco_reposicao_url": (form.get("preco_reposicao_url") or "").strip() or None,
     }
 
     # Preservar campos antigos se não forem substituídos pelo novo sistema?
@@ -427,6 +503,13 @@ def update_item(codigo: str):
         if saldo_desejado < 0:
             raise ValueError("Informe uma quantidade válida")
         
+        if payload.get("preco_compra_unitario") is not None:
+            payload["preco_compra_atualizado_em"] = datetime.utcnow()
+            payload["preco_compra_atualizado_por"] = current_user.nome if hasattr(current_user, "nome") else current_user.id
+        if payload.get("preco_reposicao_unitario") is not None:
+            payload["preco_reposicao_atualizado_em"] = datetime.utcnow()
+            payload["preco_reposicao_atualizado_por"] = current_user.nome if hasattr(current_user, "nome") else current_user.id
+
         # Processar upload de foto (se enviado)
         foto_file = request.files.get('foto')
         remover_foto = form.get('remover_foto')
@@ -518,6 +601,75 @@ def update_item(codigo: str):
         flash(str(exc), "danger")
         return redirect(url_for("inventory.edit_item_form", codigo=codigo))
     return redirect(url_for("inventory.list_items"))
+
+
+@blueprint.get("/<codigo>/precos/reposicao/sugestoes")
+@login_required
+def sugestoes_preco_reposicao(codigo: str):
+    _require_admin()
+    item = Item.query.get(codigo)
+    if not item:
+        return {"success": False, "message": "Item nÃ£o encontrado"}, 404
+
+    query = (request.args.get("q") or "").strip() or (item.descricao or "").strip()
+    uf = (request.args.get("uf") or "").strip().upper()
+    if not uf:
+        try:
+            uf = (ConfigService.get_empresa_config().endereco_estado or "").strip().upper()
+        except Exception:
+            uf = ""
+
+    data = price_suggestion_service.get_replacement_suggestions(query=query, uf=uf or None, limit=20)
+    data["success"] = True
+    return data
+
+
+@blueprint.post("/<codigo>/precos/reposicao")
+@login_required
+def salvar_preco_reposicao(codigo: str):
+    _require_admin()
+    item = Item.query.get(codigo)
+    if not item:
+        return {"success": False, "message": "Item nÃ£o encontrado"}, 404
+
+    payload = request.json or request.form or {}
+    raw_price = payload.get("preco_reposicao_unitario")
+    try:
+        price = float(raw_price)
+    except (TypeError, ValueError):
+        return {"success": False, "message": "PreÃ§o invÃ¡lido"}, 400
+    if price <= 0:
+        return {"success": False, "message": "PreÃ§o invÃ¡lido"}, 400
+
+    fonte = (payload.get("preco_reposicao_fonte") or "Mercado Livre").strip()
+    uf = (payload.get("preco_reposicao_uf") or "").strip().upper() or None
+    query = (payload.get("preco_reposicao_query") or "").strip() or None
+    url = (payload.get("preco_reposicao_url") or "").strip() or None
+
+    item.preco_reposicao_unitario = price
+    item.preco_reposicao_fonte = fonte
+    item.preco_reposicao_uf = uf
+    item.preco_reposicao_query = query
+    item.preco_reposicao_url = url
+    item.preco_reposicao_atualizado_em = datetime.utcnow()
+    item.preco_reposicao_atualizado_por = current_user.nome if hasattr(current_user, "nome") else current_user.id
+    item.ultima_edicao_em = datetime.utcnow()
+    item.ultima_edicao_por = item.preco_reposicao_atualizado_por
+    db.session.commit()
+
+    return {
+        "success": True,
+        "item": {
+            "codigo": item.codigo_item,
+            "preco_reposicao_unitario": item.preco_reposicao_unitario,
+            "preco_reposicao_fonte": item.preco_reposicao_fonte,
+            "preco_reposicao_uf": item.preco_reposicao_uf,
+            "preco_reposicao_query": item.preco_reposicao_query,
+            "preco_reposicao_url": item.preco_reposicao_url,
+            "preco_reposicao_atualizado_em": item.preco_reposicao_atualizado_em.isoformat() if item.preco_reposicao_atualizado_em else None,
+            "preco_reposicao_atualizado_por": item.preco_reposicao_atualizado_por,
+        },
+    }
 
 
 

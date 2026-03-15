@@ -435,6 +435,7 @@
             <div class="tabs-nav">
                 <button type="button" class="tab-button active" data-tab="identificacao">📋 Identificação</button>
                 <button type="button" class="tab-button" data-tab="classificacao">🏷️ Classificação</button>
+                <button type="button" class="tab-button" data-tab="financeiro">💰 Financeiro</button>
                 <button type="button" class="tab-button" data-tab="rastreabilidade">📦 Rastreabilidade</button>
                 <button type="button" class="tab-button" data-tab="equipamento" id="tab-equipamento-button" style="display: none;">⚙️ Equipamentos/Máquinas</button>
                 <button type="button" class="tab-button" data-tab="unidades" id="tab-unidades-button">⚖️ Unidades Dinâmicas</button>
@@ -672,6 +673,85 @@
                         </small>
                     </div>
                     {% endif %}
+                </div>
+
+            <!-- Tab 3: Financeiro -->
+                <div class="tab-pane" id="tab-financeiro">
+                    <div class="section">
+                        <h3 class="section-title">💰 Valores do item</h3>
+                        <p class="form-text" style="margin-top: -0.5rem;">
+                            Esses valores alimentam a página <strong>Valor de Estoque</strong> e o modal de detalhes do item.
+                        </p>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label" for="preco_compra_unitario">Preço de compra (R$)</label>
+                            <input class="form-control" id="preco_compra_unitario" name="preco_compra_unitario" type="number" step="0.01" min="0"
+                                value="{{ form_item.preco_compra_unitario if form_item and form_item.preco_compra_unitario is not none else '' }}">
+                            <small class="form-text">Valor usado para o “investido”.</small>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="preco_compra_fonte">Fonte (compra)</label>
+                            {% set compra_fonte = form_item.preco_compra_fonte if form_item and form_item.preco_compra_fonte else '' %}
+                            <select class="form-select" id="preco_compra_fonte" name="preco_compra_fonte">
+                                <option value="" {% if compra_fonte=='' %}selected{% endif %}>—</option>
+                                <option value="NF" {% if compra_fonte=='NF' %}selected{% endif %}>NF</option>
+                                <option value="Cupom" {% if compra_fonte=='Cupom' %}selected{% endif %}>Cupom</option>
+                                <option value="Manual" {% if compra_fonte=='Manual' %}selected{% endif %}>Manual</option>
+                                <option value="Estimado" {% if compra_fonte=='Estimado' %}selected{% endif %}>Estimado</option>
+                            </select>
+                            <small class="form-text">Opcional, para auditoria.</small>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="preco_compra_documento">Documento (compra)</label>
+                        <input class="form-control" id="preco_compra_documento" name="preco_compra_documento"
+                            value="{{ form_item.preco_compra_documento if form_item and form_item.preco_compra_documento else '' }}"
+                            placeholder="Ex.: NF 12345 / Cupom 000123">
+                    </div>
+
+                    <div class="section" style="margin-top: 1.5rem;">
+                        <h3 class="section-title">🧾 Preço de reposição</h3>
+                        <p class="form-text" style="margin-top: -0.5rem;">
+                            Use quando não houver comprovante ou para comparar “quanto custaria recomprar hoje”.
+                        </p>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label" for="preco_reposicao_unitario">Preço de reposição (R$)</label>
+                            <input class="form-control" id="preco_reposicao_unitario" name="preco_reposicao_unitario" type="number" step="0.01" min="0"
+                                value="{{ form_item.preco_reposicao_unitario if form_item and form_item.preco_reposicao_unitario is not none else '' }}">
+                            <small class="form-text">Pode ser preenchido manualmente ou via “Buscar preço…” no modal do item.</small>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="preco_reposicao_uf">UF</label>
+                            <input class="form-control" id="preco_reposicao_uf" name="preco_reposicao_uf" maxlength="2"
+                                value="{{ form_item.preco_reposicao_uf if form_item and form_item.preco_reposicao_uf else '' }}"
+                                placeholder="Ex.: SP">
+                            <small class="form-text">Ajuda a manter o preço mais próximo do mercado local.</small>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label" for="preco_reposicao_fonte">Fonte (reposição)</label>
+                            <input class="form-control" id="preco_reposicao_fonte" name="preco_reposicao_fonte"
+                                value="{{ form_item.preco_reposicao_fonte if form_item and form_item.preco_reposicao_fonte else '' }}"
+                                placeholder="Ex.: Mercado Livre / SINAPI / Manual">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="preco_reposicao_url">Link (opcional)</label>
+                            <input class="form-control" id="preco_reposicao_url" name="preco_reposicao_url"
+                                value="{{ form_item.preco_reposicao_url if form_item and form_item.preco_reposicao_url else '' }}"
+                                placeholder="https://...">
+                        </div>
+                    </div>
+
+                    <input type="hidden" id="preco_reposicao_query" name="preco_reposicao_query"
+                        value="{{ form_item.preco_reposicao_query if form_item and form_item.preco_reposicao_query else '' }}">
                 </div>
 
             <!-- Tab 3: Rastreabilidade -->

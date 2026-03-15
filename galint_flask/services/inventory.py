@@ -343,6 +343,33 @@ class InventoryService:
         resultado: list[dict[str, Any]] = []
         atualizado = False
         from ..services.embalagem_service import EmbalagemService
+
+        def _safe_float_or_none(value: object) -> float | None:
+            if value in ("", None):
+                return None
+            try:
+                f = float(value)  # type: ignore[arg-type]
+            except (TypeError, ValueError):
+                return None
+            if math.isnan(f) or math.isinf(f):
+                return None
+            return f
+
+        def _calc_stock_total_value(item: Item, *, preco_unitario: float | None, saldo_total: float) -> float | None:
+            if preco_unitario is None or preco_unitario <= 0:
+                return None
+            if EmbalagemService.tem_embalagem(item):
+                emb = float(item.estoque_embalagens or 0.0)
+                soltas = float(item.estoque_unidades_soltas or 0.0)
+                try:
+                    unidades_por = float(item.unidades_por_embalagem or 0.0)
+                except (TypeError, ValueError):
+                    unidades_por = 0.0
+                if unidades_por > 0:
+                    return (emb * preco_unitario) + (soltas * (preco_unitario / unidades_por))
+                return emb * preco_unitario
+            return float(saldo_total or 0.0) * preco_unitario
+
         for item in itens:
             if EmbalagemService.tem_embalagem(item):
                 try:
@@ -359,6 +386,11 @@ class InventoryService:
             # Obter display formatado e explicação
             saldo_display = item.get_saldo_fisico_display()
             explicacao_saldo = item.get_explicacao_saldo()
+
+            preco_compra = _safe_float_or_none(getattr(item, "preco_compra_unitario", None))
+            preco_reposicao = _safe_float_or_none(getattr(item, "preco_reposicao_unitario", None))
+            valor_total_compra = _calc_stock_total_value(item, preco_unitario=preco_compra, saldo_total=saldo)
+            valor_total_reposicao = _calc_stock_total_value(item, preco_unitario=preco_reposicao, saldo_total=saldo)
             
             resultado.append(
                 {
@@ -384,6 +416,20 @@ class InventoryService:
                     "unidades_por_embalagem": item.unidades_por_embalagem,
                     "grandeza_referencia": item.grandeza_referencia,
                     "litros_por_embalagem": item.litros_por_embalagem,
+                    "preco_compra_unitario": preco_compra,
+                    "preco_compra_fonte": getattr(item, "preco_compra_fonte", None),
+                    "preco_compra_documento": getattr(item, "preco_compra_documento", None),
+                    "preco_compra_atualizado_em": item.preco_compra_atualizado_em.isoformat() if getattr(item, "preco_compra_atualizado_em", None) else None,
+                    "preco_compra_atualizado_por": getattr(item, "preco_compra_atualizado_por", None),
+                    "preco_reposicao_unitario": preco_reposicao,
+                    "preco_reposicao_fonte": getattr(item, "preco_reposicao_fonte", None),
+                    "preco_reposicao_uf": getattr(item, "preco_reposicao_uf", None),
+                    "preco_reposicao_query": getattr(item, "preco_reposicao_query", None),
+                    "preco_reposicao_url": getattr(item, "preco_reposicao_url", None),
+                    "preco_reposicao_atualizado_em": item.preco_reposicao_atualizado_em.isoformat() if getattr(item, "preco_reposicao_atualizado_em", None) else None,
+                    "preco_reposicao_atualizado_por": getattr(item, "preco_reposicao_atualizado_por", None),
+                    "valor_estoque_compra_total": valor_total_compra,
+                    "valor_estoque_reposicao_total": valor_total_reposicao,
                 }
             )
         if atualizado:
@@ -566,6 +612,20 @@ class InventoryService:
         except (TypeError, ValueError):
             estoque_unidades_soltas = 0
 
+        def _coerce_price(value: object) -> float | None:
+            if value in ("", None):
+                return None
+            try:
+                f = float(value)  # type: ignore[arg-type]
+            except (TypeError, ValueError):
+                return None
+            if math.isnan(f) or math.isinf(f):
+                return None
+            return f
+
+        preco_compra_unitario = _coerce_price(payload.get("preco_compra_unitario"))
+        preco_reposicao_unitario = _coerce_price(payload.get("preco_reposicao_unitario"))
+
         item = Item(
             codigo_item=codigo,
             descricao=payload.get("descricao", ""),
@@ -596,6 +656,19 @@ class InventoryService:
             local_instalacao=payload.get("local_instalacao"),
             # Foto do item
             foto_path=payload.get("foto_path"),
+            # Financeiro
+            preco_compra_unitario=preco_compra_unitario,
+            preco_compra_fonte=payload.get("preco_compra_fonte"),
+            preco_compra_documento=payload.get("preco_compra_documento"),
+            preco_compra_atualizado_em=payload.get("preco_compra_atualizado_em"),
+            preco_compra_atualizado_por=payload.get("preco_compra_atualizado_por"),
+            preco_reposicao_unitario=preco_reposicao_unitario,
+            preco_reposicao_fonte=payload.get("preco_reposicao_fonte"),
+            preco_reposicao_uf=payload.get("preco_reposicao_uf"),
+            preco_reposicao_query=payload.get("preco_reposicao_query"),
+            preco_reposicao_url=payload.get("preco_reposicao_url"),
+            preco_reposicao_atualizado_em=payload.get("preco_reposicao_atualizado_em"),
+            preco_reposicao_atualizado_por=payload.get("preco_reposicao_atualizado_por"),
         )
         item.estoque_minimo = 0
         db.session.add(item)
@@ -643,6 +716,17 @@ class InventoryService:
         marca = payload.get("marca")
         if marca is not None:
             item.marca = marca
+
+        def _coerce_price(value: object) -> float | None:
+            if value in ("", None):
+                return None
+            try:
+                f = float(value)  # type: ignore[arg-type]
+            except (TypeError, ValueError):
+                return None
+            if math.isnan(f) or math.isinf(f):
+                return None
+            return f
         
         # Novos campos
         numero_serie = payload.get("numero_serie")
@@ -767,6 +851,39 @@ class InventoryService:
         # Foto do item
         if "foto_path" in payload:
             item.foto_path = payload["foto_path"]
+
+        # Financeiro
+        compra_keys = {"preco_compra_unitario", "preco_compra_fonte", "preco_compra_documento"}
+        if any(k in payload for k in compra_keys):
+            if "preco_compra_unitario" in payload:
+                item.preco_compra_unitario = _coerce_price(payload.get("preco_compra_unitario"))
+            if "preco_compra_fonte" in payload:
+                item.preco_compra_fonte = payload.get("preco_compra_fonte") or None
+            if "preco_compra_documento" in payload:
+                item.preco_compra_documento = payload.get("preco_compra_documento") or None
+            item.preco_compra_atualizado_em = payload.get("preco_compra_atualizado_em") or datetime.utcnow()
+            item.preco_compra_atualizado_por = payload.get("preco_compra_atualizado_por") or payload.get("ultima_edicao_por")
+
+        repos_keys = {
+            "preco_reposicao_unitario",
+            "preco_reposicao_fonte",
+            "preco_reposicao_uf",
+            "preco_reposicao_query",
+            "preco_reposicao_url",
+        }
+        if any(k in payload for k in repos_keys):
+            if "preco_reposicao_unitario" in payload:
+                item.preco_reposicao_unitario = _coerce_price(payload.get("preco_reposicao_unitario"))
+            if "preco_reposicao_fonte" in payload:
+                item.preco_reposicao_fonte = payload.get("preco_reposicao_fonte") or None
+            if "preco_reposicao_uf" in payload:
+                item.preco_reposicao_uf = payload.get("preco_reposicao_uf") or None
+            if "preco_reposicao_query" in payload:
+                item.preco_reposicao_query = payload.get("preco_reposicao_query") or None
+            if "preco_reposicao_url" in payload:
+                item.preco_reposicao_url = payload.get("preco_reposicao_url") or None
+            item.preco_reposicao_atualizado_em = payload.get("preco_reposicao_atualizado_em") or datetime.utcnow()
+            item.preco_reposicao_atualizado_por = payload.get("preco_reposicao_atualizado_por") or payload.get("ultima_edicao_por")
 
         # Regenerar barcode se descrição mudou
         if payload.get("descricao") and item.descricao:

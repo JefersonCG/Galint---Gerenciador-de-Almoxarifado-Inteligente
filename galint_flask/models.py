@@ -51,6 +51,22 @@ class Item(db.Model):
     # Foto do item
     foto_path: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
+    # Financeiro (valores de referência)
+    # Observação: preço é "por unidade" para itens comuns e "por embalagem" para itens com sistema de embalagens.
+    preco_compra_unitario: Mapped[float | None] = mapped_column(Float, nullable=True)
+    preco_compra_fonte: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    preco_compra_documento: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    preco_compra_atualizado_em: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    preco_compra_atualizado_por: Mapped[str | None] = mapped_column(String(100), nullable=True)
+
+    preco_reposicao_unitario: Mapped[float | None] = mapped_column(Float, nullable=True)
+    preco_reposicao_fonte: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    preco_reposicao_uf: Mapped[str | None] = mapped_column(String(2), nullable=True)
+    preco_reposicao_query: Mapped[str | None] = mapped_column(Text, nullable=True)
+    preco_reposicao_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    preco_reposicao_atualizado_em: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    preco_reposicao_atualizado_por: Mapped[str | None] = mapped_column(String(100), nullable=True)
+
     # Histórico de Edição
     ultima_edicao_em: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     ultima_edicao_por: Mapped[str | None] = mapped_column(String(100), nullable=True)
@@ -95,6 +111,18 @@ class Item(db.Model):
             "estoque_unidades_soltas": self.estoque_unidades_soltas,
             "barcode_image_path": self.barcode_image_path,
             "foto_path": self.foto_path,
+            "preco_compra_unitario": self.preco_compra_unitario,
+            "preco_compra_fonte": self.preco_compra_fonte,
+            "preco_compra_documento": self.preco_compra_documento,
+            "preco_compra_atualizado_em": self.preco_compra_atualizado_em.isoformat() if self.preco_compra_atualizado_em else None,
+            "preco_compra_atualizado_por": self.preco_compra_atualizado_por,
+            "preco_reposicao_unitario": self.preco_reposicao_unitario,
+            "preco_reposicao_fonte": self.preco_reposicao_fonte,
+            "preco_reposicao_uf": self.preco_reposicao_uf,
+            "preco_reposicao_query": self.preco_reposicao_query,
+            "preco_reposicao_url": self.preco_reposicao_url,
+            "preco_reposicao_atualizado_em": self.preco_reposicao_atualizado_em.isoformat() if self.preco_reposicao_atualizado_em else None,
+            "preco_reposicao_atualizado_por": self.preco_reposicao_atualizado_por,
         }
         if include_balance:
             # Para itens com embalagem, o saldo deve refletir o estoque físico (embalagens + soltas).
