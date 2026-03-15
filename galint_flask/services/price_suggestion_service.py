@@ -7,11 +7,13 @@ o sistema sugere, o usuário confirma e então salvamos o valor escolhido.
 
 from __future__ import annotations
 
+import json
 import statistics
 import time
 import re
 from dataclasses import dataclass
 from typing import Any
+from urllib.parse import quote
 
 import requests
 
@@ -65,6 +67,19 @@ class PriceSuggestionService:
     def __init__(self) -> None:
         self._cache: dict[tuple[str, str | None, int], tuple[float, dict[str, Any]]] = {}
 
+    @staticmethod
+    def _request_headers() -> dict[str, str]:
+        return {
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/122.0.0.0 Safari/537.36"
+            ),
+            "Accept": "application/json,text/plain,*/*",
+            "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
+            "Referer": "https://www.mercadolivre.com.br/",
+        }
+
     def get_replacement_suggestions(self, *, query: str, uf: str | None, limit: int = 20) -> dict[str, Any]:
         query_norm = (query or "").strip()
         if not query_norm:
@@ -117,14 +132,32 @@ class PriceSuggestionService:
         return payload
 
     def _fetch_mercado_livre(self, *, query: str, uf: str | None, limit: int) -> list[PriceSuggestion]:
-        url = "https://api.mercadolibre.com/sites/MLB/search"
-        resp = requests.get(url, params={"q": query, "limit": limit}, timeout=4)
-        resp.raise_for_status()
-        data = resp.json() if resp.content else {}
-        results = data.get("results") or []
-        if not isinstance(results, list):
-            return []
+        try:
+            url = "https://api.mercadolibre.com/sites/MLB/search"
+            resp = requests.get(
+                url,
+                params={"q": query, "limit": limit},
+                headers=self._request_headers(),
+                timeout=6,
+            )
+            if resp.status_code == 403:
+                return self._fetch_mercado_livre_web(query=query, uf=uf, limit=limit)
+            resp.raise_for_status()
+            data = resp.json() if resp.content else {}
+            results = data.get("results") or []
+            if not isinstance(results, list):
+                return []
+            parsed = self._parse_mercado_livre_api_results(results)
+        except requests.RequestException:
+            parsed = self._fetch_mercado_livre_web(query=query, uf=uf, limit=limit)
 
+        if uf:
+            matches = [s for s in parsed if s.uf == uf]
+            if len(matches) >= 5:
+                return matches[:limit]
+        return parsed[:limit]
+
+    def _parse_mercado_livre_api_results(self, results: list[dict[str, Any]]) -> list[PriceSuggestion]:
         parsed: list[PriceSuggestion] = []
         for r in results:
             if not isinstance(r, dict):
@@ -160,13 +193,133 @@ class PriceSuggestionService:
                     uf_raw=str(uf_raw) if uf_raw else None,
                 )
             )
+        return parsed
 
-        if uf:
-            matches = [s for s in parsed if s.uf == uf]
-            # Se houver amostra suficiente da UF, prioriza. Senão, retorna tudo.
-            if len(matches) >= 5:
-                return matches[:limit]
-        return parsed[:limit]
+    def _fetch_mercado_livre_web(self, *, query: str, uf: str | None, limit: int) -> list[PriceSuggestion]:
+        slug = quote(re.sub(r"\s+", "-", query.strip()), safe="-")
+        url = f"https://lista.mercadolivre.com.br/{slug}"
+        resp = requests.get(url, headers=self._request_headers(), timeout=8)
+        resp.raise_for_status()
+        html = resp.text or ""
+        cards = self._extract_polycard_objects(html)
+        parsed: list[PriceSuggestion] = []
+        for card in cards:
+            polycard = card.get("polycard") if isinstance(card, dict) else None
+            if not isinstance(polycard, dict):
+                continue
+            metadata = polycard.get("metadata") or {}
+            components = polycard.get("components") or []
+            title = self._extract_polycard_title(components)
+            price_f = self._extract_polycard_price(components)
+            if price_f is None or price_f <= 0:
+                continue
+            url_item = self._build_polycard_url(metadata)
+            parsed.append(
+                PriceSuggestion(
+                    source="Mercado Livre",
+                    title=title or "(sem título)",
+                    price=price_f,
+                    currency="BRL",
+                    url=url_item,
+                    uf=uf,
+                    uf_raw=uf,
+                )
+            )
+            if len(parsed) >= limit:
+                break
+        return parsed
+
+    def _extract_polycard_objects(self, html: str) -> list[dict[str, Any]]:
+        objects: list[dict[str, Any]] = []
+        marker = '{"id":"POLYCARD"'
+        start = 0
+        while True:
+            idx = html.find(marker, start)
+            if idx < 0:
+                break
+            chunk = self._extract_balanced_json(html, idx)
+            start = idx + len(marker)
+            if not chunk:
+                continue
+            try:
+                payload = json.loads(chunk)
+            except Exception:
+                continue
+            if isinstance(payload, dict):
+                objects.append(payload)
+        return objects
+
+    @staticmethod
+    def _extract_balanced_json(text: str, start_idx: int) -> str | None:
+        depth = 0
+        in_string = False
+        escaped = False
+        begin = -1
+        for idx in range(start_idx, len(text)):
+            ch = text[idx]
+            if begin < 0:
+                if ch == '{':
+                    begin = idx
+                    depth = 1
+                continue
+            if in_string:
+                if escaped:
+                    escaped = False
+                elif ch == '\\':
+                    escaped = True
+                elif ch == '"':
+                    in_string = False
+                continue
+            if ch == '"':
+                in_string = True
+            elif ch == '{':
+                depth += 1
+            elif ch == '}':
+                depth -= 1
+                if depth == 0:
+                    return text[begin:idx + 1]
+        return None
+
+    @staticmethod
+    def _extract_polycard_title(components: list[dict[str, Any]]) -> str:
+        for component in components:
+            if not isinstance(component, dict) or component.get("type") != "title":
+                continue
+            title_data = component.get("title") or {}
+            if not isinstance(title_data, dict):
+                continue
+            return str(title_data.get("text") or "").strip()
+        return ""
+
+    @staticmethod
+    def _extract_polycard_price(components: list[dict[str, Any]]) -> float | None:
+        for component in components:
+            if not isinstance(component, dict) or component.get("type") != "price":
+                continue
+            price_data = component.get("price") or {}
+            if not isinstance(price_data, dict):
+                continue
+            current = price_data.get("current_price") or {}
+            if not isinstance(current, dict):
+                continue
+            try:
+                return float(current.get("value"))
+            except (TypeError, ValueError):
+                return None
+        return None
+
+    @staticmethod
+    def _build_polycard_url(metadata: dict[str, Any]) -> str | None:
+        if not isinstance(metadata, dict):
+            return None
+        raw_url = str(metadata.get("url") or "").strip()
+        if not raw_url:
+            return None
+        if not raw_url.startswith("http"):
+            raw_url = f"https://{raw_url}"
+        fragments = str(metadata.get("url_fragments") or "")
+        params = str(metadata.get("url_params") or "")
+        return f"{raw_url}{params}{fragments}"
 
 
 price_suggestion_service = PriceSuggestionService()

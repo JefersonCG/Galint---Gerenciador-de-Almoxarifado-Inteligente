@@ -12,6 +12,7 @@
             {% set ferramentas_painel_url = url_for('ferramentas.painel') if endpoint_exists('ferramentas.painel') else None %}
             {% set tool_custody_url = url_for('tool_custody.index') if endpoint_exists('tool_custody.index') else None %}
             {% set reparo_url = url_for('reparo.listar_reparos') if endpoint_exists('reparo.listar_reparos') else None %}
+            {% set valor_estoque_url = url_for('inventory.valor_estoque') if endpoint_exists('inventory.valor_estoque') else None %}
             <a class="sidebar-link {% if p == url_for('dashboard.index') %}active{% endif %}"
                 href="{{ url_for('dashboard.index') }}">
                 <i class="bi bi-speedometer2"></i>
@@ -71,11 +72,13 @@
                     <i class="bi bi-card-list"></i>
                     <span>Estoque</span>
                 </a>
-                <a class="sidebar-link ps-4 {% if p.startswith(url_for('inventory.valor_estoque')) %}active{% endif %}"
-                    href="{{ url_for('inventory.valor_estoque') }}">
+                {% if valor_estoque_url %}
+                <a class="sidebar-link ps-4 {% if p.startswith(valor_estoque_url) %}active{% endif %}"
+                    href="{{ valor_estoque_url }}">
                     <i class="bi bi-cash-stack"></i>
                     <span>Valor de Estoque</span>
                 </a>
+                {% endif %}
             </div>
             {% set ferramentas_active = (tool_custody_url and p.startswith(tool_custody_url)) or (reparo_url and p.startswith(reparo_url)) %}
             <button
