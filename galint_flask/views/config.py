@@ -4,6 +4,7 @@ from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 
 from ..services.config_service import ConfigService
+from ..services.finance_service import finance_service
 
 
 bp = Blueprint("config", __name__, url_prefix="/configuracoes")
@@ -76,6 +77,7 @@ def relatorios():
         return redirect(url_for("main.index"))
     
     relatorio_config = ConfigService.get_relatorio_config()
+    finance_config = finance_service.get_config()
     
     if request.method == "POST":
         try:
@@ -100,9 +102,18 @@ def relatorios():
                 "fonte_principal": request.form.get("fonte_principal", "Helvetica"),
                 "fonte_tabelas": request.form.get("fonte_tabelas", "Courier"),
             }
+
+            finance_data = {
+                "dia_fechamento": int(request.form.get("dia_fechamento", finance_config.dia_fechamento or 10)),
+                "mes_fechamento": int(request.form.get("mes_fechamento", finance_config.mes_fechamento or 2)),
+                "destacar_sem_comprovacao": request.form.get("destacar_sem_comprovacao") == "on",
+                "permitir_fechamento_manual": request.form.get("permitir_fechamento_manual") == "on",
+                "titulo_relatorio_anual": request.form.get("titulo_relatorio_anual", "").strip(),
+            }
             
             # Atualizar configuração
             ConfigService.update_relatorio_config(data)
+            finance_service.update_config(finance_data)
             flash("Configurações de relatórios atualizadas com sucesso!", "success")
             
             return redirect(url_for("config.relatorios"))
@@ -110,7 +121,82 @@ def relatorios():
         except Exception as e:
             flash(f"Erro ao atualizar configurações: {str(e)}", "danger")
     
-    return render_template("config/relatorios.html", relatorio_config=relatorio_config)
+    return render_template(
+        "config/relatorios.html",
+        relatorio_config=relatorio_config,
+        finance_config=finance_config,
+    )
+
+
+@bp.route("/fornecedores", methods=["GET", "POST"])
+@login_required
+def fornecedores():
+    """Cadastro mestre de fornecedores financeiros."""
+    if not current_user.is_admin:
+        flash("Acesso negado. Apenas administradores podem alterar configurações.", "danger")
+        return redirect(url_for("dashboard.index"))
+
+    supplier_edit = None
+    if request.method == "POST":
+        try:
+            payload = {
+                "id": request.form.get("id") or None,
+                "razao_social": request.form.get("razao_social", "").strip(),
+                "nome_fantasia": request.form.get("nome_fantasia", "").strip(),
+                "cnpj": request.form.get("cnpj", "").strip(),
+                "inscricao_estadual": request.form.get("inscricao_estadual", "").strip(),
+                "endereco_rua": request.form.get("endereco_rua", "").strip(),
+                "endereco_numero": request.form.get("endereco_numero", "").strip(),
+                "endereco_complemento": request.form.get("endereco_complemento", "").strip(),
+                "endereco_bairro": request.form.get("endereco_bairro", "").strip(),
+                "endereco_cidade": request.form.get("endereco_cidade", "").strip(),
+                "endereco_estado": request.form.get("endereco_estado", "").strip(),
+                "endereco_cep": request.form.get("endereco_cep", "").strip(),
+                "telefone": request.form.get("telefone", "").strip(),
+                "email": request.form.get("email", "").strip(),
+                "site": request.form.get("site", "").strip(),
+                "situacao_cadastral": request.form.get("situacao_cadastral", "").strip(),
+                "observacoes": request.form.get("observacoes", "").strip(),
+                "api_origem": request.form.get("api_origem", "").strip(),
+                "ativo": request.form.get("ativo") == "on",
+            }
+            supplier = finance_service.save_supplier(payload)
+            flash(f"Fornecedor salvo com sucesso: {supplier.nome_exibicao()}", "success")
+            return redirect(url_for("config.fornecedores", supplier_id=supplier.id))
+        except Exception as exc:
+            flash(f"Erro ao salvar fornecedor: {exc}", "danger")
+
+    supplier_id = request.args.get("supplier_id", type=int)
+    if supplier_id:
+        supplier = finance_service.get_supplier(supplier_id)
+        supplier_edit = supplier.to_dict() if supplier else None
+
+    return render_template(
+        "config/fornecedores.html",
+        fornecedores=finance_service.list_suppliers(),
+        supplier_edit=supplier_edit,
+    )
+
+
+@bp.get("/api/fornecedores/autocomplete")
+@login_required
+def fornecedores_autocomplete():
+    if not current_user.is_authenticated:
+        return jsonify({"success": False, "message": "Não autenticado"}), 401
+    term = request.args.get("q", "")
+    return jsonify({"success": True, "results": finance_service.search_suppliers(term, limit=12)})
+
+
+@bp.get("/api/fornecedores/cnpj/<cnpj>")
+@login_required
+def fornecedores_por_cnpj(cnpj: str):
+    if not current_user.is_admin:
+        return jsonify({"success": False, "message": "Acesso negado"}), 403
+    try:
+        data = finance_service.fetch_supplier_by_cnpj(cnpj)
+        return jsonify({"success": True, "supplier": data})
+    except Exception as exc:
+        return jsonify({"success": False, "message": str(exc)}), 400
 
 
 @bp.route("/preview-cabecalho")

@@ -360,6 +360,39 @@
         background: var(--gray-300);
     }
 
+    .autocomplete-panel {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: calc(100% + 0.35rem);
+        background: #fff;
+        border: 1px solid #cbd5e1;
+        border-radius: 12px;
+        box-shadow: 0 20px 30px rgba(15, 23, 42, 0.12);
+        z-index: 50;
+        display: none;
+        max-height: 260px;
+        overflow-y: auto;
+    }
+
+    .autocomplete-panel.show {
+        display: block;
+    }
+
+    .autocomplete-option {
+        padding: 0.8rem 0.9rem;
+        border-bottom: 1px solid #e2e8f0;
+        cursor: pointer;
+    }
+
+    .autocomplete-option:last-child {
+        border-bottom: none;
+    }
+
+    .autocomplete-option:hover {
+        background: #eff6ff;
+    }
+
     .button-group {
         display: flex;
         gap: 1rem;
@@ -697,6 +730,65 @@
                         </p>
                     </div>
 
+                    <div class="section">
+                        <h3 class="section-title">🏪 Origem da compra</h3>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label" for="finance_supplier_search">Fornecedor / Loja</label>
+                                <div class="position-relative">
+                                    <input class="form-control" id="finance_supplier_search" autocomplete="off"
+                                        value="{{ preferred_supplier.nome_exibicao if preferred_supplier else '' }}"
+                                        placeholder="Digite nome, fantasia ou CNPJ da loja">
+                                    <input type="hidden" id="finance_supplier_id" name="finance_supplier_id"
+                                        value="{{ preferred_supplier.id if preferred_supplier else (form_item.finance_supplier_id if form_item and form_item.finance_supplier_id else '') }}">
+                                    <div class="autocomplete-panel" id="finance_supplier_results"></div>
+                                </div>
+                                <small class="form-text">O sistema reutiliza essa loja nas próximas entradas do item.</small>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="finance_origem_valor">Origem do valor</label>
+                                {% set origem_valor = form_item.finance_origem_valor if form_item and form_item.finance_origem_valor else 'inventario_inicial' %}
+                                <select class="form-select" id="finance_origem_valor" name="finance_origem_valor">
+                                    <option value="compra_nf" {% if origem_valor == 'compra_nf' %}selected{% endif %}>Compra com NF</option>
+                                    <option value="compra_cupom" {% if origem_valor == 'compra_cupom' %}selected{% endif %}>Compra com cupom</option>
+                                    <option value="inventario_inicial" {% if origem_valor == 'inventario_inicial' %}selected{% endif %}>Inventário inicial</option>
+                                    <option value="valor_estimado" {% if origem_valor == 'valor_estimado' %}selected{% endif %}>Valor estimado</option>
+                                    <option value="doacao" {% if origem_valor == 'doacao' %}selected{% endif %}>Doação</option>
+                                    <option value="ajuste_contabil" {% if origem_valor == 'ajuste_contabil' %}selected{% endif %}>Ajuste contábil</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label" for="finance_tipo_documento">Tipo de documento</label>
+                                {% set tipo_documento = form_item.finance_tipo_documento if form_item and form_item.finance_tipo_documento else '' %}
+                                <select class="form-select" id="finance_tipo_documento" name="finance_tipo_documento">
+                                    <option value="" {% if tipo_documento == '' %}selected{% endif %}>—</option>
+                                    <option value="nf" {% if tipo_documento == 'nf' %}selected{% endif %}>Nota fiscal</option>
+                                    <option value="cupom" {% if tipo_documento == 'cupom' %}selected{% endif %}>Cupom não fiscal</option>
+                                    <option value="recibo" {% if tipo_documento == 'recibo' %}selected{% endif %}>Recibo</option>
+                                    <option value="manual" {% if tipo_documento == 'manual' %}selected{% endif %}>Lançamento manual</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="finance_comprovacao_status">Comprovação</label>
+                                {% set comprovacao_status = form_item.finance_comprovacao_status if form_item and form_item.finance_comprovacao_status else 'sem_comprovacao' %}
+                                <select class="form-select" id="finance_comprovacao_status" name="finance_comprovacao_status">
+                                    <option value="comprovado" {% if comprovacao_status == 'comprovado' %}selected{% endif %}>Comprovado</option>
+                                    <option value="parcial" {% if comprovacao_status == 'parcial' %}selected{% endif %}>Parcialmente comprovado</option>
+                                    <option value="sem_comprovacao" {% if comprovacao_status == 'sem_comprovacao' %}selected{% endif %}>Sem comprovação</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-end">
+                            <a class="btn btn-secondary btn-sm" href="{{ url_for('config.fornecedores') }}" target="_blank" rel="noopener">
+                                <i class="bi bi-shop me-1"></i> Cadastrar fornecedor
+                            </a>
+                        </div>
+                    </div>
+
                     <div class="form-row">
                         <div class="form-group">
                             <label class="form-label" for="preco_compra_unitario">Preço de compra (R$)</label>
@@ -723,6 +815,12 @@
                         <input class="form-control" id="preco_compra_documento" name="preco_compra_documento"
                             value="{{ form_item.preco_compra_documento if form_item and form_item.preco_compra_documento else '' }}"
                             placeholder="Ex.: NF 12345 / Cupom 000123">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="finance_observacao">Observação financeira</label>
+                        <textarea class="form-control" id="finance_observacao" name="finance_observacao" rows="2"
+                            placeholder="Ex.: compra emergencial, saldo anterior sem comprovante, valor estimado pela diretoria">{{ form_item.finance_observacao if form_item and form_item.finance_observacao else '' }}</textarea>
                     </div>
 
                     <div class="section" style="margin-top: 1.5rem;">
@@ -2051,6 +2149,75 @@ if (confirmFotoUrl) {
             }
         });
     }
+
+    // ==========================================
+    // AUTOCOMPLETE DE FORNECEDOR
+    // ==========================================
+    const financeSupplierInput = document.getElementById('finance_supplier_search');
+    const financeSupplierIdInput = document.getElementById('finance_supplier_id');
+    const financeSupplierResults = document.getElementById('finance_supplier_results');
+
+    const renderSupplierResults = (items) => {
+        if (!financeSupplierResults) return;
+        if (!Array.isArray(items) || !items.length) {
+            financeSupplierResults.innerHTML = '<div class="autocomplete-option text-muted">Nenhum fornecedor encontrado.</div>';
+            financeSupplierResults.classList.add('show');
+            return;
+        }
+        financeSupplierResults.innerHTML = items.map((item) => `
+            <div class="autocomplete-option" data-id="${item.id}" data-name="${(item.nome_exibicao || '').replace(/"/g, '&quot;')}">
+                <div class="fw-semibold">${item.nome_exibicao || item.razao_social || 'Fornecedor'}</div>
+                <div class="small text-muted">${item.cnpj || 'Sem CNPJ'}${item.endereco_cidade ? ` • ${item.endereco_cidade}` : ''}${item.endereco_estado ? `/${item.endereco_estado}` : ''}</div>
+            </div>
+        `).join('');
+        financeSupplierResults.classList.add('show');
+        financeSupplierResults.querySelectorAll('.autocomplete-option[data-id]').forEach((option) => {
+            option.addEventListener('click', () => {
+                if (financeSupplierInput) {
+                    financeSupplierInput.value = option.dataset.name || '';
+                }
+                if (financeSupplierIdInput) {
+                    financeSupplierIdInput.value = option.dataset.id || '';
+                }
+                financeSupplierResults.classList.remove('show');
+            });
+        });
+    };
+
+    let supplierLookupTimeout = null;
+    financeSupplierInput?.addEventListener('input', () => {
+        if (financeSupplierIdInput) {
+            financeSupplierIdInput.value = '';
+        }
+        const q = financeSupplierInput.value.trim();
+        if (supplierLookupTimeout) {
+            clearTimeout(supplierLookupTimeout);
+        }
+        if (!q || q.length < 2) {
+            financeSupplierResults?.classList.remove('show');
+            return;
+        }
+        supplierLookupTimeout = setTimeout(async () => {
+            try {
+                const response = await fetch(`{{ url_for('config.fornecedores_autocomplete') }}?q=${encodeURIComponent(q)}`, {
+                    headers: { 'Accept': 'application/json' },
+                    credentials: 'same-origin'
+                });
+                const data = await response.json();
+                renderSupplierResults(data.results || []);
+            } catch (_) {
+                renderSupplierResults([]);
+            }
+        }, 220);
+    });
+
+    document.addEventListener('click', (event) => {
+        if (!financeSupplierResults || !financeSupplierInput) return;
+        if (financeSupplierResults.contains(event.target) || financeSupplierInput.contains(event.target)) {
+            return;
+        }
+        financeSupplierResults.classList.remove('show');
+    });
 
     // ==========================================
     // BUSCAR PRECO DE REPOSICAO (MODAL)

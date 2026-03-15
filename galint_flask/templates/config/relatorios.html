@@ -275,6 +275,52 @@
                     </div>
                 </div>
             </div>
+
+            <div class="form-section">
+                <h4><i class="bi bi-calendar-event me-2"></i>Fechamento Financeiro</h4>
+                <p class="text-muted">Define como o exercício anual é agrupado para a prestação de contas em PDF.</p>
+
+                <div class="row">
+                    <div class="col-md-3 mb-3">
+                        <label for="dia_fechamento" class="form-label">Dia do fechamento</label>
+                        <input type="number" class="form-control" id="dia_fechamento" name="dia_fechamento"
+                               value="{{ finance_config.dia_fechamento }}" min="1" max="31">
+                    </div>
+
+                    <div class="col-md-3 mb-3">
+                        <label for="mes_fechamento" class="form-label">Mês do fechamento</label>
+                        <input type="number" class="form-control" id="mes_fechamento" name="mes_fechamento"
+                               value="{{ finance_config.mes_fechamento }}" min="1" max="12">
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <label for="titulo_relatorio_anual" class="form-label">Título do PDF anual</label>
+                        <input type="text" class="form-control" id="titulo_relatorio_anual" name="titulo_relatorio_anual"
+                               value="{{ finance_config.titulo_relatorio_anual or '' }}"
+                               placeholder="Prestação de Contas do Almoxarifado">
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <div class="form-check mt-4">
+                            <input class="form-check-input" type="checkbox" id="destacar_sem_comprovacao"
+                                   name="destacar_sem_comprovacao" {% if finance_config.destacar_sem_comprovacao %}checked{% endif %}>
+                            <label class="form-check-label" for="destacar_sem_comprovacao">
+                                Destacar valores sem comprovação fiscal
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <div class="form-check mt-4">
+                            <input class="form-check-input" type="checkbox" id="permitir_fechamento_manual"
+                                   name="permitir_fechamento_manual" {% if finance_config.permitir_fechamento_manual %}checked{% endif %}>
+                            <label class="form-check-label" for="permitir_fechamento_manual">
+                                Permitir fechamento manual complementar
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
             
             <!-- Botões -->
             <div class="d-flex gap-3 justify-content-between mt-4">

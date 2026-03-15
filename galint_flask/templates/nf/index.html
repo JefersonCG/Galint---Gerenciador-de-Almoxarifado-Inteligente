@@ -27,6 +27,52 @@
                         <label class="form-label" for="nota_fiscal">Número da NF</label>
                         <input class="form-control" id="nota_fiscal" name="nota_fiscal" required>
                     </div>
+                    <div class="mb-3 position-relative">
+                        <label class="form-label" for="finance_supplier_search">Fornecedor / Loja</label>
+                        <input class="form-control" id="finance_supplier_search" autocomplete="off"
+                            placeholder="Digite nome, fantasia ou CNPJ">
+                        <input type="hidden" id="finance_supplier_id" name="finance_supplier_id">
+                        <div class="list-group position-absolute w-100 shadow d-none" id="finance_supplier_results" style="z-index: 50;"></div>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label" for="preco_unitario">Valor unitário (R$)</label>
+                            <input class="form-control" id="preco_unitario" name="preco_unitario" type="number" min="0" step="0.01">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="finance_tipo_documento">Tipo de documento</label>
+                            <select class="form-select" id="finance_tipo_documento" name="finance_tipo_documento">
+                                <option value="nf">Nota fiscal</option>
+                                <option value="cupom">Cupom não fiscal</option>
+                                <option value="recibo">Recibo</option>
+                                <option value="manual">Manual</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row g-3 mt-1">
+                        <div class="col-md-6">
+                            <label class="form-label" for="finance_origem_valor">Origem do valor</label>
+                            <select class="form-select" id="finance_origem_valor" name="finance_origem_valor">
+                                <option value="compra_nf">Compra com NF</option>
+                                <option value="compra_cupom">Compra com cupom</option>
+                                <option value="valor_estimado">Valor estimado</option>
+                                <option value="inventario_inicial">Inventário inicial</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="finance_comprovacao_status">Comprovação</label>
+                            <select class="form-select" id="finance_comprovacao_status" name="finance_comprovacao_status">
+                                <option value="comprovado">Comprovado</option>
+                                <option value="parcial">Parcialmente comprovado</option>
+                                <option value="sem_comprovacao">Sem comprovação</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-3 mt-3">
+                        <label class="form-label" for="finance_observacao">Observação financeira</label>
+                        <textarea class="form-control" id="finance_observacao" name="finance_observacao" rows="2"
+                            placeholder="Ex.: compra emergencial, documento conferido, valor estimado..."></textarea>
+                    </div>
                     <button class="btn btn-primary" type="submit">Registrar</button>
                 </form>
             </div>
@@ -146,4 +192,64 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    const supplierInput = document.getElementById('finance_supplier_search');
+    const supplierIdInput = document.getElementById('finance_supplier_id');
+    const supplierResults = document.getElementById('finance_supplier_results');
+    let supplierTimer = null;
+
+    const hideSupplierResults = () => supplierResults?.classList.add('d-none');
+
+    const renderSupplierResults = (items) => {
+        if (!supplierResults) return;
+        if (!items.length) {
+            supplierResults.innerHTML = '<div class="list-group-item text-muted">Nenhum fornecedor encontrado.</div>';
+            supplierResults.classList.remove('d-none');
+            return;
+        }
+        supplierResults.innerHTML = items.map((item) => `
+            <button type="button" class="list-group-item list-group-item-action" data-id="${item.id}" data-name="${(item.nome_exibicao || '').replace(/"/g, '&quot;')}">
+                <div class="fw-semibold">${item.nome_exibicao || item.razao_social}</div>
+                <div class="small text-muted">${item.cnpj || 'Sem CNPJ'}</div>
+            </button>
+        `).join('');
+        supplierResults.classList.remove('d-none');
+        supplierResults.querySelectorAll('[data-id]').forEach((button) => {
+            button.addEventListener('click', () => {
+                if (supplierInput) supplierInput.value = button.dataset.name || '';
+                if (supplierIdInput) supplierIdInput.value = button.dataset.id || '';
+                hideSupplierResults();
+            });
+        });
+    };
+
+    supplierInput?.addEventListener('input', () => {
+        if (supplierIdInput) supplierIdInput.value = '';
+        const q = supplierInput.value.trim();
+        if (supplierTimer) clearTimeout(supplierTimer);
+        if (q.length < 2) {
+            hideSupplierResults();
+            return;
+        }
+        supplierTimer = setTimeout(async () => {
+            try {
+                const response = await fetch(`{{ url_for('config.fornecedores_autocomplete') }}?q=${encodeURIComponent(q)}`);
+                const data = await response.json();
+                renderSupplierResults(data.results || []);
+            } catch (_) {
+                renderSupplierResults([]);
+            }
+        }, 180);
+    });
+
+    document.addEventListener('click', (event) => {
+        if (!supplierResults || !supplierInput) return;
+        if (supplierResults.contains(event.target) || supplierInput.contains(event.target)) return;
+        hideSupplierResults();
+    });
+</script>
 {% endblock %}

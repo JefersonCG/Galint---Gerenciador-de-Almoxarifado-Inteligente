@@ -1,0 +1,297 @@
+{% extends "base.html" %}
+{% block title %}Fornecedores{% endblock %}
+
+{% block extra_css %}
+<style>
+    .supplier-shell {
+        display: grid;
+        grid-template-columns: minmax(340px, 430px) 1fr;
+        gap: 1.5rem;
+    }
+
+    .supplier-card {
+        background: #fff;
+        border-radius: 16px;
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        box-shadow: 0 18px 35px rgba(15, 23, 42, 0.08);
+        padding: 1.4rem;
+    }
+
+    .supplier-header {
+        display: flex;
+        align-items: start;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .supplier-table th {
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: #475569;
+    }
+
+    .supplier-table td {
+        vertical-align: middle;
+    }
+
+    .supplier-badge {
+        display: inline-flex;
+        gap: 0.4rem;
+        padding: 0.2rem 0.65rem;
+        border-radius: 999px;
+        font-size: 0.75rem;
+        background: #eff6ff;
+        color: #1d4ed8;
+    }
+
+    .lookup-box {
+        background: linear-gradient(135deg, #eff6ff 0%, #f8fafc 100%);
+        border: 1px solid #bfdbfe;
+        border-radius: 12px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    @media (max-width: 991px) {
+        .supplier-shell {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="supplier-header mb-4">
+        <div>
+            <h1 class="h3 mb-1">Fornecedores</h1>
+            <div class="text-muted">Cadastro mestre das lojas e empresas usadas nas compras do almoxarifado.</div>
+        </div>
+        <a class="btn btn-outline-secondary" href="{{ url_for('inventory.valor_estoque') }}">
+            <i class="bi bi-cash-stack me-1"></i> Valor de Estoque
+        </a>
+    </div>
+
+    <div class="supplier-shell">
+        <div class="supplier-card">
+            <div class="supplier-header">
+                <div>
+                    <h2 class="h5 mb-1">{{ 'Editar fornecedor' if supplier_edit else 'Novo fornecedor' }}</h2>
+                    <div class="text-muted small">Consulte o CNPJ para preencher os dados automaticamente.</div>
+                </div>
+            </div>
+
+            <div class="lookup-box">
+                <label class="form-label" for="cnpj-lookup">Buscar por CNPJ</label>
+                <div class="input-group">
+                    <input class="form-control" id="cnpj-lookup" maxlength="18" placeholder="00.000.000/0000-00">
+                    <button class="btn btn-primary" type="button" id="btn-cnpj-lookup">
+                        <i class="bi bi-search me-1"></i> Consultar
+                    </button>
+                </div>
+                <div class="form-text">Usa API pública para preencher razão social, endereço e situação cadastral.</div>
+                <div class="small mt-2 text-muted" id="cnpj-status"></div>
+            </div>
+
+            <form method="post" id="supplier-form">
+                <input type="hidden" name="id" value="{{ supplier_edit.id if supplier_edit else '' }}">
+                <input type="hidden" name="api_origem" id="api_origem" value="{{ supplier_edit.api_origem if supplier_edit else '' }}">
+                <div class="mb-3">
+                    <label class="form-label" for="razao_social">Razão social</label>
+                    <input class="form-control" id="razao_social" name="razao_social" value="{{ supplier_edit.razao_social if supplier_edit else '' }}" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="nome_fantasia">Nome fantasia</label>
+                    <input class="form-control" id="nome_fantasia" name="nome_fantasia" value="{{ supplier_edit.nome_fantasia if supplier_edit else '' }}">
+                </div>
+                <div class="row g-3">
+                    <div class="col-md-7">
+                        <label class="form-label" for="cnpj">CNPJ</label>
+                        <input class="form-control" id="cnpj" name="cnpj" value="{{ supplier_edit.cnpj if supplier_edit else '' }}">
+                    </div>
+                    <div class="col-md-5">
+                        <label class="form-label" for="inscricao_estadual">Inscrição estadual</label>
+                        <input class="form-control" id="inscricao_estadual" name="inscricao_estadual" value="{{ supplier_edit.inscricao_estadual if supplier_edit else '' }}">
+                    </div>
+                </div>
+                <div class="row g-3 mt-1">
+                    <div class="col-md-8">
+                        <label class="form-label" for="endereco_rua">Logradouro</label>
+                        <input class="form-control" id="endereco_rua" name="endereco_rua" value="{{ supplier_edit.endereco_rua if supplier_edit else '' }}">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label" for="endereco_numero">Número</label>
+                        <input class="form-control" id="endereco_numero" name="endereco_numero" value="{{ supplier_edit.endereco_numero if supplier_edit else '' }}">
+                    </div>
+                </div>
+                <div class="row g-3 mt-1">
+                    <div class="col-md-6">
+                        <label class="form-label" for="endereco_complemento">Complemento</label>
+                        <input class="form-control" id="endereco_complemento" name="endereco_complemento" value="{{ supplier_edit.endereco_complemento if supplier_edit else '' }}">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="endereco_bairro">Bairro</label>
+                        <input class="form-control" id="endereco_bairro" name="endereco_bairro" value="{{ supplier_edit.endereco_bairro if supplier_edit else '' }}">
+                    </div>
+                </div>
+                <div class="row g-3 mt-1">
+                    <div class="col-md-5">
+                        <label class="form-label" for="endereco_cidade">Cidade</label>
+                        <input class="form-control" id="endereco_cidade" name="endereco_cidade" value="{{ supplier_edit.endereco_cidade if supplier_edit else '' }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label" for="endereco_estado">UF</label>
+                        <input class="form-control text-uppercase" id="endereco_estado" name="endereco_estado" maxlength="2" value="{{ supplier_edit.endereco_estado if supplier_edit else '' }}">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label" for="endereco_cep">CEP</label>
+                        <input class="form-control" id="endereco_cep" name="endereco_cep" value="{{ supplier_edit.endereco_cep if supplier_edit else '' }}">
+                    </div>
+                </div>
+                <div class="row g-3 mt-1">
+                    <div class="col-md-4">
+                        <label class="form-label" for="telefone">Telefone</label>
+                        <input class="form-control" id="telefone" name="telefone" value="{{ supplier_edit.telefone if supplier_edit else '' }}">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label" for="email">E-mail</label>
+                        <input class="form-control" id="email" name="email" value="{{ supplier_edit.email if supplier_edit else '' }}">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label" for="site">Site</label>
+                        <input class="form-control" id="site" name="site" value="{{ supplier_edit.site if supplier_edit else '' }}">
+                    </div>
+                </div>
+                <div class="row g-3 mt-1">
+                    <div class="col-md-8">
+                        <label class="form-label" for="situacao_cadastral">Situação cadastral</label>
+                        <input class="form-control" id="situacao_cadastral" name="situacao_cadastral" value="{{ supplier_edit.situacao_cadastral if supplier_edit else '' }}">
+                    </div>
+                    <div class="col-md-4 d-flex align-items-end">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="ativo" name="ativo" {% if supplier_edit is none or supplier_edit.ativo %}checked{% endif %}>
+                            <label class="form-check-label" for="ativo">Fornecedor ativo</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <label class="form-label" for="observacoes">Observações</label>
+                    <textarea class="form-control" id="observacoes" name="observacoes" rows="3">{{ supplier_edit.observacoes if supplier_edit else '' }}</textarea>
+                </div>
+                <div class="d-flex gap-2 mt-4">
+                    <button class="btn btn-primary" type="submit">
+                        <i class="bi bi-save me-1"></i> Salvar fornecedor
+                    </button>
+                    <a class="btn btn-outline-secondary" href="{{ url_for('config.fornecedores') }}">Limpar</a>
+                </div>
+            </form>
+        </div>
+
+        <div class="supplier-card">
+            <div class="supplier-header">
+                <div>
+                    <h2 class="h5 mb-1">Cadastros existentes</h2>
+                    <div class="text-muted small">Selecione um fornecedor para editar ou conferir rapidamente os dados.</div>
+                </div>
+                <span class="supplier-badge">{{ fornecedores|length }} cadastrado(s)</span>
+            </div>
+            <div class="table-responsive">
+                <table class="table supplier-table align-middle">
+                    <thead>
+                        <tr>
+                            <th>Fornecedor</th>
+                            <th>CNPJ</th>
+                            <th>Cidade/UF</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for fornecedor in fornecedores %}
+                        <tr>
+                            <td>
+                                <div class="fw-semibold">{{ fornecedor.nome_exibicao }}</div>
+                                <div class="text-muted small">{{ fornecedor.razao_social }}</div>
+                            </td>
+                            <td>{{ fornecedor.cnpj or '—' }}</td>
+                            <td>{{ fornecedor.endereco_cidade or '—' }}{% if fornecedor.endereco_estado %}/{{ fornecedor.endereco_estado }}{% endif %}</td>
+                            <td class="text-end">
+                                <a class="btn btn-sm btn-outline-primary" href="{{ url_for('config.fornecedores', supplier_id=fornecedor.id) }}">
+                                    <i class="bi bi-pencil me-1"></i> Editar
+                                </a>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="4" class="text-center text-muted py-4">Nenhum fornecedor cadastrado ainda.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    const cnpjLookupInput = document.getElementById('cnpj-lookup');
+    const cnpjStatus = document.getElementById('cnpj-status');
+    const btnCnpjLookup = document.getElementById('btn-cnpj-lookup');
+
+    const fillField = (id, value) => {
+        const input = document.getElementById(id);
+        if (input) {
+            input.value = value || '';
+        }
+    };
+
+    const applySupplierData = (supplier) => {
+        fillField('razao_social', supplier.razao_social);
+        fillField('nome_fantasia', supplier.nome_fantasia);
+        fillField('cnpj', supplier.cnpj);
+        fillField('inscricao_estadual', supplier.inscricao_estadual);
+        fillField('endereco_rua', supplier.endereco_rua);
+        fillField('endereco_numero', supplier.endereco_numero);
+        fillField('endereco_complemento', supplier.endereco_complemento);
+        fillField('endereco_bairro', supplier.endereco_bairro);
+        fillField('endereco_cidade', supplier.endereco_cidade);
+        fillField('endereco_estado', supplier.endereco_estado);
+        fillField('endereco_cep', supplier.endereco_cep);
+        fillField('telefone', supplier.telefone);
+        fillField('email', supplier.email);
+        fillField('site', supplier.site);
+        fillField('situacao_cadastral', supplier.situacao_cadastral);
+        fillField('api_origem', supplier.api_origem);
+    };
+
+    btnCnpjLookup?.addEventListener('click', async () => {
+        const cnpj = (cnpjLookupInput?.value || '').trim();
+        if (!cnpj) {
+            cnpjStatus.textContent = 'Informe um CNPJ para consultar.';
+            return;
+        }
+        btnCnpjLookup.disabled = true;
+        cnpjStatus.textContent = 'Consultando CNPJ...';
+        try {
+            const response = await fetch(`{{ url_for('config.fornecedores_por_cnpj', cnpj='__CNPJ__') }}`.replace('__CNPJ__', encodeURIComponent(cnpj)));
+            const data = await response.json();
+            if (!response.ok || !data.success) {
+                throw new Error(data.message || 'Não foi possível consultar o CNPJ');
+            }
+            applySupplierData(data.supplier || {});
+            if (cnpjLookupInput) {
+                cnpjLookupInput.value = data.supplier?.cnpj || cnpj;
+            }
+            cnpjStatus.textContent = 'Dados do CNPJ carregados com sucesso.';
+        } catch (error) {
+            cnpjStatus.textContent = String(error?.message || error);
+        } finally {
+            btnCnpjLookup.disabled = false;
+        }
+    });
+</script>
+{% endblock %}

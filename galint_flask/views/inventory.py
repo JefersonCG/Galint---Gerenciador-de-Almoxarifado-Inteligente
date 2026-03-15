@@ -12,6 +12,7 @@ from flask_login import login_required, current_user
 from ..extensions import db
 from ..models import Item, Usuario
 from ..services.config_service import ConfigService
+from ..services.finance_service import finance_service
 from ..services.inventory import MovimentoPayload, inventory_service
 from ..services.item_foto_service import ItemFotoService
 from ..services.price_suggestion_service import price_suggestion_service
@@ -108,6 +109,84 @@ def _sanitize_filename_component(value: str) -> str:
     return result or "categoria"
 
 
+def _extract_finance_payload(form, *, current_item: dict | None = None) -> dict[str, object]:
+    supplier_raw = (form.get("finance_supplier_id") or "").strip()
+    supplier_id = int(supplier_raw) if supplier_raw.isdigit() else None
+    origem_valor = (form.get("finance_origem_valor") or "").strip() or "inventario_inicial"
+    tipo_documento = (form.get("finance_tipo_documento") or "").strip() or None
+    comprovacao = (form.get("finance_comprovacao_status") or "").strip() or None
+    observacao = (form.get("finance_observacao") or "").strip() or None
+    if not comprovacao:
+        comprovacao = "comprovado" if tipo_documento in {"nf", "cupom"} else "sem_comprovacao"
+    numero_documento = (
+        (form.get("preco_compra_documento") or "").strip()
+        or (form.get("nota_fiscal") or "").strip()
+        or (current_item.get("preco_compra_documento") if current_item else "")
+        or None
+    )
+    return {
+        "supplier_id": supplier_id,
+        "origem_valor": origem_valor,
+        "tipo_documento": tipo_documento,
+        "comprovacao_status": comprovacao,
+        "observacao": observacao,
+        "numero_documento": numero_documento,
+    }
+
+
+def _sync_item_financial_history(
+    *,
+    codigo: str,
+    categoria: str,
+    quantidade: float,
+    preco_compra_unitario: object,
+    data_lancamento: object,
+    usuario_id: str | None,
+    finance_payload: dict[str, object],
+    entrada_id: int | None = None,
+) -> bool:
+    if finance_payload.get("supplier_id"):
+        finance_service.set_item_supplier_preference(
+            codigo,
+            int(finance_payload["supplier_id"]),
+            origem=str(finance_payload.get("origem_valor") or ""),
+            atualizado_por=usuario_id,
+        )
+
+    if quantidade <= 0:
+        return False
+
+    try:
+        unit_price = float(preco_compra_unitario) if preco_compra_unitario not in (None, "") else None
+    except (TypeError, ValueError):
+        unit_price = None
+    if unit_price is None:
+        return False
+
+    when = None
+    if isinstance(data_lancamento, datetime):
+        when = data_lancamento
+    elif hasattr(data_lancamento, "year") and hasattr(data_lancamento, "month") and hasattr(data_lancamento, "day"):
+        when = data_lancamento
+
+    finance_service.register_financial_entry(
+        codigo_item=codigo,
+        categoria_nome=categoria,
+        quantidade=float(quantidade),
+        valor_unitario=unit_price,
+        data_lancamento=when,
+        fornecedor_id=finance_payload.get("supplier_id"),
+        entrada_id=entrada_id,
+        usuario_matricula=usuario_id,
+        origem_valor=str(finance_payload.get("origem_valor") or "inventario_inicial"),
+        tipo_documento=finance_payload.get("tipo_documento"),
+        numero_documento=finance_payload.get("numero_documento"),
+        comprovacao_status=str(finance_payload.get("comprovacao_status") or "sem_comprovacao"),
+        observacao=finance_payload.get("observacao"),
+    )
+    return True
+
+
 @blueprint.get("/")
 @login_required
 def list_items():
@@ -161,32 +240,7 @@ def list_items():
 @login_required
 def valor_estoque():
     _require_admin()
-    itens = inventory_service.list_items()
-
-    total_compra = 0.0
-    total_reposicao = 0.0
-    missing_compra = 0
-    missing_reposicao = 0
-
-    for item in itens:
-        vc = item.get("valor_estoque_compra_total")
-        vr = item.get("valor_estoque_reposicao_total")
-
-        if vc is None:
-            missing_compra += 1
-        else:
-            try:
-                total_compra += float(vc)
-            except (TypeError, ValueError):
-                pass
-
-        if vr is None:
-            missing_reposicao += 1
-        else:
-            try:
-                total_reposicao += float(vr)
-            except (TypeError, ValueError):
-                pass
+    report = finance_service.get_stock_value_report(request.args.get("exercicio"))
 
     uf_empresa = ""
     try:
@@ -196,13 +250,30 @@ def valor_estoque():
 
     return render_template(
         "inventory/stock_value.html",
-        itens=itens,
-        total_compra=total_compra,
-        total_reposicao=total_reposicao,
-        missing_compra=missing_compra,
-        missing_reposicao=missing_reposicao,
+        itens=report["items"],
+        category_cards=report["category_cards"],
+        total_compra=report["total_compra"],
+        total_reposicao=report["total_reposicao"],
+        missing_compra=report["missing_compra"],
+        missing_reposicao=report["missing_reposicao"],
+        total_investido_exercicio=report["total_investido_exercicio"],
+        total_consumido_exercicio=report["total_consumido_exercicio"],
+        total_sem_comprovacao_exercicio=report["total_sem_comprovacao_exercicio"],
+        exercise=report["exercise"],
+        exercise_options=report["exercise_options"],
         uf_empresa=uf_empresa,
     )
+
+
+@blueprint.get("/valor-estoque/pdf")
+@login_required
+def valor_estoque_pdf():
+    _require_admin()
+    exercise_label = (request.args.get("exercicio") or "").strip() or None
+    pdf_buffer = finance_service.build_stock_value_pdf(exercise_label)
+    exercise = finance_service.resolve_exercise(exercise_label)
+    filename = f"prestacao_contas_almoxarifado_{exercise['label'].replace('/', '_')}.pdf"
+    return send_file(pdf_buffer, mimetype="application/pdf", as_attachment=True, download_name=filename)
 
 
 @blueprint.get("/novo")
@@ -227,6 +298,7 @@ def new_item_form():
         saldo_desejado=0,
         saldo_total_ean=saldo_total_ean,
         liquid_types=LIQUID_PRODUCT_TYPES,
+        preferred_supplier=None,
     )
 
 
@@ -299,6 +371,14 @@ def create_item():
         "preco_reposicao_url": (form.get("preco_reposicao_url") or "").strip() or None,
         "quantidade": saldo_desejado,  # Para registrar entrada quando item existe com lote diferente
     }
+    finance_payload = _extract_finance_payload(form)
+    payload.update({
+        "finance_supplier_id": finance_payload.get("supplier_id"),
+        "finance_origem_valor": finance_payload.get("origem_valor"),
+        "finance_tipo_documento": finance_payload.get("tipo_documento"),
+        "finance_comprovacao_status": finance_payload.get("comprovacao_status"),
+        "finance_observacao": finance_payload.get("observacao"),
+    })
     if tipo_novo:
         payload["litros_por_embalagem"] = litros_var
         payload["grandeza_referencia"] = grandeza_var
@@ -345,6 +425,21 @@ def create_item():
                 ),
                 skip_notification=True  # Não enviar notificação separada de entrada
             )
+
+        history_recorded = _sync_item_financial_history(
+            codigo=codigo,
+            categoria=str(payload.get("categoria") or "Sem categoria"),
+            quantidade=float(saldo_desejado if saldo_desejado > 0 else 0),
+            preco_compra_unitario=payload.get("preco_compra_unitario"),
+            data_lancamento=payload.get("data_entrada"),
+            usuario_id=current_user.id,
+            finance_payload=finance_payload,
+            entrada_id=getattr(entrada_inicial, "id_entrada", None),
+        )
+        if saldo_desejado > 0 and not history_recorded and (
+            finance_payload.get("supplier_id") or finance_payload.get("tipo_documento") or finance_payload.get("origem_valor")
+        ):
+            flash("Item salvo, mas o lançamento financeiro não foi registrado porque faltou valor de compra unitário.", "warning")
         
         # Notificar criação de item aos administradores (notificação UNIFICADA)
         try:
@@ -374,6 +469,7 @@ def create_item():
             saldo_desejado=quantidade_context,
             saldo_total_ean=saldo_total_ean,
             liquid_types=LIQUID_PRODUCT_TYPES,
+            preferred_supplier=finance_service.get_supplier(finance_payload.get("supplier_id")).to_dict() if finance_payload.get("supplier_id") else None,
         ), 400
     return redirect(url_for("inventory.list_items"))
 
@@ -401,6 +497,7 @@ def edit_item_form(codigo: str):
         saldo_desejado=saldo_display,
         saldo_total_ean=saldo_total,
         liquid_types=LIQUID_PRODUCT_TYPES,
+        preferred_supplier=finance_service.get_item_supplier_preference(codigo),
     )
 
 
@@ -486,6 +583,14 @@ def update_item(codigo: str):
         "preco_reposicao_query": (form.get("preco_reposicao_query") or "").strip() or None,
         "preco_reposicao_url": (form.get("preco_reposicao_url") or "").strip() or None,
     }
+    finance_payload = _extract_finance_payload(form, current_item=payload)
+    payload.update({
+        "finance_supplier_id": finance_payload.get("supplier_id"),
+        "finance_origem_valor": finance_payload.get("origem_valor"),
+        "finance_tipo_documento": finance_payload.get("tipo_documento"),
+        "finance_comprovacao_status": finance_payload.get("comprovacao_status"),
+        "finance_observacao": finance_payload.get("observacao"),
+    })
 
     # Preservar campos antigos se não forem substituídos pelo novo sistema?
     # Neste caso, estamos assumindo que o formulário é a fonte da verdade para a edição.
@@ -532,6 +637,16 @@ def update_item(codigo: str):
                 flash(f"Erro no upload da foto: {str(e)}", "warning")
 
         updated_codigo = inventory_service.update_item(codigo, payload)
+
+        _sync_item_financial_history(
+            codigo=updated_codigo,
+            categoria=str(payload.get("categoria") or "Sem categoria"),
+            quantidade=0,
+            preco_compra_unitario=payload.get("preco_compra_unitario"),
+            data_lancamento=payload.get("data_entrada"),
+            usuario_id=current_user.id,
+            finance_payload=finance_payload,
+        )
 
         if saldo_desejado >= 0:
             from ..services.embalagem_service import EmbalagemService

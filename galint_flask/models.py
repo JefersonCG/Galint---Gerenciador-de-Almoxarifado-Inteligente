@@ -1281,6 +1281,164 @@ class RelatorioConfig(db.Model):
         }
 
 
+class FinanceConfig(db.Model):
+    """Configurações financeiras para fechamento e prestação de contas."""
+    __tablename__ = "finance_config"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    dia_fechamento: Mapped[int] = mapped_column(Integer, nullable=False, default=10)
+    mes_fechamento: Mapped[int] = mapped_column(Integer, nullable=False, default=2)
+    destacar_sem_comprovacao: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    permitir_fechamento_manual: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    titulo_relatorio_anual: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    atualizado_em: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "id": self.id,
+            "dia_fechamento": self.dia_fechamento,
+            "mes_fechamento": self.mes_fechamento,
+            "destacar_sem_comprovacao": self.destacar_sem_comprovacao,
+            "permitir_fechamento_manual": self.permitir_fechamento_manual,
+            "titulo_relatorio_anual": self.titulo_relatorio_anual,
+        }
+
+
+class FinanceSupplier(db.Model):
+    """Cadastro mestre de fornecedores/lojas usados nos lançamentos financeiros."""
+    __tablename__ = "finance_fornecedores"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    razao_social: Mapped[str] = mapped_column(String(200), nullable=False)
+    nome_fantasia: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    cnpj: Mapped[str | None] = mapped_column(String(18), nullable=True, unique=True)
+    inscricao_estadual: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    endereco_rua: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    endereco_numero: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    endereco_complemento: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    endereco_bairro: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    endereco_cidade: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    endereco_estado: Mapped[str | None] = mapped_column(String(2), nullable=True)
+    endereco_cep: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    telefone: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    email: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    site: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    situacao_cadastral: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    api_origem: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    data_consulta_cnpj: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    observacoes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    ativo: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    criado_em: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now())
+    atualizado_em: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
+
+    def nome_exibicao(self) -> str:
+        return (self.nome_fantasia or self.razao_social or "Fornecedor sem nome").strip()
+
+    def endereco_completo(self) -> str:
+        partes: list[str] = []
+        if self.endereco_rua:
+            rua = self.endereco_rua
+            if self.endereco_numero:
+                rua += f", {self.endereco_numero}"
+            if self.endereco_complemento:
+                rua += f" - {self.endereco_complemento}"
+            partes.append(rua)
+        if self.endereco_bairro:
+            partes.append(self.endereco_bairro)
+        cidade_uf = " / ".join(p for p in [self.endereco_cidade, self.endereco_estado] if p)
+        if cidade_uf:
+            partes.append(cidade_uf)
+        if self.endereco_cep:
+            partes.append(f"CEP {self.endereco_cep}")
+        return " - ".join(partes)
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "id": self.id,
+            "razao_social": self.razao_social,
+            "nome_fantasia": self.nome_fantasia,
+            "nome_exibicao": self.nome_exibicao(),
+            "cnpj": self.cnpj,
+            "inscricao_estadual": self.inscricao_estadual,
+            "endereco_rua": self.endereco_rua,
+            "endereco_numero": self.endereco_numero,
+            "endereco_complemento": self.endereco_complemento,
+            "endereco_bairro": self.endereco_bairro,
+            "endereco_cidade": self.endereco_cidade,
+            "endereco_estado": self.endereco_estado,
+            "endereco_cep": self.endereco_cep,
+            "endereco_completo": self.endereco_completo(),
+            "telefone": self.telefone,
+            "email": self.email,
+            "site": self.site,
+            "situacao_cadastral": self.situacao_cadastral,
+            "api_origem": self.api_origem,
+            "observacoes": self.observacoes,
+            "ativo": self.ativo,
+        }
+
+
+class FinanceSupplierPreference(db.Model):
+    """Relaciona um item ao fornecedor mais recorrente/preferido."""
+    __tablename__ = "finance_fornecedor_item_preferencias"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    codigo_item: Mapped[str] = mapped_column(ForeignKey("itens.codigo_item"), nullable=False, unique=True)
+    fornecedor_id: Mapped[int] = mapped_column(ForeignKey("finance_fornecedores.id"), nullable=False)
+    ultima_origem: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    atualizado_por: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    atualizado_em: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
+
+    item: Mapped["Item"] = relationship("Item", backref=backref("finance_supplier_preference", uselist=False))
+    fornecedor: Mapped[FinanceSupplier] = relationship("FinanceSupplier")
+
+
+class FinanceLedgerEntry(db.Model):
+    """Histórico financeiro das entradas incorporadas ao almoxarifado."""
+    __tablename__ = "finance_lancamentos"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    codigo_item: Mapped[str] = mapped_column(ForeignKey("itens.codigo_item"), nullable=False)
+    entrada_id: Mapped[int | None] = mapped_column(ForeignKey("entradas.id_entrada"), nullable=True)
+    fornecedor_id: Mapped[int | None] = mapped_column(ForeignKey("finance_fornecedores.id"), nullable=True)
+    usuario_matricula: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    categoria_nome: Mapped[str] = mapped_column(String(120), nullable=False)
+    data_lancamento: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    quantidade: Mapped[float] = mapped_column(Float, nullable=False, default=0)
+    valor_unitario: Mapped[float | None] = mapped_column(Float, nullable=True)
+    valor_total: Mapped[float] = mapped_column(Float, nullable=False, default=0)
+    origem_valor: Mapped[str] = mapped_column(String(40), nullable=False, default="inventario_inicial")
+    tipo_documento: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    numero_documento: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    comprovacao_status: Mapped[str] = mapped_column(String(30), nullable=False, default="sem_comprovacao")
+    observacao: Mapped[str | None] = mapped_column(Text, nullable=True)
+    criado_em: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now())
+
+    item: Mapped["Item"] = relationship("Item")
+    entrada: Mapped["Entrada | None"] = relationship("Entrada")
+    fornecedor: Mapped[FinanceSupplier | None] = relationship("FinanceSupplier")
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "id": self.id,
+            "codigo_item": self.codigo_item,
+            "entrada_id": self.entrada_id,
+            "fornecedor_id": self.fornecedor_id,
+            "fornecedor_nome": self.fornecedor.nome_exibicao() if self.fornecedor else None,
+            "usuario_matricula": self.usuario_matricula,
+            "categoria_nome": self.categoria_nome,
+            "data_lancamento": self.data_lancamento.isoformat() if self.data_lancamento else None,
+            "quantidade": self.quantidade,
+            "valor_unitario": self.valor_unitario,
+            "valor_total": self.valor_total,
+            "origem_valor": self.origem_valor,
+            "tipo_documento": self.tipo_documento,
+            "numero_documento": self.numero_documento,
+            "comprovacao_status": self.comprovacao_status,
+            "observacao": self.observacao,
+        }
+
+
 class EquipamentoReparo(db.Model):
     """Gerenciamento de equipamentos enviados para reparo."""
     __tablename__ = "equipamentos_reparo"

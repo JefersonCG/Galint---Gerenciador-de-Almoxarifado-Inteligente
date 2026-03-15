@@ -165,6 +165,11 @@
                     <i class="bi bi-file-earmark-text"></i>
                     <span>Relatórios</span>
                 </a>
+                <a class="sidebar-link ps-4 {% if p.startswith(url_for('config.fornecedores')) %}active{% endif %}"
+                    href="{{ url_for('config.fornecedores') }}">
+                    <i class="bi bi-shop"></i>
+                    <span>Fornecedores</span>
+                </a>
                 <a class="sidebar-link ps-4 {% if p.startswith(url_for('updates.index')) %}active{% endif %}"
                     href="{{ url_for('updates.index') }}">
                     <i class="bi bi-arrow-clockwise"></i>

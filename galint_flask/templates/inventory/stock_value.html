@@ -15,12 +15,24 @@
     <div>
         <h1 class="h3 mb-1">Valor de Estoque</h1>
         <div class="text-muted small">
-            Referência: compra (investido) vs reposição{% if uf_empresa %} • UF padrão: <strong>{{ uf_empresa }}</strong>{% endif %}
+            Referência: estoque atual + prestação de contas do exercício {{ exercise.label }}{% if uf_empresa %} • UF padrão: <strong>{{ uf_empresa }}</strong>{% endif %}
         </div>
     </div>
-    <a class="btn btn-outline-primary" href="{{ url_for('inventory.list_items') }}">
-        <i class="bi bi-boxes me-1"></i> Voltar para Itens
-    </a>
+    <div class="d-flex gap-2 flex-wrap">
+        <form class="d-flex gap-2" method="get">
+            <select class="form-select" name="exercicio" onchange="this.form.submit()">
+                {% for option in exercise_options %}
+                <option value="{{ option.label }}" {% if option.label == exercise.label %}selected{% endif %}>Exercício {{ option.label }}</option>
+                {% endfor %}
+            </select>
+        </form>
+        <a class="btn btn-outline-success" href="{{ url_for('inventory.valor_estoque_pdf', exercicio=exercise.label) }}">
+            <i class="bi bi-file-earmark-pdf me-1"></i> Exportar PDF
+        </a>
+        <a class="btn btn-outline-primary" href="{{ url_for('inventory.list_items') }}">
+            <i class="bi bi-boxes me-1"></i> Voltar para Itens
+        </a>
+    </div>
 </div>
 
 <style>
@@ -102,13 +114,67 @@
         color: #b91c1c;
         font-weight: 700;
     }
+
+    .category-card {
+        background: #ffffff;
+        border: 1px solid rgba(148, 163, 184, 0.28);
+        border-radius: 18px;
+        box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+        overflow: hidden;
+    }
+
+    .category-head {
+        padding: 1.15rem 1.25rem;
+        background: linear-gradient(135deg, #eff6ff 0%, #f8fafc 100%);
+        border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+    }
+
+    .category-metrics {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 0.75rem;
+        margin-top: 0.9rem;
+    }
+
+    .category-metric {
+        background: rgba(255, 255, 255, 0.85);
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        border-radius: 14px;
+        padding: 0.85rem 0.95rem;
+    }
+
+    .category-metric .label {
+        font-size: 0.74rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: #64748b;
+        margin-bottom: 0.25rem;
+    }
+
+    .category-metric .value {
+        font-size: 1rem;
+        font-weight: 800;
+        color: #0f172a;
+    }
+
+    @media (max-width: 991px) {
+        .category-metrics {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    @media (max-width: 640px) {
+        .category-metrics {
+            grid-template-columns: 1fr;
+        }
+    }
 </style>
 
 <div class="row g-3 mb-4">
     <div class="col-md-4">
         <div class="value-card">
             <div class="card-body p-3">
-                <div class="text-white-50 small mb-1">Total (Compra / Investido)</div>
+                <div class="text-white-50 small mb-1">Total atual em estoque (Compra)</div>
                 <div class="value-kpi">{{ brl(total_compra) }}</div>
                 <p class="value-sub">Itens sem valor de compra: <strong>{{ missing_compra }}</strong></p>
             </div>
@@ -117,7 +183,7 @@
     <div class="col-md-4">
         <div class="value-card">
             <div class="card-body p-3">
-                <div class="text-white-50 small mb-1">Total (Reposição)</div>
+                <div class="text-white-50 small mb-1">Total atual em estoque (Reposição)</div>
                 <div class="value-kpi">{{ brl(total_reposicao) }}</div>
                 <p class="value-sub">Itens sem valor de reposição: <strong>{{ missing_reposicao }}</strong></p>
             </div>
@@ -126,88 +192,139 @@
     <div class="col-md-4">
         <div class="value-card">
             <div class="card-body p-3">
-                <div class="text-white-50 small mb-1">Diferença (Reposição - Compra)</div>
-                {% set diff = (total_reposicao - total_compra) %}
-                <div class="value-kpi">{{ brl(diff) }}</div>
-                <p class="value-sub">Indicador de exposição ao custo de reposição</p>
+                <div class="text-white-50 small mb-1">Investido no exercício</div>
+                <div class="value-kpi">{{ brl(total_investido_exercicio) }}</div>
+                <p class="value-sub">Período: {{ exercise.start_date.strftime('%d/%m/%Y') }} a {{ exercise.end_date.strftime('%d/%m/%Y') }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="value-card">
+            <div class="card-body p-3">
+                <div class="text-white-50 small mb-1">Consumido no exercício</div>
+                <div class="value-kpi">{{ brl(total_consumido_exercicio) }}</div>
+                <p class="value-sub">Estimativa calculada com base no consumo e no custo de compra registrado.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="value-card">
+            <div class="card-body p-3">
+                <div class="text-white-50 small mb-1">Sem comprovação fiscal</div>
+                <div class="value-kpi">{{ brl(total_sem_comprovacao_exercicio) }}</div>
+                <p class="value-sub">Valores lançados manualmente, estimados ou sem documento anexado.</p>
             </div>
         </div>
     </div>
 </div>
 
-<div class="value-table">
-    <div class="table-responsive">
-        <table class="table table-hover mb-0">
-            <thead>
-                <tr>
-                    <th>Item</th>
-                    <th>Saldo</th>
-                    <th>Compra (un.)</th>
-                    <th>Total compra</th>
-                    <th>Reposição (un.)</th>
-                    <th>Total reposição</th>
-                    <th></th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for item in itens %}
-                <tr>
-                    <td>
-                        <div class="fw-semibold">{{ item.descricao }}</div>
-                        <div class="text-muted small">
-                            <span class="value-pill">Código {{ item.codigo }}</span>
-                            <span class="value-pill">{{ item.categoria or 'Sem categoria' }}</span>
-                        </div>
-                    </td>
-                    <td class="text-muted">{{ item.saldo_display or item.saldo }}</td>
-                    <td>
-                        {% if item.preco_compra_unitario %}
-                        {{ brl(item.preco_compra_unitario) }}
-                        {% else %}
-                        <span class="missing">—</span>
-                        {% endif %}
-                    </td>
-                    <td>
-                        {% if item.valor_estoque_compra_total is not none %}
-                        {{ brl(item.valor_estoque_compra_total) }}
-                        {% else %}
-                        <span class="missing">—</span>
-                        {% endif %}
-                    </td>
-                    <td>
-                        {% if item.preco_reposicao_unitario %}
-                        <div>{{ brl(item.preco_reposicao_unitario) }}</div>
-                        <div class="text-muted small">
-                            {% if item.preco_reposicao_fonte %}{{ item.preco_reposicao_fonte }}{% endif %}
-                            {% if item.preco_reposicao_uf %} • UF {{ item.preco_reposicao_uf }}{% endif %}
-                        </div>
-                        {% else %}
-                        <span class="missing">—</span>
-                        {% endif %}
-                    </td>
-                    <td>
-                        {% if item.valor_estoque_reposicao_total is not none %}
-                        {{ brl(item.valor_estoque_reposicao_total) }}
-                        {% else %}
-                        <span class="missing">—</span>
-                        {% endif %}
-                    </td>
-                    <td class="text-end">
-                        <div class="d-inline-flex gap-2">
-                            <button class="btn btn-sm btn-outline-primary" type="button"
-                                data-preco-codigo="{{ item.codigo|e }}">
-                                <i class="bi bi-search me-1"></i> Buscar preco...
-                            </button>
-                            <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('inventory.edit_item_form', codigo=item.codigo) }}">
-                                <i class="bi bi-pencil me-1"></i> Editar
-                            </a>
-                        </div>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
+<div class="d-grid gap-4">
+    {% for card in category_cards %}
+    <section class="category-card">
+        <div class="category-head">
+            <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+                <div>
+                    <h2 class="h5 mb-1">{{ card.categoria }}</h2>
+                    <div class="text-muted small">{{ card.items|length }} item(ns) nesta categoria</div>
+                </div>
+                <div class="text-end small text-muted">
+                    {% if card.top_item_nome %}
+                    Mais usado: <strong>{{ card.top_item_nome }}</strong> ({{ card.top_item_quantidade }})
+                    {% else %}
+                    Ainda sem consumo registrado neste exercício.
+                    {% endif %}
+                    {% if card.top_fornecedor_nome %}
+                    <div>Fornecedor destaque: <strong>{{ card.top_fornecedor_nome }}</strong></div>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="category-metrics">
+                <div class="category-metric">
+                    <div class="label">Investido</div>
+                    <div class="value">{{ brl(card.total_investido) }}</div>
+                </div>
+                <div class="category-metric">
+                    <div class="label">Consumido</div>
+                    <div class="value">{{ brl(card.total_consumido) }}</div>
+                </div>
+                <div class="category-metric">
+                    <div class="label">Atual compra</div>
+                    <div class="value">{{ brl(card.total_atual_compra) }}</div>
+                </div>
+                <div class="category-metric">
+                    <div class="label">Sem comprovação</div>
+                    <div class="value">{{ brl(card.total_sem_comprovacao) }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="table-responsive value-table" style="border:none; box-shadow:none; border-radius:0;">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Item</th>
+                        <th>Saldo</th>
+                        <th>Investido no exercício</th>
+                        <th>Compra atual</th>
+                        <th>Consumo</th>
+                        <th>Reposição</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in card.items %}
+                    <tr>
+                        <td>
+                            <div class="fw-semibold">{{ item.descricao }}</div>
+                            <div class="text-muted small">
+                                <span class="value-pill">Código {{ item.codigo }}</span>
+                                {% if item.fornecedor_preferido_nome %}
+                                <span class="value-pill">{{ item.fornecedor_preferido_nome }}</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td class="text-muted">{{ item.saldo_display or item.saldo }}</td>
+                        <td>
+                            <div>{{ brl(item.investido_exercicio) }}</div>
+                            <div class="text-muted small">Sem comprov.: {{ brl(item.sem_comprovacao_valor_exercicio) }}</div>
+                        </td>
+                        <td>
+                            {% if item.preco_compra_unitario %}
+                            <div>{{ brl(item.preco_compra_unitario) }}</div>
+                            <div class="text-muted small">Atual: {{ brl(item.valor_estoque_compra_total) }}</div>
+                            {% else %}
+                            <span class="missing">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div>{{ item.consumo_quantidade_exercicio or 0 }}</div>
+                            <div class="text-muted small">{{ brl(item.consumo_valor_exercicio) }}</div>
+                        </td>
+                        <td>
+                            {% if item.preco_reposicao_unitario %}
+                            <div>{{ brl(item.preco_reposicao_unitario) }}</div>
+                            <div class="text-muted small">Atual: {{ brl(item.valor_estoque_reposicao_total) }}</div>
+                            {% else %}
+                            <span class="missing">—</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            <div class="d-inline-flex gap-2">
+                                <button class="btn btn-sm btn-outline-primary" type="button"
+                                    data-preco-codigo="{{ item.codigo|e }}">
+                                    <i class="bi bi-search me-1"></i> Buscar preco...
+                                </button>
+                                <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('inventory.edit_item_form', codigo=item.codigo) }}">
+                                    <i class="bi bi-pencil me-1"></i> Editar
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+    {% endfor %}
 </div>
 
 <div class="modal fade" id="priceSuggestionsModal" tabindex="-1" aria-labelledby="priceSuggestionsModalLabel"
