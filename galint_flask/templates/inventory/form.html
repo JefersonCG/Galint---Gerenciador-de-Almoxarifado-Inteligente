@@ -783,9 +783,11 @@
                         </div>
 
                         <div class="d-flex justify-content-end">
+                            {% if endpoint_exists('config.fornecedores') %}
                             <a class="btn btn-secondary btn-sm" href="{{ url_for('config.fornecedores') }}" target="_blank" rel="noopener">
                                 <i class="bi bi-shop me-1"></i> Cadastrar fornecedor
                             </a>
+                            {% endif %}
                         </div>
                     </div>
 

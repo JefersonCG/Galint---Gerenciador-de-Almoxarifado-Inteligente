@@ -13,6 +13,7 @@
             {% set tool_custody_url = url_for('tool_custody.index') if endpoint_exists('tool_custody.index') else None %}
             {% set reparo_url = url_for('reparo.listar_reparos') if endpoint_exists('reparo.listar_reparos') else None %}
             {% set valor_estoque_url = url_for('inventory.valor_estoque') if endpoint_exists('inventory.valor_estoque') else None %}
+            {% set fornecedores_url = url_for('config.fornecedores') if endpoint_exists('config.fornecedores') else None %}
             <a class="sidebar-link {% if p == url_for('dashboard.index') %}active{% endif %}"
                 href="{{ url_for('dashboard.index') }}">
                 <i class="bi bi-speedometer2"></i>
@@ -165,11 +166,13 @@
                     <i class="bi bi-file-earmark-text"></i>
                     <span>Relatórios</span>
                 </a>
-                <a class="sidebar-link ps-4 {% if p.startswith(url_for('config.fornecedores')) %}active{% endif %}"
-                    href="{{ url_for('config.fornecedores') }}">
+                {% if fornecedores_url %}
+                <a class="sidebar-link ps-4 {% if p.startswith(fornecedores_url) %}active{% endif %}"
+                    href="{{ fornecedores_url }}">
                     <i class="bi bi-shop"></i>
                     <span>Fornecedores</span>
                 </a>
+                {% endif %}
                 <a class="sidebar-link ps-4 {% if p.startswith(url_for('updates.index')) %}active{% endif %}"
                     href="{{ url_for('updates.index') }}">
                     <i class="bi bi-arrow-clockwise"></i>
