@@ -10,13 +10,15 @@
             <div class="card-body">
                 <form method="post">
                     <div class="mb-3">
-                        <label class="form-label" for="codigo">Item</label>
-                        <select class="form-select" id="codigo" name="codigo" required>
-                            <option value="">Selecione...</option>
-                            {% for item in itens %}
-                            <option value="{{ item.codigo }}" {% if codigo_prefill and codigo_prefill == item.codigo %}selected{% endif %}>{{ item.codigo }} — {{ item.descricao }}</option>
-                            {% endfor %}
-                        </select>
+                        <label class="form-label" for="item_search">Item</label>
+                        <div class="position-relative">
+                            <input class="form-control" id="item_search" type="text" autocomplete="off"
+                                placeholder="Digite código ou descrição do item"
+                                value="{% if selected_item %}{{ selected_item.codigo }} — {{ selected_item.descricao }}{% endif %}">
+                            <input type="hidden" id="codigo" name="codigo" value="{{ codigo_prefill }}" required>
+                            <div class="list-group position-absolute w-100 shadow d-none" id="item_results" style="z-index: 60;"></div>
+                        </div>
+                        <div class="form-text text-light opacity-75">Digite parte do código ou da descrição para localizar o item.</div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label" for="quantidade">Quantidade</label>
@@ -234,6 +236,9 @@
 {% block scripts %}
 {{ super() }}
 <script>
+    const itemSearchInput = document.getElementById('item_search');
+    const itemCodigoInput = document.getElementById('codigo');
+    const itemResults = document.getElementById('item_results');
     const supplierInput = document.getElementById('finance_supplier_search');
     const supplierIdInput = document.getElementById('finance_supplier_id');
     const supplierResults = document.getElementById('finance_supplier_results');
@@ -244,9 +249,81 @@
     const receiptDateInput = document.getElementById('data_recebimento');
     const lookupCnpjButton = document.getElementById('btn-buscar-cnpj');
     const tipoDocumentoInput = document.getElementById('finance_tipo_documento');
+    const nfForm = document.querySelector('form[method="post"]');
+    let itemTimer = null;
     let supplierTimer = null;
     let notaTimer = null;
     let notaSuggestions = [];
+
+    const hideItemResults = () => itemResults?.classList.add('d-none');
+
+    const selectItemSuggestion = (item) => {
+        if (!item) return;
+        if (itemSearchInput) {
+            itemSearchInput.value = `${item.codigo} — ${item.descricao || ''}`.trim();
+        }
+        if (itemCodigoInput) {
+            itemCodigoInput.value = item.codigo || '';
+        }
+        hideItemResults();
+    };
+
+    const renderItemResults = (items) => {
+        if (!itemResults) return;
+        if (!Array.isArray(items) || !items.length) {
+            hideItemResults();
+            return;
+        }
+        itemResults.innerHTML = items.map((item, index) => `
+            <button type="button" class="list-group-item list-group-item-action" data-index="${index}">
+                <div class="fw-semibold">${item.descricao || item.codigo}</div>
+                <div class="small text-muted">Código: ${item.codigo}${item.categoria ? ` • ${item.categoria}` : ''}${item.saldo !== undefined ? ` • Saldo: ${item.saldo}` : ''}</div>
+            </button>
+        `).join('');
+        itemResults.classList.remove('d-none');
+        itemResults.querySelectorAll('[data-index]').forEach((button) => {
+            button.addEventListener('click', () => {
+                const index = Number(button.dataset.index || '-1');
+                selectItemSuggestion(window.__nfItemSuggestions?.[index] || null);
+            });
+        });
+    };
+
+    window.__nfItemSuggestions = [];
+
+    itemSearchInput?.addEventListener('input', () => {
+        if (itemCodigoInput) {
+            itemCodigoInput.value = '';
+        }
+        const q = itemSearchInput.value.trim();
+        if (itemTimer) clearTimeout(itemTimer);
+        if (q.length < 1) {
+            hideItemResults();
+            return;
+        }
+        itemTimer = setTimeout(async () => {
+            try {
+                const response = await fetch(`{{ url_for('movements.buscar_item') }}?q=${encodeURIComponent(q)}`, {
+                    headers: { 'Accept': 'application/json' },
+                    credentials: 'same-origin'
+                });
+                const data = await response.json();
+                window.__nfItemSuggestions = data.items || data.itens || [];
+                renderItemResults(window.__nfItemSuggestions);
+            } catch (_) {
+                hideItemResults();
+            }
+        }, 180);
+    });
+
+    itemSearchInput?.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' && itemCodigoInput && !itemCodigoInput.value) {
+            const raw = (itemSearchInput.value || '').trim();
+            if (raw) {
+                itemCodigoInput.value = raw.split('—')[0].trim();
+            }
+        }
+    });
 
     if (receiptDateInput && !receiptDateInput.value) {
         receiptDateInput.value = new Date().toISOString().slice(0, 10);
@@ -354,6 +431,12 @@
     });
 
     document.addEventListener('click', (event) => {
+        if (!itemResults || !itemSearchInput) return;
+        if (itemResults.contains(event.target) || itemSearchInput.contains(event.target)) return;
+        hideItemResults();
+    });
+
+    document.addEventListener('click', (event) => {
         if (!supplierResults || !supplierInput) return;
         if (supplierResults.contains(event.target) || supplierInput.contains(event.target)) return;
         hideSupplierResults();
@@ -395,6 +478,21 @@
         } finally {
             lookupCnpjButton.disabled = false;
             lookupCnpjButton.textContent = 'Consultar';
+        }
+    });
+
+    nfForm?.addEventListener('submit', (event) => {
+        if (!itemCodigoInput) return;
+        if (!itemCodigoInput.value.trim()) {
+            const raw = (itemSearchInput?.value || '').trim();
+            if (raw) {
+                itemCodigoInput.value = raw.split('—')[0].trim();
+            }
+        }
+        if (!itemCodigoInput.value.trim()) {
+            event.preventDefault();
+            alert('Selecione um item válido antes de registrar a nota.');
+            itemSearchInput?.focus();
         }
     });
 </script>

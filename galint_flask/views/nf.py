@@ -40,11 +40,13 @@ def nf_index():
     codigo_prefill = (request.args.get("codigo") or "").strip()
     nota_detalhes = inventory_service.get_nota_fiscal(nota_busca) if nota_busca else None
     itens = inventory_service.list_items()
+    selected_item = next((item for item in itens if str(item.get("codigo") or "") == codigo_prefill), None) if codigo_prefill else None
     notas = inventory_service.list_notas_fiscais()
     can_manage = bool(getattr(current_user, "is_admin", False))
     return render_template(
         "nf/index.html",
         itens=itens,
+        selected_item=selected_item,
         notas=notas,
         nota_busca=nota_busca,
         codigo_prefill=codigo_prefill,
