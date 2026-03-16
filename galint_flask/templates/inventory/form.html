@@ -710,10 +710,11 @@
 
             <!-- Tab 3: Financeiro -->
                 <div class="tab-pane" id="tab-financeiro">
+                    {% set finance_locked = item is not none %}
                     <div class="section">
                         <div class="d-flex align-items-start justify-content-between gap-2">
                             <h3 class="section-title">💰 Valores do item</h3>
-                            {% if item and item.codigo %}
+                            {% if item and item.codigo and not finance_locked %}
                             <button class="btn btn-sm btn-outline-primary" type="button" id="btn-buscar-preco-form"
                                 data-preco-codigo="{{ item.codigo|e }}"
                                 data-preco-descricao="{{ form_item.descricao|e if form_item and form_item.descricao else '' }}"
@@ -728,6 +729,11 @@
                         <p class="form-text" style="margin-top: -0.5rem;">
                             Esses valores alimentam a página <strong>Financeiro</strong> e o modal de detalhes do item.
                         </p>
+                        {% if finance_locked %}
+                        <div class="alert alert-secondary mt-3 mb-0">
+                            Os campos financeiros ficam bloqueados após o primeiro salvamento do item. Para novas compras, notas fiscais, cupons e entradas com fornecedor, use <strong>Nova Entrada/NF</strong>.
+                        </div>
+                        {% endif %}
                     </div>
 
                     <div class="section">
@@ -738,7 +744,7 @@
                                 <div class="position-relative">
                                     <input class="form-control" id="finance_supplier_search" autocomplete="off"
                                         value="{{ preferred_supplier.nome_exibicao if preferred_supplier else '' }}"
-                                        placeholder="Digite nome, fantasia ou CNPJ da loja">
+                                        placeholder="Digite nome, fantasia ou CNPJ da loja" {% if finance_locked %}readonly{% endif %}>
                                     <input type="hidden" id="finance_supplier_id" name="finance_supplier_id"
                                         value="{{ preferred_supplier.id if preferred_supplier else (form_item.finance_supplier_id if form_item and form_item.finance_supplier_id else '') }}">
                                     <div class="autocomplete-panel" id="finance_supplier_results"></div>
@@ -748,7 +754,7 @@
                             <div class="form-group">
                                 <label class="form-label" for="finance_origem_valor">Origem do valor</label>
                                 {% set origem_valor = form_item.finance_origem_valor if form_item and form_item.finance_origem_valor else 'inventario_inicial' %}
-                                <select class="form-select" id="finance_origem_valor" name="finance_origem_valor">
+                                <select class="form-select" id="finance_origem_valor" name="finance_origem_valor" {% if finance_locked %}disabled{% endif %}>
                                     <option value="compra_nf" {% if origem_valor == 'compra_nf' %}selected{% endif %}>Compra com NF</option>
                                     <option value="compra_cupom" {% if origem_valor == 'compra_cupom' %}selected{% endif %}>Compra com cupom</option>
                                     <option value="inventario_inicial" {% if origem_valor == 'inventario_inicial' %}selected{% endif %}>Inventário inicial</option>
@@ -763,7 +769,7 @@
                             <div class="form-group">
                                 <label class="form-label" for="finance_tipo_documento">Tipo de documento</label>
                                 {% set tipo_documento = form_item.finance_tipo_documento if form_item and form_item.finance_tipo_documento else '' %}
-                                <select class="form-select" id="finance_tipo_documento" name="finance_tipo_documento">
+                                <select class="form-select" id="finance_tipo_documento" name="finance_tipo_documento" {% if finance_locked %}disabled{% endif %}>
                                     <option value="" {% if tipo_documento == '' %}selected{% endif %}>—</option>
                                     <option value="nf" {% if tipo_documento == 'nf' %}selected{% endif %}>Nota fiscal</option>
                                     <option value="cupom" {% if tipo_documento == 'cupom' %}selected{% endif %}>Cupom não fiscal</option>
@@ -774,7 +780,7 @@
                             <div class="form-group">
                                 <label class="form-label" for="finance_comprovacao_status">Comprovação</label>
                                 {% set comprovacao_status = form_item.finance_comprovacao_status if form_item and form_item.finance_comprovacao_status else 'sem_comprovacao' %}
-                                <select class="form-select" id="finance_comprovacao_status" name="finance_comprovacao_status">
+                                <select class="form-select" id="finance_comprovacao_status" name="finance_comprovacao_status" {% if finance_locked %}disabled{% endif %}>
                                     <option value="comprovado" {% if comprovacao_status == 'comprovado' %}selected{% endif %}>Comprovado</option>
                                     <option value="parcial" {% if comprovacao_status == 'parcial' %}selected{% endif %}>Parcialmente comprovado</option>
                                     <option value="sem_comprovacao" {% if comprovacao_status == 'sem_comprovacao' %}selected{% endif %}>Sem comprovação</option>
@@ -795,13 +801,13 @@
                         <div class="form-group">
                             <label class="form-label" for="preco_compra_unitario">Preço de compra (R$)</label>
                             <input class="form-control" id="preco_compra_unitario" name="preco_compra_unitario" type="number" step="0.01" min="0"
-                                value="{{ form_item.preco_compra_unitario if form_item and form_item.preco_compra_unitario is not none else '' }}">
+                                value="{{ form_item.preco_compra_unitario if form_item and form_item.preco_compra_unitario is not none else '' }}" {% if finance_locked %}readonly{% endif %}>
                             <small class="form-text">Valor usado para o “investido”.</small>
                         </div>
                         <div class="form-group">
                             <label class="form-label" for="preco_compra_fonte">Fonte (compra)</label>
                             {% set compra_fonte = form_item.preco_compra_fonte if form_item and form_item.preco_compra_fonte else '' %}
-                            <select class="form-select" id="preco_compra_fonte" name="preco_compra_fonte">
+                            <select class="form-select" id="preco_compra_fonte" name="preco_compra_fonte" {% if finance_locked %}disabled{% endif %}>
                                 <option value="" {% if compra_fonte=='' %}selected{% endif %}>—</option>
                                 <option value="NF" {% if compra_fonte=='NF' %}selected{% endif %}>NF</option>
                                 <option value="Cupom" {% if compra_fonte=='Cupom' %}selected{% endif %}>Cupom</option>
@@ -816,13 +822,13 @@
                         <label class="form-label" for="preco_compra_documento">Documento (compra)</label>
                         <input class="form-control" id="preco_compra_documento" name="preco_compra_documento"
                             value="{{ form_item.preco_compra_documento if form_item and form_item.preco_compra_documento else '' }}"
-                            placeholder="Ex.: NF 12345 / Cupom 000123">
+                            placeholder="Ex.: NF 12345 / Cupom 000123" {% if finance_locked %}readonly{% endif %}>
                     </div>
 
                     <div class="form-group">
                         <label class="form-label" for="finance_observacao">Observação financeira</label>
                         <textarea class="form-control" id="finance_observacao" name="finance_observacao" rows="2"
-                            placeholder="Ex.: compra emergencial, saldo anterior sem comprovante, valor estimado pela diretoria">{{ form_item.finance_observacao if form_item and form_item.finance_observacao else '' }}</textarea>
+                            placeholder="Ex.: compra emergencial, saldo anterior sem comprovante, valor estimado pela diretoria" {% if finance_locked %}readonly{% endif %}>{{ form_item.finance_observacao if form_item and form_item.finance_observacao else '' }}</textarea>
                     </div>
 
                     <div class="section" style="margin-top: 1.5rem;">
@@ -836,14 +842,14 @@
                         <div class="form-group">
                             <label class="form-label" for="preco_reposicao_unitario">Preço de reposição (R$)</label>
                             <input class="form-control" id="preco_reposicao_unitario" name="preco_reposicao_unitario" type="number" step="0.01" min="0"
-                                value="{{ form_item.preco_reposicao_unitario if form_item and form_item.preco_reposicao_unitario is not none else '' }}">
+                                value="{{ form_item.preco_reposicao_unitario if form_item and form_item.preco_reposicao_unitario is not none else '' }}" {% if finance_locked %}readonly{% endif %}>
                             <small class="form-text">Pode ser preenchido manualmente ou via “Buscar preço…” no modal do item.</small>
                         </div>
                         <div class="form-group">
                             <label class="form-label" for="preco_reposicao_uf">UF</label>
                             <input class="form-control" id="preco_reposicao_uf" name="preco_reposicao_uf" maxlength="2"
                                 value="{{ form_item.preco_reposicao_uf if form_item and form_item.preco_reposicao_uf else '' }}"
-                                placeholder="Ex.: SP">
+                                placeholder="Ex.: SP" {% if finance_locked %}readonly{% endif %}>
                             <small class="form-text">Ajuda a manter o preço mais próximo do mercado local.</small>
                         </div>
                     </div>
@@ -853,12 +859,12 @@
                             <label class="form-label" for="preco_reposicao_fonte">Fonte (reposição)</label>
                             <input class="form-control" id="preco_reposicao_fonte" name="preco_reposicao_fonte"
                                 value="{{ form_item.preco_reposicao_fonte if form_item and form_item.preco_reposicao_fonte else '' }}"
-                                placeholder="Ex.: Mercado Livre / SINAPI / Manual">
+                                placeholder="Ex.: Mercado Livre / SINAPI / Manual" {% if finance_locked %}readonly{% endif %}>
                         </div>
                         <div class="form-group">
                             <label class="form-label" for="preco_reposicao_url">Link (opcional)</label>
                             <input class="form-control" id="preco_reposicao_url" name="preco_reposicao_url"
-                                value="{{ form_item.preco_reposicao_url if form_item and form_item.preco_reposicao_url else '' }}"
+                                value="{{ form_item.preco_reposicao_url if form_item and form_item.preco_reposicao_url else '' }}" {% if finance_locked %}readonly{% endif %}
                                 placeholder="https://...">
                         </div>
                     </div>

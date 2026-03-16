@@ -527,6 +527,11 @@ def edit_item_form(codigo: str):
 def update_item(codigo: str):
     _require_admin()
     form = request.form
+    prev_item = inventory_service.get_item(codigo)
+    if not prev_item:
+        flash("Item não encontrado.", "danger")
+        return redirect(url_for("inventory.list_items"))
+
     saldo_raw = form.get("saldo_atual", "0").strip()
     saldo_unidades_soltas_raw = (form.get("saldo_unidades_soltas") or "").strip()
     # Por padrão, o saldo do formulário é inteiro (itens normais). Para itens com embalagem,
@@ -594,31 +599,27 @@ def update_item(codigo: str):
         "voltagem": form.get("voltagem", "").strip() or None,
         "amperagem": form.get("amperagem", "").strip() or None,
         "local_instalacao": form.get("local_instalacao", "").strip() or None,
-        # Financeiro
-        "preco_compra_unitario": (form.get("preco_compra_unitario") or "").strip() or None,
-        "preco_compra_fonte": (form.get("preco_compra_fonte") or "").strip() or None,
-        "preco_compra_documento": (form.get("preco_compra_documento") or "").strip() or None,
-        "preco_reposicao_unitario": (form.get("preco_reposicao_unitario") or "").strip() or None,
-        "preco_reposicao_fonte": (form.get("preco_reposicao_fonte") or "").strip() or None,
-        "preco_reposicao_uf": (form.get("preco_reposicao_uf") or "").strip() or None,
-        "preco_reposicao_query": (form.get("preco_reposicao_query") or "").strip() or None,
-        "preco_reposicao_url": (form.get("preco_reposicao_url") or "").strip() or None,
+        # Financeiro: após salvo, fica bloqueado na edição do item.
+        # Novas compras/documentos devem entrar pelo fluxo de NF/entrada documental.
+        "preco_compra_unitario": prev_item.get("preco_compra_unitario"),
+        "preco_compra_fonte": prev_item.get("preco_compra_fonte"),
+        "preco_compra_documento": prev_item.get("preco_compra_documento"),
+        "preco_reposicao_unitario": prev_item.get("preco_reposicao_unitario"),
+        "preco_reposicao_fonte": prev_item.get("preco_reposicao_fonte"),
+        "preco_reposicao_uf": prev_item.get("preco_reposicao_uf"),
+        "preco_reposicao_query": prev_item.get("preco_reposicao_query"),
+        "preco_reposicao_url": prev_item.get("preco_reposicao_url"),
+        "preco_compra_atualizado_em": prev_item.get("preco_compra_atualizado_em"),
+        "preco_compra_atualizado_por": prev_item.get("preco_compra_atualizado_por"),
+        "preco_reposicao_atualizado_em": prev_item.get("preco_reposicao_atualizado_em"),
+        "preco_reposicao_atualizado_por": prev_item.get("preco_reposicao_atualizado_por"),
     }
-    finance_payload = _extract_finance_payload(form, current_item=payload)
-    payload.update({
-        "finance_supplier_id": finance_payload.get("supplier_id"),
-        "finance_origem_valor": finance_payload.get("origem_valor"),
-        "finance_tipo_documento": finance_payload.get("tipo_documento"),
-        "finance_comprovacao_status": finance_payload.get("comprovacao_status"),
-        "finance_observacao": finance_payload.get("observacao"),
-    })
 
     # Preservar campos antigos se não forem substituídos pelo novo sistema?
     # Neste caso, estamos assumindo que o formulário é a fonte da verdade para a edição.
     
     try:
         # buscar estado anterior para notificação
-        prev_item = inventory_service.get_item(codigo)
         prev_balance = None
         try:
             if prev_item:
@@ -628,13 +629,6 @@ def update_item(codigo: str):
 
         if saldo_desejado < 0:
             raise ValueError("Informe uma quantidade válida")
-        
-        if payload.get("preco_compra_unitario") is not None:
-            payload["preco_compra_atualizado_em"] = datetime.utcnow()
-            payload["preco_compra_atualizado_por"] = current_user.nome if hasattr(current_user, "nome") else current_user.id
-        if payload.get("preco_reposicao_unitario") is not None:
-            payload["preco_reposicao_atualizado_em"] = datetime.utcnow()
-            payload["preco_reposicao_atualizado_por"] = current_user.nome if hasattr(current_user, "nome") else current_user.id
 
         # Processar upload de foto (se enviado)
         foto_file = request.files.get('foto')
@@ -658,16 +652,6 @@ def update_item(codigo: str):
                 flash(f"Erro no upload da foto: {str(e)}", "warning")
 
         updated_codigo = inventory_service.update_item(codigo, payload)
-
-        _sync_item_financial_history(
-            codigo=updated_codigo,
-            categoria=str(payload.get("categoria") or "Sem categoria"),
-            quantidade=0,
-            preco_compra_unitario=payload.get("preco_compra_unitario"),
-            data_lancamento=payload.get("data_entrada"),
-            usuario_id=current_user.id,
-            finance_payload=finance_payload,
-        )
 
         if saldo_desejado >= 0:
             from ..services.embalagem_service import EmbalagemService
