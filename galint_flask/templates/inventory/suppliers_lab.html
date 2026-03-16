@@ -1,0 +1,522 @@
+{% extends "base.html" %}
+{% block title %}Laboratório de Lojas{% endblock %}
+
+{% macro brl(value) -%}
+    {%- if value is none -%}
+        —
+    {%- else -%}
+        {%- set s = "{:,.2f}".format(value) -%}
+        R$ {{ s.replace(',', 'X').replace('.', ',').replace('X', '.') }}
+    {%- endif -%}
+{%- endmacro %}
+
+{% block content %}
+{% set exercise = exercise|default({'label': (request.args.get('exercicio') or '—')}) %}
+{% set exercise_options = exercise_options|default([]) %}
+{% set suppliers = suppliers|default([]) %}
+{% set summary = summary|default({}) %}
+{% set comparacao_itens = comparacao_itens|default([]) %}
+
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <div>
+        <h1 class="h3 mb-1">Laboratório de Lojas</h1>
+        <div class="text-muted small">
+            Cruzamentos por fornecedor (NF/cupom, produtos e preços) • Exercício {{ exercise.label }}
+        </div>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+        {% if exercise_options %}
+            <form class="d-flex gap-2" method="get">
+                <select class="form-select" name="exercicio" onchange="this.form.submit()">
+                    {% for option in exercise_options %}
+                    <option value="{{ option.label }}" {% if option.label == exercise.label %}selected{% endif %}>Exercício {{ option.label }}</option>
+                    {% endfor %}
+                </select>
+            </form>
+        {% endif %}
+        <a class="btn btn-outline-primary" href="{{ url_for('inventory.list_items') }}">
+            <i class="bi bi-boxes me-1"></i> Voltar para Itens
+        </a>
+    </div>
+</div>
+
+<div class="alert alert-info" role="alert">
+    Esta página considera apenas lançamentos <strong>com loja</strong> (fornecedor informado). Lançamentos <strong>sem loja</strong> permanecem visíveis no <strong>Financeiro</strong>.
+</div>
+
+<style>
+    .value-card {
+        border-radius: 16px;
+        border: 1px solid rgba(148, 163, 184, 0.28);
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 70%);
+        color: #ffffff;
+        box-shadow: 0 24px 60px rgba(15, 23, 42, 0.35);
+        overflow: hidden;
+        position: relative;
+    }
+
+    .value-card::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(circle at 20% 20%, rgba(59, 130, 246, 0.25), transparent 55%),
+            radial-gradient(circle at 80% 30%, rgba(16, 185, 129, 0.18), transparent 55%);
+        opacity: 0.9;
+        pointer-events: none;
+    }
+
+    .value-card .card-body {
+        position: relative;
+        z-index: 1;
+    }
+
+    .value-kpi {
+        font-size: 1.55rem;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+        margin-bottom: 0.2rem;
+    }
+
+    .value-sub {
+        color: rgba(255, 255, 255, 0.8);
+        font-size: 0.85rem;
+        margin-bottom: 0;
+    }
+
+    .lab-card {
+        background: #ffffff;
+        border: 1px solid rgba(148, 163, 184, 0.28);
+        border-radius: 18px;
+        box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+        overflow: hidden;
+    }
+
+    .lab-head {
+        padding: 1.05rem 1.2rem;
+        background: linear-gradient(135deg, #eff6ff 0%, #f8fafc 100%);
+        border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+    }
+
+    .metric-grid {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 0.75rem;
+        margin-top: 0.85rem;
+    }
+
+    .metric {
+        background: rgba(255, 255, 255, 0.9);
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        border-radius: 14px;
+        padding: 0.8rem 0.9rem;
+    }
+
+    .metric .label {
+        font-size: 0.74rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: #64748b;
+        margin-bottom: 0.25rem;
+    }
+
+    .metric .value {
+        font-size: 1rem;
+        font-weight: 800;
+        color: #0f172a;
+    }
+
+    @media (max-width: 991px) {
+        .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 640px) {
+        .metric-grid { grid-template-columns: 1fr; }
+    }
+</style>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="value-card">
+            <div class="card-body p-3">
+                <div class="text-white-50 small mb-1">Total comprado (com loja)</div>
+                <div class="value-kpi">{{ brl(summary.total_investido_com_loja) }}</div>
+                <p class="value-sub">{{ summary.total_lojas or 0 }} loja(s) cadastrada(s)</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="value-card">
+            <div class="card-body p-3">
+                <div class="text-white-50 small mb-1">Documentos (NF/Cupom)</div>
+                <div class="value-kpi">{{ summary.total_docs or 0 }}</div>
+                <p class="value-sub">Itens distintos: <strong>{{ summary.total_itens_distintos or 0 }}</strong></p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="value-card">
+            <div class="card-body p-3">
+                <div class="text-white-50 small mb-1">Sem comprovação (com loja)</div>
+                <div class="value-kpi">{{ brl(summary.total_sem_comprovacao_com_loja) }}</div>
+                {% if summary.total_sem_loja %}
+                <p class="value-sub">Sem loja no período: <strong>{{ brl(summary.total_sem_loja) }}</strong> (ver Financeiro)</p>
+                {% else %}
+                <p class="value-sub">Lançamentos sem loja ficam no Financeiro</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if comparacao_itens %}
+<div class="lab-card mb-4">
+    <div class="lab-head">
+        <h2 class="h5 mb-1">Comparação (mesmo item em lojas diferentes)</h2>
+        <div class="text-muted small">Top itens do exercício comprados em mais de uma loja (média por loja).</div>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Item</th>
+                    <th class="text-end">Total</th>
+                    <th>Lojas (média unit.)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in comparacao_itens %}
+                <tr>
+                    <td>
+                        <div class="fw-semibold">{{ row.descricao }}</div>
+                        <div class="text-muted small">Código {{ row.codigo }}</div>
+                    </td>
+                    <td class="text-end">{{ brl(row.total) }}</td>
+                    <td>
+                        <div class="d-flex flex-wrap gap-2">
+                            {% for s in row.suppliers %}
+                                <span class="badge text-bg-light border">
+                                    {{ s.supplier }} • {% if s.avg_unit is not none %}{{ brl(s.avg_unit) }}{% else %}—{% endif %}
+                                </span>
+                            {% endfor %}
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<div class="d-grid gap-4">
+    {% for s in suppliers %}
+    {% set sid = s.id %}
+    {% set card_id = 'sup_' ~ sid %}
+    <section class="lab-card">
+        <div class="lab-head">
+            <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+                <div>
+                    <h2 class="h5 mb-1">{{ s.nome_exibicao }}</h2>
+                    <div class="text-muted small">
+                        {% if s.cnpj %}CNPJ {{ s.cnpj }}{% endif %}
+                        {% if s.endereco_cidade or s.endereco_estado %}
+                            • {{ (s.endereco_cidade or '') }}{% if s.endereco_estado %}/{{ s.endereco_estado }}{% endif %}
+                        {% endif %}
+                    </div>
+                    <button class="btn btn-sm btn-outline-secondary mt-2" type="button"
+                        data-bs-toggle="collapse" data-bs-target="#{{ card_id }}" aria-expanded="false" aria-controls="{{ card_id }}">
+                        <i class="bi bi-chevron-down me-1"></i> Abrir detalhes
+                    </button>
+                </div>
+                <div class="text-end small text-muted">
+                    {% if s.ult_compra_em %}
+                        Última compra: <strong>{{ s.ult_compra_em.strftime('%d/%m/%Y') }}</strong>
+                    {% else %}
+                        Ainda sem lançamentos no exercício.
+                    {% endif %}
+                </div>
+            </div>
+            <div class="metric-grid">
+                <div class="metric">
+                    <div class="label">Total</div>
+                    <div class="value">{{ brl(s.investido_total) }}</div>
+                </div>
+                <div class="metric">
+                    <div class="label">Sem comprovação</div>
+                    <div class="value">{{ brl(s.sem_comprovacao_total) }}</div>
+                </div>
+                <div class="metric">
+                    <div class="label">Itens distintos</div>
+                    <div class="value">{{ s.itens_distintos or 0 }}</div>
+                </div>
+                <div class="metric">
+                    <div class="label">Documentos</div>
+                    <div class="value">{{ s.documentos_distintos or 0 }}</div>
+                </div>
+                <div class="metric">
+                    <div class="label">NF / Cupom</div>
+                    <div class="value">{{ s.nf_total or 0 }} / {{ s.cupom_total or 0 }}</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="collapse" id="{{ card_id }}">
+            <div class="p-3">
+                <ul class="nav nav-tabs" id="tabs-{{ sid }}" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="docs-tab-{{ sid }}" data-bs-toggle="tab" data-bs-target="#docs-{{ sid }}" type="button" role="tab">NF / Cupons</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="prod-tab-{{ sid }}" data-bs-toggle="tab" data-bs-target="#prod-{{ sid }}" type="button" role="tab">Produtos & Preços</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="graf-tab-{{ sid }}" data-bs-toggle="tab" data-bs-target="#graf-{{ sid }}" type="button" role="tab">Gráficos</button>
+                    </li>
+                </ul>
+
+                <div class="tab-content pt-3">
+                    <div class="tab-pane fade show active" id="docs-{{ sid }}" role="tabpanel">
+                        {% if s.documentos %}
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Tipo</th>
+                                        <th>Número</th>
+                                        <th class="text-end">Itens</th>
+                                        <th class="text-end">Entradas</th>
+                                        <th class="text-end">Total</th>
+                                        <th class="text-end">Data</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for d in s.documentos %}
+                                    <tr>
+                                        <td class="text-muted">{{ d.tipo|upper }}</td>
+                                        <td class="fw-semibold">{{ d.numero }}</td>
+                                        <td class="text-end text-muted">{{ d.itens }}</td>
+                                        <td class="text-end text-muted">{{ d.entradas }}</td>
+                                        <td class="text-end">{{ brl(d.total) }}</td>
+                                        <td class="text-end text-muted">{% if d.data %}{{ d.data.strftime('%d/%m/%Y') }}{% else %}—{% endif %}</td>
+                                        <td class="text-end">
+                                            {% if d.tipo == 'nf' %}
+                                                <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('nf.nf_index', nota=d.numero) }}">
+                                                    <i class="bi bi-receipt me-1"></i> Abrir NF
+                                                </a>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="text-muted">Sem documentos (NF/Cupom) vinculados a esta loja no exercício.</div>
+                        {% endif %}
+                        <div class="text-muted small mt-2">
+                            Futuro: busca automática de NF via API/Certificado Digital (quando habilitado).
+                        </div>
+                    </div>
+
+                    <div class="tab-pane fade" id="prod-{{ sid }}" role="tabpanel">
+                        {% if s.variacoes_preco %}
+                        <div class="alert alert-warning" role="alert">
+                            <strong>Variações de preço detectadas</strong> (min/max de valor unitário no exercício). Isso ajuda a comparar compras do mesmo item em datas diferentes.
+                        </div>
+                        <div class="table-responsive mb-3">
+                            <table class="table table-sm table-hover mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Item</th>
+                                        <th class="text-end">Mín</th>
+                                        <th class="text-end">Máx</th>
+                                        <th class="text-end">Variação</th>
+                                        <th class="text-end">Compras</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for v in s.variacoes_preco %}
+                                    <tr>
+                                        <td>
+                                            <div class="fw-semibold">{{ v.descricao }}</div>
+                                            <div class="text-muted small">Código {{ v.codigo }}</div>
+                                        </td>
+                                        <td class="text-end">{{ brl(v.min_unit) }}</td>
+                                        <td class="text-end">{{ brl(v.max_unit) }}</td>
+                                        <td class="text-end"><span class="badge text-bg-light border">{{ v.var_pct }}%</span></td>
+                                        <td class="text-end text-muted">{{ v.compras }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% endif %}
+
+                        {% if s.produtos %}
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Produto</th>
+                                        <th class="text-end">Total</th>
+                                        <th class="text-end">Qtd</th>
+                                        <th class="text-end">Média unit.</th>
+                                        <th class="text-end">Mín</th>
+                                        <th class="text-end">Máx</th>
+                                        <th class="text-end">Compras</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for p in s.produtos %}
+                                    <tr>
+                                        <td>
+                                            <div class="fw-semibold">{{ p.descricao }}</div>
+                                            <div class="text-muted small">Código {{ p.codigo }}</div>
+                                        </td>
+                                        <td class="text-end">{{ brl(p.total) }}</td>
+                                        <td class="text-end text-muted">{{ "{:g}".format(p.quantidade or 0) }}</td>
+                                        <td class="text-end">{{ brl(p.avg_unit) }}</td>
+                                        <td class="text-end text-muted">{{ brl(p.min_unit) }}</td>
+                                        <td class="text-end text-muted">{{ brl(p.max_unit) }}</td>
+                                        <td class="text-end text-muted">{{ p.compras or 0 }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="text-muted">Sem produtos comprados nesta loja no exercício.</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="tab-pane fade" id="graf-{{ sid }}" role="tabpanel">
+                        {% set has_month = (s.monthly_series|length) > 1 %}
+                        {% set has_cat = (s.categoria_breakdown|length) > 0 %}
+                        {% if not has_month and not has_cat %}
+                            <div class="text-muted">Sem dados suficientes para gráficos neste exercício.</div>
+                        {% else %}
+                            <div class="row g-3">
+                                <div class="col-lg-7">
+                                    <div class="border rounded-3 p-3">
+                                        <div class="fw-semibold mb-2">Compras por mês</div>
+                                        <canvas id="chart-line-{{ sid }}" height="120"></canvas>
+                                    </div>
+                                </div>
+                                <div class="col-lg-5">
+                                    <div class="border rounded-3 p-3">
+                                        <div class="fw-semibold mb-2">Compras por categoria</div>
+                                        <canvas id="chart-pie-{{ sid }}" height="140"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endif %}
+                        <script type="application/json" id="data-{{ sid }}">{{ {
+                            'monthly': s.monthly_series,
+                            'cats': s.categoria_breakdown
+                        }|tojson }}</script>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    {% endfor %}
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+    const charts = new Map();
+
+    const getSupplierData = (sid) => {
+        const el = document.getElementById(`data-${sid}`);
+        if (!el) return null;
+        try { return JSON.parse(el.textContent || '{}'); } catch (_) { return null; }
+    };
+
+    const buildLine = (ctx, series) => {
+        const labels = (series || []).map(r => String(r.month || ''));
+        const values = (series || []).map(r => Number(r.total || 0));
+        return new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels,
+                datasets: [{
+                    label: 'Total (R$)',
+                    data: values,
+                    tension: 0.25,
+                    borderWidth: 2,
+                    pointRadius: 2,
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: (c) => `R$ ${Number(c.raw || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        ticks: {
+                            callback: (v) => `R$ ${Number(v || 0).toLocaleString('pt-BR')}`
+                        }
+                    }
+                }
+            }
+        });
+    };
+
+    const buildPie = (ctx, cats) => {
+        const labels = (cats || []).map(r => String(r.categoria || ''));
+        const values = (cats || []).map(r => Number(r.total || 0));
+        return new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels,
+                datasets: [{
+                    data: values,
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { position: 'bottom' },
+                    tooltip: {
+                        callbacks: {
+                            label: (c) => `${c.label}: R$ ${Number(c.raw || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`
+                        }
+                    }
+                }
+            }
+        });
+    };
+
+    const ensureCharts = (sid) => {
+        if (charts.has(sid)) return;
+        const data = getSupplierData(sid);
+        if (!data) return;
+
+        const lineEl = document.getElementById(`chart-line-${sid}`);
+        const pieEl = document.getElementById(`chart-pie-${sid}`);
+        if (lineEl && data.monthly && data.monthly.length > 1) {
+            charts.set(`${sid}-line`, buildLine(lineEl.getContext('2d'), data.monthly));
+        }
+        if (pieEl && data.cats && data.cats.length > 0) {
+            charts.set(`${sid}-pie`, buildPie(pieEl.getContext('2d'), data.cats));
+        }
+        charts.set(sid, true);
+    };
+
+    document.querySelectorAll('.collapse').forEach((el) => {
+        el.addEventListener('shown.bs.collapse', (ev) => {
+            const id = String(ev.target?.id || '');
+            if (!id.startsWith('sup_')) return;
+            const sid = id.replace('sup_', '');
+            ensureCharts(sid);
+        });
+    });
+</script>
+{% endblock %}

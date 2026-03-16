@@ -10,6 +10,7 @@ import re
 import requests
 from flask import current_app
 from sqlalchemy import func, or_
+from sqlalchemy.orm import joinedload
 
 from ..extensions import db
 from ..models import (
@@ -789,6 +790,317 @@ class FinanceService:
         doc.build(story)
         buffer.seek(0)
         return buffer
+
+    @staticmethod
+    def get_supplier_lab_report(exercise_label: str | None = None) -> dict[str, Any]:
+        """Relatório de 'Laboratório de Lojas': cruzamentos por fornecedor.
+
+        Base de dados:
+        - Fornecedores: FinanceSupplier
+        - Compras/documentos: FinanceLedgerEntry (tipo_documento/número_documento)
+
+        Observação:
+        - Lançamentos sem fornecedor permanecem no Financeiro (não aparecem por loja).
+        """
+        exercise = FinanceService.resolve_exercise(exercise_label)
+
+        supplier_rows = (
+            FinanceSupplier.query
+            .order_by(FinanceSupplier.ativo.desc(), FinanceSupplier.nome_fantasia.asc().nullslast(), FinanceSupplier.razao_social.asc())
+            .all()
+        )
+        suppliers: list[dict[str, Any]] = []
+        supplier_map: dict[int, dict[str, Any]] = {}
+        for s in supplier_rows:
+            payload = s.to_dict()
+            payload.update({
+                "investido_total": 0.0,
+                "sem_comprovacao_total": 0.0,
+                "itens_distintos": 0,
+                "documentos_distintos": 0,
+                "nf_total": 0,
+                "cupom_total": 0,
+                "ult_compra_em": None,
+                "categoria_breakdown": [],
+                "monthly_series": [],
+                "documentos": [],
+                "produtos": [],
+                "variacoes_preco": [],
+            })
+            suppliers.append(payload)
+            supplier_map[int(s.id)] = payload
+
+        entries = (
+            FinanceLedgerEntry.query
+            .options(joinedload(FinanceLedgerEntry.fornecedor), joinedload(FinanceLedgerEntry.item))
+            .filter(FinanceLedgerEntry.data_lancamento >= exercise["start_dt"])
+            .filter(FinanceLedgerEntry.data_lancamento <= exercise["end_dt"])
+            .filter(FinanceLedgerEntry.fornecedor_id.isnot(None))
+            .order_by(FinanceLedgerEntry.data_lancamento.desc())
+            .all()
+        )
+
+        # Totais do exercício sem loja (ficam no Financeiro)
+        sem_loja_total = (
+            db.session.query(func.sum(FinanceLedgerEntry.valor_total))
+            .filter(FinanceLedgerEntry.data_lancamento >= exercise["start_dt"])
+            .filter(FinanceLedgerEntry.data_lancamento <= exercise["end_dt"])
+            .filter(FinanceLedgerEntry.fornecedor_id.is_(None))
+            .scalar()
+        )
+        sem_loja_total = float(sem_loja_total or 0.0)
+
+        # Estruturas auxiliares
+        by_supplier_items: dict[int, dict[str, dict[str, Any]]] = defaultdict(dict)
+        by_supplier_docs: dict[int, dict[tuple[str, str], dict[str, Any]]] = defaultdict(dict)
+        by_supplier_cat: dict[int, dict[str, float]] = defaultdict(lambda: defaultdict(float))
+        by_supplier_month: dict[int, dict[str, float]] = defaultdict(lambda: defaultdict(float))
+        by_supplier_sets: dict[int, dict[str, Any]] = defaultdict(lambda: {
+            "itens": set(),
+            "docs": set(),
+        })
+
+        # Cruzamento global para comparação entre lojas (mesmo item)
+        global_item_by_supplier: dict[str, dict[int, dict[str, float]]] = defaultdict(lambda: defaultdict(lambda: {"investido": 0.0, "quantidade": 0.0}))
+        global_item_desc: dict[str, str] = {}
+
+        for e in entries:
+            if not e.fornecedor_id:
+                continue
+            supplier_id = int(e.fornecedor_id)
+            supplier = supplier_map.get(supplier_id)
+            if not supplier:
+                continue
+
+            valor_total = float(e.valor_total or 0.0)
+            supplier["investido_total"] += valor_total
+            if (e.comprovacao_status or "").strip() != "comprovado":
+                supplier["sem_comprovacao_total"] += valor_total
+
+            if e.data_lancamento and (supplier.get("ult_compra_em") is None or e.data_lancamento > supplier["ult_compra_em"]):
+                supplier["ult_compra_em"] = e.data_lancamento
+
+            codigo_item = (e.codigo_item or "").strip()
+            if codigo_item:
+                by_supplier_sets[supplier_id]["itens"].add(codigo_item)
+
+            categoria = (e.categoria_nome or (e.item.categoria if e.item else None) or "Sem categoria").strip() or "Sem categoria"
+            by_supplier_cat[supplier_id][categoria] += valor_total
+
+            month_key = "—"
+            if e.data_lancamento:
+                month_key = f"{e.data_lancamento.year:04d}-{e.data_lancamento.month:02d}"
+            by_supplier_month[supplier_id][month_key] += valor_total
+
+            tipo_doc = (e.tipo_documento or "").strip().lower() or "—"
+            numero_doc = (e.numero_documento or "").strip()
+            if numero_doc:
+                doc_key = (tipo_doc, numero_doc)
+                by_supplier_sets[supplier_id]["docs"].add(doc_key)
+                doc = by_supplier_docs[supplier_id].get(doc_key)
+                if not doc:
+                    doc = {
+                        "tipo": tipo_doc,
+                        "numero": numero_doc,
+                        "total": 0.0,
+                        "itens": set(),
+                        "entradas": 0,
+                        "data": e.data_lancamento,
+                    }
+                    by_supplier_docs[supplier_id][doc_key] = doc
+                doc["total"] += valor_total
+                doc["entradas"] += 1
+                if codigo_item:
+                    doc["itens"].add(codigo_item)
+                if e.data_lancamento and (doc.get("data") is None or e.data_lancamento > doc["data"]):
+                    doc["data"] = e.data_lancamento
+
+                if tipo_doc == "nf":
+                    supplier["nf_total"] += 1
+                elif tipo_doc == "cupom":
+                    supplier["cupom_total"] += 1
+
+            # Produtos e variação de preço (por loja)
+            if codigo_item:
+                item_stats = by_supplier_items[supplier_id].get(codigo_item)
+                if not item_stats:
+                    desc = (e.item.descricao if e.item else None) or codigo_item
+                    item_stats = {
+                        "codigo": codigo_item,
+                        "descricao": desc,
+                        "total": 0.0,
+                        "quantidade": 0.0,
+                        "min_unit": None,
+                        "max_unit": None,
+                        "last_date": None,
+                        "compras": 0,
+                    }
+                    by_supplier_items[supplier_id][codigo_item] = item_stats
+                item_stats["total"] += valor_total
+                item_stats["compras"] += 1
+                if e.data_lancamento and (item_stats["last_date"] is None or e.data_lancamento > item_stats["last_date"]):
+                    item_stats["last_date"] = e.data_lancamento
+
+                try:
+                    qtd = float(e.quantidade or 0.0)
+                except Exception:
+                    qtd = 0.0
+                item_stats["quantidade"] += qtd
+
+                if e.valor_unitario is not None:
+                    try:
+                        vu = float(e.valor_unitario)
+                    except Exception:
+                        vu = None
+                    if vu is not None and vu > 0:
+                        if item_stats["min_unit"] is None or vu < float(item_stats["min_unit"]):
+                            item_stats["min_unit"] = vu
+                        if item_stats["max_unit"] is None or vu > float(item_stats["max_unit"]):
+                            item_stats["max_unit"] = vu
+
+                        # Global (comparação entre lojas)
+                        global_item_desc.setdefault(codigo_item, item_stats["descricao"])
+                        global_item_by_supplier[codigo_item][supplier_id]["investido"] += valor_total
+                        global_item_by_supplier[codigo_item][supplier_id]["quantidade"] += max(qtd, 0.0)
+
+        # Finalização por fornecedor
+        total_investido_com_loja = 0.0
+        total_sem_comprovacao_com_loja = 0.0
+        total_docs = 0
+        total_itens_distintos = set()
+
+        for sid, supplier in supplier_map.items():
+            supplier["investido_total"] = round(float(supplier["investido_total"] or 0.0), 2)
+            supplier["sem_comprovacao_total"] = round(float(supplier["sem_comprovacao_total"] or 0.0), 2)
+            supplier["itens_distintos"] = len(by_supplier_sets[sid]["itens"]) if sid in by_supplier_sets else 0
+            supplier["documentos_distintos"] = len(by_supplier_sets[sid]["docs"]) if sid in by_supplier_sets else 0
+            total_investido_com_loja += float(supplier["investido_total"] or 0.0)
+            total_sem_comprovacao_com_loja += float(supplier["sem_comprovacao_total"] or 0.0)
+            total_docs += int(supplier["documentos_distintos"] or 0)
+            total_itens_distintos.update(by_supplier_sets[sid]["itens"]) if sid in by_supplier_sets else None
+
+            # categoria pie
+            cats = by_supplier_cat.get(sid, {})
+            cat_rows = [
+                {"categoria": name, "total": round(float(total or 0.0), 2)}
+                for name, total in cats.items()
+                if float(total or 0.0) > 0
+            ]
+            cat_rows.sort(key=lambda r: -float(r.get("total") or 0.0))
+            supplier["categoria_breakdown"] = cat_rows[:12]
+
+            # monthly series
+            months = by_supplier_month.get(sid, {})
+            month_rows = [
+                {"month": m, "total": round(float(total or 0.0), 2)}
+                for m, total in months.items()
+                if m and m != "—"
+            ]
+            month_rows.sort(key=lambda r: str(r.get("month") or ""))
+            supplier["monthly_series"] = month_rows
+
+            # documentos
+            docs_map = by_supplier_docs.get(sid, {})
+            docs_rows: list[dict[str, Any]] = []
+            for (tipo, numero), doc in docs_map.items():
+                docs_rows.append({
+                    "tipo": tipo,
+                    "numero": numero,
+                    "total": round(float(doc.get("total") or 0.0), 2),
+                    "itens": len(doc.get("itens") or set()),
+                    "entradas": int(doc.get("entradas") or 0),
+                    "data": doc.get("data"),
+                })
+            docs_rows.sort(key=lambda r: (r.get("data") or datetime.min), reverse=True)
+            supplier["documentos"] = docs_rows[:60]
+
+            # produtos
+            item_rows: list[dict[str, Any]] = []
+            variacoes: list[dict[str, Any]] = []
+            for code, st in (by_supplier_items.get(sid) or {}).items():
+                qty = float(st.get("quantidade") or 0.0)
+                total = float(st.get("total") or 0.0)
+                avg = (total / qty) if qty > 0 else None
+                min_u = st.get("min_unit")
+                max_u = st.get("max_unit")
+                var_pct = None
+                if min_u is not None and max_u is not None and float(min_u) > 0 and float(max_u) > float(min_u):
+                    var_pct = ((float(max_u) / float(min_u)) - 1.0) * 100.0
+                    variacoes.append({
+                        "codigo": st.get("codigo"),
+                        "descricao": st.get("descricao"),
+                        "min_unit": round(float(min_u), 2),
+                        "max_unit": round(float(max_u), 2),
+                        "var_pct": round(float(var_pct), 1),
+                        "compras": int(st.get("compras") or 0),
+                    })
+
+                item_rows.append({
+                    "codigo": st.get("codigo"),
+                    "descricao": st.get("descricao"),
+                    "total": round(total, 2),
+                    "quantidade": round(qty, 3),
+                    "avg_unit": round(float(avg), 2) if avg is not None else None,
+                    "min_unit": round(float(min_u), 2) if min_u is not None else None,
+                    "max_unit": round(float(max_u), 2) if max_u is not None else None,
+                    "last_date": st.get("last_date"),
+                    "compras": int(st.get("compras") or 0),
+                })
+
+            item_rows.sort(key=lambda r: -float(r.get("total") or 0.0))
+            supplier["produtos"] = item_rows[:80]
+            variacoes.sort(key=lambda r: (-float(r.get("var_pct") or 0.0), -int(r.get("compras") or 0)))
+            supplier["variacoes_preco"] = variacoes[:30]
+
+        # Comparação entre lojas (mesmo item) — top itens por valor, quando houver +1 loja
+        cross_items: list[dict[str, Any]] = []
+        for code, by_sup in global_item_by_supplier.items():
+            if len(by_sup) < 2:
+                continue
+            total_item = sum(float(v.get("investido") or 0.0) for v in by_sup.values())
+            cross_items.append({"codigo": code, "descricao": global_item_desc.get(code) or code, "total": total_item, "by_supplier": by_sup})
+        cross_items.sort(key=lambda r: -float(r.get("total") or 0.0))
+
+        cross_rows: list[dict[str, Any]] = []
+        for row in cross_items[:15]:
+            code = str(row.get("codigo") or "")
+            by_sup = row.get("by_supplier") or {}
+            supplier_prices: list[dict[str, Any]] = []
+            for sid, st in by_sup.items():
+                inv = float(st.get("investido") or 0.0)
+                qty = float(st.get("quantidade") or 0.0)
+                avg_unit = (inv / qty) if qty > 0 else None
+                supplier_name = (supplier_map.get(int(sid), {}) or {}).get("nome_exibicao")
+                supplier_prices.append({
+                    "supplier_id": int(sid),
+                    "supplier": supplier_name or f"Fornecedor {sid}",
+                    "avg_unit": round(float(avg_unit), 2) if avg_unit is not None else None,
+                    "total": round(inv, 2),
+                })
+            supplier_prices.sort(key=lambda r: (r.get("avg_unit") is None, float(r.get("avg_unit") or 0.0)))
+            cross_rows.append({
+                "codigo": code,
+                "descricao": row.get("descricao") or code,
+                "total": round(float(row.get("total") or 0.0), 2),
+                "suppliers": supplier_prices,
+            })
+
+        suppliers.sort(key=lambda s: (-float(s.get("investido_total") or 0.0), str(s.get("nome_exibicao") or "").lower()))
+
+        return {
+            "exercise": exercise,
+            "exercise_options": FinanceService.get_available_exercises(),
+            "summary": {
+                "total_investido_com_loja": round(float(total_investido_com_loja or 0.0), 2),
+                "total_sem_comprovacao_com_loja": round(float(total_sem_comprovacao_com_loja or 0.0), 2),
+                "total_sem_loja": round(float(sem_loja_total or 0.0), 2),
+                "total_lojas": len(suppliers),
+                "total_docs": int(total_docs),
+                "total_itens_distintos": int(len(total_itens_distintos)),
+            },
+            "suppliers": suppliers,
+            "comparacao_itens": cross_rows,
+        }
 
 
 finance_service = FinanceService()

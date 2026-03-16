@@ -80,6 +80,13 @@
                     <span>Financeiro</span>
                 </a>
                 {% endif %}
+                {% if endpoint_exists('inventory.lojas_lab') %}
+                <a class="sidebar-link ps-4 {% if p.startswith(url_for('inventory.lojas_lab')) %}active{% endif %}"
+                    href="{{ url_for('inventory.lojas_lab') }}">
+                    <i class="bi bi-shop"></i>
+                    <span>Laboratório de Lojas</span>
+                </a>
+                {% endif %}
                 {% if config.get('FEATURE_NOTAS_ENABLED', True) %}
                 <a class="sidebar-link ps-4 {% if p.startswith(url_for('nf.nf_index')) %}active{% endif %}"
                     href="{{ url_for('nf.nf_index') }}">

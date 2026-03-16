@@ -281,6 +281,22 @@ def valor_estoque_pdf():
     return send_file(pdf_buffer, mimetype="application/pdf", as_attachment=True, download_name=filename)
 
 
+@blueprint.get("/lojas")
+@login_required
+def lojas_lab():
+    """Laboratório de Lojas (fornecedores): cruzamentos por NF/cupom e preços."""
+    _require_admin()
+    report = finance_service.get_supplier_lab_report(request.args.get("exercicio"))
+    return render_template(
+        "inventory/suppliers_lab.html",
+        suppliers=report["suppliers"],
+        comparacao_itens=report.get("comparacao_itens") or [],
+        summary=report.get("summary") or {},
+        exercise=report["exercise"],
+        exercise_options=report.get("exercise_options") or [],
+    )
+
+
 @blueprint.get("/novo")
 @login_required
 def new_item_form():
