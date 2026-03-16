@@ -472,6 +472,34 @@ class FinanceService:
         return FinanceService._serialize_stock_document(row)
 
     @staticmethod
+    def search_stock_documents(query: str, limit: int = 8) -> list[dict[str, Any]]:
+        term = (query or "").strip()
+        if not term:
+            return []
+        like = f"%{term}%"
+        rows = (
+            DocumentoEntradaEstoque.query
+            .options(joinedload(DocumentoEntradaEstoque.fornecedor))
+            .filter(DocumentoEntradaEstoque.numero_documento.ilike(like))
+            .order_by(DocumentoEntradaEstoque.criado_em.desc(), DocumentoEntradaEstoque.id_documento.desc())
+            .limit(limit)
+            .all()
+        )
+        return [
+            {
+                "id_documento": row.id_documento,
+                "numero_documento": row.numero_documento,
+                "tipo_documento": row.tipo_documento,
+                "fornecedor_id": row.fornecedor_id,
+                "fornecedor_nome": row.fornecedor.nome_exibicao() if row.fornecedor else row.nome_emitente(),
+                "cnpj_emitente": row.cnpj_emitente,
+                "data_emissao": row.data_emissao.isoformat() if row.data_emissao else None,
+                "data_recebimento": row.data_recebimento.isoformat() if row.data_recebimento else None,
+            }
+            for row in rows
+        ]
+
+    @staticmethod
     def register_stock_document_entry(
         *,
         codigo_item: str,

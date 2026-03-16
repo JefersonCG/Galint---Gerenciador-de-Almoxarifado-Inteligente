@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from flask import Blueprint, abort, current_app, flash, redirect, render_template, request, url_for
+from flask import Blueprint, abort, current_app, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
 from ..services.finance_service import finance_service
@@ -21,6 +21,16 @@ def _abort_if_feature_disabled() -> None:
 def _require_admin() -> None:
     if not bool(getattr(current_user, "is_admin", False)):
         abort(403)
+
+
+@blueprint.get("/api/documentos/autocomplete")
+@login_required
+def autocomplete_documentos():
+    _require_admin()
+    term = (request.args.get("q") or "").strip()
+    if len(term) < 2:
+        return jsonify({"success": True, "results": []})
+    return jsonify({"success": True, "results": finance_service.search_stock_documents(term, limit=8)})
 
 
 @blueprint.get("/")

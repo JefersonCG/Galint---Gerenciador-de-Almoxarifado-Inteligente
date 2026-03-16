@@ -26,6 +26,8 @@
                     <div class="mb-3">
                         <label class="form-label" for="nota_fiscal">Número da NF</label>
                         <input class="form-control" id="nota_fiscal" name="nota_fiscal" required>
+                        <div class="list-group mt-2 d-none" id="nota_fiscal_results"></div>
+                        <div class="form-text text-light opacity-75">Se essa NF já tiver sido usada no sistema, os dados da empresa serão preenchidos automaticamente.</div>
                     </div>
                     <div class="mb-3 position-relative">
                         <label class="form-label" for="finance_supplier_search">Fornecedor / Loja</label>
@@ -235,17 +237,57 @@
     const supplierInput = document.getElementById('finance_supplier_search');
     const supplierIdInput = document.getElementById('finance_supplier_id');
     const supplierResults = document.getElementById('finance_supplier_results');
+    const notaFiscalInput = document.getElementById('nota_fiscal');
+    const notaFiscalResults = document.getElementById('nota_fiscal_results');
     const supplierCnpjInput = document.getElementById('supplier_cnpj');
     const emissionDateInput = document.getElementById('data_emissao');
     const receiptDateInput = document.getElementById('data_recebimento');
     const lookupCnpjButton = document.getElementById('btn-buscar-cnpj');
+    const tipoDocumentoInput = document.getElementById('finance_tipo_documento');
     let supplierTimer = null;
+    let notaTimer = null;
+    let notaSuggestions = [];
 
     if (receiptDateInput && !receiptDateInput.value) {
         receiptDateInput.value = new Date().toISOString().slice(0, 10);
     }
 
     const hideSupplierResults = () => supplierResults?.classList.add('d-none');
+    const hideNotaResults = () => notaFiscalResults?.classList.add('d-none');
+
+    const applyDocumentSuggestion = (doc) => {
+        if (!doc) return;
+        if (notaFiscalInput && doc.numero_documento) notaFiscalInput.value = doc.numero_documento;
+        if (supplierInput && doc.fornecedor_nome) supplierInput.value = doc.fornecedor_nome;
+        if (supplierIdInput) supplierIdInput.value = doc.fornecedor_id || '';
+        if (supplierCnpjInput && doc.cnpj_emitente) supplierCnpjInput.value = doc.cnpj_emitente;
+        if (tipoDocumentoInput && doc.tipo_documento) tipoDocumentoInput.value = doc.tipo_documento;
+        if (emissionDateInput && doc.data_emissao) emissionDateInput.value = doc.data_emissao;
+        if (receiptDateInput && doc.data_recebimento) receiptDateInput.value = doc.data_recebimento;
+        hideNotaResults();
+    };
+
+    const renderNotaResults = (items) => {
+        if (!notaFiscalResults) return;
+        if (!Array.isArray(items) || !items.length) {
+            hideNotaResults();
+            return;
+        }
+        notaSuggestions = items;
+        notaFiscalResults.innerHTML = items.map((doc, index) => `
+            <button type="button" class="list-group-item list-group-item-action" data-index="${index}">
+                <div class="fw-semibold">${doc.tipo_documento ? doc.tipo_documento.toUpperCase() : 'DOC'} ${doc.numero_documento}</div>
+                <div class="small text-muted">${doc.fornecedor_nome || 'Fornecedor não informado'}${doc.cnpj_emitente ? ` • ${doc.cnpj_emitente}` : ''}</div>
+            </button>
+        `).join('');
+        notaFiscalResults.classList.remove('d-none');
+        notaFiscalResults.querySelectorAll('[data-index]').forEach((button) => {
+            button.addEventListener('click', () => {
+                const index = Number(button.dataset.index || '-1');
+                applyDocumentSuggestion(notaSuggestions[index] || null);
+            });
+        });
+    };
 
     const renderSupplierResults = (items) => {
         if (!supplierResults) return;
@@ -290,10 +332,37 @@
         }, 180);
     });
 
+    notaFiscalInput?.addEventListener('input', () => {
+        const q = notaFiscalInput.value.trim();
+        if (notaTimer) clearTimeout(notaTimer);
+        if (q.length < 2) {
+            hideNotaResults();
+            return;
+        }
+        notaTimer = setTimeout(async () => {
+            try {
+                const response = await fetch(`{{ url_for('nf.autocomplete_documentos') }}?q=${encodeURIComponent(q)}`, {
+                    headers: { 'Accept': 'application/json' },
+                    credentials: 'same-origin'
+                });
+                const data = await response.json();
+                renderNotaResults(data.results || []);
+            } catch (_) {
+                hideNotaResults();
+            }
+        }, 220);
+    });
+
     document.addEventListener('click', (event) => {
         if (!supplierResults || !supplierInput) return;
         if (supplierResults.contains(event.target) || supplierInput.contains(event.target)) return;
         hideSupplierResults();
+    });
+
+    document.addEventListener('click', (event) => {
+        if (!notaFiscalResults || !notaFiscalInput) return;
+        if (notaFiscalResults.contains(event.target) || notaFiscalInput.contains(event.target)) return;
+        hideNotaResults();
     });
 
     lookupCnpjButton?.addEventListener('click', async () => {
