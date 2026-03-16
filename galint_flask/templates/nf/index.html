@@ -122,18 +122,18 @@
                 {% endif %}
                 {% if nota_detalhes %}
                 <div class="mt-3">
-                    <h5 class="mb-1">{{ nota_detalhes.tipo_documento|upper if nota_detalhes.tipo_documento else 'DOC' }} {{ nota_detalhes.numero_documento or nota_detalhes.nota_fiscal }}</h5>
+                    <h5 class="mb-1">{{ nota_detalhes.tipo_documento|default('DOC', true)|upper }} {{ nota_detalhes.numero_documento|default(nota_detalhes.nota_fiscal, true) }}</h5>
                     <p class="mb-2 small text-muted">
                         Registrada em {{ nota_detalhes.data.strftime('%d/%m/%Y %H:%M') if nota_detalhes.data else 'data não informada' }}
                         {% if nota_detalhes.usuarios %} por {{ nota_detalhes.usuarios|join(', ') }}{% endif %}.
                     </p>
                     <div class="row g-2 mb-3 small">
-                        <div class="col-md-6"><strong>Fornecedor:</strong> {{ nota_detalhes.fornecedor_nome or 'Não informado' }}</div>
-                        <div class="col-md-3"><strong>CNPJ:</strong> {{ nota_detalhes.cnpj_emitente or 'Não informado' }}</div>
-                        <div class="col-md-3"><strong>Emissão:</strong> {{ nota_detalhes.data_emissao.strftime('%d/%m/%Y') if nota_detalhes.data_emissao else 'Não informada' }}</div>
-                        <div class="col-md-6"><strong>Recebimento:</strong> {{ nota_detalhes.data_recebimento.strftime('%d/%m/%Y') if nota_detalhes.data_recebimento else 'Não informado' }}</div>
+                        <div class="col-md-6"><strong>Fornecedor:</strong> {{ nota_detalhes.fornecedor_nome|default('Não informado', true) }}</div>
+                        <div class="col-md-3"><strong>CNPJ:</strong> {{ nota_detalhes.cnpj_emitente|default('Não informado', true) }}</div>
+                        <div class="col-md-3"><strong>Emissão:</strong> {{ nota_detalhes.data_emissao.strftime('%d/%m/%Y') if nota_detalhes.data_emissao|default(None, true) else 'Não informada' }}</div>
+                        <div class="col-md-6"><strong>Recebimento:</strong> {{ nota_detalhes.data_recebimento.strftime('%d/%m/%Y') if nota_detalhes.data_recebimento|default(None, true) else 'Não informado' }}</div>
                         <div class="col-md-3"><strong>Qtd. total:</strong> {{ nota_detalhes.total_quantidade }}</div>
-                        <div class="col-md-3"><strong>Valor total:</strong> R$ {{ '%.2f'|format(nota_detalhes.total_valor or 0) }}</div>
+                        <div class="col-md-3"><strong>Valor total:</strong> R$ {{ '%.2f'|format(nota_detalhes.total_valor|default(0, true)) }}</div>
                     </div>
                     <div class="table-responsive">
                         <table class="table table-dark table-striped mb-0">
@@ -152,8 +152,8 @@
                                     <td>{{ item.codigo }}</td>
                                     <td>{{ item.descricao }}</td>
                                     <td>{{ item.quantidade }}</td>
-                                    <td>{% if item.valor_unitario is not none %}R$ {{ '%.2f'|format(item.valor_unitario) }}{% else %}-{% endif %}</td>
-                                    <td>{% if item.valor_total is not none %}R$ {{ '%.2f'|format(item.valor_total) }}{% else %}-{% endif %}</td>
+                                    <td>{% if item.valor_unitario is defined and item.valor_unitario is not none %}R$ {{ '%.2f'|format(item.valor_unitario) }}{% else %}-{% endif %}</td>
+                                    <td>{% if item.valor_total is defined and item.valor_total is not none %}R$ {{ '%.2f'|format(item.valor_total) }}{% else %}-{% endif %}</td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
@@ -175,8 +175,8 @@
                             <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
                                 data-bs-target="#collapse-{{ collapse_id }}" aria-expanded="false"
                                 aria-controls="collapse-{{ collapse_id }}">
-                                <span class="me-3">{{ nota.tipo_documento|upper if nota.tipo_documento else 'DOC' }} {{ nota.numero_documento or nota.nota_fiscal }}</span>
-                                <small class="text-muted">{{ nota.total_itens }} itens &bull; {{ nota.total_quantidade }} unidades{% if nota.fornecedor_nome %} &bull; {{ nota.fornecedor_nome }}{% endif %}</small>
+                                <span class="me-3">{{ nota.tipo_documento|default('DOC', true)|upper }} {{ nota.numero_documento|default(nota.nota_fiscal, true) }}</span>
+                                <small class="text-muted">{{ nota.total_itens }} itens &bull; {{ nota.total_quantidade }} unidades{% if nota.fornecedor_nome|default(None, true) %} &bull; {{ nota.fornecedor_nome }}{% endif %}</small>
                             </button>
                         </h2>
                         <div id="collapse-{{ collapse_id }}" class="accordion-collapse collapse"
@@ -188,10 +188,10 @@
                                     {% if nota.usuarios %} por {{ nota.usuarios|join(', ') }}{% endif %}.
                                 </p>
                                 <div class="row g-2 mb-3 small">
-                                    <div class="col-md-5"><strong>Fornecedor:</strong> {{ nota.fornecedor_nome or 'Não informado' }}</div>
-                                    <div class="col-md-3"><strong>CNPJ:</strong> {{ nota.cnpj_emitente or 'Não informado' }}</div>
-                                    <div class="col-md-2"><strong>Emissão:</strong> {{ nota.data_emissao.strftime('%d/%m/%Y') if nota.data_emissao else '—' }}</div>
-                                    <div class="col-md-2"><strong>Valor:</strong> R$ {{ '%.2f'|format(nota.total_valor or 0) }}</div>
+                                    <div class="col-md-5"><strong>Fornecedor:</strong> {{ nota.fornecedor_nome|default('Não informado', true) }}</div>
+                                    <div class="col-md-3"><strong>CNPJ:</strong> {{ nota.cnpj_emitente|default('Não informado', true) }}</div>
+                                    <div class="col-md-2"><strong>Emissão:</strong> {{ nota.data_emissao.strftime('%d/%m/%Y') if nota.data_emissao|default(None, true) else '—' }}</div>
+                                    <div class="col-md-2"><strong>Valor:</strong> R$ {{ '%.2f'|format(nota.total_valor|default(0, true)) }}</div>
                                 </div>
                                 <div class="table-responsive">
                                     <table class="table table-dark table-striped mb-0">
@@ -209,7 +209,7 @@
                                                 <td>{{ item.codigo }}</td>
                                                 <td>{{ item.descricao }}</td>
                                                 <td>{{ item.quantidade }}</td>
-                                                <td>{% if item.valor_unitario is not none %}R$ {{ '%.2f'|format(item.valor_unitario) }}{% else %}-{% endif %}</td>
+                                                <td>{% if item.valor_unitario is defined and item.valor_unitario is not none %}R$ {{ '%.2f'|format(item.valor_unitario) }}{% else %}-{% endif %}</td>
                                             </tr>
                                             {% endfor %}
                                         </tbody>
