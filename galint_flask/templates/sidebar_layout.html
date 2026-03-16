@@ -56,7 +56,7 @@
                 </a>
                 {% endif %}
             </div>
-            {% set estoque_active = p.startswith('/itens') %}
+            {% set estoque_active = p.startswith('/itens') or p.startswith('/nf') %}
             <button
                 class="sidebar-link d-flex justify-content-between align-items-center border-0 bg-transparent text-start w-100 {{ 'active' if estoque_active else 'collapsed' }}"
                 type="button" data-bs-toggle="collapse" data-bs-target="#estoqueMenu"
@@ -78,6 +78,13 @@
                     href="{{ valor_estoque_url }}">
                     <i class="bi bi-cash-stack"></i>
                     <span>Financeiro</span>
+                </a>
+                {% endif %}
+                {% if config.get('FEATURE_NOTAS_ENABLED', True) %}
+                <a class="sidebar-link ps-4 {% if p.startswith(url_for('nf.nf_index')) %}active{% endif %}"
+                    href="{{ url_for('nf.nf_index') }}">
+                    <i class="bi bi-receipt"></i>
+                    <span>Notas Fiscais</span>
                 </a>
                 {% endif %}
             </div>
@@ -108,13 +115,6 @@
                 </a>
                 {% endif %}
             </div>
-            {% if config.get('FEATURE_NOTAS_ENABLED', True) %}
-            <a class="sidebar-link {% if p.startswith(url_for('nf.nf_index')) %}active{% endif %}"
-                href="{{ url_for('nf.nf_index') }}">
-                <i class="bi bi-receipt"></i>
-                <span>Notas Fiscais</span>
-            </a>
-            {% endif %}
             {% if endpoint_exists('reports.index') %}
             <a class="sidebar-link {% if p.startswith(url_for('reports.index')) %}active{% endif %}"
                 href="{{ url_for('reports.index') }}">
