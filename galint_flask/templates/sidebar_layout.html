@@ -71,13 +71,13 @@
                 <a class="sidebar-link ps-4 {% if p.startswith(url_for('inventory.list_items')) %}active{% endif %}"
                     href="{{ url_for('inventory.list_items') }}">
                     <i class="bi bi-card-list"></i>
-                    <span>Estoque</span>
+                    <span>Itens Cadastrados</span>
                 </a>
                 {% if valor_estoque_url %}
                 <a class="sidebar-link ps-4 {% if p.startswith(valor_estoque_url) %}active{% endif %}"
                     href="{{ valor_estoque_url }}">
                     <i class="bi bi-cash-stack"></i>
-                    <span>Valor de Estoque</span>
+                    <span>Financeiro</span>
                 </a>
                 {% endif %}
             </div>

@@ -5,6 +5,7 @@ from datetime import date, datetime, time, timedelta
 from io import BytesIO
 from typing import Any
 import calendar
+import re
 
 import requests
 from flask import current_app
@@ -113,10 +114,19 @@ class FinanceService:
 
     @staticmethod
     def get_available_exercises() -> list[dict[str, Any]]:
-        min_dt, max_dt = db.session.query(
+        min_ledger_dt, max_ledger_dt = db.session.query(
             func.min(FinanceLedgerEntry.data_lancamento),
             func.max(FinanceLedgerEntry.data_lancamento),
         ).one()
+        min_saida_dt, max_saida_dt = db.session.query(
+            func.min(Saida.data_saida),
+            func.max(Saida.data_saida),
+        ).one()
+
+        min_dt_candidates = [dt for dt in (min_ledger_dt, min_saida_dt) if dt is not None]
+        max_dt_candidates = [dt for dt in (max_ledger_dt, max_saida_dt) if dt is not None]
+        min_dt = min(min_dt_candidates) if min_dt_candidates else None
+        max_dt = max(max_dt_candidates) if max_dt_candidates else None
         today = date.today()
         start_ref = (min_dt.date() if min_dt else today)
         end_ref = max(today, max_dt.date() if max_dt else today)
@@ -138,6 +148,28 @@ class FinanceService:
     def resolve_exercise(label: str | None = None) -> dict[str, Any]:
         if not label:
             return FinanceService.get_exercise_for_date()
+
+        clean = (label or "").strip()
+        match = re.match(r"^(\d{4})\/(\d{4})$", clean)
+        if match:
+            start_year = int(match.group(1))
+            end_year = int(match.group(2))
+            config = FinanceService.get_config()
+            closing_month = int(config.mes_fechamento or 2)
+            closing_day = int(config.dia_fechamento or 10)
+            end_date = FinanceService._clamped_closing_date(end_year, closing_month, closing_day)
+            previous_closing = FinanceService._clamped_closing_date(start_year, closing_month, closing_day)
+            start_date = previous_closing + timedelta(days=1)
+            return {
+                "label": f"{start_date.year}/{end_date.year}",
+                "start_date": start_date,
+                "end_date": end_date,
+                "start_dt": datetime.combine(start_date, time.min),
+                "end_dt": datetime.combine(end_date, time.max),
+                "closing_day": closing_day,
+                "closing_month": closing_month,
+            }
+
         for exercise in FinanceService.get_available_exercises():
             if exercise["label"] == label:
                 return exercise
@@ -465,6 +497,114 @@ class FinanceService:
             if saida.codigo_item:
                 consumed_by_item[saida.codigo_item] += float(saida.quantidade or 0)
 
+        # Consumo fracionado por local (rastreabilidade): usa litros/kg registrados na saída.
+        # Regra de custo: preço da embalagem (média do exercício quando disponível) / capacidade interna (L ou Kg).
+        fracionado_por_local: dict[str, dict[str, Any]] = defaultdict(lambda: {
+            "local": "SEM LOCAL",
+            "total_valor": 0.0,
+            "total_litros": 0.0,
+            "total_quilos": 0.0,
+            "saidas": 0,
+            "itens": set(),
+        })
+        total_fracionado_valor = 0.0
+        total_fracionado_litros = 0.0
+        total_fracionado_quilos = 0.0
+        fracionado_linhas_ignoradas = 0
+
+        def _norm_local(value: str | None) -> str:
+            norm = (value or "").strip().upper()
+            return norm or "SEM LOCAL"
+
+        for saida in saidas:
+            code = str(saida.codigo_item or "").strip()
+            if not code:
+                continue
+
+            retirada_l = getattr(saida, "quantidade_retirada_em_litros", None)
+            retirada_kg = getattr(saida, "quantidade_retirada_em_quilos", None)
+            if retirada_l in (None, "") and retirada_kg in (None, ""):
+                continue
+
+            item = item_map.get(code)
+            if not item:
+                fracionado_linhas_ignoradas += 1
+                continue
+
+            purchase = purchases_by_item.get(code, {})
+            preco_emb = purchase.get("avg_unit")
+            if preco_emb is None:
+                raw_price = item.get("preco_compra_unitario")
+                preco_emb = float(raw_price) if raw_price not in (None, "") else 0.0
+            preco_emb = float(preco_emb or 0.0)
+            if preco_emb <= 0:
+                fracionado_linhas_ignoradas += 1
+                continue
+
+            capacidade_emb = getattr(saida, "quantidade_total_embalagem", None)
+            try:
+                capacidade_emb_f = float(capacidade_emb) if capacidade_emb not in (None, "") else 0.0
+            except Exception:
+                capacidade_emb_f = 0.0
+
+            unidade = None
+            qtd_interna = 0.0
+            if retirada_l not in (None, ""):
+                unidade = "L"
+                try:
+                    qtd_interna = float(retirada_l or 0.0)
+                except Exception:
+                    qtd_interna = 0.0
+                if capacidade_emb_f <= 0:
+                    try:
+                        capacidade_emb_f = float(item.get("litros_por_embalagem") or 0.0)
+                    except Exception:
+                        capacidade_emb_f = 0.0
+            elif retirada_kg not in (None, ""):
+                unidade = "Kg"
+                try:
+                    qtd_interna = float(retirada_kg or 0.0)
+                except Exception:
+                    qtd_interna = 0.0
+                if capacidade_emb_f <= 0:
+                    try:
+                        capacidade_emb_f = float(item.get("grandeza_referencia") or 0.0)
+                    except Exception:
+                        capacidade_emb_f = 0.0
+
+            if not unidade or qtd_interna <= 0 or capacidade_emb_f <= 0:
+                fracionado_linhas_ignoradas += 1
+                continue
+
+            custo_interno = preco_emb / capacidade_emb_f
+            valor = round(qtd_interna * custo_interno, 2)
+            local_key = _norm_local(getattr(saida, "local_servico", None))
+
+            row = fracionado_por_local[local_key]
+            row["local"] = local_key
+            row["total_valor"] += valor
+            row["saidas"] += 1
+            row["itens"].add(code)
+            if unidade == "L":
+                row["total_litros"] += qtd_interna
+                total_fracionado_litros += qtd_interna
+            else:
+                row["total_quilos"] += qtd_interna
+                total_fracionado_quilos += qtd_interna
+            total_fracionado_valor += valor
+
+        consumo_fracionado_por_local: list[dict[str, Any]] = []
+        for info in fracionado_por_local.values():
+            consumo_fracionado_por_local.append({
+                "local": info["local"],
+                "total_valor": round(float(info["total_valor"] or 0.0), 2),
+                "total_litros": round(float(info["total_litros"] or 0.0), 3),
+                "total_quilos": round(float(info["total_quilos"] or 0.0), 3),
+                "saidas": int(info["saidas"] or 0),
+                "itens": len(info["itens"] or set()),
+            })
+        consumo_fracionado_por_local.sort(key=lambda r: (-float(r.get("total_valor") or 0.0), str(r.get("local") or "")))
+
         categories: dict[str, dict[str, Any]] = defaultdict(lambda: {
             "categoria": "Sem categoria",
             "items": [],
@@ -534,6 +674,11 @@ class FinanceService:
             "total_investido_exercicio": round(total_investido, 2),
             "total_consumido_exercicio": round(total_consumido, 2),
             "total_sem_comprovacao_exercicio": round(total_sem_comprovacao, 2),
+            "consumo_fracionado_por_local": consumo_fracionado_por_local,
+            "total_fracionado_valor": round(total_fracionado_valor, 2),
+            "total_fracionado_litros": round(total_fracionado_litros, 3),
+            "total_fracionado_quilos": round(total_fracionado_quilos, 3),
+            "fracionado_linhas_ignoradas": int(fracionado_linhas_ignoradas),
         }
 
     @staticmethod
@@ -586,6 +731,37 @@ class FinanceService:
         ]))
         story.append(kpi_table)
         story.append(Spacer(1, 0.5 * cm))
+
+        # Consumo fracionado por local (quando existir)
+        fr_rows = summary.get("consumo_fracionado_por_local") or []
+        if fr_rows:
+            story.append(Paragraph("Consumo fracionado por local (L/Kg)", styles["Heading2"]))
+            story.append(Spacer(1, 0.2 * cm))
+            local_table_data: list[list[Any]] = [["Local", "Litros", "Kg", "Saídas", "Itens", "Total (R$)"]]
+            for row in fr_rows:
+                local_table_data.append([
+                    row.get("local") or "SEM LOCAL",
+                    f"{float(row.get('total_litros') or 0.0):g}",
+                    f"{float(row.get('total_quilos') or 0.0):g}",
+                    str(int(row.get("saidas") or 0)),
+                    str(int(row.get("itens") or 0)),
+                    f"R$ {float(row.get('total_valor') or 0.0):,.2f}".replace(",", "X").replace(".", ",").replace("X", "."),
+                ])
+
+            local_table = Table(local_table_data, repeatRows=1, colWidths=[7.5 * cm, 2.3 * cm, 2.3 * cm, 1.8 * cm, 1.6 * cm, 3.2 * cm])
+            local_table.setStyle(TableStyle([
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#0f172a")),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("GRID", (0, 0), (-1, -1), 0.35, colors.HexColor("#cbd5e1")),
+                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f8fafc")]),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("FONTSIZE", (0, 0), (-1, -1), 9),
+                ("ALIGN", (1, 1), (-1, -1), "RIGHT"),
+                ("ALIGN", (0, 0), (0, -1), "LEFT"),
+            ]))
+            story.append(local_table)
+            story.append(Spacer(1, 0.35 * cm))
 
         header = ["Categoria", "Investido", "Consumido", "Atual compra", "Atual reposição", "Item mais usado", "Fornecedor destaque"]
         rows = [header]

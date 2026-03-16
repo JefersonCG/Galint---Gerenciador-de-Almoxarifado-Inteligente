@@ -726,7 +726,7 @@
                             {% endif %}
                         </div>
                         <p class="form-text" style="margin-top: -0.5rem;">
-                            Esses valores alimentam a página <strong>Valor de Estoque</strong> e o modal de detalhes do item.
+                            Esses valores alimentam a página <strong>Financeiro</strong> e o modal de detalhes do item.
                         </p>
                     </div>
 
@@ -2253,6 +2253,28 @@ if (confirmFotoUrl) {
             .replace(/'/g, '&#39;');
     };
 
+    const readJsonResponse = async (response) => {
+        const contentType = String(response?.headers?.get('content-type') || '');
+        if (!contentType.includes('application/json')) {
+            if (response?.redirected) {
+                throw new Error('Sessao expirada ou redirecionada. Recarregue a pagina e tente novamente.');
+            }
+            const status = Number(response?.status || 0);
+            if (status === 401) {
+                throw new Error('Sessao expirada. Recarregue a pagina e faca login novamente.');
+            }
+            if (status === 403) {
+                throw new Error('Acesso negado. Voce precisa ser administrador para usar esta funcao.');
+            }
+            throw new Error('Resposta invalida do servidor (nao-JSON). Verifique o log do servidor.');
+        }
+        try {
+            return await response.json();
+        } catch (_) {
+            throw new Error('Resposta JSON invalida do servidor.');
+        }
+    };
+
     const buildDefaultPriceQuery = (item) => {
         const descricao = String(item?.descricao || '').trim();
         const marca = String(item?.marca || '').trim();
@@ -2319,7 +2341,7 @@ if (confirmFotoUrl) {
         try {
             const url = `/itens/${encodeURIComponent(currentPriceItem.codigo)}/precos/reposicao/sugestoes?q=${encodeURIComponent(q)}&uf=${encodeURIComponent(uf)}`;
             const response = await fetch(url, { headers: { 'Accept': 'application/json' } });
-            const data = await response.json();
+            const data = await readJsonResponse(response);
             if (!response.ok || !data?.success) {
                 throw new Error(data?.message || 'Falha ao buscar sugestoes');
             }
@@ -2449,7 +2471,7 @@ if (confirmFotoUrl) {
                             preco_reposicao_url: chosen.url,
                         }),
                     });
-                    const data = await resp.json();
+                    const data = await readJsonResponse(resp);
                     if (!resp.ok || !data?.success) {
                         throw new Error(data?.message || 'Falha ao salvar');
                     }

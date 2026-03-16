@@ -6,7 +6,7 @@ from datetime import datetime
 
 from io import BytesIO
 
-from flask import Blueprint, abort, flash, make_response, redirect, render_template, request, send_file, url_for
+from flask import Blueprint, abort, current_app, flash, make_response, redirect, render_template, request, send_file, url_for
 from flask_login import login_required, current_user
 
 from ..extensions import db
@@ -259,6 +259,11 @@ def valor_estoque():
         total_investido_exercicio=report["total_investido_exercicio"],
         total_consumido_exercicio=report["total_consumido_exercicio"],
         total_sem_comprovacao_exercicio=report["total_sem_comprovacao_exercicio"],
+        consumo_fracionado_por_local=report.get("consumo_fracionado_por_local") or [],
+        total_fracionado_valor=report.get("total_fracionado_valor"),
+        total_fracionado_litros=report.get("total_fracionado_litros"),
+        total_fracionado_quilos=report.get("total_fracionado_quilos"),
+        fracionado_linhas_ignoradas=report.get("fracionado_linhas_ignoradas"),
         exercise=report["exercise"],
         exercise_options=report["exercise_options"],
         uf_empresa=uf_empresa,
@@ -721,7 +726,8 @@ def update_item(codigo: str):
 @blueprint.get("/<codigo>/precos/reposicao/sugestoes")
 @login_required
 def sugestoes_preco_reposicao(codigo: str):
-    _require_admin()
+    if not _is_admin(current_user):
+        return {"success": False, "message": "Acesso negado"}, 403
     item = Item.query.get(codigo)
     if not item:
         return {"success": False, "message": "Item nÃ£o encontrado"}, 404
@@ -734,7 +740,11 @@ def sugestoes_preco_reposicao(codigo: str):
         except Exception:
             uf = ""
 
-    data = price_suggestion_service.get_replacement_suggestions(query=query, uf=uf or None, limit=20)
+    try:
+        data = price_suggestion_service.get_replacement_suggestions(query=query, uf=uf or None, limit=20)
+    except Exception:
+        current_app.logger.exception("Erro ao buscar sugestoes de preco de reposicao (codigo=%s)", codigo)
+        return {"success": False, "message": "Erro interno ao buscar sugestoes"}, 500
     data["success"] = True
     return data
 
@@ -742,7 +752,8 @@ def sugestoes_preco_reposicao(codigo: str):
 @blueprint.post("/<codigo>/precos/reposicao")
 @login_required
 def salvar_preco_reposicao(codigo: str):
-    _require_admin()
+    if not _is_admin(current_user):
+        return {"success": False, "message": "Acesso negado"}, 403
     item = Item.query.get(codigo)
     if not item:
         return {"success": False, "message": "Item nÃ£o encontrado"}, 404
@@ -770,7 +781,12 @@ def salvar_preco_reposicao(codigo: str):
     item.preco_reposicao_atualizado_por = current_user.nome if hasattr(current_user, "nome") else current_user.id
     item.ultima_edicao_em = datetime.utcnow()
     item.ultima_edicao_por = item.preco_reposicao_atualizado_por
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        current_app.logger.exception("Erro ao salvar preco de reposicao (codigo=%s)", codigo)
+        return {"success": False, "message": "Erro interno ao salvar preco de reposicao"}, 500
 
     return {
         "success": True,

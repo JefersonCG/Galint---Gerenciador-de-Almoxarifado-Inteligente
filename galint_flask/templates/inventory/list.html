@@ -2103,6 +2103,28 @@
         return brlFormatter.format(num);
     };
 
+    const readJsonResponse = async (response) => {
+        const contentType = String(response?.headers?.get('content-type') || '');
+        if (!contentType.includes('application/json')) {
+            if (response?.redirected) {
+                throw new Error('Sessao expirada ou redirecionada. Recarregue a pagina e tente novamente.');
+            }
+            const status = Number(response?.status || 0);
+            if (status === 401) {
+                throw new Error('Sessao expirada. Recarregue a pagina e faca login novamente.');
+            }
+            if (status === 403) {
+                throw new Error('Acesso negado. Voce precisa ser administrador para usar esta funcao.');
+            }
+            throw new Error('Resposta invalida do servidor (nao-JSON). Verifique o log do servidor.');
+        }
+        try {
+            return await response.json();
+        } catch (_) {
+            throw new Error('Resposta JSON invalida do servidor.');
+        }
+    };
+
     const getPriceUnitLabel = (item) => {
         const tipoEmb = String(item?.tipo_embalagem_novo || '').trim();
         if (tipoEmb) return tipoEmb;
@@ -2231,7 +2253,7 @@
         try {
             const url = `/itens/${encodeURIComponent(currentPriceItem.codigo)}/precos/reposicao/sugestoes?q=${encodeURIComponent(q)}&uf=${encodeURIComponent(uf)}`;
             const response = await fetch(url, { headers: { 'Accept': 'application/json' } });
-            const data = await response.json();
+            const data = await readJsonResponse(response);
             if (!response.ok || !data?.success) {
                 throw new Error(data?.message || 'Falha ao buscar sugestões');
             }
@@ -2357,7 +2379,7 @@
                             preco_reposicao_url: chosen.url,
                         }),
                     });
-                    const data = await resp.json();
+                    const data = await readJsonResponse(resp);
                     if (!resp.ok || !data?.success) {
                         throw new Error(data?.message || 'Falha ao salvar');
                     }

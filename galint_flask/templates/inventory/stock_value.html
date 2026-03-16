@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Valor de Estoque{% endblock %}
+{% block title %}Financeiro{% endblock %}
 
 {% macro brl(value) -%}
     {%- if value is none -%}
@@ -17,11 +17,16 @@
 {% endif %}
 {% set exercise = exercise|default({'label': (request.args.get('exercicio') or '—')}) %}
 {% set exercise_options = exercise_options|default([]) %}
+{% set consumo_fracionado_por_local = consumo_fracionado_por_local|default([]) %}
+{% set total_fracionado_valor = total_fracionado_valor|default(0) %}
+{% set total_fracionado_litros = total_fracionado_litros|default(0) %}
+{% set total_fracionado_quilos = total_fracionado_quilos|default(0) %}
+{% set fracionado_linhas_ignoradas = fracionado_linhas_ignoradas|default(0) %}
 {% set valor_estoque_pdf_url = url_for('inventory.valor_estoque_pdf', exercicio=exercise.label) if endpoint_exists('inventory.valor_estoque_pdf') else None %}
 
 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
     <div>
-        <h1 class="h3 mb-1">Valor de Estoque</h1>
+        <h1 class="h3 mb-1">Financeiro</h1>
         <div class="text-muted small">
             Referência: estoque atual + prestação de contas do exercício {{ exercise.label }}{% if uf_empresa %} • UF padrão: <strong>{{ uf_empresa }}</strong>{% endif %}
         </div>
@@ -143,7 +148,7 @@
 
     .category-metrics {
         display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
+        grid-template-columns: repeat(5, minmax(0, 1fr));
         gap: 0.75rem;
         margin-top: 0.9rem;
     }
@@ -232,14 +237,65 @@
     </div>
 </div>
 
+{% if consumo_fracionado_por_local %}
+<section class="value-table p-3">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
+        <div>
+            <h2 class="h5 mb-1">Consumo fracionado por local</h2>
+            <div class="text-muted small">
+                Considera apenas saídas com litros/kg registrados; custo interno = preço da embalagem ÷ capacidade.
+            </div>
+        </div>
+        <div class="text-end small text-muted">
+            <div><strong>{{ brl(total_fracionado_valor) }}</strong></div>
+            <div>{{ "{:g}".format(total_fracionado_litros) }} L • {{ "{:g}".format(total_fracionado_quilos) }} Kg</div>
+            {% if fracionado_linhas_ignoradas %}
+            <div>{{ fracionado_linhas_ignoradas }} linha(s) ignorada(s) (sem preço/capacidade).</div>
+            {% endif %}
+        </div>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Local</th>
+                    <th class="text-end">Litros</th>
+                    <th class="text-end">Kg</th>
+                    <th class="text-end">Saídas</th>
+                    <th class="text-end">Itens</th>
+                    <th class="text-end">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in consumo_fracionado_por_local %}
+                <tr>
+                    <td class="fw-semibold">{{ row.local }}</td>
+                    <td class="text-end text-muted">{{ "{:g}".format(row.total_litros or 0) }}</td>
+                    <td class="text-end text-muted">{{ "{:g}".format(row.total_quilos or 0) }}</td>
+                    <td class="text-end text-muted">{{ row.saidas or 0 }}</td>
+                    <td class="text-end text-muted">{{ row.itens or 0 }}</td>
+                    <td class="text-end">{{ brl(row.total_valor) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endif %}
+
 <div class="d-grid gap-4">
     {% for card in category_cards %}
+    {% set cat_id = 'cat_' ~ loop.index %}
     <section class="category-card">
         <div class="category-head">
             <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
                 <div>
                     <h2 class="h5 mb-1">{{ card.categoria }}</h2>
                     <div class="text-muted small">{{ card['items']|length }} item(ns) nesta categoria</div>
+                    <button class="btn btn-sm btn-outline-secondary mt-2" type="button"
+                        data-bs-toggle="collapse" data-bs-target="#{{ cat_id }}" aria-expanded="true" aria-controls="{{ cat_id }}">
+                        <i class="bi bi-chevron-down me-1"></i> Expandir / recolher
+                    </button>
                 </div>
                 <div class="text-end small text-muted">
                     {% if card.top_item_nome %}
@@ -266,11 +322,16 @@
                     <div class="value">{{ brl(card.total_atual_compra) }}</div>
                 </div>
                 <div class="category-metric">
+                    <div class="label">Atual reposição</div>
+                    <div class="value">{{ brl(card.total_atual_reposicao) }}</div>
+                </div>
+                <div class="category-metric">
                     <div class="label">Sem comprovação</div>
                     <div class="value">{{ brl(card.total_sem_comprovacao) }}</div>
                 </div>
             </div>
         </div>
+        <div class="collapse show" id="{{ cat_id }}">
         <div class="table-responsive value-table" style="border:none; box-shadow:none; border-radius:0;">
             <table class="table table-hover mb-0">
                 <thead>
@@ -302,7 +363,7 @@
                             <div class="text-muted small">Sem comprov.: {{ brl(item.sem_comprovacao_valor_exercicio) }}</div>
                         </td>
                         <td>
-                            {% if item.preco_compra_unitario %}
+                            {% if item.preco_compra_unitario is not none %}
                             <div>{{ brl(item.preco_compra_unitario) }}</div>
                             <div class="text-muted small">Atual: {{ brl(item.valor_estoque_compra_total) }}</div>
                             {% else %}
@@ -314,7 +375,7 @@
                             <div class="text-muted small">{{ brl(item.consumo_valor_exercicio) }}</div>
                         </td>
                         <td>
-                            {% if item.preco_reposicao_unitario %}
+                            {% if item.preco_reposicao_unitario is not none %}
                             <div>{{ brl(item.preco_reposicao_unitario) }}</div>
                             <div class="text-muted small">Atual: {{ brl(item.valor_estoque_reposicao_total) }}</div>
                             {% else %}
@@ -336,6 +397,7 @@
                     {% endfor %}
                 </tbody>
             </table>
+        </div>
         </div>
     </section>
     {% endfor %}
@@ -423,6 +485,28 @@
             .replace(/'/g, '&#39;');
     };
 
+    const readJsonResponse = async (response) => {
+        const contentType = String(response?.headers?.get('content-type') || '');
+        if (!contentType.includes('application/json')) {
+            if (response?.redirected) {
+                throw new Error('Sessao expirada ou redirecionada. Recarregue a pagina e tente novamente.');
+            }
+            const status = Number(response?.status || 0);
+            if (status === 401) {
+                throw new Error('Sessao expirada. Recarregue a pagina e faca login novamente.');
+            }
+            if (status === 403) {
+                throw new Error('Acesso negado. Voce precisa ser administrador para usar esta funcao.');
+            }
+            throw new Error('Resposta invalida do servidor (nao-JSON). Verifique o log do servidor.');
+        }
+        try {
+            return await response.json();
+        } catch (_) {
+            throw new Error('Resposta JSON invalida do servidor.');
+        }
+    };
+
     const buildDefaultPriceQuery = (item) => {
         const descricao = String(item?.descricao || '').trim();
         const marca = String(item?.marca || '').trim();
@@ -482,7 +566,7 @@
         try {
             const url = `/itens/${encodeURIComponent(currentPriceItem.codigo)}/precos/reposicao/sugestoes?q=${encodeURIComponent(q)}&uf=${encodeURIComponent(uf)}`;
             const response = await fetch(url, { headers: { 'Accept': 'application/json' } });
-            const data = await response.json();
+            const data = await readJsonResponse(response);
             if (!response.ok || !data?.success) {
                 throw new Error(data?.message || 'Falha ao buscar sugestoes');
             }
@@ -608,7 +692,7 @@
                             preco_reposicao_url: chosen.url,
                         }),
                     });
-                    const data = await resp.json();
+                    const data = await readJsonResponse(resp);
                     if (!resp.ok || !data?.success) {
                         throw new Error(data?.message || 'Falha ao salvar');
                     }
@@ -641,4 +725,3 @@
     bindPriceModalControls();
 </script>
 {% endblock %}
-
