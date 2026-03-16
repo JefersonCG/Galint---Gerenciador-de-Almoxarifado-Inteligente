@@ -345,6 +345,57 @@ class Entrada(db.Model):
     usuario: Mapped[Usuario | None] = relationship("Usuario", back_populates="entradas")
 
 
+class DocumentoEntradaEstoque(db.Model):
+    """Cabeçalho de documentos de entrada (NF, cupom, recibo, etc.)."""
+    __tablename__ = "entrada_documentos"
+
+    id_documento: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    fornecedor_id: Mapped[int | None] = mapped_column(ForeignKey("finance_fornecedores.id"), nullable=True)
+    tipo_documento: Mapped[str] = mapped_column(String(40), nullable=False, default="nf")
+    numero_documento: Mapped[str] = mapped_column(String(120), nullable=False)
+    data_emissao: Mapped[date | None] = mapped_column(Date, nullable=True)
+    data_recebimento: Mapped[date | None] = mapped_column(Date, nullable=True)
+    cnpj_emitente: Mapped[str | None] = mapped_column(String(18), nullable=True)
+    fornecedor_nome: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    observacao: Mapped[str | None] = mapped_column(Text, nullable=True)
+    criado_por: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    criado_em: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now())
+    atualizado_em: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
+
+    fornecedor: Mapped["FinanceSupplier | None"] = relationship("FinanceSupplier")
+    itens: Mapped[list["DocumentoEntradaEstoqueItem"]] = relationship(
+        "DocumentoEntradaEstoqueItem",
+        back_populates="documento",
+        cascade="all, delete-orphan",
+    )
+
+    def nome_emitente(self) -> str | None:
+        if self.fornecedor:
+            return self.fornecedor.nome_exibicao()
+        return (self.fornecedor_nome or "").strip() or None
+
+
+class DocumentoEntradaEstoqueItem(db.Model):
+    """Itens vinculados a um documento de entrada de estoque."""
+    __tablename__ = "entrada_documento_itens"
+
+    id_documento_item: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    documento_id: Mapped[int] = mapped_column(ForeignKey("entrada_documentos.id_documento"), nullable=False)
+    entrada_id: Mapped[int | None] = mapped_column(ForeignKey("entradas.id_entrada"), nullable=True)
+    codigo_item: Mapped[str] = mapped_column(ForeignKey("itens.codigo_item"), nullable=False)
+    quantidade: Mapped[float] = mapped_column(Float, nullable=False, default=0)
+    valor_unitario: Mapped[float | None] = mapped_column(Float, nullable=True)
+    valor_total: Mapped[float | None] = mapped_column(Float, nullable=True)
+    lote: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    data_validade: Mapped[date | None] = mapped_column(Date, nullable=True)
+    observacao: Mapped[str | None] = mapped_column(Text, nullable=True)
+    criado_em: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now())
+
+    documento: Mapped[DocumentoEntradaEstoque] = relationship("DocumentoEntradaEstoque", back_populates="itens")
+    entrada: Mapped[Entrada | None] = relationship("Entrada")
+    item: Mapped[Item] = relationship("Item")
+
+
 class InventarioEvento(db.Model):
     __tablename__ = "inventario_eventos"
 

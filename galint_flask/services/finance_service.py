@@ -14,6 +14,8 @@ from sqlalchemy.orm import joinedload
 
 from ..extensions import db
 from ..models import (
+    DocumentoEntradaEstoque,
+    DocumentoEntradaEstoqueItem,
     FinanceConfig,
     FinanceLedgerEntry,
     FinanceSupplier,
@@ -351,6 +353,228 @@ class FinanceService:
         if latest and latest.fornecedor:
             return latest.fornecedor.to_dict()
         return None
+
+    @staticmethod
+    def _resolve_supplier_for_document(
+        *,
+        supplier_id: int | None = None,
+        supplier_name: str | None = None,
+        supplier_cnpj: str | None = None,
+    ) -> FinanceSupplier | None:
+        name = (supplier_name or "").strip() or None
+        cnpj = FinanceService.normalize_cnpj(supplier_cnpj) or None
+
+        if supplier_id:
+            supplier = FinanceService.get_supplier(supplier_id)
+            if not supplier:
+                raise ValueError("Fornecedor informado não foi encontrado")
+            return supplier
+
+        if cnpj:
+            existing = FinanceSupplier.query.filter(FinanceSupplier.cnpj == cnpj).first()
+            if existing:
+                return existing
+
+            payload: dict[str, Any] = {}
+            try:
+                payload = FinanceService.fetch_supplier_by_cnpj(cnpj)
+            except Exception:
+                if not name:
+                    raise ValueError("CNPJ não cadastrado e sem nome da loja para criar o fornecedor")
+
+            if name and not payload.get("nome_fantasia"):
+                payload["nome_fantasia"] = name
+            if name and not payload.get("razao_social"):
+                payload["razao_social"] = name
+            payload["cnpj"] = cnpj
+            return FinanceService.save_supplier(payload)
+
+        if name:
+            return FinanceService.save_supplier({"razao_social": name, "nome_fantasia": name})
+
+        return None
+
+    @staticmethod
+    def _serialize_stock_document(document: DocumentoEntradaEstoque) -> dict[str, Any]:
+        items: list[dict[str, Any]] = []
+        total_quantidade = 0.0
+        total_valor = 0.0
+        for row in sorted(document.itens, key=lambda item: item.id_documento_item):
+            line_total = float(row.valor_total or 0)
+            total_quantidade += float(row.quantidade or 0)
+            total_valor += line_total
+            items.append(
+                {
+                    "id": row.id_documento_item,
+                    "entrada_id": row.entrada_id,
+                    "codigo": row.codigo_item,
+                    "descricao": row.item.descricao if row.item else "",
+                    "quantidade": row.quantidade,
+                    "valor_unitario": row.valor_unitario,
+                    "valor_total": row.valor_total,
+                    "lote": row.lote,
+                    "data_validade": row.data_validade,
+                    "observacao": row.observacao,
+                }
+            )
+
+        supplier_name = document.fornecedor.nome_exibicao() if document.fornecedor else document.nome_emitente()
+        return {
+            "id_documento": document.id_documento,
+            "nota_fiscal": document.numero_documento,
+            "numero_documento": document.numero_documento,
+            "tipo_documento": document.tipo_documento,
+            "data": document.criado_em,
+            "data_emissao": document.data_emissao,
+            "data_recebimento": document.data_recebimento,
+            "fornecedor_id": document.fornecedor_id,
+            "fornecedor_nome": supplier_name,
+            "cnpj_emitente": document.cnpj_emitente,
+            "observacao": document.observacao,
+            "usuarios": [document.criado_por] if document.criado_por else [],
+            "itens": items,
+            "total_itens": len(items),
+            "total_quantidade": round(total_quantidade, 2),
+            "total_valor": round(total_valor, 2),
+        }
+
+    @staticmethod
+    def list_stock_documents(limit: int = 100) -> list[dict[str, Any]]:
+        rows = (
+            DocumentoEntradaEstoque.query
+            .options(
+                joinedload(DocumentoEntradaEstoque.fornecedor),
+                joinedload(DocumentoEntradaEstoque.itens).joinedload(DocumentoEntradaEstoqueItem.item),
+            )
+            .order_by(DocumentoEntradaEstoque.criado_em.desc(), DocumentoEntradaEstoque.id_documento.desc())
+            .limit(limit)
+            .all()
+        )
+        return [FinanceService._serialize_stock_document(row) for row in rows]
+
+    @staticmethod
+    def get_stock_document_by_number(numero_documento: str) -> dict[str, Any] | None:
+        numero = (numero_documento or "").strip()
+        if not numero:
+            return None
+        row = (
+            DocumentoEntradaEstoque.query
+            .options(
+                joinedload(DocumentoEntradaEstoque.fornecedor),
+                joinedload(DocumentoEntradaEstoque.itens).joinedload(DocumentoEntradaEstoqueItem.item),
+            )
+            .filter(DocumentoEntradaEstoque.numero_documento == numero)
+            .order_by(DocumentoEntradaEstoque.criado_em.desc(), DocumentoEntradaEstoque.id_documento.desc())
+            .first()
+        )
+        if not row:
+            return None
+        return FinanceService._serialize_stock_document(row)
+
+    @staticmethod
+    def register_stock_document_entry(
+        *,
+        codigo_item: str,
+        quantidade: float,
+        tipo_documento: str,
+        numero_documento: str,
+        data_emissao: date | None = None,
+        data_recebimento: date | None = None,
+        supplier_id: int | None = None,
+        supplier_name: str | None = None,
+        supplier_cnpj: str | None = None,
+        entrada_id: int | None = None,
+        valor_unitario: float | None = None,
+        lote: str | None = None,
+        data_validade: date | None = None,
+        observacao: str | None = None,
+        usuario_matricula: str | None = None,
+        origem_valor: str | None = None,
+    ) -> dict[str, Any]:
+        codigo = (codigo_item or "").strip()
+        numero = (numero_documento or "").strip()
+        tipo = (tipo_documento or "nf").strip() or "nf"
+        if not codigo:
+            raise ValueError("Informe o item da entrada")
+        if not numero:
+            raise ValueError("Informe o número do documento")
+
+        supplier = FinanceService._resolve_supplier_for_document(
+            supplier_id=supplier_id,
+            supplier_name=supplier_name,
+            supplier_cnpj=supplier_cnpj,
+        )
+        cnpj = supplier.cnpj if supplier and supplier.cnpj else (FinanceService.normalize_cnpj(supplier_cnpj) or None)
+        supplier_display = supplier.nome_exibicao() if supplier else ((supplier_name or "").strip() or None)
+
+        document_query = DocumentoEntradaEstoque.query.filter(
+            DocumentoEntradaEstoque.tipo_documento == tipo,
+            DocumentoEntradaEstoque.numero_documento == numero,
+        )
+        if cnpj:
+            document_query = document_query.filter(DocumentoEntradaEstoque.cnpj_emitente == cnpj)
+        elif supplier:
+            document_query = document_query.filter(DocumentoEntradaEstoque.fornecedor_id == supplier.id)
+
+        document = document_query.order_by(DocumentoEntradaEstoque.id_documento.desc()).first()
+        if not document:
+            document = DocumentoEntradaEstoque(
+                fornecedor_id=supplier.id if supplier else None,
+                tipo_documento=tipo,
+                numero_documento=numero,
+                data_emissao=data_emissao,
+                data_recebimento=data_recebimento,
+                cnpj_emitente=cnpj,
+                fornecedor_nome=supplier_display,
+                observacao=(observacao or "").strip() or None,
+                criado_por=usuario_matricula,
+            )
+            db.session.add(document)
+            db.session.flush()
+        else:
+            if supplier and not document.fornecedor_id:
+                document.fornecedor_id = supplier.id
+            if cnpj and not document.cnpj_emitente:
+                document.cnpj_emitente = cnpj
+            if supplier_display and not document.fornecedor_nome:
+                document.fornecedor_nome = supplier_display
+            if data_emissao and not document.data_emissao:
+                document.data_emissao = data_emissao
+            if data_recebimento and not document.data_recebimento:
+                document.data_recebimento = data_recebimento
+            if observacao and not document.observacao:
+                document.observacao = observacao.strip() or None
+
+        qty = float(quantidade or 0)
+        unit = float(valor_unitario) if valor_unitario not in (None, "") else None
+        total = round(unit * qty, 2) if unit is not None else None
+        item_row = DocumentoEntradaEstoqueItem(
+            documento_id=document.id_documento,
+            entrada_id=entrada_id,
+            codigo_item=codigo,
+            quantidade=qty,
+            valor_unitario=unit,
+            valor_total=total,
+            lote=(lote or "").strip() or None,
+            data_validade=data_validade,
+            observacao=(observacao or "").strip() or None,
+        )
+        db.session.add(item_row)
+        db.session.commit()
+
+        if supplier:
+            FinanceService.set_item_supplier_preference(
+                codigo,
+                supplier.id,
+                origem=origem_valor,
+                atualizado_por=usuario_matricula,
+            )
+
+        return {
+            "document": document,
+            "document_item": item_row,
+            "supplier": supplier,
+        }
 
     @staticmethod
     def register_financial_entry(

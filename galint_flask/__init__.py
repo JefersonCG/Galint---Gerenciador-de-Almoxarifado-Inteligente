@@ -75,6 +75,17 @@ def create_app(config_name: str | None = None) -> Flask:
     register_blueprints(app)
     register_cli(app)
 
+    # Nome do sistema (usado em título/branding). Pode ser sobrescrito via env.
+    app.config.setdefault(
+        "SYSTEM_NAME",
+        os.environ.get("GALINT_SYSTEM_NAME", "Gerenciador de Almoxarifado Inteligente").strip()
+        or "Gerenciador de Almoxarifado Inteligente",
+    )
+
+    @app.context_processor
+    def _inject_system_name():
+        return {"system_name": app.config.get("SYSTEM_NAME", "Gerenciador de Almoxarifado Inteligente")}
+
     # Helpers globais para templates
     app.jinja_env.globals["endpoint_exists"] = lambda endpoint: endpoint in app.view_functions
     

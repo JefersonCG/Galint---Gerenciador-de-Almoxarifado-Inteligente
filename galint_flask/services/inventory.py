@@ -977,6 +977,12 @@ class InventoryService:
         return resumo
 
     def list_notas_fiscais(self, limit: int = 100) -> list[dict[str, Any]]:
+        from .finance_service import finance_service
+
+        documentos = finance_service.list_stock_documents(limit=limit)
+        if documentos:
+            return documentos
+
         registros = (
             Entrada.query.filter(Entrada.nota_fiscal.isnot(None))
             .order_by(Entrada.data_entrada.desc())
@@ -992,9 +998,16 @@ class InventoryService:
         return notas[:limit]
 
     def get_nota_fiscal(self, numero: str) -> dict[str, Any] | None:
+        from .finance_service import finance_service
+
         numero = (numero or "").strip()
         if not numero:
             return None
+
+        documento = finance_service.get_stock_document_by_number(numero)
+        if documento:
+            return documento
+
         registros = (
             Entrada.query.filter(Entrada.nota_fiscal == numero)
             .order_by(Entrada.data_entrada.desc())
@@ -1151,12 +1164,30 @@ class InventoryService:
         return feed[:limit]
 
     def total_quantity(self) -> int:
+        from ..services.embalagem_service import EmbalagemService
+
         total = 0.0
         for item in Item.query.all():
-            total += float(item.get_saldo_atual() or 0)
+            if EmbalagemService.tem_embalagem(item):
+                total += float(item.estoque_embalagens or 0)
+            else:
+                total += float(item.get_saldo_atual() or 0)
+        return int(round(total))
+
+    def total_quantity_internal(self) -> int:
+        from ..services.embalagem_service import EmbalagemService
+
+        total = 0.0
+        for item in Item.query.all():
+            if EmbalagemService.tem_embalagem(item):
+                total += float(item.get_saldo_fisico_total() or 0)
+            else:
+                total += float(item.get_saldo_atual() or 0)
         return int(round(total))
 
     def category_summary(self) -> list[dict[str, Any]]:
+        from ..services.embalagem_service import EmbalagemService
+
         def _normalize_unidade(value: str | None) -> str:
             return (value or "").strip().lower()
 
@@ -1176,7 +1207,10 @@ class InventoryService:
                 },
             )
             resumo["total_itens"] += 1
-            saldo = float(item.get_saldo_atual() or 0)
+            if EmbalagemService.tem_embalagem(item):
+                saldo = float(item.estoque_embalagens or 0)
+            else:
+                saldo = float(item.get_saldo_atual() or 0)
             
             # Se for unidade, soma como inteiro; senão, soma normalmente mas arredonda
             if _is_unit(item.unidade):

@@ -14,7 +14,7 @@
                         <select class="form-select" id="codigo" name="codigo" required>
                             <option value="">Selecione...</option>
                             {% for item in itens %}
-                            <option value="{{ item.codigo }}">{{ item.codigo }} — {{ item.descricao }}</option>
+                            <option value="{{ item.codigo }}" {% if codigo_prefill and codigo_prefill == item.codigo %}selected{% endif %}>{{ item.codigo }} — {{ item.descricao }}</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -30,9 +30,27 @@
                     <div class="mb-3 position-relative">
                         <label class="form-label" for="finance_supplier_search">Fornecedor / Loja</label>
                         <input class="form-control" id="finance_supplier_search" autocomplete="off"
-                            placeholder="Digite nome, fantasia ou CNPJ">
+                            name="supplier_name" placeholder="Digite nome, fantasia ou CNPJ">
                         <input type="hidden" id="finance_supplier_id" name="finance_supplier_id">
                         <div class="list-group position-absolute w-100 shadow d-none" id="finance_supplier_results" style="z-index: 50;"></div>
+                    </div>
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-7">
+                            <label class="form-label" for="supplier_cnpj">CNPJ da loja</label>
+                            <div class="input-group">
+                                <input class="form-control" id="supplier_cnpj" name="supplier_cnpj" placeholder="00.000.000/0000-00">
+                                <button class="btn btn-outline-light" type="button" id="btn-buscar-cnpj">Consultar</button>
+                            </div>
+                            <div class="form-text text-light opacity-75">Se o fornecedor não existir, o sistema tenta criar pelo CNPJ.</div>
+                        </div>
+                        <div class="col-md-5">
+                            <label class="form-label" for="data_emissao">Emissão do documento</label>
+                            <input class="form-control" id="data_emissao" name="data_emissao" type="date">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="data_recebimento">Data de recebimento</label>
+                        <input class="form-control" id="data_recebimento" name="data_recebimento" type="date">
                     </div>
                     <div class="row g-3">
                         <div class="col-md-6">
@@ -104,12 +122,19 @@
                 {% endif %}
                 {% if nota_detalhes %}
                 <div class="mt-3">
-                    <h5 class="mb-1">NF {{ nota_detalhes.nota_fiscal }}</h5>
+                    <h5 class="mb-1">{{ nota_detalhes.tipo_documento|upper if nota_detalhes.tipo_documento else 'DOC' }} {{ nota_detalhes.numero_documento or nota_detalhes.nota_fiscal }}</h5>
                     <p class="mb-2 small text-muted">
-                        Registrada em {{ nota_detalhes.data.strftime('%d/%m/%Y %H:%M') if nota_detalhes.data else 'data
-                        não informada' }}
+                        Registrada em {{ nota_detalhes.data.strftime('%d/%m/%Y %H:%M') if nota_detalhes.data else 'data não informada' }}
                         {% if nota_detalhes.usuarios %} por {{ nota_detalhes.usuarios|join(', ') }}{% endif %}.
                     </p>
+                    <div class="row g-2 mb-3 small">
+                        <div class="col-md-6"><strong>Fornecedor:</strong> {{ nota_detalhes.fornecedor_nome or 'Não informado' }}</div>
+                        <div class="col-md-3"><strong>CNPJ:</strong> {{ nota_detalhes.cnpj_emitente or 'Não informado' }}</div>
+                        <div class="col-md-3"><strong>Emissão:</strong> {{ nota_detalhes.data_emissao.strftime('%d/%m/%Y') if nota_detalhes.data_emissao else 'Não informada' }}</div>
+                        <div class="col-md-6"><strong>Recebimento:</strong> {{ nota_detalhes.data_recebimento.strftime('%d/%m/%Y') if nota_detalhes.data_recebimento else 'Não informado' }}</div>
+                        <div class="col-md-3"><strong>Qtd. total:</strong> {{ nota_detalhes.total_quantidade }}</div>
+                        <div class="col-md-3"><strong>Valor total:</strong> R$ {{ '%.2f'|format(nota_detalhes.total_valor or 0) }}</div>
+                    </div>
                     <div class="table-responsive">
                         <table class="table table-dark table-striped mb-0">
                             <thead>
@@ -117,6 +142,8 @@
                                     <th>Código</th>
                                     <th>Descrição</th>
                                     <th>Quantidade</th>
+                                    <th>Valor un.</th>
+                                    <th>Valor total</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -125,6 +152,8 @@
                                     <td>{{ item.codigo }}</td>
                                     <td>{{ item.descricao }}</td>
                                     <td>{{ item.quantidade }}</td>
+                                    <td>{% if item.valor_unitario is not none %}R$ {{ '%.2f'|format(item.valor_unitario) }}{% else %}-{% endif %}</td>
+                                    <td>{% if item.valor_total is not none %}R$ {{ '%.2f'|format(item.valor_total) }}{% else %}-{% endif %}</td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
@@ -146,10 +175,8 @@
                             <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
                                 data-bs-target="#collapse-{{ collapse_id }}" aria-expanded="false"
                                 aria-controls="collapse-{{ collapse_id }}">
-                                <span class="me-3">NF {{ nota.nota_fiscal }}</span>
-                                <small class="text-muted">{{ nota.total_itens }} itens &bull; {{ nota.total_quantidade
-                                    }}
-                                    unidades</small>
+                                <span class="me-3">{{ nota.tipo_documento|upper if nota.tipo_documento else 'DOC' }} {{ nota.numero_documento or nota.nota_fiscal }}</span>
+                                <small class="text-muted">{{ nota.total_itens }} itens &bull; {{ nota.total_quantidade }} unidades{% if nota.fornecedor_nome %} &bull; {{ nota.fornecedor_nome }}{% endif %}</small>
                             </button>
                         </h2>
                         <div id="collapse-{{ collapse_id }}" class="accordion-collapse collapse"
@@ -160,6 +187,12 @@
                                     informada' }}
                                     {% if nota.usuarios %} por {{ nota.usuarios|join(', ') }}{% endif %}.
                                 </p>
+                                <div class="row g-2 mb-3 small">
+                                    <div class="col-md-5"><strong>Fornecedor:</strong> {{ nota.fornecedor_nome or 'Não informado' }}</div>
+                                    <div class="col-md-3"><strong>CNPJ:</strong> {{ nota.cnpj_emitente or 'Não informado' }}</div>
+                                    <div class="col-md-2"><strong>Emissão:</strong> {{ nota.data_emissao.strftime('%d/%m/%Y') if nota.data_emissao else '—' }}</div>
+                                    <div class="col-md-2"><strong>Valor:</strong> R$ {{ '%.2f'|format(nota.total_valor or 0) }}</div>
+                                </div>
                                 <div class="table-responsive">
                                     <table class="table table-dark table-striped mb-0">
                                         <thead>
@@ -167,6 +200,7 @@
                                                 <th>Código</th>
                                                 <th>Descrição</th>
                                                 <th>Quantidade</th>
+                                                <th>Valor un.</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -175,6 +209,7 @@
                                                 <td>{{ item.codigo }}</td>
                                                 <td>{{ item.descricao }}</td>
                                                 <td>{{ item.quantidade }}</td>
+                                                <td>{% if item.valor_unitario is not none %}R$ {{ '%.2f'|format(item.valor_unitario) }}{% else %}-{% endif %}</td>
                                             </tr>
                                             {% endfor %}
                                         </tbody>
@@ -200,7 +235,15 @@
     const supplierInput = document.getElementById('finance_supplier_search');
     const supplierIdInput = document.getElementById('finance_supplier_id');
     const supplierResults = document.getElementById('finance_supplier_results');
+    const supplierCnpjInput = document.getElementById('supplier_cnpj');
+    const emissionDateInput = document.getElementById('data_emissao');
+    const receiptDateInput = document.getElementById('data_recebimento');
+    const lookupCnpjButton = document.getElementById('btn-buscar-cnpj');
     let supplierTimer = null;
+
+    if (receiptDateInput && !receiptDateInput.value) {
+        receiptDateInput.value = new Date().toISOString().slice(0, 10);
+    }
 
     const hideSupplierResults = () => supplierResults?.classList.add('d-none');
 
@@ -212,7 +255,7 @@
             return;
         }
         supplierResults.innerHTML = items.map((item) => `
-            <button type="button" class="list-group-item list-group-item-action" data-id="${item.id}" data-name="${(item.nome_exibicao || '').replace(/"/g, '&quot;')}">
+            <button type="button" class="list-group-item list-group-item-action" data-id="${item.id}" data-name="${(item.nome_exibicao || '').replace(/"/g, '&quot;')}" data-cnpj="${(item.cnpj || '').replace(/"/g, '&quot;')}">
                 <div class="fw-semibold">${item.nome_exibicao || item.razao_social}</div>
                 <div class="small text-muted">${item.cnpj || 'Sem CNPJ'}</div>
             </button>
@@ -222,6 +265,7 @@
             button.addEventListener('click', () => {
                 if (supplierInput) supplierInput.value = button.dataset.name || '';
                 if (supplierIdInput) supplierIdInput.value = button.dataset.id || '';
+                if (supplierCnpjInput && button.dataset.cnpj) supplierCnpjInput.value = button.dataset.cnpj;
                 hideSupplierResults();
             });
         });
@@ -250,6 +294,39 @@
         if (!supplierResults || !supplierInput) return;
         if (supplierResults.contains(event.target) || supplierInput.contains(event.target)) return;
         hideSupplierResults();
+    });
+
+    lookupCnpjButton?.addEventListener('click', async () => {
+        const raw = (supplierCnpjInput?.value || '').trim();
+        const digits = raw.replace(/\D/g, '');
+        if (digits.length !== 14) {
+            alert('Informe um CNPJ com 14 dígitos.');
+            return;
+        }
+        lookupCnpjButton.disabled = true;
+        lookupCnpjButton.textContent = 'Consultando...';
+        try {
+            const response = await fetch(`{{ url_for('config.fornecedores_por_cnpj', cnpj='__CNPJ__') }}`.replace('__CNPJ__', digits), {
+                headers: { 'Accept': 'application/json' },
+                credentials: 'same-origin'
+            });
+            const data = await response.json();
+            if (!response.ok || data.success === false) {
+                throw new Error(data.message || 'Falha ao consultar CNPJ');
+            }
+            const supplier = data.supplier || {};
+            if (supplierInput && !supplierInput.value) {
+                supplierInput.value = supplier.nome_fantasia || supplier.razao_social || '';
+            }
+            if (supplierCnpjInput && supplier.cnpj) {
+                supplierCnpjInput.value = supplier.cnpj;
+            }
+        } catch (error) {
+            alert(error.message || 'Não foi possível consultar o CNPJ. Você pode informar o nome manualmente.');
+        } finally {
+            lookupCnpjButton.disabled = false;
+            lookupCnpjButton.textContent = 'Consultar';
+        }
     });
 </script>
 {% endblock %}

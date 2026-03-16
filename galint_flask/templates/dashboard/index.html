@@ -81,7 +81,7 @@
     <div class="galint-logo-section">
         <div class="galint-logo">📦</div>
         <div class="galint-title-section">
-            <h1>GALINT Flask</h1>
+            <h1>{{ system_name }}</h1>
             <p class="galint-subtitle">Sistema Integrado de Gestão de Almoxarifado</p>
         </div>
     </div>
@@ -231,10 +231,13 @@
     <div class="galint-kpi-card">
         <div class="galint-kpi-header">
             <div class="galint-kpi-icon green">✓</div>
-            <div class="galint-kpi-label">Quantidade Total do Almoxarifado</div>
+            <div class="galint-kpi-label">Quantidade Operacional do Almoxarifado</div>
         </div>
-        <div class="galint-kpi-value">{{ "{:,}".format(total_quantity) }} und.</div>
-        <p class="galint-kpi-description">Consolidação dos saldos em estoque</p>
+        <div class="galint-kpi-value">{{ "{:,}".format(total_quantity|default(0, true)) }} emb./itens</div>
+        <p class="galint-kpi-description">Conta embalagens fechadas para caixa, pacote, rolo, lata e balde.</p>
+        <p class="galint-kpi-description" style="margin-top: 6px; color: #64748b;">
+            Equivale a {{ "{:,}".format(total_quantity_internal|default(0, true)) }} unidades internas considerando o conteúdo das embalagens.
+        </p>
     </div>
 
     <div class="galint-kpi-card">
