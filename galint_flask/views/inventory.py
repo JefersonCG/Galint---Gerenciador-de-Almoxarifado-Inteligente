@@ -130,9 +130,11 @@ def _extract_finance_payload(form, *, current_item: dict | None = None) -> dict[
     data_recebimento = _parse_iso_date(form.get("preco_compra_data_recebimento"))
     if not comprovacao:
         comprovacao = "comprovado" if tipo_documento in {"nf", "cupom"} else "sem_comprovacao"
+    numero_nf = (form.get("nota_fiscal") or "").strip()
     numero_documento = (
-        (form.get("preco_compra_documento") or "").strip()
-        or (form.get("nota_fiscal") or "").strip()
+        numero_nf
+        or (form.get("preco_compra_documento") or "").strip()
+        or (current_item.get("nota_fiscal") if current_item else "")
         or (current_item.get("preco_compra_documento") if current_item else "")
         or None
     )
@@ -291,13 +293,7 @@ def _build_nf_autofill_payload(numero_documento: str) -> dict[str, object] | Non
     elif document and document.get("data_emissao"):
         data_entrada = document.get("data_emissao")
 
-    documento_compra = None
-    if matched_item and matched_item.preco_compra_documento:
-        documento_compra = matched_item.preco_compra_documento
-    elif latest_entry and latest_entry.numero_documento:
-        documento_compra = latest_entry.numero_documento
-    elif document:
-        documento_compra = document.get("numero_documento")
+    documento_compra = numero
 
     return {
         "numero_documento": numero,

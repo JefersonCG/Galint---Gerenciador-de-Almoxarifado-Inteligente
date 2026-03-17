@@ -895,7 +895,7 @@
                         </p>
                         {% if finance_locked %}
                         <div class="alert alert-secondary mt-3 mb-0">
-                            Os campos financeiros ficam bloqueados após o primeiro salvamento do item. Para novas compras, notas fiscais, cupons e entradas com fornecedor, use <strong>Nova Entrada/NF</strong>.
+                            Os campos financeiros ficam bloqueados após o primeiro salvamento do item. Para novas compras, documentos fiscais, cupons e entradas com fornecedor, use <strong>Documentos Fiscais</strong>.
                         </div>
                         {% endif %}
                     </div>
@@ -1292,7 +1292,7 @@
             <div class="button-group">
                 <button class="btn btn-primary" type="submit">✓ Salvar</button>
                 {% if item %}
-                <button class="btn btn-secondary" type="button" id="btnNovaEntradaNF" data-nf-url="{{ url_for('nf.nf_index', codigo=item.codigo) }}" onclick="prepararNovaEntrada()">＋ Nova Entrada/NF</button>
+                <button class="btn btn-secondary" type="button" id="btnNovaEntradaNF" data-nf-url="{{ url_for('nf.nf_index', codigo=item.codigo) }}" onclick="prepararNovaEntrada()">＋ Documentos Fiscais</button>
                 {% endif %}
                 <a class="btn btn-secondary" href="{{ url_for('inventory.list_items') }}">← Cancelar</a>
             </div>
@@ -2178,7 +2178,7 @@
     atualizarCamposEmbalagemNovo();
 
     // ==========================================
-    // FUNÇÃO: NOVA ENTRADA/NF
+    // FUNÇÃO: DOCUMENTOS FISCAIS
     // ==========================================
     window.prepararNovaEntrada = function() {
         const btnNovaEntrada = document.getElementById('btnNovaEntradaNF');
@@ -2312,6 +2312,32 @@ if (confirmFotoUrl) {
     let supplierGateSelection = null;
     let supplierGateResolved = !isNewItemForm;
 
+    const shouldBlockImplicitSubmit = (event) => {
+        if (event.key !== 'Enter') {
+            return false;
+        }
+        const target = event.target;
+        if (!(target instanceof HTMLElement)) {
+            return false;
+        }
+        const tagName = target.tagName;
+        if (tagName === 'TEXTAREA' || tagName === 'BUTTON') {
+            return false;
+        }
+        const inputType = String(target.getAttribute('type') || '').toLowerCase();
+        if (['submit', 'button', 'checkbox', 'radio'].includes(inputType)) {
+            return false;
+        }
+        return true;
+    };
+
+    inventoryItemForm?.addEventListener('keydown', (event) => {
+        if (!shouldBlockImplicitSubmit(event)) {
+            return;
+        }
+        event.preventDefault();
+    });
+
     const renderSupplierOptions = (targetEl, items, onSelect, emptyText = 'Nenhum fornecedor encontrado.') => {
         if (!targetEl) return;
         if (!Array.isArray(items) || !items.length) {
@@ -2353,17 +2379,37 @@ if (confirmFotoUrl) {
         }
     };
 
+    let lastDocumentoDerivedFromNotaFiscal = precoCompraDocumentoInput?.value || '';
+
     const syncDocumentShortcut = () => {
-        const currentValue = precoCompraDocumentoInput?.value || '';
-        if (notaFiscalInput) {
-            notaFiscalInput.value = currentValue;
-        }
         if (notaFiscalFinanceHintInput) {
-            notaFiscalFinanceHintInput.value = currentValue;
+            notaFiscalFinanceHintInput.value = notaFiscalInput?.value || '';
         }
     };
 
+    const syncDocumentoCompraFromNotaFiscal = ({ force = false } = {}) => {
+        if (!precoCompraDocumentoInput || !notaFiscalInput) {
+            return;
+        }
+        const numeroNf = notaFiscalInput.value || '';
+        const documentoAtual = precoCompraDocumentoInput.value || '';
+        const canReplace = force || !documentoAtual || documentoAtual === lastDocumentoDerivedFromNotaFiscal;
+        if (!canReplace) {
+            return;
+        }
+        precoCompraDocumentoInput.value = numeroNf;
+        lastDocumentoDerivedFromNotaFiscal = numeroNf;
+    };
+
     precoCompraChaveAcessoInput?.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter') {
+            return;
+        }
+        event.preventDefault();
+        event.stopPropagation();
+    });
+
+    codigoInput?.addEventListener('keydown', (event) => {
         if (event.key !== 'Enter') {
             return;
         }
@@ -2452,6 +2498,7 @@ if (confirmFotoUrl) {
             }
             element.value = nfAutofillSnapshot[key] || '';
         });
+        lastDocumentoDerivedFromNotaFiscal = precoCompraDocumentoInput?.value || '';
         syncDocumentShortcut();
     };
 
@@ -2505,7 +2552,8 @@ if (confirmFotoUrl) {
             dataEntradaInput.value = payload.data_entrada || '';
         }
         if (precoCompraDocumentoInput) {
-            precoCompraDocumentoInput.value = payload.documento_compra || payload.numero_documento || '';
+            precoCompraDocumentoInput.value = payload.numero_documento || payload.documento_compra || '';
+            lastDocumentoDerivedFromNotaFiscal = precoCompraDocumentoInput.value || '';
         }
         if (financeObservacaoInput) {
             financeObservacaoInput.value = payload.observacao || '';
@@ -2557,14 +2605,12 @@ if (confirmFotoUrl) {
         }
     };
 
-    precoCompraDocumentoInput?.addEventListener('input', syncDocumentShortcut);
+    precoCompraDocumentoInput?.addEventListener('input', () => {
+        lastDocumentoDerivedFromNotaFiscal = precoCompraDocumentoInput.value || '';
+    });
     notaFiscalInput?.addEventListener('input', () => {
-        if (precoCompraDocumentoInput) {
-            precoCompraDocumentoInput.value = notaFiscalInput.value || '';
-        }
-        if (notaFiscalFinanceHintInput) {
-            notaFiscalFinanceHintInput.value = notaFiscalInput.value || '';
-        }
+        syncDocumentoCompraFromNotaFiscal();
+        syncDocumentShortcut();
         if (!isNewItemForm) {
             return;
         }
@@ -2584,6 +2630,7 @@ if (confirmFotoUrl) {
         }
         fetchNfAutofill(notaFiscalInput.value || '');
     });
+    syncDocumentoCompraFromNotaFiscal({ force: !precoCompraDocumentoInput?.value });
     syncDocumentShortcut();
 
     const updateSupplierGateSummary = (mode) => {
@@ -2608,7 +2655,7 @@ if (confirmFotoUrl) {
             supplierGateSummary.innerHTML = `
                 <div>
                     <div class="summary-title">Cadastro sem fornecedor inicial</div>
-                    <div class="summary-text">Você pode continuar agora e vincular um fornecedor depois na aba Financeiro ou via Nova Entrada/NF.</div>
+                    <div class="summary-text">Você pode continuar agora e vincular um fornecedor depois na aba Financeiro ou via Documentos Fiscais.</div>
                 </div>
                 <button class="btn btn-secondary" type="button" id="supplierGateReopenButtonInline">
                     <i class="bi bi-building-check me-1"></i> Procurar fornecedor

@@ -1,15 +1,15 @@
 {% extends "base.html" %}
-{% block title %}Lançamento de NF{% endblock %}
+{% block title %}Documentos Fiscais{% endblock %}
 {% block content %}
-<h1 class="h3 mb-4">Lançamento de Notas Fiscais</h1>
+<h1 class="h3 mb-4">Documentos Fiscais</h1>
 <div class="row g-4">
     <div class="col-lg-5">
         {% if can_manage %}
         <div class="card bg-secondary text-light">
-            <div class="card-header">Registrar nota fiscal</div>
+            <div class="card-header">Registrar documento fiscal</div>
             <div class="card-body">
                 <div class="alert alert-info mb-3">
-                    O item registrado aqui entra <strong>diretamente no estoque</strong> no momento do salvamento, sem alterar o histórico do saldo legado já existente.
+                    A nota registrada aqui fica <strong>apenas documentada</strong>. O salvamento não gera entrada em estoque nem lançamento financeiro no almoxarifado.
                 </div>
                 <form method="post">
                     <div class="mb-3">
@@ -104,13 +104,13 @@
         </div>
         {% else %}
         <div class="alert alert-info" role="alert">
-            Apenas administradores podem registrar novas notas fiscais.
+            Apenas administradores podem registrar novos documentos fiscais.
         </div>
         {% endif %}
     </div>
     <div class="col-lg-7">
         <div class="card bg-secondary text-light mb-4">
-            <div class="card-header">Buscar nota fiscal</div>
+            <div class="card-header">Buscar documento fiscal</div>
             <div class="card-body">
                 <form method="get" class="row g-2 align-items-end">
                     <div class="col-sm-8">
@@ -124,7 +124,7 @@
                 </form>
                 {% if nota_busca and not nota_detalhes %}
                 <div class="alert alert-warning mt-3 mb-0">
-                    Nota fiscal "{{ nota_busca }}" não encontrada.
+                    Documento fiscal "{{ nota_busca }}" não encontrado.
                 </div>
                 {% endif %}
                 {% if nota_detalhes %}
@@ -171,7 +171,7 @@
             </div>
         </div>
         <div class="card bg-secondary text-light">
-            <div class="card-header">Notas registradas recentemente</div>
+            <div class="card-header">Documentos fiscais registrados recentemente</div>
             <div class="card-body">
                 {% if notas %}
                 <div class="accordion" id="nf-accordion">

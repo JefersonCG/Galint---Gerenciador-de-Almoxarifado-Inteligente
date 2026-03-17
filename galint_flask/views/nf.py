@@ -7,7 +7,7 @@ from flask import Blueprint, abort, current_app, flash, jsonify, redirect, rende
 from flask_login import current_user, login_required
 
 from ..services.finance_service import finance_service
-from ..services.inventory import MovimentoPayload, inventory_service
+from ..services.inventory import inventory_service
 
 blueprint = Blueprint("nf", __name__, url_prefix="/nf")
 
@@ -96,18 +96,10 @@ def registrar_nf():
         if not nota:
             raise ValueError("Informe o número do documento")
 
-        entrada = inventory_service.registrar_entrada(
-            MovimentoPayload(
-                codigo=codigo,
-                quantidade=quantidade,
-                matricula=current_user.id,
-                nota_fiscal=nota,
-            )
-        )
         preco_unitario = float(preco_unitario_raw) if preco_unitario_raw else None
         item = inventory_service.get_item(codigo) or {}
 
-        document_result = finance_service.register_stock_document_entry(
+        finance_service.register_stock_document_entry(
             codigo_item=codigo,
             quantidade=float(quantidade),
             tipo_documento=tipo_documento,
@@ -117,7 +109,7 @@ def registrar_nf():
             supplier_id=supplier_id,
             supplier_name=supplier_name,
             supplier_cnpj=supplier_cnpj,
-            entrada_id=getattr(entrada, "id_entrada", None),
+            entrada_id=None,
             valor_unitario=preco_unitario,
             lote=(item.get("lote") or "") if item else None,
             data_validade=None,
@@ -125,26 +117,7 @@ def registrar_nf():
             usuario_matricula=current_user.id,
             origem_valor=origem_valor,
         )
-        supplier = document_result.get("supplier")
-
-        if preco_unitario is not None:
-            finance_service.register_financial_entry(
-                codigo_item=codigo,
-                categoria_nome=str(item.get("categoria") or "Sem categoria"),
-                quantidade=float(quantidade),
-                valor_unitario=preco_unitario,
-                fornecedor_id=getattr(supplier, "id", None),
-                entrada_id=getattr(entrada, "id_entrada", None),
-                usuario_matricula=current_user.id,
-                origem_valor=origem_valor,
-                tipo_documento=tipo_documento,
-                numero_documento=nota,
-                comprovacao_status=comprovacao_status,
-                observacao=observacao,
-            )
-        else:
-            flash("Documento registrado sem lançamento financeiro, porque o valor unitário não foi informado.", "warning")
-        flash("Documento de entrada registrado e estoque atualizado sem alterar o saldo legado.", "success")
+        flash("Nota fiscal registrada apenas como documento. Estoque e financeiro não foram incorporados ao sistema.", "success")
     except ValueError as exc:
         flash(str(exc), "danger")
     return redirect(url_for("nf.nf_index"))

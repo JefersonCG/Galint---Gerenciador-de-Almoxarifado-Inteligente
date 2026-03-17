@@ -18,7 +18,7 @@
         {% if config.get('FEATURE_NOTAS_ENABLED', True) %}
         <a class="nav-link text-light {% if p.startswith(url_for('nf.nf_index')) %}active{% endif %}"
             href="{{ url_for('nf.nf_index') }}">
-            <i class="bi bi-receipt me-2"></i> Lançamento NF
+            <i class="bi bi-receipt me-2"></i> Documentos Fiscais
         </a>
         {% endif %}
         <a class="nav-link text-light {% if p.startswith(url_for('inventory.list_items')) %}active{% endif %}"
