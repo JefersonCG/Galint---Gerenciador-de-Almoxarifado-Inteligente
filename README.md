@@ -137,6 +137,13 @@ Acessível via botão ⚙️ na tela de Estoque:
 - Logout com limpeza de cache
 - Revalidação automática em chamadas API
 
+### 🚨 **Integração com Supervisão Web**
+
+- o ecossistema GALINT agora usa alertas visuais temporais no dashboard web para ferramentas em custódia aguardando devolução
+- a partir de 16h40 o card entra em atenção visual amarela
+- após 17h o card entra em alerta vermelho pulsante
+- itens já atrasados permanecem com destaque vermelho de criticidade
+
 ---
 
 ## 🏗️ Arquitetura Técnica
@@ -258,6 +265,13 @@ npx eas-cli update --channel preview --message "Descrição da atualização"
 - ✅ Footer com timestamp sincronizado (TimeService)
 - ✅ Paginação: 25 itens/página em relatórios impressos
 - ✅ Filtro de devoluções: apenas ferramentas marcadas no relatório
+
+### 🆕 Março 2026 - Dashboard Operacional com Alertas Temporais de Custódia
+
+- ✅ cards de custódia no dashboard web redesenhados com visual moderno
+- ✅ destaque amarelo pulsante a partir de 16h40 para devoluções ainda pendentes
+- ✅ destaque vermelho pulsante após 17h para aumentar visibilidade operacional
+- ✅ itens efetivamente atrasados seguem com alerta vermelho prioritário
 - ✅ `galint_flask/services/telegram_reports.py`: novos métodos generate_daily_xlsx(), generate_monthly_pdf_report()
 
 **Mobile:**
