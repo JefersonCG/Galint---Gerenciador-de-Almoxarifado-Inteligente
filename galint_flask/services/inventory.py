@@ -12,7 +12,20 @@ from sqlalchemy import or_, func
 from sqlalchemy.exc import IntegrityError
 
 from ..extensions import db
-from ..models import Entrada, InventarioEvento, Item, MaterialInventario, Saida, TelegramOutbox
+from ..models import (
+    DocumentoEntradaEstoque,
+    DocumentoEntradaEstoqueItem,
+    Entrada,
+    EquipamentoReparo,
+    FinanceLedgerEntry,
+    FinanceSupplierPreference,
+    InventarioEvento,
+    Item,
+    MaterialInventario,
+    RetiradaFerramenta,
+    Saida,
+    TelegramOutbox,
+)
 from ..utils.lote_generator import generate_lote
 from ..utils.barcode_generator import generate_barcode, get_barcode_path
 
@@ -951,6 +964,13 @@ class InventoryService:
 
         saidas_ids = [s.id_saida for s in Saida.query.filter_by(codigo_item=codigo).all()]
         entradas_ids = [e.id_entrada for e in Entrada.query.filter_by(codigo_item=codigo).all()]
+        documento_ids = [
+            row[0]
+            for row in db.session.query(DocumentoEntradaEstoqueItem.documento_id)
+            .filter(DocumentoEntradaEstoqueItem.codigo_item == codigo)
+            .distinct()
+            .all()
+        ]
 
         if saidas_ids:
             TelegramOutbox.query.filter(TelegramOutbox.saida_id.in_(saidas_ids)).delete(
@@ -964,6 +984,35 @@ class InventoryService:
             TelegramOutbox.query.filter(TelegramOutbox.entrada_id.in_(entradas_ids)).delete(
                 synchronize_session=False
             )
+
+        FinanceSupplierPreference.query.filter_by(codigo_item=codigo).delete(
+            synchronize_session=False
+        )
+        FinanceLedgerEntry.query.filter_by(codigo_item=codigo).delete(
+            synchronize_session=False
+        )
+        DocumentoEntradaEstoqueItem.query.filter_by(codigo_item=codigo).delete(
+            synchronize_session=False
+        )
+        RetiradaFerramenta.query.filter_by(codigo_item=codigo).delete(
+            synchronize_session=False
+        )
+        EquipamentoReparo.query.filter_by(codigo_item=codigo).delete(
+            synchronize_session=False
+        )
+
+        if documento_ids:
+            documentos_vazios = [
+                documento_id
+                for documento_id in documento_ids
+                if not db.session.query(DocumentoEntradaEstoqueItem.id_documento_item)
+                .filter(DocumentoEntradaEstoqueItem.documento_id == documento_id)
+                .first()
+            ]
+            if documentos_vazios:
+                DocumentoEntradaEstoque.query.filter(
+                    DocumentoEntradaEstoque.id_documento.in_(documentos_vazios)
+                ).delete(synchronize_session=False)
 
         # Agora pode excluir o item (cascade vai excluir saídas e entradas)
         db.session.delete(item)
