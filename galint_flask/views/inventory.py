@@ -6,11 +6,11 @@ from datetime import date, datetime
 
 from io import BytesIO
 
-from flask import Blueprint, abort, current_app, flash, make_response, redirect, render_template, request, send_file, url_for
+from flask import Blueprint, abort, current_app, flash, jsonify, make_response, redirect, render_template, request, send_file, url_for
 from flask_login import login_required, current_user
 
 from ..extensions import db
-from ..models import Item, Usuario
+from ..models import FinanceLedgerEntry, Item, Usuario
 from ..services.config_service import ConfigService
 from ..services.finance_service import finance_service
 from ..services.inventory import MovimentoPayload, inventory_service
@@ -203,6 +203,96 @@ def _sync_item_financial_history(
         observacao=finance_payload.get("observacao"),
     )
     return True
+
+
+def _build_nf_autofill_payload(numero_documento: str) -> dict[str, object] | None:
+    numero = (numero_documento or "").strip()
+    if not numero:
+        return None
+
+    document = finance_service.get_stock_document_by_number(numero)
+    latest_entry = (
+        FinanceLedgerEntry.query
+        .filter(FinanceLedgerEntry.numero_documento == numero)
+        .order_by(FinanceLedgerEntry.data_lancamento.desc(), FinanceLedgerEntry.id.desc())
+        .first()
+    )
+    matched_item = latest_entry.item if latest_entry and latest_entry.item else None
+    if matched_item is None:
+        matched_item = (
+            Item.query
+            .filter((Item.nota_fiscal == numero) | (Item.preco_compra_documento == numero))
+            .order_by(Item.preco_compra_atualizado_em.desc(), Item.codigo_item.desc())
+            .first()
+        )
+
+    if not document and not latest_entry and not matched_item:
+        return None
+
+    def _to_iso(value) -> str | None:
+        return value.isoformat() if value else None
+
+    observacao = None
+    if latest_entry and latest_entry.observacao:
+        observacao = latest_entry.observacao
+    elif document and document.get("observacao"):
+        observacao = document.get("observacao")
+
+    data_emissao = None
+    if latest_entry and latest_entry.data_emissao_documento:
+        data_emissao = latest_entry.data_emissao_documento
+    elif matched_item and matched_item.preco_compra_data_emissao:
+        data_emissao = matched_item.preco_compra_data_emissao
+    elif document:
+        data_emissao = document.get("data_emissao")
+
+    data_entrada = None
+    if matched_item and matched_item.data_entrada:
+        data_entrada = matched_item.data_entrada
+    elif latest_entry and latest_entry.data_recebimento_documento:
+        data_entrada = latest_entry.data_recebimento_documento
+    elif document and document.get("data_recebimento"):
+        data_entrada = document.get("data_recebimento")
+    elif document and document.get("data_emissao"):
+        data_entrada = document.get("data_emissao")
+
+    documento_compra = None
+    if matched_item and matched_item.preco_compra_documento:
+        documento_compra = matched_item.preco_compra_documento
+    elif latest_entry and latest_entry.numero_documento:
+        documento_compra = latest_entry.numero_documento
+    elif document:
+        documento_compra = document.get("numero_documento")
+
+    return {
+        "numero_documento": numero,
+        "origem_valor": (
+            latest_entry.origem_valor
+            if latest_entry and latest_entry.origem_valor
+            else "inventario_inicial"
+        ),
+        "tipo_documento": (
+            latest_entry.tipo_documento
+            if latest_entry and latest_entry.tipo_documento
+            else (document.get("tipo_documento") if document else None)
+            or ""
+        ),
+        "comprovacao_status": (
+            latest_entry.comprovacao_status
+            if latest_entry and latest_entry.comprovacao_status
+            else "sem_comprovacao"
+        ),
+        "preco_compra_fonte": matched_item.preco_compra_fonte if matched_item else None,
+        "chave_acesso": (
+            latest_entry.chave_acesso
+            if latest_entry and latest_entry.chave_acesso
+            else (matched_item.preco_compra_chave_acesso if matched_item else None)
+        ),
+        "data_emissao": _to_iso(data_emissao),
+        "data_entrada": _to_iso(data_entrada),
+        "documento_compra": documento_compra,
+        "observacao": observacao,
+    }
 
 
 @blueprint.get("/")
@@ -1402,3 +1492,14 @@ def get_item_api(codigo: str):
         "unidades_por_embalagem": item.unidades_por_embalagem,
         "saldo": item.saldo,
     })
+
+
+@blueprint.get("/api/nf-autofill")
+@login_required
+def nf_autofill_api():
+    _require_admin_or_supervisor()
+    numero = (request.args.get("numero") or "").strip()
+    payload = _build_nf_autofill_payload(numero)
+    if not payload:
+        return jsonify({"found": False, "numero_documento": numero})
+    return jsonify({"found": True, **payload})

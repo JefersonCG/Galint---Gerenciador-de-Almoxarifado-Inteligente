@@ -655,6 +655,7 @@
                             <label class="form-label" for="nota_fiscal">Número da NF</label>
                             <input class="form-control" id="nota_fiscal" name="nota_fiscal"
                                 value="{{ form_item.nota_fiscal if form_item else '' }}">
+                            <small class="form-text" id="nota_fiscal_autofill_status" style="display: none;"></small>
                         </div>
                     </div>
                     <div class="form-group">
@@ -2286,13 +2287,17 @@ if (confirmFotoUrl) {
     const financeSupplierResults = document.getElementById('finance_supplier_results');
     const notaFiscalInput = document.getElementById('nota_fiscal');
     const notaFiscalFinanceHintInput = document.getElementById('nota_fiscal_finance_hint');
+    const notaFiscalAutofillStatus = document.getElementById('nota_fiscal_autofill_status');
     const precoCompraDocumentoInput = document.getElementById('preco_compra_documento');
     const precoCompraChaveAcessoInput = document.getElementById('preco_compra_chave_acesso');
     const precoCompraDataEmissaoInput = document.getElementById('preco_compra_data_emissao');
     const precoCompraDataRecebimentoInput = document.getElementById('preco_compra_data_recebimento');
+    const precoCompraFonteInput = document.getElementById('preco_compra_fonte');
     const financeTipoDocumentoInput = document.getElementById('finance_tipo_documento');
     const financeOrigemValorInput = document.getElementById('finance_origem_valor');
     const financeComprovacaoInput = document.getElementById('finance_comprovacao_status');
+    const financeObservacaoInput = document.getElementById('finance_observacao');
+    const dataEntradaInput = document.getElementById('data_entrada');
     const inventoryItemForm = document.getElementById('inventory-item-form');
     const supplierGateSummary = document.getElementById('supplierGateSummary');
     const supplierGateReopenButton = document.getElementById('supplierGateReopenButton');
@@ -2358,6 +2363,192 @@ if (confirmFotoUrl) {
         }
     };
 
+    const nfAutofillFields = [
+        { key: 'origem_valor', element: financeOrigemValorInput, lockMode: 'select' },
+        { key: 'tipo_documento', element: financeTipoDocumentoInput, lockMode: 'select' },
+        { key: 'comprovacao_status', element: financeComprovacaoInput, lockMode: 'select' },
+        { key: 'preco_compra_fonte', element: precoCompraFonteInput, lockMode: 'select' },
+        { key: 'chave_acesso', element: precoCompraChaveAcessoInput, lockMode: 'readonly' },
+        { key: 'data_emissao', element: precoCompraDataEmissaoInput, lockMode: 'readonly' },
+        { key: 'data_entrada', element: dataEntradaInput, lockMode: 'readonly' },
+        { key: 'documento_compra', element: precoCompraDocumentoInput, lockMode: 'readonly' },
+        { key: 'observacao', element: financeObservacaoInput, lockMode: 'readonly' },
+    ].filter((field) => field.element);
+    let nfAutofillSnapshot = null;
+    let nfAutofillLocked = false;
+    let nfAutofillTimer = null;
+    let nfAutofillRequestId = 0;
+
+    const setNotaFiscalAutofillStatus = (message, tone = 'muted') => {
+        if (!notaFiscalAutofillStatus) {
+            return;
+        }
+        const toneClass = tone === 'danger'
+            ? 'text-danger'
+            : tone === 'success'
+                ? 'text-success'
+                : 'text-muted';
+        notaFiscalAutofillStatus.textContent = message || '';
+        notaFiscalAutofillStatus.className = `form-text ${toneClass}`;
+        notaFiscalAutofillStatus.style.display = message ? 'block' : 'none';
+    };
+
+    const getMirrorSelector = (fieldId) => `input[type="hidden"][data-lock-mirror-for="${fieldId}"]`;
+
+    const setSelectLockState = (element, locked) => {
+        if (!element) {
+            return;
+        }
+        const existingMirror = inventoryItemForm?.querySelector(getMirrorSelector(element.id));
+        if (locked) {
+            let mirror = existingMirror;
+            if (!mirror && inventoryItemForm && element.name) {
+                mirror = document.createElement('input');
+                mirror.type = 'hidden';
+                mirror.name = element.name;
+                mirror.dataset.lockMirrorFor = element.id;
+                inventoryItemForm.appendChild(mirror);
+            }
+            if (mirror) {
+                mirror.value = element.value || '';
+            }
+            element.disabled = true;
+            return;
+        }
+        existingMirror?.remove();
+        element.disabled = false;
+    };
+
+    const setReadonlyLockState = (element, locked) => {
+        if (!element) {
+            return;
+        }
+        element.readOnly = locked;
+        element.classList.toggle('nf-autofill-locked', locked);
+    };
+
+    const captureNfAutofillSnapshot = () => {
+        nfAutofillSnapshot = {};
+        nfAutofillFields.forEach(({ key, element }) => {
+            nfAutofillSnapshot[key] = element?.value || '';
+        });
+    };
+
+    const restoreNfAutofillSnapshot = () => {
+        if (!nfAutofillSnapshot) {
+            return;
+        }
+        nfAutofillFields.forEach(({ key, element }) => {
+            if (!element) {
+                return;
+            }
+            element.value = nfAutofillSnapshot[key] || '';
+        });
+        syncDocumentShortcut();
+    };
+
+    const setNfAutofillLockState = (locked) => {
+        nfAutofillFields.forEach(({ element, lockMode }) => {
+            if (lockMode === 'select') {
+                setSelectLockState(element, locked);
+                return;
+            }
+            setReadonlyLockState(element, locked);
+        });
+        nfAutofillLocked = locked;
+    };
+
+    const clearNfAutofill = ({ restoreSnapshot = false, message = '', tone = 'muted' } = {}) => {
+        if (nfAutofillLocked) {
+            setNfAutofillLockState(false);
+            if (restoreSnapshot) {
+                restoreNfAutofillSnapshot();
+            }
+        }
+        if (!restoreSnapshot) {
+            nfAutofillSnapshot = null;
+        }
+        setNotaFiscalAutofillStatus(message, tone);
+    };
+
+    const applyNfAutofill = (payload) => {
+        if (!nfAutofillLocked) {
+            captureNfAutofillSnapshot();
+        }
+        if (financeOrigemValorInput) {
+            financeOrigemValorInput.value = payload.origem_valor || 'inventario_inicial';
+        }
+        if (financeTipoDocumentoInput) {
+            financeTipoDocumentoInput.value = payload.tipo_documento || '';
+        }
+        if (financeComprovacaoInput) {
+            financeComprovacaoInput.value = payload.comprovacao_status || 'sem_comprovacao';
+        }
+        if (precoCompraFonteInput) {
+            precoCompraFonteInput.value = payload.preco_compra_fonte || '';
+        }
+        if (precoCompraChaveAcessoInput) {
+            precoCompraChaveAcessoInput.value = payload.chave_acesso || '';
+        }
+        if (precoCompraDataEmissaoInput) {
+            precoCompraDataEmissaoInput.value = payload.data_emissao || '';
+        }
+        if (dataEntradaInput) {
+            dataEntradaInput.value = payload.data_entrada || '';
+        }
+        if (precoCompraDocumentoInput) {
+            precoCompraDocumentoInput.value = payload.documento_compra || payload.numero_documento || '';
+        }
+        if (financeObservacaoInput) {
+            financeObservacaoInput.value = payload.observacao || '';
+        }
+        syncDocumentShortcut();
+        setNfAutofillLockState(true);
+        setNotaFiscalAutofillStatus('Dados da NF reaproveitados automaticamente. Os campos vinculados foram bloqueados.', 'success');
+    };
+
+    const fetchNfAutofill = async (numero) => {
+        const numeroLimpo = (numero || '').trim();
+        const currentRequestId = ++nfAutofillRequestId;
+        if (!numeroLimpo) {
+            clearNfAutofill({ restoreSnapshot: true });
+            return;
+        }
+
+        setNotaFiscalAutofillStatus('Consultando dados da NF...', 'muted');
+        try {
+            const response = await fetch(`{{ url_for('inventory.nf_autofill_api') }}?numero=${encodeURIComponent(numeroLimpo)}`, {
+                headers: { 'Accept': 'application/json' },
+                credentials: 'same-origin'
+            });
+            const data = await response.json().catch(() => ({}));
+            if (currentRequestId !== nfAutofillRequestId) {
+                return;
+            }
+            if (!response.ok) {
+                throw new Error(data.error || `Erro ${response.status}`);
+            }
+            if (!data.found) {
+                clearNfAutofill({
+                    restoreSnapshot: nfAutofillLocked,
+                    message: 'Nenhum histórico encontrado para essa NF. Você pode preencher os campos manualmente.',
+                    tone: 'muted'
+                });
+                return;
+            }
+            applyNfAutofill(data);
+        } catch (error) {
+            if (currentRequestId !== nfAutofillRequestId) {
+                return;
+            }
+            clearNfAutofill({
+                restoreSnapshot: nfAutofillLocked,
+                message: error?.message || 'Não foi possível consultar a NF agora.',
+                tone: 'danger'
+            });
+        }
+    };
+
     precoCompraDocumentoInput?.addEventListener('input', syncDocumentShortcut);
     notaFiscalInput?.addEventListener('input', () => {
         if (precoCompraDocumentoInput) {
@@ -2366,6 +2557,24 @@ if (confirmFotoUrl) {
         if (notaFiscalFinanceHintInput) {
             notaFiscalFinanceHintInput.value = notaFiscalInput.value || '';
         }
+        if (!isNewItemForm) {
+            return;
+        }
+        if (nfAutofillTimer) {
+            clearTimeout(nfAutofillTimer);
+        }
+        nfAutofillTimer = setTimeout(() => {
+            fetchNfAutofill(notaFiscalInput.value || '');
+        }, 280);
+    });
+    notaFiscalInput?.addEventListener('blur', () => {
+        if (!isNewItemForm) {
+            return;
+        }
+        if (nfAutofillTimer) {
+            clearTimeout(nfAutofillTimer);
+        }
+        fetchNfAutofill(notaFiscalInput.value || '');
     });
     syncDocumentShortcut();
 
