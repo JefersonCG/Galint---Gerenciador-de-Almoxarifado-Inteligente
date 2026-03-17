@@ -12,6 +12,8 @@ A página **Percentual Movimentos** foi criada para transformar o histórico ope
 - previsão de risco de ruptura de materiais
 - indicação do melhor momento para emitir o próximo pedido
 
+No estado atual do GALINT, essa página convive com um dashboard operacional principal que também ganhou semântica visual de alerta para custódia e devoluções pendentes, reforçando o mesmo objetivo de leitura rápida e ação no tempo certo.
+
 Ela foi pensada para responder, dentro do próprio sistema, perguntas do tipo:
 
 - quem mais movimenta materiais?

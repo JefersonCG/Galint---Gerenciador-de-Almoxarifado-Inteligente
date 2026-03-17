@@ -56,6 +56,7 @@ O núcleo do sistema continua sendo Flask + PostgreSQL, mas o produto deixou de 
 - relatórios separados por tipo de custódia
 - feed de saídas recentes no dashboard
 - painel de ferramentas em custódia com atualização em tempo real
+- alertas visuais no dashboard para devolução pendente: atenção em amarelo a partir de 16h40 e alerta crítico em vermelho após 17h
 
 ### Experiência e interface
 
@@ -125,6 +126,7 @@ Essas estruturas permitem coexistência entre legado e modelo novo, mantendo o s
 - a retirada pode ser temporária ou permanente
 - empréstimos temporários entram em monitoramento
 - alertas e relatórios são disparados conforme regra operacional
+- no dashboard, cards de custódia já atrasados pulsam em vermelho; antes disso, a interface sobe o nível de atenção por horário de fechamento operacional
 
 ## Arquivos e áreas relevantes
 
