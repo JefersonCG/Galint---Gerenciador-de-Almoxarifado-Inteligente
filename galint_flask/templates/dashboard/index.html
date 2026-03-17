@@ -175,374 +175,134 @@
         background: linear-gradient(135deg, #0f172a 0%, #1e293b 68%, #334155 100%);
         border-radius: 24px;
         padding: 1.75rem;
-        .galint-split-section {
-            background: linear-gradient(180deg, #f8fafc 0%, #eef4ff 100%);
-            border-radius: 28px;
-            padding: 2rem;
-            box-shadow: 0 24px 54px rgba(15, 23, 42, 0.12);
-            border: 1px solid rgba(226, 232, 240, 0.92);
-            position: relative;
-            overflow: hidden;
-        }
+        box-shadow: 0 26px 60px rgba(15, 23, 42, 0.18);
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        transition: all 0.3s ease;
+        cursor: default;
+        display: block;
+        color: #e2e8f0;
+    }
 
-        .galint-split-section::before {
-            content: "";
-            position: absolute;
-            inset: 0;
-            background:
-                radial-gradient(circle at 10% 12%, rgba(59, 130, 246, 0.12), transparent 24%),
-                radial-gradient(circle at 88% 8%, rgba(16, 185, 129, 0.10), transparent 22%),
-                linear-gradient(90deg, rgba(255, 255, 255, 0.66), rgba(255, 255, 255, 0.18));
-            pointer-events: none;
-        }
+    .galint-kpi-card::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+            radial-gradient(circle at 15% 18%, rgba(96, 165, 250, 0.28), transparent 34%),
+            radial-gradient(circle at 84% 26%, rgba(16, 185, 129, 0.18), transparent 28%),
+            linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 60%);
+        pointer-events: none;
+    }
 
-        .galint-split-section > * {
-            position: relative;
-            z-index: 1;
-        }
+    .galint-kpi-card > * {
+        position: relative;
+        z-index: 1;
+    }
 
-        .galint-split-grid {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 1.25rem;
-        }
+    .galint-kpi-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 32px 70px rgba(15, 23, 42, 0.24);
+    }
 
-        .galint-quick-card {
-            min-height: 100%;
-            padding: 1.5rem;
-            border-radius: 24px;
-            color: #e2e8f0;
-            display: flex;
-            flex-direction: column;
-            gap: 1.25rem;
-            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 20px 40px rgba(15, 23, 42, 0.16);
-        }
+    .galint-kpi-card.clickable {
+        cursor: pointer;
+        border: 1px solid rgba(148, 163, 184, 0.24);
+        text-align: left;
+        width: 100%;
+    }
 
-        .galint-quick-card.finance {
-            background: linear-gradient(145deg, #0f172a 0%, #172554 46%, #1d4ed8 100%);
-        }
+    .galint-kpi-card.clickable:hover {
+        border-color: rgba(59, 130, 246, 0.5);
+        transform: translateY(-6px);
+        box-shadow: 0 36px 78px rgba(15, 23, 42, 0.28);
+    }
 
-        .galint-quick-card.suppliers {
-            background: linear-gradient(145deg, #052e2b 0%, #14532d 46%, #0f766e 100%);
-        }
+    .galint-kpi-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+    }
 
-        .galint-quick-card.locked {
-            background: linear-gradient(145deg, #334155 0%, #475569 100%);
-        }
+    .galint-kpi-header-main {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
 
-        .galint-quick-head {
-            display: flex;
-            align-items: flex-start;
-            justify-content: space-between;
-            gap: 1rem;
-        }
+    .galint-kpi-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14);
+    }
 
-        .galint-quick-eyebrow {
-            font-size: 0.75rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
-            color: rgba(226, 232, 240, 0.72);
-            margin-bottom: 0.45rem;
-        }
+    .galint-kpi-icon.green {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    }
 
-        .galint-quick-title {
-            font-size: 1.35rem;
-            font-weight: 700;
-            color: #ffffff;
-            margin: 0;
-        }
+    .galint-kpi-icon.blue {
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    }
 
-        .galint-quick-subtitle {
-            margin: 0.35rem 0 0;
-            font-size: 0.92rem;
-            line-height: 1.5;
-            color: rgba(226, 232, 240, 0.76);
-        }
+    .galint-kpi-icon.red {
+        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    }
 
-        .galint-quick-badge {
-            display: inline-flex;
-            align-items: center;
-            padding: 0.45rem 0.8rem;
-            border-radius: 999px;
-            border: 1px solid rgba(226, 232, 240, 0.18);
-            background: rgba(255, 255, 255, 0.1);
-            font-size: 0.75rem;
-            font-weight: 700;
-            color: #f8fafc;
-            white-space: nowrap;
-        }
+    .galint-kpi-label {
+        font-size: 0.875rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: rgba(226, 232, 240, 0.72);
+        font-weight: 600;
+        max-width: 15rem;
+    }
 
-        .galint-quick-stats {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 0.85rem;
-        }
-
-        .galint-quick-stat {
-            background: rgba(255, 255, 255, 0.08);
-            border: 1px solid rgba(226, 232, 240, 0.14);
-            border-radius: 18px;
-            padding: 1rem;
-            min-width: 0;
-        }
-
-        .galint-quick-stat-label {
-            font-size: 0.78rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            color: rgba(226, 232, 240, 0.66);
-            margin-bottom: 0.5rem;
-        }
-
-        .galint-quick-stat-value {
-            font-size: 1.2rem;
-            font-weight: 800;
-            line-height: 1.1;
-            color: #ffffff;
-            word-break: break-word;
-        }
-
-        .galint-quick-stat-note {
-            margin-top: 0.35rem;
-            font-size: 0.8rem;
-            color: rgba(226, 232, 240, 0.68);
-        }
-
-        .galint-quick-highlight {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 1rem;
-            padding: 1rem 1.1rem;
-            border-radius: 18px;
-            background: rgba(15, 23, 42, 0.22);
-            border: 1px solid rgba(226, 232, 240, 0.12);
-        }
-
-        .galint-quick-highlight-label {
-            font-size: 0.78rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
-            color: rgba(226, 232, 240, 0.66);
-            margin-bottom: 0.35rem;
-        }
-
-        .galint-quick-highlight-title {
-            font-size: 1rem;
-            font-weight: 700;
-            color: #ffffff;
-            margin: 0;
-        }
-
-        .galint-quick-highlight-sub {
-            margin: 0.25rem 0 0;
-            font-size: 0.82rem;
-            color: rgba(226, 232, 240, 0.72);
-        }
-
-        .galint-quick-highlight-value {
-            font-size: 1.1rem;
-            font-weight: 800;
-            color: #ffffff;
-            text-align: right;
-        }
-
-        .galint-quick-actions {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.75rem;
-        }
-
-        .galint-quick-link {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            min-height: 42px;
-            padding: 0.7rem 1rem;
-            border-radius: 14px;
-            text-decoration: none;
-            font-size: 0.88rem;
-            font-weight: 700;
-            transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
-        }
-
-        .galint-quick-link.primary {
-            background: #ffffff;
-            color: #0f172a;
-            box-shadow: 0 12px 24px rgba(15, 23, 42, 0.18);
-        }
-
-        .galint-quick-link.secondary {
-            background: rgba(255, 255, 255, 0.08);
-            color: #f8fafc;
-            border: 1px solid rgba(226, 232, 240, 0.16);
-        }
-
-        .galint-quick-link:hover {
-            transform: translateY(-2px);
-        }
-
-        @media (max-width: 992px) {
-            .galint-split-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        @media (max-width: 640px) {
-            .galint-split-section {
-                padding: 1.25rem;
-                border-radius: 22px;
-            }
-
-            .galint-quick-card {
-                padding: 1.1rem;
-                border-radius: 20px;
-            }
-
-            .galint-quick-stats {
-                grid-template-columns: 1fr;
-            }
-
-            .galint-quick-head,
-            .galint-quick-highlight {
-                flex-direction: column;
-                align-items: flex-start;
-            }
-
-            .galint-quick-highlight-value {
-                text-align: left;
-            }
-        }
     .galint-kpi-value {
         font-size: 2rem;
-    <div class="galint-split-section">
+        font-weight: 800;
         color: #ffffff;
-            <h2 class="galint-section-title">Painel rápido</h2>
-            <p class="galint-section-subtitle">Metade financeiro, metade fornecedores, com atalhos para as áreas completas</p>
+        letter-spacing: -0.04em;
+        margin: 0.5rem 0;
     }
-        <div class="galint-split-grid">
-            {% if can_view_finance and finance_snapshot and supplier_snapshot %}
-            <section class="galint-quick-card finance">
-                <div class="galint-quick-head">
-                    <div>
-                        <div class="galint-quick-eyebrow">Financeiro rápido</div>
-                        <h3 class="galint-quick-title">Visão do exercício {{ finance_snapshot.exercise_label }}</h3>
-                        <p class="galint-quick-subtitle">Atalho para o consolidado financeiro do estoque, sem sair do painel principal.</p>
-                    </div>
-                    <span class="galint-quick-badge">Prestação de contas</span>
-                </div>
 
-                <div class="galint-quick-stats">
-                    <div class="galint-quick-stat">
-                        <div class="galint-quick-stat-label">Estoque por compra</div>
-                        <div class="galint-quick-stat-value">{{ finance_snapshot.total_compra }}</div>
-                        <div class="galint-quick-stat-note">{{ finance_snapshot.missing_compra }} itens sem valor de compra</div>
-                    </div>
-                    <div class="galint-quick-stat">
-                        <div class="galint-quick-stat-label">Reposição estimada</div>
-                        <div class="galint-quick-stat-value">{{ finance_snapshot.total_reposicao }}</div>
-                        <div class="galint-quick-stat-note">{{ finance_snapshot.missing_reposicao }} itens sem referência de reposição</div>
-                    </div>
-                    <div class="galint-quick-stat">
-                        <div class="galint-quick-stat-label">Investido no exercício</div>
-                        <div class="galint-quick-stat-value">{{ finance_snapshot.total_investido }}</div>
-                        <div class="galint-quick-stat-note">Compras registradas com rastreabilidade financeira</div>
-                    </div>
-                    <div class="galint-quick-stat">
-                        <div class="galint-quick-stat-label">Sem comprovação</div>
-                        <div class="galint-quick-stat-value">{{ finance_snapshot.total_sem_comprovacao }}</div>
-                        <div class="galint-quick-stat-note">Pontos para conferência antes do fechamento</div>
-                    </div>
-                </div>
+    .galint-kpi-description {
+        font-size: 0.875rem;
+        color: rgba(226, 232, 240, 0.72);
+        margin: 0;
+    }
 
-                <div class="galint-quick-actions">
-                    <a class="galint-quick-link primary" href="{{ url_for('inventory.valor_estoque') }}">Abrir Financeiro</a>
-                    <a class="galint-quick-link secondary" href="{{ url_for('inventory.valor_estoque_pdf') }}">Exportar PDF</a>
-                </div>
-            </section>
+    .galint-kpi-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.35rem 0.7rem;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(226, 232, 240, 0.12);
+        color: rgba(226, 232, 240, 0.82);
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        white-space: nowrap;
+    }
 
-            <section class="galint-quick-card suppliers">
-                <div class="galint-quick-head">
-                    <div>
-                        <div class="galint-quick-eyebrow">Fornecedores</div>
-                        <h3 class="galint-quick-title">Pulso da base de compras</h3>
-                        <p class="galint-quick-subtitle">A outra metade do card fica dedicada às lojas e empresas que abastecem o almoxarifado.</p>
-                    </div>
-                    <span class="galint-quick-badge">Laboratório de lojas</span>
-                </div>
+    .galint-kpi-footnote {
+        margin-top: 1rem;
+        padding-top: 1rem;
+        border-top: 1px solid rgba(148, 163, 184, 0.16);
+        color: rgba(226, 232, 240, 0.82);
+        font-size: 0.88rem;
+        line-height: 1.55;
+    }
 
-                <div class="galint-quick-stats">
-                    <div class="galint-quick-stat">
-                        <div class="galint-quick-stat-label">Lojas mapeadas</div>
-                        <div class="galint-quick-stat-value">{{ supplier_snapshot.total_lojas }}</div>
-                        <div class="galint-quick-stat-note">{{ supplier_snapshot.total_ativos }} ativas para novas entradas</div>
-                    </div>
-                    <div class="galint-quick-stat">
-                        <div class="galint-quick-stat-label">Documentos cruzados</div>
-                        <div class="galint-quick-stat-value">{{ supplier_snapshot.total_docs }}</div>
-                        <div class="galint-quick-stat-note">NFs e cupons já vinculados no exercício</div>
-                    </div>
-                    <div class="galint-quick-stat">
-                        <div class="galint-quick-stat-label">Compras sem loja</div>
-                        <div class="galint-quick-stat-value">{{ supplier_snapshot.total_sem_loja }}</div>
-                        <div class="galint-quick-stat-note">Entradas que ainda ficaram só no Financeiro</div>
-                    </div>
-                    <div class="galint-quick-stat">
-                        <div class="galint-quick-stat-label">Fornecedor destaque</div>
-                        <div class="galint-quick-stat-value">{{ supplier_snapshot.top_nome }}</div>
-                        <div class="galint-quick-stat-note">{{ supplier_snapshot.top_itens }} itens distintos no exercício</div>
-                    </div>
-                </div>
-
-                <div class="galint-quick-highlight">
-                    <div>
-                        <div class="galint-quick-highlight-label">Maior volume vinculado</div>
-                        <p class="galint-quick-highlight-title">{{ supplier_snapshot.top_nome }}</p>
-                        <p class="galint-quick-highlight-sub">Resumo rápido para saber quem mais concentrou compras documentadas.</p>
-                    </div>
-                    <div class="galint-quick-highlight-value">{{ supplier_snapshot.top_total }}</div>
-                </div>
-
-                <div class="galint-quick-actions">
-                    <a class="galint-quick-link primary" href="{{ url_for('config.fornecedores') }}">Abrir Fornecedores</a>
-                    <a class="galint-quick-link secondary" href="{{ url_for('inventory.lojas_lab') }}">Laboratório de Lojas</a>
-                </div>
-            </section>
-            {% else %}
-            <section class="galint-quick-card locked">
-                <div class="galint-quick-head">
-                    <div>
-                        <div class="galint-quick-eyebrow">Financeiro rápido</div>
-                        <h3 class="galint-quick-title">Disponível para administração</h3>
-                        <p class="galint-quick-subtitle">Esse espaço agora é reservado ao resumo financeiro e ao painel de fornecedores.</p>
-                    </div>
-                    <span class="galint-quick-badge">Acesso restrito</span>
-                </div>
-                <div class="galint-quick-stat">
-                    <div class="galint-quick-stat-label">Resumo</div>
-                    <div class="galint-quick-stat-value">Faça login como admin</div>
-                    <div class="galint-quick-stat-note">O painel completo mostra prestação de contas, compras sem comprovação e base de fornecedores.</div>
-                </div>
-            </section>
-            <section class="galint-quick-card locked">
-                <div class="galint-quick-head">
-                    <div>
-                        <div class="galint-quick-eyebrow">Fornecedores</div>
-                        <h3 class="galint-quick-title">Base de lojas e documentos</h3>
-                        <p class="galint-quick-subtitle">A outra metade do antigo card foi movida para o monitor de fornecedores do almoxarifado.</p>
-                    </div>
-                    <span class="galint-quick-badge">Somente consulta administrativa</span>
-                </div>
-                <div class="galint-quick-stat">
-                    <div class="galint-quick-stat-label">Resumo</div>
-                    <div class="galint-quick-stat-value">Controle por fornecedor</div>
-                    <div class="galint-quick-stat-note">Inclui laboratórios de lojas, NFs, cupons e cruzamentos de preços por item.</div>
-                </div>
-            </section>
-            {% endif %}
+    .galint-kpi-progress {
         margin-top: 1rem;
         padding: 1rem 1.05rem;
         border-radius: 18px;
@@ -1465,109 +1225,338 @@
         z-index: 1;
     }
 
-    .galint-table {
-        width: 100%;
-        border-collapse: separate;
-        border-spacing: 0 0.5rem;
+    .galint-quick-split-card {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0;
+        border-radius: 22px;
+        overflow: hidden;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        background: #ffffff;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65);
     }
 
-    .galint-table thead th {
+    .galint-quick-pane {
+        padding: 1.5rem;
+        min-width: 0;
+    }
+
+    .galint-quick-pane + .galint-quick-pane {
+        border-left: 1px solid rgba(148, 163, 184, 0.18);
+    }
+
+    .galint-quick-pane.finance {
+        background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+    }
+
+    .galint-quick-pane.suppliers {
+        background: linear-gradient(135deg, #ecfeff 0%, #d1fae5 100%);
+    }
+
+    .galint-quick-pane.locked {
+        background: linear-gradient(135deg, #f8fafc 0%, #eef2f7 100%);
+    }
+
+    .galint-quick-pane-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .galint-quick-pane-kicker {
         font-size: 0.75rem;
-        font-weight: 600;
+        font-weight: 700;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
+        letter-spacing: 0.08em;
+        color: #475569;
+        margin-bottom: 0.35rem;
+    }
+
+    .galint-quick-pane-title {
+        margin: 0;
+        font-size: 1.35rem;
+        font-weight: 800;
+        color: #0f172a;
+        line-height: 1.15;
+    }
+
+    .galint-quick-pane-subtitle {
+        margin: 0.45rem 0 0;
+        color: #475569;
+        font-size: 0.9rem;
+        line-height: 1.5;
+    }
+
+    .galint-quick-pill {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.4rem 0.75rem;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.65);
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        color: #0f172a;
+        font-size: 0.75rem;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+
+    .galint-quick-metrics {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.85rem;
+        margin-bottom: 1rem;
+    }
+
+    .galint-quick-metric {
+        padding: 0.95rem 1rem;
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.72);
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        min-width: 0;
+    }
+
+    .galint-quick-metric-label {
+        font-size: 0.74rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
         color: #64748b;
-        padding: 0.75rem 1rem;
-        text-align: left;
-        background: transparent;
-        border: none;
+        margin-bottom: 0.45rem;
     }
 
-    .galint-table tbody tr {
-        background: rgba(248, 250, 252, 0.92);
-        transition: all 0.2s ease;
+    .galint-quick-metric-value {
+        font-size: 1.15rem;
+        font-weight: 800;
+        color: #0f172a;
+        line-height: 1.1;
+        word-break: break-word;
     }
 
-    .galint-table tbody tr:hover {
-        background: #f1f5f9;
-        transform: scale(1.01);
-    }
-
-    .galint-table tbody td {
-        padding: 1rem;
-        color: #334155;
-        border: none;
-    }
-
-    .galint-table tbody tr td:first-child {
-        border-top-left-radius: 8px;
-        border-bottom-left-radius: 8px;
-    }
-
-    .galint-table tbody tr td:last-child {
-        border-top-right-radius: 8px;
-        border-bottom-right-radius: 8px;
-    }
-
-    .galint-status-badge-ok {
-        background: #10b98120;
-        color: #059669;
-        padding: 0.35rem 0.75rem;
-        border-radius: 12px;
+    .galint-quick-metric-note {
+        margin-top: 0.35rem;
         font-size: 0.8rem;
-        font-weight: 600;
-        display: inline-block;
+        color: #64748b;
     }
 
-    .galint-status-badge-low {
-        background: #ef444420;
-        color: #dc2626;
-        padding: 0.35rem 0.75rem;
-        border-radius: 12px;
+    .galint-quick-inline {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 1rem;
+        padding: 0.95rem 1rem;
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.68);
+        border: 1px solid rgba(148, 163, 184, 0.16);
+    }
+
+    .galint-quick-inline-label {
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: #64748b;
+        margin-bottom: 0.35rem;
+    }
+
+    .galint-quick-inline-title {
+        margin: 0;
+        font-size: 0.98rem;
+        font-weight: 700;
+        color: #0f172a;
+    }
+
+    .galint-quick-inline-subtitle {
+        margin: 0.25rem 0 0;
         font-size: 0.8rem;
-        font-weight: 600;
-        display: inline-block;
+        color: #64748b;
+    }
+
+    .galint-quick-inline-value {
+        font-size: 1rem;
+        font-weight: 800;
+        color: #0f172a;
+        text-align: right;
+    }
+
+    .galint-quick-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+    }
+
+    .galint-quick-action {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 40px;
+        padding: 0.65rem 0.95rem;
+        border-radius: 12px;
+        text-decoration: none;
+        font-size: 0.85rem;
+        font-weight: 700;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .galint-quick-action.primary {
+        background: #0f172a;
+        color: #ffffff;
+        box-shadow: 0 10px 20px rgba(15, 23, 42, 0.14);
+    }
+
+    .galint-quick-action.secondary {
+        background: rgba(255, 255, 255, 0.72);
+        color: #0f172a;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+    }
+
+    .galint-quick-action:hover {
+        transform: translateY(-1px);
+    }
+
+    @media (max-width: 900px) {
+        .galint-quick-split-card {
+            grid-template-columns: 1fr;
+        }
+
+        .galint-quick-pane + .galint-quick-pane {
+            border-left: none;
+            border-top: 1px solid rgba(148, 163, 184, 0.18);
+        }
+    }
+
+    @media (max-width: 640px) {
+        .galint-quick-metrics {
+            grid-template-columns: 1fr;
+        }
+
+        .galint-quick-inline {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .galint-quick-inline-value {
+            text-align: left;
+        }
     }
 </style>
 
 <div class="galint-table-section">
     <div class="galint-section-header">
-        <h2 class="galint-section-title">Detalhes de estoque</h2>
-        <p class="galint-section-subtitle">Mapa rápido dos itens controlados</p>
+        <h2 class="galint-section-title">Painel rápido</h2>
+        <p class="galint-section-subtitle">O mesmo card, agora dividido entre Financeiro e Fornecedores</p>
     </div>
-    <div style="overflow-x: auto;">
-        <table class="galint-table">
-            <thead>
-                <tr>
-                    <th>Item</th>
-                    <th>Marca / Fabricante</th>
-                    <th>Saldo</th>
-                    <th>Status</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% if resumo %}
-                {% for item in resumo[:5] %}
-                <tr>
-                    <td><strong>{{ item.descricao }}</strong></td>
-                    <td>{{ item.marca or item.setor }}</td>
-                    <td>{{ item.saldo }}</td>
-                    <td>
-                        {% if item.status == 'Estoque baixo' %}
-                        <span class="galint-status-badge-low">{{ item.status }}</span>
-                        {% else %}
-                        <span class="galint-status-badge-ok">{{ item.status }}</span>
-                        {% endif %}
-                    </td>
-                </tr>
-                {% endfor %}
-                {% else %}
-                <tr>
-                    <td colspan="4" style="text-align: center; color: #94a3b8;">Nenhum registro encontrado.</td>
-                </tr>
-                {% endif %}
-            </tbody>
-        </table>
+    <div class="galint-quick-split-card">
+        {% if can_view_finance and finance_snapshot and supplier_snapshot %}
+        <section class="galint-quick-pane finance">
+            <div class="galint-quick-pane-head">
+                <div>
+                    <div class="galint-quick-pane-kicker">Financeiro rápido</div>
+                    <h3 class="galint-quick-pane-title">Resumo do exercício {{ finance_snapshot.exercise_label }}</h3>
+                    <p class="galint-quick-pane-subtitle">Visão curta para bater valor atual, investido e pendências sem abrir outra tela.</p>
+                </div>
+                <span class="galint-quick-pill">Financeiro</span>
+            </div>
+
+            <div class="galint-quick-metrics">
+                <div class="galint-quick-metric">
+                    <div class="galint-quick-metric-label">Atual por compra</div>
+                    <div class="galint-quick-metric-value">{{ finance_snapshot.total_compra }}</div>
+                    <div class="galint-quick-metric-note">{{ finance_snapshot.missing_compra }} itens sem valor de compra</div>
+                </div>
+                <div class="galint-quick-metric">
+                    <div class="galint-quick-metric-label">Atual por reposição</div>
+                    <div class="galint-quick-metric-value">{{ finance_snapshot.total_reposicao }}</div>
+                    <div class="galint-quick-metric-note">{{ finance_snapshot.missing_reposicao }} itens sem reposição</div>
+                </div>
+                <div class="galint-quick-metric">
+                    <div class="galint-quick-metric-label">Investido</div>
+                    <div class="galint-quick-metric-value">{{ finance_snapshot.total_investido }}</div>
+                    <div class="galint-quick-metric-note">Total documentado no exercício</div>
+                </div>
+                <div class="galint-quick-metric">
+                    <div class="galint-quick-metric-label">Sem comprovação</div>
+                    <div class="galint-quick-metric-value">{{ finance_snapshot.total_sem_comprovacao }}</div>
+                    <div class="galint-quick-metric-note">Ponto de conferência</div>
+                </div>
+            </div>
+
+            <div class="galint-quick-actions">
+                <a class="galint-quick-action primary" href="{{ url_for('inventory.valor_estoque') }}">Abrir Financeiro</a>
+                <a class="galint-quick-action secondary" href="{{ url_for('inventory.valor_estoque_pdf') }}">Exportar PDF</a>
+            </div>
+        </section>
+
+        <section class="galint-quick-pane suppliers">
+            <div class="galint-quick-pane-head">
+                <div>
+                    <div class="galint-quick-pane-kicker">Fornecedores</div>
+                    <h3 class="galint-quick-pane-title">Base rápida de compras</h3>
+                    <p class="galint-quick-pane-subtitle">A outra metade do card agora resume lojas, documentos e o fornecedor com maior volume.</p>
+                </div>
+                <span class="galint-quick-pill">Lojas</span>
+            </div>
+
+            <div class="galint-quick-metrics">
+                <div class="galint-quick-metric">
+                    <div class="galint-quick-metric-label">Lojas mapeadas</div>
+                    <div class="galint-quick-metric-value">{{ supplier_snapshot.total_lojas }}</div>
+                    <div class="galint-quick-metric-note">{{ supplier_snapshot.total_ativos }} ativas para novas entradas</div>
+                </div>
+                <div class="galint-quick-metric">
+                    <div class="galint-quick-metric-label">Documentos cruzados</div>
+                    <div class="galint-quick-metric-value">{{ supplier_snapshot.total_docs }}</div>
+                    <div class="galint-quick-metric-note">NFs e cupons vinculados</div>
+                </div>
+            </div>
+
+            <div class="galint-quick-inline">
+                <div>
+                    <div class="galint-quick-inline-label">Fornecedor destaque</div>
+                    <p class="galint-quick-inline-title">{{ supplier_snapshot.top_nome }}</p>
+                    <p class="galint-quick-inline-subtitle">{{ supplier_snapshot.top_itens }} itens distintos no exercício</p>
+                </div>
+                <div class="galint-quick-inline-value">{{ supplier_snapshot.top_total }}</div>
+            </div>
+
+            <div class="galint-quick-inline">
+                <div>
+                    <div class="galint-quick-inline-label">Compras sem loja</div>
+                    <p class="galint-quick-inline-title">Ainda não vinculadas</p>
+                    <p class="galint-quick-inline-subtitle">Entradas que permanecem só no Financeiro</p>
+                </div>
+                <div class="galint-quick-inline-value">{{ supplier_snapshot.total_sem_loja }}</div>
+            </div>
+
+            <div class="galint-quick-actions">
+                <a class="galint-quick-action primary" href="{{ url_for('config.fornecedores') }}">Abrir Fornecedores</a>
+                <a class="galint-quick-action secondary" href="{{ url_for('inventory.lojas_lab') }}">Laboratório de Lojas</a>
+            </div>
+        </section>
+        {% else %}
+        <section class="galint-quick-pane locked">
+            <div class="galint-quick-pane-head">
+                <div>
+                    <div class="galint-quick-pane-kicker">Financeiro rápido</div>
+                    <h3 class="galint-quick-pane-title">Disponível só para admin</h3>
+                    <p class="galint-quick-pane-subtitle">Aqui entram os números rápidos do Financeiro quando o painel está em modo administrativo.</p>
+                </div>
+                <span class="galint-quick-pill">Restrito</span>
+            </div>
+        </section>
+        <section class="galint-quick-pane locked">
+            <div class="galint-quick-pane-head">
+                <div>
+                    <div class="galint-quick-pane-kicker">Fornecedores</div>
+                    <h3 class="galint-quick-pane-title">Resumo de lojas e documentos</h3>
+                    <p class="galint-quick-pane-subtitle">A outra metade mostra a base de fornecedores vinculados às compras.</p>
+                </div>
+                <span class="galint-quick-pill">Restrito</span>
+            </div>
+        </section>
+        {% endif %}
     </div>
 </div>
 
