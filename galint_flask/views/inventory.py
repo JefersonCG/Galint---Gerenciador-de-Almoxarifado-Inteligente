@@ -160,6 +160,8 @@ def _sync_item_financial_history(
     finance_payload: dict[str, object],
     entrada_id: int | None = None,
 ) -> bool:
+    metadata_recorded = False
+
     if finance_payload.get("supplier_id"):
         finance_service.set_item_supplier_preference(
             codigo,
@@ -168,15 +170,10 @@ def _sync_item_financial_history(
             atualizado_por=usuario_id,
         )
 
-    if quantidade <= 0:
-        return False
-
     try:
         unit_price = float(preco_compra_unitario) if preco_compra_unitario not in (None, "") else None
     except (TypeError, ValueError):
         unit_price = None
-    if unit_price is None:
-        return False
 
     when = None
     if isinstance(data_lancamento, datetime):
@@ -184,11 +181,49 @@ def _sync_item_financial_history(
     elif hasattr(data_lancamento, "year") and hasattr(data_lancamento, "month") and hasattr(data_lancamento, "day"):
         when = data_lancamento
 
+    has_document_metadata = bool(
+        (finance_payload.get("numero_documento") or "").strip()
+        and ((finance_payload.get("tipo_documento") or "").strip() or "nf")
+    )
+    if has_document_metadata:
+        finance_service.register_stock_document_entry(
+            codigo_item=codigo,
+            quantidade=float(quantidade or 0),
+            tipo_documento=str(finance_payload.get("tipo_documento") or "nf"),
+            numero_documento=str(finance_payload.get("numero_documento") or ""),
+            data_emissao=finance_payload.get("data_emissao_documento"),
+            data_recebimento=finance_payload.get("data_recebimento_documento"),
+            supplier_id=finance_payload.get("supplier_id"),
+            entrada_id=entrada_id,
+            valor_unitario=unit_price,
+            observacao=finance_payload.get("observacao"),
+            usuario_matricula=usuario_id,
+            origem_valor=str(finance_payload.get("origem_valor") or "inventario_inicial"),
+        )
+        metadata_recorded = True
+
+    has_financial_metadata = bool(
+        (finance_payload.get("numero_documento") or "").strip()
+        or (finance_payload.get("tipo_documento") or "").strip()
+        or (finance_payload.get("comprovacao_status") or "").strip()
+        or (finance_payload.get("observacao") or "").strip()
+        or (finance_payload.get("chave_acesso") or "").strip()
+        or finance_payload.get("data_emissao_documento")
+        or finance_payload.get("data_recebimento_documento")
+    )
+
+    if quantidade <= 0 and not has_financial_metadata:
+        return metadata_recorded
+
+    if unit_price is None and not has_financial_metadata:
+        return metadata_recorded
+
     finance_service.register_financial_entry(
         codigo_item=codigo,
         categoria_nome=categoria,
         quantidade=float(quantidade),
         valor_unitario=unit_price,
+        valor_total=0.0 if unit_price is None else None,
         data_lancamento=when,
         fornecedor_id=finance_payload.get("supplier_id"),
         entrada_id=entrada_id,

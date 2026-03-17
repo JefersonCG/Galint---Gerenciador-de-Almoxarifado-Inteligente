@@ -2363,6 +2363,14 @@ if (confirmFotoUrl) {
         }
     };
 
+    precoCompraChaveAcessoInput?.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter') {
+            return;
+        }
+        event.preventDefault();
+        event.stopPropagation();
+    });
+
     const nfAutofillFields = [
         { key: 'origem_valor', element: financeOrigemValorInput, lockMode: 'select' },
         { key: 'tipo_documento', element: financeTipoDocumentoInput, lockMode: 'select' },
