@@ -10,6 +10,7 @@ from flask import Blueprint, Response, abort, current_app, jsonify, render_templ
 from flask_login import current_user, login_required
 
 from ..services.inventory import inventory_service
+from ..services.finance_service import finance_service
 from ..extensions import db
 from ..models import Entrada
 from ..utils.report_branding import get_company_header_lines
@@ -29,6 +30,14 @@ def _format_codigo_barra(value: object) -> str:
     return text[-4:] if len(text) >= 4 else text
 
 
+def _format_brl(value: object) -> str:
+    try:
+        amount = float(value or 0.0)
+    except (TypeError, ValueError):
+        amount = 0.0
+    return f"R$ {amount:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+
 def _dashboard_context(
     *,
     shared_view: bool = False,
@@ -41,6 +50,7 @@ def _dashboard_context(
     total_quantity_internal = inventory_service.total_quantity_internal()
     competencia = date.today().strftime("%m-%Y")
     total_entradas_registradas = db.session.query(Entrada.id_entrada).count()
+    can_view_finance = bool(getattr(current_user, "is_admin", False)) and not shared_view
     
     # Informações sobre relatórios automáticos de entradas
     from ..services.entrada_report_service import entrada_report_service
@@ -67,6 +77,43 @@ def _dashboard_context(
             "description": "Eventos registrados como avaria ou dano",
         },
     ]
+
+    finance_snapshot = None
+    supplier_snapshot = None
+    if can_view_finance:
+        try:
+            finance_report = finance_service.get_stock_value_report()
+            supplier_report = finance_service.get_supplier_lab_report()
+            suppliers = supplier_report.get("suppliers") or []
+            supplier_summary = supplier_report.get("summary") or {}
+            active_suppliers = sum(1 for supplier in suppliers if supplier.get("ativo"))
+            top_supplier = next(
+                (supplier for supplier in suppliers if float(supplier.get("investido_total") or 0.0) > 0.0),
+                suppliers[0] if suppliers else None,
+            )
+
+            finance_snapshot = {
+                "exercise_label": (finance_report.get("exercise") or {}).get("label") or competencia,
+                "total_compra": _format_brl(finance_report.get("total_compra")),
+                "total_reposicao": _format_brl(finance_report.get("total_reposicao")),
+                "total_investido": _format_brl(finance_report.get("total_investido_exercicio")),
+                "total_sem_comprovacao": _format_brl(finance_report.get("total_sem_comprovacao_exercicio")),
+                "missing_compra": int(finance_report.get("missing_compra") or 0),
+                "missing_reposicao": int(finance_report.get("missing_reposicao") or 0),
+            }
+            supplier_snapshot = {
+                "total_lojas": int(supplier_summary.get("total_lojas") or 0),
+                "total_ativos": int(active_suppliers),
+                "total_docs": int(supplier_summary.get("total_docs") or 0),
+                "total_sem_loja": _format_brl(supplier_summary.get("total_sem_loja")),
+                "top_nome": (top_supplier or {}).get("nome_exibicao") or "Sem compras vinculadas",
+                "top_total": _format_brl((top_supplier or {}).get("investido_total")),
+                "top_itens": int((top_supplier or {}).get("itens_distintos") or 0),
+            }
+        except Exception:
+            finance_snapshot = None
+            supplier_snapshot = None
+
     return {
         "resumo": resumo,
         "competencia": competencia,
@@ -80,6 +127,9 @@ def _dashboard_context(
         "reports": reports,
         "category_summary": inventory_service.category_summary(),
         "shared_view": shared_view,
+        "can_view_finance": can_view_finance,
+        "finance_snapshot": finance_snapshot,
+        "supplier_snapshot": supplier_snapshot,
         "header_title": header_title or f"Resumo Mensal de Estoque - {competencia}",
         "header_subtitle": header_subtitle or "Resumo Mensal do Estoque",
         "tag_label": tag_label or "Painel de Controle do Almoxarifado",
