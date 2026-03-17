@@ -980,9 +980,6 @@ class InventoryService:
         from .finance_service import finance_service
 
         documentos = finance_service.list_stock_documents(limit=limit)
-        if documentos:
-            return documentos
-
         registros = (
             Entrada.query.filter(Entrada.nota_fiscal.isnot(None))
             .order_by(Entrada.data_entrada.desc())
@@ -990,8 +987,19 @@ class InventoryService:
             .all()
         )
         agrupadas = _agrupar_notas(registros)
+        notas_por_numero: dict[str, dict[str, Any]] = {}
+
+        for documento in documentos:
+            numero = str(documento.get("numero_documento") or documento.get("nota_fiscal") or "").strip()
+            if numero:
+                notas_por_numero[numero] = documento
+
+        for numero, nota_legada in agrupadas.items():
+            if numero not in notas_por_numero:
+                notas_por_numero[numero] = nota_legada
+
         notas = sorted(
-            agrupadas.values(),
+            notas_por_numero.values(),
             key=lambda nota: nota.get("data") or datetime.min,
             reverse=True,
         )
