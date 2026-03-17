@@ -449,9 +449,161 @@
         gap: 1.5rem;
     }
 
+    .supplier-gate-summary {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 1rem 1.1rem;
+        border-radius: 14px;
+        border: 1px solid rgba(148, 163, 184, 0.24);
+        background: linear-gradient(135deg, #eff6ff 0%, #f8fafc 100%);
+        color: #1e293b;
+        margin-bottom: 1.1rem;
+    }
+
+    .supplier-gate-summary .summary-title {
+        font-weight: 700;
+        color: #0f172a;
+    }
+
+    .supplier-gate-summary .summary-text {
+        font-size: 0.88rem;
+        color: #475569;
+    }
+
+    .supplier-gate-modal {
+        border: none;
+        border-radius: 24px;
+        overflow: hidden;
+        box-shadow: 0 28px 80px rgba(15, 23, 42, 0.4);
+    }
+
+    .supplier-gate-modal .modal-header {
+        border: none;
+        padding: 1.35rem 1.5rem 0;
+    }
+
+    .supplier-gate-modal .modal-body {
+        padding: 1rem 1.5rem 1.5rem;
+        background:
+            radial-gradient(circle at top right, rgba(14, 165, 233, 0.12), transparent 24%),
+            linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+    }
+
+    .supplier-gate-grid {
+        display: grid;
+        grid-template-columns: 1.1fr 0.9fr;
+        gap: 1rem;
+    }
+
+    .supplier-gate-panel {
+        border: 1px solid rgba(148, 163, 184, 0.24);
+        border-radius: 18px;
+        background: #ffffff;
+        padding: 1rem;
+        box-shadow: 0 16px 32px rgba(15, 23, 42, 0.06);
+    }
+
+    .supplier-gate-tip {
+        border-radius: 18px;
+        padding: 1rem;
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+        color: #e2e8f0;
+    }
+
+    .supplier-gate-tip .tip-title {
+        font-weight: 700;
+        color: #ffffff;
+        margin-bottom: 0.55rem;
+    }
+
+    .supplier-gate-tip ul {
+        margin: 0;
+        padding-left: 1rem;
+        color: rgba(226, 232, 240, 0.84);
+        font-size: 0.88rem;
+    }
+
+    .supplier-gate-tip li + li {
+        margin-top: 0.45rem;
+    }
+
+    .supplier-gate-results {
+        position: relative;
+        margin-top: 0.75rem;
+        min-height: 0;
+    }
+
+    .supplier-gate-list {
+        margin-top: 0.85rem;
+        max-height: 320px;
+        overflow-y: auto;
+        display: grid;
+        gap: 0.7rem;
+        padding-right: 0.2rem;
+    }
+
+    .supplier-gate-item {
+        width: 100%;
+        text-align: left;
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        border-radius: 16px;
+        background: #ffffff;
+        padding: 0.9rem 1rem;
+        transition: var(--transition);
+        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.04);
+    }
+
+    .supplier-gate-item:hover,
+    .supplier-gate-item.active {
+        border-color: rgba(59, 130, 246, 0.5);
+        background: linear-gradient(135deg, #eff6ff 0%, #ffffff 100%);
+        box-shadow: 0 16px 30px rgba(59, 130, 246, 0.12);
+    }
+
+    .supplier-gate-item-title {
+        font-weight: 700;
+        color: #0f172a;
+    }
+
+    .supplier-gate-item-meta {
+        font-size: 0.84rem;
+        color: #64748b;
+        margin-top: 0.2rem;
+    }
+
+    .supplier-gate-status {
+        min-height: 1.2rem;
+        font-size: 0.82rem;
+        color: #64748b;
+        margin-top: 0.55rem;
+    }
+
+    .supplier-gate-actions {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.75rem;
+        margin-top: 1rem;
+        flex-wrap: wrap;
+    }
+
     @media (max-width: 768px) {
         .form-row {
             grid-template-columns: 1fr;
+        }
+
+        .supplier-gate-summary {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .supplier-gate-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .supplier-gate-actions {
+            flex-direction: column;
         }
     }
 </style>
@@ -461,8 +613,19 @@
 <div class="soft-depth-form">
     <h1 class="form-title">{% if item %}Editar{% else %}Novo{% endif %} Item</h1>
     <p class="form-subtitle">Preencha os campos abaixo com as informações do produto</p>
+    {% if not item %}
+    <div class="supplier-gate-summary" id="supplierGateSummary">
+        <div>
+            <div class="summary-title">Fornecedor antes do item</div>
+            <div class="summary-text">Confirme primeiro se a loja ou empresa já está cadastrada. Se existir, o item já nasce vinculado ao fornecedor correto.</div>
+        </div>
+        <button class="btn btn-secondary" type="button" id="supplierGateReopenButton">
+            <i class="bi bi-building-check me-1"></i> Verificar fornecedor
+        </button>
+    </div>
+    {% endif %}
 
-    <form method="post" enctype="multipart/form-data">
+    <form method="post" enctype="multipart/form-data" id="inventory-item-form">
         <div class="soft-depth-card">
             <!-- Tabs Navigation -->
             <div class="tabs-nav">
@@ -825,6 +988,35 @@
                             placeholder="Ex.: NF 12345 / Cupom 000123" {% if finance_locked %}readonly{% endif %}>
                     </div>
 
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label" for="preco_compra_chave_acesso">Chave de acesso</label>
+                            <input class="form-control" id="preco_compra_chave_acesso" name="preco_compra_chave_acesso"
+                                value="{{ form_item.preco_compra_chave_acesso if form_item and form_item.preco_compra_chave_acesso else '' }}"
+                                placeholder="44 dígitos da NF-e / NFC-e" {% if finance_locked %}readonly{% endif %}>
+                            <small class="form-text">Campo de posteridade para rastrear o documento completo depois.</small>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="preco_compra_data_emissao">Data de emissão</label>
+                            <input class="form-control" id="preco_compra_data_emissao" name="preco_compra_data_emissao" type="date"
+                                value="{{ form_item.preco_compra_data_emissao if form_item and form_item.preco_compra_data_emissao else '' }}" {% if finance_locked %}readonly{% endif %}>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label" for="preco_compra_data_recebimento">Data de recebimento</label>
+                            <input class="form-control" id="preco_compra_data_recebimento" name="preco_compra_data_recebimento" type="date"
+                                value="{{ form_item.preco_compra_data_recebimento if form_item and form_item.preco_compra_data_recebimento else '' }}" {% if finance_locked %}readonly{% endif %}>
+                            <small class="form-text">Use quando a entrega não aconteceu no mesmo dia da emissão.</small>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="nota_fiscal_finance_hint">Atalho do documento</label>
+                            <input class="form-control" id="nota_fiscal_finance_hint" value="{{ form_item.nota_fiscal if form_item else '' }}" readonly>
+                            <small class="form-text">O número informado acima também será refletido no campo de identificação do item.</small>
+                        </div>
+                    </div>
+
                     <div class="form-group">
                         <label class="form-label" for="finance_observacao">Observação financeira</label>
                         <textarea class="form-control" id="finance_observacao" name="finance_observacao" rows="2"
@@ -1107,6 +1299,58 @@
     </form>
 </div>
 
+{% if not item %}
+<div class="modal fade" id="supplierGateModal" tabindex="-1" aria-labelledby="supplierGateModalLabel"
+    aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content supplier-gate-modal">
+            <div class="modal-header">
+                <div>
+                    <div class="text-uppercase small fw-semibold text-primary" style="letter-spacing: 0.1em;">Etapa inicial</div>
+                    <h5 class="modal-title" id="supplierGateModalLabel">Este item já tem fornecedor cadastrado?</h5>
+                </div>
+            </div>
+            <div class="modal-body">
+                <div class="supplier-gate-grid">
+                    <div class="supplier-gate-panel">
+                        <label class="form-label" for="supplierGateSearch">Buscar fornecedor existente</label>
+                        <input class="form-control" id="supplierGateSearch" autocomplete="off"
+                            placeholder="Digite nome, fantasia ou CNPJ">
+                        <div class="supplier-gate-results">
+                            <div class="supplier-gate-list" id="supplierGateResults"></div>
+                        </div>
+                        <div class="supplier-gate-status" id="supplierGateStatus">Selecione um fornecedor da lista completa ou use a barra de pesquisa para filtrar.</div>
+                        <div class="supplier-gate-actions">
+                            <button class="btn btn-primary" type="button" id="supplierGateConfirmButton" disabled>
+                                <i class="bi bi-check2-circle me-1"></i> Usar fornecedor selecionado
+                            </button>
+                            <button class="btn btn-secondary" type="button" id="supplierGateSkipButton">
+                                Continuar sem fornecedor por enquanto
+                            </button>
+                        </div>
+                    </div>
+                    <div class="supplier-gate-tip">
+                        <div class="tip-title">Por que começar por aqui</div>
+                        <ul>
+                            <li>A NF e o cupom podem preencher dados da empresa mais rápido.</li>
+                            <li>O Financeiro e o Laboratório de Lojas passam a cruzar melhor os preços.</li>
+                            <li>Agora o item pode guardar número do documento, chave de acesso e datas para consulta futura.</li>
+                        </ul>
+                        {% if endpoint_exists('config.fornecedores') %}
+                        <div class="mt-3">
+                            <a class="btn btn-light" href="{{ url_for('config.fornecedores') }}" target="_blank" rel="noopener">
+                                <i class="bi bi-plus-circle me-1"></i> Cadastrar novo fornecedor
+                            </a>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <div class="modal fade" id="priceSuggestionsModal" tabindex="-1" aria-labelledby="priceSuggestionsModalLabel"
     aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
@@ -1292,23 +1536,32 @@
     }
 </style>
 <script>
+    const allSuppliers = {{ (all_suppliers or [])|tojson }};
+
     // ==========================================
     // SISTEMA DE TABS
     // ==========================================
     const tabButtons = document.querySelectorAll('.tab-button');
     const tabPanes = document.querySelectorAll('.tab-pane');
 
+    const activateTab = (targetTab) => {
+        if (!targetTab) {
+            return;
+        }
+        const targetButton = document.querySelector(`.tab-button[data-tab="${targetTab}"]`);
+        const targetPane = document.getElementById(`tab-${targetTab}`);
+        if (!targetButton || !targetPane) {
+            return;
+        }
+        tabButtons.forEach(btn => btn.classList.remove('active'));
+        tabPanes.forEach(pane => pane.classList.remove('active'));
+        targetButton.classList.add('active');
+        targetPane.classList.add('active');
+    };
+
     tabButtons.forEach(button => {
         button.addEventListener('click', () => {
-            const targetTab = button.dataset.tab;
-            
-            // Remove active de todos os botões e panes
-            tabButtons.forEach(btn => btn.classList.remove('active'));
-            tabPanes.forEach(pane => pane.classList.remove('active'));
-            
-            // Adiciona active no clicado
-            button.classList.add('active');
-            document.getElementById(`tab-${targetTab}`).classList.add('active');
+            activateTab(button.dataset.tab);
         });
     });
 
@@ -2031,32 +2284,130 @@ if (confirmFotoUrl) {
     const financeSupplierInput = document.getElementById('finance_supplier_search');
     const financeSupplierIdInput = document.getElementById('finance_supplier_id');
     const financeSupplierResults = document.getElementById('finance_supplier_results');
+    const notaFiscalInput = document.getElementById('nota_fiscal');
+    const notaFiscalFinanceHintInput = document.getElementById('nota_fiscal_finance_hint');
+    const precoCompraDocumentoInput = document.getElementById('preco_compra_documento');
+    const precoCompraChaveAcessoInput = document.getElementById('preco_compra_chave_acesso');
+    const precoCompraDataEmissaoInput = document.getElementById('preco_compra_data_emissao');
+    const precoCompraDataRecebimentoInput = document.getElementById('preco_compra_data_recebimento');
+    const financeTipoDocumentoInput = document.getElementById('finance_tipo_documento');
+    const financeOrigemValorInput = document.getElementById('finance_origem_valor');
+    const financeComprovacaoInput = document.getElementById('finance_comprovacao_status');
+    const inventoryItemForm = document.getElementById('inventory-item-form');
+    const supplierGateSummary = document.getElementById('supplierGateSummary');
+    const supplierGateReopenButton = document.getElementById('supplierGateReopenButton');
+    const supplierGateModalElement = document.getElementById('supplierGateModal');
+    const supplierGateModalInstance = supplierGateModalElement ? new bootstrap.Modal(supplierGateModalElement) : null;
+    const supplierGateSearchInput = document.getElementById('supplierGateSearch');
+    const supplierGateResults = document.getElementById('supplierGateResults');
+    const supplierGateStatus = document.getElementById('supplierGateStatus');
+    const supplierGateConfirmButton = document.getElementById('supplierGateConfirmButton');
+    const supplierGateSkipButton = document.getElementById('supplierGateSkipButton');
+    const isNewItemForm = {{ 'false' if item else 'true' }};
+    let supplierGateSelection = null;
+    let supplierGateResolved = !isNewItemForm;
 
-    const renderSupplierResults = (items) => {
-        if (!financeSupplierResults) return;
+    const renderSupplierOptions = (targetEl, items, onSelect, emptyText = 'Nenhum fornecedor encontrado.') => {
+        if (!targetEl) return;
         if (!Array.isArray(items) || !items.length) {
-            financeSupplierResults.innerHTML = '<div class="autocomplete-option text-muted">Nenhum fornecedor encontrado.</div>';
-            financeSupplierResults.classList.add('show');
+            targetEl.innerHTML = `<div class="autocomplete-option text-muted">${emptyText}</div>`;
+            targetEl.classList.add('show');
             return;
         }
-        financeSupplierResults.innerHTML = items.map((item) => `
-            <div class="autocomplete-option" data-id="${item.id}" data-name="${(item.nome_exibicao || '').replace(/"/g, '&quot;')}">
+        targetEl.innerHTML = items.map((item) => `
+            <div class="autocomplete-option" data-id="${item.id}" data-name="${(item.nome_exibicao || '').replace(/"/g, '&quot;')}" data-cnpj="${(item.cnpj || '').replace(/"/g, '&quot;')}">
                 <div class="fw-semibold">${item.nome_exibicao || item.razao_social || 'Fornecedor'}</div>
                 <div class="small text-muted">${item.cnpj || 'Sem CNPJ'}${item.endereco_cidade ? ` • ${item.endereco_cidade}` : ''}${item.endereco_estado ? `/${item.endereco_estado}` : ''}</div>
             </div>
         `).join('');
-        financeSupplierResults.classList.add('show');
-        financeSupplierResults.querySelectorAll('.autocomplete-option[data-id]').forEach((option) => {
-            option.addEventListener('click', () => {
-                if (financeSupplierInput) {
-                    financeSupplierInput.value = option.dataset.name || '';
-                }
-                if (financeSupplierIdInput) {
-                    financeSupplierIdInput.value = option.dataset.id || '';
-                }
-                financeSupplierResults.classList.remove('show');
-            });
+        targetEl.classList.add('show');
+        targetEl.querySelectorAll('.autocomplete-option[data-id]').forEach((option) => {
+            option.addEventListener('click', () => onSelect({
+                id: option.dataset.id || '',
+                nome_exibicao: option.dataset.name || '',
+                cnpj: option.dataset.cnpj || ''
+            }));
         });
+    };
+
+    const searchSuppliers = async (query) => {
+        const response = await fetch(`{{ url_for('config.fornecedores_autocomplete') }}?q=${encodeURIComponent(query)}`, {
+            headers: { 'Accept': 'application/json' },
+            credentials: 'same-origin'
+        });
+        const data = await response.json().catch(() => ({}));
+        return data.results || [];
+    };
+
+    const applySelectedSupplier = (supplier) => {
+        if (financeSupplierInput) {
+            financeSupplierInput.value = supplier?.nome_exibicao || '';
+        }
+        if (financeSupplierIdInput) {
+            financeSupplierIdInput.value = supplier?.id || '';
+        }
+    };
+
+    const syncDocumentShortcut = () => {
+        const currentValue = precoCompraDocumentoInput?.value || '';
+        if (notaFiscalInput) {
+            notaFiscalInput.value = currentValue;
+        }
+        if (notaFiscalFinanceHintInput) {
+            notaFiscalFinanceHintInput.value = currentValue;
+        }
+    };
+
+    precoCompraDocumentoInput?.addEventListener('input', syncDocumentShortcut);
+    notaFiscalInput?.addEventListener('input', () => {
+        if (precoCompraDocumentoInput) {
+            precoCompraDocumentoInput.value = notaFiscalInput.value || '';
+        }
+        if (notaFiscalFinanceHintInput) {
+            notaFiscalFinanceHintInput.value = notaFiscalInput.value || '';
+        }
+    });
+    syncDocumentShortcut();
+
+    const updateSupplierGateSummary = (mode) => {
+        if (!supplierGateSummary) return;
+        if (mode === 'selected' && supplierGateSelection) {
+            supplierGateSummary.innerHTML = `
+                <div>
+                    <div class="summary-title">Fornecedor vinculado ao item</div>
+                    <div class="summary-text">${supplierGateSelection.nome_exibicao}${supplierGateSelection.cnpj ? ` • CNPJ ${supplierGateSelection.cnpj}` : ''}</div>
+                </div>
+                <button class="btn btn-secondary" type="button" id="supplierGateReopenButtonInline">
+                    <i class="bi bi-arrow-repeat me-1"></i> Alterar fornecedor
+                </button>
+            `;
+            document.getElementById('supplierGateReopenButtonInline')?.addEventListener('click', () => {
+                supplierGateModalInstance?.show();
+                setTimeout(() => supplierGateSearchInput?.focus(), 180);
+            });
+            return;
+        }
+        if (mode === 'skipped') {
+            supplierGateSummary.innerHTML = `
+                <div>
+                    <div class="summary-title">Cadastro sem fornecedor inicial</div>
+                    <div class="summary-text">Você pode continuar agora e vincular um fornecedor depois na aba Financeiro ou via Nova Entrada/NF.</div>
+                </div>
+                <button class="btn btn-secondary" type="button" id="supplierGateReopenButtonInline">
+                    <i class="bi bi-building-check me-1"></i> Procurar fornecedor
+                </button>
+            `;
+            document.getElementById('supplierGateReopenButtonInline')?.addEventListener('click', () => {
+                supplierGateModalInstance?.show();
+                setTimeout(() => supplierGateSearchInput?.focus(), 180);
+            });
+        }
+    };
+
+    const resolveSupplierGate = (mode) => {
+        supplierGateResolved = true;
+        updateSupplierGateSummary(mode);
+        supplierGateModalInstance?.hide();
     };
 
     let supplierLookupTimeout = null;
@@ -2074,24 +2425,144 @@ if (confirmFotoUrl) {
         }
         supplierLookupTimeout = setTimeout(async () => {
             try {
-                const response = await fetch(`{{ url_for('config.fornecedores_autocomplete') }}?q=${encodeURIComponent(q)}`, {
-                    headers: { 'Accept': 'application/json' },
-                    credentials: 'same-origin'
+                const results = await searchSuppliers(q);
+                renderSupplierOptions(financeSupplierResults, results, (supplier) => {
+                    applySelectedSupplier(supplier);
+                    financeSupplierResults.classList.remove('show');
                 });
-                const data = await response.json();
-                renderSupplierResults(data.results || []);
             } catch (_) {
-                renderSupplierResults([]);
+                renderSupplierOptions(financeSupplierResults, [], () => {});
             }
         }, 220);
     });
 
-    document.addEventListener('click', (event) => {
-        if (!financeSupplierResults || !financeSupplierInput) return;
-        if (financeSupplierResults.contains(event.target) || financeSupplierInput.contains(event.target)) {
+    const renderSupplierGateList = (items) => {
+        if (!supplierGateResults) {
             return;
         }
-        financeSupplierResults.classList.remove('show');
+        if (!Array.isArray(items) || !items.length) {
+            supplierGateResults.innerHTML = '<div class="text-muted small">Nenhum fornecedor encontrado para esse filtro.</div>';
+            return;
+        }
+        supplierGateResults.innerHTML = items.map((supplier) => {
+            const cidadeUf = [supplier.endereco_cidade || '', supplier.endereco_estado || ''].filter(Boolean).join('/');
+            const nome = supplier.nome_exibicao || supplier.razao_social || 'Fornecedor';
+            const meta = [supplier.cnpj || 'Sem CNPJ', cidadeUf || 'Local não informado'].join(' • ');
+            const activeClass = supplierGateSelection && String(supplierGateSelection.id) === String(supplier.id) ? 'active' : '';
+            return `
+                <button type="button" class="supplier-gate-item ${activeClass}" data-supplier-id="${supplier.id}">
+                    <div class="supplier-gate-item-title">${nome}</div>
+                    <div class="supplier-gate-item-meta">${meta}</div>
+                </button>
+            `;
+        }).join('');
+        supplierGateResults.querySelectorAll('[data-supplier-id]').forEach((button) => {
+            button.addEventListener('click', () => {
+                const selected = items.find((supplier) => String(supplier.id) === String(button.dataset.supplierId));
+                if (!selected) {
+                    return;
+                }
+                supplierGateSelection = selected;
+                if (supplierGateSearchInput) {
+                    supplierGateSearchInput.value = selected.nome_exibicao || selected.razao_social || '';
+                }
+                if (supplierGateStatus) {
+                    supplierGateStatus.textContent = `Selecionado: ${selected.nome_exibicao || selected.razao_social || 'Fornecedor'}${selected.cnpj ? ` • ${selected.cnpj}` : ''}`;
+                }
+                if (supplierGateConfirmButton) {
+                    supplierGateConfirmButton.disabled = false;
+                }
+                renderSupplierGateList(items);
+            });
+        });
+    };
+
+    const filterSupplierGateList = () => {
+        const q = (supplierGateSearchInput?.value || '').trim().toLowerCase();
+        supplierGateSelection = null;
+        if (supplierGateConfirmButton) {
+            supplierGateConfirmButton.disabled = true;
+        }
+        const filtered = !q
+            ? [...allSuppliers]
+            : allSuppliers.filter((supplier) => {
+                const haystack = [
+                    supplier.nome_exibicao || '',
+                    supplier.razao_social || '',
+                    supplier.nome_fantasia || '',
+                    supplier.cnpj || '',
+                    supplier.endereco_cidade || '',
+                    supplier.endereco_estado || '',
+                ].join(' ').toLowerCase();
+                return haystack.includes(q);
+            });
+        renderSupplierGateList(filtered);
+        if (supplierGateStatus) {
+            supplierGateStatus.textContent = filtered.length
+                ? `${filtered.length} fornecedor(es) exibido(s). Selecione um para preencher a aba Financeiro.`
+                : 'Nenhum fornecedor encontrado para esse filtro. Você pode cadastrar um novo fornecedor.';
+        }
+    };
+
+    supplierGateSearchInput?.addEventListener('input', filterSupplierGateList);
+
+    supplierGateConfirmButton?.addEventListener('click', () => {
+        if (!supplierGateSelection) {
+            return;
+        }
+        applySelectedSupplier(supplierGateSelection);
+        if (financeTipoDocumentoInput && !financeTipoDocumentoInput.value) {
+            financeTipoDocumentoInput.value = 'nf';
+        }
+        if (financeOrigemValorInput && (!financeOrigemValorInput.value || financeOrigemValorInput.value === 'inventario_inicial')) {
+            financeOrigemValorInput.value = 'compra_nf';
+        }
+        if (financeComprovacaoInput && (!financeComprovacaoInput.value || financeComprovacaoInput.value === 'sem_comprovacao')) {
+            financeComprovacaoInput.value = 'comprovado';
+        }
+        resolveSupplierGate('selected');
+        activateTab('financeiro');
+        setTimeout(() => precoCompraDocumentoInput?.focus(), 220);
+    });
+
+    supplierGateSkipButton?.addEventListener('click', () => {
+        supplierGateSelection = null;
+        if (financeSupplierInput) {
+            financeSupplierInput.value = '';
+        }
+        if (financeSupplierIdInput) {
+            financeSupplierIdInput.value = '';
+        }
+        resolveSupplierGate('skipped');
+    });
+
+    supplierGateReopenButton?.addEventListener('click', () => {
+        supplierGateModalInstance?.show();
+        setTimeout(() => supplierGateSearchInput?.focus(), 180);
+    });
+
+    if (isNewItemForm && supplierGateModalInstance) {
+        filterSupplierGateList();
+        setTimeout(() => {
+            supplierGateModalInstance.show();
+            setTimeout(() => supplierGateSearchInput?.focus(), 180);
+        }, 180);
+        inventoryItemForm?.addEventListener('submit', (event) => {
+            if (supplierGateResolved) {
+                return;
+            }
+            event.preventDefault();
+            supplierGateModalInstance.show();
+            setTimeout(() => supplierGateSearchInput?.focus(), 180);
+        });
+    }
+
+    document.addEventListener('click', (event) => {
+        if (financeSupplierResults && financeSupplierInput) {
+            if (!financeSupplierResults.contains(event.target) && !financeSupplierInput.contains(event.target)) {
+                financeSupplierResults.classList.remove('show');
+            }
+        }
     });
 
     // ==========================================

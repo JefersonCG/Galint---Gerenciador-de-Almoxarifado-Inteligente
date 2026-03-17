@@ -140,6 +140,28 @@
 {% endif %}
 
 <style>
+    .dashboard-shell {
+        position: relative;
+    }
+
+    .dashboard-shell::before {
+        content: "";
+        position: absolute;
+        inset: -1rem 0 auto;
+        height: 280px;
+        background:
+            radial-gradient(circle at 10% 20%, rgba(59, 130, 246, 0.12), transparent 32%),
+            radial-gradient(circle at 88% 18%, rgba(16, 185, 129, 0.10), transparent 26%),
+            radial-gradient(circle at 52% 0%, rgba(245, 158, 11, 0.10), transparent 26%);
+        pointer-events: none;
+        z-index: 0;
+    }
+
+    .dashboard-shell > * {
+        position: relative;
+        z-index: 1;
+    }
+
     .galint-kpis {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -148,49 +170,76 @@
     }
 
     .galint-kpi-card {
-        background: #ffffff;
-        border-radius: 16px;
+        position: relative;
+        overflow: hidden;
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 68%, #334155 100%);
+        border-radius: 24px;
         padding: 1.75rem;
-        box-shadow: 0 4px 16px rgba(15, 23, 42, 0.06);
-        border: 1px solid #f1f5f9;
+        box-shadow: 0 26px 60px rgba(15, 23, 42, 0.18);
+        border: 1px solid rgba(148, 163, 184, 0.2);
         transition: all 0.3s ease;
         cursor: default;
         display: block;
+        color: #e2e8f0;
+    }
+
+    .galint-kpi-card::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+            radial-gradient(circle at 15% 18%, rgba(96, 165, 250, 0.28), transparent 34%),
+            radial-gradient(circle at 84% 26%, rgba(16, 185, 129, 0.18), transparent 28%),
+            linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 60%);
+        pointer-events: none;
+    }
+
+    .galint-kpi-card > * {
+        position: relative;
+        z-index: 1;
     }
 
     .galint-kpi-card:hover {
         transform: translateY(-4px);
-        box-shadow: 0 12px 28px rgba(15, 23, 42, 0.12);
+        box-shadow: 0 32px 70px rgba(15, 23, 42, 0.24);
     }
 
     .galint-kpi-card.clickable {
         cursor: pointer;
-        border: 2px solid transparent;
+        border: 1px solid rgba(148, 163, 184, 0.24);
         text-align: left;
         width: 100%;
     }
 
     .galint-kpi-card.clickable:hover {
-        border-color: #3b82f6;
+        border-color: rgba(59, 130, 246, 0.5);
         transform: translateY(-6px);
-        box-shadow: 0 16px 32px rgba(37, 99, 235, 0.2);
+        box-shadow: 0 36px 78px rgba(15, 23, 42, 0.28);
     }
 
     .galint-kpi-header {
         display: flex;
-        align-items: center;
+        align-items: flex-start;
+        justify-content: space-between;
         gap: 0.75rem;
         margin-bottom: 1rem;
+    }
+
+    .galint-kpi-header-main {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
     }
 
     .galint-kpi-icon {
         width: 40px;
         height: 40px;
-        border-radius: 10px;
+        border-radius: 12px;
         display: flex;
         align-items: center;
         justify-content: center;
         font-size: 1.25rem;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14);
     }
 
     .galint-kpi-icon.green {
@@ -209,53 +258,135 @@
         font-size: 0.875rem;
         text-transform: uppercase;
         letter-spacing: 0.05em;
-        color: #64748b;
+        color: rgba(226, 232, 240, 0.72);
         font-weight: 600;
+        max-width: 15rem;
     }
 
     .galint-kpi-value {
         font-size: 2rem;
-        font-weight: 700;
-        color: #0f172a;
+        font-weight: 800;
+        color: #ffffff;
+        letter-spacing: -0.04em;
         margin: 0.5rem 0;
     }
 
     .galint-kpi-description {
         font-size: 0.875rem;
-        color: #94a3b8;
+        color: rgba(226, 232, 240, 0.72);
         margin: 0;
+    }
+
+    .galint-kpi-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.35rem 0.7rem;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(226, 232, 240, 0.12);
+        color: rgba(226, 232, 240, 0.82);
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        white-space: nowrap;
+    }
+
+    .galint-kpi-footnote {
+        margin-top: 1rem;
+        padding-top: 1rem;
+        border-top: 1px solid rgba(148, 163, 184, 0.16);
+        color: rgba(226, 232, 240, 0.82);
+        font-size: 0.88rem;
+        line-height: 1.55;
+    }
+
+    .galint-kpi-progress {
+        margin-top: 1rem;
+        padding: 1rem 1.05rem;
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(226, 232, 240, 0.12);
+        backdrop-filter: blur(8px);
+    }
+
+    .galint-kpi-progress-label {
+        font-size: 0.76rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: rgba(226, 232, 240, 0.68);
+        margin-bottom: 0.45rem;
+    }
+
+    .galint-kpi-progress-bar {
+        height: 9px;
+        border-radius: 999px;
+        overflow: hidden;
+        background: rgba(15, 23, 42, 0.35);
+        margin-bottom: 0.45rem;
+    }
+
+    .galint-kpi-progress-fill {
+        height: 100%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, #3b82f6 0%, #60a5fa 100%);
+        transition: width 0.3s ease;
+    }
+
+    .galint-kpi-progress-meta {
+        font-size: 0.8rem;
+        color: rgba(226, 232, 240, 0.7);
+    }
+
+    @media (max-width: 768px) {
+        .galint-kpi-header {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .galint-kpi-chip {
+            align-self: flex-start;
+        }
     }
 </style>
 
+<div class="dashboard-shell">
 <div class="galint-kpis">
     <div class="galint-kpi-card">
         <div class="galint-kpi-header">
-            <div class="galint-kpi-icon green">✓</div>
-            <div class="galint-kpi-label">Quantidade Operacional do Almoxarifado</div>
+            <div class="galint-kpi-header-main">
+                <div class="galint-kpi-icon green">✓</div>
+                <div class="galint-kpi-label">Quantidade Operacional do Almoxarifado</div>
+            </div>
+            <div class="galint-kpi-chip">Visão real</div>
         </div>
         <div class="galint-kpi-value">{{ "{:,}".format(total_quantity|default(0, true)) }} emb./itens</div>
         <p class="galint-kpi-description">Conta embalagens fechadas para caixa, pacote, rolo, lata e balde.</p>
-        <p class="galint-kpi-description" style="margin-top: 6px; color: #64748b;">
+        <div class="galint-kpi-footnote">
             Equivale a {{ "{:,}".format(total_quantity_internal|default(0, true)) }} unidades internas considerando o conteúdo das embalagens.
-        </p>
+        </div>
     </div>
 
     <div class="galint-kpi-card">
         <div class="galint-kpi-header">
-            <div class="galint-kpi-icon blue">●</div>
-            <div class="galint-kpi-label">Registros de Entradas</div>
+            <div class="galint-kpi-header-main">
+                <div class="galint-kpi-icon blue">●</div>
+                <div class="galint-kpi-label">Registros de Entradas</div>
+            </div>
+            <div class="galint-kpi-chip">Histórico</div>
         </div>
         <div class="galint-kpi-value">{{ "{:,}".format(total_entradas_registradas) }}</div>
         <p class="galint-kpi-description">Total histórico de entradas registradas</p>
         {% if not shared_view %}
-        <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.1);">
-            <div style="font-size: 11px; color: rgba(255,255,255,0.7); margin-bottom: 4px;">
+        <div class="galint-kpi-progress">
+            <div class="galint-kpi-progress-label">
                 Próximo relatório automático (PDF): Ciclo {{ proximo_ciclo_relatorio }}
             </div>
-            <div style="background-color: rgba(255,255,255,0.1); border-radius: 4px; height: 8px; overflow: hidden; margin-bottom: 4px;">
-                <div style="background: linear-gradient(90deg, #3b82f6 0%, #60a5fa 100%); height: 100%; width: {{ progresso_relatorio_pct }}%; transition: width 0.3s;"></div>
+            <div class="galint-kpi-progress-bar">
+                <div class="galint-kpi-progress-fill" style="width: {{ progresso_relatorio_pct }}%;"></div>
             </div>
-            <div style="font-size: 10px; color: rgba(255,255,255,0.6);">
+            <div class="galint-kpi-progress-meta">
                 Faltam {{ faltam_entradas }} entradas ({{ progresso_relatorio_pct }}% completo)
             </div>
         </div>
@@ -265,8 +396,11 @@
     {% if shared_view %}
     <div class="galint-kpi-card">
         <div class="galint-kpi-header">
-            <div class="galint-kpi-icon red">⚠</div>
-            <div class="galint-kpi-label">Alertas de Estoque</div>
+            <div class="galint-kpi-header-main">
+                <div class="galint-kpi-icon red">⚠</div>
+                <div class="galint-kpi-label">Alertas de Estoque</div>
+            </div>
+            <div class="galint-kpi-chip">Consulta</div>
         </div>
         <div class="galint-kpi-value">{{ low_stock }} itens</div>
         <p class="galint-kpi-description">Disponível apenas com login</p>
@@ -274,8 +408,11 @@
     {% else %}
     <a href="{{ url_for('movements.gerar_pdf_alertas_estoque') }}" class="galint-kpi-card clickable" style="text-decoration: none; color: inherit;" target="_blank">
         <div class="galint-kpi-header">
-            <div class="galint-kpi-icon red">⚠</div>
-            <div class="galint-kpi-label">Alertas de Estoque</div>
+            <div class="galint-kpi-header-main">
+                <div class="galint-kpi-icon red">⚠</div>
+                <div class="galint-kpi-label">Alertas de Estoque</div>
+            </div>
+            <div class="galint-kpi-chip">Exportável</div>
         </div>
         <div class="galint-kpi-value">{{ low_stock }} itens abaixo</div>
         <p class="galint-kpi-description">Clique para baixar PDF</p>
@@ -285,11 +422,30 @@
 {% if category_summary %}
 <style>
     .galint-categories {
-        background: #ffffff;
-        border-radius: 16px;
+        position: relative;
+        overflow: hidden;
+        background: linear-gradient(135deg, #0f172a 0%, #172554 36%, #1e293b 100%);
+        border-radius: 28px;
         padding: 2rem;
-        box-shadow: 0 4px 16px rgba(15, 23, 42, 0.06);
+        box-shadow: 0 26px 60px rgba(15, 23, 42, 0.18);
+        border: 1px solid rgba(148, 163, 184, 0.22);
         margin-bottom: 2rem;
+    }
+
+    .galint-categories::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+            radial-gradient(circle at 12% 14%, rgba(59, 130, 246, 0.2), transparent 28%),
+            radial-gradient(circle at 88% 24%, rgba(16, 185, 129, 0.16), transparent 24%),
+            radial-gradient(circle at 50% 100%, rgba(245, 158, 11, 0.12), transparent 30%);
+        pointer-events: none;
+    }
+
+    .galint-categories > * {
+        position: relative;
+        z-index: 1;
     }
 
     .galint-section-header {
@@ -299,13 +455,13 @@
     .galint-section-title {
         font-size: 1.25rem;
         font-weight: 700;
-        color: #0f172a;
+        color: #ffffff;
         margin: 0 0 0.5rem 0;
     }
 
     .galint-section-subtitle {
         font-size: 0.875rem;
-        color: #64748b;
+        color: rgba(226, 232, 240, 0.72);
         margin: 0;
     }
 
@@ -321,8 +477,11 @@
         align-items: stretch;
         gap: 0.75rem;
         padding: 1.25rem;
-        background: #f8fafc;
-        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.07);
+        border: 1px solid rgba(226, 232, 240, 0.12);
+        border-radius: 22px;
+        box-shadow: 0 18px 36px rgba(15, 23, 42, 0.18);
+        backdrop-filter: blur(10px);
         transition: all 0.2s ease;
     }
 
@@ -338,8 +497,10 @@
     }
 
     .galint-category-card:hover {
-        background: #f1f5f9;
-        transform: translateX(4px);
+        background: rgba(255, 255, 255, 0.1);
+        transform: translateY(-4px);
+        border-color: rgba(96, 165, 250, 0.42);
+        box-shadow: 0 28px 44px rgba(15, 23, 42, 0.24);
     }
 
     .galint-category-top {
@@ -377,7 +538,7 @@
     .galint-category-name {
         font-size: calc(0.875rem + 8px);
         font-weight: 700;
-        color: #0f172a;
+        color: #ffffff;
         margin-bottom: 0.25rem;
         text-transform: capitalize;
     }
@@ -386,7 +547,7 @@
         display: flex;
         align-items: baseline;
         gap: 0.35rem;
-        color: #0f172a;
+        color: #ffffff;
         margin: 0;
     }
 
@@ -399,21 +560,21 @@
     .galint-category-unit {
         font-size: 0.95rem;
         font-weight: 400;
-        color: #64748b;
+        color: rgba(226, 232, 240, 0.72);
         letter-spacing: 0.01em;
     }
 
     .galint-category-description {
         font-size: 0.8rem;
         font-weight: 400;
-        color: #94a3b8;
+        color: rgba(226, 232, 240, 0.68);
         margin: 0;
     }
 
     .galint-progress-bar {
         width: 100%;
         height: 6px;
-        background: #e2e8f0;
+        background: rgba(15, 23, 42, 0.4);
         border-radius: 3px;
         overflow: hidden;
     }
@@ -1014,6 +1175,7 @@
             </div>
         </div>
     </div>
+</div>
 </div>
 {% endblock %}
 

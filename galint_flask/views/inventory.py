@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from datetime import datetime
+from datetime import date, datetime
 
 from io import BytesIO
 
@@ -110,12 +110,24 @@ def _sanitize_filename_component(value: str) -> str:
 
 
 def _extract_finance_payload(form, *, current_item: dict | None = None) -> dict[str, object]:
+    def _parse_iso_date(value: str | None) -> date | None:
+        raw = (value or "").strip()
+        if not raw:
+            return None
+        try:
+            return date.fromisoformat(raw)
+        except ValueError:
+            return None
+
     supplier_raw = (form.get("finance_supplier_id") or "").strip()
     supplier_id = int(supplier_raw) if supplier_raw.isdigit() else None
     origem_valor = (form.get("finance_origem_valor") or "").strip() or "inventario_inicial"
     tipo_documento = (form.get("finance_tipo_documento") or "").strip() or None
     comprovacao = (form.get("finance_comprovacao_status") or "").strip() or None
     observacao = (form.get("finance_observacao") or "").strip() or None
+    chave_acesso = (form.get("preco_compra_chave_acesso") or "").strip() or None
+    data_emissao = _parse_iso_date(form.get("preco_compra_data_emissao"))
+    data_recebimento = _parse_iso_date(form.get("preco_compra_data_recebimento"))
     if not comprovacao:
         comprovacao = "comprovado" if tipo_documento in {"nf", "cupom"} else "sem_comprovacao"
     numero_documento = (
@@ -131,6 +143,9 @@ def _extract_finance_payload(form, *, current_item: dict | None = None) -> dict[
         "comprovacao_status": comprovacao,
         "observacao": observacao,
         "numero_documento": numero_documento,
+        "chave_acesso": chave_acesso,
+        "data_emissao_documento": data_emissao,
+        "data_recebimento_documento": data_recebimento,
     }
 
 
@@ -181,6 +196,9 @@ def _sync_item_financial_history(
         origem_valor=str(finance_payload.get("origem_valor") or "inventario_inicial"),
         tipo_documento=finance_payload.get("tipo_documento"),
         numero_documento=finance_payload.get("numero_documento"),
+        chave_acesso=finance_payload.get("chave_acesso"),
+        data_emissao_documento=finance_payload.get("data_emissao_documento"),
+        data_recebimento_documento=finance_payload.get("data_recebimento_documento"),
         comprovacao_status=str(finance_payload.get("comprovacao_status") or "sem_comprovacao"),
         observacao=finance_payload.get("observacao"),
     )
@@ -320,6 +338,7 @@ def new_item_form():
         saldo_total_ean=saldo_total_ean,
         liquid_types=LIQUID_PRODUCT_TYPES,
         preferred_supplier=None,
+        all_suppliers=finance_service.list_suppliers(limit=300),
     )
 
 
@@ -385,6 +404,9 @@ def create_item():
         "preco_compra_unitario": (form.get("preco_compra_unitario") or "").strip() or None,
         "preco_compra_fonte": (form.get("preco_compra_fonte") or "").strip() or None,
         "preco_compra_documento": (form.get("preco_compra_documento") or "").strip() or None,
+        "preco_compra_chave_acesso": (form.get("preco_compra_chave_acesso") or "").strip() or None,
+        "preco_compra_data_emissao": (form.get("preco_compra_data_emissao") or "").strip() or None,
+        "preco_compra_data_recebimento": (form.get("preco_compra_data_recebimento") or "").strip() or None,
         "preco_reposicao_unitario": (form.get("preco_reposicao_unitario") or "").strip() or None,
         "preco_reposicao_fonte": (form.get("preco_reposicao_fonte") or "").strip() or None,
         "preco_reposicao_uf": (form.get("preco_reposicao_uf") or "").strip() or None,
@@ -491,6 +513,7 @@ def create_item():
             saldo_total_ean=saldo_total_ean,
             liquid_types=LIQUID_PRODUCT_TYPES,
             preferred_supplier=finance_service.get_supplier(finance_payload.get("supplier_id")).to_dict() if finance_payload.get("supplier_id") else None,
+            all_suppliers=finance_service.list_suppliers(limit=300),
         ), 400
     return redirect(url_for("inventory.list_items"))
 
@@ -519,6 +542,7 @@ def edit_item_form(codigo: str):
         saldo_total_ean=saldo_total,
         liquid_types=LIQUID_PRODUCT_TYPES,
         preferred_supplier=finance_service.get_item_supplier_preference(codigo),
+        all_suppliers=finance_service.list_suppliers(limit=300),
     )
 
 

@@ -56,6 +56,9 @@ class Item(db.Model):
     preco_compra_unitario: Mapped[float | None] = mapped_column(Float, nullable=True)
     preco_compra_fonte: Mapped[str | None] = mapped_column(String(50), nullable=True)
     preco_compra_documento: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    preco_compra_chave_acesso: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    preco_compra_data_emissao: Mapped[date | None] = mapped_column(Date, nullable=True)
+    preco_compra_data_recebimento: Mapped[date | None] = mapped_column(Date, nullable=True)
     preco_compra_atualizado_em: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     preco_compra_atualizado_por: Mapped[str | None] = mapped_column(String(100), nullable=True)
 
@@ -114,6 +117,9 @@ class Item(db.Model):
             "preco_compra_unitario": self.preco_compra_unitario,
             "preco_compra_fonte": self.preco_compra_fonte,
             "preco_compra_documento": self.preco_compra_documento,
+            "preco_compra_chave_acesso": self.preco_compra_chave_acesso,
+            "preco_compra_data_emissao": self.preco_compra_data_emissao.isoformat() if self.preco_compra_data_emissao else None,
+            "preco_compra_data_recebimento": self.preco_compra_data_recebimento.isoformat() if self.preco_compra_data_recebimento else None,
             "preco_compra_atualizado_em": self.preco_compra_atualizado_em.isoformat() if self.preco_compra_atualizado_em else None,
             "preco_compra_atualizado_por": self.preco_compra_atualizado_por,
             "preco_reposicao_unitario": self.preco_reposicao_unitario,
@@ -1461,6 +1467,9 @@ class FinanceLedgerEntry(db.Model):
     origem_valor: Mapped[str] = mapped_column(String(40), nullable=False, default="inventario_inicial")
     tipo_documento: Mapped[str | None] = mapped_column(String(40), nullable=True)
     numero_documento: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    chave_acesso: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    data_emissao_documento: Mapped[date | None] = mapped_column(Date, nullable=True)
+    data_recebimento_documento: Mapped[date | None] = mapped_column(Date, nullable=True)
     comprovacao_status: Mapped[str] = mapped_column(String(30), nullable=False, default="sem_comprovacao")
     observacao: Mapped[str | None] = mapped_column(Text, nullable=True)
     criado_em: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now())
@@ -1485,6 +1494,9 @@ class FinanceLedgerEntry(db.Model):
             "origem_valor": self.origem_valor,
             "tipo_documento": self.tipo_documento,
             "numero_documento": self.numero_documento,
+            "chave_acesso": self.chave_acesso,
+            "data_emissao_documento": self.data_emissao_documento.isoformat() if self.data_emissao_documento else None,
+            "data_recebimento_documento": self.data_recebimento_documento.isoformat() if self.data_recebimento_documento else None,
             "comprovacao_status": self.comprovacao_status,
             "observacao": self.observacao,
         }

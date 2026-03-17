@@ -568,6 +568,20 @@ class InventoryService:
             except ValueError:
                 data_validade = None
 
+        data_emissao = payload.get("preco_compra_data_emissao")
+        if data_emissao and isinstance(data_emissao, str):
+            try:
+                data_emissao = datetime.strptime(data_emissao, '%Y-%m-%d').date()
+            except ValueError:
+                data_emissao = None
+
+        data_recebimento = payload.get("preco_compra_data_recebimento")
+        if data_recebimento and isinstance(data_recebimento, str):
+            try:
+                data_recebimento = datetime.strptime(data_recebimento, '%Y-%m-%d').date()
+            except ValueError:
+                data_recebimento = None
+
         grandeza_referencia = payload.get("grandeza_referencia")
         if grandeza_referencia in ("", None):
             grandeza_referencia = None
@@ -660,6 +674,9 @@ class InventoryService:
             preco_compra_unitario=preco_compra_unitario,
             preco_compra_fonte=payload.get("preco_compra_fonte"),
             preco_compra_documento=payload.get("preco_compra_documento"),
+            preco_compra_chave_acesso=payload.get("preco_compra_chave_acesso"),
+            preco_compra_data_emissao=data_emissao if payload.get("preco_compra_data_emissao") else None,
+            preco_compra_data_recebimento=data_recebimento if payload.get("preco_compra_data_recebimento") else None,
             preco_compra_atualizado_em=payload.get("preco_compra_atualizado_em"),
             preco_compra_atualizado_por=payload.get("preco_compra_atualizado_por"),
             preco_reposicao_unitario=preco_reposicao_unitario,
@@ -853,7 +870,14 @@ class InventoryService:
             item.foto_path = payload["foto_path"]
 
         # Financeiro
-        compra_keys = {"preco_compra_unitario", "preco_compra_fonte", "preco_compra_documento"}
+        compra_keys = {
+            "preco_compra_unitario",
+            "preco_compra_fonte",
+            "preco_compra_documento",
+            "preco_compra_chave_acesso",
+            "preco_compra_data_emissao",
+            "preco_compra_data_recebimento",
+        }
         if any(k in payload for k in compra_keys):
             if "preco_compra_unitario" in payload:
                 item.preco_compra_unitario = _coerce_price(payload.get("preco_compra_unitario"))
@@ -861,6 +885,30 @@ class InventoryService:
                 item.preco_compra_fonte = payload.get("preco_compra_fonte") or None
             if "preco_compra_documento" in payload:
                 item.preco_compra_documento = payload.get("preco_compra_documento") or None
+            if "preco_compra_chave_acesso" in payload:
+                item.preco_compra_chave_acesso = payload.get("preco_compra_chave_acesso") or None
+            if "preco_compra_data_emissao" in payload:
+                raw_emissao = payload.get("preco_compra_data_emissao")
+                if raw_emissao in (None, ""):
+                    item.preco_compra_data_emissao = None
+                elif isinstance(raw_emissao, str):
+                    try:
+                        item.preco_compra_data_emissao = datetime.strptime(raw_emissao, "%Y-%m-%d").date()
+                    except ValueError:
+                        pass
+                elif isinstance(raw_emissao, date):
+                    item.preco_compra_data_emissao = raw_emissao
+            if "preco_compra_data_recebimento" in payload:
+                raw_recebimento = payload.get("preco_compra_data_recebimento")
+                if raw_recebimento in (None, ""):
+                    item.preco_compra_data_recebimento = None
+                elif isinstance(raw_recebimento, str):
+                    try:
+                        item.preco_compra_data_recebimento = datetime.strptime(raw_recebimento, "%Y-%m-%d").date()
+                    except ValueError:
+                        pass
+                elif isinstance(raw_recebimento, date):
+                    item.preco_compra_data_recebimento = raw_recebimento
             item.preco_compra_atualizado_em = payload.get("preco_compra_atualizado_em") or datetime.utcnow()
             item.preco_compra_atualizado_por = payload.get("preco_compra_atualizado_por") or payload.get("ultima_edicao_por")
 

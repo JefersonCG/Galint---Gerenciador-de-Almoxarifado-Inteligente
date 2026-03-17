@@ -619,6 +619,9 @@ class FinanceService:
         origem_valor: str | None = None,
         tipo_documento: str | None = None,
         numero_documento: str | None = None,
+        chave_acesso: str | None = None,
+        data_emissao_documento: date | None = None,
+        data_recebimento_documento: date | None = None,
         comprovacao_status: str | None = None,
         observacao: str | None = None,
     ) -> FinanceLedgerEntry | None:
@@ -654,6 +657,9 @@ class FinanceService:
             origem_valor=(origem_valor or "inventario_inicial").strip() or "inventario_inicial",
             tipo_documento=(tipo_documento or "").strip() or None,
             numero_documento=(numero_documento or "").strip() or None,
+            chave_acesso=(chave_acesso or "").strip() or None,
+            data_emissao_documento=data_emissao_documento,
+            data_recebimento_documento=data_recebimento_documento,
             comprovacao_status=(comprovacao_status or "sem_comprovacao").strip() or "sem_comprovacao",
             observacao=(observacao or "").strip() or None,
         )

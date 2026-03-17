@@ -3,18 +3,126 @@
 
 {% block extra_css %}
 <style>
+    .supplier-page {
+        padding-bottom: 2rem;
+    }
+
+    .supplier-hero {
+        position: relative;
+        overflow: hidden;
+        border-radius: 24px;
+        padding: 1.6rem;
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 62%, #334155 100%);
+        color: #e2e8f0;
+        box-shadow: 0 26px 60px rgba(15, 23, 42, 0.28);
+        margin-bottom: 1.5rem;
+    }
+
+    .supplier-hero::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+            radial-gradient(circle at 12% 18%, rgba(56, 189, 248, 0.22), transparent 34%),
+            radial-gradient(circle at 82% 26%, rgba(16, 185, 129, 0.18), transparent 28%),
+            radial-gradient(circle at 50% 100%, rgba(245, 158, 11, 0.16), transparent 34%);
+        pointer-events: none;
+    }
+
+    .supplier-hero > * {
+        position: relative;
+        z-index: 1;
+    }
+
+    .supplier-hero-grid {
+        display: grid;
+        grid-template-columns: 1.35fr 0.95fr;
+        gap: 1.25rem;
+        align-items: end;
+    }
+
+    .supplier-kpis {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.85rem;
+        margin-top: 1.2rem;
+    }
+
+    .supplier-kpi {
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(226, 232, 240, 0.16);
+        border-radius: 18px;
+        padding: 1rem 1.05rem;
+        backdrop-filter: blur(8px);
+    }
+
+    .supplier-kpi-label {
+        font-size: 0.74rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: rgba(226, 232, 240, 0.72);
+    }
+
+    .supplier-kpi-value {
+        font-size: 1.55rem;
+        font-weight: 800;
+        letter-spacing: -0.03em;
+        margin-top: 0.2rem;
+        color: #ffffff;
+    }
+
+    .supplier-kpi-sub {
+        font-size: 0.82rem;
+        color: rgba(226, 232, 240, 0.72);
+        margin-top: 0.25rem;
+    }
+
+    .supplier-hero-actions {
+        display: grid;
+        gap: 0.75rem;
+    }
+
+    .supplier-action-card {
+        background: rgba(15, 23, 42, 0.38);
+        border: 1px solid rgba(226, 232, 240, 0.12);
+        border-radius: 18px;
+        padding: 1rem 1.05rem;
+    }
+
+    .supplier-action-card .title {
+        font-weight: 700;
+        color: #ffffff;
+        margin-bottom: 0.3rem;
+    }
+
+    .supplier-action-card .text {
+        font-size: 0.87rem;
+        color: rgba(226, 232, 240, 0.72);
+        margin-bottom: 0.8rem;
+    }
+
     .supplier-shell {
         display: grid;
-        grid-template-columns: minmax(340px, 430px) 1fr;
+        grid-template-columns: minmax(360px, 440px) 1fr;
         gap: 1.5rem;
     }
 
     .supplier-card {
-        background: #fff;
-        border-radius: 16px;
-        border: 1px solid rgba(148, 163, 184, 0.22);
-        box-shadow: 0 18px 35px rgba(15, 23, 42, 0.08);
-        padding: 1.4rem;
+        background: #ffffff;
+        border-radius: 22px;
+        border: 1px solid rgba(148, 163, 184, 0.24);
+        box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+        overflow: hidden;
+    }
+
+    .supplier-card-head {
+        padding: 1.25rem 1.35rem;
+        background: linear-gradient(135deg, #eff6ff 0%, #f8fafc 100%);
+        border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+    }
+
+    .supplier-card-body {
+        padding: 1.35rem;
     }
 
     .supplier-header {
@@ -25,212 +133,354 @@
         margin-bottom: 1rem;
     }
 
+    .supplier-table-wrap {
+        padding: 0 1.35rem 1.35rem;
+    }
+
     .supplier-table th {
-        font-size: 0.8rem;
+        font-size: 0.76rem;
         text-transform: uppercase;
-        letter-spacing: 0.06em;
-        color: #475569;
+        letter-spacing: 0.08em;
+        color: #64748b;
+        border-bottom-width: 1px;
     }
 
     .supplier-table td {
         vertical-align: middle;
+        padding-top: 0.95rem;
+        padding-bottom: 0.95rem;
     }
 
     .supplier-badge {
         display: inline-flex;
+        align-items: center;
         gap: 0.4rem;
-        padding: 0.2rem 0.65rem;
+        padding: 0.28rem 0.7rem;
         border-radius: 999px;
         font-size: 0.75rem;
+        font-weight: 600;
         background: #eff6ff;
         color: #1d4ed8;
+        border: 1px solid rgba(59, 130, 246, 0.18);
     }
 
     .lookup-box {
         background: linear-gradient(135deg, #eff6ff 0%, #f8fafc 100%);
         border: 1px solid #bfdbfe;
-        border-radius: 12px;
+        border-radius: 18px;
         padding: 1rem;
         margin-bottom: 1rem;
     }
 
-    @media (max-width: 991px) {
+    .supplier-search {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        background: #ffffff;
+        padding: 1.1rem 1.35rem 0.9rem;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+    }
+
+    .supplier-row-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        font-size: 0.72rem;
+        border-radius: 999px;
+        padding: 0.22rem 0.56rem;
+        background: rgba(16, 185, 129, 0.12);
+        color: #047857;
+        border: 1px solid rgba(16, 185, 129, 0.18);
+        margin-top: 0.35rem;
+    }
+
+    .supplier-row-status.off {
+        background: rgba(239, 68, 68, 0.1);
+        color: #b91c1c;
+        border-color: rgba(239, 68, 68, 0.18);
+    }
+
+    .supplier-empty {
+        border: 1px dashed rgba(148, 163, 184, 0.45);
+        border-radius: 18px;
+        padding: 1.5rem;
+        text-align: center;
+        color: #64748b;
+        background: #f8fafc;
+    }
+
+    @media (max-width: 1100px) {
+        .supplier-hero-grid,
         .supplier-shell {
             grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .supplier-page {
+            padding-bottom: 1rem;
+        }
+
+        .supplier-hero {
+            border-radius: 20px;
+            padding: 1.25rem;
+        }
+
+        .supplier-kpis {
+            grid-template-columns: 1fr;
+        }
+
+        .supplier-card-body,
+        .supplier-table-wrap,
+        .supplier-search,
+        .supplier-card-head {
+            padding-left: 1rem;
+            padding-right: 1rem;
         }
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid py-4">
-    <div class="supplier-header mb-4">
-        <div>
-            <h1 class="h3 mb-1">Fornecedores</h1>
-            <div class="text-muted">Cadastro mestre das lojas e empresas usadas nas compras do almoxarifado.</div>
+{% set total_fornecedores = fornecedores|length %}
+{% set total_ativos = fornecedores|selectattr('ativo')|list|length %}
+{% set total_cnpj = fornecedores|selectattr('cnpj')|list|length %}
+<div class="container-fluid py-4 supplier-page">
+    <section class="supplier-hero">
+        <div class="supplier-hero-grid">
+            <div>
+                <div class="text-uppercase small fw-semibold" style="letter-spacing: 0.12em; color: rgba(226, 232, 240, 0.68);">Cadastro mestre</div>
+                <h1 class="h2 mt-2 mb-2 text-white">Fornecedores do almoxarifado</h1>
+                <div style="max-width: 48rem; color: rgba(226, 232, 240, 0.78);">
+                    Centralize empresas, lojas e parceiros de compra em um só lugar. Esse cadastro abastece o Financeiro, a Nova Entrada/NF e agora também o início do cadastro de novos itens.
+                </div>
+                <div class="supplier-kpis">
+                    <div class="supplier-kpi">
+                        <div class="supplier-kpi-label">Total cadastrado</div>
+                        <div class="supplier-kpi-value">{{ total_fornecedores }}</div>
+                        <div class="supplier-kpi-sub">Base disponível para compras e documentos</div>
+                    </div>
+                    <div class="supplier-kpi">
+                        <div class="supplier-kpi-label">Com CNPJ</div>
+                        <div class="supplier-kpi-value">{{ total_cnpj }}</div>
+                        <div class="supplier-kpi-sub">Prontos para cruzamento com NF e cupom</div>
+                    </div>
+                    <div class="supplier-kpi">
+                        <div class="supplier-kpi-label">Ativos</div>
+                        <div class="supplier-kpi-value">{{ total_ativos }}</div>
+                        <div class="supplier-kpi-sub">Disponíveis para novas entradas</div>
+                    </div>
+                </div>
+            </div>
+            <div class="supplier-hero-actions">
+                <div class="supplier-action-card">
+                    <div class="title">Fluxo recomendado</div>
+                    <div class="text">Cadastre o fornecedor antes do item. Isso acelera o preenchimento da NF, melhora a auditoria e reduz retrabalho no financeiro.</div>
+                    <div class="d-flex gap-2 flex-wrap">
+                        <a class="btn btn-light" href="{{ url_for('inventory.valor_estoque') }}">
+                            <i class="bi bi-cash-stack me-1"></i> Financeiro
+                        </a>
+                        {% if endpoint_exists('inventory.lojas_lab') %}
+                        <a class="btn btn-outline-light" href="{{ url_for('inventory.lojas_lab') }}">
+                            <i class="bi bi-shop me-1"></i> Laboratório de Lojas
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="supplier-action-card">
+                    <div class="title">Consulta por CNPJ</div>
+                    <div class="text">Use a busca automática para preencher razão social, endereço e situação cadastral antes de salvar.</div>
+                    <span class="supplier-badge"><i class="bi bi-lightning-charge"></i> Preenchimento assistido</span>
+                </div>
+            </div>
         </div>
-        <a class="btn btn-outline-secondary" href="{{ url_for('inventory.valor_estoque') }}">
-            <i class="bi bi-cash-stack me-1"></i> Financeiro
-        </a>
-    </div>
+    </section>
 
     <div class="supplier-shell">
-        <div class="supplier-card">
-            <div class="supplier-header">
-                <div>
-                    <h2 class="h5 mb-1">{{ 'Editar fornecedor' if supplier_edit else 'Novo fornecedor' }}</h2>
-                    <div class="text-muted small">Consulte o CNPJ para preencher os dados automaticamente.</div>
+        <section class="supplier-card">
+            <div class="supplier-card-head">
+                <div class="supplier-header mb-0">
+                    <div>
+                        <h2 class="h5 mb-1">{{ 'Editar fornecedor' if supplier_edit else 'Novo fornecedor' }}</h2>
+                        <div class="text-muted small">Estrutura preparada para compras futuras, documentos fiscais e preferências do item.</div>
+                    </div>
+                    {% if supplier_edit %}
+                    <span class="supplier-badge"><i class="bi bi-pencil-square"></i> Modo edição</span>
+                    {% else %}
+                    <span class="supplier-badge"><i class="bi bi-plus-circle"></i> Novo cadastro</span>
+                    {% endif %}
                 </div>
             </div>
 
-            <div class="lookup-box">
-                <label class="form-label" for="cnpj-lookup">Buscar por CNPJ</label>
-                <div class="input-group">
-                    <input class="form-control" id="cnpj-lookup" maxlength="18" placeholder="00.000.000/0000-00">
-                    <button class="btn btn-primary" type="button" id="btn-cnpj-lookup">
-                        <i class="bi bi-search me-1"></i> Consultar
-                    </button>
+            <div class="supplier-card-body">
+                <div class="lookup-box">
+                    <label class="form-label" for="cnpj-lookup">Buscar por CNPJ</label>
+                    <div class="input-group">
+                        <input class="form-control" id="cnpj-lookup" maxlength="18" placeholder="00.000.000/0000-00">
+                        <button class="btn btn-primary" type="button" id="btn-cnpj-lookup">
+                            <i class="bi bi-search me-1"></i> Consultar
+                        </button>
+                    </div>
+                    <div class="form-text">Usa API pública para preencher razão social, endereço e situação cadastral.</div>
+                    <div class="small mt-2 text-muted" id="cnpj-status"></div>
                 </div>
-                <div class="form-text">Usa API pública para preencher razão social, endereço e situação cadastral.</div>
-                <div class="small mt-2 text-muted" id="cnpj-status"></div>
-            </div>
 
-            <form method="post" id="supplier-form">
-                <input type="hidden" name="id" value="{{ supplier_edit.id if supplier_edit else '' }}">
-                <input type="hidden" name="api_origem" id="api_origem" value="{{ supplier_edit.api_origem if supplier_edit else '' }}">
-                <div class="mb-3">
-                    <label class="form-label" for="razao_social">Razão social</label>
-                    <input class="form-control" id="razao_social" name="razao_social" value="{{ supplier_edit.razao_social if supplier_edit else '' }}" required>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label" for="nome_fantasia">Nome fantasia</label>
-                    <input class="form-control" id="nome_fantasia" name="nome_fantasia" value="{{ supplier_edit.nome_fantasia if supplier_edit else '' }}">
-                </div>
-                <div class="row g-3">
-                    <div class="col-md-7">
-                        <label class="form-label" for="cnpj">CNPJ</label>
-                        <input class="form-control" id="cnpj" name="cnpj" value="{{ supplier_edit.cnpj if supplier_edit else '' }}">
+                <form method="post" id="supplier-form">
+                    <input type="hidden" name="id" value="{{ supplier_edit.id if supplier_edit else '' }}">
+                    <input type="hidden" name="api_origem" id="api_origem" value="{{ supplier_edit.api_origem if supplier_edit else '' }}">
+                    <div class="mb-3">
+                        <label class="form-label" for="razao_social">Razão social</label>
+                        <input class="form-control" id="razao_social" name="razao_social" value="{{ supplier_edit.razao_social if supplier_edit else '' }}" required>
                     </div>
-                    <div class="col-md-5">
-                        <label class="form-label" for="inscricao_estadual">Inscrição estadual</label>
-                        <input class="form-control" id="inscricao_estadual" name="inscricao_estadual" value="{{ supplier_edit.inscricao_estadual if supplier_edit else '' }}">
+                    <div class="mb-3">
+                        <label class="form-label" for="nome_fantasia">Nome fantasia</label>
+                        <input class="form-control" id="nome_fantasia" name="nome_fantasia" value="{{ supplier_edit.nome_fantasia if supplier_edit else '' }}">
                     </div>
-                </div>
-                <div class="row g-3 mt-1">
-                    <div class="col-md-8">
-                        <label class="form-label" for="endereco_rua">Logradouro</label>
-                        <input class="form-control" id="endereco_rua" name="endereco_rua" value="{{ supplier_edit.endereco_rua if supplier_edit else '' }}">
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label" for="endereco_numero">Número</label>
-                        <input class="form-control" id="endereco_numero" name="endereco_numero" value="{{ supplier_edit.endereco_numero if supplier_edit else '' }}">
-                    </div>
-                </div>
-                <div class="row g-3 mt-1">
-                    <div class="col-md-6">
-                        <label class="form-label" for="endereco_complemento">Complemento</label>
-                        <input class="form-control" id="endereco_complemento" name="endereco_complemento" value="{{ supplier_edit.endereco_complemento if supplier_edit else '' }}">
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label" for="endereco_bairro">Bairro</label>
-                        <input class="form-control" id="endereco_bairro" name="endereco_bairro" value="{{ supplier_edit.endereco_bairro if supplier_edit else '' }}">
-                    </div>
-                </div>
-                <div class="row g-3 mt-1">
-                    <div class="col-md-5">
-                        <label class="form-label" for="endereco_cidade">Cidade</label>
-                        <input class="form-control" id="endereco_cidade" name="endereco_cidade" value="{{ supplier_edit.endereco_cidade if supplier_edit else '' }}">
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label" for="endereco_estado">UF</label>
-                        <input class="form-control text-uppercase" id="endereco_estado" name="endereco_estado" maxlength="2" value="{{ supplier_edit.endereco_estado if supplier_edit else '' }}">
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label" for="endereco_cep">CEP</label>
-                        <input class="form-control" id="endereco_cep" name="endereco_cep" value="{{ supplier_edit.endereco_cep if supplier_edit else '' }}">
-                    </div>
-                </div>
-                <div class="row g-3 mt-1">
-                    <div class="col-md-4">
-                        <label class="form-label" for="telefone">Telefone</label>
-                        <input class="form-control" id="telefone" name="telefone" value="{{ supplier_edit.telefone if supplier_edit else '' }}">
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label" for="email">E-mail</label>
-                        <input class="form-control" id="email" name="email" value="{{ supplier_edit.email if supplier_edit else '' }}">
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label" for="site">Site</label>
-                        <input class="form-control" id="site" name="site" value="{{ supplier_edit.site if supplier_edit else '' }}">
-                    </div>
-                </div>
-                <div class="row g-3 mt-1">
-                    <div class="col-md-8">
-                        <label class="form-label" for="situacao_cadastral">Situação cadastral</label>
-                        <input class="form-control" id="situacao_cadastral" name="situacao_cadastral" value="{{ supplier_edit.situacao_cadastral if supplier_edit else '' }}">
-                    </div>
-                    <div class="col-md-4 d-flex align-items-end">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="ativo" name="ativo" {% if supplier_edit is none or supplier_edit.ativo %}checked{% endif %}>
-                            <label class="form-check-label" for="ativo">Fornecedor ativo</label>
+                    <div class="row g-3">
+                        <div class="col-md-7">
+                            <label class="form-label" for="cnpj">CNPJ</label>
+                            <input class="form-control" id="cnpj" name="cnpj" value="{{ supplier_edit.cnpj if supplier_edit else '' }}">
+                        </div>
+                        <div class="col-md-5">
+                            <label class="form-label" for="inscricao_estadual">Inscrição estadual</label>
+                            <input class="form-control" id="inscricao_estadual" name="inscricao_estadual" value="{{ supplier_edit.inscricao_estadual if supplier_edit else '' }}">
                         </div>
                     </div>
-                </div>
-                <div class="mt-3">
-                    <label class="form-label" for="observacoes">Observações</label>
-                    <textarea class="form-control" id="observacoes" name="observacoes" rows="3">{{ supplier_edit.observacoes if supplier_edit else '' }}</textarea>
-                </div>
-                <div class="d-flex gap-2 mt-4">
-                    <button class="btn btn-primary" type="submit">
-                        <i class="bi bi-save me-1"></i> Salvar fornecedor
-                    </button>
-                    <a class="btn btn-outline-secondary" href="{{ url_for('config.fornecedores') }}">Limpar</a>
-                </div>
-            </form>
-        </div>
+                    <div class="row g-3 mt-1">
+                        <div class="col-md-8">
+                            <label class="form-label" for="endereco_rua">Logradouro</label>
+                            <input class="form-control" id="endereco_rua" name="endereco_rua" value="{{ supplier_edit.endereco_rua if supplier_edit else '' }}">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label" for="endereco_numero">Número</label>
+                            <input class="form-control" id="endereco_numero" name="endereco_numero" value="{{ supplier_edit.endereco_numero if supplier_edit else '' }}">
+                        </div>
+                    </div>
+                    <div class="row g-3 mt-1">
+                        <div class="col-md-6">
+                            <label class="form-label" for="endereco_complemento">Complemento</label>
+                            <input class="form-control" id="endereco_complemento" name="endereco_complemento" value="{{ supplier_edit.endereco_complemento if supplier_edit else '' }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="endereco_bairro">Bairro</label>
+                            <input class="form-control" id="endereco_bairro" name="endereco_bairro" value="{{ supplier_edit.endereco_bairro if supplier_edit else '' }}">
+                        </div>
+                    </div>
+                    <div class="row g-3 mt-1">
+                        <div class="col-md-5">
+                            <label class="form-label" for="endereco_cidade">Cidade</label>
+                            <input class="form-control" id="endereco_cidade" name="endereco_cidade" value="{{ supplier_edit.endereco_cidade if supplier_edit else '' }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label" for="endereco_estado">UF</label>
+                            <input class="form-control text-uppercase" id="endereco_estado" name="endereco_estado" maxlength="2" value="{{ supplier_edit.endereco_estado if supplier_edit else '' }}">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label" for="endereco_cep">CEP</label>
+                            <input class="form-control" id="endereco_cep" name="endereco_cep" value="{{ supplier_edit.endereco_cep if supplier_edit else '' }}">
+                        </div>
+                    </div>
+                    <div class="row g-3 mt-1">
+                        <div class="col-md-4">
+                            <label class="form-label" for="telefone">Telefone</label>
+                            <input class="form-control" id="telefone" name="telefone" value="{{ supplier_edit.telefone if supplier_edit else '' }}">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label" for="email">E-mail</label>
+                            <input class="form-control" id="email" name="email" value="{{ supplier_edit.email if supplier_edit else '' }}">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label" for="site">Site</label>
+                            <input class="form-control" id="site" name="site" value="{{ supplier_edit.site if supplier_edit else '' }}">
+                        </div>
+                    </div>
+                    <div class="row g-3 mt-1">
+                        <div class="col-md-8">
+                            <label class="form-label" for="situacao_cadastral">Situação cadastral</label>
+                            <input class="form-control" id="situacao_cadastral" name="situacao_cadastral" value="{{ supplier_edit.situacao_cadastral if supplier_edit else '' }}">
+                        </div>
+                        <div class="col-md-4 d-flex align-items-end">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="ativo" name="ativo" {% if supplier_edit is none or supplier_edit.ativo %}checked{% endif %}>
+                                <label class="form-check-label" for="ativo">Fornecedor ativo</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <label class="form-label" for="observacoes">Observações</label>
+                        <textarea class="form-control" id="observacoes" name="observacoes" rows="3">{{ supplier_edit.observacoes if supplier_edit else '' }}</textarea>
+                    </div>
+                    <div class="d-flex gap-2 mt-4 flex-wrap">
+                        <button class="btn btn-primary" type="submit">
+                            <i class="bi bi-save me-1"></i> Salvar fornecedor
+                        </button>
+                        <a class="btn btn-outline-secondary" href="{{ url_for('config.fornecedores') }}">Limpar</a>
+                    </div>
+                </form>
+            </div>
+        </section>
 
-        <div class="supplier-card">
-            <div class="supplier-header">
-                <div>
-                    <h2 class="h5 mb-1">Cadastros existentes</h2>
-                    <div class="text-muted small">Selecione um fornecedor para editar ou conferir rapidamente os dados.</div>
+        <section class="supplier-card">
+            <div class="supplier-card-head">
+                <div class="supplier-header mb-0">
+                    <div>
+                        <h2 class="h5 mb-1">Cadastros existentes</h2>
+                        <div class="text-muted small">Selecione um fornecedor para editar, auditar dados ou confirmar rapidamente se ele já existe.</div>
+                    </div>
+                    <span class="supplier-badge">{{ total_fornecedores }} registro(s)</span>
                 </div>
-                <span class="supplier-badge">{{ fornecedores|length }} cadastrado(s)</span>
             </div>
-            <div class="table-responsive">
-                <table class="table supplier-table align-middle">
-                    <thead>
-                        <tr>
-                            <th>Fornecedor</th>
-                            <th>CNPJ</th>
-                            <th>Cidade/UF</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for fornecedor in fornecedores %}
-                        <tr>
-                            <td>
-                                <div class="fw-semibold">{{ fornecedor.nome_exibicao }}</div>
-                                <div class="text-muted small">{{ fornecedor.razao_social }}</div>
-                            </td>
-                            <td>{{ fornecedor.cnpj or '—' }}</td>
-                            <td>{{ fornecedor.endereco_cidade or '—' }}{% if fornecedor.endereco_estado %}/{{ fornecedor.endereco_estado }}{% endif %}</td>
-                            <td class="text-end">
-                                <a class="btn btn-sm btn-outline-primary" href="{{ url_for('config.fornecedores', supplier_id=fornecedor.id) }}">
-                                    <i class="bi bi-pencil me-1"></i> Editar
-                                </a>
-                            </td>
-                        </tr>
-                        {% else %}
-                        <tr>
-                            <td colspan="4" class="text-center text-muted py-4">Nenhum fornecedor cadastrado ainda.</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+
+            <div class="supplier-search">
+                <label class="form-label mb-2" for="supplier-filter">Busca rápida</label>
+                <input class="form-control" id="supplier-filter" placeholder="Digite nome, fantasia, CNPJ ou cidade">
             </div>
-        </div>
+
+            <div class="supplier-table-wrap">
+                {% if fornecedores %}
+                <div class="table-responsive">
+                    <table class="table supplier-table align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>Fornecedor</th>
+                                <th>CNPJ</th>
+                                <th>Cidade/UF</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="supplier-table-body">
+                            {% for fornecedor in fornecedores %}
+                            <tr data-supplier-search="{{ (fornecedor.nome_exibicao ~ ' ' ~ (fornecedor.razao_social or '') ~ ' ' ~ (fornecedor.cnpj or '') ~ ' ' ~ (fornecedor.endereco_cidade or '') ~ ' ' ~ (fornecedor.endereco_estado or ''))|lower }}">
+                                <td>
+                                    <div class="fw-semibold">{{ fornecedor.nome_exibicao }}</div>
+                                    <div class="text-muted small">{{ fornecedor.razao_social }}</div>
+                                    <div class="supplier-row-status {{ '' if fornecedor.ativo else 'off' }}">
+                                        <i class="bi {{ 'bi-check-circle' if fornecedor.ativo else 'bi-pause-circle' }}"></i>
+                                        {{ 'Ativo' if fornecedor.ativo else 'Inativo' }}
+                                    </div>
+                                </td>
+                                <td>{{ fornecedor.cnpj or '—' }}</td>
+                                <td>{{ fornecedor.endereco_cidade or '—' }}{% if fornecedor.endereco_estado %}/{{ fornecedor.endereco_estado }}{% endif %}</td>
+                                <td class="text-end">
+                                    <a class="btn btn-sm btn-outline-primary" href="{{ url_for('config.fornecedores', supplier_id=fornecedor.id) }}">
+                                        <i class="bi bi-pencil me-1"></i> Editar
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="supplier-empty mt-3 d-none" id="supplier-filter-empty">
+                    Nenhum fornecedor corresponde ao filtro atual.
+                </div>
+                {% else %}
+                <div class="supplier-empty">
+                    Nenhum fornecedor cadastrado ainda. Use o formulário ao lado para criar o primeiro registro.
+                </div>
+                {% endif %}
+            </div>
+        </section>
     </div>
 </div>
 {% endblock %}
@@ -241,6 +491,9 @@
     const cnpjLookupInput = document.getElementById('cnpj-lookup');
     const cnpjStatus = document.getElementById('cnpj-status');
     const btnCnpjLookup = document.getElementById('btn-cnpj-lookup');
+    const supplierFilterInput = document.getElementById('supplier-filter');
+    const supplierTableBody = document.getElementById('supplier-table-body');
+    const supplierFilterEmpty = document.getElementById('supplier-filter-empty');
 
     const fillField = (id, value) => {
         const input = document.getElementById(id);
@@ -292,6 +545,21 @@
         } finally {
             btnCnpjLookup.disabled = false;
         }
+    });
+
+    supplierFilterInput?.addEventListener('input', () => {
+        const term = (supplierFilterInput.value || '').trim().toLowerCase();
+        const rows = Array.from(supplierTableBody?.querySelectorAll('tr') || []);
+        let visibleCount = 0;
+        rows.forEach((row) => {
+            const haystack = row.dataset.supplierSearch || '';
+            const visible = !term || haystack.includes(term);
+            row.classList.toggle('d-none', !visible);
+            if (visible) {
+                visibleCount += 1;
+            }
+        });
+        supplierFilterEmpty?.classList.toggle('d-none', visibleCount !== 0);
     });
 </script>
 {% endblock %}
