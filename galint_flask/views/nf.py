@@ -6,10 +6,22 @@ from datetime import date
 from flask import Blueprint, abort, current_app, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
+from ..extensions import db
+from ..models import DocumentoEntradaEstoque, DocumentoEntradaEstoqueItem, Entrada, FinanceLedgerEntry, TelegramOutbox
 from ..services.finance_service import finance_service
 from ..services.inventory import inventory_service
 
 blueprint = Blueprint("nf", __name__, url_prefix="/nf")
+
+
+def _purge_linked_entry(entrada_id: int | None) -> None:
+    if entrada_id is None:
+        return
+    FinanceLedgerEntry.query.filter_by(entrada_id=entrada_id).delete(synchronize_session=False)
+    TelegramOutbox.query.filter_by(entrada_id=entrada_id).delete(synchronize_session=False)
+    linked_entry = db.session.get(Entrada, entrada_id)
+    if linked_entry is not None:
+        db.session.delete(linked_entry)
 
 
 @blueprint.before_request
@@ -99,7 +111,7 @@ def registrar_nf():
         preco_unitario = float(preco_unitario_raw) if preco_unitario_raw else None
         item = inventory_service.get_item(codigo) or {}
 
-        finance_service.register_stock_document_entry(
+        document_result = finance_service.register_stock_document_entry(
             codigo_item=codigo,
             quantidade=float(quantidade),
             tipo_documento=tipo_documento,
@@ -116,8 +128,47 @@ def registrar_nf():
             observacao=observacao,
             usuario_matricula=current_user.id,
             origem_valor=origem_valor,
+            document_only=True,
         )
+        document_item = document_result.get("document_item")
+        linked_entry_id = getattr(document_item, "entrada_id", None)
+        if linked_entry_id is not None:
+            document_item.entrada_id = None
+            _purge_linked_entry(linked_entry_id)
+            db.session.commit()
         flash("Nota fiscal registrada apenas como documento. Estoque e financeiro não foram incorporados ao sistema.", "success")
     except ValueError as exc:
         flash(str(exc), "danger")
     return redirect(url_for("nf.nf_index"))
+
+
+@blueprint.post("/<int:documento_id>/itens/<int:documento_item_id>/excluir")
+@login_required
+def excluir_item_documento(documento_id: int, documento_item_id: int):
+    _require_admin()
+    documento = db.session.get(DocumentoEntradaEstoque, documento_id)
+    item_row = db.session.get(DocumentoEntradaEstoqueItem, documento_item_id)
+
+    if documento is None or item_row is None or item_row.documento_id != documento.id_documento:
+        flash("Item do documento fiscal não encontrado.", "danger")
+        return redirect(url_for("nf.nf_index"))
+
+    numero_documento = documento.numero_documento
+    codigo_item = item_row.codigo_item
+
+    _purge_linked_entry(item_row.entrada_id)
+    db.session.delete(item_row)
+    db.session.flush()
+
+    has_items = (
+        DocumentoEntradaEstoqueItem.query
+        .filter_by(documento_id=documento.id_documento)
+        .first()
+        is not None
+    )
+    if not has_items:
+        db.session.delete(documento)
+
+    db.session.commit()
+    flash(f"Item {codigo_item} removido do documento fiscal {numero_documento}.", "success")
+    return redirect(url_for("nf.nf_index", nota=numero_documento))

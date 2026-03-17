@@ -1,17 +1,442 @@
 {% extends "base.html" %}
 {% block title %}Documentos Fiscais{% endblock %}
+{% block body_class %}documents-fiscais-shell{% endblock %}
+
+{% block extra_css %}
+<style>
+    .documents-fiscais-shell .content-panel {
+        background: linear-gradient(180deg, #0a0f15 0%, #101826 100%);
+        color: #e5eef5;
+    }
+
+    .documents-fiscais-shell .page-header {
+        display: none;
+    }
+
+    .docf-shell-wrap {
+        position: relative;
+        padding: 1.6rem;
+        border-radius: 28px;
+        background: linear-gradient(135deg, #0b1220 0%, #13233a 58%, #1d3557 100%);
+        border: 1px solid rgba(125, 156, 204, 0.22);
+        box-shadow: 0 28px 60px rgba(3, 10, 16, 0.34);
+        overflow: hidden;
+    }
+
+    .docf-shell-wrap::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+            radial-gradient(circle at 8% 10%, rgba(59, 130, 246, 0.16), transparent 24%),
+            radial-gradient(circle at 88% 14%, rgba(96, 165, 250, 0.14), transparent 22%),
+            radial-gradient(circle at 55% 100%, rgba(56, 189, 248, 0.08), transparent 28%);
+        pointer-events: none;
+    }
+
+    .docf-shell-wrap > * {
+        position: relative;
+        z-index: 1;
+    }
+
+    .docf-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+        margin-bottom: 1.35rem;
+    }
+
+    .docf-title {
+        margin: 0;
+        font-size: 1.95rem;
+        font-weight: 800;
+        color: #f8fbfc;
+        letter-spacing: -0.03em;
+    }
+
+    .docf-subtitle {
+        margin: 0.45rem 0 0;
+        color: rgba(221, 232, 247, 0.78);
+        font-size: 0.98rem;
+        max-width: 62rem;
+    }
+
+    .docf-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.48rem 0.85rem;
+        border-radius: 999px;
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.03em;
+        background: rgba(255, 255, 255, 0.06);
+        color: #dbe9fb;
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        white-space: nowrap;
+    }
+
+    .docf-kpis {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 0.9rem;
+        margin-bottom: 1.35rem;
+    }
+
+    .docf-kpi {
+        border-radius: 18px;
+        padding: 1rem 1.05rem;
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(12, 21, 28, 0.16) 100%);
+        border: 1px solid rgba(138, 170, 160, 0.16);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+        backdrop-filter: blur(8px);
+    }
+
+    .docf-kpi-label {
+        font-size: 0.76rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: rgba(172, 193, 223, 0.76);
+        font-weight: 700;
+    }
+
+    .docf-kpi-value {
+        margin-top: 0.35rem;
+        color: #f8fbfc;
+        font-size: 1.22rem;
+        font-weight: 800;
+    }
+
+    .docf-grid {
+        display: grid;
+        grid-template-columns: minmax(320px, 420px) minmax(0, 1fr);
+        gap: 1.2rem;
+    }
+
+    .docf-stack {
+        display: grid;
+        gap: 1.1rem;
+    }
+
+    .docf-card {
+        position: relative;
+        overflow: hidden;
+        border-radius: 22px;
+        padding: 1.15rem;
+        background: linear-gradient(135deg, #102038 0%, #17304c 70%, #1d3d60 100%);
+        border: 1px solid rgba(137, 164, 201, 0.2);
+        box-shadow: 0 20px 44px rgba(4, 12, 19, 0.26);
+    }
+
+    .docf-card::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+            radial-gradient(circle at top left, rgba(96, 165, 250, 0.14), transparent 28%),
+            radial-gradient(circle at 84% 18%, rgba(59, 130, 246, 0.14), transparent 22%),
+            linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 60%);
+        pointer-events: none;
+    }
+
+    .docf-card > * {
+        position: relative;
+        z-index: 1;
+    }
+
+    .docf-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+    }
+
+    .docf-kicker {
+        font-size: 0.74rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: rgba(181, 200, 230, 0.82);
+        margin-bottom: 0.3rem;
+    }
+
+    .docf-card-title {
+        margin: 0;
+        font-size: 1.06rem;
+        font-weight: 800;
+        color: #f8fbfc;
+    }
+
+    .docf-panel {
+        border-radius: 16px;
+        padding: 0.95rem 1rem;
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.06) 0%, rgba(7, 15, 21, 0.18) 100%);
+        border: 1px solid rgba(145, 177, 168, 0.14);
+        color: rgba(229, 238, 245, 0.88);
+    }
+
+    .docf-panel.info {
+        background: linear-gradient(135deg, rgba(34, 197, 94, 0.12) 0%, rgba(15, 118, 110, 0.08) 100%);
+        border-color: rgba(96, 165, 250, 0.18);
+    }
+
+    .docf-panel.warning {
+        background: linear-gradient(135deg, rgba(250, 204, 21, 0.12) 0%, rgba(161, 98, 7, 0.08) 100%);
+        border-color: rgba(245, 158, 11, 0.18);
+        color: #fde68a;
+    }
+
+    .docf-form label,
+    .docf-search-form label {
+        color: #eef4ff;
+        font-weight: 700;
+        margin-bottom: 0.45rem;
+    }
+
+    .docf-form .form-control,
+    .docf-form .form-select,
+    .docf-search-form .form-control,
+    .docf-search-form .form-select,
+    .docf-form .input-group-text {
+        background: rgba(8, 16, 24, 0.84);
+        border: 1px solid rgba(129, 170, 157, 0.22);
+        color: #f8fbfc;
+        min-height: 46px;
+        border-radius: 14px;
+    }
+
+    .docf-form .form-control::placeholder,
+    .docf-search-form .form-control::placeholder {
+        color: rgba(192, 212, 205, 0.5);
+    }
+
+    .docf-form .form-control:focus,
+    .docf-form .form-select:focus,
+    .docf-search-form .form-control:focus {
+        border-color: rgba(96, 165, 250, 0.45);
+        box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.16);
+    }
+
+    .docf-form .form-text,
+    .docf-search-form .form-text,
+    .docf-muted {
+        color: rgba(188, 205, 230, 0.74) !important;
+    }
+
+    .docf-btn-primary,
+    .docf-btn-secondary,
+    .docf-btn-danger {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 12px;
+        min-height: 42px;
+        padding: 0.7rem 1rem;
+        font-weight: 800;
+        border: 1px solid transparent;
+        text-decoration: none;
+        transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+    }
+
+    .docf-btn-primary {
+        background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
+        color: #f8fbff;
+        box-shadow: 0 12px 24px rgba(37, 99, 235, 0.24);
+    }
+
+    .docf-btn-secondary {
+        background: rgba(255, 255, 255, 0.06);
+        color: #ffffff;
+        border-color: rgba(148, 163, 184, 0.18);
+    }
+
+    .docf-btn-danger {
+        background: rgba(127, 29, 29, 0.26);
+        color: #ffffff;
+        border-color: rgba(248, 113, 113, 0.24);
+        min-height: 34px;
+        padding: 0.45rem 0.8rem;
+        font-size: 0.83rem;
+    }
+
+    .docf-btn-primary:hover,
+    .docf-btn-secondary:hover,
+    .docf-btn-danger:hover {
+        transform: translateY(-1px);
+    }
+
+    .docf-detail-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 0.7rem;
+        margin-bottom: 1rem;
+    }
+
+    .docf-detail-box {
+        border-radius: 14px;
+        padding: 0.8rem 0.9rem;
+        background: rgba(4, 11, 16, 0.4);
+        border: 1px solid rgba(145, 177, 168, 0.12);
+    }
+
+    .docf-detail-label {
+        display: block;
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: rgba(177, 198, 228, 0.74);
+        margin-bottom: 0.28rem;
+        font-weight: 800;
+    }
+
+    .docf-detail-value {
+        color: #f8fbfc;
+        font-weight: 700;
+        font-size: 0.96rem;
+        line-height: 1.4;
+    }
+
+    .docf-table-wrap {
+        border-radius: 18px;
+        overflow: hidden;
+        border: 1px solid rgba(145, 177, 168, 0.14);
+        background: rgba(6, 13, 18, 0.58);
+    }
+
+    .docf-table {
+        margin: 0;
+        color: #ffffff;
+    }
+
+    .docf-table thead th {
+        background: rgba(255, 255, 255, 0.05);
+        color: #f8fbff;
+        border-bottom: 1px solid rgba(145, 177, 168, 0.14);
+        font-size: 0.76rem;
+        text-transform: uppercase;
+        letter-spacing: 0.07em;
+        font-weight: 800;
+        padding: 0.9rem 0.95rem;
+    }
+
+    .docf-table tbody td {
+        background: transparent;
+        color: #ffffff;
+        border-color: rgba(145, 177, 168, 0.08);
+        padding: 0.95rem;
+        vertical-align: middle;
+    }
+
+    .docf-table tbody td strong,
+    .docf-table tbody td span,
+    .docf-table tbody td small {
+        color: inherit;
+    }
+
+    .docf-table tbody tr:hover td {
+        background: rgba(255, 255, 255, 0.03);
+    }
+
+    .docf-accordion .accordion-item {
+        overflow: hidden;
+        border-radius: 18px;
+        margin-bottom: 0.9rem;
+        background: rgba(8, 16, 24, 0.56);
+        border: 1px solid rgba(145, 177, 168, 0.14);
+    }
+
+    .docf-accordion .accordion-button {
+        background: linear-gradient(135deg, rgba(17, 27, 44, 0.96) 0%, rgba(24, 45, 78, 0.94) 100%);
+        color: #f1f8f5;
+        box-shadow: none;
+        font-weight: 700;
+    }
+
+    .docf-accordion .accordion-button:not(.collapsed) {
+        color: #effcf7;
+        background: linear-gradient(135deg, rgba(20, 38, 68, 0.97) 0%, rgba(28, 64, 118, 0.96) 100%);
+    }
+
+    .docf-accordion .accordion-body {
+        background: rgba(7, 14, 20, 0.8);
+    }
+
+    .docf-empty {
+        text-align: center;
+        padding: 1.1rem;
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px dashed rgba(145, 177, 168, 0.18);
+        color: rgba(212, 226, 245, 0.74);
+    }
+
+    @media (max-width: 1100px) {
+        .docf-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 680px) {
+        .docf-shell-wrap {
+            padding: 1rem;
+            border-radius: 20px;
+        }
+
+        .docf-header {
+            flex-direction: column;
+        }
+
+        .docf-title {
+            font-size: 1.55rem;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<h1 class="h3 mb-4">Documentos Fiscais</h1>
-<div class="row g-4">
-    <div class="col-lg-5">
-        {% if can_manage %}
-        <div class="card bg-secondary text-light">
-            <div class="card-header">Registrar documento fiscal</div>
-            <div class="card-body">
-                <div class="alert alert-info mb-3">
+<div class="docf-shell-wrap">
+    <div class="docf-header">
+        <div>
+            <h1 class="docf-title">Documentos Fiscais</h1>
+            <p class="docf-subtitle">Containers pretos, cards azulados no padrão do sistema e foco total na documentação fiscal sem incorporar estoque automaticamente.</p>
+        </div>
+        <span class="docf-badge"><i class="bi bi-receipt-cutoff"></i> Modo documental ativo</span>
+    </div>
+
+    <div class="docf-kpis">
+        <div class="docf-kpi">
+            <div class="docf-kpi-label">Documentos recentes</div>
+            <div class="docf-kpi-value">{{ notas|length }}</div>
+        </div>
+        <div class="docf-kpi">
+            <div class="docf-kpi-label">Busca atual</div>
+            <div class="docf-kpi-value">{{ nota_busca or 'Sem filtro' }}</div>
+        </div>
+        <div class="docf-kpi">
+            <div class="docf-kpi-label">Permissão</div>
+            <div class="docf-kpi-value">{{ 'Administrador' if can_manage else 'Consulta' }}</div>
+        </div>
+    </div>
+
+    <div class="docf-grid">
+        <div class="docf-stack">
+            {% if can_manage %}
+            <section class="docf-card">
+                <div class="docf-card-header">
+                    <div>
+                        <div class="docf-kicker">Registro</div>
+                        <h2 class="docf-card-title">Registrar documento fiscal</h2>
+                    </div>
+                    <span class="docf-badge">Sem entrada automática</span>
+                </div>
+
+                <div class="docf-panel info mb-3">
                     A nota registrada aqui fica <strong>apenas documentada</strong>. O salvamento não gera entrada em estoque nem lançamento financeiro no almoxarifado.
                 </div>
-                <form method="post">
+
+                <form method="post" class="docf-form">
                     <div class="mb-3">
                         <label class="form-label" for="item_search">Item</label>
                         <div class="position-relative">
@@ -21,7 +446,7 @@
                             <input type="hidden" id="codigo" name="codigo" value="{{ codigo_prefill }}" required>
                             <div class="list-group position-absolute w-100 shadow d-none" id="item_results" style="z-index: 60;"></div>
                         </div>
-                        <div class="form-text text-light opacity-75">Digite parte do código ou da descrição para localizar o item.</div>
+                        <div class="form-text">Digite parte do código ou da descrição para localizar o item.</div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label" for="quantidade">Quantidade</label>
@@ -32,7 +457,7 @@
                         <label class="form-label" for="nota_fiscal">Número da NF</label>
                         <input class="form-control" id="nota_fiscal" name="nota_fiscal" required>
                         <div class="list-group mt-2 d-none" id="nota_fiscal_results"></div>
-                        <div class="form-text text-light opacity-75">Se essa NF já tiver sido usada no sistema, os dados da empresa serão preenchidos automaticamente.</div>
+                        <div class="form-text">Se essa NF já tiver sido usada no sistema, os dados da empresa serão preenchidos automaticamente.</div>
                     </div>
                     <div class="mb-3 position-relative">
                         <label class="form-label" for="finance_supplier_search">Fornecedor / Loja</label>
@@ -46,9 +471,9 @@
                             <label class="form-label" for="supplier_cnpj">CNPJ da loja</label>
                             <div class="input-group">
                                 <input class="form-control" id="supplier_cnpj" name="supplier_cnpj" placeholder="00.000.000/0000-00">
-                                <button class="btn btn-outline-light" type="button" id="btn-buscar-cnpj">Consultar</button>
+                                <button class="docf-btn-secondary" type="button" id="btn-buscar-cnpj">Consultar</button>
                             </div>
-                            <div class="form-text text-light opacity-75">Se o fornecedor não existir, o sistema tenta criar pelo CNPJ.</div>
+                            <div class="form-text">Se o fornecedor não existir, o sistema tenta criar pelo CNPJ.</div>
                         </div>
                         <div class="col-md-5">
                             <label class="form-label" for="data_emissao">Emissão do documento</label>
@@ -98,52 +523,72 @@
                         <textarea class="form-control" id="finance_observacao" name="finance_observacao" rows="2"
                             placeholder="Ex.: compra emergencial, documento conferido, valor estimado..."></textarea>
                     </div>
-                    <button class="btn btn-primary" type="submit">Registrar</button>
+                    <button class="docf-btn-primary w-100" type="submit">Registrar documento fiscal</button>
                 </form>
-            </div>
+            </section>
+            {% else %}
+            <section class="docf-card">
+                <div class="docf-card-header">
+                    <div>
+                        <div class="docf-kicker">Acesso</div>
+                        <h2 class="docf-card-title">Consulta liberada</h2>
+                    </div>
+                </div>
+                <div class="docf-panel info">Apenas administradores podem registrar novos documentos fiscais.</div>
+            </section>
+            {% endif %}
         </div>
-        {% else %}
-        <div class="alert alert-info" role="alert">
-            Apenas administradores podem registrar novos documentos fiscais.
-        </div>
-        {% endif %}
-    </div>
-    <div class="col-lg-7">
-        <div class="card bg-secondary text-light mb-4">
-            <div class="card-header">Buscar documento fiscal</div>
-            <div class="card-body">
-                <form method="get" class="row g-2 align-items-end">
+
+        <div class="docf-stack">
+            <section class="docf-card">
+                <div class="docf-card-header">
+                    <div>
+                        <div class="docf-kicker">Consulta</div>
+                        <h2 class="docf-card-title">Buscar documento fiscal</h2>
+                    </div>
+                    <span class="docf-badge">Localizar e revisar</span>
+                </div>
+
+                <form method="get" class="row g-2 align-items-end docf-search-form">
                     <div class="col-sm-8">
                         <label class="form-label" for="nota">Número da NF</label>
                         <input class="form-control" id="nota" name="nota" value="{{ nota_busca }}"
                             placeholder="Digite o número exato">
                     </div>
                     <div class="col-sm-4 d-grid">
-                        <button class="btn btn-outline-light" type="submit">Buscar</button>
+                        <button class="docf-btn-secondary" type="submit">Buscar</button>
                     </div>
                 </form>
                 {% if nota_busca and not nota_detalhes %}
-                <div class="alert alert-warning mt-3 mb-0">
+                <div class="docf-panel warning mt-3 mb-0">
                     Documento fiscal "{{ nota_busca }}" não encontrado.
                 </div>
                 {% endif %}
                 {% if nota_detalhes %}
                 <div class="mt-3">
-                    <h5 class="mb-1">{{ nota_detalhes.tipo_documento|default('DOC', true)|upper }} {{ nota_detalhes.numero_documento|default(nota_detalhes.nota_fiscal, true) }}</h5>
-                    <p class="mb-2 small text-muted">
+                    <div class="docf-card-header mb-3">
+                        <div>
+                            <div class="docf-kicker">Detalhamento</div>
+                            <h3 class="docf-card-title">{{ nota_detalhes.tipo_documento|default('DOC', true)|upper }} {{ nota_detalhes.numero_documento|default(nota_detalhes.nota_fiscal, true) }}</h3>
+                        </div>
+                        {% if can_manage and nota_detalhes.id_documento is defined and nota_detalhes.id_documento is not none %}
+                        <span class="docf-badge">Editável</span>
+                        {% endif %}
+                    </div>
+                    <p class="mb-3 small docf-muted">
                         Registrada em {{ nota_detalhes.data.strftime('%d/%m/%Y %H:%M') if nota_detalhes.data else 'data não informada' }}
                         {% if nota_detalhes.usuarios %} por {{ nota_detalhes.usuarios|join(', ') }}{% endif %}.
                     </p>
-                    <div class="row g-2 mb-3 small">
-                        <div class="col-md-6"><strong>Fornecedor:</strong> {{ nota_detalhes.fornecedor_nome|default('Não informado', true) }}</div>
-                        <div class="col-md-3"><strong>CNPJ:</strong> {{ nota_detalhes.cnpj_emitente|default('Não informado', true) }}</div>
-                        <div class="col-md-3"><strong>Emissão:</strong> {{ nota_detalhes.data_emissao.strftime('%d/%m/%Y') if nota_detalhes.data_emissao|default(None, true) else 'Não informada' }}</div>
-                        <div class="col-md-6"><strong>Recebimento:</strong> {{ nota_detalhes.data_recebimento.strftime('%d/%m/%Y') if nota_detalhes.data_recebimento|default(None, true) else 'Não informado' }}</div>
-                        <div class="col-md-3"><strong>Qtd. total:</strong> {{ nota_detalhes.total_quantidade }}</div>
-                        <div class="col-md-3"><strong>Valor total:</strong> R$ {{ '%.2f'|format(nota_detalhes.total_valor|default(0, true)) }}</div>
+                    <div class="docf-detail-grid">
+                        <div class="docf-detail-box"><span class="docf-detail-label">Fornecedor</span><span class="docf-detail-value">{{ nota_detalhes.fornecedor_nome|default('Não informado', true) }}</span></div>
+                        <div class="docf-detail-box"><span class="docf-detail-label">CNPJ</span><span class="docf-detail-value">{{ nota_detalhes.cnpj_emitente|default('Não informado', true) }}</span></div>
+                        <div class="docf-detail-box"><span class="docf-detail-label">Emissão</span><span class="docf-detail-value">{{ nota_detalhes.data_emissao.strftime('%d/%m/%Y') if nota_detalhes.data_emissao|default(None, true) else 'Não informada' }}</span></div>
+                        <div class="docf-detail-box"><span class="docf-detail-label">Recebimento</span><span class="docf-detail-value">{{ nota_detalhes.data_recebimento.strftime('%d/%m/%Y') if nota_detalhes.data_recebimento|default(None, true) else 'Não informado' }}</span></div>
+                        <div class="docf-detail-box"><span class="docf-detail-label">Qtd. total</span><span class="docf-detail-value">{{ nota_detalhes.total_quantidade }}</span></div>
+                        <div class="docf-detail-box"><span class="docf-detail-label">Valor total</span><span class="docf-detail-value">R$ {{ '%.2f'|format(nota_detalhes.total_valor|default(0, true)) }}</span></div>
                     </div>
-                    <div class="table-responsive">
-                        <table class="table table-dark table-striped mb-0">
+                    <div class="docf-table-wrap">
+                        <table class="table docf-table mb-0">
                             <thead>
                                 <tr>
                                     <th>Código</th>
@@ -151,6 +596,7 @@
                                     <th>Quantidade</th>
                                     <th>Valor un.</th>
                                     <th>Valor total</th>
+                                    {% if can_manage and nota_detalhes.id_documento is defined and nota_detalhes.id_documento is not none %}<th class="text-end">Ações</th>{% endif %}
                                 </tr>
                             </thead>
                             <tbody>
@@ -161,6 +607,13 @@
                                     <td>{{ item.quantidade }}</td>
                                     <td>{% if item.valor_unitario is defined and item.valor_unitario is not none %}R$ {{ '%.2f'|format(item.valor_unitario) }}{% else %}-{% endif %}</td>
                                     <td>{% if item.valor_total is defined and item.valor_total is not none %}R$ {{ '%.2f'|format(item.valor_total) }}{% else %}-{% endif %}</td>
+                                    {% if can_manage and nota_detalhes.id_documento is defined and nota_detalhes.id_documento is not none and item.id is defined and item.id is not none %}
+                                    <td class="text-end">
+                                        <form method="post" action="/nf/{{ nota_detalhes.id_documento }}/itens/{{ item.id }}/excluir" onsubmit="return confirm('Excluir este item do documento fiscal?');">
+                                            <button class="docf-btn-danger" type="submit">Excluir</button>
+                                        </form>
+                                    </td>
+                                    {% endif %}
                                 </tr>
                                 {% endfor %}
                             </tbody>
@@ -168,46 +621,52 @@
                     </div>
                 </div>
                 {% endif %}
-            </div>
-        </div>
-        <div class="card bg-secondary text-light">
-            <div class="card-header">Documentos fiscais registrados recentemente</div>
-            <div class="card-body">
+            </section>
+
+            <section class="docf-card">
+                <div class="docf-card-header">
+                    <div>
+                        <div class="docf-kicker">Histórico</div>
+                        <h2 class="docf-card-title">Documentos fiscais registrados recentemente</h2>
+                    </div>
+                    <span class="docf-badge">{{ notas|length }} registros</span>
+                </div>
                 {% if notas %}
-                <div class="accordion" id="nf-accordion">
+                <div class="accordion docf-accordion" id="nf-accordion">
                     {% for nota in notas %}
                     {% set collapse_id = 'nota-' ~ loop.index %}
-                    <div class="accordion-item bg-dark text-light">
+                    <div class="accordion-item">
                         <h2 class="accordion-header" id="heading-{{ collapse_id }}">
                             <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
                                 data-bs-target="#collapse-{{ collapse_id }}" aria-expanded="false"
                                 aria-controls="collapse-{{ collapse_id }}">
                                 <span class="me-3">{{ nota.tipo_documento|default('DOC', true)|upper }} {{ nota.numero_documento|default(nota.nota_fiscal, true) }}</span>
-                                <small class="text-muted">{{ nota.total_itens }} itens &bull; {{ nota.total_quantidade }} unidades{% if nota.fornecedor_nome|default(None, true) %} &bull; {{ nota.fornecedor_nome }}{% endif %}</small>
+                                <small class="docf-muted">{{ nota.total_itens }} itens &bull; {{ nota.total_quantidade }} unidades{% if nota.fornecedor_nome|default(None, true) %} &bull; {{ nota.fornecedor_nome }}{% endif %}</small>
                             </button>
                         </h2>
                         <div id="collapse-{{ collapse_id }}" class="accordion-collapse collapse"
                             aria-labelledby="heading-{{ collapse_id }}" data-bs-parent="#nf-accordion">
                             <div class="accordion-body">
-                                <p class="mb-2 small text-muted">
+                                <p class="mb-3 small docf-muted">
                                     Registrada em {{ nota.data.strftime('%d/%m/%Y %H:%M') if nota.data else 'data não
                                     informada' }}
                                     {% if nota.usuarios %} por {{ nota.usuarios|join(', ') }}{% endif %}.
                                 </p>
-                                <div class="row g-2 mb-3 small">
-                                    <div class="col-md-5"><strong>Fornecedor:</strong> {{ nota.fornecedor_nome|default('Não informado', true) }}</div>
-                                    <div class="col-md-3"><strong>CNPJ:</strong> {{ nota.cnpj_emitente|default('Não informado', true) }}</div>
-                                    <div class="col-md-2"><strong>Emissão:</strong> {{ nota.data_emissao.strftime('%d/%m/%Y') if nota.data_emissao|default(None, true) else '—' }}</div>
-                                    <div class="col-md-2"><strong>Valor:</strong> R$ {{ '%.2f'|format(nota.total_valor|default(0, true)) }}</div>
+                                <div class="docf-detail-grid">
+                                    <div class="docf-detail-box"><span class="docf-detail-label">Fornecedor</span><span class="docf-detail-value">{{ nota.fornecedor_nome|default('Não informado', true) }}</span></div>
+                                    <div class="docf-detail-box"><span class="docf-detail-label">CNPJ</span><span class="docf-detail-value">{{ nota.cnpj_emitente|default('Não informado', true) }}</span></div>
+                                    <div class="docf-detail-box"><span class="docf-detail-label">Emissão</span><span class="docf-detail-value">{{ nota.data_emissao.strftime('%d/%m/%Y') if nota.data_emissao|default(None, true) else '—' }}</span></div>
+                                    <div class="docf-detail-box"><span class="docf-detail-label">Valor</span><span class="docf-detail-value">R$ {{ '%.2f'|format(nota.total_valor|default(0, true)) }}</span></div>
                                 </div>
-                                <div class="table-responsive">
-                                    <table class="table table-dark table-striped mb-0">
+                                <div class="docf-table-wrap">
+                                    <table class="table docf-table mb-0">
                                         <thead>
                                             <tr>
                                                 <th>Código</th>
                                                 <th>Descrição</th>
                                                 <th>Quantidade</th>
                                                 <th>Valor un.</th>
+                                                {% if can_manage and nota.id_documento is defined and nota.id_documento is not none %}<th class="text-end">Ações</th>{% endif %}
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -217,6 +676,13 @@
                                                 <td>{{ item.descricao }}</td>
                                                 <td>{{ item.quantidade }}</td>
                                                 <td>{% if item.valor_unitario is defined and item.valor_unitario is not none %}R$ {{ '%.2f'|format(item.valor_unitario) }}{% else %}-{% endif %}</td>
+                                                {% if can_manage and nota.id_documento is defined and nota.id_documento is not none and item.id is defined and item.id is not none %}
+                                                <td class="text-end">
+                                                    <form method="post" action="/nf/{{ nota.id_documento }}/itens/{{ item.id }}/excluir" onsubmit="return confirm('Excluir este item do documento fiscal?');">
+                                                        <button class="docf-btn-danger" type="submit">Excluir</button>
+                                                    </form>
+                                                </td>
+                                                {% endif %}
                                             </tr>
                                             {% endfor %}
                                         </tbody>
@@ -228,9 +694,9 @@
                     {% endfor %}
                 </div>
                 {% else %}
-                <p class="mb-0 text-center">Nenhuma nota registrada.</p>
+                <div class="docf-empty">Nenhum documento fiscal registrado.</div>
                 {% endif %}
-            </div>
+            </section>
         </div>
     </div>
 </div>

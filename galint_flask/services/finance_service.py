@@ -518,6 +518,7 @@ class FinanceService:
         observacao: str | None = None,
         usuario_matricula: str | None = None,
         origem_valor: str | None = None,
+        document_only: bool = False,
     ) -> dict[str, Any]:
         codigo = (codigo_item or "").strip()
         numero = (numero_documento or "").strip()
@@ -576,9 +577,10 @@ class FinanceService:
         qty = float(quantidade or 0)
         unit = float(valor_unitario) if valor_unitario not in (None, "") else None
         total = round(unit * qty, 2) if unit is not None else None
+        linked_entry_id = None if document_only else entrada_id
         item_row = DocumentoEntradaEstoqueItem(
             documento_id=document.id_documento,
-            entrada_id=entrada_id,
+            entrada_id=linked_entry_id,
             codigo_item=codigo,
             quantidade=qty,
             valor_unitario=unit,
@@ -1343,6 +1345,13 @@ class FinanceService:
                 "suppliers": supplier_prices,
             })
 
+        suppliers = [
+            supplier
+            for supplier in suppliers
+            if float(supplier.get("investido_total") or 0.0) > 0.0
+            or int(supplier.get("documentos_distintos") or 0) > 0
+            or supplier.get("ult_compra_em") is not None
+        ]
         suppliers.sort(key=lambda s: (-float(s.get("investido_total") or 0.0), str(s.get("nome_exibicao") or "").lower()))
 
         return {
