@@ -1,0 +1,359 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ status_code }} | GALINT{% endblock %}
+{% block body_class %}error-dashboard-shell{% endblock %}
+
+{% block extra_css %}
+<style>
+    .error-dashboard-shell .content-panel {
+        background: linear-gradient(180deg, #0c1119, #0f172a);
+        color: #e2e8f0;
+    }
+
+    .error-dashboard-shell .page-header {
+        display: none;
+    }
+
+    .error-shell-wrap {
+        position: relative;
+        padding: 1.5rem;
+        border-radius: 28px;
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 68%, #334155 100%);
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        box-shadow: 0 26px 60px rgba(15, 23, 42, 0.24);
+        overflow: hidden;
+    }
+
+    .error-shell-wrap::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+            radial-gradient(circle at 10% 16%, rgba(59, 130, 246, 0.18), transparent 24%),
+            radial-gradient(circle at 88% 18%, rgba(16, 185, 129, 0.14), transparent 22%),
+            radial-gradient(circle at 52% 100%, rgba(245, 158, 11, 0.12), transparent 28%);
+        pointer-events: none;
+    }
+
+    .error-shell-wrap > * {
+        position: relative;
+        z-index: 1;
+    }
+
+    .galint-section-title {
+        margin: 0;
+        font-size: 1.8rem;
+        font-weight: 800;
+        color: #f8fafc;
+    }
+
+    .galint-section-subtitle {
+        margin: 0.45rem 0 0;
+        color: rgba(226, 232, 240, 0.72);
+        font-size: 0.95rem;
+    }
+
+    .galint-section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+        margin-bottom: 1.25rem;
+    }
+
+    .error-status-badge {
+        background: rgba(255, 255, 255, 0.08);
+        color: rgba(226, 232, 240, 0.9);
+        padding: 0.45rem 0.8rem;
+        border-radius: 999px;
+        font-size: 0.78rem;
+        font-weight: 700;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        white-space: nowrap;
+    }
+
+    .galint-custody-feed-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 1rem;
+    }
+
+    .galint-custody-card {
+        position: relative;
+        overflow: hidden;
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 72%, #334155 100%);
+        border: 1px solid rgba(148, 163, 184, 0.24);
+        border-radius: 20px;
+        padding: 1rem;
+        box-shadow: 0 18px 38px rgba(15, 23, 42, 0.22);
+    }
+
+    .galint-custody-card::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+            radial-gradient(circle at top left, rgba(59, 130, 246, 0.18), transparent 34%),
+            radial-gradient(circle at 85% 22%, rgba(16, 185, 129, 0.12), transparent 26%),
+            linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 60%);
+        pointer-events: none;
+    }
+
+    .galint-custody-card > * {
+        position: relative;
+        z-index: 1;
+    }
+
+    .galint-custody-card:hover {
+        box-shadow: 0 28px 52px rgba(15, 23, 42, 0.28);
+        border-color: rgba(96, 165, 250, 0.34);
+        transform: translateY(-4px);
+    }
+
+    .galint-custody-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: start;
+        gap: 0.75rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .galint-custody-kicker {
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: rgba(148, 163, 184, 0.92);
+        margin-bottom: 0.35rem;
+    }
+
+    .galint-custody-title {
+        margin: 0;
+        font-weight: 700;
+        font-size: 0.98rem;
+        color: #f8fafc;
+    }
+
+    .galint-custody-badge {
+        background: rgba(255, 255, 255, 0.08);
+        color: rgba(226, 232, 240, 0.9);
+        padding: 0.35rem 0.65rem;
+        border-radius: 999px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+    }
+
+    .galint-custody-info {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+        padding: 0.95rem 1rem;
+        border-radius: 16px;
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(15, 23, 42, 0.16) 100%);
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(8px);
+    }
+
+    .galint-custody-field {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.65rem;
+        font-size: 0.875rem;
+        color: rgba(226, 232, 240, 0.86);
+    }
+
+    .galint-custody-field-label {
+        font-weight: 500;
+        color: rgba(148, 163, 184, 0.92);
+        min-width: 92px;
+    }
+
+    .galint-custody-field-value {
+        color: #f8fafc;
+        word-break: break-word;
+    }
+
+    .error-message-box {
+        margin-bottom: 1rem;
+        padding: 1rem 1.1rem;
+        border-radius: 16px;
+        background: linear-gradient(135deg, rgba(239, 68, 68, 0.14) 0%, rgba(127, 29, 29, 0.12) 100%);
+        border: 1px solid rgba(239, 68, 68, 0.2);
+        color: #fecaca;
+    }
+
+    .error-message-title {
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        margin-bottom: 0.35rem;
+        color: #fca5a5;
+    }
+
+    .galint-custody-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        padding-top: 0.75rem;
+        border-top: 1px solid rgba(148, 163, 184, 0.18);
+    }
+
+    .galint-action-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 38px;
+        padding: 0.6rem 0.9rem;
+        border-radius: 10px;
+        text-decoration: none;
+        font-size: 0.85rem;
+        font-weight: 700;
+        transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    }
+
+    .galint-action-btn.primary {
+        background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
+        color: #ffffff;
+        box-shadow: 0 10px 20px rgba(37, 99, 235, 0.28);
+    }
+
+    .galint-action-btn.secondary {
+        background: rgba(255, 255, 255, 0.06);
+        color: #e2e8f0;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+    }
+
+    .galint-action-btn:hover {
+        transform: translateY(-1px);
+    }
+
+    .traceback-box {
+        padding: 1rem 1.1rem;
+        border-radius: 18px;
+        background: rgba(15, 23, 42, 0.88);
+        color: #e2e8f0;
+        font: 0.88rem/1.6 Consolas, 'Courier New', monospace;
+        white-space: pre-wrap;
+        overflow: auto;
+        max-height: 440px;
+        border: 1px solid rgba(30, 41, 59, 0.22);
+    }
+
+    @media (max-width: 992px) {
+        .error-dashboard-shell #sidebar-column {
+            display: none;
+        }
+
+        .error-dashboard-shell .content-panel {
+            padding: 1rem;
+        }
+    }
+
+    @media (max-width: 640px) {
+        .galint-section-header {
+            flex-direction: column;
+        }
+
+        .galint-custody-field {
+            flex-direction: column;
+            gap: 0.2rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="error-shell-wrap">
+    <div class="galint-section-header">
+        <div>
+            <h2 class="galint-section-title">Erro da aplicação</h2>
+            <p class="galint-section-subtitle">Container dark e cards dark no padrão da área de devolução/custódia.</p>
+        </div>
+        <span class="error-status-badge">HTTP {{ status_code }}</span>
+    </div>
+
+    <div class="galint-custody-feed-list">
+        <section class="galint-custody-card">
+            <div class="galint-custody-header">
+                <div>
+                    <div class="galint-custody-kicker">Falha detectada</div>
+                    <h3 class="galint-custody-title">{{ exception_type }}</h3>
+                </div>
+                <span class="galint-custody-badge">{{ error_title }}</span>
+            </div>
+
+            <div class="error-message-box">
+                <div class="error-message-title">Mensagem</div>
+                <div>{{ error_message }}</div>
+            </div>
+
+            <div class="galint-custody-info">
+                <div class="galint-custody-field">
+                    <span class="galint-custody-field-label">Método</span>
+                    <span class="galint-custody-field-value">{{ request_method }}</span>
+                </div>
+                <div class="galint-custody-field">
+                    <span class="galint-custody-field-label">Rota</span>
+                    <span class="galint-custody-field-value">{{ request_path }}</span>
+                </div>
+                <div class="galint-custody-field">
+                    <span class="galint-custody-field-label">Classe</span>
+                    <span class="galint-custody-field-value">{{ exception_type }}</span>
+                </div>
+                <div class="galint-custody-field">
+                    <span class="galint-custody-field-label">Status</span>
+                    <span class="galint-custody-field-value">{{ status_code }}</span>
+                </div>
+            </div>
+
+            <div class="galint-custody-actions">
+                <a class="galint-action-btn primary" href="javascript:history.back()">Voltar</a>
+                <a class="galint-action-btn secondary" href="/">Ir para início</a>
+            </div>
+        </section>
+
+        <section class="galint-custody-card">
+            <div class="galint-custody-header">
+                <div>
+                    <div class="galint-custody-kicker">Contexto</div>
+                    <h3 class="galint-custody-title">Resumo técnico</h3>
+                </div>
+                <span class="galint-custody-badge">Diagnóstico</span>
+            </div>
+
+            <div class="galint-custody-info">
+                <div class="galint-custody-field">
+                    <span class="galint-custody-field-label">Mensagem</span>
+                    <span class="galint-custody-field-value">{{ error_message }}</span>
+                </div>
+                <div class="galint-custody-field">
+                    <span class="galint-custody-field-label">Origem</span>
+                    <span class="galint-custody-field-value">{{ request_method }} {{ request_path }}</span>
+                </div>
+                <div class="galint-custody-field">
+                    <span class="galint-custody-field-label">Tipo</span>
+                    <span class="galint-custody-field-value">{{ exception_type }}</span>
+                </div>
+            </div>
+        </section>
+
+        {% if show_traceback and traceback_text %}
+        <section class="galint-custody-card" style="grid-column: 1 / -1;">
+            <div class="galint-custody-header">
+                <div>
+                    <div class="galint-custody-kicker">Rastreamento</div>
+                    <h3 class="galint-custody-title">Traceback completo</h3>
+                </div>
+                <span class="galint-custody-badge">Detalhado</span>
+            </div>
+
+            <div class="traceback-box">{{ traceback_text }}</div>
+        </section>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

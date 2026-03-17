@@ -2,10 +2,13 @@
 from __future__ import annotations
 
 from pathlib import Path
+import traceback
 
 from dotenv import load_dotenv
 from flask import Flask
 from flask import jsonify
+from flask import render_template, request
+from werkzeug.exceptions import HTTPException
 
 from .config import load_config
 from .extensions import register_extensions
@@ -71,9 +74,11 @@ def create_app(config_name: str | None = None) -> Flask:
     app = Flask(__name__, template_folder="templates", static_folder="static")
 
     load_config(app, config_name)
+    app.config["PROPAGATE_EXCEPTIONS"] = False
     register_extensions(app)
     register_blueprints(app)
     register_cli(app)
+    _register_error_handlers(app)
 
     # Nome do sistema (usado em título/branding). Pode ser sobrescrito via env.
     app.config.setdefault(
@@ -255,6 +260,58 @@ def _register_inactivity_middleware(app: Flask) -> None:
             # Atualiza timestamp da última atividade
             session['last_activity'] = now.isoformat()
             session.permanent = True
+
+
+def _request_expects_json() -> bool:
+    if request.path.startswith("/api/"):
+        return True
+    if request.is_json:
+        return True
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        best = request.accept_mimetypes.best_match(["application/json", "text/html"])
+        return best == "application/json"
+    best = request.accept_mimetypes.best_match(["application/json", "text/html"])
+    return best == "application/json" and request.accept_mimetypes[best] > request.accept_mimetypes["text/html"]
+
+
+def _build_error_context(exc: Exception, status_code: int) -> dict[str, object]:
+    trace_lines = traceback.format_exception(type(exc), exc, exc.__traceback__)
+    return {
+        "status_code": status_code,
+        "error_title": "Erro de programação" if status_code >= 500 else "Falha na requisição",
+        "error_message": str(exc) or "Ocorreu uma falha inesperada durante o processamento.",
+        "exception_type": type(exc).__name__,
+        "request_path": request.path,
+        "request_method": request.method,
+        "traceback_text": "".join(trace_lines).strip(),
+        "show_traceback": status_code >= 500,
+    }
+
+
+def _register_error_handlers(app: Flask) -> None:
+    @app.errorhandler(HTTPException)
+    def _handle_http_exception(exc: HTTPException):
+        status_code = exc.code or 500
+        if _request_expects_json():
+            return jsonify({
+                "success": False,
+                "error": exc.name,
+                "message": exc.description,
+                "status_code": status_code,
+            }), status_code
+        return render_template("errors/exception.html", **_build_error_context(exc, status_code)), status_code
+
+    @app.errorhandler(Exception)
+    def _handle_unexpected_exception(exc: Exception):
+        app.logger.exception("Unhandled application exception")
+        if _request_expects_json():
+            return jsonify({
+                "success": False,
+                "error": type(exc).__name__,
+                "message": str(exc) or "Erro interno do servidor.",
+                "status_code": 500,
+            }), 500
+        return render_template("errors/exception.html", **_build_error_context(exc, 500)), 500
 
 
 def _initialize_scheduler(app: Flask) -> None:
