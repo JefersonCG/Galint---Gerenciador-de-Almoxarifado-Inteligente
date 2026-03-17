@@ -50,7 +50,7 @@ def _dashboard_context(
     total_quantity_internal = inventory_service.total_quantity_internal()
     competencia = date.today().strftime("%m-%Y")
     total_entradas_registradas = db.session.query(Entrada.id_entrada).count()
-    can_view_finance = bool(getattr(current_user, "is_admin", False)) and not shared_view
+    can_view_finance = not shared_view
     
     # Informações sobre relatórios automáticos de entradas
     from ..services.entrada_report_service import entrada_report_service
