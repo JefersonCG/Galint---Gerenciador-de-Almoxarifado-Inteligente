@@ -888,7 +888,7 @@
     }
 </style>
 
-<div class="galint-section-panel">
+<div class="galint-section-panel galint-section-panel-dark">
     <div class="galint-section-header">
         <h2 class="galint-section-title">Ferramentas em Custódia</h2>
         <p class="galint-section-subtitle">Ferramentas retiradas aguardando devolução - Atualização em tempo real</p>
@@ -903,6 +903,28 @@
 </div>
 
 <style>
+    .galint-section-panel-dark {
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 68%, #334155 100%);
+        border-color: rgba(148, 163, 184, 0.22);
+        box-shadow: 0 26px 60px rgba(15, 23, 42, 0.24);
+    }
+
+    .galint-section-panel-dark::before {
+        background:
+            radial-gradient(circle at 10% 16%, rgba(59, 130, 246, 0.18), transparent 24%),
+            radial-gradient(circle at 88% 18%, rgba(16, 185, 129, 0.14), transparent 22%),
+            radial-gradient(circle at 52% 100%, rgba(245, 158, 11, 0.12), transparent 28%);
+    }
+
+    .galint-section-panel-dark .galint-section-title {
+        color: #ffffff;
+    }
+
+    .galint-section-panel-dark .galint-section-subtitle,
+    .galint-section-panel-dark .text-muted {
+        color: rgba(226, 232, 240, 0.72) !important;
+    }
+
     .galint-custody-feed-list {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
@@ -913,12 +935,12 @@
     .galint-custody-card {
         position: relative;
         overflow: hidden;
-        background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-        border: 1px solid rgba(148, 163, 184, 0.22);
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 72%, #334155 100%);
+        border: 1px solid rgba(148, 163, 184, 0.24);
         border-radius: 20px;
         padding: 1rem;
         transition: all 0.25s ease;
-        box-shadow: 0 16px 34px rgba(15, 23, 42, 0.08);
+        box-shadow: 0 18px 38px rgba(15, 23, 42, 0.22);
     }
 
     .galint-custody-card::before {
@@ -926,8 +948,9 @@
         position: absolute;
         inset: 0;
         background:
-            radial-gradient(circle at top left, rgba(59, 130, 246, 0.08), transparent 30%),
-            linear-gradient(180deg, rgba(255, 255, 255, 0.32), transparent 60%);
+            radial-gradient(circle at top left, rgba(59, 130, 246, 0.18), transparent 34%),
+            radial-gradient(circle at 85% 22%, rgba(16, 185, 129, 0.12), transparent 26%),
+            linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 60%);
         pointer-events: none;
     }
 
@@ -943,14 +966,14 @@
     }
 
     .galint-custody-card:hover {
-        box-shadow: 0 24px 44px rgba(15, 23, 42, 0.14);
+        box-shadow: 0 28px 52px rgba(15, 23, 42, 0.28);
         border-color: rgba(96, 165, 250, 0.34);
         transform: translateY(-4px);
     }
 
     .galint-custody-card.atrasada {
         border-color: rgba(239, 68, 68, 0.32);
-        background: linear-gradient(135deg, #fff7f7 0%, #fff1f2 100%);
+        background: linear-gradient(135deg, #1f1720 0%, #3b1722 55%, #471b27 100%);
     }
 
     .galint-custody-card.atrasada::after,
@@ -966,7 +989,7 @@
 
     .galint-custody-card.alert-yellow {
         border-color: rgba(245, 158, 11, 0.34);
-        background: linear-gradient(135deg, #fffdf4 0%, #fff8e8 100%);
+        background: linear-gradient(135deg, #1f1a12 0%, #332514 58%, #443116 100%);
     }
 
     .galint-custody-card.alert-yellow::after {
@@ -975,7 +998,7 @@
 
     .galint-custody-card.alert-red {
         border-color: rgba(239, 68, 68, 0.3);
-        background: linear-gradient(135deg, #fff7f7 0%, #fff1f2 100%);
+        background: linear-gradient(135deg, #1f1720 0%, #3b1722 55%, #471b27 100%);
     }
 
     .galint-custody-card.pulse-alert-red,
@@ -1025,20 +1048,20 @@
     .galint-custody-title {
         font-weight: 700;
         font-size: 0.98rem;
-        color: #0f172a;
+        color: #f8fafc;
         margin: 0;
         flex: 1;
     }
 
     .galint-custody-badge {
-        background: rgba(241, 245, 249, 0.95);
-        color: #475569;
+        background: rgba(255, 255, 255, 0.08);
+        color: rgba(226, 232, 240, 0.9);
         padding: 0.35rem 0.65rem;
         border-radius: 999px;
         font-size: 0.75rem;
         font-weight: 600;
         margin-left: 0.5rem;
-        border: 1px solid rgba(148, 163, 184, 0.14);
+        border: 1px solid rgba(148, 163, 184, 0.18);
     }
 
     .galint-custody-badge.atrasada {
@@ -1060,8 +1083,9 @@
         margin-bottom: 1rem;
         padding: 0.95rem 1rem;
         border-radius: 16px;
-        background: rgba(255, 255, 255, 0.66);
-        border: 1px solid rgba(226, 232, 240, 0.7);
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(15, 23, 42, 0.16) 100%);
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
         backdrop-filter: blur(8px);
     }
 
@@ -1069,24 +1093,40 @@
         display: flex;
         align-items: center;
         font-size: 0.875rem;
-        color: #475569;
+        color: rgba(226, 232, 240, 0.86);
     }
 
     .galint-custody-field-label {
         font-weight: 500;
-        color: #64748b;
+        color: rgba(148, 163, 184, 0.92);
         min-width: 90px;
     }
 
     .galint-custody-field-value {
-        color: #0f172a;
+        color: #f8fafc;
     }
 
     .galint-custody-actions {
         display: flex;
         gap: 0.5rem;
         padding-top: 0.75rem;
-        border-top: 1px solid rgba(148, 163, 184, 0.16);
+        border-top: 1px solid rgba(148, 163, 184, 0.18);
+    }
+
+    .galint-custody-empty {
+        text-align: center;
+        padding: 3rem 1rem;
+        color: rgba(226, 232, 240, 0.74);
+        font-size: 0.95rem;
+        border-radius: 20px;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(148, 163, 184, 0.14);
+    }
+
+    .galint-custody-empty-icon {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        opacity: 0.7;
     }
 
     .galint-custody-btn {
@@ -1114,13 +1154,14 @@
     }
 
     .galint-custody-btn-secondary {
-        background: #eef2f7;
-        color: #475569;
+        background: rgba(255, 255, 255, 0.08);
+        color: #e2e8f0;
+        border: 1px solid rgba(148, 163, 184, 0.16);
     }
 
     .galint-custody-btn-secondary:hover {
-        background: #e2e8f0;
-        color: #334155;
+        background: rgba(255, 255, 255, 0.12);
+        color: #f8fafc;
     }
 
     .galint-custody-empty {
