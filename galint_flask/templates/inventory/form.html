@@ -1313,6 +1313,7 @@
                     <div class="text-uppercase small fw-semibold text-primary" style="letter-spacing: 0.1em;">Etapa inicial</div>
                     <h5 class="modal-title" id="supplierGateModalLabel">Este item já tem fornecedor cadastrado?</h5>
                 </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
             </div>
             <div class="modal-body">
                 <div class="supplier-gate-grid">
@@ -2312,6 +2313,7 @@ if (confirmFotoUrl) {
     const supplierGateConfirmButton = document.getElementById('supplierGateConfirmButton');
     const supplierGateSkipButton = document.getElementById('supplierGateSkipButton');
     const isNewItemForm = {{ 'false' if item else 'true' }};
+    const inventoryListUrl = {{ url_for('inventory.list_items')|tojson }};
     let supplierGateSelection = null;
     let supplierGateResolved = !isNewItemForm;
 
@@ -2806,6 +2808,13 @@ if (confirmFotoUrl) {
     supplierGateReopenButton?.addEventListener('click', () => {
         supplierGateModalInstance?.show();
         setTimeout(() => supplierGateSearchInput?.focus(), 180);
+    });
+
+    supplierGateModalElement?.addEventListener('hidden.bs.modal', () => {
+        if (!isNewItemForm || supplierGateResolved) {
+            return;
+        }
+        window.location.href = inventoryListUrl;
     });
 
     if (isNewItemForm && supplierGateModalInstance) {
