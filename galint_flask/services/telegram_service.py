@@ -307,6 +307,46 @@ class TelegramService:
 
         )
 
+    @staticmethod
+    def _inventory_alert_recipients(*, exclude_chat_ids: set[str] | None = None) -> list[dict[str, str]]:
+        """Retorna um único destinatário operacional para alertas de cadastro/ajuste.
+
+        Prioridade:
+        1. Primeiro grupo coletivo com receive_alerts habilitado.
+        2. Primeiro usuário privilegiado habilitado no Telegram.
+        """
+
+        excluded = {str(chat_id) for chat_id in (exclude_chat_ids or set()) if chat_id}
+
+        groups = (
+            db.session.query(TelegramGroup)
+            .filter_by(enabled=True, receive_alerts=True)
+            .order_by(TelegramGroup.id.asc())
+            .all()
+        )
+        for group in groups:
+            chat_id = str(group.chat_id)
+            if chat_id in excluded:
+                continue
+            return [{
+                "chat_id": chat_id,
+                "recipient_name": f"Grupo: {group.name}",
+                "target": "group",
+            }]
+
+        admins = TelegramService._privileged_users_query().order_by(TelegramUser.id.asc()).all()
+        for adm in admins:
+            chat_id = str(adm.chat_id)
+            if chat_id in excluded:
+                continue
+            return [{
+                "chat_id": chat_id,
+                "recipient_name": getattr(getattr(adm, "usuario", None), "nome", None) or getattr(adm, "matricula", "Administrador"),
+                "target": "admin",
+            }]
+
+        return []
+
     
 
     @staticmethod
@@ -5730,15 +5770,17 @@ class TelegramService:
         )
 
         results = {"queued": [], "failed": []}
-        admins = TelegramService._privileged_users_query().all()
+        recipients = TelegramService._inventory_alert_recipients()
 
-        for admin in admins:
+        for recipient in recipients:
             try:
+                chat_id = str(recipient["chat_id"])
+                target = recipient.get("target") or "admin"
                 key_suffix = "devolucao" if is_devolucao else "adjustment"
-                key = f"inventory_event:{event_id}:{key_suffix}:admin:{admin.chat_id}"
+                key = f"inventory_event:{event_id}:{key_suffix}:{target}:{chat_id}"
                 q = TelegramService.enqueue_outbox_message(
-                    chat_id=str(admin.chat_id),
-                    recipient_name=admin.usuario.nome if getattr(admin, "usuario", None) else None,
+                    chat_id=chat_id,
+                    recipient_name=recipient.get("recipient_name"),
                     message_type=message_type,
                     message_text=message_text,
                     idempotency_key=key,
@@ -5746,11 +5788,11 @@ class TelegramService:
                     commit=False,
                 )
                 if q.get("success"):
-                    results["queued"].append(str(admin.chat_id))
+                    results["queued"].append(chat_id)
                 else:
-                    results["failed"].append(f"{admin.chat_id}: {q.get('error')}")
+                    results["failed"].append(f"{chat_id}: {q.get('error')}")
             except Exception as e:
-                results["failed"].append(f"{admin.chat_id}: {e}")
+                results["failed"].append(str(e))
 
         try:
             db.session.commit()
@@ -6121,25 +6163,24 @@ class TelegramService:
 
         results = {"queued": [], "failed": []}
 
-        admins = TelegramService._privileged_users_query().all()
+        recipients = TelegramService._inventory_alert_recipients(exclude_chat_ids=exclude_chat_ids)
 
 
 
-        for adm in admins:
+        for recipient in recipients:
 
             try:
 
-                if exclude_chat_ids and str(adm.chat_id) in exclude_chat_ids:
+                chat_id = str(recipient["chat_id"])
+                target = recipient.get("target") or "admin"
 
-                    continue
-
-                key = f"item_created:{codigo}:admin:{adm.chat_id}"
+                key = f"item_created:{codigo}:{target}:{chat_id}"
 
                 q = TelegramService.enqueue_outbox_message(
 
-                    chat_id=str(adm.chat_id),
+                    chat_id=chat_id,
 
-                    recipient_name=getattr(getattr(adm, "usuario", None), "nome", None),
+                    recipient_name=recipient.get("recipient_name"),
 
                     message_type="item_created",
 
@@ -6153,19 +6194,19 @@ class TelegramService:
 
                 if q.get("success"):
 
-                    results["queued"].append(str(adm.chat_id))
+                    results["queued"].append(chat_id)
 
-                    log_action(f"notify_item_created(outbox): enfileirado para {adm.chat_id} (item={codigo})")
+                    log_action(f"notify_item_created(outbox): enfileirado para {chat_id} (item={codigo})")
 
                 else:
 
-                    results["failed"].append({"chat_id": adm.chat_id, "error": q.get("error")})
+                    results["failed"].append({"chat_id": chat_id, "error": q.get("error")})
 
-                    log_action(f"notify_item_created(outbox): falha para {adm.chat_id} - {q.get('error')}")
+                    log_action(f"notify_item_created(outbox): falha para {chat_id} - {q.get('error')}")
 
             except Exception as e:
 
-                results["failed"].append({"chat_id": adm.chat_id, "error": str(e)})
+                results["failed"].append({"chat_id": recipient.get("chat_id"), "error": str(e)})
 
                 logger.exception("Erro ao notificar admin sobre novo item")
 
@@ -6457,21 +6498,24 @@ class TelegramService:
 
         h = hashlib.sha1(text.encode("utf-8")).hexdigest()[:12]
 
-        admins = TelegramService._privileged_users_query().all()
+        recipients = TelegramService._inventory_alert_recipients()
 
 
 
-        for adm in admins:
+        for recipient in recipients:
 
             try:
 
-                key = f"item_updated:{codigo}:h:{h}:admin:{adm.chat_id}"
+                chat_id = str(recipient["chat_id"])
+                target = recipient.get("target") or "admin"
+
+                key = f"item_updated:{codigo}:h:{h}:{target}:{chat_id}"
 
                 q = TelegramService.enqueue_outbox_message(
 
-                    chat_id=str(adm.chat_id),
+                    chat_id=chat_id,
 
-                    recipient_name=getattr(getattr(adm, "usuario", None), "nome", None),
+                    recipient_name=recipient.get("recipient_name"),
 
                     message_type="item_updated",
 
@@ -6485,15 +6529,15 @@ class TelegramService:
 
                 if q.get("success"):
 
-                    results["queued"].append(str(adm.chat_id))
+                    results["queued"].append(chat_id)
 
-                    log_action(f"notify_item_updated(outbox): enfileirado para {adm.chat_id} (item={codigo})")
+                    log_action(f"notify_item_updated(outbox): enfileirado para {chat_id} (item={codigo})")
 
                 else:
 
-                    results["failed"].append({"chat_id": adm.chat_id, "error": q.get("error")})
+                    results["failed"].append({"chat_id": chat_id, "error": q.get("error")})
 
-                    log_action(f"notify_item_updated(outbox): falha para {adm.chat_id} - {q.get('error')}")
+                    log_action(f"notify_item_updated(outbox): falha para {chat_id} - {q.get('error')}")
 
             except Exception:
 

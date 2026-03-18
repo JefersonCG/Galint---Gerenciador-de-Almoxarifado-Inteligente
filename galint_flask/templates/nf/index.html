@@ -448,6 +448,28 @@
                         </div>
                         <div class="form-text">Digite parte do código ou da descrição para localizar o item.</div>
                     </div>
+                    <div class="docf-panel mb-3">
+                        <div class="docf-kicker">Item novo</div>
+                        <p class="mb-3 docf-muted">Se o produto desta NF ainda não existir no estoque, preencha os campos abaixo para criar o item antes de registrar o documento.</p>
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label class="form-label" for="novo_codigo">Código do novo item</label>
+                                <input class="form-control" id="novo_codigo" name="novo_codigo" placeholder="Código de barras ou código interno">
+                            </div>
+                            <div class="col-md-8">
+                                <label class="form-label" for="nova_descricao">Descrição do novo item</label>
+                                <input class="form-control" id="nova_descricao" name="nova_descricao" placeholder="Descrição completa do produto">
+                            </div>
+                            <div class="col-md-7">
+                                <label class="form-label" for="nova_categoria">Categoria</label>
+                                <input class="form-control" id="nova_categoria" name="nova_categoria" value="Material Elétrico">
+                            </div>
+                            <div class="col-md-5">
+                                <label class="form-label" for="nova_unidade">Unidade</label>
+                                <input class="form-control" id="nova_unidade" name="nova_unidade" value="Unidade">
+                            </div>
+                        </div>
+                    </div>
                     <div class="mb-3">
                         <label class="form-label" for="quantidade">Quantidade</label>
                         <input class="form-control" id="quantidade" name="quantidade" type="number" min="1" value="1"
@@ -708,6 +730,8 @@
     const itemSearchInput = document.getElementById('item_search');
     const itemCodigoInput = document.getElementById('codigo');
     const itemResults = document.getElementById('item_results');
+    const novoCodigoInput = document.getElementById('novo_codigo');
+    const novaDescricaoInput = document.getElementById('nova_descricao');
     const supplierInput = document.getElementById('finance_supplier_search');
     const supplierIdInput = document.getElementById('finance_supplier_id');
     const supplierResults = document.getElementById('finance_supplier_results');
@@ -733,6 +757,12 @@
         }
         if (itemCodigoInput) {
             itemCodigoInput.value = item.codigo || '';
+        }
+        if (novoCodigoInput) {
+            novoCodigoInput.value = '';
+        }
+        if (novaDescricaoInput) {
+            novaDescricaoInput.value = '';
         }
         hideItemResults();
     };
@@ -958,10 +988,19 @@
                 itemCodigoInput.value = raw.split('—')[0].trim();
             }
         }
+        if (!itemCodigoInput.value.trim() && novoCodigoInput?.value.trim()) {
+            itemCodigoInput.value = novoCodigoInput.value.trim();
+        }
         if (!itemCodigoInput.value.trim()) {
             event.preventDefault();
-            alert('Selecione um item válido antes de registrar a nota.');
+            alert('Selecione um item existente ou informe o código do novo item antes de registrar a nota.');
             itemSearchInput?.focus();
+            return;
+        }
+        if (!window.__nfItemSuggestions?.some((item) => item.codigo === itemCodigoInput.value.trim()) && !novaDescricaoInput?.value.trim()) {
+            event.preventDefault();
+            alert('Para item novo, informe também a descrição do produto.');
+            novaDescricaoInput?.focus();
         }
     });
 </script>

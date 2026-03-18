@@ -73,6 +73,10 @@ def nf_index():
 def registrar_nf():
     _require_admin()
     codigo = request.form.get("codigo", "").strip()
+    novo_codigo = request.form.get("novo_codigo", "").strip()
+    nova_descricao = request.form.get("nova_descricao", "").strip()
+    nova_categoria = request.form.get("nova_categoria", "").strip() or "Material Elétrico"
+    nova_unidade = request.form.get("nova_unidade", "").strip() or "Unidade"
     nota = request.form.get("nota_fiscal", "").strip()
     supplier_raw = (request.form.get("finance_supplier_id") or "").strip()
     supplier_id = int(supplier_raw) if supplier_raw.isdigit() else None
@@ -101,8 +105,28 @@ def registrar_nf():
         data_recebimento = date.today()
 
     try:
-        if not codigo:
-            raise ValueError("Selecione o item da entrada")
+        if not codigo and novo_codigo:
+            codigo = novo_codigo
+
+        item_existente = inventory_service.get_item(codigo) if codigo else None
+        if not item_existente:
+            if not codigo:
+                raise ValueError("Selecione um item existente ou informe o código do novo item")
+            if not nova_descricao:
+                raise ValueError("Informe a descrição para cadastrar o novo item da nota")
+            inventory_service.create_item(
+                {
+                    "codigo": codigo,
+                    "descricao": nova_descricao,
+                    "categoria": nova_categoria,
+                    "unidade": nova_unidade,
+                    "nota_fiscal": nota or None,
+                    "marca": None,
+                    "localizacao": None,
+                    "quantidade": 0,
+                }
+            )
+
         if quantidade <= 0:
             raise ValueError("Informe uma quantidade válida")
         if not nota:

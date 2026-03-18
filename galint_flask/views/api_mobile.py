@@ -26,6 +26,7 @@ from ..services.auth import (
     create_mobile_token,
     get_mobile_user,
 )
+from ..services.finance_service import finance_service
 from ..services.inventory import inventory_service, MovimentoPayload
 from ..services.item_foto_service import ItemFotoService
 from ..services.telegram_reports import TelegramReportService
@@ -2047,17 +2048,44 @@ def cadastrar_produto():
         if saldo_inicial < 0:
             raise ValueError("Saldo inicial deve ser >= 0")
 
+        if saldo_inicial > 0 and payload["nota_fiscal"]:
+            finance_service.validate_document_backed_stock_entry(
+                codigo_item=payload["codigo"],
+                quantidade=saldo_inicial,
+                numero_documento=str(payload["nota_fiscal"]),
+                tipo_documento="nf",
+            )
+
         codigo = inventory_service.create_item(payload)
 
+        entrada_inicial = None
         if saldo_inicial > 0:
-            inventory_service.registrar_entrada(
+            entrada_inicial = inventory_service.registrar_entrada(
                 MovimentoPayload(
                     codigo=codigo,
                     quantidade=saldo_inicial,
                     matricula=user.matricula,
                     nota_fiscal=payload["nota_fiscal"],
-                )
+                ),
+                skip_notification=True,
             )
+
+            if payload["nota_fiscal"]:
+                finance_service.register_stock_document_entry(
+                    codigo_item=codigo,
+                    quantidade=float(saldo_inicial),
+                    tipo_documento="nf",
+                    numero_documento=str(payload["nota_fiscal"]),
+                    entrada_id=getattr(entrada_inicial, "id_entrada", None),
+                    usuario_matricula=user.matricula,
+                    origem_valor="compra_nf",
+                )
+
+        try:
+            from ..services.telegram_service import TelegramService
+            TelegramService.notify_item_created(codigo, entrada_inicial=entrada_inicial)
+        except Exception:
+            pass
 
         return jsonify({
             "success": True,
@@ -2273,16 +2301,25 @@ def criar_item_estoque():
             "marca": (data.get("marca") or "").strip() or None,
             "unidade": (data.get("unidade") or "Unidade").strip() or "Unidade",
             "localizacao": (data.get("localizacao") or "").strip() or None,
-            "nota_fiscal": None,
+            "nota_fiscal": (data.get("nota_fiscal") or "").strip() or None,
             "tipo_embalagem_novo": tipo_emb_novo or None,
             "unidades_por_embalagem": float(unidades_por_emb) if unidades_por_emb not in (None, "") else None,
             "foto_path": foto_path,
         }
+
+        quantidade_inicial = int(data.get("quantidade", 0))
+        if quantidade_inicial > 0 and payload["nota_fiscal"]:
+            finance_service.validate_document_backed_stock_entry(
+                codigo_item=payload["codigo"],
+                quantidade=quantidade_inicial,
+                numero_documento=str(payload["nota_fiscal"]),
+                tipo_documento="nf",
+            )
         
         codigo_criado = inventory_service.create_item(payload)
         
         # Adiciona saldo inicial se fornecido (entrada)
-        quantidade_inicial = int(data.get("quantidade", 0))
+        entrada_inicial = None
         if quantidade_inicial > 0:
             em_embalagens = None
             if tipo_emb_novo and unidades_por_emb not in (None, ""):
@@ -2292,15 +2329,33 @@ def criar_item_estoque():
                 except (ValueError, TypeError):
                     em_embalagens = None
 
-            inventory_service.registrar_entrada(
+            entrada_inicial = inventory_service.registrar_entrada(
                 MovimentoPayload(
                     codigo=codigo_criado,
                     quantidade=quantidade_inicial,
                     matricula=user.matricula,
                     nota_fiscal=None,
                     em_embalagens=em_embalagens,
-                )
+                ),
+                skip_notification=True,
             )
+
+            if payload["nota_fiscal"]:
+                finance_service.register_stock_document_entry(
+                    codigo_item=codigo_criado,
+                    quantidade=float(quantidade_inicial),
+                    tipo_documento="nf",
+                    numero_documento=str(payload["nota_fiscal"]),
+                    entrada_id=getattr(entrada_inicial, "id_entrada", None),
+                    usuario_matricula=user.matricula,
+                    origem_valor="compra_nf",
+                )
+
+        try:
+            from ..services.telegram_service import TelegramService
+            TelegramService.notify_item_created(codigo_criado, entrada_inicial=entrada_inicial)
+        except Exception:
+            pass
         
         return jsonify({
             "id": codigo_criado,

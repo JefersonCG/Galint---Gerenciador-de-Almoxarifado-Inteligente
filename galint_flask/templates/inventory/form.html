@@ -987,6 +987,9 @@
                         <input class="form-control" id="preco_compra_documento" name="preco_compra_documento"
                             value="{{ form_item.preco_compra_documento if form_item and form_item.preco_compra_documento else '' }}"
                             placeholder="Ex.: NF 12345 / Cupom 000123" {% if finance_locked %}readonly{% endif %}>
+                        {% if not finance_locked %}
+                        <small class="form-text">Ao salvar um novo item com esse documento, o sistema também cria ou atualiza a nota em Documentos Fiscais e abre a conferência automaticamente.</small>
+                        {% endif %}
                     </div>
 
                     <div class="form-row">

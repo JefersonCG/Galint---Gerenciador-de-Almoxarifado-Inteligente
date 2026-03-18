@@ -357,14 +357,14 @@
         <div class="galint-kpi-header">
             <div class="galint-kpi-header-main">
                 <div class="galint-kpi-icon green">✓</div>
-                <div class="galint-kpi-label">Quantidade Operacional do Almoxarifado</div>
+                <div class="galint-kpi-label">Itens Cadastrados no Almoxarifado</div>
             </div>
-            <div class="galint-kpi-chip">Visão real</div>
+            <div class="galint-kpi-chip">Catálogo</div>
         </div>
-        <div class="galint-kpi-value">{{ "{:,}".format(total_quantity|default(0, true)) }} emb./itens</div>
-        <p class="galint-kpi-description">Conta embalagens fechadas para caixa, pacote, rolo, lata e balde.</p>
+        <div class="galint-kpi-value">{{ total_items }} itens</div>
+        <p class="galint-kpi-description">Quantidade de produtos distintos cadastrados no estoque.</p>
         <div class="galint-kpi-footnote">
-            Equivale a {{ "{:,}".format(total_quantity_internal|default(0, true)) }} unidades internas considerando o conteúdo das embalagens.
+            Saldo operacional consolidado: {{ "{:,}".format(total_quantity|default(0, true)) }} emb./itens. Equivale a {{ "{:,}".format(total_quantity_internal|default(0, true)) }} unidades internas considerando o conteúdo das embalagens.
         </div>
     </div>
 

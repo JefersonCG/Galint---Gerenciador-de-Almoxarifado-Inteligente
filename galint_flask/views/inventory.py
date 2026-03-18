@@ -151,6 +151,32 @@ def _extract_finance_payload(form, *, current_item: dict | None = None) -> dict[
     }
 
 
+def _validate_stock_entry_policy(*, codigo: str, quantidade: float, finance_payload: dict[str, object]) -> None:
+    qty = float(quantidade or 0.0)
+    if qty <= 0:
+        return
+
+    tipo_documento = (str(finance_payload.get("tipo_documento") or "")).strip().lower()
+    comprovacao = (str(finance_payload.get("comprovacao_status") or "sem_comprovacao")).strip().lower() or "sem_comprovacao"
+    numero_documento = (str(finance_payload.get("numero_documento") or "")).strip()
+    observacao = (str(finance_payload.get("observacao") or "")).strip()
+    data_emissao = finance_payload.get("data_emissao_documento")
+
+    if comprovacao in {"sem_comprovacao", "parcial"} and not observacao:
+        raise ValueError("Entradas sem comprovação ou parciais exigem observação obrigatória.")
+
+    if comprovacao == "comprovado" and tipo_documento in {"nf", "cupom"}:
+        if not numero_documento:
+            raise ValueError("Informe o número da NF/cupom para conciliar a entrada no estoque.")
+        finance_service.validate_document_backed_stock_entry(
+            codigo_item=codigo,
+            quantidade=qty,
+            numero_documento=numero_documento,
+            tipo_documento=tipo_documento,
+            data_emissao=data_emissao if isinstance(data_emissao, date) else None,
+        )
+
+
 def _sync_item_financial_history(
     *,
     codigo: str,
@@ -551,6 +577,12 @@ def create_item():
             raise ValueError("Código e descrição são obrigatórios")
         if saldo_desejado < 0:
             raise ValueError("Informe uma quantidade inicial válida")
+
+        _validate_stock_entry_policy(
+            codigo=payload["codigo"],
+            quantidade=float(saldo_desejado if saldo_desejado > 0 else 0),
+            finance_payload=finance_payload,
+        )
         
         if payload.get("preco_compra_unitario") is not None:
             payload["preco_compra_atualizado_em"] = datetime.utcnow()
@@ -615,6 +647,14 @@ def create_item():
             flash(f"Nova entrada registrada para item existente (lote atualizado).", "success")
         else:
             flash("Item cadastrado com sucesso.", "success")
+
+        numero_documento = str(finance_payload.get("numero_documento") or "").strip()
+        if numero_documento and _is_admin(current_user):
+            flash(
+                f"Documento fiscal {numero_documento} atualizado automaticamente e aberto para conferência.",
+                "info",
+            )
+            return redirect(url_for("nf.nf_index", nota=numero_documento, codigo=codigo))
     except ValueError as exc:
         flash(str(exc), "danger")
         quantidade_context = saldo_desejado if saldo_desejado >= 0 else None
@@ -856,11 +896,22 @@ def update_item(codigo: str):
                     descricao="Ajuste manual via edição do item",
                 )
         
-        # Notificar atualização: enviar resumo do que mudou
+        # Quando o saldo aumentou, adjust_item_balance já enviou o alerta operacional.
+        # Mantemos notify_item_updated apenas para alterações cadastrais e ajustes sem entrada.
+        should_notify_item_update = True
         try:
-            TelegramService.notify_item_updated(updated_codigo, prev=prev_item, prev_balance=prev_balance)
+            item_pos_edicao = inventory_service.get_item(updated_codigo)
+            saldo_atual_pos_edicao = int(float(item_pos_edicao.get("saldo") or 0)) if item_pos_edicao else None
+            if prev_balance is not None and saldo_atual_pos_edicao is not None and saldo_atual_pos_edicao > prev_balance:
+                should_notify_item_update = False
         except Exception:
-            pass
+            should_notify_item_update = True
+
+        if should_notify_item_update:
+            try:
+                TelegramService.notify_item_updated(updated_codigo, prev=prev_item, prev_balance=prev_balance)
+            except Exception:
+                pass
         flash("Item atualizado com sucesso.", "success")
     except ValueError as exc:
         flash(str(exc), "danger")
@@ -1038,9 +1089,28 @@ def registrar_entrada(codigo: str):
     # Se tipo_entrada não foi enviado (item sem unidades dinâmicas), em_embalagens fica None
     
     try:
-        inventory_service.registrar_entrada(
+        if nota:
+            finance_service.validate_document_backed_stock_entry(
+                codigo_item=codigo,
+                quantidade=quantidade,
+                numero_documento=nota,
+                tipo_documento="nf",
+            )
+
+        entrada = inventory_service.registrar_entrada(
             MovimentoPayload(codigo=codigo, quantidade=quantidade, matricula=current_user.id, nota_fiscal=nota, em_embalagens=em_embalagens)
         )
+
+        if nota:
+            finance_service.register_stock_document_entry(
+                codigo_item=codigo,
+                quantidade=float(quantidade),
+                tipo_documento="nf",
+                numero_documento=str(nota),
+                entrada_id=getattr(entrada, "id_entrada", None),
+                usuario_matricula=current_user.id,
+                origem_valor="compra_nf",
+            )
         flash("Entrada registrada.", "success")
     except ValueError as exc:
         flash(str(exc), "danger")

@@ -495,14 +495,6 @@ ${parent.scripts()}
         'balde': { singular: 'balde', plural: 'baldes' }
     };
     
-    const unidadeBaseEmbalagem = {
-        'lata': 'litros',
-        'rolo': 'metros',
-        'pacote': 'unidades',
-        'caixa': 'unidades',
-        'balde': 'kg'
-    };
-    
     const dropdownUsuario = document.getElementById('autocomplete-dropdown-usuario');
     const dropdownCodigo = document.getElementById('autocomplete-dropdown-codigo');
     let debounceTimerUsuario = null;
@@ -665,6 +657,52 @@ ${parent.scripts()}
             return item.saldo ? String(item.saldo) : '';
         }
     }
+
+    function normalizarUnidadeMedida(item) {
+        const fracaoPadrao = String(item.fracao_unidade_padrao || '').trim().toLowerCase();
+        const unidadeItem = String(item.unidade || '').trim().toLowerCase();
+        const unidadeExibicao = String(item.unidade_exibicao_total || '').trim().toLowerCase();
+        const litrosPorEmb = parseFloat(item.litros_por_embalagem) || 0;
+        const grandezaRef = parseFloat(item.grandeza_referencia) || 0;
+        const tipoEmbalagem = String(item.tipo_embalagem || item.tipo_embalagem_novo || '').trim().toLowerCase();
+
+        if (fracaoPadrao === 'litro' || unidadeExibicao === 'l') return 'litro';
+        if (fracaoPadrao === 'quilo' || unidadeExibicao === 'kg') return 'kg';
+        if (litrosPorEmb > 0) return 'litro';
+        if (grandezaRef > 0 && (tipoEmbalagem === 'balde' || tipoEmbalagem === 'lata')) return 'kg';
+        if (tipoEmbalagem === 'rolo') return 'metro';
+        if (/(^|\b)(litro|litros|l|lt|lts)(\b|$)/.test(unidadeItem)) return 'litro';
+        if (/(^|\b)(kg|quilo|quilos)(\b|$)/.test(unidadeItem)) return 'kg';
+        if (/(^|\b)(metro|metros|m)(\b|$)/.test(unidadeItem)) return 'metro';
+        return 'unidade';
+    }
+
+    function obterRotuloMedida(item, quantidade) {
+        const medida = normalizarUnidadeMedida(item);
+        const qty = Number(quantidade) || 0;
+
+        if (medida === 'litro') {
+            return { singular: 'litro', plural: 'litros' };
+        }
+        if (medida === 'kg') {
+            return { singular: 'kg', plural: 'kg' };
+        }
+        if (medida === 'metro') {
+            return { singular: 'metro', plural: 'metros' };
+        }
+        return {
+            singular: 'unidade',
+            plural: qty === 1 ? 'unidade' : 'unidades'
+        };
+    }
+
+    function formatarQuantidadeMedida(valor, rotulo) {
+        const numero = Number(valor) || 0;
+        const precisaDecimal = Math.abs(numero - Math.round(numero)) > 0.000001;
+        const textoNumero = precisaDecimal ? numero.toFixed(2) : String(Math.round(numero));
+        const unidade = numero === 1 ? rotulo.singular : rotulo.plural;
+        return textoNumero + ' ' + unidade;
+    }
     
     function showAutocompleteCodigo(itens) {
         if (itens.length === 0) {
@@ -762,8 +800,8 @@ ${parent.scripts()}
     
     btnUnidades.addEventListener('click', () => {
         if (pendingItem) {
-            const unidadeBase = unidadeBaseEmbalagem[pendingItem.tipo_embalagem] || 'unidades';
-            const unidadeBaseSafe = String(unidadeBase || 'unidades');
+            const rotuloMedida = obterRotuloMedida(pendingItem, pendingItem.quantidade_input);
+            const unidadeBaseSafe = String(pendingItem.quantidade_input === 1 ? rotuloMedida.singular : rotuloMedida.plural);
             pendingItem.em_embalagens = false;
             pendingItem.quantidade = pendingItem.quantidade_input;
             pendingItem.unidade_label = unidadeBaseSafe;
@@ -880,6 +918,11 @@ ${parent.scripts()}
                     local: local,
                     tipo_embalagem: data.tipo_embalagem_novo,
                     unidades_por_embalagem: data.unidades_por_embalagem,
+                    unidade: data.unidade,
+                    fracao_unidade_padrao: data.fracao_unidade_padrao,
+                    unidade_exibicao_total: data.unidade_exibicao_total,
+                    grandeza_referencia: data.grandeza_referencia,
+                    litros_por_embalagem: data.litros_por_embalagem,
                     em_embalagens: null
                 };
                 
@@ -913,9 +956,9 @@ ${parent.scripts()}
     
     function mostrarModalUnidade(item) {
         const nomes = nomesEmbalagem[item.tipo_embalagem] || { singular: 'embalagem', plural: 'embalagens' };
-        const unidadeBase = unidadeBaseEmbalagem[item.tipo_embalagem] || 'unidades';
         const totalUnidades = item.quantidade_input * item.unidades_por_embalagem;
         const isRolo = item.tipo_embalagem === 'rolo';
+        const rotuloMedida = obterRotuloMedida(item, item.quantidade_input);
         
         modalItemDesc.textContent = item.descricao;
         modalQtd.textContent = item.quantidade_input;
@@ -933,8 +976,8 @@ ${parent.scripts()}
             modalQtdEmb.textContent = item.quantidade_input;
             modalQtdUnit.textContent = item.quantidade_input;
             modalNomeEmbPlural.textContent = item.quantidade_input === 1 ? nomes.singular : nomes.plural;
-            modalTotalEmb.textContent = '= ' + totalUnidades.toFixed(2) + ' ' + unidadeBase + ' no total';
-            modalUnidadeBase.textContent = unidadeBase;
+            modalTotalEmb.textContent = '= ' + formatarQuantidadeMedida(totalUnidades, rotuloMedida) + ' no total';
+            modalUnidadeBase.textContent = item.quantidade_input === 1 ? rotuloMedida.singular : rotuloMedida.plural;
             modalUnidadeDesc.textContent = '(quantidade individual)';
         }
         

@@ -197,7 +197,7 @@
                             <input class="form-check-input" type="radio" name="delete_option" id="deleteReatribuir" value="reatribuir" checked>
                             <label class="form-check-label" for="deleteReatribuir">
                                 <strong class="text-primary">✓ Reatribuir e Excluir (Recomendado)</strong>
-                                <small class="d-block text-muted mt-1">Transfere todos os registros (saídas, entradas, eventos) para outro usuário antes de excluir. <strong>Preserva o histórico completo.</strong></small>
+                                <small class="d-block text-muted mt-1">Transfere todos os registros (saídas, entradas, eventos, retiradas de ferramentas e reparos) para outro usuário antes de excluir. <strong>Preserva o histórico completo.</strong></small>
                             </label>
                             
                             <div id="reatribuirOptions" class="mt-2">
@@ -215,7 +215,7 @@
                             <input class="form-check-input" type="radio" name="delete_option" id="deleteForcado" value="force">
                             <label class="form-check-label" for="deleteForcado">
                                 <strong class="text-warning">⚠️ Excluir Forçadamente</strong>
-                                <small class="d-block text-muted mt-1">Remove o usuário e desvincula todos os registros (matrícula vira NULL). <strong>Use apenas se não puder reatribuir.</strong></small>
+                                <small class="d-block text-muted mt-1">Remove o usuário e desvincula apenas os registros que aceitam matrícula nula. Para retiradas de ferramentas e reparos, a reatribuição continua obrigatória. <strong>Use apenas se não puder reatribuir.</strong></small>
                             </label>
                         </div>
 

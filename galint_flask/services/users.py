@@ -117,81 +117,101 @@ class UserService:
         usuario = Usuario.query.get(matricula)
         if not usuario:
             raise ValueError("Usuário não encontrado")
-        
-        # Verificar se há registros vinculados
-        from ..models import Saida, Entrada, InventarioEvento, TelegramUser
-        
+
+        from ..models import Entrada, EquipamentoReparo, InventarioEvento, RetiradaFerramenta, Saida, TelegramUser
+
         num_saidas = db.session.query(Saida).filter_by(matricula=matricula).count()
         num_entradas = db.session.query(Entrada).filter_by(matricula=matricula).count()
         num_eventos = db.session.query(InventarioEvento).filter_by(matricula=matricula).count()
-        
-        total_registros = num_saidas + num_entradas + num_eventos
-        
-        if total_registros > 0:
-            # Se force_delete está ativo e há um usuário para reatribuir
+        num_retiradas_ferramentas = db.session.query(RetiradaFerramenta).filter_by(matricula=matricula).count()
+        num_reparos = db.session.query(EquipamentoReparo).filter_by(matricula_responsavel=matricula).count()
+
+        total_registros = num_saidas + num_entradas + num_eventos + num_retiradas_ferramentas + num_reparos
+
+        detalhes = []
+        if num_saidas > 0:
+            detalhes.append(f"{num_saidas} saída(s)")
+        if num_entradas > 0:
+            detalhes.append(f"{num_entradas} entrada(s)")
+        if num_eventos > 0:
+            detalhes.append(f"{num_eventos} evento(s) de inventário")
+        if num_retiradas_ferramentas > 0:
+            detalhes.append(f"{num_retiradas_ferramentas} retirada(s) de ferramenta")
+        if num_reparos > 0:
+            detalhes.append(f"{num_reparos} reparo(s) vinculados")
+
+        if total_registros > 0 and not force_delete:
+            raise ValueError(
+                f"Não é possível excluir o usuário {usuario.nome}. "
+                f"Existem {total_registros} registro(s) vinculado(s): {', '.join(detalhes)}. "
+                f"Para excluir este usuário, primeiro remova ou reatribua estes registros."
+            )
+
+        if force_delete and reatribuir_para:
+            usuario_destino = Usuario.query.get(reatribuir_para)
+            if not usuario_destino:
+                raise ValueError(f"Usuário de destino '{reatribuir_para}' não encontrado")
+
+        if force_delete and not reatribuir_para and (num_retiradas_ferramentas > 0 or num_reparos > 0):
+            bloqueios = []
+            if num_retiradas_ferramentas > 0:
+                bloqueios.append("retiradas de ferramentas")
+            if num_reparos > 0:
+                bloqueios.append("reparos")
+            raise ValueError(
+                "Exclusão forçada sem reatribuição não é permitida para usuário com "
+                + " e ".join(bloqueios)
+                + ". Selecione um usuário de destino para preservar o responsável nesses registros."
+            )
+
+        try:
             if force_delete and reatribuir_para:
-                # Validar que o usuário de destino existe
-                usuario_destino = Usuario.query.get(reatribuir_para)
-                if not usuario_destino:
-                    raise ValueError(f"Usuário de destino '{reatribuir_para}' não encontrado")
-                
-                # Reatribuir saídas
                 db.session.query(Saida).filter_by(matricula=matricula).update(
                     {"matricula": reatribuir_para}, synchronize_session=False
                 )
-                
-                # Reatribuir entradas
                 db.session.query(Entrada).filter_by(matricula=matricula).update(
                     {"matricula": reatribuir_para}, synchronize_session=False
                 )
-                
-                # Reatribuir eventos de inventário
                 db.session.query(InventarioEvento).filter_by(matricula=matricula).update(
                     {"matricula": reatribuir_para}, synchronize_session=False
                 )
-                
+                db.session.query(RetiradaFerramenta).filter_by(matricula=matricula).update(
+                    {"matricula": reatribuir_para}, synchronize_session=False
+                )
+                db.session.query(EquipamentoReparo).filter_by(matricula_responsavel=matricula).update(
+                    {"matricula_responsavel": reatribuir_para, "atualizado_por": reatribuir_para}, synchronize_session=False
+                )
+                db.session.query(EquipamentoReparo).filter_by(atualizado_por=matricula).update(
+                    {"atualizado_por": reatribuir_para}, synchronize_session=False
+                )
                 db.session.flush()
-            
-            # Se force_delete está ativo mas sem reatribuir, define matrícula como NULL
             elif force_delete:
-                # Definir matrícula como NULL nos registros
                 db.session.query(Saida).filter_by(matricula=matricula).update(
                     {"matricula": None}, synchronize_session=False
                 )
-                
                 db.session.query(Entrada).filter_by(matricula=matricula).update(
                     {"matricula": None}, synchronize_session=False
                 )
-                
                 db.session.query(InventarioEvento).filter_by(matricula=matricula).update(
                     {"matricula": None}, synchronize_session=False
                 )
-                
-                db.session.flush()
-            
-            # Se não há force_delete, lançar erro como antes
-            else:
-                detalhes = []
-                if num_saidas > 0:
-                    detalhes.append(f"{num_saidas} saída(s)")
-                if num_entradas > 0:
-                    detalhes.append(f"{num_entradas} entrada(s)")
-                if num_eventos > 0:
-                    detalhes.append(f"{num_eventos} evento(s) de inventário")
-                
-                raise ValueError(
-                    f"Não é possível excluir o usuário {usuario.nome}. "
-                    f"Existem {total_registros} registro(s) vinculado(s): {', '.join(detalhes)}. "
-                    f"Para excluir este usuário, primeiro remova ou reatribua estes registros."
+                db.session.query(EquipamentoReparo).filter_by(atualizado_por=matricula).update(
+                    {"atualizado_por": None}, synchronize_session=False
                 )
-        
-        # Remover vinculação do Telegram se existir
-        telegram_user = db.session.query(TelegramUser).filter_by(matricula=matricula).first()
-        if telegram_user:
-            db.session.delete(telegram_user)
-        
-        db.session.delete(usuario)
-        db.session.commit()
+                db.session.flush()
+
+            telegram_user = db.session.query(TelegramUser).filter_by(matricula=matricula).first()
+            if telegram_user:
+                db.session.delete(telegram_user)
+
+            db.session.delete(usuario)
+            db.session.commit()
+        except IntegrityError as exc:
+            db.session.rollback()
+            raise ValueError(
+                "Não foi possível excluir o usuário porque ainda existem registros vinculados que exigem responsável. "
+                "Reatribua o histórico do usuário e tente novamente."
+            ) from exc
 
     def generate_unique_matricula(self, nome: str) -> str:
         for _ in range(10000):

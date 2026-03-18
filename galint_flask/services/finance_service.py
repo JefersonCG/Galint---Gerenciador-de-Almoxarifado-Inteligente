@@ -500,6 +500,115 @@ class FinanceService:
         ]
 
     @staticmethod
+    def _document_reconciliation_query(
+        *,
+        numero_documento: str,
+        tipo_documento: str | None = None,
+        data_emissao: date | None = None,
+    ):
+        numero = (numero_documento or "").strip()
+        if not numero:
+            return None
+
+        query = (
+            DocumentoEntradaEstoque.query
+            .options(joinedload(DocumentoEntradaEstoque.itens))
+            .filter(DocumentoEntradaEstoque.numero_documento == numero)
+        )
+        tipo = (tipo_documento or "").strip() or None
+        if tipo:
+            query = query.filter(DocumentoEntradaEstoque.tipo_documento == tipo)
+        if data_emissao is not None:
+            query = query.filter(DocumentoEntradaEstoque.data_emissao == data_emissao)
+        return query.order_by(DocumentoEntradaEstoque.id_documento.desc())
+
+    @staticmethod
+    def get_document_item_reconciliation(
+        *,
+        codigo_item: str,
+        numero_documento: str,
+        tipo_documento: str | None = None,
+        data_emissao: date | None = None,
+    ) -> dict[str, Any] | None:
+        codigo = (codigo_item or "").strip()
+        query = FinanceService._document_reconciliation_query(
+            numero_documento=numero_documento,
+            tipo_documento=tipo_documento,
+            data_emissao=data_emissao,
+        )
+        if not codigo or query is None:
+            return None
+
+        documents = query.all()
+        if not documents:
+            return None
+
+        documented_quantity = 0.0
+        linked_quantity = 0.0
+        matching_rows = 0
+        for document in documents:
+            for row in document.itens:
+                if str(row.codigo_item or "").strip() != codigo:
+                    continue
+                matching_rows += 1
+                quantity = float(row.quantidade or 0.0)
+                if row.entrada_id is None:
+                    documented_quantity += quantity
+                else:
+                    linked_quantity += quantity
+
+        return {
+            "document": documents[0],
+            "document_count": len(documents),
+            "matching_rows": matching_rows,
+            "documented_quantity": round(documented_quantity, 6),
+            "linked_quantity": round(linked_quantity, 6),
+            "pending_quantity": round(documented_quantity - linked_quantity, 6),
+        }
+
+    @staticmethod
+    def validate_document_backed_stock_entry(
+        *,
+        codigo_item: str,
+        quantidade: float,
+        numero_documento: str,
+        tipo_documento: str | None = None,
+        data_emissao: date | None = None,
+    ) -> dict[str, Any]:
+        qty = float(quantidade or 0.0)
+        if qty <= 0:
+            raise ValueError("Informe uma quantidade válida para conferência documental")
+
+        reconciliation = FinanceService.get_document_item_reconciliation(
+            codigo_item=codigo_item,
+            numero_documento=numero_documento,
+            tipo_documento=tipo_documento,
+            data_emissao=data_emissao,
+        )
+        if reconciliation is None:
+            raise ValueError("Documento fiscal não encontrado para conciliar a entrada. Registre o documento primeiro.")
+
+        if int(reconciliation.get("matching_rows") or 0) <= 0:
+            raise ValueError("O item não existe no documento informado. Cadastre o item correto no documento fiscal antes de entrar no estoque.")
+
+        documented_quantity = float(reconciliation.get("documented_quantity") or 0.0)
+        pending_quantity = float(reconciliation.get("pending_quantity") or 0.0)
+        tolerance = 1e-6
+
+        if documented_quantity <= tolerance:
+            raise ValueError("O documento informado não possui quantidade documental disponível para este item.")
+
+        if pending_quantity <= tolerance:
+            raise ValueError("A quantidade deste item já foi totalmente conciliada com o documento informado.")
+
+        if qty - pending_quantity > tolerance:
+            raise ValueError(
+                f"Quantidade maior que o saldo documental pendente. Pendente no documento: {pending_quantity:g}."
+            )
+
+        return reconciliation
+
+    @staticmethod
     def register_stock_document_entry(
         *,
         codigo_item: str,
@@ -1175,11 +1284,6 @@ class FinanceService:
                 if e.data_lancamento and (doc.get("data") is None or e.data_lancamento > doc["data"]):
                     doc["data"] = e.data_lancamento
 
-                if tipo_doc == "nf":
-                    supplier["nf_total"] += 1
-                elif tipo_doc == "cupom":
-                    supplier["cupom_total"] += 1
-
             # Produtos e variação de preço (por loja)
             if codigo_item:
                 item_stats = by_supplier_items[supplier_id].get(codigo_item)
@@ -1273,6 +1377,8 @@ class FinanceService:
                 })
             docs_rows.sort(key=lambda r: (r.get("data") or datetime.min), reverse=True)
             supplier["documentos"] = docs_rows[:60]
+            supplier["nf_total"] = sum(1 for row in docs_rows if str(row.get("tipo") or "").lower() == "nf")
+            supplier["cupom_total"] = sum(1 for row in docs_rows if str(row.get("tipo") or "").lower() == "cupom")
 
             # produtos
             item_rows: list[dict[str, Any]] = []
