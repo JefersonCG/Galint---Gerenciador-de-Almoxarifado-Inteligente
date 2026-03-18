@@ -51,12 +51,23 @@
     .mobile-chip-list { display: flex; flex-wrap: wrap; gap: 0.5rem; }
     .mobile-chip { display: inline-flex; align-items: center; padding: 0.42rem 0.7rem; border-radius: 999px; background: rgba(255,255,255,0.08); border: 1px solid rgba(148,163,184,0.12); color: #e2e8f0; font-size: 0.82rem; }
     .mobile-muted { color: #9fb0c6; }
+    .mobile-audit-toolbar { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+    .mobile-audit-kpis { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 1rem; margin-bottom: 1rem; }
+    .mobile-audit-kpi { border-radius: 18px; padding: 1rem 1.1rem; background: rgba(255,255,255,0.05); border: 1px solid rgba(148,163,184,0.14); }
+    .mobile-audit-kpi strong { display: block; font-size: 1.35rem; color: #f8fafc; }
+    .mobile-audit-kpi span { font-size: 0.8rem; color: #9fb0c6; }
+    .mobile-audit-accordion .accordion-item { border: 1px solid rgba(148,163,184,0.14); border-radius: 18px; overflow: hidden; background: rgba(255,255,255,0.04); margin-bottom: 0.9rem; }
+    .mobile-audit-accordion .accordion-button { background: rgba(15,23,42,0.72); color: #f8fafc; box-shadow: none; }
+    .mobile-audit-accordion .accordion-button:not(.collapsed) { background: rgba(30,41,59,0.9); color: #ffffff; }
+    .mobile-audit-accordion .accordion-body { background: rgba(15,23,42,0.46); }
+    .mobile-audit-count { color: #cbd5e1; font-size: 0.84rem; font-weight: 700; }
+    .mobile-audit-empty { border-radius: 18px; border: 1px dashed rgba(148,163,184,0.18); padding: 1.2rem; text-align: center; color: #9fb0c6; background: rgba(255,255,255,0.04); }
     .mobile-modal .modal-content { background: linear-gradient(145deg, #0f172a 0%, #1e293b 100%); color: #e2e8f0; border: 1px solid rgba(148,163,184,0.18); }
     .mobile-modal .modal-header, .mobile-modal .modal-footer { border-color: rgba(148,163,184,0.14); }
     .mobile-modal .form-control { background: rgba(15,23,42,0.82); color: #f8fafc; border-color: rgba(148,163,184,0.22); }
     .mobile-modal .form-control::placeholder { color: #94a3b8; }
     @media (max-width: 1400px) { .mobile-kpis { grid-template-columns: repeat(3, minmax(0,1fr)); } }
-    @media (max-width: 992px) { .mobile-stat-grid { grid-template-columns: 1fr; } }
+    @media (max-width: 992px) { .mobile-stat-grid, .mobile-audit-kpis { grid-template-columns: 1fr; } }
     @media (max-width: 768px) { .mobile-shell { padding: 1rem; border-radius: 22px; } .mobile-hero { padding: 1.2rem; border-radius: 20px; } .mobile-kpis { grid-template-columns: 1fr; } .mobile-tabs.nav-pills { flex-direction: column; } }
 </style>
 {% endblock %}
@@ -91,6 +102,7 @@
         <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#mobile-devices" type="button" role="tab">Dispositivos</button></li>
         <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#mobile-users" type="button" role="tab">Usuários do app</button></li>
         <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#mobile-diagnostics" type="button" role="tab">Diagnóstico</button></li>
+        <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#mobile-logs" type="button" role="tab">Logs</button></li>
     </ul>
 
     <div class="tab-content">
@@ -224,6 +236,30 @@
                 </div>
             </div>
         </div>
+
+        <div class="tab-pane fade" id="mobile-logs" role="tabpanel">
+            <div class="card mobile-panel">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <strong>Logs do painel mobile agrupados por data</strong>
+                    <span class="mobile-muted small">Visualização segura por dia, sem exclusão destrutiva.</span>
+                </div>
+                <div class="card-body">
+                    <div class="mobile-audit-toolbar">
+                        <div class="mobile-chip-list" id="audit-action-chip-list"></div>
+                        <div class="d-flex gap-2 flex-wrap">
+                            <button class="btn btn-outline-light btn-sm rounded-pill px-3" id="btn-refresh-audit-groups"><i class="bi bi-arrow-clockwise me-1"></i>Atualizar logs</button>
+                            <a class="btn btn-outline-light btn-sm rounded-pill px-3" href="{{ url_for('mobile_panel.audit') }}"><i class="bi bi-journal-text me-1"></i>Auditoria completa</a>
+                        </div>
+                    </div>
+                    <div class="mobile-audit-kpis">
+                        <div class="mobile-audit-kpi"><strong id="audit-total-logs">--</strong><span>Logs carregados</span></div>
+                        <div class="mobile-audit-kpi"><strong id="audit-total-days">--</strong><span>Datas agrupadas</span></div>
+                        <div class="mobile-audit-kpi"><strong id="audit-last-log">--</strong><span>Último evento</span></div>
+                    </div>
+                    <div class="accordion mobile-audit-accordion" id="mobile-audit-groups"></div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -269,6 +305,7 @@
     let allDevices = [];
     let allUsers = [];
     let allVersions = [];
+    let allAuditLogs = [];
     let currentFilter = null;
 
     const deviceModal = new bootstrap.Modal(document.getElementById('deviceDetailsModal'));
@@ -327,6 +364,44 @@
     function setText(id, value) {
         const el = document.getElementById(id);
         if (el) el.textContent = value;
+    }
+
+    function formatDateLabel(dateStr) {
+        if (!dateStr) return 'Sem data';
+        const date = new Date(dateStr);
+        return date.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' });
+    }
+
+    function formatDateTime(dateStr) {
+        if (!dateStr) return '-';
+        return new Date(dateStr).toLocaleString('pt-BR');
+    }
+
+    function actionLabel(action) {
+        const labels = {
+            update_mobile_user: 'Atualização de usuário',
+            block_mobile_user: 'Bloqueio de usuário',
+            unblock_mobile_user: 'Desbloqueio de usuário',
+            force_logout_mobile_user: 'Logout forçado de usuário',
+            block_version: 'Bloqueio de versão',
+            update_feature: 'Atualização de feature',
+            unblock_device: 'Desbloqueio de dispositivo',
+            revoke_session: 'Revogação de sessão',
+        };
+        return labels[action] || action || '-';
+    }
+
+    function resultBadge(result) {
+        if (result === 'success') return '<span class="mobile-badge online">Sucesso</span>';
+        if (result === 'failed') return '<span class="mobile-badge blocked">Falha</span>';
+        return `<span class="mobile-badge unknown">${result || '-'}</span>`;
+    }
+
+    function summarizeDetails(details) {
+        if (!details || typeof details !== 'object') return '-';
+        const entries = Object.entries(details).slice(0, 3);
+        if (!entries.length) return '-';
+        return entries.map(([key, value]) => `${key}: ${Array.isArray(value) ? value.join(', ') : value}`).join(' • ');
     }
 
     function buildAlerts(devices, users) {
@@ -476,6 +551,98 @@
         `).join('') || '<tr><td colspan="7" class="text-center text-muted py-4">Sem diagnósticos disponíveis.</td></tr>';
     }
 
+    function renderAuditSummary(logs) {
+        setText('audit-total-logs', logs.length);
+        const groupedKeys = new Set(logs.map(log => (log.occurred_at || '').slice(0, 10)).filter(Boolean));
+        setText('audit-total-days', groupedKeys.size);
+        setText('audit-last-log', logs.length ? timeAgo(logs[0].occurred_at) : '-');
+
+        const actionCounts = {};
+        logs.forEach(log => {
+            const key = actionLabel(log.action_type);
+            actionCounts[key] = (actionCounts[key] || 0) + 1;
+        });
+        const chips = Object.entries(actionCounts)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 8)
+            .map(([label, count]) => `<span class="mobile-chip">${label} • ${count}</span>`)
+            .join('');
+        document.getElementById('audit-action-chip-list').innerHTML = chips || '<span class="mobile-muted">Sem ações recentes.</span>';
+    }
+
+    function renderAuditGroups(logs) {
+        const container = document.getElementById('mobile-audit-groups');
+        if (!container) return;
+        renderAuditSummary(logs);
+
+        if (!logs.length) {
+            container.innerHTML = '<div class="mobile-audit-empty">Nenhum log recente encontrado no painel mobile.</div>';
+            return;
+        }
+
+        const grouped = {};
+        logs.forEach(log => {
+            const key = (log.occurred_at || '').slice(0, 10) || 'sem-data';
+            if (!grouped[key]) grouped[key] = [];
+            grouped[key].push(log);
+        });
+
+        container.innerHTML = Object.entries(grouped)
+            .sort((a, b) => b[0].localeCompare(a[0]))
+            .map(([dateKey, entries], index) => {
+                const collapseId = `audit-group-${index}`;
+                const totalSuccess = entries.filter(entry => entry.action_result === 'success').length;
+                const totalFailed = entries.filter(entry => entry.action_result === 'failed').length;
+                return `
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="heading-${collapseId}">
+                            <button class="accordion-button ${index === 0 ? '' : 'collapsed'}" type="button" data-bs-toggle="collapse" data-bs-target="#${collapseId}" aria-expanded="${index === 0 ? 'true' : 'false'}" aria-controls="${collapseId}">
+                                <div class="d-flex flex-wrap justify-content-between align-items-center w-100 gap-2 pe-3">
+                                    <div>
+                                        <strong>${formatDateLabel(entries[0]?.occurred_at)}</strong>
+                                        <div class="mobile-audit-count">${entries.length} evento(s) • ${totalSuccess} sucesso • ${totalFailed} falha</div>
+                                    </div>
+                                    <span class="mobile-muted small">último: ${formatDateTime(entries[0]?.occurred_at)}</span>
+                                </div>
+                            </button>
+                        </h2>
+                        <div id="${collapseId}" class="accordion-collapse collapse ${index === 0 ? 'show' : ''}" aria-labelledby="heading-${collapseId}" data-bs-parent="#mobile-audit-groups">
+                            <div class="accordion-body p-0">
+                                <div class="mobile-table-wrap rounded-0 border-0">
+                                    <div class="table-responsive">
+                                        <table class="table table-sm mobile-table mb-0">
+                                            <thead>
+                                                <tr>
+                                                    <th>Hora</th>
+                                                    <th>Ação</th>
+                                                    <th>Resultado</th>
+                                                    <th>Usuário</th>
+                                                    <th>Admin</th>
+                                                    <th>Detalhes</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                ${entries.map(entry => `
+                                                    <tr>
+                                                        <td>${formatDateTime(entry.occurred_at)}</td>
+                                                        <td><strong>${actionLabel(entry.action_type)}</strong><div class="small text-muted">device ${entry.device_id || '-'} • apk ${entry.apk_version || '-'}</div></td>
+                                                        <td>${resultBadge(entry.action_result)}</td>
+                                                        <td>${entry.user_id || '<span class="text-muted">-</span>'}</td>
+                                                        <td>${entry.admin_id || '<span class="text-muted">-</span>'}</td>
+                                                        <td class="small text-muted">${summarizeDetails(entry.details)}</td>
+                                                    </tr>
+                                                `).join('')}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+    }
+
     async function showDeviceDetails(deviceId) {
         try {
             const resp = await fetchJson(`/admin/devices/${deviceId}`);
@@ -580,15 +747,17 @@
 
     async function loadDashboard() {
         try {
-            const [devicesResp, versionsResp, usersResp] = await Promise.all([
+            const [devicesResp, versionsResp, usersResp, auditResp] = await Promise.all([
                 fetchJson('/admin/devices'),
                 fetchJson('/admin/versions'),
                 fetchJson('/admin/mobile-users'),
+                fetchJson('/admin/audit?limit=300'),
             ]);
 
             allDevices = devicesResp.data || [];
             allVersions = versionsResp.data || [];
             allUsers = usersResp.data || [];
+            allAuditLogs = auditResp.data || [];
 
             renderSummary(allDevices, allUsers, allVersions);
             renderAlerts(buildAlerts(allDevices, allUsers));
@@ -596,12 +765,14 @@
             renderDevicesTable(allDevices);
             renderUsersTable(allUsers);
             renderDiagnosticsTable(allDevices);
+            renderAuditGroups(allAuditLogs);
         } catch (error) {
             alert('Erro ao carregar painel mobile: ' + error.message);
         }
     }
 
     document.getElementById('btn-refresh-all')?.addEventListener('click', loadDashboard);
+    document.getElementById('btn-refresh-audit-groups')?.addEventListener('click', loadDashboard);
     document.getElementById('btn-save-user')?.addEventListener('click', saveUser);
     document.querySelectorAll('.mobile-kpi[data-filter]').forEach(card => card.addEventListener('click', () => applyFilter(card.getAttribute('data-filter'))));
 
