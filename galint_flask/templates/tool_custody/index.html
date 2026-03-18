@@ -4,43 +4,197 @@
 
 {% block extra_css %}
 <style>
+    .audit-shell {
+        background: linear-gradient(180deg, #eef2f7 0%, #f8fafc 100%);
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        border-radius: 28px;
+        padding: 1.75rem;
+        box-shadow: 0 24px 54px rgba(15, 23, 42, 0.1);
+    }
+
+    .audit-hero {
+        position: relative;
+        overflow: hidden;
+        background: linear-gradient(135deg, #0f172a 0%, #172554 52%, #1d4ed8 100%);
+        border-radius: 24px;
+        padding: 1.75rem;
+        color: #f8fafc;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 26px 60px rgba(15, 23, 42, 0.18);
+    }
+
+    .audit-hero::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+            radial-gradient(circle at 14% 18%, rgba(96, 165, 250, 0.32), transparent 32%),
+            radial-gradient(circle at 88% 22%, rgba(56, 189, 248, 0.18), transparent 22%),
+            linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 60%);
+        pointer-events: none;
+    }
+
+    .audit-hero > * {
+        position: relative;
+        z-index: 1;
+    }
+
+    .audit-eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.35rem 0.7rem;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(226, 232, 240, 0.14);
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: rgba(226, 232, 240, 0.88);
+        margin-bottom: 0.9rem;
+    }
+
+    .audit-hero-title {
+        margin: 0;
+        font-size: 2rem;
+        font-weight: 800;
+        letter-spacing: -0.03em;
+    }
+
+    .audit-hero-subtitle {
+        margin: 0.6rem 0 0;
+        max-width: 56rem;
+        color: rgba(226, 232, 240, 0.78);
+        line-height: 1.6;
+        font-size: 0.96rem;
+    }
+
+    .stats-card {
+        position: relative;
+        overflow: hidden;
+        background: linear-gradient(145deg, #0f172a 0%, #1e293b 68%, #334155 100%);
+        border-radius: 22px;
+        padding: 1.2rem;
+        color: #f8fafc;
+        height: 100%;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        box-shadow: 0 20px 42px rgba(15, 23, 42, 0.18);
+    }
+
+    .stats-card::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+            radial-gradient(circle at 18% 18%, rgba(96, 165, 250, 0.24), transparent 34%),
+            linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 60%);
+        pointer-events: none;
+    }
+
+    .stats-card > * {
+        position: relative;
+        z-index: 1;
+    }
+
+    .stats-card.magenta::before {
+        background:
+            radial-gradient(circle at 18% 18%, rgba(244, 114, 182, 0.24), transparent 34%),
+            linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 60%);
+    }
+
+    .stats-card.cyan::before {
+        background:
+            radial-gradient(circle at 18% 18%, rgba(56, 189, 248, 0.24), transparent 34%),
+            linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 60%);
+    }
+
+    .stats-card.green::before {
+        background:
+            radial-gradient(circle at 18% 18%, rgba(52, 211, 153, 0.24), transparent 34%),
+            linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 60%);
+    }
+
+    .stats-label {
+        display: block;
+        font-size: 0.78rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: rgba(226, 232, 240, 0.7);
+        margin-bottom: 0.45rem;
+    }
+
     .filter-card {
-        background: var(--bs-dark);
-        border: 1px solid var(--bs-border-color);
-        border-radius: 8px;
+        background: linear-gradient(145deg, #0f172a 0%, #1e293b 100%);
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        border-radius: 24px;
         padding: 1.5rem;
         margin-bottom: 1.5rem;
+        color: #e2e8f0;
+        box-shadow: 0 22px 48px rgba(15, 23, 42, 0.16);
     }
-    
-    .stats-card {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        border-radius: 8px;
-        padding: 1rem;
-        color: white;
-        margin-bottom: 1.5rem;
+
+    .filter-accent {
+        background: rgba(59, 130, 246, 0.08);
+        border: 1px dashed rgba(96, 165, 250, 0.34) !important;
+        border-radius: 18px;
     }
-    
-    /* Cards de funcionários */
+
+    .filter-card .form-label,
+    .filter-card .text-muted,
+    .filter-card label,
+    .filter-card p,
+    .filter-card h5,
+    .filter-card span {
+        color: #e2e8f0 !important;
+    }
+
+    .filter-card .text-info {
+        color: #7dd3fc !important;
+    }
+
+    .filter-card .input-group-text,
+    .filter-card .form-control,
+    .filter-card .form-select {
+        border-color: rgba(148, 163, 184, 0.24) !important;
+    }
+
     .employee-card {
-        background: var(--bs-dark);
-        border: 1px solid var(--bs-border-color);
-        border-radius: 8px;
+        background: linear-gradient(145deg, #0f172a 0%, #1e293b 68%, #334155 100%);
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        border-radius: 22px;
         padding: 1.25rem;
         height: 100%;
         transition: all 0.3s ease;
         position: relative;
         overflow: hidden;
+        box-shadow: 0 22px 42px rgba(15, 23, 42, 0.16);
+    }
+
+    .employee-card::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+            radial-gradient(circle at 18% 18%, rgba(59, 130, 246, 0.26), transparent 32%),
+            linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 60%);
+        pointer-events: none;
+    }
+
+    .employee-card > * {
+        position: relative;
+        z-index: 1;
     }
     
     .employee-card:hover {
         transform: translateY(-4px);
-        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
-        border-color: var(--bs-primary);
+        box-shadow: 0 28px 54px rgba(15, 23, 42, 0.24);
+        border-color: rgba(96, 165, 250, 0.4);
         cursor: pointer;
     }
     
     .employee-card.has-alert {
-        border-left: 4px solid #ffc107;
+        border-left: 4px solid #f59e0b;
     }
     
     .employee-card-header {
@@ -52,7 +206,7 @@
     
     .employee-icon {
         font-size: 2.5rem;
-        opacity: 0.8;
+        opacity: 0.9;
         margin-bottom: 0.5rem;
     }
     
@@ -65,7 +219,7 @@
     
     .employee-matricula {
         font-size: 0.8rem;
-        color: var(--bs-secondary);
+        color: #94a3b8;
     }
     
     .employee-info {
@@ -83,29 +237,29 @@
     
     /* Badges */
     .tool-count-badge {
-        font-size: 1.2rem;
+        font-size: 1.05rem;
         padding: 0.4rem 0.8rem;
-        border-radius: 6px;
+        border-radius: 999px;
         font-weight: 700;
-        background-color: #28a745;
+        background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
         color: white;
     }
     
     .alert-badge {
         font-size: 0.75rem;
         padding: 0.25rem 0.5rem;
-        border-radius: 4px;
+        border-radius: 999px;
         font-weight: 600;
-        background-color: #ffc107;
+        background-color: #f59e0b;
         color: #000;
     }
     
     .info-badge {
         font-size: 0.7rem;
-        padding: 0.2rem 0.4rem;
-        border-radius: 3px;
+        padding: 0.25rem 0.55rem;
+        border-radius: 999px;
         background-color: rgba(255, 255, 255, 0.1);
-        color: var(--bs-light);
+        color: #e2e8f0;
     }
     
     /* Busca rápida */
@@ -131,7 +285,7 @@
         left: 0;
         right: 0;
         z-index: 1050;
-        background: #1f2128;
+        background: #111827;
         border: 1px solid rgba(148, 163, 184, 0.25);
         border-radius: 6px;
         max-height: 280px;
@@ -158,7 +312,10 @@
     .empty-state {
         text-align: center;
         padding: 3rem;
-        color: var(--bs-secondary);
+        color: #64748b;
+        background: rgba(255, 255, 255, 0.72);
+        border: 1px dashed rgba(148, 163, 184, 0.24);
+        border-radius: 24px;
     }
     
     .empty-state i {
@@ -167,13 +324,22 @@
         opacity: 0.5;
     }
     
-    /* Forçar texto branco para melhor legibilidade */
-    .form-label, .text-muted, label, p {
-        color: var(--bs-light) !important;
-    }
-    
     /* Responsividade */
     @media (max-width: 768px) {
+        .audit-shell {
+            padding: 1rem;
+            border-radius: 22px;
+        }
+
+        .audit-hero {
+            padding: 1.25rem;
+            border-radius: 20px;
+        }
+
+        .audit-hero-title {
+            font-size: 1.55rem;
+        }
+
         .stats-card h3 {
             font-size: 1.5rem;
         }
@@ -190,20 +356,24 @@
 {% endblock %}
 
 {% block page_header %}
-<div>
-    <h2 class="mb-1" style="color: #000 !important;"><i class="bi bi-search"></i> Auditar Ferramentas</h2>
-    <p class="text-muted mb-0" style="color: #000 !important;">Gerencie ferramentas em posse dos funcionários</p>
-</div>
+<div></div>
 {% endblock %}
 
 {% block content %}
+<div class="audit-shell">
+<section class="audit-hero">
+    <div class="audit-eyebrow"><i class="bi bi-shield-check"></i> Auditoria operacional</div>
+    <h1 class="audit-hero-title">Auditar Ferramentas</h1>
+    <p class="audit-hero-subtitle">Acompanhe funcionários com ferramentas em posse, destaque alertas e acesse a gestão com o mesmo visual dark do dashboard.</p>
+</section>
+
 <!-- Estatísticas -->
 <div class="row g-3 mb-4">
     <div class="col-md-3 col-sm-6">
         <div class="stats-card">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
-                    <small class="opacity-75">Funcionários com Ferramentas</small>
+                    <span class="stats-label">Funcionários com Ferramentas</span>
                     <h3 class="mb-0">{{ stats.total_employees }}</h3>
                 </div>
                 <i class="bi bi-people-fill" style="font-size: 2rem; opacity: 0.6;"></i>
@@ -211,10 +381,10 @@
         </div>
     </div>
     <div class="col-md-3 col-sm-6">
-        <div class="stats-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+        <div class="stats-card magenta">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
-                    <small class="opacity-75">Total de Ferramentas</small>
+                    <span class="stats-label">Total de Ferramentas</span>
                     <h3 class="mb-0">{{ stats.total_tools }}</h3>
                 </div>
                 <i class="bi bi-tools" style="font-size: 2rem; opacity: 0.6;"></i>
@@ -222,10 +392,10 @@
         </div>
     </div>
     <div class="col-md-3 col-sm-6">
-        <div class="stats-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+        <div class="stats-card cyan">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
-                    <small class="opacity-75">Alertas (>30 dias)</small>
+                    <span class="stats-label">Alertas (>30 dias)</span>
                     <h3 class="mb-0">{{ stats.total_alerts }}</h3>
                 </div>
                 <i class="bi bi-exclamation-triangle-fill" style="font-size: 2rem; opacity: 0.6;"></i>
@@ -233,10 +403,10 @@
         </div>
     </div>
     <div class="col-md-3 col-sm-6">
-        <div class="stats-card" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
+        <div class="stats-card green">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
-                    <small class="opacity-75">Devoluções Hoje</small>
+                    <span class="stats-label">Devoluções Hoje</span>
                     <h3 class="mb-0">{{ stats.returns_today }}</h3>
                 </div>
                 <i class="bi bi-arrow-return-left" style="font-size: 2rem; opacity: 0.6;"></i>
@@ -252,7 +422,7 @@
     </div>
 
     <!-- Gerar Relatório (Área destacada) -->
-    <div class="p-3 mb-4 rounded bg-dark border border-secondary" style="--bs-bg-opacity: .2; border-style: dashed !important;">
+    <div class="p-3 mb-4 filter-accent">
         <div class="d-flex align-items-center mb-3 text-info">
              <i class="bi bi-file-earmark-bar-graph fs-5 me-2"></i>
              <span class="fw-bold">Gerar Relatório de Ferramentas</span>
@@ -411,6 +581,7 @@
         </p>
     </div>
 {% endif %}
+</div>
 {% endblock %}
 
 {% block scripts %}

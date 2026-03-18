@@ -1,27 +1,275 @@
 {% extends "base.html" %}
 {% block title %}Equipamentos em Reparo{% endblock %}
 
+{% block extra_css %}
+<style>
+    .repair-shell {
+        background: linear-gradient(180deg, #eef2f7 0%, #f8fafc 100%);
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        border-radius: 28px;
+        padding: 1.75rem;
+        box-shadow: 0 24px 54px rgba(15, 23, 42, 0.1);
+    }
+
+    .repair-hero {
+        position: relative;
+        overflow: hidden;
+        background: linear-gradient(135deg, #0f172a 0%, #172554 52%, #1d4ed8 100%);
+        border-radius: 24px;
+        padding: 1.75rem;
+        color: #f8fafc;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 26px 60px rgba(15, 23, 42, 0.18);
+    }
+
+    .repair-hero::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+            radial-gradient(circle at 14% 18%, rgba(96, 165, 250, 0.3), transparent 32%),
+            radial-gradient(circle at 88% 22%, rgba(14, 165, 233, 0.18), transparent 22%),
+            linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 60%);
+        pointer-events: none;
+    }
+
+    .repair-hero > * {
+        position: relative;
+        z-index: 1;
+    }
+
+    .repair-eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.35rem 0.7rem;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(226, 232, 240, 0.14);
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: rgba(226, 232, 240, 0.88);
+        margin-bottom: 0.9rem;
+    }
+
+    .repair-hero-title {
+        margin: 0;
+        font-size: 2rem;
+        font-weight: 800;
+        letter-spacing: -0.03em;
+    }
+
+    .repair-hero-subtitle {
+        margin: 0.6rem 0 0;
+        max-width: 56rem;
+        color: rgba(226, 232, 240, 0.78);
+        line-height: 1.6;
+        font-size: 0.96rem;
+    }
+
+    .repair-hero-actions {
+        margin-top: 1.25rem;
+    }
+
+    .repair-cta {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 44px;
+        padding: 0.7rem 1rem;
+        border-radius: 14px;
+        border: 0;
+        font-weight: 700;
+        background: #ffffff;
+        color: #0f172a;
+        box-shadow: 0 12px 24px rgba(15, 23, 42, 0.18);
+    }
+
+    .repair-stat-card {
+        position: relative;
+        overflow: hidden;
+        background: linear-gradient(145deg, #0f172a 0%, #1e293b 68%, #334155 100%);
+        border-radius: 22px;
+        padding: 1.2rem;
+        color: #f8fafc;
+        height: 100%;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        box-shadow: 0 20px 42px rgba(15, 23, 42, 0.18);
+    }
+
+    .repair-stat-card::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+            radial-gradient(circle at 18% 18%, rgba(96, 165, 250, 0.24), transparent 34%),
+            linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 60%);
+        pointer-events: none;
+    }
+
+    .repair-stat-card > * {
+        position: relative;
+        z-index: 1;
+    }
+
+    .repair-stat-card.warning::before {
+        background:
+            radial-gradient(circle at 18% 18%, rgba(245, 158, 11, 0.24), transparent 34%),
+            linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 60%);
+    }
+
+    .repair-stat-card.cyan::before {
+        background:
+            radial-gradient(circle at 18% 18%, rgba(56, 189, 248, 0.24), transparent 34%),
+            linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 60%);
+    }
+
+    .repair-stat-card.green::before {
+        background:
+            radial-gradient(circle at 18% 18%, rgba(52, 211, 153, 0.24), transparent 34%),
+            linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 60%);
+    }
+
+    .repair-stat-card.red::before {
+        background:
+            radial-gradient(circle at 18% 18%, rgba(248, 113, 113, 0.24), transparent 34%),
+            linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 60%);
+    }
+
+    .repair-stat-label {
+        display: block;
+        font-size: 0.78rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: rgba(226, 232, 240, 0.7);
+        margin-bottom: 0.45rem;
+    }
+
+    .repair-panel {
+        background: linear-gradient(145deg, #0f172a 0%, #1e293b 100%);
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        border-radius: 24px;
+        box-shadow: 0 22px 48px rgba(15, 23, 42, 0.16);
+        color: #e2e8f0;
+    }
+
+    .repair-panel .card-body,
+    .repair-panel .card-header {
+        background: transparent;
+        color: inherit;
+        border-color: rgba(148, 163, 184, 0.14);
+    }
+
+    .repair-panel .form-label,
+    .repair-panel .text-muted,
+    .repair-panel label,
+    .repair-panel h5,
+    .repair-panel p,
+    .repair-panel small {
+        color: #e2e8f0 !important;
+    }
+
+    .repair-panel .form-control,
+    .repair-panel .form-select {
+        background: rgba(15, 23, 42, 0.82);
+        color: #f8fafc;
+        border-color: rgba(148, 163, 184, 0.22);
+    }
+
+    .repair-panel .form-control::placeholder {
+        color: #94a3b8;
+    }
+
+    .repair-panel .form-check-input {
+        background-color: rgba(15, 23, 42, 0.82);
+        border-color: rgba(148, 163, 184, 0.22);
+    }
+
+    .repair-table-wrap {
+        background: rgba(255, 255, 255, 0.72);
+        border-radius: 20px;
+        margin: 1rem;
+        overflow: hidden;
+        border: 1px solid rgba(148, 163, 184, 0.16);
+    }
+
+    .repair-table {
+        margin-bottom: 0;
+        color: #334155;
+    }
+
+    .repair-table thead th {
+        background: #e2e8f0;
+        color: #334155;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .repair-table tbody td {
+        vertical-align: middle;
+        border-color: rgba(148, 163, 184, 0.12);
+    }
+
+    .repair-table tbody tr:hover {
+        background: rgba(59, 130, 246, 0.06);
+    }
+
+    .repair-empty {
+        text-align: center;
+        padding: 3rem 1rem;
+        color: #64748b;
+        background: rgba(255, 255, 255, 0.72);
+        border: 1px dashed rgba(148, 163, 184, 0.24);
+        border-radius: 24px;
+        margin: 1rem;
+    }
+
+    @media (max-width: 768px) {
+        .repair-shell {
+            padding: 1rem;
+            border-radius: 22px;
+        }
+
+        .repair-hero {
+            padding: 1.25rem;
+            border-radius: 20px;
+        }
+
+        .repair-hero-title {
+            font-size: 1.55rem;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
-    <h1 class="h3 mb-0">
-        <i class="bi bi-tools me-2"></i>Equipamentos em Reparo
-    </h1>
-    <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modalNovoReparo">
-        <i class="bi bi-plus-circle me-1"></i>Enviar para Reparo
-    </button>
-</div>
+<div class="repair-shell">
+<section class="repair-hero">
+    <div class="repair-eyebrow"><i class="bi bi-wrench-adjustable-circle"></i> Oficina operacional</div>
+    <h1 class="repair-hero-title">Equipamentos em Reparo</h1>
+    <p class="repair-hero-subtitle">Mesma linguagem do dashboard para acompanhar peças em conserto, custo, prazo e fila de manutenção.</p>
+    <div class="repair-hero-actions">
+        <button class="repair-cta" data-bs-toggle="modal" data-bs-target="#modalNovoReparo">
+            <i class="bi bi-plus-circle me-1"></i>Enviar para Reparo
+        </button>
+    </div>
+</section>
 
 <!-- Cards de Estatísticas -->
 <div class="row g-3 mb-4">
     <div class="col-md-3">
-        <div class="card border-0 shadow-sm bg-warning bg-opacity-10">
-            <div class="card-body">
+        <div class="repair-stat-card warning">
+            <div class="card-body p-0">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <p class="text-muted small mb-1">Aguardando Orçamento</p>
+                        <span class="repair-stat-label">Aguardando Orçamento</span>
                         <h3 class="mb-0">{{ stats.aguardando_orcamento }}</h3>
                     </div>
-                    <div class="fs-2 text-warning">
+                    <div class="fs-2 text-warning-emphasis">
                         <i class="bi bi-clock-history"></i>
                     </div>
                 </div>
@@ -29,14 +277,14 @@
         </div>
     </div>
     <div class="col-md-3">
-        <div class="card border-0 shadow-sm bg-info bg-opacity-10">
-            <div class="card-body">
+        <div class="repair-stat-card cyan">
+            <div class="card-body p-0">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <p class="text-muted small mb-1">Em Reparo</p>
+                        <span class="repair-stat-label">Em Reparo</span>
                         <h3 class="mb-0">{{ stats.em_reparo }}</h3>
                     </div>
-                    <div class="fs-2 text-info">
+                    <div class="fs-2 text-info-emphasis">
                         <i class="bi bi-gear-fill"></i>
                     </div>
                 </div>
@@ -44,14 +292,14 @@
         </div>
     </div>
     <div class="col-md-3">
-        <div class="card border-0 shadow-sm bg-success bg-opacity-10">
-            <div class="card-body">
+        <div class="repair-stat-card green">
+            <div class="card-body p-0">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <p class="text-muted small mb-1">Concluídos</p>
+                        <span class="repair-stat-label">Concluídos</span>
                         <h3 class="mb-0">{{ stats.concluido }}</h3>
                     </div>
-                    <div class="fs-2 text-success">
+                    <div class="fs-2 text-success-emphasis">
                         <i class="bi bi-check-circle-fill"></i>
                     </div>
                 </div>
@@ -59,14 +307,14 @@
         </div>
     </div>
     <div class="col-md-3">
-        <div class="card border-0 shadow-sm bg-danger bg-opacity-10">
-            <div class="card-body">
+        <div class="repair-stat-card red">
+            <div class="card-body p-0">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <p class="text-muted small mb-1">Sem Conserto</p>
+                        <span class="repair-stat-label">Sem Conserto</span>
                         <h3 class="mb-0">{{ stats.sem_conserto }}</h3>
                     </div>
-                    <div class="fs-2 text-danger">
+                    <div class="fs-2 text-danger-emphasis">
                         <i class="bi bi-x-circle-fill"></i>
                     </div>
                 </div>
@@ -76,7 +324,7 @@
 </div>
 
 <!-- Filtros e Busca -->
-<div class="card border-0 shadow-sm mb-4">
+<div class="card border-0 shadow-sm mb-4 repair-panel">
     <div class="card-body">
         <form method="get" action="{{ url_for('reparo.listar_reparos') }}">
             <div class="row g-3 align-items-end">
@@ -113,15 +361,15 @@
 </div>
 
 <!-- Listagem de Reparos -->
-<div class="card border-0 shadow-sm">
-    <div class="card-header bg-white border-bottom">
+<div class="card border-0 shadow-sm repair-panel">
+    <div class="card-header border-bottom">
         <h5 class="mb-0">Listagem de Reparos</h5>
     </div>
     <div class="card-body p-0">
         {% if reparos %}
-        <div class="table-responsive">
-            <table class="table table-hover mb-0">
-                <thead class="table-light">
+        <div class="table-responsive repair-table-wrap">
+            <table class="table table-hover repair-table">
+                <thead>
                     <tr>
                         <th>ID</th>
                         <th>Código</th>
@@ -200,12 +448,13 @@
             </table>
         </div>
         {% else %}
-        <div class="text-center py-5">
+        <div class="repair-empty">
             <i class="bi bi-inbox display-1 text-muted"></i>
             <p class="text-muted mt-3">Nenhum reparo encontrado</p>
         </div>
         {% endif %}
     </div>
+</div>
 </div>
 
 <!-- Modal: Novo Reparo -->

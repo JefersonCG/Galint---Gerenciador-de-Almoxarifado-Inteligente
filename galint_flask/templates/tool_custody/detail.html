@@ -4,112 +4,470 @@
 
 {% block extra_css %}
 <style>
-    .employee-header {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        border-radius: 8px;
-        padding: 2rem;
-        color: white;
-        margin-bottom: 1.5rem;
+    .detail-shell {
+        --shell-bg: linear-gradient(180deg, #eef3f7 0%, #e6edf4 100%);
+        --panel-dark: linear-gradient(160deg, #0f1b2d 0%, #16253c 55%, #1a2d46 100%);
+        --panel-dark-soft: linear-gradient(180deg, #152338 0%, #0f1c2e 100%);
+        --panel-light: #f8fbff;
+        --line-soft: rgba(148, 163, 184, 0.18);
+        --line-strong: rgba(96, 165, 250, 0.24);
+        --text-soft: #9fb0c6;
+        --accent: #4da3ff;
+        --accent-2: #7dd3fc;
+        --accent-warm: #fbbf24;
+        background: var(--shell-bg);
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        border-radius: 28px;
+        padding: 24px;
+        box-shadow: 0 24px 60px rgba(15, 23, 42, 0.10);
     }
-    
-    .employee-avatar {
-        font-size: 5rem;
+
+    .detail-hero {
+        position: relative;
+        overflow: hidden;
+        background: var(--panel-dark);
+        border: 1px solid rgba(125, 211, 252, 0.18);
+        border-radius: 26px;
+        padding: 28px;
+        color: #f8fbff;
+        margin-bottom: 22px;
+        box-shadow: 0 30px 70px rgba(8, 15, 30, 0.28);
+    }
+
+    .detail-hero::before,
+    .detail-hero::after {
+        content: "";
+        position: absolute;
+        border-radius: 999px;
+        pointer-events: none;
+    }
+
+    .detail-hero::before {
+        width: 260px;
+        height: 260px;
+        top: -120px;
+        right: -80px;
+        background: radial-gradient(circle, rgba(77, 163, 255, 0.34) 0%, rgba(77, 163, 255, 0) 72%);
+    }
+
+    .detail-hero::after {
+        width: 220px;
+        height: 220px;
+        bottom: -120px;
+        left: -80px;
+        background: radial-gradient(circle, rgba(125, 211, 252, 0.24) 0%, rgba(125, 211, 252, 0) 72%);
+    }
+
+    .detail-hero-grid {
+        position: relative;
+        z-index: 1;
+        display: grid;
+        grid-template-columns: minmax(280px, 320px) minmax(0, 1fr);
+        gap: 22px;
+        align-items: stretch;
+    }
+
+    .profile-panel,
+    .hero-summary,
+    .surface-card,
+    .timeline-card,
+    .tool-surface {
+        border: 1px solid var(--line-soft);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+    }
+
+    .profile-panel {
+        background: rgba(8, 15, 30, 0.32);
+        border-radius: 24px;
+        padding: 22px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .profile-avatar {
+        width: 160px;
+        height: 160px;
+        margin: 0 auto;
+        border-radius: 28px;
+        overflow: hidden;
+        border: 1px solid rgba(125, 211, 252, 0.3);
+        background: linear-gradient(145deg, rgba(31, 60, 104, 0.92), rgba(14, 29, 51, 0.95));
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 16px 32px rgba(0, 0, 0, 0.28);
+    }
+
+    .profile-avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .profile-avatar-fallback {
+        font-size: 3.2rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        color: #f8fbff;
+    }
+
+    .photo-upload-form {
+        display: grid;
+        gap: 10px;
+    }
+
+    .photo-hint {
+        margin: 0;
+        font-size: 0.84rem;
+        color: var(--text-soft);
         text-align: center;
-        margin-bottom: 1rem;
     }
-    
-    .section-card {
-        background: var(--bs-dark);
-        border: 1px solid var(--bs-border-color);
-        border-radius: 8px;
-        padding: 1.5rem;
-        margin-bottom: 1.5rem;
+
+    .hero-summary {
+        background: rgba(12, 21, 36, 0.44);
+        border-radius: 24px;
+        padding: 22px;
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
     }
-    
-    .tool-item {
-        background: rgba(255, 255, 255, 0.05);
-        border: 1px solid var(--bs-border-color);
-        border-radius: 6px;
-        padding: 1rem;
-        margin-bottom: 1rem;
-        transition: all 0.2s;
+
+    .hero-eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        width: fit-content;
+        padding: 8px 14px;
+        border-radius: 999px;
+        border: 1px solid rgba(125, 211, 252, 0.22);
+        background: rgba(77, 163, 255, 0.12);
+        color: #d9ecff;
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
     }
-    
-    .tool-item:hover {
-        background: rgba(255, 255, 255, 0.08);
-        border-color: var(--bs-primary);
+
+    .hero-title {
+        margin: 0;
+        font-size: clamp(1.95rem, 3vw, 2.8rem);
+        font-weight: 800;
+        letter-spacing: -0.03em;
     }
-    
-    .tool-item.alert {
-        border-left: 4px solid #ffc107;
+
+    .hero-subtitle {
+        margin: 0;
+        color: #d5e5f7;
+        font-size: 1rem;
+        max-width: 780px;
     }
-    
+
+    .hero-badges,
+    .tool-meta,
+    .tool-actions,
+    .timeline-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .hero-badge,
+    .meta-chip,
+    .summary-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 14px;
+        border-radius: 999px;
+        font-size: 0.84rem;
+        color: #e2edf9;
+        background: rgba(255, 255, 255, 0.07);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .summary-grid,
+    .kpi-grid {
+        display: grid;
+        gap: 16px;
+    }
+
+    .summary-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .summary-chip {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+        min-height: 106px;
+        border-radius: 20px;
+        padding: 18px;
+        background: rgba(255, 255, 255, 0.06);
+    }
+
+    .summary-chip strong {
+        color: #ffffff;
+        font-size: 1.4rem;
+        line-height: 1;
+    }
+
+    .summary-chip span {
+        color: var(--text-soft);
+        font-size: 0.82rem;
+    }
+
+    .kpi-grid {
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        margin-bottom: 22px;
+    }
+
+    .kpi-card,
+    .surface-card,
+    .timeline-card {
+        border-radius: 24px;
+    }
+
+    .kpi-card {
+        position: relative;
+        overflow: hidden;
+        padding: 18px 18px 20px;
+        color: #f8fbff;
+        background: linear-gradient(180deg, #14243a 0%, #0f1b2d 100%);
+        border: 1px solid rgba(96, 165, 250, 0.18);
+        box-shadow: 0 18px 38px rgba(8, 15, 30, 0.16);
+    }
+
+    .kpi-card::before {
+        content: "";
+        position: absolute;
+        inset: auto -30px -36px auto;
+        width: 120px;
+        height: 120px;
+        border-radius: 999px;
+        background: radial-gradient(circle, rgba(125, 211, 252, 0.22) 0%, rgba(125, 211, 252, 0) 72%);
+    }
+
+    .kpi-label {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 0.84rem;
+        color: #cddcf0;
+        margin-bottom: 14px;
+    }
+
+    .kpi-value {
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+        margin-bottom: 6px;
+    }
+
+    .kpi-value strong {
+        font-size: 2rem;
+        line-height: 1;
+    }
+
+    .kpi-caption {
+        position: relative;
+        z-index: 1;
+        color: var(--text-soft);
+        font-size: 0.82rem;
+    }
+
+    .surface-card,
+    .timeline-card {
+        background: var(--panel-dark-soft);
+        color: #f8fbff;
+        padding: 22px;
+        margin-bottom: 22px;
+        box-shadow: 0 22px 50px rgba(8, 15, 30, 0.16);
+    }
+
+    .surface-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 18px;
+        margin-bottom: 18px;
+    }
+
+    .surface-title {
+        margin: 0;
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: #ffffff;
+    }
+
+    .surface-subtitle {
+        margin: 6px 0 0;
+        color: var(--text-soft);
+        font-size: 0.9rem;
+    }
+
+    .surface-count {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 14px;
+        border-radius: 999px;
+        background: rgba(77, 163, 255, 0.12);
+        border: 1px solid rgba(77, 163, 255, 0.2);
+        color: #dff2ff;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    .tool-list {
+        display: grid;
+        gap: 14px;
+    }
+
+    .tool-surface {
+        background: rgba(255, 255, 255, 0.04);
+        border-radius: 22px;
+        padding: 18px;
+        transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .tool-surface:hover {
+        transform: translateY(-2px);
+        border-color: rgba(96, 165, 250, 0.34);
+        box-shadow: 0 14px 28px rgba(0, 0, 0, 0.20);
+    }
+
+    .tool-surface.alert {
+        border-color: rgba(251, 191, 36, 0.42);
+        box-shadow: inset 0 0 0 1px rgba(251, 191, 36, 0.18);
+    }
+
+    .tool-topline {
+        display: flex;
+        justify-content: space-between;
+        gap: 14px;
+        align-items: flex-start;
+        margin-bottom: 10px;
+    }
+
     .tool-name {
         font-size: 1rem;
-        font-weight: 600;
-        color: white;
-        margin-bottom: 0.25rem;
+        font-weight: 700;
+        color: #ffffff;
+        margin-bottom: 0.3rem;
     }
-    
+
     .tool-code {
-        font-size: 0.85rem;
-        color: var(--bs-secondary);
+        font-size: 0.86rem;
+        color: #b4c5d9;
     }
-    
-    .tool-meta {
-        display: flex;
-        gap: 0.5rem;
-        margin-top: 0.5rem;
-        flex-wrap: wrap;
+
+    .meta-chip {
+        background: rgba(255, 255, 255, 0.07);
+        border: 1px solid rgba(255, 255, 255, 0.06);
     }
-    
-    .tool-actions {
-        display: flex;
-        gap: 0.5rem;
-        margin-top: 0.75rem;
-        flex-wrap: wrap;
+
+    .meta-chip.alert {
+        background: rgba(251, 191, 36, 0.18);
+        border-color: rgba(251, 191, 36, 0.36);
+        color: #fff3cd;
     }
-    
-    .history-item {
-        border-left: 3px solid var(--bs-primary);
-        padding-left: 1rem;
-        margin-bottom: 1rem;
+
+    .tool-note {
+        margin-top: 12px;
+        color: #d0dced;
+        font-size: 0.9rem;
     }
-    
-    .history-date {
-        font-size: 0.8rem;
-        color: var(--bs-secondary);
+
+    .tool-actions .btn {
+        border-radius: 12px;
+        padding-inline: 0.9rem;
     }
-    
-    .history-action {
-        font-weight: 600;
-        color: white;
+
+    .timeline-card {
+        position: relative;
+        overflow: hidden;
     }
-    
-    .badge-days {
-        background-color: rgba(255, 255, 255, 0.1);
-        color: white;
-        padding: 0.25rem 0.5rem;
-        border-radius: 4px;
-        font-size: 0.75rem;
+
+    .timeline-list {
+        position: relative;
+        display: grid;
+        gap: 18px;
+        padding-left: 18px;
     }
-    
-    .badge-alert {
-        background-color: #ffc107;
-        color: #000;
-        padding: 0.25rem 0.5rem;
-        border-radius: 4px;
-        font-size: 0.75rem;
-        font-weight: 600;
+
+    .timeline-list::before {
+        content: "";
+        position: absolute;
+        top: 10px;
+        bottom: 10px;
+        left: 6px;
+        width: 2px;
+        background: linear-gradient(180deg, rgba(77, 163, 255, 0.45) 0%, rgba(77, 163, 255, 0.08) 100%);
     }
-    
+
+    .timeline-item {
+        position: relative;
+        padding: 2px 0 0 26px;
+    }
+
+    .timeline-dot {
+        position: absolute;
+        top: 4px;
+        left: -6px;
+        width: 26px;
+        height: 26px;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: #14253c;
+        color: #ffffff;
+        box-shadow: 0 10px 22px rgba(0, 0, 0, 0.22);
+    }
+
+    .timeline-dot.success { background: rgba(34, 197, 94, 0.18); color: #a7f3d0; }
+    .timeline-dot.info { background: rgba(14, 165, 233, 0.18); color: #bae6fd; }
+    .timeline-dot.warning { background: rgba(245, 158, 11, 0.2); color: #fde68a; }
+    .timeline-dot.secondary { background: rgba(148, 163, 184, 0.18); color: #e2e8f0; }
+
+    .timeline-date {
+        color: var(--text-soft);
+        font-size: 0.84rem;
+        margin-bottom: 4px;
+    }
+
+    .timeline-title {
+        color: #ffffff;
+        font-size: 1rem;
+        font-weight: 700;
+        margin-bottom: 4px;
+    }
+
+    .timeline-text {
+        color: #d2deed;
+        font-size: 0.92rem;
+        margin-bottom: 0;
+    }
+
     .empty-state {
         text-align: center;
-        padding: 2rem;
-        color: var(--bs-secondary);
+        padding: 2.4rem 1.2rem;
+        color: var(--text-soft);
+        border: 1px dashed rgba(148, 163, 184, 0.24);
+        border-radius: 20px;
+        background: rgba(255, 255, 255, 0.03);
     }
-    
-    .form-label, .text-muted, label, p {
+
+    .empty-state i {
+        font-size: 2.4rem;
+        opacity: 0.4;
+        margin-bottom: 10px;
+        display: block;
+    }
+
+    .text-muted, label, p, .form-label {
         color: var(--bs-light) !important;
     }
     
@@ -150,254 +508,314 @@
     .autocomplete-item:last-child {
         border-bottom: none;
     }
-    
+
     @media (max-width: 768px) {
-        .employee-header {
-            padding: 1.5rem;
+        .detail-shell {
+            padding: 16px;
         }
-        
+
+        .detail-hero {
+            padding: 18px;
+        }
+
+        .detail-hero-grid,
+        .summary-grid,
+        .kpi-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .profile-avatar {
+            width: 132px;
+            height: 132px;
+        }
+
         .tool-actions {
             flex-direction: column;
         }
-        
+
         .tool-actions .btn {
             width: 100%;
+        }
+
+        .surface-header,
+        .tool-topline {
+            flex-direction: column;
         }
     }
 </style>
 {% endblock %}
 
 {% block page_header %}
-<div class="d-flex justify-content-between align-items-center">
-    <div>
-        <h2 class="mb-1" style="color: #000 !important;">👤 Detalhes do Funcionário</h2>
-        <p class="text-muted mb-0" style="color: #000 !important;">Ferramentas em posse e histórico</p>
-    </div>
-    <a href="{{ url_for('tool_custody.index') }}" class="btn btn-outline-dark">
-        <i class="bi bi-arrow-left"></i> Voltar
-    </a>
-</div>
 {% endblock %}
 
 {% block content %}
-<!-- Cabeçalho do Funcionário -->
-<div class="employee-header">
-    <div class="employee-avatar">
-        👤
+<div class="detail-shell">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3">
+        <div>
+            <div class="text-uppercase fw-semibold small text-secondary mb-1">Custódia de ferramentas</div>
+            <h2 class="mb-1" style="color: #122033 !important;">Detalhes do funcionário</h2>
+            <p class="mb-0 text-secondary">Visão operacional com desempenho, posse atual e histórico recente.</p>
+        </div>
+        <a href="{{ url_for('tool_custody.index') }}" class="btn btn-outline-dark rounded-pill px-4">
+            <i class="bi bi-arrow-left"></i> Voltar
+        </a>
     </div>
-    <div class="text-center">
-        <h3 class="mb-2">{{ employee.nome }}</h3>
-        <p class="mb-3">
-            <strong>Matrícula:</strong> {{ employee.matricula }} &nbsp;|&nbsp;
-            <strong>Setor:</strong> {{ employee.setor }} &nbsp;|&nbsp;
-            <strong>Cargo:</strong> {{ employee.cargo }}
-        </p>
-        <div class="d-flex justify-content-center gap-3">
-            <div>
-                <h4 class="mb-0">{{ employee.total_active }}</h4>
-                <small>Ferramentas Ativas</small>
+
+    <section class="detail-hero">
+        <div class="detail-hero-grid">
+            <div class="profile-panel">
+                <div class="profile-avatar">
+                    {% if employee.photo_path %}
+                    <img src="{{ url_for('static', filename=employee.photo_path) }}" alt="Foto de {{ employee.nome }}">
+                    {% else %}
+                    <div class="profile-avatar-fallback">{{ employee.initials }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="text-center">
+                    <div class="hero-eyebrow mx-auto"><i class="bi bi-person-badge"></i> Perfil operacional</div>
+                    <p class="photo-hint mt-3">Envie uma foto para deixar a identificação do funcionário mais clara na operação.</p>
+                </div>
+
+                <form class="photo-upload-form" method="POST" action="{{ url_for('tool_custody.upload_employee_photo', matricula=employee.matricula) }}" enctype="multipart/form-data">
+                    <input class="form-control form-control-sm" type="file" name="photo" accept="image/png,image/jpeg,image/webp,image/gif">
+                    <button type="submit" class="btn btn-primary btn-sm rounded-pill">
+                        <i class="bi bi-camera"></i> {{ 'Trocar foto' if employee.photo_path else 'Adicionar foto' }}
+                    </button>
+                </form>
             </div>
-            <div style="border-left: 1px solid rgba(255,255,255,0.3); height: 50px;"></div>
-            <div>
-                <h4 class="mb-0">{{ employee.total_history }}</h4>
-                <small>Ações nos últimos 30 dias</small>
+
+            <div class="hero-summary">
+                <div>
+                    <div class="hero-eyebrow"><i class="bi bi-stars"></i> Painel individual</div>
+                    <h1 class="hero-title">{{ employee.nome }}</h1>
+                    <p class="hero-subtitle">Cargo operacional: <strong>{{ employee.cargo_display }}</strong>. Nesta tela, o setor considerado para leitura rápida é o cargo do funcionário.</p>
+                </div>
+
+                <div class="hero-badges">
+                    <span class="hero-badge"><i class="bi bi-person-vcard"></i> Matrícula {{ employee.matricula }}</span>
+                    <span class="hero-badge"><i class="bi bi-briefcase"></i> Cargo {{ employee.cargo_display }}</span>
+                    <span class="hero-badge"><i class="bi bi-activity"></i> {{ employee.total_history }} ações em 30 dias</span>
+                </div>
+
+                <div class="summary-grid">
+                    <div class="summary-chip">
+                        <span>Índice de controle</span>
+                        <strong>{{ employee.kpis.performance_score }}%</strong>
+                        <span class="text-{{ employee.kpis.performance_tone }}">{{ employee.kpis.performance_label }}</span>
+                    </div>
+                    <div class="summary-chip">
+                        <span>Maior permanência</span>
+                        <strong>{{ employee.kpis.longest_open_days }}</strong>
+                        <span>dias com ferramenta aberta</span>
+                    </div>
+                    <div class="summary-chip">
+                        <span>Média custódia diária</span>
+                        <strong>{{ employee.kpis.average_daily_days }}</strong>
+                        <span>dias por empréstimo ativo</span>
+                    </div>
+                </div>
+
+                {% if employee.kpis.overdue_count > 0 %}
+                <div>
+                    <form method="POST" action="{{ url_for('tool_custody.send_grouped_alert', matricula=employee.matricula) }}">
+                        <button type="submit" class="btn btn-warning rounded-pill px-4" onclick="return confirm('Enviar alerta via Telegram com {{ employee.kpis.overdue_count }} ferramenta(s) atrasada(s)?')">
+                            <i class="bi bi-telegram"></i>
+                            Alertar {{ employee.kpis.overdue_count }} pendência(s)
+                        </button>
+                    </form>
+                </div>
+                {% endif %}
             </div>
         </div>
-        
-        <!-- Botão para enviar alerta agrupado -->
-        {% set overdue_count = employee.tools_temporaria | selectattr('is_alert', 'equalto', true) | list | length %}
-        {% if overdue_count > 0 %}
-        <div class="mt-3">
-            <form method="POST" action="{{ url_for('tool_custody.send_grouped_alert', matricula=employee.matricula) }}" style="display: inline;">
-                <button type="submit" class="btn btn-warning" onclick="return confirm('Enviar alerta via Telegram com {{ overdue_count }} ferramenta(s) atrasada(s)?')">
-                    <i class="bi bi-telegram"></i> 
-                    {% if overdue_count == 1 %}
-                        Alertar Ferramenta Atrasada
-                    {% else %}
-                        Alertar {{ overdue_count }} Ferramentas Atrasadas
+    </section>
+
+    <section class="kpi-grid">
+        <article class="kpi-card">
+            <div class="kpi-label"><i class="bi bi-tools"></i> Ferramentas ativas</div>
+            <div class="kpi-value"><strong>{{ employee.total_active }}</strong></div>
+            <div class="kpi-caption">Total em posse agora, considerando permanentes e diárias.</div>
+        </article>
+        <article class="kpi-card">
+            <div class="kpi-label"><i class="bi bi-shield-check"></i> Custódia permanente</div>
+            <div class="kpi-value"><strong>{{ employee.kpis.permanent_count }}</strong></div>
+            <div class="kpi-caption">Ferramentas fixas sob responsabilidade contínua.</div>
+        </article>
+        <article class="kpi-card">
+            <div class="kpi-label"><i class="bi bi-clock-history"></i> Custódia diária</div>
+            <div class="kpi-value"><strong>{{ employee.kpis.temporary_count }}</strong></div>
+            <div class="kpi-caption">Empréstimos com expectativa de devolução operacional.</div>
+        </article>
+        <article class="kpi-card">
+            <div class="kpi-label"><i class="bi bi-bell"></i> Pendências</div>
+            <div class="kpi-value"><strong>{{ employee.kpis.overdue_count }}</strong></div>
+            <div class="kpi-caption">Ferramentas diárias acima do prazo de alerta.</div>
+        </article>
+        <article class="kpi-card">
+            <div class="kpi-label"><i class="bi bi-graph-up-arrow"></i> Últimos 30 dias</div>
+            <div class="kpi-value"><strong>{{ employee.kpis.return_actions }}</strong></div>
+            <div class="kpi-caption">Devoluções registradas, com {{ employee.kpis.repair_actions }} reparos e {{ employee.kpis.damage_actions }} danos.</div>
+        </article>
+    </section>
+
+    <div class="row g-4">
+        <div class="col-xl-6">
+            <section class="surface-card">
+                <div class="surface-header">
+                    <div>
+                        <h3 class="surface-title"><i class="bi bi-shield-check me-2 text-info"></i>Custódia permanente</h3>
+                        <p class="surface-subtitle">Itens de responsabilidade recorrente do funcionário, sem rotina de devolução diária.</p>
+                    </div>
+                    <div class="surface-count">{{ employee.kpis.permanent_count }} item(ns)</div>
+                </div>
+
+                {% if employee.tools_permanente %}
+                <div class="tool-list">
+                    {% for tool in employee.tools_permanente %}
+                    <article class="tool-surface">
+                        <div class="tool-topline">
+                            <div>
+                                <div class="tool-name">{{ tool.descricao }}</div>
+                                <div class="tool-code"><i class="bi bi-upc-scan"></i> {{ tool.codigo_item }} {% if tool.marca != 'N/D' %}<span class="mx-1">•</span><i class="bi bi-bookmark"></i> {{ tool.marca }}{% endif %}</div>
+                            </div>
+                            <span class="meta-chip"><i class="bi bi-hash"></i> Qtd {{ tool.quantidade }}</span>
+                        </div>
+
+                        <div class="tool-meta">
+                            <span class="meta-chip"><i class="bi bi-calendar-event"></i> Desde {{ tool.data_saida_formatada }}</span>
+                            <span class="meta-chip"><i class="bi bi-hourglass-split"></i> {{ tool.days_in_use }} dia(s) em posse</span>
+                            <span class="meta-chip"><i class="bi bi-person-workspace"></i> {{ tool.local_servico }}</span>
+                        </div>
+
+                        {% if tool.observacao %}
+                        <p class="tool-note"><i class="bi bi-chat-left-text me-1"></i>{{ tool.observacao }}</p>
+                        {% endif %}
+
+                        <div class="tool-actions mt-3">
+                            <button class="btn btn-warning btn-sm" onclick='showDamageModal({{ tool.saida_id }}, {{ tool.descricao|tojson }}, {{ tool.codigo_item|tojson }}, {{ employee.matricula|tojson }})'>
+                                <i class="bi bi-x-circle"></i> Quebrada
+                            </button>
+                            <button class="btn btn-info btn-sm" onclick='showRepairModal({{ tool.saida_id }}, {{ tool.descricao|tojson }}, {{ tool.codigo_item|tojson }}, {{ employee.matricula|tojson }})'>
+                                <i class="bi bi-wrench"></i> Reparo
+                            </button>
+                            <button class="btn btn-secondary btn-sm" onclick='showCustodyModal({{ tool.saida_id }}, {{ tool.descricao|tojson }}, {{ tool.codigo_item|tojson }}, {{ employee.matricula|tojson }}, "temporaria")'>
+                                <i class="bi bi-arrow-repeat"></i> P/ diária
+                            </button>
+                        </div>
+                    </article>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <i class="bi bi-shield"></i>
+                    <p class="mb-0">Nenhuma ferramenta em custódia permanente neste momento.</p>
+                </div>
+                {% endif %}
+            </section>
+        </div>
+
+        <div class="col-xl-6">
+            <section class="surface-card">
+                <div class="surface-header">
+                    <div>
+                        <h3 class="surface-title"><i class="bi bi-clock-history me-2 text-warning"></i>Custódia diária</h3>
+                        <p class="surface-subtitle">Ferramentas de uso pontual que exigem acompanhamento de permanência e devolução.</p>
+                    </div>
+                    <div class="surface-count">{{ employee.kpis.temporary_count }} item(ns)</div>
+                </div>
+
+                {% if employee.tools_temporaria %}
+                <div class="tool-list">
+                    {% for tool in employee.tools_temporaria %}
+                    <article class="tool-surface {% if tool.is_alert %}alert{% endif %}">
+                        <div class="tool-topline">
+                            <div>
+                                <div class="tool-name">{{ tool.descricao }}</div>
+                                <div class="tool-code"><i class="bi bi-upc-scan"></i> {{ tool.codigo_item }} {% if tool.marca != 'N/D' %}<span class="mx-1">•</span><i class="bi bi-bookmark"></i> {{ tool.marca }}{% endif %}</div>
+                            </div>
+                            <span class="meta-chip {% if tool.is_alert %}alert{% endif %}">
+                                <i class="bi bi-clock"></i> {{ tool.days_in_use }} dia(s)
+                            </span>
+                        </div>
+
+                        <div class="tool-meta">
+                            <span class="meta-chip"><i class="bi bi-calendar-event"></i> Desde {{ tool.data_saida_formatada }}</span>
+                            <span class="meta-chip"><i class="bi bi-hash"></i> Qtd {{ tool.quantidade }}</span>
+                            <span class="meta-chip"><i class="bi bi-geo-alt"></i> {{ tool.local_servico }}</span>
+                            {% if tool.is_alert %}
+                            <span class="meta-chip alert"><i class="bi bi-exclamation-triangle"></i> Acima do prazo</span>
+                            {% endif %}
+                        </div>
+
+                        {% if tool.observacao %}
+                        <p class="tool-note"><i class="bi bi-chat-left-text me-1"></i>{{ tool.observacao }}</p>
+                        {% endif %}
+
+                        <div class="tool-actions mt-3">
+                            <button class="btn btn-success btn-sm" onclick='showReturnModal({{ tool.saida_id }}, {{ tool.descricao|tojson }}, {{ tool.codigo_item|tojson }}, {{ employee.matricula|tojson }})'>
+                                <i class="bi bi-arrow-return-left"></i> Devolver
+                            </button>
+                            <button class="btn btn-warning btn-sm" onclick='showDamageModal({{ tool.saida_id }}, {{ tool.descricao|tojson }}, {{ tool.codigo_item|tojson }}, {{ employee.matricula|tojson }})'>
+                                <i class="bi bi-x-circle"></i> Quebrada
+                            </button>
+                            <button class="btn btn-info btn-sm" onclick='showRepairModal({{ tool.saida_id }}, {{ tool.descricao|tojson }}, {{ tool.codigo_item|tojson }}, {{ employee.matricula|tojson }})'>
+                                <i class="bi bi-wrench"></i> Reparo
+                            </button>
+                            <button class="btn btn-primary btn-sm" onclick='showCustodyModal({{ tool.saida_id }}, {{ tool.descricao|tojson }}, {{ tool.codigo_item|tojson }}, {{ employee.matricula|tojson }}, "permanente")'>
+                                <i class="bi bi-shield-check"></i> P/ permanente
+                            </button>
+                            <button class="btn btn-danger btn-sm" onclick='showAlertModal({{ tool.saida_id }}, {{ tool.descricao|tojson }}, {{ tool.codigo_item|tojson }}, {{ employee.matricula|tojson }}, {{ employee.nome|tojson }})'>
+                                <i class="bi bi-bell"></i> Alertar
+                            </button>
+                        </div>
+                    </article>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <i class="bi bi-clock-history"></i>
+                    <p class="mb-0">Nenhuma custódia diária ativa para este funcionário.</p>
+                </div>
+                {% endif %}
+            </section>
+        </div>
+    </div>
+
+    <section class="timeline-card">
+        <div class="surface-header">
+            <div>
+                <h3 class="surface-title"><i class="bi bi-diagram-3 me-2 text-info"></i>Linha do tempo dos últimos 30 dias</h3>
+                <p class="surface-subtitle">Eventos operacionais recentes para leitura rápida de devoluções, reparos e ocorrências.</p>
+            </div>
+            <div class="surface-count">{{ employee.total_history }} evento(s)</div>
+        </div>
+
+        {% if employee.timeline %}
+        <div class="timeline-list">
+            {% for item in employee.timeline %}
+            <article class="timeline-item">
+                <span class="timeline-dot {{ item.accent }}"><i class="bi {{ item.icon }}"></i></span>
+                <div class="timeline-date"><i class="bi bi-calendar-event me-1"></i>{{ item.data.strftime('%d/%m/%Y às %H:%M') }}</div>
+                <div class="timeline-title">{{ item.tipo }} • {{ item.descricao }}</div>
+                <div class="timeline-meta mb-1">
+                    {% if item.devolvido_por %}
+                    <span class="meta-chip"><i class="bi bi-person-check"></i> {{ item.devolvido_por }} ({{ item.matricula_dev }})</span>
                     {% endif %}
-                </button>
-            </form>
+                    <span class="meta-chip"><i class="bi bi-person-badge"></i> {{ employee.cargo_display }}</span>
+                </div>
+                {% if item.observacao %}
+                <p class="timeline-text">{{ item.observacao }}</p>
+                {% endif %}
+            </article>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="bi bi-activity"></i>
+            <p class="mb-0">Nenhum evento recente para compor a timeline deste funcionário.</p>
         </div>
         {% endif %}
-    </div>
-</div>
-
-<!-- Ferramentas em Posse (2 Colunas) -->
-<div class="row g-3 mb-4">
-    <!-- Coluna Esquerda: Custódia Permanente -->
-    <div class="col-md-6">
-        <div class="section-card" style="border-left: 4px solid #17a2b8;">
-            <h5 class="text-white mb-3">
-                <i class="bi bi-shield-check"></i> Custódia Permanente
-                <span class="badge bg-info ms-2">{{ employee.tools_permanente|length }}</span>
-            </h5>
-            
-            {% if employee.tools_permanente %}
-                {% for tool in employee.tools_permanente %}
-                <div class="tool-item">
-                    <div class="tool-name">{{ tool.descricao }}</div>
-                    <div class="tool-code">
-                        <i class="bi bi-upc-scan"></i> {{ tool.codigo_item }}
-                        {% if tool.marca != 'N/D' %} | <i class="bi bi-bookmark"></i> {{ tool.marca }}{% endif %}
-                    </div>
-                    
-                    <div class="tool-meta">
-                        <span class="badge-days">
-                            <i class="bi bi-calendar-event"></i> 
-                            Desde: {{ tool.data_saida_formatada }}
-                        </span>
-                        <span class="badge-days">
-                            <i class="bi bi-hash"></i> Qtd: {{ tool.quantidade }}
-                        </span>
-                    </div>
-                    
-                    {% if tool.observacao %}
-                    <div class="mt-2">
-                        <small class="text-muted">
-                            <i class="bi bi-chat-left-text"></i> {{ tool.observacao }}
-                        </small>
-                    </div>
-                    {% endif %}
-                    
-                    <!-- Ações para Custódia Permanente -->
-                    <div class="tool-actions">
-                        <button class="btn btn-warning btn-sm" 
-                                onclick='showDamageModal({{ tool.saida_id }}, {{ tool.descricao|tojson }}, {{ tool.codigo_item|tojson }}, {{ employee.matricula|tojson }})'>
-                            <i class="bi bi-x-circle"></i> Quebrada
-                        </button>
-                        <button class="btn btn-info btn-sm" 
-                                onclick='showRepairModal({{ tool.saida_id }}, {{ tool.descricao|tojson }}, {{ tool.codigo_item|tojson }}, {{ employee.matricula|tojson }})'>
-                            <i class="bi bi-wrench"></i> Reparo
-                        </button>
-                        <button class="btn btn-secondary btn-sm" 
-                                onclick='showCustodyModal({{ tool.saida_id }}, {{ tool.descricao|tojson }}, {{ tool.codigo_item|tojson }}, {{ employee.matricula|tojson }}, "temporaria")'>
-                            <i class="bi bi-arrow-repeat"></i> P/ Temp.
-                        </button>
-                    </div>
-                </div>
-                {% endfor %}
-            {% else %}
-                <div class="empty-state">
-                    <i class="bi bi-inbox" style="font-size: 2rem; opacity: 0.3;"></i>
-                    <p class="mb-0 small">Nenhuma ferramenta em custódia permanente</p>
-                </div>
-            {% endif %}
-        </div>
-    </div>
-    
-    <!-- Coluna Direita: Custódia Diária (Empréstimo) -->
-    <div class="col-md-6">
-        <div class="section-card" style="border-left: 4px solid #6c757d;">
-            <h5 class="text-white mb-3">
-                <i class="bi bi-clock-history"></i> Custódia Diária (Empréstimo)
-                <span class="badge bg-secondary ms-2">{{ employee.tools_temporaria|length }}</span>
-            </h5>
-            
-            {% if employee.tools_temporaria %}
-                {% for tool in employee.tools_temporaria %}
-                <div class="tool-item {% if tool.is_alert %}alert{% endif %}">
-                    <div class="tool-name">{{ tool.descricao }}</div>
-                    <div class="tool-code">
-                        <i class="bi bi-upc-scan"></i> {{ tool.codigo_item }}
-                        {% if tool.marca != 'N/D' %} | <i class="bi bi-bookmark"></i> {{ tool.marca }}{% endif %}
-                    </div>
-                    
-                    <div class="tool-meta">
-                        <span class="badge-days">
-                            <i class="bi bi-calendar-event"></i> 
-                            Desde: {{ tool.data_saida_formatada }}
-                        </span>
-                        <span class="badge-days {% if tool.is_alert %}badge-alert{% endif %}">
-                            <i class="bi bi-clock"></i> 
-                            {{ tool.days_in_use }} dia(s)
-                        </span>
-                        <span class="badge-days">
-                            <i class="bi bi-hash"></i> Qtd: {{ tool.quantidade }}
-                        </span>
-                    </div>
-                    
-                    {% if tool.observacao %}
-                    <div class="mt-2">
-                        <small class="text-muted">
-                            <i class="bi bi-geo-alt"></i> Local: {{ tool.observacao }}
-                        </small>
-                    </div>
-                    {% endif %}
-                    
-                    <!-- Ações para Custódia Diária -->
-                    <div class="tool-actions">
-                        <button class="btn btn-success btn-sm" 
-                                onclick='showReturnModal({{ tool.saida_id }}, {{ tool.descricao|tojson }}, {{ tool.codigo_item|tojson }}, {{ employee.matricula|tojson }})'>
-                            <i class="bi bi-arrow-return-left"></i> Devolver
-                        </button>
-                        <button class="btn btn-warning btn-sm" 
-                                onclick='showDamageModal({{ tool.saida_id }}, {{ tool.descricao|tojson }}, {{ tool.codigo_item|tojson }}, {{ employee.matricula|tojson }})'>
-                            <i class="bi bi-x-circle"></i> Quebrada
-                        </button>
-                        <button class="btn btn-info btn-sm" 
-                                onclick='showRepairModal({{ tool.saida_id }}, {{ tool.descricao|tojson }}, {{ tool.codigo_item|tojson }}, {{ employee.matricula|tojson }})'>
-                            <i class="bi bi-wrench"></i> Reparo
-                        </button>
-                        <button class="btn btn-primary btn-sm" 
-                                onclick='showCustodyModal({{ tool.saida_id }}, {{ tool.descricao|tojson }}, {{ tool.codigo_item|tojson }}, {{ employee.matricula|tojson }}, "permanente")'>
-                            <i class="bi bi-shield-check"></i> P/ Perm.
-                        </button>
-                        <button class="btn btn-danger btn-sm" 
-                                onclick='showAlertModal({{ tool.saida_id }}, {{ tool.descricao|tojson }}, {{ tool.codigo_item|tojson }}, {{ employee.matricula|tojson }}, {{ employee.nome|tojson }})'>
-                            <i class="bi bi-bell"></i> Alertar
-                        </button>
-                    </div>
-                </div>
-                {% endfor %}
-            {% else %}
-                <div class="empty-state">
-                    <i class="bi bi-inbox" style="font-size: 2rem; opacity: 0.3;"></i>
-                    <p class="mb-0 small">Nenhuma ferramenta emprestada</p>
-                </div>
-            {% endif %}
-        </div>
-    </div>
-</div>
-
-<!-- Histórico Recente -->
-<div class="section-card">
-    <h5 class="text-white mb-3">
-        <i class="bi bi-clock-history"></i> Histórico dos Últimos 30 Dias
-    </h5>
-    
-    {% if employee.history %}
-        {% for item in employee.history %}
-        <div class="history-item">
-            <div class="history-date">
-                <i class="bi bi-calendar-event"></i> 
-                {{ item.data.strftime('%d/%m/%Y às %H:%M') }}
-            </div>
-            <div class="history-action">
-                {{ item.tipo }}: {{ item.descricao }}
-            </div>
-            {% if item.devolvido_por %}
-            <div>
-                <small class="text-info">
-                    <i class="bi bi-person-check"></i> Devolvido por: {{ item.devolvido_por }} ({{ item.matricula_dev }})
-                </small>
-            </div>
-            {% endif %}
-            {% if item.observacao %}
-            <div>
-                <small class="text-muted">
-                    <i class="bi bi-chat-left-text"></i> {{ item.observacao }}
-                </small>
-            </div>
-            {% endif %}
-        </div>
-        {% endfor %}
-    {% else %}
-        <div class="empty-state">
-            <i class="bi bi-inbox" style="font-size: 3rem; opacity: 0.3;"></i>
-            <p class="mb-0">Nenhum histórico nos últimos 30 dias</p>
-        </div>
-    {% endif %}
+    </section>
 </div>
 
 <!-- Modal de Devolução -->

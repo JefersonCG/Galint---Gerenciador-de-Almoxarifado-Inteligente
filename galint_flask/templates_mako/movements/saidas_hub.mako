@@ -5,62 +5,124 @@
 <%block name="extra_css">
 <style>
     .hub-container {
-        max-width: 1000px;
+        max-width: 1120px;
         margin: 0 auto;
         padding: 2rem 1rem;
     }
+
+    .hub-shell {
+        background: linear-gradient(180deg, #eef2f7 0%, #f8fafc 100%);
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        border-radius: 30px;
+        padding: 1.85rem;
+        box-shadow: 0 24px 54px rgba(15, 23, 42, 0.1);
+    }
     
     .hub-header {
+        position: relative;
+        overflow: hidden;
         text-align: center;
-        margin-bottom: 3rem;
+        margin-bottom: 2rem;
+        border-radius: 26px;
+        padding: 2rem 1.5rem;
+        background: linear-gradient(135deg, #020617 0%, #172554 45%, #2563eb 100%);
+        box-shadow: 0 28px 64px rgba(15, 23, 42, 0.2);
+    }
+
+    .hub-header::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+            radial-gradient(circle at 16% 18%, rgba(56, 189, 248, 0.22), transparent 28%),
+            radial-gradient(circle at 84% 16%, rgba(96, 165, 250, 0.18), transparent 22%),
+            linear-gradient(180deg, rgba(255,255,255,0.04), transparent 60%);
+        pointer-events: none;
+    }
+
+    .hub-header > * {
+        position: relative;
+        z-index: 1;
+    }
+
+    .hub-eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.38rem 0.72rem;
+        border-radius: 999px;
+        background: rgba(255,255,255,0.08);
+        border: 1px solid rgba(226,232,240,0.14);
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: rgba(226,232,240,0.92);
+        margin-bottom: 0.9rem;
     }
     
     .hub-header h2 {
-        font-size: 2rem;
-        font-weight: 700;
-        color: #1e293b;
-        margin-bottom: 0.5rem;
+        font-size: clamp(2rem, 3vw, 2.6rem);
+        font-weight: 800;
+        color: #f8fafc;
+        margin-bottom: 0.55rem;
+        letter-spacing: -0.03em;
     }
     
     .hub-header p {
         font-size: 1.1rem;
-        color: #64748b;
+        color: rgba(226,232,240,0.82);
+        margin-bottom: 0;
     }
     
     .saidas-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
         gap: 2rem;
-        margin-top: 2rem;
+        margin-top: 1.5rem;
     }
     
     .saida-card {
-        background: white;
-        border-radius: 16px;
+        position: relative;
+        overflow: hidden;
+        background: linear-gradient(145deg, #0f172a 0%, #1e293b 68%, #334155 100%);
+        border-radius: 24px;
         padding: 2rem;
         text-align: center;
         cursor: pointer;
-        transition: all 0.3s ease;
-        border: 2px solid #e2e8f0;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        transition: transform 0.28s ease, box-shadow 0.28s ease, border-color 0.28s ease;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        box-shadow: 0 20px 42px rgba(15, 23, 42, 0.18);
+    }
+
+    .saida-card::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(circle at 18% 18%, rgba(59, 130, 246, 0.18), transparent 32%);
+        pointer-events: none;
+    }
+
+    .saida-card > * {
+        position: relative;
+        z-index: 1;
     }
     
     .saida-card:hover {
         transform: translateY(-8px);
-        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
-        border-color: #3b82f6;
+        box-shadow: 0 28px 52px rgba(15, 23, 42, 0.28);
     }
     
     .saida-card.materiais:hover {
-        border-color: #3b82f6;
+        border-color: rgba(59, 130, 246, 0.42);
     }
     
     .saida-card.ferramentas:hover {
-        border-color: #f59e0b;
+        border-color: rgba(245, 158, 11, 0.42);
     }
     
     .saida-card.fracionados:hover {
-        border-color: #10b981;
+        border-color: rgba(16, 185, 129, 0.42);
     }
     
     .saida-card-icon {
@@ -87,14 +149,15 @@
     
     .saida-card-title {
         font-size: 1.5rem;
-        font-weight: 700;
-        color: #1e293b;
+        font-weight: 800;
+        color: #f8fafc;
         margin-bottom: 0.75rem;
+        letter-spacing: -0.02em;
     }
     
     .saida-card-description {
         font-size: 0.95rem;
-        color: #64748b;
+        color: rgba(226,232,240,0.76);
         line-height: 1.6;
     }
     
@@ -108,64 +171,94 @@
     }
     
     .saida-card.materiais .saida-card-badge {
-        background: #dbeafe;
-        color: #1e40af;
+        background: rgba(59, 130, 246, 0.16);
+        color: #bfdbfe;
+        border: 1px solid rgba(59, 130, 246, 0.24);
     }
     
     .saida-card.ferramentas .saida-card-badge {
-        background: #fef3c7;
-        color: #92400e;
+        background: rgba(245, 158, 11, 0.16);
+        color: #fde68a;
+        border: 1px solid rgba(245, 158, 11, 0.24);
     }
     
     .saida-card.fracionados .saida-card-badge {
-        background: #d1fae5;
-        color: #065f46;
+        background: rgba(16, 185, 129, 0.16);
+        color: #a7f3d0;
+        border: 1px solid rgba(16, 185, 129, 0.24);
+    }
+
+    .saida-card.ferramentas::before {
+        background: radial-gradient(circle at 18% 18%, rgba(245, 158, 11, 0.2), transparent 32%);
+    }
+
+    .saida-card.fracionados::before {
+        background: radial-gradient(circle at 18% 18%, rgba(16, 185, 129, 0.18), transparent 32%);
+    }
+
+    @media (max-width: 768px) {
+        .hub-shell {
+            padding: 1rem;
+            border-radius: 22px;
+        }
+
+        .hub-header {
+            padding: 1.35rem 1rem;
+            border-radius: 20px;
+        }
+
+        .saidas-grid {
+            gap: 1rem;
+        }
     }
 </style>
 </%block>
 
 <%block name="content">
 <div class="hub-container">
-    <div class="hub-header">
-        <h2><i class="bi bi-box-arrow-up-right me-2"></i>Registro de Saídas</h2>
-        <p>Selecione o tipo de retirada que deseja registrar</p>
-    </div>
-    
-    <div class="saidas-grid">
-        <!-- Card Materiais Comuns -->
-        <div class="saida-card materiais" onclick="window.location.href='${url_for('movements.saida_page')}'">
-            <div class="saida-card-icon">
-                <i class="bi bi-box-seam"></i>
-            </div>
-            <div class="saida-card-title">Materiais Comuns</div>
-            <div class="saida-card-description">
-                Retirada de materiais em unidades padrão (pacote, caixa, unidade)
-            </div>
-            <span class="saida-card-badge">Estoque Geral</span>
+    <div class="hub-shell">
+        <div class="hub-header">
+            <div class="hub-eyebrow"><i class="bi bi-grid-1x2"></i> Central de lançamentos</div>
+            <h2><i class="bi bi-box-arrow-up-right me-2"></i>Registro de Saídas</h2>
+            <p>Selecione o tipo de retirada e siga com o fluxo adequado sem perder a organização centralizada dos cards.</p>
         </div>
         
-        <!-- Card Ferramentas -->
-        <div class="saida-card ferramentas" onclick="window.location.href='${url_for('ferramentas.retirar_page')}'">
-            <div class="saida-card-icon">
-                <i class="bi bi-tools"></i>
+        <div class="saidas-grid">
+            <!-- Card Materiais Comuns -->
+            <div class="saida-card materiais" onclick="window.location.href='${url_for('movements.saida_page')}'">
+                <div class="saida-card-icon">
+                    <i class="bi bi-box-seam"></i>
+                </div>
+                <div class="saida-card-title">Materiais Comuns</div>
+                <div class="saida-card-description">
+                    Retirada de materiais em unidades padrão, como pacote, caixa e unidade, com fluxo direto para o estoque geral.
+                </div>
+                <span class="saida-card-badge">Estoque Geral</span>
             </div>
-            <div class="saida-card-title">Ferramentas</div>
-            <div class="saida-card-description">
-                Controle de retirada e custódia de ferramentas (permanente ou temporária)
+            
+            <!-- Card Ferramentas -->
+            <div class="saida-card ferramentas" onclick="window.location.href='${url_for('ferramentas.retirar_page')}'">
+                <div class="saida-card-icon">
+                    <i class="bi bi-tools"></i>
+                </div>
+                <div class="saida-card-title">Ferramentas</div>
+                <div class="saida-card-description">
+                    Controle de retirada e custódia de ferramentas, incluindo operações permanentes ou temporárias com rastreabilidade especial.
+                </div>
+                <span class="saida-card-badge">Controle Especial</span>
             </div>
-            <span class="saida-card-badge">Controle Especial</span>
-        </div>
-        
-        <!-- Card Fracionados -->
-        <div class="saida-card fracionados" onclick="window.location.href='${url_for('movements.saida_fracionada_page')}'">
-            <div class="saida-card-icon">
-                <i class="bi bi-droplet-half"></i>
+            
+            <!-- Card Fracionados -->
+            <div class="saida-card fracionados" onclick="window.location.href='${url_for('movements.saida_fracionada_page')}'">
+                <div class="saida-card-icon">
+                    <i class="bi bi-droplet-half"></i>
+                </div>
+                <div class="saida-card-title">Fracionados</div>
+                <div class="saida-card-description">
+                    Retirada com pesagem manual para produtos líquidos ou fracionados, mantendo o fluxo específico para kg e litros.
+                </div>
+                <span class="saida-card-badge">Pesagem Manual</span>
             </div>
-            <div class="saida-card-title">Fracionados</div>
-            <div class="saida-card-description">
-                Retirada pesada de produtos líquidos ou fracionados (kg, litros)
-            </div>
-            <span class="saida-card-badge">Pesagem Manual</span>
         </div>
     </div>
 </div>

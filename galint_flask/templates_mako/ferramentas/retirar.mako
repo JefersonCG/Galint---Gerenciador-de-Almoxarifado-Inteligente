@@ -13,13 +13,36 @@
 
 <%block name="extra_css">
 <style>
+    .tool-shell {
+        background: linear-gradient(180deg, #eef2f7 0%, #f8fafc 100%);
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        border-radius: 30px;
+        padding: 1.85rem;
+        box-shadow: 0 24px 54px rgba(15, 23, 42, 0.1);
+    }
+
     .page-header {
-        background: linear-gradient(120deg, #2563eb 0%, #3b82f6 100%);
+        position: relative;
+        overflow: hidden;
+        background: linear-gradient(135deg, #020617 0%, #1e293b 42%, #2563eb 100%);
         color: white;
         padding: 2rem;
-        border-radius: 12px;
+        border-radius: 24px;
         margin-bottom: 2rem;
-        box-shadow: 0 4px 20px rgba(37, 99, 235, 0.4);
+        box-shadow: 0 28px 64px rgba(15, 23, 42, 0.2);
+    }
+
+    .page-header::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(circle at 16% 18%, rgba(56, 189, 248, 0.22), transparent 28%), radial-gradient(circle at 84% 18%, rgba(96, 165, 250, 0.18), transparent 22%);
+        pointer-events: none;
+    }
+
+    .page-header > * {
+        position: relative;
+        z-index: 1;
     }
     
     .page-header h2 {
@@ -35,32 +58,39 @@
     }
     
     .input-card {
-        background: #ffffff;
-        border-radius: 12px;
+        background: linear-gradient(145deg, #0f172a 0%, #1e293b 100%);
+        border-radius: 24px;
         padding: 2rem;
-        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+        box-shadow: 0 22px 48px rgba(15, 23, 42, 0.16);
         margin-bottom: 1.5rem;
-        border: 1px solid #e9ecef;
+        border: 1px solid rgba(148, 163, 184, 0.18);
         position: relative;
     }
     
     .input-card .form-label {
         font-weight: 600;
-        color: #495057;
+        color: #e2e8f0;
         margin-bottom: 0.5rem;
         font-size: 0.9rem;
     }
     
     .input-card .form-control {
         border-radius: 8px;
-        border: 2px solid #e9ecef;
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        background: rgba(15, 23, 42, 0.82);
+        color: #f8fafc;
         padding: 0.75rem 1rem;
         transition: all 0.3s ease;
+    }
+
+    .input-card .form-control::placeholder {
+        color: #94a3b8;
     }
     
     .input-card .form-control:focus {
         border-color: #3b82f6;
         box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.15);
+        background: rgba(15, 23, 42, 0.92);
     }
     
     .btn-submit {
@@ -81,11 +111,11 @@
     }
     
     .alert-info-custom {
-        background: #e7f3ff;
-        border: 1px solid #b3d9ff;
-        border-radius: 8px;
+        background: rgba(245, 158, 11, 0.12);
+        border: 1px solid rgba(245, 158, 11, 0.22);
+        border-radius: 18px;
         padding: 1rem;
-        color: #004085;
+        color: #78350f;
         margin-bottom: 1.5rem;
     }
     
@@ -139,17 +169,17 @@
     }
 
     .items-table {
-        background: white;
-        border-radius: 12px;
+        background: linear-gradient(145deg, #0f172a 0%, #1e293b 100%);
+        border-radius: 24px;
         overflow: hidden;
-        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
-        border: 1px solid #e9ecef;
+        box-shadow: 0 22px 48px rgba(15, 23, 42, 0.16);
+        border: 1px solid rgba(148, 163, 184, 0.18);
         margin-top: 1.25rem;
         margin-bottom: 1rem;
     }
 
     .items-table-header {
-        background: linear-gradient(120deg, #2563eb 0%, #3b82f6 100%);
+        background: linear-gradient(120deg, #1d4ed8 0%, #38bdf8 100%);
         color: white;
         padding: 1rem 1.5rem;
         font-weight: 700;
@@ -197,8 +227,8 @@
     }
 
     .badge-qty {
-        background: rgba(37, 99, 235, 0.12);
-        color: #1e40af;
+        background: rgba(59, 130, 246, 0.16);
+        color: #bfdbfe;
         padding: 0.35rem 0.75rem;
         border-radius: 20px;
         font-weight: 700;
@@ -206,14 +236,30 @@
         display: inline-block;
     }
 
+    .items-table thead th {
+        background: rgba(255, 255, 255, 0.06);
+        color: #cbd5e1;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+    }
+
+    .items-table tbody td {
+        color: #e2e8f0;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+    }
+
+    .items-table tbody tr:hover {
+        background: rgba(59, 130, 246, 0.06);
+    }
+
 </style>
 </%block>
 
 <%block name="content">
 <div class="container-fluid" style="max-width: 900px;">
+    <div class="tool-shell">
     <div class="page-header">
         <h2><i class="bi bi-tools me-2"></i>Retirada de Ferramentas</h2>
-        <p>Registre a retirada de ferramentas para uso temporário</p>
+        <p>Registre retiradas com o novo padrão visual dark, preservando o fluxo especial de custódia temporária.</p>
     </div>
     
     <div class="alert-info-custom">
@@ -287,6 +333,7 @@
     <div class="alert alert-info mt-4" role="alert">
         <i class="bi bi-info-circle me-2"></i>
         <strong>Nota:</strong> Para visualizar ferramentas em uso, alertas e gerenciar devoluções, acesse <a href="/controle-ferramentas" class="alert-link"><strong>Auditar Ferramentas</strong></a>.
+    </div>
     </div>
 </div>
 

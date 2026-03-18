@@ -1,288 +1,298 @@
 {% extends "base.html" %}
 {% block title %}Configurações Telegram{% endblock %}
-{% block page_header %}
-<h2><i class="bi bi-telegram text-info me-2"></i>Configurações Telegram</h2>
-<p class="text-muted">Gerenciar notificações automáticas via Telegram Bot</p>
+
+{% block extra_css %}
+<style>
+    .settings-shell {
+        background: linear-gradient(180deg, #eef2f7 0%, #f8fafc 100%);
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        border-radius: 28px;
+        padding: 1.75rem;
+        box-shadow: 0 24px 54px rgba(15, 23, 42, 0.1);
+    }
+    .settings-hero {
+        position: relative;
+        overflow: hidden;
+        background: linear-gradient(135deg, #0f172a 0%, #172554 48%, #1d4ed8 100%);
+        border-radius: 24px;
+        padding: 1.6rem;
+        color: #f8fafc;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 26px 60px rgba(15, 23, 42, 0.18);
+    }
+    .settings-hero::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+            radial-gradient(circle at 12% 18%, rgba(56, 189, 248, 0.28), transparent 28%),
+            radial-gradient(circle at 88% 18%, rgba(34, 211, 238, 0.18), transparent 24%),
+            linear-gradient(180deg, rgba(255,255,255,0.04), transparent 58%);
+        pointer-events: none;
+    }
+    .settings-hero > * { position: relative; z-index: 1; }
+    .settings-eyebrow {
+        display: inline-flex; align-items: center; gap: 0.45rem; padding: 0.38rem 0.72rem;
+        border-radius: 999px; background: rgba(255,255,255,0.08); border: 1px solid rgba(226,232,240,0.14);
+        font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: rgba(226,232,240,0.9);
+        margin-bottom: 0.9rem;
+    }
+    .settings-title { margin: 0; font-size: clamp(1.9rem, 3vw, 2.6rem); font-weight: 800; letter-spacing: -0.03em; }
+    .settings-subtitle { margin: 0.65rem 0 0; max-width: 58rem; color: rgba(226,232,240,0.8); line-height: 1.6; }
+    .settings-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+    .settings-kpi {
+        position: relative; overflow: hidden; border-radius: 22px; padding: 1.15rem; color: #f8fafc;
+        background: linear-gradient(145deg, #0f172a 0%, #1e293b 68%, #334155 100%); border: 1px solid rgba(148,163,184,0.18);
+        box-shadow: 0 20px 42px rgba(15, 23, 42, 0.18);
+    }
+    .settings-kpi::before {
+        content: ""; position: absolute; inset: 0;
+        background: radial-gradient(circle at 18% 18%, rgba(56, 189, 248, 0.24), transparent 34%), linear-gradient(180deg, rgba(255,255,255,0.03), transparent 60%);
+        pointer-events: none;
+    }
+    .settings-kpi > * { position: relative; z-index: 1; }
+    .settings-kpi-label { display: block; font-size: 0.75rem; letter-spacing: 0.06em; text-transform: uppercase; color: rgba(226,232,240,0.72); margin-bottom: 0.45rem; }
+    .settings-kpi-value { font-size: 1.7rem; font-weight: 800; line-height: 1; margin-bottom: 0.35rem; }
+    .settings-kpi-caption { color: rgba(226,232,240,0.74); font-size: 0.82rem; }
+    .settings-tabs.nav-pills { gap: 0.65rem; margin-bottom: 1.25rem; }
+    .settings-tabs .nav-link {
+        border-radius: 999px; padding: 0.75rem 1rem; background: #dbe4ef; color: #334155; font-weight: 700; border: 1px solid rgba(148,163,184,0.18);
+    }
+    .settings-tabs .nav-link.active { background: #0f172a; color: #f8fafc; border-color: rgba(59,130,246,0.35); }
+    .settings-panel {
+        background: linear-gradient(145deg, #0f172a 0%, #1e293b 100%); border: 1px solid rgba(148,163,184,0.18); border-radius: 24px;
+        box-shadow: 0 22px 48px rgba(15, 23, 42, 0.16); color: #e2e8f0;
+    }
+    .settings-panel .card-header, .settings-panel .card-body { background: transparent; color: inherit; border-color: rgba(148,163,184,0.14); }
+    .settings-panel .card-header { padding: 1.1rem 1.35rem 0.95rem; }
+    .settings-panel .card-body { padding: 1.25rem 1.35rem 1.35rem; }
+    .settings-panel .form-control, .settings-panel .form-select, .settings-panel .input-group-text {
+        background: rgba(15,23,42,0.82); color: #f8fafc; border-color: rgba(148,163,184,0.22);
+    }
+    .settings-panel .form-control::placeholder { color: #94a3b8; }
+    .settings-panel .form-label, .settings-panel .text-muted, .settings-panel p, .settings-panel small, .settings-panel label, .settings-panel h5, .settings-panel h6, .settings-panel th, .settings-panel td { color: #e2e8f0 !important; }
+    .settings-panel .text-muted, .settings-panel .form-text { color: #9fb0c6 !important; }
+    .settings-table-wrap { background: rgba(255,255,255,0.72); border-radius: 20px; overflow: hidden; border: 1px solid rgba(148,163,184,0.16); }
+    .settings-table { margin-bottom: 0; color: #334155; }
+    .settings-table thead th { background: #e2e8f0; color: #334155 !important; border-bottom: 1px solid rgba(148,163,184,0.2); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    .settings-table tbody td { vertical-align: middle; border-color: rgba(148,163,184,0.12); color: #334155 !important; }
+    .settings-table tbody tr:hover { background: rgba(59,130,246,0.06); }
+    .settings-soft {
+        background: rgba(255,255,255,0.06); border: 1px solid rgba(148,163,184,0.12); border-radius: 18px; padding: 1rem;
+    }
+    .settings-action-bar { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+    .settings-grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 1rem; }
+    .settings-grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 1rem; }
+    .empty-state { text-align: center; padding: 2.5rem 1rem; color: #94a3b8; }
+    @media (max-width: 1200px) { .settings-kpis { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+    @media (max-width: 768px) {
+        .settings-shell { padding: 1rem; border-radius: 22px; }
+        .settings-hero { padding: 1.15rem; border-radius: 20px; }
+        .settings-kpis, .settings-grid-2, .settings-grid-3 { grid-template-columns: 1fr; }
+        .settings-tabs.nav-pills { flex-direction: column; }
+    }
+</style>
 {% endblock %}
+
+{% block page_header %}{% endblock %}
+
 {% block content %}
-<div class="container-fluid">
-    <div class="row">
-        <!-- Coluna Principal (Esquerda) -->
-        <div class="col-lg-7 mb-4">
-            <!-- Usuários Vinculados -->
-            <div class="card shadow-sm h-100">
-                <div class="card-header bg-success text-white">
-                    <h5 class="mb-0"><i class="bi bi-person-check-fill me-2"></i>Usuários Vinculados</h5>
-                </div>
+<div class="settings-shell">
+    <section class="settings-hero">
+        <div class="settings-eyebrow"><i class="bi bi-telegram"></i> Central Telegram</div>
+        <h1 class="settings-title">Configurações Telegram</h1>
+        <p class="settings-subtitle">Painel modernizado para operação do bot, permissões por usuário, webhook e testes de comunicação, mantendo a paleta azul do módulo em um container dark.</p>
+    </section>
+
+    <section class="settings-kpis">
+        <article class="settings-kpi">
+            <span class="settings-kpi-label">Usuários vinculados</span>
+            <div class="settings-kpi-value">{{ telegram_users|length }}</div>
+            <div class="settings-kpi-caption">Contas já ligadas ao bot.</div>
+        </article>
+        <article class="settings-kpi">
+            <span class="settings-kpi-label">Disponíveis</span>
+            <div class="settings-kpi-value">{{ usuarios_sem_telegram|length }}</div>
+            <div class="settings-kpi-caption">Usuários que ainda podem ser vinculados.</div>
+        </article>
+        <article class="settings-kpi">
+            <span class="settings-kpi-label">Bot</span>
+            <div class="settings-kpi-value">{{ 'ON' if telegram_config.enabled else 'OFF' }}</div>
+            <div class="settings-kpi-caption">Status geral da automação Telegram.</div>
+        </article>
+        <article class="settings-kpi">
+            <span class="settings-kpi-label">Grupos</span>
+            <div class="settings-kpi-value">{{ groups|length }}</div>
+            <div class="settings-kpi-caption">Canais coletivos cadastrados.</div>
+        </article>
+    </section>
+
+    <ul class="nav nav-pills settings-tabs" id="telegramConfigTabs" role="tablist">
+        <li class="nav-item" role="presentation"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#tab-usuarios" type="button" role="tab">Usuários</button></li>
+        <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-bot" type="button" role="tab">Bot e Alertas</button></li>
+        <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-webhook" type="button" role="tab">Webhook e Comandos</button></li>
+        <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-testes" type="button" role="tab">Testes</button></li>
+    </ul>
+
+    <div class="tab-content">
+        <div class="tab-pane fade show active" id="tab-usuarios" role="tabpanel">
+            <div class="card settings-panel">
+                <div class="card-header"><h5 class="mb-0"><i class="bi bi-person-check-fill me-2"></i>Usuários vinculados</h5></div>
                 <div class="card-body">
-                    <!-- Formulário de Vinculação -->
                     <form method="POST" action="{{ url_for('telegram_config.vincular_usuario') }}" class="mb-4">
-                        <div class="row g-2 align-items-end">
-                            <div class="col-md-4">
+                        <div class="settings-grid-3 mb-3">
+                            <div>
                                 <label class="form-label small">Usuário</label>
-                                <select class="form-select form-select-sm" name="matricula" required>
+                                <select class="form-select" name="matricula" required>
                                     <option value="">Selecione...</option>
                                     {% for usuario in usuarios_sem_telegram %}
                                     <option value="{{ usuario.matricula }}">{{ usuario.nome }}</option>
                                     {% endfor %}
                                 </select>
                             </div>
-                            <div class="col-md-3">
+                            <div>
                                 <label class="form-label small">Chat ID</label>
-                                <input type="text" class="form-control form-control-sm" name="chat_id"
-                                    placeholder="123456789" required>
+                                <input type="text" class="form-control" name="chat_id" placeholder="123456789" required>
                             </div>
-                            <div class="col-md-3">
+                            <div>
                                 <label class="form-label small">Celular</label>
-                                <input type="text" class="form-control form-control-sm" name="celular"
-                                    placeholder="+5511999998888" required>
-                            </div>
-                            <div class="col-md-2">
-                                <button type="submit" class="btn btn-success btn-sm w-100">
-                                    <i class="bi bi-plus-circle me-1"></i>Vincular
-                                </button>
+                                <input type="text" class="form-control" name="celular" placeholder="+5511999998888" required>
                             </div>
                         </div>
-                        <small class="text-muted d-block mt-2">
-                            <i class="bi bi-info-circle me-1"></i>
-                            Usuário deve enviar /start para o bot e informar seu celular
-                        </small>
+                        <div class="settings-action-bar align-items-center justify-content-between">
+                            <small class="text-muted"><i class="bi bi-info-circle me-1"></i>O usuário deve enviar /start para o bot e informar o celular.</small>
+                            <button type="submit" class="btn btn-success rounded-pill px-4"><i class="bi bi-plus-circle me-1"></i>Vincular usuário</button>
+                        </div>
                     </form>
 
-                    <!-- Tabela de Usuários -->
-                    <div class="table-responsive">
-                        <table class="table table-hover table-sm align-middle mb-0">
-                            <thead class="table-dark">
-                                <tr>
-                                    <th><i class="bi bi-person"></i> Nome</th>
-                                    <th><i class="bi bi-chat-dots"></i> Chat ID</th>
-                                    <th><i class="bi bi-phone"></i> Celular</th>
-                                    <th class="text-center"><i class="bi bi-toggle-on"></i></th>
-                                    <th class="text-center"><i class="bi bi-camera"></i></th>
-                                    <th class="text-center"><i class="bi bi-plus-circle"></i></th>
-                                    <th class="text-center" style="width: 140px;"><i class="bi bi-gear"></i></th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for tu in telegram_users %}
-                                <tr>
-                                    <td><strong>{{ tu.usuario.nome }}</strong></td>
-                                    <td><code class="small">{{ tu.chat_id }}</code></td>
-                                    <td class="small">{{ tu.celular or '-' }}</td>
-                                    <td class="text-center">
-                                        {% if tu.enabled %}
-                                        <span class="badge bg-success">Ativo</span>
-                                        {% else %}
-                                        <span class="badge bg-secondary">Inativo</span>
-                                        {% endif %}
-                                    </td>
-                                    <td class="text-center">
-                                        <div class="form-check form-switch d-inline-block">
-                                            <input class="form-check-input" type="checkbox" 
-                                                   id="withdrawal_{{ tu.id }}"
-                                                   {{ 'checked' if tu.can_withdraw_via_telegram else '' }}
-                                                   onchange="toggleWithdrawalPermission({{ tu.id }}, this.checked)"
-                                                   {{ 'disabled' if not tu.enabled else '' }}>
-                                        </div>
-                                    </td>
-                                    <td class="text-center">
-                                        <div class="form-check form-switch d-inline-block">
-                                            <input class="form-check-input" type="checkbox" 
-                                                   id="itemcreate_{{ tu.id }}"
-                                                   {{ 'checked' if tu.can_create_item_via_telegram else '' }}
-                                                   onchange="toggleItemCreatePermission({{ tu.id }}, this.checked)"
-                                                   {{ 'disabled' if not tu.enabled else '' }}>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div class="btn-group btn-group-sm" role="group">
-                                            {% if endpoint_exists('telegram_config.preferencias_notificacoes') %}
-                                            <a href="{{ url_for('telegram_config.preferencias_notificacoes', telegram_user_id=tu.id) }}"
-                                                class="btn btn-outline-warning" title="Preferências">
-                                                <i class="bi bi-bell-fill"></i>
-                                            </a>
-                                            {% else %}
-                                            <button class="btn btn-outline-warning" disabled>
-                                                <i class="bi bi-bell-fill"></i>
-                                            </button>
-                                            {% endif %}
-                                            <a href="{{ url_for('telegram_config.toggle_usuario', user_id=tu.id) }}"
-                                                class="btn btn-outline-primary" title="{{ 'Desativar' if tu.enabled else 'Ativar' }}">
-                                                <i class="bi bi-toggle-{{ 'on' if tu.enabled else 'off' }}"></i>
-                                            </a>
-                                            <a href="{{ url_for('telegram_config.desvincular_usuario', user_id=tu.id) }}"
-                                                class="btn btn-outline-danger"
-                                                onclick="return confirm('Desvincular {{ tu.usuario.nome }}?')" title="Desvincular">
-                                                <i class="bi bi-trash"></i>
-                                            </a>
-                                        </div>
-                                    </td>
-                                </tr>
-                                {% else %}
-                                <tr>
-                                    <td colspan="7" class="text-center text-muted py-4">
-                                        <i class="bi bi-inbox fs-1 d-block mb-2"></i>
-                                        Nenhum usuário vinculado
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+                    <div class="settings-table-wrap">
+                        <div class="table-responsive">
+                            <table class="table table-hover table-sm align-middle settings-table mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Nome</th><th>Chat ID</th><th>Celular</th><th class="text-center">Status</th><th class="text-center">Retirada</th><th class="text-center">Cadastro</th><th class="text-center">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for tu in telegram_users %}
+                                    <tr>
+                                        <td><strong>{{ tu.usuario.nome }}</strong></td>
+                                        <td><code class="small">{{ tu.chat_id }}</code></td>
+                                        <td class="small">{{ tu.celular or '-' }}</td>
+                                        <td class="text-center">{% if tu.enabled %}<span class="badge bg-success">Ativo</span>{% else %}<span class="badge bg-secondary">Inativo</span>{% endif %}</td>
+                                        <td class="text-center"><div class="form-check form-switch d-inline-block"><input class="form-check-input" type="checkbox" id="withdrawal_{{ tu.id }}" {{ 'checked' if tu.can_withdraw_via_telegram else '' }} onchange="toggleWithdrawalPermission({{ tu.id }}, this.checked)" {{ 'disabled' if not tu.enabled else '' }}></div></td>
+                                        <td class="text-center"><div class="form-check form-switch d-inline-block"><input class="form-check-input" type="checkbox" id="itemcreate_{{ tu.id }}" {{ 'checked' if tu.can_create_item_via_telegram else '' }} onchange="toggleItemCreatePermission({{ tu.id }}, this.checked)" {{ 'disabled' if not tu.enabled else '' }}></div></td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm" role="group">
+                                                {% if endpoint_exists('telegram_config.preferencias_notificacoes') %}
+                                                <a href="{{ url_for('telegram_config.preferencias_notificacoes', telegram_user_id=tu.id) }}" class="btn btn-outline-warning" title="Preferências"><i class="bi bi-bell-fill"></i></a>
+                                                {% endif %}
+                                                <a href="{{ url_for('telegram_config.toggle_usuario', user_id=tu.id) }}" class="btn btn-outline-primary" title="{{ 'Desativar' if tu.enabled else 'Ativar' }}"><i class="bi bi-toggle-{{ 'on' if tu.enabled else 'off' }}"></i></a>
+                                                <a href="{{ url_for('telegram_config.desvincular_usuario', user_id=tu.id) }}" class="btn btn-outline-danger" onclick="return confirm('Desvincular {{ tu.usuario.nome }}?')" title="Desvincular"><i class="bi bi-trash"></i></a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% else %}
+                                    <tr><td colspan="7" class="empty-state"><i class="bi bi-inbox fs-1 d-block mb-2"></i>Nenhum usuário vinculado.</td></tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Coluna Lateral (Direita) -->
-        <div class="col-lg-5">
-            <!-- Configuração Geral -->
-            <div class="card shadow-sm mb-3">
-                <div class="card-header bg-primary text-white">
-                    <h6 class="mb-0"><i class="bi bi-gear-fill me-2"></i>Configuração Geral</h6>
-                </div>
+        <div class="tab-pane fade" id="tab-bot" role="tabpanel">
+            <div class="card settings-panel">
+                <div class="card-header"><h5 class="mb-0"><i class="bi bi-gear-fill me-2"></i>Bot e alertas</h5></div>
                 <div class="card-body">
                     <form method="POST" action="{{ url_for('telegram_config.update_config') }}">
                         <div class="mb-3">
-                            <label for="bot_token" class="form-label">Token do Bot</label>
-                            <input type="text" class="form-control form-control-sm" id="bot_token" name="bot_token"
-                                value="{{ telegram_config.bot_token or '' }}"
-                                placeholder="123456789:ABCdefGHIjklMNOpqrsTUVwxyz">
-                            <div class="form-text small">Obtenha com @BotFather no Telegram</div>
+                            <label for="bot_token" class="form-label">Token do bot</label>
+                            <input type="text" class="form-control" id="bot_token" name="bot_token" value="{{ telegram_config.bot_token or '' }}" placeholder="123456789:ABCdefGHIjklMNOpqrsTUVwxyz">
+                            <div class="form-text">Obtenha com @BotFather no Telegram.</div>
                         </div>
 
-                        <div class="mb-3">
-                            <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" id="enabled" name="enabled" 
-                                    {{ 'checked' if telegram_config.enabled else '' }}>
-                                <label class="form-check-label" for="enabled">
-                                    {% if telegram_config.enabled %}
-                                    <span class="badge bg-success">Ativado</span>
-                                    {% else %}
-                                    <span class="badge bg-secondary">Desativado</span>
-                                    {% endif %}
-                                </label>
+                        <div class="settings-grid-2 mb-3">
+                            <div class="settings-soft">
+                                <div class="form-check form-switch mb-2"><input class="form-check-input" type="checkbox" id="enabled" name="enabled" {{ 'checked' if telegram_config.enabled else '' }}><label class="form-check-label" for="enabled">Bot ativo</label></div>
+                                <div class="form-check form-switch mb-2"><input class="form-check-input" type="checkbox" id="notify_on_withdrawal" name="notify_on_withdrawal" {{ 'checked' if telegram_config.notify_on_withdrawal else '' }}><label class="form-check-label" for="notify_on_withdrawal">Notificar retiradas de materiais</label></div>
+                                <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="alert_enabled" name="alert_enabled" {{ 'checked' if telegram_config.alert_enabled else '' }}><label class="form-check-label" for="alert_enabled">Alertas agendados habilitados</label></div>
+                            </div>
+                            <div class="settings-soft">
+                                <label class="form-label small">Horários dos alertas</label>
+                                <div class="input-group mb-2"><span class="input-group-text">Seg-Sex</span><input type="time" class="form-control" name="alert_weekday_time" value="{{ telegram_config.alert_weekday_time or '16:20' }}"></div>
+                                <div class="input-group"><span class="input-group-text">Sábado</span><input type="time" class="form-control" name="alert_saturday_time" value="{{ telegram_config.alert_saturday_time or '11:00' }}"></div>
                             </div>
                         </div>
 
-                        <div class="mb-3">
-                            <div class="form-check form-switch mb-2">
-                                <input class="form-check-input" type="checkbox" id="notify_on_withdrawal"
-                                    name="notify_on_withdrawal" {{ 'checked' if telegram_config.notify_on_withdrawal else '' }}>
-                                <label class="form-check-label small" for="notify_on_withdrawal">
-                                    Notificar retiradas de materiais
-                                </label>
-                            </div>
-                            <div class="form-check form-switch mb-2">
-                                <input class="form-check-input" type="checkbox" id="alert_enabled" name="alert_enabled"
-                                    {{ 'checked' if telegram_config.alert_enabled else '' }}>
-                                <label class="form-check-label small" for="alert_enabled">
-                                    Alertas agendados habilitados
-                                </label>
-                            </div>
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label small">Horários dos Alertas</label>
-                            <div class="input-group input-group-sm mb-2">
-                                <span class="input-group-text">Seg-Sex</span>
-                                <input type="time" class="form-control" name="alert_weekday_time"
-                                    value="{{ telegram_config.alert_weekday_time or '16:20' }}">
-                            </div>
-                            <div class="input-group input-group-sm">
-                                <span class="input-group-text">Sábado</span>
-                                <input type="time" class="form-control" name="alert_saturday_time"
-                                    value="{{ telegram_config.alert_saturday_time or '11:00' }}">
-                            </div>
-                        </div>
-
-                        <div class="d-grid gap-2">
-                            <button type="submit" class="btn btn-primary btn-sm">
-                                <i class="bi bi-save me-2"></i>Salvar
-                            </button>
-                            <div class="btn-group btn-group-sm">
-                                <a href="{{ url_for('telegram_config.test_connection') }}" class="btn btn-outline-success">
-                                    <i class="bi bi-wifi me-1"></i>Testar
-                                </a>
-                                <a href="{{ url_for('telegram_config.executar_alerta') }}" class="btn btn-outline-warning">
-                                    <i class="bi bi-bell me-1"></i>Alerta
-                                </a>
-                                <a href="{{ url_for('telegram_config.historico') }}" class="btn btn-outline-info">
-                                    <i class="bi bi-clock-history me-1"></i>Histórico
-                                </a>
-                            </div>
+                        <div class="settings-action-bar">
+                            <button type="submit" class="btn btn-primary rounded-pill px-4"><i class="bi bi-save me-2"></i>Salvar configurações</button>
+                            <a href="{{ url_for('telegram_config.test_connection') }}" class="btn btn-outline-success rounded-pill px-4"><i class="bi bi-wifi me-1"></i>Testar conexão</a>
+                            <a href="{{ url_for('telegram_config.executar_alerta') }}" class="btn btn-outline-warning rounded-pill px-4"><i class="bi bi-bell me-1"></i>Executar alerta</a>
+                            <a href="{{ url_for('telegram_config.historico') }}" class="btn btn-outline-info rounded-pill px-4"><i class="bi bi-clock-history me-1"></i>Histórico</a>
                         </div>
                     </form>
                 </div>
             </div>
+        </div>
 
-            <!-- Webhook -->
-            <div class="card shadow-sm mb-3">
-                <div class="card-header bg-info text-white">
-                    <h6 class="mb-0"><i class="bi bi-chat-dots-fill me-2"></i>Respostas em Português</h6>
-                </div>
+        <div class="tab-pane fade" id="tab-webhook" role="tabpanel">
+            <div class="card settings-panel">
+                <div class="card-header"><h5 class="mb-0"><i class="bi bi-chat-dots-fill me-2"></i>Webhook e comandos</h5></div>
                 <div class="card-body">
-                    <p class="text-muted small mb-3">
-                        Configure o webhook para respostas em português aos comandos /start, /ajuda, /meuid
-                    </p>
-                    <form method="POST" action="{{ url_for('telegram_config.configurar_webhook') }}" class="mb-3">
-                        <label for="webhook_url" class="form-label small">URL do Servidor</label>
-                        <input type="url" class="form-control form-control-sm mb-2" id="webhook_url" name="webhook_url"
-                            placeholder="https://seu-servidor.com" required>
-                        <div class="form-text small mb-3">
-                            <i class="bi bi-info-circle me-1"></i>
-                            Ex: https://seuservidor.com
+                    <div class="settings-grid-2">
+                        <div>
+                            <form method="POST" action="{{ url_for('telegram_config.configurar_webhook') }}">
+                                <label for="webhook_url" class="form-label">URL do servidor</label>
+                                <input type="url" class="form-control mb-2" id="webhook_url" name="webhook_url" placeholder="https://seu-servidor.com" required>
+                                <div class="form-text mb-3">A rota /configuracoes/telegram/webhook é anexada automaticamente quando necessário.</div>
+                                <div class="settings-action-bar">
+                                    <button type="submit" class="btn btn-info rounded-pill px-4"><i class="bi bi-link-45deg me-2"></i>Configurar webhook</button>
+                                    <a href="{{ url_for('telegram_config.remover_webhook') }}" class="btn btn-outline-danger rounded-pill px-4"><i class="bi bi-x-circle me-2"></i>Remover</a>
+                                </div>
+                            </form>
                         </div>
-                        <div class="d-grid gap-2">
-                            <button type="submit" class="btn btn-info btn-sm">
-                                <i class="bi bi-link-45deg me-2"></i>Configurar
-                            </button>
-                            <a href="{{ url_for('telegram_config.remover_webhook') }}" class="btn btn-outline-danger btn-sm">
-                                <i class="bi bi-x-circle me-2"></i>Remover
-                            </a>
+                        <div class="settings-soft">
+                            <div class="fw-semibold mb-2"><i class="bi bi-lightbulb me-2"></i>Comandos em português</div>
+                            <ul class="mb-0 ps-3 small">
+                                <li><code>/start</code> inicia cadastro e mostra o chat ID.</li>
+                                <li><code>/ajuda</code> responde com ajuda em português.</li>
+                                <li><code>/meuid</code> exibe o chat ID atual.</li>
+                            </ul>
                         </div>
-                    </form>
-                    <div class="alert alert-light border mb-0 p-2">
-                        <div class="small"><strong><i class="bi bi-lightbulb me-1"></i>Comandos:</strong></div>
-                        <ul class="small mb-0 mt-1 ps-3">
-                            <li><code>/start</code> - Chat ID + instruções</li>
-                            <li><code>/ajuda</code> - Ajuda em português</li>
-                            <li><code>/meuid</code> - Exibe Chat ID</li>
-                        </ul>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
 
-    <!-- Enviar Mensagem de Teste -->
-    <div class="card shadow-sm">
-        <div class="card-header bg-secondary text-white">
-            <h6 class="mb-0"><i class="bi bi-send-fill me-2"></i>Enviar Mensagem de Teste</h6>
-        </div>
-        <div class="card-body">
-            <form method="POST" action="{{ url_for('telegram_config.enviar_teste') }}">
-                <div class="row g-3 align-items-end">
-                    <div class="col-md-3">
-                        <label for="test_chat_id" class="form-label small">Destinatário</label>
-                        <select class="form-select form-select-sm" id="test_chat_id" name="chat_id" required>
-                            <option value="">Selecione...</option>
-                            {% for tu in telegram_users %}
-                            <option value="{{ tu.chat_id }}">{{ tu.usuario.nome }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="col-md-7">
-                        <label for="test_message" class="form-label small">Mensagem</label>
-                        <textarea class="form-control form-control-sm" id="test_message" name="message" rows="2" required
-                            placeholder="Digite a mensagem de teste..."></textarea>
-                    </div>
-                    <div class="col-md-2">
-                        <button type="submit" class="btn btn-secondary btn-sm w-100">
-                            <i class="bi bi-send me-2"></i>Enviar
-                        </button>
-                    </div>
+        <div class="tab-pane fade" id="tab-testes" role="tabpanel">
+            <div class="card settings-panel">
+                <div class="card-header"><h5 class="mb-0"><i class="bi bi-send-fill me-2"></i>Enviar mensagem de teste</h5></div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('telegram_config.enviar_teste') }}">
+                        <div class="settings-grid-3 align-items-end">
+                            <div>
+                                <label for="test_chat_id" class="form-label">Destinatário</label>
+                                <select class="form-select" id="test_chat_id" name="chat_id" required>
+                                    <option value="">Selecione...</option>
+                                    {% for tu in telegram_users %}
+                                    <option value="{{ tu.chat_id }}">{{ tu.usuario.nome }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div style="grid-column: span 2;">
+                                <label for="test_message" class="form-label">Mensagem</label>
+                                <textarea class="form-control" id="test_message" name="message" rows="3" required placeholder="Digite a mensagem de teste..."></textarea>
+                            </div>
+                        </div>
+                        <div class="settings-action-bar mt-3 justify-content-end">
+                            <button type="submit" class="btn btn-secondary rounded-pill px-4"><i class="bi bi-send me-2"></i>Enviar teste</button>
+                        </div>
+                    </form>
                 </div>
-            </form>
+            </div>
         </div>
     </div>
 </div>

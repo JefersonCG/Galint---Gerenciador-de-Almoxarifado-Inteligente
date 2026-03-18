@@ -10,14 +10,37 @@
         max-width: 1200px;
         margin: 0 auto;
     }
+
+    .saida-shell {
+        background: linear-gradient(180deg, #eef2f7 0%, #f8fafc 100%);
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        border-radius: 30px;
+        padding: 1.85rem;
+        box-shadow: 0 24px 54px rgba(15, 23, 42, 0.1);
+    }
     
     .page-header {
-        background: linear-gradient(120deg, #2563eb 0%, #3b82f6 100%);
+        position: relative;
+        overflow: hidden;
+        background: linear-gradient(135deg, #020617 0%, #172554 45%, #2563eb 100%);
         color: white;
         padding: 2rem;
-        border-radius: 12px;
+        border-radius: 24px;
         margin-bottom: 2rem;
-        box-shadow: 0 4px 20px rgba(37, 99, 235, 0.4);
+        box-shadow: 0 28px 64px rgba(15, 23, 42, 0.2);
+    }
+
+    .page-header::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(circle at 16% 18%, rgba(56, 189, 248, 0.22), transparent 28%), radial-gradient(circle at 84% 18%, rgba(96, 165, 250, 0.18), transparent 22%);
+        pointer-events: none;
+    }
+
+    .page-header > * {
+        position: relative;
+        z-index: 1;
     }
     
     .page-header h2 {
@@ -33,32 +56,39 @@
     }
     
     .input-card {
-        background: #ffffff;
-        border-radius: 12px;
+        background: linear-gradient(145deg, #0f172a 0%, #1e293b 100%);
+        border-radius: 24px;
         padding: 1.5rem;
-        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+        box-shadow: 0 22px 48px rgba(15, 23, 42, 0.16);
         margin-bottom: 1.5rem;
-        border: 1px solid #e9ecef;
+        border: 1px solid rgba(148, 163, 184, 0.18);
     }
     
     .input-card .form-label {
         font-weight: 600;
-        color: #495057;
+        color: #e2e8f0;
         margin-bottom: 0.5rem;
         font-size: 0.9rem;
     }
     
     .input-card .form-control {
         border-radius: 8px;
-        border: 2px solid #e9ecef;
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        background: rgba(15, 23, 42, 0.82);
+        color: #f8fafc;
         padding: 0.75rem 1rem;
         transition: all 0.3s ease;
         font-size: 1rem;
+    }
+
+    .input-card .form-control::placeholder {
+        color: #94a3b8;
     }
     
     .input-card .form-control:focus {
         border-color: #3b82f6;
         box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.15);
+        background: rgba(15, 23, 42, 0.92);
     }
     
     .btn-add-item {
@@ -100,16 +130,16 @@
     }
     
     .items-table {
-        background: #ffffff;
-        border-radius: 12px;
+        background: linear-gradient(145deg, #0f172a 0%, #1e293b 100%);
+        border-radius: 24px;
         overflow: hidden;
-        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+        box-shadow: 0 22px 48px rgba(15, 23, 42, 0.16);
         margin-bottom: 1.5rem;
-        border: 1px solid #e9ecef;
+        border: 1px solid rgba(148, 163, 184, 0.18);
     }
     
     .items-table-header {
-        background: linear-gradient(120deg, #2563eb 0%, #3b82f6 100%);
+        background: linear-gradient(120deg, #1d4ed8 0%, #38bdf8 100%);
         color: white;
         padding: 1rem 1.5rem;
         font-weight: 700;
@@ -125,11 +155,11 @@
     }
     
     .items-table thead th {
-        background: #f8f9fa;
-        color: #495057;
+        background: rgba(255, 255, 255, 0.06);
+        color: #cbd5e1;
         font-weight: 600;
         padding: 1rem;
-        border-bottom: 2px solid #dee2e6;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.16);
         font-size: 0.9rem;
         text-transform: uppercase;
         letter-spacing: 0.5px;
@@ -138,12 +168,12 @@
     .items-table tbody td {
         padding: 1rem;
         vertical-align: middle;
-        border-bottom: 1px solid #e9ecef;
-        color: #212529;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+        color: #e2e8f0;
     }
     
     .items-table tbody tr:hover {
-        background: #f8f9fa;
+        background: rgba(59, 130, 246, 0.06);
     }
     
     .btn-remove-item {
@@ -165,18 +195,30 @@
     .empty-state {
         text-align: center;
         padding: 3rem 2rem;
-        color: #6c757d;
+        color: #dbeafe;
+        background: linear-gradient(145deg, #0f172a 0%, #1e293b 100%);
+        border-radius: 24px;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        box-shadow: 0 22px 48px rgba(15, 23, 42, 0.16);
     }
     
     .empty-state i {
         font-size: 4rem;
         margin-bottom: 1rem;
-        opacity: 0.3;
+        opacity: 0.5;
     }
     
     .empty-state p {
         margin: 0;
         font-size: 1.1rem;
+        font-weight: 700;
+        color: #f8fafc;
+    }
+
+    .empty-state small {
+        display: block;
+        margin-top: 0.45rem;
+        color: #93c5fd !important;
     }
     
     .badge-qty {
@@ -189,12 +231,21 @@
     }
     
     .alert-info-custom {
-        background: #e7f3ff;
-        border: 1px solid #b3d9ff;
-        border-radius: 8px;
+        background: linear-gradient(145deg, rgba(15, 23, 42, 0.94) 0%, rgba(30, 41, 59, 0.92) 100%);
+        border: 1px solid rgba(56, 189, 248, 0.28);
+        border-radius: 18px;
         padding: 1rem;
-        color: #004085;
+        color: #dbeafe;
         margin-bottom: 1.5rem;
+        box-shadow: 0 16px 34px rgba(15, 23, 42, 0.14);
+    }
+
+    .alert-info-custom strong {
+        color: #ffffff;
+    }
+
+    .alert-info-custom i {
+        color: #7dd3fc;
     }
     
     .total-items-badge {
@@ -260,11 +311,17 @@
 
 <%block name="content">
 <div class="saida-container">
+    <div class="saida-shell">
     <div class="page-header">
         <h2><i class="bi bi-box-arrow-right me-2"></i>Registro de Saída</h2>
-        <p>Adicione itens à lista e registre a saída de uma só vez</p>
+        <p>Adicione itens à lista e registre a saída em lote com o novo padrão visual dark do fluxo de lançamentos.</p>
     </div>
     
+    <div class="alert-info-custom">
+        <i class="bi bi-info-circle me-2"></i>
+        <strong>Dica:</strong> Você pode montar a lista completa antes de confirmar o envio, mantendo o mesmo operador e local do serviço.
+    </div>
+
     <div class="input-card">
         <div class="row g-3">
             <div class="col-md-6 position-relative">
@@ -328,6 +385,7 @@
         <button class="btn btn-register" type="button" id="btn-registrar" disabled>
             <i class="bi bi-check-circle me-2"></i>Registrar Saída
         </button>
+    </div>
     </div>
 </div>
 

@@ -169,6 +169,67 @@ Exemplo:
 .\.venv\Scripts\python.exe app.py
 ```
 
+## Implantações recentes
+
+O ciclo mais recente concentrou mudanças visuais, operacionais e de governança em áreas críticas do sistema.
+
+- dashboard com cards operacionais refinados para leitura rápida de financeiro e fornecedores
+- reforço no bloqueio de campos financeiros na edição de item depois do primeiro salvamento
+- páginas de auditoria de ferramentas, reparos, detalhes do funcionário e detalhes do reparo com visual dark padronizado
+- suporte a foto do funcionário em custódia e reaproveitamento de foto do item na tela de reparo
+- sidebar Mako legada reescrita para não perder menus em páginas antigas do fluxo de lançamentos
+- páginas administrativas Telegram, Backup, Rede, Empresa, Relatórios e Atualizações migradas para o padrão visual dark em abas
+- fluxos de Materiais Comuns, Ferramentas e Fracionados revisados por dentro, com containers dark e leitura operacional melhorada
+- Painel Mobile elevado a centro de controle, com KPIs, diagnóstico de operabilidade, leitura de Android e APK, bloqueio de usuário, logout forçado e edição de nome, cargo, setor e senha
+
+## Como replicar este pacote
+
+### 1. Preparar ambiente
+
+- garantir Python e PostgreSQL ativos no ambiente local
+- criar ou reutilizar a venv em .venv
+- instalar dependências do projeto
+
+### 2. Subir o servidor
+
+- usar a task existente Run GALINT server no workspace
+- ou executar manualmente:
+
+```powershell
+.\.venv\Scripts\python.exe app.py
+```
+
+### 3. Garantir disponibilidade do Painel Mobile
+
+- o painel usa o blueprint /mobile-panel
+- o acesso depende da configuração FEATURE_MOBILE_PANEL_ENABLED, que neste repositório passou a assumir True por padrão em galint_flask/config.py
+- como o projeto roda com use_reloader=False, qualquer mudança em rotas Python exige restart manual do Flask
+
+### 4. Validar os fluxos alterados
+
+- revisar o dashboard principal
+- abrir Auditoria de Ferramentas e Em Reparo
+- abrir detalhes do funcionário e testar upload de foto
+- acessar Telegram, Backup, Rede, Empresa, Relatórios e Atualizações
+- abrir Materiais Comuns, Ferramentas e Fracionados e conferir contraste dos containers dark
+- acessar /mobile-panel/ com usuário administrador para validar KPIs, dispositivos e usuários mobile
+
+## Erros corrigidos durante a implantação
+
+- divergência entre local e remoto resolvida com cherry-pick e atualização controlada dos commits necessários
+- BuildError em rotas novas corrigido após restart manual do Flask, porque o servidor não usa reloader
+- rota de upload de foto de funcionário estabilizada em tool_custody após recarga do processo ativo
+- menus faltando no sidebar de páginas antigas corrigidos ao reescrever o arquivo legado galint_flask/templates_mako/sidebar_layout.mako
+- helper functions inseridas no lugar errado em api_mobile.py foram reposicionadas antes da validação final
+- Painel Mobile deixando /mobile-panel/ em 404 corrigido ao habilitar a feature flag por padrão em galint_flask/config.py
+- contraste fraco introduzido no fluxo de saídas dark foi corrigido nos estados informativos e vazios de Materiais Comuns e Fracionados
+
+## Observações operacionais
+
+- o projeto mistura templates Jinja e Mako; ajustes visuais em lançamentos podem estar em galint_flask/templates_mako e não apenas em galint_flask/templates
+- o Painel Mobile usa endpoints administrativos em galint_flask/views/admin_mobile.py e regras de autenticação em galint_flask/views/api_mobile.py
+- se uma rota recém-criada parecer inexistente, valide primeiro se o processo Flask ativo foi reiniciado após a alteração
+
 ## Documentação complementar
 
 - [README_PERCENTUAL_MOVIMENTOS.md](README_PERCENTUAL_MOVIMENTOS.md): detalhamento do relatório Percentual Movimentos

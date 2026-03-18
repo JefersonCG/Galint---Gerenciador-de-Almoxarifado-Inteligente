@@ -4,341 +4,163 @@
 
 {% block extra_css %}
 <style>
-    .config-card {
-        background: white;
-        border-radius: 12px;
-        padding: 2rem;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        margin-bottom: 2rem;
+    .report-shell {
+        background: linear-gradient(180deg, #eef2f7 0%, #f8fafc 100%);
+        border: 1px solid rgba(148,163,184,0.18);
+        border-radius: 28px;
+        padding: 1.75rem;
+        box-shadow: 0 24px 54px rgba(15,23,42,0.1);
     }
-    
-    .config-header {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-        margin-bottom: 2rem;
-        padding-bottom: 1rem;
-        border-bottom: 2px solid #e9ecef;
+    .report-hero {
+        position: relative; overflow: hidden; border-radius: 24px; padding: 1.6rem; margin-bottom: 1.5rem; color: #f8fafc;
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 46%, #0ea5e9 100%); box-shadow: 0 26px 60px rgba(15,23,42,0.18);
     }
-    
-    .config-header i {
-        font-size: 2rem;
-        color: #0d6efd;
-    }
-    
-    .form-section {
-        margin-bottom: 2rem;
-    }
-    
-    .form-section h4 {
-        color: #495057;
-        font-size: 1.1rem;
-        font-weight: 600;
-        margin-bottom: 1rem;
-        padding-bottom: 0.5rem;
-        border-bottom: 1px solid #dee2e6;
-    }
-    
-    .preview-box {
-        background: #f8f9fa;
-        border: 2px solid #dee2e6;
-        border-radius: 8px;
-        padding: 1.5rem;
-        min-height: 120px;
-        font-family: monospace;
-        white-space: pre-wrap;
-        margin-top: 1rem;
-    }
-    
-    .variaveis-disponiveis {
-        background: #e7f1ff;
-        border-left: 4px solid #0d6efd;
-        padding: 1rem;
-        border-radius: 4px;
-        margin-top: 1rem;
-    }
-    
-    .variaveis-disponiveis code {
-        background: white;
-        padding: 0.2rem 0.5rem;
-        border-radius: 4px;
-        margin: 0.2rem;
-        display: inline-block;
-    }
-    
-    .color-input-group {
-        display: flex;
-        gap: 0.5rem;
-        align-items: center;
-    }
-    
-    .color-input-group input[type="color"] {
-        width: 60px;
-        height: 38px;
-        border: none;
-        border-radius: 4px;
+    .report-hero::before { content: ""; position: absolute; inset: 0; background: radial-gradient(circle at 16% 20%, rgba(34,211,238,0.22), transparent 28%), radial-gradient(circle at 84% 14%, rgba(59,130,246,0.18), transparent 24%); pointer-events: none; }
+    .report-hero > * { position: relative; z-index: 1; }
+    .report-eyebrow { display: inline-flex; align-items: center; gap: 0.45rem; padding: 0.38rem 0.72rem; border-radius: 999px; background: rgba(255,255,255,0.08); border: 1px solid rgba(226,232,240,0.14); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: rgba(226,232,240,0.9); margin-bottom: 0.9rem; }
+    .report-title { margin: 0; font-size: clamp(1.9rem, 3vw, 2.6rem); font-weight: 800; letter-spacing: -0.03em; }
+    .report-subtitle { margin: 0.65rem 0 0; max-width: 58rem; color: rgba(226,232,240,0.82); line-height: 1.6; }
+    .report-kpis { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+    .report-kpi { position: relative; overflow: hidden; border-radius: 22px; padding: 1.15rem; color: #f8fafc; background: linear-gradient(145deg, #0f172a 0%, #1e293b 68%, #334155 100%); border: 1px solid rgba(148,163,184,0.18); box-shadow: 0 20px 42px rgba(15,23,42,0.18); }
+    .report-kpi::before { content: ""; position: absolute; inset: 0; background: radial-gradient(circle at 18% 18%, rgba(14,165,233,0.24), transparent 34%); pointer-events: none; }
+    .report-kpi > * { position: relative; z-index: 1; }
+    .report-kpi-label { display: block; font-size: 0.75rem; letter-spacing: 0.06em; text-transform: uppercase; color: rgba(226,232,240,0.72); margin-bottom: 0.45rem; }
+    .report-kpi-value { font-size: 1.55rem; font-weight: 800; line-height: 1.1; }
+    .report-kpi-caption { margin-top: 0.35rem; font-size: 0.82rem; color: rgba(226,232,240,0.74); }
+    .report-tabs.nav-pills { gap: 0.65rem; margin-bottom: 1.25rem; }
+    .report-tabs .nav-link { border-radius: 999px; padding: 0.75rem 1rem; background: #dbe4ef; color: #334155; font-weight: 700; border: 1px solid rgba(148,163,184,0.18); }
+    .report-tabs .nav-link.active { background: #0f172a; color: #f8fafc; border-color: rgba(14,165,233,0.35); }
+    .report-panel { background: linear-gradient(145deg, #0f172a 0%, #1e293b 100%); border: 1px solid rgba(148,163,184,0.18); border-radius: 24px; box-shadow: 0 22px 48px rgba(15,23,42,0.16); color: #e2e8f0; }
+    .report-panel .card-header, .report-panel .card-body { background: transparent; color: inherit; border-color: rgba(148,163,184,0.14); }
+    .report-panel .card-header { padding: 1.1rem 1.35rem 0.95rem; }
+    .report-panel .card-body { padding: 1.25rem 1.35rem 1.35rem; }
+    .report-panel .form-control, .report-panel .form-select { background: rgba(15,23,42,0.82); color: #f8fafc; border-color: rgba(148,163,184,0.22); }
+    .report-panel .form-control::placeholder { color: #94a3b8; }
+    .report-panel .form-label, .report-panel .text-muted, .report-panel .form-text, .report-panel small, .report-panel label { color: #cbd5e1 !important; }
+    .report-grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 1rem; }
+    .report-grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 1rem; }
+    .report-grid-4 { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 1rem; }
+    .variables-box, .report-preview { border-radius: 18px; border: 1px solid rgba(148,163,184,0.14); background: rgba(255,255,255,0.06); padding: 1rem; }
+    .variables-box code { display: inline-block; margin: 0.2rem; padding: 0.25rem 0.5rem; border-radius: 999px; background: rgba(15,23,42,0.6); color: #93c5fd; }
+    .report-preview { min-height: 120px; white-space: pre-wrap; font-family: Consolas, monospace; }
+    .color-stack { display: flex; gap: 0.65rem; align-items: center; }
+    .color-stack input[type="color"] { width: 64px; height: 42px; padding: 0; border: 0; background: transparent; }
+    .report-actions { display: flex; justify-content: space-between; gap: 0.75rem; margin-top: 1.5rem; }
+    @media (max-width: 1200px) { .report-kpis { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+    @media (max-width: 768px) {
+        .report-shell { padding: 1rem; border-radius: 22px; }
+        .report-hero { padding: 1.15rem; border-radius: 20px; }
+        .report-kpis, .report-grid-2, .report-grid-3, .report-grid-4 { grid-template-columns: 1fr; }
+        .report-tabs.nav-pills { flex-direction: column; }
+        .report-actions { flex-direction: column; }
     }
 </style>
 {% endblock %}
 
+{% block page_header %}{% endblock %}
+
 {% block content %}
-<div class="container-fluid py-4">
-    <div class="config-card">
-        <div class="config-header">
-            <i class="bi bi-file-earmark-text"></i>
-            <div>
-                <h2 class="mb-0">Configuração de Relatórios</h2>
-                <small class="text-muted">Personalize cabeçalhos, rodapés e aparência dos relatórios</small>
+<div class="report-shell">
+    <section class="report-hero">
+        <div class="report-eyebrow"><i class="bi bi-file-earmark-text"></i> Motor visual dos PDFs</div>
+        <h1 class="report-title">Configuração de Relatórios</h1>
+        <p class="report-subtitle">Cabeçalhos, rodapés, cores do sistema e regras do fechamento financeiro reunidos em uma interface mais forte, com tabs e container dark mantendo o DNA visual do módulo.</p>
+    </section>
+
+    <section class="report-kpis">
+        <article class="report-kpi"><span class="report-kpi-label">Fonte principal</span><div class="report-kpi-value">{{ relatorio_config.fonte_principal or 'Helvetica' }}</div><div class="report-kpi-caption">Padrão usado nos relatórios.</div></article>
+        <article class="report-kpi"><span class="report-kpi-label">Cor primária</span><div class="report-kpi-value">{{ relatorio_config.cor_primaria }}</div><div class="report-kpi-caption">Base cromática do documento.</div></article>
+        <article class="report-kpi"><span class="report-kpi-label">Fechamento</span><div class="report-kpi-value">{{ finance_config.dia_fechamento }}/{{ finance_config.mes_fechamento }}</div><div class="report-kpi-caption">Marco do exercício anual.</div></article>
+        <article class="report-kpi"><span class="report-kpi-label">Logo</span><div class="report-kpi-value">{{ 'ON' if relatorio_config.cabecalho_mostrar_logo else 'OFF' }}</div><div class="report-kpi-caption">Exibição no cabeçalho dos PDFs.</div></article>
+    </section>
+
+    <form method="POST">
+        <ul class="nav nav-pills report-tabs" role="tablist">
+            <li class="nav-item" role="presentation"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#relatorio-cabecalho" type="button" role="tab">Cabeçalho</button></li>
+            <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#relatorio-rodape" type="button" role="tab">Rodapé</button></li>
+            <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#relatorio-tema" type="button" role="tab">Tema</button></li>
+            <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#relatorio-financeiro" type="button" role="tab">Financeiro</button></li>
+        </ul>
+
+        <div class="tab-content">
+            <div class="tab-pane fade show active" id="relatorio-cabecalho" role="tabpanel">
+                <div class="card report-panel">
+                    <div class="card-header"><h5 class="mb-0"><i class="bi bi-file-text me-2"></i>Cabeçalho dos relatórios</h5></div>
+                    <div class="card-body">
+                        <label for="cabecalho_template" class="form-label">Template do cabeçalho</label>
+                        <textarea class="form-control mb-3" id="cabecalho_template" name="cabecalho_template" rows="5">{{ relatorio_config.cabecalho_template }}</textarea>
+                        <div class="variables-box mb-3"><strong class="d-block mb-2"><i class="bi bi-info-circle me-2"></i>Variáveis disponíveis</strong><code>{{nome_empresa}}</code><code>{{nome_fantasia}}</code><code>{{cnpj}}</code><code>{{telefone}}</code><code>{{email}}</code><code>{{endereco_completo}}</code></div>
+                        <div class="report-grid-4 mb-3">
+                            <div><label for="cabecalho_altura_mm" class="form-label">Altura (mm)</label><input type="number" class="form-control" id="cabecalho_altura_mm" name="cabecalho_altura_mm" value="{{ relatorio_config.cabecalho_altura_mm }}" min="20" max="100"></div>
+                            <div><label for="cabecalho_cor_texto" class="form-label">Cor do texto</label><div class="color-stack"><input type="color" id="cabecalho_cor_texto" name="cabecalho_cor_texto" value="{{ relatorio_config.cabecalho_cor_texto }}"><input type="text" class="form-control" value="{{ relatorio_config.cabecalho_cor_texto }}" readonly></div></div>
+                            <div><label for="cabecalho_fonte" class="form-label">Fonte</label><select class="form-select" id="cabecalho_fonte" name="cabecalho_fonte"><option value="Helvetica" {% if relatorio_config.cabecalho_fonte == 'Helvetica' %}selected{% endif %}>Helvetica</option><option value="Courier" {% if relatorio_config.cabecalho_fonte == 'Courier' %}selected{% endif %}>Courier</option><option value="Times-Roman" {% if relatorio_config.cabecalho_fonte == 'Times-Roman' %}selected{% endif %}>Times Roman</option></select></div>
+                            <div><label for="cabecalho_tamanho_fonte" class="form-label">Tamanho</label><input type="number" class="form-control" id="cabecalho_tamanho_fonte" name="cabecalho_tamanho_fonte" value="{{ relatorio_config.cabecalho_tamanho_fonte }}" min="8" max="20"></div>
+                        </div>
+                        <div class="form-check mb-3"><input class="form-check-input" type="checkbox" id="cabecalho_mostrar_logo" name="cabecalho_mostrar_logo" {% if relatorio_config.cabecalho_mostrar_logo %}checked{% endif %}><label class="form-check-label" for="cabecalho_mostrar_logo">Mostrar logo no cabeçalho</label></div>
+                        <div class="d-flex gap-3 flex-wrap align-items-start"><button type="button" class="btn btn-outline-primary rounded-pill px-4" onclick="previewCabecalho()"><i class="bi bi-eye me-2"></i>Visualizar preview</button><div class="report-preview flex-grow-1" id="preview-cabecalho" style="display:none;"></div></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-pane fade" id="relatorio-rodape" role="tabpanel">
+                <div class="card report-panel">
+                    <div class="card-header"><h5 class="mb-0"><i class="bi bi-file-earmark-text me-2"></i>Rodapé dos relatórios</h5></div>
+                    <div class="card-body">
+                        <label for="rodape_template" class="form-label">Template do rodapé</label>
+                        <textarea class="form-control mb-3" id="rodape_template" name="rodape_template" rows="3">{{ relatorio_config.rodape_template }}</textarea>
+                        <div class="variables-box mb-3"><strong class="d-block mb-2"><i class="bi bi-info-circle me-2"></i>Variáveis disponíveis</strong><code>{{data_geracao}}</code><code>{{hora_geracao}}</code><code>{{versao}}</code><code>{{pagina}}</code></div>
+                        <div class="report-grid-4 mb-3">
+                            <div><label for="rodape_altura_mm" class="form-label">Altura (mm)</label><input type="number" class="form-control" id="rodape_altura_mm" name="rodape_altura_mm" value="{{ relatorio_config.rodape_altura_mm }}" min="15" max="50"></div>
+                            <div><label for="rodape_cor_texto" class="form-label">Cor do texto</label><div class="color-stack"><input type="color" id="rodape_cor_texto" name="rodape_cor_texto" value="{{ relatorio_config.rodape_cor_texto }}"><input type="text" class="form-control" value="{{ relatorio_config.rodape_cor_texto }}" readonly></div></div>
+                            <div><label for="rodape_tamanho_fonte" class="form-label">Tamanho</label><input type="number" class="form-control" id="rodape_tamanho_fonte" name="rodape_tamanho_fonte" value="{{ relatorio_config.rodape_tamanho_fonte }}" min="6" max="14"></div>
+                            <div class="d-flex flex-column justify-content-center"><div class="form-check mb-2"><input class="form-check-input" type="checkbox" id="rodape_mostrar_data" name="rodape_mostrar_data" {% if relatorio_config.rodape_mostrar_data %}checked{% endif %}><label class="form-check-label" for="rodape_mostrar_data">Mostrar data</label></div><div class="form-check"><input class="form-check-input" type="checkbox" id="rodape_mostrar_pagina" name="rodape_mostrar_pagina" {% if relatorio_config.rodape_mostrar_pagina %}checked{% endif %}><label class="form-check-label" for="rodape_mostrar_pagina">Mostrar página</label></div></div>
+                        </div>
+                        <div class="d-flex gap-3 flex-wrap align-items-start"><button type="button" class="btn btn-outline-primary rounded-pill px-4" onclick="previewRodape()"><i class="bi bi-eye me-2"></i>Visualizar preview</button><div class="report-preview flex-grow-1" id="preview-rodape" style="display:none;"></div></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-pane fade" id="relatorio-tema" role="tabpanel">
+                <div class="card report-panel">
+                    <div class="card-header"><h5 class="mb-0"><i class="bi bi-palette me-2"></i>Tema visual</h5></div>
+                    <div class="card-body">
+                        <div class="report-grid-2">
+                            <div><label for="cor_primaria" class="form-label">Cor primária</label><div class="color-stack"><input type="color" id="cor_primaria" name="cor_primaria" value="{{ relatorio_config.cor_primaria }}"><input type="text" class="form-control" value="{{ relatorio_config.cor_primaria }}" readonly></div></div>
+                            <div><label for="cor_secundaria" class="form-label">Cor secundária</label><div class="color-stack"><input type="color" id="cor_secundaria" name="cor_secundaria" value="{{ relatorio_config.cor_secundaria }}"><input type="text" class="form-control" value="{{ relatorio_config.cor_secundaria }}" readonly></div></div>
+                            <div><label for="fonte_principal" class="form-label">Fonte principal</label><select class="form-select" id="fonte_principal" name="fonte_principal"><option value="Helvetica" {% if relatorio_config.fonte_principal == 'Helvetica' %}selected{% endif %}>Helvetica</option><option value="Courier" {% if relatorio_config.fonte_principal == 'Courier' %}selected{% endif %}>Courier</option><option value="Times-Roman" {% if relatorio_config.fonte_principal == 'Times-Roman' %}selected{% endif %}>Times Roman</option></select></div>
+                            <div><label for="fonte_tabelas" class="form-label">Fonte para tabelas</label><select class="form-select" id="fonte_tabelas" name="fonte_tabelas"><option value="Courier" {% if relatorio_config.fonte_tabelas == 'Courier' %}selected{% endif %}>Courier</option><option value="Helvetica" {% if relatorio_config.fonte_tabelas == 'Helvetica' %}selected{% endif %}>Helvetica</option><option value="Times-Roman" {% if relatorio_config.fonte_tabelas == 'Times-Roman' %}selected{% endif %}>Times Roman</option></select></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-pane fade" id="relatorio-financeiro" role="tabpanel">
+                <div class="card report-panel">
+                    <div class="card-header"><h5 class="mb-0"><i class="bi bi-calendar-event me-2"></i>Fechamento financeiro</h5></div>
+                    <div class="card-body">
+                        <p class="text-muted mb-3">Define como o exercício anual é agrupado para a prestação de contas em PDF.</p>
+                        <div class="report-grid-3 mb-3">
+                            <div><label for="dia_fechamento" class="form-label">Dia do fechamento</label><input type="number" class="form-control" id="dia_fechamento" name="dia_fechamento" value="{{ finance_config.dia_fechamento }}" min="1" max="31"></div>
+                            <div><label for="mes_fechamento" class="form-label">Mês do fechamento</label><input type="number" class="form-control" id="mes_fechamento" name="mes_fechamento" value="{{ finance_config.mes_fechamento }}" min="1" max="12"></div>
+                            <div><label for="titulo_relatorio_anual" class="form-label">Título do PDF anual</label><input type="text" class="form-control" id="titulo_relatorio_anual" name="titulo_relatorio_anual" value="{{ finance_config.titulo_relatorio_anual or '' }}" placeholder="Prestação de Contas do Almoxarifado"></div>
+                        </div>
+                        <div class="report-grid-2">
+                            <div class="form-check"><input class="form-check-input" type="checkbox" id="destacar_sem_comprovacao" name="destacar_sem_comprovacao" {% if finance_config.destacar_sem_comprovacao %}checked{% endif %}><label class="form-check-label" for="destacar_sem_comprovacao">Destacar valores sem comprovação fiscal</label></div>
+                            <div class="form-check"><input class="form-check-input" type="checkbox" id="permitir_fechamento_manual" name="permitir_fechamento_manual" {% if finance_config.permitir_fechamento_manual %}checked{% endif %}><label class="form-check-label" for="permitir_fechamento_manual">Permitir fechamento manual complementar</label></div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
-        
-        <form method="POST">
-            <!-- Cabeçalho -->
-            <div class="form-section">
-                <h4><i class="bi bi-file-text me-2"></i>Cabeçalho dos Relatórios</h4>
-                
-                <div class="row">
-                    <div class="col-12 mb-3">
-                        <label for="cabecalho_template" class="form-label">Template do Cabeçalho</label>
-                        <textarea class="form-control" id="cabecalho_template" name="cabecalho_template" 
-                                  rows="5">{{ relatorio_config.cabecalho_template }}</textarea>
-                        
-                        <div class="variaveis-disponiveis">
-                            <strong><i class="bi bi-info-circle me-2"></i>Variáveis Disponíveis:</strong><br>
-                            <code>{{nome_empresa}}</code>
-                            <code>{{nome_fantasia}}</code>
-                            <code>{{cnpj}}</code>
-                            <code>{{telefone}}</code>
-                            <code>{{email}}</code>
-                            <code>{{endereco_completo}}</code>
-                        </div>
-                    </div>
-                    
-                    <div class="col-md-4 mb-3">
-                        <label for="cabecalho_altura_mm" class="form-label">Altura (mm)</label>
-                        <input type="number" class="form-control" id="cabecalho_altura_mm" name="cabecalho_altura_mm" 
-                               value="{{ relatorio_config.cabecalho_altura_mm }}" min="20" max="100">
-                    </div>
-                    
-                    <div class="col-md-4 mb-3">
-                        <label for="cabecalho_cor_texto" class="form-label">Cor do Texto</label>
-                        <div class="color-input-group">
-                            <input type="color" id="cabecalho_cor_texto" name="cabecalho_cor_texto" 
-                                value="{{ relatorio_config.cabecalho_cor_texto }}">
-                            <input type="text" class="form-control" value="{{ relatorio_config.cabecalho_cor_texto }}" readonly>
-                        </div>
-                    </div>
-                    
-                    <div class="col-md-4 mb-3">
-                        <label for="cabecalho_fonte" class="form-label">Fonte</label>
-                        <select class="form-select" id="cabecalho_fonte" name="cabecalho_fonte">
-                            <option value="Helvetica" {% if relatorio_config.cabecalho_fonte == 'Helvetica' %}selected{% endif %}>Helvetica</option>
-                            <option value="Courier" {% if relatorio_config.cabecalho_fonte == 'Courier' %}selected{% endif %}>Courier</option>
-                            <option value="Times-Roman" {% if relatorio_config.cabecalho_fonte == 'Times-Roman' %}selected{% endif %}>Times Roman</option>
-                        </select>
-                    </div>
-                    
-                    <div class="col-md-3 mb-3">
-                        <label for="cabecalho_tamanho_fonte" class="form-label">Tamanho Fonte</label>
-                        <input type="number" class="form-control" id="cabecalho_tamanho_fonte" name="cabecalho_tamanho_fonte" 
-                               value="{{ relatorio_config.cabecalho_tamanho_fonte }}" min="8" max="20">
-                    </div>
-                    
-                    <div class="col-md-3 mb-3">
-                        <div class="form-check mt-4">
-                            <input class="form-check-input" type="checkbox" id="cabecalho_mostrar_logo" 
-                                   name="cabecalho_mostrar_logo" {% if relatorio_config.cabecalho_mostrar_logo %}checked{% endif %}>
-                            <label class="form-check-label" for="cabecalho_mostrar_logo">
-                                Mostrar Logo
-                            </label>
-                        </div>
-                    </div>
-                    
-                    <div class="col-12">
-                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="previewCabecalho()">
-                            <i class="bi bi-eye me-2"></i>Visualizar Preview
-                        </button>
-                        <div class="preview-box" id="preview-cabecalho" style="display:none;">
-                            <!-- Preview será carregado aqui -->
-                        </div>
-                    </div>
-                </div>
+
+        <div class="report-actions">
+            <button type="button" class="btn btn-outline-warning rounded-pill px-4" onclick="resetarTemplates()"><i class="bi bi-arrow-counterclockwise me-2"></i>Resetar para padrão</button>
+            <div class="d-flex gap-3 flex-wrap justify-content-end">
+                <a href="{{ url_for('dashboard.index') }}" class="btn btn-outline-secondary rounded-pill px-4"><i class="bi bi-arrow-left me-2"></i>Voltar</a>
+                <button type="submit" class="btn btn-primary rounded-pill px-4"><i class="bi bi-check-lg me-2"></i>Salvar configurações</button>
             </div>
-            
-            <!-- Rodapé -->
-            <div class="form-section">
-                <h4><i class="bi bi-file-earmark-text me-2"></i>Rodapé dos Relatórios</h4>
-                
-                <div class="row">
-                    <div class="col-12 mb-3">
-                        <label for="rodape_template" class="form-label">Template do Rodapé</label>
-                        <textarea class="form-control" id="rodape_template" name="rodape_template" 
-                                  rows="3">{{ relatorio_config.rodape_template }}</textarea>
-                        
-                        <div class="variaveis_disponiveis">
-                            <strong><i class="bi bi-info-circle me-2"></i>Variáveis Disponíveis:</strong><br>
-                            <code>{{data_geracao}}</code>
-                            <code>{{hora_geracao}}</code>
-                            <code>{{versao}}</code>
-                            <code>{{pagina}}</code>
-                        </div>
-                    </div>
-                    
-                    <div class="col-md-3 mb-3">
-                        <label for="rodape_altura_mm" class="form-label">Altura (mm)</label>
-                        <input type="number" class="form-control" id="rodape_altura_mm" name="rodape_altura_mm" 
-                               value="{{ relatorio_config.rodape_altura_mm }}" min="15" max="50">
-                    </div>
-                    
-                    <div class="col-md-3 mb-3">
-                        <label for="rodape_cor_texto" class="form-label">Cor do Texto</label>
-                        <div class="color-input-group">
-                            <input type="color" id="rodape_cor_texto" name="rodape_cor_texto" 
-                                value="{{ relatorio_config.rodape_cor_texto }}">
-                            <input type="text" class="form-control" value="{{ relatorio_config.rodape_cor_texto }}" readonly>
-                        </div>
-                    </div>
-                    
-                    <div class="col-md-3 mb-3">
-                        <label for="rodape_tamanho_fonte" class="form-label">Tamanho Fonte</label>
-                        <input type="number" class="form-control" id="rodape_tamanho_fonte" name="rodape_tamanho_fonte" 
-                               value="{{ relatorio_config.rodape_tamanho_fonte }}" min="6" max="14">
-                    </div>
-                    
-                    <div class="col-md-3 mb-3">
-                        <div class="form-check mt-4">
-                            <input class="form-check-input" type="checkbox" id="rodape_mostrar_data" 
-                                   name="rodape_mostrar_data" {% if relatorio_config.rodape_mostrar_data %}checked{% endif %}>
-                            <label class="form-check-label" for="rodape_mostrar_data">
-                                Mostrar Data
-                            </label>
-                        </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="rodape_mostrar_pagina" 
-                                   name="rodape_mostrar_pagina" {% if relatorio_config.rodape_mostrar_pagina %}checked{% endif %}>
-                            <label class="form-check-label" for="rodape_mostrar_pagina">
-                                Mostrar Página
-                            </label>
-                        </div>
-                    </div>
-                    
-                    <div class="col-12">
-                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="previewRodape()">
-                            <i class="bi bi-eye me-2"></i>Visualizar Preview
-                        </button>
-                        <div class="preview-box" id="preview-rodape" style="display:none;">
-                            <!-- Preview será carregado aqui -->
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Cores do Sistema -->
-            <div class="form-section">
-                <h4><i class="bi bi-palette me-2"></i>Cores do Sistema</h4>
-                
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label for="cor_primaria" class="form-label">Cor Primária</label>
-                        <div class="color-input-group">
-                            <input type="color" id="cor_primaria" name="cor_primaria" 
-                                value="{{ relatorio_config.cor_primaria }}">
-                            <input type="text" class="form-control" value="{{ relatorio_config.cor_primaria }}" readonly>
-                        </div>
-                    </div>
-                    
-                    <div class="col-md-6 mb-3">
-                        <label for="cor_secundaria" class="form-label">Cor Secundária</label>
-                        <div class="color-input-group">
-                            <input type="color" id="cor_secundaria" name="cor_secundaria" 
-                                value="{{ relatorio_config.cor_secundaria }}">
-                            <input type="text" class="form-control" value="{{ relatorio_config.cor_secundaria }}" readonly>
-                        </div>
-                    </div>
-                    
-                    <div class="col-md-6 mb-3">
-                        <label for="fonte_principal" class="form-label">Fonte Principal</label>
-                        <select class="form-select" id="fonte_principal" name="fonte_principal">
-                            <option value="Helvetica" {% if relatorio_config.fonte_principal == 'Helvetica' %}selected{% endif %}>Helvetica</option>
-                            <option value="Courier" {% if relatorio_config.fonte_principal == 'Courier' %}selected{% endif %}>Courier</option>
-                            <option value="Times-Roman" {% if relatorio_config.fonte_principal == 'Times-Roman' %}selected{% endif %}>Times Roman</option>
-                        </select>
-                    </div>
-                    
-                    <div class="col-md-6 mb-3">
-                        <label for="fonte_tabelas" class="form-label">Fonte para Tabelas</label>
-                        <select class="form-select" id="fonte_tabelas" name="fonte_tabelas">
-                            <option value="Courier" {% if relatorio_config.fonte_tabelas == 'Courier' %}selected{% endif %}>Courier</option>
-                            <option value="Helvetica" {% if relatorio_config.fonte_tabelas == 'Helvetica' %}selected{% endif %}>Helvetica</option>
-                            <option value="Times-Roman" {% if relatorio_config.fonte_tabelas == 'Times-Roman' %}selected{% endif %}>Times Roman</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-
-            <div class="form-section">
-                <h4><i class="bi bi-calendar-event me-2"></i>Fechamento Financeiro</h4>
-                <p class="text-muted">Define como o exercício anual é agrupado para a prestação de contas em PDF.</p>
-
-                <div class="row">
-                    <div class="col-md-3 mb-3">
-                        <label for="dia_fechamento" class="form-label">Dia do fechamento</label>
-                        <input type="number" class="form-control" id="dia_fechamento" name="dia_fechamento"
-                               value="{{ finance_config.dia_fechamento }}" min="1" max="31">
-                    </div>
-
-                    <div class="col-md-3 mb-3">
-                        <label for="mes_fechamento" class="form-label">Mês do fechamento</label>
-                        <input type="number" class="form-control" id="mes_fechamento" name="mes_fechamento"
-                               value="{{ finance_config.mes_fechamento }}" min="1" max="12">
-                    </div>
-
-                    <div class="col-md-6 mb-3">
-                        <label for="titulo_relatorio_anual" class="form-label">Título do PDF anual</label>
-                        <input type="text" class="form-control" id="titulo_relatorio_anual" name="titulo_relatorio_anual"
-                               value="{{ finance_config.titulo_relatorio_anual or '' }}"
-                               placeholder="Prestação de Contas do Almoxarifado">
-                    </div>
-
-                    <div class="col-md-6 mb-3">
-                        <div class="form-check mt-4">
-                            <input class="form-check-input" type="checkbox" id="destacar_sem_comprovacao"
-                                   name="destacar_sem_comprovacao" {% if finance_config.destacar_sem_comprovacao %}checked{% endif %}>
-                            <label class="form-check-label" for="destacar_sem_comprovacao">
-                                Destacar valores sem comprovação fiscal
-                            </label>
-                        </div>
-                    </div>
-
-                    <div class="col-md-6 mb-3">
-                        <div class="form-check mt-4">
-                            <input class="form-check-input" type="checkbox" id="permitir_fechamento_manual"
-                                   name="permitir_fechamento_manual" {% if finance_config.permitir_fechamento_manual %}checked{% endif %}>
-                            <label class="form-check-label" for="permitir_fechamento_manual">
-                                Permitir fechamento manual complementar
-                            </label>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Botões -->
-            <div class="d-flex gap-3 justify-content-between mt-4">
-                <button type="button" class="btn btn-outline-warning" onclick="resetarTemplates()">
-                    <i class="bi bi-arrow-counterclockwise me-2"></i>Resetar para Padrão
-                </button>
-                
-                <div class="d-flex gap-3">
-                    <a href="{{ url_for('dashboard.index') }}" class="btn btn-secondary">
-                        <i class="bi bi-arrow-left me-2"></i>Voltar
-                    </a>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="bi bi-check-lg me-2"></i>Salvar Configurações
-                    </button>
-                </div>
-            </div>
-        </form>
-    </div>
+        </div>
+    </form>
 </div>
 
 <script>
@@ -363,7 +185,7 @@ function previewRodape() {
             previewBox.textContent = data.rodape;
             previewBox.style.display = 'block';
         })
-        .catch (error => {
+        .catch(error => {
             alert('Erro ao gerar preview: ' + error);
         });
 }
@@ -391,11 +213,10 @@ function resetarTemplates() {
     }
 }
 
-// Atualizar valor do input de texto quando a cor muda
 document.querySelectorAll('input[type="color"]').forEach(input => {
     input.addEventListener('change', function() {
-        const textInput = this.nextElementSibling;
-        if (textInput && textInput.type === 'text') {
+        const textInput = this.parentElement.querySelector('input[type="text"]');
+        if (textInput) {
             textInput.value = this.value;
         }
     });

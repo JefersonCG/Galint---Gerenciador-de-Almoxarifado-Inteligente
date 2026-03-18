@@ -8,14 +8,37 @@
         max-width: 900px;
         margin: 0 auto;
     }
+
+    .saida-shell {
+        background: linear-gradient(180deg, #eef2f7 0%, #f8fafc 100%);
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        border-radius: 30px;
+        padding: 1.85rem;
+        box-shadow: 0 24px 54px rgba(15, 23, 42, 0.1);
+    }
     
     .page-header {
-        background: linear-gradient(120deg, #2563eb 0%, #3b82f6 100%);
+        position: relative;
+        overflow: hidden;
+        background: linear-gradient(135deg, #020617 0%, #172554 45%, #2563eb 100%);
         color: white;
         padding: 2rem;
-        border-radius: 12px;
+        border-radius: 24px;
         margin-bottom: 2rem;
-        box-shadow: 0 4px 20px rgba(37, 99, 235, 0.4);
+        box-shadow: 0 28px 64px rgba(15, 23, 42, 0.2);
+    }
+
+    .page-header::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(circle at 16% 18%, rgba(56, 189, 248, 0.22), transparent 28%), radial-gradient(circle at 84% 18%, rgba(96, 165, 250, 0.18), transparent 22%);
+        pointer-events: none;
+    }
+
+    .page-header > * {
+        position: relative;
+        z-index: 1;
     }
     
     .page-header h2 {
@@ -31,32 +54,39 @@
     }
     
     .input-card {
-        background: #ffffff;
-        border-radius: 12px;
+        background: linear-gradient(145deg, #0f172a 0%, #1e293b 100%);
+        border-radius: 24px;
         padding: 1.5rem;
-        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+        box-shadow: 0 22px 48px rgba(15, 23, 42, 0.16);
         margin-bottom: 1.5rem;
-        border: 1px solid #e9ecef;
+        border: 1px solid rgba(148, 163, 184, 0.18);
     }
     
     .input-card .form-label {
         font-weight: 600;
-        color: #495057;
+        color: #e2e8f0;
         margin-bottom: 0.5rem;
         font-size: 0.9rem;
     }
     
     .input-card .form-control {
         border-radius: 8px;
-        border: 2px solid #e9ecef;
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        background: rgba(15, 23, 42, 0.82);
+        color: #f8fafc;
         padding: 0.75rem 1rem;
         transition: all 0.3s ease;
         font-size: 1rem;
+    }
+
+    .input-card .form-control::placeholder {
+        color: #94a3b8;
     }
     
     .input-card .form-control:focus {
         border-color: #3b82f6;
         box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.15);
+        background: rgba(15, 23, 42, 0.92);
     }
     
     .btn-register {
@@ -79,6 +109,24 @@
     .btn-register:disabled {
         opacity: 0.6;
         cursor: not-allowed;
+    }
+
+    .info-strip {
+        background: linear-gradient(145deg, rgba(15, 23, 42, 0.94) 0%, rgba(30, 41, 59, 0.92) 100%);
+        border: 1px solid rgba(56, 189, 248, 0.28);
+        color: #dbeafe;
+        border-radius: 18px;
+        padding: 1rem;
+        box-shadow: 0 16px 34px rgba(15, 23, 42, 0.14);
+        margin-bottom: 1.5rem;
+    }
+
+    .info-strip strong {
+        color: #ffffff;
+    }
+
+    .info-strip i {
+        color: #7dd3fc;
     }
     
     .autocomplete-dropdown {
@@ -218,11 +266,17 @@
 
 <%block name="content">
 <div class="saida-container">
+    <div class="saida-shell">
     <div class="page-header">
         <h2><i class="bi bi-droplet-half me-2"></i>Registro de Saída Fracionada</h2>
-        <p>Insira manualmente a quantidade pesada para itens fracionados (Lata, Rolo, Pacote, Caixa, Litro)</p>
+        <p>Insira a quantidade pesada com o novo container dark, mantendo o fluxo específico para itens líquidos e fracionados.</p>
     </div>
-    
+
+    <div class="info-strip" role="alert">
+        <i class="bi bi-info-circle me-2"></i>
+        <strong>Dica:</strong> Use esta tela quando a retirada depender da pesagem real, em kg ou litro.
+    </div>
+
     <div class="input-card">
         <div class="row g-3">
             <div class="col-md-6 position-relative">
@@ -250,6 +304,7 @@
                 </button>
             </div>
         </div>
+    </div>
     </div>
 </div>
 

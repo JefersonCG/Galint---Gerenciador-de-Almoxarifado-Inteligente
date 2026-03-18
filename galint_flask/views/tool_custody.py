@@ -95,6 +95,27 @@ def employee_detail(matricula: str):
     )
 
 
+@bp.route("/funcionario/<matricula>/foto", methods=["POST"])
+@login_required
+def upload_employee_photo(matricula: str):
+    """Faz upload da foto do funcionário usada na tela de custódia."""
+    file = request.files.get("photo")
+
+    if not file or not file.filename:
+        flash("Selecione uma imagem para enviar", "warning")
+        return redirect(url_for("tool_custody.employee_detail", matricula=matricula))
+
+    try:
+        tool_custody_service.upload_employee_photo(file, matricula)
+        flash("Foto do funcionário atualizada com sucesso!", "success")
+    except ValueError as e:
+        flash(str(e), "danger")
+    except Exception as e:
+        flash(f"Erro ao atualizar foto: {str(e)}", "danger")
+
+    return redirect(url_for("tool_custody.employee_detail", matricula=matricula))
+
+
 @bp.route("/devolucao/<int:saida_id>", methods=["POST"])
 @login_required
 def return_tool(saida_id: int):

@@ -2,11 +2,16 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Any
 
+from flask import current_app
 from sqlalchemy import func, or_
+from werkzeug.utils import secure_filename
+
 from ..extensions import db
 from ..models import Entrada, Item, RetiradaFerramenta, Saida, Usuario, InventarioEvento
+from ..services.item_foto_service import ItemFotoService
 from ..utils.time_service import TimeService
 
 
@@ -22,6 +27,62 @@ class ToolCustodyService:
         "ficou sob",
         "permanente",
     )
+    _EMPLOYEE_PHOTO_DIR = ("uploads", "funcionarios")
+
+    @staticmethod
+    def _build_employee_initials(nome: str | None) -> str:
+        partes = [parte[:1].upper() for parte in (nome or "").split() if parte.strip()]
+        if not partes:
+            return "FN"
+        return "".join(partes[:2])
+
+    @classmethod
+    def _employee_photo_folder(cls) -> Path:
+        folder = Path(current_app.root_path) / "static"
+        for segment in cls._EMPLOYEE_PHOTO_DIR:
+            folder /= segment
+        folder.mkdir(parents=True, exist_ok=True)
+        return folder
+
+    @classmethod
+    def get_employee_photo_path(cls, matricula: str) -> str | None:
+        matricula_segura = secure_filename(matricula or "")
+        if not matricula_segura:
+            return None
+
+        folder = cls._employee_photo_folder()
+        candidatos = sorted(folder.glob(f"{matricula_segura}.*"), key=lambda item: item.stat().st_mtime, reverse=True)
+        if not candidatos:
+            return None
+
+        return "/".join([*cls._EMPLOYEE_PHOTO_DIR, candidatos[0].name])
+
+    @classmethod
+    def upload_employee_photo(cls, file: Any, matricula: str) -> str:
+        valido, mensagem = ItemFotoService.validar_arquivo(file)
+        if not valido:
+            raise ValueError(mensagem)
+
+        matricula_segura = secure_filename(matricula or "")
+        if not matricula_segura:
+            raise ValueError("Matrícula inválida para foto")
+
+        if not getattr(file, "filename", None):
+            raise ValueError("Arquivo de foto não informado")
+
+        folder = cls._employee_photo_folder()
+        for existente in folder.glob(f"{matricula_segura}.*"):
+            try:
+                existente.unlink()
+            except OSError:
+                current_app.logger.warning("Não foi possível substituir foto do funcionário %s", matricula_segura)
+
+        extensao = secure_filename(file.filename).rsplit('.', 1)[1].lower()
+        filename = f"{matricula_segura}.{extensao}"
+        file_path = folder / filename
+        file.save(str(file_path))
+
+        return "/".join([*cls._EMPLOYEE_PHOTO_DIR, filename])
 
     @classmethod
     def is_permanent_custody(cls, *, tipo_custodia_raw: str | None = None, local_servico: str | None = None, observacao: str | None = None, days_in_use: int = 0) -> bool:
@@ -202,18 +263,90 @@ class ToolCustodyService:
         # Separar por tipo de custódia
         tools_permanente = [t for t in active_tools if t.get("tipo_custodia") == "permanente"]
         tools_temporaria = [t for t in active_tools if t.get("tipo_custodia") != "permanente"]
+        overdue_count = sum(1 for tool in tools_temporaria if tool.get("is_alert"))
+        average_daily_days = round(
+            sum(tool.get("days_in_use", 0) for tool in tools_temporaria) / len(tools_temporaria),
+            1,
+        ) if tools_temporaria else 0
+        longest_open_days = max((tool.get("days_in_use", 0) for tool in active_tools), default=0)
+
+        return_actions = sum(1 for item in history if item.get("tipo") == "Devolveu")
+        repair_actions = sum(1 for item in history if item.get("tipo") == "Enviou para Reparo")
+        damage_actions = sum(1 for item in history if item.get("tipo") == "Quebrou/Danificou")
+
+        performance_score = 100
+        performance_score -= overdue_count * 18
+        performance_score -= repair_actions * 7
+        performance_score -= damage_actions * 10
+        performance_score += min(return_actions * 2, 8)
+        performance_score = max(0, min(100, performance_score))
+
+        if performance_score >= 85:
+            performance_label = "Excelente controle"
+            performance_tone = "success"
+        elif performance_score >= 70:
+            performance_label = "Operação estável"
+            performance_tone = "info"
+        elif performance_score >= 50:
+            performance_label = "Ponto de atenção"
+            performance_tone = "warning"
+        else:
+            performance_label = "Risco elevado"
+            performance_tone = "danger"
+
+        timeline = []
+        for item in history:
+            tipo = item.get("tipo") or "Ação"
+            if tipo == "Devolveu":
+                icon = "bi-arrow-return-left"
+                accent = "success"
+            elif tipo == "Enviou para Reparo":
+                icon = "bi-wrench-adjustable-circle"
+                accent = "info"
+            elif tipo == "Quebrou/Danificou":
+                icon = "bi-exclamation-octagon"
+                accent = "warning"
+            else:
+                icon = "bi-clock-history"
+                accent = "secondary"
+
+            timeline.append({
+                **item,
+                "icon": icon,
+                "accent": accent,
+            })
+
+        cargo_display = usuario.cargo or usuario.setor or "N/D"
+        photo_path = ToolCustodyService.get_employee_photo_path(usuario.matricula)
         
         return {
             "matricula": usuario.matricula,
             "nome": usuario.nome,
             "setor": usuario.setor or "N/D",
             "cargo": usuario.cargo or "N/D",
+            "cargo_display": cargo_display,
+            "initials": ToolCustodyService._build_employee_initials(usuario.nome),
+            "photo_path": photo_path,
             "active_tools": active_tools,
             "tools_permanente": tools_permanente,
             "tools_temporaria": tools_temporaria,
             "history": history,
+            "timeline": timeline,
             "total_active": len(active_tools),
             "total_history": len(history),
+            "kpis": {
+                "permanent_count": len(tools_permanente),
+                "temporary_count": len(tools_temporaria),
+                "overdue_count": overdue_count,
+                "average_daily_days": average_daily_days,
+                "longest_open_days": longest_open_days,
+                "return_actions": return_actions,
+                "repair_actions": repair_actions,
+                "damage_actions": damage_actions,
+                "performance_score": performance_score,
+                "performance_label": performance_label,
+                "performance_tone": performance_tone,
+            },
         }
 
     @staticmethod

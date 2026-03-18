@@ -89,7 +89,7 @@ class BaseConfig:
     )
     FEATURE_NOTAS_ENABLED = _env_flag("GALINT_FEATURE_NOTAS", True)
     FEATURE_LIVE_FEED_ENABLED = _env_flag("GALINT_FEATURE_LIVE_FEED", False)
-    FEATURE_MOBILE_PANEL_ENABLED = _env_flag("GALINT_FEATURE_MOBILE_PANEL", False)
+    FEATURE_MOBILE_PANEL_ENABLED = _env_flag("GALINT_FEATURE_MOBILE_PANEL", True)
 
 
 class DevelopmentConfig(BaseConfig):

@@ -2,164 +2,348 @@
 
 {% block title %}Atualizações do Sistema{% endblock %}
 
+{% block extra_css %}
+<style>
+    .updates-shell {
+        background: linear-gradient(180deg, #eef2f7 0%, #f8fafc 100%);
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        border-radius: 28px;
+        padding: 1.75rem;
+        box-shadow: 0 24px 54px rgba(15, 23, 42, 0.1);
+    }
+    .updates-hero {
+        position: relative;
+        overflow: hidden;
+        border-radius: 28px;
+        padding: 1.7rem;
+        margin-bottom: 1.5rem;
+        color: #f8fafc;
+        background: linear-gradient(135deg, #020617 0%, #172554 42%, #2563eb 100%);
+        box-shadow: 0 28px 64px rgba(15, 23, 42, 0.22);
+    }
+    .updates-hero::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+            radial-gradient(circle at 14% 18%, rgba(56, 189, 248, 0.22), transparent 28%),
+            radial-gradient(circle at 84% 16%, rgba(96, 165, 250, 0.18), transparent 22%),
+            linear-gradient(180deg, rgba(255,255,255,0.04), transparent 60%);
+        pointer-events: none;
+    }
+    .updates-hero > * { position: relative; z-index: 1; }
+    .updates-eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.38rem 0.72rem;
+        border-radius: 999px;
+        background: rgba(255,255,255,0.08);
+        border: 1px solid rgba(226,232,240,0.14);
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: rgba(226,232,240,0.92);
+        margin-bottom: 0.9rem;
+    }
+    .updates-title { margin: 0; font-size: clamp(2rem, 3vw, 2.8rem); font-weight: 800; letter-spacing: -0.03em; }
+    .updates-subtitle { margin: 0.65rem 0 0; max-width: 58rem; color: rgba(226,232,240,0.82); line-height: 1.65; }
+    .updates-hero-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 1.25rem; }
+    .updates-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+    .updates-kpi {
+        position: relative;
+        overflow: hidden;
+        border-radius: 22px;
+        padding: 1.15rem;
+        color: #f8fafc;
+        background: linear-gradient(145deg, #0f172a 0%, #1e293b 68%, #334155 100%);
+        border: 1px solid rgba(148,163,184,0.18);
+        box-shadow: 0 20px 42px rgba(15,23,42,0.18);
+    }
+    .updates-kpi::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(circle at 18% 18%, rgba(59,130,246,0.24), transparent 34%);
+        pointer-events: none;
+    }
+    .updates-kpi > * { position: relative; z-index: 1; }
+    .updates-kpi-label { display: block; font-size: 0.75rem; letter-spacing: 0.06em; text-transform: uppercase; color: rgba(226,232,240,0.72); margin-bottom: 0.45rem; }
+    .updates-kpi-value { font-size: 1.6rem; font-weight: 800; line-height: 1.1; }
+    .updates-kpi-caption { margin-top: 0.35rem; font-size: 0.82rem; color: rgba(226,232,240,0.74); }
+    .updates-tabs.nav-pills { gap: 0.65rem; margin-bottom: 1.25rem; }
+    .updates-tabs .nav-link {
+        border-radius: 999px;
+        padding: 0.75rem 1rem;
+        background: #dbe4ef;
+        color: #334155;
+        font-weight: 700;
+        border: 1px solid rgba(148,163,184,0.18);
+    }
+    .updates-tabs .nav-link.active { background: #0f172a; color: #f8fafc; border-color: rgba(59,130,246,0.35); }
+    .updates-panel {
+        background: linear-gradient(145deg, #0f172a 0%, #1e293b 100%);
+        border: 1px solid rgba(148,163,184,0.18);
+        border-radius: 24px;
+        box-shadow: 0 22px 48px rgba(15,23,42,0.16);
+        color: #e2e8f0;
+    }
+    .updates-panel .card-header,
+    .updates-panel .card-body { background: transparent; color: inherit; border-color: rgba(148,163,184,0.14); }
+    .updates-panel .card-header { padding: 1.1rem 1.35rem 0.95rem; }
+    .updates-panel .card-body { padding: 1.25rem 1.35rem 1.35rem; }
+    .updates-panel .text-muted,
+    .updates-panel small,
+    .updates-panel .form-text,
+    .updates-panel .form-label,
+    .updates-panel label { color: rgba(226,232,240,0.82) !important; }
+    .updates-panel .form-select,
+    .updates-panel .form-control {
+        background: rgba(15,23,42,0.82);
+        color: #f8fafc;
+        border-color: rgba(148,163,184,0.22);
+    }
+    .updates-soft {
+        border-radius: 18px;
+        border: 1px solid rgba(148,163,184,0.14);
+        background: rgba(255,255,255,0.06);
+        padding: 1rem;
+    }
+    .updates-banner {
+        border-radius: 22px;
+        border: 1px solid rgba(96,165,250,0.24);
+        background: linear-gradient(145deg, rgba(15,23,42,0.98) 0%, rgba(30,41,59,0.98) 100%);
+        color: #e2e8f0;
+        padding: 1.2rem;
+    }
+    .updates-banner.success { border-color: rgba(34,197,94,0.28); }
+    .updates-progress {
+        height: 14px;
+        border-radius: 999px;
+        background: rgba(255,255,255,0.08);
+        overflow: hidden;
+    }
+    .updates-progress .progress-bar { background: linear-gradient(90deg, #2563eb 0%, #38bdf8 100%); }
+    .updates-table-wrap {
+        background: rgba(255,255,255,0.74);
+        border-radius: 20px;
+        overflow: hidden;
+        border: 1px solid rgba(148,163,184,0.16);
+    }
+    .updates-table { margin-bottom: 0; color: #334155; }
+    .updates-table thead th { background: #e2e8f0; color: #334155; text-transform: uppercase; font-size: 0.77rem; letter-spacing: 0.05em; }
+    .updates-table td { border-color: rgba(148,163,184,0.12); }
+    .updates-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.38rem 0.68rem;
+        border-radius: 999px;
+        font-size: 0.76rem;
+        font-weight: 700;
+        background: rgba(245, 158, 11, 0.16);
+        color: #fef08a;
+        border: 1px solid rgba(245, 158, 11, 0.24);
+    }
+    .updates-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+    @media (max-width: 1200px) { .updates-kpis { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+    @media (max-width: 768px) {
+        .updates-shell { padding: 1rem; border-radius: 22px; }
+        .updates-hero { padding: 1.15rem; border-radius: 20px; }
+        .updates-kpis { grid-template-columns: 1fr; }
+        .updates-tabs.nav-pills { flex-direction: column; }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container-fluid">
-    <!-- Cabeçalho -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h1 class="h3 mb-0">🔄 Atualizações</h1>
-            <p class="text-muted small mb-0">Gerencie atualizações do GALINT</p>
-        </div>
-        <div>
+<div class="updates-shell">
+    <section class="updates-hero">
+        <div class="updates-eyebrow"><i class="bi bi-cloud-arrow-down"></i> Canal de release</div>
+        <h1 class="updates-title">Atualizações do Sistema</h1>
+        <p class="updates-subtitle">Painel premium para acompanhar versão atual, disponibilidade de novos pacotes, download seguro e histórico de releases. A experiência foi reformulada para parecer uma central de deploy, sem alterar nenhuma ação do backend.</p>
+        <div class="updates-hero-actions">
             {% if is_executable %}
-                <button class="btn btn-primary" id="btnCheckUpdate">
-                    <i class="bi bi-arrow-clockwise"></i> Verificar Atualizações
-                </button>
+            <button class="btn btn-primary rounded-pill px-4" id="btnCheckUpdate">
+                <i class="bi bi-arrow-clockwise me-2"></i>Verificar atualizações
+            </button>
             {% else %}
-                <span class="badge bg-warning text-dark">
-                    <i class="bi bi-exclamation-triangle"></i> Modo Desenvolvimento
-                </span>
+            <span class="updates-badge"><i class="bi bi-exclamation-triangle"></i>Modo desenvolvimento</span>
+            {% endif %}
+            {% if pending %}
+            <span class="updates-badge" style="background: rgba(34,197,94,0.16); color: #bbf7d0; border-color: rgba(34,197,94,0.24);"><i class="bi bi-check2-circle"></i>Pacote pendente detectado</span>
             {% endif %}
         </div>
-    </div>
+    </section>
 
-    <!-- Status Atual -->
-    <div class="row mb-4">
-        <div class="col-md-6">
-            <div class="card">
+    <section class="updates-kpis">
+        <article class="updates-kpi">
+            <span class="updates-kpi-label">Versão atual</span>
+            <div class="updates-kpi-value">{{ current_version }}</div>
+            <div class="updates-kpi-caption">Build ativa no ambiente atual.</div>
+        </article>
+        <article class="updates-kpi">
+            <span class="updates-kpi-label">Modo</span>
+            <div class="updates-kpi-value">{{ 'Executável' if is_executable else 'Dev' }}</div>
+            <div class="updates-kpi-caption">Atualização automática depende do executável compilado.</div>
+        </article>
+        <article class="updates-kpi">
+            <span class="updates-kpi-label">Intervalo</span>
+            <div class="updates-kpi-value">{{ settings.check_interval_hours }}h</div>
+            <div class="updates-kpi-caption">Cadência de checagem configurada.</div>
+        </article>
+        <article class="updates-kpi">
+            <span class="updates-kpi-label">Histórico</span>
+            <div class="updates-kpi-value">{{ history|length }}</div>
+            <div class="updates-kpi-caption">Instalações registradas no sistema.</div>
+        </article>
+    </section>
+
+    <ul class="nav nav-pills updates-tabs" role="tablist">
+        <li class="nav-item" role="presentation"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#updates-overview" type="button" role="tab">Visão geral</button></li>
+        <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#updates-settings" type="button" role="tab">Automação</button></li>
+        <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#updates-history" type="button" role="tab">Histórico</button></li>
+    </ul>
+
+    <div class="tab-content">
+        <div class="tab-pane fade show active" id="updates-overview" role="tabpanel">
+            <div class="card updates-panel mb-4">
+                <div class="card-header"><h5 class="mb-0"><i class="bi bi-cpu me-2"></i>Status do canal de atualização</h5></div>
                 <div class="card-body">
-                    <h5 class="card-title">📦 Versão Atual</h5>
-                    <h2 class="mb-0">{{ current_version }}</h2>
-                    {% if is_executable %}
-                        <small class="text-success">
-                            <i class="bi bi-check-circle-fill"></i> Executável
-                        </small>
+                    <div class="updates-soft mb-3">
+                        <div class="row g-3 align-items-center">
+                            <div class="col-lg-4">
+                                <div class="small text-uppercase text-muted fw-semibold mb-2">Versão atual</div>
+                                <div class="fs-3 fw-bold">{{ current_version }}</div>
+                                {% if is_executable %}
+                                <div class="text-success small mt-2"><i class="bi bi-check-circle-fill me-1"></i>Executável habilitado para update</div>
+                                {% else %}
+                                <div class="text-warning small mt-2"><i class="bi bi-code-slash me-1"></i>Execução em desenvolvimento</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-lg-8">
+                                <div class="small text-uppercase text-muted fw-semibold mb-2">Última checagem</div>
+                                <div class="fs-6 fw-semibold">{{ settings.last_check[:19].replace('T', ' ') if settings.last_check else 'Ainda não registrada' }}</div>
+                                <div class="text-muted mt-2">A verificação consulta o canal configurado no serviço de update e compara com a versão instalada.</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="updateAvailable" class="updates-banner d-none" role="alert">
+                        <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
+                            <div>
+                                <h5 class="mb-2">Nova versão disponível</h5>
+                                <p class="mb-1"><strong>Versão <span id="newVersion"></span></strong> (<span id="updateSize"></span> MB)</p>
+                                <p class="mb-0 text-muted" id="releaseNotes" style="white-space: pre-wrap;"></p>
+                            </div>
+                            <div>
+                                <button class="btn btn-success rounded-pill px-4" id="btnDownload"><i class="bi bi-download me-2"></i>Baixar</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="downloadProgress" class="updates-banner d-none mt-3">
+                        <h5 class="mb-3">Baixando atualização</h5>
+                        <div class="updates-progress">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 100%"></div>
+                        </div>
+                        <div class="small text-muted mt-2">O pacote está sendo preparado e validado antes da instalação.</div>
+                    </div>
+
+                    <div id="installReady" class="updates-banner success d-none mt-3" role="alert">
+                        <div class="d-flex justify-content-between align-items-center gap-3 flex-wrap">
+                            <div>
+                                <h5 class="mb-1">Atualização pronta para instalar</h5>
+                                <p class="mb-0 text-muted">O sistema será reiniciado para aplicar a nova versão.</p>
+                            </div>
+                            <button class="btn btn-success rounded-pill px-4" id="btnInstall"><i class="bi bi-arrow-repeat me-2"></i>Instalar e reiniciar</button>
+                        </div>
+                    </div>
+
+                    {% if not is_executable %}
+                    <div class="updates-banner mt-3" style="border-color: rgba(245,158,11,0.26);">
+                        <h5 class="mb-2">Modo desenvolvimento</h5>
+                        <p class="mb-0 text-muted">Atualizações automáticas só funcionam no executável compilado. Nesta instância o painel continua disponível apenas para consulta visual e configuração.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-pane fade" id="updates-settings" role="tabpanel">
+            <div class="card updates-panel mb-4">
+                <div class="card-header"><h5 class="mb-0"><i class="bi bi-sliders me-2"></i>Automação</h5></div>
+                <div class="card-body">
+                    <div class="updates-soft mb-3">
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" id="autoUpdateEnabled" {% if settings.enabled %}checked{% endif %} {% if not is_executable %}disabled{% endif %}>
+                            <label class="form-check-label" for="autoUpdateEnabled">Verificar atualizações automaticamente</label>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small">Verificar a cada</label>
+                            <select class="form-select" id="checkInterval" {% if not is_executable %}disabled{% endif %}>
+                                <option value="6" {% if settings.check_interval_hours == 6 %}selected{% endif %}>6 horas</option>
+                                <option value="12" {% if settings.check_interval_hours == 12 %}selected{% endif %}>12 horas</option>
+                                <option value="24" {% if settings.check_interval_hours == 24 %}selected{% endif %}>24 horas</option>
+                                <option value="48" {% if settings.check_interval_hours == 48 %}selected{% endif %}>2 dias</option>
+                                <option value="168" {% if settings.check_interval_hours == 168 %}selected{% endif %}>1 semana</option>
+                            </select>
+                        </div>
+                        <div class="text-muted small">A alteração é salva imediatamente ao trocar os controles.</div>
+                    </div>
+
+                    <div class="updates-soft">
+                        <div class="small text-uppercase text-muted fw-semibold mb-2">Operação</div>
+                        <div class="updates-actions">
+                            {% if is_executable %}
+                            <button class="btn btn-primary rounded-pill px-4" id="btnCheckUpdateSecondary" onclick="document.getElementById('btnCheckUpdate').click()"><i class="bi bi-search me-2"></i>Rodar verificação agora</button>
+                            {% endif %}
+                            <span class="text-muted small align-self-center">As checagens e instalações continuam controladas pelos endpoints existentes em Atualizações.</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-pane fade" id="updates-history" role="tabpanel">
+            <div class="card updates-panel">
+                <div class="card-header"><h5 class="mb-0"><i class="bi bi-clock-history me-2"></i>Histórico de atualizações</h5></div>
+                <div class="card-body">
+                    {% if history %}
+                    <div class="updates-table-wrap">
+                        <div class="table-responsive">
+                            <table class="table table-sm updates-table">
+                                <thead>
+                                    <tr>
+                                        <th>Versão</th>
+                                        <th>Data</th>
+                                        <th>Observações</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in history | reverse %}
+                                    <tr>
+                                        <td><code>{{ item.version }}</code></td>
+                                        <td>{{ item.installed_at[:10] }}</td>
+                                        <td>{{ item.notes or '-' }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                     {% else %}
-                        <small class="text-warning">
-                            <i class="bi bi-code-slash"></i> Desenvolvimento
-                        </small>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title">⚙️ Configurações</h5>
-                    <div class="form-check form-switch mb-2">
-                        <input class="form-check-input" type="checkbox" id="autoUpdateEnabled" 
-                               {% if settings.enabled %}checked{% endif %}
-                               {% if not is_executable %}disabled{% endif %}>
-                        <label class="form-check-label" for="autoUpdateEnabled">
-                            Verificar atualizações automaticamente
-                        </label>
+                    <div class="updates-soft text-center">
+                        <i class="bi bi-inbox fs-1 d-block mb-2 text-muted"></i>
+                        <div class="fw-semibold mb-1">Nenhuma atualização instalada ainda</div>
+                        <div class="text-muted">O histórico será alimentado conforme novas versões forem aplicadas.</div>
                     </div>
-                    <div class="mb-2">
-                        <label class="form-label small">Verificar a cada:</label>
-                        <select class="form-select form-select-sm" id="checkInterval" 
-                                {% if not is_executable %}disabled{% endif %}>
-                            <option value="6" {% if settings.check_interval_hours == 6 %}selected{% endif %}>6 horas</option>
-                            <option value="12" {% if settings.check_interval_hours == 12 %}selected{% endif %}>12 horas</option>
-                            <option value="24" {% if settings.check_interval_hours == 24 %}selected{% endif %}>24 horas</option>
-                            <option value="48" {% if settings.check_interval_hours == 48 %}selected{% endif %}>2 dias</option>
-                            <option value="168" {% if settings.check_interval_hours == 168 %}selected{% endif %}>1 semana</option>
-                        </select>
-                    </div>
-                    {% if settings.last_check %}
-                        <small class="text-muted">
-                            Última verificação: {{ settings.last_check[:19].replace('T', ' ') }}
-                        </small>
                     {% endif %}
                 </div>
             </div>
         </div>
     </div>
-
-    <!-- Área de Atualização Disponível -->
-    <div id="updateAvailable" class="alert alert-info d-none" role="alert">
-        <div class="d-flex justify-content-between align-items-start">
-            <div>
-                <h5 class="alert-heading">🎉 Nova versão disponível!</h5>
-                <p class="mb-1">
-                    <strong>Versão <span id="newVersion"></span></strong> 
-                    (<span id="updateSize"></span> MB)
-                </p>
-                <p class="mb-2" id="releaseNotes" style="white-space: pre-wrap;"></p>
-            </div>
-            <div>
-                <button class="btn btn-success btn-sm" id="btnDownload">
-                    <i class="bi bi-download"></i> Baixar
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Progresso de Download -->
-    <div id="downloadProgress" class="card d-none mb-4">
-        <div class="card-body">
-            <h5 class="card-title">📥 Baixando atualização...</h5>
-            <div class="progress">
-                <div class="progress-bar progress-bar-striped progress-bar-animated" 
-                     role="progressbar" style="width: 100%"></div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Botão de Instalação -->
-    <div id="installReady" class="alert alert-success d-none" role="alert">
-        <div class="d-flex justify-content-between align-items-center">
-            <div>
-                <h5 class="alert-heading">✅ Atualização pronta para instalar!</h5>
-                <p class="mb-0">O sistema será reiniciado para aplicar a atualização.</p>
-            </div>
-            <button class="btn btn-success" id="btnInstall">
-                <i class="bi bi-arrow-repeat"></i> Instalar e Reiniciar
-            </button>
-        </div>
-    </div>
-
-    <!-- Histórico -->
-    {% if history %}
-    <div class="card">
-        <div class="card-header">
-            <h5 class="mb-0">📜 Histórico de Atualizações</h5>
-        </div>
-        <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-sm">
-                    <thead>
-                        <tr>
-                            <th>Versão</th>
-                            <th>Data</th>
-                            <th>Observações</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for item in history | reverse %}
-                        <tr>
-                            <td><code>{{ item.version }}</code></td>
-                            <td>{{ item.installed_at[:10] }}</td>
-                            <td>{{ item.notes or '-' }}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-    {% endif %}
-
-    {% if not is_executable %}
-    <!-- Aviso Modo Desenvolvimento -->
-    <div class="alert alert-warning mt-4" role="alert">
-        <h5 class="alert-heading">⚠️ Modo Desenvolvimento</h5>
-        <p class="mb-0">
-            Atualizações automáticas só funcionam no executável compilado. 
-            Você está rodando o código em modo de desenvolvimento.
-        </p>
-    </div>
-    {% endif %}
 </div>
 
 <script>

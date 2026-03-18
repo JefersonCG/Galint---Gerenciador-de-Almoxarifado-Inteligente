@@ -1,284 +1,706 @@
 {% extends "base.html" %}
 {% block title %}Detalhes do Reparo #{{ reparo.id }}{% endblock %}
 
+{% block extra_css %}
+<style>
+    .repair-detail-shell {
+        background: linear-gradient(180deg, #eef2f7 0%, #f8fafc 100%);
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        border-radius: 28px;
+        padding: 1.75rem;
+        box-shadow: 0 24px 54px rgba(15, 23, 42, 0.1);
+    }
+
+    .repair-detail-hero {
+        position: relative;
+        overflow: hidden;
+        background: linear-gradient(135deg, #0f172a 0%, #172554 48%, #1d4ed8 100%);
+        border-radius: 24px;
+        padding: 1.5rem;
+        color: #f8fafc;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 26px 60px rgba(15, 23, 42, 0.18);
+    }
+
+    .repair-detail-hero::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+            radial-gradient(circle at 12% 18%, rgba(96, 165, 250, 0.28), transparent 30%),
+            radial-gradient(circle at 86% 16%, rgba(14, 165, 233, 0.22), transparent 22%),
+            linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 60%);
+        pointer-events: none;
+    }
+
+    .repair-detail-hero > * {
+        position: relative;
+        z-index: 1;
+    }
+
+    .repair-detail-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.45fr) minmax(280px, 360px);
+        gap: 1.25rem;
+        align-items: stretch;
+    }
+
+    .repair-detail-eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.38rem 0.72rem;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(226, 232, 240, 0.14);
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: rgba(226, 232, 240, 0.9);
+        margin-bottom: 0.9rem;
+    }
+
+    .repair-detail-title {
+        margin: 0;
+        font-size: clamp(1.75rem, 3vw, 2.5rem);
+        font-weight: 800;
+        letter-spacing: -0.03em;
+    }
+
+    .repair-detail-subtitle {
+        margin: 0.75rem 0 1rem;
+        max-width: 56rem;
+        color: rgba(226, 232, 240, 0.8);
+        line-height: 1.65;
+        font-size: 0.96rem;
+    }
+
+    .repair-detail-badges,
+    .repair-meta-row,
+    .repair-actions-row,
+    .repair-timeline-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.7rem;
+    }
+
+    .repair-badge,
+    .repair-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.55rem 0.8rem;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(226, 232, 240, 0.12);
+        color: #e2e8f0;
+        font-size: 0.82rem;
+    }
+
+    .repair-photo-panel,
+    .repair-panel,
+    .repair-kpi-card {
+        border: 1px solid rgba(148, 163, 184, 0.18);
+    }
+
+    .repair-photo-panel {
+        background: rgba(15, 23, 42, 0.42);
+        border-radius: 22px;
+        padding: 1rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.9rem;
+        min-height: 100%;
+    }
+
+    .repair-photo-frame {
+        position: relative;
+        overflow: hidden;
+        border-radius: 20px;
+        min-height: 280px;
+        background: linear-gradient(160deg, rgba(15, 23, 42, 0.9), rgba(30, 41, 59, 0.88));
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.14);
+    }
+
+    .repair-photo-frame img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .repair-photo-empty {
+        text-align: center;
+        padding: 1.75rem;
+        color: rgba(226, 232, 240, 0.72);
+    }
+
+    .repair-photo-empty i {
+        display: block;
+        font-size: 3rem;
+        margin-bottom: 0.8rem;
+        color: rgba(125, 211, 252, 0.84);
+    }
+
+    .repair-photo-caption {
+        color: rgba(226, 232, 240, 0.78);
+        font-size: 0.86rem;
+        line-height: 1.5;
+    }
+
+    .repair-kpi-grid {
+        display: grid;
+        gap: 1rem;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        margin-bottom: 1.5rem;
+    }
+
+    .repair-kpi-card {
+        position: relative;
+        overflow: hidden;
+        border-radius: 22px;
+        padding: 1.15rem;
+        color: #f8fafc;
+        background: linear-gradient(145deg, #0f172a 0%, #1e293b 68%, #334155 100%);
+        box-shadow: 0 20px 42px rgba(15, 23, 42, 0.18);
+    }
+
+    .repair-kpi-card::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+            radial-gradient(circle at 18% 18%, rgba(96, 165, 250, 0.24), transparent 34%),
+            linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 60%);
+        pointer-events: none;
+    }
+
+    .repair-kpi-card.warning::before {
+        background:
+            radial-gradient(circle at 18% 18%, rgba(245, 158, 11, 0.24), transparent 34%),
+            linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 60%);
+    }
+
+    .repair-kpi-card.green::before {
+        background:
+            radial-gradient(circle at 18% 18%, rgba(52, 211, 153, 0.24), transparent 34%),
+            linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 60%);
+    }
+
+    .repair-kpi-card.red::before {
+        background:
+            radial-gradient(circle at 18% 18%, rgba(248, 113, 113, 0.24), transparent 34%),
+            linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 60%);
+    }
+
+    .repair-kpi-card > * {
+        position: relative;
+        z-index: 1;
+    }
+
+    .repair-kpi-label {
+        display: block;
+        font-size: 0.75rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: rgba(226, 232, 240, 0.72);
+        margin-bottom: 0.45rem;
+    }
+
+    .repair-kpi-value {
+        font-size: 1.75rem;
+        font-weight: 800;
+        line-height: 1;
+        margin-bottom: 0.45rem;
+    }
+
+    .repair-kpi-caption {
+        color: rgba(226, 232, 240, 0.74);
+        font-size: 0.82rem;
+        line-height: 1.45;
+    }
+
+    .repair-panel {
+        background: linear-gradient(145deg, #0f172a 0%, #1e293b 100%);
+        border-radius: 24px;
+        box-shadow: 0 22px 48px rgba(15, 23, 42, 0.16);
+        color: #e2e8f0;
+        margin-bottom: 1.5rem;
+    }
+
+    .repair-panel .card-body,
+    .repair-panel .card-header {
+        background: transparent;
+        color: inherit;
+        border-color: rgba(148, 163, 184, 0.14);
+    }
+
+    .repair-panel .card-header {
+        padding: 1.1rem 1.35rem 0.95rem;
+    }
+
+    .repair-panel .card-body {
+        padding: 1.25rem 1.35rem 1.35rem;
+    }
+
+    .repair-panel h5,
+    .repair-panel h6,
+    .repair-panel .form-label,
+    .repair-panel .text-muted,
+    .repair-panel label,
+    .repair-panel p,
+    .repair-panel small {
+        color: #e2e8f0 !important;
+    }
+
+    .repair-panel .text-muted {
+        color: #9fb0c6 !important;
+    }
+
+    .repair-panel .form-control,
+    .repair-panel .form-select {
+        background: rgba(15, 23, 42, 0.82);
+        color: #f8fafc;
+        border-color: rgba(148, 163, 184, 0.22);
+        border-radius: 14px;
+    }
+
+    .repair-panel .form-control::placeholder {
+        color: #94a3b8;
+    }
+
+    .repair-soft-block {
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(148, 163, 184, 0.12);
+        border-radius: 18px;
+        padding: 1rem;
+        color: #e2e8f0;
+    }
+
+    .repair-soft-block.success {
+        background: rgba(34, 197, 94, 0.12);
+        border-color: rgba(34, 197, 94, 0.18);
+    }
+
+    .repair-info-grid {
+        display: grid;
+        gap: 1rem;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .repair-info-item {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(148, 163, 184, 0.1);
+        border-radius: 18px;
+        padding: 1rem;
+    }
+
+    .repair-info-label {
+        display: block;
+        color: #9fb0c6;
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 0.35rem;
+    }
+
+    .repair-info-value {
+        color: #f8fafc;
+        font-size: 1rem;
+        font-weight: 600;
+        line-height: 1.5;
+    }
+
+    .repair-status-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.5rem 0.78rem;
+        border-radius: 999px;
+        font-size: 0.86rem;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+
+    .repair-status-pill.warning { background: rgba(245, 158, 11, 0.18); color: #fde68a; border: 1px solid rgba(245, 158, 11, 0.28); }
+    .repair-status-pill.info { background: rgba(56, 189, 248, 0.18); color: #bae6fd; border: 1px solid rgba(56, 189, 248, 0.28); }
+    .repair-status-pill.success { background: rgba(34, 197, 94, 0.18); color: #bbf7d0; border: 1px solid rgba(34, 197, 94, 0.28); }
+    .repair-status-pill.danger { background: rgba(248, 113, 113, 0.18); color: #fecaca; border: 1px solid rgba(248, 113, 113, 0.28); }
+
+    .repair-timeline {
+        display: grid;
+        gap: 1rem;
+    }
+
+    .repair-timeline-item {
+        position: relative;
+        padding-left: 2.2rem;
+    }
+
+    .repair-timeline-item::before {
+        content: "";
+        position: absolute;
+        left: 0.55rem;
+        top: 1.55rem;
+        bottom: -0.9rem;
+        width: 2px;
+        background: linear-gradient(180deg, rgba(77, 163, 255, 0.48), rgba(77, 163, 255, 0.06));
+    }
+
+    .repair-timeline-item:last-child::before {
+        display: none;
+    }
+
+    .repair-timeline-dot {
+        position: absolute;
+        left: 0;
+        top: 0.2rem;
+        width: 1.3rem;
+        height: 1.3rem;
+        border-radius: 999px;
+        background: rgba(59, 130, 246, 0.18);
+        border: 1px solid rgba(96, 165, 250, 0.34);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #bfdbfe;
+        font-size: 0.72rem;
+    }
+
+    .repair-side-value {
+        color: #f8fafc;
+        font-weight: 600;
+    }
+
+    .repair-back-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        border-radius: 999px;
+        padding-inline: 1rem;
+    }
+
+    @media (max-width: 1200px) {
+        .repair-kpi-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    @media (max-width: 992px) {
+        .repair-detail-grid,
+        .repair-info-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .repair-detail-shell {
+            padding: 1rem;
+            border-radius: 22px;
+        }
+
+        .repair-detail-hero {
+            padding: 1.1rem;
+            border-radius: 20px;
+        }
+
+        .repair-kpi-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="mb-4">
-    <a href="{{ url_for('reparo.listar_reparos') }}" class="btn btn-outline-secondary btn-sm">
-        <i class="bi bi-arrow-left me-1"></i>Voltar
-    </a>
-</div>
+{% if reparo.status == 'aguardando_orcamento' %}
+    {% set status_tone = 'warning' %}
+    {% set status_icon = 'bi-clock-history' %}
+{% elif reparo.status == 'em_reparo' %}
+    {% set status_tone = 'info' %}
+    {% set status_icon = 'bi-gear-fill' %}
+{% elif reparo.status == 'concluido' %}
+    {% set status_tone = 'success' %}
+    {% set status_icon = 'bi-check-circle-fill' %}
+{% else %}
+    {% set status_tone = 'danger' %}
+    {% set status_icon = 'bi-x-circle-fill' %}
+{% endif %}
 
-<div class="row g-4">
-    <!-- Coluna Principal -->
-    <div class="col-lg-8">
-        <!-- Informações do Equipamento -->
-        <div class="card border-0 shadow-sm mb-4">
-            <div class="card-header bg-white border-bottom">
-                <h5 class="mb-0">
-                    <i class="bi bi-info-circle me-2"></i>Informações do Equipamento
-                </h5>
-            </div>
-            <div class="card-body">
-                <div class="row g-3">
-                    <div class="col-md-6">
-                        <label class="text-muted small">Código do Item</label>
-                        <div class="fw-medium"><code class="fs-5">{{ reparo.codigo_item }}</code></div>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="text-muted small">Status</label>
-                        <div>
-                            {% if reparo.status == 'aguardando_orcamento' %}
-                            <span class="badge bg-warning text-dark fs-6">
-                                <i class="bi bi-clock-history me-1"></i>{{ reparo.status_display }}
-                            </span>
-                            {% elif reparo.status == 'em_reparo' %}
-                            <span class="badge bg-info fs-6">
-                                <i class="bi bi-gear-fill me-1"></i>{{ reparo.status_display }}
-                            </span>
-                            {% elif reparo.status == 'concluido' %}
-                            <span class="badge bg-success fs-6">
-                                <i class="bi bi-check-circle-fill me-1"></i>{{ reparo.status_display }}
-                            </span>
-                            {% elif reparo.status == 'sem_conserto' %}
-                            <span class="badge bg-danger fs-6">
-                                <i class="bi bi-x-circle-fill me-1"></i>{{ reparo.status_display }}
-                            </span>
-                            {% endif %}
-                        </div>
-                    </div>
-                    <div class="col-12">
-                        <label class="text-muted small">Descrição</label>
-                        <div class="fw-medium">{{ reparo.item.descricao if reparo.item else '-' }}</div>
-                        {% if reparo.item %}
-                        <small class="text-muted">Categoria: {{ reparo.item.categoria }}</small>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Problema e Solução -->
-        <div class="card border-0 shadow-sm mb-4">
-            <div class="card-header bg-white border-bottom">
-                <h5 class="mb-0">
-                    <i class="bi bi-exclamation-triangle me-2"></i>Problema e Solução
-                </h5>
-            </div>
-            <div class="card-body">
-                <div class="mb-4">
-                    <label class="text-muted small">Problema Descrito</label>
-                    <div class="bg-light p-3 rounded">{{ reparo.problema_descrito }}</div>
-                </div>
-                {% if reparo.solucao_aplicada %}
-                <div>
-                    <label class="text-muted small">Solução Aplicada</label>
-                    <div class="bg-success bg-opacity-10 p-3 rounded border border-success border-opacity-25">
-                        {{ reparo.solucao_aplicada }}
-                    </div>
-                </div>
-                {% endif %}
-            </div>
-        </div>
-
-        <!-- Observações -->
-        {% if reparo.observacoes %}
-        <div class="card border-0 shadow-sm mb-4">
-            <div class="card-header bg-white border-bottom">
-                <h5 class="mb-0">
-                    <i class="bi bi-journal-text me-2"></i>Observações
-                </h5>
-            </div>
-            <div class="card-body">
-                <div class="bg-light p-3 rounded" style="white-space: pre-wrap;">{{ reparo.observacoes }}</div>
-            </div>
-        </div>
-        {% endif %}
-
-        <!-- Formulário de Atualização (apenas admin/supervisor) -->
-        {% if current_user.is_admin or 'supervisor' in (current_user.setor or '').lower() or 'supervisor' in (current_user.cargo or '').lower() %}
-        <div class="card border-0 shadow-sm mb-4">
-            <div class="card-header bg-white border-bottom">
-                <h5 class="mb-0">
-                    <i class="bi bi-pencil-square me-2"></i>Atualizar Reparo
-                </h5>
-            </div>
-            <div class="card-body">
-                <form method="post" action="{{ url_for('reparo.atualizar_reparo', reparo_id=reparo.id) }}">
-                    <div class="mb-3">
-                        <label class="form-label">Status</label>
-                        <select name="status" class="form-select" required>
-                            <option value="aguardando_orcamento" {% if reparo.status == 'aguardando_orcamento' %}selected{% endif %}>Aguardando Orçamento</option>
-                            <option value="em_reparo" {% if reparo.status == 'em_reparo' %}selected{% endif %}>Em Reparo</option>
-                            <option value="concluido" {% if reparo.status == 'concluido' %}selected{% endif %}>Concluído</option>
-                            <option value="sem_conserto" {% if reparo.status == 'sem_conserto' %}selected{% endif %}>Sem Conserto</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Solução Aplicada</label>
-                        <textarea name="solucao_aplicada" class="form-control" rows="3" placeholder="Descreva a solução aplicada">{{ reparo.solucao_aplicada or '' }}</textarea>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Custo Real (R$)</label>
-                        <input type="text" name="custo_real" class="form-control" placeholder="0.00" value="{{ reparo.custo_real or '' }}">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Observações Adicionais</label>
-                        <textarea name="observacoes" class="form-control" rows="2" placeholder="Adicione novas observações"></textarea>
-                        <small class="text-muted">As observações serão adicionadas ao histórico existente</small>
-                    </div>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="bi bi-save me-1"></i>Salvar Alterações
-                    </button>
-                </form>
-            </div>
-        </div>
-
-        <!-- Finalizar Reparo -->
-        {% if reparo.status not in ['concluido', 'sem_conserto'] %}
-        <div class="card border-0 shadow-sm border-success mb-4">
-            <div class="card-header bg-success bg-opacity-10 border-bottom border-success">
-                <h5 class="mb-0 text-success">
-                    <i class="bi bi-check-circle me-2"></i>Finalizar Reparo
-                </h5>
-            </div>
-            <div class="card-body">
-                <form method="post" action="{{ url_for('reparo.finalizar_reparo', reparo_id=reparo.id) }}">
-                    <div class="mb-3">
-                        <label class="form-label">Status Final</label>
-                        <select name="status_final" class="form-select" required>
-                            <option value="concluido">Concluído (reparo bem-sucedido)</option>
-                            <option value="sem_conserto">Sem Conserto (impossível reparar)</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Solução Aplicada</label>
-                        <textarea name="solucao_aplicada" class="form-control" rows="2" placeholder="Descreva o que foi feito"></textarea>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Custo Real (R$)</label>
-                        <input type="text" name="custo_real" class="form-control" placeholder="0.00">
-                    </div>
-                    <button type="submit" class="btn btn-success" onclick="return confirm('Deseja finalizar este reparo?')">
-                        <i class="bi bi-check-circle-fill me-1"></i>Finalizar Reparo
-                    </button>
-                </form>
-            </div>
-        </div>
-        {% endif %}
-        {% endif %}
+<div class="repair-detail-shell">
+    <div class="mb-4">
+        <a href="{{ url_for('reparo.listar_reparos') }}" class="btn btn-outline-dark btn-sm repair-back-btn">
+            <i class="bi bi-arrow-left"></i>Voltar para reparos
+        </a>
     </div>
 
-    <!-- Coluna Lateral -->
-    <div class="col-lg-4">
-        <!-- Datas e Prazos -->
-        <div class="card border-0 shadow-sm mb-4">
-            <div class="card-header bg-white border-bottom">
-                <h6 class="mb-0">
-                    <i class="bi bi-calendar-event me-2"></i>Datas e Prazos
-                </h6>
+    <section class="repair-detail-hero">
+        <div class="repair-detail-grid">
+            <div>
+                <div class="repair-detail-eyebrow"><i class="bi bi-wrench-adjustable-circle"></i> Oficina operacional</div>
+                <h1 class="repair-detail-title">Reparo #{{ reparo.id }} • {{ reparo.item.descricao if reparo.item else 'Equipamento em análise' }}</h1>
+                <p class="repair-detail-subtitle">Painel individual do equipamento enviado para manutenção, com foco em prazo, custo, solução aplicada e leitura visual mais forte para a operação.</p>
+
+                <div class="repair-detail-badges mb-3">
+                    <span class="repair-badge"><i class="bi bi-upc-scan"></i>{{ reparo.codigo_item }}</span>
+                    <span class="repair-badge"><i class="bi bi-tag"></i>{{ reparo.item.categoria if reparo.item else 'Categoria não disponível' }}</span>
+                    <span class="repair-badge"><i class="bi bi-person-badge"></i>{{ reparo.responsavel.name if reparo.responsavel else reparo.matricula_responsavel }}</span>
+                </div>
+
+                <div class="repair-actions-row">
+                    <span class="repair-status-pill {{ status_tone }}"><i class="bi {{ status_icon }}"></i>{{ reparo.status_display }}</span>
+                    {% if reparo.fornecedor_oficina %}
+                    <span class="repair-badge"><i class="bi bi-building"></i>{{ reparo.fornecedor_oficina }}</span>
+                    {% endif %}
+                </div>
             </div>
-            <div class="card-body">
-                <div class="mb-3">
-                    <label class="text-muted small">Data de Envio</label>
-                    <div class="fw-medium">
-                        {{ reparo.data_envio.strftime('%d/%m/%Y às %H:%M') if reparo.data_envio else '-' }}
+
+            <aside class="repair-photo-panel">
+                <div class="repair-photo-frame">
+                    {% if reparo.item and reparo.item.foto_path %}
+                    <img src="{{ url_for('static', filename=reparo.item.foto_path) }}" alt="Foto do equipamento {{ reparo.item.descricao }}">
+                    {% else %}
+                    <div class="repair-photo-empty">
+                        <i class="bi bi-image"></i>
+                        <div class="fw-semibold mb-2">Espaço para foto do equipamento</div>
+                        <div>Quando o item tiver foto cadastrada no estoque, ela aparece aqui para apoiar diagnóstico e conferência visual.</div>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="repair-photo-caption">
+                    Este bloco foi reservado para a foto do equipamento em reparo. Se ainda não houver imagem no cadastro do item, a área permanece pronta para exibição.
+                </div>
+            </aside>
+        </div>
+    </section>
+
+    <section class="repair-kpi-grid">
+        <article class="repair-kpi-card {{ status_tone if status_tone in ['warning', 'success', 'danger'] else '' }}">
+            <span class="repair-kpi-label">Status atual</span>
+            <div class="repair-kpi-value">{{ reparo.status_display }}</div>
+            <div class="repair-kpi-caption">Fase corrente do fluxo de oficina para este item.</div>
+        </article>
+        <article class="repair-kpi-card warning">
+            <span class="repair-kpi-label">Tempo em reparo</span>
+            <div class="repair-kpi-value">{{ reparo.dias_em_reparo or 0 }} dias</div>
+            <div class="repair-kpi-caption">Contagem desde o envio até o estado atual.</div>
+        </article>
+        <article class="repair-kpi-card green">
+            <span class="repair-kpi-label">Custo estimado</span>
+            <div class="repair-kpi-value">{% if reparo.custo_estimado %}R$ {{ "%.2f"|format(reparo.custo_estimado) }}{% else %}--{% endif %}</div>
+            <div class="repair-kpi-caption">Valor previsto antes do fechamento do reparo.</div>
+        </article>
+        <article class="repair-kpi-card {{ 'green' if reparo.custo_real else 'red' }}">
+            <span class="repair-kpi-label">Custo real</span>
+            <div class="repair-kpi-value">{% if reparo.custo_real %}R$ {{ "%.2f"|format(reparo.custo_real) }}{% else %}--{% endif %}</div>
+            <div class="repair-kpi-caption">Valor efetivamente lançado na solução.</div>
+        </article>
+    </section>
+
+    <div class="row g-4">
+        <div class="col-lg-8">
+            <div class="card repair-panel">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-info-circle me-2"></i>Informações do equipamento</h5>
+                </div>
+                <div class="card-body">
+                    <div class="repair-info-grid">
+                        <div class="repair-info-item">
+                            <span class="repair-info-label">Código do item</span>
+                            <div class="repair-info-value"><code class="fs-5">{{ reparo.codigo_item }}</code></div>
+                        </div>
+                        <div class="repair-info-item">
+                            <span class="repair-info-label">Status</span>
+                            <div class="repair-info-value"><span class="repair-status-pill {{ status_tone }}"><i class="bi {{ status_icon }}"></i>{{ reparo.status_display }}</span></div>
+                        </div>
+                        <div class="repair-info-item">
+                            <span class="repair-info-label">Descrição</span>
+                            <div class="repair-info-value">{{ reparo.item.descricao if reparo.item else '-' }}</div>
+                        </div>
+                        <div class="repair-info-item">
+                            <span class="repair-info-label">Categoria</span>
+                            <div class="repair-info-value">{{ reparo.item.categoria if reparo.item else 'Não disponível' }}</div>
+                        </div>
                     </div>
                 </div>
-                <div class="mb-3">
-                    <label class="text-muted small">Prazo Previsto</label>
-                    <div class="fw-medium">
-                        {{ reparo.prazo_previsto.strftime('%d/%m/%Y') if reparo.prazo_previsto else 'Não definido' }}
-                    </div>
+            </div>
+
+            <div class="card repair-panel">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-exclamation-triangle me-2"></i>Problema e solução</h5>
                 </div>
-                {% if reparo.data_retorno %}
-                <div class="mb-3">
-                    <label class="text-muted small">Data de Retorno</label>
-                    <div class="fw-medium text-success">
-                        {{ reparo.data_retorno.strftime('%d/%m/%Y às %H:%M') }}
+                <div class="card-body">
+                    <div class="mb-4">
+                        <label class="text-muted small mb-2 d-block">Problema descrito</label>
+                        <div class="repair-soft-block">{{ reparo.problema_descrito }}</div>
                     </div>
-                </div>
-                {% endif %}
-                <div>
-                    <label class="text-muted small">Tempo Decorrido</label>
+                    {% if reparo.solucao_aplicada %}
                     <div>
-                        <span class="badge {% if reparo.dias_em_reparo > 30 %}bg-danger{% elif reparo.dias_em_reparo > 15 %}bg-warning text-dark{% else %}bg-secondary{% endif %} fs-6">
-                            {{ reparo.dias_em_reparo or 0 }} dias
-                        </span>
+                        <label class="text-muted small mb-2 d-block">Solução aplicada</label>
+                        <div class="repair-soft-block success">{{ reparo.solucao_aplicada }}</div>
                     </div>
+                    {% endif %}
                 </div>
             </div>
+
+            {% if reparo.observacoes %}
+            <div class="card repair-panel">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-journal-text me-2"></i>Observações</h5>
+                </div>
+                <div class="card-body">
+                    <div class="repair-soft-block" style="white-space: pre-wrap;">{{ reparo.observacoes }}</div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if current_user.is_admin or 'supervisor' in (current_user.setor or '').lower() or 'supervisor' in (current_user.cargo or '').lower() %}
+            <div class="card repair-panel">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-pencil-square me-2"></i>Atualizar reparo</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" action="{{ url_for('reparo.atualizar_reparo', reparo_id=reparo.id) }}">
+                        <div class="mb-3">
+                            <label class="form-label">Status</label>
+                            <select name="status" class="form-select" required>
+                                <option value="aguardando_orcamento" {% if reparo.status == 'aguardando_orcamento' %}selected{% endif %}>Aguardando Orçamento</option>
+                                <option value="em_reparo" {% if reparo.status == 'em_reparo' %}selected{% endif %}>Em Reparo</option>
+                                <option value="concluido" {% if reparo.status == 'concluido' %}selected{% endif %}>Concluído</option>
+                                <option value="sem_conserto" {% if reparo.status == 'sem_conserto' %}selected{% endif %}>Sem Conserto</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Solução aplicada</label>
+                            <textarea name="solucao_aplicada" class="form-control" rows="3" placeholder="Descreva a solução aplicada">{{ reparo.solucao_aplicada or '' }}</textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Custo real (R$)</label>
+                            <input type="text" name="custo_real" class="form-control" placeholder="0.00" value="{{ reparo.custo_real or '' }}">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Observações adicionais</label>
+                            <textarea name="observacoes" class="form-control" rows="2" placeholder="Adicione novas observações"></textarea>
+                            <small class="text-muted">As observações serão anexadas ao histórico existente deste reparo.</small>
+                        </div>
+                        <button type="submit" class="btn btn-primary rounded-pill px-4">
+                            <i class="bi bi-save me-1"></i>Salvar alterações
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            {% if reparo.status not in ['concluido', 'sem_conserto'] %}
+            <div class="card repair-panel" style="border-color: rgba(34, 197, 94, 0.28);">
+                <div class="card-header">
+                    <h5 class="mb-0 text-success"><i class="bi bi-check-circle me-2"></i>Finalizar reparo</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" action="{{ url_for('reparo.finalizar_reparo', reparo_id=reparo.id) }}">
+                        <div class="mb-3">
+                            <label class="form-label">Status final</label>
+                            <select name="status_final" class="form-select" required>
+                                <option value="concluido">Concluído (reparo bem-sucedido)</option>
+                                <option value="sem_conserto">Sem Conserto (impossível reparar)</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Solução aplicada</label>
+                            <textarea name="solucao_aplicada" class="form-control" rows="2" placeholder="Descreva o que foi feito"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Custo real (R$)</label>
+                            <input type="text" name="custo_real" class="form-control" placeholder="0.00">
+                        </div>
+                        <button type="submit" class="btn btn-success rounded-pill px-4" onclick="return confirm('Deseja finalizar este reparo?')">
+                            <i class="bi bi-check-circle-fill me-1"></i>Finalizar reparo
+                        </button>
+                    </form>
+                </div>
+            </div>
+            {% endif %}
+            {% endif %}
         </div>
 
-        <!-- Custos -->
-        <div class="card border-0 shadow-sm mb-4">
-            <div class="card-header bg-white border-bottom">
-                <h6 class="mb-0">
-                    <i class="bi bi-cash-coin me-2"></i>Custos
-                </h6>
-            </div>
-            <div class="card-body">
-                <div class="mb-3">
-                    <label class="text-muted small">Custo Estimado</label>
-                    <div class="fw-medium">
-                        {% if reparo.custo_estimado %}
-                        R$ {{ "%.2f"|format(reparo.custo_estimado) }}
-                        {% else %}
-                        Não informado
+        <div class="col-lg-4">
+            <div class="card repair-panel">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="bi bi-diagram-3 me-2"></i>Datas e marcos</h6>
+                </div>
+                <div class="card-body">
+                    <div class="repair-timeline">
+                        <div class="repair-timeline-item">
+                            <span class="repair-timeline-dot"><i class="bi bi-box-arrow-up-right"></i></span>
+                            <label class="text-muted small d-block mb-1">Data de envio</label>
+                            <div class="repair-side-value">{{ reparo.data_envio.strftime('%d/%m/%Y às %H:%M') if reparo.data_envio else '-' }}</div>
+                        </div>
+                        <div class="repair-timeline-item">
+                            <span class="repair-timeline-dot"><i class="bi bi-calendar-event"></i></span>
+                            <label class="text-muted small d-block mb-1">Prazo previsto</label>
+                            <div class="repair-side-value">{{ reparo.prazo_previsto.strftime('%d/%m/%Y') if reparo.prazo_previsto else 'Não definido' }}</div>
+                        </div>
+                        {% if reparo.data_retorno %}
+                        <div class="repair-timeline-item">
+                            <span class="repair-timeline-dot"><i class="bi bi-arrow-return-left"></i></span>
+                            <label class="text-muted small d-block mb-1">Data de retorno</label>
+                            <div class="repair-side-value">{{ reparo.data_retorno.strftime('%d/%m/%Y às %H:%M') }}</div>
+                        </div>
                         {% endif %}
-                    </div>
-                </div>
-                <div>
-                    <label class="text-muted small">Custo Real</label>
-                    <div class="fw-medium">
-                        {% if reparo.custo_real %}
-                        <span class="text-success fs-5">R$ {{ "%.2f"|format(reparo.custo_real) }}</span>
-                        {% else %}
-                        Não informado
-                        {% endif %}
+                        <div class="repair-timeline-item">
+                            <span class="repair-timeline-dot"><i class="bi bi-hourglass-split"></i></span>
+                            <label class="text-muted small d-block mb-1">Tempo decorrido</label>
+                            <div class="repair-side-value">{{ reparo.dias_em_reparo or 0 }} dias</div>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
 
-        <!-- Fornecedor -->
-        {% if reparo.fornecedor_oficina %}
-        <div class="card border-0 shadow-sm mb-4">
-            <div class="card-header bg-white border-bottom">
-                <h6 class="mb-0">
-                    <i class="bi bi-building me-2"></i>Fornecedor/Oficina
-                </h6>
-            </div>
-            <div class="card-body">
-                <div class="fw-medium">{{ reparo.fornecedor_oficina }}</div>
-            </div>
-        </div>
-        {% endif %}
-
-        <!-- Responsável -->
-        <div class="card border-0 shadow-sm mb-4">
-            <div class="card-header bg-white border-bottom">
-                <h6 class="mb-0">
-                    <i class="bi bi-person-badge me-2"></i>Responsável
-                </h6>
-            </div>
-            <div class="card-body">
-                <div class="mb-2">
-                    <label class="text-muted small">Enviado por</label>
-                    <div class="fw-medium">
-                        {{ reparo.responsavel.name if reparo.responsavel else reparo.matricula_responsavel }}
-                    </div>
-                    <small class="text-muted">{{ reparo.matricula_responsavel }}</small>
+            <div class="card repair-panel">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="bi bi-cash-coin me-2"></i>Custos</h6>
                 </div>
-                {% if reparo.atualizado_por %}
-                <div class="mt-3">
-                    <label class="text-muted small">Última atualização</label>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="text-muted small">Custo estimado</label>
+                        <div class="repair-side-value">{% if reparo.custo_estimado %}R$ {{ "%.2f"|format(reparo.custo_estimado) }}{% else %}Não informado{% endif %}</div>
+                    </div>
                     <div>
-                        <small class="text-muted">
-                            {{ reparo.atualizado_em.strftime('%d/%m/%Y %H:%M') if reparo.atualizado_em else '-' }}
-                        </small>
+                        <label class="text-muted small">Custo real</label>
+                        <div class="repair-side-value">{% if reparo.custo_real %}<span class="text-success">R$ {{ "%.2f"|format(reparo.custo_real) }}</span>{% else %}Não informado{% endif %}</div>
                     </div>
                 </div>
-                {% endif %}
+            </div>
+
+            {% if reparo.fornecedor_oficina %}
+            <div class="card repair-panel">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="bi bi-building me-2"></i>Fornecedor / oficina</h6>
+                </div>
+                <div class="card-body">
+                    <div class="repair-side-value">{{ reparo.fornecedor_oficina }}</div>
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="card repair-panel">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="bi bi-person-badge me-2"></i>Responsável</h6>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="text-muted small">Enviado por</label>
+                        <div class="repair-side-value">{{ reparo.responsavel.name if reparo.responsavel else reparo.matricula_responsavel }}</div>
+                        <small class="text-muted">{{ reparo.matricula_responsavel }}</small>
+                    </div>
+                    {% if reparo.atualizado_por %}
+                    <div>
+                        <label class="text-muted small">Última atualização</label>
+                        <div class="repair-side-value">{{ reparo.atualizado_em.strftime('%d/%m/%Y %H:%M') if reparo.atualizado_em else '-' }}</div>
+                    </div>
+                    {% endif %}
+                </div>
             </div>
         </div>
     </div>

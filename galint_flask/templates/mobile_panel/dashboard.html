@@ -2,97 +2,262 @@
 
 {% block title %}Painel Mobile - GALINT{% endblock %}
 
-{% block page_header %}
-<h2 class="mb-0">Painel Mobile</h2>
+{% block extra_css %}
+<style>
+    .mobile-shell { background: linear-gradient(180deg, #eef2f7 0%, #f8fafc 100%); border: 1px solid rgba(148,163,184,0.18); border-radius: 30px; padding: 1.85rem; box-shadow: 0 24px 54px rgba(15,23,42,0.1); }
+    .mobile-hero { position: relative; overflow: hidden; border-radius: 28px; padding: 1.8rem; margin-bottom: 1.5rem; color: #f8fafc; background: linear-gradient(135deg, #020617 0%, #172554 42%, #2563eb 100%); box-shadow: 0 28px 64px rgba(15,23,42,0.22); }
+    .mobile-hero::before { content: ""; position: absolute; inset: 0; background: radial-gradient(circle at 14% 18%, rgba(56,189,248,0.22), transparent 28%), radial-gradient(circle at 86% 16%, rgba(96,165,250,0.18), transparent 22%), linear-gradient(180deg, rgba(255,255,255,0.04), transparent 60%); pointer-events: none; }
+    .mobile-hero > * { position: relative; z-index: 1; }
+    .mobile-eyebrow { display: inline-flex; align-items: center; gap: 0.45rem; padding: 0.38rem 0.72rem; border-radius: 999px; background: rgba(255,255,255,0.08); border: 1px solid rgba(226,232,240,0.14); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: rgba(226,232,240,0.92); margin-bottom: 0.9rem; }
+    .mobile-title { margin: 0; font-size: clamp(2rem, 3vw, 2.8rem); font-weight: 800; letter-spacing: -0.03em; }
+    .mobile-subtitle { margin: 0.65rem 0 0; max-width: 62rem; color: rgba(226,232,240,0.82); line-height: 1.65; }
+    .mobile-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 1.25rem; }
+    .mobile-kpis { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+    .mobile-kpi { position: relative; overflow: hidden; border-radius: 22px; padding: 1.15rem; color: #f8fafc; background: linear-gradient(145deg, #0f172a 0%, #1e293b 68%, #334155 100%); border: 1px solid rgba(148,163,184,0.18); box-shadow: 0 20px 42px rgba(15,23,42,0.18); cursor: pointer; }
+    .mobile-kpi::before { content: ""; position: absolute; inset: 0; background: radial-gradient(circle at 18% 18%, rgba(59,130,246,0.22), transparent 34%); pointer-events: none; }
+    .mobile-kpi > * { position: relative; z-index: 1; }
+    .mobile-kpi-label { display: block; font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.06em; color: rgba(226,232,240,0.72); margin-bottom: 0.45rem; }
+    .mobile-kpi-value { font-size: 1.45rem; font-weight: 800; line-height: 1.1; }
+    .mobile-kpi-caption { margin-top: 0.35rem; font-size: 0.8rem; color: rgba(226,232,240,0.74); }
+    .mobile-tabs.nav-pills { gap: 0.65rem; margin-bottom: 1.25rem; }
+    .mobile-tabs .nav-link { border-radius: 999px; padding: 0.75rem 1rem; background: #dbe4ef; color: #334155; font-weight: 700; border: 1px solid rgba(148,163,184,0.18); }
+    .mobile-tabs .nav-link.active { background: #0f172a; color: #f8fafc; border-color: rgba(59,130,246,0.35); }
+    .mobile-panel { background: linear-gradient(145deg, #0f172a 0%, #1e293b 100%); border: 1px solid rgba(148,163,184,0.18); border-radius: 24px; box-shadow: 0 22px 48px rgba(15,23,42,0.16); color: #e2e8f0; }
+    .mobile-panel .card-header, .mobile-panel .card-body { background: transparent; color: inherit; border-color: rgba(148,163,184,0.14); }
+    .mobile-panel .card-header { padding: 1.1rem 1.35rem 0.95rem; }
+    .mobile-panel .card-body { padding: 1.25rem 1.35rem 1.35rem; }
+    .mobile-soft { border-radius: 18px; border: 1px solid rgba(148,163,184,0.14); background: rgba(255,255,255,0.06); padding: 1rem; }
+    .mobile-table-wrap { background: rgba(255,255,255,0.74); border-radius: 20px; overflow: hidden; border: 1px solid rgba(148,163,184,0.16); }
+    .mobile-table { margin-bottom: 0; color: #334155; }
+    .mobile-table thead th { background: #e2e8f0; color: #334155; text-transform: uppercase; font-size: 0.77rem; letter-spacing: 0.05em; }
+    .mobile-table td { border-color: rgba(148,163,184,0.12); vertical-align: middle; }
+    .mobile-table tbody tr:hover { background: rgba(59,130,246,0.06); }
+    .mobile-badge { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.35rem 0.65rem; border-radius: 999px; font-size: 0.74rem; font-weight: 700; }
+    .mobile-badge.online { background: rgba(34,197,94,0.16); color: #166534; }
+    .mobile-badge.offline { background: rgba(245,158,11,0.18); color: #92400e; }
+    .mobile-badge.blocked { background: rgba(239,68,68,0.16); color: #991b1b; }
+    .mobile-badge.local { background: rgba(59,130,246,0.16); color: #1d4ed8; }
+    .mobile-badge.external { background: rgba(14,165,233,0.16); color: #0f766e; }
+    .mobile-badge.unknown { background: rgba(100,116,139,0.16); color: #475569; }
+    .mobile-score { display: inline-flex; align-items: center; justify-content: center; min-width: 54px; padding: 0.3rem 0.6rem; border-radius: 999px; font-weight: 800; }
+    .mobile-score.saudavel { background: rgba(34,197,94,0.16); color: #166534; }
+    .mobile-score.atencao { background: rgba(245,158,11,0.16); color: #92400e; }
+    .mobile-score.critico { background: rgba(239,68,68,0.16); color: #991b1b; }
+    .mobile-alert { border-radius: 18px; padding: 0.95rem 1rem; border: 1px solid rgba(148,163,184,0.16); margin-bottom: 0.75rem; }
+    .mobile-alert.warning { background: rgba(245,158,11,0.12); color: #92400e; }
+    .mobile-alert.danger { background: rgba(239,68,68,0.12); color: #991b1b; }
+    .mobile-alert.info { background: rgba(59,130,246,0.12); color: #1d4ed8; }
+    .mobile-stat-grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 1rem; }
+    .mobile-chip-list { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    .mobile-chip { display: inline-flex; align-items: center; padding: 0.42rem 0.7rem; border-radius: 999px; background: rgba(255,255,255,0.08); border: 1px solid rgba(148,163,184,0.12); color: #e2e8f0; font-size: 0.82rem; }
+    .mobile-muted { color: #9fb0c6; }
+    .mobile-modal .modal-content { background: linear-gradient(145deg, #0f172a 0%, #1e293b 100%); color: #e2e8f0; border: 1px solid rgba(148,163,184,0.18); }
+    .mobile-modal .modal-header, .mobile-modal .modal-footer { border-color: rgba(148,163,184,0.14); }
+    .mobile-modal .form-control { background: rgba(15,23,42,0.82); color: #f8fafc; border-color: rgba(148,163,184,0.22); }
+    .mobile-modal .form-control::placeholder { color: #94a3b8; }
+    @media (max-width: 1400px) { .mobile-kpis { grid-template-columns: repeat(3, minmax(0,1fr)); } }
+    @media (max-width: 992px) { .mobile-stat-grid { grid-template-columns: 1fr; } }
+    @media (max-width: 768px) { .mobile-shell { padding: 1rem; border-radius: 22px; } .mobile-hero { padding: 1.2rem; border-radius: 20px; } .mobile-kpis { grid-template-columns: 1fr; } .mobile-tabs.nav-pills { flex-direction: column; } }
+</style>
 {% endblock %}
 
+{% block page_header %}{% endblock %}
+
 {% block content %}
-<div class="container-fluid py-3">
-    <!-- Cards KPI Clicáveis -->
-    <div class="row g-3 mb-3">
-        <div class="col-md-3">
-            <div class="card bg-success text-white cursor-pointer" id="card-online" style="cursor: pointer;">
-                <div class="card-body">
-                    <h6 class="card-title">Dispositivos Online</h6>
-                    <h3 class="mb-0" id="kpi-online">--</h3>
-                    <small>últimos 5 minutos</small>
+<div class="mobile-shell">
+    <section class="mobile-hero">
+        <div class="mobile-eyebrow"><i class="bi bi-phone-vibrate"></i> Governança do GALINT Mobile</div>
+        <h1 class="mobile-title">Painel Mobile</h1>
+        <p class="mobile-subtitle">Centro operacional para acompanhar o parque instalado, ler versão de Android e APK, diagnosticar operabilidade por dispositivo e administrar o acesso dos usuários ao app em rede local ou externa.</p>
+        <div class="mobile-actions">
+            <button class="btn btn-primary rounded-pill px-4" id="btn-refresh-all"><i class="bi bi-arrow-clockwise me-2"></i>Atualizar painel</button>
+            <a class="btn btn-outline-light rounded-pill px-4" href="{{ url_for('mobile_panel.versions') }}"><i class="bi bi-tag me-2"></i>Versões APK</a>
+            <a class="btn btn-outline-light rounded-pill px-4" href="{{ url_for('mobile_panel.features') }}"><i class="bi bi-toggle-on me-2"></i>Feature Flags</a>
+            <a class="btn btn-outline-light rounded-pill px-4" href="{{ url_for('mobile_panel.audit') }}"><i class="bi bi-journal-text me-2"></i>Auditoria</a>
+        </div>
+    </section>
+
+    <section class="mobile-kpis">
+        <article class="mobile-kpi" data-filter="online"><span class="mobile-kpi-label">Dispositivos online</span><div class="mobile-kpi-value" id="kpi-online">--</div><div class="mobile-kpi-caption">Heartbeat válido nos últimos 5 minutos.</div></article>
+        <article class="mobile-kpi" data-filter="offline"><span class="mobile-kpi-label">Dispositivos offline</span><div class="mobile-kpi-value" id="kpi-offline">--</div><div class="mobile-kpi-caption">Sem resposta recente do app.</div></article>
+        <article class="mobile-kpi" data-filter="blocked-devices"><span class="mobile-kpi-label">Dispositivos bloqueados</span><div class="mobile-kpi-value" id="kpi-blocked-devices">--</div><div class="mobile-kpi-caption">Acesso negado por dispositivo.</div></article>
+        <article class="mobile-kpi" data-filter="blocked-users"><span class="mobile-kpi-label">Usuários bloqueados</span><div class="mobile-kpi-value" id="kpi-blocked-users">--</div><div class="mobile-kpi-caption">Bloqueio administrativo por usuário.</div></article>
+        <article class="mobile-kpi" data-filter="stale"><span class="mobile-kpi-label">Leitura viva</span><div class="mobile-kpi-value" id="kpi-live-read">--</div><div class="mobile-kpi-caption">Apps que reportaram heartbeat em até 1 minuto.</div></article>
+        <article class="mobile-kpi" data-filter="diagnostic"><span class="mobile-kpi-label">Operabilidade média</span><div class="mobile-kpi-value" id="kpi-health">--</div><div class="mobile-kpi-caption">Score consolidado do parque instalado.</div></article>
+    </section>
+
+    <ul class="nav nav-pills mobile-tabs" role="tablist">
+        <li class="nav-item" role="presentation"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#mobile-overview" type="button" role="tab">Visão geral</button></li>
+        <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#mobile-devices" type="button" role="tab">Dispositivos</button></li>
+        <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#mobile-users" type="button" role="tab">Usuários do app</button></li>
+        <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#mobile-diagnostics" type="button" role="tab">Diagnóstico</button></li>
+    </ul>
+
+    <div class="tab-content">
+        <div class="tab-pane fade show active" id="mobile-overview" role="tabpanel">
+            <div id="alerts-container" class="mb-3"></div>
+            <div class="mobile-stat-grid mb-4">
+                <div class="card mobile-panel">
+                    <div class="card-header"><strong>Distribuição de Android</strong></div>
+                    <div class="card-body"><div class="mobile-chip-list" id="android-version-list"></div></div>
+                </div>
+                <div class="card mobile-panel">
+                    <div class="card-header"><strong>Rede local x externa</strong></div>
+                    <div class="card-body"><div class="mobile-chip-list" id="network-scope-list"></div></div>
+                </div>
+                <div class="card mobile-panel">
+                    <div class="card-header"><strong>Canal e versões</strong></div>
+                    <div class="card-body"><div class="mobile-chip-list" id="apk-version-list"></div></div>
+                </div>
+            </div>
+            <div class="card mobile-panel">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <strong>Leituras recentes e operabilidade</strong>
+                    <span class="mobile-muted small" id="overview-filter-status">Mostrando todos os dispositivos</span>
+                </div>
+                <div class="card-body p-0">
+                    <div class="mobile-table-wrap">
+                        <div class="table-responsive">
+                            <table class="table table-sm mobile-table mb-0" id="overview-table">
+                                <thead>
+                                    <tr>
+                                        <th>Dispositivo</th>
+                                        <th>Usuário</th>
+                                        <th>Status</th>
+                                        <th>Android</th>
+                                        <th>Rede</th>
+                                        <th>Operabilidade</th>
+                                        <th class="text-end">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card bg-warning text-dark cursor-pointer" id="card-offline" style="cursor: pointer;">
-                <div class="card-body">
-                    <h6 class="card-title">Dispositivos Offline</h6>
-                    <h3 class="mb-0" id="kpi-offline">--</h3>
-                    <small>sem heartbeat</small>
+
+        <div class="tab-pane fade" id="mobile-devices" role="tabpanel">
+            <div class="card mobile-panel">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <strong>Controle de dispositivos</strong>
+                    <span class="mobile-muted small">Bloqueio, logout forçado e detalhes técnicos por app instalado.</span>
+                </div>
+                <div class="card-body p-0">
+                    <div class="mobile-table-wrap">
+                        <div class="table-responsive">
+                            <table class="table table-sm mobile-table mb-0" id="devices-table">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Modelo</th>
+                                        <th>Usuário</th>
+                                        <th>Android</th>
+                                        <th>APK</th>
+                                        <th>Status</th>
+                                        <th>IP</th>
+                                        <th>Última atividade</th>
+                                        <th class="text-end">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card bg-danger text-white cursor-pointer" id="card-blocked" style="cursor: pointer;">
-                <div class="card-body">
-                    <h6 class="card-title">Bloqueados</h6>
-                    <h3 class="mb-0" id="kpi-blocked">--</h3>
-                    <small>admin</small>
+
+        <div class="tab-pane fade" id="mobile-users" role="tabpanel">
+            <div class="card mobile-panel">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <strong>Gestão de usuários mobile</strong>
+                    <span class="mobile-muted small">Editar nome, setor, cargo, senha, bloquear acesso ao app e forçar logout.</span>
+                </div>
+                <div class="card-body p-0">
+                    <div class="mobile-table-wrap">
+                        <div class="table-responsive">
+                            <table class="table table-sm mobile-table mb-0" id="users-table">
+                                <thead>
+                                    <tr>
+                                        <th>Matrícula</th>
+                                        <th>Nome</th>
+                                        <th>Setor / Cargo</th>
+                                        <th>Dispositivos</th>
+                                        <th>Androids</th>
+                                        <th>Acesso mobile</th>
+                                        <th>Última atividade</th>
+                                        <th class="text-end">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card bg-info text-white">
-                <div class="card-body">
-                    <h6 class="card-title">Versão Atual</h6>
-                    <h3 class="mb-0" id="kpi-version">--</h3>
-                    <small>produção</small>
+
+        <div class="tab-pane fade" id="mobile-diagnostics" role="tabpanel">
+            <div class="card mobile-panel">
+                <div class="card-header"><strong>Diagnóstico de operabilidade por app instalado</strong></div>
+                <div class="card-body p-0">
+                    <div class="mobile-table-wrap">
+                        <div class="table-responsive">
+                            <table class="table table-sm mobile-table mb-0" id="diagnostics-table">
+                                <thead>
+                                    <tr>
+                                        <th>Dispositivo</th>
+                                        <th>Usuário</th>
+                                        <th>Resumo</th>
+                                        <th>Score</th>
+                                        <th>Versão app</th>
+                                        <th>Android</th>
+                                        <th>Problemas detectados</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
+</div>
 
-    <!-- Alertas Inteligentes -->
-    <div id="alerts-container"></div>
-
-    <!-- Ações Rápidas -->
-    <div class="d-flex flex-wrap gap-2 mb-3 align-items-center">
-        <button class="btn btn-outline-secondary btn-sm" id="btn-clear-filter">
-            <i class="bi bi-x-circle me-1"></i> Limpar Filtro
-        </button>
-        <span class="text-muted ms-2" id="filter-status">Mostrando todos</span>
-        <div class="ms-auto">
-            <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('mobile_panel.versions') }}">
-                <i class="bi bi-tag me-1"></i> Versões
-            </a>
-            <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('mobile_panel.features') }}">
-                <i class="bi bi-toggle-on me-1"></i> Features
-            </a>
-            <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('mobile_panel.audit') }}">
-                <i class="bi bi-journal-text me-1"></i> Auditoria
-            </a>
+<div class="modal fade mobile-modal" id="deviceDetailsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Detalhes do dispositivo</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body" id="device-details-body"></div>
         </div>
     </div>
+</div>
 
-    <!-- Tabela Principal de Dispositivos -->
-    <div class="card">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <strong>Dispositivos Ativos</strong>
-            <button class="btn btn-sm btn-outline-secondary" id="refresh-devices">
-                <i class="bi bi-arrow-clockwise"></i>
-            </button>
-        </div>
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-hover table-sm mb-0" id="devices-table">
-                    <thead class="table-light">
-                        <tr>
-                            <th style="width: 100px;">ID</th>
-                            <th>Usuário</th>
-                            <th style="width: 120px;">Status</th>
-                            <th style="width: 180px;">Última Atividade</th>
-                            <th>Versão</th>
-                            <th class="text-end" style="width: 200px;">Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
+<div class="modal fade mobile-modal" id="userEditModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Editar usuário do app</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="edit-user-matricula">
+                <div class="row g-3">
+                    <div class="col-md-6"><label class="form-label">Nome</label><input class="form-control" id="edit-user-nome"></div>
+                    <div class="col-md-3"><label class="form-label">Setor</label><input class="form-control" id="edit-user-setor"></div>
+                    <div class="col-md-3"><label class="form-label">Cargo</label><input class="form-control" id="edit-user-cargo"></div>
+                    <div class="col-12"><label class="form-label">Nova senha</label><input class="form-control" id="edit-user-senha" placeholder="Preencha apenas se quiser trocar a senha do app"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-light rounded-pill px-4" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary rounded-pill px-4" id="btn-save-user">Salvar alterações</button>
             </div>
         </div>
     </div>
@@ -102,38 +267,61 @@
 {% block scripts %}
 <script>
     let allDevices = [];
+    let allUsers = [];
+    let allVersions = [];
     let currentFilter = null;
 
-    // Helpers
+    const deviceModal = new bootstrap.Modal(document.getElementById('deviceDetailsModal'));
+    const userEditModal = new bootstrap.Modal(document.getElementById('userEditModal'));
+
     const toDate = (value) => value ? new Date(value) : null;
-    const hoursSince = (date) => date ? (Date.now() - date.getTime()) / (60 * 60 * 1000) : null;
-    const daysSince = (date) => date ? (Date.now() - date.getTime()) / (24 * 60 * 60 * 1000) : null;
-    const shortId = (uuid) => uuid ? uuid.substring(0, 8) : '-';
-    
+    const shortId = (uuid) => uuid ? String(uuid).substring(0, 8) : '-';
     const timeAgo = (dateStr) => {
         if (!dateStr) return '-';
         const date = new Date(dateStr);
         const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
-        
         if (seconds < 60) return 'agora';
         if (seconds < 3600) return `${Math.floor(seconds / 60)} min atrás`;
         if (seconds < 86400) return `${Math.floor(seconds / 3600)}h atrás`;
-        const days = Math.floor(seconds / 86400);
-        return `há ${days} dia${days > 1 ? 's' : ''}`;
+        return `${Math.floor(seconds / 86400)} dia(s)`;
     };
 
     async function fetchJson(url, options = {}) {
-        const res = await fetch(url, { credentials: 'same-origin', ...options });
-        if (!res.ok) throw new Error('Falha ao carregar dados');
-        return res.json();
+        const response = await fetch(url, {
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            ...options,
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || data.message || 'Falha na requisição');
+        return data;
     }
 
     async function postAction(url, payload) {
-        return fetchJson(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload || {}),
-        });
+        return fetchJson(url, { method: 'POST', body: JSON.stringify(payload || {}) });
+    }
+
+    async function putAction(url, payload) {
+        return fetchJson(url, { method: 'PUT', body: JSON.stringify(payload || {}) });
+    }
+
+    function statusBadge(device) {
+        if (device.status === 'blocked') return '<span class="mobile-badge blocked">Bloqueado</span>';
+        if (device.is_online) return '<span class="mobile-badge online">Online</span>';
+        return '<span class="mobile-badge offline">Offline</span>';
+    }
+
+    function networkBadge(scope) {
+        const normalized = (scope || 'desconhecida').toLowerCase();
+        if (normalized === 'local') return '<span class="mobile-badge local">Rede local</span>';
+        if (normalized === 'externa') return '<span class="mobile-badge external">Rede externa</span>';
+        return '<span class="mobile-badge unknown">Indefinida</span>';
+    }
+
+    function scoreBadge(diagnostic) {
+        const health = diagnostic?.health || 'critico';
+        const score = diagnostic?.score ?? 0;
+        return `<span class="mobile-score ${health}">${score}</span>`;
     }
 
     function setText(id, value) {
@@ -141,242 +329,282 @@
         if (el) el.textContent = value;
     }
 
-    function isOnline(device) {
-        if (device.status === 'blocked') return false;
-        const last = toDate(device.last_heartbeat_at);
-        return last && (Date.now() - last.getTime()) <= 5 * 60 * 1000;
-    }
-
-    function getDeviceStatus(device) {
-        if (device.status === 'blocked') return 'blocked';
-        return isOnline(device) ? 'online' : 'offline';
-    }
-
-    function statusBadge(status) {
-        const badges = {
-            online: '<span class="badge bg-success">🟢 Online</span>',
-            offline: '<span class="badge bg-warning text-dark">🟡 Offline</span>',
-            blocked: '<span class="badge bg-danger">🔴 Bloqueado</span>',
-        };
-        return badges[status] || '<span class="badge bg-secondary">-</span>';
-    }
-
-    function generateAlerts(devices) {
+    function buildAlerts(devices, users) {
         const alerts = [];
-        const now = Date.now();
+        const stale = devices.filter(device => (device.diagnostic?.heartbeat_age_minutes || 0) > 120 && device.status !== 'blocked');
+        if (stale.length) alerts.push({ level: 'warning', text: `${stale.length} dispositivo(s) estão sem leitura há mais de 2 horas.` });
 
-        // Alerta: dispositivos bloqueados há mais de 7 dias
-        const staleBlocked = devices.filter(d => {
-            if (d.status !== 'blocked' || !d.blocked_at) return false;
-            return daysSince(toDate(d.blocked_at)) > 7;
-        });
-        if (staleBlocked.length > 0) {
-            alerts.push({
-                level: 'danger',
-                icon: 'bi-exclamation-triangle-fill',
-                msg: `${staleBlocked.length} dispositivo(s) bloqueado há mais de 7 dias`,
-                action: () => filterDevices('stale-blocked'),
-            });
-        }
+        const critical = devices.filter(device => device.diagnostic?.health === 'critico');
+        if (critical.length) alerts.push({ level: 'danger', text: `${critical.length} dispositivo(s) exigem intervenção imediata.` });
 
-        // Alerta: dispositivos offline há mais de 48h
-        const longOffline = devices.filter(d => {
-            if (d.status === 'blocked') return false;
-            const hours = hoursSince(toDate(d.last_heartbeat_at));
-            return hours && hours > 48;
-        });
-        if (longOffline.length > 2) {
-            alerts.push({
-                level: 'warning',
-                icon: 'bi-info-circle',
-                msg: `${longOffline.length} dispositivos offline há mais de 2 dias`,
-            });
-        }
-
-        // Alerta: múltiplos devices por usuário
-        const userDevices = {};
-        devices.filter(d => isOnline(d)).forEach(d => {
-            if (d.current_user_id) {
-                userDevices[d.current_user_id] = (userDevices[d.current_user_id] || 0) + 1;
-            }
-        });
-        const multiDevice = Object.entries(userDevices).filter(([_, count]) => count >= 3);
-        if (multiDevice.length > 0) {
-            alerts.push({
-                level: 'info',
-                icon: 'bi-person-fill',
-                msg: `${multiDevice.length} usuário(s) com 3+ dispositivos online simultaneamente`,
-            });
-        }
-
+        const blockedUsers = users.filter(user => user.mobile_blocked);
+        if (blockedUsers.length) alerts.push({ level: 'info', text: `${blockedUsers.length} usuário(s) estão bloqueados no app mobile.` });
         return alerts;
     }
 
     function renderAlerts(alerts) {
         const container = document.getElementById('alerts-container');
         if (!container) return;
-        
-        container.innerHTML = '';
-        alerts.forEach(alert => {
-            const div = document.createElement('div');
-            div.className = `alert alert-${alert.level} alert-dismissible fade show mb-2`;
-            div.innerHTML = `
-                <i class="bi ${alert.icon} me-2"></i>${alert.msg}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            `;
-            if (alert.action) {
-                div.style.cursor = 'pointer';
-                div.addEventListener('click', alert.action);
-            }
-            container.appendChild(div);
-        });
+        container.innerHTML = alerts.map(alert => `<div class="mobile-alert ${alert.level}"><i class="bi bi-bell me-2"></i>${alert.text}</div>`).join('');
     }
 
-    function renderDevices(devices) {
+    function renderSummary(devices, users, versions) {
+        const online = devices.filter(device => device.is_online && device.status !== 'blocked').length;
+        const offline = devices.filter(device => !device.is_online && device.status !== 'blocked').length;
+        const blockedDevices = devices.filter(device => device.status === 'blocked').length;
+        const blockedUsers = users.filter(user => user.mobile_blocked).length;
+        const liveRead = devices.filter(device => (device.diagnostic?.heartbeat_age_minutes ?? 9999) <= 1).length;
+        const avgHealth = devices.length ? Math.round(devices.reduce((acc, device) => acc + (device.diagnostic?.score || 0), 0) / devices.length) : 0;
+
+        setText('kpi-online', online);
+        setText('kpi-offline', offline);
+        setText('kpi-blocked-devices', blockedDevices);
+        setText('kpi-blocked-users', blockedUsers);
+        setText('kpi-live-read', liveRead);
+        setText('kpi-health', `${avgHealth}%`);
+
+        const androidCounts = {};
+        devices.forEach(device => {
+            const version = device.os_version || 'não informada';
+            androidCounts[version] = (androidCounts[version] || 0) + 1;
+        });
+        document.getElementById('android-version-list').innerHTML = Object.entries(androidCounts).sort((a, b) => b[1] - a[1]).map(([version, count]) => `<span class="mobile-chip">Android ${version} • ${count}</span>`).join('') || '<span class="mobile-muted">Sem dados de Android.</span>';
+
+        const scopeCounts = { local: 0, externa: 0, desconhecida: 0 };
+        devices.forEach(device => {
+            const scope = (device.network_scope || 'desconhecida').toLowerCase();
+            scopeCounts[scope] = (scopeCounts[scope] || 0) + 1;
+        });
+        document.getElementById('network-scope-list').innerHTML = Object.entries(scopeCounts).map(([scope, count]) => `<span class="mobile-chip">${scope} • ${count}</span>`).join('');
+
+        const versionCounts = {};
+        devices.forEach(device => {
+            const key = `${device.apk_channel || 'canal'} ${device.apk_version || '-'}`;
+            versionCounts[key] = (versionCounts[key] || 0) + 1;
+        });
+        const prod = versions.find(version => version.channel === 'production');
+        document.getElementById('apk-version-list').innerHTML = `${prod ? `<span class="mobile-chip">Produção atual • ${prod.version_name}</span>` : ''}${Object.entries(versionCounts).map(([version, count]) => `<span class="mobile-chip">${version} • ${count}</span>`).join('')}` || '<span class="mobile-muted">Sem versões registradas.</span>';
+    }
+
+    function renderOverviewTable(devices) {
+        const tbody = document.querySelector('#overview-table tbody');
+        if (!tbody) return;
+        tbody.innerHTML = devices.map(device => `
+            <tr>
+                <td><strong>${shortId(device.device_uuid)}</strong><div class="small text-muted">${device.manufacturer || '-'} ${device.model || ''}</div></td>
+                <td>${device.current_user_name || device.current_user_id || '<span class="text-muted">Sem vínculo</span>'}</td>
+                <td>${statusBadge(device)}</td>
+                <td>${device.os_version || '-'}</td>
+                <td>${networkBadge(device.network_scope)}</td>
+                <td>${scoreBadge(device.diagnostic)}<div class="small text-muted mt-1">${device.diagnostic?.summary || '-'}</div></td>
+                <td class="text-end"><button class="btn btn-sm btn-outline-primary" data-device-details="${device.id}">Detalhes</button></td>
+            </tr>
+        `).join('') || '<tr><td colspan="7" class="text-center text-muted py-4">Nenhum dispositivo encontrado.</td></tr>';
+        tbody.querySelectorAll('[data-device-details]').forEach(btn => btn.addEventListener('click', () => showDeviceDetails(btn.getAttribute('data-device-details'))));
+    }
+
+    function renderDevicesTable(devices) {
         const tbody = document.querySelector('#devices-table tbody');
         if (!tbody) return;
-
-        tbody.innerHTML = '';
-        
-        if (devices.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">Nenhum dispositivo encontrado</td></tr>';
-            return;
-        }
-
-        devices.forEach((device) => {
-            const status = getDeviceStatus(device);
-            const row = document.createElement('tr');
-            
-            row.innerHTML = `
-                <td class="font-monospace small">${shortId(device.device_uuid)}</td>
-                <td>${device.current_user_id || '<em class="text-muted">-</em>'}</td>
-                <td>${statusBadge(status)}</td>
-                <td class="text-muted small">${timeAgo(device.last_heartbeat_at)}</td>
-                <td class="small">${device.apk_version || '-'}</td>
+        tbody.innerHTML = devices.map(device => `
+            <tr>
+                <td><strong>${shortId(device.device_uuid)}</strong></td>
+                <td>${[device.manufacturer, device.model].filter(Boolean).join(' ') || '-'}</td>
+                <td>${device.current_user_name || device.current_user_id || '<span class="text-muted">Sem vínculo</span>'}</td>
+                <td>${device.os_version || '-'}</td>
+                <td>${device.apk_version || '-'} <span class="text-muted">(${device.apk_channel || '-'})</span></td>
+                <td>${statusBadge(device)}</td>
+                <td><div>${device.last_ip_address || '-'}</div><div class="small text-muted">${device.network_scope || '-'}</div></td>
+                <td>${timeAgo(device.last_heartbeat_at)}</td>
                 <td class="text-end">
-                    <div class="btn-group btn-group-sm" role="group">
-                        ${device.status === 'blocked' 
-                            ? `<button class="btn btn-outline-success" data-action="unblock" title="Desbloquear">
-                                <i class="bi bi-unlock"></i>
-                               </button>`
-                            : `<button class="btn btn-outline-danger" data-action="block" title="Bloquear">
-                                <i class="bi bi-shield-lock"></i>
-                               </button>`
-                        }
-                        <button class="btn btn-outline-secondary" data-action="logout" title="Forçar Logout">
-                            <i class="bi bi-box-arrow-right"></i>
-                        </button>
-                        <button class="btn btn-outline-info" data-action="details" title="Detalhes">
-                            <i class="bi bi-info-circle"></i>
-                        </button>
+                    <div class="btn-group btn-group-sm">
+                        ${device.status === 'blocked' ? `<button class="btn btn-outline-success" data-device-unblock="${device.id}">Desbloquear</button>` : `<button class="btn btn-outline-danger" data-device-block="${device.id}">Bloquear</button>`}
+                        <button class="btn btn-outline-secondary" data-device-logout="${device.id}">Logout</button>
+                        <button class="btn btn-outline-primary" data-device-details="${device.id}">Detalhes</button>
                     </div>
                 </td>
-            `;
+            </tr>
+        `).join('') || '<tr><td colspan="9" class="text-center text-muted py-4">Nenhum dispositivo registrado.</td></tr>';
 
-            row.querySelectorAll('button[data-action]').forEach((btn) => {
-                btn.addEventListener('click', async () => {
-                    const action = btn.getAttribute('data-action');
-                    try {
-                        if (action === 'block') {
-                            const reason = prompt('Motivo do bloqueio:', 'Bloqueado pelo administrador');
-                            if (!reason) return;
-                            await postAction(`/admin/devices/${device.id}/block`, { reason });
-                        } else if (action === 'unblock') {
-                            await postAction(`/admin/devices/${device.id}/unblock`);
-                        } else if (action === 'logout') {
-                            if (!confirm('Forçar logout deste dispositivo?')) return;
-                            await postAction(`/admin/devices/${device.id}/logout`);
-                        } else if (action === 'details') {
-                            alert(`Device: ${device.device_uuid}\nModelo: ${device.manufacturer} ${device.model}\nOS: ${device.os_version}\nIP: ${device.last_ip_address || '-'}`);
-                            return;
-                        }
-                        await loadDashboard();
-                    } catch (err) {
-                        alert('Falha ao executar ação: ' + err.message);
-                    }
-                });
-            });
-
-            tbody.appendChild(row);
-        });
+        tbody.querySelectorAll('[data-device-block]').forEach(btn => btn.addEventListener('click', () => blockDevice(btn.getAttribute('data-device-block'))));
+        tbody.querySelectorAll('[data-device-unblock]').forEach(btn => btn.addEventListener('click', () => unblockDevice(btn.getAttribute('data-device-unblock'))));
+        tbody.querySelectorAll('[data-device-logout]').forEach(btn => btn.addEventListener('click', () => logoutDevice(btn.getAttribute('data-device-logout'))));
+        tbody.querySelectorAll('[data-device-details]').forEach(btn => btn.addEventListener('click', () => showDeviceDetails(btn.getAttribute('data-device-details'))));
     }
 
-    function filterDevices(filter) {
-        currentFilter = filter;
-        let filtered = [...allDevices];
+    function renderUsersTable(users) {
+        const tbody = document.querySelector('#users-table tbody');
+        if (!tbody) return;
+        tbody.innerHTML = users.map(user => `
+            <tr>
+                <td><strong>${user.matricula}</strong></td>
+                <td>${user.nome}</td>
+                <td>${user.setor || '-'}<div class="small text-muted">${user.cargo || '-'}</div></td>
+                <td>${user.online_devices_count}/${user.devices_count}<div class="small text-muted">${user.active_sessions_count} sessão(ões)</div></td>
+                <td>${(user.android_versions || []).join(', ') || '-'}</td>
+                <td>${user.mobile_blocked ? `<span class="mobile-badge blocked">Bloqueado</span><div class="small text-muted mt-1">${user.mobile_block_reason || ''}</div>` : '<span class="mobile-badge online">Liberado</span>'}</td>
+                <td>${timeAgo(user.last_mobile_activity)}</td>
+                <td class="text-end">
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-primary" data-user-edit="${user.matricula}">Editar</button>
+                        ${user.mobile_blocked ? `<button class="btn btn-outline-success" data-user-unblock="${user.matricula}">Desbloquear</button>` : `<button class="btn btn-outline-danger" data-user-block="${user.matricula}">Bloquear</button>`}
+                        <button class="btn btn-outline-secondary" data-user-logout="${user.matricula}">Logout</button>
+                    </div>
+                </td>
+            </tr>
+        `).join('') || '<tr><td colspan="8" class="text-center text-muted py-4">Nenhum usuário encontrado.</td></tr>';
 
-        if (filter === 'online') {
-            filtered = filtered.filter(d => getDeviceStatus(d) === 'online');
-            setText('filter-status', 'Mostrando apenas dispositivos online');
-        } else if (filter === 'offline') {
-            filtered = filtered.filter(d => getDeviceStatus(d) === 'offline');
-            setText('filter-status', 'Mostrando apenas dispositivos offline');
-        } else if (filter === 'blocked') {
-            filtered = filtered.filter(d => d.status === 'blocked');
-            setText('filter-status', 'Mostrando apenas dispositivos bloqueados');
-        } else if (filter === 'stale-blocked') {
-            filtered = filtered.filter(d => {
-                if (d.status !== 'blocked' || !d.blocked_at) return false;
-                return daysSince(toDate(d.blocked_at)) > 7;
-            });
-            setText('filter-status', 'Mostrando bloqueados há mais de 7 dias');
-        } else {
-            currentFilter = null;
-            setText('filter-status', 'Mostrando todos');
+        tbody.querySelectorAll('[data-user-edit]').forEach(btn => btn.addEventListener('click', () => openUserEditor(btn.getAttribute('data-user-edit'))));
+        tbody.querySelectorAll('[data-user-block]').forEach(btn => btn.addEventListener('click', () => blockUser(btn.getAttribute('data-user-block'))));
+        tbody.querySelectorAll('[data-user-unblock]').forEach(btn => btn.addEventListener('click', () => unblockUser(btn.getAttribute('data-user-unblock'))));
+        tbody.querySelectorAll('[data-user-logout]').forEach(btn => btn.addEventListener('click', () => logoutUser(btn.getAttribute('data-user-logout'))));
+    }
+
+    function renderDiagnosticsTable(devices) {
+        const tbody = document.querySelector('#diagnostics-table tbody');
+        if (!tbody) return;
+        tbody.innerHTML = devices.map(device => `
+            <tr>
+                <td><strong>${shortId(device.device_uuid)}</strong><div class="small text-muted">${device.manufacturer || '-'} ${device.model || ''}</div></td>
+                <td>${device.current_user_name || device.current_user_id || '<span class="text-muted">Sem vínculo</span>'}</td>
+                <td>${device.diagnostic?.summary || '-'}</td>
+                <td>${scoreBadge(device.diagnostic)}</td>
+                <td>${device.apk_version || '-'} <div class="small text-muted">${device.diagnostic?.version_status || '-'}</div></td>
+                <td>${device.os_version || '-'}</td>
+                <td>${(device.diagnostic?.issues || []).length ? (device.diagnostic.issues.map(issue => `<div>${issue}</div>`).join('')) : '<span class="text-muted">Nenhum problema crítico.</span>'}</td>
+            </tr>
+        `).join('') || '<tr><td colspan="7" class="text-center text-muted py-4">Sem diagnósticos disponíveis.</td></tr>';
+    }
+
+    async function showDeviceDetails(deviceId) {
+        try {
+            const resp = await fetchJson(`/admin/devices/${deviceId}`);
+            const device = resp.data.device;
+            const sessions = resp.data.sessions || [];
+            document.getElementById('device-details-body').innerHTML = `
+                <div class="mobile-soft mb-3">
+                    <div class="row g-3">
+                        <div class="col-md-6"><strong>UUID</strong><div>${device.device_uuid}</div></div>
+                        <div class="col-md-6"><strong>Modelo</strong><div>${[device.manufacturer, device.model].filter(Boolean).join(' ') || '-'}</div></div>
+                        <div class="col-md-4"><strong>Android</strong><div>${device.os_version || '-'}</div></div>
+                        <div class="col-md-4"><strong>APK</strong><div>${device.apk_version || '-'} (${device.apk_channel || '-'})</div></div>
+                        <div class="col-md-4"><strong>Rede</strong><div>${device.last_ip_address || '-'} • ${device.network_scope || '-'}</div></div>
+                    </div>
+                </div>
+                <div class="mobile-soft mb-3">
+                    <strong>Diagnóstico</strong>
+                    <div class="mt-2">${scoreBadge(device.diagnostic)} <span class="ms-2">${device.diagnostic?.summary || '-'}</span></div>
+                    <div class="mt-3">${(device.diagnostic?.issues || []).map(issue => `<div>• ${issue}</div>`).join('') || '<span class="text-muted">Sem apontamentos críticos.</span>'}</div>
+                </div>
+                <div class="mobile-soft">
+                    <strong>Sessões recentes</strong>
+                    <div class="mt-2">${sessions.length ? sessions.map(session => `<div class="small mb-2">${session.status} • login ${timeAgo(session.logged_in_at)} • expira ${timeAgo(session.expires_at)}</div>`).join('') : '<span class="text-muted">Nenhuma sessão registrada.</span>'}</div>
+                </div>
+            `;
+            deviceModal.show();
+        } catch (error) {
+            alert('Falha ao carregar detalhes do dispositivo: ' + error.message);
         }
+    }
 
-        renderDevices(filtered);
+    async function blockDevice(deviceId) {
+        const reason = prompt('Motivo do bloqueio do dispositivo:', 'Bloqueado pelo administrador');
+        if (!reason) return;
+        await postAction(`/admin/devices/${deviceId}/block`, { reason });
+        await loadDashboard();
+    }
+
+    async function unblockDevice(deviceId) {
+        await postAction(`/admin/devices/${deviceId}/unblock`);
+        await loadDashboard();
+    }
+
+    async function logoutDevice(deviceId) {
+        if (!confirm('Forçar logout deste dispositivo?')) return;
+        await postAction(`/admin/devices/${deviceId}/logout`);
+        await loadDashboard();
+    }
+
+    function openUserEditor(matricula) {
+        const user = allUsers.find(entry => entry.matricula === matricula);
+        if (!user) return;
+        document.getElementById('edit-user-matricula').value = user.matricula;
+        document.getElementById('edit-user-nome').value = user.nome || '';
+        document.getElementById('edit-user-setor').value = user.setor || '';
+        document.getElementById('edit-user-cargo').value = user.cargo || '';
+        document.getElementById('edit-user-senha').value = '';
+        userEditModal.show();
+    }
+
+    async function saveUser() {
+        const matricula = document.getElementById('edit-user-matricula').value;
+        await putAction(`/admin/mobile-users/${matricula}`, {
+            nome: document.getElementById('edit-user-nome').value,
+            setor: document.getElementById('edit-user-setor').value,
+            cargo: document.getElementById('edit-user-cargo').value,
+            senha: document.getElementById('edit-user-senha').value,
+        });
+        userEditModal.hide();
+        await loadDashboard();
+    }
+
+    async function blockUser(matricula) {
+        const reason = prompt('Motivo do bloqueio do usuário no app:', 'Acesso mobile bloqueado pelo administrador.');
+        if (!reason) return;
+        await postAction(`/admin/mobile-users/${matricula}/block`, { reason });
+        await loadDashboard();
+    }
+
+    async function unblockUser(matricula) {
+        await postAction(`/admin/mobile-users/${matricula}/unblock`);
+        await loadDashboard();
+    }
+
+    async function logoutUser(matricula) {
+        if (!confirm('Forçar logout mobile de todas as sessões deste usuário?')) return;
+        await postAction(`/admin/mobile-users/${matricula}/logout`);
+        await loadDashboard();
+    }
+
+    function applyFilter(filter) {
+        currentFilter = filter;
+        let devices = [...allDevices];
+        if (filter === 'online') devices = devices.filter(device => device.is_online && device.status !== 'blocked');
+        if (filter === 'offline') devices = devices.filter(device => !device.is_online && device.status !== 'blocked');
+        if (filter === 'blocked-devices') devices = devices.filter(device => device.status === 'blocked');
+        if (filter === 'stale') devices = devices.filter(device => (device.diagnostic?.heartbeat_age_minutes ?? 9999) <= 1);
+        if (filter === 'diagnostic') devices = devices.filter(device => (device.diagnostic?.score ?? 0) < 85);
+        document.getElementById('overview-filter-status').textContent = filter ? `Filtro ativo: ${filter}` : 'Mostrando todos os dispositivos';
+        renderOverviewTable(devices);
     }
 
     async function loadDashboard() {
         try {
-            const [devicesResp, versionsResp] = await Promise.all([
+            const [devicesResp, versionsResp, usersResp] = await Promise.all([
                 fetchJson('/admin/devices'),
                 fetchJson('/admin/versions'),
+                fetchJson('/admin/mobile-users'),
             ]);
 
             allDevices = devicesResp.data || [];
-            const versions = versionsResp.data || [];
+            allVersions = versionsResp.data || [];
+            allUsers = usersResp.data || [];
 
-            // Calcular métricas
-            let online = 0;
-            let offline = 0;
-            let blocked = 0;
-
-            allDevices.forEach((device) => {
-                const status = getDeviceStatus(device);
-                if (status === 'online') online++;
-                else if (status === 'offline') offline++;
-                else if (status === 'blocked') blocked++;
-            });
-
-            setText('kpi-online', online);
-            setText('kpi-offline', offline);
-            setText('kpi-blocked', blocked);
-
-            const prod = versions.find(v => v.channel === 'production');
-            setText('kpi-version', prod ? prod.version_name : '--');
-
-            // Gerar alertas
-            const alerts = generateAlerts(allDevices);
-            renderAlerts(alerts);
-
-            // Renderizar tabela (respeitando filtro ativo)
-            filterDevices(currentFilter);
-
-        } catch (err) {
-            alert('Erro ao carregar dashboard: ' + err.message);
+            renderSummary(allDevices, allUsers, allVersions);
+            renderAlerts(buildAlerts(allDevices, allUsers));
+            applyFilter(currentFilter);
+            renderDevicesTable(allDevices);
+            renderUsersTable(allUsers);
+            renderDiagnosticsTable(allDevices);
+        } catch (error) {
+            alert('Erro ao carregar painel mobile: ' + error.message);
         }
     }
 
-    // Event listeners
-    document.getElementById('card-online')?.addEventListener('click', () => filterDevices('online'));
-    document.getElementById('card-offline')?.addEventListener('click', () => filterDevices('offline'));
-    document.getElementById('card-blocked')?.addEventListener('click', () => filterDevices('blocked'));
-    document.getElementById('btn-clear-filter')?.addEventListener('click', () => filterDevices(null));
-    document.getElementById('refresh-devices')?.addEventListener('click', loadDashboard);
+    document.getElementById('btn-refresh-all')?.addEventListener('click', loadDashboard);
+    document.getElementById('btn-save-user')?.addEventListener('click', saveUser);
+    document.querySelectorAll('.mobile-kpi[data-filter]').forEach(card => card.addEventListener('click', () => applyFilter(card.getAttribute('data-filter'))));
 
-    // Carregar na inicialização
     loadDashboard();
 </script>
 {% endblock %}

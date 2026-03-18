@@ -50,6 +50,7 @@ from ..models import (
 blueprint = Blueprint("api_mobile", __name__, url_prefix="/api/mobile")
 
 logger = logging.getLogger(__name__)
+MOBILE_ACCESS_FLAG_KEY = "mobile_access"
 
 
 @blueprint.after_request
@@ -100,6 +101,52 @@ def _convert_pdf_to_jpeg(pdf_path: str, jpeg_path: str, dpi: int = 200) -> None:
     except Exception as e:
         logger.error(f"Erro ao converter PDF para JPEG: {e}")
         raise
+
+
+def _mobile_user_block_info(user: Usuario | None) -> tuple[bool, str | None]:
+    if not user:
+        return False, None
+
+    flag = FeatureFlag.query.filter_by(flag_key=MOBILE_ACCESS_FLAG_KEY).first()
+    if not flag:
+        return False, None
+
+    now = datetime.utcnow()
+    assignment = (
+        FeatureAssignment.query.filter_by(
+            feature_flag_id=flag.id,
+            target_type="user",
+            target_id=user.matricula,
+        )
+        .filter(FeatureAssignment.deleted_at.is_(None))
+        .filter((FeatureAssignment.expires_at.is_(None)) | (FeatureAssignment.expires_at > now))
+        .first()
+    )
+
+    if assignment and not assignment.is_enabled:
+        return True, assignment.override_value or "Acesso mobile bloqueado pelo administrador."
+    return False, None
+
+
+def _validate_mobile_session_token(token: str, user: Usuario | None) -> tuple[bool, str | None]:
+    if not token or not user:
+        return False, "Sessão inválida."
+
+    token_hash = _hash_token(token)
+    session = DeviceSession.query.filter_by(session_token_hash=token_hash).first()
+    if not session:
+        return True, None
+
+    if session.user_id != user.matricula:
+        return False, "Sessão incompatível com o usuário autenticado."
+
+    if session.status != "active":
+        return False, "Sessão revogada. Faça login novamente."
+
+    if session.expires_at and session.expires_at <= datetime.utcnow():
+        return False, "Sessão expirada. Faça login novamente."
+
+    return True, None
 
 
 LIQUID_PRODUCT_TYPES: list[dict[str, Any]] = [
@@ -350,6 +397,15 @@ def mobile_login_required(func):
 
         if not user:
             return jsonify({"error": "Token inválido ou expirado. Faça login novamente."}), 401
+
+        blocked, block_reason = _mobile_user_block_info(user)
+        if blocked:
+            return jsonify({"error": block_reason or "Acesso mobile bloqueado.", "blocked": True}), 403
+
+        session_ok, session_error = _validate_mobile_session_token(token, user)
+        if not session_ok:
+            return jsonify({"error": session_error or "Sessão inválida. Faça login novamente."}), 401
+
         g.mobile_user = user
         return func(*args, **kwargs)
     return wrapper
@@ -438,6 +494,14 @@ def mobile_login():
                 "success": False,
                 "message": "Usuário não encontrado",
             }), 404
+
+        blocked, block_reason = _mobile_user_block_info(user)
+        if blocked:
+            return jsonify({
+                "success": False,
+                "message": block_reason or "Acesso mobile bloqueado pelo administrador.",
+                "blocked": True,
+            }), 403
 
         # Verificar senha
         if not user.check_password(senha):

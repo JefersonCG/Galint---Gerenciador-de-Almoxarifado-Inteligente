@@ -1,74 +1,103 @@
 {% extends "base.html" %}
 {% block title %}Rede{% endblock %}
-{% block page_header %}
-<h2>Rede</h2>
-<p class="text-muted">Configuração de acesso e teste de comunicação com o GALINT Mobile.</p>
+
+{% block extra_css %}
+<style>
+    .network-shell { background: linear-gradient(180deg, #eef2f7 0%, #f8fafc 100%); border: 1px solid rgba(148,163,184,0.18); border-radius: 28px; padding: 1.75rem; box-shadow: 0 24px 54px rgba(15,23,42,0.1); }
+    .network-hero { position: relative; overflow: hidden; border-radius: 24px; padding: 1.6rem; margin-bottom: 1.5rem; color: #f8fafc; background: linear-gradient(135deg, #0f172a 0%, #1e293b 46%, #1d4ed8 100%); box-shadow: 0 26px 60px rgba(15,23,42,0.18); }
+    .network-hero::before { content: ""; position: absolute; inset: 0; background: radial-gradient(circle at 15% 18%, rgba(56,189,248,0.22), transparent 30%), radial-gradient(circle at 86% 14%, rgba(96,165,250,0.18), transparent 22%); pointer-events: none; }
+    .network-hero > * { position: relative; z-index: 1; }
+    .network-eyebrow { display: inline-flex; align-items: center; gap: 0.45rem; padding: 0.38rem 0.72rem; border-radius: 999px; background: rgba(255,255,255,0.08); border: 1px solid rgba(226,232,240,0.14); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: rgba(226,232,240,0.9); margin-bottom: 0.9rem; }
+    .network-title { margin: 0; font-size: clamp(1.9rem, 3vw, 2.5rem); font-weight: 800; letter-spacing: -0.03em; }
+    .network-subtitle { margin: 0.65rem 0 0; max-width: 54rem; color: rgba(226,232,240,0.82); line-height: 1.6; }
+    .network-kpis { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+    .network-kpi { border-radius: 22px; padding: 1.1rem; background: linear-gradient(145deg, #0f172a 0%, #1e293b 68%, #334155 100%); color: #f8fafc; border: 1px solid rgba(148,163,184,0.18); box-shadow: 0 20px 42px rgba(15,23,42,0.18); }
+    .network-kpi-label { display: block; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; color: rgba(226,232,240,0.72); margin-bottom: 0.45rem; }
+    .network-kpi-value { font-size: 1.5rem; font-weight: 800; }
+    .network-kpi-caption { font-size: 0.82rem; color: rgba(226,232,240,0.74); }
+    .network-tabs.nav-pills { gap: 0.65rem; margin-bottom: 1.25rem; }
+    .network-tabs .nav-link { border-radius: 999px; padding: 0.75rem 1rem; background: #dbe4ef; color: #334155; font-weight: 700; border: 1px solid rgba(148,163,184,0.18); }
+    .network-tabs .nav-link.active { background: #0f172a; color: #f8fafc; }
+    .network-panel { background: linear-gradient(145deg, #0f172a 0%, #1e293b 100%); border: 1px solid rgba(148,163,184,0.18); border-radius: 24px; box-shadow: 0 22px 48px rgba(15,23,42,0.16); color: #e2e8f0; }
+    .network-panel .card-header, .network-panel .card-body { background: transparent; color: inherit; border-color: rgba(148,163,184,0.14); }
+    .network-panel .card-header { padding: 1.1rem 1.35rem 0.95rem; }
+    .network-panel .card-body { padding: 1.25rem 1.35rem 1.35rem; }
+    .network-panel .form-control { background: rgba(15,23,42,0.82); color: #f8fafc; border-color: rgba(148,163,184,0.22); }
+    .network-panel .form-control::placeholder { color: #94a3b8; }
+    .network-panel .form-label, .network-panel .text-muted, .network-panel .form-text { color: #cbd5e1 !important; }
+    .network-soft { border-radius: 18px; border: 1px solid rgba(148,163,184,0.14); background: rgba(255,255,255,0.06); padding: 1rem; }
+    .network-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+    @media (max-width: 768px) { .network-shell { padding: 1rem; border-radius: 22px; } .network-hero { padding: 1.15rem; border-radius: 20px; } .network-kpis { grid-template-columns: 1fr; } .network-tabs.nav-pills { flex-direction: column; } }
+</style>
 {% endblock %}
+
+{% block page_header %}{% endblock %}
 {% block content %}
-<div class="row gy-4">
-    <div class="col-lg-6">
-        <div class="card">
-            <div class="card-header">
-                <strong>GALINT Mobile</strong>
-                <span class="text-muted small d-block">Fixe o IP/porta usados no app e teste a comunicação.</span>
-            </div>
-            <div class="card-body">
-                <form method="post" action="{{ url_for('pages.update_rede') }}">
-                    <div class="mb-3">
-                        <label class="form-label">IP/Host do servidor (endereço que o celular vai usar)</label>
-                        <input class="form-control" name="server_host" value="{{ settings.server_host }}" required>
-                        <div class="form-text">Use o IP do PC onde o Flask está rodando (ex.: <code>10.0.0.245</code>).
-                            Não é “range”, é um endereço único.</div>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Porta</label>
-                        <input class="form-control" name="server_port" value="{{ settings.server_port }}"
-                            inputmode="numeric" required>
-                        <div class="form-text">Padrão: <code>5000</code>.</div>
-                    </div>
+<div class="network-shell">
+    <section class="network-hero">
+        <div class="network-eyebrow"><i class="bi bi-hdd-network"></i> Conectividade</div>
+        <h1 class="network-title">Rede</h1>
+        <p class="network-subtitle">Centralize o acesso do GALINT Mobile e a publicação da Rede Galint em um painel escuro, mantendo as informações críticas em destaque e os testes de comunicação intactos.</p>
+    </section>
 
-                    <div class="alert alert-info" role="alert">
-                        Endereço configurado: <code>{{ settings.base_url() }}</code><br>
-                        Teste: <code>{{ settings.base_url() }}/api/mobile/health</code>
-                        <div class="small text-muted mt-2">O botão “Testar comunicação” executa esse teste a partir do
-                            próprio servidor (PC). Para testar do celular, use o navegador do celular na mesma URL.
+    <section class="network-kpis">
+        <article class="network-kpi"><span class="network-kpi-label">Host</span><div class="network-kpi-value">{{ settings.server_host }}</div><div class="network-kpi-caption">Endereço usado pelo mobile.</div></article>
+        <article class="network-kpi"><span class="network-kpi-label">Porta</span><div class="network-kpi-value">{{ settings.server_port }}</div><div class="network-kpi-caption">Porta configurada para o servidor.</div></article>
+        <article class="network-kpi"><span class="network-kpi-label">Rede Galint</span><div class="network-kpi-value">{{ 'ATIVA' if token_configured and share_url else 'OFF' }}</div><div class="network-kpi-caption">Compartilhamento público do painel.</div></article>
+    </section>
+
+    <ul class="nav nav-pills network-tabs" role="tablist">
+        <li class="nav-item" role="presentation"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#rede-mobile" type="button" role="tab">GALINT Mobile</button></li>
+        <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#rede-publica" type="button" role="tab">Rede Galint</button></li>
+    </ul>
+
+    <div class="tab-content">
+        <div class="tab-pane fade show active" id="rede-mobile" role="tabpanel">
+            <div class="card network-panel">
+                <div class="card-header"><strong>GALINT Mobile</strong><span class="d-block text-muted small mt-1">Fixe o IP/porta usados no app e teste a comunicação.</span></div>
+                <div class="card-body">
+                    <form method="post" action="{{ url_for('pages.update_rede') }}">
+                        <div class="mb-3">
+                            <label class="form-label">IP/Host do servidor</label>
+                            <input class="form-control" name="server_host" value="{{ settings.server_host }}" required>
+                            <div class="form-text">Use o IP do PC onde o Flask está rodando, por exemplo 10.0.0.245. Não é faixa, é endereço único.</div>
                         </div>
-                    </div>
+                        <div class="mb-3">
+                            <label class="form-label">Porta</label>
+                            <input class="form-control" name="server_port" value="{{ settings.server_port }}" inputmode="numeric" required>
+                            <div class="form-text">Padrão usado pelo sistema: 5000.</div>
+                        </div>
 
-                    <div class="d-flex gap-2">
-                        <button class="btn btn-primary" type="submit" name="intent" value="save">Salvar</button>
-                        <button class="btn btn-outline-primary" type="submit" name="intent" value="test">Testar
-                            comunicação</button>
-                    </div>
-                </form>
+                        <div class="network-soft mb-3">
+                            <div><strong>Endereço configurado:</strong> <code>{{ settings.base_url() }}</code></div>
+                            <div class="mt-2"><strong>Health check:</strong> <code>{{ settings.base_url() }}/api/mobile/health</code></div>
+                            <div class="small text-muted mt-2">O botão de teste executa a verificação a partir do próprio servidor. Para validar do celular, abra a mesma URL no navegador do aparelho.</div>
+                        </div>
 
-                <div class="mt-3">
-                    <a class="btn btn-link px-0" href="{{ url_for('pages.config') }}">&larr; Voltar para
-                        Configurações</a>
+                        <div class="network-actions">
+                            <button class="btn btn-primary rounded-pill px-4" type="submit" name="intent" value="save">Salvar</button>
+                            <button class="btn btn-outline-primary rounded-pill px-4" type="submit" name="intent" value="test">Testar comunicação</button>
+                            <a class="btn btn-outline-secondary rounded-pill px-4" href="{{ url_for('pages.config') }}">Voltar</a>
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>
-    </div>
 
-    <div class="col-lg-6">
-        <div class="card">
-            <div class="card-header">
-                <strong>Rede Galint</strong>
-                <span class="text-muted small d-block">Compartilhe o painel público</span>
-            </div>
-            <div class="card-body">
-                {% if token_configured and share_url %}
-                <p class="mb-2 text-muted">Link ativo:</p>
-                <div class="alert alert-success" role="alert">
-                    <a href="{{ share_url }}" target="_blank" rel="noopener" class="text-break">{{ share_url }}</a>
+        <div class="tab-pane fade" id="rede-publica" role="tabpanel">
+            <div class="card network-panel">
+                <div class="card-header"><strong>Rede Galint</strong><span class="d-block text-muted small mt-1">Compartilhe o painel público.</span></div>
+                <div class="card-body">
+                    {% if token_configured and share_url %}
+                    <div class="network-soft">
+                        <div class="small text-uppercase text-muted fw-semibold mb-2">Link ativo</div>
+                        <a href="{{ share_url }}" target="_blank" rel="noopener" class="text-break d-block text-info">{{ share_url }}</a>
+                        <p class="text-muted small mb-0 mt-3">Recrie o token e reinicie o app se precisar revogar o acesso.</p>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-warning mb-0">Nenhum token configurado. Defina <code>GALINT_DASHBOARD_TOKEN</code> e reinicie o sistema para gerar o link da Rede Galint.</div>
+                    {% endif %}
                 </div>
-                <p class="text-muted small">Recrie o token e reinicie o app se precisar revogar o acesso.</p>
-                {% else %}
-                <div class="alert alert-warning" role="alert">
-                    Nenhum token configurado. Defina <code>GALINT_DASHBOARD_TOKEN</code> e reinicie o sistema para gerar
-                    o link da Rede Galint.
-                </div>
-                {% endif %}
             </div>
         </div>
     </div>
