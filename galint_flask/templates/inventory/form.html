@@ -1032,12 +1032,13 @@
                         </div>
                     </div>
 
-                    <div class="form-group">
+                    </div>
+
+                    <div class="form-group" style="margin-top: 1rem;">
                         <label class="form-label" for="finance_observacao">Observação financeira</label>
                         <textarea class="form-control" id="finance_observacao" name="finance_observacao" rows="2"
                             placeholder="Ex.: compra emergencial, saldo anterior sem comprovante, valor estimado pela diretoria" {% if finance_locked %}readonly{% endif %}>{{ form_item.finance_observacao if form_item and form_item.finance_observacao else '' }}</textarea>
-                    </div>
-
+                        <small class="form-text">Obrigatória para cadastros sem comprovação fiscal ou parcialmente comprovados.</small>
                     </div>
 
                     <div class="section" style="margin-top: 1.5rem;">
@@ -1396,11 +1397,17 @@
             </div>
             <div class="modal-body">
                 <p class="mb-2">Para cadastros de itens sem comprovação fiscal, o campo <strong>Observação financeira</strong> precisa ser preenchido antes de salvar.</p>
-                <p class="mb-0 text-muted">Informe a justificativa da origem do valor, por exemplo: compra emergencial, saldo anterior sem comprovante ou valor estimado.</p>
+                <p class="text-muted">Informe a justificativa da origem do valor, por exemplo: compra emergencial, saldo anterior sem comprovante ou valor estimado.</p>
+                <div class="form-group mb-0">
+                    <label class="form-label" for="finance_observacao_modal">Observação financeira</label>
+                    <textarea class="form-control" id="finance_observacao_modal" rows="3"
+                        placeholder="Ex.: compra emergencial, saldo anterior sem comprovante, valor estimado pela diretoria"></textarea>
+                    <small class="form-text">Esse texto será salvo automaticamente no cadastro do item.</small>
+                </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
-                <button type="button" class="btn btn-primary" id="financeObservationRequiredAction">Preencher observação</button>
+                <button type="button" class="btn btn-primary" id="financeObservationRequiredAction">Salvar observação e continuar</button>
             </div>
         </div>
     </div>
@@ -2398,6 +2405,7 @@ if (confirmFotoUrl) {
     const financeObservationRequiredModalElement = document.getElementById('financeObservationRequiredModal');
     const financeObservationRequiredModalInstance = financeObservationRequiredModalElement ? new bootstrap.Modal(financeObservationRequiredModalElement) : null;
     const financeObservationRequiredAction = document.getElementById('financeObservationRequiredAction');
+    const financeObservationModalInput = document.getElementById('finance_observacao_modal');
     const dataEntradaInput = document.getElementById('data_entrada');
     const inventoryItemForm = document.getElementById('inventory-item-form');
     const supplierGateSummary = document.getElementById('supplierGateSummary');
@@ -2439,14 +2447,7 @@ if (confirmFotoUrl) {
 
     const clearFinanceObservationHighlight = () => {
         financeObservacaoInput?.classList.remove('is-invalid');
-    };
-
-    const focusFinanceObservationField = () => {
-        activateTab('financeiro');
-        setTimeout(() => {
-            financeObservacaoInput?.focus();
-            financeObservacaoInput?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }, 220);
+        financeObservationModalInput?.classList.remove('is-invalid');
     };
 
     const validateFinanceObservationRequirement = () => {
@@ -2462,6 +2463,9 @@ if (confirmFotoUrl) {
         }
 
         highlightFinanceObservation();
+        if (financeObservationModalInput) {
+            financeObservationModalInput.value = '';
+        }
         financeObservationRequiredModalInstance?.show();
         return false;
     };
@@ -2496,9 +2500,32 @@ if (confirmFotoUrl) {
         }
     });
 
+    financeObservationRequiredModalElement?.addEventListener('shown.bs.modal', () => {
+        if (financeObservationModalInput) {
+            financeObservationModalInput.value = String(financeObservacaoInput?.value || '').trim();
+            financeObservationModalInput.focus();
+        }
+    });
+
+    financeObservationModalInput?.addEventListener('input', () => {
+        if (String(financeObservationModalInput.value || '').trim()) {
+            financeObservationModalInput.classList.remove('is-invalid');
+        }
+    });
+
     financeObservationRequiredAction?.addEventListener('click', () => {
+        const modalText = String(financeObservationModalInput?.value || '').trim();
+        if (!modalText) {
+            financeObservationModalInput?.classList.add('is-invalid');
+            financeObservationModalInput?.focus();
+            return;
+        }
+        if (financeObservacaoInput) {
+            financeObservacaoInput.value = modalText;
+        }
+        clearFinanceObservationHighlight();
         financeObservationRequiredModalInstance?.hide();
-        focusFinanceObservationField();
+        inventoryItemForm?.requestSubmit();
     });
 
     const syncFinancePurchaseFieldVisibility = () => {
