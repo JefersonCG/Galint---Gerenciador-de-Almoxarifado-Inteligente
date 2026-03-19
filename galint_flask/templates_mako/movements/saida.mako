@@ -492,8 +492,61 @@ ${parent.scripts()}
         'rolo': { singular: 'rolo', plural: 'rolos' },
         'pacote': { singular: 'pacote', plural: 'pacotes' },
         'caixa': { singular: 'caixa', plural: 'caixas' },
-        'balde': { singular: 'balde', plural: 'baldes' }
+        'balde': { singular: 'balde', plural: 'baldes' },
+        'litro': { singular: 'litro', plural: 'litros' }
     };
+
+    function normalizePackageText(value) {
+        return String(value || '')
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase()
+            .trim();
+    }
+
+    function inferPackagingType(item) {
+        const directCandidates = [item?.tipo_embalagem, item?.tipo_embalagem_novo, item?.nome_embalagem];
+        for (const candidate of directCandidates) {
+            const normalized = normalizePackageText(candidate);
+            if (normalized && nomesEmbalagem[normalized]) {
+                return normalized;
+            }
+        }
+
+        const fallbackText = [item?.unidade, item?.categoria, item?.descricao]
+            .map(normalizePackageText)
+            .join(' ');
+
+        for (const candidate of Object.keys(nomesEmbalagem)) {
+            if (fallbackText.includes(candidate)) {
+                return candidate;
+            }
+        }
+
+        if (fallbackText.includes('fita') && normalizarUnidadeMedida(item) === 'metro') {
+            return 'rolo';
+        }
+
+        return '';
+    }
+
+    function getPackagingCapacity(item) {
+        const candidates = [
+            item?.unidades_por_embalagem,
+            item?.capacidade_embalagem,
+            item?.grandeza_referencia,
+            item?.litros_por_embalagem,
+        ];
+
+        for (const candidate of candidates) {
+            const parsed = parseFloat(candidate);
+            if (Number.isFinite(parsed) && parsed > 0) {
+                return parsed;
+            }
+        }
+
+        return 0;
+    }
     
     const dropdownUsuario = document.getElementById('autocomplete-dropdown-usuario');
     const dropdownCodigo = document.getElementById('autocomplete-dropdown-codigo');
@@ -615,8 +668,8 @@ ${parent.scripts()}
             if (!item || item.saldo === undefined || item.saldo === null) return '';
             
             const saldo = parseFloat(item.saldo) || 0;
-            const tipoEmbalagem = String(item.tipo_embalagem_novo || '').trim().toLowerCase();
-            const unidadesPorEmb = parseFloat(item.unidades_por_embalagem) || 0;
+            const tipoEmbalagem = inferPackagingType(item);
+            const unidadesPorEmb = getPackagingCapacity(item);
             const grandezaRef = parseFloat(item.grandeza_referencia) || 0;
             const litrosPorEmb = parseFloat(item.litros_por_embalagem) || 0;
             
@@ -664,7 +717,7 @@ ${parent.scripts()}
         const unidadeExibicao = String(item.unidade_exibicao_total || '').trim().toLowerCase();
         const litrosPorEmb = parseFloat(item.litros_por_embalagem) || 0;
         const grandezaRef = parseFloat(item.grandeza_referencia) || 0;
-        const tipoEmbalagem = String(item.tipo_embalagem || item.tipo_embalagem_novo || '').trim().toLowerCase();
+        const tipoEmbalagem = inferPackagingType(item);
 
         if (fracaoPadrao === 'litro' || unidadeExibicao === 'l') return 'litro';
         if (fracaoPadrao === 'quilo' || unidadeExibicao === 'kg') return 'kg';
@@ -906,7 +959,9 @@ ${parent.scripts()}
             }
             
             // Verificar se o item usa sistema de embalagens
-            if (data.tipo_embalagem_novo && data.unidades_por_embalagem && data.unidades_por_embalagem > 0) {
+            const tipoEmbalagemDetectado = inferPackagingType(data);
+            const capacidadeEmbalagem = getPackagingCapacity(data);
+            if (tipoEmbalagemDetectado && capacidadeEmbalagem > 0) {
                 // Tem embalagem - mostrar modal
                 pendingItem = {
                     id: ++itemCounter,
@@ -916,13 +971,17 @@ ${parent.scripts()}
                     quantidade_input: quantidade,
                     usuario: usuario,
                     local: local,
-                    tipo_embalagem: data.tipo_embalagem_novo,
-                    unidades_por_embalagem: data.unidades_por_embalagem,
+                    tipo_embalagem: tipoEmbalagemDetectado,
+                    unidades_por_embalagem: capacidadeEmbalagem,
+                    nome_embalagem: data.nome_embalagem,
+                    nome_embalagem_plural: data.nome_embalagem_plural,
                     unidade: data.unidade,
+                    categoria: data.categoria,
                     fracao_unidade_padrao: data.fracao_unidade_padrao,
                     unidade_exibicao_total: data.unidade_exibicao_total,
                     grandeza_referencia: data.grandeza_referencia,
                     litros_por_embalagem: data.litros_por_embalagem,
+                    capacidade_embalagem: data.capacidade_embalagem,
                     em_embalagens: null
                 };
                 

@@ -260,9 +260,21 @@ def _infer_fractional_item(item: dict[str, Any]) -> dict[str, Any]:
         }
 
     if tipo_embalagem in FRACTIONABLE_PACKAGING_TYPES:
-        default_unit = "litro" if tipo_embalagem == "litro" or litros_por_embalagem > 0 else "quilo"
         if tipo_embalagem == "rolo":
-            default_unit = unidade or "quilo"
+            default_unit = "metro"
+        elif tipo_embalagem in {"caixa", "pacote"}:
+            default_unit = "unidade"
+        elif tipo_embalagem == "litro" or litros_por_embalagem > 0:
+            default_unit = "litro"
+        elif tipo_embalagem in {"lata", "balde"}:
+            if unidade in {"litro", "quilo"}:
+                default_unit = unidade
+            elif grandeza_referencia > 0:
+                default_unit = "quilo"
+            else:
+                default_unit = "unidade"
+        else:
+            default_unit = unidade or "unidade"
         return {
             "enabled": True,
             "default_unit": default_unit,
@@ -726,7 +738,15 @@ def item_info(codigo: str):
         "nome_embalagem": item_model.get_nome_embalagem() if item_model and item_model.tipo_embalagem_novo else package_name,
         "nome_embalagem_plural": item_model.get_nome_embalagem_plural() if item_model and item_model.tipo_embalagem_novo else package_name_plural,
         "capacidade_embalagem": package_capacity,
-        "unidade_exibicao_total": "L" if _normalize_text(fractional_info.get("default_unit")) == "litro" else "kg",
+        "unidade_exibicao_total": (
+            "L"
+            if _normalize_text(fractional_info.get("default_unit")) == "litro"
+            else "kg"
+            if _normalize_text(fractional_info.get("default_unit")) == "quilo"
+            else "m"
+            if _normalize_text(fractional_info.get("default_unit")) == "metro"
+            else "un"
+        ),
         "foto_path": foto_path,
         "foto_url": url_for("static", filename=foto_path) if foto_path else None,
     }

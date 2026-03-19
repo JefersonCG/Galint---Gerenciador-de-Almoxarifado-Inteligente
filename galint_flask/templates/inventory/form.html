@@ -925,6 +925,7 @@
                             <div class="form-group">
                                 <label class="form-label" for="finance_origem_valor">Origem do valor</label>
                                 {% set origem_valor = form_item.finance_origem_valor if form_item and form_item.finance_origem_valor else 'inventario_inicial' %}
+                                {% set origem_documental = origem_valor in ['compra_nf', 'compra_cupom'] %}
                                 <select class="form-select" id="finance_origem_valor" name="finance_origem_valor" {% if finance_locked %}disabled{% endif %}>
                                     <option value="compra_nf" {% if origem_valor == 'compra_nf' %}selected{% endif %}>Compra com NF</option>
                                     <option value="compra_cupom" {% if origem_valor == 'compra_cupom' %}selected{% endif %}>Compra com cupom</option>
@@ -967,6 +968,8 @@
                             {% endif %}
                         </div>
                     </div>
+
+                    <div id="finance_purchase_document_fields" {% if not origem_documental %}style="display: none;"{% endif %}>
 
                     <div class="form-row">
                         <div class="form-group">
@@ -1032,6 +1035,8 @@
                         <label class="form-label" for="finance_observacao">Observação financeira</label>
                         <textarea class="form-control" id="finance_observacao" name="finance_observacao" rows="2"
                             placeholder="Ex.: compra emergencial, saldo anterior sem comprovante, valor estimado pela diretoria" {% if finance_locked %}readonly{% endif %}>{{ form_item.finance_observacao if form_item and form_item.finance_observacao else '' }}</textarea>
+                    </div>
+
                     </div>
 
                     <div class="section" style="margin-top: 1.5rem;">
@@ -2309,6 +2314,7 @@ if (confirmFotoUrl) {
     const financeOrigemValorInput = document.getElementById('finance_origem_valor');
     const financeComprovacaoInput = document.getElementById('finance_comprovacao_status');
     const financeObservacaoInput = document.getElementById('finance_observacao');
+    const financePurchaseDocumentFields = document.getElementById('finance_purchase_document_fields');
     const dataEntradaInput = document.getElementById('data_entrada');
     const inventoryItemForm = document.getElementById('inventory-item-form');
     const supplierGateSummary = document.getElementById('supplierGateSummary');
@@ -2357,6 +2363,15 @@ if (confirmFotoUrl) {
         });
     };
 
+    const syncFinancePurchaseFieldVisibility = () => {
+        if (!financePurchaseDocumentFields) {
+            return;
+        }
+        const origemValor = String(financeOrigemValorInput?.value || '').trim().toLowerCase();
+        const shouldShow = origemValor === 'compra_nf' || origemValor === 'compra_cupom';
+        financePurchaseDocumentFields.style.display = shouldShow ? '' : 'none';
+    };
+
     registrarCompraEdicaoToggle?.addEventListener('change', () => {
         setEditPurchaseMode(Boolean(registrarCompraEdicaoToggle.checked));
         if (registrarCompraEdicaoToggle.checked) {
@@ -2364,11 +2379,15 @@ if (confirmFotoUrl) {
             financeOrigemValorInput && (!financeOrigemValorInput.value || financeOrigemValorInput.value === 'inventario_inicial') && (financeOrigemValorInput.value = 'compra_nf');
             financeComprovacaoInput && (!financeComprovacaoInput.value || financeComprovacaoInput.value === 'sem_comprovacao') && (financeComprovacaoInput.value = 'comprovado');
         }
+        syncFinancePurchaseFieldVisibility();
     });
 
     if (registrarCompraEdicaoToggle) {
         setEditPurchaseMode(Boolean(registrarCompraEdicaoToggle.checked));
     }
+
+    financeOrigemValorInput?.addEventListener('change', syncFinancePurchaseFieldVisibility);
+    syncFinancePurchaseFieldVisibility();
 
     const shouldBlockImplicitSubmit = (event) => {
         if (event.key !== 'Enter') {
@@ -2591,6 +2610,7 @@ if (confirmFotoUrl) {
         if (financeOrigemValorInput) {
             financeOrigemValorInput.value = payload.origem_valor || 'inventario_inicial';
         }
+        syncFinancePurchaseFieldVisibility();
         if (financeTipoDocumentoInput) {
             financeTipoDocumentoInput.value = payload.tipo_documento || '';
         }
@@ -2842,6 +2862,7 @@ if (confirmFotoUrl) {
         if (financeComprovacaoInput && (!financeComprovacaoInput.value || financeComprovacaoInput.value === 'sem_comprovacao')) {
             financeComprovacaoInput.value = 'comprovado';
         }
+        syncFinancePurchaseFieldVisibility();
         resolveSupplierGate('selected');
         activateTab('financeiro');
         setTimeout(() => precoCompraDocumentoInput?.focus(), 220);
