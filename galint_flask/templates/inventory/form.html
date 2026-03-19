@@ -1386,6 +1386,26 @@
 </div>
 {% endif %}
 
+<div class="modal fade" id="financeObservationRequiredModal" tabindex="-1"
+    aria-labelledby="financeObservationRequiredModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="financeObservationRequiredModalLabel">Observação financeira obrigatória</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-2">Para cadastros de itens sem comprovação fiscal, o campo <strong>Observação financeira</strong> precisa ser preenchido antes de salvar.</p>
+                <p class="mb-0 text-muted">Informe a justificativa da origem do valor, por exemplo: compra emergencial, saldo anterior sem comprovante ou valor estimado.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                <button type="button" class="btn btn-primary" id="financeObservationRequiredAction">Preencher observação</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="modal fade" id="priceSuggestionsModal" tabindex="-1" aria-labelledby="priceSuggestionsModalLabel"
     aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
@@ -1814,7 +1834,7 @@
     // ==========================================
     // ABA UNIDADES DINAMICAS (EXIBIR CONDICIONAL)
     // ==========================================
-    const unidadesDinamicasPermitidas = ['Lata', 'Litro', 'Balde', 'Rolo', 'Caixa', 'Pacote'];
+        const unidadesDinamicasPermitidas = ['Lata', 'Litro', 'Balde', 'Rolo', 'Caixa', 'Pacote', 'Saco'];
 
     function toggleTabUnidadesDinamicas() {
         if (!unidadeSelect || !tabUnidadesButton || !tabUnidadesPane) return;
@@ -2375,6 +2395,9 @@ if (confirmFotoUrl) {
     const financeComprovacaoInput = document.getElementById('finance_comprovacao_status');
     const financeObservacaoInput = document.getElementById('finance_observacao');
     const financePurchaseDocumentFields = document.getElementById('finance_purchase_document_fields');
+    const financeObservationRequiredModalElement = document.getElementById('financeObservationRequiredModal');
+    const financeObservationRequiredModalInstance = financeObservationRequiredModalElement ? new bootstrap.Modal(financeObservationRequiredModalElement) : null;
+    const financeObservationRequiredAction = document.getElementById('financeObservationRequiredAction');
     const dataEntradaInput = document.getElementById('data_entrada');
     const inventoryItemForm = document.getElementById('inventory-item-form');
     const supplierGateSummary = document.getElementById('supplierGateSummary');
@@ -2405,6 +2428,44 @@ if (confirmFotoUrl) {
         'finance_observacao',
     ];
 
+    const financeObservationNeedsExplanation = () => {
+        const comprovacao = String(financeComprovacaoInput?.value || '').trim().toLowerCase();
+        return comprovacao === 'sem_comprovacao' || comprovacao === 'parcial';
+    };
+
+    const highlightFinanceObservation = () => {
+        financeObservacaoInput?.classList.add('is-invalid');
+    };
+
+    const clearFinanceObservationHighlight = () => {
+        financeObservacaoInput?.classList.remove('is-invalid');
+    };
+
+    const focusFinanceObservationField = () => {
+        activateTab('financeiro');
+        setTimeout(() => {
+            financeObservacaoInput?.focus();
+            financeObservacaoInput?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 220);
+    };
+
+    const validateFinanceObservationRequirement = () => {
+        if (!financeObservationNeedsExplanation()) {
+            clearFinanceObservationHighlight();
+            return true;
+        }
+
+        const observacao = String(financeObservacaoInput?.value || '').trim();
+        if (observacao) {
+            clearFinanceObservationHighlight();
+            return true;
+        }
+
+        highlightFinanceObservation();
+        financeObservationRequiredModalInstance?.show();
+        return false;
+    };
+
     const setEditPurchaseMode = (enabled) => {
         financeEditFieldIds.forEach((fieldId) => {
             const field = document.getElementById(fieldId);
@@ -2422,6 +2483,23 @@ if (confirmFotoUrl) {
             field.readOnly = !enabled;
         });
     };
+
+    financeComprovacaoInput?.addEventListener('change', () => {
+        if (!financeObservationNeedsExplanation()) {
+            clearFinanceObservationHighlight();
+        }
+    });
+
+    financeObservacaoInput?.addEventListener('input', () => {
+        if (String(financeObservacaoInput.value || '').trim()) {
+            clearFinanceObservationHighlight();
+        }
+    });
+
+    financeObservationRequiredAction?.addEventListener('click', () => {
+        financeObservationRequiredModalInstance?.hide();
+        focusFinanceObservationField();
+    });
 
     const syncFinancePurchaseFieldVisibility = () => {
         if (!financePurchaseDocumentFields) {
@@ -2966,6 +3044,15 @@ if (confirmFotoUrl) {
             setTimeout(() => supplierGateSearchInput?.focus(), 180);
         });
     }
+
+    inventoryItemForm?.addEventListener('submit', (event) => {
+        if (event.defaultPrevented) {
+            return;
+        }
+        if (!validateFinanceObservationRequirement()) {
+            event.preventDefault();
+        }
+    });
 
     document.addEventListener('click', (event) => {
         if (financeSupplierResults && financeSupplierInput) {
