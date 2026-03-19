@@ -893,9 +893,16 @@
                         <p class="form-text" style="margin-top: -0.5rem;">
                             Esses valores alimentam a página <strong>Financeiro</strong> e o modal de detalhes do item.
                         </p>
+                        {% if item %}
+                        <div class="form-check form-switch mt-3">
+                            <input class="form-check-input" type="checkbox" role="switch" id="registrar_compra_edicao" name="registrar_compra_edicao">
+                            <label class="form-check-label" for="registrar_compra_edicao"><strong>Registrar nova compra deste item</strong></label>
+                            <small class="form-text d-block">Use esta opção quando o item já existe no GALINT, mas chegou uma nova compra com NF nova, chave de acesso, data de emissão, lote e demais dados operacionais.</small>
+                        </div>
+                        {% endif %}
                         {% if finance_locked %}
                         <div class="alert alert-secondary mt-3 mb-0">
-                            Os campos financeiros ficam bloqueados após o primeiro salvamento do item. Para novas compras, documentos fiscais, cupons e entradas com fornecedor, use <strong>Documentos Fiscais</strong>.
+                            Os campos financeiros ficam bloqueados por padrão na edição. Para registrar uma nova compra deste item por aqui, ative a opção acima e informe fornecedor, documento, chave de acesso e data de emissão.
                         </div>
                         {% endif %}
                     </div>
@@ -988,7 +995,7 @@
                             value="{{ form_item.preco_compra_documento if form_item and form_item.preco_compra_documento else '' }}"
                             placeholder="Ex.: NF 12345 / Cupom 000123" {% if finance_locked %}readonly{% endif %}>
                         {% if not finance_locked %}
-                        <small class="form-text">Ao salvar um novo item com esse documento, o sistema também cria ou atualiza a nota em Documentos Fiscais e abre a conferência automaticamente.</small>
+                        <small class="form-text">Ao salvar um novo item com esse documento, o sistema cria ou atualiza a nota em Documentos Fiscais e abre a conferência automaticamente. Para abrir uma NF nova por aqui, informe também fornecedor, chave de acesso e data de emissão.</small>
                         {% endif %}
                     </div>
 
@@ -2289,6 +2296,7 @@ if (confirmFotoUrl) {
     const financeSupplierInput = document.getElementById('finance_supplier_search');
     const financeSupplierIdInput = document.getElementById('finance_supplier_id');
     const financeSupplierResults = document.getElementById('finance_supplier_results');
+    const registrarCompraEdicaoToggle = document.getElementById('registrar_compra_edicao');
     const notaFiscalInput = document.getElementById('nota_fiscal');
     const notaFiscalFinanceHintInput = document.getElementById('nota_fiscal_finance_hint');
     const notaFiscalAutofillStatus = document.getElementById('nota_fiscal_autofill_status');
@@ -2316,6 +2324,51 @@ if (confirmFotoUrl) {
     const inventoryListUrl = {{ url_for('inventory.list_items')|tojson }};
     let supplierGateSelection = null;
     let supplierGateResolved = !isNewItemForm;
+
+    const financeEditFieldIds = [
+        'finance_supplier_search',
+        'finance_origem_valor',
+        'finance_tipo_documento',
+        'finance_comprovacao_status',
+        'preco_compra_unitario',
+        'preco_compra_fonte',
+        'preco_compra_documento',
+        'preco_compra_chave_acesso',
+        'preco_compra_data_emissao',
+        'preco_compra_data_recebimento',
+        'finance_observacao',
+    ];
+
+    const setEditPurchaseMode = (enabled) => {
+        financeEditFieldIds.forEach((fieldId) => {
+            const field = document.getElementById(fieldId);
+            if (!field) {
+                return;
+            }
+            if (field.tagName === 'SELECT') {
+                field.disabled = !enabled;
+                return;
+            }
+            if (fieldId === 'finance_supplier_search') {
+                field.readOnly = !enabled;
+                return;
+            }
+            field.readOnly = !enabled;
+        });
+    };
+
+    registrarCompraEdicaoToggle?.addEventListener('change', () => {
+        setEditPurchaseMode(Boolean(registrarCompraEdicaoToggle.checked));
+        if (registrarCompraEdicaoToggle.checked) {
+            financeTipoDocumentoInput && !financeTipoDocumentoInput.value && (financeTipoDocumentoInput.value = 'nf');
+            financeOrigemValorInput && (!financeOrigemValorInput.value || financeOrigemValorInput.value === 'inventario_inicial') && (financeOrigemValorInput.value = 'compra_nf');
+            financeComprovacaoInput && (!financeComprovacaoInput.value || financeComprovacaoInput.value === 'sem_comprovacao') && (financeComprovacaoInput.value = 'comprovado');
+        }
+    });
+
+    if (registrarCompraEdicaoToggle) {
+        setEditPurchaseMode(Boolean(registrarCompraEdicaoToggle.checked));
+    }
 
     const shouldBlockImplicitSubmit = (event) => {
         if (event.key !== 'Enter') {

@@ -2054,6 +2054,7 @@ def cadastrar_produto():
                 quantidade=saldo_inicial,
                 numero_documento=str(payload["nota_fiscal"]),
                 tipo_documento="nf",
+                allow_new_document_item=True,
             )
 
         codigo = inventory_service.create_item(payload)
@@ -2314,6 +2315,7 @@ def criar_item_estoque():
                 quantidade=quantidade_inicial,
                 numero_documento=str(payload["nota_fiscal"]),
                 tipo_documento="nf",
+                allow_new_document_item=True,
             )
         
         codigo_criado = inventory_service.create_item(payload)

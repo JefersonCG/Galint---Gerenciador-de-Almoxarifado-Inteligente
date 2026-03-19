@@ -151,7 +151,13 @@ def _extract_finance_payload(form, *, current_item: dict | None = None) -> dict[
     }
 
 
-def _validate_stock_entry_policy(*, codigo: str, quantidade: float, finance_payload: dict[str, object]) -> None:
+def _validate_stock_entry_policy(
+    *,
+    codigo: str,
+    quantidade: float,
+    finance_payload: dict[str, object],
+    allow_new_document_item: bool = False,
+) -> None:
     qty = float(quantidade or 0.0)
     if qty <= 0:
         return
@@ -174,6 +180,44 @@ def _validate_stock_entry_policy(*, codigo: str, quantidade: float, finance_payl
             numero_documento=numero_documento,
             tipo_documento=tipo_documento,
             data_emissao=data_emissao if isinstance(data_emissao, date) else None,
+            allow_new_document_item=allow_new_document_item,
+        )
+
+
+def _validate_document_bridge_request(finance_payload: dict[str, object]) -> None:
+    tipo_documento = (str(finance_payload.get("tipo_documento") or "")).strip().lower() or "nf"
+    if tipo_documento not in {"nf", "cupom"}:
+        return
+
+    numero_documento = (str(finance_payload.get("numero_documento") or "")).strip()
+    chave_acesso = (str(finance_payload.get("chave_acesso") or "")).strip()
+    data_emissao = finance_payload.get("data_emissao_documento")
+    supplier_id = finance_payload.get("supplier_id")
+
+    informed_bridge_data = bool(numero_documento or chave_acesso or data_emissao or supplier_id)
+    if not informed_bridge_data:
+        return
+
+    if not numero_documento:
+        raise ValueError("Informe o número da NF/cupom para abrir o documento fiscal automaticamente.")
+
+    existing_document = finance_service.get_stock_document_by_number(numero_documento)
+    if existing_document:
+        return
+
+    missing_fields: list[str] = []
+    if not supplier_id:
+        missing_fields.append("fornecedor")
+    if not chave_acesso:
+        missing_fields.append("chave de acesso")
+    if not isinstance(data_emissao, date):
+        missing_fields.append("data de emissão")
+
+    if missing_fields:
+        raise ValueError(
+            "Para criar uma nova ponte com Documentos Fiscais pelo cadastro do item, informe: "
+            + ", ".join(missing_fields)
+            + "."
         )
 
 
@@ -578,10 +622,13 @@ def create_item():
         if saldo_desejado < 0:
             raise ValueError("Informe uma quantidade inicial válida")
 
+        _validate_document_bridge_request(finance_payload)
+
         _validate_stock_entry_policy(
             codigo=payload["codigo"],
             quantidade=float(saldo_desejado if saldo_desejado > 0 else 0),
             finance_payload=finance_payload,
+            allow_new_document_item=True,
         )
         
         if payload.get("preco_compra_unitario") is not None:
@@ -725,6 +772,7 @@ def update_item(codigo: str):
         saldo_desejado = float(saldo_raw or 0)
     except ValueError:
         saldo_desejado = -1
+    registrar_compra_edicao = bool(form.get("registrar_compra_edicao"))
 
     # Lógica de processamento de Unidades Dinâmicas
     tipo_novo = form.get("tipo_embalagem_novo") or None
@@ -784,11 +832,12 @@ def update_item(codigo: str):
         "voltagem": form.get("voltagem", "").strip() or None,
         "amperagem": form.get("amperagem", "").strip() or None,
         "local_instalacao": form.get("local_instalacao", "").strip() or None,
-        # Financeiro: após salvo, fica bloqueado na edição do item.
-        # Novas compras/documentos devem entrar pelo fluxo de NF/entrada documental.
-        "preco_compra_unitario": prev_item.get("preco_compra_unitario"),
-        "preco_compra_fonte": prev_item.get("preco_compra_fonte"),
-        "preco_compra_documento": prev_item.get("preco_compra_documento"),
+        "preco_compra_unitario": (form.get("preco_compra_unitario") or "").strip() or prev_item.get("preco_compra_unitario"),
+        "preco_compra_fonte": (form.get("preco_compra_fonte") or "").strip() or prev_item.get("preco_compra_fonte"),
+        "preco_compra_documento": (form.get("preco_compra_documento") or "").strip() or prev_item.get("preco_compra_documento"),
+        "preco_compra_chave_acesso": (form.get("preco_compra_chave_acesso") or "").strip() or prev_item.get("preco_compra_chave_acesso"),
+        "preco_compra_data_emissao": (form.get("preco_compra_data_emissao") or "").strip() or prev_item.get("preco_compra_data_emissao"),
+        "preco_compra_data_recebimento": (form.get("preco_compra_data_recebimento") or "").strip() or prev_item.get("preco_compra_data_recebimento"),
         "preco_reposicao_unitario": prev_item.get("preco_reposicao_unitario"),
         "preco_reposicao_fonte": prev_item.get("preco_reposicao_fonte"),
         "preco_reposicao_uf": prev_item.get("preco_reposicao_uf"),
@@ -798,7 +847,30 @@ def update_item(codigo: str):
         "preco_compra_atualizado_por": prev_item.get("preco_compra_atualizado_por"),
         "preco_reposicao_atualizado_em": prev_item.get("preco_reposicao_atualizado_em"),
         "preco_reposicao_atualizado_por": prev_item.get("preco_reposicao_atualizado_por"),
+        "finance_supplier_id": prev_item.get("finance_supplier_id"),
+        "finance_origem_valor": prev_item.get("finance_origem_valor"),
+        "finance_tipo_documento": prev_item.get("finance_tipo_documento"),
+        "finance_comprovacao_status": prev_item.get("finance_comprovacao_status"),
+        "finance_observacao": prev_item.get("finance_observacao"),
     }
+
+    finance_payload = _extract_finance_payload(form, current_item=None if registrar_compra_edicao else prev_item)
+    if registrar_compra_edicao:
+        payload.update({
+            "preco_compra_unitario": (form.get("preco_compra_unitario") or "").strip() or None,
+            "preco_compra_fonte": (form.get("preco_compra_fonte") or "").strip() or None,
+            "preco_compra_documento": (form.get("preco_compra_documento") or "").strip() or None,
+            "preco_compra_chave_acesso": (form.get("preco_compra_chave_acesso") or "").strip() or None,
+            "preco_compra_data_emissao": (form.get("preco_compra_data_emissao") or "").strip() or None,
+            "preco_compra_data_recebimento": (form.get("preco_compra_data_recebimento") or "").strip() or None,
+            "finance_supplier_id": finance_payload.get("supplier_id"),
+            "finance_origem_valor": finance_payload.get("origem_valor"),
+            "finance_tipo_documento": finance_payload.get("tipo_documento"),
+            "finance_comprovacao_status": finance_payload.get("comprovacao_status"),
+            "finance_observacao": finance_payload.get("observacao"),
+        })
+        payload["preco_compra_atualizado_em"] = datetime.utcnow()
+        payload["preco_compra_atualizado_por"] = current_user.nome if hasattr(current_user, "nome") else current_user.id
 
     # Preservar campos antigos se não forem substituídos pelo novo sistema?
     # Neste caso, estamos assumindo que o formulário é a fonte da verdade para a edição.
@@ -814,6 +886,34 @@ def update_item(codigo: str):
 
         if saldo_desejado < 0:
             raise ValueError("Informe uma quantidade válida")
+
+        previous_internal_balance = float(prev_item.get("saldo") or 0.0)
+        effective_tipo_embalagem = tipo_novo if tipo_novo is not None else (prev_item.get("tipo_embalagem_novo") or None)
+        effective_unidades_por_embalagem = unidades_var
+        if effective_unidades_por_embalagem in (None, ""):
+            try:
+                effective_unidades_por_embalagem = float(prev_item.get("unidades_por_embalagem") or 0.0)
+            except (TypeError, ValueError):
+                effective_unidades_por_embalagem = 0.0
+        target_internal_balance = float(saldo_desejado)
+        if effective_tipo_embalagem and float(effective_unidades_por_embalagem or 0.0) > 0:
+            if saldo_unidades_soltas_raw == "":
+                saldo_unidades_soltas_preview = float(prev_item.get("estoque_unidades_soltas") or 0.0)
+            else:
+                try:
+                    saldo_unidades_soltas_preview = float(saldo_unidades_soltas_raw)
+                except ValueError:
+                    saldo_unidades_soltas_preview = -1
+            if saldo_unidades_soltas_preview < 0:
+                raise ValueError("Informe uma quantidade válida para unidades soltas")
+            target_internal_balance = (float(saldo_desejado) * float(effective_unidades_por_embalagem)) + float(saldo_unidades_soltas_preview)
+
+        purchase_delta = max(0.0, float(target_internal_balance) - previous_internal_balance)
+
+        if registrar_compra_edicao:
+            _validate_document_bridge_request(finance_payload)
+            if purchase_delta <= 0:
+                raise ValueError("Para registrar nova compra pela edição do item, aumente o saldo do estoque.")
 
         # Processar upload de foto (se enviado)
         foto_file = request.files.get('foto')
@@ -895,6 +995,23 @@ def update_item(codigo: str):
                     nota_fiscal=payload.get("nota_fiscal"),
                     descricao="Ajuste manual via edição do item",
                 )
+
+        history_recorded = False
+        if registrar_compra_edicao and purchase_delta > 0:
+            history_recorded = _sync_item_financial_history(
+                codigo=updated_codigo,
+                categoria=str(payload.get("categoria") or prev_item.get("categoria") or "Sem categoria"),
+                quantidade=float(purchase_delta),
+                preco_compra_unitario=payload.get("preco_compra_unitario"),
+                data_lancamento=payload.get("data_entrada"),
+                usuario_id=current_user.id,
+                finance_payload=finance_payload,
+                entrada_id=None,
+            )
+            if not history_recorded and (
+                finance_payload.get("supplier_id") or finance_payload.get("tipo_documento") or finance_payload.get("origem_valor")
+            ):
+                flash("Entrada registrada, mas o lançamento financeiro não foi gravado porque faltou valor de compra unitário.", "warning")
         
         # Quando o saldo aumentou, adjust_item_balance já enviou o alerta operacional.
         # Mantemos notify_item_updated apenas para alterações cadastrais e ajustes sem entrada.
@@ -912,7 +1029,17 @@ def update_item(codigo: str):
                 TelegramService.notify_item_updated(updated_codigo, prev=prev_item, prev_balance=prev_balance)
             except Exception:
                 pass
-        flash("Item atualizado com sucesso.", "success")
+        if registrar_compra_edicao and purchase_delta > 0:
+            flash("Item atualizado e nova compra vinculada ao documento fiscal.", "success")
+            numero_documento = str(finance_payload.get("numero_documento") or "").strip()
+            if numero_documento and _is_admin(current_user):
+                flash(
+                    f"Documento fiscal {numero_documento} atualizado automaticamente e aberto para conferência.",
+                    "info",
+                )
+                return redirect(url_for("nf.nf_index", nota=numero_documento, codigo=updated_codigo))
+        else:
+            flash("Item atualizado com sucesso.", "success")
     except ValueError as exc:
         flash(str(exc), "danger")
         return redirect(url_for("inventory.edit_item_form", codigo=codigo))

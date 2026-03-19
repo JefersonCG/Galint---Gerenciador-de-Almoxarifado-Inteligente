@@ -574,6 +574,7 @@ class FinanceService:
         numero_documento: str,
         tipo_documento: str | None = None,
         data_emissao: date | None = None,
+        allow_new_document_item: bool = False,
     ) -> dict[str, Any]:
         qty = float(quantidade or 0.0)
         if qty <= 0:
@@ -586,9 +587,20 @@ class FinanceService:
             data_emissao=data_emissao,
         )
         if reconciliation is None:
+            if allow_new_document_item:
+                return {
+                    "document": None,
+                    "document_count": 0,
+                    "matching_rows": 0,
+                    "documented_quantity": 0.0,
+                    "linked_quantity": 0.0,
+                    "pending_quantity": 0.0,
+                }
             raise ValueError("Documento fiscal não encontrado para conciliar a entrada. Registre o documento primeiro.")
 
         if int(reconciliation.get("matching_rows") or 0) <= 0:
+            if allow_new_document_item:
+                return reconciliation
             raise ValueError("O item não existe no documento informado. Cadastre o item correto no documento fiscal antes de entrar no estoque.")
 
         documented_quantity = float(reconciliation.get("documented_quantity") or 0.0)
