@@ -128,6 +128,29 @@ def _extract_finance_payload(form, *, current_item: dict | None = None) -> dict[
     chave_acesso = (form.get("preco_compra_chave_acesso") or "").strip() or None
     data_emissao = _parse_iso_date(form.get("preco_compra_data_emissao"))
     data_recebimento = _parse_iso_date(form.get("preco_compra_data_recebimento"))
+
+    if current_item:
+        if supplier_id is None:
+            current_supplier_id = current_item.get("finance_supplier_id")
+            try:
+                supplier_id = int(current_supplier_id) if current_supplier_id not in (None, "") else None
+            except (TypeError, ValueError):
+                supplier_id = None
+        if not (form.get("finance_origem_valor") or "").strip():
+            origem_valor = (current_item.get("finance_origem_valor") or origem_valor)
+        if not (form.get("finance_tipo_documento") or "").strip():
+            tipo_documento = (current_item.get("finance_tipo_documento") or tipo_documento)
+        if not (form.get("finance_comprovacao_status") or "").strip():
+            comprovacao = (current_item.get("finance_comprovacao_status") or comprovacao)
+        if not observacao:
+            observacao = (current_item.get("finance_observacao") or None)
+        if not chave_acesso:
+            chave_acesso = (current_item.get("preco_compra_chave_acesso") or None)
+        if data_emissao is None:
+            data_emissao = _parse_iso_date(current_item.get("preco_compra_data_emissao"))
+        if data_recebimento is None:
+            data_recebimento = _parse_iso_date(current_item.get("preco_compra_data_recebimento"))
+
     if not comprovacao:
         comprovacao = "comprovado" if tipo_documento in {"nf", "cupom"} else "sem_comprovacao"
     numero_nf = (form.get("nota_fiscal") or "").strip()
@@ -611,6 +634,7 @@ def create_item():
         "preco_reposicao_uf": (form.get("preco_reposicao_uf") or "").strip() or None,
         "preco_reposicao_query": (form.get("preco_reposicao_query") or "").strip() or None,
         "preco_reposicao_url": (form.get("preco_reposicao_url") or "").strip() or None,
+        "foto_url": (form.get("foto_url") or "").strip() or None,
         "quantidade": saldo_desejado,  # Para registrar entrada quando item existe com lote diferente
     }
     finance_payload = _extract_finance_payload(form)
@@ -654,6 +678,12 @@ def create_item():
                 payload["foto_path"] = foto_path
             except ValueError as e:
                 flash(f"Erro no upload da foto: {str(e)}", "warning")
+        elif payload.get("foto_url"):
+            try:
+                foto_path = ItemFotoService.download_foto_from_url(str(payload["foto_url"]), payload["codigo"])
+                payload["foto_path"] = foto_path
+            except ValueError as e:
+                flash(f"Erro ao baixar foto por link: {str(e)}", "warning")
         
         resultado = inventory_service.create_item(payload)
         

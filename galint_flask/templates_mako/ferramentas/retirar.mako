@@ -212,6 +212,21 @@
         box-shadow: 0 6px 18px rgba(13, 110, 253, 0.35);
     }
 
+    .btn-new-group {
+        background: rgba(148, 163, 184, 0.12);
+        border: 1px solid rgba(148, 163, 184, 0.28);
+        border-radius: 8px;
+        padding: 0.9rem 1.25rem;
+        font-weight: 700;
+        color: #e2e8f0;
+        transition: all 0.2s ease;
+    }
+
+    .btn-new-group:hover {
+        background: rgba(148, 163, 184, 0.2);
+        color: #ffffff;
+    }
+
     .btn-remove-item {
         background: #dc3545;
         border: none;
@@ -251,6 +266,17 @@
         background: rgba(59, 130, 246, 0.06);
     }
 
+    .group-row td {
+        background: rgba(59, 130, 246, 0.16);
+        color: #eff6ff;
+        font-weight: 700;
+    }
+
+    .group-meta {
+        font-size: 0.9rem;
+        color: #dbeafe;
+    }
+
 </style>
 </%block>
 
@@ -264,7 +290,7 @@
     
     <div class="alert-info-custom">
         <i class="bi bi-info-circle me-2"></i>
-        <strong>Importante:</strong> As ferramentas devem ser devolvidas até o final do dia. Ferramentas não devolvidas aparecerão como <strong>atrasadas</strong> no painel.
+        <strong>Importante:</strong> As ferramentas devem ser devolvidas até o final do dia. Você pode montar vários funcionários na mesma coleta; o envio continua separado por ferramenta.
     </div>
     
     <form id="form-retirada" autocomplete="off">
@@ -299,6 +325,9 @@
                 <div class="col-12 d-grid gap-2">
                     <button class="btn btn-add-item" type="button" id="btn-adicionar">
                         <i class="bi bi-plus-circle me-2"></i>Adicionar Ferramenta
+                    </button>
+                    <button class="btn btn-new-group" type="button" id="btn-novo-funcionario">
+                        <i class="bi bi-people me-2"></i>Adicionar Funcionário
                     </button>
                 </div>
             </div>
@@ -388,13 +417,17 @@ ${parent.scripts()}
     const dropdownMatricula = document.getElementById('autocomplete-matricula-dropdown');
     const formEl = document.getElementById('form-retirada');
     const btnAdicionar = document.getElementById('btn-adicionar');
+    const btnNovoFuncionario = document.getElementById('btn-novo-funcionario');
     const btnRegistrar = document.getElementById('btn-registrar');
     const itemsContainer = document.getElementById('items-container');
     const itemsList = document.getElementById('items-list');
     const totalBadge = document.getElementById('total-items-badge');
 
     const items = [];
+    const groups = [];
     let itemCounter = 0;
+    let groupCounter = 0;
+    let currentGroupId = null;
     let debounceTimer;
     let debounceTimerMatricula;
     let currentFocus = -1;
@@ -599,27 +632,68 @@ ${parent.scripts()}
         const itemText = items.length === 1 ? 'item' : 'itens';
         totalBadge.textContent = items.length + ' ' + itemText;
 
-        itemsList.innerHTML = items.map(item =>
-            '<tr>' +
-                '<td><code>' + escapeHtml(item.codigo) + '</code></td>' +
-                '<td><strong>' + escapeHtml(item.descricao || '-') + '</strong></td>' +
-                '<td class="text-center"><span class="badge-qty">' + item.quantidade + '</span></td>' +
-                '<td class="text-end">' +
-                    '<button type="button" class="btn-remove-item" onclick="removeItem(' + item.id + ')">' +
-                        '<i class="bi bi-trash me-1"></i>Remover' +
-                    '</button>' +
-                '</td>' +
-            '</tr>'
-        ).join('');
+        itemsList.innerHTML = groups.filter(group => group.itens.length > 0).map(group => {
+            const localLabel = String(group.local || '').trim();
+            const groupHeader = '<tr class="group-row"><td colspan="4">' + escapeHtml(group.matricula) + (localLabel ? ' <span class="group-meta">• ' + escapeHtml(localLabel) + '</span>' : '') + '</td></tr>';
+            const groupItems = group.itens.map(item =>
+                '<tr>' +
+                    '<td><code>' + escapeHtml(item.codigo) + '</code></td>' +
+                    '<td><strong>' + escapeHtml(item.descricao || '-') + '</strong></td>' +
+                    '<td class="text-center"><span class="badge-qty">' + item.quantidade + '</span></td>' +
+                    '<td class="text-end">' +
+                        '<button type="button" class="btn-remove-item" onclick="removeItem(' + item.id + ')">' +
+                            '<i class="bi bi-trash me-1"></i>Remover' +
+                        '</button>' +
+                    '</td>' +
+                '</tr>'
+            ).join('');
+            return groupHeader + groupItems;
+        }).join('');
     }
 
     window.removeItem = function(id) {
         const index = items.findIndex(i => i.id === id);
         if (index > -1) {
-            items.splice(index, 1);
+            const removed = items.splice(index, 1)[0];
+            groups.forEach((group) => {
+                const itemIndex = group.itens.findIndex(item => item.id === removed.id);
+                if (itemIndex > -1) {
+                    group.itens.splice(itemIndex, 1);
+                }
+            });
+            for (let idx = groups.length - 1; idx >= 0; idx -= 1) {
+                if (!groups[idx].itens.length) {
+                    if (groups[idx].id === currentGroupId) {
+                        currentGroupId = null;
+                    }
+                    groups.splice(idx, 1);
+                }
+            }
             renderItems();
         }
     };
+
+    function resetCurrentGroupForm() {
+        currentGroupId = null;
+        inputMatricula.value = '';
+        inputCodigo.value = '';
+        inputQuantidade.value = '1';
+        inputLocal.value = '';
+        if (inputObservacao) {
+            inputObservacao.value = '';
+        }
+        dropdown.classList.remove('show');
+        dropdownMatricula.classList.remove('show');
+        inputMatricula.focus();
+    }
+
+    btnNovoFuncionario?.addEventListener('click', function() {
+        if (items.length === 0 && !inputMatricula.value.trim() && !inputLocal.value.trim()) {
+            inputMatricula.focus();
+            return;
+        }
+        resetCurrentGroupForm();
+    });
 
     async function buscarDescricaoPorCodigo(codigo) {
         try {
@@ -660,12 +734,29 @@ ${parent.scripts()}
 
         try {
             const descricao = await buscarDescricaoPorCodigo(codigo);
-            items.push({
+            const matriculaAtual = String(inputMatricula.value || '').trim();
+            const localAtual = String(inputLocal.value || '').trim();
+            let group = groups.find((entry) => entry.id === currentGroupId);
+            if (!group || group.matricula !== matriculaAtual || group.local !== localAtual) {
+                group = {
+                    id: ++groupCounter,
+                    matricula: matriculaAtual,
+                    local: localAtual,
+                    observacao: (inputObservacao && inputObservacao.value ? inputObservacao.value.trim() : '') || '',
+                    itens: []
+                };
+                groups.push(group);
+                currentGroupId = group.id;
+            }
+
+            const toolItem = {
                 id: ++itemCounter,
                 codigo: codigo,
                 descricao: descricao || codigo,
                 quantidade: quantidade,
-            });
+            };
+            group.itens.push(toolItem);
+            items.push(toolItem);
             renderItems();
 
             inputCodigo.value = '';
@@ -701,107 +792,82 @@ ${parent.scripts()}
         btnRegistrar.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Registrando...';
 
         try {
-            const payload = {
-                matricula: matricula,
-                local_servico: (inputLocal && inputLocal.value ? inputLocal.value.trim() : null) || null,
-                observacao: (inputObservacao && inputObservacao.value ? inputObservacao.value.trim() : null) || null,
-                itens: items.map(i => ({
-                    codigo: i.codigo,
-                    quantidade: i.quantidade,
-                }))
-            };
+            const failedItems = [];
+            let successCount = 0;
 
-            const response = await fetch('/ferramentas/retirar-multipla', {
-                method: 'POST',
-                credentials: 'same-origin',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
+            for (const group of groups.filter(entry => entry.itens.length > 0)) {
+                for (const item of group.itens) {
+                    const payload = {
+                        matricula: group.matricula,
+                        local_servico: group.local || null,
+                        observacao: group.observacao || null,
+                        itens: [{
+                            codigo: item.codigo,
+                            quantidade: item.quantidade,
+                        }]
+                    };
+
+                    const response = await fetch('/ferramentas/retirar-multipla', {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    const result = await response.json().catch(() => ({}));
+                    if (response.ok && result && result.success) {
+                        successCount += 1;
+                    } else {
+                        const falhas = Array.isArray(result.resultados) ? result.resultados.filter(r => !r.success) : [];
+                        const detalhe = falhas.length
+                            ? falhas.map(r => String(r.codigo || item.codigo) + ': ' + String(r.message || 'Erro')).join(' | ')
+                            : String(result.message || 'Erro ao registrar retirada');
+                        failedItems.push({
+                            ...item,
+                            matricula: group.matricula,
+                            local: group.local,
+                            observacao: group.observacao,
+                            error: detalhe,
+                        });
+                    }
+                }
+            }
+
+            items.length = 0;
+            groups.length = 0;
+
+            failedItems.forEach((item) => {
+                let group = groups.find((entry) => entry.matricula === item.matricula && entry.local === item.local && entry.observacao === item.observacao);
+                if (!group) {
+                    group = {
+                        id: ++groupCounter,
+                        matricula: item.matricula,
+                        local: item.local,
+                        observacao: item.observacao,
+                        itens: []
+                    };
+                    groups.push(group);
+                }
+                const toolItem = {
+                    id: item.id,
+                    codigo: item.codigo,
+                    descricao: item.descricao,
+                    quantidade: item.quantidade,
+                };
+                group.itens.push(toolItem);
+                items.push(toolItem);
             });
+            renderItems();
 
-            const contentType = (response.headers.get('content-type') || '').toLowerCase();
-            if (!contentType.includes('application/json')) {
-                const rawText = await response.text();
-                const host = window.location && window.location.host ? window.location.host : '';
-                const dicaHost = host
-                    ? ('Você está acessando por ' + host + '. Se você fez login em outro endereço (ex.: localhost), faça login novamente neste mesmo endereço.')
-                    : 'Faça login novamente e tente de novo.';
-
-                if (response.status === 404) {
-                    showErrorModal(
-                        'Atualização necessária',
-                        'O servidor não encontrou a rota de retirada em lote. Isso costuma acontecer quando o servidor ainda não foi reiniciado após a atualização.',
-                        ['HTTP 404', 'Reinicie o servidor e atualize a página (Ctrl+F5).']
-                    );
-                    return;
-                }
-
-                if (response.status === 401 || response.status === 403 || (rawText || '').toLowerCase().includes('<!doctype')) {
-                    showErrorModal(
-                        'Sessão necessária',
-                        'Para registrar a retirada, é necessário estar logado como administrador.',
-                        [dicaHost]
-                    );
-                } else {
-                    showErrorModal(
-                        'Resposta inesperada',
-                        'O servidor retornou uma resposta inesperada ao registrar a retirada.',
-                        ['HTTP ' + response.status, dicaHost]
-                    );
-                }
-                return;
-            }
-
-            const result = await response.json();
-
-            if (response.status === 401 || response.status === 403) {
-                const host = window.location && window.location.host ? window.location.host : '';
-                const dicaHost = host
-                    ? ('Você está acessando por ' + host + '. Se você fez login em outro endereço (ex.: localhost), faça login novamente neste mesmo endereço.')
-                    : 'Faça login novamente e tente de novo.';
-
-                showErrorModal(
-                    'Sessão necessária',
-                    (result && result.message) ? String(result.message) : 'Para registrar a retirada, é necessário estar logado como administrador.',
-                    [dicaHost]
-                );
-                return;
-            }
-
-            if (result && result.success) {
-                alert('✓ ' + (result.message || 'Retirada registrada'));
-                items.length = 0;
-                renderItems();
-                inputCodigo.value = '';
-                inputQuantidade.value = '1';
-                inputCodigo.focus();
+            if (failedItems.length === 0) {
+                alert('✓ Retiradas registradas com sucesso.');
+                resetCurrentGroupForm();
             } else {
-                const falhas = (result && Array.isArray(result.resultados))
-                    ? result.resultados.filter(r => !r.success)
-                    : [];
-
-                const detalhes = falhas.map(r => {
-                    const codigoFalha = r && r.codigo ? String(r.codigo) : '?';
-                    const msgFalha = r && r.message ? String(r.message) : 'Erro';
-                    return codigoFalha + ': ' + msgFalha;
-                });
-
-                const msgGeral = (result && result.message) ? String(result.message) : 'Erro ao registrar retirada';
-                const temSaldoInsuficiente = detalhes.some(d => (d || '').toLowerCase().includes('saldo insuficiente'))
-                    || msgGeral.toLowerCase().includes('saldo insuficiente');
-
-                if (temSaldoInsuficiente) {
-                    showErrorModal(
-                        'Quantidade acima do disponível',
-                        'Ops! Parece que você pediu mais do que temos disponível agora. Ajuste a quantidade (ou devolva alguma ferramenta) e tente novamente.',
-                        detalhes.length > 0 ? detalhes : [msgGeral]
-                    );
-                } else {
-                    showErrorModal(
-                        'Não foi possível registrar',
-                        msgGeral,
-                        detalhes
-                    );
-                }
+                showErrorModal(
+                    'Parte das retiradas falhou',
+                    'As retiradas com erro permaneceram na lista para nova tentativa.',
+                    failedItems.map(item => item.codigo + ': ' + item.error)
+                );
             }
         } catch (error) {
             showErrorModal(

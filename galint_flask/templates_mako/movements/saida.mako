@@ -106,6 +106,21 @@
         transform: translateY(-2px);
         box-shadow: 0 6px 20px rgba(37, 99, 235, 0.5);
     }
+
+    .btn-new-group {
+        background: rgba(148, 163, 184, 0.12);
+        border: 1px solid rgba(148, 163, 184, 0.28);
+        border-radius: 8px;
+        padding: 0.75rem 1.25rem;
+        font-weight: 600;
+        color: #e2e8f0;
+        transition: all 0.2s ease;
+    }
+
+    .btn-new-group:hover {
+        background: rgba(148, 163, 184, 0.2);
+        color: #ffffff;
+    }
     
     .btn-register {
         background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
@@ -174,6 +189,17 @@
     
     .items-table tbody tr:hover {
         background: rgba(59, 130, 246, 0.06);
+    }
+
+    .group-row td {
+        background: rgba(59, 130, 246, 0.16);
+        color: #eff6ff;
+        font-weight: 700;
+    }
+
+    .group-meta {
+        font-size: 0.9rem;
+        color: #dbeafe;
     }
     
     .btn-remove-item {
@@ -319,7 +345,7 @@
     
     <div class="alert-info-custom">
         <i class="bi bi-info-circle me-2"></i>
-        <strong>Dica:</strong> Você pode montar a lista completa antes de confirmar o envio, mantendo o mesmo operador e local do serviço.
+        <strong>Dica:</strong> Você pode montar a coleta com vários funcionários. O envio continua item por item, com notificações separadas.
     </div>
 
     <div class="input-card">
@@ -350,6 +376,11 @@
             <div class="col-md-3 d-flex align-items-end">
                 <button class="btn btn-add-item w-100" type="button" id="btn-adicionar">
                     <i class="bi bi-plus-circle me-1"></i>Adicionar Item
+                </button>
+            </div>
+            <div class="col-12 d-grid gap-2">
+                <button class="btn btn-new-group" type="button" id="btn-novo-funcionario">
+                    <i class="bi bi-people me-2"></i>Adicionar Funcionário
                 </button>
             </div>
         </div>
@@ -459,11 +490,15 @@ ${parent.scripts()}
     const inputCodigo = document.getElementById('input-codigo');
     const inputQuantidade = document.getElementById('input-quantidade');
     const btnAdicionar = document.getElementById('btn-adicionar');
+    const btnNovoFuncionario = document.getElementById('btn-novo-funcionario');
     const btnRegistrar = document.getElementById('btn-registrar');
     const itemsContainer = document.getElementById('items-container');
     const itemsList = document.getElementById('items-list');
     const emptyState = document.getElementById('empty-state');
     const totalBadge = document.getElementById('total-items-badge');
+    const groups = [];
+    let groupCounter = 0;
+    let currentGroupId = null;
     
     // Modal
     const modalUnidade = new bootstrap.Modal(document.getElementById('modalUnidade'));
@@ -1045,8 +1080,38 @@ ${parent.scripts()}
     }
     
     function adicionarItemFinal(item) {
+        const usuario = String(item.usuario || '').trim();
+        const local = String(item.local || '').trim();
+        let group = groups.find((entry) => entry.id === currentGroupId);
+        if (!group || group.usuario !== usuario || group.local !== local) {
+            group = {
+                id: ++groupCounter,
+                usuario: usuario,
+                local: local,
+                itens: []
+            };
+            groups.push(group);
+            currentGroupId = group.id;
+        }
+        group.itens.push(item);
         items.push(item);
         renderItems();
+    }
+
+    function normalizeGroupLabel(usuario, local) {
+        const localLabel = String(local || '').trim();
+        return localLabel ? (escapeHtml(usuario) + ' <span class="group-meta">• ' + escapeHtml(localLabel) + '</span>') : escapeHtml(usuario);
+    }
+
+    function resetCurrentGroupForm() {
+        currentGroupId = null;
+        inputUsuario.value = '';
+        inputLocal.value = '';
+        inputCodigo.value = '';
+        inputQuantidade.value = '1';
+        dropdownUsuario.classList.remove('show');
+        dropdownCodigo.classList.remove('show');
+        inputUsuario.focus();
     }
     
     function renderItems() {
@@ -1063,28 +1128,58 @@ ${parent.scripts()}
         
         const itemText = items.length === 1 ? 'item' : 'itens';
         totalBadge.textContent = items.length + ' ' + itemText;
-        
-        itemsList.innerHTML = items.map(item => 
-            '<tr>' +
-                '<td><code>' + escapeHtml(item.codigo) + '</code></td>' +
-                '<td><strong>' + escapeHtml(item.descricao) + '</strong></td>' +
-                '<td class="text-center"><span class="badge-qty">' + (item.quantidade_exibicao || item.quantidade) + (item.unidade_label ? ' ' + item.unidade_label : '') + '</span></td>' +
-                '<td class="text-end">' +
-                    '<button type="button" class="btn-remove-item" onclick="removeItem(' + item.id + ')">' +
-                        '<i class="bi bi-trash me-1"></i>Remover' +
-                    '</button>' +
-                '</td>' +
-            '</tr>'
-        ).join('');
+
+        const activeGroups = groups.filter(group => Array.isArray(group.itens) && group.itens.length > 0);
+        itemsList.innerHTML = activeGroups.map(group => {
+            const groupHeader =
+                '<tr class="group-row">' +
+                    '<td colspan="4">' + normalizeGroupLabel(group.usuario, group.local) + '</td>' +
+                '</tr>';
+            const groupItems = group.itens.map(item =>
+                '<tr>' +
+                    '<td><code>' + escapeHtml(item.codigo) + '</code></td>' +
+                    '<td><strong>' + escapeHtml(item.descricao) + '</strong></td>' +
+                    '<td class="text-center"><span class="badge-qty">' + (item.quantidade_exibicao || item.quantidade) + (item.unidade_label ? ' ' + item.unidade_label : '') + '</span></td>' +
+                    '<td class="text-end">' +
+                        '<button type="button" class="btn-remove-item" onclick="removeItem(' + item.id + ')">' +
+                            '<i class="bi bi-trash me-1"></i>Remover' +
+                        '</button>' +
+                    '</td>' +
+                '</tr>'
+            ).join('');
+            return groupHeader + groupItems;
+        }).join('');
     }
     
     window.removeItem = function(id) {
         const index = items.findIndex(item => item.id === id);
         if (index > -1) {
-            items.splice(index, 1);
+            const [removedItem] = items.splice(index, 1);
+            groups.forEach((group) => {
+                const itemIndex = group.itens.findIndex(item => item.id === removedItem.id);
+                if (itemIndex > -1) {
+                    group.itens.splice(itemIndex, 1);
+                }
+            });
+            for (let idx = groups.length - 1; idx >= 0; idx -= 1) {
+                if (!groups[idx].itens.length) {
+                    if (groups[idx].id === currentGroupId) {
+                        currentGroupId = null;
+                    }
+                    groups.splice(idx, 1);
+                }
+            }
             renderItems();
         }
     };
+
+    btnNovoFuncionario?.addEventListener('click', function() {
+        if (items.length === 0 && !inputUsuario.value.trim() && !inputLocal.value.trim()) {
+            inputUsuario.focus();
+            return;
+        }
+        resetCurrentGroupForm();
+    });
     
     btnRegistrar.addEventListener('click', async function() {
         if (items.length === 0) {
@@ -1101,42 +1196,59 @@ ${parent.scripts()}
         btnRegistrar.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Registrando...';
         
         try {
-            // Preparar payload para envio único
-            const payload = {
-                usuario: items[0].usuario,
-                local_servico: items[0].local,
-                itens: items.map(item => ({
-                    codigo: item.codigo,
-                    quantidade: item.quantidade,
-                    observacao: item.observacao_unit || null,
-                    em_embalagens: item.em_embalagens
-                }))
-            };
-            
-            const response = await fetch('/movimentos/saida-multipla', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(payload)
+            const failedItems = [];
+            let successCount = 0;
+
+            for (const group of groups.filter(entry => entry.itens.length > 0)) {
+                for (const item of group.itens) {
+                    const payload = {
+                        usuario: group.usuario,
+                        local_servico: group.local,
+                        itens: [{
+                            codigo: item.codigo,
+                            quantidade: item.quantidade,
+                            observacao: item.observacao_unit || null,
+                            em_embalagens: item.em_embalagens
+                        }]
+                    };
+
+                    const response = await fetch('/movimentos/saida-multipla', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(payload)
+                    });
+
+                    const result = await response.json();
+                    if (response.ok && result.success) {
+                        successCount += 1;
+                    } else {
+                        failedItems.push({
+                            ...item,
+                            usuario: group.usuario,
+                            local: group.local,
+                            error: result && result.resultados
+                                ? result.resultados.filter(r => !r.success).map(r => r.codigo + ': ' + r.message).join(' | ')
+                                : (result.message || 'Erro ao registrar saída')
+                        });
+                    }
+                }
+            }
+
+            items.length = 0;
+            groups.length = 0;
+
+            failedItems.forEach((item) => {
+                adicionarItemFinal(item);
             });
-            
-            const result = await response.json();
-            
-            if (result.success) {
-                alert('✓ ' + result.message);
-                items.length = 0;
-                renderItems();
-                inputUsuario.value = '';
-                inputLocal.value = '';
-                inputCodigo.value = '';
-                inputQuantidade.value = '1';
-                inputUsuario.focus();
+
+            if (failedItems.length === 0) {
+                alert('✓ Saídas registradas com sucesso.');
+                resetCurrentGroupForm();
             } else {
-                const erros = result.resultados
-                    ? result.resultados.filter(r => !r.success).map(r => r.codigo + ': ' + r.message).join('\n')
-                    : result.message;
-                alert('⚠️ Erro:\n' + erros);
+                const erros = failedItems.map(item => item.codigo + ': ' + item.error).join('\n');
+                alert('⚠️ Parte das saídas não foi registrada. Os itens com falha permaneceram na lista.\n' + erros);
             }
         } catch (error) {
             alert('❌ Erro ao registrar saída: ' + error.message);

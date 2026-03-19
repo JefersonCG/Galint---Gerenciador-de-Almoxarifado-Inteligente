@@ -663,15 +663,11 @@
                         <div class="input-group">
                             <input class="form-control" id="descricao" name="descricao"
                                 value="{{ form_item.descricao if form_item else '' }}" required>
-                            {% if item %}
                             <button type="button" class="btn btn-secondary" id="btn-foto-url" data-bs-toggle="modal" data-bs-target="#modalFotoUrl" data-foto-url="{{ (request.script_root or '') ~ '/itens/' ~ item.codigo ~ '/foto/url' }}" title="Buscar foto por URL">
                                 <i class="bi bi-search"></i>
                             </button>
-                            {% endif %}
                         </div>
-                        {% if not item %}
-                        <small class="form-text">Salve o item para habilitar a busca de foto por URL.</small>
-                        {% endif %}
+                        <small class="form-text">Voce pode aplicar foto por link agora mesmo. No item ja salvo, a atualizacao acontece na hora.</small>
                     </div>
                     <div class="form-group">
                         <label class="form-label" for="marca">Marca / Fabricante</label>
@@ -682,6 +678,7 @@
                     <!-- Upload de Foto -->
                     <div class="form-group">
                         <label class="form-label" for="foto">Foto do Item</label>
+                        <input type="hidden" id="foto_url" name="foto_url" value="{{ form_item.foto_url if form_item and form_item.foto_url else '' }}">
                         {% if form_item and form_item.foto_path %}
                         <div class="mb-2">
                             <img src="{{ url_for('static', filename=form_item.foto_path) }}" 
@@ -697,10 +694,10 @@
                         {% endif %}
                         <input class="form-control" type="file" id="foto" name="foto" 
                                accept="image/png,image/jpeg,image/jpg,image/webp,image/gif">
-                        <small class="form-text">Formatos: PNG, JPG, WEBP, GIF. Máx: 5MB. A foto aparecerá nos modais de detalhes.</small>
+                        <small class="form-text">Formatos: PNG, JPG, WEBP, GIF. Max: 5MB. Voce pode anexar por arquivo ou por link; se informar os dois, o arquivo enviado prevalece.</small>
+                        <small class="form-text" id="foto-url-pending-status" {% if not form_item or not form_item.foto_url %}style="display: none;"{% endif %}>Foto por link preparada para este cadastro.</small>
                     </div>
 
-                    {% if item %}
                     <div class="modal fade" id="modalFotoUrl" tabindex="-1" aria-labelledby="modalFotoUrlLabel" aria-hidden="true">
                         <div class="modal-dialog">
                             <div class="modal-content">
@@ -721,7 +718,6 @@
                             </div>
                         </div>
                     </div>
-                    {% endif %}
                 </div>
 
             <!-- Tab 2: Classificação -->
@@ -2302,16 +2298,29 @@
     const alertFotoUrl = document.getElementById('alert-foto-url');
     const confirmFotoUrl = document.getElementById('confirm-foto-url');
     const codigoInput = document.getElementById('codigo');
+    const fotoUrlInput = document.getElementById('foto_url');
+    const fotoUrlPendingStatus = document.getElementById('foto-url-pending-status');
+    const isExistingItem = {{ 'true' if item else 'false' }};
 
     let modalFotoUrl = null;
     if (btnFotoUrl && modalFotoUrlEl && window.bootstrap) {
         modalFotoUrl = new bootstrap.Modal(modalFotoUrlEl);
         btnFotoUrl.addEventListener('click', () => {
-            if (inputFotoUrl) inputFotoUrl.value = '';
+            if (inputFotoUrl) inputFotoUrl.value = String(fotoUrlInput?.value || '').trim();
             if (alertFotoUrl) alertFotoUrl.style.display = 'none';
             modalFotoUrl.show();
         });
     }
+
+    const setFotoUrlPendingState = (imageUrl) => {
+        const hasValue = Boolean(String(imageUrl || '').trim());
+        if (fotoUrlInput) {
+            fotoUrlInput.value = hasValue ? String(imageUrl).trim() : '';
+        }
+        if (fotoUrlPendingStatus) {
+            fotoUrlPendingStatus.style.display = hasValue ? 'block' : 'none';
+        }
+    };
 
     function getScriptRoot() {
         return document.documentElement?.dataset?.scriptRoot || '';
@@ -2331,10 +2340,20 @@ if (confirmFotoUrl) {
             const codigo = (codigoInput?.value || '').trim();
             if (!codigo) {
                 if (alertFotoUrl) {
-                    alertFotoUrl.textContent = 'Codigo do item nao identificado.';
+                    alertFotoUrl.textContent = 'Informe o codigo do item antes de aplicar a foto por link.';
                     alertFotoUrl.className = 'alert alert-danger mt-3 mb-0';
                     alertFotoUrl.style.display = 'block';
                 }
+                return;
+            }
+            if (!isExistingItem) {
+                setFotoUrlPendingState(imageUrl);
+                if (alertFotoUrl) {
+                    alertFotoUrl.textContent = 'Foto por link vinculada ao cadastro. Ela sera baixada quando voce salvar o novo item.';
+                    alertFotoUrl.className = 'alert alert-success mt-3 mb-0';
+                    alertFotoUrl.style.display = 'block';
+                }
+                setTimeout(() => modalFotoUrl?.hide(), 700);
                 return;
             }
             if (confirmFotoUrl) {
@@ -2451,6 +2470,11 @@ if (confirmFotoUrl) {
     };
 
     const validateFinanceObservationRequirement = () => {
+        if (isExistingItem && !Boolean(registrarCompraEdicaoToggle?.checked)) {
+            clearFinanceObservationHighlight();
+            return true;
+        }
+
         if (!financeObservationNeedsExplanation()) {
             clearFinanceObservationHighlight();
             return true;
