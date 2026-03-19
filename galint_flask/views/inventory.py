@@ -265,6 +265,7 @@ def _sync_item_financial_history(
             numero_documento=str(finance_payload.get("numero_documento") or ""),
             data_emissao=finance_payload.get("data_emissao_documento"),
             data_recebimento=finance_payload.get("data_recebimento_documento"),
+            chave_acesso=finance_payload.get("chave_acesso"),
             supplier_id=finance_payload.get("supplier_id"),
             entrada_id=entrada_id,
             valor_unitario=unit_price,
@@ -387,7 +388,7 @@ def _build_nf_autofill_payload(numero_documento: str) -> dict[str, object] | Non
         "chave_acesso": (
             latest_entry.chave_acesso
             if latest_entry and latest_entry.chave_acesso
-            else (matched_item.preco_compra_chave_acesso if matched_item else None)
+            else (document.get("chave_acesso") if document else (matched_item.preco_compra_chave_acesso if matched_item else None))
         ),
         "data_emissao": _to_iso(data_emissao),
         "data_entrada": _to_iso(data_entrada),

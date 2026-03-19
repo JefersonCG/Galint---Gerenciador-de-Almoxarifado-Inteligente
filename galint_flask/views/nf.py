@@ -87,6 +87,7 @@ def registrar_nf():
     comprovacao_status = (request.form.get("finance_comprovacao_status") or "comprovado").strip() or "comprovado"
     preco_unitario_raw = (request.form.get("preco_unitario") or "").strip()
     observacao = (request.form.get("finance_observacao") or "").strip() or None
+    chave_acesso = (request.form.get("chave_acesso") or "").strip() or None
     data_emissao_raw = (request.form.get("data_emissao") or "").strip()
     data_recebimento_raw = (request.form.get("data_recebimento") or "").strip()
     quantidade_raw = request.form.get("quantidade", "0")
@@ -142,6 +143,7 @@ def registrar_nf():
             numero_documento=nota,
             data_emissao=data_emissao,
             data_recebimento=data_recebimento,
+            chave_acesso=chave_acesso,
             supplier_id=supplier_id,
             supplier_name=supplier_name,
             supplier_cnpj=supplier_cnpj,

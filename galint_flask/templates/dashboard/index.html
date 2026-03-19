@@ -1449,12 +1449,12 @@
         <p class="galint-section-subtitle">O mesmo card, agora dividido entre Financeiro e Fornecedores</p>
     </div>
     <div class="galint-quick-split-card">
-        {% if can_view_finance and finance_snapshot and supplier_snapshot %}
+        {% if can_view_finance %}
         <section class="galint-quick-pane finance">
             <div class="galint-quick-pane-head">
                 <div>
                     <div class="galint-quick-pane-kicker">Financeiro rápido</div>
-                    <h3 class="galint-quick-pane-title">Resumo do exercício {{ finance_snapshot.exercise_label }}</h3>
+                    <h3 class="galint-quick-pane-title">Resumo do exercício <span id="quick-finance-exercise">carregando...</span></h3>
                     <p class="galint-quick-pane-subtitle">Visão curta para bater valor atual, investido e pendências sem abrir outra tela.</p>
                 </div>
                 <span class="galint-quick-pill">Financeiro</span>
@@ -1463,22 +1463,22 @@
             <div class="galint-quick-metrics">
                 <div class="galint-quick-metric">
                     <div class="galint-quick-metric-label">Atual por compra</div>
-                    <div class="galint-quick-metric-value">{{ finance_snapshot.total_compra }}</div>
-                    <div class="galint-quick-metric-note">{{ finance_snapshot.missing_compra }} itens sem valor de compra</div>
+                    <div class="galint-quick-metric-value" id="quick-finance-total-compra">Carregando...</div>
+                    <div class="galint-quick-metric-note" id="quick-finance-missing-compra">Calculando itens sem valor de compra...</div>
                 </div>
                 <div class="galint-quick-metric">
                     <div class="galint-quick-metric-label">Atual por reposição</div>
-                    <div class="galint-quick-metric-value">{{ finance_snapshot.total_reposicao }}</div>
-                    <div class="galint-quick-metric-note">{{ finance_snapshot.missing_reposicao }} itens sem reposição</div>
+                    <div class="galint-quick-metric-value" id="quick-finance-total-reposicao">Carregando...</div>
+                    <div class="galint-quick-metric-note" id="quick-finance-missing-reposicao">Calculando itens sem reposição...</div>
                 </div>
                 <div class="galint-quick-metric">
                     <div class="galint-quick-metric-label">Investido</div>
-                    <div class="galint-quick-metric-value">{{ finance_snapshot.total_investido }}</div>
+                    <div class="galint-quick-metric-value" id="quick-finance-total-investido">Carregando...</div>
                     <div class="galint-quick-metric-note">Total documentado no exercício</div>
                 </div>
                 <div class="galint-quick-metric">
                     <div class="galint-quick-metric-label">Sem comprovação</div>
-                    <div class="galint-quick-metric-value">{{ finance_snapshot.total_sem_comprovacao }}</div>
+                    <div class="galint-quick-metric-value" id="quick-finance-total-sem-comprovacao">Carregando...</div>
                     <div class="galint-quick-metric-note">Ponto de conferência</div>
                 </div>
             </div>
@@ -1502,12 +1502,12 @@
             <div class="galint-quick-metrics">
                 <div class="galint-quick-metric">
                     <div class="galint-quick-metric-label">Lojas mapeadas</div>
-                    <div class="galint-quick-metric-value">{{ supplier_snapshot.total_lojas }}</div>
-                    <div class="galint-quick-metric-note">{{ supplier_snapshot.total_ativos }} ativas para novas entradas</div>
+                    <div class="galint-quick-metric-value" id="quick-supplier-total-lojas">Carregando...</div>
+                    <div class="galint-quick-metric-note" id="quick-supplier-total-ativos">Calculando lojas ativas...</div>
                 </div>
                 <div class="galint-quick-metric">
                     <div class="galint-quick-metric-label">Documentos cruzados</div>
-                    <div class="galint-quick-metric-value">{{ supplier_snapshot.total_docs }}</div>
+                    <div class="galint-quick-metric-value" id="quick-supplier-total-docs">Carregando...</div>
                     <div class="galint-quick-metric-note">NFs e cupons vinculados</div>
                 </div>
             </div>
@@ -1515,10 +1515,10 @@
             <div class="galint-quick-inline">
                 <div>
                     <div class="galint-quick-inline-label">Fornecedor destaque</div>
-                    <p class="galint-quick-inline-title">{{ supplier_snapshot.top_nome }}</p>
-                    <p class="galint-quick-inline-subtitle">{{ supplier_snapshot.top_itens }} itens distintos no exercício</p>
+                    <p class="galint-quick-inline-title" id="quick-supplier-top-nome">Carregando...</p>
+                    <p class="galint-quick-inline-subtitle" id="quick-supplier-top-itens">Calculando itens distintos no exercício...</p>
                 </div>
-                <div class="galint-quick-inline-value">{{ supplier_snapshot.top_total }}</div>
+                <div class="galint-quick-inline-value" id="quick-supplier-top-total">Carregando...</div>
             </div>
 
             <div class="galint-quick-inline">
@@ -1527,8 +1527,10 @@
                     <p class="galint-quick-inline-title">Ainda não vinculadas</p>
                     <p class="galint-quick-inline-subtitle">Entradas que permanecem só no Financeiro</p>
                 </div>
-                <div class="galint-quick-inline-value">{{ supplier_snapshot.total_sem_loja }}</div>
+                <div class="galint-quick-inline-value" id="quick-supplier-total-sem-loja">Carregando...</div>
             </div>
+
+            <p class="galint-quick-status text-muted mb-0" id="quick-panels-status">Carregando resumo financeiro em segundo plano...</p>
 
             <div class="galint-quick-actions">
                 <a class="galint-quick-action primary" href="{{ url_for('config.fornecedores') }}">Abrir Fornecedores</a>
@@ -1588,6 +1590,64 @@
 {% block scripts %}
 {{ super() }}
 <script src="https://cdn.jsdelivr.net/npm/twemoji@14.0.2/dist/twemoji.min.js" crossorigin="anonymous"></script>
+<script>
+    (function () {
+        const statusEl = document.getElementById('quick-panels-status');
+        if (!statusEl) {
+            return;
+        }
+
+        const endpoint = "{{ url_for('dashboard.quick_panels') }}";
+        const setText = (id, value) => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.textContent = value;
+            }
+        };
+
+        async function loadQuickPanels() {
+            try {
+                const response = await fetch(endpoint, {
+                    headers: {
+                        'Accept': 'application/json'
+                    },
+                    credentials: 'same-origin',
+                    cache: 'no-cache'
+                });
+                const payload = await response.json().catch(() => ({}));
+                if (!response.ok || payload.ok === false) {
+                    throw new Error(payload.message || `Erro ${response.status}`);
+                }
+
+                const finance = payload.finance_snapshot || {};
+                const supplier = payload.supplier_snapshot || {};
+
+                setText('quick-finance-exercise', finance.exercise_label || '-');
+                setText('quick-finance-total-compra', finance.total_compra || 'R$ 0,00');
+                setText('quick-finance-missing-compra', `${finance.missing_compra || 0} itens sem valor de compra`);
+                setText('quick-finance-total-reposicao', finance.total_reposicao || 'R$ 0,00');
+                setText('quick-finance-missing-reposicao', `${finance.missing_reposicao || 0} itens sem reposição`);
+                setText('quick-finance-total-investido', finance.total_investido || 'R$ 0,00');
+                setText('quick-finance-total-sem-comprovacao', finance.total_sem_comprovacao || 'R$ 0,00');
+
+                setText('quick-supplier-total-lojas', String(supplier.total_lojas || 0));
+                setText('quick-supplier-total-ativos', `${supplier.total_ativos || 0} ativas para novas entradas`);
+                setText('quick-supplier-total-docs', String(supplier.total_docs || 0));
+                setText('quick-supplier-top-nome', supplier.top_nome || 'Sem compras vinculadas');
+                setText('quick-supplier-top-itens', `${supplier.top_itens || 0} itens distintos no exercício`);
+                setText('quick-supplier-top-total', supplier.top_total || 'R$ 0,00');
+                setText('quick-supplier-total-sem-loja', supplier.total_sem_loja || 'R$ 0,00');
+
+                statusEl.textContent = 'Resumo financeiro carregado.';
+            } catch (error) {
+                console.error('Falha ao carregar painel rápido:', error);
+                statusEl.textContent = 'Resumo financeiro indisponível no momento.';
+            }
+        }
+
+        loadQuickPanels();
+    }());
+</script>
 <script>
     (function () {
         {% if not live_feed_enabled %}

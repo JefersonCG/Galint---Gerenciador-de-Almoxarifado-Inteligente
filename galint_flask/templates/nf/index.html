@@ -541,6 +541,11 @@
                         </div>
                     </div>
                     <div class="mb-3 mt-3">
+                        <label class="form-label" for="chave_acesso">Chave de acesso</label>
+                        <input class="form-control" id="chave_acesso" name="chave_acesso" placeholder="44 dígitos da NF-e / NFC-e">
+                        <div class="form-text">A chave deixa a NF pronta no sistema. A consulta automática ficará bloqueada até configurar o certificado digital.</div>
+                    </div>
+                    <div class="mb-3 mt-3">
                         <label class="form-label" for="finance_observacao">Observação financeira</label>
                         <textarea class="form-control" id="finance_observacao" name="finance_observacao" rows="2"
                             placeholder="Ex.: compra emergencial, documento conferido, valor estimado..."></textarea>
@@ -588,12 +593,19 @@
                 {% endif %}
                 {% if nota_detalhes %}
                 <div class="mt-3">
+                    {% if nota_detalhes.status_integracao == 'aguardando_certificado' %}
+                    <div class="docf-panel warning mb-3">
+                        <strong>Pendência fiscal visível:</strong> esta NF foi registrada no sistema, mas a consulta automática pela chave está bloqueada até configurar o certificado digital.
+                    </div>
+                    {% endif %}
                     <div class="docf-card-header mb-3">
                         <div>
                             <div class="docf-kicker">Detalhamento</div>
                             <h3 class="docf-card-title">{{ nota_detalhes.tipo_documento|default('DOC', true)|upper }} {{ nota_detalhes.numero_documento|default(nota_detalhes.nota_fiscal, true) }}</h3>
                         </div>
-                        {% if can_manage and nota_detalhes.id_documento is defined and nota_detalhes.id_documento is not none %}
+                        {% if nota_detalhes.status_integracao == 'aguardando_certificado' %}
+                        <span class="docf-badge">Aguardando certificado</span>
+                        {% elif can_manage and nota_detalhes.id_documento is defined and nota_detalhes.id_documento is not none %}
                         <span class="docf-badge">Editável</span>
                         {% endif %}
                     </div>
@@ -606,9 +618,19 @@
                         <div class="docf-detail-box"><span class="docf-detail-label">CNPJ</span><span class="docf-detail-value">{{ nota_detalhes.cnpj_emitente|default('Não informado', true) }}</span></div>
                         <div class="docf-detail-box"><span class="docf-detail-label">Emissão</span><span class="docf-detail-value">{{ nota_detalhes.data_emissao.strftime('%d/%m/%Y') if nota_detalhes.data_emissao|default(None, true) else 'Não informada' }}</span></div>
                         <div class="docf-detail-box"><span class="docf-detail-label">Recebimento</span><span class="docf-detail-value">{{ nota_detalhes.data_recebimento.strftime('%d/%m/%Y') if nota_detalhes.data_recebimento|default(None, true) else 'Não informado' }}</span></div>
+                        <div class="docf-detail-box"><span class="docf-detail-label">Chave</span><span class="docf-detail-value">{{ nota_detalhes.chave_acesso|default('Não informada', true) }}</span></div>
+                        <div class="docf-detail-box"><span class="docf-detail-label">Status</span><span class="docf-detail-value">{{ nota_detalhes.status_integracao|default('manual', true)|replace('_', ' ')|title }}</span></div>
                         <div class="docf-detail-box"><span class="docf-detail-label">Qtd. total</span><span class="docf-detail-value">{{ nota_detalhes.total_quantidade }}</span></div>
                         <div class="docf-detail-box"><span class="docf-detail-label">Valor total</span><span class="docf-detail-value">R$ {{ '%.2f'|format(nota_detalhes.total_valor|default(0, true)) }}</span></div>
                     </div>
+                    {% if nota_detalhes.mensagem_integracao %}
+                    <div class="docf-panel warning mt-3 mb-0">
+                        <strong>Consulta bloqueada:</strong> {{ nota_detalhes.mensagem_integracao }}
+                        <div class="mt-2">
+                            <button class="docf-btn-secondary" type="button" disabled>Consultar NF pela chave (em breve)</button>
+                        </div>
+                    </div>
+                    {% endif %}
                     <div class="docf-table-wrap">
                         <table class="table docf-table mb-0">
                             <thead>
@@ -663,12 +685,20 @@
                                 data-bs-target="#collapse-{{ collapse_id }}" aria-expanded="false"
                                 aria-controls="collapse-{{ collapse_id }}">
                                 <span class="me-3">{{ nota.tipo_documento|default('DOC', true)|upper }} {{ nota.numero_documento|default(nota.nota_fiscal, true) }}</span>
+                                {% if nota.status_integracao == 'aguardando_certificado' %}
+                                <span class="docf-badge me-2">Pendência</span>
+                                {% endif %}
                                 <small class="docf-muted">{{ nota.total_itens }} itens &bull; {{ nota.total_quantidade }} unidades{% if nota.fornecedor_nome|default(None, true) %} &bull; {{ nota.fornecedor_nome }}{% endif %}</small>
                             </button>
                         </h2>
                         <div id="collapse-{{ collapse_id }}" class="accordion-collapse collapse"
                             aria-labelledby="heading-{{ collapse_id }}" data-bs-parent="#nf-accordion">
                             <div class="accordion-body">
+                                {% if nota.status_integracao == 'aguardando_certificado' %}
+                                <div class="docf-panel warning mb-3">
+                                    <strong>Pendência fiscal visível:</strong> consulta automática bloqueada até o certificado digital ficar disponível.
+                                </div>
+                                {% endif %}
                                 <p class="mb-3 small docf-muted">
                                     Registrada em {{ nota.data.strftime('%d/%m/%Y %H:%M') if nota.data else 'data não
                                     informada' }}
@@ -678,8 +708,14 @@
                                     <div class="docf-detail-box"><span class="docf-detail-label">Fornecedor</span><span class="docf-detail-value">{{ nota.fornecedor_nome|default('Não informado', true) }}</span></div>
                                     <div class="docf-detail-box"><span class="docf-detail-label">CNPJ</span><span class="docf-detail-value">{{ nota.cnpj_emitente|default('Não informado', true) }}</span></div>
                                     <div class="docf-detail-box"><span class="docf-detail-label">Emissão</span><span class="docf-detail-value">{{ nota.data_emissao.strftime('%d/%m/%Y') if nota.data_emissao|default(None, true) else '—' }}</span></div>
+                                    <div class="docf-detail-box"><span class="docf-detail-label">Status</span><span class="docf-detail-value">{{ nota.status_integracao|default('manual', true)|replace('_', ' ')|title }}</span></div>
                                     <div class="docf-detail-box"><span class="docf-detail-label">Valor</span><span class="docf-detail-value">R$ {{ '%.2f'|format(nota.total_valor|default(0, true)) }}</span></div>
                                 </div>
+                                {% if nota.mensagem_integracao %}
+                                <div class="docf-panel warning mt-3">
+                                    <strong>Consulta bloqueada:</strong> {{ nota.mensagem_integracao }}
+                                </div>
+                                {% endif %}
                                 <div class="docf-table-wrap">
                                     <table class="table docf-table mb-0">
                                         <thead>

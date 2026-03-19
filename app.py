@@ -1,19 +1,27 @@
 """WSGI entry point for the GALINT Flask application."""
+from typing import Any, cast
+
+from flask import Flask
 from galint_flask import create_app
 
 app = create_app()
 
 # Fallback routes for foto por URL (evita 404 se blueprints nao carregarem)
 try:
-    from flask import request, jsonify
+    from flask import jsonify, request
     from galint_flask.models import Item
     from galint_flask.extensions import db
     from galint_flask.services.item_foto_service import ItemFotoService
 
     def _apply_photo_from_url():
-        payload = request.form if request.form else (request.json or {})
-        codigo = (payload.get('codigo') or '').strip()
-        image_url = (payload.get('image_url') or '').strip()
+        payload: dict[str, Any] = request.form.to_dict(flat=True)
+        if not payload:
+            json_payload = request.get_json(silent=True)
+            if isinstance(json_payload, dict):
+                payload = cast(dict[str, Any], json_payload)
+
+        codigo = str(payload.get('codigo') or '').strip()
+        image_url = str(payload.get('image_url') or '').strip()
         if not codigo:
             return jsonify({'success': False, 'message': 'Codigo do item nao informado'}), 400
         if not image_url:
@@ -51,7 +59,7 @@ def _load_migration_funcs():
     return _migrate_init, _migrate, _upgrade
 
 
-def _run_migrations(app):
+def _run_migrations(app: Flask) -> None:
     """Inicliza pasta de migrations (se necessário), gera e aplica migration.
 
     Usa API programática do Flask-Migrate para suportar ambientes sem CLI.
@@ -76,7 +84,7 @@ def _run_migrations(app):
         raise
 
 
-def _run_upgrade(app):
+def _run_upgrade(app: Flask) -> None:
     """Aplica migrations existentes sem gerar novas."""
     from pathlib import Path
 

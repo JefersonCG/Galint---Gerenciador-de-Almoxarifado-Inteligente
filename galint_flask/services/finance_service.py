@@ -419,6 +419,8 @@ class FinanceService:
             )
 
         supplier_name = document.fornecedor.nome_exibicao() if document.fornecedor else document.nome_emitente()
+        status_integracao = (document.status_integracao or "manual").strip() or "manual"
+        mensagem_integracao = (document.mensagem_integracao or "").strip() or None
         return {
             "id_documento": document.id_documento,
             "nota_fiscal": document.numero_documento,
@@ -427,10 +429,13 @@ class FinanceService:
             "data": document.criado_em,
             "data_emissao": document.data_emissao,
             "data_recebimento": document.data_recebimento,
+            "chave_acesso": document.chave_acesso,
             "fornecedor_id": document.fornecedor_id,
             "fornecedor_nome": supplier_name,
             "cnpj_emitente": document.cnpj_emitente,
             "observacao": document.observacao,
+            "status_integracao": status_integracao,
+            "mensagem_integracao": mensagem_integracao,
             "usuarios": [document.criado_por] if document.criado_por else [],
             "itens": items,
             "total_itens": len(items),
@@ -629,6 +634,7 @@ class FinanceService:
         numero_documento: str,
         data_emissao: date | None = None,
         data_recebimento: date | None = None,
+        chave_acesso: str | None = None,
         supplier_id: int | None = None,
         supplier_name: str | None = None,
         supplier_cnpj: str | None = None,
@@ -654,8 +660,15 @@ class FinanceService:
             supplier_name=supplier_name,
             supplier_cnpj=supplier_cnpj,
         )
+        chave = (chave_acesso or "").strip() or None
         cnpj = supplier.cnpj if supplier and supplier.cnpj else (FinanceService.normalize_cnpj(supplier_cnpj) or None)
         supplier_display = supplier.nome_exibicao() if supplier else ((supplier_name or "").strip() or None)
+        status_integracao = "aguardando_certificado" if chave and tipo == "nf" else "manual"
+        mensagem_integracao = (
+            "Consulta automática bloqueada até a configuração do certificado digital."
+            if chave and tipo == "nf"
+            else None
+        )
 
         document_query = DocumentoEntradaEstoque.query.filter(
             DocumentoEntradaEstoque.tipo_documento == tipo,
@@ -674,9 +687,12 @@ class FinanceService:
                 numero_documento=numero,
                 data_emissao=data_emissao,
                 data_recebimento=data_recebimento,
+                chave_acesso=chave,
                 cnpj_emitente=cnpj,
                 fornecedor_nome=supplier_display,
                 observacao=(observacao or "").strip() or None,
+                status_integracao=status_integracao,
+                mensagem_integracao=mensagem_integracao,
                 criado_por=usuario_matricula,
             )
             db.session.add(document)
@@ -692,8 +708,13 @@ class FinanceService:
                 document.data_emissao = data_emissao
             if data_recebimento and not document.data_recebimento:
                 document.data_recebimento = data_recebimento
+            if chave and not document.chave_acesso:
+                document.chave_acesso = chave
             if observacao and not document.observacao:
                 document.observacao = observacao.strip() or None
+            if chave and tipo == "nf" and (document.status_integracao or "manual") == "manual":
+                document.status_integracao = "aguardando_certificado"
+                document.mensagem_integracao = mensagem_integracao
 
         qty = float(quantidade or 0)
         unit = float(valor_unitario) if valor_unitario not in (None, "") else None

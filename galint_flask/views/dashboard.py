@@ -38,6 +38,41 @@ def _format_brl(value: object) -> str:
     return f"R$ {amount:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
 
+def _build_quick_panel_snapshots(competencia: str) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+    try:
+        finance_report = finance_service.get_stock_value_report()
+        supplier_report = finance_service.get_supplier_lab_report()
+        suppliers = supplier_report.get("suppliers") or []
+        supplier_summary = supplier_report.get("summary") or {}
+        active_suppliers = sum(1 for supplier in suppliers if supplier.get("ativo"))
+        top_supplier = next(
+            (supplier for supplier in suppliers if float(supplier.get("investido_total") or 0.0) > 0.0),
+            suppliers[0] if suppliers else None,
+        )
+
+        finance_snapshot = {
+            "exercise_label": (finance_report.get("exercise") or {}).get("label") or competencia,
+            "total_compra": _format_brl(finance_report.get("total_compra")),
+            "total_reposicao": _format_brl(finance_report.get("total_reposicao")),
+            "total_investido": _format_brl(finance_report.get("total_investido_exercicio")),
+            "total_sem_comprovacao": _format_brl(finance_report.get("total_sem_comprovacao_exercicio")),
+            "missing_compra": int(finance_report.get("missing_compra") or 0),
+            "missing_reposicao": int(finance_report.get("missing_reposicao") or 0),
+        }
+        supplier_snapshot = {
+            "total_lojas": int(supplier_summary.get("total_lojas") or 0),
+            "total_ativos": int(active_suppliers),
+            "total_docs": int(supplier_summary.get("total_docs") or 0),
+            "total_sem_loja": _format_brl(supplier_summary.get("total_sem_loja")),
+            "top_nome": (top_supplier or {}).get("nome_exibicao") or "Sem compras vinculadas",
+            "top_total": _format_brl((top_supplier or {}).get("investido_total")),
+            "top_itens": int((top_supplier or {}).get("itens_distintos") or 0),
+        }
+        return finance_snapshot, supplier_snapshot
+    except Exception:
+        return None, None
+
+
 def _dashboard_context(
     *,
     shared_view: bool = False,
@@ -78,42 +113,6 @@ def _dashboard_context(
         },
     ]
 
-    finance_snapshot = None
-    supplier_snapshot = None
-    if can_view_finance:
-        try:
-            finance_report = finance_service.get_stock_value_report()
-            supplier_report = finance_service.get_supplier_lab_report()
-            suppliers = supplier_report.get("suppliers") or []
-            supplier_summary = supplier_report.get("summary") or {}
-            active_suppliers = sum(1 for supplier in suppliers if supplier.get("ativo"))
-            top_supplier = next(
-                (supplier for supplier in suppliers if float(supplier.get("investido_total") or 0.0) > 0.0),
-                suppliers[0] if suppliers else None,
-            )
-
-            finance_snapshot = {
-                "exercise_label": (finance_report.get("exercise") or {}).get("label") or competencia,
-                "total_compra": _format_brl(finance_report.get("total_compra")),
-                "total_reposicao": _format_brl(finance_report.get("total_reposicao")),
-                "total_investido": _format_brl(finance_report.get("total_investido_exercicio")),
-                "total_sem_comprovacao": _format_brl(finance_report.get("total_sem_comprovacao_exercicio")),
-                "missing_compra": int(finance_report.get("missing_compra") or 0),
-                "missing_reposicao": int(finance_report.get("missing_reposicao") or 0),
-            }
-            supplier_snapshot = {
-                "total_lojas": int(supplier_summary.get("total_lojas") or 0),
-                "total_ativos": int(active_suppliers),
-                "total_docs": int(supplier_summary.get("total_docs") or 0),
-                "total_sem_loja": _format_brl(supplier_summary.get("total_sem_loja")),
-                "top_nome": (top_supplier or {}).get("nome_exibicao") or "Sem compras vinculadas",
-                "top_total": _format_brl((top_supplier or {}).get("investido_total")),
-                "top_itens": int((top_supplier or {}).get("itens_distintos") or 0),
-            }
-        except Exception:
-            finance_snapshot = None
-            supplier_snapshot = None
-
     return {
         "resumo": resumo,
         "competencia": competencia,
@@ -128,8 +127,6 @@ def _dashboard_context(
         "category_summary": inventory_service.category_summary(),
         "shared_view": shared_view,
         "can_view_finance": can_view_finance,
-        "finance_snapshot": finance_snapshot,
-        "supplier_snapshot": supplier_snapshot,
         "header_title": header_title or f"Resumo Mensal de Estoque - {competencia}",
         "header_subtitle": header_subtitle or "Resumo Mensal do Estoque",
         "tag_label": tag_label or "Painel de Controle do Almoxarifado",
@@ -319,6 +316,22 @@ def custody_active():
     itens = itens[:50]
 
     return jsonify({"items": itens, "total": len(itens)})
+
+
+@blueprint.get("/api/quick-panels")
+@login_required
+def quick_panels():
+    competencia = date.today().strftime("%m-%Y")
+    finance_snapshot, supplier_snapshot = _build_quick_panel_snapshots(competencia)
+    if not finance_snapshot or not supplier_snapshot:
+        return jsonify({"ok": False, "message": "Não foi possível carregar o resumo financeiro agora."}), 500
+    return jsonify(
+        {
+            "ok": True,
+            "finance_snapshot": finance_snapshot,
+            "supplier_snapshot": supplier_snapshot,
+        }
+    )
 
 
 def _build_report(tipo: str) -> tuple[str, list[str], list[list[Any]]]:
