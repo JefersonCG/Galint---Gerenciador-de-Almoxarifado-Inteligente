@@ -1200,39 +1200,62 @@ ${parent.scripts()}
             let successCount = 0;
 
             for (const group of groups.filter(entry => entry.itens.length > 0)) {
-                for (const item of group.itens) {
-                    const payload = {
-                        usuario: group.usuario,
-                        local_servico: group.local,
-                        itens: [{
-                            codigo: item.codigo,
-                            quantidade: item.quantidade,
-                            observacao: item.observacao_unit || null,
-                            em_embalagens: item.em_embalagens
-                        }]
-                    };
+                const payload = {
+                    usuario: group.usuario,
+                    local_servico: group.local,
+                    itens: group.itens.map(item => ({
+                        codigo: item.codigo,
+                        quantidade: item.quantidade,
+                        observacao: item.observacao_unit || null,
+                        em_embalagens: item.em_embalagens
+                    }))
+                };
 
-                    const response = await fetch('/movimentos/saida-multipla', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify(payload)
+                const response = await fetch('/movimentos/saida-multipla', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+                const resultados = Array.isArray(result && result.resultados) ? result.resultados : [];
+                const falhas = resultados.filter(r => !r.success);
+
+                if (response.ok && falhas.length === 0) {
+                    successCount += group.itens.length;
+                } else if (falhas.length > 0) {
+                    const falhasPorCodigo = new Map();
+                    falhas.forEach((falha) => {
+                        const codigoFalha = String(falha.codigo || '');
+                        falhasPorCodigo.set(codigoFalha, String(falha.message || 'Erro ao registrar saída'));
                     });
 
-                    const result = await response.json();
-                    if (response.ok && result.success) {
-                        successCount += 1;
-                    } else {
+                    group.itens.forEach((item) => {
+                        const detalhe = falhasPorCodigo.get(String(item.codigo));
+                        if (detalhe) {
+                            failedItems.push({
+                                ...item,
+                                usuario: group.usuario,
+                                local: group.local,
+                                error: detalhe
+                            });
+                        } else {
+                            successCount += 1;
+                        }
+                    });
+                } else {
+                    const detalheGeral = (result && result.message) || 'Erro ao registrar saída';
+                    group.itens.forEach((item) => {
                         failedItems.push({
                             ...item,
                             usuario: group.usuario,
                             local: group.local,
-                            error: result && result.resultados
-                                ? result.resultados.filter(r => !r.success).map(r => r.codigo + ': ' + r.message).join(' | ')
-                                : (result.message || 'Erro ao registrar saída')
+                            error: detalheGeral
                         });
                     }
+                    );
                 }
             }
 

@@ -796,40 +796,60 @@ ${parent.scripts()}
             let successCount = 0;
 
             for (const group of groups.filter(entry => entry.itens.length > 0)) {
-                for (const item of group.itens) {
-                    const payload = {
-                        matricula: group.matricula,
-                        local_servico: group.local || null,
-                        observacao: group.observacao || null,
-                        itens: [{
-                            codigo: item.codigo,
-                            quantidade: item.quantidade,
-                        }]
-                    };
+                const payload = {
+                    matricula: group.matricula,
+                    local_servico: group.local || null,
+                    observacao: group.observacao || null,
+                    itens: group.itens.map(item => ({
+                        codigo: item.codigo,
+                        quantidade: item.quantidade,
+                    }))
+                };
 
-                    const response = await fetch('/ferramentas/retirar-multipla', {
-                        method: 'POST',
-                        credentials: 'same-origin',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
+                const response = await fetch('/ferramentas/retirar-multipla', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json().catch(() => ({}));
+                const falhas = Array.isArray(result.resultados) ? result.resultados.filter(r => !r.success) : [];
+
+                if (response.ok && falhas.length === 0) {
+                    successCount += group.itens.length;
+                } else if (falhas.length > 0) {
+                    const falhasPorCodigo = new Map();
+                    falhas.forEach((falha) => {
+                        const codigoFalha = String(falha.codigo || '');
+                        falhasPorCodigo.set(codigoFalha, String(falha.message || 'Erro ao registrar retirada'));
                     });
 
-                    const result = await response.json().catch(() => ({}));
-                    if (response.ok && result && result.success) {
-                        successCount += 1;
-                    } else {
-                        const falhas = Array.isArray(result.resultados) ? result.resultados.filter(r => !r.success) : [];
-                        const detalhe = falhas.length
-                            ? falhas.map(r => String(r.codigo || item.codigo) + ': ' + String(r.message || 'Erro')).join(' | ')
-                            : String(result.message || 'Erro ao registrar retirada');
+                    group.itens.forEach((item) => {
+                        const detalhe = falhasPorCodigo.get(String(item.codigo));
+                        if (detalhe) {
+                            failedItems.push({
+                                ...item,
+                                matricula: group.matricula,
+                                local: group.local,
+                                observacao: group.observacao,
+                                error: detalhe,
+                            });
+                        } else {
+                            successCount += 1;
+                        }
+                    });
+                } else {
+                    const detalheGeral = String(result.message || 'Erro ao registrar retirada');
+                    group.itens.forEach((item) => {
                         failedItems.push({
                             ...item,
                             matricula: group.matricula,
                             local: group.local,
                             observacao: group.observacao,
-                            error: detalhe,
+                            error: detalheGeral,
                         });
-                    }
+                    });
                 }
             }
 
