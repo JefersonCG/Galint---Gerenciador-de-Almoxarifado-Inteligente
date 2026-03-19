@@ -130,6 +130,8 @@ class TelegramService:
 
         "Pacote",
 
+        "Saco",
+
         "Rolo",
 
         "Balde",
@@ -169,6 +171,30 @@ class TelegramService:
             "yes",
 
         )
+
+    
+    @staticmethod
+    def _fmt_number(value: float, decimals: int = 0) -> str:
+        """
+        Formata número com separador de milhar (ponto) e vírgula para decimal.
+        
+        Exemplos:
+            1000 → "1.000"
+            1000.5 → "1.000,5" (se decimals > 0)
+            503994000 → "503.994.000"
+        """
+        try:
+            value_f = float(value)
+        except Exception:
+            return "0"
+        
+        # Se é número inteiro ou decimals=0, retornar como inteiro formatado
+        if decimals == 0 or abs(value_f - round(value_f)) < 1e-9:
+            return f"{int(round(value_f)):,}".replace(",", ".")
+        
+        # Caso contrário, formatar com decimais (vírgula para decimal, ponto para milhar)
+        formatted = f"{value_f:,.{decimals}f}".replace(",", "X").replace(".", ",").replace("X", ".")
+        return formatted.rstrip("0").rstrip(",")
 
 
 
@@ -2317,19 +2343,28 @@ class TelegramService:
 
 
 
-        if EmbalagemService and EmbalagemService.tem_embalagem(item) and tipo_emb in ("caixa", "pacote"):
+        if EmbalagemService and EmbalagemService.tem_embalagem(item) and tipo_emb in ("caixa", "pacote", "saco"):
 
             unidades_por = item.unidades_por_embalagem or 0
 
             total_internas = (embalagens or 0) * unidades_por
 
-            nome = "Caixas" if tipo_emb == "caixa" else "Pacotes"
+            nome = "Caixas" if tipo_emb == "caixa" else ("Sacos" if tipo_emb == "saco" else "Pacotes")
 
-            lines.append(f"{prefix}📦 {nome}: {embalagens:g} (internas: {total_internas:g} un)")
+            nome_singular = "caixa" if tipo_emb == "caixa" else ("saco" if tipo_emb == "saco" else "pacote")
+
+            
+            # Modelo 3: Formato hierárquico detalhado
+
+            lines.append(f"{prefix}📦 Total de {nome.lower()}: {TelegramService._fmt_number(embalagens)}")
+
+            lines.append(f"{prefix}   └─ Unidades por {nome_singular}: {TelegramService._fmt_number(unidades_por)}")
 
             if soltas:
 
-                lines.append(f"{prefix}+ Unidades soltas: {soltas:g} un")
+                lines.append(f"{prefix}   └─ Unidades soltas: {TelegramService._fmt_number(soltas)}")
+
+            lines.append(f"{prefix}📊 Total geral: {TelegramService._fmt_number(total_internas + (soltas or 0))} unidades")
 
 
 
@@ -2400,39 +2435,19 @@ class TelegramService:
 
 
 
-        # Calcular totais internos para PACOTE e CAIXA
-
-        total_interno_unidades = None
-
-        if tipo_emb in ("pacote", "caixa") and item.unidades_por_embalagem:
-
-            total_interno_unidades = (embalagens or 0) * (item.unidades_por_embalagem or 0) + (soltas or 0)
-
-        elif unidade_raw in ("pacote", "pacotes", "caixa", "caixas") and item.unidades_por_embalagem:
-
-            # Para PACOTE/CAIXA usando campo unidade (legacy) com unidades_por_embalagem configurado
-
-            total_interno_unidades = (saldo_total_units or 0) * (item.unidades_por_embalagem or 0)
-
-
+        # Formatar totais usando separadores de milhar
 
         if total_kg is not None:
 
-            lines.append(f"{prefix}⚖️ Saldo total em KG: {_fmt_amount(total_kg)}Kg")
+            lines.append(f"{prefix}⚖️ Saldo total: {TelegramService._fmt_number(total_kg, decimals=2)} kg")
 
         if total_litros is not None:
 
-            lines.append(f"{prefix}💧 Saldo total em Litros: {_fmt_amount(total_litros)}L")
+            lines.append(f"{prefix}💧 Saldo total: {TelegramService._fmt_number(total_litros, decimals=2)} litros")
 
         if total_metros is not None:
 
-            lines.append(f"{prefix}📏 Saldo total em Metros: {_fmt_amount(total_metros)}m")
-
-        if total_interno_unidades is not None:
-
-            nome_tipo = "Caixas" if tipo_emb == "caixa" or unidade_raw in ("caixa", "caixas") else "Pacotes"
-
-            lines.append(f"{prefix}📦 Saldo interno total ({nome_tipo}): {total_interno_unidades:.2f} unidades")
+            lines.append(f"{prefix}📏 Saldo total: {TelegramService._fmt_number(total_metros, decimals=2)} metros")
 
 
 
