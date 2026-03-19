@@ -1,0 +1,496 @@
+{% extends "base.html" %}
+{% block title %}ConversionEngine{% endblock %}
+
+{% block extra_css %}
+<style>
+    .ce-shell { background: radial-gradient(circle at top left, rgba(37,99,235,0.18), transparent 24%), radial-gradient(circle at top right, rgba(16,185,129,0.14), transparent 20%), linear-gradient(180deg, #07111f 0%, #0b1220 100%); border: 1px solid rgba(148, 163, 184, 0.16); border-radius: 30px; padding: 1.5rem; color: #e2e8f0; box-shadow: 0 28px 60px rgba(2, 6, 23, 0.45); }
+    .ce-hero { position: relative; overflow: hidden; border-radius: 26px; padding: 1.65rem; background: linear-gradient(135deg, rgba(15,23,42,0.98) 0%, rgba(17,24,39,0.96) 48%, rgba(3,105,161,0.92) 100%); border: 1px solid rgba(125, 211, 252, 0.14); box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 22px 52px rgba(15,23,42,0.34); }
+    .ce-hero::before { content: ""; position: absolute; inset: 0; background: linear-gradient(115deg, rgba(14,165,233,0.12), transparent 38%, rgba(16,185,129,0.08)); pointer-events: none; }
+    .ce-hero > * { position: relative; z-index: 1; }
+    .ce-kpi-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; margin-top: 1.4rem; }
+    .ce-kpi { border-radius: 22px; padding: 1rem 1.05rem; background: linear-gradient(160deg, rgba(15,23,42,0.96), rgba(30,41,59,0.92)); border: 1px solid rgba(148, 163, 184, 0.14); min-height: 122px; }
+    .ce-kpi-label { display: block; text-transform: uppercase; font-size: 0.72rem; letter-spacing: 0.08em; color: #93c5fd; margin-bottom: 0.45rem; }
+    .ce-kpi-value { font-size: clamp(1.35rem, 2.6vw, 2rem); font-weight: 800; color: #f8fafc; }
+    .ce-kpi-caption { margin-top: 0.3rem; color: rgba(226,232,240,0.72); font-size: 0.85rem; }
+    .ce-tabs.nav-pills { gap: 0.7rem; margin: 1.35rem 0 1.2rem; }
+    .ce-tabs .nav-link { border-radius: 999px; border: 1px solid rgba(148, 163, 184, 0.18); background: rgba(15,23,42,0.7); color: #cbd5e1; font-weight: 700; padding: 0.82rem 1.1rem; }
+    .ce-tabs .nav-link.active { background: linear-gradient(135deg, #0ea5e9, #2563eb); color: #eff6ff; border-color: transparent; }
+    .ce-panel { background: linear-gradient(180deg, rgba(10,15,28,0.95), rgba(14,20,34,0.95)); border: 1px solid rgba(148, 163, 184, 0.14); border-radius: 24px; box-shadow: 0 22px 48px rgba(2, 6, 23, 0.34); }
+    .ce-panel .card-header, .ce-panel .card-body { background: transparent; border-color: rgba(148, 163, 184, 0.14); color: #e2e8f0; }
+    .ce-panel .text-muted { color: rgba(203, 213, 225, 0.78) !important; }
+    .ce-soft { border-radius: 20px; padding: 1rem; background: rgba(15,23,42,0.58); border: 1px solid rgba(148,163,184,0.12); }
+    .ce-form-control, .ce-form-control:focus { background: rgba(8, 15, 28, 0.92); color: #f8fafc; border-color: rgba(56, 189, 248, 0.32); box-shadow: none; }
+    .ce-progress-wrap { border-radius: 22px; padding: 1rem; background: rgba(8,15,28,0.8); border: 1px solid rgba(59,130,246,0.18); }
+    .ce-progress { height: 1.1rem; background: rgba(15,23,42,0.86); border-radius: 999px; overflow: hidden; }
+    .ce-progress-bar { height: 100%; width: 0%; border-radius: inherit; background: linear-gradient(90deg, #0ea5e9 0%, #2563eb 48%, #10b981 100%); transition: width 0.35s ease; display: flex; align-items: center; justify-content: center; font-weight: 800; color: #eff6ff; }
+    .ce-operational-grid { display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 1rem; }
+    .ce-mini-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.9rem; }
+    .ce-metric-card { border-radius: 18px; padding: 0.95rem; background: rgba(15,23,42,0.72); border: 1px solid rgba(148,163,184,0.12); }
+    .ce-metric-label { font-size: 0.74rem; letter-spacing: 0.06em; text-transform: uppercase; color: #7dd3fc; }
+    .ce-metric-value { font-size: 1.2rem; font-weight: 800; color: #f8fafc; margin-top: 0.25rem; }
+    .ce-log-list { list-style: none; padding: 0; margin: 0; max-height: 360px; overflow: auto; }
+    .ce-log-list li { border-bottom: 1px solid rgba(148,163,184,0.1); padding: 0.7rem 0; }
+    .ce-log-list small { color: #7dd3fc; display: block; margin-bottom: 0.2rem; }
+    .ce-table { color: #e2e8f0; }
+    .ce-table thead th { color: #93c5fd; border-color: rgba(148,163,184,0.12); text-transform: uppercase; font-size: 0.74rem; letter-spacing: 0.05em; }
+    .ce-table td { border-color: rgba(148,163,184,0.1); }
+    .ce-status-pill { display: inline-flex; align-items: center; gap: 0.4rem; border-radius: 999px; padding: 0.36rem 0.8rem; font-weight: 700; font-size: 0.76rem; }
+    .ce-status-success { background: rgba(34,197,94,0.14); color: #86efac; }
+    .ce-status-warning { background: rgba(245,158,11,0.14); color: #fcd34d; }
+    .ce-status-danger { background: rgba(239,68,68,0.14); color: #fca5a5; }
+    .ce-docs { line-height: 1.75; color: #dbeafe; }
+    .ce-docs h1, .ce-docs h2, .ce-docs h3 { color: #f8fafc; margin-top: 1.4rem; }
+    .ce-docs p, .ce-docs li { color: rgba(219, 234, 254, 0.88); }
+    .ce-docs .doc-list { padding-left: 1.2rem; }
+    .ce-docs hr { border-color: rgba(148, 163, 184, 0.18); }
+    .ce-docs .doc-code { background: rgba(15, 23, 42, 0.82); border: 1px solid rgba(148, 163, 184, 0.14); border-radius: 16px; padding: 1rem; color: #e2e8f0; }
+    .ce-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+    @media (max-width: 992px) { .ce-kpi-grid, .ce-operational-grid, .ce-mini-grid { grid-template-columns: 1fr; } .ce-shell { padding: 1rem; } }
+</style>
+{% endblock %}
+
+{% block page_header %}{% endblock %}
+{% block content %}
+<div class="ce-shell">
+    <section class="ce-hero">
+        <div class="d-flex flex-wrap justify-content-between gap-3 align-items-start">
+            <div>
+                <div class="ce-status-pill ce-status-success mb-3"><i class="bi bi-cpu"></i> ConversionEngine</div>
+                <h1 class="mb-2" style="font-size: clamp(2rem, 3.5vw, 3rem); font-weight: 900; letter-spacing: -0.04em; color: #f8fafc;">Mecanismo de Conversão de Bases</h1>
+                <p class="mb-0" style="max-width: 58rem; color: rgba(226,232,240,0.82);">Analise dumps externos, acompanhe KPIs de desempenho em tempo real, gere uma nova base compatível e escolha entre baixar o artefato convertido ou implantar diretamente no GALINT quando o risco estiver dentro do limiar operacional.</p>
+            </div>
+            <div class="ce-soft" style="min-width: 280px;">
+                <div class="small text-uppercase" style="letter-spacing: 0.08em; color: #7dd3fc;">Formato suportado</div>
+                <div style="font-size: 1.08rem; font-weight: 700; color: #f8fafc;">{{ dashboard.supported_input }}</div>
+                <div class="small text-muted mt-2">Pipeline atual otimizado para dumps plain SQL do PostgreSQL.</div>
+            </div>
+        </div>
+
+        <div class="ce-kpi-grid">
+            <article class="ce-kpi"><span class="ce-kpi-label">Schema GALINT</span><div class="ce-kpi-value">{{ dashboard.target_tables }}</div><div class="ce-kpi-caption">Tabelas-alvo disponíveis no metadata da aplicação.</div></article>
+            <article class="ce-kpi"><span class="ce-kpi-label">Núcleo crítico</span><div class="ce-kpi-value">{{ dashboard.core_tables }}</div><div class="ce-kpi-caption">Tabelas que pesam mais no deploy direto.</div></article>
+            <article class="ce-kpi"><span class="ce-kpi-label">Backups prontos</span><div class="ce-kpi-value">{{ dashboard.backups_available }}</div><div class="ce-kpi-caption">Última linha de segurança antes de restaurar.</div></article>
+            <article class="ce-kpi"><span class="ce-kpi-label">Pacotes gerados</span><div class="ce-kpi-value">{{ dashboard.recent_packages }}</div><div class="ce-kpi-caption">Artefatos recentes mantidos pelo motor.</div></article>
+        </div>
+    </section>
+
+    <ul class="nav nav-pills ce-tabs" role="tablist">
+        <li class="nav-item" role="presentation"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#ce-operacao" type="button" role="tab">Operação</button></li>
+        <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#ce-mecanismo" type="button" role="tab">Como o mecanismo funciona</button></li>
+    </ul>
+
+    <div class="tab-content">
+        <div class="tab-pane fade show active" id="ce-operacao" role="tabpanel">
+            <div class="ce-operational-grid">
+                <div class="card ce-panel">
+                    <div class="card-header">
+                        <h5 class="mb-1">Entrada da base externa</h5>
+                        <p class="mb-0 text-muted">Envie um dump `.sql` e acompanhe o processamento até a geração do artefato final.</p>
+                    </div>
+                    <div class="card-body">
+                        <form id="conversionForm">
+                            <div class="mb-3">
+                                <label for="source_dump" class="form-label fw-semibold">Arquivo da base externa</label>
+                                <input class="form-control ce-form-control" type="file" id="source_dump" name="source_dump" accept=".sql" required>
+                                <div class="form-text text-muted">Suporte atual: dump SQL texto plano. Para implantação direta, prefira exportações `pg_dump` do PostgreSQL.</div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="conversion_note" class="form-label fw-semibold">Observação operacional</label>
+                                <textarea class="form-control ce-form-control" id="conversion_note" rows="3" placeholder="Ex.: Base do almoxarifado filial norte, extraída em homologação."></textarea>
+                            </div>
+                            <div class="ce-actions">
+                                <button class="btn btn-primary rounded-pill px-4" type="submit" id="startConversionBtn"><i class="bi bi-play-fill"></i> Iniciar conversão</button>
+                                <a class="btn btn-outline-light rounded-pill px-4" href="{{ url_for('pages.config') }}">Voltar</a>
+                            </div>
+                        </form>
+
+                        <div class="ce-progress-wrap mt-4" id="conversionProgressWrap" style="display:none;">
+                            <div class="d-flex flex-wrap justify-content-between gap-2 align-items-center mb-2">
+                                <div>
+                                    <div class="small text-uppercase" style="letter-spacing:0.08em; color:#7dd3fc;">Status operacional</div>
+                                    <div id="conversionPhaseLabel" style="font-weight: 800; font-size: 1.05rem; color:#f8fafc;">Aguardando</div>
+                                </div>
+                                <div class="text-end">
+                                    <div class="small text-muted">Job</div>
+                                    <div id="conversionJobLabel" style="font-family: monospace; color:#bae6fd;">-</div>
+                                </div>
+                            </div>
+                            <div class="ce-progress mb-2"><div class="ce-progress-bar" id="conversionProgressBar">0%</div></div>
+                            <div id="conversionMessage" class="text-muted">Aguardando início.</div>
+                            <div id="conversionMeta" class="small text-muted mt-2"></div>
+                            <div class="alert alert-danger mt-3 d-none" id="conversionError"></div>
+                        </div>
+
+                        <div class="ce-mini-grid mt-4">
+                            <div class="ce-metric-card"><div class="ce-metric-label">Score final</div><div class="ce-metric-value" id="metricScore">-</div></div>
+                            <div class="ce-metric-card"><div class="ce-metric-label">Risco</div><div class="ce-metric-value" id="metricRisk">-</div></div>
+                            <div class="ce-metric-card"><div class="ce-metric-label">Tabelas detectadas</div><div class="ce-metric-value" id="metricTables">-</div></div>
+                            <div class="ce-metric-card"><div class="ce-metric-label">Linhas detectadas</div><div class="ce-metric-value" id="metricRows">-</div></div>
+                            <div class="ce-metric-card"><div class="ce-metric-label">Vazão</div><div class="ce-metric-value" id="metricThroughput">-</div></div>
+                            <div class="ce-metric-card"><div class="ce-metric-label">Tempo estimado</div><div class="ce-metric-value" id="metricEta">-</div></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card ce-panel">
+                    <div class="card-header">
+                        <h5 class="mb-1">Telemetria do job</h5>
+                        <p class="mb-0 text-muted">Eventos emitidos pelo motor durante a leitura, comparação e empacotamento.</p>
+                    </div>
+                    <div class="card-body">
+                        <ul class="ce-log-list" id="conversionLogList">
+                            <li><small>Sistema</small><span>Nenhum job em execução.</span></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card ce-panel mt-4" id="resultPanel" style="display:none;">
+                <div class="card-header d-flex flex-wrap justify-content-between gap-3 align-items-center">
+                    <div>
+                        <h5 class="mb-1">Resultado da conversão</h5>
+                        <p class="mb-0 text-muted">Resumo do mapeamento, bloqueios e artefatos produzidos.</p>
+                    </div>
+                    <div id="deployabilityBadge" class="ce-status-pill ce-status-warning">Aguardando análise</div>
+                </div>
+                <div class="card-body">
+                    <div class="ce-actions mb-3" id="resultActions">
+                        <a class="btn btn-outline-info rounded-pill px-4 disabled" id="downloadSqlBtn" href="#" aria-disabled="true"><i class="bi bi-download"></i> Baixar nova base convertida</a>
+                        <a class="btn btn-outline-light rounded-pill px-4 disabled" id="downloadPackageBtn" href="#" aria-disabled="true"><i class="bi bi-box-arrow-down"></i> Baixar pacote técnico</a>
+                        <button class="btn btn-success rounded-pill px-4" type="button" id="deployNowBtn" disabled><i class="bi bi-database-fill-check"></i> Implantar nova base agora</button>
+                    </div>
+                    <div class="ce-soft mb-3" id="deployHint">A análise ainda não gerou artefatos.</div>
+                    <div class="table-responsive">
+                        <table class="table ce-table align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Tabela origem</th>
+                                    <th>Destino GALINT</th>
+                                    <th>Linhas</th>
+                                    <th>Compatibilidade</th>
+                                    <th>Observações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="mappingTableBody">
+                                <tr><td colspan="5" class="text-muted">Nenhum mapeamento disponível.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="mt-4">
+                        <h6 class="mb-3">Fila de tarefas da conversão</h6>
+                        <div id="taskList" class="row gy-3">
+                            <div class="col-12"><div class="ce-soft text-muted">As tarefas aparecerão após a conclusão da análise.</div></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-pane fade" id="ce-mecanismo" role="tabpanel">
+            <div class="card ce-panel">
+                <div class="card-body ce-docs">{{ content_html|safe }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    (function () {
+        const startUrl = "{{ url_for('pages.conversionengine_start') }}";
+        const statusTemplate = "{{ url_for('pages.conversionengine_status', job_id='__JOB__') }}";
+        const sqlTemplate = "{{ url_for('pages.conversionengine_download_sql', job_id='__JOB__') }}";
+        const packageTemplate = "{{ url_for('pages.conversionengine_download_package', job_id='__JOB__') }}";
+        const deployTemplate = "{{ url_for('pages.conversionengine_deploy', job_id='__JOB__') }}";
+        const restoreStatusTemplate = "{{ url_for('pages.restore_backup_status', job_id='__JOB__') }}";
+
+        const form = document.getElementById('conversionForm');
+        const startBtn = document.getElementById('startConversionBtn');
+        const progressWrap = document.getElementById('conversionProgressWrap');
+        const progressBar = document.getElementById('conversionProgressBar');
+        const phaseLabel = document.getElementById('conversionPhaseLabel');
+        const jobLabel = document.getElementById('conversionJobLabel');
+        const messageLabel = document.getElementById('conversionMessage');
+        const metaLabel = document.getElementById('conversionMeta');
+        const errorBox = document.getElementById('conversionError');
+        const logList = document.getElementById('conversionLogList');
+        const resultPanel = document.getElementById('resultPanel');
+        const mappingBody = document.getElementById('mappingTableBody');
+        const taskList = document.getElementById('taskList');
+        const deployabilityBadge = document.getElementById('deployabilityBadge');
+        const deployHint = document.getElementById('deployHint');
+        const downloadSqlBtn = document.getElementById('downloadSqlBtn');
+        const downloadPackageBtn = document.getElementById('downloadPackageBtn');
+        const deployNowBtn = document.getElementById('deployNowBtn');
+
+        const metricScore = document.getElementById('metricScore');
+        const metricRisk = document.getElementById('metricRisk');
+        const metricTables = document.getElementById('metricTables');
+        const metricRows = document.getElementById('metricRows');
+        const metricThroughput = document.getElementById('metricThroughput');
+        const metricEta = document.getElementById('metricEta');
+
+        let currentJobId = null;
+        let pollTimer = null;
+
+        function buildUrl(template, jobId) {
+            return template.replace('__JOB__', encodeURIComponent(jobId));
+        }
+
+        function setProgress(progress, text) {
+            const pct = Math.max(0, Math.min(100, Number(progress) || 0));
+            progressBar.style.width = pct + '%';
+            progressBar.textContent = pct + '%';
+            messageLabel.textContent = text || 'Processando...';
+        }
+
+        function showError(text) {
+            errorBox.textContent = text;
+            errorBox.classList.remove('d-none');
+        }
+
+        function clearError() {
+            errorBox.textContent = '';
+            errorBox.classList.add('d-none');
+        }
+
+        function setMetric(target, value) {
+            target.textContent = value == null || value === '' ? '-' : String(value);
+        }
+
+        function formatNumber(value) {
+            const numeric = Number(value || 0);
+            if (!Number.isFinite(numeric)) return '-';
+            return numeric.toLocaleString('pt-BR');
+        }
+
+        function updateMetrics(state) {
+            const metrics = state.metrics || {};
+            const summary = (state.result || {}).summary || {};
+            setMetric(metricScore, summary.compatibility_score != null ? summary.compatibility_score + '%' : '-');
+            setMetric(metricRisk, summary.risk_level || '-');
+            setMetric(metricTables, metrics.tables_detected || summary.total_source_tables || '-');
+            setMetric(metricRows, formatNumber(metrics.rows_detected || ((state.result || {}).source_profile || {}).total_rows));
+            setMetric(metricThroughput, metrics.throughput_mb_per_second != null ? metrics.throughput_mb_per_second + ' MB/s' : (metrics.throughput_rows_per_second != null ? metrics.throughput_rows_per_second + ' linhas/s' : '-'));
+            setMetric(metricEta, summary.estimated_minutes != null ? summary.estimated_minutes + ' min' : '-');
+        }
+
+        function updateLogs(state) {
+            const logs = state.logs || [];
+            if (!logs.length) {
+                logList.innerHTML = '<li><small>Sistema</small><span>Nenhum evento registrado.</span></li>';
+                return;
+            }
+            logList.innerHTML = logs.slice().reverse().map((item) => {
+                const when = item.timestamp ? new Date(item.timestamp).toLocaleString('pt-BR') : 'Agora';
+                return '<li><small>' + when + '</small><span>' + (item.message || '') + '</span></li>';
+            }).join('');
+        }
+
+        function renderTasks(tasks) {
+            if (!tasks || !tasks.length) {
+                taskList.innerHTML = '<div class="col-12"><div class="ce-soft text-muted">Nenhuma tarefa registrada.</div></div>';
+                return;
+            }
+            taskList.innerHTML = tasks.map((task) => {
+                const badgeClass = task.kind === 'blocker' ? 'ce-status-danger' : (task.kind === 'critical' ? 'ce-status-warning' : 'ce-status-success');
+                return '<div class="col-lg-6"><div class="ce-soft h-100"><div class="d-flex justify-content-between gap-2 align-items-start mb-2"><strong style="color:#f8fafc;">' + task.title + '</strong><span class="ce-status-pill ' + badgeClass + '">' + task.kind + '</span></div><div class="text-muted">' + task.detail + '</div></div></div>';
+            }).join('');
+        }
+
+        function renderMappings(mappings) {
+            if (!mappings || !mappings.length) {
+                mappingBody.innerHTML = '<tr><td colspan="5" class="text-muted">Nenhum mapeamento disponível.</td></tr>';
+                return;
+            }
+            mappingBody.innerHTML = mappings.slice(0, 18).map((item) => {
+                const destination = item.target_table || '<span class="text-danger">Sem destino</span>';
+                const compat = item.target_table ? item.column_score + '%' : '0%';
+                const notes = item.target_table
+                    ? (item.mapped_by_alias ? 'Mapeada por alias; revisar antes de implantar.' : 'Correspondência exata detectada.')
+                    : 'Tabela sem equivalência automática no schema GALINT.';
+                return '<tr><td>' + item.source_table + '</td><td>' + destination + '</td><td>' + formatNumber(item.rows) + '</td><td>' + compat + '</td><td class="text-muted">' + notes + '</td></tr>';
+            }).join('');
+        }
+
+        function renderResult(state) {
+            const result = state.result || {};
+            const summary = result.summary || {};
+            const artifacts = result.artifacts || {};
+            resultPanel.style.display = 'block';
+            renderMappings(result.mappings || []);
+            renderTasks(result.tasks || []);
+
+            if (summary.deployable) {
+                deployabilityBadge.className = 'ce-status-pill ce-status-success';
+                deployabilityBadge.innerHTML = '<i class="bi bi-check-circle-fill"></i> Deploy direto liberado';
+                deployHint.textContent = 'A base gerada atingiu os critérios de implantação imediata. Você pode baixar o .sql ou restaurá-lo agora no GALINT.';
+            } else {
+                deployabilityBadge.className = 'ce-status-pill ce-status-warning';
+                deployabilityBadge.innerHTML = '<i class="bi bi-shield-exclamation"></i> Deploy direto bloqueado';
+                const blockers = (summary.deploy_blockers || []).join(' ');
+                deployHint.textContent = blockers || 'O motor gerou apenas o pacote técnico para revisão.';
+            }
+
+            downloadSqlBtn.classList.toggle('disabled', !artifacts.converted_sql_name);
+            downloadSqlBtn.setAttribute('aria-disabled', artifacts.converted_sql_name ? 'false' : 'true');
+            downloadSqlBtn.href = artifacts.converted_sql_name ? buildUrl(sqlTemplate, currentJobId) : '#';
+
+            downloadPackageBtn.classList.remove('disabled');
+            downloadPackageBtn.setAttribute('aria-disabled', 'false');
+            downloadPackageBtn.href = buildUrl(packageTemplate, currentJobId);
+
+            deployNowBtn.disabled = !summary.deployable;
+        }
+
+        async function pollState(jobId) {
+            const response = await fetch(buildUrl(statusTemplate, jobId), { cache: 'no-store', headers: { 'X-Requested-With': 'fetch' } });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok || !data.ok) {
+                throw new Error(data.error || 'Falha ao consultar o ConversionEngine.');
+            }
+            return data.state;
+        }
+
+        function stopPolling() {
+            if (pollTimer) {
+                window.clearInterval(pollTimer);
+                pollTimer = null;
+            }
+        }
+
+        async function refreshJob() {
+            if (!currentJobId) return;
+            try {
+                const state = await pollState(currentJobId);
+                clearError();
+                progressWrap.style.display = 'block';
+                setProgress(state.progress, state.message);
+                phaseLabel.textContent = state.phase || 'processing';
+                jobLabel.textContent = state.job_id || '-';
+                metaLabel.textContent = 'Última atualização: ' + (state.updated_at ? new Date(state.updated_at).toLocaleString('pt-BR') : '-');
+                updateMetrics(state);
+                updateLogs(state);
+                if (state.status === 'success') {
+                    stopPolling();
+                    renderResult(state);
+                } else if (state.status === 'error') {
+                    stopPolling();
+                    showError(state.error || state.message || 'Falha no job.');
+                }
+            } catch (error) {
+                stopPolling();
+                showError(error.message || 'Falha ao acompanhar a conversão.');
+            }
+        }
+
+        async function startConversion(event) {
+            event.preventDefault();
+            clearError();
+            resultPanel.style.display = 'none';
+
+            const sourceInput = document.getElementById('source_dump');
+            if (!sourceInput.files || !sourceInput.files.length) {
+                showError('Selecione um arquivo .sql para iniciar a conversão.');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.set('source_dump', sourceInput.files[0]);
+            formData.set('conversion_note', document.getElementById('conversion_note').value || '');
+
+            progressWrap.style.display = 'block';
+            setProgress(3, 'Enviando base externa para o motor...');
+            phaseLabel.textContent = 'upload';
+            jobLabel.textContent = '-';
+            startBtn.disabled = true;
+
+            try {
+                const response = await fetch(startUrl, {
+                    method: 'POST',
+                    body: formData,
+                    cache: 'no-store',
+                    headers: { 'X-Requested-With': 'fetch' },
+                });
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok || !data.ok) {
+                    throw new Error(data.error || 'Falha ao iniciar a conversão.');
+                }
+
+                currentJobId = data.job_id;
+                jobLabel.textContent = currentJobId;
+                await refreshJob();
+                stopPolling();
+                pollTimer = window.setInterval(refreshJob, 2200);
+            } catch (error) {
+                showError(error.message || 'Falha ao iniciar a conversão.');
+            } finally {
+                startBtn.disabled = false;
+            }
+        }
+
+        async function pollRestore(restoreJobId) {
+            const response = await fetch(buildUrl(restoreStatusTemplate, restoreJobId), { cache: 'no-store', headers: { 'X-Requested-With': 'fetch' } });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok || !data.ok) {
+                throw new Error(data.error || 'Falha ao consultar a implantação.');
+            }
+            return data.state;
+        }
+
+        async function deployNow() {
+            if (!currentJobId) return;
+            clearError();
+            deployNowBtn.disabled = true;
+            try {
+                const response = await fetch(buildUrl(deployTemplate, currentJobId), {
+                    method: 'POST',
+                    cache: 'no-store',
+                    headers: { 'X-Requested-With': 'fetch' },
+                });
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok || !data.ok) {
+                    throw new Error(data.error || 'Falha ao iniciar a implantação da nova base.');
+                }
+
+                phaseLabel.textContent = 'deployment';
+                messageLabel.textContent = 'Implantação iniciada via pipeline de restore do GALINT.';
+                const restoreJobId = data.restore_job_id;
+                jobLabel.textContent = restoreJobId;
+                setProgress(1, 'Implantando base convertida...');
+
+                stopPolling();
+                const deployTimer = window.setInterval(async () => {
+                    try {
+                        const state = await pollRestore(restoreJobId);
+                        setProgress(state.progress, state.message || 'Implantando...');
+                        metaLabel.textContent = 'Última atualização: ' + (state.updated_at ? new Date(state.updated_at).toLocaleString('pt-BR') : '-');
+                        if (state.status === 'success') {
+                            window.clearInterval(deployTimer);
+                            deployabilityBadge.className = 'ce-status-pill ce-status-success';
+                            deployabilityBadge.innerHTML = '<i class="bi bi-database-check"></i> Nova base implantada';
+                            deployHint.textContent = 'A restauração da nova base foi concluída. Reinicie o servidor se precisar recarregar rotas Python alteradas.';
+                            deployNowBtn.disabled = true;
+                        } else if (state.status === 'error') {
+                            window.clearInterval(deployTimer);
+                            showError(state.error || 'Falha ao implantar a base convertida.');
+                            deployNowBtn.disabled = false;
+                        }
+                    } catch (error) {
+                        window.clearInterval(deployTimer);
+                        showError(error.message || 'Falha ao acompanhar a implantação.');
+                        deployNowBtn.disabled = false;
+                    }
+                }, 2200);
+            } catch (error) {
+                showError(error.message || 'Falha ao iniciar a implantação.');
+                deployNowBtn.disabled = false;
+            }
+        }
+
+        form?.addEventListener('submit', startConversion);
+        deployNowBtn?.addEventListener('click', deployNow);
+    })();
+</script>
+{% endblock %}

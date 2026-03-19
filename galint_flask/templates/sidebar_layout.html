@@ -200,6 +200,11 @@
                     <i class="bi bi-database"></i>
                     <span>Backup</span>
                 </a>
+                <a class="sidebar-link ps-4 {% if p.startswith(url_for('pages.config_conversionengine')) %}active{% endif %}"
+                    href="{{ url_for('pages.config_conversionengine') }}">
+                    <i class="bi bi-cpu"></i>
+                    <span>ConversionEngine</span>
+                </a>
             </div>
             {% endif %}
                         {% if current_user.is_authenticated %}

@@ -7,6 +7,18 @@
 {% block content %}
 <div class="row gy-4">
     <div class="col-lg-6">
+        <a href="{{ url_for('pages.config_conversionengine') }}" class="text-decoration-none">
+            <div class="card h-100" style="background: linear-gradient(160deg, #0f172a, #111827); border: 1px solid rgba(56, 189, 248, 0.18); color: #e2e8f0; box-shadow: 0 20px 42px rgba(15, 23, 42, 0.18);">
+                <div class="card-body">
+                    <div class="small text-uppercase mb-2" style="letter-spacing: 0.08em; color: #7dd3fc;">Nova área</div>
+                    <h5 class="card-title" style="color: #f8fafc;">ConversionEngine</h5>
+                    <p class="card-text" style="color: rgba(226, 232, 240, 0.78);">Analisar bases externas, medir compatibilidade em tempo real, gerar nova base em visual dark e implantar direto quando o dump estiver apto.</p>
+                    <span class="btn btn-outline-info">Abrir</span>
+                </div>
+            </div>
+        </a>
+    </div>
+    <div class="col-lg-6">
         <a href="{{ url_for('pages.config_backup') }}" class="text-decoration-none">
             <div class="card h-100">
                 <div class="card-body">

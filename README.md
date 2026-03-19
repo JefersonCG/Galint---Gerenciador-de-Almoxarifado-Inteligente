@@ -173,6 +173,7 @@ Exemplo:
 
 O ciclo mais recente concentrou mudanças visuais, operacionais e de governança em áreas críticas do sistema.
 
+- novo módulo ConversionEngine em Configurações, com visual dark, upload de dump SQL, score de compatibilidade, telemetria em tempo real, barra de progresso, pacote técnico e opção de download ou implantação direta da nova base quando o dump estiver apto
 - dashboard com cards operacionais refinados para leitura rápida de financeiro e fornecedores
 - reforço no bloqueio de campos financeiros na edição de item depois do primeiro salvamento
 - páginas de auditoria de ferramentas, reparos, detalhes do funcionário e detalhes do reparo com visual dark padronizado
@@ -214,6 +215,25 @@ O ciclo mais recente concentrou mudanças visuais, operacionais e de governança
 - abrir Materiais Comuns, Ferramentas e Fracionados e conferir contraste dos containers dark
 - acessar /mobile-panel/ com usuário administrador para validar KPIs, dispositivos e usuários mobile
 
+### 5. Replicar o ConversionEngine
+
+- abrir Configurações e acessar ConversionEngine pelo card ou pelo menu lateral
+- garantir login com usuário administrador, porque os endpoints de job e implantação usam autenticação leve por sessão administrativa
+- enviar um dump SQL em texto plano (.sql), preferencialmente exportado com pg_dump em formato plain
+- acompanhar a análise pela barra de progresso, pelos KPIs e pela telemetria do job
+- ao concluir:
+	- usar Baixar nova base convertida para acionar o diálogo de download do Windows no navegador quando o dump estiver apto
+	- usar Baixar pacote técnico para auditoria, homologação e ajustes manuais
+	- usar Implantar nova base agora apenas quando o módulo liberar o deploy direto
+- depois de uma implantação direta, validar a aplicação e reiniciar manualmente o Flask se houver mudança recente de rotas Python, já que o projeto segue com use_reloader=False
+
+### 6. Estrutura técnica do módulo
+
+- serviço principal em galint_flask/services/conversion_engine.py
+- rotas e downloads em galint_flask/views/pages.py
+- interface dark em galint_flask/templates/config_conversionengine.html
+- documentação detalhada do mecanismo em CONVERSIONENGINE.md
+
 ## Erros corrigidos durante a implantação
 
 - divergência entre local e remoto resolvida com cherry-pick e atualização controlada dos commits necessários
@@ -223,12 +243,14 @@ O ciclo mais recente concentrou mudanças visuais, operacionais e de governança
 - helper functions inseridas no lugar errado em api_mobile.py foram reposicionadas antes da validação final
 - Painel Mobile deixando /mobile-panel/ em 404 corrigido ao habilitar a feature flag por padrão em galint_flask/config.py
 - contraste fraco introduzido no fluxo de saídas dark foi corrigido nos estados informativos e vazios de Materiais Comuns e Fracionados
+- para o ConversionEngine, a implantação foi fechada com validação de sintaxe em rotas, templates e serviço, além de teste funcional local cobrindo cenário com pacote técnico e cenário com deploy liberado
 
 ## Observações operacionais
 
 - o projeto mistura templates Jinja e Mako; ajustes visuais em lançamentos podem estar em galint_flask/templates_mako e não apenas em galint_flask/templates
 - o Painel Mobile usa endpoints administrativos em galint_flask/views/admin_mobile.py e regras de autenticação em galint_flask/views/api_mobile.py
 - se uma rota recém-criada parecer inexistente, valide primeiro se o processo Flask ativo foi reiniciado após a alteração
+- o ConversionEngine, nesta primeira versão, aceita dump SQL plain (.sql); a implantação direta não tenta converter esquemas arbitrários e só é liberada quando as tabelas críticas têm correspondência estrutural segura com o GALINT
 
 ## Documentação complementar
 
