@@ -466,6 +466,21 @@ class InventoryService:
             item.estoque_minimo = minimo
             db.session.commit()
         dados = item.to_dict(include_balance=True)
+        latest_finance_entry = (
+            FinanceLedgerEntry.query.filter(FinanceLedgerEntry.codigo_item == codigo)
+            .order_by(FinanceLedgerEntry.data_lancamento.desc(), FinanceLedgerEntry.id.desc())
+            .first()
+        )
+        if latest_finance_entry:
+            dados.update(
+                {
+                    "finance_supplier_id": latest_finance_entry.fornecedor_id,
+                    "finance_origem_valor": latest_finance_entry.origem_valor,
+                    "finance_tipo_documento": latest_finance_entry.tipo_documento,
+                    "finance_comprovacao_status": latest_finance_entry.comprovacao_status,
+                    "finance_observacao": latest_finance_entry.observacao,
+                }
+            )
         dados["estoque_minimo"] = minimo
         dados["saldo"] = saldo
         return dados
