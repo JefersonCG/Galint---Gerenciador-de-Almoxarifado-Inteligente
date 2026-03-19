@@ -57,12 +57,12 @@
             <div>
                 <div class="ce-status-pill ce-status-success mb-3"><i class="bi bi-cpu"></i> ConversionEngine</div>
                 <h1 class="mb-2" style="font-size: clamp(2rem, 3.5vw, 3rem); font-weight: 900; letter-spacing: -0.04em; color: #f8fafc;">Mecanismo de Conversão de Bases</h1>
-                <p class="mb-0" style="max-width: 58rem; color: rgba(226,232,240,0.82);">Analise dumps externos, acompanhe KPIs de desempenho em tempo real, gere uma nova base compatível e escolha entre baixar o artefato convertido ou implantar diretamente no GALINT quando o risco estiver dentro do limiar operacional.</p>
+                <p class="mb-0" style="max-width: 58rem; color: rgba(226,232,240,0.82);">Analise dumps externos e bases SQLite, acompanhe KPIs de desempenho em tempo real, use staging isolado por job e escolha entre baixar o artefato convertido ou implantar diretamente no GALINT quando a origem já estiver compatível com o pipeline PostgreSQL.</p>
             </div>
             <div class="ce-soft" style="min-width: 280px;">
                 <div class="small text-uppercase" style="letter-spacing: 0.08em; color: #7dd3fc;">Formato suportado</div>
                 <div style="font-size: 1.08rem; font-weight: 700; color: #f8fafc;">{{ dashboard.supported_input }}</div>
-                <div class="small text-muted mt-2">Pipeline atual otimizado para dumps plain SQL do PostgreSQL.</div>
+                <div class="small text-muted mt-2">O deploy direto continua restrito a artefatos PostgreSQL compatíveis; ZIP e SQLite entram no fluxo de staging e análise.</div>
             </div>
         </div>
 
@@ -85,14 +85,14 @@
                 <div class="card ce-panel">
                     <div class="card-header">
                         <h5 class="mb-1">Entrada da base externa</h5>
-                        <p class="mb-0 text-muted">Envie um dump `.sql` e acompanhe o processamento até a geração do artefato final.</p>
+                        <p class="mb-0 text-muted">Envie `.sql`, `.zip` com SQL/SQLite ou uma base SQLite e acompanhe o processamento até a geração do artefato final.</p>
                     </div>
                     <div class="card-body">
                         <form id="conversionForm">
                             <div class="mb-3">
                                 <label for="source_dump" class="form-label fw-semibold">Arquivo da base externa</label>
-                                <input class="form-control ce-form-control" type="file" id="source_dump" name="source_dump" accept=".sql" required>
-                                <div class="form-text text-muted">Suporte atual: dump SQL texto plano. Para implantação direta, prefira exportações `pg_dump` do PostgreSQL.</div>
+                                <input class="form-control ce-form-control" type="file" id="source_dump" name="source_dump" accept=".sql,.zip,.sqlite,.db" required>
+                                <div class="form-text text-muted">Staging suportado para `.sql`, `.zip`, `.sqlite` e `.db`. Para implantação direta, prefira exportações `pg_dump` em formato plain.</div>
                             </div>
                             <div class="mb-3">
                                 <label for="conversion_note" class="form-label fw-semibold">Observação operacional</label>
@@ -159,7 +159,7 @@
                         <a class="btn btn-outline-light rounded-pill px-4 disabled" id="downloadPackageBtn" href="#" aria-disabled="true"><i class="bi bi-box-arrow-down"></i> Baixar pacote técnico</a>
                         <button class="btn btn-success rounded-pill px-4" type="button" id="deployNowBtn" disabled><i class="bi bi-database-fill-check"></i> Implantar nova base agora</button>
                     </div>
-                    <div class="ce-soft mb-3" id="deployHint">A análise ainda não gerou artefatos.</div>
+                    <div class="ce-soft mb-3" id="deployHint">A análise ainda não gerou artefatos nem staging operacional.</div>
                     <div class="table-responsive">
                         <table class="table ce-table align-middle mb-0">
                             <thead>
@@ -392,7 +392,7 @@
 
             const sourceInput = document.getElementById('source_dump');
             if (!sourceInput.files || !sourceInput.files.length) {
-                showError('Selecione um arquivo .sql para iniciar a conversão.');
+                showError('Selecione um arquivo .sql, .zip, .sqlite ou .db para iniciar a conversão.');
                 return;
             }
 

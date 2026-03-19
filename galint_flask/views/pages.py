@@ -247,7 +247,7 @@ def conversionengine_start():
 
     upload = request.files.get("source_dump")
     if upload is None:
-        return jsonify({"ok": False, "error": "Envie um arquivo .sql para análise."}), 400
+        return jsonify({"ok": False, "error": "Envie um arquivo .sql, .zip, .sqlite ou .db para análise."}), 400
 
     try:
         service = ConversionEngineService(current_app)

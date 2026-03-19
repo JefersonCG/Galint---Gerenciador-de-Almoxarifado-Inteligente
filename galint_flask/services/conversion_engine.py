@@ -18,6 +18,7 @@ from datetime import datetime, timezone
 import json
 from pathlib import Path
 import re
+import sqlite3
 import shutil
 import threading
 import time
@@ -181,7 +182,9 @@ def get_conversion_job_state(*, job_id: str, user_key: str) -> dict[str, Any] | 
 
 
 class ConversionEngineService:
-    ALLOWED_SUFFIXES = {".sql"}
+    ALLOWED_SUFFIXES = {".sql", ".zip", ".sqlite", ".db"}
+    SQL_SUFFIXES = {".sql"}
+    SQLITE_SUFFIXES = {".sqlite", ".db"}
     TABLE_ALIAS_MAP = {
         "item": "itens",
         "items": "itens",
@@ -240,8 +243,10 @@ class ConversionEngineService:
         self.root_dir = Path(app.instance_path) / "conversionengine"
         self.sources_dir = self.root_dir / "sources"
         self.outputs_dir = self.root_dir / "outputs"
+        self.staging_dir = self.root_dir / "staging"
         self.sources_dir.mkdir(parents=True, exist_ok=True)
         self.outputs_dir.mkdir(parents=True, exist_ok=True)
+        self.staging_dir.mkdir(parents=True, exist_ok=True)
         self.backup_service = BackupService(app)
 
     def dashboard_payload(self) -> dict[str, Any]:
@@ -254,17 +259,19 @@ class ConversionEngineService:
             "core_tables": len(core_tables),
             "backups_available": len(backups),
             "recent_packages": len(recent_packages[:8]),
-            "supported_input": "Dump SQL texto plano (.sql)",
+            "supported_input": "SQL plain (.sql), ZIP com SQL/SQLite e SQLite (.sqlite/.db)",
         }
 
     def store_upload(self, upload: FileStorage) -> dict[str, str]:
         filename = secure_filename((upload.filename or "").strip())
         if not filename:
-            raise ValueError("Selecione um arquivo .sql para análise.")
+            raise ValueError("Selecione um arquivo de origem para análise.")
 
         suffix = Path(filename).suffix.lower()
         if suffix not in self.ALLOWED_SUFFIXES:
-            raise ValueError("Formato não suportado. Envie um dump SQL em texto plano (.sql).")
+            raise ValueError(
+                "Formato não suportado. Envie um .sql, um .zip com .sql/.sqlite/.db ou uma base SQLite (.sqlite/.db)."
+            )
 
         stored_name = f"{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}_{uuid4().hex[:10]}_{filename}"
         destination = self.sources_dir / stored_name
@@ -286,7 +293,13 @@ class ConversionEngineService:
 
         started = time.perf_counter()
         reporter(3, "Validando artefato recebido...", phase="validation")
-        profile = self.profile_source_dump(source_path=source_path, reporter=reporter)
+        prepared = self.prepare_source_for_analysis(
+            source_path=source_path,
+            source_name=source_name,
+            reporter=reporter,
+        )
+        reporter(12, "Perfilando origem em staging isolado...", phase="staging")
+        profile = self.profile_source(prepared=prepared, reporter=reporter)
         reporter(62, "Comparando estrutura externa com o schema GALINT...", phase="matching")
 
         target_schema = self.get_target_schema()
@@ -303,6 +316,7 @@ class ConversionEngineService:
         )
         artifacts = self.build_artifacts(
             source_path=source_path,
+            analysis_path=Path(prepared["analysis_path"]),
             source_name=source_name,
             profile=profile,
             assessment=assessment,
@@ -322,11 +336,15 @@ class ConversionEngineService:
         return {
             "summary": summary,
             "source_profile": {
+                "source_kind": profile["source_kind"],
+                "source_engine": profile["source_engine"],
                 "size_bytes": profile["size_bytes"],
                 "size_mb": profile["size_mb"],
                 "total_rows": profile["total_rows"],
                 "total_tables": len(profile["tables"]),
                 "detected_statements": profile["detected_statements"],
+                "staging_workspace": profile["staging_workspace"],
+                "analysis_source_name": profile["analysis_source_name"],
             },
             "mappings": assessment["mappings"],
             "tasks": assessment["tasks"],
@@ -337,6 +355,98 @@ class ConversionEngineService:
                 "download_sql": bool(artifacts.get("converted_sql_name")),
             },
         }
+
+    def prepare_source_for_analysis(self, *, source_path: Path, source_name: str, reporter) -> dict[str, Any]:
+        source_suffix = source_path.suffix.lower()
+        stage_token = f"stage_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}_{uuid4().hex[:8]}"
+        stage_dir = self.staging_dir / stage_token
+        stage_dir.mkdir(parents=True, exist_ok=True)
+
+        staged_original = stage_dir / source_path.name
+        shutil.copy2(source_path, staged_original)
+
+        metadata = {
+            "source_name": source_name,
+            "stored_name": source_path.name,
+            "received_at": _now_iso(),
+            "stage_token": stage_token,
+        }
+
+        if source_suffix in self.SQL_SUFFIXES:
+            metadata.update(
+                {
+                    "source_kind": "sql_dump",
+                    "analysis_path": str(staged_original),
+                    "analysis_source_name": staged_original.name,
+                }
+            )
+        elif source_suffix in self.SQLITE_SUFFIXES:
+            metadata.update(
+                {
+                    "source_kind": "sqlite_database",
+                    "analysis_path": str(staged_original),
+                    "analysis_source_name": staged_original.name,
+                }
+            )
+        elif source_suffix == ".zip":
+            reporter(8, "Descompactando origem em staging isolado...", phase="staging")
+            extracted_dir = stage_dir / "extracted"
+            extracted_dir.mkdir(parents=True, exist_ok=True)
+            with zipfile.ZipFile(staged_original) as archive:
+                members = archive.infolist()
+                if not members:
+                    raise ValueError("O arquivo ZIP enviado está vazio.")
+                for member in members:
+                    member_path = Path(member.filename)
+                    if member_path.is_absolute() or ".." in member_path.parts:
+                        raise ValueError("O ZIP contém caminhos inválidos para extração segura.")
+                archive.extractall(extracted_dir)
+
+            candidates = [
+                item
+                for item in extracted_dir.rglob("*")
+                if item.is_file() and item.suffix.lower() in (self.SQL_SUFFIXES | self.SQLITE_SUFFIXES)
+            ]
+            if not candidates:
+                raise ValueError("Nenhum .sql, .sqlite ou .db foi encontrado dentro do ZIP enviado.")
+
+            candidates.sort(
+                key=lambda item: (
+                    0 if item.suffix.lower() in self.SQL_SUFFIXES else 1,
+                    -item.stat().st_size,
+                    item.name.lower(),
+                )
+            )
+            chosen = candidates[0]
+            metadata.update(
+                {
+                    "source_kind": "zip_package",
+                    "analysis_path": str(chosen),
+                    "analysis_source_name": chosen.name,
+                    "zip_candidates": [str(item.relative_to(extracted_dir)).replace('\\', '/') for item in candidates[:12]],
+                }
+            )
+        else:
+            raise ValueError("Formato de origem não suportado pelo motor.")
+
+        metadata_path = stage_dir / "staging.json"
+        metadata_path.write_text(json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8")
+        return metadata
+
+    def profile_source(self, *, prepared: dict[str, Any], reporter) -> dict[str, Any]:
+        analysis_path = Path(prepared["analysis_path"])
+        source_kind = prepared["source_kind"]
+        if source_kind == "sqlite_database" or analysis_path.suffix.lower() in self.SQLITE_SUFFIXES:
+            profile = self.profile_sqlite_database(source_path=analysis_path, reporter=reporter)
+        else:
+            profile = self.profile_source_dump(source_path=analysis_path, reporter=reporter)
+
+        profile["source_kind"] = source_kind
+        profile["analysis_source_name"] = prepared["analysis_source_name"]
+        profile["staging_workspace"] = prepared["stage_token"]
+        if prepared.get("zip_candidates"):
+            profile["zip_candidates"] = prepared["zip_candidates"]
+        return profile
 
     def get_target_schema(self) -> dict[str, list[str]]:
         schema: dict[str, list[str]] = {}
@@ -379,6 +489,8 @@ class ConversionEngineService:
         current_copy_table: str | None = None
         detected_statements = 0
         started = time.perf_counter()
+        source_engine = "postgresql"
+        engine_hints = {"postgresql": 0, "mysql": 0, "sqlite": 0}
 
         def ensure_table(table_name: str) -> dict[str, Any]:
             table = tables.setdefault(
@@ -391,6 +503,13 @@ class ConversionEngineService:
             for line_number, line in enumerate(handle, start=1):
                 processed_bytes += len(line.encode("utf-8", errors="ignore"))
                 stripped = line.strip()
+
+                if "COPY " in line or " FROM stdin;" in line or "SET search_path" in line:
+                    engine_hints["postgresql"] += 1
+                if "ENGINE=" in line or "AUTO_INCREMENT" in line or "LOCK TABLES" in line:
+                    engine_hints["mysql"] += 1
+                if "PRAGMA " in line or "sqlite_sequence" in line or "BEGIN TRANSACTION" in line:
+                    engine_hints["sqlite"] += 1
 
                 if current_copy_table:
                     if stripped == r"\\.":
@@ -480,12 +599,67 @@ class ConversionEngineService:
                 "Nenhuma tabela foi detectada no dump enviado. Gere um .sql em texto plano e tente novamente."
             )
 
+        source_engine = max(engine_hints.items(), key=lambda item: item[1])[0] if any(engine_hints.values()) else "postgresql"
+
         return {
             "tables": profiled_tables,
             "size_bytes": size_bytes,
             "size_mb": round(size_bytes / (1024 * 1024), 2),
             "total_rows": sum(table["rows"] for table in profiled_tables.values()),
             "detected_statements": detected_statements,
+            "source_engine": source_engine,
+        }
+
+    def profile_sqlite_database(self, *, source_path: Path, reporter) -> dict[str, Any]:
+        size_bytes = source_path.stat().st_size
+        started = time.perf_counter()
+        tables: dict[str, dict[str, Any]] = {}
+
+        with sqlite3.connect(source_path) as connection:
+            cursor = connection.cursor()
+            names = [
+                row[0]
+                for row in cursor.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name"
+                ).fetchall()
+            ]
+            if not names:
+                raise ValueError("A base SQLite enviada não contém tabelas de usuário para análise.")
+
+            total = len(names)
+            for index, table_name in enumerate(names, start=1):
+                columns = [
+                    self.normalize_identifier(row[1])
+                    for row in cursor.execute(f'PRAGMA table_info("{table_name}")').fetchall()
+                    if row[1]
+                ]
+                row_total = cursor.execute(f'SELECT COUNT(*) FROM "{table_name}"').fetchone()[0]
+                tables[table_name] = {
+                    "columns": sorted(set(columns)),
+                    "rows": int(row_total or 0),
+                    "create_seen": True,
+                    "copy_seen": False,
+                    "insert_seen": True,
+                }
+                reporter(
+                    18 + int((index / max(1, total)) * 34),
+                    f"Lendo staging SQLite: {table_name}...",
+                    phase="profiling",
+                    metrics={
+                        "tables_detected": len(tables),
+                        "rows_detected": sum(int(meta["rows"]) for meta in tables.values()),
+                        "scan_progress_pct": round((index / max(1, total)) * 100, 1),
+                        "throughput_mb_per_second": round((size_bytes / (1024 * 1024)) / max(0.001, time.perf_counter() - started), 2),
+                    },
+                )
+
+        return {
+            "tables": tables,
+            "size_bytes": size_bytes,
+            "size_mb": round(size_bytes / (1024 * 1024), 2),
+            "total_rows": sum(table["rows"] for table in tables.values()),
+            "detected_statements": len(tables),
+            "source_engine": "sqlite",
         }
 
     def _profiling_metrics(
@@ -512,6 +686,8 @@ class ConversionEngineService:
         column_scores: list[float] = []
         unmatched_tables: list[str] = []
         alias_mapped_tables: list[str] = []
+        source_engine = str(profile.get("source_engine") or "postgresql")
+        source_kind = str(profile.get("source_kind") or "sql_dump")
 
         for source_table, source_meta in profile["tables"].items():
             target_table, mapped_by_alias = self.resolve_target_table(source_table, target_schema)
@@ -579,6 +755,8 @@ class ConversionEngineService:
             and not missing_exact_core_tables
             and matched_tables > 0
             and matched_tables == exact_match_tables
+            and source_engine == "postgresql"
+            and source_kind != "sqlite_database"
         )
 
         if compatibility_score >= 85 and deployable:
@@ -589,6 +767,10 @@ class ConversionEngineService:
             risk_level = "alto"
 
         blockers: list[str] = []
+        if source_engine != "postgresql":
+            blockers.append(
+                f"Origem detectada como {source_engine}; o deploy direto do GALINT continua restrito a artefatos PostgreSQL compatíveis."
+            )
         if missing_exact_core_tables:
             blockers.append(
                 "Tabelas críticas sem correspondência exata no dump: " + ", ".join(sorted(missing_exact_core_tables))
@@ -610,10 +792,31 @@ class ConversionEngineService:
             },
             {
                 "kind": "analysis",
+                "title": "Validar staging isolado",
+                "detail": f"A origem foi preparada no staging {profile.get('staging_workspace')} antes da comparação com o schema GALINT.",
+            },
+            {
+                "kind": "analysis",
                 "title": "Validar score e colunas faltantes",
                 "detail": "Revise o score final, as tabelas não mapeadas e as colunas ausentes antes do deploy.",
             },
         ]
+        if source_kind == "zip_package":
+            tasks.append(
+                {
+                    "kind": "analysis",
+                    "title": "Confirmar artefato escolhido dentro do ZIP",
+                    "detail": f"O motor selecionou {profile.get('analysis_source_name')} como base principal para análise.",
+                }
+            )
+        if source_engine == "sqlite":
+            tasks.append(
+                {
+                    "kind": "mapping",
+                    "title": "Planejar exportação SQLite para SQL PostgreSQL",
+                    "detail": "A análise estrutural foi concluída, mas a implantação direta exige uma etapa posterior de conversão SQL compatível com PostgreSQL.",
+                }
+            )
         for table_name in unmatched_tables[:8]:
             tasks.append(
                 {
@@ -639,6 +842,8 @@ class ConversionEngineService:
                 "risk_level": risk_level,
                 "deployable": deployable,
                 "deploy_blockers": blockers,
+                "source_engine": source_engine,
+                "source_kind": source_kind,
             },
             "mappings": sorted(mappings, key=lambda item: (-item["rows"], item["source_table"])),
             "tasks": tasks,
@@ -648,6 +853,7 @@ class ConversionEngineService:
         self,
         *,
         source_path: Path,
+        analysis_path: Path,
         source_name: str,
         profile: dict[str, Any],
         assessment: dict[str, Any],
@@ -676,14 +882,16 @@ class ConversionEngineService:
         if summary["deployable"]:
             converted_sql_name = f"{base_name}.sql"
             converted_sql_path = self.outputs_dir / converted_sql_name
-            shutil.copy2(source_path, converted_sql_path)
+            shutil.copy2(analysis_path, converted_sql_path)
 
             deploy_backup_name = f"{base_name}_deploy.sql"
             deploy_backup_path = self.backup_service._backup_root / deploy_backup_name
-            shutil.copy2(source_path, deploy_backup_path)
+            shutil.copy2(analysis_path, deploy_backup_path)
 
         with zipfile.ZipFile(package_path, mode="w", compression=zipfile.ZIP_DEFLATED) as archive:
             archive.write(source_path, arcname=f"origem/{source_path.name}")
+            if analysis_path != source_path and analysis_path.exists():
+                archive.write(analysis_path, arcname=f"staging/{analysis_path.name}")
             archive.write(manifest_path, arcname="manifest.json")
             archive.write(readme_path, arcname="README_implantacao.txt")
             if converted_sql_name:
@@ -702,13 +910,15 @@ class ConversionEngineService:
         deploy_text = (
             "A base convertida foi considerada apta para implantação direta no GALINT."
             if summary["deployable"]
-            else "A implantação direta foi bloqueada. Use primeiro o pacote técnico para ajuste manual do dump."
+            else "A implantação direta foi bloqueada. Use primeiro o pacote técnico e o staging para ajuste manual da origem."
         )
         blockers = "\n".join(f"- {item}" for item in summary["deploy_blockers"]) or "- Nenhum bloqueio crítico registrado."
         return (
             "CONVERSIONENGINE - PACOTE DE IMPLANTACAO\n"
             "======================================\n\n"
             f"Arquivo de origem: {source_name}\n"
+            f"Engine detectada: {summary['source_engine']}\n"
+            f"Tipo de origem: {summary['source_kind']}\n"
             f"Score final de compatibilidade: {summary['compatibility_score']}%\n"
             f"Risco operacional: {summary['risk_level']}\n"
             f"Tempo estimado de execução: {summary['estimated_minutes']} minutos\n\n"

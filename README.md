@@ -173,7 +173,7 @@ Exemplo:
 
 O ciclo mais recente concentrou mudanças visuais, operacionais e de governança em áreas críticas do sistema.
 
-- novo módulo ConversionEngine em Configurações, com visual dark, upload de dump SQL, score de compatibilidade, telemetria em tempo real, barra de progresso, pacote técnico e opção de download ou implantação direta da nova base quando o dump estiver apto
+- novo módulo ConversionEngine em Configurações, com visual dark, staging isolado por job, upload de SQL/ZIP/SQLite, score de compatibilidade, telemetria em tempo real, barra de progresso, pacote técnico e opção de download ou implantação direta da nova base quando a origem estiver apta ao pipeline PostgreSQL
 - dashboard com cards operacionais refinados para leitura rápida de financeiro e fornecedores
 - reforço no bloqueio de campos financeiros na edição de item depois do primeiro salvamento
 - páginas de auditoria de ferramentas, reparos, detalhes do funcionário e detalhes do reparo com visual dark padronizado
@@ -219,12 +219,13 @@ O ciclo mais recente concentrou mudanças visuais, operacionais e de governança
 
 - abrir Configurações e acessar ConversionEngine pelo card ou pelo menu lateral
 - garantir login com usuário administrador, porque os endpoints de job e implantação usam autenticação leve por sessão administrativa
-- enviar um dump SQL em texto plano (.sql), preferencialmente exportado com pg_dump em formato plain
+- enviar um `.sql`, `.zip` com `.sql` ou SQLite, ou uma base `.sqlite`/`.db`; para deploy direto, preferir exportação `pg_dump` em formato plain
 - acompanhar a análise pela barra de progresso, pelos KPIs e pela telemetria do job
 - ao concluir:
 	- usar Baixar nova base convertida para acionar o diálogo de download do Windows no navegador quando o dump estiver apto
 	- usar Baixar pacote técnico para auditoria, homologação e ajustes manuais
 	- usar Implantar nova base agora apenas quando o módulo liberar o deploy direto
+- lembrar que origens ZIP e SQLite entram em staging e diagnóstico; o GALINT não passa a operar nativamente em MySQL ou SQLite com essa etapa
 - depois de uma implantação direta, validar a aplicação e reiniciar manualmente o Flask se houver mudança recente de rotas Python, já que o projeto segue com use_reloader=False
 
 ### 6. Estrutura técnica do módulo
@@ -250,7 +251,7 @@ O ciclo mais recente concentrou mudanças visuais, operacionais e de governança
 - o projeto mistura templates Jinja e Mako; ajustes visuais em lançamentos podem estar em galint_flask/templates_mako e não apenas em galint_flask/templates
 - o Painel Mobile usa endpoints administrativos em galint_flask/views/admin_mobile.py e regras de autenticação em galint_flask/views/api_mobile.py
 - se uma rota recém-criada parecer inexistente, valide primeiro se o processo Flask ativo foi reiniciado após a alteração
-- o ConversionEngine, nesta primeira versão, aceita dump SQL plain (.sql); a implantação direta não tenta converter esquemas arbitrários e só é liberada quando as tabelas críticas têm correspondência estrutural segura com o GALINT
+- o ConversionEngine agora aceita `.sql`, `.zip` com `.sql`/SQLite e `.sqlite`/`.db` para análise; a implantação direta continua restrita a artefatos PostgreSQL estruturalmente compatíveis com o GALINT
 
 ## Documentação complementar
 
