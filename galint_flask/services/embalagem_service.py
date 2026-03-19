@@ -1,4 +1,4 @@
-"""Serviço para gerenciar lógica de embalagens (lata, rolo, pacote, caixa, litro, balde)."""
+"""Serviço para gerenciar lógica de embalagens (lata, rolo, pacote, caixa, litro, balde, saco)."""
 from __future__ import annotations
 
 from typing import Dict, Tuple
@@ -8,7 +8,7 @@ from ..models import Item
 class EmbalagemService:
     """Gerencia operações de conversão e controle de embalagens."""
     
-    TIPOS_VALIDOS = ['lata', 'rolo', 'pacote', 'caixa', 'litro', 'balde']
+    TIPOS_VALIDOS = ['lata', 'rolo', 'pacote', 'caixa', 'litro', 'balde', 'saco']
     
     @staticmethod
     def tem_embalagem(item: Item) -> bool:
@@ -291,8 +291,8 @@ class EmbalagemService:
         # Para lata/balde com peso em kg definido (grandeza_referencia = kg por embalagem)
         # Compatível com Legacy e Novo Sistema
         if (item.grandeza_referencia and item.grandeza_referencia > 0 and
-            (item.unidade and item.unidade.lower() in ['lata', 'balde'] or
-             item.tipo_embalagem_novo and item.tipo_embalagem_novo.lower() in ['lata', 'balde'])):
+            (item.unidade and item.unidade.lower() in ['lata', 'balde', 'pacote', 'saco'] or
+             item.tipo_embalagem_novo and item.tipo_embalagem_novo.lower() in ['lata', 'balde', 'pacote', 'saco'])):
             
             # Determina a quantidade de embalagens baseada no sistema (Novo vs Legacy)
             usa_sistema_novo = EmbalagemService.tem_embalagem(item)
@@ -362,8 +362,23 @@ class EmbalagemService:
                 return f"{embalagens:.0f} {nome_emb} + {soltas:g} metros"
             return f"{total_metros:g} metros ({embalagens:.0f} {nome_emb})"
         
-        # Para pacotes e caixas: mostrar total de unidades internas
-        if item.tipo_embalagem_novo and item.tipo_embalagem_novo.lower() in ['pacote', 'caixa']:
+        # Para pacote/caixa/saco: mostrar total de unidades internas ou kg conforme configurado.
+        if item.tipo_embalagem_novo and item.tipo_embalagem_novo.lower() in ['pacote', 'caixa', 'saco']:
+            tipo_emb = item.tipo_embalagem_novo.lower()
+            if tipo_emb in ['pacote', 'saco'] and item.grandeza_referencia and item.grandeza_referencia > 0:
+                kg_por_emb = item.grandeza_referencia or 0
+                total_kg = (embalagens * kg_por_emb) + soltas
+
+                if embalagens == 0:
+                    if total_kg < 1:
+                        return f"{total_kg * 1000:g} gramas"
+                    return f"{total_kg:g} Kg"
+                if soltas > 0:
+                    if soltas < 1:
+                        return f"{embalagens:.0f} {nome_emb} + {soltas * 1000:g} gramas"
+                    return f"{embalagens:.0f} {nome_emb} + {soltas:g} Kg"
+                return f"{total_kg:g} Kg ({embalagens:.0f} {nome_emb})"
+
             unidades_por_emb = item.unidades_por_embalagem or 0
             total_unidades = (embalagens * unidades_por_emb) + soltas
 
@@ -484,8 +499,8 @@ class EmbalagemService:
         
         # Lata/balde com peso em kg
         if (item.grandeza_referencia and item.grandeza_referencia > 0 and
-            (item.unidade and item.unidade.lower() in ['lata', 'balde'] or
-             item.tipo_embalagem_novo and item.tipo_embalagem_novo.lower() in ['lata', 'balde'])):
+            (item.unidade and item.unidade.lower() in ['lata', 'balde', 'pacote', 'saco'] or
+             item.tipo_embalagem_novo and item.tipo_embalagem_novo.lower() in ['lata', 'balde', 'pacote', 'saco'])):
             
             usa_sistema_novo = EmbalagemService.tem_embalagem(item)
             kg_por_emb = item.grandeza_referencia
@@ -541,8 +556,20 @@ class EmbalagemService:
                     return f"{embalagens_completas} {nome_emb} + {resto:g} metros"
                 return f"{total_metros:g} metros ({embalagens_completas} {nome_emb})"
             
-            # Para pacotes e caixas: mostrar unidades internas
-            if tipo_emb in ['pacote', 'caixa']:
+            # Para pacote/caixa/saco: mostrar unidades internas ou kg conforme configurado.
+            if tipo_emb in ['pacote', 'caixa', 'saco']:
+                if tipo_emb in ['pacote', 'saco'] and item.grandeza_referencia and item.grandeza_referencia > 0:
+                    total_kg = quantidade_float
+                    if embalagens_completas == 0:
+                        if total_kg < 1:
+                            return f"{total_kg * 1000:.0f} gramas"
+                        return f"{total_kg:.2f} kg"
+                    if resto > 0.01:
+                        if resto < 1:
+                            return f"{embalagens_completas} {nome_emb} + {resto * 1000:.0f} gramas"
+                        return f"{embalagens_completas} {nome_emb} + {resto:.2f} kg"
+                    return f"{total_kg:.2f} kg ({embalagens_completas} {nome_emb})"
+
                 total_unidades = quantidade_float
                 if embalagens_completas == 0:
                     return f"{total_unidades:g} unidades"
@@ -619,7 +646,7 @@ class EmbalagemService:
                 return f"ou seja, {soltas:g} litros soltos de {nome_emb_singular} aberta anteriormente."
         
         # Para lata/balde com kg
-        if tipo_emb in ['lata', 'balde'] and item.grandeza_referencia and item.grandeza_referencia > 0:
+        if tipo_emb in ['lata', 'balde', 'pacote', 'saco'] and item.grandeza_referencia and item.grandeza_referencia > 0:
             kg_por_emb = item.grandeza_referencia
             if embalagens > 0 and soltas > 0:
                 return f"ou seja, cada {nome_emb_singular} contém {kg_por_emb:g}kg + {soltas:g}kg soltos de {nome_emb_singular} aberto anteriormente."
@@ -639,7 +666,7 @@ class EmbalagemService:
                 return f"ou seja, {soltas:g}m soltos de {nome_emb_singular} aberto anteriormente."
         
         # Para caixa/pacote
-        if tipo_emb in ['caixa', 'pacote']:
+        if tipo_emb in ['caixa', 'pacote', 'saco']:
             unidades_por = float(item.unidades_por_embalagem or 0)
             if embalagens > 0 and soltas > 0:
                 return f"ou seja, cada {nome_emb_singular} contém {unidades_por:g} unidades + {soltas:g} unidades soltas de {nome_emb_singular} aberta anteriormente."

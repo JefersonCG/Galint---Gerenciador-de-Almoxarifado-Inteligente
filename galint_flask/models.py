@@ -40,7 +40,7 @@ class Item(db.Model):
     litros_por_embalagem: Mapped[float | None] = mapped_column(Float, nullable=True)
     
     # Sistema de embalagens (novo)
-    tipo_embalagem_novo: Mapped[str | None] = mapped_column(String(20), nullable=True)  # lata, rolo, pacote, caixa, litro, balde, nenhum
+    tipo_embalagem_novo: Mapped[str | None] = mapped_column(String(20), nullable=True)  # lata, rolo, pacote, caixa, litro, balde, saco, nenhum
     unidades_por_embalagem: Mapped[float | None] = mapped_column(Float, nullable=True)
     estoque_embalagens: Mapped[float] = mapped_column(Float, nullable=False, default=0)
     estoque_unidades_soltas: Mapped[float] = mapped_column(Float, nullable=False, default=0)
@@ -154,11 +154,11 @@ class Item(db.Model):
         try:
             if (self.litros_por_embalagem or 0) > 0:
                 return "L"
-            if (self.grandeza_referencia or 0) > 0 and (self.tipo_embalagem_novo or "").strip().lower() in ("lata", "balde"):
+            if (self.grandeza_referencia or 0) > 0 and (self.tipo_embalagem_novo or "").strip().lower() in ("lata", "balde", "pacote", "saco"):
                 return "Kg"
             if (self.tipo_embalagem_novo or "").strip().lower() == "rolo":
                 return "m"
-            if (self.tipo_embalagem_novo or "").strip().lower() in ("caixa", "pacote"):
+            if (self.tipo_embalagem_novo or "").strip().lower() in ("caixa", "pacote", "saco"):
                 return "un"
         except Exception:
             pass
@@ -212,7 +212,8 @@ class Item(db.Model):
             'pacote': 'pacote',
             'caixa': 'caixa',
             'litro': 'litro',
-            'balde': 'balde'
+            'balde': 'balde',
+            'saco': 'saco'
         }
         return nomes.get(self.tipo_embalagem_novo, 'embalagem')
     
@@ -224,7 +225,8 @@ class Item(db.Model):
             'pacote': 'pacotes',
             'caixa': 'caixas',
             'litro': 'litros',
-            'balde': 'baldes'
+            'balde': 'baldes',
+            'saco': 'sacos'
         }
         return nomes.get(self.tipo_embalagem_novo, 'embalagens')
 

@@ -493,7 +493,8 @@ ${parent.scripts()}
         'pacote': { singular: 'pacote', plural: 'pacotes' },
         'caixa': { singular: 'caixa', plural: 'caixas' },
         'balde': { singular: 'balde', plural: 'baldes' },
-        'litro': { singular: 'litro', plural: 'litros' }
+        'litro': { singular: 'litro', plural: 'litros' },
+        'saco': { singular: 'saco', plural: 'sacos' }
     };
 
     function normalizePackageText(value) {
@@ -684,7 +685,7 @@ ${parent.scripts()}
                 let unidadeSolta = 'un';
                 if (litrosPorEmb > 0) {
                     unidadeSolta = 'L';
-                } else if (grandezaRef > 0 && (tipoEmbalagem === 'balde' || tipoEmbalagem === 'lata')) {
+                } else if (grandezaRef > 0 && (tipoEmbalagem === 'balde' || tipoEmbalagem === 'lata' || tipoEmbalagem === 'pacote' || tipoEmbalagem === 'saco')) {
                     unidadeSolta = 'kg';
                 } else if (tipoEmbalagem === 'rolo') {
                     unidadeSolta = 'm';
@@ -722,7 +723,7 @@ ${parent.scripts()}
         if (fracaoPadrao === 'litro' || unidadeExibicao === 'l') return 'litro';
         if (fracaoPadrao === 'quilo' || unidadeExibicao === 'kg') return 'kg';
         if (litrosPorEmb > 0) return 'litro';
-        if (grandezaRef > 0 && (tipoEmbalagem === 'balde' || tipoEmbalagem === 'lata')) return 'kg';
+        if (grandezaRef > 0 && (tipoEmbalagem === 'balde' || tipoEmbalagem === 'lata' || tipoEmbalagem === 'pacote' || tipoEmbalagem === 'saco')) return 'kg';
         if (tipoEmbalagem === 'rolo') return 'metro';
         if (/(^|\b)(litro|litros|l|lt|lts)(\b|$)/.test(unidadeItem)) return 'litro';
         if (/(^|\b)(kg|quilo|quilos)(\b|$)/.test(unidadeItem)) return 'kg';

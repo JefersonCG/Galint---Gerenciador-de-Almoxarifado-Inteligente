@@ -105,7 +105,7 @@ LIQUID_PRODUCT_TYPES: list[dict[str, Any]] = [
 
 LIQUID_PRODUCT_TYPES_BY_ID = {entry["id"]: entry for entry in LIQUID_PRODUCT_TYPES}
 LIQUID_FRACTIONS: list[tuple[int, int]] = [(1, divisor) for divisor in range(2, 21)]
-FRACTIONABLE_PACKAGING_TYPES = {"lata", "rolo", "pacote", "caixa", "litro", "balde"}
+FRACTIONABLE_PACKAGING_TYPES = {"lata", "rolo", "pacote", "caixa", "litro", "balde", "saco"}
 FRACTIONABLE_LIQUID_HINTS = (
     "tinta",
     "resina",
@@ -198,7 +198,7 @@ def _infer_package_name(item: dict[str, Any]) -> str:
         return tipo_embalagem
     if unidade in FRACTIONABLE_PACKAGING_TYPES:
         return unidade
-    for candidate in ("lata", "balde", "rolo", "pacote", "caixa"):
+    for candidate in ("lata", "balde", "rolo", "pacote", "caixa", "saco"):
         if candidate in descricao:
             return candidate
     if "tinta" in descricao or "resina" in descricao or "verniz" in descricao:
@@ -214,6 +214,7 @@ def _pluralize_package_name(package_name: str) -> str:
         "rolo": "rolos",
         "pacote": "pacotes",
         "caixa": "caixas",
+        "saco": "sacos",
         "litro": "litros",
         "embalagem": "embalagens",
     }
@@ -262,8 +263,10 @@ def _infer_fractional_item(item: dict[str, Any]) -> dict[str, Any]:
     if tipo_embalagem in FRACTIONABLE_PACKAGING_TYPES:
         if tipo_embalagem == "rolo":
             default_unit = "metro"
-        elif tipo_embalagem in {"caixa", "pacote"}:
+        elif tipo_embalagem == "caixa":
             default_unit = "unidade"
+        elif tipo_embalagem in {"pacote", "saco"}:
+            default_unit = "quilo" if grandeza_referencia > 0 else "unidade"
         elif tipo_embalagem == "litro" or litros_por_embalagem > 0:
             default_unit = "litro"
         elif tipo_embalagem in {"lata", "balde"}:

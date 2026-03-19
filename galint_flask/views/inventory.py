@@ -28,7 +28,7 @@ def _uses_packaging_system(item_data: dict | None) -> bool:
     if not item_data:
         return False
     tipo = (item_data.get("tipo_embalagem_novo") or "").strip().lower()
-    if tipo not in {"lata", "rolo", "pacote", "caixa", "litro", "balde"}:
+    if tipo not in {"lata", "rolo", "pacote", "caixa", "litro", "balde", "saco"}:
         return False
     try:
         unidades_por = float(item_data.get("unidades_por_embalagem") or 0)
@@ -559,14 +559,21 @@ def create_item():
             litros_var = val
         elif unidade_embalagem_novo == "kg":
             grandeza_var = val
-    elif tipo_novo in ["rolo", "pacote", "caixa"]:
+    elif tipo_novo == "rolo":
+        unidades_var = float(unidades_por_emb_raw) if unidades_por_emb_raw and unidades_por_emb_raw.strip() else None
+    elif tipo_novo in ["pacote", "saco"]:
+        val = float(unidades_por_emb_raw) if unidades_por_emb_raw and unidades_por_emb_raw.strip() else None
+        unidades_var = val
+        if unidade_embalagem_novo == "kg":
+            grandeza_var = val
+    elif tipo_novo == "caixa":
         unidades_var = float(unidades_por_emb_raw) if unidades_por_emb_raw and unidades_por_emb_raw.strip() else None
     elif tipo_novo == "litro":
         litros_var = float(unidades_por_emb_raw) if unidades_por_emb_raw and unidades_por_emb_raw.strip() else None
         unidades_var = litros_var
 
     em_embalagens = None
-    if tipo_novo in ["lata", "rolo", "pacote", "caixa", "litro", "balde"] and unidades_var and unidades_var > 0:
+    if tipo_novo in ["lata", "rolo", "pacote", "caixa", "litro", "balde", "saco"] and unidades_var and unidades_var > 0:
         em_embalagens = True
     
     payload = {
@@ -777,7 +784,7 @@ def update_item(codigo: str):
 
     # Lógica de processamento de Unidades Dinâmicas
     tipo_novo = form.get("tipo_embalagem_novo") or None
-    unidade_embalagem_novo = form.get("unidade_embalagem_novo") # 'litro' ou 'kg'
+    unidade_embalagem_novo = form.get("unidade_embalagem_novo")
     unidades_por_emb_raw = form.get("unidades_por_embalagem")
     
     litros_var = None
@@ -791,11 +798,17 @@ def update_item(codigo: str):
             litros_var = val
         elif unidade_embalagem_novo == 'kg':
             grandeza_var = val
-            # Baldes/Latas em KG usam grandeza_referencia
-    elif tipo_novo in ['rolo', 'pacote', 'caixa']:
+    elif tipo_novo == 'rolo':
         val = float(unidades_por_emb_raw) if unidades_por_emb_raw and unidades_por_emb_raw.strip() else None
         unidades_var = val
-        # Rolos também podem usar grandeza_referencia no legado, mas no novo sistema usamos unidades_por_embalagem (metros/unid)
+    elif tipo_novo in ['pacote', 'saco']:
+        val = float(unidades_por_emb_raw) if unidades_por_emb_raw and unidades_por_emb_raw.strip() else None
+        unidades_var = val
+        if unidade_embalagem_novo == 'kg':
+            grandeza_var = val
+    elif tipo_novo == 'caixa':
+        val = float(unidades_por_emb_raw) if unidades_por_emb_raw and unidades_por_emb_raw.strip() else None
+        unidades_var = val
     elif tipo_novo == 'litro':
         val = float(unidades_por_emb_raw) if unidades_por_emb_raw and unidades_por_emb_raw.strip() else None
         litros_var = val

@@ -1204,6 +1204,10 @@
                                 <label class="form-check-label" for="tipo_novo_balde">Balde</label>
                             </div>
                             <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="tipo_embalagem_novo" id="tipo_novo_saco" value="saco" {% if tipo_emb_novo=='saco' %}checked{% endif %}>
+                                <label class="form-check-label" for="tipo_novo_saco">Saco</label>
+                            </div>
+                            <div class="form-check form-check-inline">
                                 <input class="form-check-input" type="radio" name="tipo_embalagem_novo" id="tipo_novo_nenhum" value="" {% if not tipo_emb_novo %}checked{% endif %}>
                                 <label class="form-check-label" for="tipo_novo_nenhum">Nenhum</label>
                             </div>
@@ -1212,19 +1216,32 @@
 
                     <div id="unidade-embalagem-field" style="display: none; margin-top: 0.75rem;">
                         <label class="form-label">Unidade da embalagem</label>
+                        {% set unidade_emb_nova = 'unidade' %}
+                        {% if form_item and form_item.litros_por_embalagem %}
+                            {% set unidade_emb_nova = 'litro' %}
+                        {% elif form_item and form_item.grandeza_referencia and tipo_emb_novo in ['lata', 'balde', 'pacote', 'saco'] %}
+                            {% set unidade_emb_nova = 'kg' %}
+                        {% elif tipo_emb_novo in ['pacote', 'caixa', 'saco'] %}
+                            {% set unidade_emb_nova = 'unidade' %}
+                        {% endif %}
                         <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
-                            <div class="form-check form-check-inline">
+                            <div class="form-check form-check-inline" id="unidade-emb-opcao-litro">
                                 <input class="form-check-input" type="radio" name="unidade_embalagem_novo" id="unidade_emb_litro" value="litro" 
-                                {% if form_item and form_item.litros_por_embalagem %}checked{% endif %}>
+                                {% if unidade_emb_nova == 'litro' %}checked{% endif %}>
                                 <label class="form-check-label" for="unidade_emb_litro">Litros</label>
+                            </div>
+                            <div class="form-check form-check-inline" id="unidade-emb-opcao-unidade">
+                                <input class="form-check-input" type="radio" name="unidade_embalagem_novo" id="unidade_emb_unidade" value="unidade"
+                                {% if unidade_emb_nova == 'unidade' %}checked{% endif %}>
+                                <label class="form-check-label" for="unidade_emb_unidade">Unidades</label>
                             </div>
                             <div class="form-check form-check-inline">
                                 <input class="form-check-input" type="radio" name="unidade_embalagem_novo" id="unidade_emb_kg" value="kg"
-                                {% if form_item and form_item.grandeza_referencia and not form_item.litros_por_embalagem %}checked{% endif %}>
+                                {% if unidade_emb_nova == 'kg' %}checked{% endif %}>
                                 <label class="form-check-label" for="unidade_emb_kg">Kg</label>
                             </div>
                         </div>
-                        <small class="form-text">Escolha se a embalagem sera preenchida em kg ou litros.</small>
+                        <small class="form-text" id="help-unidade-embalagem">Escolha se a embalagem será preenchida em litros, unidades ou kg.</small>
                     </div>
 
                     <!-- Campo condicional: Unidades por Embalagem -->
@@ -1234,7 +1251,7 @@
                             {% set val_inicial = form_item.unidades_por_embalagem if form_item and form_item.unidades_por_embalagem else '' %}
                             {% if form_item and form_item.litros_por_embalagem %}
                                 {% set val_inicial = form_item.litros_por_embalagem %}
-                            {% elif form_item and form_item.grandeza_referencia and (tipo_emb_novo == 'lata' or tipo_emb_novo == 'balde') %}
+                            {% elif form_item and form_item.grandeza_referencia and tipo_emb_novo in ['lata', 'balde', 'pacote', 'saco'] %}
                                 {% set val_inicial = form_item.grandeza_referencia %}
                             {% endif %}
                             <input class="form-control" id="unidades_por_embalagem" name="unidades_por_embalagem" type="number" step="0.01" min="0"
@@ -2063,6 +2080,9 @@
     const helpUnidadesEmbalagem = document.getElementById('help-unidades-embalagem');
     const previewEmbalagem = document.getElementById('preview-embalagem');
     const previewTexto = document.getElementById('preview-texto');
+    const helpUnidadeEmbalagem = document.getElementById('help-unidade-embalagem');
+    const unidadeEmbOpcaoLitro = document.getElementById('unidade-emb-opcao-litro');
+    const unidadeEmbOpcaoUnidade = document.getElementById('unidade-emb-opcao-unidade');
     
     const nomesEmbalagem = {
         'lata': 'Lata',
@@ -2070,7 +2090,8 @@
         'pacote': 'Pacote',
         'caixa': 'Caixa',
         'litro': 'Litro',
-        'balde': 'Balde'
+        'balde': 'Balde',
+        'saco': 'Saco'
     };
     
     const exemplosEmbalagem = {
@@ -2079,39 +2100,76 @@
         'pacote': '100 unidades por pacote',
         'caixa': '500 unidades por caixa',
         'litro': '20 litros por galão',
-        'balde': '25 kg por balde'
+        'balde': '25 kg por balde',
+        'saco': '20 kg por saco'
     };
 
     const unidadeBaseEmbalagem = {
         'rolo': 'metros',
         'pacote': 'unidades',
         'caixa': 'unidades',
-        'litro': 'litros'
+        'litro': 'litros',
+        'saco': 'unidades'
     };
 
     function getUnidadeBaseEmbalagem(tipoSelecionado) {
-        if (tipoSelecionado === 'lata' || tipoSelecionado === 'balde') {
+        if (tipoSelecionado === 'lata' || tipoSelecionado === 'balde' || tipoSelecionado === 'pacote' || tipoSelecionado === 'saco') {
             const unidadeSelecionada = document.querySelector('input[name="unidade_embalagem_novo"]:checked')?.value;
             if (unidadeSelecionada === 'kg') return 'kg';
+            if (unidadeSelecionada === 'unidade') return 'unidades';
             return 'litros';
         }
         return unidadeBaseEmbalagem[tipoSelecionado] || 'unidades';
     }
+
+    function applyDefaultPackagingUnit(tipoSelecionado) {
+        const unidadeSelecionada = document.querySelector('input[name="unidade_embalagem_novo"]:checked')?.value;
+        const unidadesPermitidas = tipoSelecionado === 'lata' || tipoSelecionado === 'balde'
+            ? ['litro', 'kg']
+            : tipoSelecionado === 'pacote' || tipoSelecionado === 'saco'
+            ? ['unidade', 'kg']
+            : [];
+        if (unidadeSelecionada && unidadesPermitidas.includes(unidadeSelecionada)) {
+            return;
+        }
+        let defaultId = '';
+        if (tipoSelecionado === 'balde' || tipoSelecionado === 'saco') {
+            defaultId = 'unidade_emb_kg';
+        } else if (tipoSelecionado === 'lata') {
+            defaultId = 'unidade_emb_litro';
+        } else if (tipoSelecionado === 'pacote') {
+            defaultId = 'unidade_emb_unidade';
+        }
+        const defaultRadio = defaultId ? document.getElementById(defaultId) : null;
+        if (defaultRadio) {
+            defaultRadio.checked = true;
+        }
+    }
     
     function atualizarCamposEmbalagemNovo() {
         const tipoSelecionado = document.querySelector('input[name="tipo_embalagem_novo"]:checked')?.value;
-        const precisaUnidadeEmbalagem = tipoSelecionado === 'lata' || tipoSelecionado === 'balde';
+        const precisaUnidadeEmbalagem = tipoSelecionado === 'lata' || tipoSelecionado === 'balde' || tipoSelecionado === 'pacote' || tipoSelecionado === 'saco';
 
         if (unidadeEmbalagemField) {
             unidadeEmbalagemField.style.display = precisaUnidadeEmbalagem ? 'block' : 'none';
         }
         if (precisaUnidadeEmbalagem) {
-            const unidadeSelecionada = document.querySelector('input[name="unidade_embalagem_novo"]:checked')?.value;
-            if (!unidadeSelecionada) {
-                const defaultId = tipoSelecionado === 'balde' ? 'unidade_emb_kg' : 'unidade_emb_litro';
-                const defaultRadio = document.getElementById(defaultId);
-                if (defaultRadio) defaultRadio.checked = true;
+            if (unidadeEmbOpcaoLitro) {
+                unidadeEmbOpcaoLitro.style.display = (tipoSelecionado === 'lata' || tipoSelecionado === 'balde') ? 'inline-flex' : 'none';
             }
+            if (unidadeEmbOpcaoUnidade) {
+                unidadeEmbOpcaoUnidade.style.display = (tipoSelecionado === 'pacote' || tipoSelecionado === 'saco') ? 'inline-flex' : (tipoSelecionado === 'caixa' ? 'inline-flex' : 'none');
+            }
+            applyDefaultPackagingUnit(tipoSelecionado);
+            if (helpUnidadeEmbalagem) {
+                if (tipoSelecionado === 'pacote' || tipoSelecionado === 'saco') {
+                    helpUnidadeEmbalagem.textContent = 'Escolha se a embalagem será preenchida em unidades ou kg.';
+                } else {
+                    helpUnidadeEmbalagem.textContent = 'Escolha se a embalagem será preenchida em litros ou kg.';
+                }
+            }
+        } else if (helpUnidadeEmbalagem) {
+            helpUnidadeEmbalagem.textContent = 'Escolha se a embalagem será preenchida em litros, unidades ou kg.';
         }
 
         if (tipoSelecionado && tipoSelecionado !== '') {
@@ -2120,7 +2178,7 @@
             let exemplo = exemplosEmbalagem[tipoSelecionado] || 'Quantidade por embalagem';
             const unidadeBase = getUnidadeBaseEmbalagem(tipoSelecionado);
 
-            if (tipoSelecionado === 'lata' || tipoSelecionado === 'balde') {
+            if (tipoSelecionado === 'lata' || tipoSelecionado === 'balde' || tipoSelecionado === 'pacote' || tipoSelecionado === 'saco') {
                 exemplo = `18 ${unidadeBase} por ${nome.toLowerCase()}`;
             }
             
@@ -2148,7 +2206,8 @@
                 'pacote': 'pacotes',
                 'caixa': 'caixas',
                 'litro': 'litros',
-                'balde': 'baldes'
+                'balde': 'baldes',
+                'saco': 'sacos'
             }[tipoSelecionado] || 'embalagens';
             const unidadeBase = getUnidadeBaseEmbalagem(tipoSelecionado);
             const total = saldoAtual > 0 ? (saldoAtual * unidades) : 0;
