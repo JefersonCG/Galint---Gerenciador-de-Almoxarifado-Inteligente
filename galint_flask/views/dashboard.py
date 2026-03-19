@@ -82,7 +82,6 @@ def _dashboard_context(
 ) -> dict[str, Any]:
     resumo = inventory_service.resumo_estoque()
     total_quantity = inventory_service.total_quantity()
-    total_quantity_internal = inventory_service.total_quantity_internal()
     competencia = date.today().strftime("%m-%Y")
     total_entradas_registradas = db.session.query(Entrada.id_entrada).count()
     can_view_finance = not shared_view
@@ -117,7 +116,6 @@ def _dashboard_context(
         "resumo": resumo,
         "competencia": competencia,
         "total_quantity": total_quantity,
-        "total_quantity_internal": total_quantity_internal,
         "total_entradas_registradas": total_entradas_registradas,
         "ultimo_ciclo_relatorio": ultimo_ciclo,
         "proximo_ciclo_relatorio": proximo_ciclo,

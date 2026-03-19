@@ -96,11 +96,33 @@ def create_app(config_name: str | None = None) -> Flask:
     
     # Filtro customizado para formatar datas no timezone local
     from .utils.time_service import TimeService
+    from .utils.formatters import (
+        format_currency_br,
+        format_datetime_br,
+        format_number_br,
+        format_percent_br,
+    )
     
     @app.template_filter('format_local')
     def format_local_filter(dt, fmt='%d/%m/%Y %H:%M'):
         """Converte datetime UTC para horário local e formata."""
         return TimeService.format_local(dt, fmt)
+
+    @app.template_filter('number_br')
+    def number_br_filter(value, decimals=0, strip_trailing_zeros=False, default='0'):
+        return format_number_br(value, decimals, strip_trailing_zeros, default)
+
+    @app.template_filter('currency_br')
+    def currency_br_filter(value, default='R$ 0,00'):
+        return format_currency_br(value, default)
+
+    @app.template_filter('percent_br')
+    def percent_br_filter(value, decimals=0, default='0%'):
+        return format_percent_br(value, decimals, default)
+
+    @app.template_filter('datetime_br')
+    def datetime_br_filter(value, fmt='%d/%m/%Y %H:%M', default='-'):
+        return format_datetime_br(value, fmt, default)
     
     # Middleware de monitoramento de inatividade
     _register_inactivity_middleware(app)

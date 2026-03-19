@@ -5,8 +5,7 @@
     {%- if value is none -%}
         —
     {%- else -%}
-        {%- set s = "{:,.2f}".format(value) -%}
-        R$ {{ s.replace(',', 'X').replace('.', ',').replace('X', '.') }}
+        {{ value|currency_br }}
     {%- endif -%}
 {%- endmacro %}
 
@@ -375,7 +374,7 @@
                                             <div class="text-muted small">Código {{ p.codigo }}</div>
                                         </td>
                                         <td class="text-end">{{ brl(p.total) }}</td>
-                                        <td class="text-end text-muted">{{ "{:g}".format(p.quantidade or 0) }}</td>
+                                        <td class="text-end text-muted">{{ (p.quantidade or 0)|number_br(2, True) }}</td>
                                         <td class="text-end">{{ brl(p.avg_unit) }}</td>
                                         <td class="text-end text-muted">{{ brl(p.min_unit) }}</td>
                                         <td class="text-end text-muted">{{ brl(p.max_unit) }}</td>

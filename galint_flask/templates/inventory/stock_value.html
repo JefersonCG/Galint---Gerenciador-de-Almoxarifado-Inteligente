@@ -5,8 +5,7 @@
     {%- if value is none -%}
         —
     {%- else -%}
-        {%- set s = "{:,.2f}".format(value) -%}
-        R$ {{ s.replace(',', 'X').replace('.', ',').replace('X', '.') }}
+        {{ value|currency_br }}
     {%- endif -%}
 {%- endmacro %}
 
@@ -248,7 +247,7 @@
         </div>
         <div class="text-end small text-muted">
             <div><strong>{{ brl(total_fracionado_valor) }}</strong></div>
-            <div>{{ "{:g}".format(total_fracionado_litros) }} L • {{ "{:g}".format(total_fracionado_quilos) }} Kg</div>
+            <div>{{ total_fracionado_litros|number_br(2, True) }} L • {{ total_fracionado_quilos|number_br(2, True) }} Kg</div>
             {% if fracionado_linhas_ignoradas %}
             <div>{{ fracionado_linhas_ignoradas }} linha(s) ignorada(s) (sem preço/capacidade).</div>
             {% endif %}
@@ -270,8 +269,8 @@
                 {% for row in consumo_fracionado_por_local %}
                 <tr>
                     <td class="fw-semibold">{{ row.local }}</td>
-                    <td class="text-end text-muted">{{ "{:g}".format(row.total_litros or 0) }}</td>
-                    <td class="text-end text-muted">{{ "{:g}".format(row.total_quilos or 0) }}</td>
+                    <td class="text-end text-muted">{{ (row.total_litros or 0)|number_br(2, True) }}</td>
+                    <td class="text-end text-muted">{{ (row.total_quilos or 0)|number_br(2, True) }}</td>
                     <td class="text-end text-muted">{{ row.saidas or 0 }}</td>
                     <td class="text-end text-muted">{{ row.itens or 0 }}</td>
                     <td class="text-end">{{ brl(row.total_valor) }}</td>

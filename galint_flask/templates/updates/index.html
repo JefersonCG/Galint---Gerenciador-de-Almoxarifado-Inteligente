@@ -224,7 +224,7 @@
                             </div>
                             <div class="col-lg-8">
                                 <div class="small text-uppercase text-muted fw-semibold mb-2">Última checagem</div>
-                                <div class="fs-6 fw-semibold">{{ settings.last_check[:19].replace('T', ' ') if settings.last_check else 'Ainda não registrada' }}</div>
+                                <div class="fs-6 fw-semibold">{{ settings.last_check|datetime_br('%d/%m/%Y %H:%M', 'Ainda não registrada') }}</div>
                                 <div class="text-muted mt-2">A verificação consulta o canal configurado no serviço de update e compara com a versão instalada.</div>
                             </div>
                         </div>
@@ -325,7 +325,7 @@
                                     {% for item in history | reverse %}
                                     <tr>
                                         <td><code>{{ item.version }}</code></td>
-                                        <td>{{ item.installed_at[:10] }}</td>
+                                        <td>{{ item.installed_at|datetime_br('%d/%m/%Y') }}</td>
                                         <td>{{ item.notes or '-' }}</td>
                                     </tr>
                                     {% endfor %}

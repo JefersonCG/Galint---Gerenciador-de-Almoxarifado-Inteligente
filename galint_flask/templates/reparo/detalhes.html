@@ -489,12 +489,12 @@
         </article>
         <article class="repair-kpi-card green">
             <span class="repair-kpi-label">Custo estimado</span>
-            <div class="repair-kpi-value">{% if reparo.custo_estimado %}R$ {{ "%.2f"|format(reparo.custo_estimado) }}{% else %}--{% endif %}</div>
+            <div class="repair-kpi-value">{% if reparo.custo_estimado %}{{ reparo.custo_estimado|currency_br }}{% else %}--{% endif %}</div>
             <div class="repair-kpi-caption">Valor previsto antes do fechamento do reparo.</div>
         </article>
         <article class="repair-kpi-card {{ 'green' if reparo.custo_real else 'red' }}">
             <span class="repair-kpi-label">Custo real</span>
-            <div class="repair-kpi-value">{% if reparo.custo_real %}R$ {{ "%.2f"|format(reparo.custo_real) }}{% else %}--{% endif %}</div>
+            <div class="repair-kpi-value">{% if reparo.custo_real %}{{ reparo.custo_real|currency_br }}{% else %}--{% endif %}</div>
             <div class="repair-kpi-caption">Valor efetivamente lançado na solução.</div>
         </article>
     </section>
@@ -578,7 +578,7 @@
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Custo real (R$)</label>
-                            <input type="text" name="custo_real" class="form-control" placeholder="0.00" value="{{ reparo.custo_real or '' }}">
+                            <input type="text" name="custo_real" class="form-control" placeholder="0,00" value="{{ reparo.custo_real or '' }}">
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Observações adicionais</label>
@@ -612,7 +612,7 @@
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Custo real (R$)</label>
-                            <input type="text" name="custo_real" class="form-control" placeholder="0.00">
+                            <input type="text" name="custo_real" class="form-control" placeholder="0,00">
                         </div>
                         <button type="submit" class="btn btn-success rounded-pill px-4" onclick="return confirm('Deseja finalizar este reparo?')">
                             <i class="bi bi-check-circle-fill me-1"></i>Finalizar reparo
@@ -664,11 +664,11 @@
                 <div class="card-body">
                     <div class="mb-3">
                         <label class="text-muted small">Custo estimado</label>
-                        <div class="repair-side-value">{% if reparo.custo_estimado %}R$ {{ "%.2f"|format(reparo.custo_estimado) }}{% else %}Não informado{% endif %}</div>
+                        <div class="repair-side-value">{% if reparo.custo_estimado %}{{ reparo.custo_estimado|currency_br }}{% else %}Não informado{% endif %}</div>
                     </div>
                     <div>
                         <label class="text-muted small">Custo real</label>
-                        <div class="repair-side-value">{% if reparo.custo_real %}<span class="text-success">R$ {{ "%.2f"|format(reparo.custo_real) }}</span>{% else %}Não informado{% endif %}</div>
+                        <div class="repair-side-value">{% if reparo.custo_real %}<span class="text-success">{{ reparo.custo_real|currency_br }}</span>{% else %}Não informado{% endif %}</div>
                     </div>
                 </div>
             </div>

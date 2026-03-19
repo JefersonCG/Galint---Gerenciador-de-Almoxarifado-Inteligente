@@ -383,23 +383,23 @@
     <div class="kpi-grid" id="kpi-grid">
         <button class="kpi-card" type="button" data-kpi="materiais-retiradas" data-title="Materiais - Retiradas" data-subtitle="Volume total de retiradas de materiais.">
             <span class="kpi-label">Materiais</span>
-            <span class="kpi-value mono">{{ "{:,.0f}".format(summary.materiais.retiradas_count) }}</span>
-            <span class="kpi-meta mono">Qtd: {{ "{:,.2f}".format(summary.materiais.retiradas_qty) }}</span>
+            <span class="kpi-value mono">{{ summary.materiais.retiradas_count|number_br }}</span>
+            <span class="kpi-meta mono">Qtd: {{ summary.materiais.retiradas_qty|number_br(2) }}</span>
         </button>
         <button class="kpi-card" type="button" data-kpi="materiais-devolucoes" data-title="Materiais - Devolucoes" data-subtitle="Retorno total registrado de materiais.">
             <span class="kpi-label">Devolucoes</span>
-            <span class="kpi-value mono">{{ "{:,.0f}".format(summary.materiais.devolucoes_count) }}</span>
-            <span class="kpi-meta mono">Qtd: {{ "{:,.2f}".format(summary.materiais.devolucoes_qty) }}</span>
+            <span class="kpi-value mono">{{ summary.materiais.devolucoes_count|number_br }}</span>
+            <span class="kpi-meta mono">Qtd: {{ summary.materiais.devolucoes_qty|number_br(2) }}</span>
         </button>
         <button class="kpi-card" type="button" data-kpi="ferramentas-retiradas" data-title="Ferramentas - Retiradas" data-subtitle="Volume total de retiradas de ferramentas.">
             <span class="kpi-label">Ferramentas</span>
-            <span class="kpi-value mono">{{ "{:,.0f}".format(summary.ferramentas.retiradas_count) }}</span>
-            <span class="kpi-meta mono">Qtd: {{ "{:,.2f}".format(summary.ferramentas.retiradas_qty) }}</span>
+            <span class="kpi-value mono">{{ summary.ferramentas.retiradas_count|number_br }}</span>
+            <span class="kpi-meta mono">Qtd: {{ summary.ferramentas.retiradas_qty|number_br(2) }}</span>
         </button>
         <button class="kpi-card" type="button" data-kpi="ferramentas-devolucoes" data-title="Ferramentas - Devolucoes" data-subtitle="Retorno total registrado de ferramentas.">
             <span class="kpi-label">Devolucoes</span>
-            <span class="kpi-value mono">{{ "{:,.0f}".format(summary.ferramentas.devolucoes_count) }}</span>
-            <span class="kpi-meta mono">Qtd: {{ "{:,.2f}".format(summary.ferramentas.devolucoes_qty) }}</span>
+            <span class="kpi-value mono">{{ summary.ferramentas.devolucoes_count|number_br }}</span>
+            <span class="kpi-meta mono">Qtd: {{ summary.ferramentas.devolucoes_qty|number_br(2) }}</span>
         </button>
         <button class="kpi-card" type="button" data-kpi="janelas" data-title="Janelas 30 Dias" data-subtitle="Blocos sequenciais desde a primeira retirada.">
             <span class="kpi-label">Janelas 30d</span>
@@ -413,7 +413,7 @@
         </button>
         <button class="kpi-card danger-glow" type="button" data-kpi="ruptura" data-title="Risco de Ruptura" data-subtitle="Probabilidade de ruptura nos proximos 30 dias.">
             <span class="kpi-label">Ruptura</span>
-            <span class="kpi-value mono">{{ "{:.0%}".format(top_risk_material.prob_ruptura_30d) if top_risk_material else "0%" }}</span>
+            <span class="kpi-value mono">{{ top_risk_material.prob_ruptura_30d|percent_br if top_risk_material else "0%" }}</span>
             <span class="kpi-meta">{{ top_risk_material.descricao if top_risk_material else "Sem historico" }}</span>
         </button>
         <button class="kpi-card" type="button" data-kpi="elegiveis" data-title="Itens Elegiveis" data-subtitle="Itens com historico suficiente para previsao.">
@@ -462,8 +462,8 @@
                             <tr>
                                 <td>{{ row.nome }}</td>
                                 <td><span class="badge-soft mono">{{ row.matricula }}</span></td>
-                                <td class="text-end mono">{{ "{:,.0f}".format(row.movimentos) }}</td>
-                                <td class="text-end mono">{{ "{:,.2f}".format(row.quantidade) }}</td>
+                                <td class="text-end mono">{{ row.movimentos|number_br }}</td>
+                                <td class="text-end mono">{{ row.quantidade|number_br(2) }}</td>
                             </tr>
                             {% endfor %}
                             {% else %}
@@ -495,8 +495,8 @@
                             <tr>
                                 <td>{{ row.nome }}</td>
                                 <td><span class="badge-soft mono">{{ row.matricula }}</span></td>
-                                <td class="text-end mono">{{ "{:,.0f}".format(row.movimentos) }}</td>
-                                <td class="text-end mono">{{ "{:,.2f}".format(row.quantidade) }}</td>
+                                <td class="text-end mono">{{ row.movimentos|number_br }}</td>
+                                <td class="text-end mono">{{ row.quantidade|number_br(2) }}</td>
                             </tr>
                             {% endfor %}
                             {% else %}
@@ -528,8 +528,8 @@
                             <tr>
                                 <td>{{ row.descricao }}</td>
                                 <td><span class="badge-soft mono">{{ row.codigo }}</span></td>
-                                <td class="text-end mono">{{ "{:,.0f}".format(row.retiradas_count) }}</td>
-                                <td class="text-end mono">{{ "{:,.0f}".format(row.devolucoes_count) }}</td>
+                                <td class="text-end mono">{{ row.retiradas_count|number_br }}</td>
+                                <td class="text-end mono">{{ row.devolucoes_count|number_br }}</td>
                             </tr>
                             {% endfor %}
                             {% else %}
@@ -561,8 +561,8 @@
                             <tr>
                                 <td>{{ row.descricao }}</td>
                                 <td><span class="badge-soft mono">{{ row.codigo }}</span></td>
-                                <td class="text-end mono">{{ "{:,.0f}".format(row.retiradas_count) }}</td>
-                                <td class="text-end mono">{{ "{:,.0f}".format(row.devolucoes_count) }}</td>
+                                <td class="text-end mono">{{ row.retiradas_count|number_br }}</td>
+                                <td class="text-end mono">{{ row.devolucoes_count|number_br }}</td>
                             </tr>
                             {% endfor %}
                             {% else %}
@@ -606,11 +606,11 @@
                                     <small style="opacity:0.6;">1a retirada: {{ row.primeira_retirada }} | Confianca: {{ row.confianca_modelo }}</small>
                                 </td>
                                 <td><span class="badge-soft mono">{{ row.codigo }}</span></td>
-                                <td class="text-end mono">{{ "{:,.2f}".format(row.saldo_atual) }}</td>
-                                <td class="text-end mono">{{ "{:,.2f}".format(row.estoque_minimo) }}</td>
-                                <td class="text-end mono">{{ "{:,.2f}".format(row.media_30d) }}</td>
-                                <td class="text-end mono">{{ "{:,.2f}".format(row.ic95_baixo) }} - {{ "{:,.2f}".format(row.ic95_alto) }}</td>
-                                <td class="text-end mono">{{ "{:.1%}".format(row.prob_ruptura_30d) if row.historico_suficiente else '--' }}</td>
+                                <td class="text-end mono">{{ row.saldo_atual|number_br(2) }}</td>
+                                <td class="text-end mono">{{ row.estoque_minimo|number_br(2) }}</td>
+                                <td class="text-end mono">{{ row.media_30d|number_br(2) }}</td>
+                                <td class="text-end mono">{{ row.ic95_baixo|number_br(2) }} - {{ row.ic95_alto|number_br(2) }}</td>
+                                <td class="text-end mono">{{ row.prob_ruptura_30d|percent_br(1) if row.historico_suficiente else '--' }}</td>
                                 <td><span class="risk-chip {{ risk_class }}">{{ 'Amostra' if not row.historico_suficiente else 'Alto' if risk_class == 'high' else 'Medio' if risk_class == 'medium' else 'Baixo' }}</span></td>
                                 <td>{{ row.data_prevista_ruptura if row.historico_suficiente else 'Historico insuficiente' }}</td>
                                 <td>{{ row.data_sugerida_pedido if row.historico_suficiente else 'Acompanhar' }}</td>

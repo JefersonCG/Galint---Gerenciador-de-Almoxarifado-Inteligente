@@ -620,8 +620,8 @@
                         <div class="docf-detail-box"><span class="docf-detail-label">Recebimento</span><span class="docf-detail-value">{{ nota_detalhes.data_recebimento.strftime('%d/%m/%Y') if nota_detalhes.data_recebimento|default(None, true) else 'Não informado' }}</span></div>
                         <div class="docf-detail-box"><span class="docf-detail-label">Chave</span><span class="docf-detail-value">{{ nota_detalhes.chave_acesso|default('Não informada', true) }}</span></div>
                         <div class="docf-detail-box"><span class="docf-detail-label">Status</span><span class="docf-detail-value">{{ nota_detalhes.status_integracao|default('manual', true)|replace('_', ' ')|title }}</span></div>
-                        <div class="docf-detail-box"><span class="docf-detail-label">Qtd. total</span><span class="docf-detail-value">{{ nota_detalhes.total_quantidade }}</span></div>
-                        <div class="docf-detail-box"><span class="docf-detail-label">Valor total</span><span class="docf-detail-value">R$ {{ '%.2f'|format(nota_detalhes.total_valor|default(0, true)) }}</span></div>
+                        <div class="docf-detail-box"><span class="docf-detail-label">Qtd. total</span><span class="docf-detail-value">{{ nota_detalhes.total_quantidade|number_br(2, True) }}</span></div>
+                        <div class="docf-detail-box"><span class="docf-detail-label">Valor total</span><span class="docf-detail-value">{{ nota_detalhes.total_valor|default(0, true)|currency_br }}</span></div>
                     </div>
                     {% if nota_detalhes.mensagem_integracao %}
                     <div class="docf-panel warning mt-3 mb-0">
@@ -648,9 +648,9 @@
                                 <tr>
                                     <td>{{ item.codigo }}</td>
                                     <td>{{ item.descricao }}</td>
-                                    <td>{{ item.quantidade }}</td>
-                                    <td>{% if item.valor_unitario is defined and item.valor_unitario is not none %}R$ {{ '%.2f'|format(item.valor_unitario) }}{% else %}-{% endif %}</td>
-                                    <td>{% if item.valor_total is defined and item.valor_total is not none %}R$ {{ '%.2f'|format(item.valor_total) }}{% else %}-{% endif %}</td>
+                                    <td>{{ item.quantidade|number_br(2, True) }}</td>
+                                    <td>{% if item.valor_unitario is defined and item.valor_unitario is not none %}{{ item.valor_unitario|currency_br }}{% else %}-{% endif %}</td>
+                                    <td>{% if item.valor_total is defined and item.valor_total is not none %}{{ item.valor_total|currency_br }}{% else %}-{% endif %}</td>
                                     {% if can_manage and nota_detalhes.id_documento is defined and nota_detalhes.id_documento is not none and item.id is defined and item.id is not none %}
                                     <td class="text-end">
                                         <form method="post" action="/nf/{{ nota_detalhes.id_documento }}/itens/{{ item.id }}/excluir" onsubmit="return confirm('Excluir este item do documento fiscal?');">
@@ -688,7 +688,7 @@
                                 {% if nota.status_integracao == 'aguardando_certificado' %}
                                 <span class="docf-badge me-2">Pendência</span>
                                 {% endif %}
-                                <small class="docf-muted">{{ nota.total_itens }} itens &bull; {{ nota.total_quantidade }} unidades{% if nota.fornecedor_nome|default(None, true) %} &bull; {{ nota.fornecedor_nome }}{% endif %}</small>
+                                <small class="docf-muted">{{ nota.total_itens|number_br }} itens &bull; {{ nota.total_quantidade|number_br(2, True) }} unidades{% if nota.fornecedor_nome|default(None, true) %} &bull; {{ nota.fornecedor_nome }}{% endif %}</small>
                             </button>
                         </h2>
                         <div id="collapse-{{ collapse_id }}" class="accordion-collapse collapse"
@@ -709,7 +709,7 @@
                                     <div class="docf-detail-box"><span class="docf-detail-label">CNPJ</span><span class="docf-detail-value">{{ nota.cnpj_emitente|default('Não informado', true) }}</span></div>
                                     <div class="docf-detail-box"><span class="docf-detail-label">Emissão</span><span class="docf-detail-value">{{ nota.data_emissao.strftime('%d/%m/%Y') if nota.data_emissao|default(None, true) else '—' }}</span></div>
                                     <div class="docf-detail-box"><span class="docf-detail-label">Status</span><span class="docf-detail-value">{{ nota.status_integracao|default('manual', true)|replace('_', ' ')|title }}</span></div>
-                                    <div class="docf-detail-box"><span class="docf-detail-label">Valor</span><span class="docf-detail-value">R$ {{ '%.2f'|format(nota.total_valor|default(0, true)) }}</span></div>
+                                    <div class="docf-detail-box"><span class="docf-detail-label">Valor</span><span class="docf-detail-value">{{ nota.total_valor|default(0, true)|currency_br }}</span></div>
                                 </div>
                                 {% if nota.mensagem_integracao %}
                                 <div class="docf-panel warning mt-3">
@@ -732,8 +732,8 @@
                                             <tr>
                                                 <td>{{ item.codigo }}</td>
                                                 <td>{{ item.descricao }}</td>
-                                                <td>{{ item.quantidade }}</td>
-                                                <td>{% if item.valor_unitario is defined and item.valor_unitario is not none %}R$ {{ '%.2f'|format(item.valor_unitario) }}{% else %}-{% endif %}</td>
+                                                <td>{{ item.quantidade|number_br(2, True) }}</td>
+                                                <td>{% if item.valor_unitario is defined and item.valor_unitario is not none %}{{ item.valor_unitario|currency_br }}{% else %}-{% endif %}</td>
                                                 {% if can_manage and nota.id_documento is defined and nota.id_documento is not none and item.id is defined and item.id is not none %}
                                                 <td class="text-end">
                                                     <form method="post" action="/nf/{{ nota.id_documento }}/itens/{{ item.id }}/excluir" onsubmit="return confirm('Excluir este item do documento fiscal?');">

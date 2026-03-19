@@ -430,9 +430,9 @@
                         </td>
                         <td>
                             {% if reparo.custo_real %}
-                            <span class="text-success fw-medium">R$ {{ "%.2f"|format(reparo.custo_real) }}</span>
+                            <span class="text-success fw-medium">{{ reparo.custo_real|currency_br }}</span>
                             {% elif reparo.custo_estimado %}
-                            <span class="text-muted">~R$ {{ "%.2f"|format(reparo.custo_estimado) }}</span>
+                            <span class="text-muted">~{{ reparo.custo_estimado|currency_br }}</span>
                             {% else %}
                             -
                             {% endif %}

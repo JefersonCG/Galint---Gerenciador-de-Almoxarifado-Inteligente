@@ -364,7 +364,7 @@
         <div class="galint-kpi-value">{{ total_items }} itens</div>
         <p class="galint-kpi-description">Quantidade de produtos distintos cadastrados no estoque.</p>
         <div class="galint-kpi-footnote">
-            Saldo operacional consolidado: {{ "{:,}".format(total_quantity|default(0, true)) }} emb./itens. Equivale a {{ "{:,}".format(total_quantity_internal|default(0, true)) }} unidades internas considerando o conteúdo das embalagens.
+              Saldo operacional consolidado: {{ total_quantity|default(0, true)|number_br }} emb./itens registrados no estoque.
         </div>
     </div>
 
@@ -376,7 +376,7 @@
             </div>
             <div class="galint-kpi-chip">Histórico</div>
         </div>
-        <div class="galint-kpi-value">{{ "{:,}".format(total_entradas_registradas) }}</div>
+        <div class="galint-kpi-value">{{ total_entradas_registradas|number_br }}</div>
         <p class="galint-kpi-description">Total histórico de entradas registradas</p>
         {% if not shared_view %}
         <div class="galint-kpi-progress">
@@ -637,7 +637,7 @@
                 </div>
             </div>
             <div class="galint-category-value">
-                <span class="galint-category-number">{{ "{:,}".format(categoria.saldo_total) }}</span>
+                <span class="galint-category-number">{{ categoria.saldo_total|number_br }}</span>
                 <span class="galint-category-unit">unid.</span>
             </div>
             <div class="galint-progress-bar">

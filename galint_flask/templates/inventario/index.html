@@ -23,7 +23,7 @@
                 <tbody>
                     {% for ev in eventos %}
                     <tr>
-                        <td>{{ ev.data_evento.strftime('%Y-%m-%d %H:%M') }}</td>
+                        <td>{{ ev.data_evento|datetime_br }}</td>
                         <td>{{ ev.codigo_item or '-' }}</td>
                         <td>{{ ev.tipo }}</td>
                         <td>{{ ev.quantidade }}</td>
