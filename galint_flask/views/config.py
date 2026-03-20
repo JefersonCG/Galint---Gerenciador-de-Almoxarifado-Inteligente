@@ -5,6 +5,11 @@ from werkzeug.utils import secure_filename
 
 from ..services.config_service import ConfigService
 from ..services.finance_service import finance_service
+from ..services.galint_notify_service import GalintNotifyService
+from ..services.notification_router import NotificationRouterService
+from ..services.telegram_service import TelegramService
+from ..extensions import db
+from ..models import NotificationRouterConfig, TelegramConfig, TelegramGroup, TelegramUser, Usuario
 
 
 bp = Blueprint("config", __name__, url_prefix="/configuracoes")
@@ -197,6 +202,111 @@ def fornecedores_por_cnpj(cnpj: str):
         return jsonify({"success": True, "supplier": data})
     except Exception as exc:
         return jsonify({"success": False, "message": str(exc)}), 400
+
+
+@bp.route("/notificacoes", methods=["GET", "POST"])
+@login_required
+def notificacoes():
+    if not current_user.is_admin:
+        flash("Acesso negado. Apenas administradores podem alterar configurações.", "danger")
+        return redirect(url_for("dashboard.index"))
+
+    router_config = NotificationRouterService.get_config()
+    telegram_config = TelegramConfig.query.first() or TelegramConfig()
+
+    if request.method == "POST":
+        router_config.default_channel = (request.form.get("default_channel") or "telegram").strip().lower()
+        router_config.telegram_enabled = request.form.get("telegram_enabled") == "on"
+        router_config.notify_enabled = request.form.get("notify_enabled") == "on"
+        router_config.push_enabled = request.form.get("push_enabled") == "on"
+        router_config.push_provider = (request.form.get("push_provider") or "expo").strip().lower() or "expo"
+        router_config.circuit_fail_threshold = max(1, int(request.form.get("circuit_fail_threshold") or 2))
+        router_config.circuit_timeout_seconds = max(1, int(request.form.get("circuit_timeout_seconds") or 10))
+        router_config.circuit_cooldown_seconds = max(60, int(request.form.get("circuit_cooldown_seconds") or 120))
+        db.session.commit()
+        flash("Painel de notificações atualizado com sucesso.", "success")
+        return redirect(url_for("config.notificacoes"))
+
+    router_status = NotificationRouterService.status_payload()
+    telegram_users = TelegramUser.query.join(Usuario).all()
+    groups = TelegramGroup.query.all()
+    usuarios = Usuario.query.order_by(Usuario.nome.asc()).all()
+
+    return render_template(
+        "config_notifications.html",
+        router_config=router_config,
+        router_status=router_status,
+        telegram_config=telegram_config,
+        telegram_users=telegram_users,
+        groups=groups,
+        usuarios=usuarios,
+        notify_metrics=GalintNotifyService.metrics(),
+    )
+
+
+@bp.post("/notificacoes/testar")
+@login_required
+def notificacoes_testar():
+    if not current_user.is_admin:
+        flash("Acesso negado. Apenas administradores podem testar notificações.", "danger")
+        return redirect(url_for("dashboard.index"))
+
+    matricula = (request.form.get("matricula") or "").strip()
+    channel = (request.form.get("channel") or "router").strip().lower()
+    message = (request.form.get("message") or "Teste manual do painel de notificações.").strip()
+    title = (request.form.get("title") or "Teste GALINT").strip()
+
+    if not matricula:
+        flash("Selecione uma matrícula para o teste.", "warning")
+        return redirect(url_for("config.notificacoes"))
+
+    if channel == "telegram":
+        telegram_user = TelegramUser.query.filter_by(matricula=matricula, enabled=True).first()
+        if not telegram_user:
+            flash("Usuário não possui vínculo Telegram ativo.", "warning")
+            return redirect(url_for("config.notificacoes"))
+        result = TelegramService.send_message(telegram_user.chat_id, f"<b>{title}</b>\n{message}")
+        if result.get("success"):
+            NotificationRouterService.record_telegram_success()
+            flash("Teste Telegram enviado com sucesso.", "success")
+        else:
+            NotificationRouterService.record_telegram_failure(str(result.get("error") or "Falha no teste Telegram"), 0)
+            flash(f"Falha no teste Telegram: {result.get('error')}", "danger")
+        return redirect(url_for("config.notificacoes"))
+
+    if channel == "notify":
+        result = GalintNotifyService.deliver_message(
+            recipient_ids=[matricula],
+            title=title,
+            body=message,
+            category="manual_test",
+            message_type="manual_test",
+            payload={"kind": "manual_test"},
+        )
+        flash("Teste GalintNotify enviado." if result.get("success") else f"Falha no teste: {result.get('error')}", "success" if result.get("success") else "danger")
+        return redirect(url_for("config.notificacoes"))
+
+    telegram_user = TelegramUser.query.filter_by(matricula=matricula, enabled=True).first()
+    result = NotificationRouterService.route_event(
+        event_name="manual_test",
+        telegram_callable=(
+            (lambda: TelegramService.send_message(telegram_user.chat_id, f"<b>{title}</b>\n{message}"))
+            if telegram_user else (lambda: {"success": False, "error": "Usuário sem vínculo Telegram ativo"})
+        ),
+        notify_payload={
+            "recipient_ids": [matricula],
+            "title": title,
+            "body": message,
+            "category": "manual_test",
+            "message_type": "manual_test",
+            "payload": {"kind": "manual_test"},
+        },
+    )
+    flash(
+        f"Teste roteado via {result.get('channel')}" if result.get("success") else f"Falha no roteamento: {result.get('error')}",
+        "success" if result.get("success") else "danger",
+    )
+    return redirect(url_for("config.notificacoes"))
 
 
 @bp.route("/preview-cabecalho")

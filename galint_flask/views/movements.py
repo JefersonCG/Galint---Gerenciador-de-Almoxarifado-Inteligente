@@ -599,12 +599,14 @@ def registrar_saida_multipla():
         # Commit das saídas
         db.session.commit()
         
-        # Enviar notificação agrupada via Telegram
+        # Enviar notificação via router (Telegram -> failover GalintNotify)
         try:
+            from ..services.notification_router import NotificationRouterService
+
             if len(saidas_criadas) > 1:
-                TelegramService.notify_multiple_withdrawal(saidas_criadas)
+                NotificationRouterService.route_multiple_withdrawal(saidas_criadas)
             elif len(saidas_criadas) == 1:
-                TelegramService.notify_withdrawal(saidas_criadas[0], force_single=True)
+                NotificationRouterService.route_withdrawal(saidas_criadas[0], force_single=True)
         except Exception as e:
             # Não bloquear a operação por falha na notificação
             pass

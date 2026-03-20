@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+{% block title %}Painel de Notificações{% endblock %}
+
+{% block extra_css %}
+<style>
+    .notify-shell { background: linear-gradient(180deg, #f8fbff 0%, #edf4fb 100%); border: 1px solid rgba(148, 163, 184, 0.28); border-radius: 28px; padding: 1.5rem; color: #0f172a; box-shadow: 0 20px 48px rgba(15, 23, 42, 0.10); }
+    .notify-hero { position: relative; overflow: hidden; border-radius: 24px; padding: 1.6rem; background: linear-gradient(135deg, #fefefe 0%, #f2f8ff 45%, #dff4ee 100%); border: 1px solid rgba(125, 211, 252, 0.28); }
+    .notify-hero::before { content: ""; position: absolute; inset: 0; background: linear-gradient(115deg, rgba(14,165,233,0.08), transparent 40%, rgba(16,185,129,0.06)); pointer-events: none; }
+    .notify-hero > * { position: relative; z-index: 1; }
+    .notify-kpis { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 1rem; margin-top: 1.2rem; }
+    .notify-kpi { border-radius: 20px; padding: 1rem; background: rgba(255,255,255,0.94); border: 1px solid rgba(148, 163, 184, 0.20); box-shadow: inset 0 1px 0 rgba(255,255,255,0.65); }
+    .notify-kpi-label { display: block; text-transform: uppercase; font-size: 0.72rem; letter-spacing: 0.08em; color: #0ea5e9; margin-bottom: 0.4rem; }
+    .notify-kpi-value { font-size: 1.9rem; font-weight: 800; color: #0f172a; }
+    .notify-tabs.nav-pills { gap: 0.7rem; margin: 1.35rem 0 1.2rem; }
+    .notify-tabs .nav-link { border-radius: 999px; border: 1px solid rgba(148, 163, 184, 0.22); background: rgba(255,255,255,0.92); color: #334155; font-weight: 700; padding: 0.82rem 1.1rem; }
+    .notify-tabs .nav-link.active { background: linear-gradient(135deg, #0ea5e9, #22c55e); color: #f8fafc; border-color: transparent; }
+    .notify-panel { background: rgba(255,255,255,0.96); border: 1px solid rgba(148, 163, 184, 0.20); border-radius: 24px; box-shadow: 0 18px 38px rgba(15, 23, 42, 0.08); }
+    .notify-panel .card-header, .notify-panel .card-body { background: transparent; border-color: rgba(148, 163, 184, 0.16); color: #0f172a; }
+    .notify-panel .text-muted { color: #64748b !important; }
+    .notify-soft { border-radius: 18px; padding: 1rem; background: #f8fbff; border: 1px solid rgba(148,163,184,0.18); color: #0f172a; }
+    .notify-grid { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 1rem; }
+    .notify-grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 1rem; }
+    .notify-status { display: inline-flex; align-items: center; gap: 0.4rem; border-radius: 999px; padding: 0.36rem 0.8rem; font-weight: 700; font-size: 0.76rem; }
+    .notify-status-ok { background: rgba(34,197,94,0.14); color: #166534; }
+    .notify-status-warn { background: rgba(245,158,11,0.14); color: #92400e; }
+    .notify-status-danger { background: rgba(239,68,68,0.14); color: #b91c1c; }
+    .notify-table { color: #0f172a; }
+    .notify-table td, .notify-table th { border-color: rgba(148,163,184,0.18); }
+    .notify-table thead th { color: #0369a1; text-transform: uppercase; font-size: 0.74rem; letter-spacing: 0.05em; }
+    .notify-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+    .notify-form-control, .notify-form-control:focus, .notify-panel .form-select { background: #ffffff; color: #0f172a; border-color: rgba(56, 189, 248, 0.36); box-shadow: none; }
+    .notify-shell .form-check-label, .notify-shell .form-label, .notify-shell strong, .notify-shell h1, .notify-shell h5 { color: #0f172a; }
+    .notify-shell .btn-outline-light { color: #0f172a; border-color: rgba(148,163,184,0.35); }
+    .notify-shell .btn-outline-light:hover { background: #e2e8f0; color: #0f172a; }
+    .notify-shell .btn-outline-info { color: #0c4a6e; border-color: rgba(14,165,233,0.35); }
+    .notify-shell .btn-outline-info:hover { color: #f8fafc; }
+    @media (max-width: 992px) { .notify-kpis, .notify-grid, .notify-grid-2 { grid-template-columns: 1fr; } .notify-shell { padding: 1rem; } }
+</style>
+{% endblock %}
+
+{% block page_header %}{% endblock %}
+{% block content %}
+<div class="notify-shell">
+    <section class="notify-hero">
+        <div class="d-flex flex-wrap justify-content-between gap-3 align-items-start">
+            <div>
+                <div class="notify-status notify-status-ok mb-3"><i class="bi bi-broadcast-pin"></i> Notification Router</div>
+                <h1 class="mb-2" style="font-size: clamp(2rem, 3.5vw, 3rem); font-weight: 900; letter-spacing: -0.04em; color: #0f172a;">Painel de Notificações</h1>
+                <p class="mb-0" style="max-width: 58rem; color: #475569;">Escolha o canal padrão, acompanhe a saúde do Telegram, habilite o inbox nativo GalintNotify e teste o failover automático com cooldown para evitar flapping.</p>
+            </div>
+            <div class="notify-soft" style="min-width: 280px;">
+                <div class="small text-uppercase" style="letter-spacing: 0.08em; color: #7dd3fc;">Canal padrão</div>
+                <div style="font-size: 1.08rem; font-weight: 700; color: #0f172a;">{{ router_status.default_channel|upper }}</div>
+                <div class="small text-muted mt-2">Telegram ativo: {{ 'sim' if router_status.telegram_enabled else 'não' }} | GalintNotify ativo: {{ 'sim' if router_status.notify_enabled else 'não' }}</div>
+            </div>
+        </div>
+        <div class="notify-kpis">
+            <article class="notify-kpi"><span class="notify-kpi-label">Dispositivos Notify</span><div class="notify-kpi-value">{{ notify_metrics.devices }}</div></article>
+            <article class="notify-kpi"><span class="notify-kpi-label">Usuários com token</span><div class="notify-kpi-value">{{ notify_metrics.users_with_tokens }}</div></article>
+            <article class="notify-kpi"><span class="notify-kpi-label">Não lidas</span><div class="notify-kpi-value">{{ notify_metrics.unread }}</div></article>
+            <article class="notify-kpi"><span class="notify-kpi-label">Falhas Telegram</span><div class="notify-kpi-value">{{ router_status.telegram_fail_count }}</div></article>
+        </div>
+    </section>
+
+    <ul class="nav nav-pills notify-tabs" role="tablist">
+        <li class="nav-item" role="presentation"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#tab-router" type="button" role="tab">Router</button></li>
+        <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-telegram" type="button" role="tab">Telegram</button></li>
+        <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-notify" type="button" role="tab">GalintNotify</button></li>
+    </ul>
+
+    <div class="tab-content">
+        <div class="tab-pane fade show active" id="tab-router" role="tabpanel">
+            <div class="notify-grid">
+                <div class="card notify-panel">
+                    <div class="card-header"><h5 class="mb-1">Governança do roteador</h5><p class="mb-0 text-muted">Canal padrão, toggles e parâmetros do circuit breaker.</p></div>
+                    <div class="card-body">
+                        <form method="POST" action="{{ url_for('config.notificacoes') }}">
+                            <div class="notify-grid-2 mb-3">
+                                <div>
+                                    <label class="form-label">Canal padrão</label>
+                                    <select class="form-select" name="default_channel">
+                                        <option value="telegram" {% if router_config.default_channel == 'telegram' %}selected{% endif %}>Telegram</option>
+                                        <option value="notify" {% if router_config.default_channel == 'notify' %}selected{% endif %}>GalintNotify</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="form-label">Provider de push</label>
+                                    <select class="form-select" name="push_provider">
+                                        <option value="expo" {% if router_config.push_provider == 'expo' %}selected{% endif %}>Expo Push</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="notify-grid-2 mb-3">
+                                <div class="notify-soft">
+                                    <div class="form-check form-switch mb-2"><input class="form-check-input" type="checkbox" id="telegram_enabled" name="telegram_enabled" {% if router_config.telegram_enabled %}checked{% endif %}><label class="form-check-label" for="telegram_enabled">Habilitar Telegram no router</label></div>
+                                    <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="notify_enabled" name="notify_enabled" {% if router_config.notify_enabled %}checked{% endif %}><label class="form-check-label" for="notify_enabled">Habilitar GalintNotify no router</label></div>
+                                </div>
+                                <div class="notify-soft">
+                                    <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="push_enabled" name="push_enabled" {% if router_config.push_enabled %}checked{% endif %}><label class="form-check-label" for="push_enabled">Habilitar push Android</label></div>
+                                </div>
+                            </div>
+                            <div class="notify-grid-2 mb-3">
+                                <div><label class="form-label">Falhas para abrir circuito</label><input type="number" min="1" class="form-control notify-form-control" name="circuit_fail_threshold" value="{{ router_config.circuit_fail_threshold }}"></div>
+                                <div><label class="form-label">Timeout severo (s)</label><input type="number" min="1" class="form-control notify-form-control" name="circuit_timeout_seconds" value="{{ router_config.circuit_timeout_seconds }}"></div>
+                            </div>
+                            <div class="mb-3"><label class="form-label">Cooldown antes de tentar voltar ao Telegram (s)</label><input type="number" min="60" class="form-control notify-form-control" name="circuit_cooldown_seconds" value="{{ router_config.circuit_cooldown_seconds }}"></div>
+                            <div class="notify-actions"><button class="btn btn-primary rounded-pill px-4" type="submit">Salvar router</button><a class="btn btn-outline-light rounded-pill px-4" href="{{ url_for('telegram_config.index') }}">Abrir central Telegram</a></div>
+                        </form>
+                    </div>
+                </div>
+                <div class="card notify-panel">
+                    <div class="card-header"><h5 class="mb-1">Saúde do Telegram</h5><p class="mb-0 text-muted">Estado do circuit breaker e último motivo de failover.</p></div>
+                    <div class="card-body">
+                        {% if router_status.telegram_circuit_open %}
+                        <div class="notify-status notify-status-danger mb-3"><i class="bi bi-exclamation-triangle"></i> Standby ativo até {{ router_status.telegram_unhealthy_until }}</div>
+                        {% else %}
+                        <div class="notify-status notify-status-ok mb-3"><i class="bi bi-check-circle"></i> Circuito fechado e pronto</div>
+                        {% endif %}
+                        <div class="notify-soft mb-3"><strong>Último erro:</strong><br>{{ router_status.telegram_last_error or 'Nenhum erro recente.' }}</div>
+                        <div class="notify-soft mb-3"><strong>Último sucesso:</strong><br>{{ router_status.telegram_last_success_at or '-' }}</div>
+                        <div class="notify-soft"><strong>Última falha:</strong><br>{{ router_status.telegram_last_failure_at or '-' }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-pane fade" id="tab-telegram" role="tabpanel">
+            <div class="card notify-panel">
+                <div class="card-header d-flex justify-content-between align-items-center gap-3 flex-wrap"><div><h5 class="mb-1">Telegram</h5><p class="mb-0 text-muted">Resumo do canal legado e acesso rápido ao módulo completo.</p></div><a class="btn btn-outline-info rounded-pill px-4" href="{{ url_for('telegram_config.index') }}">Abrir configuração completa</a></div>
+                <div class="card-body">
+                    <div class="notify-grid-2 mb-4">
+                        <div class="notify-soft"><strong>Bot configurado:</strong> {{ 'sim' if telegram_config.bot_token else 'não' }}<br><strong>Bot ativo:</strong> {{ 'sim' if telegram_config.enabled else 'não' }}<br><strong>Usuários:</strong> {{ telegram_users|length }}</div>
+                        <div class="notify-soft"><strong>Grupos:</strong> {{ groups|length }}<br><strong>Notificar retiradas:</strong> {{ 'sim' if telegram_config.notify_on_withdrawal else 'não' }}<br><strong>Alertas:</strong> {{ 'sim' if telegram_config.alert_enabled else 'não' }}</div>
+                    </div>
+                    <form method="POST" action="{{ url_for('config.notificacoes_testar') }}" class="notify-soft">
+                        <input type="hidden" name="channel" value="telegram">
+                        <div class="notify-grid-2 mb-3">
+                            <div><label class="form-label">Usuário de teste</label><select class="form-select" name="matricula" required>{% for usuario in usuarios %}<option value="{{ usuario.matricula }}">{{ usuario.nome }} ({{ usuario.matricula }})</option>{% endfor %}</select></div>
+                            <div><label class="form-label">Título</label><input class="form-control notify-form-control" type="text" name="title" value="Teste Telegram"></div>
+                        </div>
+                        <div class="mb-3"><label class="form-label">Mensagem</label><textarea class="form-control notify-form-control" name="message" rows="3">Mensagem de teste do painel unificado.</textarea></div>
+                        <button class="btn btn-outline-light rounded-pill px-4" type="submit">Testar envio Telegram</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-pane fade" id="tab-notify" role="tabpanel">
+            <div class="notify-grid">
+                <div class="card notify-panel">
+                    <div class="card-header"><h5 class="mb-1">GalintNotify</h5><p class="mb-0 text-muted">Inbox nativo com push Expo e métricas de dispositivos.</p></div>
+                    <div class="card-body">
+                        <div class="notify-grid-2 mb-4">
+                            <div class="notify-soft"><strong>Push provider:</strong> {{ router_config.push_provider|upper }}<br><strong>Push ativo:</strong> {{ 'sim' if router_config.push_enabled else 'não' }}<br><strong>Mensagens:</strong> {{ notify_metrics.messages }}</div>
+                            <div class="notify-soft"><strong>Dispositivos ativos:</strong> {{ notify_metrics.devices }}<br><strong>Usuários com token:</strong> {{ notify_metrics.users_with_tokens }}<br><strong>Unread:</strong> {{ notify_metrics.unread }}</div>
+                        </div>
+                        <form method="POST" action="{{ url_for('config.notificacoes_testar') }}" class="notify-soft mb-3">
+                            <div class="notify-grid-2 mb-3">
+                                <div><label class="form-label">Usuário de teste</label><select class="form-select" name="matricula" required>{% for usuario in usuarios %}<option value="{{ usuario.matricula }}">{{ usuario.nome }} ({{ usuario.matricula }})</option>{% endfor %}</select></div>
+                                <div><label class="form-label">Título</label><input class="form-control notify-form-control" type="text" name="title" value="Teste GalintNotify"></div>
+                            </div>
+                            <div class="mb-3"><label class="form-label">Mensagem</label><textarea class="form-control notify-form-control" name="message" rows="3">Mensagem de teste do inbox nativo com push Expo.</textarea></div>
+                            <div class="notify-actions"><button class="btn btn-success rounded-pill px-4" type="submit" name="channel" value="notify">Testar push/inbox</button><button class="btn btn-outline-info rounded-pill px-4" type="submit" name="channel" value="router">Testar pelo router</button></div>
+                        </form>
+                    </div>
+                </div>
+                <div class="card notify-panel">
+                    <div class="card-header"><h5 class="mb-1">Últimas notificações pendentes</h5><p class="mb-0 text-muted">Amostra do que ainda está não lido no inbox.</p></div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table notify-table align-middle mb-0">
+                                <thead><tr><th>Matrícula</th><th>Título</th><th>Criada em</th></tr></thead>
+                                <tbody>
+                                    {% for row in router_status.recent_unreads %}
+                                    <tr><td>{{ row.matricula }}</td><td>{{ row.title }}</td><td>{{ row.created_at or '-' }}</td></tr>
+                                    {% else %}
+                                    <tr><td colspan="3" class="text-muted">Nenhuma pendência de inbox no momento.</td></tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

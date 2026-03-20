@@ -495,9 +495,9 @@ class ToolCustodyService:
                 db.session.commit()
 
                 try:
-                    from ..services.telegram_service import TelegramService
+                    from ..services.notification_router import NotificationRouterService
 
-                    TelegramService.notify_inventory_event(evento.id_evento)
+                    NotificationRouterService.route_inventory_event(evento.id_evento)
                 except Exception:
                     pass
                 return
@@ -522,9 +522,9 @@ class ToolCustodyService:
             db.session.commit()
 
             try:
-                from ..services.telegram_service import TelegramService
+                from ..services.notification_router import NotificationRouterService
 
-                TelegramService.notify_inventory_event(evento.id_evento)
+                NotificationRouterService.route_inventory_event(evento.id_evento)
             except Exception:
                 pass
             return
@@ -568,9 +568,9 @@ class ToolCustodyService:
         db.session.commit()
 
         try:
-            from ..services.telegram_service import TelegramService
+            from ..services.notification_router import NotificationRouterService
 
-            TelegramService.notify_inventory_event(evento.id_evento)
+            NotificationRouterService.route_inventory_event(evento.id_evento)
         except Exception:
             pass
 

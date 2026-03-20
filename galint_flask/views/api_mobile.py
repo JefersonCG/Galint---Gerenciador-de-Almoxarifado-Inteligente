@@ -970,13 +970,13 @@ def retirar_multipla_mobile(current_user: Usuario):
 
         db.session.commit()
 
-        # Notificar via Telegram com mensagem agrupada
+        # Notificar via router (Telegram -> failover GalintNotify)
         try:
-            from ..services.telegram_service import TelegramService
+            from ..services.notification_router import NotificationRouterService
             saida_ids = [s.id_saida for s in saidas_criadas]
-            TelegramService.notify_multiple_withdrawal(saida_ids)
+            NotificationRouterService.route_multiple_withdrawal(saida_ids)
         except Exception as e:
-            logger.warning(f"Falha ao enviar notificação Telegram: {e}")
+            logger.warning(f"Falha ao enviar notificação roteada: {e}")
 
         return jsonify({
             "success": True,
@@ -1102,11 +1102,11 @@ def devolver_multipla_ferramentas_mobile(current_user: Usuario):
 
         db.session.commit()
 
-        # Notificar via Telegram (opcional)
+        # Notificar via router (Telegram -> failover GalintNotify)
         try:
-            from ..services.telegram_service import TelegramService
+            from ..services.notification_router import NotificationRouterService
             for evento in eventos_criados:
-                TelegramService.notify_inventory_event(evento.id_evento)
+                NotificationRouterService.route_inventory_event(evento.id_evento)
         except Exception:
             pass
 
@@ -1592,14 +1592,16 @@ def retirar_mobile(current_user: Usuario):
         except Exception:
             novo_saldo = None
 
-        # Notificar via Telegram (opcional)
+        # Notificar via router (Telegram -> failover GalintNotify)
         try:
-            if tipo_custodia == "permanente" and hasattr(TelegramService, "notify_permanent_custody"):
-                TelegramService.notify_permanent_custody(saida.id_saida)
+            from ..services.notification_router import NotificationRouterService
+
+            if tipo_custodia == "permanente":
+                NotificationRouterService.route_permanent_custody(saida.id_saida)
             else:
-                TelegramService.notify_withdrawal(saida.id_saida, force_single=True)
+                NotificationRouterService.route_withdrawal(saida.id_saida, force_single=True)
         except Exception as e:
-            logger.warning(f"Falha ao enviar notificação Telegram: {e}")
+            logger.warning(f"Falha ao enviar notificação roteada: {e}")
 
         return jsonify({
             "success": True,
@@ -1846,15 +1848,15 @@ def devolver_material_mobile(current_user: Usuario):
             commit=True,
         )
 
-        # Notificar via Telegram (opcional)
+        # Notificar via router (Telegram -> failover GalintNotify)
         try:
             if evento and hasattr(evento, 'id_evento'):
-                from ..services.telegram_service import TelegramService
-                logger.info(f"[DEVOLVER_MATERIAL] Enviando notificação Telegram para evento {evento.id_evento}")
-                TelegramService.notify_inventory_event(evento.id_evento)
-                logger.info("[DEVOLVER_MATERIAL] Notificação Telegram enviada com sucesso")
+                from ..services.notification_router import NotificationRouterService
+                logger.info(f"[DEVOLVER_MATERIAL] Enviando notificação roteada para evento {evento.id_evento}")
+                NotificationRouterService.route_inventory_event(evento.id_evento)
+                logger.info("[DEVOLVER_MATERIAL] Notificação roteada enviada com sucesso")
         except Exception as e:
-            logger.error(f"[DEVOLVER_MATERIAL] Falha ao enviar notificação Telegram: {e}", exc_info=True)
+            logger.error(f"[DEVOLVER_MATERIAL] Falha ao enviar notificação roteada: {e}", exc_info=True)
 
         try:
             novo_saldo = round(float(item.get_saldo_atual() or 0), 6)
@@ -2083,8 +2085,8 @@ def cadastrar_produto():
                 )
 
         try:
-            from ..services.telegram_service import TelegramService
-            TelegramService.notify_item_created(codigo, entrada_inicial=entrada_inicial)
+            from ..services.notification_router import NotificationRouterService
+            NotificationRouterService.route_item_created(codigo, entrada_inicial=entrada_inicial)
         except Exception:
             pass
 
@@ -2354,8 +2356,8 @@ def criar_item_estoque():
                 )
 
         try:
-            from ..services.telegram_service import TelegramService
-            TelegramService.notify_item_created(codigo_criado, entrada_inicial=entrada_inicial)
+            from ..services.notification_router import NotificationRouterService
+            NotificationRouterService.route_item_created(codigo_criado, entrada_inicial=entrada_inicial)
         except Exception:
             pass
         

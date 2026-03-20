@@ -761,6 +761,81 @@ class TelegramOutbox(db.Model):
     )
 
 
+class NotificationRouterConfig(db.Model):
+    __tablename__ = "notification_router_config"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    default_channel: Mapped[str] = mapped_column(String(20), nullable=False, default="telegram")
+    telegram_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    notify_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    push_provider: Mapped[str] = mapped_column(String(20), nullable=False, default="expo")
+    push_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    circuit_fail_threshold: Mapped[int] = mapped_column(Integer, nullable=False, default=2)
+    circuit_timeout_seconds: Mapped[int] = mapped_column(Integer, nullable=False, default=10)
+    circuit_cooldown_seconds: Mapped[int] = mapped_column(Integer, nullable=False, default=120)
+    telegram_fail_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    telegram_last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    telegram_last_failure_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    telegram_last_success_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    telegram_unhealthy_until: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class GalintNotifyMessage(db.Model):
+    __tablename__ = "galint_notify_messages"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    category: Mapped[str] = mapped_column(String(80), nullable=False, default="general")
+    message_type: Mapped[str] = mapped_column(String(80), nullable=False, default="info")
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    payload: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+
+
+class GalintNotifyRecipient(db.Model):
+    __tablename__ = "galint_notify_recipients"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    message_id: Mapped[int] = mapped_column(ForeignKey("galint_notify_messages.id", ondelete="CASCADE"), nullable=False)
+    matricula: Mapped[str] = mapped_column(ForeignKey("usuarios.matricula", ondelete="CASCADE"), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="unread")
+    delivered_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    read_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+
+    __table_args__ = (
+        UniqueConstraint("message_id", "matricula", name="uq_notify_message_recipient"),
+    )
+
+    message: Mapped[GalintNotifyMessage] = relationship(
+        "GalintNotifyMessage",
+        backref=backref("recipients", cascade="all, delete-orphan"),
+    )
+    usuario: Mapped[Usuario] = relationship("Usuario", backref="notify_recipients")
+
+
+class DevicePushToken(db.Model):
+    __tablename__ = "device_push_tokens"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    matricula: Mapped[str] = mapped_column(ForeignKey("usuarios.matricula", ondelete="CASCADE"), nullable=False)
+    device_uuid: Mapped[str] = mapped_column(String(120), nullable=False)
+    provider: Mapped[str] = mapped_column(String(20), nullable=False, default="expo")
+    token: Mapped[str] = mapped_column(Text, nullable=False)
+    ativo: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    last_push_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    __table_args__ = (
+        UniqueConstraint("device_uuid", "provider", name="uq_device_push_provider"),
+    )
+
+    usuario: Mapped[Usuario] = relationship("Usuario", backref="push_tokens")
+
+
 class TimestampMixin:
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now(), onupdate=func.now())

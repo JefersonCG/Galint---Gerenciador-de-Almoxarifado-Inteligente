@@ -1408,9 +1408,9 @@ class InventoryService:
         # para evitar ruído/confusão com ajustes negativos.
         if delta > 0:
             try:
-                from ..services.telegram_service import TelegramService
+                from ..services.notification_router import NotificationRouterService
 
-                TelegramService.notify_inventory_event(evento.id_evento)
+                NotificationRouterService.route_inventory_event(evento.id_evento)
             except Exception:
                 # Não bloquear o ajuste por falha no Telegram
                 pass
@@ -1645,10 +1645,12 @@ class InventoryService:
                     saida_id = getattr(movimento, "id_saida", None)
                     if saida_id:
                         tipo_custodia = (payload.tipo_custodia or "temporaria").strip().lower()
-                        if tipo_custodia == "permanente" and hasattr(TelegramService, "notify_permanent_custody"):
-                            TelegramService.notify_permanent_custody(saida_id)
+                        from ..services.notification_router import NotificationRouterService
+
+                        if tipo_custodia == "permanente":
+                            NotificationRouterService.route_permanent_custody(saida_id)
                         else:
-                            TelegramService.notify_withdrawal(
+                            NotificationRouterService.route_withdrawal(
                                 saida_id,
                                 force_single=True,
                                 balance_before=telegram_balance_before,

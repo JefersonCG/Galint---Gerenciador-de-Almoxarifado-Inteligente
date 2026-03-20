@@ -817,7 +817,9 @@ def create_item():
         
         # Notificar criação de item aos administradores (notificação UNIFICADA)
         try:
-            TelegramService.notify_item_created(codigo, entrada_inicial=entrada_inicial)
+            from ..services.notification_router import NotificationRouterService
+
+            NotificationRouterService.route_item_created(codigo, entrada_inicial=entrada_inicial)
         except Exception:
             pass
         

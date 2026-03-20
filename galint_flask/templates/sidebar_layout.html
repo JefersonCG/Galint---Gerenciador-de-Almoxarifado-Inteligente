@@ -195,6 +195,13 @@
                     <i class="bi bi-telegram"></i>
                     <span>Telegram</span>
                 </a>
+                {% if endpoint_exists('config.notificacoes') %}
+                <a class="sidebar-link ps-4 {% if p.startswith(url_for('config.notificacoes')) %}active{% endif %}"
+                    href="{{ url_for('config.notificacoes') }}">
+                    <i class="bi bi-broadcast-pin"></i>
+                    <span>Notificações</span>
+                </a>
+                {% endif %}
                 <a class="sidebar-link ps-4 {% if p.startswith(url_for('pages.config_backup')) or p.startswith(url_for('pages.restore_backup')) %}active{% endif %}"
                     href="{{ url_for('pages.config_backup') }}">
                     <i class="bi bi-database"></i>
