@@ -1442,6 +1442,10 @@ def registrar_entrada(codigo: str):
 @login_required
 def registrar_saida(codigo: str):
     _require_admin()
+    wants_json = (
+        request.headers.get("X-Requested-With") == "XMLHttpRequest"
+        or request.accept_mimetypes.best == "application/json"
+    )
     quantidade = float(request.form.get("quantidade", "0") or 0)
     tipo_custodia = (request.form.get("tipo_custodia", "temporaria") or "").strip().lower()
     # Compat: instalações antigas usavam "diaria" para empréstimo temporário.
@@ -1473,8 +1477,12 @@ def registrar_saida(codigo: str):
             )
         )
         flash("Saída registrada.", "success")
+        if wants_json:
+            return jsonify({"success": True, "saida_id": saida_id, "message": "Saída registrada."})
     except ValueError as exc:
         flash(str(exc), "danger")
+        if wants_json:
+            return jsonify({"success": False, "message": str(exc)}), 400
     return redirect(url_for("inventory.list_items"))
 
 

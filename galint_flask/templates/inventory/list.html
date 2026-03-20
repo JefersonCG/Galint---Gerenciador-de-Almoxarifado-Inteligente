@@ -1689,6 +1689,52 @@
     if (assignModalEl) {
         assignModalInstance = new bootstrap.Modal(assignModalEl);
     }
+
+    function resetAssignModalState() {
+        const form = document.getElementById('assignForm');
+        if (form) {
+            form.reset();
+        }
+
+        const suggestions = document.getElementById('assignMatricula-suggestions');
+        if (suggestions) {
+            suggestions.style.display = 'none';
+            suggestions.innerHTML = '';
+        }
+
+        const singleTab = document.getElementById('single-tab');
+        if (singleTab) {
+            singleTab.click();
+        }
+
+        selectedEmployees.clear();
+        currentBatchTarget = 1;
+
+        const searchInput = document.getElementById('employeeSearch');
+        if (searchInput) {
+            searchInput.value = '';
+        }
+
+        const quantityInput = document.getElementById('assignQuantity');
+        if (quantityInput) {
+            quantityInput.value = '1';
+        }
+
+        const batchQuantityInput = getBatchQuantityInput();
+        if (batchQuantityInput) {
+            batchQuantityInput.value = '1';
+        }
+
+        syncBatchQuantityDisplay();
+        updateSelectedCount();
+        renderEmployeesList();
+    }
+
+    if (assignModalEl) {
+        assignModalEl.addEventListener('hidden.bs.modal', () => {
+            resetAssignModalState();
+        });
+    }
     
     window.openAssignModal = function(codigo, descricao, itemData = {}) {
         if (!assignModalInstance) return;
@@ -2191,7 +2237,7 @@
                 await handleMultipleAssign();
             } else {
                 // Modo individual (comportamento original)
-                handleSingleAssign();
+                await handleSingleAssign();
             }
         });
     }
@@ -2324,9 +2370,65 @@
         return { success, failed };
     }
     
-    function handleSingleAssign() {
-        // Submit normal do formulário (comportamento original)
-        assignForm.submit();
+    async function handleSingleAssign() {
+        const matricula = (document.getElementById('assignMatricula')?.value || '').trim();
+        const quantidade = Number(document.getElementById('assignQuantity')?.value || 0);
+
+        if (!matricula) {
+            await Swal.fire({
+                icon: 'warning',
+                title: 'Funcionário obrigatório',
+                text: 'Informe a matrícula ou selecione um funcionário.',
+                confirmButtonColor: '#10b981'
+            });
+            return;
+        }
+
+        if (!Number.isFinite(quantidade) || quantidade <= 0) {
+            await Swal.fire({
+                icon: 'warning',
+                title: 'Quantidade inválida',
+                text: 'Informe uma quantidade maior que zero.',
+                confirmButtonColor: '#10b981'
+            });
+            return;
+        }
+
+        try {
+            const response = await fetch(assignForm.action, {
+                method: 'POST',
+                body: new FormData(assignForm),
+                headers: {
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+
+            const payload = await readJsonResponse(response);
+            if (!response.ok || !payload?.success) {
+                throw new Error(payload?.message || 'Falha ao concluir atribuição.');
+            }
+
+            if (assignModalInstance) {
+                assignModalInstance.hide();
+            }
+
+            await Swal.fire({
+                icon: 'success',
+                title: 'Atribuição concluída',
+                text: payload?.message || 'Ferramenta atribuída com sucesso.',
+                confirmButtonColor: '#10b981'
+            });
+
+            window.location.reload();
+        } catch (error) {
+            await Swal.fire({
+                icon: 'error',
+                title: 'Não foi possível atribuir',
+                text: String(error?.message || error || 'Erro inesperado.'),
+                confirmButtonColor: '#10b981'
+            });
+        }
     }
 
     function updateAssignCustodyAlert() {
