@@ -373,6 +373,46 @@ class TelegramService:
 
         return []
 
+    @staticmethod
+    def _withdrawal_recipients(*, exclude_chat_ids: set[str] | None = None) -> list[dict[str, str]]:
+        """Retorna um único destinatário operacional para notificações de retirada.
+
+        Prioridade:
+        1. Primeiro grupo coletivo com receive_withdrawals habilitado.
+        2. Primeiro usuário privilegiado habilitado no Telegram.
+        """
+
+        excluded = {str(chat_id) for chat_id in (exclude_chat_ids or set()) if chat_id}
+
+        groups = (
+            db.session.query(TelegramGroup)
+            .filter_by(enabled=True, receive_withdrawals=True)
+            .order_by(TelegramGroup.id.asc())
+            .all()
+        )
+        for group in groups:
+            chat_id = str(group.chat_id)
+            if chat_id in excluded:
+                continue
+            return [{
+                "chat_id": chat_id,
+                "recipient_name": f"Grupo: {group.name}",
+                "target": "group",
+            }]
+
+        admins = TelegramService._privileged_users_query().order_by(TelegramUser.id.asc()).all()
+        for adm in admins:
+            chat_id = str(adm.chat_id)
+            if chat_id in excluded:
+                continue
+            return [{
+                "chat_id": chat_id,
+                "recipient_name": f"Admin: {getattr(getattr(adm, 'usuario', None), 'nome', None) or adm.matricula}",
+                "target": "admin",
+            }]
+
+        return []
+
     
 
     @staticmethod
@@ -3203,85 +3243,33 @@ class TelegramService:
 
 
 
-            # 2) Notificar supervisores/grupos (ou usuários privilegiados)
+            # 2) Notificar um único destino operacional (grupo ou fallback admin)
 
-            if config.notify_supervisors or TelegramService._privileged_users_query().count() > 0:
+            for recipient in TelegramService._withdrawal_recipients(exclude_chat_ids=notified_chat_ids):
 
-                groups = db.session.query(TelegramGroup).filter_by(
+                chat_id_str = str(recipient["chat_id"])
 
-                    enabled=True, receive_withdrawals=True
+                key = f"withdrawal-multi:{'-'.join(str(s) for s in sorted(saida_ids))}:{recipient['target']}:{chat_id_str}"
 
-                ).all()
+                TelegramService.enqueue_outbox_message(
 
+                    chat_id=chat_id_str,
 
+                    recipient_name=recipient["recipient_name"],
 
-                if groups:
+                    message_type="withdrawal",
 
-                    for group in groups:
+                    message_text=message,
 
-                        chat_id_str = str(group.chat_id)
+                    idempotency_key=key,
 
-                        if chat_id_str in notified_chat_ids:
+                    saida_id=saidas[0].id_saida if saidas else None,
 
-                            continue
+                    commit=True,
 
-                        key = f"withdrawal-multi:{'-'.join(str(s) for s in sorted(saida_ids))}:group:{chat_id_str}"
+                )
 
-                        TelegramService.enqueue_outbox_message(
-
-                            chat_id=chat_id_str,
-
-                            recipient_name=f"Grupo: {group.name}",
-
-                            message_type="withdrawal",
-
-                            message_text=message,
-
-                            idempotency_key=key,
-
-                            saida_id=saidas[0].id_saida if saidas else None,
-
-                            commit=True,
-
-                        )
-
-                        notified_chat_ids.add(chat_id_str)
-
-                else:
-
-                    # Fallback: administradores com Telegram habilitado
-
-                    admins = TelegramService._privileged_users_query().all()
-
-                    for adm in admins:
-
-                        chat_id_str = str(adm.chat_id)
-
-                        if chat_id_str in notified_chat_ids:
-
-                            continue
-
-                        key = f"withdrawal-multi:{'-'.join(str(s) for s in sorted(saida_ids))}:admin:{chat_id_str}"
-
-                        TelegramService.enqueue_outbox_message(
-
-                            chat_id=chat_id_str,
-
-                            recipient_name=f"Admin: {getattr(adm.usuario, 'nome', adm.matricula)}",
-
-                            message_type="withdrawal",
-
-                            message_text=message,
-
-                            idempotency_key=key,
-
-                            saida_id=saidas[0].id_saida if saidas else None,
-
-                            commit=True,
-
-                        )
-
-                        notified_chat_ids.add(chat_id_str)
+                notified_chat_ids.add(chat_id_str)
 
 
 
@@ -4512,18 +4500,7 @@ class TelegramService:
 
 
 
-        # 2. Notificar grupos de supervisão (ou fallback para usuários privilegiados)
-
-        if config.notify_supervisors or TelegramService._privileged_users_query().count() > 0:
-
-            groups = db.session.query(TelegramGroup).filter_by(
-
-                enabled=True, receive_withdrawals=True
-
-            ).all()
-
-
-
+        # 2. Notificar um único destino operacional (grupo ou fallback admin)
             message_text = TelegramService.format_withdrawal_message_supervisor(
 
                 saida,
@@ -4545,91 +4522,42 @@ class TelegramService:
 
 
 
-            if groups:
+            for recipient in TelegramService._withdrawal_recipients(exclude_chat_ids=notified_chat_ids):
 
-                for group in groups:
+                chat_id_str = str(recipient["chat_id"])
+                key = f"withdrawal:{saida_id}:{recipient['target']}:{chat_id_str}"
+                logger.debug(f"[notify_withdrawal] Enfileirando para {recipient['target']}: key={key}")
 
-                    key = f"withdrawal:{saida_id}:group:{group.chat_id}"
-                    logger.debug(f"[notify_withdrawal] Enfileirando para grupo: key={key}")
+                q = TelegramService.enqueue_outbox_message(
 
-                    q = TelegramService.enqueue_outbox_message(
+                    chat_id=chat_id_str,
 
-                        chat_id=str(group.chat_id),
+                    recipient_name=recipient["recipient_name"],
 
-                        recipient_name=f"Grupo: {group.name}",
+                    message_type="withdrawal",
 
-                        message_type="withdrawal",
+                    message_text=message_text,
 
-                        message_text=message_text,
+                    idempotency_key=key,
 
-                        idempotency_key=key,
+                    saida_id=saida_id,
 
-                        saida_id=saida_id,
+                    commit=True,
 
-                        commit=True,
+                )
 
-                    )
-
-                    if q.get("success"):
-                        if q.get("deduped"):
-                            logger.info(f"[notify_withdrawal] Mensagem deduplicada para grupo {group.name}, saida_id={saida_id}")
-                            results["skipped"].append(f"Grupo {group.name} (já enviado)")
-                        else:
-                            results["queued"].append(f"Grupo: {group.name}")
-
-                        notified_chat_ids.add(str(group.chat_id))
-
+                if q.get("success"):
+                    if q.get("deduped"):
+                        logger.info(f"[notify_withdrawal] Mensagem deduplicada para {recipient['target']} {chat_id_str}, saida_id={saida_id}")
+                        results["skipped"].append(f"{recipient['recipient_name']} (já enviado)")
                     else:
+                        results["queued"].append(str(recipient["recipient_name"]))
 
-                        results["failed"].append(f"Grupo {group.name}: {q.get('error')}")
+                    notified_chat_ids.add(chat_id_str)
 
-            else:
+                else:
 
-                # Fallback: se não houver grupo configurado, notificar administradores vinculados.
-
-                admins = TelegramService._privileged_users_query().all()
-
-
-
-                for adm in admins:
-
-                    if str(adm.chat_id) in notified_chat_ids:
-
-                        continue
-
-                    key = f"withdrawal:{saida_id}:admin:{adm.chat_id}"
-                    logger.debug(f"[notify_withdrawal] Enfileirando para admin: key={key}")
-
-                    q = TelegramService.enqueue_outbox_message(
-
-                        chat_id=str(adm.chat_id),
-
-                        recipient_name=f"Admin: {getattr(adm.usuario, 'nome', adm.matricula)}",
-
-                        message_type="withdrawal",
-
-                        message_text=message_text,
-
-                        idempotency_key=key,
-
-                        saida_id=saida_id,
-
-                        commit=True,
-
-                    )
-
-                    if q.get("success"):
-                        if q.get("deduped"):
-                            logger.info(f"[notify_withdrawal] Mensagem deduplicada para admin {adm.matricula}, saida_id={saida_id}")
-                            results["skipped"].append(f"Admin {adm.matricula} (já enviado)")
-                        else:
-                            results["queued"].append("Admin")
-
-                        notified_chat_ids.add(str(adm.chat_id))
-
-                    else:
-
-                        results["failed"].append(f"Admin {adm.matricula}: {q.get('error')}")
+                    results["failed"].append(f"{recipient['recipient_name']}: {q.get('error')}")
 
 
 

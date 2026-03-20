@@ -1265,6 +1265,7 @@ ${parent.scripts()}
             failedItems.forEach((item) => {
                 adicionarItemFinal(item);
             });
+            renderItems();
 
             if (failedItems.length === 0) {
                 alert('✓ Saídas registradas com sucesso.');
@@ -1276,7 +1277,7 @@ ${parent.scripts()}
         } catch (error) {
             alert('❌ Erro ao registrar saída: ' + error.message);
         } finally {
-            btnRegistrar.disabled = false;
+            btnRegistrar.disabled = (items.length === 0);
             btnRegistrar.innerHTML = '<i class="bi bi-check-circle me-2"></i>Registrar Saída';
         }
     });
