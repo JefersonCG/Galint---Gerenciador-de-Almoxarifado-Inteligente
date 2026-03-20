@@ -6,7 +6,7 @@ from datetime import date, datetime
 
 from io import BytesIO
 
-from flask import Blueprint, abort, current_app, flash, jsonify, make_response, redirect, render_template, request, send_file, url_for
+from flask import Blueprint, abort, current_app, flash, jsonify, make_response, redirect, render_template, request, send_file, session, url_for
 from flask_login import login_required, current_user
 
 from ..extensions import db
@@ -75,6 +75,97 @@ def _is_supervisor(user) -> bool:
 def _require_admin_or_supervisor() -> None:
     if not (_is_admin(current_user) or _is_supervisor(current_user)):
         abort(403)
+
+
+def _finance_unlock_session_key() -> str:
+    return "inventory_finance_unlocks"
+
+
+def _get_finance_unlocks() -> dict[str, bool]:
+    raw = session.get(_finance_unlock_session_key())
+    if not isinstance(raw, dict):
+        return {}
+    return {str(key): bool(value) for key, value in raw.items() if key}
+
+
+def _set_finance_unlock(codigo: str, unlocked: bool = True) -> None:
+    codigo_norm = (codigo or "").strip()
+    if not codigo_norm:
+        return
+    unlocks = _get_finance_unlocks()
+    if unlocked:
+        unlocks[codigo_norm] = True
+    else:
+        unlocks.pop(codigo_norm, None)
+    session[_finance_unlock_session_key()] = unlocks
+    session.modified = True
+
+
+def _can_edit_finance_section(codigo: str | None, *, user=None) -> bool:
+    if _is_admin(user or current_user):
+        return True
+    codigo_norm = (codigo or "").strip()
+    if not codigo_norm:
+        return False
+    return bool(_get_finance_unlocks().get(codigo_norm))
+
+
+def _sync_finance_section_snapshot(
+    *,
+    codigo: str,
+    categoria: str,
+    preco_compra_unitario: object,
+    usuario_id: str | None,
+    finance_payload: dict[str, object],
+) -> None:
+    finance_service.set_item_supplier_preference(
+        codigo,
+        int(finance_payload["supplier_id"]) if finance_payload.get("supplier_id") else None,
+        origem=str(finance_payload.get("origem_valor") or ""),
+        atualizado_por=usuario_id,
+    )
+
+    latest_entry = (
+        FinanceLedgerEntry.query
+        .filter(FinanceLedgerEntry.codigo_item == codigo)
+        .order_by(FinanceLedgerEntry.data_lancamento.desc(), FinanceLedgerEntry.id.desc())
+        .first()
+    )
+
+    try:
+        unit_price = float(preco_compra_unitario) if preco_compra_unitario not in (None, "") else None
+    except (TypeError, ValueError):
+        unit_price = None
+
+    if latest_entry is None:
+        latest_entry = FinanceLedgerEntry(
+            codigo_item=codigo,
+            categoria_nome=str(categoria or "Sem categoria"),
+            usuario_matricula=usuario_id,
+            quantidade=0.0,
+            valor_total=0.0,
+            data_lancamento=datetime.utcnow(),
+        )
+        db.session.add(latest_entry)
+
+    latest_entry.fornecedor_id = int(finance_payload["supplier_id"]) if finance_payload.get("supplier_id") else None
+    latest_entry.usuario_matricula = usuario_id
+    latest_entry.categoria_nome = str(categoria or latest_entry.categoria_nome or "Sem categoria")
+    latest_entry.data_lancamento = datetime.utcnow()
+    latest_entry.valor_unitario = unit_price
+    latest_entry.origem_valor = str(finance_payload.get("origem_valor") or "inventario_inicial")
+    latest_entry.tipo_documento = finance_payload.get("tipo_documento")
+    latest_entry.numero_documento = finance_payload.get("numero_documento")
+    latest_entry.chave_acesso = finance_payload.get("chave_acesso")
+    latest_entry.data_emissao_documento = finance_payload.get("data_emissao_documento")
+    latest_entry.data_recebimento_documento = finance_payload.get("data_recebimento_documento")
+    latest_entry.comprovacao_status = str(finance_payload.get("comprovacao_status") or "sem_comprovacao")
+    latest_entry.observacao = finance_payload.get("observacao")
+    if latest_entry.quantidade and unit_price is not None:
+        latest_entry.valor_total = float(latest_entry.quantidade or 0) * float(unit_price)
+    elif not latest_entry.quantidade:
+        latest_entry.valor_total = 0.0
+    db.session.commit()
 
 
 def _safe_float(value: str | int | float | None) -> float:
@@ -231,14 +322,14 @@ def _validate_document_bridge_request(finance_payload: dict[str, object]) -> Non
     missing_fields: list[str] = []
     if not supplier_id:
         missing_fields.append("fornecedor")
-    if not chave_acesso:
+    if tipo_documento == "nf" and not chave_acesso:
         missing_fields.append("chave de acesso")
     if not isinstance(data_emissao, date):
         missing_fields.append("data de emissão")
 
     if missing_fields:
         raise ValueError(
-            "Para criar uma nova ponte com Documentos Fiscais pelo cadastro do item, informe: "
+            "Para vincular automaticamente esse documento fiscal ao item, informe: "
             + ", ".join(missing_fields)
             + "."
         )
@@ -432,6 +523,7 @@ def list_items():
             item["edit_url"] = url_for("inventory.edit_item_form", codigo=codigo)
         itens.append(item)
     can_manage = _is_admin(current_user)
+    can_edit_items = can_manage or _is_supervisor(current_user)
     can_create = can_manage or _is_supervisor(current_user)
     
     # Carregar lista de usuários para modal de atribuição (apenas se admin)
@@ -462,6 +554,7 @@ def list_items():
         "inventory/list.html",
         itens=itens,
         can_manage=can_manage,
+        can_edit_items=can_edit_items,
         can_create=can_create,
         category_cards=category_cards,
         selected_category=request.args.get("categoria", "").strip(),
@@ -767,7 +860,7 @@ def create_item():
 @blueprint.get("/<codigo>/editar")
 @login_required
 def edit_item_form(codigo: str):
-    _require_admin()
+    _require_admin_or_supervisor()
     item = inventory_service.get_item(codigo)
     if not item:
         flash("Item não encontrado.", "danger")
@@ -789,13 +882,44 @@ def edit_item_form(codigo: str):
         liquid_types=LIQUID_PRODUCT_TYPES,
         preferred_supplier=finance_service.get_item_supplier_preference(codigo),
         all_suppliers=finance_service.list_suppliers(limit=300),
+        finance_section_can_edit=_can_edit_finance_section(codigo),
     )
+
+
+@blueprint.post("/<codigo>/financeiro/unlock")
+@login_required
+def unlock_finance_section(codigo: str):
+    _require_admin_or_supervisor()
+    item = inventory_service.get_item(codigo)
+    if not item:
+        return jsonify({"success": False, "message": "Item não encontrado."}), 404
+
+    if _is_admin(current_user):
+        _set_finance_unlock(codigo, True)
+        return jsonify({"success": True, "message": "Seção financeira liberada para administrador."})
+
+    payload = request.get_json(silent=True) or request.form or {}
+    admin_matricula = str(payload.get("admin_matricula") or "").strip()
+    admin_password = str(payload.get("admin_password") or payload.get("senha") or "").strip()
+
+    if not admin_matricula or not admin_password:
+        return jsonify({"success": False, "message": "Informe matrícula e senha do administrador."}), 400
+
+    admin_user = Usuario.query.get(admin_matricula)
+    if not admin_user or not _is_admin(admin_user) or not admin_user.check_password(admin_password):
+        return jsonify({"success": False, "message": "Credenciais administrativas inválidas."}), 403
+
+    _set_finance_unlock(codigo, True)
+    return jsonify({
+        "success": True,
+        "message": f"Seção financeira liberada por {admin_user.nome}.",
+    })
 
 
 @blueprint.post("/<codigo>/editar")
 @login_required
 def update_item(codigo: str):
-    _require_admin()
+    _require_admin_or_supervisor()
     form = request.form
     prev_item = inventory_service.get_item(codigo)
     if not prev_item:
@@ -811,6 +935,7 @@ def update_item(codigo: str):
     except ValueError:
         saldo_desejado = -1
     registrar_compra_edicao = bool(form.get("registrar_compra_edicao"))
+    finance_section_edit_authorized = _can_edit_finance_section(codigo) and str(form.get("finance_section_edit_enabled") or "0").strip() in {"1", "true", "True"}
 
     # Lógica de processamento de Unidades Dinâmicas
     tipo_novo = form.get("tipo_embalagem_novo") or None
@@ -898,8 +1023,11 @@ def update_item(codigo: str):
         "finance_observacao": prev_item.get("finance_observacao"),
     }
 
-    finance_payload = _extract_finance_payload(form, current_item=None if registrar_compra_edicao else prev_item)
-    if registrar_compra_edicao:
+    finance_payload = _extract_finance_payload(
+        form,
+        current_item=None if (registrar_compra_edicao or finance_section_edit_authorized) else prev_item,
+    )
+    if registrar_compra_edicao or finance_section_edit_authorized:
         payload.update({
             "preco_compra_unitario": (form.get("preco_compra_unitario") or "").strip() or None,
             "preco_compra_fonte": (form.get("preco_compra_fonte") or "").strip() or None,
@@ -958,6 +1086,11 @@ def update_item(codigo: str):
             _validate_document_bridge_request(finance_payload)
             if purchase_delta <= 0:
                 raise ValueError("Para registrar nova compra pela edição do item, aumente o saldo do estoque.")
+        elif finance_section_edit_authorized:
+            comprovacao_status = str(finance_payload.get("comprovacao_status") or "sem_comprovacao").strip().lower()
+            observacao_financeira = str(finance_payload.get("observacao") or "").strip()
+            if comprovacao_status in {"sem_comprovacao", "parcial"} and not observacao_financeira:
+                raise ValueError("A observação financeira é obrigatória ao salvar origem da compra sem comprovação completa.")
 
         # Processar upload de foto (se enviado)
         foto_file = request.files.get('foto')
@@ -1056,6 +1189,14 @@ def update_item(codigo: str):
                 finance_payload.get("supplier_id") or finance_payload.get("tipo_documento") or finance_payload.get("origem_valor")
             ):
                 flash("Entrada registrada, mas o lançamento financeiro não foi gravado porque faltou valor de compra unitário.", "warning")
+        elif finance_section_edit_authorized:
+            _sync_finance_section_snapshot(
+                codigo=updated_codigo,
+                categoria=str(payload.get("categoria") or prev_item.get("categoria") or "Sem categoria"),
+                preco_compra_unitario=payload.get("preco_compra_unitario"),
+                usuario_id=current_user.id,
+                finance_payload=finance_payload,
+            )
         
         # Quando o saldo aumentou, adjust_item_balance já enviou o alerta operacional.
         # Mantemos notify_item_updated apenas para alterações cadastrais e ajustes sem entrada.

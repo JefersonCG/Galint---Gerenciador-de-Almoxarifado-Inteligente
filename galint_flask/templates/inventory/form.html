@@ -871,21 +871,31 @@
 
             <!-- Tab 3: Financeiro -->
                 <div class="tab-pane" id="tab-financeiro">
-                    {% set finance_locked = item is not none %}
+                    {% set finance_section_can_edit = finance_section_can_edit if finance_section_can_edit is defined else (item is none or current_user.is_admin) %}
+                    {% set finance_locked = item is not none and not finance_section_can_edit %}
                     <div class="section">
                         <div class="d-flex align-items-start justify-content-between gap-2">
                             <h3 class="section-title">💰 Valores do item</h3>
-                            {% if item and item.codigo and not finance_locked %}
-                            <button class="btn btn-sm btn-outline-primary" type="button" id="btn-buscar-preco-form"
-                                data-preco-codigo="{{ item.codigo|e }}"
-                                data-preco-descricao="{{ form_item.descricao|e if form_item and form_item.descricao else '' }}"
-                                data-preco-marca="{{ form_item.marca|e if form_item and form_item.marca else '' }}"
-                                data-preco-tipo="{{ form_item.tipo_embalagem_novo|e if form_item and form_item.tipo_embalagem_novo else '' }}"
-                                data-preco-unidades="{{ form_item.unidades_por_embalagem if form_item and form_item.unidades_por_embalagem is not none else '' }}"
-                                onclick="window.openPriceModalFromForm(event)">
-                                <i class="bi bi-search me-1"></i> Buscar preco...
-                            </button>
-                            {% endif %}
+                            <div class="d-flex flex-wrap gap-2 justify-content-end">
+                                {% if item %}
+                                <button class="btn btn-secondary btn-sm" type="button" id="btn-finance-section-edit">
+                                    <i class="bi bi-pencil-square me-1"></i>
+                                    {% if finance_section_can_edit %}Seção liberada{% else %}Editar seção{% endif %}
+                                </button>
+                                <input type="hidden" id="finance_section_edit_enabled" name="finance_section_edit_enabled" value="{{ '1' if finance_section_can_edit else '0' }}">
+                                {% endif %}
+                                {% if item and item.codigo and not finance_locked %}
+                                <button class="btn btn-sm btn-outline-primary" type="button" id="btn-buscar-preco-form"
+                                    data-preco-codigo="{{ item.codigo|e }}"
+                                    data-preco-descricao="{{ form_item.descricao|e if form_item and form_item.descricao else '' }}"
+                                    data-preco-marca="{{ form_item.marca|e if form_item and form_item.marca else '' }}"
+                                    data-preco-tipo="{{ form_item.tipo_embalagem_novo|e if form_item and form_item.tipo_embalagem_novo else '' }}"
+                                    data-preco-unidades="{{ form_item.unidades_por_embalagem if form_item and form_item.unidades_por_embalagem is not none else '' }}"
+                                    onclick="window.openPriceModalFromForm(event)">
+                                    <i class="bi bi-search me-1"></i> Buscar preco...
+                                </button>
+                                {% endif %}
+                            </div>
                         </div>
                         <p class="form-text" style="margin-top: -0.5rem;">
                             Esses valores alimentam a página <strong>Financeiro</strong> e o modal de detalhes do item.
@@ -894,12 +904,16 @@
                         <div class="form-check form-switch mt-3">
                             <input class="form-check-input" type="checkbox" role="switch" id="registrar_compra_edicao" name="registrar_compra_edicao">
                             <label class="form-check-label" for="registrar_compra_edicao"><strong>Registrar nova compra deste item</strong></label>
-                            <small class="form-text d-block">Use esta opção quando o item já existe no GALINT, mas chegou uma nova compra com NF nova, chave de acesso, data de emissão, lote e demais dados operacionais.</small>
+                            <small class="form-text d-block">Use esta opção quando o item já existe no GALINT, mas chegou uma nova compra com NF ou cupom, data de emissão, lote e demais dados operacionais. Chave de acesso é exigida apenas para NF.</small>
                         </div>
                         {% endif %}
-                        {% if finance_locked %}
-                        <div class="alert alert-secondary mt-3 mb-0">
-                            Os campos financeiros ficam bloqueados por padrão na edição. Para registrar uma nova compra deste item por aqui, ative a opção acima e informe fornecedor, documento, chave de acesso e data de emissão.
+                        {% if item %}
+                        <div class="alert {% if finance_locked %}alert-secondary{% else %}alert-info{% endif %} mt-3 mb-0" id="finance-section-edit-status">
+                            {% if finance_locked %}
+                            Os campos financeiros ficam bloqueados por padrão na edição. Use <strong>Editar seção</strong> para liberar a área. Administradores podem editar direto; demais usuários precisam informar matrícula e senha de um administrador.
+                            {% else %}
+                            A seção financeira está liberada para edição e abre com a última configuração salva do item.
+                            {% endif %}
                         </div>
                         {% endif %}
                     </div>
@@ -995,17 +1009,17 @@
                             value="{{ form_item.preco_compra_documento if form_item and form_item.preco_compra_documento else '' }}"
                             placeholder="Ex.: NF 12345 / Cupom 000123" {% if finance_locked %}readonly{% endif %}>
                         {% if not finance_locked %}
-                        <small class="form-text">Ao salvar um novo item com esse documento, o sistema cria ou atualiza a nota em Documentos Fiscais e abre a conferência automaticamente. Para abrir uma NF nova por aqui, informe também fornecedor, chave de acesso e data de emissão.</small>
+                        <small class="form-text">Ao salvar um novo item com esse documento, o sistema cria ou atualiza o vínculo em Documentos Fiscais. Para NF nova, informe fornecedor, chave de acesso e data de emissão. Para cupom, a chave de acesso não é obrigatória.</small>
                         {% endif %}
                     </div>
 
                     <div class="form-row">
-                        <div class="form-group">
+                        <div class="form-group" id="preco_compra_chave_acesso_group">
                             <label class="form-label" for="preco_compra_chave_acesso">Chave de acesso</label>
                             <input class="form-control" id="preco_compra_chave_acesso" name="preco_compra_chave_acesso"
                                 value="{{ form_item.preco_compra_chave_acesso if form_item and form_item.preco_compra_chave_acesso else '' }}"
                                 placeholder="44 dígitos da NF-e / NFC-e" {% if finance_locked %}readonly{% endif %}>
-                            <small class="form-text">Campo de posteridade para rastrear o documento completo depois.</small>
+                            <small class="form-text">Obrigatória para NF-e/NFC-e. Para cupom, pode ficar em branco.</small>
                         </div>
                         <div class="form-group">
                             <label class="form-label" for="preco_compra_data_emissao">Data de emissão</label>
@@ -1404,6 +1418,34 @@
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
                 <button type="button" class="btn btn-primary" id="financeObservationRequiredAction">Salvar observação e continuar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="financeSectionUnlockModal" tabindex="-1"
+    aria-labelledby="financeSectionUnlockModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="financeSectionUnlockModalLabel">Liberar edição financeira</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-3">Informe as credenciais de um administrador para liberar a seção <strong>Origem da compra</strong> deste item.</p>
+                <div class="form-group">
+                    <label class="form-label" for="finance_admin_matricula">Matrícula do administrador</label>
+                    <input class="form-control" id="finance_admin_matricula" autocomplete="username" placeholder="Ex.: 1234567890">
+                </div>
+                <div class="form-group mb-0">
+                    <label class="form-label" for="finance_admin_password">Senha do administrador</label>
+                    <input class="form-control" id="finance_admin_password" type="password" autocomplete="current-password" placeholder="Digite a senha do administrador">
+                </div>
+                <div class="alert alert-danger mt-3 mb-0" id="finance-section-unlock-feedback" style="display: none;"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="financeSectionUnlockAction">Liberar seção</button>
             </div>
         </div>
     </div>
@@ -2412,6 +2454,7 @@ if (confirmFotoUrl) {
     const notaFiscalFinanceHintInput = document.getElementById('nota_fiscal_finance_hint');
     const notaFiscalAutofillStatus = document.getElementById('nota_fiscal_autofill_status');
     const precoCompraDocumentoInput = document.getElementById('preco_compra_documento');
+    const precoCompraChaveAcessoGroup = document.getElementById('preco_compra_chave_acesso_group');
     const precoCompraChaveAcessoInput = document.getElementById('preco_compra_chave_acesso');
     const precoCompraDataEmissaoInput = document.getElementById('preco_compra_data_emissao');
     const precoCompraDataRecebimentoInput = document.getElementById('preco_compra_data_recebimento');
@@ -2421,6 +2464,15 @@ if (confirmFotoUrl) {
     const financeComprovacaoInput = document.getElementById('finance_comprovacao_status');
     const financeObservacaoInput = document.getElementById('finance_observacao');
     const financePurchaseDocumentFields = document.getElementById('finance_purchase_document_fields');
+    const financeSectionEditButton = document.getElementById('btn-finance-section-edit');
+    const financeSectionEditFlagInput = document.getElementById('finance_section_edit_enabled');
+    const financeSectionEditStatus = document.getElementById('finance-section-edit-status');
+    const financeSectionUnlockModalElement = document.getElementById('financeSectionUnlockModal');
+    const financeSectionUnlockModalInstance = financeSectionUnlockModalElement ? new bootstrap.Modal(financeSectionUnlockModalElement) : null;
+    const financeSectionUnlockAction = document.getElementById('financeSectionUnlockAction');
+    const financeAdminMatriculaInput = document.getElementById('finance_admin_matricula');
+    const financeAdminPasswordInput = document.getElementById('finance_admin_password');
+    const financeSectionUnlockFeedback = document.getElementById('finance-section-unlock-feedback');
     const financeObservationRequiredModalElement = document.getElementById('financeObservationRequiredModal');
     const financeObservationRequiredModalInstance = financeObservationRequiredModalElement ? new bootstrap.Modal(financeObservationRequiredModalElement) : null;
     const financeObservationRequiredAction = document.getElementById('financeObservationRequiredAction');
@@ -2437,6 +2489,9 @@ if (confirmFotoUrl) {
     const supplierGateConfirmButton = document.getElementById('supplierGateConfirmButton');
     const supplierGateSkipButton = document.getElementById('supplierGateSkipButton');
     const isNewItemForm = {{ 'false' if item else 'true' }};
+    const currentUserIsAdmin = {{ 'true' if current_user.is_authenticated and current_user.is_admin else 'false' }};
+    const financeSectionUnlockUrl = {{ (url_for('inventory.unlock_finance_section', codigo=item.codigo) if item else '') | tojson }};
+    let financeSectionCanEdit = {{ 'true' if finance_section_can_edit else 'false' }};
     const inventoryListUrl = {{ url_for('inventory.list_items')|tojson }};
     let supplierGateSelection = null;
     let supplierGateResolved = !isNewItemForm;
@@ -2470,7 +2525,7 @@ if (confirmFotoUrl) {
     };
 
     const validateFinanceObservationRequirement = () => {
-        if (isExistingItem && !Boolean(registrarCompraEdicaoToggle?.checked)) {
+        if (isExistingItem && !Boolean(registrarCompraEdicaoToggle?.checked) && !financeSectionCanEdit) {
             clearFinanceObservationHighlight();
             return true;
         }
@@ -2494,7 +2549,7 @@ if (confirmFotoUrl) {
         return false;
     };
 
-    const setEditPurchaseMode = (enabled) => {
+    const setFinanceFieldsEditable = (enabled) => {
         financeEditFieldIds.forEach((fieldId) => {
             const field = document.getElementById(fieldId);
             if (!field) {
@@ -2510,6 +2565,42 @@ if (confirmFotoUrl) {
             }
             field.readOnly = !enabled;
         });
+    };
+
+    const syncFinanceSectionState = () => {
+        const purchaseModeEnabled = Boolean(registrarCompraEdicaoToggle?.checked);
+        const fieldsEditable = !isExistingItem || financeSectionCanEdit || purchaseModeEnabled;
+        setFinanceFieldsEditable(fieldsEditable);
+
+        if (financeSectionEditFlagInput) {
+            financeSectionEditFlagInput.value = financeSectionCanEdit ? '1' : '0';
+        }
+
+        if (financeSectionEditButton) {
+            if (!isExistingItem) {
+                financeSectionEditButton.style.display = 'none';
+            } else if (financeSectionCanEdit) {
+                financeSectionEditButton.innerHTML = '<i class="bi bi-pencil-square me-1"></i>Seção liberada';
+                financeSectionEditButton.classList.remove('btn-secondary');
+                financeSectionEditButton.classList.add('btn-primary');
+            } else {
+                financeSectionEditButton.innerHTML = '<i class="bi bi-pencil-square me-1"></i>Editar seção';
+                financeSectionEditButton.classList.remove('btn-primary');
+                financeSectionEditButton.classList.add('btn-secondary');
+            }
+        }
+
+        if (financeSectionEditStatus && isExistingItem) {
+            if (financeSectionCanEdit) {
+                financeSectionEditStatus.className = 'alert alert-info mt-3 mb-0';
+                financeSectionEditStatus.innerHTML = currentUserIsAdmin
+                    ? 'A seção financeira está liberada para edição administrativa e abre com a última configuração salva do item.'
+                    : 'A seção financeira foi liberada por um administrador e abre com a última configuração salva do item.';
+            } else {
+                financeSectionEditStatus.className = 'alert alert-secondary mt-3 mb-0';
+                financeSectionEditStatus.innerHTML = 'Os campos financeiros ficam bloqueados por padrão na edição. Use <strong>Editar seção</strong> para liberar a área. Administradores podem editar direto; demais usuários precisam informar matrícula e senha de um administrador.';
+            }
+        }
     };
 
     financeComprovacaoInput?.addEventListener('change', () => {
@@ -2561,22 +2652,119 @@ if (confirmFotoUrl) {
         financePurchaseDocumentFields.style.display = shouldShow ? '' : 'none';
     };
 
+    const syncAccessKeyFieldState = () => {
+        const tipoDocumento = String(financeTipoDocumentoInput?.value || '').trim().toLowerCase();
+        const shouldShow = tipoDocumento !== 'cupom';
+
+        if (precoCompraChaveAcessoGroup) {
+            precoCompraChaveAcessoGroup.style.display = shouldShow ? '' : 'none';
+        }
+
+        if (!precoCompraChaveAcessoInput) {
+            return;
+        }
+
+        if (shouldShow) {
+            precoCompraChaveAcessoInput.disabled = false;
+            return;
+        }
+
+        precoCompraChaveAcessoInput.disabled = true;
+        precoCompraChaveAcessoInput.value = '';
+    };
+
     registrarCompraEdicaoToggle?.addEventListener('change', () => {
-        setEditPurchaseMode(Boolean(registrarCompraEdicaoToggle.checked));
         if (registrarCompraEdicaoToggle.checked) {
             financeTipoDocumentoInput && !financeTipoDocumentoInput.value && (financeTipoDocumentoInput.value = 'nf');
             financeOrigemValorInput && (!financeOrigemValorInput.value || financeOrigemValorInput.value === 'inventario_inicial') && (financeOrigemValorInput.value = 'compra_nf');
             financeComprovacaoInput && (!financeComprovacaoInput.value || financeComprovacaoInput.value === 'sem_comprovacao') && (financeComprovacaoInput.value = 'comprovado');
         }
+        syncFinanceSectionState();
         syncFinancePurchaseFieldVisibility();
+        syncAccessKeyFieldState();
     });
 
-    if (registrarCompraEdicaoToggle) {
-        setEditPurchaseMode(Boolean(registrarCompraEdicaoToggle.checked));
-    }
+    financeSectionEditButton?.addEventListener('click', () => {
+        if (!isExistingItem) {
+            return;
+        }
+        if (financeSectionCanEdit || currentUserIsAdmin) {
+            financeSectionCanEdit = true;
+            syncFinanceSectionState();
+            financeSupplierInput?.focus();
+            return;
+        }
+        if (financeSectionUnlockFeedback) {
+            financeSectionUnlockFeedback.style.display = 'none';
+            financeSectionUnlockFeedback.textContent = '';
+        }
+        if (financeAdminMatriculaInput) {
+            financeAdminMatriculaInput.value = '';
+        }
+        if (financeAdminPasswordInput) {
+            financeAdminPasswordInput.value = '';
+        }
+        financeSectionUnlockModalInstance?.show();
+    });
+
+    financeSectionUnlockAction?.addEventListener('click', async () => {
+        const adminMatricula = String(financeAdminMatriculaInput?.value || '').trim();
+        const adminPassword = String(financeAdminPasswordInput?.value || '').trim();
+
+        if (!adminMatricula || !adminPassword) {
+            if (financeSectionUnlockFeedback) {
+                financeSectionUnlockFeedback.textContent = 'Informe a matrícula e a senha do administrador.';
+                financeSectionUnlockFeedback.style.display = 'block';
+            }
+            return;
+        }
+
+        if (financeSectionUnlockAction) {
+            financeSectionUnlockAction.disabled = true;
+            financeSectionUnlockAction.textContent = 'Validando...';
+        }
+
+        try {
+            const response = await fetch(financeSectionUnlockUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                credentials: 'same-origin',
+                body: JSON.stringify({
+                    admin_matricula: adminMatricula,
+                    admin_password: adminPassword,
+                })
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok || data.success === false) {
+                throw new Error(data.message || `Erro ${response.status}`);
+            }
+
+            financeSectionCanEdit = true;
+            syncFinanceSectionState();
+            financeSectionUnlockModalInstance?.hide();
+            financeSupplierInput?.focus();
+        } catch (error) {
+            if (financeSectionUnlockFeedback) {
+                financeSectionUnlockFeedback.textContent = error?.message || 'Não foi possível liberar a seção financeira.';
+                financeSectionUnlockFeedback.style.display = 'block';
+            }
+        } finally {
+            if (financeSectionUnlockAction) {
+                financeSectionUnlockAction.disabled = false;
+                financeSectionUnlockAction.textContent = 'Liberar seção';
+            }
+        }
+    });
+
+    syncFinanceSectionState();
 
     financeOrigemValorInput?.addEventListener('change', syncFinancePurchaseFieldVisibility);
+    financeTipoDocumentoInput?.addEventListener('change', syncAccessKeyFieldState);
     syncFinancePurchaseFieldVisibility();
+    syncAccessKeyFieldState();
 
     const shouldBlockImplicitSubmit = (event) => {
         if (event.key !== 'Enter') {

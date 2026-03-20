@@ -414,7 +414,7 @@
                         </div>
                     </div>
                     <div class="action-group d-flex flex-wrap gap-2 align-items-center">
-                        {% if can_manage and item.codigo %}
+                        {% if can_edit_items and item.codigo %}
                         <div class="btn-group" role="group">
                             <a class="btn btn-outline-light btn-sm"
                                 href="{{ url_for('inventory.edit_item_form', codigo=item.codigo|e) }}"
@@ -422,6 +422,8 @@
                                 <i class="bi bi-pencil"></i> Editar
                             </a>
                         </div>
+                        {% endif %}
+                        {% if can_manage and item.codigo %}
                         <div class="btn-group" role="group">
                             <form method="post" action="{{ url_for('inventory.delete_item', codigo=item.codigo|e) }}"
                                 class="d-inline" onsubmit="return confirm('Tem certeza que deseja excluir este item?\n\nEsta ação NÃO pode ser desfeita.');">
@@ -2111,6 +2113,7 @@
         const items = {{ itens | tojson | safe
     }};
         const canManage = {{ 'true' if can_manage else 'false' }};
+        const canEditItems = {{ 'true' if can_edit_items else 'false' }};
         const selectedCategory = {{ selected_category | tojson | safe }};
 
     const searchInput = document.getElementById('inventory-search');
@@ -2611,7 +2614,7 @@
         const canAssign = categoria_lower.includes('ferramenta') || categoria_lower.includes('epi') || (categoria_lower.includes('material') && categoria_lower.includes('ep'));
         const itemData = {tipo_embalagem_novo: item.tipo_embalagem_novo || '', unidade: item.unidade || '', unidades_por_embalagem: item.unidades_por_embalagem || null};
         
-        const editButton = canManage && hasManageLinks ? `
+        const editButton = canEditItems && hasManageLinks ? `
             <a class="btn btn-primary" href="${escapeHtml(item.edit_url)}">
                 <i class="bi bi-pencil me-1"></i> Editar item
             </a>` : '';
