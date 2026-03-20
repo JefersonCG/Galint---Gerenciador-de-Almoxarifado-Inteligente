@@ -679,6 +679,10 @@
         border-radius: 0.75rem;
         box-shadow: 0 15px 40px rgba(0, 0, 0, 0.25);
     }
+
+    #assignModal .modal-dialog {
+        max-width: min(1100px, 96vw);
+    }
     
     #assignModal .modal-header {
         background: linear-gradient(135deg, #10b981 0%, #059669 100%);
@@ -696,6 +700,10 @@
     #assignModal .modal-body {
         padding: 1.25rem;
         background: #f8fafc;
+    }
+
+    #assignModal .tab-pane {
+        min-height: 0;
     }
     
     #assignModal .alert-info {
@@ -752,6 +760,37 @@
         color: #64748b;
         font-size: 0.8rem;
         margin-top: 0.35rem;
+    }
+
+    #assignModal .assign-summary-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.75rem;
+        height: 100%;
+    }
+
+    #assignModal .assign-summary-card {
+        border: 1px solid #dbe4ee;
+        background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+        border-radius: 0.6rem;
+        padding: 0.85rem 1rem;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        min-height: 74px;
+    }
+
+    #assignModal .assign-summary-card strong {
+        color: #0f172a;
+        font-size: 1.1rem;
+    }
+
+    #assignModal .assign-summary-label {
+        color: #64748b;
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        margin-bottom: 0.2rem;
     }
     
     #assignModal .modal-footer {
@@ -836,9 +875,86 @@
     }
 
     /* ===== LISTA DE FUNCIONÁRIOS (ATRIBUIÇÃO MÚLTIPLA) ===== */
+    #employeesList.assign-employees-shell {
+        max-height: 430px;
+        overflow-y: auto;
+        background: #fff;
+    }
+
+    #employeesList .employee-sector-group {
+        border: 1px solid #e2e8f0;
+        border-radius: 0.7rem;
+        overflow: hidden;
+        margin-bottom: 0.9rem;
+        background: #ffffff;
+    }
+
+    #employeesList .employee-sector-group:last-child {
+        margin-bottom: 0;
+    }
+
+    #employeesList .employee-sector-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.7rem 0.9rem;
+        background: #eff6ff;
+        border-bottom: 1px solid #dbeafe;
+    }
+
+    #employeesList .employee-sector-header-main {
+        display: flex;
+        flex-direction: column;
+        gap: 0.15rem;
+        min-width: 0;
+    }
+
+    #employeesList .employee-sector-name {
+        font-size: 0.88rem;
+        font-weight: 700;
+        color: #1d4ed8;
+    }
+
+    #employeesList .employee-sector-subtitle {
+        color: #475569;
+        font-size: 0.78rem;
+        font-weight: 600;
+    }
+
+    #employeesList .employee-sector-count {
+        color: #475569;
+        font-size: 0.78rem;
+        font-weight: 600;
+        background: #ffffff;
+        border: 1px solid #dbeafe;
+        border-radius: 999px;
+        padding: 0.1rem 0.55rem;
+    }
+
+    #employeesList .employee-sector-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+    }
+
+    #employeesList .employee-sector-actions .btn {
+        padding: 0.28rem 0.65rem;
+        font-size: 0.75rem;
+        border-radius: 999px;
+    }
+
+    #employeesList .employee-sector-items {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    }
+
     #employeesList .employee-item {
         padding: 0.75rem;
         border-bottom: 1px solid #e2e8f0;
+        border-right: 1px solid #f1f5f9;
         cursor: pointer;
         transition: all 0.2s ease;
         display: flex;
@@ -848,6 +964,14 @@
 
     #employeesList .employee-item:last-child {
         border-bottom: none;
+    }
+
+    #employeesList .employee-sector-items .employee-item:nth-last-child(-n+2) {
+        border-bottom: none;
+    }
+
+    #employeesList .employee-sector-items .employee-item:nth-child(2n) {
+        border-right: none;
     }
 
     #employeesList .employee-item:hover {
@@ -913,6 +1037,14 @@
         color: #94a3b8;
     }
 
+    #employeesList .employee-empty-state {
+        padding: 2rem 1rem;
+        text-align: center;
+        color: #94a3b8;
+        background: #fff;
+        border-radius: 0.75rem;
+    }
+
     /* Contador de selecionados */
     #selectedCount {
         color: #10b981;
@@ -931,6 +1063,20 @@
         color: #64748b;
         font-weight: 600;
         font-size: 0.9rem;
+    }
+
+    @media (max-width: 991.98px) {
+        #assignModal .assign-summary-grid {
+            grid-template-columns: 1fr;
+        }
+
+        #employeesList .employee-sector-items {
+            grid-template-columns: 1fr;
+        }
+
+        #employeesList .employee-item {
+            border-right: none;
+        }
     }
 
     #assignMethodTabs .nav-link.active {
@@ -1334,7 +1480,7 @@
 </style>
 
 <div class="modal fade" id="assignModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-xl">
         <form class="modal-content" method="POST" id="assignForm">
             <div class="modal-header">
                 <h5 class="modal-title">
@@ -1441,25 +1587,40 @@
                             <i class="bi bi-info-circle-fill me-2"></i>
                             <div>
                                 <strong>Atribuição em lote</strong><br>
-                                <small>Selecione múltiplos funcionários para atribuir 1 unidade desta ferramenta para cada.</small>
+                                <small>Informe quantas unidades deseja atribuir e selecione a mesma quantidade de funcionários.</small>
                             </div>
                         </div>
 
-                        <!-- Contador e estoque disponível -->
-                        <div class="d-flex justify-content-between align-items-center mb-3 p-2 bg-light rounded">
-                            <div>
-                                <i class="bi bi-check2-square me-1"></i>
-                                <strong id="selectedCount">0</strong> selecionado(s)
+                        <div class="row g-3 mb-3">
+                            <div class="col-lg-4">
+                                <label for="assignBatchQuantity" class="form-label">
+                                    <i class="bi bi-123 me-1"></i>
+                                    Quantidade para atribuir
+                                </label>
+                                <input type="number" class="form-control" id="assignBatchQuantity" value="1" min="1" step="1">
+                                <div class="form-text">Cada funcionário recebe 1 unidade. Se informar 8, selecione 8 funcionários.</div>
                             </div>
-                            <div>
-                                <i class="bi bi-box-seam me-1"></i>
-                                <strong id="availableStock">0</strong> em estoque
+                            <div class="col-lg-8">
+                                <div class="assign-summary-grid">
+                                    <div class="assign-summary-card">
+                                        <span class="assign-summary-label">Selecionados</span>
+                                        <strong><span id="selectedCount">0</span> / <span id="batchTargetCount">1</span></strong>
+                                    </div>
+                                    <div class="assign-summary-card">
+                                        <span class="assign-summary-label">Em estoque</span>
+                                        <strong id="availableStock">0</strong>
+                                    </div>
+                                    <div class="assign-summary-card">
+                                        <span class="assign-summary-label">Setores visíveis</span>
+                                        <strong id="visibleSectorCount">0</strong>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
                         <!-- Campo de busca -->
                         <div class="mb-3">
-                            <input type="text" class="form-control" id="employeeSearch" placeholder="Buscar funcionário...">
+                            <input type="text" class="form-control" id="employeeSearch" placeholder="Buscar funcionário ou setor...">
                         </div>
 
                         <!-- Botões de ação -->
@@ -1473,7 +1634,7 @@
                         </div>
 
                         <!-- Lista de funcionários com checkboxes -->
-                        <div class="border rounded p-2" style="max-height: 300px; overflow-y: auto;" id="employeesList">
+                        <div class="border rounded p-2 assign-employees-shell" id="employeesList">
                             <div class="text-center text-muted py-3">
                                 <i class="bi bi-people"></i>
                                 <p class="mb-0">Carregando funcionários...</p>
@@ -1619,19 +1780,145 @@
     let currentItemStock = 0;
     let currentItemCode = '';
     let selectedEmployees = new Set();
+    let currentBatchTarget = 1;
+
+    function getBatchQuantityInput() {
+        return document.getElementById('assignBatchQuantity');
+    }
+
+    function getSelectionLimit() {
+        return Math.max(0, Math.min(currentItemStock, currentBatchTarget));
+    }
+
+    function sanitizeBatchQuantity(value) {
+        const parsed = Number.parseInt(String(value ?? ''), 10);
+        if (!Number.isFinite(parsed) || parsed < 1) {
+            return 1;
+        }
+        return parsed;
+    }
+
+    function syncBatchQuantityDisplay() {
+        const targetEl = document.getElementById('batchTargetCount');
+        if (targetEl) {
+            targetEl.textContent = String(currentBatchTarget);
+        }
+    }
+
+    function applyBatchQuantity(value) {
+        const input = getBatchQuantityInput();
+        currentBatchTarget = sanitizeBatchQuantity(value);
+        if (input) {
+            input.value = String(currentBatchTarget);
+            input.max = currentItemStock > 0 ? String(currentItemStock) : '1';
+        }
+
+        while (selectedEmployees.size > getSelectionLimit()) {
+            const lastSelected = Array.from(selectedEmployees).pop();
+            if (!lastSelected) {
+                break;
+            }
+            selectedEmployees.delete(lastSelected);
+        }
+
+        syncBatchQuantityDisplay();
+        updateSelectedCount();
+        renderEmployeesList();
+    }
+
+    function getFilteredUsers() {
+        const query = (document.getElementById('employeeSearch')?.value || '').trim().toLowerCase();
+        if (!query) {
+            return usersList;
+        }
+        return usersList.filter((user) => {
+            const nome = (user.nome || '').toLowerCase();
+            const matricula = (user.matricula || '').toLowerCase();
+            const setor = (user.setor || '').toLowerCase();
+            return nome.includes(query) || matricula.includes(query) || setor.includes(query);
+        });
+    }
+
+    function groupUsersBySector(list) {
+        const grouped = new Map();
+        list.forEach((user) => {
+            const setor = (user.setor || 'Sem setor').trim() || 'Sem setor';
+            if (!grouped.has(setor)) {
+                grouped.set(setor, []);
+            }
+            grouped.get(setor).push(user);
+        });
+
+        return Array.from(grouped.entries())
+            .sort((a, b) => a[0].localeCompare(b[0], 'pt-BR'))
+            .map(([setor, funcionarios]) => ({
+                setor,
+                funcionarios: funcionarios.sort((a, b) => (a.nome || '').localeCompare(b.nome || '', 'pt-BR')),
+            }));
+    }
+
+    function countSelectedInUsers(list) {
+        return list.filter((user) => selectedEmployees.has(user.matricula)).length;
+    }
+
+    function clearSectorSelection(setor) {
+        const sectorUsers = getFilteredUsers().filter((user) => ((user.setor || 'Sem setor').trim() || 'Sem setor') === setor);
+        sectorUsers.forEach((user) => selectedEmployees.delete(user.matricula));
+        updateSelectedCount();
+        renderEmployeesList();
+    }
+
+    function selectSectorEmployees(setor) {
+        const sectorUsers = getFilteredUsers().filter((user) => ((user.setor || 'Sem setor').trim() || 'Sem setor') === setor);
+        const selectionLimit = getSelectionLimit();
+        let added = 0;
+
+        for (const user of sectorUsers) {
+            if (selectedEmployees.has(user.matricula)) {
+                continue;
+            }
+            if (selectedEmployees.size >= selectionLimit) {
+                break;
+            }
+            selectedEmployees.add(user.matricula);
+            added += 1;
+        }
+
+        updateSelectedCount();
+        renderEmployeesList();
+
+        const remainingUnselected = sectorUsers.filter((user) => !selectedEmployees.has(user.matricula)).length;
+        if (added === 0 && remainingUnselected > 0) {
+            showStockWarning();
+            return;
+        }
+
+        if (remainingUnselected > 0 && selectedEmployees.size >= selectionLimit) {
+            Swal.fire({
+                icon: 'info',
+                title: 'Setor selecionado parcialmente',
+                html: `
+                    <p>O setor <strong>${escapeHtml(setor)}</strong> possui mais funcionários do que o limite atual da atribuição.</p>
+                    <p class="mb-0"><small>Quantidade atual: <strong>${currentBatchTarget}</strong> unidade(s).</small></p>
+                `,
+                confirmButtonColor: '#10b981'
+            });
+        }
+    }
     
     function initMultipleAssign(codigo, itemData) {
         currentItemCode = codigo;
         
         // Pegar o saldo do item atual da lista de itens
         const item = items.find(i => i.codigo === codigo);
-        currentItemStock = item ? parseInt(item.saldo) || 0 : 0;
+        currentItemStock = item ? Math.max(0, Math.floor(Number(item.saldo) || 0)) : 0;
         
         // Atualizar display de estoque disponível
         const stockEl = document.getElementById('availableStock');
         if (stockEl) {
             stockEl.textContent = currentItemStock;
         }
+        applyBatchQuantity(1);
         
         // Resetar seleção
         selectedEmployees.clear();
@@ -1650,6 +1937,14 @@
     function renderEmployeesList() {
         const employeesListEl = document.getElementById('employeesList');
         if (!employeesListEl) return;
+
+        const filteredUsers = getFilteredUsers();
+        const groupedUsers = groupUsersBySector(filteredUsers);
+
+        const visibleSectorCountEl = document.getElementById('visibleSectorCount');
+        if (visibleSectorCountEl) {
+            visibleSectorCountEl.textContent = String(groupedUsers.length);
+        }
         
         if (!usersList || usersList.length === 0) {
             employeesListEl.innerHTML = `
@@ -1660,26 +1955,59 @@
             `;
             return;
         }
+
+        if (!filteredUsers.length) {
+            employeesListEl.innerHTML = `
+                <div class="employee-empty-state">
+                    <i class="bi bi-search" style="font-size: 2rem;"></i>
+                    <p class="mb-0 mt-2">Nenhum funcionário encontrado para esse filtro</p>
+                </div>
+            `;
+            return;
+        }
         
-        // Renderizar lista
-        employeesListEl.innerHTML = usersList.map(user => {
-            const isSelected = selectedEmployees.has(user.matricula);
-            const isDisabled = !isSelected && selectedEmployees.size >= currentItemStock;
-            
-            return `
-                <div class="employee-item ${isSelected ? 'selected' : ''} ${isDisabled ? 'disabled' : ''}" 
-                     data-matricula="${escapeHtml(user.matricula)}">
-                    <input type="checkbox" 
-                           ${isSelected ? 'checked' : ''} 
-                           ${isDisabled ? 'disabled' : ''}
-                           data-matricula="${escapeHtml(user.matricula)}">
-                    <div class="employee-info">
-                        <span class="employee-name">${escapeHtml(user.nome)}</span>
-                        <div class="employee-meta">
-                            <span><i class="bi bi-person-badge"></i> ${escapeHtml(user.matricula)}</span>
+        employeesListEl.innerHTML = groupedUsers.map((group) => {
+            const selectedInGroup = countSelectedInUsers(group.funcionarios);
+            const itemsHtml = group.funcionarios.map((user) => {
+                const isSelected = selectedEmployees.has(user.matricula);
+                const isDisabled = !isSelected && selectedEmployees.size >= getSelectionLimit();
+
+                return `
+                    <div class="employee-item ${isSelected ? 'selected' : ''} ${isDisabled ? 'disabled' : ''}" 
+                         data-matricula="${escapeHtml(user.matricula)}">
+                        <input type="checkbox" 
+                               ${isSelected ? 'checked' : ''} 
+                               ${isDisabled ? 'disabled' : ''}
+                               data-matricula="${escapeHtml(user.matricula)}">
+                        <div class="employee-info">
+                            <span class="employee-name">${escapeHtml(user.nome)}</span>
+                            <div class="employee-meta">
+                                <span><i class="bi bi-person-badge"></i> ${escapeHtml(user.matricula)}</span>
+                                <span><i class="bi bi-diagram-3"></i> ${escapeHtml(user.setor || 'Sem setor')}</span>
+                            </div>
                         </div>
                     </div>
-                </div>
+                `;
+            }).join('');
+
+            return `
+                <section class="employee-sector-group" data-sector="${escapeHtml(group.setor)}">
+                    <div class="employee-sector-header">
+                        <div class="employee-sector-header-main">
+                            <span class="employee-sector-name">${escapeHtml(group.setor)}</span>
+                            <span class="employee-sector-subtitle">
+                                <span class="employee-sector-count">${selectedInGroup}/${group.funcionarios.length} selecionados</span>
+                            </span>
+                        </div>
+                        <div class="employee-sector-actions">
+                            <button type="button" class="btn btn-outline-primary btn-sm sector-select-btn" data-sector="${escapeHtml(group.setor)}">Selecionar setor</button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm sector-clear-btn" data-sector="${escapeHtml(group.setor)}">Limpar</button>
+                        </div>
+                    </div>
+                    <div class="employee-sector-items">
+                        ${itemsHtml}
+                    </div>
+                </section>
             `;
         }).join('');
         
@@ -1702,12 +2030,28 @@
                 toggleEmployeeSelection(matricula, checkbox.checked);
             });
         });
+
+        employeesListEl.querySelectorAll('.sector-select-btn').forEach((button) => {
+            button.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                selectSectorEmployees(button.dataset.sector || 'Sem setor');
+            });
+        });
+
+        employeesListEl.querySelectorAll('.sector-clear-btn').forEach((button) => {
+            button.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                clearSectorSelection(button.dataset.sector || 'Sem setor');
+            });
+        });
     }
     
     function toggleEmployeeSelection(matricula, selected) {
         if (selected) {
             // Verificar se já atingiu o limite
-            if (selectedEmployees.size >= currentItemStock) {
+            if (selectedEmployees.size >= getSelectionLimit()) {
                 showStockWarning();
                 renderEmployeesList(); // Re-renderizar para atualizar estado
                 return;
@@ -1730,29 +2074,30 @@
         
         // Atualizar cor baseado no estoque
         countEl.classList.remove('warning', 'error');
-        if (count > currentItemStock) {
+        if (count > getSelectionLimit()) {
             countEl.classList.add('error');
-        } else if (count === currentItemStock && currentItemStock > 0) {
+        } else if (count === currentBatchTarget && currentBatchTarget > 0) {
             countEl.classList.add('warning');
         }
     }
     
     function showStockWarning() {
-        const needed = selectedEmployees.size + 1;
-        const missing = needed - currentItemStock;
+        const limit = getSelectionLimit();
+        const missingStock = Math.max(0, currentBatchTarget - currentItemStock);
         
         Swal.fire({
             icon: 'warning',
-            title: 'Estoque insuficiente!',
+            title: 'Limite da atribuição atingido',
             html: `
-                <p>Você tentou selecionar mais funcionários do que temos em estoque.</p>
+                <p>Você tentou selecionar mais funcionários do que a quantidade informada permite.</p>
                 <div class="alert alert-warning mt-3">
                     <strong>Situação:</strong><br>
                     • Funcionários selecionados: <strong>${selectedEmployees.size}</strong><br>
+                    • Quantidade solicitada: <strong>${currentBatchTarget}</strong> unidade(s)<br>
                     • Estoque disponível: <strong>${currentItemStock}</strong> unidades<br>
-                    ${missing > 0 ? `• <span class="text-danger">Faltam <strong>${missing}</strong> unidades!</span>` : ''}
+                    ${missingStock > 0 ? `• <span class="text-danger">Faltam <strong>${missingStock}</strong> unidades em estoque para atender essa quantidade.</span>` : `• Limite atual de seleção: <strong>${limit}</strong> funcionário(s)`}
                 </div>
-                <p class="mt-2 mb-0"><small>Desmarque alguns funcionários ou aguarde reposição de estoque.</small></p>
+                <p class="mt-2 mb-0"><small>Ajuste a quantidade ou desmarque alguns funcionários.</small></p>
             `,
             confirmButtonText: 'Entendi',
             confirmButtonColor: '#10b981'
@@ -1763,28 +2108,30 @@
     const selectAllBtn = document.getElementById('selectAllBtn');
     if (selectAllBtn) {
         selectAllBtn.addEventListener('click', () => {
-            const canSelectAll = usersList.length <= currentItemStock;
+            const filteredUsers = getFilteredUsers();
+            const selectionLimit = getSelectionLimit();
+            const canSelectAll = filteredUsers.length <= selectionLimit;
             
             if (!canSelectAll) {
                 Swal.fire({
                     icon: 'info',
                     title: 'Não é possível selecionar todos',
                     html: `
-                        <p>Existem <strong>${usersList.length}</strong> funcionários cadastrados,<br>
-                        mas temos apenas <strong>${currentItemStock}</strong> unidades em estoque.</p>
+                        <p>Existem <strong>${filteredUsers.length}</strong> funcionários visíveis,<br>
+                        mas você pode atribuir apenas <strong>${selectionLimit}</strong> unidade(s) agora.</p>
                         <div class="alert alert-warning mt-3">
-                            <strong>Você precisa de mais ${usersList.length - currentItemStock} unidades</strong> para atribuir a todos!
+                            <strong>Ajuste a quantidade ou refine o filtro por setor/funcionário.</strong>
                         </div>
-                        <p class="mt-2 mb-0"><small>Por enquanto, só é possível selecionar os primeiros ${currentItemStock} funcionários.</small></p>
+                        <p class="mt-2 mb-0"><small>Por enquanto, só é possível selecionar os primeiros ${selectionLimit} funcionários visíveis.</small></p>
                     `,
                     showCancelButton: true,
-                    confirmButtonText: `Selecionar ${currentItemStock} primeiros`,
+                    confirmButtonText: `Selecionar ${selectionLimit} primeiros`,
                     cancelButtonText: 'Cancelar',
                     confirmButtonColor: '#10b981'
                 }).then((result) => {
                     if (result.isConfirmed) {
                         selectedEmployees.clear();
-                        usersList.slice(0, currentItemStock).forEach(user => {
+                        filteredUsers.slice(0, selectionLimit).forEach(user => {
                             selectedEmployees.add(user.matricula);
                         });
                         updateSelectedCount();
@@ -1796,7 +2143,7 @@
             
             // Selecionar todos
             selectedEmployees.clear();
-            usersList.forEach(user => {
+            filteredUsers.forEach(user => {
                 selectedEmployees.add(user.matricula);
             });
             updateSelectedCount();
@@ -1817,14 +2164,15 @@
     // Campo de busca
     const employeeSearch = document.getElementById('employeeSearch');
     if (employeeSearch) {
-        employeeSearch.addEventListener('input', (e) => {
-            const query = e.target.value.toLowerCase();
-            const items = document.querySelectorAll('#employeesList .employee-item');
-            
-            items.forEach(item => {
-                const text = item.textContent.toLowerCase();
-                item.style.display = text.includes(query) ? 'flex' : 'none';
-            });
+        employeeSearch.addEventListener('input', () => {
+            renderEmployeesList();
+        });
+    }
+
+    const assignBatchQuantityInput = getBatchQuantityInput();
+    if (assignBatchQuantityInput) {
+        assignBatchQuantityInput.addEventListener('input', (e) => {
+            applyBatchQuantity(e.target.value);
         });
     }
     
@@ -1861,6 +2209,24 @@
         }
         
         // Validar estoque
+        if (currentBatchTarget > currentItemStock) {
+            showStockWarning();
+            return;
+        }
+
+        if (selectedEmployees.size !== currentBatchTarget) {
+            await Swal.fire({
+                icon: 'warning',
+                title: 'Quantidade e seleção não conferem',
+                html: `
+                    <p>Você informou <strong>${currentBatchTarget}</strong> unidade(s), mas selecionou <strong>${selectedEmployees.size}</strong> funcionário(s).</p>
+                    <p class="mb-0"><small>Para atribuição em lote, a quantidade de funcionários deve ser igual à quantidade informada.</small></p>
+                `,
+                confirmButtonColor: '#10b981'
+            });
+            return;
+        }
+
         if (selectedEmployees.size > currentItemStock) {
             showStockWarning();
             return;
@@ -1874,7 +2240,7 @@
             icon: 'question',
             title: 'Confirmar atribuição em lote?',
             html: `
-                <p>Você está prestes a atribuir <strong>1 unidade</strong> desta ferram enta para:</p>
+                <p>Você está prestes a atribuir <strong>${currentBatchTarget} unidade(s)</strong> desta ferramenta.</p>
                 <div class="alert alert-info mt-2">
                     <strong>${selectedEmployees.size}</strong> funcionário(s) selecionado(s)
                 </div>
@@ -2009,7 +2375,7 @@
     const usersList = [
         {% if users_list %}
         {% for u in users_list %}
-        { matricula: "{{ u.matricula|e }}", nome: "{{ u.nome|e }}" },
+        { matricula: "{{ u.matricula|e }}", nome: "{{ u.nome|e }}", setor: "{{ u.setor|e }}" },
         {% endfor %}
         {% endif %}
     ];
@@ -2042,7 +2408,7 @@
             filtered.slice(0, 8).forEach((user, index) => {
                 const div = document.createElement('div');
                 div.className = 'autocomplete-item';
-                div.innerHTML = `<strong>${escapeHtml(user.nome)}</strong><br><small>Matrícula: ${escapeHtml(user.matricula)}</small>`;
+                div.innerHTML = `<strong>${escapeHtml(user.nome)}</strong><br><small>Matrícula: ${escapeHtml(user.matricula)} • Setor: ${escapeHtml(user.setor || 'Sem setor')}</small>`;
                 div.addEventListener('click', function() {
                     matriculaInput.value = user.matricula;
                     suggestionsDiv.style.display = 'none';
@@ -2238,6 +2604,73 @@
         const unidadesPor = Number(item?.unidades_por_embalagem ?? 0);
         const extra = (tipoEmb && Number.isFinite(unidadesPor) && unidadesPor > 0) ? ` ${tipoEmb} ${unidadesPor}` : '';
         return `${descricao}${marca ? ` ${marca}` : ''}${extra}`.trim();
+    };
+
+    const renderItemHistory = (history) => {
+        const historyTbody = document.getElementById('history-tbody');
+        if (!historyTbody) {
+            return;
+        }
+
+        if (!Array.isArray(history) || !history.length) {
+            historyTbody.innerHTML = `
+                <tr>
+                    <td colspan="4" class="text-center text-muted">Nenhuma movimentação encontrada para este item</td>
+                </tr>
+            `;
+            return;
+        }
+
+        historyTbody.innerHTML = history.map((registro) => {
+            const data = registro?.data ? new Date(registro.data) : null;
+            const dataFmt = data && !Number.isNaN(data.getTime())
+                ? data.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
+                : '—';
+            const tipo = escapeHtml(registro?.tipo || 'Movimentação');
+            const quantidade = Number(registro?.quantidade ?? 0);
+            const quantidadeFmt = Number.isFinite(quantidade)
+                ? quantidade.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 3 })
+                : '0';
+            const responsavel = escapeHtml(registro?.responsavel || '—');
+            return `
+                <tr>
+                    <td>${dataFmt}</td>
+                    <td>${tipo}</td>
+                    <td>${quantidadeFmt}</td>
+                    <td>${responsavel}</td>
+                </tr>
+            `;
+        }).join('');
+    };
+
+    const loadItemHistory = async (codigo) => {
+        const historyTbody = document.getElementById('history-tbody');
+        if (!historyTbody) {
+            return;
+        }
+
+        historyTbody.innerHTML = `
+            <tr>
+                <td colspan="4" class="text-center text-muted">Carregando histórico...</td>
+            </tr>
+        `;
+
+        try {
+            const response = await fetch(`/itens/api/${encodeURIComponent(codigo)}/history`, {
+                headers: { 'Accept': 'application/json' },
+            });
+            const data = await readJsonResponse(response);
+            if (!response.ok || !data?.success) {
+                throw new Error(data?.message || 'Falha ao carregar histórico');
+            }
+            renderItemHistory(data.history || []);
+        } catch (err) {
+            historyTbody.innerHTML = `
+                <tr>
+                    <td colspan="4" class="text-center text-muted">${escapeHtml(String(err?.message || err || 'Histórico indisponível'))}</td>
+                </tr>
+            `;
+        }
     };
 
     const openPriceModal = async (item) => {
@@ -2600,13 +3033,7 @@
             barcodeLargeImg.alt = `Código de barras do item ${item.codigo}`;
         }
         
-        // Popular aba Histórico (placeholder por enquanto)
-        const historyTbody = document.getElementById('history-tbody');
-        historyTbody.innerHTML = `
-            <tr>
-                <td colspan="4" class="text-center text-muted">Histórico não disponível no momento</td>
-            </tr>
-        `;
+        loadItemHistory(item.codigo);
         
         // Preparar botões do footer
         const hasManageLinks = Boolean(item.edit_url);

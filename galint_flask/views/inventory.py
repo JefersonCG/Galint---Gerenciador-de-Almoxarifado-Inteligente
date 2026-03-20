@@ -531,7 +531,14 @@ def list_items():
     if can_manage:
         try:
             users_query = Usuario.query.order_by(Usuario.nome).all()
-            users_list = [{"matricula": u.matricula, "nome": u.nome} for u in users_query]
+            users_list = [
+                {
+                    "matricula": u.matricula,
+                    "nome": u.nome,
+                    "setor": (u.setor or "").strip() or "Sem setor",
+                }
+                for u in users_query
+            ]
         except Exception:
             pass
 
@@ -1907,6 +1914,29 @@ def get_item_api(codigo: str):
         "unidades_por_embalagem": item.unidades_por_embalagem,
         "saldo": item.saldo,
     })
+
+
+@blueprint.get("/api/<codigo>/history")
+@login_required
+def get_item_history_api(codigo: str):
+    item = inventory_service.get_item(codigo)
+    if not item:
+        return jsonify({"success": False, "message": "Item não encontrado."}), 404
+
+    history = inventory_service.list_item_movements(codigo, limit=20)
+    return jsonify(
+        {
+            "success": True,
+            "codigo": codigo,
+            "history": [
+                {
+                    **registro,
+                    "data": TimeService.isoformat_utc(registro.get("data")),
+                }
+                for registro in history
+            ],
+        }
+    )
 
 
 @blueprint.get("/api/nf-autofill")
