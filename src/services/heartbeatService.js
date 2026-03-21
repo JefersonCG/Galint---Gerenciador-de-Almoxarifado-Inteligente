@@ -71,7 +71,7 @@ class HeartbeatService {
                 return;
             }
 
-            const response = await ApiService.client.post('/heartbeat', {
+            const response = await ApiService.client.post('/api/mobile/heartbeat', {
                 device_uuid: deviceUuid,
             });
 
