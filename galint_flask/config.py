@@ -73,8 +73,8 @@ class BaseConfig:
     SESSION_COOKIE_HTTPONLY = True
     REMEMBER_COOKIE_HTTPONLY = True
     PREFERRED_URL_SCHEME = "https"
-    # Timeout de inatividade: 45 minutos (em segundos)
-    PERMANENT_SESSION_LIFETIME = 45 * 60
+    # Timeout de inatividade da sessão web: 1 hora (em segundos)
+    PERMANENT_SESSION_LIFETIME = 60 * 60
     SESSION_REFRESH_EACH_REQUEST = True
     DASHBOARD_SHARE_TOKEN = os.environ.get("GALINT_DASHBOARD_TOKEN")
     BACKUP_PG_DUMP = (

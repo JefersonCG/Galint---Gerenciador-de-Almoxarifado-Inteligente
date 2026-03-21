@@ -1486,6 +1486,100 @@ def registrar_saida(codigo: str):
     return redirect(url_for("inventory.list_items"))
 
 
+@blueprint.post("/<codigo>/saida-lote")
+@login_required
+def registrar_saida_lote(codigo: str):
+    _require_admin()
+    payload_json = request.get_json(silent=True) or {}
+    wants_json = (
+        request.headers.get("X-Requested-With") == "XMLHttpRequest"
+        or request.accept_mimetypes.best == "application/json"
+        or bool(payload_json)
+    )
+
+    matriculas_raw = payload_json.get("matriculas")
+    if not isinstance(matriculas_raw, list):
+        matriculas_raw = request.form.getlist("matricula")
+    matriculas = [str(matricula).strip() for matricula in (matriculas_raw or []) if str(matricula).strip()]
+    if not matriculas:
+        return jsonify({"success": False, "message": "Selecione ao menos um funcionário."}), 400
+
+    quantidade = float(payload_json.get("quantidade") or request.form.get("quantidade") or 1)
+    if quantidade <= 0:
+        return jsonify({"success": False, "message": "Quantidade inválida."}), 400
+
+    tipo_custodia = (payload_json.get("tipo_custodia") or request.form.get("tipo_custodia") or "temporaria").strip().lower()
+    if tipo_custodia in {"diaria", "diária", "daily", "d"}:
+        tipo_custodia = "temporaria"
+    if tipo_custodia in {"perm", "p"}:
+        tipo_custodia = "permanente"
+    if tipo_custodia not in {"temporaria", "permanente"}:
+        tipo_custodia = "temporaria"
+
+    tipo_saida = payload_json.get("tipo_saida") or request.form.get("tipo_saida")
+    em_embalagens = None
+    if tipo_saida == "embalagem":
+        em_embalagens = True
+    elif tipo_saida == "unidades":
+        em_embalagens = False
+
+    saida_ids: list[int] = []
+    errors: list[str] = []
+    for matricula in matriculas:
+        try:
+            saida_id = inventory_service.registrar_saida(
+                MovimentoPayload(
+                    codigo=codigo,
+                    quantidade=quantidade,
+                    matricula=matricula,
+                    tipo_custodia=tipo_custodia,
+                    em_embalagens=em_embalagens,
+                ),
+                skip_notification=True,
+            )
+            saida_ids.append(saida_id)
+        except ValueError as exc:
+            errors.append(f"{matricula}: {exc}")
+
+    if saida_ids:
+        try:
+            if tipo_custodia == "permanente":
+                TelegramService.notify_multiple_permanent_custody(saida_ids)
+            else:
+                for saida_id in saida_ids:
+                    TelegramService.notify_withdrawal(saida_id, force_single=True)
+        except Exception:
+            pass
+
+    success_count = len(saida_ids)
+    failed_count = len(errors)
+    if success_count == 0:
+        return jsonify({
+            "success": False,
+            "message": "Nenhuma atribuição foi concluída.",
+            "success_count": 0,
+            "failed_count": failed_count,
+            "errors": errors,
+            "saida_ids": saida_ids,
+        }), 400
+
+    message = "Atribuição em lote concluída." if failed_count == 0 else "Atribuição em lote concluída parcialmente."
+    if not wants_json:
+        flash(message, "success" if failed_count == 0 else "warning")
+        for error in errors[:5]:
+            flash(error, "warning")
+        return redirect(url_for("inventory.list_items"))
+
+    return jsonify({
+        "success": True,
+        "message": message,
+        "success_count": success_count,
+        "failed_count": failed_count,
+        "errors": errors,
+        "saida_ids": saida_ids,
+    })
+
+
 @blueprint.post('/<codigo>/notify')
 @login_required
 def notify_item(codigo: str):

@@ -246,6 +246,18 @@ class TimeService:
         return dt.astimezone(tz)
 
     @classmethod
+    def to_utc(cls, dt: datetime) -> datetime:
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.astimezone(timezone.utc)
+
+    @classmethod
+    def isoformat_utc(cls, dt: datetime | None) -> str | None:
+        if not dt:
+            return None
+        return cls.to_utc(dt).isoformat().replace("+00:00", "Z")
+
+    @classmethod
     def format_local(cls, dt: datetime | None, fmt: str = "%d/%m/%Y %H:%M") -> str:
         if not dt:
             return "N/D"

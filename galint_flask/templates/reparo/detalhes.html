@@ -697,7 +697,7 @@
                     {% if reparo.atualizado_por %}
                     <div>
                         <label class="text-muted small">Última atualização</label>
-                        <div class="repair-side-value">{{ reparo.atualizado_em.strftime('%d/%m/%Y %H:%M') if reparo.atualizado_em else '-' }}</div>
+                        <div class="repair-side-value">{{ reparo.atualizado_em|format_local('%d/%m/%Y %H:%M') if reparo.atualizado_em else '-' }}</div>
                     </div>
                     {% endif %}
                 </div>

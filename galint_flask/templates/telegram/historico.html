@@ -30,7 +30,7 @@
                     <tbody>
                         {% for notif in notifications.items %}
                         <tr>
-                            <td>{{ notif.sent_at.strftime('%d/%m/%Y %H:%M:%S') }}</td>
+                            <td>{{ notif.sent_at|format_local('%d/%m/%Y %H:%M:%S') }}</td>
                             <td>
                                 <strong>{{ notif.recipient_name or 'N/A' }}</strong><br>
                                 <code class="small">{{ notif.chat_id }}</code>

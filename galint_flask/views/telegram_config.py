@@ -11,7 +11,6 @@ from sqlalchemy import exc as sa_exc
 from ..models import (
     TelegramConfig,
     TelegramConversation,
-    TelegramGroup,
     TelegramNotification,
     TelegramNotificationPreferences,
     TelegramUser,
@@ -46,7 +45,6 @@ def index():
         )
 
     telegram_users = TelegramUser.query.join(Usuario).all()
-    groups = TelegramGroup.query.all()
     
     # Usuários sem Telegram vinculado
     usuarios_sem_telegram = (
@@ -59,7 +57,6 @@ def index():
         "telegram/config.html",
         telegram_config=telegram_config,
         telegram_users=telegram_users,
-        groups=groups,
         usuarios_sem_telegram=usuarios_sem_telegram,
     )
 
@@ -76,7 +73,6 @@ def update_config():
     telegram_config.bot_token = request.form.get("bot_token", "").strip() or None
     telegram_config.enabled = request.form.get("enabled") == "on"
     telegram_config.notify_on_withdrawal = request.form.get("notify_on_withdrawal") == "on"
-    telegram_config.notify_supervisors = request.form.get("notify_supervisors") == "on"
     telegram_config.alert_weekday_time = request.form.get("alert_weekday_time", "16:20")
     telegram_config.alert_saturday_time = request.form.get("alert_saturday_time", "11:00")
     telegram_config.alert_enabled = request.form.get("alert_enabled") == "on"
@@ -359,75 +355,6 @@ def toggle_item_create_permission(user_id: int):
             "success": False,
             "error": f"Erro ao atualizar permissão: {str(e)}"
         }), 500
-
-
-@bp.route("/adicionar-grupo", methods=["POST"])
-@login_required
-def adicionar_grupo():
-    """Adiciona grupo do Telegram."""
-    chat_id = request.form.get("chat_id", "").strip()
-    name = request.form.get("name", "").strip()
-    description = request.form.get("description", "").strip() or None
-
-    if not chat_id or not name:
-        flash("Chat ID e Nome são obrigatórios!", "danger")
-        return redirect(url_for("telegram_config.index"))
-
-    # Verificar se já existe
-    existing = TelegramGroup.query.filter_by(chat_id=chat_id).first()
-    if existing:
-        flash("Grupo já cadastrado!", "warning")
-        return redirect(url_for("telegram_config.index"))
-
-    group = TelegramGroup(
-        chat_id=chat_id,
-        name=name,
-        description=description,
-        enabled=True,
-        receive_withdrawals=True,
-        receive_alerts=True,
-    )
-    db.session.add(group)
-
-    try:
-        db.session.commit()
-        flash(f"Grupo {name} adicionado com sucesso!", "success")
-    except Exception as e:
-        db.session.rollback()
-        flash(f"Erro ao adicionar grupo: {e}", "danger")
-
-    return redirect(url_for("telegram_config.index"))
-
-
-@bp.route("/remover-grupo/<int:group_id>")
-@login_required
-def remover_grupo(group_id: int):
-    """Remove grupo do Telegram."""
-    group = TelegramGroup.query.get(group_id)
-    if group:
-        db.session.delete(group)
-        db.session.commit()
-        flash("Grupo removido!", "success")
-    else:
-        flash("Grupo não encontrado!", "danger")
-
-    return redirect(url_for("telegram_config.index"))
-
-
-@bp.route("/toggle-grupo/<int:group_id>")
-@login_required
-def toggle_grupo(group_id: int):
-    """Ativa/desativa notificações para um grupo."""
-    group = TelegramGroup.query.get(group_id)
-    if group:
-        group.enabled = not group.enabled
-        db.session.commit()
-        status = "ativado" if group.enabled else "desativado"
-        flash(f"Grupo {status}!", "success")
-    else:
-        flash("Grupo não encontrado!", "danger")
-
-    return redirect(url_for("telegram_config.index"))
 
 
 @bp.route("/enviar-teste", methods=["POST"])

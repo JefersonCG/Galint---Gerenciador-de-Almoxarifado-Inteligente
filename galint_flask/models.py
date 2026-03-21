@@ -10,6 +10,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship, backref, validat
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from .extensions import db
+from .utils.time_service import TimeService
 
 
 class Item(db.Model):
@@ -99,7 +100,7 @@ class Item(db.Model):
             "lote": self.lote,
             "data_fabricacao": self.data_fabricacao.isoformat() if self.data_fabricacao else None,
             "data_validade": self.data_validade.isoformat() if self.data_validade else None,
-            "ultima_edicao_em": self.ultima_edicao_em.isoformat() if self.ultima_edicao_em else None,
+            "ultima_edicao_em": TimeService.isoformat_utc(self.ultima_edicao_em),
             "ultima_edicao_por": self.ultima_edicao_por,
             "voltagem": self.voltagem,
             "amperagem": self.amperagem,
@@ -120,14 +121,14 @@ class Item(db.Model):
             "preco_compra_chave_acesso": self.preco_compra_chave_acesso,
             "preco_compra_data_emissao": self.preco_compra_data_emissao.isoformat() if self.preco_compra_data_emissao else None,
             "preco_compra_data_recebimento": self.preco_compra_data_recebimento.isoformat() if self.preco_compra_data_recebimento else None,
-            "preco_compra_atualizado_em": self.preco_compra_atualizado_em.isoformat() if self.preco_compra_atualizado_em else None,
+            "preco_compra_atualizado_em": TimeService.isoformat_utc(self.preco_compra_atualizado_em),
             "preco_compra_atualizado_por": self.preco_compra_atualizado_por,
             "preco_reposicao_unitario": self.preco_reposicao_unitario,
             "preco_reposicao_fonte": self.preco_reposicao_fonte,
             "preco_reposicao_uf": self.preco_reposicao_uf,
             "preco_reposicao_query": self.preco_reposicao_query,
             "preco_reposicao_url": self.preco_reposicao_url,
-            "preco_reposicao_atualizado_em": self.preco_reposicao_atualizado_em.isoformat() if self.preco_reposicao_atualizado_em else None,
+            "preco_reposicao_atualizado_em": TimeService.isoformat_utc(self.preco_reposicao_atualizado_em),
             "preco_reposicao_atualizado_por": self.preco_reposicao_atualizado_por,
         }
         if include_balance:
@@ -462,7 +463,6 @@ class TelegramConfig(db.Model):
     bot_token: Mapped[str | None] = mapped_column(String, nullable=True)
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     notify_on_withdrawal: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
-    notify_supervisors: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     alert_weekday_time: Mapped[str | None] = mapped_column(String, nullable=True, default="16:20")
     alert_saturday_time: Mapped[str | None] = mapped_column(String, nullable=True, default="11:00")
     alert_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
@@ -680,19 +680,6 @@ class TelegramConversation(db.Model):
     celular_informado: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-
-class TelegramGroup(db.Model):
-    __tablename__ = "telegram_groups"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    chat_id: Mapped[str] = mapped_column(String, nullable=False, unique=True)
-    name: Mapped[str] = mapped_column(String, nullable=False)
-    description: Mapped[str | None] = mapped_column(Text, nullable=True)
-    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
-    receive_withdrawals: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
-    receive_alerts: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
 
 
 class TelegramNotification(db.Model):

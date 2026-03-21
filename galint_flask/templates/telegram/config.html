@@ -121,9 +121,9 @@
             <div class="settings-kpi-caption">Status geral da automação Telegram.</div>
         </article>
         <article class="settings-kpi">
-            <span class="settings-kpi-label">Grupos</span>
-            <div class="settings-kpi-value">{{ groups|length }}</div>
-            <div class="settings-kpi-caption">Canais coletivos cadastrados.</div>
+            <span class="settings-kpi-label">Alertas</span>
+            <div class="settings-kpi-value">{{ 'ON' if telegram_config.alert_enabled else 'OFF' }}</div>
+            <div class="settings-kpi-caption">Execuções automáticas habilitadas.</div>
         </article>
     </section>
 

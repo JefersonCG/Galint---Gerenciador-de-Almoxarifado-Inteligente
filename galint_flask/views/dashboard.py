@@ -14,6 +14,7 @@ from ..services.finance_service import finance_service
 from ..extensions import db
 from ..models import Entrada
 from ..utils.report_branding import get_company_header_lines
+from ..utils.time_service import TimeService
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
@@ -183,7 +184,7 @@ def saidas_feed():
                 "codigo": registro.get("codigo"),
                 "descricao": registro.get("descricao"),
                 "quantidade": registro.get("quantidade"),
-                "data_iso": registro.get("data").isoformat() if registro.get("data") else None,
+                "data_iso": TimeService.isoformat_utc(registro.get("data")),
                 "usuario": registro.get("usuario"),
                 "matricula": registro.get("matricula"),
             }
@@ -226,7 +227,7 @@ def custody_active():
                     "matricula": matricula_short,
                     "matricula_full": matricula_full,
                     "local_servico": tool.get("local_servico") or "Não informado",
-                    "data_retirada_iso": data_saida.isoformat() if data_saida else None,
+                    "data_retirada_iso": TimeService.isoformat_utc(data_saida),
                     "dias_em_uso": dias_em_uso,
                     "atrasada": bool(tool.get("is_alert", False)),
                     "data_prevista_devolucao": None,
@@ -299,7 +300,7 @@ def custody_active():
                 "matricula": matricula_short,
                 "matricula_full": matricula_full,
                 "local_servico": retirada.local_servico or "Não informado",
-                "data_retirada_iso": retirada.data_retirada.isoformat() if retirada.data_retirada else None,
+                "data_retirada_iso": TimeService.isoformat_utc(retirada.data_retirada),
                 "dias_em_uso": dias_em_uso,
                 "atrasada": atrasada,
                 "data_prevista_devolucao": (

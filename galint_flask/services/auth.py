@@ -76,7 +76,13 @@ def authenticate(matricula: str, senha: str):
         
         # Registrar nova sessão web (usa session ID do Flask)
         from flask import session
+        from datetime import datetime
+
+        now = datetime.utcnow().isoformat()
         session_id = session.get('_id')
+        session['login_at'] = now
+        session['last_activity'] = now
+        session.permanent = True
         if session_id:
             usuario.active_session_id = f"web:{session_id}"
         

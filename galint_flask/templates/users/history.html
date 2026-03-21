@@ -33,7 +33,7 @@
                         <td>{{ registro.codigo or '-' }}</td>
                         <td>{{ registro.descricao or 'Item removido' }}</td>
                         <td>{{ registro.quantidade }}</td>
-                        <td>{{ registro.data.strftime('%d/%m/%Y %H:%M') }}</td>
+                        <td>{{ registro.data|format_local('%d/%m/%Y %H:%M') }}</td>
                         <td>{{ registro.observacao or '-' }}</td>
                     </tr>
                     {% endfor %}

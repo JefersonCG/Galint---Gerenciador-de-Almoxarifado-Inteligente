@@ -239,13 +239,13 @@ def create_app(config_name: str | None = None) -> Flask:
 
 def _register_inactivity_middleware(app: Flask) -> None:
     """Registra middleware para monitorar inatividade e invalidar sessões expiradas."""
-    from datetime import datetime, timedelta
+    from datetime import datetime
     from flask import session, request
     from flask_login import current_user
     
     @app.before_request
     def check_session_inactivity():
-        """Verifica se a sessão expirou por inatividade (25 minutos)."""
+        """Verifica se a sessão expirou por inatividade conforme a configuração global."""
         # Ignora verificação para rotas públicas e API mobile (que tem seu próprio controle)
         if request.endpoint in ('auth.login_form', 'auth.login_submit', 'static', 'api_health'):
             return
@@ -253,15 +253,40 @@ def _register_inactivity_middleware(app: Flask) -> None:
             return
             
         if current_user.is_authenticated:
+            login_at = session.get('login_at')
             last_activity = session.get('last_activity')
             now = datetime.utcnow()
+            timeout_seconds = int(app.permanent_session_lifetime.total_seconds())
+
+            if not login_at:
+                login_at = now.isoformat()
+                session['login_at'] = login_at
+
+            login_time = datetime.fromisoformat(login_at)
+            session_age_seconds = (now - login_time).total_seconds()
+            if session_age_seconds > timeout_seconds:
+                from flask_login import logout_user
+                from flask import redirect, url_for, flash
+
+                user_label = (
+                    getattr(current_user, "nome", None)
+                    or getattr(current_user, "matricula", None)
+                    or getattr(current_user, "id", None)
+                    or "usuario"
+                )
+                app.logger.info(
+                    f"Sessão expirada por tempo máximo ({session_age_seconds:.0f}s): {user_label}"
+                )
+                logout_user()
+                session.clear()
+                flash('Sua sessão expirou após 1 hora. Por favor, faça login novamente.', 'warning')
+                return redirect(url_for('auth.login_form'))
             
             if last_activity:
                 last_activity_time = datetime.fromisoformat(last_activity)
                 inactive_seconds = (now - last_activity_time).total_seconds()
                 
-                # Timeout: 25 minutos = 1500 segundos
-                if inactive_seconds > 1500:
+                if inactive_seconds > timeout_seconds:
                     from flask_login import logout_user
                     from flask import redirect, url_for, flash
 

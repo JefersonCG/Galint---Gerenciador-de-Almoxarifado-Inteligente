@@ -434,7 +434,7 @@
                             {% set categoria_lower = (item.categoria or '')|lower %}
                             {% if 'ferramenta' in categoria_lower or 'epi' in categoria_lower or ('material' in categoria_lower and 'ep' in categoria_lower) %}
                             <button class="btn btn-success btn-sm" type="button" 
-                                onclick="openAssignModal('{{ item.codigo|e }}', '{{ item.descricao|e }}', {tipo_embalagem_novo: '{{ item.tipo_embalagem_novo or '' }}', unidade: '{{ item.unidade or '' }}', unidades_por_embalagem: {{ item.unidades_por_embalagem or 'null' }}})"
+                                onclick='openAssignModal({{ item.codigo|tojson|forceescape }}, {{ item.descricao|tojson|forceescape }}, {{ {"tipo_embalagem_novo": item.tipo_embalagem_novo or "", "unidade": item.unidade or "", "unidades_por_embalagem": item.unidades_por_embalagem}|tojson|forceescape }})'
                                 title="Atribuir a funcionário">
                                 <i class="bi bi-person-check"></i> Atribuir
                             </button>
@@ -1672,7 +1672,7 @@
                     <i class="bi bi-x-circle me-1"></i>
                     Cancelar
                 </button>
-                <button type="submit" class="btn btn-success">
+                <button type="button" class="btn btn-success" id="assignSubmitButton" onclick="submitAssignForm()">
                     <i class="bi bi-check-circle me-1"></i>
                     Atribuir
                 </button>
@@ -2223,22 +2223,33 @@
     }
     
     // ===== SUBMIT DO FORMULÁRIO (INDIVIDUAL OU MÚLTIPLO) =====
+    async function submitAssignFormInternal() {
+        try {
+            const multipleTab = document.getElementById('multiple-method');
+            const isMultipleMode = multipleTab && multipleTab.classList.contains('active');
+
+            if (isMultipleMode) {
+                await handleMultipleAssign();
+            } else {
+                await handleSingleAssign();
+            }
+        } catch (error) {
+            await Swal.fire({
+                icon: 'error',
+                title: 'Não foi possível atribuir',
+                text: String(error?.message || error || 'Erro inesperado.'),
+                confirmButtonColor: '#10b981'
+            });
+        }
+    }
+
+    window.submitAssignForm = submitAssignFormInternal;
+
     const assignForm = document.getElementById('assignForm');
     if (assignForm) {
         assignForm.addEventListener('submit', async function(e) {
             e.preventDefault();
-            
-            // Verificar qual aba está ativa
-            const multipleTab = document.getElementById('multiple-method');
-            const isMultipleMode = multipleTab && multipleTab.classList.contains('active');
-            
-            if (isMultipleMode) {
-                // Modo múltiplo
-                await handleMultipleAssign();
-            } else {
-                // Modo individual (comportamento original)
-                await handleSingleAssign();
-            }
+            await submitAssignFormInternal();
         });
     }
     
@@ -2298,13 +2309,18 @@
             confirmButtonColor: '#10b981',
             showLoaderOnConfirm: true,
             preConfirm: async () => {
-                return await performBatchAssignment(tipoCustodia);
+                try {
+                    return await performBatchAssignment(tipoCustodia);
+                } catch (error) {
+                    Swal.showValidationMessage(String(error?.message || error || 'Erro inesperado.'));
+                    return false;
+                }
             },
             allowOutsideClick: () => !Swal.isLoading()
         });
         
         if (result.isConfirmed && result.value) {
-            const { success, failed } = result.value;
+            const { success, failed, errors } = result.value;
             
             // Mostrar resultado
             if (failed === 0) {
@@ -2315,12 +2331,16 @@
                     confirmButtonColor: '#10b981'
                 });
             } else {
+                const errorLines = Array.isArray(errors)
+                    ? errors.slice(0, 5).map((message) => `<li>${escapeHtml(String(message))}</li>`).join('')
+                    : '';
                 await Swal.fire({
                     icon: 'warning',
                     title: 'Atribuição parcialmente concluída',
                     html: `
                         <p>Atribuições bem-sucedidas: <strong class="text-success">${success}</strong></p>
                         <p>Atribuições com falha: <strong class="text-danger">${failed}</strong></p>
+                        ${errorLines ? `<ul class="text-start small mt-3 mb-0">${errorLines}</ul>` : ''}
                         <p class="mt-2 mb-0"><small>Verifique o estoque ou contate o administrador.</small></p>
                     `,
                     confirmButtonColor: '#10b981'
@@ -2336,8 +2356,13 @@
     }
     
     async function performBatchAssignment(tipoCustodia) {
+        if (tipoCustodia === 'permanente') {
+            return await performPermanentBatchAssignment(tipoCustodia);
+        }
+
         let success = 0;
         let failed = 0;
+        const errors = [];
         
         const tipo_saida = document.querySelector('input[name="tipo_saida"]:checked')?.value || 'embalagem';
         
@@ -2352,22 +2377,59 @@
                 
                 const response = await fetch(`/itens/${encodeURIComponent(currentItemCode)}/saida`, {
                     method: 'POST',
-                    body: formData
+                    body: formData,
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
                 });
+                const payload = await readJsonResponse(response);
                 
-                if (response.ok) {
+                if (response.ok && payload?.success) {
                     success++;
                 } else {
                     failed++;
-                    console.error(`Falha ao atribuir para ${matricula}:`, await response.text());
+                    const message = String(payload?.message || 'Falha ao concluir atribuicao.');
+                    errors.push(`${matricula}: ${message}`);
+                    console.error(`Falha ao atribuir para ${matricula}:`, message);
                 }
             } catch (error) {
                 failed++;
+                errors.push(`${matricula}: ${String(error?.message || error || 'Erro inesperado.')}`);
                 console.error(`Erro ao atribuir para ${matricula}:`, error);
             }
         }
         
-        return { success, failed };
+        return { success, failed, errors };
+    }
+
+    async function performPermanentBatchAssignment(tipoCustodia) {
+        const tipo_saida = document.querySelector('input[name="tipo_saida"]:checked')?.value || 'embalagem';
+        const response = await fetch(`/itens/${encodeURIComponent(currentItemCode)}/saida-lote`, {
+            method: 'POST',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({
+                matriculas: Array.from(selectedEmployees),
+                quantidade: 1,
+                tipo_custodia: tipoCustodia,
+                tipo_saida
+            })
+        });
+
+        const payload = await readJsonResponse(response);
+        if (!response.ok || !payload?.success) {
+            throw new Error(payload?.message || 'Falha ao concluir atribuicao em lote.');
+        }
+
+        return {
+            success: Number(payload?.success_count || 0),
+            failed: Number(payload?.failed_count || 0),
+            errors: Array.isArray(payload?.errors) ? payload.errors : []
+        };
     }
     
     async function handleSingleAssign() {
@@ -3148,7 +3210,7 @@
                 <i class="bi bi-pencil me-1"></i> Editar item
             </a>` : '';
         const assignButton = canManage && canAssign ? `
-            <button class="btn btn-success" type="button" onclick='openAssignModal("${escapeHtml(item.codigo)}", "${escapeHtml(item.descricao)}", ${JSON.stringify(itemData)})'>
+            <button class="btn btn-success" type="button" onclick='openAssignModal(${escapeHtml(JSON.stringify(item.codigo))}, ${escapeHtml(JSON.stringify(item.descricao))}, ${escapeHtml(JSON.stringify(itemData))})'>
                 <i class="bi bi-person-check me-1"></i> Atribuir
             </button>` : '';
         const repairButton = canManage && canAssign ? `

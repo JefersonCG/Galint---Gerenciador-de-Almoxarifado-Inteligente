@@ -1046,13 +1046,13 @@ class InventoryService:
         """
         return self._registrar_movimento(payload, is_entrada=True, skip_notification=skip_notification)
 
-    def registrar_saida(self, payload: MovimentoPayload) -> int:
+    def registrar_saida(self, payload: MovimentoPayload, *, skip_notification: bool = False) -> int:
         """Registra uma saída de estoque.
         
         Returns:
             ID da saída criada
         """
-        movimento = self._registrar_movimento(payload, is_entrada=False)
+        movimento = self._registrar_movimento(payload, is_entrada=False, skip_notification=skip_notification)
         return getattr(movimento, 'id_saida', 0)
 
     def resumo_estoque(self) -> list[dict[str, Any]]:
@@ -1282,6 +1282,53 @@ class InventoryService:
         )
         feed.sort(key=lambda registro: registro.get("data") or datetime.min, reverse=True)
         return feed[:limit]
+
+    def list_item_movements(self, codigo: str, limit: int = 20) -> list[dict[str, Any]]:
+        codigo_norm = (codigo or "").strip()
+        if not codigo_norm:
+            return []
+
+        entradas = (
+            Entrada.query
+            .filter(Entrada.codigo_item == codigo_norm)
+            .order_by(Entrada.data_entrada.desc())
+            .limit(limit)
+            .all()
+        )
+        saidas = (
+            Saida.query
+            .filter(Saida.codigo_item == codigo_norm)
+            .order_by(Saida.data_saida.desc())
+            .limit(limit)
+            .all()
+        )
+
+        movimentos: list[dict[str, Any]] = []
+
+        for entrada in entradas:
+            movimentos.append(
+                {
+                    "id": entrada.id_entrada,
+                    "tipo": "Entrada",
+                    "quantidade": float(entrada.quantidade or 0),
+                    "data": entrada.data_entrada,
+                    "responsavel": entrada.usuario.nome if entrada.usuario else (entrada.matricula or "-"),
+                }
+            )
+
+        for saida in saidas:
+            movimentos.append(
+                {
+                    "id": saida.id_saida,
+                    "tipo": "Saída",
+                    "quantidade": float(saida.quantidade or 0),
+                    "data": saida.data_saida,
+                    "responsavel": saida.usuario.nome if saida.usuario else (saida.matricula or "-"),
+                }
+            )
+
+        movimentos.sort(key=lambda registro: registro.get("data") or datetime.min, reverse=True)
+        return movimentos[:limit]
 
     def total_quantity(self) -> int:
         from ..services.embalagem_service import EmbalagemService

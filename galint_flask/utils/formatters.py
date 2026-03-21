@@ -3,6 +3,8 @@ from __future__ import annotations
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 
+from .time_service import TimeService
+
 
 def _coerce_decimal(value) -> Decimal | None:
     if value is None or value == "":
@@ -52,7 +54,7 @@ def format_datetime_br(value, fmt: str = "%d/%m/%Y %H:%M", default: str = "-") -
         return default
 
     if isinstance(value, datetime):
-        return value.strftime(fmt)
+        return TimeService.format_local(value, fmt)
 
     if isinstance(value, date):
         return value.strftime(fmt.split()[0] if " " in fmt else fmt)
@@ -60,7 +62,7 @@ def format_datetime_br(value, fmt: str = "%d/%m/%Y %H:%M", default: str = "-") -
     if isinstance(value, str):
         try:
             parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
-            return parsed.strftime(fmt)
+            return TimeService.format_local(parsed, fmt)
         except ValueError:
             try:
                 parsed_date = date.fromisoformat(value)

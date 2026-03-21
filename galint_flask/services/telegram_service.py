@@ -46,8 +46,6 @@ from ..models import (
 
     TelegramConversation,
 
-    TelegramGroup,
-
     TelegramNotification,
 
     TelegramNotificationPreferences,
@@ -335,30 +333,9 @@ class TelegramService:
 
     @staticmethod
     def _inventory_alert_recipients(*, exclude_chat_ids: set[str] | None = None) -> list[dict[str, str]]:
-        """Retorna um único destinatário operacional para alertas de cadastro/ajuste.
-
-        Prioridade:
-        1. Primeiro grupo coletivo com receive_alerts habilitado.
-        2. Primeiro usuário privilegiado habilitado no Telegram.
-        """
+        """Retorna um único destinatário operacional para alertas de cadastro/ajuste."""
 
         excluded = {str(chat_id) for chat_id in (exclude_chat_ids or set()) if chat_id}
-
-        groups = (
-            db.session.query(TelegramGroup)
-            .filter_by(enabled=True, receive_alerts=True)
-            .order_by(TelegramGroup.id.asc())
-            .all()
-        )
-        for group in groups:
-            chat_id = str(group.chat_id)
-            if chat_id in excluded:
-                continue
-            return [{
-                "chat_id": chat_id,
-                "recipient_name": f"Grupo: {group.name}",
-                "target": "group",
-            }]
 
         admins = TelegramService._privileged_users_query().order_by(TelegramUser.id.asc()).all()
         for adm in admins:
@@ -375,30 +352,9 @@ class TelegramService:
 
     @staticmethod
     def _withdrawal_recipients(*, exclude_chat_ids: set[str] | None = None) -> list[dict[str, str]]:
-        """Retorna um único destinatário operacional para notificações de retirada.
-
-        Prioridade:
-        1. Primeiro grupo coletivo com receive_withdrawals habilitado.
-        2. Primeiro usuário privilegiado habilitado no Telegram.
-        """
+        """Retorna um único destinatário operacional para notificações de retirada."""
 
         excluded = {str(chat_id) for chat_id in (exclude_chat_ids or set()) if chat_id}
-
-        groups = (
-            db.session.query(TelegramGroup)
-            .filter_by(enabled=True, receive_withdrawals=True)
-            .order_by(TelegramGroup.id.asc())
-            .all()
-        )
-        for group in groups:
-            chat_id = str(group.chat_id)
-            if chat_id in excluded:
-                continue
-            return [{
-                "chat_id": chat_id,
-                "recipient_name": f"Grupo: {group.name}",
-                "target": "group",
-            }]
 
         admins = TelegramService._privileged_users_query().order_by(TelegramUser.id.asc()).all()
         for adm in admins:
@@ -3427,6 +3383,199 @@ class TelegramService:
 
 
     @staticmethod
+    def format_multiple_permanent_custody_message_supervisor(saidas: list[Saida]) -> str:
+        """Formata mensagem unificada para custódia permanente atribuída em lote."""
+        if not saidas:
+            return ""
+
+        saidas_ordenadas = sorted(
+            [saida for saida in saidas if saida and saida.item and saida.usuario],
+            key=lambda registro: (registro.data_saida or datetime.min, registro.id_saida or 0),
+        )
+        if not saidas_ordenadas:
+            return ""
+
+        primeira = saidas_ordenadas[0]
+        item_referencia = primeira.item
+        data_fmt = TimeService.format_local(primeira.data_saida)
+        item_codes = {saida.codigo_item for saida in saidas_ordenadas if saida.codigo_item}
+        total_pessoas = len({saida.matricula for saida in saidas_ordenadas if saida.matricula})
+        total_atribuicoes = len(saidas_ordenadas)
+        total_quantidade = sum(float(saida.quantidade or 0) for saida in saidas_ordenadas)
+
+        categoria = ((item_referencia.categoria or "Geral").strip() if item_referencia else "Geral") or "Geral"
+        emoji_map = {
+            "ferramentas": "🔧",
+            "material elétrico": "⚡",
+            "material eletrico": "⚡",
+            "material hidráulico": "🚰",
+            "material hidraulico": "🚰",
+            "material piscina": "🏊",
+            "equipamento": "⚙️",
+            "liquido": "💧",
+            "líquido": "💧",
+        }
+        emoji = emoji_map.get(categoria.lower(), "📦")
+        is_ferramenta = "ferrament" in categoria.lower()
+        tipo_item = "🔧 FERRAMENTA" if is_ferramenta else "📦 MATERIAL"
+        mesma_referencia = len(item_codes) == 1 and item_referencia is not None
+
+        def _fmt_amount(value: float, decimals: int = 6) -> str:
+            try:
+                value_f = float(value)
+            except Exception:
+                return "0"
+            if abs(value_f - round(value_f)) < 1e-9:
+                return str(int(round(value_f)))
+            return f"{value_f:.{decimals}f}".rstrip("0").rstrip(".")
+
+        msg = f"🔐 <b>CUSTÓDIA PERMANENTE ATRIBUÍDA</b>\n\n"
+        msg += f"━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        if mesma_referencia:
+            msg += f"{tipo_item}\n"
+            msg += f"{emoji} <b>{item_referencia.descricao}</b>\n"
+        else:
+            msg += "📋 <b>ATRIBUIÇÃO EM LOTE</b>\n"
+            msg += f"📦 <b>{total_atribuicoes} registros de custódia</b>\n"
+        msg += f"━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        msg += "👥 <b>RESPONSÁVEIS PELA CUSTÓDIA</b>\n"
+        msg += f"   • Colaboradores: {total_pessoas}\n"
+        msg += f"   • Total de atribuições: {total_atribuicoes}\n"
+        msg += f"   • Data de atribuição: {data_fmt}\n\n"
+        msg += "📋 <b>INFORMAÇÕES DO MATERIAL</b>\n"
+        if mesma_referencia:
+            msg += f"   • Categoria: {categoria}\n"
+            msg += f"   • Quantidade total: {_fmt_amount(total_quantidade)} {item_referencia.unidade or 'un'}\n"
+            if hasattr(item_referencia, 'lote') and item_referencia.lote:
+                msg += f"   • Lote: {item_referencia.lote}\n"
+        else:
+            msg += f"   • Itens distintos: {len(item_codes)}\n"
+            msg += f"   • Quantidade total atribuída: {_fmt_amount(total_quantidade)}\n"
+        msg += "\n"
+        msg += "👤 <b>ATRIBUIÇÕES REGISTRADAS</b>\n"
+        for idx, saida in enumerate(saidas_ordenadas, 1):
+            quantidade_fmt = TelegramService._format_saida_quantidade(saida, saida.item)
+            msg += f"   {idx}. {saida.usuario.nome} (Mat. {saida.usuario.matricula})\n"
+            if not mesma_referencia:
+                msg += f"      • Item: {saida.item.descricao}\n"
+            msg += f"      • Quantidade: {quantidade_fmt}\n"
+        msg += "\n"
+        msg += "📌 <b>TIPO DE CUSTÓDIA</b>\n"
+        msg += "   • <b>PERMANENTE</b> - Material atribuído por tempo\n"
+        msg += "     indefinido aos funcionários.\n"
+
+        if mesma_referencia:
+            try:
+                saldo_atual = float(item_referencia.get_saldo_atual() or 0)
+                saldo_anterior = saldo_atual + float(total_quantidade or 0)
+                unidade = (item_referencia.unidade or "unidades").strip()
+                msg += "\n📊 <b>IMPACTO NO ESTOQUE</b>\n"
+                msg += f"   • Saldo anterior: {_fmt_amount(saldo_anterior)} {unidade}\n"
+                msg += f"   • Nova disponibilidade: <b>{_fmt_amount(saldo_atual)} {unidade}</b>\n"
+                if saldo_atual <= 0:
+                    msg += "   • ⚠️ <b>STATUS: ESTOQUE ZERADO</b>\n"
+                elif saldo_atual < 3:
+                    msg += "   • ⚠️ STATUS: Estoque baixo\n"
+            except Exception:
+                pass
+
+        msg += "\n━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        msg += f"⏰ Registro em {data_fmt}\n"
+        return msg
+
+
+
+    @staticmethod
+    def notify_multiple_permanent_custody(saida_ids: list[int]) -> dict[str, Any]:
+        """Envia notificações unificadas para custódia permanente atribuída em lote."""
+        if not saida_ids:
+            return {"success": False, "error": "Nenhuma saída informada"}
+
+        if len(saida_ids) == 1:
+            return TelegramService.notify_permanent_custody(saida_ids[0])
+
+        if not TelegramService.is_enabled():
+            return {"success": False, "error": "Telegram não está habilitado"}
+
+        saidas = (
+            Saida.query
+            .filter(Saida.id_saida.in_(saida_ids))
+            .order_by(Saida.data_saida.asc(), Saida.id_saida.asc())
+            .all()
+        )
+        saidas = [saida for saida in saidas if saida and saida.item and saida.usuario]
+        if not saidas:
+            return {"success": False, "error": "Saídas não encontradas ou incompletas"}
+
+        results = {"queued": [], "failed": [], "skipped": []}
+        notified_chat_ids: set[str] = set()
+        batch_key = "-".join(str(saida.id_saida) for saida in saidas)
+
+        for saida in saidas:
+            telegram_user = db.session.query(TelegramUser).filter_by(
+                matricula=saida.matricula, enabled=True
+            ).first()
+            if not telegram_user:
+                continue
+            notified_chat_ids.add(str(telegram_user.chat_id))
+            if not TelegramService._should_notify_user(telegram_user, saida.item.categoria, is_return=False):
+                results["skipped"].append(f"Funcionário {saida.usuario.nome} (preferências)")
+                continue
+
+            message_text = TelegramService.format_permanent_custody_message_user(
+                saida, saida.usuario, saida.item
+            )
+            key = f"permanent_custody:{saida.id_saida}:user:{telegram_user.chat_id}"
+            q = TelegramService.enqueue_outbox_message(
+                chat_id=str(telegram_user.chat_id),
+                recipient_name=saida.usuario.nome,
+                message_type="permanent_custody",
+                message_text=message_text,
+                idempotency_key=key,
+                saida_id=saida.id_saida,
+                commit=True,
+            )
+            if q.get("success"):
+                if q.get("deduped"):
+                    results["skipped"].append(f"Funcionário {saida.usuario.nome} (já enviado)")
+                else:
+                    results["queued"].append(f"Funcionário: {saida.usuario.nome}")
+            else:
+                results["failed"].append(f"Funcionário {saida.usuario.nome}: {q.get('error')}")
+
+        message_text = TelegramService.format_multiple_permanent_custody_message_supervisor(saidas)
+        for recipient in TelegramService._withdrawal_recipients(exclude_chat_ids=notified_chat_ids):
+            chat_id_str = str(recipient["chat_id"])
+            key = f"permanent_custody-multi:{batch_key}:{recipient['target']}:{chat_id_str}"
+            q = TelegramService.enqueue_outbox_message(
+                chat_id=chat_id_str,
+                recipient_name=recipient["recipient_name"],
+                message_type="permanent_custody",
+                message_text=message_text,
+                idempotency_key=key,
+                saida_id=saidas[0].id_saida,
+                commit=True,
+            )
+            if q.get("success"):
+                if q.get("deduped"):
+                    results["skipped"].append(f"{recipient['recipient_name']} (já enviado)")
+                else:
+                    results["queued"].append(str(recipient["recipient_name"]))
+            else:
+                results["failed"].append(f"{recipient['recipient_name']}: {q.get('error')}")
+
+        return {
+            "success": True,
+            "sent": results["queued"],
+            "failed": results["failed"],
+            "total_sent": len(results["queued"]),
+            "total_failed": len(results["failed"]),
+            "queued": results["queued"],
+        }
+
+
+
+    @staticmethod
 
     def notify_multiple_entry(entrada_ids: list[int], is_devolucao: bool = False) -> None:
 
@@ -4501,63 +4650,63 @@ class TelegramService:
 
 
         # 2. Notificar um único destino operacional (grupo ou fallback admin)
-            message_text = TelegramService.format_withdrawal_message_supervisor(
+        message_text = TelegramService.format_withdrawal_message_supervisor(
 
-                saida,
-                saida.usuario,
-                saida.item,
-                balance_before=balance_before,
-                balance_after=balance_after,
-                balance_unit=balance_unit,
+            saida,
+            saida.usuario,
+            saida.item,
+            balance_before=balance_before,
+            balance_after=balance_after,
+            balance_unit=balance_unit,
+
+        )
+
+
+
+        notified_chat_ids: set[str] = set()
+
+        if telegram_user:
+
+            notified_chat_ids.add(str(telegram_user.chat_id))
+
+
+
+        for recipient in TelegramService._withdrawal_recipients(exclude_chat_ids=notified_chat_ids):
+
+            chat_id_str = str(recipient["chat_id"])
+            key = f"withdrawal:{saida_id}:{recipient['target']}:{chat_id_str}"
+            logger.debug(f"[notify_withdrawal] Enfileirando para {recipient['target']}: key={key}")
+
+            q = TelegramService.enqueue_outbox_message(
+
+                chat_id=chat_id_str,
+
+                recipient_name=recipient["recipient_name"],
+
+                message_type="withdrawal",
+
+                message_text=message_text,
+
+                idempotency_key=key,
+
+                saida_id=saida_id,
+
+                commit=True,
 
             )
 
-
-
-            notified_chat_ids: set[str] = set()
-
-            if telegram_user:
-
-                notified_chat_ids.add(str(telegram_user.chat_id))
-
-
-
-            for recipient in TelegramService._withdrawal_recipients(exclude_chat_ids=notified_chat_ids):
-
-                chat_id_str = str(recipient["chat_id"])
-                key = f"withdrawal:{saida_id}:{recipient['target']}:{chat_id_str}"
-                logger.debug(f"[notify_withdrawal] Enfileirando para {recipient['target']}: key={key}")
-
-                q = TelegramService.enqueue_outbox_message(
-
-                    chat_id=chat_id_str,
-
-                    recipient_name=recipient["recipient_name"],
-
-                    message_type="withdrawal",
-
-                    message_text=message_text,
-
-                    idempotency_key=key,
-
-                    saida_id=saida_id,
-
-                    commit=True,
-
-                )
-
-                if q.get("success"):
-                    if q.get("deduped"):
-                        logger.info(f"[notify_withdrawal] Mensagem deduplicada para {recipient['target']} {chat_id_str}, saida_id={saida_id}")
-                        results["skipped"].append(f"{recipient['recipient_name']} (já enviado)")
-                    else:
-                        results["queued"].append(str(recipient["recipient_name"]))
-
-                    notified_chat_ids.add(chat_id_str)
-
+            if q.get("success"):
+                if q.get("deduped"):
+                    logger.info(f"[notify_withdrawal] Mensagem deduplicada para {recipient['target']} {chat_id_str}, saida_id={saida_id}")
+                    results["skipped"].append(f"{recipient['recipient_name']} (já enviado)")
                 else:
+                    results["queued"].append(str(recipient["recipient_name"]))
 
-                    results["failed"].append(f"{recipient['recipient_name']}: {q.get('error')}")
+                notified_chat_ids.add(chat_id_str)
+
+            else:
+
+                results["failed"].append(f"{recipient['recipient_name']}: {q.get('error')}")
 
 
 
@@ -4631,13 +4780,8 @@ class TelegramService:
             else:
                 results["skipped"].append(f"Funcionário {saida.usuario.nome} (preferências)")
 
-        # 2. Notificar grupos de supervisão (ou fallback para usuários privilegiados)
-        config = TelegramService.get_config()
-        if config and (config.notify_supervisors or TelegramService._privileged_users_query().count() > 0):
-            groups = db.session.query(TelegramGroup).filter_by(
-                enabled=True, receive_withdrawals=True
-            ).all()
-
+        # 2. Notificar destinatários operacionais vinculados
+        if TelegramService._privileged_users_query().count() > 0:
             message_text = TelegramService.format_permanent_custody_message_supervisor(
                 saida, saida.usuario, saida.item
             )
@@ -4646,54 +4790,30 @@ class TelegramService:
             if telegram_user:
                 notified_chat_ids.add(str(telegram_user.chat_id))
 
-            if groups:
-                for group in groups:
-                    key = f"permanent_custody:{saida_id}:group:{group.chat_id}"
-                    logger.debug(f"[notify_permanent_custody] Enfileirando para grupo: key={key}")
-                    q = TelegramService.enqueue_outbox_message(
-                        chat_id=str(group.chat_id),
-                        recipient_name=f"Grupo: {group.name}",
-                        message_type="permanent_custody",
-                        message_text=message_text,
-                        idempotency_key=key,
-                        saida_id=saida_id,
-                        commit=True,
-                    )
-                    if q.get("success"):
-                        if q.get("deduped"):
-                            logger.info(f"[notify_permanent_custody] Mensagem deduplicada para grupo {group.name}, saida_id={saida_id}")
-                            results["skipped"].append(f"Grupo {group.name} (já enviado)")
-                        else:
-                            results["queued"].append(f"Grupo: {group.name}")
-                        notified_chat_ids.add(str(group.chat_id))
+            admins = TelegramService._privileged_users_query().all()
+            for adm in admins:
+                if str(adm.chat_id) in notified_chat_ids:
+                    continue
+                key = f"permanent_custody:{saida_id}:admin:{adm.chat_id}"
+                logger.debug(f"[notify_permanent_custody] Enfileirando para admin: key={key}")
+                q = TelegramService.enqueue_outbox_message(
+                    chat_id=str(adm.chat_id),
+                    recipient_name=f"Admin: {getattr(adm.usuario, 'nome', adm.matricula)}",
+                    message_type="permanent_custody",
+                    message_text=message_text,
+                    idempotency_key=key,
+                    saida_id=saida_id,
+                    commit=True,
+                )
+                if q.get("success"):
+                    if q.get("deduped"):
+                        logger.info(f"[notify_permanent_custody] Mensagem deduplicada para admin {adm.matricula}, saida_id={saida_id}")
+                        results["skipped"].append(f"Admin {adm.matricula} (já enviado)")
                     else:
-                        results["failed"].append(f"Grupo {group.name}: {q.get('error')}")
-            else:
-                # Fallback: se não houver grupo configurado, notificar administradores vinculados
-                admins = TelegramService._privileged_users_query().all()
-                for adm in admins:
-                    if str(adm.chat_id) in notified_chat_ids:
-                        continue
-                    key = f"permanent_custody:{saida_id}:admin:{adm.chat_id}"
-                    logger.debug(f"[notify_permanent_custody] Enfileirando para admin: key={key}")
-                    q = TelegramService.enqueue_outbox_message(
-                        chat_id=str(adm.chat_id),
-                        recipient_name=f"Admin: {getattr(adm.usuario, 'nome', adm.matricula)}",
-                        message_type="permanent_custody",
-                        message_text=message_text,
-                        idempotency_key=key,
-                        saida_id=saida_id,
-                        commit=True,
-                    )
-                    if q.get("success"):
-                        if q.get("deduped"):
-                            logger.info(f"[notify_permanent_custody] Mensagem deduplicada para admin {adm.matricula}, saida_id={saida_id}")
-                            results["skipped"].append(f"Admin {adm.matricula} (já enviado)")
-                        else:
-                            results["queued"].append("Admin")
-                        notified_chat_ids.add(str(adm.chat_id))
-                    else:
-                        results["failed"].append(f"Admin {adm.matricula}: {q.get('error')}")
+                        results["queued"].append("Admin")
+                    notified_chat_ids.add(str(adm.chat_id))
+                else:
+                    results["failed"].append(f"Admin {adm.matricula}: {q.get('error')}")
 
         return {
             "success": True,

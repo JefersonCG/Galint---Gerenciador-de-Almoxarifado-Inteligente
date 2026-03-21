@@ -150,7 +150,7 @@
                 <div class="card-footer text-muted">
                     <small>
                         <i class="bi bi-clock-history me-1"></i>
-                        Última atualização: {{ preferences.updated_at.strftime('%d/%m/%Y %H:%M') if preferences.updated_at else 'Nunca' }}
+                        Última atualização: {{ preferences.updated_at|format_local('%d/%m/%Y %H:%M') if preferences.updated_at else 'Nunca' }}
                     </small>
                 </div>
             </div>

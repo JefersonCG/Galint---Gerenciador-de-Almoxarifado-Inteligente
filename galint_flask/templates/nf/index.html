@@ -610,7 +610,7 @@
                         {% endif %}
                     </div>
                     <p class="mb-3 small docf-muted">
-                        Registrada em {{ nota_detalhes.data.strftime('%d/%m/%Y %H:%M') if nota_detalhes.data else 'data não informada' }}
+                        Registrada em {{ nota_detalhes.data|format_local('%d/%m/%Y %H:%M') if nota_detalhes.data else 'data não informada' }}
                         {% if nota_detalhes.usuarios %} por {{ nota_detalhes.usuarios|join(', ') }}{% endif %}.
                     </p>
                     <div class="docf-detail-grid">
@@ -700,7 +700,7 @@
                                 </div>
                                 {% endif %}
                                 <p class="mb-3 small docf-muted">
-                                    Registrada em {{ nota.data.strftime('%d/%m/%Y %H:%M') if nota.data else 'data não
+                                    Registrada em {{ nota.data|format_local('%d/%m/%Y %H:%M') if nota.data else 'data não
                                     informada' }}
                                     {% if nota.usuarios %} por {{ nota.usuarios|join(', ') }}{% endif %}.
                                 </p>

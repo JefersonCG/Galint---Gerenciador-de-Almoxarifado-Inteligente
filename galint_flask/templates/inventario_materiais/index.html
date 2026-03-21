@@ -76,7 +76,7 @@
                         <tbody>
                             {% for entry in entries %}
                             <tr>
-                                <td>{{ entry.data.strftime('%d/%m/%Y %H:%M') if entry.data else '-' }}</td>
+                                <td>{{ entry.data|format_local('%d/%m/%Y %H:%M') if entry.data else '-' }}</td>
                                 <td>
                                     {% if entry.saida_id %}
                                     #{{ entry.saida_id }}
