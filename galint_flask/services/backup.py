@@ -9,6 +9,7 @@ from pathlib import Path
 import re
 import shutil
 import subprocess
+import tempfile
 import time
 
 from sqlalchemy import create_engine, text
@@ -399,6 +400,7 @@ class BackupService:
             "CREATE SCHEMA public; "
             "GRANT ALL ON SCHEMA public TO PUBLIC;"
         )
+        normalized_source, cleanup_source = self._prepare_restore_source(source)
         cmd: list[str] = [
             self._psql_cmd,
             "-w",
@@ -418,7 +420,7 @@ class BackupService:
             "-c",
             reset_schema_sql,
             "-f",
-            str(source),
+            str(normalized_source),
         ]
         try:
             result = subprocess.run(
@@ -434,6 +436,12 @@ class BackupService:
                 f"Tempo limite ao executar psql ({self._subprocess_timeout_seconds}s). "
                 "Geralmente isso indica conexão lenta/travada ou bloqueio no banco."
             )
+        finally:
+            if cleanup_source is not None:
+                try:
+                    cleanup_source.unlink(missing_ok=True)
+                except Exception:
+                    pass
         if result.returncode != 0:
             message = result.stderr.strip() or result.stdout.strip() or "Falha desconhecida ao executar psql"
             raise ValueError(f"Erro ao restaurar backup PostgreSQL: {message}")
@@ -441,6 +449,35 @@ class BackupService:
         self._dispose_sqlalchemy_connections()
         _report(78, "Aplicando compatibilidade de schema pós-restauração...")
         self._apply_post_restore_schema_fixes()
+
+    def _prepare_restore_source(self, source: Path) -> tuple[Path, Path | None]:
+        temp_path: Path | None = None
+        removed_meta_commands = False
+        pattern = re.compile(r"^\\(?:un)?restrict\b")
+
+        with source.open("r", encoding="utf-8", errors="replace", newline="") as original:
+            with tempfile.NamedTemporaryFile(
+                mode="w",
+                encoding="utf-8",
+                newline="\n",
+                suffix=source.suffix or ".sql",
+                prefix="restore_clean_",
+                dir=source.parent,
+                delete=False,
+            ) as temp:
+                temp_path = Path(temp.name)
+                for line in original:
+                    if pattern.match(line.strip()):
+                        removed_meta_commands = True
+                        continue
+                    temp.write(line)
+
+        if not removed_meta_commands:
+            if temp_path is not None:
+                temp_path.unlink(missing_ok=True)
+            return source, None
+
+        return temp_path, temp_path
 
     def _backup_cutoff_from_name(self, backup_name: str, source: Path) -> datetime:
         match = re.search(r"(\d{8})_(\d{6})", backup_name)
