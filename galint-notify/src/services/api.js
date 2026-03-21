@@ -5,6 +5,8 @@ import Constants from 'expo-constants';
 
 const STORAGE_KEYS = {
   baseUrl: 'notify_base_url',
+  serverHost: 'notify_server_host',
+  serverPort: 'notify_server_port',
   token: 'notify_token',
   user: 'notify_user',
   deviceUuid: 'notify_device_uuid',
@@ -16,8 +18,42 @@ class NotifyApiService {
     this.client = null;
   }
 
+  normalizeBaseUrl(baseURL) {
+    let value = (baseURL || '').trim();
+    if (!value) {
+      return '';
+    }
+
+    if (!/^https?:\/\//i.test(value)) {
+      value = `http://${value}`;
+    }
+
+    try {
+      const parsed = new URL(value);
+      const protocol = parsed.protocol || 'http:';
+      const hostname = parsed.hostname;
+      const port = parsed.port || (protocol === 'https:' ? '443' : '5000');
+      return `${protocol}//${hostname}${port ? `:${port}` : ''}`;
+    } catch {
+      return value.replace(/\/$/, '');
+    }
+  }
+
+  formatRequestError(error) {
+    if (error?.response?.data?.message) {
+      return error.response.data.message;
+    }
+    if (error?.response?.status) {
+      return `Servidor respondeu com status ${error.response.status}.`;
+    }
+    if (error?.message === 'Network Error') {
+      return 'Falha de rede ao acessar o servidor. Verifique IP, porta e se o Android pode acessar HTTP local.';
+    }
+    return error?.message || 'Erro de comunicação com o servidor.';
+  }
+
   async initialize(baseURL) {
-    this.baseURL = (baseURL || '').trim().replace(/\/$/, '');
+    this.baseURL = this.normalizeBaseUrl(baseURL);
     this.client = axios.create({
       baseURL: this.baseURL,
       timeout: 10000,
@@ -31,6 +67,62 @@ class NotifyApiService {
       return config;
     });
     await AsyncStorage.setItem(STORAGE_KEYS.baseUrl, this.baseURL);
+    const parsed = this.parseServerConfig(this.baseURL);
+    await AsyncStorage.multiSet([
+      [STORAGE_KEYS.serverHost, parsed.host],
+      [STORAGE_KEYS.serverPort, parsed.port],
+    ]);
+  }
+
+  parseServerConfig(baseURL) {
+    const normalized = this.normalizeBaseUrl(baseURL);
+    if (!normalized) {
+      return { host: '', port: '5000', baseUrl: '' };
+    }
+
+    try {
+      const parsed = new URL(normalized);
+      return {
+        host: parsed.hostname || '',
+        port: parsed.port || (parsed.protocol === 'https:' ? '443' : '5000'),
+        baseUrl: normalized,
+      };
+    } catch {
+      return { host: '', port: '5000', baseUrl: normalized };
+    }
+  }
+
+  async getServerConfig() {
+    const entries = await AsyncStorage.multiGet([
+      STORAGE_KEYS.serverHost,
+      STORAGE_KEYS.serverPort,
+      STORAGE_KEYS.baseUrl,
+    ]);
+    const values = Object.fromEntries(entries);
+    const storedBase = values[STORAGE_KEYS.baseUrl] || Constants.expoConfig?.extra?.defaultServerUrl || '';
+    const parsed = this.parseServerConfig(storedBase);
+    return {
+      host: values[STORAGE_KEYS.serverHost] || parsed.host || '192.168.1.41',
+      port: values[STORAGE_KEYS.serverPort] || parsed.port || '5000',
+      baseUrl: parsed.baseUrl || this.normalizeBaseUrl(`http://${values[STORAGE_KEYS.serverHost] || '192.168.1.41'}:${values[STORAGE_KEYS.serverPort] || '5000'}`),
+    };
+  }
+
+  async saveServerConfig({ host, port }) {
+    const baseUrl = this.normalizeBaseUrl(`http://${(host || '').trim()}:${(port || '').trim() || '5000'}`);
+    await this.initialize(baseUrl);
+    return this.getServerConfig();
+  }
+
+  async clearServerConfig() {
+    await AsyncStorage.multiRemove([
+      STORAGE_KEYS.serverHost,
+      STORAGE_KEYS.serverPort,
+      STORAGE_KEYS.baseUrl,
+    ]);
+    const fallback = Constants.expoConfig?.extra?.defaultServerUrl || 'http://192.168.1.41:5000';
+    await this.initialize(fallback);
+    return this.getServerConfig();
   }
 
   async restoreSession() {
@@ -66,7 +158,12 @@ class NotifyApiService {
       }
     }
 
-    const response = await this.client.post('/api/notify/login', { matricula, senha });
+    let response;
+    try {
+      response = await this.client.post('/api/notify/login', { matricula, senha });
+    } catch (error) {
+      throw new Error(this.formatRequestError(error));
+    }
     const payload = response.data || {};
     if (!payload.success || !payload.token || !payload.user) {
       throw new Error(payload.message || 'Falha ao fazer login');
@@ -78,6 +175,23 @@ class NotifyApiService {
 
   async saveBaseUrl(baseUrl) {
     await this.initialize(baseUrl);
+  }
+
+  async testConnection(baseUrl) {
+    const normalized = this.normalizeBaseUrl(baseUrl || this.baseURL);
+    if (!normalized) {
+      throw new Error('Informe IP e porta do servidor.');
+    }
+
+    try {
+      await axios.get(`${normalized}/api/notify/status`, { timeout: 6000 });
+      return { success: true, baseUrl: normalized };
+    } catch (error) {
+      if (error?.response?.status === 401 || error?.response?.status === 403) {
+        return { success: true, baseUrl: normalized };
+      }
+      throw new Error(this.formatRequestError(error));
+    }
   }
 
   async logout() {

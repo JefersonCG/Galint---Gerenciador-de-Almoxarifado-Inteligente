@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import ScreenShell from '../components/ScreenShell';
 import api from '../services/api';
@@ -7,26 +7,67 @@ import { bootstrapPush } from '../services/push';
 import { palette } from '../theme';
 
 export default function SettingsScreen({ session, onLogout, onServerSaved }) {
-  const [baseUrl, setBaseUrl] = useState(session?.baseUrl || '');
+  const [serverHost, setServerHost] = useState('192.168.1.41');
+  const [serverPort, setServerPort] = useState('5000');
+  const [testing, setTesting] = useState(false);
+  const [connectionMessage, setConnectionMessage] = useState('');
+  const [connectionStatus, setConnectionStatus] = useState('idle');
 
   useEffect(() => {
-    setBaseUrl(session?.baseUrl || '');
+    api.getServerConfig().then((config) => {
+      setServerHost(config.host);
+      setServerPort(config.port);
+    }).catch(() => {});
   }, [session]);
 
   async function save() {
     try {
-      await api.saveBaseUrl(baseUrl);
+      await api.saveServerConfig({ host: serverHost, port: serverPort });
       await onServerSaved();
-      Alert.alert('GalintNotify', 'URL do servidor atualizada.');
+      Alert.alert('GalintNotify', 'Configuração do servidor atualizada.');
     } catch (error) {
       Alert.alert('GalintNotify', error.message || 'Falha ao salvar servidor');
     }
   }
 
+  async function testConnection() {
+    try {
+      setTesting(true);
+      setConnectionStatus('idle');
+      setConnectionMessage('');
+      const result = await api.testConnection(`http://${serverHost}:${serverPort}`);
+      setConnectionStatus('success');
+      setConnectionMessage(`Servidor acessível em ${result.baseUrl}`);
+    } catch (error) {
+      setConnectionStatus('error');
+      setConnectionMessage(error.message || 'Falha ao testar conexão.');
+    } finally {
+      setTesting(false);
+    }
+  }
+
+  async function clearServer() {
+    try {
+      const config = await api.clearServerConfig();
+      setServerHost(config.host);
+      setServerPort(config.port);
+      setConnectionStatus('idle');
+      setConnectionMessage('Configuração restaurada para o padrão.');
+      await onServerSaved();
+    } catch (error) {
+      Alert.alert('GalintNotify', error.message || 'Falha ao limpar servidor');
+    }
+  }
+
   async function refreshPush() {
     try {
-      await bootstrapPush(session);
-      Alert.alert('GalintNotify', 'Token de push atualizado.');
+      const result = await bootstrapPush(session);
+      Alert.alert(
+        'GalintNotify',
+        result?.supported
+          ? 'Token de push atualizado.'
+          : result?.skippedReason || 'Push não disponível neste ambiente.'
+      );
     } catch (error) {
       Alert.alert('GalintNotify', error.message || 'Falha ao atualizar push');
     }
@@ -35,13 +76,24 @@ export default function SettingsScreen({ session, onLogout, onServerSaved }) {
   return (
     <ScreenShell title="Configurações" subtitle="Gerencie URL do GALINT, sessão e registro de push do aparelho.">
       <View style={styles.card}>
-        <Text style={styles.label}>Servidor</Text>
-        <TextInput value={baseUrl} onChangeText={setBaseUrl} style={styles.input} autoCapitalize="none" />
+        <Text style={styles.label}>IP do servidor</Text>
+        <TextInput value={serverHost} onChangeText={setServerHost} style={styles.input} autoCapitalize="none" placeholder="192.168.1.41" placeholderTextColor={palette.muted} />
+        <Text style={styles.label}>Porta</Text>
+        <TextInput value={serverPort} onChangeText={setServerPort} style={styles.input} autoCapitalize="none" keyboardType="numeric" placeholder="5000" placeholderTextColor={palette.muted} />
         <Text style={styles.meta}>Usuário atual: {session?.user?.nome || '-'} ({session?.user?.matricula || '-'})</Text>
         <View style={styles.actions}>
           <Pressable style={styles.button} onPress={save}><Text style={styles.buttonText}>Salvar servidor</Text></Pressable>
           <Pressable style={[styles.button, styles.buttonAlt]} onPress={refreshPush}><Text style={styles.buttonText}>Atualizar push</Text></Pressable>
         </View>
+        <View style={styles.actions}>
+          <Pressable style={styles.outlineButton} onPress={testConnection} disabled={testing}>
+            {testing ? <ActivityIndicator color={palette.text} /> : <Text style={styles.outlineButtonText}>Testar conexão</Text>}
+          </Pressable>
+          <Pressable style={styles.clearButton} onPress={clearServer}><Text style={styles.clearButtonText}>Limpar servidor</Text></Pressable>
+        </View>
+        {connectionMessage ? (
+          <Text style={[styles.connectionMessage, connectionStatus === 'success' ? styles.connectionSuccess : styles.connectionError]}>{connectionMessage}</Text>
+        ) : null}
         <Pressable style={[styles.button, styles.logout]} onPress={onLogout}><Text style={styles.buttonText}>Sair</Text></Pressable>
       </View>
     </ScreenShell>
@@ -56,6 +108,13 @@ const styles = StyleSheet.create({
   actions: { flexDirection: 'row', gap: 12, marginTop: 18 },
   button: { flex: 1, backgroundColor: palette.primary, borderRadius: 999, paddingVertical: 12, alignItems: 'center' },
   buttonAlt: { backgroundColor: palette.accent },
+  outlineButton: { flex: 1, borderRadius: 999, paddingVertical: 12, alignItems: 'center', borderWidth: 1, borderColor: palette.primary, backgroundColor: palette.panelAlt },
+  outlineButtonText: { color: palette.primary, fontWeight: '800' },
+  clearButton: { flex: 1, borderRadius: 999, paddingVertical: 12, alignItems: 'center', borderWidth: 1, borderColor: palette.danger, backgroundColor: palette.panelAlt },
+  clearButtonText: { color: palette.danger, fontWeight: '800' },
+  connectionMessage: { marginTop: 12, fontWeight: '600', lineHeight: 18 },
+  connectionSuccess: { color: palette.accent },
+  connectionError: { color: palette.danger },
   logout: { marginTop: 12, backgroundColor: palette.danger },
   buttonText: { color: palette.bg, fontWeight: '800' },
 });

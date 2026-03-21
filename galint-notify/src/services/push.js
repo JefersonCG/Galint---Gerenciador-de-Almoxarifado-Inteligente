@@ -3,22 +3,44 @@ import Constants from 'expo-constants';
 
 import api from './api';
 
+function isExpoGo() {
+  return Constants.executionEnvironment === 'storeClient' || Constants.appOwnership === 'expo';
+}
+
 export async function bootstrapPush(session) {
   const projectId = Constants.expoConfig?.extra?.eas?.projectId;
-  if (!projectId || !session) {
-    return null;
+  if (!session) {
+    return { supported: false, skippedReason: 'Sessão indisponível.' };
   }
 
-  const permission = await Notifications.requestPermissionsAsync();
-  if (permission.status !== 'granted') {
-    return null;
+  if (!projectId) {
+    return { supported: false, skippedReason: 'Project ID do Expo não configurado.' };
   }
 
-  const tokenData = await Notifications.getExpoPushTokenAsync({ projectId });
-  if (tokenData?.data) {
-    await api.registerPushToken(tokenData.data, 'expo');
+  if (isExpoGo()) {
+    return {
+      supported: false,
+      skippedReason: 'Push nativo foi desativado no Expo Go. Use o APK do GalintNotify para registrar notificações.',
+    };
   }
-  return tokenData?.data || null;
+
+  try {
+    const permission = await Notifications.requestPermissionsAsync();
+    if (permission.status !== 'granted') {
+      return { supported: false, skippedReason: 'Permissão de notificação não concedida.' };
+    }
+
+    const tokenData = await Notifications.getExpoPushTokenAsync({ projectId });
+    if (tokenData?.data) {
+      await api.registerPushToken(tokenData.data, 'expo');
+    }
+    return { supported: true, token: tokenData?.data || null };
+  } catch (error) {
+    return {
+      supported: false,
+      skippedReason: error?.message || 'Falha ao registrar o push neste dispositivo.',
+    };
+  }
 }
 
 export function listenForNotificationResponses(onOpen) {
