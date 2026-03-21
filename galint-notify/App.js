@@ -6,6 +6,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createDrawerNavigator } from '@react-navigation/drawer';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import Constants from 'expo-constants';
 import { StatusBar } from 'expo-status-bar';
 import * as Notifications from 'expo-notifications';
 
@@ -75,6 +76,73 @@ function DrawerShell({ session, onLogout, onServerSaved, highlightMessageId, onC
   );
 }
 
+function ExpoGoShell({ navigation, session, onLogout, onServerSaved, highlightMessageId, onConsumedHighlight }) {
+  const [activeScreen, setActiveScreen] = useState('Messenger');
+
+  const menuItems = [
+    { key: 'Messenger', label: 'Messenger' },
+    { key: 'Relatórios', label: 'Relatórios' },
+    { key: 'Configurações', label: 'Configurações' },
+  ];
+
+  let content = (
+    <MessengerScreen
+      navigation={navigation}
+      session={session}
+      highlightMessageId={highlightMessageId}
+      onConsumedHighlight={onConsumedHighlight}
+    />
+  );
+
+  if (activeScreen === 'Relatórios') {
+    content = <ReportsScreen navigation={navigation} session={session} />;
+  }
+
+  if (activeScreen === 'Configurações') {
+    content = (
+      <SettingsScreen
+        navigation={navigation}
+        session={session}
+        onLogout={onLogout}
+        onServerSaved={onServerSaved}
+      />
+    );
+  }
+
+  return (
+    <View style={{ flex: 1, backgroundColor: palette.bg }}>
+      <View style={{ paddingHorizontal: 16, paddingTop: 18, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: palette.border, backgroundColor: palette.panel }}>
+        <Text style={{ color: palette.text, fontSize: 18, fontWeight: '800', marginBottom: 12 }}>GalintNotify</Text>
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          {menuItems.map((item) => (
+            <Pressable
+              key={item.key}
+              onPress={() => setActiveScreen(item.key)}
+              style={{
+                flex: 1,
+                borderRadius: 999,
+                paddingVertical: 10,
+                paddingHorizontal: 12,
+                backgroundColor: activeScreen === item.key ? palette.primary : palette.panelAlt,
+                borderWidth: 1,
+                borderColor: activeScreen === item.key ? palette.primary : palette.border,
+                alignItems: 'center',
+              }}
+            >
+              <Text style={{ color: activeScreen === item.key ? palette.bg : palette.text, fontWeight: '700', fontSize: 12 }}>{item.label}</Text>
+            </Pressable>
+          ))}
+        </View>
+      </View>
+      <View style={{ flex: 1 }}>{content}</View>
+    </View>
+  );
+}
+
+function isExpoGo() {
+  return Constants.executionEnvironment === 'storeClient' || Constants.appOwnership === 'expo';
+}
+
 export default function App() {
   const navigationRef = useRef(null);
   const [booting, setBooting] = useState(true);
@@ -131,6 +199,8 @@ export default function App() {
     },
   }), []);
 
+  const useExpoGoFallback = isExpoGo();
+
   if (booting) {
     return (
       <View style={{ flex: 1, backgroundColor: palette.bg, alignItems: 'center', justifyContent: 'center' }}>
@@ -153,14 +223,25 @@ export default function App() {
           ) : (
             <Stack.Screen name="App">
               {(props) => (
-                <DrawerShell
-                  {...props}
-                  session={session}
-                  onLogout={actions.logout}
-                  onServerSaved={actions.refreshServer}
-                  highlightMessageId={highlightMessageId}
-                  onConsumedHighlight={() => setHighlightMessageId(null)}
-                />
+                useExpoGoFallback ? (
+                  <ExpoGoShell
+                    {...props}
+                    session={session}
+                    onLogout={actions.logout}
+                    onServerSaved={actions.refreshServer}
+                    highlightMessageId={highlightMessageId}
+                    onConsumedHighlight={() => setHighlightMessageId(null)}
+                  />
+                ) : (
+                  <DrawerShell
+                    {...props}
+                    session={session}
+                    onLogout={actions.logout}
+                    onServerSaved={actions.refreshServer}
+                    highlightMessageId={highlightMessageId}
+                    onConsumedHighlight={() => setHighlightMessageId(null)}
+                  />
+                )
               )}
             </Stack.Screen>
           )}

@@ -3,37 +3,46 @@
 
 {% block extra_css %}
 <style>
-    .notify-shell { background: linear-gradient(180deg, #f8fbff 0%, #edf4fb 100%); border: 1px solid rgba(148, 163, 184, 0.28); border-radius: 28px; padding: 1.5rem; color: #0f172a; box-shadow: 0 20px 48px rgba(15, 23, 42, 0.10); }
-    .notify-hero { position: relative; overflow: hidden; border-radius: 24px; padding: 1.6rem; background: linear-gradient(135deg, #fefefe 0%, #f2f8ff 45%, #dff4ee 100%); border: 1px solid rgba(125, 211, 252, 0.28); }
-    .notify-hero::before { content: ""; position: absolute; inset: 0; background: linear-gradient(115deg, rgba(14,165,233,0.08), transparent 40%, rgba(16,185,129,0.06)); pointer-events: none; }
+    .notify-shell { background: radial-gradient(circle at top left, rgba(14, 165, 233, 0.12), transparent 26%), radial-gradient(circle at top right, rgba(16, 185, 129, 0.10), transparent 24%), linear-gradient(180deg, #07111f 0%, #0b1729 100%); border: 1px solid rgba(59, 130, 246, 0.18); border-radius: 28px; padding: 1.5rem; color: #e5eefc; box-shadow: 0 24px 56px rgba(2, 8, 23, 0.42); }
+    .notify-hero { position: relative; overflow: hidden; border-radius: 24px; padding: 1.6rem; background: linear-gradient(135deg, rgba(8, 15, 30, 0.96) 0%, rgba(16, 28, 49, 0.95) 48%, rgba(10, 42, 51, 0.94) 100%); border: 1px solid rgba(125, 211, 252, 0.18); box-shadow: inset 0 1px 0 rgba(255,255,255,0.03); }
+    .notify-hero::before { content: ""; position: absolute; inset: 0; background: radial-gradient(circle at 16% 18%, rgba(14,165,233,0.16), transparent 28%), radial-gradient(circle at 82% 16%, rgba(16,185,129,0.13), transparent 24%), linear-gradient(120deg, rgba(255,255,255,0.02), transparent 36%); pointer-events: none; }
     .notify-hero > * { position: relative; z-index: 1; }
     .notify-kpis { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 1rem; margin-top: 1.2rem; }
-    .notify-kpi { border-radius: 20px; padding: 1rem; background: rgba(255,255,255,0.94); border: 1px solid rgba(148, 163, 184, 0.20); box-shadow: inset 0 1px 0 rgba(255,255,255,0.65); }
-    .notify-kpi-label { display: block; text-transform: uppercase; font-size: 0.72rem; letter-spacing: 0.08em; color: #0ea5e9; margin-bottom: 0.4rem; }
-    .notify-kpi-value { font-size: 1.9rem; font-weight: 800; color: #0f172a; }
+    .notify-kpi { border-radius: 20px; padding: 1rem; background: linear-gradient(180deg, rgba(13, 24, 42, 0.95), rgba(17, 31, 54, 0.88)); border: 1px solid rgba(148, 163, 184, 0.14); box-shadow: inset 0 1px 0 rgba(255,255,255,0.03); }
+    .notify-kpi-label { display: block; text-transform: uppercase; font-size: 0.72rem; letter-spacing: 0.08em; color: #7dd3fc; margin-bottom: 0.4rem; }
+    .notify-kpi-value { font-size: 1.9rem; font-weight: 800; color: #f8fbff; }
     .notify-tabs.nav-pills { gap: 0.7rem; margin: 1.35rem 0 1.2rem; }
-    .notify-tabs .nav-link { border-radius: 999px; border: 1px solid rgba(148, 163, 184, 0.22); background: rgba(255,255,255,0.92); color: #334155; font-weight: 700; padding: 0.82rem 1.1rem; }
-    .notify-tabs .nav-link.active { background: linear-gradient(135deg, #0ea5e9, #22c55e); color: #f8fafc; border-color: transparent; }
-    .notify-panel { background: rgba(255,255,255,0.96); border: 1px solid rgba(148, 163, 184, 0.20); border-radius: 24px; box-shadow: 0 18px 38px rgba(15, 23, 42, 0.08); }
-    .notify-panel .card-header, .notify-panel .card-body { background: transparent; border-color: rgba(148, 163, 184, 0.16); color: #0f172a; }
-    .notify-panel .text-muted { color: #64748b !important; }
-    .notify-soft { border-radius: 18px; padding: 1rem; background: #f8fbff; border: 1px solid rgba(148,163,184,0.18); color: #0f172a; }
+    .notify-tabs .nav-link { border-radius: 999px; border: 1px solid rgba(148, 163, 184, 0.16); background: rgba(12, 24, 43, 0.82); color: #c6d4eb; font-weight: 700; padding: 0.82rem 1.1rem; }
+    .notify-tabs .nav-link:hover { color: #f8fbff; border-color: rgba(125, 211, 252, 0.28); background: rgba(17, 31, 54, 0.92); }
+    .notify-tabs .nav-link.active { background: linear-gradient(135deg, #0891b2, #0f766e); color: #f8fafc; border-color: rgba(103, 232, 249, 0.22); box-shadow: 0 10px 24px rgba(8, 145, 178, 0.28); }
+    .notify-panel { background: linear-gradient(180deg, rgba(9, 18, 34, 0.98), rgba(12, 24, 43, 0.96)); border: 1px solid rgba(148, 163, 184, 0.14); border-radius: 24px; box-shadow: 0 18px 40px rgba(2, 8, 23, 0.32); }
+    .notify-panel .card-header, .notify-panel .card-body { background: transparent; border-color: rgba(148, 163, 184, 0.12); color: #e5eefc; }
+    .notify-panel .text-muted { color: #9fb0c8 !important; }
+    .notify-soft { border-radius: 18px; padding: 1rem; background: linear-gradient(180deg, rgba(15, 28, 49, 0.92), rgba(11, 22, 39, 0.92)); border: 1px solid rgba(148,163,184,0.14); color: #dbe8fb; }
     .notify-grid { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 1rem; }
     .notify-grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 1rem; }
     .notify-status { display: inline-flex; align-items: center; gap: 0.4rem; border-radius: 999px; padding: 0.36rem 0.8rem; font-weight: 700; font-size: 0.76rem; }
-    .notify-status-ok { background: rgba(34,197,94,0.14); color: #166534; }
-    .notify-status-warn { background: rgba(245,158,11,0.14); color: #92400e; }
-    .notify-status-danger { background: rgba(239,68,68,0.14); color: #b91c1c; }
-    .notify-table { color: #0f172a; }
-    .notify-table td, .notify-table th { border-color: rgba(148,163,184,0.18); }
-    .notify-table thead th { color: #0369a1; text-transform: uppercase; font-size: 0.74rem; letter-spacing: 0.05em; }
+    .notify-status-ok { background: rgba(34,197,94,0.16); color: #86efac; }
+    .notify-status-warn { background: rgba(245,158,11,0.16); color: #fcd34d; }
+    .notify-status-danger { background: rgba(239,68,68,0.16); color: #fca5a5; }
+    .notify-table { color: #dbe8fb; }
+    .notify-table td, .notify-table th { border-color: rgba(148,163,184,0.14); }
+    .notify-table thead th { color: #7dd3fc; text-transform: uppercase; font-size: 0.74rem; letter-spacing: 0.05em; }
     .notify-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; }
-    .notify-form-control, .notify-form-control:focus, .notify-panel .form-select { background: #ffffff; color: #0f172a; border-color: rgba(56, 189, 248, 0.36); box-shadow: none; }
-    .notify-shell .form-check-label, .notify-shell .form-label, .notify-shell strong, .notify-shell h1, .notify-shell h5 { color: #0f172a; }
-    .notify-shell .btn-outline-light { color: #0f172a; border-color: rgba(148,163,184,0.35); }
-    .notify-shell .btn-outline-light:hover { background: #e2e8f0; color: #0f172a; }
-    .notify-shell .btn-outline-info { color: #0c4a6e; border-color: rgba(14,165,233,0.35); }
-    .notify-shell .btn-outline-info:hover { color: #f8fafc; }
+    .notify-form-control, .notify-panel .form-select { background: rgba(7, 17, 31, 0.92); color: #f8fbff; border-color: rgba(56, 189, 248, 0.22); box-shadow: none; }
+    .notify-form-control:focus, .notify-panel .form-select:focus { background: rgba(7, 17, 31, 0.98); color: #ffffff; border-color: rgba(56, 189, 248, 0.48); box-shadow: 0 0 0 0.18rem rgba(14, 165, 233, 0.12); }
+    .notify-form-control::placeholder { color: #7f95b3; }
+    .notify-shell .form-check-input { background-color: rgba(7, 17, 31, 0.95); border-color: rgba(148,163,184,0.35); }
+    .notify-shell .form-check-input:checked { background-color: #0891b2; border-color: #0891b2; }
+    .notify-shell .form-check-label, .notify-shell .form-label, .notify-shell strong, .notify-shell h1, .notify-shell h5 { color: #f8fbff; }
+    .notify-shell p { color: #b5c5dc; }
+    .notify-shell .small.text-muted { color: #93a6c2 !important; }
+    .notify-shell .btn-primary { background: linear-gradient(135deg, #0284c7, #0f766e); border-color: rgba(125, 211, 252, 0.24); }
+    .notify-shell .btn-success { background: linear-gradient(135deg, #0f766e, #16a34a); border-color: rgba(110, 231, 183, 0.18); }
+    .notify-shell .btn-outline-light { color: #dbe8fb; border-color: rgba(148,163,184,0.28); background: rgba(15, 28, 49, 0.52); }
+    .notify-shell .btn-outline-light:hover { background: rgba(30, 41, 59, 0.92); color: #ffffff; }
+    .notify-shell .btn-outline-info { color: #8ddcff; border-color: rgba(14,165,233,0.35); background: rgba(8, 47, 73, 0.28); }
+    .notify-shell .btn-outline-info:hover { color: #f8fafc; background: rgba(8, 145, 178, 0.24); }
     @media (max-width: 992px) { .notify-kpis, .notify-grid, .notify-grid-2 { grid-template-columns: 1fr; } .notify-shell { padding: 1rem; } }
 </style>
 {% endblock %}
@@ -45,12 +54,12 @@
         <div class="d-flex flex-wrap justify-content-between gap-3 align-items-start">
             <div>
                 <div class="notify-status notify-status-ok mb-3"><i class="bi bi-broadcast-pin"></i> Notification Router</div>
-                <h1 class="mb-2" style="font-size: clamp(2rem, 3.5vw, 3rem); font-weight: 900; letter-spacing: -0.04em; color: #0f172a;">Painel de Notificações</h1>
-                <p class="mb-0" style="max-width: 58rem; color: #475569;">Escolha o canal padrão, acompanhe a saúde do Telegram, habilite o inbox nativo GalintNotify e teste o failover automático com cooldown para evitar flapping.</p>
+                <h1 class="mb-2" style="font-size: clamp(2rem, 3.5vw, 3rem); font-weight: 900; letter-spacing: -0.04em; color: #f8fbff;">Painel de Notificações</h1>
+                <p class="mb-0" style="max-width: 58rem; color: #bfd1e8;">Escolha o canal padrão, acompanhe a saúde do Telegram, habilite o inbox nativo GalintNotify e teste o failover automático com cooldown para evitar flapping.</p>
             </div>
             <div class="notify-soft" style="min-width: 280px;">
                 <div class="small text-uppercase" style="letter-spacing: 0.08em; color: #7dd3fc;">Canal padrão</div>
-                <div style="font-size: 1.08rem; font-weight: 700; color: #0f172a;">{{ router_status.default_channel|upper }}</div>
+                <div style="font-size: 1.08rem; font-weight: 700; color: #f8fbff;">{{ router_status.default_channel|upper }}</div>
                 <div class="small text-muted mt-2">Telegram ativo: {{ 'sim' if router_status.telegram_enabled else 'não' }} | GalintNotify ativo: {{ 'sim' if router_status.notify_enabled else 'não' }}</div>
             </div>
         </div>

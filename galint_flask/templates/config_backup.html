@@ -15,11 +15,8 @@
     .backup-kpi-label { display: block; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; color: rgba(226,232,240,0.72); margin-bottom: 0.45rem; }
     .backup-kpi-value { font-size: 1.5rem; font-weight: 800; }
     .backup-kpi-caption { font-size: 0.82rem; color: rgba(226,232,240,0.74); }
-    .backup-tabs.nav-pills { gap: 0.65rem; margin-bottom: 1.25rem; }
-    .backup-tabs .nav-link { border-radius: 999px; padding: 0.75rem 1rem; background: #dbe4ef; color: #334155; font-weight: 700; border: 1px solid rgba(148,163,184,0.18); }
-    .backup-tabs .nav-link.active { background: #0f172a; color: #f8fafc; }
     .backup-panel { background: linear-gradient(145deg, #0f172a 0%, #1e293b 100%); border: 1px solid rgba(148,163,184,0.18); border-radius: 24px; box-shadow: 0 22px 48px rgba(15,23,42,0.16); color: #e2e8f0; }
-    .backup-panel .card-header, .backup-panel .card-body, .backup-panel .modal-header, .backup-panel .modal-body, .backup-panel .modal-footer { background: transparent; color: inherit; border-color: rgba(148,163,184,0.14); }
+    .backup-panel .card-header, .backup-panel .card-body { background: transparent; color: inherit; border-color: rgba(148,163,184,0.14); }
     .backup-panel .text-muted { color: rgba(226,232,240,0.84) !important; }
     .backup-panel .card-header { padding: 1.1rem 1.35rem 0.95rem; }
     .backup-panel .card-body { padding: 1.25rem 1.35rem 1.35rem; }
@@ -28,8 +25,7 @@
     .backup-panel .table td { border-color: rgba(148,163,184,0.12); }
     .backup-soft { border-radius: 18px; border: 1px solid rgba(148,163,184,0.14); background: rgba(255,255,255,0.06); padding: 1rem; }
     .backup-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; }
-    .backup-modal-content { background: linear-gradient(145deg, #0f172a 0%, #1e293b 100%); color: #e2e8f0; border: 1px solid rgba(148,163,184,0.18); }
-    @media (max-width: 768px) { .backup-shell { padding: 1rem; border-radius: 22px; } .backup-hero { padding: 1.15rem; border-radius: 20px; } .backup-kpis { grid-template-columns: 1fr; } .backup-tabs.nav-pills { flex-direction: column; } }
+    @media (max-width: 768px) { .backup-shell { padding: 1rem; border-radius: 22px; } .backup-hero { padding: 1.15rem; border-radius: 20px; } .backup-kpis { grid-template-columns: 1fr; } }
 </style>
 {% endblock %}
 
@@ -39,308 +35,61 @@
     <section class="backup-hero">
         <div class="backup-eyebrow"><i class="bi bi-database-check"></i> Segurança operacional</div>
         <h1 class="backup-title">Backups</h1>
-        <p class="backup-subtitle">Geração e restauração do banco em uma interface modernizada, com visual dark, foco em segurança e preservação completa do fluxo de progresso da restauração.</p>
+        <p class="backup-subtitle">Área dedicada a gerar e organizar cópias de segurança do banco. A restauração oficial do GALINT passa pelo ConversionEngine, que executa o pipeline controlado de implantação.</p>
     </section>
 
     <section class="backup-kpis">
-        <article class="backup-kpi"><span class="backup-kpi-label">Backups disponíveis</span><div class="backup-kpi-value">{{ backups|length }}</div><div class="backup-kpi-caption">Arquivos prontos para restauração.</div></article>
+        <article class="backup-kpi"><span class="backup-kpi-label">Backups disponíveis</span><div class="backup-kpi-value">{{ backups|length }}</div><div class="backup-kpi-caption">Arquivos prontos para retenção e uso pelo mecanismo oficial.</div></article>
         <article class="backup-kpi"><span class="backup-kpi-label">Último arquivo</span><div class="backup-kpi-value">{{ backups[0].name if backups else 'Nenhum' }}</div><div class="backup-kpi-caption">Primeiro item listado no histórico.</div></article>
-        <article class="backup-kpi"><span class="backup-kpi-label">Ação crítica</span><div class="backup-kpi-value">Restore</div><div class="backup-kpi-caption">Substitui os dados atuais pelo backup escolhido.</div></article>
+        <article class="backup-kpi"><span class="backup-kpi-label">Restauração oficial</span><div class="backup-kpi-value">ConversionEngine</div><div class="backup-kpi-caption">Pipeline controlado de implantação, validação e progresso operacional.</div></article>
     </section>
-
-    <ul class="nav nav-pills backup-tabs" role="tablist">
-        <li class="nav-item" role="presentation"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#backup-gerar" type="button" role="tab">Gerar backup</button></li>
-        <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#backup-restaurar" type="button" role="tab">Restaurar backup</button></li>
-    </ul>
-
-    <div class="tab-content">
-        <div class="tab-pane fade show active" id="backup-gerar" role="tabpanel">
-            <div class="card backup-panel">
-                <div class="card-body">
-                    <h5 class="card-title">Backup completo do sistema</h5>
-                    <p class="card-text text-muted">Cria uma cópia do banco PostgreSQL configurado usando pg_dump.</p>
-                    <div class="backup-soft mb-3">
-                        <div class="small text-muted">Use esta ação antes de atualizações maiores, migrações ou restaurações de segurança.</div>
-                    </div>
-                    <form method="post" action="{{ url_for('pages.create_backup') }}">
-                        <div class="backup-actions">
-                            <button class="btn btn-primary rounded-pill px-4" type="submit">Gerar backup agora</button>
-                            <a class="btn btn-outline-secondary rounded-pill px-4" href="{{ url_for('pages.config') }}">Voltar</a>
-                        </div>
-                    </form>
-                </div>
+    <div class="card backup-panel mb-4">
+        <div class="card-body">
+            <h5 class="card-title">Backup completo do sistema</h5>
+            <p class="card-text text-muted">Cria uma cópia do banco PostgreSQL configurado usando pg_dump.</p>
+            <div class="backup-soft mb-3">
+                <div class="small text-muted">Use esta ação antes de atualizações maiores, migrações ou implantações executadas pelo ConversionEngine.</div>
             </div>
+            <form method="post" action="{{ url_for('pages.create_backup') }}">
+                <div class="backup-actions">
+                    <button class="btn btn-primary rounded-pill px-4" type="submit">Gerar backup agora</button>
+                    <a class="btn btn-outline-info rounded-pill px-4" href="{{ url_for('pages.config_conversionengine') }}">Abrir restaurador oficial</a>
+                    <a class="btn btn-outline-secondary rounded-pill px-4" href="{{ url_for('pages.config') }}">Voltar</a>
+                </div>
+            </form>
         </div>
+    </div>
 
-        <div class="tab-pane fade" id="backup-restaurar" role="tabpanel">
-            <div class="card backup-panel">
-                <div class="card-header"><strong>Restaurar backup</strong><span class="text-muted small d-block mt-1">Os dados atuais serão substituídos pela cópia selecionada.</span></div>
-                <div class="card-body">
-                    {% if backups %}
-                    <form method="post" action="{{ url_for('pages.restore_backup') }}">
-                        <div class="table-responsive mb-3">
-                            <table class="table table-sm align-middle mb-0">
-                                <thead>
-                                    <tr><th></th><th>Backup</th><th>Data</th><th>Tamanho</th></tr>
-                                </thead>
-                                <tbody>
-                                    {% for backup in backups %}
-                                    <tr>
-                                        <td><div class="form-check"><input class="form-check-input" type="radio" name="backup_name" value="{{ backup.name }}" required></div></td>
-                                        <td>{{ backup.name }}</td>
-                                        <td>{{ backup.created }}</td>
-                                        <td>{{ backup.size }}</td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                        <div class="backup-actions justify-content-end">
-                            <button class="btn btn-outline-danger rounded-pill px-4" type="submit" formaction="{{ url_for('pages.delete_backup') }}" onclick="return confirm('Apagar o backup selecionado?');">Apagar backup</button>
-                            <button class="btn btn-danger rounded-pill px-4" type="button" id="btn-restore-backup">Restaurar banco de dados</button>
-                        </div>
-                    </form>
-                    {% else %}
-                    <p class="text-muted mb-0">Nenhum backup disponível. Gere um backup antes de realizar a restauração.</p>
-                    {% endif %}
+    <div class="card backup-panel">
+        <div class="card-header"><strong>Arquivos de backup</strong><span class="text-muted small d-block mt-1">Gerencie as cópias geradas localmente. A restauração foi centralizada no ConversionEngine.</span></div>
+        <div class="card-body">
+            {% if backups %}
+            <form method="post" action="{{ url_for('pages.delete_backup') }}">
+                <div class="table-responsive mb-3">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead>
+                            <tr><th></th><th>Backup</th><th>Data</th><th>Tamanho</th></tr>
+                        </thead>
+                        <tbody>
+                            {% for backup in backups %}
+                            <tr>
+                                <td><div class="form-check"><input class="form-check-input" type="radio" name="backup_name" value="{{ backup.name }}" required></div></td>
+                                <td>{{ backup.name }}</td>
+                                <td>{{ backup.created }}</td>
+                                <td>{{ backup.size }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
                 </div>
-            </div>
+                <div class="backup-actions justify-content-end">
+                    <button class="btn btn-outline-danger rounded-pill px-4" type="submit" onclick="return confirm('Apagar o backup selecionado?');">Apagar backup</button>
+                </div>
+            </form>
+            {% else %}
+            <p class="text-muted mb-0">Nenhum backup disponível. Gere um backup antes de realizar uma implantação pelo ConversionEngine.</p>
+            {% endif %}
         </div>
     </div>
 </div>
-
-<!-- Modal: Progresso de restauração -->
-<div class="modal fade" id="restoreProgressModal" tabindex="-1" aria-labelledby="restoreProgressModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content backup-modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="restoreProgressModalLabel">Restaurando banco de dados</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
-            </div>
-            <div class="modal-body">
-                <p class="text-muted mb-2" id="restoreProgressMessage">Iniciando...</p>
-                <div class="progress" role="progressbar" aria-label="Progresso da restauração" aria-valuemin="0" aria-valuemax="100">
-                    <div class="progress-bar progress-bar-striped progress-bar-animated" id="restoreProgressBar" style="width: 0%">0%</div>
-                </div>
-                <div class="small text-muted mt-2" id="restoreProgressHint">Não feche esta janela até concluir.</div>
-                <div class="small text-muted" id="restoreProgressMeta"></div>
-                <div class="alert alert-danger mt-3 d-none" id="restoreProgressError"></div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" id="btn-restore-close" disabled>Fechar</button>
-            </div>
-        </div>
-    </div>
-</div>
-{% endblock %}
-
-{% block scripts %}
-<script>
-    (function () {
-        const restoreBtn = document.getElementById('btn-restore-backup');
-        const modalEl = document.getElementById('restoreProgressModal');
-        if (!restoreBtn || !modalEl || typeof bootstrap === 'undefined') return;
-
-        const modal = new bootstrap.Modal(modalEl, { backdrop: 'static', keyboard: false });
-        const progressBar = document.getElementById('restoreProgressBar');
-        const progressMsg = document.getElementById('restoreProgressMessage');
-        const progressErr = document.getElementById('restoreProgressError');
-        const closeBtn = document.getElementById('btn-restore-close');
-        const progressMeta = document.getElementById('restoreProgressMeta');
-
-        let pollTimer = null;
-        let watchdogTimer = null;
-        let lastPollOkAt = 0;
-        let lastServerUpdateAt = '';
-        let currentJobId = null;
-        let startedAt = 0;
-
-        function setProgress(pct, message) {
-            const safePct = Math.max(0, Math.min(100, Number(pct) || 0));
-            if (progressBar) {
-                progressBar.style.width = safePct + '%';
-                progressBar.textContent = safePct + '%';
-                progressBar.setAttribute('aria-valuenow', String(safePct));
-            }
-            if (progressMsg && message) progressMsg.textContent = message;
-        }
-
-        function showError(text) {
-            if (!progressErr) return;
-            progressErr.textContent = text;
-            progressErr.classList.remove('d-none');
-        }
-
-        function clearError() {
-            if (!progressErr) return;
-            progressErr.textContent = '';
-            progressErr.classList.add('d-none');
-        }
-
-        async function startRestore(selectedBackupName) {
-            const form = new FormData();
-            form.set('backup_name', selectedBackupName);
-            const resp = await fetch('/configuracoes/restaurar/iniciar', {
-                method: 'POST',
-                body: form,
-                headers: { 'X-Requested-With': 'fetch' },
-                cache: 'no-store',
-            });
-            const data = await resp.json().catch(() => ({}));
-            if (resp.status === 404) {
-                throw new Error('Endpoint de restauração não encontrado. Reinicie o servidor do GALINT e tente novamente.');
-            }
-            if (!resp.ok || !data.ok) {
-                throw new Error(data.error || 'Falha ao iniciar restauração.');
-            }
-            return data.job_id;
-        }
-
-        async function poll(jobId, timeoutMs = 8000) {
-            const controller = new AbortController();
-            const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
-            let resp;
-            try {
-                resp = await fetch(`/configuracoes/restaurar/status/${encodeURIComponent(jobId)}`, {
-                    method: 'GET',
-                    headers: { 'X-Requested-With': 'fetch' },
-                    cache: 'no-store',
-                    signal: controller.signal,
-                });
-            } catch (err) {
-                if (err && err.name === 'AbortError') {
-                    throw new Error('Consulta de progresso excedeu o tempo limite. O servidor ainda pode estar processando.');
-                }
-                throw err;
-            } finally {
-                window.clearTimeout(timeoutId);
-            }
-            const data = await resp.json().catch(() => ({}));
-            if (!resp.ok || !data.ok) {
-                const err = data.error || 'Falha ao consultar progresso.';
-                if (resp.status === 404 && String(err).toLowerCase().includes('job')) {
-                    throw new Error('Job não encontrado (o servidor pode ter sido reiniciado). Inicie a restauração novamente.');
-                }
-                if (resp.status === 404) {
-                    throw new Error(err || 'Recurso não encontrado.');
-                }
-                throw new Error(err);
-            }
-            return data.state;
-        }
-
-        function stopPolling() {
-            if (pollTimer) {
-                clearInterval(pollTimer);
-                pollTimer = null;
-            }
-            if (watchdogTimer) {
-                clearInterval(watchdogTimer);
-                watchdogTimer = null;
-            }
-        }
-
-        function setMeta() {
-            if (!progressMeta) return;
-            const last = lastServerUpdateAt || (lastPollOkAt ? new Date(lastPollOkAt).toLocaleTimeString() : '—');
-            const job = currentJobId ? `Job: ${currentJobId}` : '';
-            progressMeta.textContent = `${job}${job ? ' • ' : ''}Última atualização: ${last}`;
-        }
-
-        async function tick(jobId) {
-            try {
-                const state = await poll(jobId);
-                lastPollOkAt = Date.now();
-                lastServerUpdateAt = state.updated_at ? new Date(state.updated_at).toLocaleTimeString() : '';
-                clearError();
-                setMeta();
-                setProgress(state.progress, state.message || 'Processando...');
-
-                if (state.status === 'success') {
-                    stopPolling();
-                    if (progressBar) progressBar.classList.remove('progress-bar-animated');
-                    if (closeBtn) closeBtn.disabled = false;
-                    setTimeout(() => window.location.reload(), 800);
-                } else if (state.status === 'error') {
-                    stopPolling();
-                    if (progressBar) progressBar.classList.remove('progress-bar-animated');
-                    if (closeBtn) closeBtn.disabled = false;
-                    showError(state.error || 'Erro ao restaurar.');
-                }
-            } catch (err) {
-                const message = err?.message || String(err);
-                const isFatal = message.includes('Não autenticado')
-                    || message.includes('Acesso negado')
-                    || message.includes('Job não encontrado')
-                    || message.includes('Recurso não encontrado');
-
-                if (isFatal) {
-                    stopPolling();
-                    if (closeBtn) closeBtn.disabled = false;
-                    showError(message);
-                    throw err;
-                }
-
-                showError(message);
-            }
-        }
-
-        restoreBtn.addEventListener('click', async () => {
-            const selected = document.querySelector('input[name="backup_name"]:checked');
-            if (!selected) {
-                alert('Selecione um backup para restaurar.');
-                return;
-            }
-
-            // Reset UI
-            stopPolling();
-            clearError();
-            if (closeBtn) closeBtn.disabled = true;
-            setProgress(0, 'Iniciando...');
-            currentJobId = null;
-            lastPollOkAt = 0;
-            lastServerUpdateAt = '';
-            startedAt = Date.now();
-            setMeta();
-            modal.show();
-
-            try {
-                const jobId = await startRestore(selected.value);
-                currentJobId = jobId;
-                setMeta();
-                setProgress(5, 'Job iniciado. Preparando restauração...');
-
-                // Poll imediato (para não parecer travado em 5%).
-                try {
-                    await tick(jobId);
-                } catch (err) {
-                    // Se falhar no primeiro poll, ainda tentamos pelo intervalo.
-                }
-
-                // Watchdog: se não conseguirmos atualizar por um tempo, avisar.
-                watchdogTimer = setInterval(() => {
-                    const now = Date.now();
-                    // Se passou mais de 90s desde o início e ainda não tivemos update,
-                    // OU se já tivemos update e ficou 90s sem resposta, mostrar aviso.
-                    const noUpdateSinceStart = (now - startedAt) > 90000 && !lastPollOkAt;
-                    const staleAfterUpdate = lastPollOkAt && (now - lastPollOkAt) > 90000;
-                    if (noUpdateSinceStart || staleAfterUpdate) {
-                        showError('Sem atualização do servidor há mais de 90s. O GALINT continuará tentando consultar o progresso automaticamente.');
-                    }
-                }, 10000);
-
-                pollTimer = setInterval(() => {
-                    void tick(jobId);
-                }, 3000);
-            } catch (err) {
-                if (closeBtn) closeBtn.disabled = false;
-                showError(err?.message || String(err));
-            }
-        });
-
-        modalEl.addEventListener('hidden.bs.modal', () => {
-            stopPolling();
-        });
-    })();
-</script>
 {% endblock %}

@@ -359,6 +359,11 @@ class BackupService:
         if params["password"]:
             env["PGPASSWORD"] = str(params["password"])
         self._apply_pg_timeouts(env)
+        reset_schema_sql = (
+            "DROP SCHEMA IF EXISTS public CASCADE; "
+            "CREATE SCHEMA public; "
+            "GRANT ALL ON SCHEMA public TO PUBLIC;"
+        )
         cmd: list[str] = [
             self._psql_cmd,
             "-w",
@@ -372,7 +377,14 @@ class BackupService:
             cmd += ["-p", str(params["port"])]
         if params["username"]:
             cmd += ["-U", str(params["username"])]
-        cmd += ["-d", str(params["database"]), "-f", str(source)]
+        cmd += [
+            "-d",
+            str(params["database"]),
+            "-c",
+            reset_schema_sql,
+            "-f",
+            str(source),
+        ]
         try:
             result = subprocess.run(
                 cmd,

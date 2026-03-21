@@ -9,7 +9,7 @@ from ..services.galint_notify_service import GalintNotifyService
 from ..services.notification_router import NotificationRouterService
 from ..services.telegram_service import TelegramService
 from ..extensions import db
-from ..models import NotificationRouterConfig, TelegramConfig, TelegramGroup, TelegramUser, Usuario
+from ..models import NotificationRouterConfig, TelegramConfig, TelegramUser, Usuario
 
 
 bp = Blueprint("config", __name__, url_prefix="/configuracoes")
@@ -229,7 +229,7 @@ def notificacoes():
 
     router_status = NotificationRouterService.status_payload()
     telegram_users = TelegramUser.query.join(Usuario).all()
-    groups = TelegramGroup.query.all()
+    groups = []
     usuarios = Usuario.query.order_by(Usuario.nome.asc()).all()
 
     return render_template(
