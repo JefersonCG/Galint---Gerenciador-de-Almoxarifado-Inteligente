@@ -217,6 +217,13 @@ class FinanceService:
         return FinanceSupplier.query.get(int(supplier_id))
 
     @staticmethod
+    def get_supplier_by_cnpj(cnpj: str | None) -> FinanceSupplier | None:
+        normalized = FinanceService.normalize_cnpj(cnpj)
+        if not normalized:
+            return None
+        return FinanceSupplier.query.filter(FinanceSupplier.cnpj == normalized).first()
+
+    @staticmethod
     def save_supplier(data: dict[str, Any]) -> FinanceSupplier:
         supplier_id = data.get("id")
         supplier = FinanceSupplier.query.get(int(supplier_id)) if supplier_id else None

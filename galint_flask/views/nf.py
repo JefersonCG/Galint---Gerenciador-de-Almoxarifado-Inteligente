@@ -1,10 +1,11 @@
 """Rotas para lançamento e acompanhamento de notas fiscais."""
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
 
 from flask import Blueprint, abort, current_app, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
+from sqlalchemy import or_
 
 from ..extensions import db
 from ..models import DocumentoEntradaEstoque, DocumentoEntradaEstoqueItem, Entrada, FinanceLedgerEntry, TelegramOutbox
@@ -12,6 +13,229 @@ from ..services.finance_service import finance_service
 from ..services.inventory import inventory_service
 
 blueprint = Blueprint("nf", __name__, url_prefix="/nf")
+
+
+def _parse_iso_date(raw_value: str | None, *, fallback: date | None = None) -> date | None:
+    raw = (raw_value or "").strip()
+    if not raw:
+        return fallback
+    try:
+        return date.fromisoformat(raw)
+    except ValueError:
+        return fallback
+
+
+def _parse_optional_float(raw_value: str | None, *, fallback: float | None = None) -> float | None:
+    raw = (raw_value or "").strip()
+    if not raw:
+        return fallback
+    try:
+        return float(raw)
+    except ValueError:
+        return fallback
+
+
+def _document_is_ready_for_nf_confirmation(documento: DocumentoEntradaEstoque) -> bool:
+    tipo_documento = (documento.tipo_documento or "nf").strip().lower() or "nf"
+    if not documento.data_emissao or not documento.data_recebimento:
+        return False
+    if tipo_documento == "nf" and not (documento.chave_acesso or "").strip():
+        return False
+    if not documento.itens:
+        return False
+    return all(
+        row.valor_unitario not in (None, "") or row.valor_total not in (None, "")
+        for row in documento.itens
+    )
+
+
+def _infer_document_origin(documento: DocumentoEntradaEstoque) -> str | None:
+    tipo_documento = (documento.tipo_documento or "nf").strip().lower() or "nf"
+    if tipo_documento == "nf":
+        return "compra_nf"
+    if tipo_documento == "cupom":
+        return "compra_cupom"
+    return None
+
+
+def _infer_legacy_item_unit_price(entrada: Entrada) -> float | None:
+    item = entrada.item
+    if item is not None:
+        try:
+            item_document = (item.preco_compra_documento or "").strip()
+        except AttributeError:
+            item_document = ""
+        if item_document == (entrada.nota_fiscal or "").strip() and item.preco_compra_unitario not in (None, ""):
+            return float(item.preco_compra_unitario)
+
+    ledger_entry = (
+        FinanceLedgerEntry.query
+        .filter(
+            or_(
+                FinanceLedgerEntry.entrada_id == entrada.id_entrada,
+                FinanceLedgerEntry.numero_documento == entrada.nota_fiscal,
+            )
+        )
+        .filter(FinanceLedgerEntry.codigo_item == entrada.codigo_item)
+        .order_by(FinanceLedgerEntry.data_lancamento.desc(), FinanceLedgerEntry.id.desc())
+        .first()
+    )
+    if ledger_entry and ledger_entry.valor_unitario not in (None, ""):
+        return float(ledger_entry.valor_unitario)
+    return None
+
+
+def _get_or_create_document_from_legacy_number(numero_documento: str) -> tuple[DocumentoEntradaEstoque, bool, int]:
+    numero = (numero_documento or "").strip()
+    if not numero:
+        raise ValueError("Informe o número do documento legado.")
+
+    entradas = (
+        Entrada.query
+        .filter(Entrada.nota_fiscal == numero)
+        .order_by(Entrada.data_entrada.asc(), Entrada.id_entrada.asc())
+        .all()
+    )
+    if not entradas:
+        raise ValueError("Documento legado não encontrado no histórico de entradas.")
+
+    document = (
+        DocumentoEntradaEstoque.query
+        .filter(DocumentoEntradaEstoque.numero_documento == numero)
+        .order_by(DocumentoEntradaEstoque.id_documento.desc())
+        .first()
+    )
+    created = False
+    imported_items = 0
+    if document is None:
+        latest_entry = entradas[-1]
+        created = True
+        document = DocumentoEntradaEstoque(
+            tipo_documento="manual",
+            numero_documento=numero,
+            data_recebimento=latest_entry.data_entrada.date() if latest_entry.data_entrada else None,
+            observacao="Convertido automaticamente do histórico legado de entradas.",
+            status_integracao="manual",
+            mensagem_integracao=None,
+            criado_por=current_user.id,
+        )
+        db.session.add(document)
+        db.session.flush()
+
+    existing_entry_ids = {
+        row.entrada_id
+        for row in document.itens
+        if row.entrada_id is not None
+    }
+    for entrada in entradas:
+        if entrada.id_entrada in existing_entry_ids:
+            continue
+        unit_price = _infer_legacy_item_unit_price(entrada)
+        quantity = float(entrada.quantidade or 0.0)
+        total_price = round(quantity * unit_price, 2) if unit_price is not None else None
+        db.session.add(
+            DocumentoEntradaEstoqueItem(
+                documento_id=document.id_documento,
+                entrada_id=entrada.id_entrada,
+                codigo_item=entrada.codigo_item,
+                quantidade=quantity,
+                valor_unitario=unit_price,
+                valor_total=total_price,
+                observacao=None,
+            )
+        )
+        imported_items += 1
+
+    if imported_items and not document.data_recebimento:
+        latest_entry = entradas[-1]
+        document.data_recebimento = latest_entry.data_entrada.date() if latest_entry.data_entrada else document.data_recebimento
+
+    return document, created, imported_items
+
+
+def _sync_document_financial_entries(documento: DocumentoEntradaEstoque) -> dict[str, int | bool]:
+    updated = 0
+    skipped = 0
+    auto_confirmed = _document_is_ready_for_nf_confirmation(documento)
+    auto_origin = _infer_document_origin(documento)
+
+    for item_row in documento.itens:
+        quantidade = float(item_row.quantidade or 0.0)
+        valor_unitario = float(item_row.valor_unitario) if item_row.valor_unitario not in (None, "") else None
+        valor_total = float(item_row.valor_total) if item_row.valor_total not in (None, "") else None
+
+        if valor_unitario is not None:
+            valor_total = round(valor_unitario * quantidade, 2)
+            item_row.valor_total = valor_total
+        elif valor_total is not None and quantidade > 0:
+            valor_unitario = round(valor_total / quantidade, 2)
+            item_row.valor_unitario = valor_unitario
+
+        query = FinanceLedgerEntry.query.filter(FinanceLedgerEntry.codigo_item == item_row.codigo_item)
+        if item_row.entrada_id is not None:
+            query = query.filter(FinanceLedgerEntry.entrada_id == item_row.entrada_id)
+        else:
+            query = query.filter(
+                or_(
+                    FinanceLedgerEntry.numero_documento == documento.numero_documento,
+                    FinanceLedgerEntry.comprovacao_status.in_(["sem_comprovacao", "parcial"]),
+                )
+            )
+
+        ledger_entry = (
+            query
+            .order_by(FinanceLedgerEntry.data_lancamento.desc(), FinanceLedgerEntry.id.desc())
+            .first()
+        )
+        if ledger_entry is None:
+            skipped += 1
+            continue
+
+        ledger_entry.fornecedor_id = documento.fornecedor_id
+        ledger_entry.usuario_matricula = current_user.id
+        ledger_entry.categoria_nome = ledger_entry.categoria_nome or (
+            item_row.item.categoria if item_row.item and item_row.item.categoria else "Sem categoria"
+        )
+        ledger_entry.data_lancamento = ledger_entry.data_lancamento or datetime.utcnow()
+        ledger_entry.quantidade = quantidade
+        if valor_unitario is not None:
+            ledger_entry.valor_unitario = valor_unitario
+        if valor_total is not None:
+            ledger_entry.valor_total = valor_total
+        elif valor_unitario is not None:
+            ledger_entry.valor_total = round(quantidade * valor_unitario, 2)
+
+        ledger_entry.tipo_documento = documento.tipo_documento
+        ledger_entry.numero_documento = documento.numero_documento
+        ledger_entry.chave_acesso = documento.chave_acesso
+        ledger_entry.data_emissao_documento = documento.data_emissao
+        ledger_entry.data_recebimento_documento = documento.data_recebimento
+        if item_row.observacao:
+            ledger_entry.observacao = item_row.observacao
+        elif documento.observacao:
+            ledger_entry.observacao = documento.observacao
+
+        if auto_confirmed and auto_origin:
+            ledger_entry.origem_valor = auto_origin
+            ledger_entry.comprovacao_status = "comprovado"
+
+        if item_row.item is not None and valor_unitario is not None:
+            item_row.item.preco_compra_unitario = valor_unitario
+            item_row.item.preco_compra_fonte = auto_origin or item_row.item.preco_compra_fonte or "compra_nf"
+            item_row.item.preco_compra_documento = documento.numero_documento
+            item_row.item.preco_compra_chave_acesso = documento.chave_acesso
+            item_row.item.preco_compra_data_emissao = documento.data_emissao
+            item_row.item.preco_compra_data_recebimento = documento.data_recebimento
+            item_row.item.preco_compra_atualizado_em = datetime.utcnow()
+            item_row.item.preco_compra_atualizado_por = current_user.id
+
+        updated += 1
+
+    return {
+        "updated": updated,
+        "skipped": skipped,
+        "auto_confirmed": auto_confirmed,
+    }
 
 
 def _purge_linked_entry(entrada_id: int | None) -> None:
@@ -88,6 +312,8 @@ def registrar_nf():
     preco_unitario_raw = (request.form.get("preco_unitario") or "").strip()
     observacao = (request.form.get("finance_observacao") or "").strip() or None
     chave_acesso = (request.form.get("chave_acesso") or "").strip() or None
+    if tipo_documento != "nf":
+        chave_acesso = None
     data_emissao_raw = (request.form.get("data_emissao") or "").strip()
     data_recebimento_raw = (request.form.get("data_recebimento") or "").strip()
     quantidade_raw = request.form.get("quantidade", "0")
@@ -166,6 +392,143 @@ def registrar_nf():
     except ValueError as exc:
         flash(str(exc), "danger")
     return redirect(url_for("nf.nf_index"))
+
+
+@blueprint.post("/converter-legado")
+@login_required
+def converter_documento_legado():
+    _require_admin()
+    numero_documento = (request.form.get("nota_fiscal") or request.form.get("numero_documento") or "").strip()
+    try:
+        document, created, imported_items = _get_or_create_document_from_legacy_number(numero_documento)
+        db.session.commit()
+        if created:
+            flash(
+                f"Documento legado {document.numero_documento} convertido para documento fiscal editável com {imported_items} item(ns).",
+                "success",
+            )
+        elif imported_items:
+            flash(
+                f"Documento fiscal {document.numero_documento} atualizado com {imported_items} item(ns) importado(s) do histórico legado.",
+                "success",
+            )
+        else:
+            flash(f"Documento fiscal {document.numero_documento} já estava convertido e pronto para edição.", "info")
+        return redirect(f"{url_for('nf.nf_index', nota=document.numero_documento)}#documento-editar-{document.id_documento}")
+    except ValueError as exc:
+        db.session.rollback()
+        flash(str(exc), "danger")
+        return redirect(url_for("nf.nf_index", nota=numero_documento))
+
+
+@blueprint.post("/<int:documento_id>/editar")
+@login_required
+def editar_documento(documento_id: int):
+    _require_admin()
+    documento = db.session.get(DocumentoEntradaEstoque, documento_id)
+    if documento is None:
+        flash("Documento fiscal não encontrado.", "danger")
+        return redirect(url_for("nf.nf_index"))
+
+    try:
+        numero_documento = (request.form.get("numero_documento") or "").strip()
+        tipo_documento = (request.form.get("tipo_documento") or "nf").strip() or "nf"
+        supplier_raw = (request.form.get("finance_supplier_id") or "").strip()
+        supplier_id = int(supplier_raw) if supplier_raw.isdigit() else None
+        supplier_name = (
+            request.form.get("supplier_name")
+            or request.form.get("finance_supplier_search")
+            or documento.fornecedor_nome
+            or ""
+        ).strip() or None
+        supplier_cnpj = (request.form.get("supplier_cnpj") or documento.cnpj_emitente or "").strip() or None
+        data_emissao = _parse_iso_date(request.form.get("data_emissao"), fallback=documento.data_emissao)
+        data_recebimento = _parse_iso_date(request.form.get("data_recebimento"), fallback=documento.data_recebimento)
+        chave_acesso = (request.form.get("chave_acesso") or "").strip() or None
+        if tipo_documento != "nf":
+            chave_acesso = None
+        observacao = (request.form.get("finance_observacao") or "").strip() or None
+
+        if not numero_documento:
+            raise ValueError("Informe o número do documento fiscal.")
+
+        supplier = finance_service._resolve_supplier_for_document(
+            supplier_id=supplier_id,
+            supplier_name=supplier_name,
+            supplier_cnpj=supplier_cnpj,
+        )
+        cnpj_emitente = supplier.cnpj if supplier and supplier.cnpj else (finance_service.normalize_cnpj(supplier_cnpj) or None)
+        fornecedor_nome = supplier.nome_exibicao() if supplier else supplier_name
+
+        documento.numero_documento = numero_documento
+        documento.tipo_documento = tipo_documento
+        documento.fornecedor_id = supplier.id if supplier else None
+        documento.fornecedor_nome = fornecedor_nome
+        documento.cnpj_emitente = cnpj_emitente
+        documento.data_emissao = data_emissao
+        documento.data_recebimento = data_recebimento
+        documento.chave_acesso = chave_acesso
+        documento.observacao = observacao
+        if chave_acesso and tipo_documento == "nf":
+            documento.status_integracao = "aguardando_certificado"
+            documento.mensagem_integracao = "Consulta automática bloqueada até a configuração do certificado digital."
+        else:
+            documento.status_integracao = "manual"
+            documento.mensagem_integracao = None
+
+        for item_row in documento.itens:
+            quantidade = _parse_optional_float(
+                request.form.get(f"item_quantidade_{item_row.id_documento_item}"),
+                fallback=float(item_row.quantidade or 0.0),
+            )
+            valor_unitario = _parse_optional_float(
+                request.form.get(f"item_valor_unitario_{item_row.id_documento_item}"),
+                fallback=item_row.valor_unitario,
+            )
+            valor_total = _parse_optional_float(
+                request.form.get(f"item_valor_total_{item_row.id_documento_item}"),
+                fallback=item_row.valor_total,
+            )
+            observacao_item = (
+                request.form.get(f"item_observacao_{item_row.id_documento_item}")
+                or item_row.observacao
+                or ""
+            ).strip() or None
+
+            if quantidade is None or quantidade <= 0:
+                raise ValueError(f"Informe uma quantidade válida para o item {item_row.codigo_item}.")
+
+            item_row.quantidade = quantidade
+            item_row.valor_unitario = valor_unitario
+            if valor_unitario is not None:
+                item_row.valor_total = round(float(valor_unitario) * float(quantidade), 2)
+            else:
+                item_row.valor_total = valor_total
+            item_row.observacao = observacao_item
+
+        sync_result = _sync_document_financial_entries(documento)
+        db.session.commit()
+
+        if sync_result["auto_confirmed"]:
+            flash(
+                f"Documento fiscal atualizado. {sync_result['updated']} lançamento(s) financeiro(s) sincronizado(s) e marcado(s) como compra com NF.",
+                "success",
+            )
+        else:
+            flash(
+                "Documento fiscal atualizado. O vínculo financeiro foi sincronizado, mas a troca automática para compra com NF só ocorre após informar datas, chave de acesso e valores dos itens.",
+                "warning",
+            )
+        if sync_result["skipped"]:
+            flash(
+                f"{sync_result['skipped']} item(ns) não tinham lançamento financeiro compatível para atualização automática.",
+                "info",
+            )
+    except ValueError as exc:
+        db.session.rollback()
+        flash(str(exc), "danger")
+
+    return redirect(f"{url_for('nf.nf_index', nota=documento.numero_documento)}#documento-editar-{documento.id_documento}")
 
 
 @blueprint.post("/<int:documento_id>/itens/<int:documento_item_id>/excluir")

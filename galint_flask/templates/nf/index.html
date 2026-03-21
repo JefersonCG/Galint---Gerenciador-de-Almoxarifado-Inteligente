@@ -540,7 +540,7 @@
                             </select>
                         </div>
                     </div>
-                    <div class="mb-3 mt-3">
+                    <div class="mb-3 mt-3" data-chave-acesso-group>
                         <label class="form-label" for="chave_acesso">Chave de acesso</label>
                         <input class="form-control" id="chave_acesso" name="chave_acesso" placeholder="44 dígitos da NF-e / NFC-e">
                         <div class="form-text">A chave deixa a NF pronta no sistema. A consulta automática ficará bloqueada até configurar o certificado digital.</div>
@@ -606,7 +606,12 @@
                         {% if nota_detalhes.status_integracao == 'aguardando_certificado' %}
                         <span class="docf-badge">Aguardando certificado</span>
                         {% elif can_manage and nota_detalhes.id_documento is defined and nota_detalhes.id_documento is not none %}
-                        <span class="docf-badge">Editável</span>
+                        <a class="docf-btn-secondary" href="#documento-editar-{{ nota_detalhes.id_documento }}">Editar agora</a>
+                        {% elif can_manage and nota_detalhes.nota_fiscal|default('', true) %}
+                        <form method="post" action="/nf/converter-legado" class="d-inline">
+                            <input type="hidden" name="nota_fiscal" value="{{ nota_detalhes.nota_fiscal }}">
+                            <button class="docf-btn-secondary" type="submit">Converter para edição</button>
+                        </form>
                         {% endif %}
                     </div>
                     <p class="mb-3 small docf-muted">
@@ -618,7 +623,9 @@
                         <div class="docf-detail-box"><span class="docf-detail-label">CNPJ</span><span class="docf-detail-value">{{ nota_detalhes.cnpj_emitente|default('Não informado', true) }}</span></div>
                         <div class="docf-detail-box"><span class="docf-detail-label">Emissão</span><span class="docf-detail-value">{{ nota_detalhes.data_emissao.strftime('%d/%m/%Y') if nota_detalhes.data_emissao|default(None, true) else 'Não informada' }}</span></div>
                         <div class="docf-detail-box"><span class="docf-detail-label">Recebimento</span><span class="docf-detail-value">{{ nota_detalhes.data_recebimento.strftime('%d/%m/%Y') if nota_detalhes.data_recebimento|default(None, true) else 'Não informado' }}</span></div>
+                        {% if nota_detalhes.tipo_documento == 'nf' %}
                         <div class="docf-detail-box"><span class="docf-detail-label">Chave</span><span class="docf-detail-value">{{ nota_detalhes.chave_acesso|default('Não informada', true) }}</span></div>
+                        {% endif %}
                         <div class="docf-detail-box"><span class="docf-detail-label">Status</span><span class="docf-detail-value">{{ nota_detalhes.status_integracao|default('manual', true)|replace('_', ' ')|title }}</span></div>
                         <div class="docf-detail-box"><span class="docf-detail-label">Qtd. total</span><span class="docf-detail-value">{{ nota_detalhes.total_quantidade|number_br(2, True) }}</span></div>
                         <div class="docf-detail-box"><span class="docf-detail-label">Valor total</span><span class="docf-detail-value">{{ nota_detalhes.total_valor|default(0, true)|currency_br }}</span></div>
@@ -630,6 +637,94 @@
                             <button class="docf-btn-secondary" type="button" disabled>Consultar NF pela chave (em breve)</button>
                         </div>
                     </div>
+                    {% endif %}
+                    {% if can_manage and (nota_detalhes.id_documento is not defined or nota_detalhes.id_documento is none) and nota_detalhes.nota_fiscal|default('', true) %}
+                    <div class="docf-panel info mt-3">
+                        <strong>Histórico legado detectado:</strong> este DOC veio das entradas antigas do almoxarifado. Use a conversão abaixo para abrir um documento fiscal editável sem apagar o histórico do estoque.
+                        <form method="post" action="/nf/converter-legado" class="mt-3">
+                            <input type="hidden" name="nota_fiscal" value="{{ nota_detalhes.nota_fiscal }}">
+                            <button class="docf-btn-primary" type="submit">Converter este DOC para edição fiscal</button>
+                        </form>
+                    </div>
+                    {% endif %}
+                    {% if can_manage and nota_detalhes.id_documento is defined and nota_detalhes.id_documento is not none %}
+                    <section class="docf-panel info mt-3" id="documento-editar-{{ nota_detalhes.id_documento }}">
+                        <div class="docf-kicker">Edição completa</div>
+                        <h4 class="mb-3">Atualizar documento e itens</h4>
+                        <form method="post" action="/nf/{{ nota_detalhes.id_documento }}/editar" class="docf-form">
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <label class="form-label" for="nota-detalhe-numero">Número do documento</label>
+                                    <input class="form-control" id="nota-detalhe-numero" name="numero_documento" value="{{ nota_detalhes.numero_documento|default('', true) }}" required>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label" for="nota-detalhe-tipo">Tipo</label>
+                                    <select class="form-select" id="nota-detalhe-tipo" name="tipo_documento">
+                                        <option value="nf" {% if nota_detalhes.tipo_documento == 'nf' %}selected{% endif %}>Nota fiscal</option>
+                                        <option value="cupom" {% if nota_detalhes.tipo_documento == 'cupom' %}selected{% endif %}>Cupom não fiscal</option>
+                                        <option value="recibo" {% if nota_detalhes.tipo_documento == 'recibo' %}selected{% endif %}>Recibo</option>
+                                        <option value="manual" {% if nota_detalhes.tipo_documento == 'manual' %}selected{% endif %}>Manual</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label" for="nota-detalhe-cnpj">CNPJ</label>
+                                    <input class="form-control" id="nota-detalhe-cnpj" name="supplier_cnpj" value="{{ nota_detalhes.cnpj_emitente|default('', true) }}">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label" for="nota-detalhe-fornecedor">Fornecedor</label>
+                                    <input class="form-control" id="nota-detalhe-fornecedor" name="supplier_name" value="{{ nota_detalhes.fornecedor_nome|default('', true) }}">
+                                    <input type="hidden" name="finance_supplier_id" value="{{ nota_detalhes.fornecedor_id|default('', true) }}">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label" for="nota-detalhe-emissao">Emissão</label>
+                                    <input class="form-control" id="nota-detalhe-emissao" name="data_emissao" type="date" value="{{ nota_detalhes.data_emissao.isoformat() if nota_detalhes.data_emissao|default(None, true) else '' }}">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label" for="nota-detalhe-recebimento">Recebimento</label>
+                                    <input class="form-control" id="nota-detalhe-recebimento" name="data_recebimento" type="date" value="{{ nota_detalhes.data_recebimento.isoformat() if nota_detalhes.data_recebimento|default(None, true) else '' }}">
+                                </div>
+                                <div class="col-12" data-chave-acesso-group>
+                                    <label class="form-label" for="nota-detalhe-chave">Chave de acesso</label>
+                                    <input class="form-control" id="nota-detalhe-chave" name="chave_acesso" value="{{ nota_detalhes.chave_acesso|default('', true) }}" placeholder="44 dígitos da NF-e / NFC-e">
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label" for="nota-detalhe-observacao">Observação</label>
+                                    <textarea class="form-control" id="nota-detalhe-observacao" name="finance_observacao" rows="2">{{ nota_detalhes.observacao|default('', true) }}</textarea>
+                                </div>
+                            </div>
+
+                            <div class="docf-panel mt-3 mb-3">
+                                <div class="docf-kicker">Itens da NF</div>
+                                <p class="docf-muted mb-3">Preencha quantidade e valor unitário dos itens. Quando a NF tiver datas, chave de acesso e valores, o sistema promove automaticamente os materiais vinculados de sem comprovação para compra com NF.</p>
+                                {% for item in nota_detalhes.itens %}
+                                <div class="row g-3 align-items-end mb-3">
+                                    <div class="col-lg-3">
+                                        <label class="form-label">Item</label>
+                                        <input class="form-control" value="{{ item.codigo }} — {{ item.descricao }}" readonly>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <label class="form-label" for="nota-detalhe-quantidade-{{ item.id }}">Quantidade</label>
+                                        <input class="form-control" id="nota-detalhe-quantidade-{{ item.id }}" name="item_quantidade_{{ item.id }}" type="number" min="0.01" step="0.01" value="{{ item.quantidade|default(0, true) }}" required>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <label class="form-label" for="nota-detalhe-unitario-{{ item.id }}">Valor unitário</label>
+                                        <input class="form-control" id="nota-detalhe-unitario-{{ item.id }}" name="item_valor_unitario_{{ item.id }}" type="number" min="0" step="0.01" value="{{ item.valor_unitario if item.valor_unitario is not none else '' }}">
+                                    </div>
+                                    <div class="col-md-2">
+                                        <label class="form-label" for="nota-detalhe-total-{{ item.id }}">Valor total</label>
+                                        <input class="form-control" id="nota-detalhe-total-{{ item.id }}" name="item_valor_total_{{ item.id }}" type="number" min="0" step="0.01" value="{{ item.valor_total if item.valor_total is not none else '' }}">
+                                    </div>
+                                    <div class="col-lg-3">
+                                        <label class="form-label" for="nota-detalhe-obs-{{ item.id }}">Observação do item</label>
+                                        <input class="form-control" id="nota-detalhe-obs-{{ item.id }}" name="item_observacao_{{ item.id }}" value="{{ item.observacao|default('', true) }}">
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+
+                            <button class="docf-btn-primary" type="submit">Salvar alterações desta NF</button>
+                        </form>
+                    </section>
                     {% endif %}
                     <div class="docf-table-wrap">
                         <table class="table docf-table mb-0">
@@ -711,10 +806,106 @@
                                     <div class="docf-detail-box"><span class="docf-detail-label">Status</span><span class="docf-detail-value">{{ nota.status_integracao|default('manual', true)|replace('_', ' ')|title }}</span></div>
                                     <div class="docf-detail-box"><span class="docf-detail-label">Valor</span><span class="docf-detail-value">{{ nota.total_valor|default(0, true)|currency_br }}</span></div>
                                 </div>
+                                {% if can_manage and nota.id_documento is defined and nota.id_documento is not none %}
+                                <div class="mt-3">
+                                    <a class="docf-btn-secondary" href="#documento-editar-{{ nota.id_documento }}">Editar este documento</a>
+                                </div>
+                                {% elif can_manage and nota.nota_fiscal|default('', true) %}
+                                <div class="mt-3">
+                                    <form method="post" action="/nf/converter-legado" class="d-inline">
+                                        <input type="hidden" name="nota_fiscal" value="{{ nota.nota_fiscal }}">
+                                        <button class="docf-btn-secondary" type="submit">Converter para edição</button>
+                                    </form>
+                                </div>
+                                {% endif %}
                                 {% if nota.mensagem_integracao %}
                                 <div class="docf-panel warning mt-3">
                                     <strong>Consulta bloqueada:</strong> {{ nota.mensagem_integracao }}
                                 </div>
+                                {% endif %}
+                                {% if can_manage and (nota.id_documento is not defined or nota.id_documento is none) and nota.nota_fiscal|default('', true) %}
+                                <div class="docf-panel info mt-3">
+                                    Este DOC veio do histórico legado. A conversão abaixo cria um documento fiscal editável com os mesmos itens e mantém as entradas originais intactas.
+                                </div>
+                                {% endif %}
+                                {% if can_manage and nota.id_documento is defined and nota.id_documento is not none %}
+                                <section class="docf-panel info mt-3" id="documento-editar-{{ nota.id_documento }}">
+                                    <div class="docf-kicker">Edição completa</div>
+                                    <h4 class="mb-3">Atualizar documento e itens</h4>
+                                    <form method="post" action="/nf/{{ nota.id_documento }}/editar" class="docf-form">
+                                        <div class="row g-3">
+                                            <div class="col-md-4">
+                                                <label class="form-label" for="nota-historico-numero-{{ collapse_id }}">Número do documento</label>
+                                                <input class="form-control" id="nota-historico-numero-{{ collapse_id }}" name="numero_documento" value="{{ nota.numero_documento|default('', true) }}" required>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label class="form-label" for="nota-historico-tipo-{{ collapse_id }}">Tipo</label>
+                                                <select class="form-select" id="nota-historico-tipo-{{ collapse_id }}" name="tipo_documento">
+                                                    <option value="nf" {% if nota.tipo_documento == 'nf' %}selected{% endif %}>Nota fiscal</option>
+                                                    <option value="cupom" {% if nota.tipo_documento == 'cupom' %}selected{% endif %}>Cupom não fiscal</option>
+                                                    <option value="recibo" {% if nota.tipo_documento == 'recibo' %}selected{% endif %}>Recibo</option>
+                                                    <option value="manual" {% if nota.tipo_documento == 'manual' %}selected{% endif %}>Manual</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <label class="form-label" for="nota-historico-cnpj-{{ collapse_id }}">CNPJ</label>
+                                                <input class="form-control" id="nota-historico-cnpj-{{ collapse_id }}" name="supplier_cnpj" value="{{ nota.cnpj_emitente|default('', true) }}">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label" for="nota-historico-fornecedor-{{ collapse_id }}">Fornecedor</label>
+                                                <input class="form-control" id="nota-historico-fornecedor-{{ collapse_id }}" name="supplier_name" value="{{ nota.fornecedor_nome|default('', true) }}">
+                                                <input type="hidden" name="finance_supplier_id" value="{{ nota.fornecedor_id|default('', true) }}">
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label class="form-label" for="nota-historico-emissao-{{ collapse_id }}">Emissão</label>
+                                                <input class="form-control" id="nota-historico-emissao-{{ collapse_id }}" name="data_emissao" type="date" value="{{ nota.data_emissao.isoformat() if nota.data_emissao|default(None, true) else '' }}">
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label class="form-label" for="nota-historico-recebimento-{{ collapse_id }}">Recebimento</label>
+                                                <input class="form-control" id="nota-historico-recebimento-{{ collapse_id }}" name="data_recebimento" type="date" value="{{ nota.data_recebimento.isoformat() if nota.data_recebimento|default(None, true) else '' }}">
+                                            </div>
+                                            <div class="col-12" data-chave-acesso-group>
+                                                <label class="form-label" for="nota-historico-chave-{{ collapse_id }}">Chave de acesso</label>
+                                                <input class="form-control" id="nota-historico-chave-{{ collapse_id }}" name="chave_acesso" value="{{ nota.chave_acesso|default('', true) }}" placeholder="44 dígitos da NF-e / NFC-e">
+                                            </div>
+                                            <div class="col-12">
+                                                <label class="form-label" for="nota-historico-observacao-{{ collapse_id }}">Observação</label>
+                                                <textarea class="form-control" id="nota-historico-observacao-{{ collapse_id }}" name="finance_observacao" rows="2">{{ nota.observacao|default('', true) }}</textarea>
+                                            </div>
+                                        </div>
+
+                                        <div class="docf-panel mt-3 mb-3">
+                                            <div class="docf-kicker">Itens da NF</div>
+                                            <p class="docf-muted mb-3">Ao preencher valores, datas e chave da NF, o GALINT atualiza automaticamente os materiais vinculados para compra com NF.</p>
+                                            {% for item in nota.itens %}
+                                            <div class="row g-3 align-items-end mb-3">
+                                                <div class="col-lg-3">
+                                                    <label class="form-label">Item</label>
+                                                    <input class="form-control" value="{{ item.codigo }} — {{ item.descricao }}" readonly>
+                                                </div>
+                                                <div class="col-md-2">
+                                                    <label class="form-label" for="nota-historico-quantidade-{{ collapse_id }}-{{ item.id }}">Quantidade</label>
+                                                    <input class="form-control" id="nota-historico-quantidade-{{ collapse_id }}-{{ item.id }}" name="item_quantidade_{{ item.id }}" type="number" min="0.01" step="0.01" value="{{ item.quantidade|default(0, true) }}" required>
+                                                </div>
+                                                <div class="col-md-2">
+                                                    <label class="form-label" for="nota-historico-unitario-{{ collapse_id }}-{{ item.id }}">Valor unitário</label>
+                                                    <input class="form-control" id="nota-historico-unitario-{{ collapse_id }}-{{ item.id }}" name="item_valor_unitario_{{ item.id }}" type="number" min="0" step="0.01" value="{{ item.valor_unitario if item.valor_unitario is not none else '' }}">
+                                                </div>
+                                                <div class="col-md-2">
+                                                    <label class="form-label" for="nota-historico-total-{{ collapse_id }}-{{ item.id }}">Valor total</label>
+                                                    <input class="form-control" id="nota-historico-total-{{ collapse_id }}-{{ item.id }}" name="item_valor_total_{{ item.id }}" type="number" min="0" step="0.01" value="{{ item.valor_total if item.valor_total is not none else '' }}">
+                                                </div>
+                                                <div class="col-lg-3">
+                                                    <label class="form-label" for="nota-historico-obs-{{ collapse_id }}-{{ item.id }}">Observação do item</label>
+                                                    <input class="form-control" id="nota-historico-obs-{{ collapse_id }}-{{ item.id }}" name="item_observacao_{{ item.id }}" value="{{ item.observacao|default('', true) }}">
+                                                </div>
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+
+                                        <button class="docf-btn-primary" type="submit">Salvar alterações desta NF</button>
+                                    </form>
+                                </section>
                                 {% endif %}
                                 <div class="docf-table-wrap">
                                     <table class="table docf-table mb-0">
@@ -864,8 +1055,134 @@
         receiptDateInput.value = new Date().toISOString().slice(0, 10);
     }
 
+    const extractAccessKey = (rawValue) => {
+        const raw = String(rawValue || '').trim();
+        if (!raw) return '';
+
+        const direct44 = raw.match(/\b\d{44}\b/);
+        if (direct44) return direct44[0];
+
+        try {
+            const parsedUrl = new URL(raw);
+            const chNFe = parsedUrl.searchParams.get('chNFe');
+            if (chNFe) {
+                const key = (chNFe.match(/\d{44}/) || [])[0];
+                if (key) return key;
+            }
+            const p = parsedUrl.searchParams.get('p');
+            if (p) {
+                const firstSegment = String(p).split('|')[0] || '';
+                const key = (firstSegment.match(/\d{44}/) || [])[0];
+                if (key) return key;
+            }
+        } catch (_) {
+        }
+
+        const compactDigits = raw.replace(/\D/g, '');
+        if (compactDigits.length === 44) return compactDigits;
+
+        const any44 = compactDigits.match(/\d{44}/);
+        return any44 ? any44[0] : raw;
+    };
+
+    const normalizeAccessKeyInput = (input) => {
+        if (!input) return;
+        const normalized = extractAccessKey(input.value);
+        if (normalized && normalized !== input.value) {
+            input.value = normalized;
+        }
+    };
+
+    const syncChaveAcessoVisibility = (selectElement) => {
+        if (!selectElement) return;
+        const form = selectElement.closest('form');
+        if (!form) return;
+        const chaveGroup = form.querySelector('[data-chave-acesso-group]');
+        const chaveInput = chaveGroup?.querySelector('input[name="chave_acesso"]');
+        const isNf = (selectElement.value || '').trim().toLowerCase() === 'nf';
+        if (chaveGroup) {
+            chaveGroup.classList.toggle('d-none', !isNf);
+        }
+        if (!isNf && chaveInput) {
+            chaveInput.value = '';
+        }
+    };
+
+    document.querySelectorAll('select[name="finance_tipo_documento"], select[name="tipo_documento"]').forEach((selectElement) => {
+        syncChaveAcessoVisibility(selectElement);
+        selectElement.addEventListener('change', () => syncChaveAcessoVisibility(selectElement));
+    });
+
+    document.querySelectorAll('input[name="chave_acesso"]').forEach((chaveField) => {
+        chaveField.addEventListener('input', () => normalizeAccessKeyInput(chaveField));
+        chaveField.addEventListener('blur', () => normalizeAccessKeyInput(chaveField));
+        chaveField.addEventListener('paste', () => {
+            setTimeout(() => normalizeAccessKeyInput(chaveField), 0);
+        });
+        chaveField.addEventListener('keydown', (event) => {
+            if (event.key !== 'Enter') {
+                return;
+            }
+            event.preventDefault();
+            event.stopPropagation();
+            normalizeAccessKeyInput(chaveField);
+        });
+    });
+
     const hideSupplierResults = () => supplierResults?.classList.add('d-none');
     const hideNotaResults = () => notaFiscalResults?.classList.add('d-none');
+
+    const applySupplierPayloadToForm = (form, supplier) => {
+        if (!form || !supplier) return;
+        const supplierNameField = form.querySelector('input[name="supplier_name"], input[name="finance_supplier_search"]');
+        const supplierIdField = form.querySelector('input[name="finance_supplier_id"]');
+        const supplierCnpjField = form.querySelector('input[name="supplier_cnpj"]');
+        const supplierName = supplier.nome_exibicao || supplier.nome_fantasia || supplier.razao_social || '';
+
+        if (supplierNameField && supplierName) {
+            supplierNameField.value = supplierName;
+        }
+        if (supplierIdField) {
+            supplierIdField.value = supplier.id || '';
+        }
+        if (supplierCnpjField && supplier.cnpj) {
+            supplierCnpjField.value = supplier.cnpj;
+        }
+    };
+
+    const lookupSupplierByCnpjForForm = async (form, { showErrors = false } = {}) => {
+        if (!form) return null;
+        const supplierCnpjField = form.querySelector('input[name="supplier_cnpj"]');
+        if (!supplierCnpjField) return null;
+        const raw = (supplierCnpjField.value || '').trim();
+        const digits = raw.replace(/\D/g, '');
+        if (digits.length !== 14) {
+            return null;
+        }
+        if (supplierCnpjField.dataset.lastLookupDigits === digits) {
+            return null;
+        }
+        supplierCnpjField.dataset.lastLookupDigits = digits;
+        try {
+            const response = await fetch(`{{ url_for('config.fornecedores_por_cnpj', cnpj='__CNPJ__') }}`.replace('__CNPJ__', digits), {
+                headers: { 'Accept': 'application/json' },
+                credentials: 'same-origin'
+            });
+            const data = await response.json();
+            if (!response.ok || data.success === false) {
+                throw new Error(data.message || 'Falha ao consultar CNPJ');
+            }
+            const supplier = data.supplier || {};
+            applySupplierPayloadToForm(form, supplier);
+            return supplier;
+        } catch (error) {
+            delete supplierCnpjField.dataset.lastLookupDigits;
+            if (showErrors) {
+                alert(error.message || 'Não foi possível consultar o CNPJ. Você pode informar o nome manualmente.');
+            }
+            return null;
+        }
+    };
 
     const applyDocumentSuggestion = (doc) => {
         if (!doc) return;
@@ -984,8 +1301,9 @@
     });
 
     lookupCnpjButton?.addEventListener('click', async () => {
-        const raw = (supplierCnpjInput?.value || '').trim();
-        const digits = raw.replace(/\D/g, '');
+        const registrationForm = lookupCnpjButton.closest('form');
+        if (!registrationForm || !supplierCnpjInput) return;
+        const digits = (supplierCnpjInput.value || '').replace(/\D/g, '');
         if (digits.length !== 14) {
             alert('Informe um CNPJ com 14 dígitos.');
             return;
@@ -993,27 +1311,42 @@
         lookupCnpjButton.disabled = true;
         lookupCnpjButton.textContent = 'Consultando...';
         try {
-            const response = await fetch(`{{ url_for('config.fornecedores_por_cnpj', cnpj='__CNPJ__') }}`.replace('__CNPJ__', digits), {
-                headers: { 'Accept': 'application/json' },
-                credentials: 'same-origin'
-            });
-            const data = await response.json();
-            if (!response.ok || data.success === false) {
-                throw new Error(data.message || 'Falha ao consultar CNPJ');
-            }
-            const supplier = data.supplier || {};
-            if (supplierInput && !supplierInput.value) {
-                supplierInput.value = supplier.nome_fantasia || supplier.razao_social || '';
-            }
-            if (supplierCnpjInput && supplier.cnpj) {
-                supplierCnpjInput.value = supplier.cnpj;
-            }
-        } catch (error) {
-            alert(error.message || 'Não foi possível consultar o CNPJ. Você pode informar o nome manualmente.');
+            await lookupSupplierByCnpjForForm(registrationForm, { showErrors: true });
         } finally {
             lookupCnpjButton.disabled = false;
             lookupCnpjButton.textContent = 'Consultar';
         }
+    });
+
+    document.querySelectorAll('input[name="supplier_cnpj"]').forEach((cnpjField) => {
+        cnpjField.addEventListener('blur', () => {
+            const form = cnpjField.closest('form');
+            lookupSupplierByCnpjForForm(form, { showErrors: false });
+        });
+        cnpjField.addEventListener('change', () => {
+            const form = cnpjField.closest('form');
+            lookupSupplierByCnpjForForm(form, { showErrors: false });
+        });
+    });
+
+    document.querySelectorAll('.docf-form').forEach((form) => {
+        form.addEventListener('keydown', (event) => {
+            if (event.key !== 'Enter') {
+                return;
+            }
+            const target = event.target;
+            if (!(target instanceof HTMLElement)) {
+                return;
+            }
+            if (target.tagName === 'TEXTAREA' || target.tagName === 'BUTTON') {
+                return;
+            }
+            const inputType = String(target.getAttribute('type') || '').toLowerCase();
+            if (['submit', 'button', 'checkbox', 'radio'].includes(inputType)) {
+                return;
+            }
+            event.preventDefault();
+        });
     });
 
     nfForm?.addEventListener('submit', (event) => {

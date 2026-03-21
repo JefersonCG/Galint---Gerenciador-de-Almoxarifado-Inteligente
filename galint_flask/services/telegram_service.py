@@ -417,6 +417,21 @@ class TelegramService:
 
             return True
 
+        try:
+            return bool(
+                telegram_user.notification_preferences.should_notify(
+                    item_categoria,
+                    is_return=is_return,
+                )
+            )
+        except Exception as e:
+            logger.warning(
+                "Erro ao avaliar preferências de notificação do Telegram para %s: %s",
+                getattr(telegram_user, "matricula", None),
+                e,
+            )
+            return True
+
 
 
     @staticmethod

@@ -198,7 +198,13 @@ def fornecedores_por_cnpj(cnpj: str):
     if not current_user.is_admin:
         return jsonify({"success": False, "message": "Acesso negado"}), 403
     try:
+        existing = finance_service.get_supplier_by_cnpj(cnpj)
+        if existing:
+            supplier_data = existing.to_dict()
+            supplier_data["source"] = "local"
+            return jsonify({"success": True, "supplier": supplier_data})
         data = finance_service.fetch_supplier_by_cnpj(cnpj)
+        data["source"] = "remote"
         return jsonify({"success": True, "supplier": data})
     except Exception as exc:
         return jsonify({"success": False, "message": str(exc)}), 400
