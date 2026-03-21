@@ -174,6 +174,7 @@ Exemplo:
 O ciclo mais recente concentrou mudanças visuais, operacionais e de governança em áreas críticas do sistema.
 
 - novo módulo ConversionEngine em Configurações, com visual dark, staging isolado por job, upload de SQL/ZIP/SQLite, score de compatibilidade, telemetria em tempo real, barra de progresso, pacote técnico e opção de download ou implantação direta da nova base quando a origem estiver apta ao pipeline PostgreSQL
+- pipeline oficial de restauração blindado para o ConversionEngine, com bloqueio temporário de acessos durante restore, drenagem de conexões PostgreSQL, timeouts desativados no subprocesso de restore e reparo idempotente de colunas críticas após a implantação
 - dashboard com cards operacionais refinados para leitura rápida de financeiro e fornecedores
 - reforço no bloqueio de campos financeiros na edição de item depois do primeiro salvamento
 - páginas de auditoria de ferramentas, reparos, detalhes do funcionário e detalhes do reparo com visual dark padronizado
@@ -235,6 +236,16 @@ O ciclo mais recente concentrou mudanças visuais, operacionais e de governança
 - interface dark em galint_flask/templates/config_conversionengine.html
 - documentação detalhada do mecanismo em CONVERSIONENGINE.md
 
+### 7. Como a página do ConversionEngine foi construída
+
+- a entrada visual fica em Configurações e usa uma rota administrativa dedicada em galint_flask/views/pages.py para montar dashboard inicial, documentação em Markdown e permissões de uso
+- a interface em galint_flask/templates/config_conversionengine.html foi desenhada em visual dark para combinar com o restante do painel administrativo e priorizar leitura contínua de progresso, KPIs e mensagens operacionais
+- o conteúdo técnico exibido na mesma tela vem de CONVERSIONENGINE.md, convertido para HTML no servidor, para manter uma única fonte de documentação do módulo
+- a análise roda em job assíncrono, preservando a interface responsiva enquanto o backend varre dumps SQL, ZIPs ou bases SQLite em staging isolado por job
+- os botões de baixar SQL, baixar pacote técnico e implantar nova base apontam para endpoints separados, o que permite liberar ou bloquear cada ação conforme a compatibilidade real detectada
+- a etapa de implantação direta foi ligada ao pipeline oficial de backup/restore do GALINT para evitar um restaurador paralelo com comportamento divergente
+- a tela também passou a exibir aviso de manutenção durante a implantação, deixando explícito para o operador quando o sistema está temporariamente protegido para concluir o restore
+
 ## Erros corrigidos durante a implantação
 
 - divergência entre local e remoto resolvida com cherry-pick e atualização controlada dos commits necessários
@@ -245,6 +256,11 @@ O ciclo mais recente concentrou mudanças visuais, operacionais e de governança
 - Painel Mobile deixando /mobile-panel/ em 404 corrigido ao habilitar a feature flag por padrão em galint_flask/config.py
 - contraste fraco introduzido no fluxo de saídas dark foi corrigido nos estados informativos e vazios de Materiais Comuns e Fracionados
 - para o ConversionEngine, a implantação foi fechada com validação de sintaxe em rotas, templates e serviço, além de teste funcional local cobrindo cenário com pacote técnico e cenário com deploy liberado
+- erro de timeout de lock no PostgreSQL durante restore foi tratado com drenagem das outras sessões antes do psql e com PGOPTIONS específicos para zerar lock_timeout e statement_timeout no subprocesso de restauração
+- falhas pós-restore por colunas ausentes, como entrada_documentos.chave_acesso e itens.preco_compra_chave_acesso, passaram a ser cobertas por correções idempotentes de schema aplicadas logo após a restauração
+- consultas indevidas durante a restauração passaram a receber bloqueio controlado, com resposta 503 e mensagem de manutenção, para evitar novas disputas de conexão com a base em implantação
+- a conexão com banco de manutenção usada para encerrar sessões foi corrigida para preservar a senha real da URI, evitando falha silenciosa por mascaramento de credencial
+- a página do ConversionEngine recebeu banner explícito de manutenção para deixar claro quando a implantação já iniciou e por que parte do sistema fica temporariamente indisponível
 
 ## Observações operacionais
 
@@ -252,6 +268,7 @@ O ciclo mais recente concentrou mudanças visuais, operacionais e de governança
 - o Painel Mobile usa endpoints administrativos em galint_flask/views/admin_mobile.py e regras de autenticação em galint_flask/views/api_mobile.py
 - se uma rota recém-criada parecer inexistente, valide primeiro se o processo Flask ativo foi reiniciado após a alteração
 - o ConversionEngine agora aceita `.sql`, `.zip` com `.sql`/SQLite e `.sqlite`/`.db` para análise; a implantação direta continua restrita a artefatos PostgreSQL estruturalmente compatíveis com o GALINT
+- como o servidor roda com use_reloader=False, qualquer ajuste em rotas Python, guard de manutenção ou fluxo de restore só entra em vigor depois de reiniciar manualmente o processo Flask ativo
 
 ## Documentação complementar
 

@@ -176,6 +176,24 @@
         font-size: 0.85rem;
         color: #475569;
     }
+
+    .about-mini-list {
+        margin: 1rem 0 0;
+        padding-left: 1.1rem;
+        color: #475569;
+    }
+
+    .about-mini-list li + li {
+        margin-top: 0.45rem;
+    }
+
+    .about-note {
+        background: #ffffff;
+        border-radius: 16px;
+        border: 1px solid #e2e8f0;
+        padding: 1.1rem 1.2rem;
+        color: #334155;
+    }
 </style>
 {% endblock %}
 
@@ -267,6 +285,41 @@
     </div>
 </div>
 
+{% if endpoint_exists('pages.config_conversionengine') %}
+<div class="about-section">
+    <h4 class="mb-3"><i class="bi bi-cpu text-primary me-2"></i>ConversionEngine no fluxo oficial</h4>
+    <p class="text-muted mb-0">O GALINT agora concentra a restauração oficial da base no ConversionEngine, com acompanhamento visual, staging por job e proteção operacional durante a implantação.</p>
+    <div class="about-steps mt-3">
+        <div class="about-step">
+            <i class="bi bi-window-stack text-primary"></i>
+            <div>
+                <span>Página feita para operação real</span>
+                <p class="small text-muted mb-0">A tela foi montada com visual dark, telemetria ao vivo, documentação embutida e ações separadas para análise, download e deploy.</p>
+            </div>
+        </div>
+        <div class="about-step">
+            <i class="bi bi-shield-lock text-success"></i>
+            <div>
+                <span>Restore oficial protegido</span>
+                <p class="small text-muted mb-0">Durante a implantação, o sistema entra em modo de manutenção, bloqueia acessos concorrentes e libera o restore com menos risco de disputa no PostgreSQL.</p>
+            </div>
+        </div>
+        <div class="about-step">
+            <i class="bi bi-tools text-warning"></i>
+            <div>
+                <span>Bugs tratados no caminho</span>
+                <p class="small text-muted mb-0">Timeout de lock, colunas críticas ausentes após restore e sinalização fraca para o operador foram corrigidos no fluxo atual.</p>
+            </div>
+        </div>
+    </div>
+    <ul class="about-mini-list">
+        <li>Aceita SQL, ZIP com SQL ou SQLite e bases SQLite para análise em staging isolado.</li>
+        <li>Libera implantação direta apenas quando a origem realmente é compatível com o pipeline PostgreSQL do GALINT.</li>
+        <li>Mantém pacote técnico disponível para homologação quando a base ainda não pode ser implantada com segurança.</li>
+    </ul>
+</div>
+{% endif %}
+
 {% if endpoint_exists('pages.documentacao_percentual_movimentos') %}
 <div class="about-highlight">
     <div>
@@ -282,7 +335,9 @@
 
 <div class="about-section">
     <h4 class="mb-3"><i class="bi bi-book text-success me-2"></i>Mais informações</h4>
-    <p class="text-muted">Se você quiser se aprofundar, temos uma explicação completa, mas sempre em linguagem simples.</p>
+    <div class="about-note mb-3">
+        Esta página resume o que mudou mais recentemente no produto. Para o detalhamento técnico do ConversionEngine, do restore oficial e das demais frentes do GALINT, a documentação geral foi atualizada junto com estas entregas.
+    </div>
     <a class="about-cta" href="{{ url_for('pages.documentacao') }}">
         <i class="bi bi-book"></i>
         Ver Documentação Geral
