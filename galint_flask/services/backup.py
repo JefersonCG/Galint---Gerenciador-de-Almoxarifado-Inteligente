@@ -19,6 +19,7 @@ class BackupService:
     """Responsável por gerar/restaurar cópias do banco configurado."""
 
     def __init__(self, app):
+        self._app = app
         self._uri = app.config.get("SQLALCHEMY_DATABASE_URI", "")
         self._backup_root = Path(app.instance_path) / "backups"
         self._backup_root.mkdir(parents=True, exist_ok=True)
@@ -44,6 +45,16 @@ class BackupService:
             or os.environ.get("PG_STATEMENT_TIMEOUT_MS")
             or 60000
         )
+        self._restore_connection_drain_seconds = int(
+            os.environ.get("GALINT_RESTORE_CONNECTION_DRAIN_SECONDS")
+            or os.environ.get("RESTORE_CONNECTION_DRAIN_SECONDS")
+            or 20
+        )
+        self._restore_maintenance_database = (
+            os.environ.get("GALINT_RESTORE_MAINTENANCE_DB")
+            or os.environ.get("RESTORE_MAINTENANCE_DB")
+            or "postgres"
+        )
 
     def _apply_pg_timeouts(self, env: dict[str, str]) -> None:
         if self._connect_timeout_seconds > 0:
@@ -57,6 +68,15 @@ class BackupService:
         if not options:
             return
 
+        existing = env.get("PGOPTIONS", "").strip()
+        extra = " ".join(options)
+        env["PGOPTIONS"] = (existing + " " + extra).strip() if existing else extra
+
+    def _apply_restore_pg_timeouts(self, env: dict[str, str]) -> None:
+        if self._connect_timeout_seconds > 0:
+            env["PGCONNECT_TIMEOUT"] = str(self._connect_timeout_seconds)
+
+        options = ["-c lock_timeout=0", "-c statement_timeout=0"]
         existing = env.get("PGOPTIONS", "").strip()
         extra = " ".join(options)
         env["PGOPTIONS"] = (existing + " " + extra).strip() if existing else extra
@@ -257,7 +277,7 @@ class BackupService:
             delta = self._capture_post_backup_delta(cutoff, reporter=_report)
 
             _report(60, "Restaurando backup no PostgreSQL...")
-            self._restore_postgres_backup(source)
+            self._restore_postgres_backup(source, reporter=_report)
 
             _report(85, "Reaplicando movimentos pós-backup...")
             self._reapply_post_backup_delta(delta, reporter=_report)
@@ -348,7 +368,19 @@ class BackupService:
             raise ValueError(f"Erro ao gerar backup PostgreSQL: {message}")
         return backup_name
 
-    def _restore_postgres_backup(self, source: Path) -> None:
+    def _restore_postgres_backup(
+        self,
+        source: Path,
+        reporter: Callable[[int, str], None] | None = None,
+    ) -> None:
+        def _report(progress: int, message: str) -> None:
+            if reporter is None:
+                return
+            try:
+                reporter(int(progress), str(message))
+            except Exception:
+                return
+
         params = self._postgres_params()
         self._resolve_postgres_tool("psql")
         if shutil.which(self._psql_cmd) is None:
@@ -358,7 +390,10 @@ class BackupService:
         env = os.environ.copy()
         if params["password"]:
             env["PGPASSWORD"] = str(params["password"])
-        self._apply_pg_timeouts(env)
+        self._apply_restore_pg_timeouts(env)
+        _report(58, "Colocando o banco em modo de restauração...")
+        self._dispose_sqlalchemy_connections()
+        self._terminate_other_postgres_sessions(params)
         reset_schema_sql = (
             "DROP SCHEMA IF EXISTS public CASCADE; "
             "CREATE SCHEMA public; "
@@ -403,6 +438,10 @@ class BackupService:
             message = result.stderr.strip() or result.stdout.strip() or "Falha desconhecida ao executar psql"
             raise ValueError(f"Erro ao restaurar backup PostgreSQL: {message}")
 
+        self._dispose_sqlalchemy_connections()
+        _report(78, "Aplicando compatibilidade de schema pós-restauração...")
+        self._apply_post_restore_schema_fixes()
+
     def _backup_cutoff_from_name(self, backup_name: str, source: Path) -> datetime:
         match = re.search(r"(\d{8})_(\d{6})", backup_name)
         if match:
@@ -412,6 +451,131 @@ class BackupService:
                 pass
         # fallback: usar timestamp do arquivo
         return datetime.fromtimestamp(source.stat().st_mtime)
+
+    def _dispose_sqlalchemy_connections(self) -> None:
+        try:
+            from ..extensions import db
+
+            with self._app.app_context():
+                db.session.remove()
+                try:
+                    db.engine.dispose()
+                except Exception:
+                    pass
+        except Exception:
+            return
+
+    def _maintenance_uri(self) -> str:
+        url = make_url(self._ensure_uri())
+        maintenance_db = (self._restore_maintenance_database or "postgres").strip() or "postgres"
+        return url.set(database=maintenance_db).render_as_string(hide_password=False)
+
+    def _terminate_other_postgres_sessions(self, params: dict[str, str | int | None]) -> None:
+        maintenance_engine = create_engine(self._maintenance_uri(), future=True)
+        target_db = str(params["database"])
+        deadline = time.monotonic() + max(1, self._restore_connection_drain_seconds)
+        terminate_stmt = text(
+            """
+            SELECT pg_terminate_backend(pid)
+            FROM pg_stat_activity
+            WHERE datname = :database
+              AND pid <> pg_backend_pid()
+            """
+        )
+        count_stmt = text(
+            """
+            SELECT COUNT(*)
+            FROM pg_stat_activity
+            WHERE datname = :database
+              AND pid <> pg_backend_pid()
+            """
+        )
+
+        try:
+            while True:
+                with maintenance_engine.begin() as conn:
+                    conn.execute(terminate_stmt, {"database": target_db})
+                    remaining = int(conn.execute(count_stmt, {"database": target_db}).scalar() or 0)
+                if remaining <= 0:
+                    break
+                if time.monotonic() >= deadline:
+                    raise ValueError(
+                        "Ainda existem conexões ativas usando o banco após a drenagem de sessões. "
+                        "Feche acessos concorrentes e tente novamente."
+                    )
+                time.sleep(0.5)
+        finally:
+            try:
+                maintenance_engine.dispose()
+            except Exception:
+                pass
+
+    def _apply_post_restore_schema_fixes(self) -> None:
+        ddl = text(
+            """
+            DO $$
+            BEGIN
+              IF EXISTS (
+                SELECT 1 FROM information_schema.tables
+                WHERE table_schema = 'public' AND table_name = 'entrada_documentos'
+              ) THEN
+                IF NOT EXISTS (
+                  SELECT 1 FROM information_schema.columns
+                  WHERE table_schema = 'public' AND table_name = 'entrada_documentos' AND column_name = 'chave_acesso'
+                ) THEN
+                  ALTER TABLE entrada_documentos ADD COLUMN chave_acesso varchar(64);
+                END IF;
+
+                IF NOT EXISTS (
+                  SELECT 1 FROM information_schema.columns
+                  WHERE table_schema = 'public' AND table_name = 'entrada_documentos' AND column_name = 'status_integracao'
+                ) THEN
+                  ALTER TABLE entrada_documentos ADD COLUMN status_integracao varchar(40) NOT NULL DEFAULT 'manual';
+                END IF;
+
+                IF NOT EXISTS (
+                  SELECT 1 FROM information_schema.columns
+                  WHERE table_schema = 'public' AND table_name = 'entrada_documentos' AND column_name = 'mensagem_integracao'
+                ) THEN
+                  ALTER TABLE entrada_documentos ADD COLUMN mensagem_integracao text;
+                END IF;
+              END IF;
+
+              IF EXISTS (
+                SELECT 1 FROM information_schema.tables
+                WHERE table_schema = 'public' AND table_name = 'itens'
+              ) THEN
+                IF NOT EXISTS (
+                  SELECT 1 FROM information_schema.columns
+                  WHERE table_schema = 'public' AND table_name = 'itens' AND column_name = 'preco_compra_chave_acesso'
+                ) THEN
+                  ALTER TABLE itens ADD COLUMN preco_compra_chave_acesso varchar(64);
+                END IF;
+              END IF;
+
+              IF EXISTS (
+                SELECT 1 FROM information_schema.tables
+                WHERE table_schema = 'public' AND table_name = 'finance_lancamentos'
+              ) THEN
+                IF NOT EXISTS (
+                  SELECT 1 FROM information_schema.columns
+                  WHERE table_schema = 'public' AND table_name = 'finance_lancamentos' AND column_name = 'chave_acesso'
+                ) THEN
+                  ALTER TABLE finance_lancamentos ADD COLUMN chave_acesso varchar(64);
+                END IF;
+              END IF;
+            END $$;
+            """
+        )
+        engine = create_engine(self._ensure_uri(), future=True)
+        try:
+            with engine.begin() as conn:
+                conn.execute(ddl)
+        finally:
+            try:
+                engine.dispose()
+            except Exception:
+                pass
 
     def _capture_post_backup_delta(
         self,

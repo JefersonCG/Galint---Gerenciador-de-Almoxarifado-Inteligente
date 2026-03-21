@@ -124,6 +124,9 @@ def create_app(config_name: str | None = None) -> Flask:
     def datetime_br_filter(value, fmt='%d/%m/%Y %H:%M', default='-'):
         return format_datetime_br(value, fmt, default)
     
+    # Guardas de execução antes de tocar em autenticação/DB
+    _register_restore_guard(app)
+
     # Middleware de monitoramento de inatividade
     _register_inactivity_middleware(app)
 
@@ -307,6 +310,47 @@ def _register_inactivity_middleware(app: Flask) -> None:
             # Atualiza timestamp da última atividade
             session['last_activity'] = now.isoformat()
             session.permanent = True
+
+
+def _register_restore_guard(app: Flask) -> None:
+    """Bloqueia novas requisições durante restore para reduzir contenção no banco."""
+    from .services.backup_restore_jobs import is_restore_running
+
+    allowed_prefixes = (
+        "/static/",
+        "/auth/login",
+        "/api/health",
+        "/configuracoes/restaurar/status/",
+    )
+
+    @app.before_request
+    def block_requests_during_restore():
+        if not is_restore_running():
+            return None
+
+        path = request.path or ""
+        if path.startswith(allowed_prefixes):
+            return None
+
+        if _request_expects_json():
+            return jsonify({
+                "success": False,
+                "error": "RestoreInProgress",
+                "message": "Restauração em andamento. Aguarde a conclusão para acessar o GALINT.",
+                "status_code": 503,
+            }), 503
+
+        return (
+            "<html><head><title>GALINT em restauração</title></head>"
+            "<body style='font-family:Segoe UI,Arial,sans-serif;background:#08111f;color:#e5eefc;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;'>"
+            "<div style='max-width:640px;padding:32px;border-radius:20px;background:#0f1b2f;border:1px solid rgba(125,211,252,.18);box-shadow:0 24px 56px rgba(2,8,23,.45)'>"
+            "<h1 style='margin-top:0'>Restauração em andamento</h1>"
+            "<p>O GALINT está implantando uma base e bloqueou novos acessos temporariamente para evitar corrupção e timeouts de lock.</p>"
+            "<p>Atualize a página em instantes após a conclusão do processo.</p>"
+            "</div></body></html>",
+            503,
+            {"Retry-After": "15"},
+        )
 
 
 def _request_expects_json() -> bool:

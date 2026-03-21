@@ -136,3 +136,11 @@ def get_job_state(*, job_id: str, user_key: str) -> dict[str, Any] | None:
         if state.user_key != user_key:
             return None
         return asdict(state)
+
+
+def is_restore_running() -> bool:
+    with _lock:
+        if not _active_restore_job_id:
+            return False
+        state = _jobs.get(_active_restore_job_id)
+        return bool(state and state.status == "running")
