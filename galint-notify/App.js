@@ -1,6 +1,8 @@
+import 'react-native-reanimated';
 import 'react-native-gesture-handler';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, Text, View } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createDrawerNavigator } from '@react-navigation/drawer';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -140,29 +142,31 @@ export default function App() {
   }
 
   return (
-    <NavigationContainer ref={navigationRef} theme={navTheme}>
-      <StatusBar style="light" />
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
-        {!session ? (
-          <Stack.Screen name="Login">
-            {(props) => <LoginScreen {...props} onLogin={actions.login} />}
-          </Stack.Screen>
-        ) : (
-          <Stack.Screen name="App">
-            {(props) => (
-              <DrawerShell
-                {...props}
-                session={session}
-                onLogout={actions.logout}
-                onServerSaved={actions.refreshServer}
-                highlightMessageId={highlightMessageId}
-                onConsumedHighlight={() => setHighlightMessageId(null)}
-              />
-            )}
-          </Stack.Screen>
-        )}
-        <Stack.Screen name="NotificationDetail" component={NotificationDetailScreen} options={{ headerShown: true, title: 'Detalhes da notificação', headerStyle: { backgroundColor: palette.panel }, headerTintColor: palette.text }} />
-      </Stack.Navigator>
-    </NavigationContainer>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <NavigationContainer ref={navigationRef} theme={navTheme}>
+        <StatusBar style="light" />
+        <Stack.Navigator screenOptions={{ headerShown: false }}>
+          {!session ? (
+            <Stack.Screen name="Login">
+              {(props) => <LoginScreen {...props} onLogin={actions.login} />}
+            </Stack.Screen>
+          ) : (
+            <Stack.Screen name="App">
+              {(props) => (
+                <DrawerShell
+                  {...props}
+                  session={session}
+                  onLogout={actions.logout}
+                  onServerSaved={actions.refreshServer}
+                  highlightMessageId={highlightMessageId}
+                  onConsumedHighlight={() => setHighlightMessageId(null)}
+                />
+              )}
+            </Stack.Screen>
+          )}
+          <Stack.Screen name="NotificationDetail" component={NotificationDetailScreen} options={{ headerShown: true, title: 'Detalhes da notificação', headerStyle: { backgroundColor: palette.panel }, headerTintColor: palette.text }} />
+        </Stack.Navigator>
+      </NavigationContainer>
+    </GestureHandlerRootView>
   );
 }
