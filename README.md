@@ -9,6 +9,286 @@ Hoje o sistema reúne quatro frentes principais no mesmo produto:
 - governança operacional com relatórios, alertas, auditoria e painéis analíticos
 - integrações auxiliares com Telegram, geração de PDFs/XLSX e aplicativo mobile
 
+## Mapa detalhado do produto
+
+O repositório principal já não representa apenas uma aplicação web simples. Ele concentra um ecossistema com múltiplos módulos, páginas especializadas e dois aplicativos satélites separados.
+
+### Aplicação web principal
+
+A aplicação Flask é o núcleo do GALINT e cobre as áreas abaixo.
+
+#### Dashboard
+
+- consolida KPIs do almoxarifado
+- mostra alertas operacionais e leituras rápidas de saúde do estoque
+- funciona como centro de navegação da operação
+
+Arquivos principais:
+
+- `galint_flask/templates/dashboard/index.html`
+- `galint_flask/views/dashboard.py`
+
+#### Lançamentos
+
+- entrada de materiais
+- saída operacional
+- devoluções e cenários correlatos
+- validações de quantidade, unidade e integridade da movimentação
+
+Arquivos principais:
+
+- `galint_flask/templates/movements/index.html`
+- `galint_flask/templates/movements/entrada.html`
+- `galint_flask/templates/movements/saida.html`
+- `galint_flask/views/movements.py`
+
+#### Estoque e itens cadastrados
+
+- cadastro e edição completa de itens
+- formulário com abas técnicas, financeiras e documentais
+- listagem por categoria com cards operacionais
+- assistente rápido de imagem direto no card do item
+- modal de apoio para foto via URL, upload e pré-visualização
+- cálculo e visão de valor de estoque
+
+Arquivos principais:
+
+- `galint_flask/templates/inventory/list.html`
+- `galint_flask/templates/inventory/form.html`
+- `galint_flask/templates/inventory/form_tabs.html`
+- `galint_flask/templates/inventory/stock_value.html`
+- `galint_flask/views/inventory.py`
+
+#### Documentos fiscais
+
+- registro e consulta de NFs, cupons e documentos relacionados
+- ajuda contextual por campo e por ação
+- inclusão assistida de item em NF
+- filtro por período, fornecedor e tipo documental
+- fechamento operacional de compras por janela temporal
+
+Arquivos principais:
+
+- `galint_flask/templates/nf/index.html`
+- `galint_flask/views/nf.py`
+
+#### Laboratório de lojas
+
+- análise comparativa de compras
+- apoio à leitura de fornecedores, preços e documentos
+- espaço operacional de inspeção e cruzamento de dados de aquisição
+
+Arquivos principais:
+
+- `galint_flask/templates/inventory/suppliers_lab.html`
+- `galint_flask/views/inventory.py`
+
+#### Fornecedores e financeiro
+
+- cadastro mestre de fornecedores
+- apoio por CNPJ
+- vínculo de fornecedor, documento, chave de acesso e datas ao item
+- sincronização com histórico financeiro
+- visão de compra e reposição no estoque
+
+Arquivos principais:
+
+- `galint_flask/templates/config/fornecedores.html`
+- `galint_flask/services/finance_service.py`
+- `galint_flask/views/inventory.py`
+
+#### Ferramentas, custódia e reparos
+
+- custódia temporária e permanente
+- relatórios por tipo de custódia
+- detalhe do responsável e histórico da ferramenta
+- acompanhamento de itens em reparo
+
+Arquivos principais:
+
+- `galint_flask/templates/tool_custody/index.html`
+- `galint_flask/templates/tool_custody/detail.html`
+- `galint_flask/templates/tool_custody/reports.html`
+- `galint_flask/templates/reparo/list.html`
+- `galint_flask/templates/reparo/detalhes.html`
+- `galint_flask/views/tool_custody.py`
+- `galint_flask/views/reparo.py`
+
+#### Inventário de materiais
+
+- área específica para leitura e operação de materiais
+- fluxo dedicado para itens avariados
+
+Arquivos principais:
+
+- `galint_flask/templates/inventario_materiais/index.html`
+- `galint_flask/templates/inventario_materiais/avariados.html`
+- `galint_flask/views/inventario_materiais.py`
+
+#### Relatórios e auditoria
+
+- relatórios gerais e por item
+- percentual de movimentos
+- PDFs e XLSX para operação, auditoria e prestação de contas
+
+Arquivos principais:
+
+- `galint_flask/templates/reports/index.html`
+- `galint_flask/templates/reports/by_item.html`
+- `galint_flask/templates/reports/percentual_movimentos.html`
+- `galint_flask/views/reports.py`
+
+#### Usuários
+
+- cadastro de usuários
+- histórico e permissões
+- apoio à rastreabilidade operacional por colaborador
+
+Arquivos principais:
+
+- `galint_flask/templates/users/list.html`
+- `galint_flask/templates/users/form.html`
+- `galint_flask/templates/users/history.html`
+- `galint_flask/views/users.py`
+
+#### Telegram, notificações e preferências
+
+- configuração de integração Telegram
+- histórico de notificação
+- preferências de recebimento
+- apoio à operação de alertas agrupados e notificações auditáveis
+
+Arquivos principais:
+
+- `galint_flask/templates/telegram/config.html`
+- `galint_flask/templates/telegram/historico.html`
+- `galint_flask/templates/telegram/notification_preferences.html`
+- `galint_flask/views/telegram_config.py`
+
+#### Painel web mobile
+
+- governança dos usuários e dispositivos Android
+- heartbeat, versões APK, score de operabilidade e auditoria
+- bloqueio, desbloqueio e logout forçado de usuários mobile
+- administração de recursos e rollout operacional
+
+Arquivos principais:
+
+- `galint_flask/templates/mobile_panel/dashboard.html`
+- `galint_flask/templates/mobile_panel/devices.html`
+- `galint_flask/templates/mobile_panel/features.html`
+- `galint_flask/templates/mobile_panel/versions.html`
+- `galint_flask/templates/mobile_panel/audit.html`
+- `galint_flask/views/mobile_panel.py`
+
+#### Configurações administrativas
+
+- backup
+- rede
+- empresa
+- relatórios administrativos
+- notificações
+- mecanismo de conversão
+- páginas de atualização e apoio técnico
+
+Arquivos principais:
+
+- `galint_flask/templates/config.html`
+- `galint_flask/templates/config_backup.html`
+- `galint_flask/templates/config_rede.html`
+- `galint_flask/templates/config_notifications.html`
+- `galint_flask/templates/config_conversionengine.html`
+- `galint_flask/templates/config/empresa.html`
+- `galint_flask/templates/config/relatorios.html`
+- `galint_flask/templates/updates/index.html`
+- `galint_flask/views/config.py`
+- `galint_flask/views/pages.py`
+- `galint_flask/views/updates.py`
+
+### GALINT Mobile
+
+Pasta:
+
+- `galint-mobile`
+
+Papel no ecossistema:
+
+- levar operação do almoxarifado para o campo
+- permitir uso em celular para retirada, devolução, consulta e rotinas operacionais conforme permissão
+- gerar e compartilhar relatórios mobile
+- integrar-se ao backend Flask por API REST
+
+Capacidades centrais já documentadas no projeto:
+
+- login e autenticação contra o backend
+- estoque com filtros por categoria
+- retirada e devolução em campo
+- relatórios diários e mensais em PDF e XLSX
+- compartilhamento nativo
+- integração com o painel web mobile para governança do parque instalado
+
+Documentos úteis:
+
+- `galint-mobile/README.md`
+- `PAINEL_WEB_MOBILE.md`
+- `BUILD_APK_v1.3.0_INSTRUCOES.md`
+- `GUIA_REPLICACAO_APK.md`
+
+### GALINT Notify
+
+Pasta:
+
+- `galint-notify`
+
+Papel no ecossistema:
+
+- funcionar como app separado de notificações, inbox, consulta e relatórios
+- manter um fluxo informacional separado do app operacional principal
+
+Capacidades centrais:
+
+- login em endpoints próprios de notify
+- registro de push token
+- inbox persistente no backend
+- marcação de leitura
+- download e compartilhamento de relatórios
+- apoio à consulta sem misturar esse app com cadastros e lançamentos operacionais
+
+Documentos úteis:
+
+- `galint-notify/README.md`
+- `GALINT_NOTIFICATION_APP_VIABILIDADE.md`
+
+### ConversionEngine
+
+O mecanismo de conversão é um módulo técnico central do projeto atual.
+
+Responsabilidades:
+
+- analisar dumps SQL, ZIPs e bases SQLite
+- calcular compatibilidade com o schema-alvo do GALINT
+- gerar pacote técnico para homologação e auditoria
+- liberar implantação direta apenas em cenários seguros para PostgreSQL
+
+Arquivos e docs principais:
+
+- `galint_flask/templates/config_conversionengine.html`
+- `galint_flask/views/pages.py`
+- `CONVERSIONENGINE.md`
+
+### Estrutura documental já existente no workspace
+
+Além deste README, o projeto já possui documentação complementar importante:
+
+- `CONVERSIONENGINE.md`
+- `PAINEL_WEB_MOBILE.md`
+- `GALINT_NOTIFICATION_APP_VIABILIDADE.md`
+- `SISTEMA_REPAROS_README.md`
+- `README_PERCENTUAL_MOVIMENTOS.md`
+- `FINANCEIRO_VALOR_DE_ESTOQUE.md`
+- `RASTREABILIDADE_IMPLEMENTACAO.md`
+- `APLICACAO_EM_OUTRA_MAQUINA.md`
+
 ## O que o GALINT é hoje
 
 O núcleo do sistema continua sendo Flask + PostgreSQL, mas o produto deixou de ser apenas um cadastro de estoque. Ele agora cobre o fluxo completo de abastecimento e controle:
@@ -57,6 +337,14 @@ O núcleo do sistema continua sendo Flask + PostgreSQL, mas o produto deixou de 
 - feed de saídas recentes no dashboard
 - painel de ferramentas em custódia com atualização em tempo real
 - alertas visuais no dashboard para devolução pendente: atenção em amarelo a partir de 16h40 e alerta crítico em vermelho após 17h
+
+### Atualizações recentes do ciclo atual
+
+- tela de Documentos Fiscais ampliada com ajuda contextual por campo, visual mais guiado para operação e suporte a leitura rápida dos botões principais
+- controle por período nas compras, com janela filtrável, indicadores por fornecedor e fechamento operacional do ciclo documental
+- inclusão assistida de item em NF para reduzir retrabalho durante o vínculo entre documento fiscal e catálogo já existente
+- cards de categoria do estoque com assistente rápido de imagem, permitindo buscar, pré-visualizar e aplicar foto do item sem abrir a tela completa de edição
+- modal de apoio para foto do item reduzido e adaptado para fluxo operacional mais curto dentro da listagem
 
 ### Experiência e interface
 
@@ -169,11 +457,17 @@ Exemplo:
 .\.venv\Scripts\python.exe app.py
 ```
 
+Observação importante:
+
+- o projeto roda com `use_reloader=False`; qualquer mudança em rotas Python, blueprints ou templates carregados por uma instância antiga pode exigir restart manual do Flask para refletir o código atual
+
 ## Implantações recentes
 
 O ciclo mais recente concentrou mudanças visuais, operacionais e de governança em áreas críticas do sistema.
 
 - novo módulo ConversionEngine em Configurações, com visual dark, staging isolado por job, upload de SQL/ZIP/SQLite, score de compatibilidade, telemetria em tempo real, barra de progresso, pacote técnico e opção de download ou implantação direta da nova base quando a origem estiver apta ao pipeline PostgreSQL
+- tela fiscal expandida com ajuda contextual, filtro e fechamento por período, além de inclusão assistida de item em NF
+- estoque por categoria expandido com assistente rápido de imagem diretamente nos cards dos itens
 - pipeline oficial de restauração blindado para o ConversionEngine, com bloqueio temporário de acessos durante restore, drenagem de conexões PostgreSQL, timeouts desativados no subprocesso de restore e reparo idempotente de colunas críticas após a implantação
 - dashboard com cards operacionais refinados para leitura rápida de financeiro e fornecedores
 - reforço no bloqueio de campos financeiros na edição de item depois do primeiro salvamento
@@ -185,6 +479,12 @@ O ciclo mais recente concentrou mudanças visuais, operacionais e de governança
 - Painel Mobile elevado a centro de controle, com KPIs, diagnóstico de operabilidade, leitura de Android e APK, bloqueio de usuário, logout forçado e edição de nome, cargo, setor e senha
 
 ## Como replicar este pacote
+
+Existe uma observação prática importante neste workspace:
+
+- a pasta `galint-mobile` está tratada como repositório Git separado
+- o vínculo dela com o repositório principal ainda não está completamente normalizado por `.gitmodules`
+- para replicação fiel em outra máquina, consultar também o documento [APLICACAO_EM_OUTRA_MAQUINA.md](APLICACAO_EM_OUTRA_MAQUINA.md)
 
 ### 1. Preparar ambiente
 
