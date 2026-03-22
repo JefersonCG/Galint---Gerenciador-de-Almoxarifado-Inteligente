@@ -47,6 +47,14 @@
         margin-bottom: 1.35rem;
     }
 
+    .docf-header-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+    }
+
     .docf-title {
         margin: 0;
         font-size: 1.95rem;
@@ -75,6 +83,79 @@
         color: #dbe9fb;
         border: 1px solid rgba(148, 163, 184, 0.2);
         white-space: nowrap;
+    }
+
+    .docf-help-toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        background: rgba(9, 19, 31, 0.72);
+        color: #dbe9fb;
+        border-radius: 999px;
+        padding: 0.52rem 0.9rem;
+        font-size: 0.82rem;
+        font-weight: 700;
+        transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+    }
+
+    .docf-help-toggle:hover {
+        background: rgba(20, 38, 62, 0.9);
+        border-color: rgba(96, 165, 250, 0.4);
+        transform: translateY(-1px);
+    }
+
+    .docf-help-toggle.is-active {
+        background: linear-gradient(135deg, rgba(14, 116, 144, 0.42) 0%, rgba(37, 99, 235, 0.32) 100%);
+        border-color: rgba(125, 211, 252, 0.45);
+        color: #f0f9ff;
+        box-shadow: 0 10px 24px rgba(8, 47, 73, 0.28);
+    }
+
+    .docf-help-toast {
+        position: fixed;
+        right: 1.2rem;
+        bottom: 1.2rem;
+        width: min(360px, calc(100vw - 2rem));
+        padding: 0.95rem 1rem;
+        border-radius: 18px;
+        background: rgba(14, 20, 31, 0.88);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        box-shadow: 0 24px 50px rgba(2, 8, 23, 0.46);
+        backdrop-filter: blur(16px);
+        color: #ffffff;
+        z-index: 1200;
+        opacity: 0;
+        pointer-events: none;
+        transform: translateY(12px);
+        transition: opacity 0.18s ease, transform 0.18s ease;
+    }
+
+    .docf-help-toast.is-visible {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    .docf-help-toast-kicker {
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.72);
+        margin-bottom: 0.3rem;
+    }
+
+    .docf-help-toast-title {
+        font-size: 0.96rem;
+        font-weight: 800;
+        color: #ffffff;
+        margin-bottom: 0.25rem;
+    }
+
+    .docf-help-toast-body {
+        font-size: 0.84rem;
+        line-height: 1.45;
+        color: rgba(255, 255, 255, 0.92);
     }
 
     .docf-kpis {
@@ -489,6 +570,13 @@
         .docf-mode-actions {
             grid-template-columns: 1fr;
         }
+
+        .docf-help-toast {
+            right: 1rem;
+            left: 1rem;
+            width: auto;
+            bottom: 1rem;
+        }
     }
 </style>
 {% endblock %}
@@ -500,7 +588,13 @@
             <h1 class="docf-title">Documentos Fiscais</h1>
             <p class="docf-subtitle">Containers pretos, cards azulados no padrão do sistema e foco total na documentação fiscal sem incorporar estoque automaticamente.</p>
         </div>
-        <span class="docf-badge"><i class="bi bi-receipt-cutoff"></i> Modo documental ativo</span>
+        <div class="docf-header-actions">
+            <button class="docf-help-toggle" id="docf-help-toggle" type="button">
+                <i class="bi bi-question-circle"></i>
+                <span>Ajuda por campo</span>
+            </button>
+            <span class="docf-badge"><i class="bi bi-receipt-cutoff"></i> Modo documental ativo</span>
+        </div>
     </div>
 
     <div class="docf-kpis">
@@ -574,8 +668,8 @@
                         </select>
                     </div>
                     <div class="col-12 d-flex gap-2 flex-wrap">
-                        <button class="docf-btn-secondary" type="submit">Aplicar período</button>
-                        <a class="docf-btn-secondary" href="{{ url_for('nf.nf_index') }}#controle-periodo">Limpar</a>
+                        <button class="docf-btn-secondary" type="submit" data-help-label="Aplicar período" data-help-text="Atualiza os indicadores e a lista de documentos conforme os filtros escolhidos.">Aplicar período</button>
+                        <a class="docf-btn-secondary" href="{{ url_for('nf.nf_index') }}#controle-periodo" data-help-label="Limpar filtros" data-help-text="Remove os filtros do período e retorna para a visão padrão da página.">Limpar</a>
                     </div>
                 </form>
             </div>
@@ -602,7 +696,7 @@
                     <input type="hidden" name="periodo_tipo" value="{{ period_dashboard.filters.tipo_documento }}">
                     <label class="form-label" for="observacao_fechamento">Observação do fechamento</label>
                     <input class="form-control mb-2" id="observacao_fechamento" name="observacao_fechamento" placeholder="Ex.: ciclo balcão até dia 26, conferido com compras do período.">
-                    <button class="docf-btn-primary w-100" type="submit">Fechar período atual</button>
+                    <button class="docf-btn-primary w-100" type="submit" data-help-label="Fechar período atual" data-help-text="Consolida a janela atual de compras para conferência e rastreabilidade documental.">Fechar período atual</button>
                 </form>
                 {% endif %}
             </div>
@@ -666,7 +760,7 @@
                     {% endif %}
                     {% if can_manage and closure.status == 'fechado' %}
                     <form method="post" action="{{ url_for('nf.reabrir_periodo_compras', fechamento_id=closure.id) }}" class="mt-3">
-                        <button class="docf-btn-secondary w-100" type="submit">Reabrir período</button>
+                        <button class="docf-btn-secondary w-100" type="submit" data-help-label="Reabrir período" data-help-text="Reabre um fechamento salvo para permitir nova revisão ou ajuste.">Reabrir período</button>
                     </form>
                     {% endif %}
                 </div>
@@ -694,15 +788,15 @@
                 </div>
 
                 <div class="docf-mode-actions" id="doc-mode-actions">
-                    <button class="docf-mode-btn is-active" type="button" data-doc-mode="nf">
+                    <button class="docf-mode-btn is-active" type="button" data-doc-mode="nf" data-help-label="Modo lançar com NF" data-help-text="Use para documentos com nota fiscal, mantendo o registro fiscal completo.">
                         <strong>Lançar com NF</strong>
                         <span>Documento completo com chave opcional e status fiscal forte.</span>
                     </button>
-                    <button class="docf-mode-btn" type="button" data-doc-mode="cupom">
+                    <button class="docf-mode-btn" type="button" data-doc-mode="cupom" data-help-label="Modo lançar com cupom" data-help-text="Use para compra com cupom ou comprovante simples, sem exigir chave de acesso.">
                         <strong>Lançar com cupom</strong>
                         <span>Controle por CNPJ da loja, data e valores até o fechamento do período.</span>
                     </button>
-                    <button class="docf-mode-btn" type="button" data-doc-mode="manual">
+                    <button class="docf-mode-btn" type="button" data-doc-mode="manual" data-help-label="Modo lançar sem NF" data-help-text="Use quando ainda não existe comprovante formal e você precisa manter a compra documentada.">
                         <strong>Lançar sem NF</strong>
                         <span>Compra sem comprovação formal, mantida no radar para auditoria.</span>
                     </button>
@@ -770,7 +864,7 @@
                             <label class="form-label" for="supplier_cnpj">CNPJ da loja</label>
                             <div class="input-group">
                                 <input class="form-control" id="supplier_cnpj" name="supplier_cnpj" placeholder="00.000.000/0000-00">
-                                <button class="docf-btn-secondary" type="button" id="btn-buscar-cnpj">Consultar</button>
+                                <button class="docf-btn-secondary" type="button" id="btn-buscar-cnpj" data-help-label="Consultar CNPJ" data-help-text="Consulta o CNPJ informado para localizar ou completar automaticamente o fornecedor.">Consultar</button>
                             </div>
                             <div class="form-text">Se o fornecedor não existir, o sistema tenta criar pelo CNPJ.</div>
                         </div>
@@ -827,7 +921,7 @@
                         <textarea class="form-control" id="finance_observacao" name="finance_observacao" rows="2"
                             placeholder="Ex.: compra emergencial, documento conferido, valor estimado..."></textarea>
                     </div>
-                    <button class="docf-btn-primary w-100" type="submit">Registrar documento fiscal</button>
+                    <button class="docf-btn-primary w-100" type="submit" data-help-label="Registrar documento fiscal" data-help-text="Salva o documento principal com item, fornecedor e classificação documental.">Registrar documento fiscal</button>
                 </form>
             </section>
             {% else %}
@@ -860,7 +954,7 @@
                             placeholder="Digite o número exato">
                     </div>
                     <div class="col-sm-4 d-grid">
-                        <button class="docf-btn-secondary" type="submit">Buscar</button>
+                        <button class="docf-btn-secondary" type="submit" data-help-label="Buscar documento" data-help-text="Localiza um documento já registrado pelo número informado.">Buscar</button>
                     </div>
                 </form>
                 {% if nota_busca and not nota_detalhes %}
@@ -911,7 +1005,7 @@
                     <div class="docf-panel warning mt-3 mb-0">
                         <strong>Consulta bloqueada:</strong> {{ nota_detalhes.mensagem_integracao }}
                         <div class="mt-2">
-                            <button class="docf-btn-secondary" type="button" disabled>Consultar NF pela chave (em breve)</button>
+                            <button class="docf-btn-secondary" type="button" disabled data-help-label="Consultar NF pela chave" data-help-text="Função reservada para consulta automática futura via chave fiscal.">Consultar NF pela chave (em breve)</button>
                         </div>
                     </div>
                     {% endif %}
@@ -920,7 +1014,7 @@
                         <strong>Histórico legado detectado:</strong> este DOC veio das entradas antigas do almoxarifado. Use a conversão abaixo para abrir um documento fiscal editável sem apagar o histórico do estoque.
                         <form method="post" action="{{ url_for('nf.converter_documento_legado') }}" class="mt-3">
                             <input type="hidden" name="nota_fiscal" value="{{ nota_detalhes.nota_fiscal }}">
-                            <button class="docf-btn-primary" type="submit">Converter este DOC para edição fiscal</button>
+                            <button class="docf-btn-primary" type="submit" data-help-label="Converter DOC para edição fiscal" data-help-text="Transforma o documento legado em um documento editável na estrutura atual do sistema.">Converter este DOC para edição fiscal</button>
                         </form>
                     </div>
                     {% endif %}
@@ -1002,7 +1096,7 @@
                                                 <input class="form-control" id="nota-detalhe-add-obs-{{ nota_detalhes.id_documento }}" name="observacao" placeholder="Opcional">
                                             </div>
                                             <div class="col-12 d-flex justify-content-end">
-                                                <button class="docf-btn-secondary" type="submit">Adicionar item</button>
+                                                <button class="docf-btn-secondary" type="submit" data-help-label="Adicionar item" data-help-text="Inclui um item adicional nesta NF. Se ele já existir, a quantidade será somada.">Adicionar item</button>
                                             </div>
                                         </div>
                                     </form>
@@ -1033,7 +1127,7 @@
                                 {% endfor %}
                             </div>
 
-                            <button class="docf-btn-primary" type="submit">Salvar alterações desta NF</button>
+                            <button class="docf-btn-primary" type="submit" data-help-label="Salvar alterações desta NF" data-help-text="Grava as alterações do documento fiscal atual e atualiza seus itens vinculados.">Salvar alterações desta NF</button>
                         </form>
                     </section>
                     {% endif %}
@@ -1119,13 +1213,13 @@
                                 </div>
                                 {% if can_manage and nota.id_documento is defined and nota.id_documento is not none %}
                                 <div class="mt-3">
-                                    <a class="docf-btn-secondary" href="#documento-editar-{{ nota.id_documento }}">Editar este documento</a>
+                                    <a class="docf-btn-secondary" href="#documento-editar-{{ nota.id_documento }}" data-help-label="Editar este documento" data-help-text="Abre a área de edição completa do documento histórico selecionado.">Editar este documento</a>
                                 </div>
                                 {% elif can_manage and nota.nota_fiscal|default('', true) %}
                                 <div class="mt-3">
                                     <form method="post" action="{{ url_for('nf.converter_documento_legado') }}" class="d-inline">
                                         <input type="hidden" name="nota_fiscal" value="{{ nota.nota_fiscal }}">
-                                        <button class="docf-btn-secondary" type="submit">Converter para edição</button>
+                                        <button class="docf-btn-secondary" type="submit" data-help-label="Converter para edição" data-help-text="Cria uma versão editável do documento legado, preservando o histórico original.">Converter para edição</button>
                                     </form>
                                 </div>
                                 {% endif %}
@@ -1217,7 +1311,7 @@
                                                             <input class="form-control" id="nota-historico-add-obs-{{ collapse_id }}" name="observacao" placeholder="Opcional">
                                                         </div>
                                                         <div class="col-12 d-flex justify-content-end">
-                                                            <button class="docf-btn-secondary" type="submit">Adicionar item</button>
+                                                            <button class="docf-btn-secondary" type="submit" data-help-label="Adicionar item" data-help-text="Inclui um novo item neste documento histórico. Se o código já existir, a quantidade será somada.">Adicionar item</button>
                                                         </div>
                                                     </div>
                                                 </form>
@@ -1248,7 +1342,7 @@
                                             {% endfor %}
                                         </div>
 
-                                        <button class="docf-btn-primary" type="submit">Salvar alterações desta NF</button>
+                                        <button class="docf-btn-primary" type="submit" data-help-label="Salvar alterações desta NF" data-help-text="Salva as correções do documento histórico e seus itens.">Salvar alterações desta NF</button>
                                     </form>
                                 </section>
                                 {% endif %}
@@ -1294,6 +1388,11 @@
         </div>
     </div>
 </div>
+<div class="docf-help-toast" id="docf-help-toast" aria-hidden="true">
+    <div class="docf-help-toast-kicker">Ajuda contextual</div>
+    <div class="docf-help-toast-title" id="docf-help-toast-title">Passe o mouse em um campo</div>
+    <div class="docf-help-toast-body" id="docf-help-toast-body">Ative a ajuda e passe sobre os campos desta página para ver uma explicação rápida do que preencher.</div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -1322,10 +1421,18 @@
     const notaFiscalLabel = document.getElementById('nota_fiscal_label');
     const notaFiscalHelp = document.getElementById('nota_fiscal_help');
     const nfForm = document.getElementById('nf-registration-form');
+    const helpToggleButton = document.getElementById('docf-help-toggle');
+    const helpToast = document.getElementById('docf-help-toast');
+    const helpToastTitle = document.getElementById('docf-help-toast-title');
+    const helpToastBody = document.getElementById('docf-help-toast-body');
     let itemTimer = null;
     let supplierTimer = null;
     let notaTimer = null;
     let notaSuggestions = [];
+    let helpHideTimer = null;
+
+    const HELP_STORAGE_KEY = 'galint:nf:help-enabled';
+    let helpEnabled = window.localStorage.getItem(HELP_STORAGE_KEY) === 'true';
 
     const registrationModes = {
         nf: {
@@ -1354,6 +1461,167 @@
             text: 'Use somente para não perder rastreabilidade. O documento entra como pendência documental do período.',
             numeroLabel: 'Número do controle interno',
             numeroHelp: 'Informe qualquer referência mínima para localizar a compra depois: OS, pedido, protocolo ou anotação interna.'
+        }
+    };
+
+    const helpTextById = {
+        periodo_inicio: 'Define a data inicial da janela de compras que será analisada no painel e no fechamento operacional.',
+        periodo_fim: 'Define a data final da janela de compras. Use junto com o filtro inicial para fechar um ciclo real de compras.',
+        periodo_fornecedor: 'Filtra o período por um fornecedor específico para fechar ou auditar compras separadamente.',
+        periodo_tipo: 'Restringe a visualização para NF, cupom, recibo ou lançamento manual.',
+        observacao_fechamento: 'Registra o motivo ou contexto do fechamento do período, para rastreabilidade futura.',
+        item_search: 'Busque um item já cadastrado por código ou descrição. Ao selecionar, o documento será vinculado ao item correto.',
+        novo_codigo: 'Preencha quando o item ainda não existir no estoque e você precisar cadastrá-lo antes de registrar o documento.',
+        nova_descricao: 'Descrição do item novo. Use um nome claro para facilitar futuras buscas e auditorias.',
+        nova_categoria: 'Categoria inicial do item novo. Ajuda na organização e nos filtros do estoque.',
+        nova_unidade: 'Unidade base do item novo, como unidade, litro, quilo ou metro.',
+        quantidade: 'Quantidade comprada do item principal no lançamento documental.',
+        nota_fiscal: 'Número da NF, cupom ou controle interno. Se já existir no sistema, alguns dados serão sugeridos automaticamente.',
+        finance_supplier_search: 'Nome da loja ou fornecedor. Pode ser digitado manualmente ou preenchido por autocomplete.',
+        supplier_cnpj: 'CNPJ do emitente. O sistema tenta localizar ou completar o fornecedor automaticamente a partir dele.',
+        data_emissao: 'Data em que o documento foi emitido pelo fornecedor.',
+        data_recebimento: 'Data em que o material realmente chegou ou foi recebido.',
+        preco_unitario: 'Valor unitário do item principal vinculado ao documento atual.',
+        finance_tipo_documento: 'Define se o comprovante é NF, cupom, recibo ou manual. Isso afeta a exigência de chave e a classificação fiscal.',
+        finance_origem_valor: 'Indica de onde veio o valor registrado: NF, cupom, estimativa ou inventário inicial.',
+        finance_comprovacao_status: 'Mostra o nível de comprovação documental da compra: comprovado, parcial ou sem comprovação.',
+        chave_acesso: 'Use a chave de 44 dígitos quando houver documento fiscal eletrônico. Para cupom ou manual, esse campo normalmente não se aplica.',
+        finance_observacao: 'Campo livre para contexto financeiro, divergências, urgência ou observações do documento.',
+        nota: 'Busque um documento já registrado para abrir o detalhamento e editar a estrutura documental.',
+        'nota-detalhe-numero': 'Número atual do documento. Altere apenas para corrigir a identificação documental.',
+        'nota-detalhe-tipo': 'Tipo do documento já salvo. Isso define como o comprovante será tratado no histórico.',
+        'nota-detalhe-cnpj': 'CNPJ emitente do documento em edição.',
+        'nota-detalhe-fornecedor': 'Nome do fornecedor vinculado ao documento em edição.',
+        'nota-detalhe-emissao': 'Data de emissão do documento em edição.',
+        'nota-detalhe-recebimento': 'Data de recebimento usada no documento em edição.',
+        'nota-detalhe-chave': 'Chave fiscal do documento em edição, quando existir.',
+        'nota-detalhe-observacao': 'Observações financeiras e operacionais do documento em edição.',
+        'nota-historico-numero': 'Número do documento histórico selecionado para correção.',
+        'nota-historico-tipo': 'Tipo documental do registro histórico.',
+        'nota-historico-cnpj': 'CNPJ vinculado ao documento histórico.',
+        'nota-historico-fornecedor': 'Fornecedor do documento histórico.',
+        'nota-historico-emissao': 'Data de emissão do documento histórico.',
+        'nota-historico-recebimento': 'Data de recebimento do documento histórico.',
+        'nota-historico-chave': 'Chave fiscal do documento histórico.',
+        'nota-historico-observacao': 'Observações registradas no documento histórico.'
+    };
+
+    const helpTextByName = {
+        numero_documento: 'Número identificador do documento fiscal. Deve permitir localizar esse comprovante depois.',
+        tipo_documento: 'Classifica o documento fiscal e influencia as regras de preenchimento.',
+        supplier_name: 'Nome do fornecedor associado ao documento.',
+        supplier_cnpj: 'CNPJ do emitente do documento ou do cupom.',
+        data_emissao: 'Data em que o documento foi emitido.',
+        data_recebimento: 'Data em que os materiais foram recebidos.',
+        chave_acesso: 'Chave eletrônica do documento, quando aplicável.',
+        finance_observacao: 'Anotações livres para explicar contexto, ajustes ou divergências.',
+        quantidade: 'Quantidade informada para o item que está sendo adicionado ao documento.',
+        valor_unitario: 'Valor por unidade do item. Se preencher, o total será calculado automaticamente.',
+        valor_total: 'Valor final do item. Pode ser digitado diretamente ou calculado pelo sistema.',
+        observacao: 'Observação específica desse item dentro do documento.',
+        codigo_item: 'Código interno do item a ser vinculado ao documento.'
+    };
+
+    const helpPrefixById = [
+        ['nota-detalhe-add-busca-', 'Busque um item existente por código ou descrição para acrescentá-lo a esta NF.'],
+        ['nota-historico-add-busca-', 'Busque um item existente por código ou descrição para acrescentá-lo ao documento histórico.'],
+        ['nota-detalhe-add-quantidade-', 'Quantidade do novo item a ser adicionada ao documento aberto.'],
+        ['nota-historico-add-quantidade-', 'Quantidade do novo item a ser adicionada ao documento histórico.'],
+        ['nota-detalhe-add-unitario-', 'Valor unitário do item que será incluído neste documento.'],
+        ['nota-historico-add-unitario-', 'Valor unitário do item que será incluído no documento histórico.'],
+        ['nota-detalhe-add-total-', 'Valor total do item novo. O sistema pode calcular a partir da quantidade e do unitário.'],
+        ['nota-historico-add-total-', 'Valor total do item novo no documento histórico.'],
+        ['nota-detalhe-add-obs-', 'Observação opcional para o item novo deste documento.'],
+        ['nota-historico-add-obs-', 'Observação opcional para o item novo do documento histórico.'],
+        ['nota-detalhe-quantidade-', 'Quantidade já registrada deste item no documento.'],
+        ['nota-historico-quantidade-', 'Quantidade já registrada deste item no documento histórico.'],
+        ['nota-detalhe-unitario-', 'Valor unitário salvo para este item do documento.'],
+        ['nota-historico-unitario-', 'Valor unitário salvo para este item do documento histórico.'],
+        ['nota-detalhe-total-', 'Valor total salvo para este item do documento.'],
+        ['nota-historico-total-', 'Valor total salvo para este item do documento histórico.'],
+        ['nota-detalhe-obs-', 'Observação específica da linha do item no documento.'],
+        ['nota-historico-obs-', 'Observação específica da linha do item no documento histórico.']
+    ];
+
+    const helpPrefixByName = [
+        ['item_quantidade_', 'Quantidade da linha do item dentro do documento em edição.'],
+        ['item_valor_unitario_', 'Valor por unidade da linha do item em edição.'],
+        ['item_valor_total_', 'Valor total da linha do item em edição.'],
+        ['item_observacao_', 'Observação complementar da linha do item em edição.']
+    ];
+
+    const getFieldLabel = (element) => {
+        if (!(element instanceof HTMLElement)) return 'Campo';
+        if (element.dataset.helpLabel) return element.dataset.helpLabel;
+        if (element.id) {
+            const explicitLabel = document.querySelector(`label[for="${element.id}"]`);
+            if (explicitLabel) {
+                return explicitLabel.textContent.trim();
+            }
+        }
+        const closestGroupLabel = element.closest('.col-md-2, .col-md-3, .col-md-4, .col-md-5, .col-md-6, .col-md-7, .col-md-8, .col-lg-3, .col-lg-4')?.querySelector('label');
+        if (closestGroupLabel) {
+            return closestGroupLabel.textContent.trim();
+        }
+        return element.getAttribute('placeholder') || element.name || 'Campo';
+    };
+
+    const resolveHelpText = (element) => {
+        if (!(element instanceof HTMLElement)) return null;
+        if (element.dataset.helpText) return element.dataset.helpText;
+        const id = element.id || '';
+        const name = element.getAttribute('name') || '';
+        if (id && helpTextById[id]) return helpTextById[id];
+        if (name && helpTextByName[name]) return helpTextByName[name];
+        for (const [prefix, text] of helpPrefixById) {
+            if (id.startsWith(prefix)) return text;
+        }
+        for (const [prefix, text] of helpPrefixByName) {
+            if (name.startsWith(prefix)) return text;
+        }
+        if (element.matches('[data-add-item-search]')) return 'Busque um item por código ou descrição e selecione a sugestão correta antes de adicionar à NF.';
+        return null;
+    };
+
+    const hideHelpToast = () => {
+        if (!helpToast) return;
+        helpToast.classList.remove('is-visible');
+        helpToast.setAttribute('aria-hidden', 'true');
+    };
+
+    const showHelpToast = (element) => {
+        if (!helpEnabled || !helpToast || !(element instanceof HTMLElement)) return;
+        const helpText = resolveHelpText(element);
+        if (!helpText) return;
+        if (helpHideTimer) {
+            clearTimeout(helpHideTimer);
+            helpHideTimer = null;
+        }
+        if (helpToastTitle) {
+            helpToastTitle.textContent = getFieldLabel(element);
+        }
+        if (helpToastBody) {
+            helpToastBody.textContent = helpText;
+        }
+        helpToast.classList.add('is-visible');
+        helpToast.setAttribute('aria-hidden', 'false');
+    };
+
+    const scheduleHelpToastHide = () => {
+        if (helpHideTimer) clearTimeout(helpHideTimer);
+        helpHideTimer = window.setTimeout(() => {
+            hideHelpToast();
+        }, 120);
+    };
+
+    const updateHelpToggleState = () => {
+        if (!helpToggleButton) return;
+        helpToggleButton.classList.toggle('is-active', helpEnabled);
+        helpToggleButton.innerHTML = helpEnabled
+            ? '<i class="bi bi-question-circle-fill"></i><span>Ajuda por campo ligada</span>'
+            : '<i class="bi bi-question-circle"></i><span>Ajuda por campo</span>';
+        if (!helpEnabled) {
+            hideHelpToast();
         }
     };
 
@@ -1696,6 +1964,13 @@
         selectElement.addEventListener('change', () => syncChaveAcessoVisibility(selectElement));
     });
 
+    helpToggleButton?.addEventListener('click', () => {
+        helpEnabled = !helpEnabled;
+        window.localStorage.setItem(HELP_STORAGE_KEY, helpEnabled ? 'true' : 'false');
+        updateHelpToggleState();
+    });
+    updateHelpToggleState();
+
     modeButtons.forEach((button) => {
         button.addEventListener('click', () => {
             applyRegistrationMode(button.dataset.docMode || 'nf');
@@ -1907,6 +2182,30 @@
         if (!notaFiscalResults || !notaFiscalInput) return;
         if (notaFiscalResults.contains(event.target) || notaFiscalInput.contains(event.target)) return;
         hideNotaResults();
+    });
+
+    document.addEventListener('mouseover', (event) => {
+        const target = event.target instanceof Element ? event.target.closest('input:not([type="hidden"]), select, textarea, button.docf-btn-primary, button.docf-btn-secondary, a.docf-btn-secondary, .docf-mode-btn') : null;
+        if (!target) return;
+        showHelpToast(target);
+    });
+
+    document.addEventListener('mouseout', (event) => {
+        const target = event.target instanceof Element ? event.target.closest('input:not([type="hidden"]), select, textarea, button.docf-btn-primary, button.docf-btn-secondary, a.docf-btn-secondary, .docf-mode-btn') : null;
+        if (!target) return;
+        scheduleHelpToastHide();
+    });
+
+    document.addEventListener('focusin', (event) => {
+        const target = event.target instanceof Element ? event.target.closest('input:not([type="hidden"]), select, textarea') : null;
+        if (!target) return;
+        showHelpToast(target);
+    });
+
+    document.addEventListener('focusout', (event) => {
+        const target = event.target instanceof Element ? event.target.closest('input:not([type="hidden"]), select, textarea') : null;
+        if (!target) return;
+        scheduleHelpToastHide();
     });
 
     lookupCnpjButton?.addEventListener('click', async () => {
