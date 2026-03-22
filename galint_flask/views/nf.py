@@ -1,14 +1,16 @@
 """Rotas para lançamento e acompanhamento de notas fiscais."""
 from __future__ import annotations
 
+from collections import defaultdict
 from datetime import date, datetime
 
 from flask import Blueprint, abort, current_app, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 from sqlalchemy import or_
+from sqlalchemy.orm import joinedload
 
 from ..extensions import db
-from ..models import DocumentoEntradaEstoque, DocumentoEntradaEstoqueItem, Entrada, FinanceLedgerEntry, TelegramOutbox
+from ..models import CompraPeriodoFechamento, DocumentoEntradaEstoque, DocumentoEntradaEstoqueItem, Entrada, FinanceLedgerEntry, TelegramOutbox
 from ..services.finance_service import finance_service
 from ..services.inventory import inventory_service
 
@@ -259,6 +261,184 @@ def _require_admin() -> None:
         abort(403)
 
 
+def _document_reference_date(documento: DocumentoEntradaEstoque) -> date:
+    if documento.data_recebimento:
+        return documento.data_recebimento
+    if documento.data_emissao:
+        return documento.data_emissao
+    if documento.criado_em:
+        return documento.criado_em.date()
+    return date.today()
+
+
+def _document_total_quantidade(documento: DocumentoEntradaEstoque) -> float:
+    return round(sum(float(item.quantidade or 0.0) for item in documento.itens), 2)
+
+
+def _document_total_valor(documento: DocumentoEntradaEstoque) -> float:
+    total = 0.0
+    for item in documento.itens:
+        if item.valor_total not in (None, ""):
+            total += float(item.valor_total)
+            continue
+        if item.valor_unitario not in (None, ""):
+            total += float(item.valor_unitario) * float(item.quantidade or 0.0)
+    return round(total, 2)
+
+
+def _query_period_documents(
+    *,
+    data_inicio: date,
+    data_fim: date,
+    fornecedor_id: int | None = None,
+    tipo_documento: str | None = None,
+) -> list[DocumentoEntradaEstoque]:
+    query = (
+        DocumentoEntradaEstoque.query
+        .options(
+            joinedload(DocumentoEntradaEstoque.fornecedor),
+            joinedload(DocumentoEntradaEstoque.itens).joinedload(DocumentoEntradaEstoqueItem.item),
+        )
+        .order_by(DocumentoEntradaEstoque.criado_em.desc(), DocumentoEntradaEstoque.id_documento.desc())
+    )
+
+    if fornecedor_id:
+        query = query.filter(DocumentoEntradaEstoque.fornecedor_id == fornecedor_id)
+    if tipo_documento and tipo_documento != "todos":
+        query = query.filter(DocumentoEntradaEstoque.tipo_documento == tipo_documento)
+
+    rows = query.all()
+    return [
+        row
+        for row in rows
+        if data_inicio <= _document_reference_date(row) <= data_fim
+    ]
+
+
+def _serialize_period_closure(fechar: CompraPeriodoFechamento) -> dict[str, object]:
+    return {
+        "id": fechar.id,
+        "data_inicio": fechar.data_inicio,
+        "data_fim": fechar.data_fim,
+        "fornecedor_id": fechar.fornecedor_id,
+        "fornecedor_nome": fechar.fornecedor.nome_exibicao() if fechar.fornecedor else None,
+        "cnpj_emitente": fechar.cnpj_emitente,
+        "tipo_documento": fechar.tipo_documento,
+        "status": fechar.status,
+        "total_documentos": fechar.total_documentos,
+        "total_itens": fechar.total_itens,
+        "total_quantidade": fechar.total_quantidade,
+        "total_valor": fechar.total_valor,
+        "observacao": fechar.observacao,
+        "fechado_por": fechar.fechado_por,
+        "fechado_em": fechar.fechado_em,
+        "reaberto_por": fechar.reaberto_por,
+        "reaberto_em": fechar.reaberto_em,
+    }
+
+
+def _build_period_dashboard() -> dict[str, object]:
+    today = date.today()
+    data_inicio = _parse_iso_date(request.args.get("periodo_inicio"), fallback=today.replace(day=1)) or today.replace(day=1)
+    data_fim = _parse_iso_date(request.args.get("periodo_fim"), fallback=today) or today
+
+    if data_inicio > data_fim:
+        data_inicio, data_fim = data_fim, data_inicio
+
+    fornecedor_raw = (request.args.get("periodo_fornecedor") or "").strip()
+    fornecedor_id = int(fornecedor_raw) if fornecedor_raw.isdigit() else None
+    tipo_documento = (request.args.get("periodo_tipo") or "todos").strip().lower() or "todos"
+
+    documentos = _query_period_documents(
+        data_inicio=data_inicio,
+        data_fim=data_fim,
+        fornecedor_id=fornecedor_id,
+        tipo_documento=tipo_documento,
+    )
+
+    total_documentos = len(documentos)
+    total_quantidade = round(sum(_document_total_quantidade(doc) for doc in documentos), 2)
+    total_valor = round(sum(_document_total_valor(doc) for doc in documentos), 2)
+    cupom_count = sum(1 for doc in documentos if (doc.tipo_documento or "").strip().lower() == "cupom")
+    nf_count = sum(1 for doc in documentos if (doc.tipo_documento or "").strip().lower() == "nf")
+    manual_count = sum(1 for doc in documentos if (doc.tipo_documento or "").strip().lower() in {"manual", "recibo"})
+
+    suppliers: dict[str, dict[str, object]] = {}
+    for doc in documentos:
+        supplier_name = doc.fornecedor.nome_exibicao() if doc.fornecedor else (doc.nome_emitente() or "Sem fornecedor identificado")
+        supplier_key = str(doc.fornecedor_id or doc.cnpj_emitente or supplier_name)
+        summary = suppliers.setdefault(
+            supplier_key,
+            {
+                "fornecedor_id": doc.fornecedor_id,
+                "fornecedor_nome": supplier_name,
+                "cnpj_emitente": doc.cnpj_emitente,
+                "documentos": 0,
+                "itens": 0,
+                "quantidade": 0.0,
+                "valor": 0.0,
+                "primeira_data": _document_reference_date(doc),
+                "ultima_data": _document_reference_date(doc),
+                "tipos": set(),
+            },
+        )
+        summary["documentos"] = int(summary["documentos"] or 0) + 1
+        summary["itens"] = int(summary["itens"] or 0) + len(doc.itens)
+        summary["quantidade"] = round(float(summary["quantidade"] or 0.0) + _document_total_quantidade(doc), 2)
+        summary["valor"] = round(float(summary["valor"] or 0.0) + _document_total_valor(doc), 2)
+        summary["primeira_data"] = min(summary["primeira_data"], _document_reference_date(doc))
+        summary["ultima_data"] = max(summary["ultima_data"], _document_reference_date(doc))
+        summary["tipos"].add((doc.tipo_documento or "manual").strip().lower())
+
+    supplier_rows = []
+    for row in suppliers.values():
+        row["tipos"] = ", ".join(sorted(str(tipo).upper() for tipo in row["tipos"]))
+        supplier_rows.append(row)
+
+    supplier_rows.sort(key=lambda row: (-float(row["valor"] or 0.0), str(row["fornecedor_nome"])))
+
+    closures_query = (
+        CompraPeriodoFechamento.query
+        .options(joinedload(CompraPeriodoFechamento.fornecedor))
+        .order_by(CompraPeriodoFechamento.fechado_em.desc(), CompraPeriodoFechamento.id.desc())
+    )
+    closures = [_serialize_period_closure(row) for row in closures_query.limit(12).all()]
+
+    active_closure = next(
+        (
+            closure
+            for closure in closures
+            if closure["status"] == "fechado"
+            and closure["data_inicio"] == data_inicio
+            and closure["data_fim"] == data_fim
+            and int(closure["fornecedor_id"] or 0) == int(fornecedor_id or 0)
+            and (closure["tipo_documento"] or "todos") == (None if tipo_documento == "todos" else tipo_documento)
+        ),
+        None,
+    )
+
+    return {
+        "filters": {
+            "data_inicio": data_inicio,
+            "data_fim": data_fim,
+            "fornecedor_id": fornecedor_id,
+            "tipo_documento": tipo_documento,
+        },
+        "kpis": {
+            "documentos": total_documentos,
+            "quantidade": total_quantidade,
+            "valor": total_valor,
+            "cupom": cupom_count,
+            "nf": nf_count,
+            "manual": manual_count,
+        },
+        "supplier_rows": supplier_rows,
+        "closures": closures,
+        "active_closure": active_closure,
+        "documentos": documentos,
+    }
+
+
 @blueprint.get("/api/documentos/autocomplete")
 @login_required
 def autocomplete_documentos():
@@ -274,6 +454,7 @@ def autocomplete_documentos():
 def nf_index():
     nota_busca = (request.args.get("nota") or "").strip()
     codigo_prefill = (request.args.get("codigo") or "").strip()
+    period_dashboard = _build_period_dashboard()
     nota_detalhes = inventory_service.get_nota_fiscal(nota_busca) if nota_busca else None
     itens = inventory_service.list_items()
     selected_item = next((item for item in itens if str(item.get("codigo") or "") == codigo_prefill), None) if codigo_prefill else None
@@ -289,6 +470,7 @@ def nf_index():
         nota_detalhes=nota_detalhes,
         can_manage=can_manage,
         preferred_suppliers=finance_service.list_suppliers(limit=100),
+        period_dashboard=period_dashboard,
     )
 
 
@@ -392,6 +574,93 @@ def registrar_nf():
     except ValueError as exc:
         flash(str(exc), "danger")
     return redirect(url_for("nf.nf_index"))
+
+
+@blueprint.post("/fechamentos")
+@login_required
+def fechar_periodo_compras():
+    _require_admin()
+    data_inicio = _parse_iso_date(request.form.get("periodo_inicio"))
+    data_fim = _parse_iso_date(request.form.get("periodo_fim"))
+    if not data_inicio or not data_fim:
+        flash("Informe um período válido para fechamento.", "danger")
+        return redirect(url_for("nf.nf_index"))
+
+    if data_inicio > data_fim:
+        data_inicio, data_fim = data_fim, data_inicio
+
+    fornecedor_raw = (request.form.get("periodo_fornecedor") or "").strip()
+    fornecedor_id = int(fornecedor_raw) if fornecedor_raw.isdigit() else None
+    tipo_documento = (request.form.get("periodo_tipo") or "todos").strip().lower() or "todos"
+    observacao = (request.form.get("observacao_fechamento") or "").strip() or None
+
+    documentos = _query_period_documents(
+        data_inicio=data_inicio,
+        data_fim=data_fim,
+        fornecedor_id=fornecedor_id,
+        tipo_documento=tipo_documento,
+    )
+    if not documentos:
+        flash("Nenhum documento encontrado no período informado para fechar.", "warning")
+        return redirect(
+            url_for(
+                "nf.nf_index",
+                periodo_inicio=data_inicio.isoformat(),
+                periodo_fim=data_fim.isoformat(),
+                periodo_fornecedor=fornecedor_id or "",
+                periodo_tipo=tipo_documento,
+            )
+        )
+
+    total_documentos = len(documentos)
+    total_itens = sum(len(doc.itens) for doc in documentos)
+    total_quantidade = round(sum(_document_total_quantidade(doc) for doc in documentos), 2)
+    total_valor = round(sum(_document_total_valor(doc) for doc in documentos), 2)
+    supplier = finance_service.get_supplier(fornecedor_id) if fornecedor_id else None
+
+    fechamento = CompraPeriodoFechamento(
+        data_inicio=data_inicio,
+        data_fim=data_fim,
+        fornecedor_id=fornecedor_id,
+        cnpj_emitente=supplier.cnpj if supplier and supplier.cnpj else None,
+        tipo_documento=None if tipo_documento == "todos" else tipo_documento,
+        status="fechado",
+        total_documentos=total_documentos,
+        total_itens=total_itens,
+        total_quantidade=total_quantidade,
+        total_valor=total_valor,
+        observacao=observacao,
+        fechado_por=current_user.id,
+        fechado_em=datetime.utcnow(),
+    )
+    db.session.add(fechamento)
+    db.session.commit()
+    flash(
+        f"Período fechado com sucesso: {total_documentos} documento(s), {total_itens} item(ns) e total de R$ {total_valor:,.2f}.".replace(",", "X").replace(".", ",").replace("X", "."),
+        "success",
+    )
+    return redirect(
+        f"{url_for('nf.nf_index', periodo_inicio=data_inicio.isoformat(), periodo_fim=data_fim.isoformat(), periodo_fornecedor=fornecedor_id or '', periodo_tipo=tipo_documento)}#controle-periodo"
+    )
+
+
+@blueprint.post("/fechamentos/<int:fechamento_id>/reabrir")
+@login_required
+def reabrir_periodo_compras(fechamento_id: int):
+    _require_admin()
+    fechamento = db.session.get(CompraPeriodoFechamento, fechamento_id)
+    if fechamento is None:
+        flash("Fechamento de período não encontrado.", "danger")
+        return redirect(url_for("nf.nf_index"))
+
+    fechamento.status = "reaberto"
+    fechamento.reaberto_por = current_user.id
+    fechamento.reaberto_em = datetime.utcnow()
+    db.session.commit()
+    flash("Período reaberto para revisão.", "success")
+    return redirect(
+        f"{url_for('nf.nf_index', periodo_inicio=fechamento.data_inicio.isoformat(), periodo_fim=fechamento.data_fim.isoformat(), periodo_fornecedor=fechamento.fornecedor_id or '', periodo_tipo=fechamento.tipo_documento or 'todos')}#controle-periodo"
+    )
 
 
 @blueprint.post("/converter-legado")

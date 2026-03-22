@@ -1517,6 +1517,31 @@ class FinanceSupplierPreference(db.Model):
     fornecedor: Mapped[FinanceSupplier] = relationship("FinanceSupplier")
 
 
+class CompraPeriodoFechamento(db.Model):
+    """Fechamento operacional de compras por período e fornecedor."""
+    __tablename__ = "compra_periodo_fechamentos"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    data_inicio: Mapped[date] = mapped_column(Date, nullable=False)
+    data_fim: Mapped[date] = mapped_column(Date, nullable=False)
+    fornecedor_id: Mapped[int | None] = mapped_column(ForeignKey("finance_fornecedores.id"), nullable=True)
+    cnpj_emitente: Mapped[str | None] = mapped_column(String(18), nullable=True)
+    tipo_documento: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="fechado")
+    total_documentos: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    total_itens: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    total_quantidade: Mapped[float] = mapped_column(Float, nullable=False, default=0)
+    total_valor: Mapped[float] = mapped_column(Float, nullable=False, default=0)
+    observacao: Mapped[str | None] = mapped_column(Text, nullable=True)
+    fechado_por: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    fechado_em: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    reaberto_por: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    reaberto_em: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    criado_em: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+
+    fornecedor: Mapped[FinanceSupplier | None] = relationship("FinanceSupplier")
+
+
 class FinanceLedgerEntry(db.Model):
     """Histórico financeiro das entradas incorporadas ao almoxarifado."""
     __tablename__ = "finance_lancamentos"

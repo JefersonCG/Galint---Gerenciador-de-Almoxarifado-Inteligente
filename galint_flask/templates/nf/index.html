@@ -108,6 +108,98 @@
         font-weight: 800;
     }
 
+    .docf-mode-actions {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.7rem;
+        margin-bottom: 1rem;
+    }
+
+    .docf-mode-btn {
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        background: rgba(255, 255, 255, 0.04);
+        color: #eef4ff;
+        border-radius: 16px;
+        padding: 0.9rem 0.95rem;
+        text-align: left;
+        transition: border-color 0.18s ease, transform 0.18s ease, background 0.18s ease;
+    }
+
+    .docf-mode-btn strong {
+        display: block;
+        font-size: 0.92rem;
+        margin-bottom: 0.2rem;
+    }
+
+    .docf-mode-btn span {
+        display: block;
+        font-size: 0.78rem;
+        color: rgba(201, 215, 236, 0.74);
+    }
+
+    .docf-mode-btn.is-active {
+        border-color: rgba(96, 165, 250, 0.48);
+        background: linear-gradient(135deg, rgba(37, 99, 235, 0.22) 0%, rgba(30, 64, 175, 0.18) 100%);
+        box-shadow: 0 10px 22px rgba(37, 99, 235, 0.16);
+        transform: translateY(-1px);
+    }
+
+    .docf-period-grid {
+        display: grid;
+        grid-template-columns: minmax(320px, 420px) minmax(0, 1fr);
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .docf-period-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1.3fr) minmax(280px, 0.7fr);
+        gap: 1rem;
+    }
+
+    .docf-closure-list {
+        display: grid;
+        gap: 0.75rem;
+    }
+
+    .docf-closure-item {
+        border-radius: 16px;
+        padding: 0.9rem;
+        background: rgba(5, 12, 18, 0.52);
+        border: 1px solid rgba(145, 177, 168, 0.14);
+    }
+
+    .docf-closure-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-top: 0.55rem;
+    }
+
+    .docf-chip {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        padding: 0.3rem 0.65rem;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        font-size: 0.74rem;
+        font-weight: 700;
+        color: #e7f0ff;
+    }
+
+    .docf-chip.success {
+        background: rgba(34, 197, 94, 0.12);
+        border-color: rgba(74, 222, 128, 0.2);
+        color: #bbf7d0;
+    }
+
+    .docf-chip.warning {
+        background: rgba(250, 204, 21, 0.12);
+        border-color: rgba(251, 191, 36, 0.2);
+        color: #fde68a;
+    }
+
     .docf-grid {
         display: grid;
         grid-template-columns: minmax(320px, 420px) minmax(0, 1fr);
@@ -373,6 +465,8 @@
     }
 
     @media (max-width: 1100px) {
+        .docf-period-grid,
+        .docf-period-layout,
         .docf-grid {
             grid-template-columns: 1fr;
         }
@@ -391,6 +485,10 @@
         .docf-title {
             font-size: 1.55rem;
         }
+
+        .docf-mode-actions {
+            grid-template-columns: 1fr;
+        }
     }
 </style>
 {% endblock %}
@@ -407,18 +505,177 @@
 
     <div class="docf-kpis">
         <div class="docf-kpi">
-            <div class="docf-kpi-label">Documentos recentes</div>
-            <div class="docf-kpi-value">{{ notas|length }}</div>
+            <div class="docf-kpi-label">Período filtrado</div>
+            <div class="docf-kpi-value">{{ period_dashboard.kpis.documentos }}</div>
         </div>
         <div class="docf-kpi">
-            <div class="docf-kpi-label">Busca atual</div>
-            <div class="docf-kpi-value">{{ nota_busca or 'Sem filtro' }}</div>
+            <div class="docf-kpi-label">Valor no período</div>
+            <div class="docf-kpi-value">{{ period_dashboard.kpis.valor|currency_br }}</div>
+        </div>
+        <div class="docf-kpi">
+            <div class="docf-kpi-label">Quantidade comprada</div>
+            <div class="docf-kpi-value">{{ period_dashboard.kpis.quantidade|number_br(2, True) }}</div>
+        </div>
+        <div class="docf-kpi">
+            <div class="docf-kpi-label">Cupons no período</div>
+            <div class="docf-kpi-value">{{ period_dashboard.kpis.cupom }}</div>
+        </div>
+        <div class="docf-kpi">
+            <div class="docf-kpi-label">Sem NF / Manual</div>
+            <div class="docf-kpi-value">{{ period_dashboard.kpis.manual }}</div>
         </div>
         <div class="docf-kpi">
             <div class="docf-kpi-label">Permissão</div>
             <div class="docf-kpi-value">{{ 'Administrador' if can_manage else 'Consulta' }}</div>
         </div>
     </div>
+
+    <section class="docf-card mb-3" id="controle-periodo">
+        <div class="docf-card-header">
+            <div>
+                <div class="docf-kicker">Controle por período</div>
+                <h2 class="docf-card-title">Fechamento operacional de compras</h2>
+            </div>
+            {% if period_dashboard.active_closure %}
+            <span class="docf-badge">Período fechado</span>
+            {% else %}
+            <span class="docf-badge">Janela em análise</span>
+            {% endif %}
+        </div>
+
+        <div class="docf-period-grid">
+            <div class="docf-panel">
+                <form method="get" class="row g-3 docf-search-form">
+                    <div class="col-md-6">
+                        <label class="form-label" for="periodo_inicio">A partir de</label>
+                        <input class="form-control" id="periodo_inicio" name="periodo_inicio" type="date" value="{{ period_dashboard.filters.data_inicio.isoformat() }}">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="periodo_fim">Até</label>
+                        <input class="form-control" id="periodo_fim" name="periodo_fim" type="date" value="{{ period_dashboard.filters.data_fim.isoformat() }}">
+                    </div>
+                    <div class="col-md-7">
+                        <label class="form-label" for="periodo_fornecedor">Fornecedor</label>
+                        <select class="form-select" id="periodo_fornecedor" name="periodo_fornecedor">
+                            <option value="">Todos os fornecedores</option>
+                            {% for supplier in preferred_suppliers %}
+                            <option value="{{ supplier.id }}" {% if period_dashboard.filters.fornecedor_id == supplier.id %}selected{% endif %}>{{ supplier.nome_exibicao }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-5">
+                        <label class="form-label" for="periodo_tipo">Tipo</label>
+                        <select class="form-select" id="periodo_tipo" name="periodo_tipo">
+                            <option value="todos" {% if period_dashboard.filters.tipo_documento == 'todos' %}selected{% endif %}>Todos</option>
+                            <option value="nf" {% if period_dashboard.filters.tipo_documento == 'nf' %}selected{% endif %}>NF</option>
+                            <option value="cupom" {% if period_dashboard.filters.tipo_documento == 'cupom' %}selected{% endif %}>Cupom</option>
+                            <option value="manual" {% if period_dashboard.filters.tipo_documento == 'manual' %}selected{% endif %}>Sem NF</option>
+                            <option value="recibo" {% if period_dashboard.filters.tipo_documento == 'recibo' %}selected{% endif %}>Recibo</option>
+                        </select>
+                    </div>
+                    <div class="col-12 d-flex gap-2 flex-wrap">
+                        <button class="docf-btn-secondary" type="submit">Aplicar período</button>
+                        <a class="docf-btn-secondary" href="{{ url_for('nf.nf_index') }}#controle-periodo">Limpar</a>
+                    </div>
+                </form>
+            </div>
+
+            <div class="docf-panel info">
+                <div class="docf-kicker">Resumo da janela</div>
+                <p class="mb-2">Controle atual de <strong>{{ period_dashboard.filters.data_inicio.strftime('%d/%m/%Y') }}</strong> até <strong>{{ period_dashboard.filters.data_fim.strftime('%d/%m/%Y') }}</strong>{% if period_dashboard.filters.fornecedor_id %} com fornecedor filtrado{% endif %}.</p>
+                <div class="docf-closure-meta">
+                    <span class="docf-chip">{{ period_dashboard.kpis.documentos }} documentos</span>
+                    <span class="docf-chip">{{ period_dashboard.kpis.cupom }} cupons</span>
+                    <span class="docf-chip">{{ period_dashboard.kpis.nf }} NFs</span>
+                    <span class="docf-chip">{{ period_dashboard.kpis.manual }} sem NF</span>
+                    {% if period_dashboard.active_closure %}
+                    <span class="docf-chip success">Fechado por {{ period_dashboard.active_closure.fechado_por }}</span>
+                    {% else %}
+                    <span class="docf-chip warning">Ainda não fechado</span>
+                    {% endif %}
+                </div>
+                {% if can_manage %}
+                <form method="post" action="{{ url_for('nf.fechar_periodo_compras') }}" class="mt-3 docf-form">
+                    <input type="hidden" name="periodo_inicio" value="{{ period_dashboard.filters.data_inicio.isoformat() }}">
+                    <input type="hidden" name="periodo_fim" value="{{ period_dashboard.filters.data_fim.isoformat() }}">
+                    <input type="hidden" name="periodo_fornecedor" value="{{ period_dashboard.filters.fornecedor_id or '' }}">
+                    <input type="hidden" name="periodo_tipo" value="{{ period_dashboard.filters.tipo_documento }}">
+                    <label class="form-label" for="observacao_fechamento">Observação do fechamento</label>
+                    <input class="form-control mb-2" id="observacao_fechamento" name="observacao_fechamento" placeholder="Ex.: ciclo balcão até dia 26, conferido com compras do período.">
+                    <button class="docf-btn-primary w-100" type="submit">Fechar período atual</button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="docf-period-layout">
+            <div class="docf-table-wrap">
+                <table class="table docf-table mb-0">
+                    <thead>
+                        <tr>
+                            <th>Fornecedor</th>
+                            <th>Documentos</th>
+                            <th>Itens</th>
+                            <th>Quantidade</th>
+                            <th>Valor</th>
+                            <th>Tipos</th>
+                            <th>Janela</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in period_dashboard.supplier_rows %}
+                        <tr>
+                            <td>
+                                <strong>{{ row.fornecedor_nome }}</strong>
+                                <div class="small docf-muted">{{ row.cnpj_emitente or 'CNPJ não informado' }}</div>
+                            </td>
+                            <td>{{ row.documentos }}</td>
+                            <td>{{ row.itens }}</td>
+                            <td>{{ row.quantidade|number_br(2, True) }}</td>
+                            <td>{{ row.valor|currency_br }}</td>
+                            <td>{{ row.tipos }}</td>
+                            <td>{{ row.primeira_data.strftime('%d/%m') }} até {{ row.ultima_data.strftime('%d/%m') }}</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="7" class="text-center docf-muted">Nenhuma compra documental encontrada no período selecionado.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="docf-closure-list">
+                {% for closure in period_dashboard.closures %}
+                <div class="docf-closure-item">
+                    <div class="d-flex justify-content-between align-items-start gap-2">
+                        <div>
+                            <strong>{{ closure.fornecedor_nome or 'Todos os fornecedores' }}</strong>
+                            <div class="small docf-muted">{{ closure.data_inicio.strftime('%d/%m/%Y') }} até {{ closure.data_fim.strftime('%d/%m/%Y') }}</div>
+                        </div>
+                        <span class="docf-chip {% if closure.status == 'fechado' %}success{% else %}warning{% endif %}">{{ closure.status|replace('_', ' ')|title }}</span>
+                    </div>
+                    <div class="docf-closure-meta">
+                        <span class="docf-chip">{{ closure.total_documentos }} docs</span>
+                        <span class="docf-chip">{{ closure.total_itens }} itens</span>
+                        <span class="docf-chip">{{ closure.total_valor|currency_br }}</span>
+                        {% if closure.tipo_documento %}<span class="docf-chip">{{ closure.tipo_documento|upper }}</span>{% endif %}
+                    </div>
+                    {% if closure.observacao %}
+                    <div class="small docf-muted mt-2">{{ closure.observacao }}</div>
+                    {% endif %}
+                    {% if can_manage and closure.status == 'fechado' %}
+                    <form method="post" action="{{ url_for('nf.reabrir_periodo_compras', fechamento_id=closure.id) }}" class="mt-3">
+                        <button class="docf-btn-secondary w-100" type="submit">Reabrir período</button>
+                    </form>
+                    {% endif %}
+                </div>
+                {% else %}
+                <div class="docf-empty">Nenhum fechamento registrado ainda.</div>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
 
     <div class="docf-grid">
         <div class="docf-stack">
@@ -436,7 +693,27 @@
                     A nota registrada aqui fica <strong>apenas documentada</strong>. O salvamento não gera entrada em estoque nem lançamento financeiro no almoxarifado.
                 </div>
 
-                <form method="post" class="docf-form">
+                <div class="docf-mode-actions" id="doc-mode-actions">
+                    <button class="docf-mode-btn is-active" type="button" data-doc-mode="nf">
+                        <strong>Lançar com NF</strong>
+                        <span>Documento completo com chave opcional e status fiscal forte.</span>
+                    </button>
+                    <button class="docf-mode-btn" type="button" data-doc-mode="cupom">
+                        <strong>Lançar com cupom</strong>
+                        <span>Controle por CNPJ da loja, data e valores até o fechamento do período.</span>
+                    </button>
+                    <button class="docf-mode-btn" type="button" data-doc-mode="manual">
+                        <strong>Lançar sem NF</strong>
+                        <span>Compra sem comprovação formal, mantida no radar para auditoria.</span>
+                    </button>
+                </div>
+
+                <div class="docf-panel mb-3" id="doc-mode-summary">
+                    <strong id="doc-mode-title">Compra com NF ativa</strong>
+                    <div class="docf-muted mt-1" id="doc-mode-text">Use este modo quando a compra já tiver número de nota e, se existir, chave de acesso.</div>
+                </div>
+
+                <form method="post" class="docf-form" id="nf-registration-form">
                     <div class="mb-3">
                         <label class="form-label" for="item_search">Item</label>
                         <div class="position-relative">
@@ -476,10 +753,10 @@
                             required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label" for="nota_fiscal">Número da NF</label>
+                        <label class="form-label" for="nota_fiscal" id="nota_fiscal_label">Número da NF</label>
                         <input class="form-control" id="nota_fiscal" name="nota_fiscal" required>
                         <div class="list-group mt-2 d-none" id="nota_fiscal_results"></div>
-                        <div class="form-text">Se essa NF já tiver sido usada no sistema, os dados da empresa serão preenchidos automaticamente.</div>
+                        <div class="form-text" id="nota_fiscal_help">Se essa NF já tiver sido usada no sistema, os dados da empresa serão preenchidos automaticamente.</div>
                     </div>
                     <div class="mb-3 position-relative">
                         <label class="form-label" for="finance_supplier_search">Fornecedor / Loja</label>
@@ -608,7 +885,7 @@
                         {% elif can_manage and nota_detalhes.id_documento is defined and nota_detalhes.id_documento is not none %}
                         <a class="docf-btn-secondary" href="#documento-editar-{{ nota_detalhes.id_documento }}">Editar agora</a>
                         {% elif can_manage and nota_detalhes.nota_fiscal|default('', true) %}
-                        <form method="post" action="/nf/converter-legado" class="d-inline">
+                        <form method="post" action="{{ url_for('nf.converter_documento_legado') }}" class="d-inline">
                             <input type="hidden" name="nota_fiscal" value="{{ nota_detalhes.nota_fiscal }}">
                             <button class="docf-btn-secondary" type="submit">Converter para edição</button>
                         </form>
@@ -641,7 +918,7 @@
                     {% if can_manage and (nota_detalhes.id_documento is not defined or nota_detalhes.id_documento is none) and nota_detalhes.nota_fiscal|default('', true) %}
                     <div class="docf-panel info mt-3">
                         <strong>Histórico legado detectado:</strong> este DOC veio das entradas antigas do almoxarifado. Use a conversão abaixo para abrir um documento fiscal editável sem apagar o histórico do estoque.
-                        <form method="post" action="/nf/converter-legado" class="mt-3">
+                        <form method="post" action="{{ url_for('nf.converter_documento_legado') }}" class="mt-3">
                             <input type="hidden" name="nota_fiscal" value="{{ nota_detalhes.nota_fiscal }}">
                             <button class="docf-btn-primary" type="submit">Converter este DOC para edição fiscal</button>
                         </form>
@@ -651,7 +928,7 @@
                     <section class="docf-panel info mt-3" id="documento-editar-{{ nota_detalhes.id_documento }}">
                         <div class="docf-kicker">Edição completa</div>
                         <h4 class="mb-3">Atualizar documento e itens</h4>
-                        <form method="post" action="/nf/{{ nota_detalhes.id_documento }}/editar" class="docf-form">
+                        <form method="post" action="{{ url_for('nf.editar_documento', documento_id=nota_detalhes.id_documento) }}" class="docf-form">
                             <div class="row g-3">
                                 <div class="col-md-4">
                                     <label class="form-label" for="nota-detalhe-numero">Número do documento</label>
@@ -748,7 +1025,7 @@
                                     <td>{% if item.valor_total is defined and item.valor_total is not none %}{{ item.valor_total|currency_br }}{% else %}-{% endif %}</td>
                                     {% if can_manage and nota_detalhes.id_documento is defined and nota_detalhes.id_documento is not none and item.id is defined and item.id is not none %}
                                     <td class="text-end">
-                                        <form method="post" action="/nf/{{ nota_detalhes.id_documento }}/itens/{{ item.id }}/excluir" onsubmit="return confirm('Excluir este item do documento fiscal?');">
+                                        <form method="post" action="{{ url_for('nf.excluir_item_documento', documento_id=nota_detalhes.id_documento, documento_item_id=item.id) }}" onsubmit="return confirm('Excluir este item do documento fiscal?');">
                                             <button class="docf-btn-danger" type="submit">Excluir</button>
                                         </form>
                                     </td>
@@ -812,7 +1089,7 @@
                                 </div>
                                 {% elif can_manage and nota.nota_fiscal|default('', true) %}
                                 <div class="mt-3">
-                                    <form method="post" action="/nf/converter-legado" class="d-inline">
+                                    <form method="post" action="{{ url_for('nf.converter_documento_legado') }}" class="d-inline">
                                         <input type="hidden" name="nota_fiscal" value="{{ nota.nota_fiscal }}">
                                         <button class="docf-btn-secondary" type="submit">Converter para edição</button>
                                     </form>
@@ -832,7 +1109,7 @@
                                 <section class="docf-panel info mt-3" id="documento-editar-{{ nota.id_documento }}">
                                     <div class="docf-kicker">Edição completa</div>
                                     <h4 class="mb-3">Atualizar documento e itens</h4>
-                                    <form method="post" action="/nf/{{ nota.id_documento }}/editar" class="docf-form">
+                                    <form method="post" action="{{ url_for('nf.editar_documento', documento_id=nota.id_documento) }}" class="docf-form">
                                         <div class="row g-3">
                                             <div class="col-md-4">
                                                 <label class="form-label" for="nota-historico-numero-{{ collapse_id }}">Número do documento</label>
@@ -927,7 +1204,7 @@
                                                 <td>{% if item.valor_unitario is defined and item.valor_unitario is not none %}{{ item.valor_unitario|currency_br }}{% else %}-{% endif %}</td>
                                                 {% if can_manage and nota.id_documento is defined and nota.id_documento is not none and item.id is defined and item.id is not none %}
                                                 <td class="text-end">
-                                                    <form method="post" action="/nf/{{ nota.id_documento }}/itens/{{ item.id }}/excluir" onsubmit="return confirm('Excluir este item do documento fiscal?');">
+                                                    <form method="post" action="{{ url_for('nf.excluir_item_documento', documento_id=nota.id_documento, documento_item_id=item.id) }}" onsubmit="return confirm('Excluir este item do documento fiscal?');">
                                                         <button class="docf-btn-danger" type="submit">Excluir</button>
                                                     </form>
                                                 </td>
@@ -969,11 +1246,48 @@
     const receiptDateInput = document.getElementById('data_recebimento');
     const lookupCnpjButton = document.getElementById('btn-buscar-cnpj');
     const tipoDocumentoInput = document.getElementById('finance_tipo_documento');
-    const nfForm = document.querySelector('form[method="post"]');
+    const origemValorInput = document.getElementById('finance_origem_valor');
+    const comprovacaoInput = document.getElementById('finance_comprovacao_status');
+    const modeButtons = document.querySelectorAll('[data-doc-mode]');
+    const docModeTitle = document.getElementById('doc-mode-title');
+    const docModeText = document.getElementById('doc-mode-text');
+    const notaFiscalLabel = document.getElementById('nota_fiscal_label');
+    const notaFiscalHelp = document.getElementById('nota_fiscal_help');
+    const nfForm = document.getElementById('nf-registration-form');
     let itemTimer = null;
     let supplierTimer = null;
     let notaTimer = null;
     let notaSuggestions = [];
+
+    const registrationModes = {
+        nf: {
+            tipo: 'nf',
+            origem: 'compra_nf',
+            comprovacao: 'comprovado',
+            title: 'Compra com NF ativa',
+            text: 'Use este modo quando a compra já tiver número de nota e, se existir, chave de acesso.',
+            numeroLabel: 'Número da NF',
+            numeroHelp: 'Se essa NF já tiver sido usada no sistema, os dados da empresa serão preenchidos automaticamente.'
+        },
+        cupom: {
+            tipo: 'cupom',
+            origem: 'compra_cupom',
+            comprovacao: 'parcial',
+            title: 'Compra com cupom de balcão',
+            text: 'Controle por CNPJ da loja, data e valores até o fechamento do período. Não exige chave de acesso.',
+            numeroLabel: 'Número do cupom / controle',
+            numeroHelp: 'Informe o identificador do cupom, número interno ou referência que permita rastrear a compra.'
+        },
+        manual: {
+            tipo: 'manual',
+            origem: 'valor_estimado',
+            comprovacao: 'sem_comprovacao',
+            title: 'Compra sem NF formal',
+            text: 'Use somente para não perder rastreabilidade. O documento entra como pendência documental do período.',
+            numeroLabel: 'Número do controle interno',
+            numeroHelp: 'Informe qualquer referência mínima para localizar a compra depois: OS, pedido, protocolo ou anotação interna.'
+        }
+    };
 
     const hideItemResults = () => itemResults?.classList.add('d-none');
 
@@ -1093,6 +1407,64 @@
         }
     };
 
+    const parseDecimalInput = (value) => {
+        const normalized = String(value || '').replace(',', '.').trim();
+        if (!normalized) return null;
+        const parsed = Number(normalized);
+        return Number.isFinite(parsed) ? parsed : null;
+    };
+
+    const formatDecimalInput = (value) => {
+        if (!Number.isFinite(value)) return '';
+        return value.toFixed(2);
+    };
+
+    const syncItemRowTotals = (form) => {
+        if (!form) return;
+        form.querySelectorAll('input[name^="item_quantidade_"]').forEach((quantityField) => {
+            const suffix = quantityField.name.replace('item_quantidade_', '');
+            const unitField = form.querySelector(`input[name="item_valor_unitario_${suffix}"]`);
+            const totalField = form.querySelector(`input[name="item_valor_total_${suffix}"]`);
+            if (!unitField || !totalField) {
+                return;
+            }
+
+            const updateTotal = () => {
+                const quantity = parseDecimalInput(quantityField.value);
+                const unitValue = parseDecimalInput(unitField.value);
+                if (quantity === null || unitValue === null) {
+                    if (!unitField.value.trim()) {
+                        totalField.value = '';
+                    }
+                    return;
+                }
+                totalField.value = formatDecimalInput(quantity * unitValue);
+            };
+
+            if (quantityField.dataset.totalSyncBound === 'true') {
+                return;
+            }
+
+            quantityField.dataset.totalSyncBound = 'true';
+            unitField.dataset.totalSyncBound = 'true';
+            quantityField.addEventListener('input', updateTotal);
+            quantityField.addEventListener('change', updateTotal);
+            unitField.addEventListener('input', updateTotal);
+            unitField.addEventListener('change', updateTotal);
+            updateTotal();
+        });
+    };
+
+    const formatCnpjInputValue = (rawValue) => {
+        const digits = String(rawValue || '').replace(/\D/g, '').slice(0, 14);
+        if (!digits) return '';
+        if (digits.length <= 2) return digits;
+        if (digits.length <= 5) return `${digits.slice(0, 2)}.${digits.slice(2)}`;
+        if (digits.length <= 8) return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5)}`;
+        if (digits.length <= 12) return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5, 8)}/${digits.slice(8)}`;
+        return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5, 8)}/${digits.slice(8, 12)}-${digits.slice(12)}`;
+    };
+
     const syncChaveAcessoVisibility = (selectElement) => {
         if (!selectElement) return;
         const form = selectElement.closest('form');
@@ -1108,10 +1480,46 @@
         }
     };
 
+    const applyRegistrationMode = (modeName) => {
+        const mode = registrationModes[modeName] || registrationModes.nf;
+        if (tipoDocumentoInput) {
+            tipoDocumentoInput.value = mode.tipo;
+            syncChaveAcessoVisibility(tipoDocumentoInput);
+        }
+        if (origemValorInput) {
+            origemValorInput.value = mode.origem;
+        }
+        if (comprovacaoInput) {
+            comprovacaoInput.value = mode.comprovacao;
+        }
+        if (docModeTitle) {
+            docModeTitle.textContent = mode.title;
+        }
+        if (docModeText) {
+            docModeText.textContent = mode.text;
+        }
+        if (notaFiscalLabel) {
+            notaFiscalLabel.textContent = mode.numeroLabel;
+        }
+        if (notaFiscalHelp) {
+            notaFiscalHelp.textContent = mode.numeroHelp;
+        }
+        modeButtons.forEach((button) => {
+            button.classList.toggle('is-active', button.dataset.docMode === modeName);
+        });
+    };
+
     document.querySelectorAll('select[name="finance_tipo_documento"], select[name="tipo_documento"]').forEach((selectElement) => {
         syncChaveAcessoVisibility(selectElement);
         selectElement.addEventListener('change', () => syncChaveAcessoVisibility(selectElement));
     });
+
+    modeButtons.forEach((button) => {
+        button.addEventListener('click', () => {
+            applyRegistrationMode(button.dataset.docMode || 'nf');
+        });
+    });
+    applyRegistrationMode(tipoDocumentoInput?.value === 'cupom' ? 'cupom' : (tipoDocumentoInput?.value === 'manual' ? 'manual' : 'nf'));
 
     document.querySelectorAll('input[name="chave_acesso"]').forEach((chaveField) => {
         chaveField.addEventListener('input', () => normalizeAccessKeyInput(chaveField));
@@ -1183,6 +1591,10 @@
             return null;
         }
     };
+
+    document.querySelectorAll('.docf-form').forEach((form) => {
+        syncItemRowTotals(form);
+    });
 
     const applyDocumentSuggestion = (doc) => {
         if (!doc) return;
@@ -1319,6 +1731,30 @@
     });
 
     document.querySelectorAll('input[name="supplier_cnpj"]').forEach((cnpjField) => {
+        cnpjField.addEventListener('input', () => {
+            const formatted = formatCnpjInputValue(cnpjField.value);
+            if (formatted !== cnpjField.value) {
+                cnpjField.value = formatted;
+            }
+            const form = cnpjField.closest('form');
+            if (!form) return;
+            const digits = formatted.replace(/\D/g, '');
+            const supplierIdField = form.querySelector('input[name="finance_supplier_id"]');
+            if (supplierIdField && digits !== (cnpjField.dataset.lastLookupDigits || '')) {
+                supplierIdField.value = '';
+            }
+            if (cnpjField.dataset.lookupTimer) {
+                clearTimeout(Number(cnpjField.dataset.lookupTimer));
+            }
+            if (digits.length !== 14) {
+                delete cnpjField.dataset.lastLookupDigits;
+                return;
+            }
+            const timerId = window.setTimeout(() => {
+                lookupSupplierByCnpjForForm(form, { showErrors: false });
+            }, 250);
+            cnpjField.dataset.lookupTimer = String(timerId);
+        });
         cnpjField.addEventListener('blur', () => {
             const form = cnpjField.closest('form');
             lookupSupplierByCnpjForForm(form, { showErrors: false });
