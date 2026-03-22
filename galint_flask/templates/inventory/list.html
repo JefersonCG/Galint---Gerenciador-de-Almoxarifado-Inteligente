@@ -153,6 +153,8 @@
     }
 
     .category-modal-list .list-group-item:hover {
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%) !important;
+        color: inherit;
         transform: translateX(4px);
         border-color: rgba(59, 130, 246, 0.5);
         box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
@@ -254,14 +256,64 @@
         font-size: 0.7rem;
     }
 
+    .category-modal-list .item-photo-search-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.35rem;
+        padding: 0.34rem 0.7rem;
+        border: 1px solid rgba(255, 255, 255, 0.82);
+        border-radius: 0.45rem;
+        background: rgba(255, 255, 255, 0.04);
+        color: #ffffff;
+        font-size: 0.74rem;
+        font-weight: 600;
+        line-height: 1;
+        white-space: nowrap;
+        transition: all 0.2s ease;
+    }
+
+    .category-modal-list .item-photo-search-btn:hover {
+        background: rgba(255, 255, 255, 0.12);
+        border-color: #ffffff;
+        color: #ffffff;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.18);
+    }
+
+    .category-modal-list .item-photo-search-btn:focus,
+    .category-modal-list .item-photo-search-btn:active,
+    .category-modal-list .item-photo-search-btn:focus-visible {
+        color: #ffffff;
+        border-color: #ffffff;
+        background: rgba(255, 255, 255, 0.14);
+        box-shadow: 0 0 0 0.2rem rgba(255, 255, 255, 0.16);
+    }
+
+    .category-modal-list .item-photo-search-btn i {
+        font-size: 0.82rem;
+    }
+
     .category-modal-list .action-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.45rem;
+        align-items: stretch;
+        justify-content: flex-start;
+        align-self: stretch;
+        min-width: 170px;
+    }
+
+    .category-modal-list .action-group-top,
+    .category-modal-list .action-group-bottom {
         display: flex;
         flex-wrap: wrap;
         gap: 0.45rem;
-        align-items: flex-end;
         justify-content: flex-end;
-        align-self: flex-end;
-        min-width: fit-content;
+    }
+
+    .category-modal-list .action-group-top {
+        min-height: 34px;
     }
 
     .category-modal-list .action-group .btn-group {
@@ -325,8 +377,13 @@
         }
 
         .category-modal-list .action-group {
-            justify-content: stretch;
+            min-width: 100%;
             width: 100%;
+        }
+
+        .category-modal-list .action-group-top,
+        .category-modal-list .action-group-bottom {
+            justify-content: stretch;
         }
 
         .category-modal-list .action-group .btn-group {
@@ -413,45 +470,48 @@
                             {% endif %}
                         </div>
                     </div>
-                    <div class="action-group d-flex flex-wrap gap-2 align-items-center">
-                        {% if can_edit_items and item.codigo %}
-                        <div class="btn-group" role="group">
-                            <a class="btn btn-outline-light btn-sm"
-                                href="{{ url_for('inventory.edit_item_form', codigo=item.codigo|e) }}"
-                                title="Editar item">
-                                <i class="bi bi-pencil"></i> Editar
-                            </a>
-                        </div>
-                        {% endif %}
-                        {% if can_manage and item.codigo %}
-                        <div class="btn-group" role="group">
-                            <button class="btn btn-outline-info btn-sm" type="button"
+                    <div class="action-group">
+                        <div class="action-group-top">
+                            {% if can_manage and item.codigo %}
+                            <button class="item-photo-search-btn" type="button"
                                 onclick='openPhotoAssistantModal({{ {"codigo": item.codigo, "descricao": item.descricao, "marca": item.marca or item.setor or "", "foto_path": item.foto_path or ""}|tojson|forceescape }})'
                                 title="Buscar imagem do item">
-                                <i class="bi bi-image"></i> Buscar imagem
-                            </button>
-                        </div>
-                        {% endif %}
-                        {% if can_manage and item.codigo %}
-                        <div class="btn-group" role="group">
-                            <form method="post" action="{{ url_for('inventory.delete_item', codigo=item.codigo|e) }}"
-                                class="d-inline" onsubmit="return confirm('Tem certeza que deseja excluir este item?\n\nEsta ação NÃO pode ser desfeita.');">
-                                <button class="btn btn-outline-danger btn-sm" type="submit" title="Excluir item">
-                                    <i class="bi bi-trash"></i> Excluir item
-                                </button>
-                            </form>
-                            {% set categoria_lower = (item.categoria or '')|lower %}
-                            {% if 'ferramenta' in categoria_lower or 'epi' in categoria_lower or ('material' in categoria_lower and 'ep' in categoria_lower) %}
-                            <button class="btn btn-success btn-sm" type="button" 
-                                onclick='openAssignModal({{ item.codigo|tojson|forceescape }}, {{ item.descricao|tojson|forceescape }}, {{ {"tipo_embalagem_novo": item.tipo_embalagem_novo or "", "unidade": item.unidade or "", "unidades_por_embalagem": item.unidades_por_embalagem}|tojson|forceescape }})'
-                                title="Atribuir a funcionário">
-                                <i class="bi bi-person-check"></i> Atribuir
+                                <i class="bi bi-image"></i> Buscar
                             </button>
                             {% endif %}
                         </div>
-                        {% else %}
-                        <span class="text-muted small">Apenas administradores podem editar.</span>
-                        {% endif %}
+                        <div class="action-group-bottom">
+                            {% if can_edit_items and item.codigo %}
+                            <div class="btn-group" role="group">
+                                <a class="btn btn-outline-light btn-sm"
+                                    href="{{ url_for('inventory.edit_item_form', codigo=item.codigo|e) }}"
+                                    title="Editar item">
+                                    <i class="bi bi-pencil"></i> Editar
+                                </a>
+                            </div>
+                            {% endif %}
+                            {% if can_manage and item.codigo %}
+                            <div class="btn-group" role="group">
+                                <form method="post" action="{{ url_for('inventory.delete_item', codigo=item.codigo|e) }}"
+                                    class="d-inline" onsubmit="return confirm('Tem certeza que deseja excluir este item?\n\nEsta ação NÃO pode ser desfeita.');">
+                                    <button class="btn btn-outline-danger btn-sm" type="submit" title="Excluir item">
+                                        <i class="bi bi-trash"></i> Excluir item
+                                    </button>
+                                </form>
+                                {% set categoria_lower = (item.categoria or '')|lower %}
+                                {% if 'ferramenta' in categoria_lower or 'epi' in categoria_lower or ('material' in categoria_lower and 'ep' in categoria_lower) %}
+                                <button class="btn btn-success btn-sm" type="button" 
+                                    onclick='openAssignModal({{ item.codigo|tojson|forceescape }}, {{ item.descricao|tojson|forceescape }}, {{ {"tipo_embalagem_novo": item.tipo_embalagem_novo or "", "unidade": item.unidade or "", "unidades_por_embalagem": item.unidades_por_embalagem}|tojson|forceescape }})'
+                                    title="Atribuir a funcionário">
+                                    <i class="bi bi-person-check"></i> Atribuir
+                                </button>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                            {% if not can_manage and not can_edit_items %}
+                            <span class="text-muted small">Apenas administradores podem editar.</span>
+                            {% endif %}
+                        </div>
                     </div>
                 </div>
                 {% endfor %}
@@ -484,31 +544,30 @@
         </div>
     </div>
 </div>
-<div class="modal fade" id="inventoryItemModal" tabindex="-1" aria-labelledby="inventoryItemModalLabel"
-    aria-hidden="true">
+
+<div class="modal fade" id="inventoryItemModal" tabindex="-1" aria-labelledby="inventoryItemModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content galint-item-modal">
             <div class="modal-header">
                 <h5 class="modal-title" id="inventoryItemModalLabel">Detalhes do item</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
             </div>
-            
-            <!-- Sistema de Abas -->
+
             <div class="galint-modal-tabs">
-                <button class="galint-tab-btn active" data-tab="info">
-                    <i class="bi bi-info-circle me-1"></i>Informações
+                <button class="galint-tab-btn active" type="button" data-tab="info">
+                    <i class="bi bi-info-circle me-1"></i> Informações
                 </button>
-                <button class="galint-tab-btn" data-tab="stock">
-                    <i class="bi bi-box-seam me-1"></i>Estoque
+                <button class="galint-tab-btn" type="button" data-tab="stock">
+                    <i class="bi bi-box-seam me-1"></i> Estoque
                 </button>
-                <button class="galint-tab-btn" data-tab="barcode">
-                    <i class="bi bi-upc-scan me-1"></i>Código de Barras
+                <button class="galint-tab-btn" type="button" data-tab="barcode">
+                    <i class="bi bi-upc-scan me-1"></i> Código de barras
                 </button>
-                <button class="galint-tab-btn" data-tab="history">
-                    <i class="bi bi-clock-history me-1"></i>Histórico
+                <button class="galint-tab-btn" type="button" data-tab="history">
+                    <i class="bi bi-clock-history me-1"></i> Histórico
                 </button>
             </div>
-            
+
             <div class="modal-body">
                 <!-- Aba Informações -->
                 <div class="galint-tab-content active" id="tab-info">
@@ -677,7 +736,7 @@
 </div>
 
 <div class="modal fade" id="photoAssistantModal" tabindex="-1" aria-labelledby="photoAssistantModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-dialog modal-dialog-scrollable photo-assistant-dialog">
         <div class="modal-content photo-assistant-modal">
             <div class="modal-header">
                 <h5 class="modal-title" id="photoAssistantModalLabel">Buscar imagem do item</h5>
@@ -1572,6 +1631,10 @@
         }
     }
 
+    .photo-assistant-dialog {
+        max-width: min(680px, 92vw);
+    }
+
     .photo-assistant-modal {
         background: linear-gradient(180deg, #0f172a 0%, #111827 100%);
         color: #e5eefc;
@@ -1581,6 +1644,11 @@
     .photo-assistant-modal .modal-header,
     .photo-assistant-modal .modal-footer {
         border-color: rgba(148, 163, 184, 0.18);
+        padding: 0.8rem 1rem;
+    }
+
+    .photo-assistant-modal .modal-body {
+        padding: 0.9rem 1rem 1rem;
     }
 
     .photo-assistant-modal .btn-close {
@@ -1607,26 +1675,26 @@
         justify-content: space-between;
         align-items: flex-start;
         gap: 1rem;
-        padding: 1rem 1.1rem;
-        border-radius: 18px;
+        padding: 0.8rem 0.9rem;
+        border-radius: 14px;
         background: rgba(15, 23, 42, 0.7);
         border: 1px solid rgba(96, 165, 250, 0.18);
     }
 
     .photo-assistant-kicker {
-        font-size: 0.78rem;
+        font-size: 0.72rem;
         text-transform: uppercase;
         letter-spacing: 0.08em;
         color: #38bdf8;
-        margin-bottom: 0.35rem;
+        margin-bottom: 0.25rem;
         font-weight: 700;
     }
 
     .photo-assistant-preview {
-        width: 104px;
-        min-width: 104px;
-        height: 104px;
-        border-radius: 16px;
+        width: 82px;
+        min-width: 82px;
+        height: 82px;
+        border-radius: 12px;
         overflow: hidden;
         background: rgba(30, 41, 59, 0.9);
         border: 1px dashed rgba(148, 163, 184, 0.32);
@@ -1639,7 +1707,7 @@
     .photo-assistant-preview::after {
         content: 'Sem foto';
         color: #94a3b8;
-        font-size: 0.78rem;
+        font-size: 0.72rem;
     }
 
     .photo-assistant-preview.has-image::after {
@@ -1658,24 +1726,24 @@
     }
 
     .photo-remote-preview {
-        padding: 0.9rem 1rem;
-        border-radius: 16px;
+        padding: 0.75rem 0.85rem;
+        border-radius: 12px;
         background: rgba(15, 23, 42, 0.55);
         border: 1px solid rgba(148, 163, 184, 0.18);
     }
 
     .photo-remote-preview-label {
         color: #cbd5e1;
-        font-size: 0.82rem;
-        margin-bottom: 0.6rem;
+        font-size: 0.76rem;
+        margin-bottom: 0.45rem;
         font-weight: 600;
     }
 
     .photo-remote-preview img {
         width: 100%;
-        max-height: 260px;
+        max-height: 180px;
         object-fit: contain;
-        border-radius: 12px;
+        border-radius: 10px;
         background: rgba(15, 23, 42, 0.8);
     }
 </style>
@@ -2876,7 +2944,7 @@
     const photoSearchGoogleBtn = document.getElementById('photo-search-google-btn');
     const photoSearchBingBtn = document.getElementById('photo-search-bing-btn');
     const applyPhotoUrlEndpoint = {{ url_for('inventory.aplicar_foto_url_global') | tojson | safe }};
-    const applyPhotoUploadEndpoint = {{ url_for('inventory.aplicar_foto_upload_global') | tojson | safe }};
+    const applyPhotoUploadEndpoint = {{ (url_for('inventory.aplicar_foto_upload_global') if endpoint_exists('inventory.aplicar_foto_upload_global') else '/itens/foto/upload') | tojson | safe }};
     let currentPhotoItem = null;
     let clipboardSuggestedUrl = '';
     let photoPreviewObjectUrl = null;
