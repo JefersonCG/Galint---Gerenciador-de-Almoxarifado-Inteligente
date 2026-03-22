@@ -973,6 +973,40 @@
                             <div class="docf-panel mt-3 mb-3">
                                 <div class="docf-kicker">Itens da NF</div>
                                 <p class="docf-muted mb-3">Preencha quantidade e valor unitário dos itens. Quando a NF tiver datas, chave de acesso e valores, o sistema promove automaticamente os materiais vinculados de sem comprovação para compra com NF.</p>
+                                <div class="docf-panel mb-3">
+                                    <div class="docf-kicker">Adicionar item a esta NF</div>
+                                    <form method="post" action="{{ url_for('nf.adicionar_item_documento', documento_id=nota_detalhes.id_documento) }}" class="docf-form" data-add-item-form>
+                                        <div class="row g-3 align-items-end">
+                                            <div class="col-lg-3">
+                                                <label class="form-label" for="nota-detalhe-add-busca-{{ nota_detalhes.id_documento }}">Item</label>
+                                                <div class="position-relative">
+                                                    <input class="form-control" id="nota-detalhe-add-busca-{{ nota_detalhes.id_documento }}" type="text" autocomplete="off" placeholder="Digite código ou descrição" data-add-item-search required>
+                                                    <input type="hidden" id="nota-detalhe-add-codigo-{{ nota_detalhes.id_documento }}" name="codigo_item" data-add-item-code required>
+                                                    <div class="list-group position-absolute w-100 shadow d-none" data-add-item-results style="z-index: 60;"></div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-2">
+                                                <label class="form-label" for="nota-detalhe-add-quantidade-{{ nota_detalhes.id_documento }}">Quantidade</label>
+                                                <input class="form-control" id="nota-detalhe-add-quantidade-{{ nota_detalhes.id_documento }}" name="quantidade" type="number" min="0.01" step="0.01" required>
+                                            </div>
+                                            <div class="col-md-2">
+                                                <label class="form-label" for="nota-detalhe-add-unitario-{{ nota_detalhes.id_documento }}">Valor unitário</label>
+                                                <input class="form-control" id="nota-detalhe-add-unitario-{{ nota_detalhes.id_documento }}" name="valor_unitario" type="number" min="0" step="0.01">
+                                            </div>
+                                            <div class="col-md-2">
+                                                <label class="form-label" for="nota-detalhe-add-total-{{ nota_detalhes.id_documento }}">Valor total</label>
+                                                <input class="form-control" id="nota-detalhe-add-total-{{ nota_detalhes.id_documento }}" name="valor_total" type="number" min="0" step="0.01">
+                                            </div>
+                                            <div class="col-lg-3">
+                                                <label class="form-label" for="nota-detalhe-add-obs-{{ nota_detalhes.id_documento }}">Observação</label>
+                                                <input class="form-control" id="nota-detalhe-add-obs-{{ nota_detalhes.id_documento }}" name="observacao" placeholder="Opcional">
+                                            </div>
+                                            <div class="col-12 d-flex justify-content-end">
+                                                <button class="docf-btn-secondary" type="submit">Adicionar item</button>
+                                            </div>
+                                        </div>
+                                    </form>
+                                </div>
                                 {% for item in nota_detalhes.itens %}
                                 <div class="row g-3 align-items-end mb-3">
                                     <div class="col-lg-3">
@@ -1154,6 +1188,40 @@
                                         <div class="docf-panel mt-3 mb-3">
                                             <div class="docf-kicker">Itens da NF</div>
                                             <p class="docf-muted mb-3">Ao preencher valores, datas e chave da NF, o GALINT atualiza automaticamente os materiais vinculados para compra com NF.</p>
+                                            <div class="docf-panel mb-3">
+                                                <div class="docf-kicker">Adicionar item a esta NF</div>
+                                                <form method="post" action="{{ url_for('nf.adicionar_item_documento', documento_id=nota.id_documento) }}" class="docf-form" data-add-item-form>
+                                                    <div class="row g-3 align-items-end">
+                                                        <div class="col-lg-3">
+                                                            <label class="form-label" for="nota-historico-add-busca-{{ collapse_id }}">Item</label>
+                                                            <div class="position-relative">
+                                                                <input class="form-control" id="nota-historico-add-busca-{{ collapse_id }}" type="text" autocomplete="off" placeholder="Digite código ou descrição" data-add-item-search required>
+                                                                <input type="hidden" id="nota-historico-add-codigo-{{ collapse_id }}" name="codigo_item" data-add-item-code required>
+                                                                <div class="list-group position-absolute w-100 shadow d-none" data-add-item-results style="z-index: 60;"></div>
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-md-2">
+                                                            <label class="form-label" for="nota-historico-add-quantidade-{{ collapse_id }}">Quantidade</label>
+                                                            <input class="form-control" id="nota-historico-add-quantidade-{{ collapse_id }}" name="quantidade" type="number" min="0.01" step="0.01" required>
+                                                        </div>
+                                                        <div class="col-md-2">
+                                                            <label class="form-label" for="nota-historico-add-unitario-{{ collapse_id }}">Valor unitário</label>
+                                                            <input class="form-control" id="nota-historico-add-unitario-{{ collapse_id }}" name="valor_unitario" type="number" min="0" step="0.01">
+                                                        </div>
+                                                        <div class="col-md-2">
+                                                            <label class="form-label" for="nota-historico-add-total-{{ collapse_id }}">Valor total</label>
+                                                            <input class="form-control" id="nota-historico-add-total-{{ collapse_id }}" name="valor_total" type="number" min="0" step="0.01">
+                                                        </div>
+                                                        <div class="col-lg-3">
+                                                            <label class="form-label" for="nota-historico-add-obs-{{ collapse_id }}">Observação</label>
+                                                            <input class="form-control" id="nota-historico-add-obs-{{ collapse_id }}" name="observacao" placeholder="Opcional">
+                                                        </div>
+                                                        <div class="col-12 d-flex justify-content-end">
+                                                            <button class="docf-btn-secondary" type="submit">Adicionar item</button>
+                                                        </div>
+                                                    </div>
+                                                </form>
+                                            </div>
                                             {% for item in nota.itens %}
                                             <div class="row g-3 align-items-end mb-3">
                                                 <div class="col-lg-3">
@@ -1455,6 +1523,120 @@
         });
     };
 
+    const syncAddItemFormTotals = (form) => {
+        if (!form || form.dataset.addItemSyncBound === 'true') return;
+        const quantityField = form.querySelector('input[name="quantidade"]');
+        const unitField = form.querySelector('input[name="valor_unitario"]');
+        const totalField = form.querySelector('input[name="valor_total"]');
+        if (!quantityField || !unitField || !totalField) return;
+
+        const updateTotal = () => {
+            const quantity = parseDecimalInput(quantityField.value);
+            const unitValue = parseDecimalInput(unitField.value);
+            if (quantity === null || unitValue === null) {
+                if (!unitField.value.trim()) {
+                    totalField.value = '';
+                }
+                return;
+            }
+            totalField.value = formatDecimalInput(quantity * unitValue);
+        };
+
+        form.dataset.addItemSyncBound = 'true';
+        quantityField.addEventListener('input', updateTotal);
+        quantityField.addEventListener('change', updateTotal);
+        unitField.addEventListener('input', updateTotal);
+        unitField.addEventListener('change', updateTotal);
+        updateTotal();
+    };
+
+    const hideAddItemResults = (form) => {
+        form?.querySelector('[data-add-item-results]')?.classList.add('d-none');
+    };
+
+    const selectAddItemSuggestion = (form, item) => {
+        if (!form || !item) return;
+        const searchField = form.querySelector('[data-add-item-search]');
+        const codeField = form.querySelector('[data-add-item-code]');
+        if (searchField) {
+            searchField.value = `${item.codigo} — ${item.descricao || ''}`.trim();
+        }
+        if (codeField) {
+            codeField.value = item.codigo || '';
+        }
+        hideAddItemResults(form);
+    };
+
+    const renderAddItemResults = (form, items) => {
+        const resultsContainer = form?.querySelector('[data-add-item-results]');
+        if (!resultsContainer) return;
+        if (!Array.isArray(items) || !items.length) {
+            resultsContainer.innerHTML = '<div class="list-group-item text-muted">Nenhum item encontrado.</div>';
+            resultsContainer.classList.remove('d-none');
+            return;
+        }
+        resultsContainer.innerHTML = items.map((item, index) => `
+            <button type="button" class="list-group-item list-group-item-action" data-index="${index}">
+                <div class="fw-semibold">${item.descricao || item.codigo}</div>
+                <div class="small text-muted">Código: ${item.codigo}${item.categoria ? ` • ${item.categoria}` : ''}${item.saldo !== undefined ? ` • Saldo: ${item.saldo}` : ''}</div>
+            </button>
+        `).join('');
+        resultsContainer.classList.remove('d-none');
+        resultsContainer.querySelectorAll('[data-index]').forEach((button) => {
+            button.addEventListener('click', () => {
+                const index = Number(button.dataset.index || '-1');
+                const suggestions = form.__addItemSuggestions || [];
+                selectAddItemSuggestion(form, suggestions[index] || null);
+            });
+        });
+    };
+
+    const bindAddItemAutocomplete = (form) => {
+        if (!form || form.dataset.addItemAutocompleteBound === 'true') return;
+        const searchField = form.querySelector('[data-add-item-search]');
+        const codeField = form.querySelector('[data-add-item-code]');
+        if (!searchField || !codeField) return;
+
+        let timer = null;
+        form.__addItemSuggestions = [];
+        form.dataset.addItemAutocompleteBound = 'true';
+
+        searchField.addEventListener('input', () => {
+            codeField.value = '';
+            const q = searchField.value.trim();
+            if (timer) clearTimeout(timer);
+            if (q.length < 1) {
+                hideAddItemResults(form);
+                return;
+            }
+            timer = setTimeout(async () => {
+                try {
+                    const response = await fetch(`{{ url_for('movements.buscar_item') }}?q=${encodeURIComponent(q)}`, {
+                        headers: { 'Accept': 'application/json' },
+                        credentials: 'same-origin'
+                    });
+                    const data = await response.json();
+                    form.__addItemSuggestions = data.items || data.itens || [];
+                    renderAddItemResults(form, form.__addItemSuggestions);
+                } catch (_) {
+                    hideAddItemResults(form);
+                }
+            }, 180);
+        });
+
+        searchField.addEventListener('keydown', (event) => {
+            if (event.key !== 'Enter') {
+                return;
+            }
+            if (!codeField.value.trim()) {
+                const raw = (searchField.value || '').trim();
+                if (raw) {
+                    codeField.value = raw.split('—')[0].trim();
+                }
+            }
+        });
+    };
+
     const formatCnpjInputValue = (rawValue) => {
         const digits = String(rawValue || '').replace(/\D/g, '').slice(0, 14);
         if (!digits) return '';
@@ -1596,6 +1778,11 @@
         syncItemRowTotals(form);
     });
 
+    document.querySelectorAll('[data-add-item-form]').forEach((form) => {
+        syncAddItemFormTotals(form);
+        bindAddItemAutocomplete(form);
+    });
+
     const applyDocumentSuggestion = (doc) => {
         if (!doc) return;
         if (notaFiscalInput && doc.numero_documento) notaFiscalInput.value = doc.numero_documento;
@@ -1698,6 +1885,16 @@
         if (!itemResults || !itemSearchInput) return;
         if (itemResults.contains(event.target) || itemSearchInput.contains(event.target)) return;
         hideItemResults();
+    });
+
+    document.addEventListener('click', (event) => {
+        document.querySelectorAll('[data-add-item-form]').forEach((form) => {
+            const searchField = form.querySelector('[data-add-item-search]');
+            const resultsContainer = form.querySelector('[data-add-item-results]');
+            if (!searchField || !resultsContainer) return;
+            if (resultsContainer.contains(event.target) || searchField.contains(event.target)) return;
+            hideAddItemResults(form);
+        });
     });
 
     document.addEventListener('click', (event) => {

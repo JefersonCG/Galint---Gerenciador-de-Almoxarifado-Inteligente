@@ -800,6 +800,76 @@ def editar_documento(documento_id: int):
     return redirect(f"{url_for('nf.nf_index', nota=documento.numero_documento)}#documento-editar-{documento.id_documento}")
 
 
+@blueprint.post("/<int:documento_id>/itens/adicionar")
+@login_required
+def adicionar_item_documento(documento_id: int):
+    _require_admin()
+    documento = db.session.get(DocumentoEntradaEstoque, documento_id)
+    if documento is None:
+        flash("Documento fiscal não encontrado.", "danger")
+        return redirect(url_for("nf.nf_index"))
+
+    try:
+        codigo_item = (request.form.get("codigo_item") or "").strip()
+        quantidade = _parse_optional_float(request.form.get("quantidade"), fallback=None)
+        valor_unitario = _parse_optional_float(request.form.get("valor_unitario"), fallback=None)
+        valor_total = _parse_optional_float(request.form.get("valor_total"), fallback=None)
+        observacao = (request.form.get("observacao") or "").strip() or None
+
+        if not codigo_item:
+            raise ValueError("Informe o código do item para adicionar ao documento.")
+        item = inventory_service.get_item(codigo_item)
+        if not item:
+            raise ValueError("O item informado não existe no estoque. Cadastre o item antes de vinculá-lo ao documento.")
+        if quantidade is None or quantidade <= 0:
+            raise ValueError("Informe uma quantidade válida para o novo item do documento.")
+
+        if valor_unitario is not None:
+            valor_total = round(float(valor_unitario) * float(quantidade), 2)
+        elif valor_total is not None and quantidade > 0:
+            valor_unitario = round(float(valor_total) / float(quantidade), 2)
+
+        existing_row = next((row for row in documento.itens if row.codigo_item == codigo_item), None)
+        if existing_row is not None:
+            existing_row.quantidade = round(float(existing_row.quantidade or 0.0) + float(quantidade), 2)
+            if valor_unitario is not None:
+                existing_row.valor_unitario = valor_unitario
+                existing_row.valor_total = round(float(existing_row.quantidade or 0.0) * float(valor_unitario), 2)
+            elif valor_total is not None:
+                existing_row.valor_total = round(float(existing_row.valor_total or 0.0) + float(valor_total), 2)
+            if observacao:
+                existing_row.observacao = observacao if not existing_row.observacao else f"{existing_row.observacao} | {observacao}"
+            flash(f"Item {codigo_item} já existia na NF e teve a quantidade somada.", "success")
+        else:
+            db.session.add(
+                DocumentoEntradaEstoqueItem(
+                    documento_id=documento.id_documento,
+                    entrada_id=None,
+                    codigo_item=codigo_item,
+                    quantidade=float(quantidade),
+                    valor_unitario=valor_unitario,
+                    valor_total=valor_total,
+                    lote=(item.get("lote") or "") if item else None,
+                    data_validade=None,
+                    observacao=observacao,
+                )
+            )
+            flash(f"Item {codigo_item} adicionado ao documento fiscal {documento.numero_documento}.", "success")
+
+        sync_result = _sync_document_financial_entries(documento)
+        db.session.commit()
+        if sync_result["skipped"]:
+            flash(
+                f"{sync_result['skipped']} item(ns) seguem sem lançamento financeiro compatível para sincronização automática.",
+                "info",
+            )
+    except ValueError as exc:
+        db.session.rollback()
+        flash(str(exc), "danger")
+
+    return redirect(f"{url_for('nf.nf_index', nota=documento.numero_documento)}#documento-editar-{documento.id_documento}")
+
+
 @blueprint.post("/<int:documento_id>/itens/<int:documento_item_id>/excluir")
 @login_required
 def excluir_item_documento(documento_id: int, documento_item_id: int):
