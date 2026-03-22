@@ -1355,6 +1355,37 @@ def aplicar_foto_url_global():
         return {"success": False, "message": "Falha inesperada ao atualizar foto"}, 500
 
 
+@blueprint.post("/foto/upload")
+@login_required
+def aplicar_foto_upload_global():
+    """Endpoint estavel para upload rápido de foto sem depender do codigo na rota."""
+    _require_admin()
+    codigo = (request.form.get("codigo") or "").strip()
+    foto_file = request.files.get("foto")
+    if not codigo:
+        return {"success": False, "message": "Codigo do item nao informado"}, 400
+    if not foto_file or not getattr(foto_file, "filename", ""):
+        return {"success": False, "message": "Selecione uma imagem para enviar"}, 400
+
+    item = Item.query.get(codigo)
+    if not item:
+        return {"success": False, "message": "Item nao encontrado"}, 404
+
+    try:
+        if item.foto_path:
+            ItemFotoService.deletar_foto(item.foto_path)
+
+        foto_path = ItemFotoService.upload_foto(foto_file, codigo)
+        item.foto_path = foto_path
+        from ..extensions import db
+        db.session.commit()
+        return {"success": True, "message": "Foto atualizada", "foto_path": foto_path}
+    except ValueError as exc:
+        return {"success": False, "message": str(exc)}, 400
+    except Exception:
+        return {"success": False, "message": "Falha inesperada ao atualizar foto"}, 500
+
+
 @blueprint.post("/<codigo>/foto/url")
 @login_required
 def atualizar_foto_por_url(codigo: str):

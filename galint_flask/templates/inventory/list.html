@@ -370,7 +370,7 @@
             </p>
             <div class="category-modal-list">
                 {% for item in category.entries %}
-                <div class="list-group-item">
+                <div class="list-group-item" data-item-card data-item-codigo="{{ item.codigo }}">
                     <div class="item-content">
                         {% if item.foto_path %}
                         <img src="/static/{{ item.foto_path }}" alt="{{ item.descricao }}" class="item-photo">
@@ -421,6 +421,15 @@
                                 title="Editar item">
                                 <i class="bi bi-pencil"></i> Editar
                             </a>
+                        </div>
+                        {% endif %}
+                        {% if can_manage and item.codigo %}
+                        <div class="btn-group" role="group">
+                            <button class="btn btn-outline-info btn-sm" type="button"
+                                onclick='openPhotoAssistantModal({{ {"codigo": item.codigo, "descricao": item.descricao, "marca": item.marca or item.setor or "", "foto_path": item.foto_path or ""}|tojson|forceescape }})'
+                                title="Buscar imagem do item">
+                                <i class="bi bi-image"></i> Buscar imagem
+                            </button>
                         </div>
                         {% endif %}
                         {% if can_manage and item.codigo %}
@@ -661,6 +670,91 @@
                 <button class="btn btn-outline-secondary" type="button" id="price-use-median">Usar mediana</button>
                 <button class="btn btn-success" type="button" id="price-save">
                     <i class="bi bi-check2-circle me-1"></i> Salvar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="photoAssistantModal" tabindex="-1" aria-labelledby="photoAssistantModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content photo-assistant-modal">
+            <div class="modal-header">
+                <h5 class="modal-title" id="photoAssistantModalLabel">Buscar imagem do item</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <div class="photo-assistant-hero">
+                    <div>
+                        <div class="photo-assistant-kicker">Atalho rápido</div>
+                        <h6 class="mb-1" id="photo-assistant-item-name">Item</h6>
+                        <p class="text-muted mb-0">Abra um buscador de imagens e aplique o link direto sem precisar entrar em editar item.</p>
+                    </div>
+                    <div class="photo-assistant-preview" id="photo-assistant-preview-box">
+                        <img id="photo-assistant-preview" alt="Prévia da imagem do item">
+                    </div>
+                </div>
+
+                <div class="row g-3 mt-1">
+                    <div class="col-md-8">
+                        <label class="form-label" for="photo-search-query">Termo de busca</label>
+                        <input class="form-control" id="photo-search-query" placeholder="Ex.: álcool 70 1l pring medical">
+                        <div class="form-text">Você pode ajustar o termo antes de abrir o buscador externo.</div>
+                    </div>
+                    <div class="col-md-4 d-flex align-items-end">
+                        <button class="btn btn-outline-secondary w-100" type="button" id="photo-copy-query-btn">
+                            <i class="bi bi-clipboard me-1"></i>Copiar termo
+                        </button>
+                    </div>
+                </div>
+
+                <div class="d-flex flex-wrap gap-2 mt-3">
+                    <button class="btn btn-outline-primary" type="button" id="photo-search-google-btn">
+                        <i class="bi bi-google me-1"></i>Abrir Google Imagens
+                    </button>
+                    <button class="btn btn-outline-info" type="button" id="photo-search-bing-btn">
+                        <i class="bi bi-search me-1"></i>Abrir Bing Images
+                    </button>
+                </div>
+
+                <hr>
+
+                <label class="form-label" for="photo-url-input">Cole o link direto da imagem</label>
+                <input class="form-control" id="photo-url-input" placeholder="https://site.com/imagem.jpg">
+                <div class="d-flex flex-wrap gap-2 mt-2">
+                    <button class="btn btn-outline-light btn-sm" type="button" id="photo-preview-url-btn">
+                        <i class="bi bi-eye me-1"></i>Ver prévia da URL
+                    </button>
+                    <button class="btn btn-outline-warning btn-sm d-none" type="button" id="photo-paste-suggestion-btn">
+                        <i class="bi bi-clipboard-check me-1"></i>Usar link copiado
+                    </button>
+                </div>
+                <div class="form-text">O GALINT baixa, redimensiona e comprime a imagem automaticamente. Quando o navegador permitir, o campo sugere o último link de imagem copiado.</div>
+
+                <div class="photo-remote-preview mt-3 d-none" id="photo-remote-preview-wrap">
+                    <div class="photo-remote-preview-label">Prévia da URL informada</div>
+                    <img id="photo-remote-preview" alt="Prévia da URL da imagem">
+                </div>
+
+                <hr>
+
+                <label class="form-label" for="photo-file-input">Ou envie um arquivo direto</label>
+                <input class="form-control" id="photo-file-input" type="file" accept="image/*">
+                <div class="d-flex flex-wrap gap-2 mt-2">
+                    <button class="btn btn-outline-success btn-sm" type="button" id="photo-upload-btn">
+                        <i class="bi bi-upload me-1"></i>Enviar arquivo agora
+                    </button>
+                    <button class="btn btn-outline-secondary btn-sm" type="button" id="photo-preview-file-btn">
+                        <i class="bi bi-image me-1"></i>Ver prévia do arquivo
+                    </button>
+                </div>
+
+                <div class="alert d-none mt-3 mb-0" id="photo-assistant-feedback" role="alert"></div>
+            </div>
+            <div class="modal-footer d-flex justify-content-between">
+                <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Fechar</button>
+                <button class="btn btn-primary" type="button" id="photo-apply-btn">
+                    <i class="bi bi-download me-1"></i>Aplicar imagem no item
                 </button>
             </div>
         </div>
@@ -1476,6 +1570,113 @@
         .galint-info-card {
             margin-bottom: 1rem;
         }
+    }
+
+    .photo-assistant-modal {
+        background: linear-gradient(180deg, #0f172a 0%, #111827 100%);
+        color: #e5eefc;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+    }
+
+    .photo-assistant-modal .modal-header,
+    .photo-assistant-modal .modal-footer {
+        border-color: rgba(148, 163, 184, 0.18);
+    }
+
+    .photo-assistant-modal .btn-close {
+        filter: invert(1);
+    }
+
+    .photo-assistant-modal .form-control {
+        background: rgba(15, 23, 42, 0.75);
+        border-color: rgba(148, 163, 184, 0.22);
+        color: #f8fafc;
+    }
+
+    .photo-assistant-modal .form-control::placeholder {
+        color: #94a3b8;
+    }
+
+    .photo-assistant-modal .form-text,
+    .photo-assistant-modal .text-muted {
+        color: #94a3b8 !important;
+    }
+
+    .photo-assistant-hero {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+        padding: 1rem 1.1rem;
+        border-radius: 18px;
+        background: rgba(15, 23, 42, 0.7);
+        border: 1px solid rgba(96, 165, 250, 0.18);
+    }
+
+    .photo-assistant-kicker {
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #38bdf8;
+        margin-bottom: 0.35rem;
+        font-weight: 700;
+    }
+
+    .photo-assistant-preview {
+        width: 104px;
+        min-width: 104px;
+        height: 104px;
+        border-radius: 16px;
+        overflow: hidden;
+        background: rgba(30, 41, 59, 0.9);
+        border: 1px dashed rgba(148, 163, 184, 0.32);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+    }
+
+    .photo-assistant-preview::after {
+        content: 'Sem foto';
+        color: #94a3b8;
+        font-size: 0.78rem;
+    }
+
+    .photo-assistant-preview.has-image::after {
+        display: none;
+    }
+
+    .photo-assistant-preview img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: none;
+    }
+
+    .photo-assistant-preview.has-image img {
+        display: block;
+    }
+
+    .photo-remote-preview {
+        padding: 0.9rem 1rem;
+        border-radius: 16px;
+        background: rgba(15, 23, 42, 0.55);
+        border: 1px solid rgba(148, 163, 184, 0.18);
+    }
+
+    .photo-remote-preview-label {
+        color: #cbd5e1;
+        font-size: 0.82rem;
+        margin-bottom: 0.6rem;
+        font-weight: 600;
+    }
+
+    .photo-remote-preview img {
+        width: 100%;
+        max-height: 260px;
+        object-fit: contain;
+        border-radius: 12px;
+        background: rgba(15, 23, 42, 0.8);
     }
 </style>
 
@@ -2655,6 +2856,30 @@
     const itemModalBody = itemModalElement ? itemModalElement.querySelector('.modal-body') : null;
     const itemModalFooter = document.getElementById('inventoryItemModalFooter');
     const itemModalInstance = itemModalElement ? new bootstrap.Modal(itemModalElement) : null;
+    const photoAssistantElement = document.getElementById('photoAssistantModal');
+    const photoAssistantInstance = photoAssistantElement ? new bootstrap.Modal(photoAssistantElement) : null;
+    const photoAssistantName = document.getElementById('photo-assistant-item-name');
+    const photoSearchQuery = document.getElementById('photo-search-query');
+    const photoUrlInput = document.getElementById('photo-url-input');
+    const photoPreviewUrlBtn = document.getElementById('photo-preview-url-btn');
+    const photoPasteSuggestionBtn = document.getElementById('photo-paste-suggestion-btn');
+    const photoRemotePreviewWrap = document.getElementById('photo-remote-preview-wrap');
+    const photoRemotePreview = document.getElementById('photo-remote-preview');
+    const photoFileInput = document.getElementById('photo-file-input');
+    const photoUploadButton = document.getElementById('photo-upload-btn');
+    const photoPreviewFileBtn = document.getElementById('photo-preview-file-btn');
+    const photoApplyButton = document.getElementById('photo-apply-btn');
+    const photoFeedback = document.getElementById('photo-assistant-feedback');
+    const photoPreviewBox = document.getElementById('photo-assistant-preview-box');
+    const photoPreview = document.getElementById('photo-assistant-preview');
+    const photoCopyQueryBtn = document.getElementById('photo-copy-query-btn');
+    const photoSearchGoogleBtn = document.getElementById('photo-search-google-btn');
+    const photoSearchBingBtn = document.getElementById('photo-search-bing-btn');
+    const applyPhotoUrlEndpoint = {{ url_for('inventory.aplicar_foto_url_global') | tojson | safe }};
+    const applyPhotoUploadEndpoint = {{ url_for('inventory.aplicar_foto_upload_global') | tojson | safe }};
+    let currentPhotoItem = null;
+    let clipboardSuggestedUrl = '';
+    let photoPreviewObjectUrl = null;
 
     const priceModalElement = document.getElementById('priceSuggestionsModal');
     const priceModalInstance = priceModalElement ? new bootstrap.Modal(priceModalElement) : null;
@@ -2664,10 +2889,185 @@
     let selectedSuggestionIndex = null;
 
     const brlFormatter = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+    const buildStaticItemPhotoUrl = (fotoPath) => {
+        const normalized = String(fotoPath || '').trim();
+        if (!normalized) {
+            return '';
+        }
+        return `/static/${normalized}?v=${Date.now()}`;
+    };
+
     const formatBrl = (value) => {
         const num = Number(value);
         if (!Number.isFinite(num) || num <= 0) return '—';
         return brlFormatter.format(num);
+    };
+
+    const setPhotoAssistantFeedback = (message, variant = 'info') => {
+        if (!photoFeedback) {
+            return;
+        }
+        if (!message) {
+            photoFeedback.className = 'alert d-none mt-3 mb-0';
+            photoFeedback.textContent = '';
+            return;
+        }
+        photoFeedback.className = `alert alert-${variant} mt-3 mb-0`;
+        photoFeedback.textContent = message;
+    };
+
+    const setPhotoAssistantPreview = (fotoPath) => {
+        if (!photoPreviewBox || !photoPreview) {
+            return;
+        }
+        const src = buildStaticItemPhotoUrl(fotoPath);
+        if (!src) {
+            photoPreviewBox.classList.remove('has-image');
+            photoPreview.removeAttribute('src');
+            return;
+        }
+        photoPreviewBox.classList.add('has-image');
+        photoPreview.src = src;
+    };
+
+    const resetRemotePreview = () => {
+        if (photoPreviewObjectUrl) {
+            URL.revokeObjectURL(photoPreviewObjectUrl);
+            photoPreviewObjectUrl = null;
+        }
+        if (photoRemotePreviewWrap) {
+            photoRemotePreviewWrap.classList.add('d-none');
+        }
+        if (photoRemotePreview) {
+            photoRemotePreview.removeAttribute('src');
+        }
+    };
+
+    const showRemotePreview = (src) => {
+        if (!photoRemotePreviewWrap || !photoRemotePreview || !src) {
+            return;
+        }
+        photoRemotePreview.src = src;
+        photoRemotePreviewWrap.classList.remove('d-none');
+    };
+
+    const isLikelyImageUrl = (value) => {
+        const raw = String(value || '').trim();
+        if (!/^https?:\/\//i.test(raw)) {
+            return false;
+        }
+        return /\.(png|jpe?g|webp|gif|bmp|svg)(\?.*)?$/i.test(raw) || /image|img|photo|cdn/i.test(raw);
+    };
+
+    const updateClipboardSuggestionButton = () => {
+        if (!photoPasteSuggestionBtn) {
+            return;
+        }
+        if (clipboardSuggestedUrl) {
+            photoPasteSuggestionBtn.classList.remove('d-none');
+            photoPasteSuggestionBtn.title = clipboardSuggestedUrl;
+            return;
+        }
+        photoPasteSuggestionBtn.classList.add('d-none');
+        photoPasteSuggestionBtn.removeAttribute('title');
+    };
+
+    const inspectClipboardForImageUrl = async () => {
+        if (!navigator.clipboard?.readText || !window.isSecureContext) {
+            return;
+        }
+        try {
+            const text = String(await navigator.clipboard.readText() || '').trim();
+            clipboardSuggestedUrl = isLikelyImageUrl(text) ? text : '';
+            updateClipboardSuggestionButton();
+        } catch (_) {
+            // Navegador pode bloquear leitura sem gesto do usuário; mantemos fallback silencioso.
+        }
+    };
+
+    const updateItemPhotoInDom = (item) => {
+        document.querySelectorAll('[data-item-card]').forEach((card) => {
+            if (String(card.getAttribute('data-item-codigo') || '') !== String(item.codigo || '')) {
+                return;
+            }
+            const oldImg = card.querySelector('.item-photo');
+            const oldPlaceholder = card.querySelector('.item-photo.no-photo');
+            const src = buildStaticItemPhotoUrl(item.foto_path);
+            if (!src) {
+                return;
+            }
+            if (oldImg && !oldImg.classList.contains('no-photo')) {
+                oldImg.src = src;
+                oldImg.alt = item.descricao || 'Imagem do item';
+                return;
+            }
+            if (oldPlaceholder) {
+                const img = document.createElement('img');
+                img.src = src;
+                img.alt = item.descricao || 'Imagem do item';
+                img.className = 'item-photo';
+                oldPlaceholder.replaceWith(img);
+            }
+        });
+    };
+
+    const applyPhotoToItemState = (codigo, fotoPath) => {
+        const target = items.find((entry) => String(entry.codigo) === String(codigo));
+        if (!target) {
+            return null;
+        }
+        target.foto_path = fotoPath;
+        updateItemPhotoInDom(target);
+        if (currentPhotoItem && String(currentPhotoItem.codigo) === String(codigo)) {
+            currentPhotoItem.foto_path = fotoPath;
+            setPhotoAssistantPreview(fotoPath);
+        }
+        return target;
+    };
+
+    const buildPhotoSearchQuery = (item) => {
+        return [item?.descricao || '', item?.marca || '']
+            .map((part) => String(part || '').trim())
+            .filter(Boolean)
+            .join(' ')
+            .trim();
+    };
+
+    const openExternalImageSearch = (provider) => {
+        const query = String(photoSearchQuery?.value || '').trim();
+        if (!query) {
+            setPhotoAssistantFeedback('Informe um termo de busca antes de abrir o buscador.', 'warning');
+            return;
+        }
+        const url = provider === 'bing'
+            ? `https://www.bing.com/images/search?q=${encodeURIComponent(query)}`
+            : `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(query)}`;
+        window.open(url, '_blank', 'noopener');
+    };
+
+    window.openPhotoAssistantModal = (item) => {
+        if (!photoAssistantInstance || !item) {
+            return;
+        }
+        currentPhotoItem = items.find((entry) => String(entry.codigo) === String(item.codigo)) || item;
+        if (photoAssistantName) {
+            photoAssistantName.textContent = currentPhotoItem.descricao || 'Item';
+        }
+        if (photoSearchQuery) {
+            photoSearchQuery.value = buildPhotoSearchQuery(currentPhotoItem);
+        }
+        if (photoUrlInput) {
+            photoUrlInput.value = '';
+        }
+        if (photoFileInput) {
+            photoFileInput.value = '';
+        }
+        clipboardSuggestedUrl = '';
+        updateClipboardSuggestionButton();
+        resetRemotePreview();
+        setPhotoAssistantFeedback('');
+        setPhotoAssistantPreview(currentPhotoItem.foto_path);
+        photoAssistantInstance.show();
     };
 
     const readJsonResponse = async (response) => {
@@ -3155,7 +3555,7 @@
         const imageSrc = document.getElementById('item-image-src');
         if (item.foto_path) {
             imageContainer.classList.remove('no-image');
-            imageSrc.src = `/static/${item.foto_path}`;
+            imageSrc.src = buildStaticItemPhotoUrl(item.foto_path);
             imageSrc.alt = `Imagem de ${item.descricao}`;
             imageSrc.style.display = 'block';
         } else {
@@ -3209,6 +3609,10 @@
             <a class="btn btn-primary" href="${escapeHtml(item.edit_url)}">
                 <i class="bi bi-pencil me-1"></i> Editar item
             </a>` : '';
+        const imageButton = canManage ? `
+            <button class="btn btn-outline-info" type="button" onclick='openPhotoAssistantModal(${escapeHtml(JSON.stringify({ codigo: item.codigo, descricao: item.descricao, marca: item.marca || item.setor || '', foto_path: item.foto_path || '' }))})'>
+                <i class="bi bi-image me-1"></i> Buscar imagem
+            </button>` : '';
         const assignButton = canManage && canAssign ? `
             <button class="btn btn-success" type="button" onclick='openAssignModal(${escapeHtml(JSON.stringify(item.codigo))}, ${escapeHtml(JSON.stringify(item.descricao))}, ${escapeHtml(JSON.stringify(itemData))})'>
                 <i class="bi bi-person-check me-1"></i> Atribuir
@@ -3221,6 +3625,7 @@
         itemModalFooter.innerHTML = `
             <div class="d-flex flex-wrap gap-2">
                 ${editButton}
+                ${imageButton}
                 ${assignButton}
                 ${repairButton}
             </div>
@@ -3261,6 +3666,207 @@
             switchTab(tabName);
         });
     });
+
+    if (photoSearchGoogleBtn) {
+        photoSearchGoogleBtn.addEventListener('click', () => openExternalImageSearch('google'));
+    }
+
+    if (photoSearchBingBtn) {
+        photoSearchBingBtn.addEventListener('click', () => openExternalImageSearch('bing'));
+    }
+
+    if (photoCopyQueryBtn) {
+        photoCopyQueryBtn.addEventListener('click', async () => {
+            const query = String(photoSearchQuery?.value || '').trim();
+            if (!query) {
+                setPhotoAssistantFeedback('Nao ha termo de busca para copiar.', 'warning');
+                return;
+            }
+            try {
+                await navigator.clipboard.writeText(query);
+                setPhotoAssistantFeedback('Termo copiado para a area de transferencia.', 'success');
+            } catch (_) {
+                setPhotoAssistantFeedback('Nao foi possivel copiar automaticamente. Copie manualmente o termo exibido.', 'warning');
+            }
+        });
+    }
+
+    if (photoPasteSuggestionBtn) {
+        photoPasteSuggestionBtn.addEventListener('click', () => {
+            if (!clipboardSuggestedUrl || !photoUrlInput) {
+                return;
+            }
+            photoUrlInput.value = clipboardSuggestedUrl;
+            showRemotePreview(clipboardSuggestedUrl);
+            setPhotoAssistantFeedback('Link copiado sugerido e aplicado ao campo.', 'success');
+        });
+    }
+
+    if (photoUrlInput) {
+        const handleClipboardSuggestion = () => inspectClipboardForImageUrl();
+        photoUrlInput.addEventListener('focus', handleClipboardSuggestion);
+        photoUrlInput.addEventListener('mouseenter', handleClipboardSuggestion);
+        photoUrlInput.addEventListener('paste', () => {
+            window.setTimeout(() => {
+                const pasted = String(photoUrlInput.value || '').trim();
+                if (isLikelyImageUrl(pasted)) {
+                    showRemotePreview(pasted);
+                    setPhotoAssistantFeedback('Prévia carregada com o link colado.', 'info');
+                }
+            }, 0);
+        });
+        photoUrlInput.addEventListener('input', () => {
+            const raw = String(photoUrlInput.value || '').trim();
+            if (isLikelyImageUrl(raw)) {
+                showRemotePreview(raw);
+                return;
+            }
+            resetRemotePreview();
+        });
+    }
+
+    if (photoPreviewUrlBtn) {
+        photoPreviewUrlBtn.addEventListener('click', () => {
+            const raw = String(photoUrlInput?.value || '').trim();
+            if (!isLikelyImageUrl(raw)) {
+                setPhotoAssistantFeedback('Informe um link direto de imagem válido para gerar a prévia.', 'warning');
+                return;
+            }
+            showRemotePreview(raw);
+            setPhotoAssistantFeedback('Prévia carregada. Se estiver correta, já pode aplicar.', 'info');
+        });
+    }
+
+    if (photoPreviewFileBtn) {
+        photoPreviewFileBtn.addEventListener('click', () => {
+            const file = photoFileInput?.files?.[0];
+            if (!file) {
+                setPhotoAssistantFeedback('Selecione um arquivo de imagem antes de visualizar a prévia.', 'warning');
+                return;
+            }
+            resetRemotePreview();
+            photoPreviewObjectUrl = URL.createObjectURL(file);
+            showRemotePreview(photoPreviewObjectUrl);
+            setPhotoAssistantFeedback('Prévia do arquivo carregada.', 'info');
+        });
+    }
+
+    if (photoUploadButton) {
+        photoUploadButton.addEventListener('click', async () => {
+            if (!currentPhotoItem?.codigo) {
+                setPhotoAssistantFeedback('Nenhum item selecionado para enviar a imagem.', 'warning');
+                return;
+            }
+            const file = photoFileInput?.files?.[0];
+            if (!file) {
+                setPhotoAssistantFeedback('Selecione um arquivo de imagem antes de enviar.', 'warning');
+                return;
+            }
+
+            const originalHtml = photoUploadButton.innerHTML;
+            photoUploadButton.disabled = true;
+            photoUploadButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Enviando...';
+            setPhotoAssistantFeedback('Enviando arquivo e atualizando item...', 'info');
+
+            try {
+                const formData = new FormData();
+                formData.append('codigo', currentPhotoItem.codigo);
+                formData.append('foto', file);
+
+                const response = await fetch(applyPhotoUploadEndpoint, {
+                    method: 'POST',
+                    body: formData,
+                    headers: { 'Accept': 'application/json' },
+                });
+                const data = await readJsonResponse(response);
+                if (!response.ok || !data?.success) {
+                    throw new Error(data?.message || 'Falha ao enviar imagem');
+                }
+
+                const updatedItem = applyPhotoToItemState(currentPhotoItem.codigo, data.foto_path || '');
+                if (updatedItem && itemModalElement?.classList.contains('show')) {
+                    const imageContainer = document.getElementById('item-image-large');
+                    const imageSrc = document.getElementById('item-image-src');
+                    if (imageContainer && imageSrc && updatedItem.foto_path) {
+                        imageContainer.classList.remove('no-image');
+                        imageSrc.src = buildStaticItemPhotoUrl(updatedItem.foto_path);
+                        imageSrc.alt = `Imagem de ${updatedItem.descricao}`;
+                        imageSrc.style.display = 'block';
+                    }
+                }
+
+                if (photoFileInput) {
+                    photoFileInput.value = '';
+                }
+                resetRemotePreview();
+                setPhotoAssistantFeedback('Arquivo enviado e aplicado com sucesso.', 'success');
+            } catch (error) {
+                setPhotoAssistantFeedback(String(error?.message || error), 'danger');
+            } finally {
+                photoUploadButton.disabled = false;
+                photoUploadButton.innerHTML = originalHtml;
+            }
+        });
+    }
+
+    if (photoApplyButton) {
+        photoApplyButton.addEventListener('click', async () => {
+            if (!currentPhotoItem?.codigo) {
+                setPhotoAssistantFeedback('Nenhum item selecionado para aplicar a imagem.', 'warning');
+                return;
+            }
+            const imageUrl = String(photoUrlInput?.value || '').trim();
+            if (!imageUrl) {
+                setPhotoAssistantFeedback('Cole o link direto da imagem antes de aplicar.', 'warning');
+                return;
+            }
+
+            const originalHtml = photoApplyButton.innerHTML;
+            photoApplyButton.disabled = true;
+            photoApplyButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Aplicando...';
+            setPhotoAssistantFeedback('Baixando e aplicando imagem no item...', 'info');
+
+            try {
+                const response = await fetch(applyPhotoUrlEndpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        codigo: currentPhotoItem.codigo,
+                        image_url: imageUrl,
+                    }),
+                });
+                const data = await readJsonResponse(response);
+                if (!response.ok || !data?.success) {
+                    throw new Error(data?.message || 'Falha ao aplicar imagem');
+                }
+
+                const updatedItem = applyPhotoToItemState(currentPhotoItem.codigo, data.foto_path || '');
+                if (updatedItem && itemModalElement?.classList.contains('show')) {
+                    const imageContainer = document.getElementById('item-image-large');
+                    const imageSrc = document.getElementById('item-image-src');
+                    if (imageContainer && imageSrc && updatedItem.foto_path) {
+                        imageContainer.classList.remove('no-image');
+                        imageSrc.src = buildStaticItemPhotoUrl(updatedItem.foto_path);
+                        imageSrc.alt = `Imagem de ${updatedItem.descricao}`;
+                        imageSrc.style.display = 'block';
+                    }
+                }
+
+                if (photoUrlInput) {
+                    photoUrlInput.value = '';
+                }
+                setPhotoAssistantFeedback('Imagem aplicada com sucesso.', 'success');
+            } catch (error) {
+                setPhotoAssistantFeedback(String(error?.message || error), 'danger');
+            } finally {
+                photoApplyButton.disabled = false;
+                photoApplyButton.innerHTML = originalHtml;
+            }
+        });
+    }
 
     const formatLastEdit = (root) => {
         if (!root) {
