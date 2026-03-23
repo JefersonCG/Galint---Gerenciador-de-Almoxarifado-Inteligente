@@ -11,6 +11,7 @@ from werkzeug.utils import secure_filename
 
 from ..extensions import db
 from ..models import Entrada, Item, RetiradaFerramenta, Saida, Usuario, InventarioEvento
+from ..services.inventory import MovimentoPayload, inventory_service
 from ..services.item_foto_service import ItemFotoService
 from ..utils.time_service import TimeService
 
@@ -483,6 +484,20 @@ class ToolCustodyService:
                 quantidade_evento = float(saida.quantidade or 1)
                 descricao_base = observacao or f"Devolução de Ferramenta: {saida.item.descricao if saida.item else 'Item'}"
 
+                ledger_result = inventory_service.mirror_legacy_movement(
+                    product_id=saida.codigo_item or "",
+                    movement_type="devolucao",
+                    quantity=float(saida.quantidade or 1),
+                    payload=MovimentoPayload(
+                        codigo=saida.codigo_item or "",
+                        quantidade=float(saida.quantidade or 1),
+                        matricula=saida.matricula,
+                        observacao=descricao_base,
+                        is_devolucao=True,
+                    ),
+                    metadata={"reference_type": "tool_custody_service", "legacy_event_type": "devolucao_ferramenta"},
+                )
+
                 evento = InventarioEvento(
                     codigo_item=saida.codigo_item,
                     matricula=saida.matricula,
@@ -493,6 +508,9 @@ class ToolCustodyService:
                 )
                 db.session.add(evento)
                 db.session.commit()
+                if ledger_result is not None:
+                    ledger_result.metadata["reference_id"] = str(evento.id_evento)
+                    inventory_service.finalize_ledger_mirror(ledger_result)
 
                 try:
                     from ..services.notification_router import NotificationRouterService
@@ -510,6 +528,20 @@ class ToolCustodyService:
 
             retirada.registrar_devolucao(observacao)
 
+            ledger_result = inventory_service.mirror_legacy_movement(
+                product_id=retirada.codigo_item or "",
+                movement_type="devolucao",
+                quantity=float(retirada.quantidade or 1),
+                payload=MovimentoPayload(
+                    codigo=retirada.codigo_item or "",
+                    quantidade=float(retirada.quantidade or 1),
+                    matricula=retirada.matricula,
+                    observacao=observacao or f"Devolução de Ferramenta: {retirada.item.descricao if retirada.item else 'Item'}",
+                    is_devolucao=True,
+                ),
+                metadata={"reference_type": "tool_custody_service", "legacy_event_type": "devolucao_ferramenta"},
+            )
+
             evento = InventarioEvento(
                 codigo_item=retirada.codigo_item,
                 matricula=retirada.matricula,
@@ -520,6 +552,9 @@ class ToolCustodyService:
             )
             db.session.add(evento)
             db.session.commit()
+            if ledger_result is not None:
+                ledger_result.metadata["reference_id"] = str(evento.id_evento)
+                inventory_service.finalize_ledger_mirror(ledger_result)
 
             try:
                 from ..services.notification_router import NotificationRouterService
@@ -556,6 +591,20 @@ class ToolCustodyService:
 
         retirada.registrar_devolucao(observacao)
 
+        ledger_result = inventory_service.mirror_legacy_movement(
+            product_id=retirada.codigo_item or "",
+            movement_type="devolucao",
+            quantity=float(retirada.quantidade or 1),
+            payload=MovimentoPayload(
+                codigo=retirada.codigo_item or "",
+                quantidade=float(retirada.quantidade or 1),
+                matricula=retirada.matricula,
+                observacao=observacao or f"Devolução de Ferramenta: {retirada.item.descricao if retirada.item else 'Item'}",
+                is_devolucao=True,
+            ),
+            metadata={"reference_type": "tool_custody_service", "legacy_event_type": "devolucao_ferramenta"},
+        )
+
         evento = InventarioEvento(
             codigo_item=retirada.codigo_item,
             matricula=retirada.matricula,
@@ -566,6 +615,9 @@ class ToolCustodyService:
         )
         db.session.add(evento)
         db.session.commit()
+        if ledger_result is not None:
+            ledger_result.metadata["reference_id"] = str(evento.id_evento)
+            inventory_service.finalize_ledger_mirror(ledger_result)
 
         try:
             from ..services.notification_router import NotificationRouterService
@@ -581,6 +633,19 @@ class ToolCustodyService:
         if not saida:
             raise ValueError("Saída não encontrada")
         
+        ledger_result = inventory_service.mirror_legacy_movement(
+            product_id=saida.codigo_item or "",
+            movement_type="ajuste",
+            quantity=-float(saida.quantidade or 0),
+            payload=MovimentoPayload(
+                codigo=saida.codigo_item or "",
+                quantidade=float(saida.quantidade or 0),
+                matricula=saida.matricula,
+                observacao=observacao or f"Ferramenta danificada/perdida: {saida.item.descricao if saida.item else 'Item'}",
+            ),
+            metadata={"reference_type": "tool_custody_service", "legacy_event_type": "quebra_ferramenta"},
+        )
+
         evento = InventarioEvento(
             codigo_item=saida.codigo_item,
             matricula=saida.matricula,
@@ -593,6 +658,9 @@ class ToolCustodyService:
         db.session.add(evento)
         # Não ajusta estoque - ferramenta foi perdida/quebrada
         db.session.commit()
+        if ledger_result is not None:
+            ledger_result.metadata["reference_id"] = str(evento.id_evento)
+            inventory_service.finalize_ledger_mirror(ledger_result)
 
         try:
             from ..services.telegram_service import TelegramService
@@ -608,6 +676,19 @@ class ToolCustodyService:
         if not saida:
             raise ValueError("Saída não encontrada")
         
+        ledger_result = inventory_service.mirror_legacy_movement(
+            product_id=saida.codigo_item or "",
+            movement_type="ajuste",
+            quantity=-float(saida.quantidade or 0),
+            payload=MovimentoPayload(
+                codigo=saida.codigo_item or "",
+                quantidade=float(saida.quantidade or 0),
+                matricula=saida.matricula,
+                observacao=observacao or f"Enviada para reparo: {saida.item.descricao if saida.item else 'Item'}",
+            ),
+            metadata={"reference_type": "tool_custody_service", "legacy_event_type": "reparo_ferramenta"},
+        )
+
         evento = InventarioEvento(
             codigo_item=saida.codigo_item,
             matricula=saida.matricula,
@@ -619,6 +700,9 @@ class ToolCustodyService:
         
         db.session.add(evento)
         db.session.commit()
+        if ledger_result is not None:
+            ledger_result.metadata["reference_id"] = str(evento.id_evento)
+            inventory_service.finalize_ledger_mirror(ledger_result)
 
         try:
             from ..services.telegram_service import TelegramService

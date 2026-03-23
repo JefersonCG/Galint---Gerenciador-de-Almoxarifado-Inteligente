@@ -16,6 +16,31 @@ from ..services.inventory import inventory_service
 
 blueprint = Blueprint("nf", __name__, url_prefix="/nf")
 
+DEFAULT_DOCUMENT_CATEGORY_OPTIONS = [
+    "Material Elétrico",
+    "Material Hidráulico",
+    "Material Piscina",
+    "Mat. Pintura e Drywall",
+    "Materiais de Limpeza",
+    "Material Construção",
+    "Material de EP",
+    "Ferramentas",
+    "Equipamento",
+    "Material/Uso geral",
+]
+
+DEFAULT_DOCUMENT_UNIT_OPTIONS = [
+    "Unidade",
+    "Litro",
+    "Kg",
+    "Metro",
+    "Caixa",
+    "Pacote",
+    "Rolo",
+    "Balde",
+    "Saco",
+]
+
 
 def _parse_iso_date(raw_value: str | None, *, fallback: date | None = None) -> date | None:
     raw = (raw_value or "").strip()
@@ -315,6 +340,28 @@ def _query_period_documents(
     ]
 
 
+def _build_document_category_options() -> list[str]:
+    seen: set[str] = set()
+    options: list[str] = []
+    for value in DEFAULT_DOCUMENT_CATEGORY_OPTIONS:
+        normalized = (value or "").strip()
+        if normalized and normalized not in seen:
+            seen.add(normalized)
+            options.append(normalized)
+    return options
+
+
+def _build_document_unit_options() -> list[str]:
+    seen: set[str] = set()
+    options: list[str] = []
+    for value in DEFAULT_DOCUMENT_UNIT_OPTIONS:
+        normalized = (value or "").strip()
+        if normalized and normalized not in seen:
+            seen.add(normalized)
+            options.append(normalized)
+    return options
+
+
 def _serialize_period_closure(fechar: CompraPeriodoFechamento) -> dict[str, object]:
     return {
         "id": fechar.id,
@@ -471,6 +518,8 @@ def nf_index():
         can_manage=can_manage,
         preferred_suppliers=finance_service.list_suppliers(limit=100),
         period_dashboard=period_dashboard,
+        document_category_options=_build_document_category_options(),
+        document_unit_options=_build_document_unit_options(),
     )
 
 

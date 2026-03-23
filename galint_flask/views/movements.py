@@ -418,6 +418,7 @@ def registrar_saida_multipla():
         local_servico_geral = data.get("local_servico", "")
         
         saidas_criadas = []
+        ledger_results = []
         resultados = []
         
         # Processar cada item
@@ -493,6 +494,23 @@ def registrar_saida_multipla():
                     item.estoque_embalagens = novas_emb
                     item.estoque_unidades_soltas = novas_soltas
 
+                ledger_result = inventory_service.mirror_legacy_movement(
+                    product_id=item.codigo_item,
+                    movement_type="saida",
+                    quantity=float(quantidade),
+                    payload=MovimentoPayload(
+                        codigo=item.codigo_item,
+                        quantidade=float(quantidade),
+                        matricula=usuario.matricula,
+                        observacao=str(observacao or "").upper() if observacao else None,
+                        local_servico=str(local_servico_geral or "").upper() if local_servico_geral else None,
+                        em_embalagens=em_embalagens,
+                    ),
+                    metadata={
+                        "reference_type": "movements_saida_multipla",
+                    },
+                )
+
                 # Criar saída diretamente
                 saida = Saida()
                 saida.codigo_item = item.codigo_item
@@ -507,6 +525,7 @@ def registrar_saida_multipla():
                     saida.em_embalagens = em_embalagens
 
                 db.session.add(saida)
+                ledger_results.append((ledger_result, saida))
                 
                 # Se for ferramenta, criar registro em retiradas_ferramentas
                 try:
@@ -598,6 +617,10 @@ def registrar_saida_multipla():
         
         # Commit das saídas
         db.session.commit()
+        for ledger_result, saida in ledger_results:
+            if ledger_result is not None:
+                ledger_result.metadata["reference_id"] = str(saida.id_saida)
+                inventory_service.finalize_ledger_mirror(ledger_result)
         
         # Enviar notificação via router (Telegram -> failover GalintNotify)
         try:

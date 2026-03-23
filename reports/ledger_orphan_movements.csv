@@ -1,0 +1,9 @@
+origem,id_referencia,codigo_item,quantidade,data,descricao
+inventario_evento:ajuste_estoque,18,7897801300650,45.0,2025-12-05T14:55:39.868195,Saldo inicial configurado: de 0 para 45
+inventario_evento:ajuste_estoque,50,7898941765019,7.0,2025-12-05T19:21:17.591753,Saldo inicial configurado: de 0 para 7
+inventario_evento:ajuste_estoque,97,2037573691012,107.0,2025-12-10T12:05:25.217787,Saldo inicial configurado: de 0 para 107
+inventario_evento:ajuste_estoque,113,7898941765019,-3.0,2025-12-11T19:55:07.766577,Ajuste manual de estoque: de 7.0 para 4 (NF: None)
+inventario_evento:ajuste_estoque,155,7898941765019,-4.0,2025-12-29T17:08:00.239870,Ajuste manual de estoque: de 4.0 para 0
+inventario_evento:ajuste_estoque,260,2037573691012,-107.0,2026-01-15T14:56:01.664953,Ajuste manual de estoque: de 107.0 para 0 (NF: None)
+inventario_evento:ajuste_estoque,293,7898258651067,2.0,2026-01-16T20:41:04.603955,Saldo inicial configurado: de 0 para 2
+inventario_evento:ajuste_estoque,520,7898258651067,1.0,2026-02-25T11:37:08.171567,Ajuste manual via edição do item: de 0.0 para 1 (NF: None)

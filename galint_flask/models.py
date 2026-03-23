@@ -82,6 +82,32 @@ class Item(db.Model):
 
     entradas: Mapped[list[Entrada]] = relationship("Entrada", back_populates="item", cascade="all, delete-orphan")
     saidas: Mapped[list[Saida]] = relationship("Saida", back_populates="item", cascade="all, delete-orphan")
+    stock_movements: Mapped[list["StockMovement"]] = relationship(
+        "StockMovement",
+        back_populates="item",
+        cascade="all, delete-orphan",
+    )
+    stock_balance: Mapped["StockBalance | None"] = relationship(
+        "StockBalance",
+        back_populates="item",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
+    product_dimensions: Mapped[list["ProductDimension"]] = relationship(
+        "ProductDimension",
+        back_populates="item",
+        cascade="all, delete-orphan",
+    )
+    product_units: Mapped[list["ProductUnit"]] = relationship(
+        "ProductUnit",
+        back_populates="item",
+        cascade="all, delete-orphan",
+    )
+    product_unit_conversions: Mapped[list["ProductUnitConversion"]] = relationship(
+        "ProductUnitConversion",
+        back_populates="item",
+        cascade="all, delete-orphan",
+    )
 
     def to_dict(self, include_balance: bool = False) -> dict[str, object]:
         data = {
@@ -239,29 +265,18 @@ class Item(db.Model):
         if not self.codigo_item:
             return 0.0
 
-        entradas = (
-            db.session.query(func.coalesce(func.sum(Entrada.quantidade), 0.0))
-            .filter(Entrada.codigo_item == self.codigo_item)
-            .scalar()
-        )
-        saidas = (
-            db.session.query(func.coalesce(func.sum(Saida.quantidade), 0.0))
-            .filter(Saida.codigo_item == self.codigo_item)
-            .scalar()
-        )
-        ajustes = (
-            db.session.query(func.coalesce(func.sum(InventarioEvento.quantidade), 0.0))
-            .filter(InventarioEvento.codigo_item == self.codigo_item)
-            .scalar()
-        )
+        from .services.balance_provider import balance_provider
 
-        return float(entradas or 0.0) - float(saidas or 0.0) + float(ajustes or 0.0)
+        snapshot = balance_provider.get_balance(self.codigo_item)
+        return float(snapshot.quantity_base or 0.0)
 
     @staticmethod
     def get_saldo_total_by_codigo(codigo: str) -> float:
         """Calcula o saldo total de TODOS os lotes com o mesmo código EAN."""
+        from .services.balance_provider import balance_provider
+
         itens = db.session.query(Item).filter(Item.codigo_item == codigo).all()
-        return sum(item.get_saldo_atual() for item in itens)
+        return sum(float(balance_provider.get_balance(item.codigo_item).quantity_base or 0.0) for item in itens)
 
     @validates("grandeza_referencia", "densidade", "litros_por_embalagem", "unidades_por_embalagem", "estoque_embalagens", "estoque_unidades_soltas")
     def _coerce_float_fields(self, _key: str, value):
@@ -418,6 +433,86 @@ class InventarioEvento(db.Model):
     quantidade: Mapped[float] = mapped_column(Float, nullable=False)
     descricao: Mapped[str | None] = mapped_column(Text, nullable=True)
     data_evento: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+
+
+class StockMovement(db.Model):
+    __tablename__ = "stock_movements"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    product_id: Mapped[str] = mapped_column(ForeignKey("itens.codigo_item", ondelete="CASCADE"), nullable=False, index=True)
+    movement_type: Mapped[str] = mapped_column(String(30), nullable=False, index=True)
+    quantity_base: Mapped[float] = mapped_column(Float, nullable=False)
+    unit_base: Mapped[str] = mapped_column(String(30), nullable=False)
+    reference_type: Mapped[str | None] = mapped_column(String(50), nullable=True, index=True)
+    reference_id: Mapped[str | None] = mapped_column(String(100), nullable=True, index=True)
+    metadata_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now(), index=True)
+
+    item: Mapped[Item] = relationship("Item", back_populates="stock_movements")
+
+
+class StockBalance(db.Model):
+    __tablename__ = "stock_balances"
+
+    product_id: Mapped[str] = mapped_column(ForeignKey("itens.codigo_item", ondelete="CASCADE"), primary_key=True)
+    quantity_base: Mapped[float] = mapped_column(Float, nullable=False, default=0)
+    read_model_ready: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
+
+    item: Mapped[Item] = relationship("Item", back_populates="stock_balance")
+
+
+class ProductDimension(db.Model):
+    __tablename__ = "product_dimensions"
+    __table_args__ = (
+        UniqueConstraint("product_id", "dimension", name="uq_product_dimensions_product_dimension"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    product_id: Mapped[str] = mapped_column(ForeignKey("itens.codigo_item", ondelete="CASCADE"), nullable=False, index=True)
+    dimension: Mapped[str] = mapped_column(String(30), nullable=False)
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+
+    item: Mapped[Item] = relationship("Item", back_populates="product_dimensions")
+
+
+class ProductUnit(db.Model):
+    __tablename__ = "product_units"
+    __table_args__ = (
+        UniqueConstraint("product_id", "unit_code", name="uq_product_units_product_unit_code"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    product_id: Mapped[str] = mapped_column(ForeignKey("itens.codigo_item", ondelete="CASCADE"), nullable=False, index=True)
+    unit_code: Mapped[str] = mapped_column(String(30), nullable=False)
+    unit_label: Mapped[str] = mapped_column(String(80), nullable=False)
+    dimension: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    is_base: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+
+    item: Mapped[Item] = relationship("Item", back_populates="product_units")
+
+
+class ProductUnitConversion(db.Model):
+    __tablename__ = "product_unit_conversions"
+    __table_args__ = (
+        UniqueConstraint(
+            "product_id",
+            "from_unit",
+            "to_unit",
+            name="uq_product_unit_conversions_product_from_to",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    product_id: Mapped[str] = mapped_column(ForeignKey("itens.codigo_item", ondelete="CASCADE"), nullable=False, index=True)
+    from_unit: Mapped[str] = mapped_column(String(30), nullable=False)
+    to_unit: Mapped[str] = mapped_column(String(30), nullable=False)
+    factor: Mapped[float] = mapped_column(Float, nullable=False)
+    metadata_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+
+    item: Mapped[Item] = relationship("Item", back_populates="product_unit_conversions")
 
 
 class ChatMessage(db.Model):

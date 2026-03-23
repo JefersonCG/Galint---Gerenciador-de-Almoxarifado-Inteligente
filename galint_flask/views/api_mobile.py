@@ -866,6 +866,7 @@ def retirar_multipla_mobile(current_user: Usuario):
             retirante_user = current_user
 
         saidas_criadas = []
+        ledger_results = []
         resultados = []
 
         # Processar cada item
@@ -919,6 +920,23 @@ def retirar_multipla_mobile(current_user: Usuario):
             if hasattr(saida, "tipo_custodia"):
                 saida.tipo_custodia = tipo_custodia_item
 
+            ledger_result = inventory_service.mirror_legacy_movement(
+                product_id=item.codigo_item,
+                movement_type="saida",
+                quantity=float(quantidade_int),
+                payload=MovimentoPayload(
+                    codigo=item.codigo_item,
+                    quantidade=float(quantidade_int),
+                    matricula=retirante_user.matricula,
+                    observacao=str(obs_final or "").upper() or None,
+                    local_servico=str(local_servico_geral or "").upper() or None,
+                    tipo_custodia=tipo_custodia_item,
+                ),
+                metadata={
+                    "reference_type": "api_mobile_retirar_multipla",
+                },
+            )
+
             db.session.add(saida)
             # Se for ferramenta, também criar registro em retiradas_ferramentas (apenas custódia diária)
             try:
@@ -957,6 +975,7 @@ def retirar_multipla_mobile(current_user: Usuario):
                 logger.warning(f"Erro ao criar RetiradaFerramenta para {item.codigo_item}: {e}")
                 pass
             saidas_criadas.append(saida)
+            ledger_results.append((ledger_result, saida))
             resultados.append({
                 "index": idx,
                 "codigo": codigo,
@@ -969,6 +988,10 @@ def retirar_multipla_mobile(current_user: Usuario):
             return jsonify({"success": False, "message": "Nenhum item foi processado com sucesso", "resultados": resultados}), 400
 
         db.session.commit()
+        for ledger_result, saida in ledger_results:
+            if ledger_result is not None:
+                ledger_result.metadata["reference_id"] = str(saida.id_saida)
+                inventory_service.finalize_ledger_mirror(ledger_result)
 
         # Notificar via router (Telegram -> failover GalintNotify)
         try:
@@ -1019,6 +1042,7 @@ def devolver_multipla_ferramentas_mobile(current_user: Usuario):
             retirante_user = current_user
 
         eventos_criados = []
+        ledger_results = []
         resultados = []
 
         # Processar cada item
@@ -1057,6 +1081,23 @@ def devolver_multipla_ferramentas_mobile(current_user: Usuario):
 
             obs_final = (observacao_item or observacao_geral or "").strip() or None
 
+            ledger_result = inventory_service.mirror_legacy_movement(
+                product_id=item.codigo_item,
+                movement_type="devolucao",
+                quantity=float(quantidade_int),
+                payload=MovimentoPayload(
+                    codigo=item.codigo_item,
+                    quantidade=float(quantidade_int),
+                    matricula=retirante_user.matricula,
+                    observacao=obs_final,
+                    is_devolucao=True,
+                ),
+                metadata={
+                    "reference_type": "api_mobile_devolver_multipla_ferramentas",
+                    "legacy_event_type": "devolucao_ferramenta",
+                },
+            )
+
             evento = InventarioEvento(
                 codigo_item=item.codigo_item,
                 matricula=retirante_user.matricula,
@@ -1085,6 +1126,7 @@ def devolver_multipla_ferramentas_mobile(current_user: Usuario):
                 pass
 
             eventos_criados.append(evento)
+            ledger_results.append((ledger_result, evento))
             resultados.append({
                 "index": idx,
                 "codigo": codigo,
@@ -1101,6 +1143,10 @@ def devolver_multipla_ferramentas_mobile(current_user: Usuario):
             }), 400
 
         db.session.commit()
+        for ledger_result, evento in ledger_results:
+            if ledger_result is not None:
+                ledger_result.metadata["reference_id"] = str(evento.id_evento)
+                inventory_service.finalize_ledger_mirror(ledger_result)
 
         # Notificar via router (Telegram -> failover GalintNotify)
         try:
@@ -1502,6 +1548,25 @@ def retirar_mobile(current_user: Usuario):
             item.estoque_embalagens = novas_emb
             item.estoque_unidades_soltas = novas_soltas
 
+        ledger_result = inventory_service.mirror_legacy_movement(
+            product_id=item.codigo_item,
+            movement_type="saida",
+            quantity=float(quantidade_operacao or 0),
+            payload=MovimentoPayload(
+                codigo=item.codigo_item,
+                quantidade=float(quantidade_operacao or 0),
+                matricula=retirante_user.matricula,
+                observacao=str(observacao or "").upper() or None,
+                local_servico=str(local_servico or "").upper() or None,
+                em_embalagens=bool(em_embalagens) if em_embalagens is not None else None,
+                modo_fracionado=bool(fracao_payload),
+                tipo_custodia=tipo_custodia,
+            ),
+            metadata={
+                "reference_type": "api_mobile_retirar",
+            },
+        )
+
         saida = Saida()
         saida.codigo_item = item.codigo_item
         saida.quantidade = quantidade_operacao
@@ -1583,6 +1648,9 @@ def retirar_mobile(current_user: Usuario):
             logger.warning(f"Erro ao criar RetiradaFerramenta para {item.codigo_item}: {e}")
 
         db.session.commit()
+        if ledger_result is not None:
+            ledger_result.metadata["reference_id"] = str(saida.id_saida)
+            inventory_service.finalize_ledger_mirror(ledger_result)
 
         try:
             if usa_embalagens:
@@ -1698,6 +1766,22 @@ def devolver_ferramenta_mobile(current_user: Usuario):
             retirada.data_devolucao = datetime.utcnow()
 
         # Registrar devolução como evento de inventário (evita tratar como adição/Entrada)
+        ledger_result = inventory_service.mirror_legacy_movement(
+            product_id=item.codigo_item,
+            movement_type="devolucao",
+            quantity=float(quantidade_int),
+            payload=MovimentoPayload(
+                codigo=item.codigo_item,
+                quantidade=float(quantidade_int),
+                matricula=devolvedor_user.matricula,
+                is_devolucao=True,
+            ),
+            metadata={
+                "reference_type": "api_mobile_devolver",
+                "legacy_event_type": "devolucao_ferramenta",
+            },
+        )
+
         evento = InventarioEvento(
             codigo_item=item.codigo_item,
             matricula=devolvedor_user.matricula,
@@ -1708,6 +1792,9 @@ def devolver_ferramenta_mobile(current_user: Usuario):
         )
         db.session.add(evento)
         db.session.commit()
+        if ledger_result is not None:
+            ledger_result.metadata["reference_id"] = str(evento.id_evento)
+            inventory_service.finalize_ledger_mirror(ledger_result)
 
         # Notificar via Telegram (opcional)
         try:
@@ -1806,6 +1893,22 @@ def devolver_material_mobile(current_user: Usuario):
                 retirada.status = 'devolvida'
                 retirada.data_devolucao = datetime.utcnow()
 
+            ledger_result = inventory_service.mirror_legacy_movement(
+                product_id=item.codigo_item,
+                movement_type="devolucao",
+                quantity=float(quantidade_int),
+                payload=MovimentoPayload(
+                    codigo=item.codigo_item,
+                    quantidade=float(quantidade_int),
+                    matricula=devolvedor_user.matricula,
+                    is_devolucao=True,
+                ),
+                metadata={
+                    "reference_type": "api_mobile_devolver_material",
+                    "legacy_event_type": "devolucao_ferramenta",
+                },
+            )
+
             evento = InventarioEvento(
                 codigo_item=item.codigo_item,
                 matricula=devolvedor_user.matricula,
@@ -1816,6 +1919,9 @@ def devolver_material_mobile(current_user: Usuario):
             )
             db.session.add(evento)
             db.session.commit()
+            if ledger_result is not None:
+                ledger_result.metadata["reference_id"] = str(evento.id_evento)
+                inventory_service.finalize_ledger_mirror(ledger_result)
 
             try:
                 from ..services.telegram_service import TelegramService

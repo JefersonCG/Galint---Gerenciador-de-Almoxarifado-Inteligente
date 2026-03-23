@@ -26,6 +26,8 @@ from ..models import (
     Saida,
     TelegramOutbox,
 )
+from .inventory_engine import InventoryEngineError, InventoryOperationResult, inventory_engine
+from .unit_conversion_engine import UnitConversionError
 from ..utils.lote_generator import generate_lote
 from ..utils.barcode_generator import generate_barcode, get_barcode_path
 
@@ -158,6 +160,23 @@ class InventoryService:
         obs = (observacao or "").strip()
         descricao = f"{descricao_base} | {obs}" if obs else descricao_base
 
+        payload = MovimentoPayload(
+            codigo=item.codigo_item,
+            quantidade=float(quantidade_f),
+            matricula=matricula_norm,
+            observacao=obs or None,
+            is_devolucao=True,
+        )
+        ledger_result = self._mirror_payload_to_ledger(
+            item=item,
+            payload=payload,
+            movement_type="devolucao",
+            metadata={
+                "reference_type": "inventario_evento",
+                "legacy_event_type": "devolucao_material",
+            },
+        )
+
         evento = InventarioEvento(
             codigo_item=item.codigo_item,
             matricula=matricula_norm,
@@ -177,6 +196,8 @@ class InventoryService:
 
         if commit:
             db.session.commit()
+            if ledger_result is not None:
+                inventory_engine.record_operation_audit(ledger_result)
 
         return evento
 
@@ -188,6 +209,135 @@ class InventoryService:
         if raw in {"temporaria", "temporária", "diaria", "diária", "daily", "d"}:
             return "temporaria"
         return "temporaria"
+
+    @staticmethod
+    def _infer_dual_write_unit(item: Item, payload: MovimentoPayload | None = None) -> str | None:
+        if payload and payload.em_embalagens is True:
+            tipo_emb = (item.tipo_embalagem_novo or "").strip().lower()
+            if tipo_emb:
+                return tipo_emb
+
+        base_unit = next((unit for unit in item.product_units if unit.is_base and unit.active), None)
+        if base_unit and base_unit.unit_code:
+            return (base_unit.unit_code or "").strip().lower() or None
+
+        unidade_item = (item.unidade or "").strip().lower()
+        if unidade_item:
+            return unidade_item
+
+        return None
+
+    def _mirror_payload_to_ledger(
+        self,
+        *,
+        item: Item,
+        payload: MovimentoPayload,
+        movement_type: str,
+        quantity: float | None = None,
+        from_unit: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> InventoryOperationResult | None:
+        movement_type_norm = (movement_type or "").strip().lower()
+        quantity_value = float(quantity if quantity is not None else payload.quantidade)
+        if quantity_value == 0:
+            return None
+
+        unit_value = (from_unit or self._infer_dual_write_unit(item, payload) or "").strip().lower()
+        if not unit_value:
+            logger.warning("Dual write ignorado para %s: unidade não pôde ser inferida", item.codigo_item)
+            return None
+
+        mirror_metadata = {
+            "dual_write_active": True,
+            "mirrored_from_legacy": True,
+            "legacy_payload": {
+                "nota_fiscal": payload.nota_fiscal,
+                "observacao": payload.observacao,
+                "local_servico": payload.local_servico,
+                "matricula": payload.matricula,
+                "em_embalagens": payload.em_embalagens,
+                "modo_fracionado": payload.modo_fracionado,
+                "tipo_custodia": payload.tipo_custodia,
+            },
+            **(metadata or {}),
+        }
+
+        try:
+            if movement_type_norm == "entrada":
+                return inventory_engine.register_entry(
+                    product_id=item.codigo_item,
+                    quantity=quantity_value,
+                    from_unit=unit_value,
+                    metadata=mirror_metadata,
+                    commit=False,
+                    write_audit=False,
+                )
+            if movement_type_norm == "saida":
+                return inventory_engine.register_exit(
+                    product_id=item.codigo_item,
+                    quantity=quantity_value,
+                    from_unit=unit_value,
+                    metadata=mirror_metadata,
+                    commit=False,
+                    write_audit=False,
+                )
+            if movement_type_norm == "devolucao":
+                return inventory_engine.register_return(
+                    product_id=item.codigo_item,
+                    quantity=abs(quantity_value),
+                    from_unit=unit_value,
+                    metadata=mirror_metadata,
+                    commit=False,
+                    write_audit=False,
+                )
+            if movement_type_norm == "ajuste":
+                return inventory_engine.register_adjustment(
+                    product_id=item.codigo_item,
+                    quantity=quantity_value,
+                    from_unit=unit_value,
+                    metadata=mirror_metadata,
+                    commit=False,
+                    write_audit=False,
+                )
+        except (InventoryEngineError, UnitConversionError, ValueError) as exc:
+            logger.warning(
+                "Dual write ignorado para %s (%s): %s",
+                item.codigo_item,
+                movement_type_norm,
+                exc,
+            )
+            return None
+
+        return None
+
+    def mirror_legacy_movement(
+        self,
+        *,
+        product_id: str,
+        movement_type: str,
+        quantity: float,
+        payload: MovimentoPayload | None = None,
+        from_unit: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> InventoryOperationResult | None:
+        item = Item.query.get((product_id or "").strip())
+        if not item:
+            return None
+        payload_value = payload or MovimentoPayload(codigo=item.codigo_item, quantidade=float(abs(quantity)))
+        return self._mirror_payload_to_ledger(
+            item=item,
+            payload=payload_value,
+            movement_type=movement_type,
+            quantity=quantity,
+            from_unit=from_unit,
+            metadata=metadata,
+        )
+
+    @staticmethod
+    def finalize_ledger_mirror(result: InventoryOperationResult | None) -> None:
+        if result is None:
+            return
+        inventory_engine.record_operation_audit(result)
 
     def _bulk_saldos(self, codigos: list[str] | None = None) -> dict[str, float]:
         # Importante: evitar IN com listas enormes (pode estourar limite de parâmetros
@@ -1439,6 +1589,25 @@ class InventoryService:
         except Exception:
             pass
 
+        payload = MovimentoPayload(
+            codigo=codigo,
+            quantidade=abs(float(delta)),
+            matricula=matricula,
+            nota_fiscal=nota_fiscal,
+            observacao=descricao_evento,
+        )
+        ledger_result = self._mirror_payload_to_ledger(
+            item=item,
+            payload=payload,
+            movement_type="ajuste",
+            quantity=float(delta),
+            metadata={
+                "reference_type": "inventario_evento",
+                "legacy_event_type": tipo_final,
+                "legacy_description": descricao_evento,
+            },
+        )
+
         evento = InventarioEvento(
             codigo_item=codigo,
             matricula=matricula,
@@ -1451,6 +1620,8 @@ class InventoryService:
         item.estoque_minimo = _calculate_min_stock(novo_saldo)
         
         db.session.commit()
+        if ledger_result is not None:
+            inventory_engine.record_operation_audit(ledger_result)
         # Notificar administradores apenas quando houver AUMENTO de estoque (entrada)
         # para evitar ruído/confusão com ajustes negativos.
         if delta > 0:
@@ -1628,6 +1799,16 @@ class InventoryService:
             if payload.quantidade > saldo_atual:
                 raise ValueError("Saldo insuficiente para a saída solicitada")
 
+        ledger_result = self._mirror_payload_to_ledger(
+            item=item,
+            payload=payload,
+            movement_type="devolucao" if is_entrada and payload.is_devolucao else ("entrada" if is_entrada else "saida"),
+            metadata={
+                "reference_type": "legacy_movimento",
+                "legacy_model": "Entrada" if is_entrada else "Saida",
+            },
+        )
+
         movimento_cls = Entrada if is_entrada else Saida
         movimento = movimento_cls(
             codigo_item=payload.codigo,
@@ -1671,10 +1852,16 @@ class InventoryService:
 
         db.session.add(movimento)
         db.session.flush()
+        if ledger_result is not None:
+            movement_id = getattr(movimento, "id_entrada", None) if is_entrada else getattr(movimento, "id_saida", None)
+            if movement_id is not None:
+                ledger_result.metadata["reference_id"] = str(movement_id)
         db.session.refresh(item)
         saldo_atualizado = item.get_saldo_atual()
         item.estoque_minimo = _calculate_min_stock(saldo_atualizado)
         db.session.commit()
+        if ledger_result is not None:
+            inventory_engine.record_operation_audit(ledger_result)
         
         # Notificar via Telegram (não bloquear operação em caso de erro)
         # Se skip_notification=True, não envia notificação (usado quando já enviamos notificação unificada de item criado)
