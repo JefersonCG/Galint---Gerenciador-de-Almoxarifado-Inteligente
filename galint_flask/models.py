@@ -156,6 +156,35 @@ class Item(db.Model):
             "preco_reposicao_url": self.preco_reposicao_url,
             "preco_reposicao_atualizado_em": TimeService.isoformat_utc(self.preco_reposicao_atualizado_em),
             "preco_reposicao_atualizado_por": self.preco_reposicao_atualizado_por,
+            "product_dimensions": [
+                {
+                    "dimension": dimension.dimension,
+                    "enabled": bool(dimension.enabled),
+                }
+                for dimension in sorted(self.product_dimensions, key=lambda row: ((row.dimension or ""), row.id or 0))
+            ],
+            "product_units": [
+                {
+                    "unit_code": unit.unit_code,
+                    "unit_label": unit.unit_label,
+                    "dimension": unit.dimension,
+                    "is_base": bool(unit.is_base),
+                    "active": bool(unit.active),
+                }
+                for unit in sorted(self.product_units, key=lambda row: (not bool(row.is_base), (row.unit_code or ""), row.id or 0))
+            ],
+            "product_unit_conversions": [
+                {
+                    "from_unit": conversion.from_unit,
+                    "to_unit": conversion.to_unit,
+                    "factor": conversion.factor,
+                    "active": bool(conversion.active),
+                }
+                for conversion in sorted(
+                    self.product_unit_conversions,
+                    key=lambda row: ((row.from_unit or ""), (row.to_unit or ""), row.id or 0),
+                )
+            ],
         }
         if include_balance:
             # Para itens com embalagem, o saldo deve refletir o estoque físico (embalagens + soltas).
