@@ -7,7 +7,7 @@ from typing import Any
 from sqlalchemy import func
 
 from ..extensions import db
-from ..models import Entrada, InventarioEvento, Item, ProductUnit, Saida, StockBalance, StockMovement
+from ..models import Entrada, InventarioEvento, Item, ProductUnit, Saida, StockBalance, StockMovement, stock_balance_supports_read_model_ready
 
 
 @dataclass(slots=True)
@@ -122,6 +122,116 @@ class LedgerBackfillService:
             read_models_not_preserved=read_models_not_preserved,
         )
 
+    def sync_restored_rows(
+        self,
+        *,
+        entry_ids: list[int] | None = None,
+        exit_ids: list[int] | None = None,
+        event_ids: list[int] | None = None,
+    ) -> BackfillSummary:
+        processed_entries = 0
+        processed_exits = 0
+        processed_events = 0
+        skipped_existing = 0
+        skipped_missing_product = 0
+
+        entries = self._query_rows_by_ids(Entrada, Entrada.id_entrada, entry_ids)
+        exits = self._query_rows_by_ids(Saida, Saida.id_saida, exit_ids)
+        events = self._query_rows_by_ids(InventarioEvento, InventarioEvento.id_evento, event_ids)
+        touched_products = {
+            (row.codigo_item or "").strip()
+            for row in [*entries, *exits, *events]
+            if getattr(row, "codigo_item", None)
+        }
+        previously_ready_products = self._get_ready_products().intersection(touched_products)
+
+        for entry in entries:
+            created = self._ensure_movement(
+                product_id=entry.codigo_item,
+                movement_type="entrada",
+                quantity=float(entry.quantidade or 0),
+                reference_type="entrada",
+                reference_id=str(entry.id_entrada),
+                created_at=entry.data_entrada,
+                metadata={
+                    "legacy_table": "entradas",
+                    "matricula": entry.matricula,
+                    "nota_fiscal": entry.nota_fiscal,
+                    "source": "restore_backup_json",
+                    "user_id": entry.matricula,
+                },
+            )
+            if created == "created":
+                processed_entries += 1
+            elif created == "existing":
+                skipped_existing += 1
+            else:
+                skipped_missing_product += 1
+
+        for exit_row in exits:
+            created = self._ensure_movement(
+                product_id=exit_row.codigo_item,
+                movement_type="saida",
+                quantity=-float(exit_row.quantidade or 0),
+                reference_type="saida",
+                reference_id=str(exit_row.id_saida),
+                created_at=exit_row.data_saida,
+                metadata={
+                    "legacy_table": "saidas",
+                    "matricula": exit_row.matricula,
+                    "observacao": exit_row.observacao,
+                    "local_servico": exit_row.local_servico,
+                    "tipo_custodia": getattr(exit_row, "tipo_custodia", None),
+                    "source": "restore_backup_json",
+                    "user_id": exit_row.matricula,
+                },
+            )
+            if created == "created":
+                processed_exits += 1
+            elif created == "existing":
+                skipped_existing += 1
+            else:
+                skipped_missing_product += 1
+
+        for event in events:
+            movement_type = self._classify_event_type(event.tipo)
+            created = self._ensure_movement(
+                product_id=event.codigo_item,
+                movement_type=movement_type,
+                quantity=float(event.quantidade or 0),
+                reference_type="inventario_evento",
+                reference_id=str(event.id_evento),
+                created_at=event.data_evento,
+                metadata={
+                    "legacy_table": "inventario_eventos",
+                    "legacy_event_type": event.tipo,
+                    "matricula": event.matricula,
+                    "descricao": event.descricao,
+                    "source": "restore_backup_json",
+                    "user_id": event.matricula,
+                },
+            )
+            if created == "created":
+                processed_events += 1
+            elif created == "existing":
+                skipped_existing += 1
+            else:
+                skipped_missing_product += 1
+
+        balances_rebuilt = self.rebuild_balances_for_products(touched_products)
+        read_models_preserved, read_models_not_preserved = self._restore_ready_products(previously_ready_products)
+        db.session.flush()
+        return BackfillSummary(
+            processed_entries=processed_entries,
+            processed_exits=processed_exits,
+            processed_events=processed_events,
+            skipped_existing=skipped_existing,
+            skipped_missing_product=skipped_missing_product,
+            balances_rebuilt=balances_rebuilt,
+            read_models_preserved=read_models_preserved,
+            read_models_not_preserved=read_models_not_preserved,
+        )
+
     def rebuild_balances(self) -> int:
         totals = (
             db.session.query(
@@ -144,19 +254,63 @@ class LedgerBackfillService:
                 balance.product_id = product_id
                 db.session.add(balance)
             balance.quantity_base = float(total or 0.0)
-            balance.read_model_ready = False
             rebuilt += 1
 
         for balance in StockBalance.query.all():
             if balance.product_id not in seen_products:
                 balance.quantity_base = 0.0
-                balance.read_model_ready = False
                 rebuilt += 1
 
         db.session.flush()
         return rebuilt
 
+    def rebuild_balances_for_products(self, product_ids: set[str] | list[str] | tuple[str, ...]) -> int:
+        normalized_product_ids = {
+            (product_id or "").strip()
+            for product_id in product_ids
+            if (product_id or "").strip()
+        }
+        if not normalized_product_ids:
+            return 0
+
+        totals = dict(
+            db.session.query(
+                StockMovement.product_id,
+                func.coalesce(func.sum(StockMovement.quantity_base), 0.0),
+            )
+            .filter(StockMovement.product_id.in_(sorted(normalized_product_ids)))
+            .group_by(StockMovement.product_id)
+            .all()
+        )
+
+        rebuilt = 0
+        for product_id in sorted(normalized_product_ids):
+            balance = db.session.get(StockBalance, product_id)
+            if balance is None:
+                balance = StockBalance()
+                balance.product_id = product_id
+                db.session.add(balance)
+            balance.quantity_base = float(totals.get(product_id, 0.0) or 0.0)
+            rebuilt += 1
+
+        db.session.flush()
+        return rebuilt
+
+    @staticmethod
+    def _query_rows_by_ids(model: type[Entrada] | type[Saida] | type[InventarioEvento], pk_column: Any, row_ids: list[int] | None):
+        normalized_ids = [int(row_id) for row_id in (row_ids or []) if row_id is not None]
+        if not normalized_ids:
+            return []
+        return (
+            model.query
+            .filter(pk_column.in_(normalized_ids))
+            .order_by(pk_column.asc())
+            .all()
+        )
+
     def _get_ready_products(self) -> set[str]:
+        if not stock_balance_supports_read_model_ready():
+            return set()
         rows = (
             db.session.query(StockBalance.product_id)
             .filter(StockBalance.read_model_ready.is_(True))
@@ -165,7 +319,7 @@ class LedgerBackfillService:
         return {str(row[0]).strip() for row in rows if row and row[0]}
 
     def _restore_ready_products(self, product_ids: set[str]) -> tuple[int, int]:
-        if not product_ids:
+        if not product_ids or not stock_balance_supports_read_model_ready():
             return 0, 0
 
         from .ledger_reconciliation import ledger_reconciliation_service
@@ -181,15 +335,12 @@ class LedgerBackfillService:
             try:
                 result = ledger_reconciliation_service.reconcile_product(product_id)
             except Exception:
-                balance.read_model_ready = False
                 not_preserved += 1
                 continue
 
             if result.classification in {"divergencia_zero", "divergencia_explicavel"}:
-                balance.read_model_ready = True
                 preserved += 1
             else:
-                balance.read_model_ready = False
                 not_preserved += 1
 
         db.session.flush()
@@ -233,7 +384,13 @@ class LedgerBackfillService:
         movement.unit_base = self._resolve_unit_base(product_id)
         movement.reference_type = reference_type
         movement.reference_id = reference_id
-        movement.metadata_json = metadata
+        movement.source = metadata.get("source") or "ledger_backfill"
+        movement.user_id = metadata.get("user_id") or metadata.get("matricula")
+        movement.metadata_json = {
+            **metadata,
+            "source": metadata.get("source") or "ledger_backfill",
+            "user_id": metadata.get("user_id") or metadata.get("matricula"),
+        }
         movement.created_at = created_at or datetime.utcnow()
         db.session.add(movement)
         db.session.flush()

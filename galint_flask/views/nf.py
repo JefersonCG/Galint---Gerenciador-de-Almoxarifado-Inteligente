@@ -23,22 +23,24 @@ DEFAULT_DOCUMENT_CATEGORY_OPTIONS = [
     "Mat. Pintura e Drywall",
     "Materiais de Limpeza",
     "Material Construção",
-    "Material de EP",
     "Ferramentas",
     "Equipamento",
+    "Material de EP",
     "Material/Uso geral",
 ]
 
 DEFAULT_DOCUMENT_UNIT_OPTIONS = [
     "Unidade",
+    "Lata",
     "Litro",
-    "Kg",
-    "Metro",
+    "Quilo",
     "Caixa",
     "Pacote",
+    "Saco",
     "Rolo",
     "Balde",
-    "Saco",
+    "Par",
+    "Peça",
 ]
 
 

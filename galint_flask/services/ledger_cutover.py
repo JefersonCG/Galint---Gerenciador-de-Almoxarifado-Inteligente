@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from ..extensions import db
-from ..models import StockBalance
+from ..models import StockBalance, stock_balance_supports_read_model_ready
 from .ledger_reconciliation import LedgerReconciliationService, ReconciliationResult, ledger_reconciliation_service
 
 
@@ -36,6 +36,10 @@ class LedgerCutoverService:
         force: bool = False,
         dry_run: bool = False,
     ) -> CutoverDecision:
+        if not stock_balance_supports_read_model_ready():
+            raise LedgerCutoverError(
+                "Schema atual do banco não possui read_model_ready; cutover de leitura por ledger está indisponível nesta base."
+            )
         result = self._reconciliation_service.reconcile_product(product_id)
         if not force and not self._is_eligible(result, allow_explainable=allow_explainable):
             return CutoverDecision(
@@ -53,7 +57,6 @@ class LedgerCutoverService:
             balance = StockBalance()
             balance.product_id = result.product_id
             balance.quantity_base = float(result.stock_balance or 0.0)
-            balance.read_model_ready = False
             db.session.add(balance)
             db.session.flush()
 
@@ -67,8 +70,6 @@ class LedgerCutoverService:
                 ledger_balance=result.ledger_balance,
                 stock_balance=result.stock_balance,
             )
-
-        balance.read_model_ready = True
         db.session.commit()
         return CutoverDecision(
             product_id=result.product_id,
@@ -81,13 +82,16 @@ class LedgerCutoverService:
         )
 
     def deactivate_product(self, product_id: str, *, dry_run: bool = False) -> CutoverDecision:
+        if not stock_balance_supports_read_model_ready():
+            raise LedgerCutoverError(
+                "Schema atual do banco não possui read_model_ready; cutover de leitura por ledger está indisponível nesta base."
+            )
         result = self._reconciliation_service.reconcile_product(product_id)
         balance = db.session.get(StockBalance, result.product_id)
         if balance is None:
             balance = StockBalance()
             balance.product_id = result.product_id
             balance.quantity_base = float(result.stock_balance or 0.0)
-            balance.read_model_ready = False
             db.session.add(balance)
             db.session.flush()
 
@@ -101,8 +105,6 @@ class LedgerCutoverService:
                 ledger_balance=result.ledger_balance,
                 stock_balance=result.stock_balance,
             )
-
-        balance.read_model_ready = False
         db.session.commit()
         return CutoverDecision(
             product_id=result.product_id,

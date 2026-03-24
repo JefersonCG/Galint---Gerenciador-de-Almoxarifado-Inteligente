@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from sqlalchemy import func
 
 from ..extensions import db
-from ..models import Entrada, InventarioEvento, Item, Saida, StockBalance
+from ..models import Entrada, InventarioEvento, Item, Saida, StockBalance, stock_balance_supports_read_model_ready
 
 
 @dataclass(slots=True)
@@ -24,6 +24,8 @@ class BalanceProvider:
     def is_product_migrated(product_id: str) -> bool:
         product_id = (product_id or "").strip()
         if not product_id:
+            return False
+        if not stock_balance_supports_read_model_ready():
             return False
         return (
             db.session.query(StockBalance.product_id)

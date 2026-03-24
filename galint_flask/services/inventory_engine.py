@@ -7,6 +7,7 @@ import sqlite3
 from pathlib import Path
 from typing import Any
 
+from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 
 from ..extensions import db
@@ -178,8 +179,19 @@ class InventoryEngine:
             if payload_metadata.get("reference_id") is not None
             else None
         )
+        movement_source = str(
+            payload_metadata.get("source")
+            or payload_metadata.get("origin")
+            or payload_metadata.get("channel")
+            or "inventory_engine"
+        )
+        movement_user_id = payload_metadata.get("user_id") or payload_metadata.get("matricula")
+        movement.source = movement_source
+        movement.user_id = str(movement_user_id) if movement_user_id not in {None, ""} else None
         movement.metadata_json = {
             **payload_metadata,
+            "source": movement_source,
+            "user_id": str(movement_user_id) if movement_user_id not in {None, ""} else None,
             "input_quantity": float(quantity),
             "input_unit": from_unit,
             "conversion_path": conversion.conversion_path,
@@ -194,10 +206,10 @@ class InventoryEngine:
             if balance is None:
                 balance = StockBalance()
                 balance.product_id = product_id
-                balance.read_model_ready = False
                 db.session.add(balance)
             balance.quantity_base = balance_after
             db.session.flush()
+            balance.last_movement_id = movement.id
             if commit:
                 db.session.commit()
         except IntegrityError as exc:

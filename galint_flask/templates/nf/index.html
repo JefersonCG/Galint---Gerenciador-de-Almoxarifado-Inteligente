@@ -410,6 +410,42 @@
         gap: 0.55rem;
     }
 
+    .docf-field-card {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        min-height: 100%;
+        padding: 1rem;
+        border-radius: 18px;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        background: rgba(8, 15, 28, 0.38);
+    }
+
+    .docf-field-card .form-control[readonly] {
+        background: rgba(15, 23, 42, 0.88);
+        color: #eff6ff;
+        border-color: rgba(96, 165, 250, 0.22);
+        box-shadow: inset 0 0 0 1px rgba(96, 165, 250, 0.08);
+    }
+
+    .docf-field-card .form-control[readonly]:focus {
+        box-shadow: inset 0 0 0 1px rgba(96, 165, 250, 0.08);
+    }
+
+    .docf-field-hint {
+        margin: -0.15rem 0 0;
+        font-size: 0.78rem;
+        color: rgba(188, 205, 230, 0.78);
+    }
+
+    .docf-inline-results {
+        position: absolute;
+        top: calc(100% + 0.35rem);
+        left: 0;
+        right: 0;
+        z-index: 65;
+    }
+
     .docf-check-pill {
         position: relative;
     }
@@ -878,51 +914,69 @@
                     <div class="docf-panel mb-3">
                         <div class="docf-kicker">Item novo</div>
                         <p class="mb-3 docf-muted">Se o produto desta NF ainda não existir no estoque, preencha os campos abaixo para criar o item antes de registrar o documento.</p>
-                        <div class="row g-3">
+                        <div class="row g-3 align-items-stretch">
                             <div class="col-md-4">
-                                <label class="form-label" for="novo_codigo">Código do novo item</label>
-                                <input class="form-control" id="novo_codigo" name="novo_codigo" placeholder="Código de barras ou código interno">
+                                <div class="docf-field-card">
+                                    <div>
+                                        <label class="form-label" for="novo_codigo">Código do novo item</label>
+                                        <div class="docf-field-hint">Use código de barras ou código interno quando o item ainda não existir.</div>
+                                    </div>
+                                    <input class="form-control" id="novo_codigo" name="novo_codigo" placeholder="Código de barras ou código interno">
+                                </div>
                             </div>
                             <div class="col-md-8">
-                                <label class="form-label" for="nova_descricao">Descrição do novo item</label>
-                                <input class="form-control" id="nova_descricao" name="nova_descricao" placeholder="Descrição completa do produto">
+                                <div class="docf-field-card">
+                                    <div>
+                                        <label class="form-label" for="nova_descricao">Descrição do novo item</label>
+                                        <div class="docf-field-hint">Digite o nome e escolha uma sugestão parecida para evitar cadastro duplicado.</div>
+                                    </div>
+                                    <div class="position-relative">
+                                        <input class="form-control" id="nova_descricao" name="nova_descricao" autocomplete="off" placeholder="Descrição completa do produto">
+                                        <div class="list-group shadow d-none docf-inline-results" id="new_item_description_results"></div>
+                                    </div>
+                                </div>
                             </div>
                             <div class="col-md-7">
-                                <label class="form-label" for="nova_categoria">Categoria</label>
-                                <input class="form-control" id="nova_categoria" name="nova_categoria" value="Material Elétrico">
+                                <div class="docf-field-card">
+                                    <div>
+                                        <label class="form-label" for="nova_categoria">Categoria</label>
+                                        <div class="docf-field-hint">Selecione uma categoria padrão igual à tela de classificação do cadastro.</div>
+                                    </div>
+                                    <input class="form-control" id="nova_categoria" name="nova_categoria" value="Material Elétrico" readonly>
+                                    <div class="docf-option-checklist-grid">
+                                        {% for option in document_category_options %}
+                                        <label class="docf-check-pill">
+                                            <input type="checkbox" data-checklist-target="nova_categoria" data-checklist-group="categoria" value="{{ option }}">
+                                            <span>{{ option }}</span>
+                                        </label>
+                                        {% endfor %}
+                                    </div>
+                                </div>
                             </div>
                             <div class="col-md-5">
-                                <label class="form-label" for="nova_unidade">Unidade</label>
-                                <input class="form-control" id="nova_unidade" name="nova_unidade" value="Unidade">
+                                <div class="docf-field-card">
+                                    <div>
+                                        <label class="form-label" for="nova_unidade">Unidade</label>
+                                        <div class="docf-field-hint">Selecione a unidade padrão do item usando a mesma lista do cadastro.</div>
+                                    </div>
+                                    <input class="form-control" id="nova_unidade" name="nova_unidade" value="Unidade" readonly>
+                                    <div class="docf-option-checklist-grid">
+                                        {% for option in document_unit_options %}
+                                        <label class="docf-check-pill">
+                                            <input type="checkbox" data-checklist-target="nova_unidade" data-checklist-group="unidade" value="{{ option }}">
+                                            <span>{{ option }}</span>
+                                        </label>
+                                        {% endfor %}
+                                    </div>
+                                </div>
                             </div>
                         </div>
                         <div class="docf-option-checklist">
                             <div>
                                 <div class="docf-kicker mb-2">Categoria e Unidades</div>
-                                <div class="docf-muted mb-2">Marque uma opção para preencher rapidamente os campos do item novo. Você ainda pode digitar manualmente.</div>
+                                <div class="docf-muted mb-2">Selecione uma opção em cada grupo para usar exatamente os mesmos padrões do campo de classificação do cadastro de item.</div>
                             </div>
-                            <div>
-                                <label class="form-label d-block">Checklist de categorias</label>
-                                <div class="docf-option-checklist-grid">
-                                    {% for option in document_category_options %}
-                                    <label class="docf-check-pill">
-                                        <input type="checkbox" data-checklist-target="nova_categoria" data-checklist-group="categoria" value="{{ option }}">
-                                        <span>{{ option }}</span>
-                                    </label>
-                                    {% endfor %}
-                                </div>
-                            </div>
-                            <div>
-                                <label class="form-label d-block">Checklist de unidades</label>
-                                <div class="docf-option-checklist-grid">
-                                    {% for option in document_unit_options %}
-                                    <label class="docf-check-pill">
-                                        <input type="checkbox" data-checklist-target="nova_unidade" data-checklist-group="unidade" value="{{ option }}">
-                                        <span>{{ option }}</span>
-                                    </label>
-                                    {% endfor %}
-                                </div>
-                            </div>
+                            <div class="docf-muted">Os valores continuam sendo enviados no formulário, mas agora a escolha é feita apenas pelo checklist.</div>
                         </div>
                     </div>
                     <div class="mb-3">
@@ -1487,6 +1541,7 @@
     const itemResults = document.getElementById('item_results');
     const novoCodigoInput = document.getElementById('novo_codigo');
     const novaDescricaoInput = document.getElementById('nova_descricao');
+    const newItemDescriptionResults = document.getElementById('new_item_description_results');
     const supplierInput = document.getElementById('finance_supplier_search');
     const supplierIdInput = document.getElementById('finance_supplier_id');
     const supplierResults = document.getElementById('finance_supplier_results');
@@ -1510,9 +1565,11 @@
     const helpToastTitle = document.getElementById('docf-help-toast-title');
     const helpToastBody = document.getElementById('docf-help-toast-body');
     let itemTimer = null;
+    let newItemDescriptionTimer = null;
     let supplierTimer = null;
     let notaTimer = null;
     let notaSuggestions = [];
+    let newItemDescriptionSuggestions = [];
     let helpHideTimer = null;
 
     const HELP_STORAGE_KEY = 'galint:nf:help-enabled';
@@ -1673,6 +1730,8 @@
         helpToast.setAttribute('aria-hidden', 'true');
     };
 
+    const hideNewItemDescriptionResults = () => newItemDescriptionResults?.classList.add('d-none');
+
     const showHelpToast = (element) => {
         if (!helpEnabled || !helpToast || !(element instanceof HTMLElement)) return;
         const helpText = resolveHelpText(element);
@@ -1749,6 +1808,34 @@
         });
     };
 
+    const selectNewItemDescriptionSuggestion = (item) => {
+        if (!item || !novaDescricaoInput) return;
+        novaDescricaoInput.value = item.descricao || '';
+        hideNewItemDescriptionResults();
+        novaDescricaoInput.focus();
+    };
+
+    const renderNewItemDescriptionResults = (items) => {
+        if (!newItemDescriptionResults) return;
+        if (!Array.isArray(items) || !items.length) {
+            hideNewItemDescriptionResults();
+            return;
+        }
+        newItemDescriptionResults.innerHTML = items.map((item, index) => `
+            <button type="button" class="list-group-item list-group-item-action" data-new-item-index="${index}">
+                <div class="fw-semibold">${item.descricao || item.codigo || 'Item'}</div>
+                <div class="small text-muted">Código: ${item.codigo || '—'}${item.categoria ? ` • ${item.categoria}` : ''}${item.unidade ? ` • ${item.unidade}` : ''}</div>
+            </button>
+        `).join('');
+        newItemDescriptionResults.classList.remove('d-none');
+        newItemDescriptionResults.querySelectorAll('[data-new-item-index]').forEach((button) => {
+            button.addEventListener('click', () => {
+                const index = Number(button.getAttribute('data-new-item-index') || '-1');
+                selectNewItemDescriptionSuggestion(newItemDescriptionSuggestions[index] || null);
+            });
+        });
+    };
+
     window.__nfItemSuggestions = [];
 
     itemSearchInput?.addEventListener('input', () => {
@@ -1783,6 +1870,38 @@
                 itemCodigoInput.value = raw.split('—')[0].trim();
             }
         }
+    });
+
+    novaDescricaoInput?.addEventListener('input', () => {
+        const q = novaDescricaoInput.value.trim();
+        if (newItemDescriptionTimer) clearTimeout(newItemDescriptionTimer);
+        if (q.length < 2) {
+            hideNewItemDescriptionResults();
+            return;
+        }
+        newItemDescriptionTimer = setTimeout(async () => {
+            try {
+                const response = await fetch(`{{ url_for('movements.buscar_item') }}?q=${encodeURIComponent(q)}`, {
+                    headers: { 'Accept': 'application/json' },
+                    credentials: 'same-origin'
+                });
+                const data = await response.json();
+                newItemDescriptionSuggestions = (data.items || data.itens || []).slice(0, 8);
+                renderNewItemDescriptionResults(newItemDescriptionSuggestions);
+            } catch (_) {
+                hideNewItemDescriptionResults();
+            }
+        }, 180);
+    });
+
+    novaDescricaoInput?.addEventListener('focus', () => {
+        if (newItemDescriptionSuggestions.length > 0 && (novaDescricaoInput.value || '').trim().length >= 2) {
+            renderNewItemDescriptionResults(newItemDescriptionSuggestions);
+        }
+    });
+
+    novaDescricaoInput?.addEventListener('blur', () => {
+        window.setTimeout(() => hideNewItemDescriptionResults(), 140);
     });
 
     if (receiptDateInput && !receiptDateInput.value) {
