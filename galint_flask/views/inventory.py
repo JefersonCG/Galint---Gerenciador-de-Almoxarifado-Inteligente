@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from datetime import date, datetime
+import json
 
 from io import BytesIO
 
@@ -182,6 +183,17 @@ def _safe_text(value) -> str:
         return str(value)
     except Exception:
         return ""
+
+
+def _parse_advanced_unit_settings(raw_value: str | None) -> dict:
+    raw = (raw_value or "").strip()
+    if not raw:
+        return {}
+    try:
+        parsed = json.loads(raw)
+    except (TypeError, ValueError):
+        return {}
+    return parsed if isinstance(parsed, dict) else {}
 
 
 def _sanitize_filename_component(value: str) -> str:
@@ -735,6 +747,7 @@ def create_item():
         "preco_reposicao_query": (form.get("preco_reposicao_query") or "").strip() or None,
         "preco_reposicao_url": (form.get("preco_reposicao_url") or "").strip() or None,
         "foto_url": (form.get("foto_url") or "").strip() or None,
+        "advanced_unit_settings": _parse_advanced_unit_settings(form.get("advanced_unit_settings_json")),
         "quantidade": saldo_desejado,  # Para registrar entrada quando item existe com lote diferente
     }
     finance_payload = _extract_finance_payload(form)
@@ -1010,6 +1023,7 @@ def update_item(codigo: str):
         "voltagem": form.get("voltagem", "").strip() or None,
         "amperagem": form.get("amperagem", "").strip() or None,
         "local_instalacao": form.get("local_instalacao", "").strip() or None,
+        "advanced_unit_settings": _parse_advanced_unit_settings(form.get("advanced_unit_settings_json")),
         "preco_compra_unitario": (form.get("preco_compra_unitario") or "").strip() or prev_item.get("preco_compra_unitario"),
         "preco_compra_fonte": (form.get("preco_compra_fonte") or "").strip() or prev_item.get("preco_compra_fonte"),
         "preco_compra_documento": (form.get("preco_compra_documento") or "").strip() or prev_item.get("preco_compra_documento"),

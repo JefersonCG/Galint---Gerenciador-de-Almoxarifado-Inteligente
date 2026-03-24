@@ -1183,6 +1183,7 @@
 
             <!-- Tab 5: Unidades Dinâmicas -->
                 <div class="tab-pane" id="tab-unidades">
+                    <input type="hidden" id="advanced_unit_settings_json" name="advanced_unit_settings_json">
                     <!-- Sistema de Embalagens -->
                     <div class="form-group">
                         <label class="form-label">Tipo de Embalagem</label>
@@ -1278,6 +1279,51 @@
                             <div id="preview-texto"></div>
                         </div>
                     </div>
+
+                    <div class="form-group" style="margin-top: 1.5rem;">
+                        <div style="display: flex; justify-content: space-between; gap: 1rem; align-items: center; flex-wrap: wrap;">
+                            <div>
+                                <label class="form-label" style="margin-bottom: 0.2rem;">Grandezas e conversões avançadas</label>
+                                <small class="form-text">Cadastre outras grandezas do item e defina conversões entre as unidades disponíveis.</small>
+                            </div>
+                            <button type="button" class="btn btn-secondary" id="advanced-units-open-button">Abrir configurações</button>
+                        </div>
+                        <div id="advanced-unit-summary" class="alert alert-info" style="margin-top: 0.75rem; display: block;">
+                            Nenhuma configuração avançada definida.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="advancedUnitsModal" style="display: none; margin: 0 1.5rem 1.5rem; border: 1px solid #dbe3ef; border-radius: 14px; background: #ffffff; box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);">
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 1rem 1.25rem; border-bottom: 1px solid #e2e8f0;">
+                    <h5 id="advancedUnitsModalLabel" style="margin: 0; font-size: 1.05rem; font-weight: 700; color: #0f172a;">Configurações avançadas de grandezas</h5>
+                    <button type="button" class="btn btn-secondary" id="advanced-units-close-button">Fechar</button>
+                </div>
+                <div style="padding: 1.25rem;">
+                    <div class="row g-4">
+                        <div class="col-lg-4">
+                            <label class="form-label">Grandezas habilitadas</label>
+                            <div id="advanced-dimensions-list" style="display: grid; gap: 0.5rem;"></div>
+                        </div>
+                        <div class="col-lg-8">
+                            <div style="display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 0.75rem;">
+                                <label class="form-label" style="margin-bottom: 0;">Unidades</label>
+                                <button type="button" class="btn btn-secondary" id="advanced-add-unit">Adicionar unidade</button>
+                            </div>
+                            <div id="advanced-units-list" style="display: grid; gap: 0.75rem;"></div>
+                            <hr style="margin: 1.25rem 0;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 0.75rem;">
+                                <label class="form-label" style="margin-bottom: 0;">Conversões</label>
+                                <button type="button" class="btn btn-secondary" id="advanced-add-conversion">Adicionar conversão</button>
+                            </div>
+                            <div id="advanced-conversions-list" style="display: grid; gap: 0.75rem;"></div>
+                        </div>
+                    </div>
+                </div>
+                <div style="display: flex; justify-content: flex-end; gap: 0.75rem; padding: 0 1.25rem 1.25rem;">
+                    <button type="button" class="btn btn-secondary" id="advanced-units-cancel-button">Fechar</button>
+                    <button type="button" class="btn btn-primary" id="advanced-units-apply">Aplicar configurações</button>
                 </div>
             </div>
 
@@ -1637,6 +1683,11 @@
 </style>
 <script>
     const allSuppliers = {{ (all_suppliers or [])|tojson }};
+    const initialAdvancedUnitSettings = {{ {
+        "dimensions": (form_item.product_dimensions if form_item and form_item.product_dimensions else []),
+        "units": (form_item.product_units if form_item and form_item.product_units else []),
+        "conversions": (form_item.product_unit_conversions if form_item and form_item.product_unit_conversions else []),
+    }|tojson }};
 
     // ==========================================
     // SISTEMA DE TABS
@@ -1781,6 +1832,155 @@
     const tabUnidadesButton = document.getElementById('tab-unidades-button');
     const tabUnidadesPane = document.getElementById('tab-unidades');
     const tabClassificacaoButton = document.querySelector('[data-tab="classificacao"]');
+    const advancedUnitSettingsInput = document.getElementById('advanced_unit_settings_json');
+    const advancedUnitSummary = document.getElementById('advanced-unit-summary');
+    const advancedUnitsOpenButton = document.getElementById('advanced-units-open-button');
+    const advancedUnitsModalElement = document.getElementById('advancedUnitsModal');
+    const advancedUnitsCloseButton = document.getElementById('advanced-units-close-button');
+    const advancedUnitsCancelButton = document.getElementById('advanced-units-cancel-button');
+    const advancedDimensionsList = document.getElementById('advanced-dimensions-list');
+    const advancedUnitsList = document.getElementById('advanced-units-list');
+    const advancedConversionsList = document.getElementById('advanced-conversions-list');
+    const advancedAddUnitButton = document.getElementById('advanced-add-unit');
+    const advancedAddConversionButton = document.getElementById('advanced-add-conversion');
+    const advancedApplyButton = document.getElementById('advanced-units-apply');
+    const advancedDimensionOptions = [
+        { value: 'unit', label: 'Unidade' },
+        { value: 'mass', label: 'Massa' },
+        { value: 'volume', label: 'Volume' },
+        { value: 'length', label: 'Comprimento' }
+    ];
+    let advancedUnitSettings = JSON.parse(JSON.stringify(initialAdvancedUnitSettings || { dimensions: [], units: [], conversions: [] }));
+
+    function clearBootstrapModalArtifacts() {
+        document.body.classList.remove('modal-open');
+        document.body.style.removeProperty('padding-right');
+        document.querySelectorAll('.modal-backdrop').forEach((element) => element.remove());
+    }
+
+    function setAdvancedUnitsPanelVisible(visible) {
+        if (!advancedUnitsModalElement) {
+            return;
+        }
+        clearBootstrapModalArtifacts();
+        advancedUnitsModalElement.style.display = visible ? 'block' : 'none';
+        if (visible) {
+            advancedUnitsModalElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+    }
+
+    function normalizeAdvancedUnitSettings(settings) {
+        const source = settings && typeof settings === 'object' ? settings : {};
+        const dimensions = Array.isArray(source.dimensions) ? source.dimensions : [];
+        const units = Array.isArray(source.units) ? source.units : [];
+        const conversions = Array.isArray(source.conversions) ? source.conversions : [];
+        const normalized = { dimensions: [], units: [], conversions: [] };
+        const seenDimensions = new Set();
+        const seenUnits = new Set();
+        const validDimensions = new Set(advancedDimensionOptions.map((option) => option.value));
+
+        dimensions.forEach((row) => {
+            const dimension = String(row?.dimension || '').trim().toLowerCase();
+            if (!validDimensions.has(dimension) || seenDimensions.has(dimension)) {
+                return;
+            }
+            seenDimensions.add(dimension);
+            normalized.dimensions.push({ dimension, enabled: row?.enabled !== false });
+        });
+
+        units.forEach((row) => {
+            const unitCode = String(row?.unit_code || '').trim().toLowerCase();
+            const unitLabel = String(row?.unit_label || unitCode).trim();
+            const dimension = String(row?.dimension || '').trim().toLowerCase();
+            if (!unitCode || !unitLabel || !validDimensions.has(dimension) || seenUnits.has(unitCode)) {
+                return;
+            }
+            seenUnits.add(unitCode);
+            if (!seenDimensions.has(dimension)) {
+                seenDimensions.add(dimension);
+                normalized.dimensions.push({ dimension, enabled: true });
+            }
+            normalized.units.push({
+                unit_code: unitCode,
+                unit_label: unitLabel,
+                dimension,
+                is_base: Boolean(row?.is_base),
+                active: row?.active !== false,
+            });
+        });
+
+        if (normalized.units.length > 0 && !normalized.units.some((row) => row.is_base)) {
+            normalized.units[0].is_base = true;
+        }
+
+        const validUnits = new Set(normalized.units.map((row) => row.unit_code));
+        const seenConversions = new Set();
+        conversions.forEach((row) => {
+            const fromUnit = String(row?.from_unit || '').trim().toLowerCase();
+            const toUnit = String(row?.to_unit || '').trim().toLowerCase();
+            const factor = Number(row?.factor || 0);
+            const key = `${fromUnit}:${toUnit}`;
+            if (!fromUnit || !toUnit || fromUnit === toUnit || !validUnits.has(fromUnit) || !validUnits.has(toUnit) || !Number.isFinite(factor) || factor <= 0 || seenConversions.has(key)) {
+                return;
+            }
+            seenConversions.add(key);
+            normalized.conversions.push({
+                from_unit: fromUnit,
+                to_unit: toUnit,
+                factor,
+                active: row?.active !== false,
+            });
+        });
+
+        return normalized;
+    }
+
+    function inferAdvancedSettingsFromLegacyFields() {
+        const baseLabel = String(unidadeSelect?.value || 'Unidade').trim() || 'Unidade';
+        const baseCode = baseLabel.toLowerCase();
+        const inferred = {
+            dimensions: [{ dimension: 'unit', enabled: true }],
+            units: [{ unit_code: baseCode, unit_label: baseLabel, dimension: 'unit', is_base: true, active: true }],
+            conversions: []
+        };
+        const tipoSelecionado = document.querySelector('input[name="tipo_embalagem_novo"]:checked')?.value || '';
+        const unidadeEmbalagemSelecionada = document.querySelector('input[name="unidade_embalagem_novo"]:checked')?.value || '';
+        const unidadesPor = Number(unidadesPorEmbalagemInput?.value || 0);
+        if (tipoSelecionado && Number.isFinite(unidadesPor) && unidadesPor > 0) {
+            let dimension = 'unit';
+            if (unidadeEmbalagemSelecionada === 'kg') {
+                dimension = 'mass';
+            } else if (unidadeEmbalagemSelecionada === 'litro' || tipoSelecionado === 'litro') {
+                dimension = 'volume';
+            } else if (tipoSelecionado === 'rolo') {
+                dimension = 'length';
+            }
+            if (!inferred.dimensions.some((row) => row.dimension === dimension)) {
+                inferred.dimensions.push({ dimension, enabled: true });
+            }
+            inferred.units.push({
+                unit_code: tipoSelecionado,
+                unit_label: tipoSelecionado.charAt(0).toUpperCase() + tipoSelecionado.slice(1),
+                dimension,
+                is_base: false,
+                active: true,
+            });
+            inferred.conversions.push({
+                from_unit: tipoSelecionado,
+                to_unit: baseCode,
+                factor: unidadesPor,
+                active: true,
+            });
+        }
+        return normalizeAdvancedUnitSettings(inferred);
+    }
+
+    function syncAdvancedUnitSettingsInput() {
+        advancedUnitSettings = normalizeAdvancedUnitSettings(advancedUnitSettings);
+        if (advancedUnitSettingsInput) {
+            advancedUnitSettingsInput.value = JSON.stringify(advancedUnitSettings);
+        }
+    }
 
     function isLataSelecionada(tipoSelecionado) {
         const unidadeSelecionada = unidadeSelect ? unidadeSelect.value : '';
@@ -2294,6 +2494,196 @@
         }
     }
 
+    function renderAdvancedSummary() {
+        if (!advancedUnitSummary) {
+            return;
+        }
+        const dimensions = advancedUnitSettings.dimensions
+            .filter((row) => row.enabled)
+            .map((row) => advancedDimensionOptions.find((option) => option.value === row.dimension)?.label || row.dimension);
+        const units = advancedUnitSettings.units
+            .filter((row) => row.active)
+            .map((row) => `${row.unit_label} (${row.unit_code})${row.is_base ? ' base' : ''}`);
+        const conversions = advancedUnitSettings.conversions
+            .filter((row) => row.active)
+            .map((row) => `1 ${row.from_unit} = ${row.factor} ${row.to_unit}`);
+        const blocks = [];
+        if (dimensions.length) {
+            blocks.push(`<div><strong>Grandezas:</strong> ${dimensions.join(', ')}</div>`);
+        }
+        if (units.length) {
+            blocks.push(`<div><strong>Unidades:</strong> ${units.join(', ')}</div>`);
+        }
+        if (conversions.length) {
+            blocks.push(`<div><strong>Conversões:</strong> ${conversions.join(' | ')}</div>`);
+        }
+        advancedUnitSummary.innerHTML = blocks.join('') || 'Nenhuma configuração avançada definida.';
+    }
+
+    function renderAdvancedDimensions() {
+        if (!advancedDimensionsList) {
+            return;
+        }
+        advancedDimensionsList.innerHTML = advancedDimensionOptions.map((option) => {
+            const existing = advancedUnitSettings.dimensions.find((row) => row.dimension === option.value);
+            return `
+                <label class="form-check" style="margin-bottom: 0;">
+                    <input class="form-check-input" type="checkbox" data-advanced-dimension="${option.value}" ${existing?.enabled ? 'checked' : ''}>
+                    <span class="form-check-label">${option.label}</span>
+                </label>
+            `;
+        }).join('');
+        advancedDimensionsList.querySelectorAll('[data-advanced-dimension]').forEach((element) => {
+            element.addEventListener('change', () => {
+                const dimension = element.getAttribute('data-advanced-dimension');
+                const existing = advancedUnitSettings.dimensions.find((row) => row.dimension === dimension);
+                if (existing) {
+                    existing.enabled = element.checked;
+                } else {
+                    advancedUnitSettings.dimensions.push({ dimension, enabled: element.checked });
+                }
+                syncAdvancedUnitSettingsInput();
+                renderAdvancedSummary();
+                renderAdvancedUnits();
+            });
+        });
+    }
+
+    function renderAdvancedUnits() {
+        if (!advancedUnitsList) {
+            return;
+        }
+        advancedUnitsList.innerHTML = advancedUnitSettings.units.map((unit, index) => `
+            <div class="row g-2 align-items-end" style="border: 1px solid #e2e8f0; border-radius: 10px; padding: 0.75rem; background: #f8fafc;">
+                <div class="col-md-3">
+                    <label class="form-label">Código</label>
+                    <input class="form-control" data-advanced-unit-field="unit_code" data-advanced-unit-index="${index}" value="${unit.unit_code || ''}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Nome</label>
+                    <input class="form-control" data-advanced-unit-field="unit_label" data-advanced-unit-index="${index}" value="${unit.unit_label || ''}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Grandeza</label>
+                    <select class="form-select" data-advanced-unit-field="dimension" data-advanced-unit-index="${index}">
+                        ${advancedDimensionOptions.map((option) => `<option value="${option.value}" ${unit.dimension === option.value ? 'selected' : ''}>${option.label}</option>`).join('')}
+                    </select>
+                </div>
+                <div class="col-md-1">
+                    <label class="form-label">Base</label>
+                    <div class="form-check" style="padding-top: 0.5rem;">
+                        <input class="form-check-input" type="radio" name="advanced-unit-base" data-advanced-unit-field="is_base" data-advanced-unit-index="${index}" ${unit.is_base ? 'checked' : ''}>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <button class="btn btn-secondary" type="button" data-advanced-remove-unit="${index}" style="width: 100%;">Remover</button>
+                </div>
+            </div>
+        `).join('');
+
+        advancedUnitsList.querySelectorAll('[data-advanced-unit-field]').forEach((element) => {
+            const eventName = element.matches('select') || element.type === 'radio' ? 'change' : 'input';
+            element.addEventListener(eventName, () => {
+                const index = Number(element.getAttribute('data-advanced-unit-index') || '-1');
+                const field = element.getAttribute('data-advanced-unit-field');
+                if (!advancedUnitSettings.units[index] || !field) {
+                    return;
+                }
+                if (field === 'is_base') {
+                    advancedUnitSettings.units.forEach((row, rowIndex) => {
+                        row.is_base = rowIndex === index;
+                    });
+                    renderAdvancedUnits();
+                } else {
+                    advancedUnitSettings.units[index][field] = element.value;
+                }
+                syncAdvancedUnitSettingsInput();
+                renderAdvancedConversions();
+                renderAdvancedSummary();
+            });
+        });
+
+        advancedUnitsList.querySelectorAll('[data-advanced-remove-unit]').forEach((element) => {
+            element.addEventListener('click', () => {
+                const index = Number(element.getAttribute('data-advanced-remove-unit') || '-1');
+                advancedUnitSettings.units.splice(index, 1);
+                if (advancedUnitSettings.units.length > 0 && !advancedUnitSettings.units.some((row) => row.is_base)) {
+                    advancedUnitSettings.units[0].is_base = true;
+                }
+                syncAdvancedUnitSettingsInput();
+                renderAdvancedUnits();
+                renderAdvancedConversions();
+                renderAdvancedSummary();
+            });
+        });
+    }
+
+    function renderAdvancedConversions() {
+        if (!advancedConversionsList) {
+            return;
+        }
+        const units = advancedUnitSettings.units;
+        advancedConversionsList.innerHTML = advancedUnitSettings.conversions.map((conversion, index) => {
+            const fromOptions = units.map((unit) => `<option value="${unit.unit_code}" ${unit.unit_code === conversion.from_unit ? 'selected' : ''}>${unit.unit_label} (${unit.unit_code})</option>`).join('');
+            const toOptions = units.map((unit) => `<option value="${unit.unit_code}" ${unit.unit_code === conversion.to_unit ? 'selected' : ''}>${unit.unit_label} (${unit.unit_code})</option>`).join('');
+            return `
+                <div class="row g-2 align-items-end" style="border: 1px solid #e2e8f0; border-radius: 10px; padding: 0.75rem; background: #f8fafc;">
+                    <div class="col-md-3">
+                        <label class="form-label">De</label>
+                        <select class="form-select" data-advanced-conversion-field="from_unit" data-advanced-conversion-index="${index}">${fromOptions}</select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Para</label>
+                        <select class="form-select" data-advanced-conversion-field="to_unit" data-advanced-conversion-index="${index}">${toOptions}</select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Fator</label>
+                        <input class="form-control" type="number" min="0" step="0.0001" data-advanced-conversion-field="factor" data-advanced-conversion-index="${index}" value="${conversion.factor || ''}">
+                    </div>
+                    <div class="col-md-3">
+                        <button class="btn btn-secondary" type="button" data-advanced-remove-conversion="${index}" style="width: 100%;">Remover</button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        advancedConversionsList.querySelectorAll('[data-advanced-conversion-field]').forEach((element) => {
+            const eventName = element.matches('select') ? 'change' : 'input';
+            element.addEventListener(eventName, () => {
+                const index = Number(element.getAttribute('data-advanced-conversion-index') || '-1');
+                const field = element.getAttribute('data-advanced-conversion-field');
+                if (!advancedUnitSettings.conversions[index] || !field) {
+                    return;
+                }
+                advancedUnitSettings.conversions[index][field] = field === 'factor' ? Number(element.value || 0) : element.value;
+                syncAdvancedUnitSettingsInput();
+                renderAdvancedSummary();
+            });
+        });
+
+        advancedConversionsList.querySelectorAll('[data-advanced-remove-conversion]').forEach((element) => {
+            element.addEventListener('click', () => {
+                const index = Number(element.getAttribute('data-advanced-remove-conversion') || '-1');
+                advancedUnitSettings.conversions.splice(index, 1);
+                syncAdvancedUnitSettingsInput();
+                renderAdvancedConversions();
+                renderAdvancedSummary();
+            });
+        });
+    }
+
+    function initializeAdvancedUnitSettings() {
+        advancedUnitSettings = normalizeAdvancedUnitSettings(advancedUnitSettings);
+        if (!advancedUnitSettings.units.length) {
+            advancedUnitSettings = inferAdvancedSettingsFromLegacyFields();
+        }
+        syncAdvancedUnitSettingsInput();
+        renderAdvancedDimensions();
+        renderAdvancedUnits();
+        renderAdvancedConversions();
+        renderAdvancedSummary();
+    }
+
     // Event listeners
     tiposEmbalagemNovo.forEach(radio => {
         radio.addEventListener('change', atualizarCamposEmbalagemNovo);
@@ -2317,6 +2707,55 @@
     // Inicializar
     toggleTabUnidadesDinamicas();
     atualizarCamposEmbalagemNovo();
+    initializeAdvancedUnitSettings();
+
+    advancedAddUnitButton?.addEventListener('click', () => {
+        const enabledDimension = advancedUnitSettings.dimensions.find((row) => row.enabled)?.dimension || 'unit';
+        advancedUnitSettings.units.push({
+            unit_code: '',
+            unit_label: '',
+            dimension: enabledDimension,
+            is_base: advancedUnitSettings.units.length === 0,
+            active: true,
+        });
+        syncAdvancedUnitSettingsInput();
+        renderAdvancedUnits();
+        renderAdvancedConversions();
+    });
+
+    advancedAddConversionButton?.addEventListener('click', () => {
+        const firstUnit = advancedUnitSettings.units[0]?.unit_code || '';
+        const secondUnit = advancedUnitSettings.units[1]?.unit_code || firstUnit;
+        advancedUnitSettings.conversions.push({
+            from_unit: firstUnit,
+            to_unit: secondUnit,
+            factor: 1,
+            active: true,
+        });
+        syncAdvancedUnitSettingsInput();
+        renderAdvancedConversions();
+        renderAdvancedSummary();
+    });
+
+    advancedApplyButton?.addEventListener('click', () => {
+        syncAdvancedUnitSettingsInput();
+        renderAdvancedSummary();
+        setAdvancedUnitsPanelVisible(false);
+    });
+
+    advancedUnitsOpenButton?.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        setAdvancedUnitsPanelVisible(true);
+    });
+
+    advancedUnitsCloseButton?.addEventListener('click', () => {
+        setAdvancedUnitsPanelVisible(false);
+    });
+
+    advancedUnitsCancelButton?.addEventListener('click', () => {
+        setAdvancedUnitsPanelVisible(false);
+    });
 
     // ==========================================
     // FUNÇÃO: DOCUMENTOS FISCAIS

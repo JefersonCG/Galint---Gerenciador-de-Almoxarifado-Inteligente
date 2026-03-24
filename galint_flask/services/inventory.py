@@ -4,6 +4,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime, date, timedelta
+import json
 import logging
 import math
 from typing import Any
@@ -22,6 +23,9 @@ from ..models import (
     InventarioEvento,
     Item,
     MaterialInventario,
+    ProductDimension,
+    ProductUnit,
+    ProductUnitConversion,
     RetiradaFerramenta,
     Saida,
     TelegramOutbox,
@@ -32,6 +36,141 @@ from ..utils.lote_generator import generate_lote
 from ..utils.barcode_generator import generate_barcode, get_barcode_path
 
 logger = logging.getLogger(__name__)
+
+ADVANCED_DIMENSION_OPTIONS = ("unit", "mass", "volume", "length")
+
+
+def _normalize_advanced_dimension(value: object) -> str | None:
+    raw = str(value or "").strip().lower()
+    return raw if raw in ADVANCED_DIMENSION_OPTIONS else None
+
+
+def _normalize_advanced_unit_settings(payload: object) -> dict[str, list[dict[str, object]]]:
+    if isinstance(payload, str):
+        try:
+            payload = json.loads(payload)
+        except (TypeError, ValueError):
+            payload = {}
+    if not isinstance(payload, dict):
+        payload = {}
+
+    dimensions: list[dict[str, object]] = []
+    units: list[dict[str, object]] = []
+    conversions: list[dict[str, object]] = []
+    seen_dimensions: set[str] = set()
+    seen_units: set[str] = set()
+
+    for row in payload.get("dimensions") or []:
+        if not isinstance(row, dict):
+            continue
+        dimension = _normalize_advanced_dimension(row.get("dimension"))
+        if not dimension or dimension in seen_dimensions:
+            continue
+        seen_dimensions.add(dimension)
+        dimensions.append({
+            "dimension": dimension,
+            "enabled": bool(row.get("enabled", True)),
+        })
+
+    for row in payload.get("units") or []:
+        if not isinstance(row, dict):
+            continue
+        unit_code = str(row.get("unit_code") or "").strip().lower()
+        unit_label = str(row.get("unit_label") or unit_code).strip()
+        dimension = _normalize_advanced_dimension(row.get("dimension"))
+        if not unit_code or not unit_label or not dimension or unit_code in seen_units:
+            continue
+        seen_units.add(unit_code)
+        units.append({
+            "unit_code": unit_code,
+            "unit_label": unit_label,
+            "dimension": dimension,
+            "is_base": bool(row.get("is_base", False)),
+            "active": bool(row.get("active", True)),
+        })
+        if dimension not in seen_dimensions:
+            seen_dimensions.add(dimension)
+            dimensions.append({"dimension": dimension, "enabled": True})
+
+    if units and not any(bool(row.get("is_base")) for row in units):
+        units[0]["is_base"] = True
+
+    valid_unit_codes = {str(row["unit_code"]) for row in units}
+    seen_conversions: set[tuple[str, str]] = set()
+    for row in payload.get("conversions") or []:
+        if not isinstance(row, dict):
+            continue
+        from_unit = str(row.get("from_unit") or "").strip().lower()
+        to_unit = str(row.get("to_unit") or "").strip().lower()
+        try:
+            factor = float(row.get("factor") or 0)
+        except (TypeError, ValueError):
+            factor = 0.0
+        key = (from_unit, to_unit)
+        if (
+            not from_unit
+            or not to_unit
+            or from_unit == to_unit
+            or from_unit not in valid_unit_codes
+            or to_unit not in valid_unit_codes
+            or factor <= 0
+            or key in seen_conversions
+        ):
+            continue
+        seen_conversions.add(key)
+        conversions.append({
+            "from_unit": from_unit,
+            "to_unit": to_unit,
+            "factor": factor,
+            "active": bool(row.get("active", True)),
+        })
+
+    return {
+        "dimensions": dimensions,
+        "units": units,
+        "conversions": conversions,
+    }
+
+
+def _apply_advanced_unit_settings(item: Item, payload: object) -> None:
+    normalized = _normalize_advanced_unit_settings(payload)
+
+    item.product_dimensions[:] = []
+    item.product_units[:] = []
+    item.product_unit_conversions[:] = []
+    db.session.flush()
+
+    for row in normalized["dimensions"]:
+        item.product_dimensions.append(
+            ProductDimension(
+                product_id=item.codigo_item,
+                dimension=str(row["dimension"]),
+                enabled=bool(row.get("enabled", True)),
+            )
+        )
+
+    for row in normalized["units"]:
+        item.product_units.append(
+            ProductUnit(
+                product_id=item.codigo_item,
+                unit_code=str(row["unit_code"]),
+                unit_label=str(row["unit_label"]),
+                dimension=str(row["dimension"]),
+                is_base=bool(row.get("is_base", False)),
+                active=bool(row.get("active", True)),
+            )
+        )
+
+    for row in normalized["conversions"]:
+        item.product_unit_conversions.append(
+            ProductUnitConversion(
+                product_id=item.codigo_item,
+                from_unit=str(row["from_unit"]),
+                to_unit=str(row["to_unit"]),
+                factor=float(row["factor"]),
+                active=bool(row.get("active", True)),
+            )
+        )
 
 
 @dataclass(slots=True)
@@ -701,6 +840,8 @@ class InventoryService:
                     except Exception:
                         pass
                     item_existente.foto_path = nova_foto
+                if "advanced_unit_settings" in payload:
+                    _apply_advanced_unit_settings(item_existente, payload.get("advanced_unit_settings"))
                 
                 # Registrar entrada com a quantidade
                 quantidade = payload.get("quantidade") or payload.get("saldo") or 0
@@ -868,6 +1009,8 @@ class InventoryService:
         item.estoque_minimo = 0
         db.session.add(item)
         try:
+            if "advanced_unit_settings" in payload:
+                _apply_advanced_unit_settings(item, payload.get("advanced_unit_settings"))
             db.session.commit()
             
             # Gerar código de barras após salvar
@@ -1046,6 +1189,9 @@ class InventoryService:
         # Foto do item
         if "foto_path" in payload:
             item.foto_path = payload["foto_path"]
+
+        if "advanced_unit_settings" in payload:
+            _apply_advanced_unit_settings(item, payload.get("advanced_unit_settings"))
 
         # Financeiro
         compra_keys = {
