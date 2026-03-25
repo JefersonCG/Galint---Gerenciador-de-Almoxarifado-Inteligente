@@ -71,6 +71,13 @@ class Item(db.Model):
     preco_reposicao_atualizado_em: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     preco_reposicao_atualizado_por: Mapped[str | None] = mapped_column(String(100), nullable=True)
 
+    # Fluxo de pre-cadastro a partir de documentos fiscais
+    pre_cadastro_pendente: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, index=True)
+    pre_cadastro_origem: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    pre_cadastro_documento_item_id: Mapped[int | None] = mapped_column(ForeignKey("entrada_documento_itens.id_documento_item", ondelete="SET NULL"), nullable=True, index=True)
+    pre_cadastro_criado_em: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    pre_cadastro_finalizado_em: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
     # Histórico de Edição
     ultima_edicao_em: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     ultima_edicao_por: Mapped[str | None] = mapped_column(String(100), nullable=True)
@@ -156,6 +163,11 @@ class Item(db.Model):
             "preco_reposicao_url": self.preco_reposicao_url,
             "preco_reposicao_atualizado_em": TimeService.isoformat_utc(self.preco_reposicao_atualizado_em),
             "preco_reposicao_atualizado_por": self.preco_reposicao_atualizado_por,
+            "pre_cadastro_pendente": bool(self.pre_cadastro_pendente),
+            "pre_cadastro_origem": self.pre_cadastro_origem,
+            "pre_cadastro_documento_item_id": self.pre_cadastro_documento_item_id,
+            "pre_cadastro_criado_em": TimeService.isoformat_utc(self.pre_cadastro_criado_em),
+            "pre_cadastro_finalizado_em": TimeService.isoformat_utc(self.pre_cadastro_finalizado_em),
             "product_dimensions": [
                 {
                     "dimension": dimension.dimension,
@@ -454,7 +466,7 @@ class DocumentoEntradaEstoqueItem(db.Model):
 
     documento: Mapped[DocumentoEntradaEstoque] = relationship("DocumentoEntradaEstoque", back_populates="itens")
     entrada: Mapped[Entrada | None] = relationship("Entrada")
-    item: Mapped[Item] = relationship("Item")
+    item: Mapped[Item] = relationship("Item", foreign_keys=[codigo_item])
     stock_movement: Mapped["StockMovement | None"] = relationship("StockMovement")
     operation_log: Mapped["OperationLog | None"] = relationship("OperationLog")
 

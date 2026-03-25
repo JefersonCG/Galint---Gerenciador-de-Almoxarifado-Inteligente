@@ -11,7 +11,7 @@ from sqlalchemy import or_
 from sqlalchemy.orm import joinedload
 
 from ..extensions import db
-from ..models import CompraPeriodoFechamento, DocumentoEntradaEstoque, DocumentoEntradaEstoqueItem, Entrada, FinanceLedgerEntry, TelegramOutbox
+from ..models import CompraPeriodoFechamento, DocumentoEntradaEstoque, DocumentoEntradaEstoqueItem, Entrada, FinanceLedgerEntry, Item, TelegramOutbox
 from ..services.finance_service import finance_service
 from ..services.inventory import inventory_service
 
@@ -836,6 +836,7 @@ def registrar_nf():
             codigo = novo_codigo
 
         item_existente = inventory_service.get_item(codigo) if codigo else None
+        item_criado_na_nf = False
         if not item_existente:
             if not codigo:
                 raise ValueError("Selecione um item existente ou informe o código do novo item")
@@ -851,8 +852,13 @@ def registrar_nf():
                     "marca": None,
                     "localizacao": None,
                     "quantidade": 0,
+                    "pre_cadastro_pendente": True,
+                    "pre_cadastro_origem": "nf",
+                    "pre_cadastro_criado_em": datetime.utcnow(),
+                    "pre_cadastro_finalizado_em": None,
                 }
             )
+            item_criado_na_nf = True
 
         if quantidade <= 0:
             raise ValueError("Informe uma quantidade válida")
@@ -889,12 +895,23 @@ def registrar_nf():
             documento.id_documento,
             usuario_matricula=current_user.id,
         )
+        if item_criado_na_nf and document_item and codigo:
+            item_model = Item.query.get(codigo)
+            if item_model:
+                item_model.pre_cadastro_pendente = True
+                item_model.pre_cadastro_origem = "nf"
+                item_model.pre_cadastro_documento_item_id = document_item.id_documento_item
+                item_model.pre_cadastro_criado_em = item_model.pre_cadastro_criado_em or datetime.utcnow()
+                item_model.pre_cadastro_finalizado_em = None
+                db.session.commit()
         if process_result["errors"]:
             flash("Documento registrado, mas houve falhas ao incorporar alguns itens no estoque.", "warning")
         else:
             flash("Documento fiscal registrado e incorporado ao estoque documental.", "success")
         if sync_result["updated"]:
             flash(f"{sync_result['updated']} lançamento(s) financeiro(s) sincronizado(s) com o documento.", "info")
+        if item_criado_na_nf:
+            flash("O item ficou disponível em PRÉ CADASTRADOS para conclusão do cadastro na tela de Itens.", "info")
     except ValueError as exc:
         flash(str(exc), "danger")
     numero_redirect = None

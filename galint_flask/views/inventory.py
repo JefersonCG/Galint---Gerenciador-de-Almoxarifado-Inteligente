@@ -11,7 +11,7 @@ from flask import Blueprint, abort, current_app, flash, jsonify, make_response, 
 from flask_login import login_required, current_user
 
 from ..extensions import db
-from ..models import FinanceLedgerEntry, Item, Usuario
+from ..models import DocumentoEntradaEstoque, DocumentoEntradaEstoqueItem, FinanceLedgerEntry, Item, Usuario
 from ..services.config_service import ConfigService
 from ..services.finance_service import finance_service
 from ..services.inventory import MovimentoPayload, inventory_service
@@ -523,6 +523,71 @@ def _build_nf_autofill_payload(numero_documento: str) -> dict[str, object] | Non
     }
 
 
+def _build_pre_registered_items_payload(numero_documento: str) -> dict[str, object] | None:
+    numero = (numero_documento or "").strip()
+    if not numero:
+        return None
+
+    documento = (
+        DocumentoEntradaEstoque.query
+        .filter(DocumentoEntradaEstoque.numero_documento == numero)
+        .order_by(DocumentoEntradaEstoque.id_documento.desc())
+        .first()
+    )
+    if documento is None:
+        return None
+
+    rows = (
+        db.session.query(Item, DocumentoEntradaEstoqueItem)
+        .join(
+            DocumentoEntradaEstoqueItem,
+            Item.pre_cadastro_documento_item_id == DocumentoEntradaEstoqueItem.id_documento_item,
+        )
+        .join(
+            DocumentoEntradaEstoque,
+            DocumentoEntradaEstoqueItem.documento_id == DocumentoEntradaEstoque.id_documento,
+        )
+        .filter(
+            DocumentoEntradaEstoque.numero_documento == numero,
+            Item.pre_cadastro_pendente.is_(True),
+        )
+        .order_by(Item.descricao.asc(), Item.codigo_item.asc())
+        .all()
+    )
+
+    items_payload = []
+    for item_model, documento_item in rows:
+        saldo_atual = float(item_model.get_saldo_fisico_total() or 0.0)
+        valor_total = documento_item.valor_total
+        if valor_total in (None, "") and documento_item.valor_unitario not in (None, ""):
+            valor_total = round(float(documento_item.quantidade or 0.0) * float(documento_item.valor_unitario or 0.0), 2)
+        items_payload.append(
+            {
+                "codigo": item_model.codigo_item,
+                "descricao": item_model.descricao,
+                "categoria": item_model.categoria,
+                "unidade": item_model.unidade,
+                "saldo": saldo_atual,
+                "saldo_display": item_model.get_saldo_fisico_display(),
+                "quantidade_documento": float(documento_item.quantidade or 0.0),
+                "valor_unitario": documento_item.valor_unitario,
+                "valor_total": valor_total,
+                "documento_item_id": documento_item.id_documento_item,
+                "edit_url": url_for("inventory.edit_item_form", codigo=item_model.codigo_item),
+                "pre_cadastro_criado_em": TimeService.isoformat_utc(item_model.pre_cadastro_criado_em),
+            }
+        )
+
+    return {
+        "numero_documento": documento.numero_documento,
+        "tipo_documento": documento.tipo_documento,
+        "data_emissao": documento.data_emissao.isoformat() if documento.data_emissao else None,
+        "data_recebimento": documento.data_recebimento.isoformat() if documento.data_recebimento else None,
+        "fornecedor_nome": documento.fornecedor.nome_exibicao() if documento.fornecedor else (documento.fornecedor_nome or None),
+        "items": items_payload,
+    }
+
+
 @blueprint.get("/")
 @login_required
 def list_items():
@@ -1028,6 +1093,14 @@ def update_item(codigo: str):
         "finance_comprovacao_status": prev_item.get("finance_comprovacao_status"),
         "finance_observacao": prev_item.get("finance_observacao"),
     }
+
+    if prev_item.get("pre_cadastro_pendente") and str(form.get("finalizar_pre_cadastro") or "").strip() in {"1", "true", "True"}:
+        payload.update(
+            {
+                "pre_cadastro_pendente": False,
+                "pre_cadastro_finalizado_em": datetime.utcnow(),
+            }
+        )
 
     finance_payload = _extract_finance_payload(
         form,
@@ -2011,3 +2084,17 @@ def nf_autofill_api():
     if not payload:
         return jsonify({"found": False, "numero_documento": numero})
     return jsonify({"found": True, **payload})
+
+
+@blueprint.get("/api/pre-cadastrados")
+@login_required
+def pre_registered_items_api():
+    _require_admin_or_supervisor()
+    numero = (request.args.get("numero") or "").strip()
+    if not numero:
+        return jsonify({"success": False, "message": "Informe o número da NF."}), 400
+
+    payload = _build_pre_registered_items_payload(numero)
+    if not payload:
+        return jsonify({"success": True, "found": False, "numero_documento": numero, "items": []})
+    return jsonify({"success": True, "found": True, **payload})

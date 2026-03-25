@@ -4,6 +4,9 @@
 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
     <h1 class="h3 mb-0">Itens cadastrados</h1>
     <div class="d-flex gap-2 flex-wrap">
+        {% if can_create %}
+        <button class="btn btn-outline-warning" type="button" data-bs-toggle="modal" data-bs-target="#preRegisteredModal">PRÉ CADASTRADOS</button>
+        {% endif %}
         {% if can_manage and endpoint_exists('inventory.generate_all_barcodes') %}
         <form method="post" action="{{ url_for('inventory.generate_all_barcodes') }}" class="d-inline">
             <button class="btn btn-outline-primary" type="submit">Gerar códigos de barras</button>
@@ -357,6 +360,107 @@
 
     .category-modal-list .action-group form {
         margin: 0;
+    }
+
+    .pre-registered-modal .modal-content {
+        background: linear-gradient(180deg, rgba(15,23,42,0.98) 0%, rgba(17,24,39,0.98) 100%);
+        color: #e2e8f0;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        border-radius: 1rem;
+        overflow: hidden;
+    }
+
+    .pre-registered-modal .modal-header,
+    .pre-registered-modal .modal-footer {
+        border-color: rgba(148, 163, 184, 0.16);
+        background: rgba(15, 23, 42, 0.72);
+    }
+
+    .pre-registered-modal .btn-close {
+        filter: invert(1);
+    }
+
+    .pre-registered-results {
+        display: grid;
+        gap: 0.9rem;
+        margin-top: 1rem;
+    }
+
+    .pre-registered-card {
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        border-radius: 1rem;
+        background: rgba(255,255,255,0.05);
+        padding: 1rem;
+        transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+        cursor: pointer;
+    }
+
+    .pre-registered-card:hover {
+        transform: translateY(-1px);
+        border-color: rgba(96, 165, 250, 0.55);
+        box-shadow: 0 18px 32px rgba(2, 8, 23, 0.22);
+    }
+
+    .pre-registered-card.is-selected {
+        border-color: rgba(16, 185, 129, 0.8);
+        box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.16);
+        background: rgba(16, 185, 129, 0.08);
+    }
+
+    .pre-registered-card-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        align-items: flex-start;
+        margin-bottom: 0.75rem;
+    }
+
+    .pre-registered-card-title {
+        font-size: 1rem;
+        font-weight: 700;
+        color: #f8fafc;
+        margin-bottom: 0.2rem;
+    }
+
+    .pre-registered-card-meta {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 0.75rem;
+    }
+
+    .pre-registered-meta-box {
+        border-radius: 0.8rem;
+        background: rgba(15, 23, 42, 0.62);
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        padding: 0.7rem 0.8rem;
+    }
+
+    .pre-registered-meta-label {
+        display: block;
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #94a3b8;
+        margin-bottom: 0.25rem;
+    }
+
+    .pre-registered-meta-value {
+        color: #f8fafc;
+        font-weight: 600;
+    }
+
+    .pre-registered-doc-summary {
+        border-radius: 0.9rem;
+        background: rgba(59, 130, 246, 0.12);
+        border: 1px solid rgba(59, 130, 246, 0.24);
+        padding: 0.85rem 0.95rem;
+        margin-top: 1rem;
+    }
+
+    @media (max-width: 991.98px) {
+        .pre-registered-card-meta {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
     }
 
     @media (max-width: 991.98px) {
@@ -729,6 +833,42 @@
                 <button class="btn btn-outline-secondary" type="button" id="price-use-median">Usar mediana</button>
                 <button class="btn btn-success" type="button" id="price-save">
                     <i class="bi bi-check2-circle me-1"></i> Salvar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="preRegisteredModal" tabindex="-1" aria-labelledby="preRegisteredModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable pre-registered-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h5 class="modal-title" id="preRegisteredModalLabel">Pré-cadastrados por NF</h5>
+                    <div class="text-muted small">Informe a NF, escolha um item criado pelo documento e siga para concluir o cadastro.</div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-3 align-items-end">
+                    <div class="col-lg-8">
+                        <label class="form-label" for="pre-registered-nf-number">Número da NF</label>
+                        <input class="form-control" id="pre-registered-nf-number" placeholder="Digite o número da nota fiscal">
+                    </div>
+                    <div class="col-lg-4 d-grid">
+                        <button class="btn btn-primary" type="button" id="pre-registered-search-btn">
+                            <i class="bi bi-search me-1"></i> Buscar itens pré-cadastrados
+                        </button>
+                    </div>
+                </div>
+                <div class="pre-registered-doc-summary d-none" id="pre-registered-doc-summary"></div>
+                <div class="form-text mt-3" id="pre-registered-status">Use o número da NF para localizar somente os itens ainda pendentes de finalização.</div>
+                <div class="pre-registered-results" id="pre-registered-results"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Fechar</button>
+                <button class="btn btn-success" type="button" id="pre-registered-finish-btn" disabled>
+                    FINALIZAR CADASTRO
                 </button>
             </div>
         </div>
@@ -2916,6 +3056,7 @@
         const canManage = {{ 'true' if can_manage else 'false' }};
         const canEditItems = {{ 'true' if can_edit_items else 'false' }};
         const selectedCategory = {{ selected_category | tojson | safe }};
+        const preRegisteredApiUrl = '/itens/api/pre-cadastrados';
 
     const searchInput = document.getElementById('inventory-search');
     const searchClear = document.getElementById('inventory-search-clear');
@@ -2945,11 +3086,20 @@
     const photoCopyQueryBtn = document.getElementById('photo-copy-query-btn');
     const photoSearchGoogleBtn = document.getElementById('photo-search-google-btn');
     const photoSearchBingBtn = document.getElementById('photo-search-bing-btn');
+    const preRegisteredModalElement = document.getElementById('preRegisteredModal');
+    const preRegisteredModalInstance = preRegisteredModalElement ? new bootstrap.Modal(preRegisteredModalElement) : null;
+    const preRegisteredNumberInput = document.getElementById('pre-registered-nf-number');
+    const preRegisteredSearchButton = document.getElementById('pre-registered-search-btn');
+    const preRegisteredStatus = document.getElementById('pre-registered-status');
+    const preRegisteredResults = document.getElementById('pre-registered-results');
+    const preRegisteredDocSummary = document.getElementById('pre-registered-doc-summary');
+    const preRegisteredFinishButton = document.getElementById('pre-registered-finish-btn');
     const applyPhotoUrlEndpoint = {{ url_for('inventory.aplicar_foto_url_global') | tojson | safe }};
     const applyPhotoUploadEndpoint = {{ (url_for('inventory.aplicar_foto_upload_global') if endpoint_exists('inventory.aplicar_foto_upload_global') else '/itens/foto/upload') | tojson | safe }};
     let currentPhotoItem = null;
     let clipboardSuggestedUrl = '';
     let photoPreviewObjectUrl = null;
+    let preRegisteredSelection = null;
 
     const priceModalElement = document.getElementById('priceSuggestionsModal');
     const priceModalInstance = priceModalElement ? new bootstrap.Modal(priceModalElement) : null;
@@ -2972,6 +3122,182 @@
         if (!Number.isFinite(num) || num <= 0) return '—';
         return brlFormatter.format(num);
     };
+
+    const setPreRegisteredStatus = (message, tone = 'muted') => {
+        if (!preRegisteredStatus) {
+            return;
+        }
+        const toneClass = tone === 'danger'
+            ? 'text-danger'
+            : tone === 'success'
+                ? 'text-success'
+                : 'text-muted';
+        preRegisteredStatus.className = `form-text mt-3 ${toneClass}`;
+        preRegisteredStatus.textContent = message || '';
+    };
+
+    const resetPreRegisteredSelection = () => {
+        preRegisteredSelection = null;
+        if (preRegisteredFinishButton) {
+            preRegisteredFinishButton.disabled = true;
+        }
+    };
+
+    const renderPreRegisteredDocSummary = (payload) => {
+        if (!preRegisteredDocSummary) {
+            return;
+        }
+        if (!payload || !payload.found) {
+            preRegisteredDocSummary.classList.add('d-none');
+            preRegisteredDocSummary.innerHTML = '';
+            return;
+        }
+        const supplier = payload.fornecedor_nome ? escapeHtml(payload.fornecedor_nome) : 'Fornecedor não identificado';
+        const tipo = escapeHtml(String(payload.tipo_documento || 'NF').toUpperCase());
+        const dataEmissao = payload.data_emissao ? new Date(`${payload.data_emissao}T00:00:00`).toLocaleDateString('pt-BR') : '—';
+        const dataRecebimento = payload.data_recebimento ? new Date(`${payload.data_recebimento}T00:00:00`).toLocaleDateString('pt-BR') : '—';
+        preRegisteredDocSummary.innerHTML = `
+            <div class="d-flex flex-wrap justify-content-between gap-3 align-items-start">
+                <div>
+                    <div class="fw-semibold text-white">Documento ${escapeHtml(payload.numero_documento || '')}</div>
+                    <div class="small text-muted">${tipo} • ${supplier}</div>
+                </div>
+                <div class="small text-muted">
+                    <div>Emissão: ${dataEmissao}</div>
+                    <div>Recebimento: ${dataRecebimento}</div>
+                </div>
+            </div>
+        `;
+        preRegisteredDocSummary.classList.remove('d-none');
+    };
+
+    const renderPreRegisteredResults = (payload) => {
+        if (!preRegisteredResults) {
+            return;
+        }
+        resetPreRegisteredSelection();
+        preRegisteredResults.innerHTML = '';
+        if (!payload?.found) {
+            setPreRegisteredStatus('Nenhum documento localizado com esse número.', 'danger');
+            renderPreRegisteredDocSummary(null);
+            return;
+        }
+        renderPreRegisteredDocSummary(payload);
+        const entries = Array.isArray(payload.items) ? payload.items : [];
+        if (!entries.length) {
+            setPreRegisteredStatus('Este documento existe, mas não há itens pendentes em PRÉ CADASTRADOS para ele.', 'muted');
+            preRegisteredResults.innerHTML = '<div class="text-muted small">Todos os itens desta NF já foram finalizados ou não entraram no fluxo de pré-cadastro.</div>';
+            return;
+        }
+        setPreRegisteredStatus(`${entries.length} item(ns) pendente(s) localizado(s). Selecione um para concluir o cadastro.`, 'success');
+
+        entries.forEach((entry) => {
+            const card = document.createElement('button');
+            card.type = 'button';
+            card.className = 'pre-registered-card text-start';
+            card.innerHTML = `
+                <div class="pre-registered-card-head">
+                    <div>
+                        <div class="pre-registered-card-title">${escapeHtml(entry.descricao || 'Item sem descrição')}</div>
+                        <div class="small text-muted">Código ${escapeHtml(entry.codigo || '—')} • ${escapeHtml(entry.categoria || 'Sem categoria')}</div>
+                    </div>
+                    <span class="badge text-bg-warning">Pendente</span>
+                </div>
+                <div class="pre-registered-card-meta">
+                    <div class="pre-registered-meta-box">
+                        <span class="pre-registered-meta-label">Saldo</span>
+                        <span class="pre-registered-meta-value">${escapeHtml(entry.saldo_display || String(entry.saldo ?? '0'))}</span>
+                    </div>
+                    <div class="pre-registered-meta-box">
+                        <span class="pre-registered-meta-label">Quantidade na NF</span>
+                        <span class="pre-registered-meta-value">${escapeHtml(String(entry.quantidade_documento ?? '0'))} ${escapeHtml(entry.unidade || '')}</span>
+                    </div>
+                    <div class="pre-registered-meta-box">
+                        <span class="pre-registered-meta-label">Preço unitário</span>
+                        <span class="pre-registered-meta-value">${escapeHtml(formatBrl(entry.valor_unitario))}</span>
+                    </div>
+                    <div class="pre-registered-meta-box">
+                        <span class="pre-registered-meta-label">Valor total</span>
+                        <span class="pre-registered-meta-value">${escapeHtml(formatBrl(entry.valor_total))}</span>
+                    </div>
+                </div>
+            `;
+            card.addEventListener('click', () => {
+                document.querySelectorAll('.pre-registered-card').forEach((element) => element.classList.remove('is-selected'));
+                card.classList.add('is-selected');
+                preRegisteredSelection = entry;
+                if (preRegisteredFinishButton) {
+                    preRegisteredFinishButton.disabled = !entry.edit_url;
+                }
+            });
+            preRegisteredResults.appendChild(card);
+        });
+    };
+
+    const searchPreRegisteredItems = async () => {
+        const numero = String(preRegisteredNumberInput?.value || '').trim();
+        if (!numero) {
+            setPreRegisteredStatus('Informe o número da NF antes de buscar.', 'danger');
+            preRegisteredResults && (preRegisteredResults.innerHTML = '');
+            renderPreRegisteredDocSummary(null);
+            resetPreRegisteredSelection();
+            return;
+        }
+        if (preRegisteredSearchButton) {
+            preRegisteredSearchButton.disabled = true;
+            preRegisteredSearchButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Buscando...';
+        }
+        setPreRegisteredStatus('Consultando itens pré-cadastrados da NF...', 'muted');
+        try {
+            const response = await fetch(`${preRegisteredApiUrl}?numero=${encodeURIComponent(numero)}`, {
+                headers: { 'Accept': 'application/json' },
+                credentials: 'same-origin'
+            });
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok || payload.success === false) {
+                throw new Error(payload.message || `Erro ${response.status}`);
+            }
+            renderPreRegisteredResults(payload);
+        } catch (error) {
+            renderPreRegisteredDocSummary(null);
+            resetPreRegisteredSelection();
+            if (preRegisteredResults) {
+                preRegisteredResults.innerHTML = '';
+            }
+            setPreRegisteredStatus(error?.message || 'Não foi possível consultar os pré-cadastrados agora.', 'danger');
+        } finally {
+            if (preRegisteredSearchButton) {
+                preRegisteredSearchButton.disabled = false;
+                preRegisteredSearchButton.innerHTML = '<i class="bi bi-search me-1"></i> Buscar itens pré-cadastrados';
+            }
+        }
+    };
+
+    preRegisteredSearchButton?.addEventListener('click', searchPreRegisteredItems);
+    preRegisteredNumberInput?.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter') {
+            return;
+        }
+        event.preventDefault();
+        searchPreRegisteredItems();
+    });
+    preRegisteredFinishButton?.addEventListener('click', () => {
+        if (!preRegisteredSelection?.edit_url) {
+            return;
+        }
+        window.location.href = preRegisteredSelection.edit_url;
+    });
+    preRegisteredModalElement?.addEventListener('shown.bs.modal', () => {
+        preRegisteredNumberInput?.focus();
+    });
+    preRegisteredModalElement?.addEventListener('hidden.bs.modal', () => {
+        resetPreRegisteredSelection();
+        if (preRegisteredResults) {
+            preRegisteredResults.innerHTML = '';
+        }
+        renderPreRegisteredDocSummary(null);
+        setPreRegisteredStatus('Use o número da NF para localizar somente os itens ainda pendentes de finalização.', 'muted');
+    });
 
     const setPhotoAssistantFeedback = (message, variant = 'info') => {
         if (!photoFeedback) {

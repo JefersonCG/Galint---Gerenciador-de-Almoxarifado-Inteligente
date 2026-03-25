@@ -724,6 +724,11 @@ class InventoryService:
                     "preco_reposicao_url": getattr(item, "preco_reposicao_url", None),
                     "preco_reposicao_atualizado_em": item.preco_reposicao_atualizado_em.isoformat() if getattr(item, "preco_reposicao_atualizado_em", None) else None,
                     "preco_reposicao_atualizado_por": getattr(item, "preco_reposicao_atualizado_por", None),
+                    "pre_cadastro_pendente": bool(getattr(item, "pre_cadastro_pendente", False)),
+                    "pre_cadastro_origem": getattr(item, "pre_cadastro_origem", None),
+                    "pre_cadastro_documento_item_id": getattr(item, "pre_cadastro_documento_item_id", None),
+                    "pre_cadastro_criado_em": item.pre_cadastro_criado_em.isoformat() if getattr(item, "pre_cadastro_criado_em", None) else None,
+                    "pre_cadastro_finalizado_em": item.pre_cadastro_finalizado_em.isoformat() if getattr(item, "pre_cadastro_finalizado_em", None) else None,
                     "valor_estoque_compra_total": valor_total_compra,
                     "valor_estoque_reposicao_total": valor_total_reposicao,
                 }
@@ -999,6 +1004,11 @@ class InventoryService:
             preco_reposicao_url=payload.get("preco_reposicao_url"),
             preco_reposicao_atualizado_em=payload.get("preco_reposicao_atualizado_em"),
             preco_reposicao_atualizado_por=payload.get("preco_reposicao_atualizado_por"),
+            pre_cadastro_pendente=bool(payload.get("pre_cadastro_pendente", False)),
+            pre_cadastro_origem=payload.get("pre_cadastro_origem"),
+            pre_cadastro_documento_item_id=payload.get("pre_cadastro_documento_item_id"),
+            pre_cadastro_criado_em=payload.get("pre_cadastro_criado_em"),
+            pre_cadastro_finalizado_em=payload.get("pre_cadastro_finalizado_em"),
         )
         item.estoque_minimo = 0
         db.session.add(item)
@@ -1186,6 +1196,21 @@ class InventoryService:
 
         if "advanced_unit_settings" in payload:
             _apply_advanced_unit_settings(item, payload.get("advanced_unit_settings"))
+
+        if "pre_cadastro_pendente" in payload:
+            item.pre_cadastro_pendente = bool(payload.get("pre_cadastro_pendente"))
+        if "pre_cadastro_origem" in payload:
+            item.pre_cadastro_origem = payload.get("pre_cadastro_origem") or None
+        if "pre_cadastro_documento_item_id" in payload:
+            raw_documento_item_id = payload.get("pre_cadastro_documento_item_id")
+            try:
+                item.pre_cadastro_documento_item_id = int(raw_documento_item_id) if raw_documento_item_id not in (None, "") else None
+            except (TypeError, ValueError):
+                item.pre_cadastro_documento_item_id = None
+        if "pre_cadastro_criado_em" in payload:
+            item.pre_cadastro_criado_em = payload.get("pre_cadastro_criado_em")
+        if "pre_cadastro_finalizado_em" in payload:
+            item.pre_cadastro_finalizado_em = payload.get("pre_cadastro_finalizado_em")
 
         # Financeiro
         compra_keys = {

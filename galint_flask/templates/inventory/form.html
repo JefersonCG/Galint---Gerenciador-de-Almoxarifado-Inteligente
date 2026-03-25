@@ -989,6 +989,12 @@
 <div class="soft-depth-form">
     <h1 class="form-title">{% if item %}Editar{% else %}Novo{% endif %} Item</h1>
     <p class="form-subtitle">Preencha os campos abaixo com as informações do produto</p>
+    {% if form_item and form_item.pre_cadastro_pendente %}
+    <div class="alert alert-info border-0 shadow-sm mb-4">
+        <strong>Pré-cadastro vindo da NF.</strong> Os dados base do item já foram reaproveitados do documento fiscal.
+        Revise e complete principalmente rastreabilidade e unidades dinâmicas. Ao salvar, este item sai da fila de PRÉ CADASTRADOS.
+    </div>
+    {% endif %}
     {% if not item %}
     <div class="supplier-gate-summary" id="supplierGateSummary">
         <div>
@@ -1002,6 +1008,9 @@
     {% endif %}
 
     <form method="post" enctype="multipart/form-data" id="inventory-item-form">
+        {% if form_item and form_item.pre_cadastro_pendente %}
+        <input type="hidden" name="finalizar_pre_cadastro" value="1">
+        {% endif %}
         <div class="soft-depth-card">
             <!-- Tabs Navigation -->
             <div class="tabs-nav galint-folder-buttons">
