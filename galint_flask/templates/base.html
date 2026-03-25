@@ -96,24 +96,22 @@
                         </div>
 
                         <!-- Abas de Materiais e Ferramentas -->
-                        <ul class="nav nav-tabs mb-3" id="historicoTabs" role="tablist" style="border-bottom: 2px solid rgba(148, 163, 184, 0.25);">
+                        <ul class="nav nav-tabs galint-folder-tabs mb-3" id="historicoTabs" role="tablist">
                             <li class="nav-item" role="presentation">
                                 <button class="nav-link active" id="materiais-tab" data-bs-toggle="tab" 
-                                        data-bs-target="#materiais-content" type="button" role="tab"
-                                        style="color: #9aa0a6; border: none; background: transparent;">
+                                        data-bs-target="#materiais-content" type="button" role="tab">
                                     <i class="bi bi-box-seam"></i> Materiais <span class="badge bg-primary" id="countMateriais">0</span>
                                 </button>
                             </li>
                             <li class="nav-item" role="presentation">
                                 <button class="nav-link" id="ferramentas-tab" data-bs-toggle="tab" 
-                                        data-bs-target="#ferramentas-content" type="button" role="tab"
-                                        style="color: #9aa0a6; border: none; background: transparent;">
+                                        data-bs-target="#ferramentas-content" type="button" role="tab">
                                     <i class="bi bi-tools"></i> Ferramentas <span class="badge bg-primary" id="countFerramentas">0</span>
                                 </button>
                             </li>
                         </ul>
 
-                        <div class="tab-content" id="historicoTabsContent">
+                        <div class="tab-content galint-folder-content" id="historicoTabsContent">
                             <!-- Aba Materiais -->
                             <div class="tab-pane fade show active" id="materiais-content" role="tabpanel">
                                 <div class="table-responsive" style="max-height: 400px;">
@@ -321,17 +319,6 @@
                 #tabelaMateriais tr:hover,
                 #tabelaFerramentas tr:hover {
                     background-color: rgba(59, 130, 246, 0.15) !important;
-                }
-                
-                #historicoTabs .nav-link:hover {
-                    color: #f8fafc !important;
-                    background: rgba(59, 130, 246, 0.1) !important;
-                }
-                
-                #historicoTabs .nav-link.active {
-                    color: #3b82f6 !important;
-                    background: rgba(59, 130, 246, 0.15) !important;
-                    border-bottom: 2px solid #3b82f6 !important;
                 }
                 
                 #searchFuncionarioInput:focus {

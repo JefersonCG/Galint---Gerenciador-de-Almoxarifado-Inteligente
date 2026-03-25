@@ -110,24 +110,50 @@
 
     .operations-panel {
         background: linear-gradient(135deg, rgba(15, 23, 42, 0.96) 0%, rgba(30, 41, 59, 0.94) 100%);
-        border: 1px solid rgba(148, 163, 184, 0.2);
+        border: 1px solid rgba(148, 163, 184, 0.12);
         border-radius: 24px;
         box-shadow: 0 28px 65px rgba(2, 6, 23, 0.35);
-        padding: 1.6rem;
+        padding: 1.1rem;
     }
 
     .operations-panel .nav-tabs {
-        border-bottom: 1px solid rgba(148, 163, 184, 0.2);
-        gap: 0.6rem;
+        border-bottom: none;
+        padding: 0 0.35rem;
+        margin-bottom: 0 !important;
+        gap: 0;
+        background: transparent;
+        border: none;
+        border-radius: 0;
+        position: relative;
+        z-index: 2;
+    }
+
+    .operations-panel .nav-tabs .nav-item {
+        position: relative;
+    }
+
+    .operations-panel .nav-tabs .nav-item + .nav-item::before {
+        content: "";
+        position: absolute;
+        left: -0.05rem;
+        top: 0.55rem;
+        bottom: 0.55rem;
+        width: 1px;
+        background: linear-gradient(180deg, transparent, rgba(148, 163, 184, 0.26), transparent);
+        pointer-events: none;
     }
 
     .operations-panel .nav-tabs .nav-link {
-        border: 1px solid transparent;
+        border: 1px solid rgba(148, 163, 184, 0.08);
+        border-bottom-color: rgba(148, 163, 184, 0.14);
         color: #94a3b8;
-        border-radius: 999px;
-        padding: 0.7rem 1rem;
-        background: transparent;
+        border-radius: 14px 14px 0 0;
+        padding: 0.7rem 1.1rem;
+        background: linear-gradient(180deg, rgba(15, 23, 42, 0.42) 0%, rgba(15, 23, 42, 0.2) 100%);
         transition: all 0.2s ease;
+        margin: 0 0.1rem -1px;
+        position: relative;
+        z-index: 1;
     }
 
     .operations-panel .nav-tabs .nav-link:hover {
@@ -138,9 +164,38 @@
 
     .operations-panel .nav-tabs .nav-link.active {
         color: #ffffff;
-        border-color: rgba(59, 130, 246, 0.42);
-        background: linear-gradient(135deg, rgba(37, 99, 235, 0.28), rgba(29, 78, 216, 0.5));
+        border-color: rgba(148, 163, 184, 0.14);
+        border-bottom-color: transparent;
+        background: linear-gradient(180deg, rgba(37, 99, 235, 0.18) 0%, rgba(15, 23, 42, 0.96) 38%, rgba(17, 24, 39, 0.94) 100%);
         box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+        z-index: 3;
+    }
+
+    .operations-panel .nav-tabs .nav-link.active::after {
+        content: "";
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: -2px;
+        height: 4px;
+        background: rgba(17, 24, 39, 0.94);
+    }
+
+    .operations-panel .nav-tabs .nav-item:has(.nav-link.active)::before,
+    .operations-panel .nav-tabs .nav-item:has(+ .nav-item .nav-link.active)::before {
+        opacity: 0;
+    }
+
+    .operations-panel .tab-content {
+        position: relative;
+        margin-top: -1px;
+        padding: 0.35rem;
+        background: linear-gradient(180deg, rgba(15, 23, 42, 0.96) 0%, rgba(17, 24, 39, 0.94) 100%);
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        border-top-left-radius: 0;
+        border-radius: 0 18px 18px 18px;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+        z-index: 1;
     }
 
     .operations-panel .badge.bg-secondary {
@@ -191,8 +246,10 @@
     }
 
     .operations-panel .table-responsive {
-        border-radius: 18px;
+        border-radius: 14px;
         overflow: hidden;
+        border: 1px solid rgba(148, 163, 184, 0.08);
+        background: rgba(15, 23, 42, 0.18);
     }
 
     @media (max-width: 768px) {
@@ -201,13 +258,18 @@
         }
 
         .operations-panel {
-            padding: 1rem;
+            padding: 0.85rem;
         }
 
         .operations-panel .nav-tabs {
             flex-wrap: nowrap;
             overflow-x: auto;
             padding-bottom: 0.25rem;
+        }
+
+        .operations-panel .nav-tabs .nav-item + .nav-item::before {
+            top: 0.45rem;
+            bottom: 0.45rem;
         }
     }
 </style>
@@ -231,7 +293,7 @@
     </div>
 
     <div class="section-panel operations-panel mb-4">
-        <ul class="nav nav-tabs mb-3" id="operationTabs" role="tablist">
+        <ul class="nav nav-tabs galint-folder-tabs mb-3" id="operationTabs" role="tablist">
             <li class="nav-item" role="presentation">
                 <button class="nav-link active" id="entrada-tab" data-bs-toggle="tab" data-bs-target="#entrada-pane" type="button" role="tab" aria-controls="entrada-pane" aria-selected="true">
                     Entradas <span class="badge bg-secondary ms-1">{{ counts.entrada }}</span>
@@ -254,7 +316,7 @@
             </li>
         </ul>
 
-        <div class="tab-content" id="operationTabsContent">
+        <div class="tab-content galint-folder-content" id="operationTabsContent">
             {% set standard_tabs = [('entrada', 'entrada-pane'), ('saida', 'saida-pane'), ('devolucao', 'devolucao-pane')] %}
             {% for tab_key, pane_id in standard_tabs %}
             <div class="tab-pane fade {% if loop.first %}show active{% endif %}" id="{{ pane_id }}" role="tabpanel" aria-labelledby="{{ tab_key }}-tab">

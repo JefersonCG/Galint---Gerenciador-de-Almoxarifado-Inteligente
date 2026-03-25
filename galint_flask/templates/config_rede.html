@@ -46,12 +46,12 @@
         <article class="network-kpi"><span class="network-kpi-label">Rede Galint</span><div class="network-kpi-value">{{ 'ATIVA' if token_configured and share_url else 'OFF' }}</div><div class="network-kpi-caption">Compartilhamento público do painel.</div></article>
     </section>
 
-    <ul class="nav nav-pills network-tabs" role="tablist">
+    <ul class="nav nav-pills network-tabs galint-folder-tabs" role="tablist">
         <li class="nav-item" role="presentation"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#rede-mobile" type="button" role="tab">GALINT Mobile</button></li>
         <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#rede-publica" type="button" role="tab">Rede Galint</button></li>
     </ul>
 
-    <div class="tab-content">
+    <div class="tab-content galint-folder-content">
         <div class="tab-pane fade show active" id="rede-mobile" role="tabpanel">
             <div class="card network-panel">
                 <div class="card-header"><strong>GALINT Mobile</strong><span class="d-block text-muted small mt-1">Fixe o IP/porta usados no app e teste a comunicação.</span></div>

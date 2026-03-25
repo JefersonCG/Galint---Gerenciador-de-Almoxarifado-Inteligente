@@ -251,6 +251,192 @@ html {
     transform: rotate(90deg);
 }
 
+.galint-folder-tabs {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 0 !important;
+    padding: 0 0.35rem !important;
+    margin-bottom: 0 !important;
+    border: none !important;
+    background: transparent !important;
+    border-radius: 0 !important;
+    overflow-x: auto;
+    position: relative;
+    z-index: 2;
+    scrollbar-width: thin;
+}
+
+.galint-folder-tabs .nav-item {
+    position: relative;
+}
+
+.galint-folder-tabs .nav-item + .nav-item::before {
+    content: "";
+    position: absolute;
+    left: -0.05rem;
+    top: 0.55rem;
+    bottom: 0.55rem;
+    width: 1px;
+    background: linear-gradient(180deg, transparent, rgba(148, 163, 184, 0.26), transparent);
+    pointer-events: none;
+}
+
+.content-panel .galint-folder-tabs .nav-link,
+.modal-content .galint-folder-tabs .nav-link {
+    border: 1px solid rgba(148, 163, 184, 0.08) !important;
+    border-bottom-color: rgba(148, 163, 184, 0.14) !important;
+    color: #94a3b8 !important;
+    border-radius: 14px 14px 0 0 !important;
+    padding: 0.7rem 1.1rem !important;
+    margin: 0 0.1rem -1px !important;
+    background: linear-gradient(180deg, rgba(15, 23, 42, 0.42) 0%, rgba(15, 23, 42, 0.2) 100%) !important;
+    box-shadow: none !important;
+    position: relative;
+    z-index: 1;
+    white-space: nowrap;
+    transition: all 0.2s ease;
+}
+
+.content-panel .galint-folder-tabs .nav-link:hover,
+.modal-content .galint-folder-tabs .nav-link:hover {
+    color: #f8fafc !important;
+    border-color: rgba(59, 130, 246, 0.35) !important;
+    background: rgba(37, 99, 235, 0.12) !important;
+}
+
+.content-panel .galint-folder-tabs .nav-link.active,
+.content-panel .galint-folder-tabs .show > .nav-link,
+.modal-content .galint-folder-tabs .nav-link.active,
+.modal-content .galint-folder-tabs .show > .nav-link {
+    color: #ffffff !important;
+    border-color: rgba(148, 163, 184, 0.14) !important;
+    border-bottom-color: transparent !important;
+    background: linear-gradient(180deg, rgba(37, 99, 235, 0.18) 0%, rgba(15, 23, 42, 0.96) 38%, rgba(17, 24, 39, 0.94) 100%) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
+    z-index: 3;
+}
+
+.content-panel .galint-folder-tabs .nav-link.active::after,
+.content-panel .galint-folder-tabs .show > .nav-link::after,
+.modal-content .galint-folder-tabs .nav-link.active::after,
+.modal-content .galint-folder-tabs .show > .nav-link::after {
+    content: "" !important;
+    position: absolute !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: -2px !important;
+    height: 4px !important;
+    background: rgba(17, 24, 39, 0.94) !important;
+}
+
+.galint-folder-tabs .nav-item:has(.nav-link.active)::before,
+.galint-folder-tabs .nav-item:has(+ .nav-item .nav-link.active)::before {
+    opacity: 0;
+}
+
+.tab-content.galint-folder-content,
+.galint-folder-panel {
+    position: relative;
+    margin-top: -1px;
+    padding: 0.75rem !important;
+    background: linear-gradient(180deg, rgba(15, 23, 42, 0.96) 0%, rgba(17, 24, 39, 0.94) 100%) !important;
+    border: 1px solid rgba(148, 163, 184, 0.14) !important;
+    border-top-left-radius: 0 !important;
+    border-radius: 0 18px 18px 18px !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    z-index: 1;
+}
+
+.galint-folder-buttons {
+    display: flex !important;
+    flex-wrap: nowrap;
+    gap: 0 !important;
+    padding: 0 0.35rem !important;
+    margin: 0 !important;
+    overflow-x: auto;
+    background: transparent !important;
+    position: relative;
+    z-index: 2;
+    scrollbar-width: thin;
+}
+
+.galint-folder-buttons > .tab-button,
+.galint-folder-buttons > .galint-tab-btn {
+    border: 1px solid rgba(148, 163, 184, 0.08) !important;
+    border-bottom-color: rgba(148, 163, 184, 0.14) !important;
+    color: #94a3b8 !important;
+    border-radius: 14px 14px 0 0 !important;
+    padding: 0.7rem 1.1rem !important;
+    background: linear-gradient(180deg, rgba(15, 23, 42, 0.42) 0%, rgba(15, 23, 42, 0.2) 100%) !important;
+    box-shadow: none !important;
+    transform: none !important;
+    margin: 0 0.1rem -1px !important;
+    position: relative;
+    z-index: 1;
+    flex: 0 0 auto;
+}
+
+.galint-folder-buttons > .tab-button + .tab-button::before,
+.galint-folder-buttons > .galint-tab-btn + .galint-tab-btn::before {
+    content: "";
+    position: absolute;
+    left: -0.15rem;
+    top: 0.55rem;
+    bottom: 0.55rem;
+    width: 1px;
+    background: linear-gradient(180deg, transparent, rgba(148, 163, 184, 0.26), transparent);
+    pointer-events: none;
+}
+
+.galint-folder-buttons > .tab-button:hover,
+.galint-folder-buttons > .galint-tab-btn:hover {
+    color: #f8fafc !important;
+    border-color: rgba(59, 130, 246, 0.35) !important;
+    background: rgba(37, 99, 235, 0.12) !important;
+}
+
+.galint-folder-buttons > .tab-button.active,
+.galint-folder-buttons > .galint-tab-btn.active {
+    color: #ffffff !important;
+    border-color: rgba(148, 163, 184, 0.14) !important;
+    border-bottom-color: transparent !important;
+    background: linear-gradient(180deg, rgba(37, 99, 235, 0.18) 0%, rgba(15, 23, 42, 0.96) 38%, rgba(17, 24, 39, 0.94) 100%) !important;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08) !important;
+    z-index: 3;
+}
+
+.galint-folder-buttons > .tab-button.active::after,
+.galint-folder-buttons > .galint-tab-btn.active::after {
+    content: "" !important;
+    position: absolute !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: -2px !important;
+    height: 4px !important;
+    background: rgba(17, 24, 39, 0.94) !important;
+}
+
+.galint-folder-buttons > .tab-button.active::before,
+.galint-folder-buttons > .galint-tab-btn.active::before,
+.galint-folder-buttons > .tab-button.active + .tab-button::before,
+.galint-folder-buttons > .galint-tab-btn.active + .galint-tab-btn::before {
+    opacity: 0;
+}
+
+@media (max-width: 768px) {
+    .galint-folder-tabs .nav-item + .nav-item::before,
+    .galint-folder-buttons > .tab-button + .tab-button::before,
+    .galint-folder-buttons > .galint-tab-btn + .galint-tab-btn::before {
+        top: 0.45rem;
+        bottom: 0.45rem;
+    }
+
+    .tab-content.galint-folder-content,
+    .galint-folder-panel {
+        padding: 0.55rem !important;
+    }
+}
+
 @media (max-width: 992px) {
     .sidebar-column.collapsed {
         width: 0;
