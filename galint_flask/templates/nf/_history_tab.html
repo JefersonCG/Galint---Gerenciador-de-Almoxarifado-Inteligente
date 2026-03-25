@@ -1,0 +1,246 @@
+<section class="docf-card" id="controle-periodo">
+    <div class="docf-card-header">
+        <div>
+            <div class="docf-kicker">Controle por período</div>
+            <h2 class="docf-card-title">Fechamento operacional de compras</h2>
+        </div>
+        {% if period_dashboard.active_closure %}
+        <span class="docf-badge">Período fechado</span>
+        {% else %}
+        <span class="docf-badge">Janela em análise</span>
+        {% endif %}
+    </div>
+
+    <div class="docf-period-grid">
+        <div class="docf-panel">
+            <form method="get" class="row g-3 docf-search-form">
+                <input type="hidden" name="aba" value="historico">
+                <div class="col-md-6">
+                    <label class="form-label" for="periodo_inicio">A partir de</label>
+                    <input class="form-control" id="periodo_inicio" name="periodo_inicio" type="date" value="{{ period_dashboard.filters.data_inicio.isoformat() }}">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label" for="periodo_fim">Até</label>
+                    <input class="form-control" id="periodo_fim" name="periodo_fim" type="date" value="{{ period_dashboard.filters.data_fim.isoformat() }}">
+                </div>
+                <div class="col-md-7">
+                    <label class="form-label" for="periodo_fornecedor">Fornecedor</label>
+                    <select class="form-select" id="periodo_fornecedor" name="periodo_fornecedor">
+                        <option value="">Todos os fornecedores</option>
+                        {% for supplier in preferred_suppliers %}
+                        <option value="{{ supplier.id }}" {% if period_dashboard.filters.fornecedor_id == supplier.id %}selected{% endif %}>{{ supplier.nome_exibicao }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-5">
+                    <label class="form-label" for="periodo_tipo">Tipo</label>
+                    <select class="form-select" id="periodo_tipo" name="periodo_tipo">
+                        <option value="todos" {% if period_dashboard.filters.tipo_documento == 'todos' %}selected{% endif %}>Todos</option>
+                        <option value="nf" {% if period_dashboard.filters.tipo_documento == 'nf' %}selected{% endif %}>NF</option>
+                        <option value="cupom" {% if period_dashboard.filters.tipo_documento == 'cupom' %}selected{% endif %}>Cupom</option>
+                        <option value="manual" {% if period_dashboard.filters.tipo_documento == 'manual' %}selected{% endif %}>Sem NF</option>
+                        <option value="recibo" {% if period_dashboard.filters.tipo_documento == 'recibo' %}selected{% endif %}>Recibo</option>
+                    </select>
+                </div>
+                <div class="col-12 d-flex gap-2 flex-wrap">
+                    <button class="docf-btn-secondary" type="submit" data-help-label="Aplicar período" data-help-text="Atualiza os indicadores e a lista de documentos conforme os filtros escolhidos.">Aplicar período</button>
+                    <a class="docf-btn-secondary" href="{{ url_for('nf.nf_index', aba='historico') }}#controle-periodo" data-help-label="Limpar filtros" data-help-text="Remove os filtros do período e retorna para a visão padrão da página.">Limpar</a>
+                </div>
+            </form>
+        </div>
+
+        <div class="docf-panel info">
+            <div class="docf-kicker">Resumo da janela</div>
+            <p class="mb-2">Controle atual de <strong>{{ period_dashboard.filters.data_inicio.strftime('%d/%m/%Y') }}</strong> até <strong>{{ period_dashboard.filters.data_fim.strftime('%d/%m/%Y') }}</strong>{% if period_dashboard.filters.fornecedor_id %} com fornecedor filtrado{% endif %}.</p>
+            <div class="docf-closure-meta">
+                <span class="docf-chip">{{ period_dashboard.kpis.documentos }} documentos</span>
+                <span class="docf-chip">{{ period_dashboard.kpis.cupom }} cupons</span>
+                <span class="docf-chip">{{ period_dashboard.kpis.nf }} NFs</span>
+                <span class="docf-chip">{{ period_dashboard.kpis.manual }} sem NF</span>
+                {% if period_dashboard.active_closure %}
+                <span class="docf-chip success">Fechado por {{ period_dashboard.active_closure.fechado_por }}</span>
+                {% else %}
+                <span class="docf-chip warning">Ainda não fechado</span>
+                {% endif %}
+            </div>
+            {% if can_manage %}
+            <form method="post" action="{{ url_for('nf.fechar_periodo_compras') }}" class="mt-3 docf-form">
+                <input type="hidden" name="active_tab" value="historico">
+                <input type="hidden" name="periodo_inicio" value="{{ period_dashboard.filters.data_inicio.isoformat() }}">
+                <input type="hidden" name="periodo_fim" value="{{ period_dashboard.filters.data_fim.isoformat() }}">
+                <input type="hidden" name="periodo_fornecedor" value="{{ period_dashboard.filters.fornecedor_id or '' }}">
+                <input type="hidden" name="periodo_tipo" value="{{ period_dashboard.filters.tipo_documento }}">
+                <label class="form-label" for="observacao_fechamento">Observação do fechamento</label>
+                <input class="form-control mb-2" id="observacao_fechamento" name="observacao_fechamento" placeholder="Ex.: ciclo balcão até dia 26, conferido com compras do período.">
+                <button class="docf-btn-primary w-100" type="submit" data-help-label="Fechar período atual" data-help-text="Consolida a janela atual de compras para conferência e rastreabilidade documental.">Fechar período atual</button>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="docf-period-layout">
+        <div class="docf-table-wrap">
+            <table class="table docf-table mb-0">
+                <thead>
+                    <tr>
+                        <th>Fornecedor</th>
+                        <th>Documentos</th>
+                        <th>Itens</th>
+                        <th>Quantidade</th>
+                        <th>Valor</th>
+                        <th>Tipos</th>
+                        <th>Janela</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in period_dashboard.supplier_rows %}
+                    <tr>
+                        <td>
+                            <strong>{{ row.fornecedor_nome }}</strong>
+                            <div class="small docf-muted">{{ row.cnpj_emitente or 'CNPJ não informado' }}</div>
+                        </td>
+                        <td>{{ row.documentos }}</td>
+                        <td>{{ row.itens }}</td>
+                        <td>{{ row.quantidade|number_br(2, True) }}</td>
+                        <td>{{ row.valor|currency_br }}</td>
+                        <td>{{ row.tipos }}</td>
+                        <td>{{ row.primeira_data.strftime('%d/%m') }} até {{ row.ultima_data.strftime('%d/%m') }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center docf-muted">Nenhuma compra documental encontrada no período selecionado.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="docf-closure-list">
+            {% for closure in period_dashboard.closures %}
+            <div class="docf-closure-item">
+                <div class="d-flex justify-content-between align-items-start gap-2">
+                    <div>
+                        <strong>{{ closure.fornecedor_nome or 'Todos os fornecedores' }}</strong>
+                        <div class="small docf-muted">{{ closure.data_inicio.strftime('%d/%m/%Y') }} até {{ closure.data_fim.strftime('%d/%m/%Y') }}</div>
+                    </div>
+                    <span class="docf-chip {% if closure.status == 'fechado' %}success{% else %}warning{% endif %}">{{ closure.status|replace('_', ' ')|title }}</span>
+                </div>
+                <div class="docf-closure-meta">
+                    <span class="docf-chip">{{ closure.total_documentos }} docs</span>
+                    <span class="docf-chip">{{ closure.total_itens }} itens</span>
+                    <span class="docf-chip">{{ closure.total_valor|currency_br }}</span>
+                    {% if closure.tipo_documento %}<span class="docf-chip">{{ closure.tipo_documento|upper }}</span>{% endif %}
+                </div>
+                {% if closure.observacao %}
+                <div class="small docf-muted mt-2">{{ closure.observacao }}</div>
+                {% endif %}
+                {% if can_manage and closure.status == 'fechado' %}
+                <form method="post" action="{{ url_for('nf.reabrir_periodo_compras', fechamento_id=closure.id) }}" class="mt-3">
+                    <input type="hidden" name="active_tab" value="historico">
+                    <button class="docf-btn-secondary w-100" type="submit" data-help-label="Reabrir período" data-help-text="Reabre um fechamento salvo para permitir nova revisão ou ajuste.">Reabrir período</button>
+                </form>
+                {% endif %}
+            </div>
+            {% else %}
+            <div class="docf-empty">Nenhum fechamento registrado ainda.</div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+
+<section class="docf-card">
+    <div class="docf-card-header">
+        <div>
+            <div class="docf-kicker">Histórico</div>
+            <h2 class="docf-card-title">Documentos fiscais registrados recentemente</h2>
+        </div>
+        <span class="docf-badge">{{ notas|length }} registros</span>
+    </div>
+    {% if notas %}
+    <div class="accordion docf-accordion" id="nf-accordion">
+        {% for nota in notas %}
+        {% set collapse_id = 'nota-' ~ loop.index %}
+        {% set history_anchor = 'documento-historico-' ~ ((nota.numero_documento|default(nota.nota_fiscal, true)|string)|replace(' ', '-')|replace('/', '-')|replace('.', '-')|replace('#', '')|lower) %}
+        <div class="accordion-item {% if nota_busca and nota.numero_documento|default(nota.nota_fiscal, true) == nota_busca %}border border-primary{% endif %}" id="{{ history_anchor }}">
+            <h2 class="accordion-header" id="heading-{{ collapse_id }}">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                    data-bs-target="#collapse-{{ collapse_id }}" aria-expanded="false"
+                    aria-controls="collapse-{{ collapse_id }}">
+                    <span class="me-3">{{ nota.tipo_documento|default('DOC', true)|upper }} {{ nota.numero_documento|default(nota.nota_fiscal, true) }}</span>
+                    {% if nota.status_integracao == 'aguardando_certificado' %}
+                    <span class="docf-badge me-2">Pendência</span>
+                    {% endif %}
+                    <small class="docf-muted">{{ nota.total_itens|number_br }} itens &bull; {{ nota.total_quantidade|number_br(2, True) }} unidades{% if nota.fornecedor_nome|default(None, true) %} &bull; {{ nota.fornecedor_nome }}{% endif %}</small>
+                </button>
+            </h2>
+            <div id="collapse-{{ collapse_id }}" class="accordion-collapse collapse"
+                aria-labelledby="heading-{{ collapse_id }}" data-bs-parent="#nf-accordion">
+                <div class="accordion-body">
+                    {% if nota.status_integracao == 'aguardando_certificado' %}
+                    <div class="docf-panel warning mb-3">
+                        <strong>Pendência fiscal visível:</strong> consulta automática bloqueada até o certificado digital ficar disponível.
+                    </div>
+                    {% endif %}
+                    <p class="mb-3 small docf-muted">
+                        Registrada em {{ nota.data|format_local('%d/%m/%Y %H:%M') if nota.data else 'data não informada' }}
+                        {% if nota.usuarios %} por {{ nota.usuarios|join(', ') }}{% endif %}.
+                    </p>
+                    <div class="docf-detail-grid">
+                        <div class="docf-detail-box"><span class="docf-detail-label">Fornecedor</span><span class="docf-detail-value">{{ nota.fornecedor_nome|default('Não informado', true) }}</span></div>
+                        <div class="docf-detail-box"><span class="docf-detail-label">CNPJ</span><span class="docf-detail-value">{{ nota.cnpj_emitente|default('Não informado', true) }}</span></div>
+                        <div class="docf-detail-box"><span class="docf-detail-label">Emissão</span><span class="docf-detail-value">{{ nota.data_emissao.strftime('%d/%m/%Y') if nota.data_emissao|default(None, true) else '—' }}</span></div>
+                        <div class="docf-detail-box"><span class="docf-detail-label">Status</span><span class="docf-detail-value">{{ nota.status_integracao|default('manual', true)|replace('_', ' ')|title }}</span></div>
+                        <div class="docf-detail-box"><span class="docf-detail-label">Valor</span><span class="docf-detail-value">{{ nota.total_valor|default(0, true)|currency_br }}</span></div>
+                    </div>
+                    {% if can_manage and nota.id_documento is defined and nota.id_documento is not none %}
+                    <div class="mt-3">
+                        <a class="docf-btn-secondary" href="{{ url_for('nf.nf_index', nota=nota.numero_documento|default(nota.nota_fiscal, true), aba='historico') }}#documento-editar-{{ nota.id_documento }}">Editar este documento</a>
+                    </div>
+                    {% elif can_manage and nota.nota_fiscal|default('', true) %}
+                    <div class="mt-3">
+                        <form method="post" action="{{ url_for('nf.converter_documento_legado') }}" class="d-inline">
+                            <input type="hidden" name="active_tab" value="historico">
+                            <input type="hidden" name="nota_fiscal" value="{{ nota.nota_fiscal }}">
+                            <button class="docf-btn-secondary" type="submit">Converter para edição</button>
+                        </form>
+                    </div>
+                    {% endif %}
+                    {% if nota.mensagem_integracao %}
+                    <div class="docf-panel warning mt-3">
+                        <strong>Consulta bloqueada:</strong> {{ nota.mensagem_integracao }}
+                    </div>
+                    {% endif %}
+                    <div class="docf-table-wrap mt-3">
+                        <table class="table docf-table mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Código</th>
+                                    <th>Descrição</th>
+                                    <th>Quantidade</th>
+                                    <th>Valor un.</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in nota.itens %}
+                                <tr>
+                                    <td>{{ item.codigo }}</td>
+                                    <td>
+                                        {{ item.descricao }}
+                                        <div class="small text-muted">{{ item.status_processamento|default('pendente', true)|replace('_', ' ')|title }}</div>
+                                    </td>
+                                    <td>{{ item.quantidade|number_br(2, True) }}</td>
+                                    <td>{% if item.valor_unitario is defined and item.valor_unitario is not none %}{{ item.valor_unitario|currency_br }}{% else %}-{% endif %}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="docf-empty">Nenhum documento fiscal registrado.</div>
+    {% endif %}
+</section>
