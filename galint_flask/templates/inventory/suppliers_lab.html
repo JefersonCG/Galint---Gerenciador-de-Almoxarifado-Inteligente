@@ -124,12 +124,142 @@
         color: #0f172a;
     }
 
+    .lab-supplier-tabs {
+        margin-bottom: 0 !important;
+    }
+
+    .lab-supplier-tabs .nav-link {
+        min-width: 230px;
+        text-align: left;
+    }
+
+    .lab-supplier-tabs .supplier-tab-main {
+        display: block;
+        font-size: 0.95rem;
+        font-weight: 800;
+        line-height: 1.2;
+    }
+
+    .lab-supplier-tabs .supplier-tab-sub {
+        display: block;
+        margin-top: 0.25rem;
+        font-size: 0.74rem;
+        line-height: 1.3;
+        color: rgba(148, 163, 184, 0.96);
+    }
+
+    .lab-supplier-tabs .nav-link.active .supplier-tab-sub {
+        color: rgba(226, 232, 240, 0.82);
+    }
+
+    .lab-supplier-content {
+        padding: 1rem !important;
+    }
+
+    .lab-supplier-pane {
+        animation: fadeIn 0.25s ease-out;
+    }
+
+    .lab-supplier-summary {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+        flex-wrap: wrap;
+        margin-bottom: 1rem;
+    }
+
+    .lab-supplier-title {
+        font-size: 1.2rem;
+        font-weight: 800;
+        color: #f8fafc;
+        margin-bottom: 0.2rem;
+    }
+
+    .lab-supplier-meta {
+        color: #94a3b8;
+        font-size: 0.88rem;
+    }
+
+    .lab-supplier-last {
+        color: #cbd5e1;
+        font-size: 0.85rem;
+        text-align: right;
+    }
+
+    .lab-supplier-content .metric {
+        background: rgba(255, 255, 255, 0.06);
+        border-color: rgba(148, 163, 184, 0.16);
+    }
+
+    .lab-supplier-content .metric .label {
+        color: #94a3b8;
+    }
+
+    .lab-supplier-content .metric .value {
+        color: #f8fafc;
+    }
+
+    .lab-supplier-content .table {
+        margin-bottom: 0;
+        color: #e2e8f0;
+        --bs-table-bg: transparent;
+        --bs-table-color: #e2e8f0;
+        --bs-table-border-color: rgba(148, 163, 184, 0.16);
+        --bs-table-hover-bg: rgba(37, 99, 235, 0.12);
+        --bs-table-hover-color: #ffffff;
+    }
+
+    .lab-supplier-content .table thead th {
+        background: rgba(15, 23, 42, 0.88);
+        color: #f8fafc;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        font-size: 0.76rem;
+    }
+
+    .lab-supplier-content .table td,
+    .lab-supplier-content .table th {
+        border-color: rgba(148, 163, 184, 0.16);
+    }
+
+    .lab-supplier-content .text-muted,
+    .lab-supplier-content .small,
+    .lab-supplier-content .form-text {
+        color: #94a3b8 !important;
+    }
+
+    .lab-supplier-content .alert-warning {
+        background: rgba(120, 53, 15, 0.32);
+        border-color: rgba(251, 191, 36, 0.28);
+        color: #fde68a;
+    }
+
+    .lab-supplier-content .badge.text-bg-light.border {
+        background: rgba(255, 255, 255, 0.06) !important;
+        color: #e2e8f0 !important;
+        border-color: rgba(148, 163, 184, 0.2) !important;
+    }
+
+    .lab-supplier-content .border.rounded-3,
+    .lab-supplier-content .border.rounded {
+        border-color: rgba(148, 163, 184, 0.14) !important;
+        background: rgba(255, 255, 255, 0.04);
+    }
+
     @media (max-width: 991px) {
         .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
 
     @media (max-width: 640px) {
         .metric-grid { grid-template-columns: 1fr; }
+        .lab-supplier-tabs .nav-link {
+            min-width: 180px;
+        }
+
+        .lab-supplier-last {
+            text-align: left;
+        }
     }
 </style>
 
@@ -207,27 +337,38 @@
 </div>
 {% endif %}
 
-<div class="d-grid gap-4">
-    {% for s in suppliers %}
-    {% set sid = s.id %}
-    {% set card_id = 'sup_' ~ sid %}
-    <section class="lab-card">
-        <div class="lab-head">
-            <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+{% if suppliers %}
+<div class="lab-supplier-shell">
+    <ul class="nav nav-tabs galint-folder-tabs lab-supplier-tabs" id="supplierTabs" role="tablist">
+        {% for s in suppliers %}
+        {% set sid = s.id %}
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {% if loop.first %}active{% endif %}" id="supplier-tab-{{ sid }}" data-bs-toggle="tab" data-bs-target="#supplier-pane-{{ sid }}" type="button" role="tab" aria-controls="supplier-pane-{{ sid }}" aria-selected="{{ 'true' if loop.first else 'false' }}">
+                <span class="supplier-tab-main">{{ s.nome_exibicao }}</span>
+                <span class="supplier-tab-sub">
+                    {% if s.cnpj %}{{ s.cnpj }}{% else %}Sem CNPJ{% endif %}
+                    • Total {{ brl(s.investido_total) }}
+                </span>
+            </button>
+        </li>
+        {% endfor %}
+    </ul>
+
+    <div class="tab-content galint-folder-content lab-supplier-content" id="supplierTabsContent">
+        {% for s in suppliers %}
+        {% set sid = s.id %}
+        <section class="tab-pane fade {% if loop.first %}show active{% endif %} lab-supplier-pane" id="supplier-pane-{{ sid }}" role="tabpanel" aria-labelledby="supplier-tab-{{ sid }}">
+            <div class="lab-supplier-summary">
                 <div>
-                    <h2 class="h5 mb-1">{{ s.nome_exibicao }}</h2>
-                    <div class="text-muted small">
+                    <div class="lab-supplier-title">{{ s.nome_exibicao }}</div>
+                    <div class="lab-supplier-meta">
                         {% if s.cnpj %}CNPJ {{ s.cnpj }}{% endif %}
                         {% if s.endereco_cidade or s.endereco_estado %}
                             • {{ (s.endereco_cidade or '') }}{% if s.endereco_estado %}/{{ s.endereco_estado }}{% endif %}
                         {% endif %}
                     </div>
-                    <button class="btn btn-sm btn-outline-secondary mt-2" type="button"
-                        data-bs-toggle="collapse" data-bs-target="#{{ card_id }}" aria-expanded="false" aria-controls="{{ card_id }}">
-                        <i class="bi bi-chevron-down me-1"></i> Abrir detalhes
-                    </button>
                 </div>
-                <div class="text-end small text-muted">
+                <div class="lab-supplier-last">
                     {% if s.ult_compra_em %}
                         Última compra: <strong>{{ s.ult_compra_em.strftime('%d/%m/%Y') }}</strong>
                     {% else %}
@@ -235,7 +376,8 @@
                     {% endif %}
                 </div>
             </div>
-            <div class="metric-grid">
+
+            <div class="metric-grid mb-3">
                 <div class="metric">
                     <div class="label">Total</div>
                     <div class="value">{{ brl(s.investido_total) }}</div>
@@ -257,10 +399,8 @@
                     <div class="value">{{ s.nf_total or 0 }} / {{ s.cupom_total or 0 }}</div>
                 </div>
             </div>
-        </div>
 
-        <div class="collapse" id="{{ card_id }}">
-            <div class="p-3">
+            <div>
                 <ul class="nav nav-tabs galint-folder-tabs" id="tabs-{{ sid }}" role="tablist">
                     <li class="nav-item" role="presentation">
                         <button class="nav-link active" id="docs-tab-{{ sid }}" data-bs-toggle="tab" data-bs-target="#docs-{{ sid }}" type="button" role="tab">NF / Cupons</button>
@@ -273,7 +413,7 @@
                     </li>
                 </ul>
 
-                <div class="tab-content galint-folder-content pt-3">
+                <div class="tab-content galint-folder-content">
                     <div class="tab-pane fade show active" id="docs-{{ sid }}" role="tabpanel">
                         {% if s.documentos %}
                         <div class="table-responsive">
@@ -417,10 +557,13 @@
                     </div>
                 </div>
             </div>
-        </div>
-    </section>
-    {% endfor %}
+        </section>
+        {% endfor %}
+    </div>
 </div>
+{% else %}
+<div class="alert alert-secondary">Nenhuma loja cadastrada para este exercício.</div>
+{% endif %}
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script>
@@ -509,12 +652,12 @@
         charts.set(sid, true);
     };
 
-    document.querySelectorAll('.collapse').forEach((el) => {
-        el.addEventListener('shown.bs.collapse', (ev) => {
+    document.querySelectorAll('[id^="graf-tab-"]').forEach((el) => {
+        el.addEventListener('shown.bs.tab', (ev) => {
             const id = String(ev.target?.id || '');
-            if (!id.startsWith('sup_')) return;
-            const sid = id.replace('sup_', '');
-            ensureCharts(sid);
+            if (!id.startsWith('graf-tab-')) return;
+            const sid = id.replace('graf-tab-', '');
+            requestAnimationFrame(() => ensureCharts(sid));
         });
     });
 </script>
