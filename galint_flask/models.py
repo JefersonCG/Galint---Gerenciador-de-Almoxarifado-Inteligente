@@ -4,7 +4,7 @@ from __future__ import annotations
 from datetime import date, datetime, timedelta
 
 from flask_login import UserMixin
-from sqlalchemy import BigInteger, Boolean, CheckConstraint, Date, DateTime, Enum, Float, ForeignKey, Integer, String, Text, UniqueConstraint, func
+from sqlalchemy import BigInteger, Boolean, CheckConstraint, Date, DateTime, Enum, Float, ForeignKey, Integer, String, Text, UniqueConstraint, func, inspect as sa_inspect
 from sqlalchemy.dialects.postgresql import INET, JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship, backref, validates
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -445,11 +445,18 @@ class DocumentoEntradaEstoqueItem(db.Model):
     lote: Mapped[str | None] = mapped_column(String(50), nullable=True)
     data_validade: Mapped[date | None] = mapped_column(Date, nullable=True)
     observacao: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status_processamento: Mapped[str] = mapped_column(String(30), nullable=False, default="pendente", index=True)
+    processado_em: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    erro_processamento: Mapped[str | None] = mapped_column(Text, nullable=True)
+    stock_movement_id: Mapped[int | None] = mapped_column(ForeignKey("stock_movements.id", ondelete="SET NULL"), nullable=True, index=True)
+    operation_log_id: Mapped[int | None] = mapped_column(ForeignKey("operation_logs.id", ondelete="SET NULL"), nullable=True, index=True)
     criado_em: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now())
 
     documento: Mapped[DocumentoEntradaEstoque] = relationship("DocumentoEntradaEstoque", back_populates="itens")
     entrada: Mapped[Entrada | None] = relationship("Entrada")
     item: Mapped[Item] = relationship("Item")
+    stock_movement: Mapped["StockMovement | None"] = relationship("StockMovement")
+    operation_log: Mapped["OperationLog | None"] = relationship("OperationLog")
 
 
 class InventarioEvento(db.Model):
@@ -464,18 +471,36 @@ class InventarioEvento(db.Model):
     data_evento: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
 
 
+class OperationLog(db.Model):
+    __tablename__ = "operation_logs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    operation_type: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
+    product_id: Mapped[str | None] = mapped_column(ForeignKey("itens.codigo_item", ondelete="SET NULL"), nullable=True, index=True)
+    quantity_input: Mapped[float | None] = mapped_column(Float, nullable=True)
+    quantity_base: Mapped[float | None] = mapped_column(Float, nullable=True)
+    unit_input: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    user_id: Mapped[str | None] = mapped_column(ForeignKey("usuarios.matricula", ondelete="SET NULL"), nullable=True, index=True)
+    source: Mapped[str | None] = mapped_column(String(20), nullable=True, index=True)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="success", index=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    payload_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now(), index=True)
+
+    item: Mapped[Item | None] = relationship("Item")
+    user: Mapped[Usuario | None] = relationship("Usuario")
+
+
 class StockMovement(db.Model):
     __tablename__ = "stock_movements"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    product_id: Mapped[str] = mapped_column("codigo_item", ForeignKey("itens.codigo_item", ondelete="CASCADE"), nullable=False, index=True)
-    movement_type: Mapped[str] = mapped_column("motion_type", String(30), nullable=False, index=True)
-    quantity_base: Mapped[float] = mapped_column("amount_base", Float, nullable=False)
-    unit_base: Mapped[str] = mapped_column("unit_type", String(30), nullable=False)
+    product_id: Mapped[str] = mapped_column(ForeignKey("itens.codigo_item", ondelete="CASCADE"), nullable=False, index=True)
+    movement_type: Mapped[str] = mapped_column(String(30), nullable=False, index=True)
+    quantity_base: Mapped[float] = mapped_column(Float, nullable=False)
+    unit_base: Mapped[str] = mapped_column(String(30), nullable=False)
     reference_type: Mapped[str | None] = mapped_column(String(50), nullable=True, index=True)
     reference_id: Mapped[str | None] = mapped_column(String(100), nullable=True, index=True)
-    source: Mapped[str | None] = mapped_column(String(50), nullable=True)
-    user_id: Mapped[str | None] = mapped_column(ForeignKey("usuarios.matricula", ondelete="SET NULL"), nullable=True)
     metadata_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now(), index=True)
 
@@ -485,24 +510,23 @@ class StockMovement(db.Model):
 class StockBalance(db.Model):
     __tablename__ = "stock_balances"
 
-    product_id: Mapped[str] = mapped_column("codigo_item", ForeignKey("itens.codigo_item", ondelete="CASCADE"), primary_key=True)
+    product_id: Mapped[str] = mapped_column(ForeignKey("itens.codigo_item", ondelete="CASCADE"), primary_key=True)
     quantity_base: Mapped[float] = mapped_column(Float, nullable=False, default=0)
-    last_movement_id: Mapped[int | None] = mapped_column(ForeignKey("stock_movements.id", ondelete="SET NULL"), nullable=True)
+    read_model_ready: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
 
     item: Mapped[Item] = relationship("Item", back_populates="stock_balance")
 
-    @property
-    def read_model_ready(self) -> bool:
-        return False
-
-    @read_model_ready.setter
-    def read_model_ready(self, value: bool) -> None:
-        return
-
 
 def stock_balance_supports_read_model_ready() -> bool:
-    return False
+    try:
+        column_names = {
+            str(column.get("name"))
+            for column in sa_inspect(db.session.get_bind()).get_columns("stock_balances")
+        }
+    except Exception:
+        return False
+    return "read_model_ready" in column_names
 
 
 class ProductDimension(db.Model):

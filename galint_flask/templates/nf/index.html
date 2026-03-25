@@ -5,7 +5,7 @@
 {% block extra_css %}
 <style>
     .documents-fiscais-shell .content-panel {
-        background: linear-gradient(180deg, #0a0f15 0%, #101826 100%);
+        background: linear-gradient(180deg, #fafbfd 0%, #f1f5f9 100%);
         color: #e5eef5;
     }
 
@@ -68,6 +68,232 @@
         color: rgba(221, 232, 247, 0.78);
         font-size: 0.98rem;
         max-width: 62rem;
+    }
+
+    .docf-search-topbar {
+        position: sticky;
+        top: 0.9rem;
+        z-index: 30;
+        margin-bottom: 1rem;
+    }
+
+    .docf-main-surface {
+        margin-top: 1rem;
+        padding: 1rem;
+        border-radius: 24px;
+        background: rgba(255, 255, 255, 0.58);
+        border: 1px solid rgba(148, 163, 184, 0.24);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65);
+    }
+
+    .docf-state-tabs {
+        gap: 0.55rem;
+        border-bottom: 0;
+        margin-bottom: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .docf-state-tabs .nav-link {
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        background: rgba(11, 18, 32, 0.88);
+        color: #e5eef5;
+        border-radius: 999px;
+        padding: 0.7rem 1rem;
+        font-weight: 800;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+    }
+
+    .docf-state-tabs .nav-link.active {
+        background: linear-gradient(135deg, #0f2440 0%, #19406b 100%);
+        border-color: rgba(59, 130, 246, 0.35);
+        color: #ffffff;
+        box-shadow: 0 12px 22px rgba(15, 35, 64, 0.18);
+    }
+
+    .docf-state-tabs .badge {
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.12);
+        color: #f8fbfc;
+    }
+
+    .docf-state-pane {
+        display: grid;
+        gap: 1rem;
+    }
+
+    .docf-step-flow {
+        display: grid;
+        gap: 0.9rem;
+    }
+
+    .docf-step {
+        border-radius: 18px;
+        padding: 1rem;
+        background: rgba(8, 15, 28, 0.3);
+        border: 1px solid rgba(148, 163, 184, 0.16);
+    }
+
+    .docf-step-index {
+        width: 32px;
+        height: 32px;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 800;
+        color: #eff6ff;
+        background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%);
+        box-shadow: 0 10px 18px rgba(37, 99, 235, 0.22);
+    }
+
+    .docf-step-header {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.85rem;
+        margin-bottom: 0.85rem;
+    }
+
+    .docf-step-header h3 {
+        margin: 0;
+        color: #f8fbfc;
+        font-size: 1rem;
+        font-weight: 800;
+    }
+
+    .docf-step-header p {
+        margin: 0.2rem 0 0;
+        color: rgba(188, 205, 230, 0.78);
+        font-size: 0.84rem;
+    }
+
+    .docf-status-list {
+        display: grid;
+        gap: 0.9rem;
+    }
+
+    .docf-status-card {
+        border-radius: 18px;
+        padding: 1rem;
+        background: linear-gradient(135deg, #102038 0%, #17304c 70%, #1d3d60 100%);
+        border: 1px solid rgba(137, 164, 201, 0.2);
+        box-shadow: 0 20px 44px rgba(4, 12, 19, 0.18);
+        color: #f8fbfc;
+    }
+
+    .docf-status-card.is-highlighted {
+        border-color: rgba(96, 165, 250, 0.55);
+        box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.16), 0 20px 44px rgba(4, 12, 19, 0.18);
+    }
+
+    .docf-status-card.warning {
+        border-color: rgba(245, 158, 11, 0.28);
+    }
+
+    .docf-status-card.danger {
+        border-color: rgba(248, 113, 113, 0.3);
+    }
+
+    .docf-status-card.success {
+        border-color: rgba(74, 222, 128, 0.28);
+    }
+
+    .docf-status-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.8rem;
+        align-items: flex-start;
+        margin-bottom: 0.8rem;
+    }
+
+    .docf-status-title {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 800;
+        color: #f8fbfc;
+    }
+
+    .docf-status-subtitle {
+        margin: 0.25rem 0 0;
+        color: rgba(188, 205, 230, 0.76);
+        font-size: 0.84rem;
+    }
+
+    .docf-status-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-bottom: 0.8rem;
+    }
+
+    .docf-status-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 0.75rem;
+        margin-bottom: 0.8rem;
+    }
+
+    .docf-status-cell {
+        border-radius: 14px;
+        padding: 0.8rem 0.9rem;
+        background: rgba(4, 11, 16, 0.32);
+        border: 1px solid rgba(145, 177, 168, 0.12);
+    }
+
+    .docf-status-cell strong {
+        display: block;
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.07em;
+        color: rgba(177, 198, 228, 0.74);
+        margin-bottom: 0.25rem;
+    }
+
+    .docf-status-cell span {
+        color: #f8fbfc;
+        font-weight: 700;
+    }
+
+    .docf-problem-list {
+        display: grid;
+        gap: 0.45rem;
+        margin: 0;
+        padding-left: 1rem;
+        color: #f8fbfc;
+    }
+
+    .docf-search-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.42rem 0.7rem;
+        border-radius: 999px;
+        font-size: 0.75rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+    }
+
+    .docf-search-status.processavel {
+        background: rgba(34, 197, 94, 0.14);
+        color: #bbf7d0;
+    }
+
+    .docf-search-status.pendente {
+        background: rgba(250, 204, 21, 0.14);
+        color: #fde68a;
+    }
+
+    .docf-search-status.erro {
+        background: rgba(239, 68, 68, 0.14);
+        color: #fecaca;
+    }
+
+    .docf-search-status.historico {
+        background: rgba(96, 165, 250, 0.14);
+        color: #bfdbfe;
     }
 
     .docf-badge {
@@ -359,6 +585,12 @@
         background: linear-gradient(135deg, rgba(250, 204, 21, 0.12) 0%, rgba(161, 98, 7, 0.08) 100%);
         border-color: rgba(245, 158, 11, 0.18);
         color: #fde68a;
+    }
+
+    .docf-panel.danger {
+        background: linear-gradient(135deg, rgba(239, 68, 68, 0.14) 0%, rgba(127, 29, 29, 0.1) 100%);
+        border-color: rgba(248, 113, 113, 0.22);
+        color: #fecaca;
     }
 
     .docf-form label,
@@ -674,41 +906,169 @@
 {% endblock %}
 
 {% block content %}
+{% set active_tab = operational_dashboard.active_tab %}
+{% set selected_operational = operational_dashboard.selected_document %}
+{% macro nf_tab_url(tab_name, nota_value=None) -%}
+{{ url_for(
+    'nf.nf_index',
+    aba=tab_name,
+    nota=nota_value or None,
+    periodo_inicio=period_dashboard.filters.data_inicio.isoformat(),
+    periodo_fim=period_dashboard.filters.data_fim.isoformat(),
+    periodo_fornecedor=period_dashboard.filters.fornecedor_id or None,
+    periodo_tipo=period_dashboard.filters.tipo_documento,
+) }}
+{%- endmacro %}
+{% macro render_operational_card(documento) -%}
+<article class="docf-status-card {{ documento.status_badge_class }}{% if documento.is_search_match %} is-highlighted{% endif %}">
+    <div class="docf-status-head">
+        <div>
+            <h3 class="docf-status-title">{{ documento.tipo_documento|default('DOC', true)|upper }} {{ documento.lookup_numero or 'Sem número' }}</h3>
+            <p class="docf-status-subtitle">{{ documento.fornecedor_nome or 'Fornecedor não identificado' }}</p>
+        </div>
+        <span class="docf-badge">{{ documento.status_label }}</span>
+    </div>
+
+    <div class="docf-status-meta">
+        <span class="docf-chip">{{ documento.operational_items|length }} itens</span>
+        <span class="docf-chip">{{ documento.pending_count }} pendentes</span>
+        <span class="docf-chip">{{ documento.processed_count }} processados</span>
+        {% if documento.data_referencia %}
+        <span class="docf-chip">{{ documento.data_referencia.strftime('%d/%m/%Y') }}</span>
+        {% endif %}
+    </div>
+
+    <div class="docf-status-grid">
+        <div class="docf-status-cell">
+            <strong>Valor</strong>
+            <span>{{ documento.total_valor|default(0, true)|currency_br }}</span>
+        </div>
+        <div class="docf-status-cell">
+            <strong>Quantidade</strong>
+            <span>{{ documento.total_quantidade|number_br(2, True) }}</span>
+        </div>
+        <div class="docf-status-cell">
+            <strong>Recebimento</strong>
+            <span>{{ documento.data_recebimento.strftime('%d/%m/%Y') if documento.data_recebimento else 'Não informado' }}</span>
+        </div>
+        <div class="docf-status-cell">
+            <strong>Integração</strong>
+            <span>{{ documento.status_integracao|default('manual', true)|replace('_', ' ')|title }}</span>
+        </div>
+    </div>
+
+    {% if documento.missing_reasons %}
+    <div class="docf-panel warning mb-3">
+        <div class="docf-kicker">Pendências detectadas</div>
+        <ul class="docf-problem-list mb-0">
+            {% for reason in documento.missing_reasons %}
+            <li>{{ reason|capitalize }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    {% if documento.error_messages %}
+    <div class="docf-panel danger mb-3">
+        <div class="docf-kicker">Erros operacionais</div>
+        <ul class="docf-problem-list mb-0">
+            {% for message in documento.error_messages %}
+            <li>{{ message }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap">
+        <div class="docf-muted small">
+            {% if documento.is_search_match %}
+            Documento encontrado pela busca global.
+            {% else %}
+            Abra o documento para revisar dados fiscais, itens e processamento.
+            {% endif %}
+        </div>
+        <a class="docf-btn-primary" href="{{ nf_tab_url(documento.status_key, documento.lookup_numero) }}{% if documento.id_documento %}#documento-editar-{{ documento.id_documento }}{% endif %}">{{ documento.action_label }}</a>
+    </div>
+</article>
+{%- endmacro %}
 <div class="docf-shell-wrap">
     <div class="docf-header">
         <div>
             <h1 class="docf-title">Documentos Fiscais</h1>
-            <p class="docf-subtitle">Containers pretos, cards azulados no padrão do sistema e foco total na documentação fiscal sem incorporar estoque automaticamente.</p>
+            <p class="docf-subtitle">Painel operacional por estado documental. Registro, triagem, correção e histórico ficam separados para reduzir ruído na rotina.</p>
         </div>
         <div class="docf-header-actions">
             <button class="docf-help-toggle" id="docf-help-toggle" type="button">
                 <i class="bi bi-question-circle"></i>
                 <span>Ajuda por campo</span>
             </button>
-            <span class="docf-badge"><i class="bi bi-receipt-cutoff"></i> Modo documental ativo</span>
+            <span class="docf-badge"><i class="bi bi-receipt-cutoff"></i> Hub documental ativo</span>
         </div>
     </div>
 
+    <section class="docf-card docf-search-topbar">
+        <div class="docf-card-header">
+            <div>
+                <div class="docf-kicker">Busca global</div>
+                <h2 class="docf-card-title">Localizar documento e abrir na aba correta</h2>
+            </div>
+            {% if selected_operational %}
+            <span class="docf-badge">{{ selected_operational.status_label }}</span>
+            {% endif %}
+        </div>
+        <form method="get" class="row g-3 align-items-end docf-search-form">
+            <input type="hidden" name="periodo_inicio" value="{{ period_dashboard.filters.data_inicio.isoformat() }}">
+            <input type="hidden" name="periodo_fim" value="{{ period_dashboard.filters.data_fim.isoformat() }}">
+            <input type="hidden" name="periodo_fornecedor" value="{{ period_dashboard.filters.fornecedor_id or '' }}">
+            <input type="hidden" name="periodo_tipo" value="{{ period_dashboard.filters.tipo_documento }}">
+            <div class="col-lg-7">
+                <label class="form-label" for="nota">Número da NF / cupom / controle</label>
+                <input class="form-control" id="nota" name="nota" value="{{ nota_busca }}" placeholder="Digite o número exato do documento">
+            </div>
+            <div class="col-lg-3 d-grid">
+                <button class="docf-btn-primary" type="submit" data-help-label="Buscar documento" data-help-text="Localiza um documento já registrado e abre a aba operacional correspondente.">Buscar documento</button>
+            </div>
+            <div class="col-lg-2 d-grid">
+                <a class="docf-btn-secondary" href="{{ nf_tab_url(active_tab) }}">Limpar busca</a>
+            </div>
+        </form>
+        {% if nota_busca and not nota_detalhes %}
+        <div class="docf-panel warning mt-3 mb-0">
+            Documento fiscal "{{ nota_busca }}" não encontrado.
+        </div>
+        {% elif selected_operational %}
+        <div class="docf-panel info mt-3 mb-0 d-flex justify-content-between align-items-center gap-3 flex-wrap">
+            <div>
+                <strong>{{ selected_operational.tipo_documento|default('DOC', true)|upper }} {{ selected_operational.lookup_numero }}</strong>
+                <div class="docf-muted small">{{ selected_operational.fornecedor_nome or 'Fornecedor não identificado' }} • {{ selected_operational.operational_items|length }} itens • {{ selected_operational.status_label }}</div>
+            </div>
+            {% if selected_operational.status_key == 'historico' %}
+            <a class="docf-btn-secondary" href="{{ nf_tab_url('historico', selected_operational.lookup_numero) }}#controle-periodo">Ir para histórico</a>
+            {% endif %}
+        </div>
+        {% endif %}
+    </section>
+
     <div class="docf-kpis">
+        <div class="docf-kpi">
+            <div class="docf-kpi-label">Processáveis</div>
+            <div class="docf-kpi-value">{{ operational_dashboard.counts.processaveis }}</div>
+        </div>
+        <div class="docf-kpi">
+            <div class="docf-kpi-label">Pendências</div>
+            <div class="docf-kpi-value">{{ operational_dashboard.counts.pendencias }}</div>
+        </div>
+        <div class="docf-kpi">
+            <div class="docf-kpi-label">Erros</div>
+            <div class="docf-kpi-value">{{ operational_dashboard.counts.erros }}</div>
+        </div>
+        <div class="docf-kpi">
+            <div class="docf-kpi-label">Histórico</div>
+            <div class="docf-kpi-value">{{ operational_dashboard.counts.historico }}</div>
+        </div>
         <div class="docf-kpi">
             <div class="docf-kpi-label">Período filtrado</div>
             <div class="docf-kpi-value">{{ period_dashboard.kpis.documentos }}</div>
-        </div>
-        <div class="docf-kpi">
-            <div class="docf-kpi-label">Valor no período</div>
-            <div class="docf-kpi-value">{{ period_dashboard.kpis.valor|currency_br }}</div>
-        </div>
-        <div class="docf-kpi">
-            <div class="docf-kpi-label">Quantidade comprada</div>
-            <div class="docf-kpi-value">{{ period_dashboard.kpis.quantidade|number_br(2, True) }}</div>
-        </div>
-        <div class="docf-kpi">
-            <div class="docf-kpi-label">Cupons no período</div>
-            <div class="docf-kpi-value">{{ period_dashboard.kpis.cupom }}</div>
-        </div>
-        <div class="docf-kpi">
-            <div class="docf-kpi-label">Sem NF / Manual</div>
-            <div class="docf-kpi-value">{{ period_dashboard.kpis.manual }}</div>
         </div>
         <div class="docf-kpi">
             <div class="docf-kpi-label">Permissão</div>
@@ -716,181 +1076,73 @@
         </div>
     </div>
 
-    <section class="docf-card mb-3" id="controle-periodo">
-        <div class="docf-card-header">
-            <div>
-                <div class="docf-kicker">Controle por período</div>
-                <h2 class="docf-card-title">Fechamento operacional de compras</h2>
-            </div>
-            {% if period_dashboard.active_closure %}
-            <span class="docf-badge">Período fechado</span>
-            {% else %}
-            <span class="docf-badge">Janela em análise</span>
-            {% endif %}
-        </div>
+    <div class="docf-main-surface">
+        <nav class="nav docf-state-tabs">
+            <a class="nav-link {% if active_tab == 'registro' %}active{% endif %}" href="{{ nf_tab_url('registro', nota_busca or None) }}">Registro</a>
+            <a class="nav-link {% if active_tab == 'processaveis' %}active{% endif %}" href="{{ nf_tab_url('processaveis', nota_busca or None) }}">Processáveis <span class="badge">{{ operational_dashboard.counts.processaveis }}</span></a>
+            <a class="nav-link {% if active_tab == 'pendencias' %}active{% endif %}" href="{{ nf_tab_url('pendencias', nota_busca or None) }}">Pendências <span class="badge">{{ operational_dashboard.counts.pendencias }}</span></a>
+            <a class="nav-link {% if active_tab == 'erros' %}active{% endif %}" href="{{ nf_tab_url('erros', nota_busca or None) }}">Erros <span class="badge">{{ operational_dashboard.counts.erros }}</span></a>
+            <a class="nav-link {% if active_tab == 'historico' %}active{% endif %}" href="{{ nf_tab_url('historico', nota_busca or None) }}">Histórico <span class="badge">{{ operational_dashboard.counts.historico }}</span></a>
+        </nav>
 
-        <div class="docf-period-grid">
-            <div class="docf-panel">
-                <form method="get" class="row g-3 docf-search-form">
-                    <div class="col-md-6">
-                        <label class="form-label" for="periodo_inicio">A partir de</label>
-                        <input class="form-control" id="periodo_inicio" name="periodo_inicio" type="date" value="{{ period_dashboard.filters.data_inicio.isoformat() }}">
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label" for="periodo_fim">Até</label>
-                        <input class="form-control" id="periodo_fim" name="periodo_fim" type="date" value="{{ period_dashboard.filters.data_fim.isoformat() }}">
-                    </div>
-                    <div class="col-md-7">
-                        <label class="form-label" for="periodo_fornecedor">Fornecedor</label>
-                        <select class="form-select" id="periodo_fornecedor" name="periodo_fornecedor">
-                            <option value="">Todos os fornecedores</option>
-                            {% for supplier in preferred_suppliers %}
-                            <option value="{{ supplier.id }}" {% if period_dashboard.filters.fornecedor_id == supplier.id %}selected{% endif %}>{{ supplier.nome_exibicao }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="col-md-5">
-                        <label class="form-label" for="periodo_tipo">Tipo</label>
-                        <select class="form-select" id="periodo_tipo" name="periodo_tipo">
-                            <option value="todos" {% if period_dashboard.filters.tipo_documento == 'todos' %}selected{% endif %}>Todos</option>
-                            <option value="nf" {% if period_dashboard.filters.tipo_documento == 'nf' %}selected{% endif %}>NF</option>
-                            <option value="cupom" {% if period_dashboard.filters.tipo_documento == 'cupom' %}selected{% endif %}>Cupom</option>
-                            <option value="manual" {% if period_dashboard.filters.tipo_documento == 'manual' %}selected{% endif %}>Sem NF</option>
-                            <option value="recibo" {% if period_dashboard.filters.tipo_documento == 'recibo' %}selected{% endif %}>Recibo</option>
-                        </select>
-                    </div>
-                    <div class="col-12 d-flex gap-2 flex-wrap">
-                        <button class="docf-btn-secondary" type="submit" data-help-label="Aplicar período" data-help-text="Atualiza os indicadores e a lista de documentos conforme os filtros escolhidos.">Aplicar período</button>
-                        <a class="docf-btn-secondary" href="{{ url_for('nf.nf_index') }}#controle-periodo" data-help-label="Limpar filtros" data-help-text="Remove os filtros do período e retorna para a visão padrão da página.">Limpar</a>
-                    </div>
-                </form>
-            </div>
-
-            <div class="docf-panel info">
-                <div class="docf-kicker">Resumo da janela</div>
-                <p class="mb-2">Controle atual de <strong>{{ period_dashboard.filters.data_inicio.strftime('%d/%m/%Y') }}</strong> até <strong>{{ period_dashboard.filters.data_fim.strftime('%d/%m/%Y') }}</strong>{% if period_dashboard.filters.fornecedor_id %} com fornecedor filtrado{% endif %}.</p>
-                <div class="docf-closure-meta">
-                    <span class="docf-chip">{{ period_dashboard.kpis.documentos }} documentos</span>
-                    <span class="docf-chip">{{ period_dashboard.kpis.cupom }} cupons</span>
-                    <span class="docf-chip">{{ period_dashboard.kpis.nf }} NFs</span>
-                    <span class="docf-chip">{{ period_dashboard.kpis.manual }} sem NF</span>
-                    {% if period_dashboard.active_closure %}
-                    <span class="docf-chip success">Fechado por {{ period_dashboard.active_closure.fechado_por }}</span>
-                    {% else %}
-                    <span class="docf-chip warning">Ainda não fechado</span>
-                    {% endif %}
-                </div>
-                {% if can_manage %}
-                <form method="post" action="{{ url_for('nf.fechar_periodo_compras') }}" class="mt-3 docf-form">
-                    <input type="hidden" name="periodo_inicio" value="{{ period_dashboard.filters.data_inicio.isoformat() }}">
-                    <input type="hidden" name="periodo_fim" value="{{ period_dashboard.filters.data_fim.isoformat() }}">
-                    <input type="hidden" name="periodo_fornecedor" value="{{ period_dashboard.filters.fornecedor_id or '' }}">
-                    <input type="hidden" name="periodo_tipo" value="{{ period_dashboard.filters.tipo_documento }}">
-                    <label class="form-label" for="observacao_fechamento">Observação do fechamento</label>
-                    <input class="form-control mb-2" id="observacao_fechamento" name="observacao_fechamento" placeholder="Ex.: ciclo balcão até dia 26, conferido com compras do período.">
-                    <button class="docf-btn-primary w-100" type="submit" data-help-label="Fechar período atual" data-help-text="Consolida a janela atual de compras para conferência e rastreabilidade documental.">Fechar período atual</button>
-                </form>
-                {% endif %}
-            </div>
-        </div>
-
-        <div class="docf-period-layout">
-            <div class="docf-table-wrap">
-                <table class="table docf-table mb-0">
-                    <thead>
-                        <tr>
-                            <th>Fornecedor</th>
-                            <th>Documentos</th>
-                            <th>Itens</th>
-                            <th>Quantidade</th>
-                            <th>Valor</th>
-                            <th>Tipos</th>
-                            <th>Janela</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for row in period_dashboard.supplier_rows %}
-                        <tr>
-                            <td>
-                                <strong>{{ row.fornecedor_nome }}</strong>
-                                <div class="small docf-muted">{{ row.cnpj_emitente or 'CNPJ não informado' }}</div>
-                            </td>
-                            <td>{{ row.documentos }}</td>
-                            <td>{{ row.itens }}</td>
-                            <td>{{ row.quantidade|number_br(2, True) }}</td>
-                            <td>{{ row.valor|currency_br }}</td>
-                            <td>{{ row.tipos }}</td>
-                            <td>{{ row.primeira_data.strftime('%d/%m') }} até {{ row.ultima_data.strftime('%d/%m') }}</td>
-                        </tr>
-                        {% else %}
-                        <tr>
-                            <td colspan="7" class="text-center docf-muted">Nenhuma compra documental encontrada no período selecionado.</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-
-            <div class="docf-closure-list">
-                {% for closure in period_dashboard.closures %}
-                <div class="docf-closure-item">
-                    <div class="d-flex justify-content-between align-items-start gap-2">
-                        <div>
-                            <strong>{{ closure.fornecedor_nome or 'Todos os fornecedores' }}</strong>
-                            <div class="small docf-muted">{{ closure.data_inicio.strftime('%d/%m/%Y') }} até {{ closure.data_fim.strftime('%d/%m/%Y') }}</div>
-                        </div>
-                        <span class="docf-chip {% if closure.status == 'fechado' %}success{% else %}warning{% endif %}">{{ closure.status|replace('_', ' ')|title }}</span>
-                    </div>
-                    <div class="docf-closure-meta">
-                        <span class="docf-chip">{{ closure.total_documentos }} docs</span>
-                        <span class="docf-chip">{{ closure.total_itens }} itens</span>
-                        <span class="docf-chip">{{ closure.total_valor|currency_br }}</span>
-                        {% if closure.tipo_documento %}<span class="docf-chip">{{ closure.tipo_documento|upper }}</span>{% endif %}
-                    </div>
-                    {% if closure.observacao %}
-                    <div class="small docf-muted mt-2">{{ closure.observacao }}</div>
-                    {% endif %}
-                    {% if can_manage and closure.status == 'fechado' %}
-                    <form method="post" action="{{ url_for('nf.reabrir_periodo_compras', fechamento_id=closure.id) }}" class="mt-3">
-                        <button class="docf-btn-secondary w-100" type="submit" data-help-label="Reabrir período" data-help-text="Reabre um fechamento salvo para permitir nova revisão ou ajuste.">Reabrir período</button>
-                    </form>
-                    {% endif %}
-                </div>
-                {% else %}
-                <div class="docf-empty">Nenhum fechamento registrado ainda.</div>
-                {% endfor %}
-            </div>
-        </div>
-    </section>
-
-    <div class="docf-grid">
-        <div class="docf-stack">
+        {% if active_tab == 'registro' %}
+        <div class="docf-state-pane">
             {% if can_manage %}
             <section class="docf-card">
                 <div class="docf-card-header">
                     <div>
-                        <div class="docf-kicker">Registro</div>
-                        <h2 class="docf-card-title">Registrar documento fiscal</h2>
+                        <div class="docf-kicker">Fluxo de registro</div>
+                        <h2 class="docf-card-title">Cadastrar novo documento fiscal</h2>
                     </div>
-                    <span class="docf-badge">Sem entrada automática</span>
+                    <span class="docf-badge">Entrada vinculada por conferência</span>
+                </div>
+
+                <div class="docf-step-flow mb-3">
+                    <div class="docf-step">
+                        <div class="docf-step-header">
+                            <span class="docf-step-index">1</span>
+                            <div>
+                                <h3>Identifique o item e o tipo documental</h3>
+                                <p>Escolha o item existente ou cadastre um novo, depois defina se o comprovante é NF, cupom ou manual.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="docf-step">
+                        <div class="docf-step-header">
+                            <span class="docf-step-index">2</span>
+                            <div>
+                                <h3>Preencha fornecedor, datas e valores</h3>
+                                <p>O documento entra no radar operacional com o máximo de contexto para triagem posterior.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="docf-step">
+                        <div class="docf-step-header">
+                            <span class="docf-step-index">3</span>
+                            <div>
+                                <h3>Salve e acompanhe pelas abas</h3>
+                                <p>Depois do cadastro, o documento passa automaticamente para Processáveis, Pendências, Erros ou Histórico.</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="docf-panel info mb-3">
-                    A nota registrada aqui fica <strong>apenas documentada</strong>. O salvamento não gera entrada em estoque nem lançamento financeiro no almoxarifado.
+                    O cadastro permanece rastreável e a conferência operacional acontece nas abas seguintes, sem misturar histórico e triagem na mesma tela.
                 </div>
 
                 <div class="docf-mode-actions" id="doc-mode-actions">
                     <button class="docf-mode-btn is-active" type="button" data-doc-mode="nf" data-help-label="Modo lançar com NF" data-help-text="Use para documentos com nota fiscal, mantendo o registro fiscal completo.">
                         <strong>Lançar com NF</strong>
-                        <span>Documento completo com chave opcional e status fiscal forte.</span>
+                        <span>Documento completo com chave opcional e rastreabilidade forte.</span>
                     </button>
                     <button class="docf-mode-btn" type="button" data-doc-mode="cupom" data-help-label="Modo lançar com cupom" data-help-text="Use para compra com cupom ou comprovante simples, sem exigir chave de acesso.">
                         <strong>Lançar com cupom</strong>
-                        <span>Controle por CNPJ da loja, data e valores até o fechamento do período.</span>
+                        <span>Controle rápido de balcão com número do cupom, CNPJ e datas.</span>
                     </button>
                     <button class="docf-mode-btn" type="button" data-doc-mode="manual" data-help-label="Modo lançar sem NF" data-help-text="Use quando ainda não existe comprovante formal e você precisa manter a compra documentada.">
                         <strong>Lançar sem NF</strong>
-                        <span>Compra sem comprovação formal, mantida no radar para auditoria.</span>
+                        <span>Pendência documental controlada até regularização.</span>
                     </button>
                 </div>
 
@@ -900,6 +1152,7 @@
                 </div>
 
                 <form method="post" class="docf-form" id="nf-registration-form">
+                    <input type="hidden" name="active_tab" value="registro">
                     <div class="mb-3">
                         <label class="form-label" for="item_search">Item</label>
                         <div class="position-relative">
@@ -1074,34 +1327,42 @@
             </section>
             {% endif %}
         </div>
-
-        <div class="docf-stack">
+        {% elif active_tab in ['processaveis', 'pendencias', 'erros', 'historico'] %}
+        <div class="docf-state-pane">
             <section class="docf-card">
                 <div class="docf-card-header">
                     <div>
-                        <div class="docf-kicker">Consulta</div>
-                        <h2 class="docf-card-title">Buscar documento fiscal</h2>
+                        <div class="docf-kicker">Fila operacional</div>
+                        <h2 class="docf-card-title">
+                            {% if active_tab == 'processaveis' %}Documentos prontos para conferência{% elif active_tab == 'pendencias' %}Documentos com preenchimento incompleto{% elif active_tab == 'erros' %}Documentos com erro operacional{% else %}Histórico consolidado de documentos{% endif %}
+                        </h2>
                     </div>
-                    <span class="docf-badge">Localizar e revisar</span>
+                    <span class="docf-badge">{% if active_tab == 'historico' %}{{ notas|length }} documentos{% else %}{{ operational_dashboard.grouped[active_tab]|length }} documentos{% endif %}</span>
+                </div>
+                <div class="docf-panel info mb-0">
+                    {% if active_tab == 'processaveis' %}
+                    Aqui ficam os documentos completos e aptos para revisão e processamento.
+                    {% elif active_tab == 'pendencias' %}
+                    Aqui ficam os documentos que ainda exigem complemento de dados ou conferência básica.
+                    {% elif active_tab == 'erros' %}
+                    Aqui ficam os documentos que já registraram falhas operacionais nos itens vinculados.
+                    {% else %}
+                    Aqui ficam os documentos já processados e o fechamento por período, com detalhamento histórico quando um documento é selecionado.
+                    {% endif %}
+                </div>
+            </section>
+
+            {% if nota_detalhes and selected_operational and selected_operational.status_key == active_tab %}
+            <section class="docf-card">
+                <div class="docf-card-header">
+                    <div>
+                        <div class="docf-kicker">Documento em foco</div>
+                        <h2 class="docf-card-title">{{ nota_detalhes.tipo_documento|default('DOC', true)|upper }} {{ nota_detalhes.numero_documento|default(nota_detalhes.nota_fiscal, true) }}</h2>
+                    </div>
+                    <span class="docf-badge">{{ selected_operational.status_label }}</span>
                 </div>
 
-                <form method="get" class="row g-2 align-items-end docf-search-form">
-                    <div class="col-sm-8">
-                        <label class="form-label" for="nota">Número da NF</label>
-                        <input class="form-control" id="nota" name="nota" value="{{ nota_busca }}"
-                            placeholder="Digite o número exato">
-                    </div>
-                    <div class="col-sm-4 d-grid">
-                        <button class="docf-btn-secondary" type="submit" data-help-label="Buscar documento" data-help-text="Localiza um documento já registrado pelo número informado.">Buscar</button>
-                    </div>
-                </form>
-                {% if nota_busca and not nota_detalhes %}
-                <div class="docf-panel warning mt-3 mb-0">
-                    Documento fiscal "{{ nota_busca }}" não encontrado.
-                </div>
-                {% endif %}
-                {% if nota_detalhes %}
-                <div class="mt-3">
+                <div class="mt-1">
                     {% if nota_detalhes.status_integracao == 'aguardando_certificado' %}
                     <div class="docf-panel warning mb-3">
                         <strong>Pendência fiscal visível:</strong> esta NF foi registrada no sistema, mas a consulta automática pela chave está bloqueada até configurar o certificado digital.
@@ -1139,6 +1400,26 @@
                         <div class="docf-detail-box"><span class="docf-detail-label">Qtd. total</span><span class="docf-detail-value">{{ nota_detalhes.total_quantidade|number_br(2, True) }}</span></div>
                         <div class="docf-detail-box"><span class="docf-detail-label">Valor total</span><span class="docf-detail-value">{{ nota_detalhes.total_valor|default(0, true)|currency_br }}</span></div>
                     </div>
+                    {% if selected_operational.missing_reasons %}
+                    <div class="docf-panel warning mt-3">
+                        <div class="docf-kicker">Pendências documentais</div>
+                        <ul class="docf-problem-list mb-0">
+                            {% for reason in selected_operational.missing_reasons %}
+                            <li>{{ reason|capitalize }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                    {% if selected_operational.error_messages %}
+                    <div class="docf-panel danger mt-3">
+                        <div class="docf-kicker">Erros encontrados</div>
+                        <ul class="docf-problem-list mb-0">
+                            {% for message in selected_operational.error_messages %}
+                            <li>{{ message }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
                     {% if nota_detalhes.mensagem_integracao %}
                     <div class="docf-panel warning mt-3 mb-0">
                         <strong>Consulta bloqueada:</strong> {{ nota_detalhes.mensagem_integracao }}
@@ -1156,11 +1437,51 @@
                         </form>
                     </div>
                     {% endif %}
+                </div>
+
+                {% if can_manage and nota_detalhes.id_documento is defined and nota_detalhes.id_documento is not none %}
+                <section class="docf-panel info mt-3">
+                    <div class="docf-kicker">Adicionar item</div>
+                    <form method="post" action="{{ url_for('nf.adicionar_item_documento', documento_id=nota_detalhes.id_documento) }}" class="docf-form" data-add-item-form>
+                        <input type="hidden" name="active_tab" value="{{ active_tab }}">
+                        <div class="row g-3 align-items-end">
+                            <div class="col-lg-3">
+                                <label class="form-label" for="nota-detalhe-add-busca-{{ nota_detalhes.id_documento }}">Item</label>
+                                <div class="position-relative">
+                                    <input class="form-control" id="nota-detalhe-add-busca-{{ nota_detalhes.id_documento }}" type="text" autocomplete="off" placeholder="Digite código ou descrição" data-add-item-search required>
+                                    <input type="hidden" id="nota-detalhe-add-codigo-{{ nota_detalhes.id_documento }}" name="codigo_item" data-add-item-code required>
+                                    <div class="list-group position-absolute w-100 shadow d-none" data-add-item-results style="z-index: 60;"></div>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label" for="nota-detalhe-add-quantidade-{{ nota_detalhes.id_documento }}">Quantidade</label>
+                                <input class="form-control" id="nota-detalhe-add-quantidade-{{ nota_detalhes.id_documento }}" name="quantidade" type="number" min="0.01" step="0.01" required>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label" for="nota-detalhe-add-unitario-{{ nota_detalhes.id_documento }}">Valor unitário</label>
+                                <input class="form-control" id="nota-detalhe-add-unitario-{{ nota_detalhes.id_documento }}" name="valor_unitario" type="number" min="0" step="0.01">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label" for="nota-detalhe-add-total-{{ nota_detalhes.id_documento }}">Valor total</label>
+                                <input class="form-control" id="nota-detalhe-add-total-{{ nota_detalhes.id_documento }}" name="valor_total" type="number" min="0" step="0.01">
+                            </div>
+                            <div class="col-lg-3">
+                                <label class="form-label" for="nota-detalhe-add-obs-{{ nota_detalhes.id_documento }}">Observação</label>
+                                <input class="form-control" id="nota-detalhe-add-obs-{{ nota_detalhes.id_documento }}" name="observacao" placeholder="Opcional">
+                            </div>
+                            <div class="col-12 d-flex justify-content-end">
+                                <button class="docf-btn-secondary" type="submit" data-help-label="Adicionar item" data-help-text="Inclui um item adicional nesta NF. Se ele já existir, a quantidade será somada.">Adicionar item</button>
+                            </div>
+                        </div>
+                    </form>
+                </section>
+
                     {% if can_manage and nota_detalhes.id_documento is defined and nota_detalhes.id_documento is not none %}
                     <section class="docf-panel info mt-3" id="documento-editar-{{ nota_detalhes.id_documento }}">
                         <div class="docf-kicker">Edição completa</div>
                         <h4 class="mb-3">Atualizar documento e itens</h4>
                         <form method="post" action="{{ url_for('nf.editar_documento', documento_id=nota_detalhes.id_documento) }}" class="docf-form">
+                            <input type="hidden" name="active_tab" value="{{ active_tab }}">
                             <div class="row g-3">
                                 <div class="col-md-4">
                                     <label class="form-label" for="nota-detalhe-numero">Número do documento</label>
@@ -1205,49 +1526,19 @@
                             <div class="docf-panel mt-3 mb-3">
                                 <div class="docf-kicker">Itens da NF</div>
                                 <p class="docf-muted mb-3">Preencha quantidade e valor unitário dos itens. Quando a NF tiver datas, chave de acesso e valores, o sistema promove automaticamente os materiais vinculados de sem comprovação para compra com NF.</p>
-                                <div class="docf-panel mb-3">
-                                    <div class="docf-kicker">Adicionar item a esta NF</div>
-                                    <form method="post" action="{{ url_for('nf.adicionar_item_documento', documento_id=nota_detalhes.id_documento) }}" class="docf-form" data-add-item-form>
-                                        <div class="row g-3 align-items-end">
-                                            <div class="col-lg-3">
-                                                <label class="form-label" for="nota-detalhe-add-busca-{{ nota_detalhes.id_documento }}">Item</label>
-                                                <div class="position-relative">
-                                                    <input class="form-control" id="nota-detalhe-add-busca-{{ nota_detalhes.id_documento }}" type="text" autocomplete="off" placeholder="Digite código ou descrição" data-add-item-search required>
-                                                    <input type="hidden" id="nota-detalhe-add-codigo-{{ nota_detalhes.id_documento }}" name="codigo_item" data-add-item-code required>
-                                                    <div class="list-group position-absolute w-100 shadow d-none" data-add-item-results style="z-index: 60;"></div>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-2">
-                                                <label class="form-label" for="nota-detalhe-add-quantidade-{{ nota_detalhes.id_documento }}">Quantidade</label>
-                                                <input class="form-control" id="nota-detalhe-add-quantidade-{{ nota_detalhes.id_documento }}" name="quantidade" type="number" min="0.01" step="0.01" required>
-                                            </div>
-                                            <div class="col-md-2">
-                                                <label class="form-label" for="nota-detalhe-add-unitario-{{ nota_detalhes.id_documento }}">Valor unitário</label>
-                                                <input class="form-control" id="nota-detalhe-add-unitario-{{ nota_detalhes.id_documento }}" name="valor_unitario" type="number" min="0" step="0.01">
-                                            </div>
-                                            <div class="col-md-2">
-                                                <label class="form-label" for="nota-detalhe-add-total-{{ nota_detalhes.id_documento }}">Valor total</label>
-                                                <input class="form-control" id="nota-detalhe-add-total-{{ nota_detalhes.id_documento }}" name="valor_total" type="number" min="0" step="0.01">
-                                            </div>
-                                            <div class="col-lg-3">
-                                                <label class="form-label" for="nota-detalhe-add-obs-{{ nota_detalhes.id_documento }}">Observação</label>
-                                                <input class="form-control" id="nota-detalhe-add-obs-{{ nota_detalhes.id_documento }}" name="observacao" placeholder="Opcional">
-                                            </div>
-                                            <div class="col-12 d-flex justify-content-end">
-                                                <button class="docf-btn-secondary" type="submit" data-help-label="Adicionar item" data-help-text="Inclui um item adicional nesta NF. Se ele já existir, a quantidade será somada.">Adicionar item</button>
-                                            </div>
-                                        </div>
-                                    </form>
-                                </div>
                                 {% for item in nota_detalhes.itens %}
                                 <div class="row g-3 align-items-end mb-3">
                                     <div class="col-lg-3">
                                         <label class="form-label">Item</label>
                                         <input class="form-control" value="{{ item.codigo }} — {{ item.descricao }}" readonly>
+                                                    <small class="form-text">
+                                                        Status de estoque: <strong>{{ item.status_processamento|default('pendente', true)|replace('_', ' ')|title }}</strong>
+                                                        {% if item.erro_processamento %}<br>{{ item.erro_processamento }}{% endif %}
+                                                    </small>
                                     </div>
                                     <div class="col-md-2">
                                         <label class="form-label" for="nota-detalhe-quantidade-{{ item.id }}">Quantidade</label>
-                                        <input class="form-control" id="nota-detalhe-quantidade-{{ item.id }}" name="item_quantidade_{{ item.id }}" type="number" min="0.01" step="0.01" value="{{ item.quantidade|default(0, true) }}" required>
+                                        <input class="form-control" id="nota-detalhe-quantidade-{{ item.id }}" name="item_quantidade_{{ item.id }}" type="number" min="0.01" step="0.01" value="{{ item.quantidade|default(0, true) }}" {% if item.status_processamento == 'processado' %}readonly{% else %}required{% endif %}>
                                     </div>
                                     <div class="col-md-2">
                                         <label class="form-label" for="nota-detalhe-unitario-{{ item.id }}">Valor unitário</label>
@@ -1269,261 +1560,82 @@
                         </form>
                     </section>
                     {% endif %}
-                    <div class="docf-table-wrap">
-                        <table class="table docf-table mb-0">
-                            <thead>
-                                <tr>
-                                    <th>Código</th>
-                                    <th>Descrição</th>
-                                    <th>Quantidade</th>
-                                    <th>Valor un.</th>
-                                    <th>Valor total</th>
-                                    {% if can_manage and nota_detalhes.id_documento is defined and nota_detalhes.id_documento is not none %}<th class="text-end">Ações</th>{% endif %}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for item in nota_detalhes.itens %}
-                                <tr>
-                                    <td>{{ item.codigo }}</td>
-                                    <td>{{ item.descricao }}</td>
-                                    <td>{{ item.quantidade|number_br(2, True) }}</td>
-                                    <td>{% if item.valor_unitario is defined and item.valor_unitario is not none %}{{ item.valor_unitario|currency_br }}{% else %}-{% endif %}</td>
-                                    <td>{% if item.valor_total is defined and item.valor_total is not none %}{{ item.valor_total|currency_br }}{% else %}-{% endif %}</td>
-                                    {% if can_manage and nota_detalhes.id_documento is defined and nota_detalhes.id_documento is not none and item.id is defined and item.id is not none %}
-                                    <td class="text-end">
-                                        <form method="post" action="{{ url_for('nf.excluir_item_documento', documento_id=nota_detalhes.id_documento, documento_item_id=item.id) }}" onsubmit="return confirm('Excluir este item do documento fiscal?');">
-                                            <button class="docf-btn-danger" type="submit">Excluir</button>
-                                        </form>
-                                    </td>
-                                    {% endif %}
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
                 {% endif %}
-            </section>
 
+                <div class="docf-table-wrap mt-3">
+                    <table class="table docf-table mb-0">
+                        <thead>
+                            <tr>
+                                <th>Código</th>
+                                <th>Descrição</th>
+                                <th>Quantidade</th>
+                                <th>Valor un.</th>
+                                <th>Valor total</th>
+                                {% if can_manage and nota_detalhes.id_documento is defined and nota_detalhes.id_documento is not none %}<th class="text-end">Ações</th>{% endif %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in nota_detalhes.itens %}
+                            <tr>
+                                <td>{{ item.codigo }}</td>
+                                <td>
+                                    {{ item.descricao }}
+                                    <div class="small text-muted">{{ item.status_processamento|default('pendente', true)|replace('_', ' ')|title }}</div>
+                                </td>
+                                <td>{{ item.quantidade|number_br(2, True) }}</td>
+                                <td>{% if item.valor_unitario is defined and item.valor_unitario is not none %}{{ item.valor_unitario|currency_br }}{% else %}-{% endif %}</td>
+                                <td>{% if item.valor_total is defined and item.valor_total is not none %}{{ item.valor_total|currency_br }}{% else %}-{% endif %}</td>
+                                {% if can_manage and nota_detalhes.id_documento is defined and nota_detalhes.id_documento is not none and item.id is defined and item.id is not none %}
+                                <td class="text-end">
+                                    <form method="post" action="{{ url_for('nf.excluir_item_documento', documento_id=nota_detalhes.id_documento, documento_item_id=item.id) }}" onsubmit="return confirm('Excluir este item do documento fiscal?');">
+                                        <input type="hidden" name="active_tab" value="{{ active_tab }}">
+                                        <button class="docf-btn-danger" type="submit" {% if item.status_processamento == 'processado' %}disabled title="Item já incorporado ao estoque"{% endif %}>Excluir</button>
+                                    </form>
+                                </td>
+                                {% endif %}
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+            {% endif %}
+
+            {% if active_tab == 'historico' %}
+            {% include 'nf/_history_tab.html' %}
+            {% else %}
             <section class="docf-card">
                 <div class="docf-card-header">
                     <div>
-                        <div class="docf-kicker">Histórico</div>
-                        <h2 class="docf-card-title">Documentos fiscais registrados recentemente</h2>
-                    </div>
-                    <span class="docf-badge">{{ notas|length }} registros</span>
-                </div>
-                {% if notas %}
-                <div class="accordion docf-accordion" id="nf-accordion">
-                    {% for nota in notas %}
-                    {% set collapse_id = 'nota-' ~ loop.index %}
-                    <div class="accordion-item">
-                        <h2 class="accordion-header" id="heading-{{ collapse_id }}">
-                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
-                                data-bs-target="#collapse-{{ collapse_id }}" aria-expanded="false"
-                                aria-controls="collapse-{{ collapse_id }}">
-                                <span class="me-3">{{ nota.tipo_documento|default('DOC', true)|upper }} {{ nota.numero_documento|default(nota.nota_fiscal, true) }}</span>
-                                {% if nota.status_integracao == 'aguardando_certificado' %}
-                                <span class="docf-badge me-2">Pendência</span>
-                                {% endif %}
-                                <small class="docf-muted">{{ nota.total_itens|number_br }} itens &bull; {{ nota.total_quantidade|number_br(2, True) }} unidades{% if nota.fornecedor_nome|default(None, true) %} &bull; {{ nota.fornecedor_nome }}{% endif %}</small>
-                            </button>
+                        <div class="docf-kicker">Documentos na fila</div>
+                        <h2 class="docf-card-title">
+                            {% if active_tab == 'processaveis' %}Prontos para ação{% elif active_tab == 'pendencias' %}Precisam de complemento{% else %}Precisam de correção{% endif %}
                         </h2>
-                        <div id="collapse-{{ collapse_id }}" class="accordion-collapse collapse"
-                            aria-labelledby="heading-{{ collapse_id }}" data-bs-parent="#nf-accordion">
-                            <div class="accordion-body">
-                                {% if nota.status_integracao == 'aguardando_certificado' %}
-                                <div class="docf-panel warning mb-3">
-                                    <strong>Pendência fiscal visível:</strong> consulta automática bloqueada até o certificado digital ficar disponível.
-                                </div>
-                                {% endif %}
-                                <p class="mb-3 small docf-muted">
-                                    Registrada em {{ nota.data|format_local('%d/%m/%Y %H:%M') if nota.data else 'data não
-                                    informada' }}
-                                    {% if nota.usuarios %} por {{ nota.usuarios|join(', ') }}{% endif %}.
-                                </p>
-                                <div class="docf-detail-grid">
-                                    <div class="docf-detail-box"><span class="docf-detail-label">Fornecedor</span><span class="docf-detail-value">{{ nota.fornecedor_nome|default('Não informado', true) }}</span></div>
-                                    <div class="docf-detail-box"><span class="docf-detail-label">CNPJ</span><span class="docf-detail-value">{{ nota.cnpj_emitente|default('Não informado', true) }}</span></div>
-                                    <div class="docf-detail-box"><span class="docf-detail-label">Emissão</span><span class="docf-detail-value">{{ nota.data_emissao.strftime('%d/%m/%Y') if nota.data_emissao|default(None, true) else '—' }}</span></div>
-                                    <div class="docf-detail-box"><span class="docf-detail-label">Status</span><span class="docf-detail-value">{{ nota.status_integracao|default('manual', true)|replace('_', ' ')|title }}</span></div>
-                                    <div class="docf-detail-box"><span class="docf-detail-label">Valor</span><span class="docf-detail-value">{{ nota.total_valor|default(0, true)|currency_br }}</span></div>
-                                </div>
-                                {% if can_manage and nota.id_documento is defined and nota.id_documento is not none %}
-                                <div class="mt-3">
-                                    <a class="docf-btn-secondary" href="#documento-editar-{{ nota.id_documento }}" data-help-label="Editar este documento" data-help-text="Abre a área de edição completa do documento histórico selecionado.">Editar este documento</a>
-                                </div>
-                                {% elif can_manage and nota.nota_fiscal|default('', true) %}
-                                <div class="mt-3">
-                                    <form method="post" action="{{ url_for('nf.converter_documento_legado') }}" class="d-inline">
-                                        <input type="hidden" name="nota_fiscal" value="{{ nota.nota_fiscal }}">
-                                        <button class="docf-btn-secondary" type="submit" data-help-label="Converter para edição" data-help-text="Cria uma versão editável do documento legado, preservando o histórico original.">Converter para edição</button>
-                                    </form>
-                                </div>
-                                {% endif %}
-                                {% if nota.mensagem_integracao %}
-                                <div class="docf-panel warning mt-3">
-                                    <strong>Consulta bloqueada:</strong> {{ nota.mensagem_integracao }}
-                                </div>
-                                {% endif %}
-                                {% if can_manage and (nota.id_documento is not defined or nota.id_documento is none) and nota.nota_fiscal|default('', true) %}
-                                <div class="docf-panel info mt-3">
-                                    Este DOC veio do histórico legado. A conversão abaixo cria um documento fiscal editável com os mesmos itens e mantém as entradas originais intactas.
-                                </div>
-                                {% endif %}
-                                {% if can_manage and nota.id_documento is defined and nota.id_documento is not none %}
-                                <section class="docf-panel info mt-3" id="documento-editar-{{ nota.id_documento }}">
-                                    <div class="docf-kicker">Edição completa</div>
-                                    <h4 class="mb-3">Atualizar documento e itens</h4>
-                                    <form method="post" action="{{ url_for('nf.editar_documento', documento_id=nota.id_documento) }}" class="docf-form">
-                                        <div class="row g-3">
-                                            <div class="col-md-4">
-                                                <label class="form-label" for="nota-historico-numero-{{ collapse_id }}">Número do documento</label>
-                                                <input class="form-control" id="nota-historico-numero-{{ collapse_id }}" name="numero_documento" value="{{ nota.numero_documento|default('', true) }}" required>
-                                            </div>
-                                            <div class="col-md-4">
-                                                <label class="form-label" for="nota-historico-tipo-{{ collapse_id }}">Tipo</label>
-                                                <select class="form-select" id="nota-historico-tipo-{{ collapse_id }}" name="tipo_documento">
-                                                    <option value="nf" {% if nota.tipo_documento == 'nf' %}selected{% endif %}>Nota fiscal</option>
-                                                    <option value="cupom" {% if nota.tipo_documento == 'cupom' %}selected{% endif %}>Cupom não fiscal</option>
-                                                    <option value="recibo" {% if nota.tipo_documento == 'recibo' %}selected{% endif %}>Recibo</option>
-                                                    <option value="manual" {% if nota.tipo_documento == 'manual' %}selected{% endif %}>Manual</option>
-                                                </select>
-                                            </div>
-                                            <div class="col-md-4">
-                                                <label class="form-label" for="nota-historico-cnpj-{{ collapse_id }}">CNPJ</label>
-                                                <input class="form-control" id="nota-historico-cnpj-{{ collapse_id }}" name="supplier_cnpj" value="{{ nota.cnpj_emitente|default('', true) }}">
-                                            </div>
-                                            <div class="col-md-6">
-                                                <label class="form-label" for="nota-historico-fornecedor-{{ collapse_id }}">Fornecedor</label>
-                                                <input class="form-control" id="nota-historico-fornecedor-{{ collapse_id }}" name="supplier_name" value="{{ nota.fornecedor_nome|default('', true) }}">
-                                                <input type="hidden" name="finance_supplier_id" value="{{ nota.fornecedor_id|default('', true) }}">
-                                            </div>
-                                            <div class="col-md-3">
-                                                <label class="form-label" for="nota-historico-emissao-{{ collapse_id }}">Emissão</label>
-                                                <input class="form-control" id="nota-historico-emissao-{{ collapse_id }}" name="data_emissao" type="date" value="{{ nota.data_emissao.isoformat() if nota.data_emissao|default(None, true) else '' }}">
-                                            </div>
-                                            <div class="col-md-3">
-                                                <label class="form-label" for="nota-historico-recebimento-{{ collapse_id }}">Recebimento</label>
-                                                <input class="form-control" id="nota-historico-recebimento-{{ collapse_id }}" name="data_recebimento" type="date" value="{{ nota.data_recebimento.isoformat() if nota.data_recebimento|default(None, true) else '' }}">
-                                            </div>
-                                            <div class="col-12" data-chave-acesso-group>
-                                                <label class="form-label" for="nota-historico-chave-{{ collapse_id }}">Chave de acesso</label>
-                                                <input class="form-control" id="nota-historico-chave-{{ collapse_id }}" name="chave_acesso" value="{{ nota.chave_acesso|default('', true) }}" placeholder="44 dígitos da NF-e / NFC-e">
-                                            </div>
-                                            <div class="col-12">
-                                                <label class="form-label" for="nota-historico-observacao-{{ collapse_id }}">Observação</label>
-                                                <textarea class="form-control" id="nota-historico-observacao-{{ collapse_id }}" name="finance_observacao" rows="2">{{ nota.observacao|default('', true) }}</textarea>
-                                            </div>
-                                        </div>
-
-                                        <div class="docf-panel mt-3 mb-3">
-                                            <div class="docf-kicker">Itens da NF</div>
-                                            <p class="docf-muted mb-3">Ao preencher valores, datas e chave da NF, o GALINT atualiza automaticamente os materiais vinculados para compra com NF.</p>
-                                            <div class="docf-panel mb-3">
-                                                <div class="docf-kicker">Adicionar item a esta NF</div>
-                                                <form method="post" action="{{ url_for('nf.adicionar_item_documento', documento_id=nota.id_documento) }}" class="docf-form" data-add-item-form>
-                                                    <div class="row g-3 align-items-end">
-                                                        <div class="col-lg-3">
-                                                            <label class="form-label" for="nota-historico-add-busca-{{ collapse_id }}">Item</label>
-                                                            <div class="position-relative">
-                                                                <input class="form-control" id="nota-historico-add-busca-{{ collapse_id }}" type="text" autocomplete="off" placeholder="Digite código ou descrição" data-add-item-search required>
-                                                                <input type="hidden" id="nota-historico-add-codigo-{{ collapse_id }}" name="codigo_item" data-add-item-code required>
-                                                                <div class="list-group position-absolute w-100 shadow d-none" data-add-item-results style="z-index: 60;"></div>
-                                                            </div>
-                                                        </div>
-                                                        <div class="col-md-2">
-                                                            <label class="form-label" for="nota-historico-add-quantidade-{{ collapse_id }}">Quantidade</label>
-                                                            <input class="form-control" id="nota-historico-add-quantidade-{{ collapse_id }}" name="quantidade" type="number" min="0.01" step="0.01" required>
-                                                        </div>
-                                                        <div class="col-md-2">
-                                                            <label class="form-label" for="nota-historico-add-unitario-{{ collapse_id }}">Valor unitário</label>
-                                                            <input class="form-control" id="nota-historico-add-unitario-{{ collapse_id }}" name="valor_unitario" type="number" min="0" step="0.01">
-                                                        </div>
-                                                        <div class="col-md-2">
-                                                            <label class="form-label" for="nota-historico-add-total-{{ collapse_id }}">Valor total</label>
-                                                            <input class="form-control" id="nota-historico-add-total-{{ collapse_id }}" name="valor_total" type="number" min="0" step="0.01">
-                                                        </div>
-                                                        <div class="col-lg-3">
-                                                            <label class="form-label" for="nota-historico-add-obs-{{ collapse_id }}">Observação</label>
-                                                            <input class="form-control" id="nota-historico-add-obs-{{ collapse_id }}" name="observacao" placeholder="Opcional">
-                                                        </div>
-                                                        <div class="col-12 d-flex justify-content-end">
-                                                            <button class="docf-btn-secondary" type="submit" data-help-label="Adicionar item" data-help-text="Inclui um novo item neste documento histórico. Se o código já existir, a quantidade será somada.">Adicionar item</button>
-                                                        </div>
-                                                    </div>
-                                                </form>
-                                            </div>
-                                            {% for item in nota.itens %}
-                                            <div class="row g-3 align-items-end mb-3">
-                                                <div class="col-lg-3">
-                                                    <label class="form-label">Item</label>
-                                                    <input class="form-control" value="{{ item.codigo }} — {{ item.descricao }}" readonly>
-                                                </div>
-                                                <div class="col-md-2">
-                                                    <label class="form-label" for="nota-historico-quantidade-{{ collapse_id }}-{{ item.id }}">Quantidade</label>
-                                                    <input class="form-control" id="nota-historico-quantidade-{{ collapse_id }}-{{ item.id }}" name="item_quantidade_{{ item.id }}" type="number" min="0.01" step="0.01" value="{{ item.quantidade|default(0, true) }}" required>
-                                                </div>
-                                                <div class="col-md-2">
-                                                    <label class="form-label" for="nota-historico-unitario-{{ collapse_id }}-{{ item.id }}">Valor unitário</label>
-                                                    <input class="form-control" id="nota-historico-unitario-{{ collapse_id }}-{{ item.id }}" name="item_valor_unitario_{{ item.id }}" type="number" min="0" step="0.01" value="{{ item.valor_unitario if item.valor_unitario is not none else '' }}">
-                                                </div>
-                                                <div class="col-md-2">
-                                                    <label class="form-label" for="nota-historico-total-{{ collapse_id }}-{{ item.id }}">Valor total</label>
-                                                    <input class="form-control" id="nota-historico-total-{{ collapse_id }}-{{ item.id }}" name="item_valor_total_{{ item.id }}" type="number" min="0" step="0.01" value="{{ item.valor_total if item.valor_total is not none else '' }}">
-                                                </div>
-                                                <div class="col-lg-3">
-                                                    <label class="form-label" for="nota-historico-obs-{{ collapse_id }}-{{ item.id }}">Observação do item</label>
-                                                    <input class="form-control" id="nota-historico-obs-{{ collapse_id }}-{{ item.id }}" name="item_observacao_{{ item.id }}" value="{{ item.observacao|default('', true) }}">
-                                                </div>
-                                            </div>
-                                            {% endfor %}
-                                        </div>
-
-                                        <button class="docf-btn-primary" type="submit" data-help-label="Salvar alterações desta NF" data-help-text="Salva as correções do documento histórico e seus itens.">Salvar alterações desta NF</button>
-                                    </form>
-                                </section>
-                                {% endif %}
-                                <div class="docf-table-wrap">
-                                    <table class="table docf-table mb-0">
-                                        <thead>
-                                            <tr>
-                                                <th>Código</th>
-                                                <th>Descrição</th>
-                                                <th>Quantidade</th>
-                                                <th>Valor un.</th>
-                                                {% if can_manage and nota.id_documento is defined and nota.id_documento is not none %}<th class="text-end">Ações</th>{% endif %}
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {% for item in nota.itens %}
-                                            <tr>
-                                                <td>{{ item.codigo }}</td>
-                                                <td>{{ item.descricao }}</td>
-                                                <td>{{ item.quantidade|number_br(2, True) }}</td>
-                                                <td>{% if item.valor_unitario is defined and item.valor_unitario is not none %}{{ item.valor_unitario|currency_br }}{% else %}-{% endif %}</td>
-                                                {% if can_manage and nota.id_documento is defined and nota.id_documento is not none and item.id is defined and item.id is not none %}
-                                                <td class="text-end">
-                                                    <form method="post" action="{{ url_for('nf.excluir_item_documento', documento_id=nota.id_documento, documento_item_id=item.id) }}" onsubmit="return confirm('Excluir este item do documento fiscal?');">
-                                                        <button class="docf-btn-danger" type="submit">Excluir</button>
-                                                    </form>
-                                                </td>
-                                                {% endif %}
-                                            </tr>
-                                            {% endfor %}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
                     </div>
+                    <span class="docf-badge">{{ operational_dashboard.grouped[active_tab]|length }} documentos</span>
+                </div>
+
+                {% if operational_dashboard.grouped[active_tab] %}
+                <div class="docf-status-list">
+                    {% for documento in operational_dashboard.grouped[active_tab] %}
+                    {{ render_operational_card(documento) }}
                     {% endfor %}
                 </div>
                 {% else %}
-                <div class="docf-empty">Nenhum documento fiscal registrado.</div>
+                <div class="docf-empty">
+                    {% if active_tab == 'processaveis' %}
+                    Nenhum documento pronto para operação.
+                    {% elif active_tab == 'pendencias' %}
+                    Nenhuma pendência documental no momento.
+                    {% else %}
+                    Nenhum documento com erro operacional.
+                    {% endif %}
+                </div>
                 {% endif %}
             </section>
+            {% endif %}
         </div>
+        {% endif %}
     </div>
 </div>
 <div class="docf-help-toast" id="docf-help-toast" aria-hidden="true">

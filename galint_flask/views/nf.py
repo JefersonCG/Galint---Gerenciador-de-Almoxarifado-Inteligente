@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from datetime import date, datetime
+from typing import Any
 
 from flask import Blueprint, abort, current_app, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
@@ -42,6 +43,8 @@ DEFAULT_DOCUMENT_UNIT_OPTIONS = [
     "Par",
     "Peça",
 ]
+
+VALID_OPERATIONAL_TABS = {"registro", "processaveis", "pendencias", "erros", "historico"}
 
 
 def _parse_iso_date(raw_value: str | None, *, fallback: date | None = None) -> date | None:
@@ -217,8 +220,28 @@ def _sync_document_financial_entries(documento: DocumentoEntradaEstoque) -> dict
             .first()
         )
         if ledger_entry is None:
-            skipped += 1
-            continue
+            ledger_entry = finance_service.register_financial_entry(
+                codigo_item=item_row.codigo_item,
+                categoria_nome=item_row.item.categoria if item_row.item and item_row.item.categoria else "Sem categoria",
+                quantidade=quantidade,
+                valor_unitario=valor_unitario,
+                valor_total=valor_total,
+                data_lancamento=documento.data_recebimento or documento.data_emissao or datetime.utcnow(),
+                fornecedor_id=documento.fornecedor_id,
+                entrada_id=item_row.entrada_id,
+                usuario_matricula=current_user.id,
+                origem_valor=auto_origin or "compra_documento",
+                tipo_documento=documento.tipo_documento,
+                numero_documento=documento.numero_documento,
+                chave_acesso=documento.chave_acesso,
+                data_emissao_documento=documento.data_emissao,
+                data_recebimento_documento=documento.data_recebimento,
+                comprovacao_status="comprovado" if auto_confirmed and auto_origin else "sem_comprovacao",
+                observacao=item_row.observacao or documento.observacao,
+            )
+            if ledger_entry is None:
+                skipped += 1
+                continue
 
         ledger_entry.fornecedor_id = documento.fornecedor_id
         ledger_entry.usuario_matricula = current_user.id
@@ -362,6 +385,245 @@ def _build_document_unit_options() -> list[str]:
             seen.add(normalized)
             options.append(normalized)
     return options
+
+def _document_lookup_number(documento: dict[str, Any]) -> str:
+    return str(documento.get("numero_documento") or documento.get("nota_fiscal") or "").strip()
+
+def _document_supplier_name(documento: dict[str, Any]) -> str:
+    return str(documento.get("fornecedor_nome") or "").strip()
+
+def _document_type_value(documento: dict[str, Any]) -> str:
+    return (str(documento.get("tipo_documento") or "manual").strip().lower() or "manual")
+
+def _item_has_valid_quantity(item: dict[str, Any]) -> bool:
+    try:
+        return float(item.get("quantidade") or 0) > 0
+    except (TypeError, ValueError):
+        return False
+
+def _normalize_operational_items(documento: dict[str, Any]) -> list[dict[str, Any]]:
+    items = list(documento.get("itens") or [])
+    is_legacy_document = documento.get("id_documento") in (None, "") and bool(documento.get("nota_fiscal"))
+    document_date = documento.get("data")
+    normalized: list[dict[str, Any]] = []
+
+    for item in items:
+        status_processamento = (str(item.get("status_processamento") or "").strip().lower() or None)
+        erro_processamento = (str(item.get("erro_processamento") or "").strip() or None)
+        processado_em = item.get("processado_em")
+        has_legacy_entry = is_legacy_document and item.get("id") not in (None, "")
+        is_processed = bool(processado_em) or status_processamento == "processado" or has_legacy_entry
+
+        normalized.append(
+            {
+                **item,
+                "status_processamento": status_processamento or ("processado" if is_processed else "pendente"),
+                "erro_processamento": erro_processamento,
+                "processado_em": processado_em or (document_date.isoformat() if has_legacy_entry and hasattr(document_date, "isoformat") else None),
+                "quantidade_valida": _item_has_valid_quantity(item),
+                "is_processed": is_processed,
+                "has_error": bool(erro_processamento),
+            }
+        )
+
+    return normalized
+
+def _document_is_complete_for_operations(documento: dict[str, Any]) -> bool:
+    numero_documento = _document_lookup_number(documento)
+    fornecedor_nome = _document_supplier_name(documento)
+    tipo_documento = _document_type_value(documento)
+    items = documento.get("operational_items") or []
+
+    return bool(
+        numero_documento
+        and fornecedor_nome
+        and tipo_documento
+        and items
+        and all(item.get("quantidade_valida") for item in items)
+        and not any(item.get("has_error") for item in items)
+    )
+
+def _document_missing_reasons(documento: dict[str, Any]) -> list[str]:
+    reasons: list[str] = []
+    if not _document_lookup_number(documento):
+        reasons.append("sem número de documento")
+    if not _document_supplier_name(documento):
+        reasons.append("sem fornecedor identificado")
+    if not _document_type_value(documento):
+        reasons.append("sem tipo documental")
+
+    items = documento.get("operational_items") or []
+    if not items:
+        reasons.append("sem item vinculado")
+    elif not all(item.get("quantidade_valida") for item in items):
+        reasons.append("há item com quantidade inválida")
+
+    if any(item.get("has_error") for item in items):
+        reasons.append("há item com erro operacional")
+
+    if not reasons and any(not item.get("is_processed") for item in items):
+        reasons.append("aguardando conferência operacional")
+    return reasons
+
+def _resolve_document_status(documento: dict[str, Any]) -> str:
+    items = documento.get("operational_items") or []
+    if any(item.get("has_error") for item in items):
+        return "erros"
+    if items and all(item.get("processado_em") for item in items):
+        return "historico"
+    if _document_is_complete_for_operations(documento) and any(not item.get("is_processed") for item in items):
+        return "processaveis"
+    return "pendencias"
+
+def _document_status_meta(status_key: str) -> dict[str, str]:
+    mapping = {
+        "processaveis": {
+            "label": "Processável",
+            "badge_class": "success",
+            "action_label": "Abrir / Processar",
+            "empty_title": "Nenhum documento pronto para operação.",
+        },
+        "pendencias": {
+            "label": "Pendente",
+            "badge_class": "warning",
+            "action_label": "Completar",
+            "empty_title": "Nenhuma pendência documental no momento.",
+        },
+        "erros": {
+            "label": "Erro",
+            "badge_class": "danger",
+            "action_label": "Corrigir",
+            "empty_title": "Nenhum documento com erro operacional.",
+        },
+        "historico": {
+            "label": "Histórico",
+            "badge_class": "muted",
+            "action_label": "Revisar",
+            "empty_title": "Nenhum documento processado disponível.",
+        },
+    }
+    return mapping[status_key]
+
+def _build_operational_document(documento: dict[str, Any], *, is_search_match: bool = False) -> dict[str, Any]:
+    normalized_items = _normalize_operational_items(documento)
+    numero_documento = _document_lookup_number(documento)
+    status_key = _resolve_document_status({**documento, "operational_items": normalized_items})
+    status_meta = _document_status_meta(status_key)
+    error_messages = [str(item.get("erro_processamento") or "").strip() for item in normalized_items if item.get("erro_processamento")]
+    pending_count = sum(1 for item in normalized_items if not item.get("is_processed"))
+    processed_count = sum(1 for item in normalized_items if item.get("is_processed"))
+    data_referencia = documento.get("data_recebimento") or documento.get("data_emissao") or documento.get("data")
+
+    return {
+        **documento,
+        "lookup_numero": numero_documento,
+        "tipo_documento": _document_type_value(documento),
+        "fornecedor_nome": _document_supplier_name(documento),
+        "operational_items": normalized_items,
+        "status_key": status_key,
+        "status_label": status_meta["label"],
+        "status_badge_class": status_meta["badge_class"],
+        "action_label": status_meta["action_label"],
+        "empty_title": status_meta["empty_title"],
+        "pending_count": pending_count,
+        "processed_count": processed_count,
+        "is_complete": _document_is_complete_for_operations({**documento, "operational_items": normalized_items}),
+        "missing_reasons": _document_missing_reasons({**documento, "operational_items": normalized_items}),
+        "error_messages": [message for message in error_messages if message],
+        "data_referencia": data_referencia,
+        "is_search_match": is_search_match,
+    }
+
+def _build_operational_dashboard(*, notas: list[dict[str, Any]], nota_detalhes: dict[str, Any] | None, nota_busca: str) -> dict[str, Any]:
+    documents: list[dict[str, Any]] = []
+    by_number: dict[str, dict[str, Any]] = {}
+
+    for nota in notas:
+        document = _build_operational_document(nota)
+        numero_documento = document["lookup_numero"]
+        if numero_documento:
+            by_number[numero_documento] = document
+        documents.append(document)
+
+    selected_document: dict[str, Any] | None = None
+    numero_busca = (nota_busca or "").strip()
+    if numero_busca and nota_detalhes:
+        lookup_numero = _document_lookup_number(nota_detalhes)
+        selected_document = by_number.get(lookup_numero)
+        if selected_document is None:
+            selected_document = _build_operational_document(nota_detalhes, is_search_match=True)
+            if lookup_numero:
+                by_number[lookup_numero] = selected_document
+            documents.insert(0, selected_document)
+        else:
+            selected_document["is_search_match"] = True
+
+    documents.sort(
+        key=lambda document: (
+            0 if document.get("is_search_match") else 1,
+            -(document.get("data_referencia").timestamp() if hasattr(document.get("data_referencia"), "timestamp") else 0),
+            str(document.get("lookup_numero") or ""),
+        )
+    )
+
+    grouped: dict[str, list[dict[str, Any]]] = {
+        "processaveis": [],
+        "pendencias": [],
+        "erros": [],
+        "historico": [],
+    }
+    for document in documents:
+        grouped[document["status_key"]].append(document)
+
+    active_tab = (request.args.get("aba") or "").strip().lower()
+    if active_tab not in {"registro", "processaveis", "pendencias", "erros", "historico"}:
+        active_tab = selected_document["status_key"] if selected_document else "registro"
+
+    counts = {
+        "total": len(documents),
+        "processaveis": len(grouped["processaveis"]),
+        "pendencias": len(grouped["pendencias"]),
+        "erros": len(grouped["erros"]),
+        "historico": len(grouped["historico"]),
+    }
+
+    return {
+        "documents": documents,
+        "grouped": grouped,
+        "counts": counts,
+        "selected_document": selected_document,
+        "active_tab": active_tab,
+    }
+
+
+def _requested_operational_tab() -> str | None:
+    tab_value = (request.form.get("active_tab") or request.args.get("aba") or "").strip().lower()
+    return tab_value if tab_value in VALID_OPERATIONAL_TABS else None
+
+
+def _resolve_document_tab(numero_documento: str | None, fallback: str = "registro") -> str:
+    numero = (numero_documento or "").strip()
+    if not numero:
+        return fallback
+
+    nota_detalhes = inventory_service.get_nota_fiscal(numero)
+    if not nota_detalhes:
+        return fallback
+
+    operational_document = _build_operational_document(nota_detalhes, is_search_match=True)
+    return operational_document.get("status_key") or fallback
+
+
+def _redirect_to_nf_context(
+    *,
+    numero_documento: str | None = None,
+    anchor: str | None = None,
+    fallback_tab: str = "registro",
+) -> str:
+    requested_tab = _requested_operational_tab()
+    active_tab = requested_tab or _resolve_document_tab(numero_documento, fallback=fallback_tab)
+    base_url = url_for("nf.nf_index", nota=(numero_documento or None), aba=active_tab)
+    return f"{base_url}#{anchor}" if anchor else base_url
 
 
 def _serialize_period_closure(fechar: CompraPeriodoFechamento) -> dict[str, object]:
@@ -522,6 +784,11 @@ def nf_index():
         period_dashboard=period_dashboard,
         document_category_options=_build_document_category_options(),
         document_unit_options=_build_document_unit_options(),
+        operational_dashboard=_build_operational_dashboard(
+            notas=notas,
+            nota_detalhes=nota_detalhes,
+            nota_busca=nota_busca,
+        ),
     )
 
 
@@ -616,15 +883,26 @@ def registrar_nf():
             document_only=True,
         )
         document_item = document_result.get("document_item")
-        linked_entry_id = getattr(document_item, "entrada_id", None)
-        if linked_entry_id is not None:
-            document_item.entrada_id = None
-            _purge_linked_entry(linked_entry_id)
-            db.session.commit()
-        flash("Nota fiscal registrada apenas como documento. Estoque e financeiro não foram incorporados ao sistema.", "success")
+        documento = document_result.get("document")
+        sync_result = _sync_document_financial_entries(documento)
+        process_result = finance_service.process_stock_document_entries(
+            documento.id_documento,
+            usuario_matricula=current_user.id,
+        )
+        if process_result["errors"]:
+            flash("Documento registrado, mas houve falhas ao incorporar alguns itens no estoque.", "warning")
+        else:
+            flash("Documento fiscal registrado e incorporado ao estoque documental.", "success")
+        if sync_result["updated"]:
+            flash(f"{sync_result['updated']} lançamento(s) financeiro(s) sincronizado(s) com o documento.", "info")
     except ValueError as exc:
         flash(str(exc), "danger")
-    return redirect(url_for("nf.nf_index"))
+    numero_redirect = None
+    try:
+        numero_redirect = documento.numero_documento if documento else None
+    except UnboundLocalError:
+        numero_redirect = nota or None
+    return redirect(_redirect_to_nf_context(numero_documento=numero_redirect, fallback_tab="registro"))
 
 
 @blueprint.post("/fechamentos")
@@ -656,6 +934,7 @@ def fechar_periodo_compras():
         return redirect(
             url_for(
                 "nf.nf_index",
+                aba="historico",
                 periodo_inicio=data_inicio.isoformat(),
                 periodo_fim=data_fim.isoformat(),
                 periodo_fornecedor=fornecedor_id or "",
@@ -691,7 +970,7 @@ def fechar_periodo_compras():
         "success",
     )
     return redirect(
-        f"{url_for('nf.nf_index', periodo_inicio=data_inicio.isoformat(), periodo_fim=data_fim.isoformat(), periodo_fornecedor=fornecedor_id or '', periodo_tipo=tipo_documento)}#controle-periodo"
+        f"{url_for('nf.nf_index', aba='historico', periodo_inicio=data_inicio.isoformat(), periodo_fim=data_fim.isoformat(), periodo_fornecedor=fornecedor_id or '', periodo_tipo=tipo_documento)}#controle-periodo"
     )
 
 
@@ -710,7 +989,7 @@ def reabrir_periodo_compras(fechamento_id: int):
     db.session.commit()
     flash("Período reaberto para revisão.", "success")
     return redirect(
-        f"{url_for('nf.nf_index', periodo_inicio=fechamento.data_inicio.isoformat(), periodo_fim=fechamento.data_fim.isoformat(), periodo_fornecedor=fechamento.fornecedor_id or '', periodo_tipo=fechamento.tipo_documento or 'todos')}#controle-periodo"
+        f"{url_for('nf.nf_index', aba='historico', periodo_inicio=fechamento.data_inicio.isoformat(), periodo_fim=fechamento.data_fim.isoformat(), periodo_fornecedor=fechamento.fornecedor_id or '', periodo_tipo=fechamento.tipo_documento or 'todos')}#controle-periodo"
     )
 
 
@@ -734,11 +1013,17 @@ def converter_documento_legado():
             )
         else:
             flash(f"Documento fiscal {document.numero_documento} já estava convertido e pronto para edição.", "info")
-        return redirect(f"{url_for('nf.nf_index', nota=document.numero_documento)}#documento-editar-{document.id_documento}")
+        return redirect(
+            _redirect_to_nf_context(
+                numero_documento=document.numero_documento,
+                anchor=f"documento-editar-{document.id_documento}",
+                fallback_tab="pendencias",
+            )
+        )
     except ValueError as exc:
         db.session.rollback()
         flash(str(exc), "danger")
-        return redirect(url_for("nf.nf_index", nota=numero_documento))
+        return redirect(_redirect_to_nf_context(numero_documento=numero_documento, fallback_tab="historico"))
 
 
 @blueprint.post("/<int:documento_id>/editar")
@@ -818,6 +1103,14 @@ def editar_documento(documento_id: int):
             if quantidade is None or quantidade <= 0:
                 raise ValueError(f"Informe uma quantidade válida para o item {item_row.codigo_item}.")
 
+            if (
+                (item_row.status_processamento or "").strip().lower() == "processado"
+                and abs(float(quantidade) - float(item_row.quantidade or 0.0)) > 1e-6
+            ):
+                raise ValueError(
+                    f"O item {item_row.codigo_item} já foi incorporado ao estoque e não pode ter a quantidade alterada neste documento."
+                )
+
             item_row.quantidade = quantidade
             item_row.valor_unitario = valor_unitario
             if valor_unitario is not None:
@@ -828,6 +1121,10 @@ def editar_documento(documento_id: int):
 
         sync_result = _sync_document_financial_entries(documento)
         db.session.commit()
+        process_result = finance_service.process_stock_document_entries(
+            documento.id_documento,
+            usuario_matricula=current_user.id,
+        )
 
         if sync_result["auto_confirmed"]:
             flash(
@@ -839,6 +1136,10 @@ def editar_documento(documento_id: int):
                 "Documento fiscal atualizado. O vínculo financeiro foi sincronizado, mas a troca automática para compra com NF só ocorre após informar datas, chave de acesso e valores dos itens.",
                 "warning",
             )
+        if process_result["processed"]:
+            flash(f"{process_result['processed']} item(ns) pendente(s) foram incorporados ao estoque.", "info")
+        if process_result["errors"]:
+            flash("Nem todos os itens pendentes puderam ser incorporados ao estoque. Revise o documento para detalhes.", "warning")
         if sync_result["skipped"]:
             flash(
                 f"{sync_result['skipped']} item(ns) não tinham lançamento financeiro compatível para atualização automática.",
@@ -848,7 +1149,13 @@ def editar_documento(documento_id: int):
         db.session.rollback()
         flash(str(exc), "danger")
 
-    return redirect(f"{url_for('nf.nf_index', nota=documento.numero_documento)}#documento-editar-{documento.id_documento}")
+    return redirect(
+        _redirect_to_nf_context(
+            numero_documento=documento.numero_documento,
+            anchor=f"documento-editar-{documento.id_documento}",
+            fallback_tab="pendencias",
+        )
+    )
 
 
 @blueprint.post("/<int:documento_id>/itens/adicionar")
@@ -880,7 +1187,13 @@ def adicionar_item_documento(documento_id: int):
         elif valor_total is not None and quantidade > 0:
             valor_unitario = round(float(valor_total) / float(quantidade), 2)
 
-        existing_row = next((row for row in documento.itens if row.codigo_item == codigo_item), None)
+        existing_row = next(
+            (
+                row for row in documento.itens
+                if row.codigo_item == codigo_item and (row.status_processamento or "pendente").strip().lower() != "processado"
+            ),
+            None,
+        )
         if existing_row is not None:
             existing_row.quantidade = round(float(existing_row.quantidade or 0.0) + float(quantidade), 2)
             if valor_unitario is not None:
@@ -909,16 +1222,30 @@ def adicionar_item_documento(documento_id: int):
 
         sync_result = _sync_document_financial_entries(documento)
         db.session.commit()
+        process_result = finance_service.process_stock_document_entries(
+            documento.id_documento,
+            usuario_matricula=current_user.id,
+        )
         if sync_result["skipped"]:
             flash(
                 f"{sync_result['skipped']} item(ns) seguem sem lançamento financeiro compatível para sincronização automática.",
                 "info",
             )
+        if process_result["processed"]:
+            flash(f"{process_result['processed']} item(ns) foram incorporados ao estoque documental.", "info")
+        if process_result["errors"]:
+            flash("Falha ao incorporar um ou mais itens adicionados ao estoque. Revise o documento fiscal.", "warning")
     except ValueError as exc:
         db.session.rollback()
         flash(str(exc), "danger")
 
-    return redirect(f"{url_for('nf.nf_index', nota=documento.numero_documento)}#documento-editar-{documento.id_documento}")
+    return redirect(
+        _redirect_to_nf_context(
+            numero_documento=documento.numero_documento,
+            anchor=f"documento-editar-{documento.id_documento}",
+            fallback_tab="pendencias",
+        )
+    )
 
 
 @blueprint.post("/<int:documento_id>/itens/<int:documento_item_id>/excluir")
@@ -935,6 +1262,10 @@ def excluir_item_documento(documento_id: int, documento_item_id: int):
     numero_documento = documento.numero_documento
     codigo_item = item_row.codigo_item
 
+    if (item_row.status_processamento or "").strip().lower() == "processado":
+        flash("O item já foi incorporado ao estoque e não pode ser excluído deste documento fiscal.", "danger")
+        return redirect(_redirect_to_nf_context(numero_documento=numero_documento, fallback_tab="historico"))
+
     _purge_linked_entry(item_row.entrada_id)
     db.session.delete(item_row)
     db.session.flush()
@@ -950,4 +1281,4 @@ def excluir_item_documento(documento_id: int, documento_item_id: int):
 
     db.session.commit()
     flash(f"Item {codigo_item} removido do documento fiscal {numero_documento}.", "success")
-    return redirect(url_for("nf.nf_index", nota=numero_documento))
+    return redirect(_redirect_to_nf_context(numero_documento=numero_documento, fallback_tab="pendencias"))

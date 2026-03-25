@@ -414,6 +414,8 @@ class FinanceService:
                 {
                     "id": row.id_documento_item,
                     "entrada_id": row.entrada_id,
+                    "stock_movement_id": row.stock_movement_id,
+                    "operation_log_id": row.operation_log_id,
                     "codigo": row.codigo_item,
                     "descricao": row.item.descricao if row.item else "",
                     "quantidade": row.quantidade,
@@ -422,6 +424,9 @@ class FinanceService:
                     "lote": row.lote,
                     "data_validade": row.data_validade,
                     "observacao": row.observacao,
+                    "status_processamento": row.status_processamento,
+                    "processado_em": row.processado_em.isoformat() if row.processado_em else None,
+                    "erro_processamento": row.erro_processamento,
                 }
             )
 
@@ -564,9 +569,8 @@ class FinanceService:
                     continue
                 matching_rows += 1
                 quantity = float(row.quantidade or 0.0)
-                if row.entrada_id is None:
-                    documented_quantity += quantity
-                else:
+                documented_quantity += quantity
+                if row.entrada_id is not None or row.stock_movement_id is not None or (row.status_processamento or "").strip().lower() == "processado":
                     linked_quantity += quantity
 
         return {
@@ -737,6 +741,8 @@ class FinanceService:
             lote=(lote or "").strip() or None,
             data_validade=data_validade,
             observacao=(observacao or "").strip() or None,
+            status_processamento="processado" if linked_entry_id is not None else "pendente",
+            processado_em=datetime.utcnow() if linked_entry_id is not None else None,
         )
         db.session.add(item_row)
         db.session.commit()
@@ -753,6 +759,153 @@ class FinanceService:
             "document": document,
             "document_item": item_row,
             "supplier": supplier,
+        }
+
+    @staticmethod
+    def process_stock_document_item(
+        documento_item_id: int,
+        *,
+        usuario_matricula: str | None = None,
+    ) -> dict[str, Any]:
+        from .inventory_engine import inventory_engine
+        from .operation_log_service import operation_log_service
+
+        item_row = (
+            DocumentoEntradaEstoqueItem.query
+            .options(
+                joinedload(DocumentoEntradaEstoqueItem.item),
+                joinedload(DocumentoEntradaEstoqueItem.documento),
+            )
+            .filter(DocumentoEntradaEstoqueItem.id_documento_item == documento_item_id)
+            .first()
+        )
+        if item_row is None:
+            raise ValueError("Item do documento fiscal não encontrado.")
+
+        if item_row.stock_movement_id is not None or item_row.entrada_id is not None:
+            if (item_row.status_processamento or "").strip().lower() != "processado":
+                item_row.status_processamento = "processado"
+                item_row.processado_em = item_row.processado_em or datetime.utcnow()
+                item_row.erro_processamento = None
+                db.session.commit()
+            return {
+                "success": True,
+                "processed": False,
+                "skipped": True,
+                "reason": "already_processed",
+                "documento_item_id": item_row.id_documento_item,
+                "stock_movement_id": item_row.stock_movement_id,
+                "operation_log_id": item_row.operation_log_id,
+            }
+
+        if item_row.item is None:
+            raise ValueError("O item vinculado ao documento não existe mais no estoque.")
+
+        quantidade = float(item_row.quantidade or 0.0)
+        if quantidade <= 0:
+            raise ValueError("Quantidade documental inválida para processamento de estoque.")
+
+        documento = item_row.documento
+        from_unit = (item_row.item.unidade or "Unidade").strip() or "Unidade"
+        metadata = {
+            "source": "documento_fiscal",
+            "channel": "documento_fiscal",
+            "reference_type": "entrada_documento_item",
+            "reference_id": str(item_row.id_documento_item),
+            "documento_id": item_row.documento_id,
+            "documento_item_id": item_row.id_documento_item,
+            "numero_documento": documento.numero_documento if documento else None,
+            "tipo_documento": documento.tipo_documento if documento else None,
+            "user_id": usuario_matricula,
+            "matricula": usuario_matricula,
+            "observacao": item_row.observacao or (documento.observacao if documento else None),
+        }
+
+        try:
+            item_row.status_processamento = "processando"
+            item_row.erro_processamento = None
+            db.session.flush()
+
+            result = inventory_engine.register_entry(
+                product_id=item_row.codigo_item,
+                quantity=quantidade,
+                from_unit=from_unit,
+                metadata=metadata,
+                commit=False,
+                write_audit=True,
+            )
+
+            item_row.stock_movement_id = result.movement_id
+            item_row.operation_log_id = result.operation_log_id
+            item_row.status_processamento = "processado"
+            item_row.processado_em = datetime.utcnow()
+            item_row.erro_processamento = None
+            db.session.commit()
+
+            telegram_result = operation_log_service.notify_telegram(result.operation_log_id)
+            return {
+                "success": True,
+                "processed": True,
+                "skipped": False,
+                "documento_item_id": item_row.id_documento_item,
+                "stock_movement_id": result.movement_id,
+                "operation_log_id": result.operation_log_id,
+                "telegram": telegram_result,
+            }
+        except Exception as exc:
+            db.session.rollback()
+            failed_row = db.session.get(DocumentoEntradaEstoqueItem, documento_item_id)
+            if failed_row is not None:
+                failed_row.status_processamento = "erro"
+                failed_row.erro_processamento = str(exc)[:4000]
+                failed_row.processado_em = None
+                db.session.commit()
+            raise
+
+    @staticmethod
+    def process_stock_document_entries(
+        documento_id: int,
+        *,
+        usuario_matricula: str | None = None,
+        only_pending: bool = True,
+    ) -> dict[str, Any]:
+        documento = (
+            DocumentoEntradaEstoque.query
+            .options(joinedload(DocumentoEntradaEstoque.itens).joinedload(DocumentoEntradaEstoqueItem.item))
+            .filter(DocumentoEntradaEstoque.id_documento == documento_id)
+            .first()
+        )
+        if documento is None:
+            raise ValueError("Documento fiscal não encontrado.")
+
+        processed = 0
+        skipped = 0
+        errors = 0
+        messages: list[str] = []
+
+        for row in sorted(documento.itens, key=lambda item: item.id_documento_item):
+            status = (row.status_processamento or "pendente").strip().lower() or "pendente"
+            if only_pending and status == "processado":
+                skipped += 1
+                continue
+            try:
+                result = FinanceService.process_stock_document_item(
+                    row.id_documento_item,
+                    usuario_matricula=usuario_matricula,
+                )
+                if result.get("processed"):
+                    processed += 1
+                else:
+                    skipped += 1
+            except Exception as exc:
+                errors += 1
+                messages.append(f"{row.codigo_item}: {str(exc)}")
+
+        return {
+            "processed": processed,
+            "skipped": skipped,
+            "errors": errors,
+            "messages": messages,
         }
 
     @staticmethod
