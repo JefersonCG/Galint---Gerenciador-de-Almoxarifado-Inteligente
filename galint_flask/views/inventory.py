@@ -766,6 +766,8 @@ def create_item():
             raise ValueError("Código e descrição são obrigatórios")
         if saldo_desejado < 0:
             raise ValueError("Informe uma quantidade inicial válida")
+        if saldo_desejado > 0:
+            raise ValueError("A entrada inicial manual foi desativada. Cadastre o item com saldo zero e registre a entrada em Documentos Fiscais.")
 
         _validate_document_bridge_request(finance_payload)
 
@@ -807,33 +809,8 @@ def create_item():
         # Registrar entrada apenas se foi criação nova (não atualização)
         # Para atualizações, a entrada já foi registrada no service
         entrada_inicial = None
-        if not foi_atualizacao and saldo_desejado > 0:
-            # Registrar entrada com skip_notification=True pois enviaremos notificação unificada
-            entrada_inicial = inventory_service.registrar_entrada(
-                MovimentoPayload(
-                    codigo=codigo,
-                    quantidade=saldo_desejado,
-                    matricula=current_user.id,
-                    nota_fiscal=payload["nota_fiscal"],
-                    em_embalagens=em_embalagens,
-                ),
-                skip_notification=True  # Não enviar notificação separada de entrada
-            )
 
-        history_recorded = _sync_item_financial_history(
-            codigo=codigo,
-            categoria=str(payload.get("categoria") or "Sem categoria"),
-            quantidade=float(saldo_desejado if saldo_desejado > 0 else 0),
-            preco_compra_unitario=payload.get("preco_compra_unitario"),
-            data_lancamento=payload.get("data_entrada"),
-            usuario_id=current_user.id,
-            finance_payload=finance_payload,
-            entrada_id=getattr(entrada_inicial, "id_entrada", None),
-        )
-        if saldo_desejado > 0 and not history_recorded and (
-            finance_payload.get("supplier_id") or finance_payload.get("tipo_documento") or finance_payload.get("origem_valor")
-        ):
-            flash("Item salvo, mas o lançamento financeiro não foi registrado porque faltou valor de compra unitário.", "warning")
+        history_recorded = False
         
         # Notificar criação de item aos administradores (notificação UNIFICADA)
         try:
@@ -851,7 +828,7 @@ def create_item():
         numero_documento = str(finance_payload.get("numero_documento") or "").strip()
         if numero_documento and _is_admin(current_user):
             flash(
-                f"Documento fiscal {numero_documento} atualizado automaticamente e aberto para conferência.",
+                f"Item criado com saldo zero. Finalize a entrada pelo documento fiscal {numero_documento}.",
                 "info",
             )
             return redirect(url_for("nf.nf_index", nota=numero_documento, codigo=codigo))
@@ -1082,8 +1059,28 @@ def update_item(codigo: str):
         if saldo_desejado < 0:
             raise ValueError("Informe uma quantidade válida")
 
-        previous_internal_balance = float(prev_item.get("saldo") or 0.0)
+        if registrar_compra_edicao:
+            raise ValueError("A incorporação de novas compras pela edição do item foi desativada. Use Documentos Fiscais.")
+
+        current_packaged_balance = float(prev_item.get("estoque_embalagens") or 0.0)
+        current_loose_balance = float(prev_item.get("estoque_unidades_soltas") or 0.0)
+        current_total_balance = float(prev_item.get("saldo") or 0.0)
         effective_tipo_embalagem = tipo_novo if tipo_novo is not None else (prev_item.get("tipo_embalagem_novo") or None)
+
+        if effective_tipo_embalagem:
+            if abs(float(saldo_desejado) - current_packaged_balance) > 1e-6:
+                raise ValueError("O saldo do item não pode mais ser alterado pela edição. Use Documentos Fiscais para entradas e rotinas operacionais para saídas/devoluções.")
+            if saldo_unidades_soltas_raw:
+                try:
+                    saldo_unidades_soltas_informado = float(saldo_unidades_soltas_raw)
+                except ValueError:
+                    raise ValueError("Informe uma quantidade válida para unidades soltas")
+                if abs(saldo_unidades_soltas_informado - current_loose_balance) > 1e-6:
+                    raise ValueError("As unidades soltas não podem ser alteradas pela edição do item. Use Documentos Fiscais quando houver entrada de estoque.")
+        elif abs(float(saldo_desejado) - current_total_balance) > 1e-6:
+            raise ValueError("O saldo do item não pode mais ser alterado pela edição. Use Documentos Fiscais para entradas e rotinas operacionais para saídas/devoluções.")
+
+        previous_internal_balance = float(prev_item.get("saldo") or 0.0)
         effective_unidades_por_embalagem = unidades_var
         if effective_unidades_por_embalagem in (None, ""):
             try:
@@ -1105,11 +1102,7 @@ def update_item(codigo: str):
 
         purchase_delta = max(0.0, float(target_internal_balance) - previous_internal_balance)
 
-        if registrar_compra_edicao:
-            _validate_document_bridge_request(finance_payload)
-            if purchase_delta <= 0:
-                raise ValueError("Para registrar nova compra pela edição do item, aumente o saldo do estoque.")
-        elif finance_section_edit_authorized:
+        if finance_section_edit_authorized:
             comprovacao_status = str(finance_payload.get("comprovacao_status") or "sem_comprovacao").strip().lower()
             observacao_financeira = str(finance_payload.get("observacao") or "").strip()
             if comprovacao_status in {"sem_comprovacao", "parcial"} and not observacao_financeira:
@@ -1138,81 +1131,8 @@ def update_item(codigo: str):
 
         updated_codigo = inventory_service.update_item(codigo, payload)
 
-        if saldo_desejado >= 0:
-            from ..services.embalagem_service import EmbalagemService
-
-            item_atualizado = Item.query.get(updated_codigo)
-            if item_atualizado and EmbalagemService.tem_embalagem(item_atualizado):
-                saldo_embalagens_anterior = float(item_atualizado.estoque_embalagens or 0.0)
-                saldo_soltas_anterior = float(item_atualizado.estoque_unidades_soltas or 0.0)
-                saldo_embalagens = float(saldo_desejado)
-
-                # Unidades soltas são a parte "aberta" na grandeza interna:
-                # - lata/balde com litros: litros
-                # - lata/balde com kg: kg
-                # - rolo: metros
-                # - caixa/pacote: unidades
-                # Se o campo não veio no form, preserva o que já existe.
-                if saldo_unidades_soltas_raw == "":
-                    saldo_unidades_soltas = float(item_atualizado.estoque_unidades_soltas or 0.0)
-                else:
-                    try:
-                        saldo_unidades_soltas = float(saldo_unidades_soltas_raw)
-                    except ValueError:
-                        saldo_unidades_soltas = -1
-
-                if saldo_unidades_soltas < 0:
-                    raise ValueError("Informe uma quantidade válida para unidades soltas")
-
-                unidades_por_embalagem = float(item_atualizado.unidades_por_embalagem or 1)
-                novo_saldo_unidades = (saldo_embalagens * unidades_por_embalagem) + float(saldo_unidades_soltas)
-
-                # Para itens com embalagem, o saldo do formulário representa embalagens.
-                item_atualizado.estoque_embalagens = saldo_embalagens
-                item_atualizado.estoque_unidades_soltas = float(saldo_unidades_soltas)
-
-                descricao_evento = (
-                    f"Ajuste manual via edição do item (saldo em embalagens): de {saldo_embalagens_anterior:g} para {saldo_embalagens:g}"
-                )
-                if abs(saldo_soltas_anterior - float(saldo_unidades_soltas)) > 1e-9:
-                    descricao_evento += (
-                        f" | soltas: de {saldo_soltas_anterior:g} para {float(saldo_unidades_soltas):g}"
-                    )
-
-                inventory_service.adjust_item_balance(
-                    codigo=updated_codigo,
-                    novo_saldo=novo_saldo_unidades,
-                    matricula=current_user.id,
-                    nota_fiscal=payload.get("nota_fiscal"),
-                    descricao=descricao_evento,
-                )
-            else:
-                # Itens sem embalagem: saldo do form representa o saldo total na própria unidade.
-                inventory_service.adjust_item_balance(
-                    codigo=updated_codigo,
-                    novo_saldo=float(saldo_desejado),
-                    matricula=current_user.id,
-                    nota_fiscal=payload.get("nota_fiscal"),
-                    descricao="Ajuste manual via edição do item",
-                )
-
         history_recorded = False
-        if registrar_compra_edicao and purchase_delta > 0:
-            history_recorded = _sync_item_financial_history(
-                codigo=updated_codigo,
-                categoria=str(payload.get("categoria") or prev_item.get("categoria") or "Sem categoria"),
-                quantidade=float(purchase_delta),
-                preco_compra_unitario=payload.get("preco_compra_unitario"),
-                data_lancamento=payload.get("data_entrada"),
-                usuario_id=current_user.id,
-                finance_payload=finance_payload,
-                entrada_id=None,
-            )
-            if not history_recorded and (
-                finance_payload.get("supplier_id") or finance_payload.get("tipo_documento") or finance_payload.get("origem_valor")
-            ):
-                flash("Entrada registrada, mas o lançamento financeiro não foi gravado porque faltou valor de compra unitário.", "warning")
-        elif finance_section_edit_authorized:
+        if finance_section_edit_authorized:
             _sync_finance_section_snapshot(
                 codigo=updated_codigo,
                 categoria=str(payload.get("categoria") or prev_item.get("categoria") or "Sem categoria"),
@@ -1237,17 +1157,7 @@ def update_item(codigo: str):
                 TelegramService.notify_item_updated(updated_codigo, prev=prev_item, prev_balance=prev_balance)
             except Exception:
                 pass
-        if registrar_compra_edicao and purchase_delta > 0:
-            flash("Item atualizado e nova compra vinculada ao documento fiscal.", "success")
-            numero_documento = str(finance_payload.get("numero_documento") or "").strip()
-            if numero_documento and _is_admin(current_user):
-                flash(
-                    f"Documento fiscal {numero_documento} atualizado automaticamente e aberto para conferência.",
-                    "info",
-                )
-                return redirect(url_for("nf.nf_index", nota=numero_documento, codigo=updated_codigo))
-        else:
-            flash("Item atualizado com sucesso.", "success")
+        flash("Item atualizado com sucesso.", "success")
     except ValueError as exc:
         flash(str(exc), "danger")
         return redirect(url_for("inventory.edit_item_form", codigo=codigo))

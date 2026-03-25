@@ -797,9 +797,9 @@
                                 {% if tem_embalagem %}Saldo em embalagens{% else %}Saldo em estoque{% endif %}
                             </label>
                             <input class="form-control" id="saldo_atual" name="saldo_atual" type="number" min="0" step="1"
-                                value="{{ saldo_base|int }}">
+                                value="{{ saldo_base|int }}" readonly>
                             <small class="form-text">
-                                Ajustes geram eventos de inventário{% if tem_embalagem %} (este campo representa <strong>embalagens</strong>){% endif %}
+                                Saldo bloqueado para edição manual. Entradas devem ser registradas em <strong>Documentos Fiscais</strong>{% if tem_embalagem %} e este campo representa <strong>embalagens</strong>{% endif %}.
                             </small>
                         </div>
 
@@ -819,8 +819,8 @@
                             {% endif %}
                             <label class="form-label" for="saldo_unidades_soltas">{{ label_solta }}</label>
                             <input class="form-control" id="saldo_unidades_soltas" name="saldo_unidades_soltas" type="number" min="0" step="0.01"
-                                value="{{ unidades_soltas }}">
-                            <small class="form-text">Parte aberta/solta do estoque</small>
+                                value="{{ unidades_soltas }}" readonly>
+                            <small class="form-text">Parte aberta/solta do estoque, controlada automaticamente pelo fluxo documental.</small>
                         </div>
                         {% endif %}
                         <div class="form-group">
@@ -901,10 +901,8 @@
                             Esses valores alimentam a página <strong>Financeiro</strong> e o modal de detalhes do item.
                         </p>
                         {% if item %}
-                        <div class="form-check form-switch mt-3">
-                            <input class="form-check-input" type="checkbox" role="switch" id="registrar_compra_edicao" name="registrar_compra_edicao">
-                            <label class="form-check-label" for="registrar_compra_edicao"><strong>Registrar nova compra deste item</strong></label>
-                            <small class="form-text d-block">Use esta opção quando o item já existe no GALINT, mas chegou uma nova compra com NF ou cupom, data de emissão, lote e demais dados operacionais. Chave de acesso é exigida apenas para NF.</small>
+                        <div class="alert alert-info mt-3 mb-0">
+                            Novas compras e entradas de estoque deste item agora são incorporadas somente pela página <strong>Documentos Fiscais</strong>.
                         </div>
                         {% endif %}
                         {% if item %}

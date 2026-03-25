@@ -7,6 +7,7 @@
         {% set p = request.path %}
         <nav class="sidebar-menu">
             {% set saidas_fracionadas_url = url_for('movements.saidas_fracionadas_page') if endpoint_exists('movements.saidas_fracionadas_page') else None %}
+            {% set saidas_hub_url = url_for('movements.saidas_hub') if endpoint_exists('movements.saidas_hub') else url_for('movements.index') %}
             {% set saida_fracionada_url = url_for('movements.saida_fracionada_page') if endpoint_exists('movements.saida_fracionada_page') else None %}
             {% set ferramentas_retirar_url = url_for('ferramentas.retirar_page') if endpoint_exists('ferramentas.retirar_page') else None %}
             {% set ferramentas_painel_url = url_for('ferramentas.painel') if endpoint_exists('ferramentas.painel') else None %}
@@ -14,6 +15,7 @@
             {% set reparo_url = url_for('reparo.listar_reparos') if endpoint_exists('reparo.listar_reparos') else None %}
             {% set valor_estoque_url = url_for('inventory.valor_estoque') if endpoint_exists('inventory.valor_estoque') else None %}
             {% set fornecedores_url = url_for('config.fornecedores') if endpoint_exists('config.fornecedores') else None %}
+            {% set central_operacoes_url = url_for('operations.central_operations') if endpoint_exists('operations.central_operations') else None %}
             <a class="sidebar-link {% if p == url_for('dashboard.index') %}active{% endif %}"
                 href="{{ url_for('dashboard.index') }}">
                 <i class="bi bi-speedometer2"></i>
@@ -21,7 +23,8 @@
             </a>
             <!-- Grupo removido: -->
             <!-- Mantemos links diretos para registros e controles relacionados ao estoque -->
-            {% set lancamentos_active = p.startswith(url_for('movements.index')) or
+            {% set lancamentos_active = p.startswith(saidas_hub_url) or
+            p.startswith(url_for('movements.index')) or
             p.startswith(url_for('movements.saida_page')) or
             (saida_fracionada_url and p.startswith(saida_fracionada_url)) or
             p.startswith(url_for('movements.entrada_page')) or
@@ -38,8 +41,8 @@
                 <i class="bi bi-chevron-down small"></i>
             </button>
             <div id="lancamentosMenu" class="collapse {{ 'show' if lancamentos_active else '' }}">
-                <a class="sidebar-link ps-4 {% if p == url_for('movements.index') %}active{% endif %}"
-                    href="{{ url_for('movements.index') }}">
+                <a class="sidebar-link ps-4 {% if p.startswith(saidas_hub_url) or p == url_for('movements.index') %}active{% endif %}"
+                    href="{{ saidas_hub_url }}">
                     <i class="bi bi-box-arrow-up-right"></i>
                     <span>Registro de Saídas</span>
                 </a>
@@ -56,7 +59,7 @@
                 </a>
                 {% endif %}
             </div>
-            {% set estoque_active = p.startswith('/itens') or p.startswith('/nf') or (fornecedores_url and p.startswith(fornecedores_url)) %}
+            {% set estoque_active = p.startswith('/itens') or p.startswith('/nf') or p.startswith('/estoque') or (fornecedores_url and p.startswith(fornecedores_url)) %}
             <button
                 class="sidebar-link d-flex justify-content-between align-items-center border-0 bg-transparent text-start w-100 {{ 'active' if estoque_active else 'collapsed' }}"
                 type="button" data-bs-toggle="collapse" data-bs-target="#estoqueMenu"
@@ -78,6 +81,13 @@
                     href="{{ valor_estoque_url }}">
                     <i class="bi bi-cash-stack"></i>
                     <span>Financeiro</span>
+                </a>
+                {% endif %}
+                {% if central_operacoes_url %}
+                <a class="sidebar-link ps-4 {% if p.startswith(central_operacoes_url) %}active{% endif %}"
+                    href="{{ central_operacoes_url }}">
+                    <i class="bi bi-activity"></i>
+                    <span>Central de Operações</span>
                 </a>
                 {% endif %}
                 {% if fornecedores_url %}

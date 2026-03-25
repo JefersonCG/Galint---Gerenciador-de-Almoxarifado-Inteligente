@@ -5584,6 +5584,77 @@ class TelegramService:
         return {"success": True, "sent": results["queued"], "queued": results["queued"], "failed": results["failed"]}
 
 
+    @staticmethod
+    def notify_operation_log(operation_log_id: int) -> dict[str, Any]:
+        if not TelegramService.is_enabled():
+            return {"success": False, "error": "Telegram não está habilitado"}
+
+        from ..models import OperationLog
+
+        log = db.session.get(OperationLog, operation_log_id)
+        if not log:
+            return {"success": False, "error": "OperationLog não encontrado"}
+
+        payload = dict(log.payload_json or {})
+        operation_label_map = {
+            "entrada": "Entrada",
+            "saida": "Saída",
+            "devolucao": "Devolução",
+            "erro": "Erro",
+        }
+        operation_label = operation_label_map.get(log.operation_type, (log.operation_type or "Operação").title())
+        item = log.item
+        user = log.user
+        quantity_input = float(log.quantity_input or 0.0)
+        quantity_base = float(log.quantity_base or 0.0)
+        unit_input = (log.unit_input or "un").strip() or "un"
+        unit_base = str(payload.get("unit_base") or unit_input or "un").strip() or "un"
+
+        text = "✅ <b>OPERAÇÃO REALIZADA</b>\n\n"
+        text += f"<b>Tipo:</b> {operation_label}\n"
+        text += f"<b>Produto:</b> {item.descricao if item else (log.product_id or 'N/D')}"
+        if log.product_id:
+            text += f" (<code>{log.product_id}</code>)"
+        text += "\n"
+        text += f"<b>Quantidade:</b> {quantity_input:g} {unit_input}\n"
+        text += f"<b>Quantidade base:</b> {quantity_base:g} {unit_base}\n"
+        text += f"<b>Usuário:</b> {user.nome if user else (log.user_id or 'Sistema')}\n"
+        text += f"<b>Origem:</b> {(log.source or 'web').strip().lower()}\n"
+        text += f"<b>Data/Hora:</b> {TimeService.format_local(log.created_at)}"
+
+        results = {"queued": [], "failed": []}
+        recipients = TelegramService._inventory_alert_recipients()
+        for recipient in recipients:
+            try:
+                chat_id = str(recipient["chat_id"])
+                target = recipient.get("target") or "admin"
+                key = f"operation_log:{operation_log_id}:{target}:{chat_id}"
+                queued = TelegramService.enqueue_outbox_message(
+                    chat_id=chat_id,
+                    recipient_name=recipient.get("recipient_name"),
+                    message_type="operation_log",
+                    message_text=text,
+                    idempotency_key=key,
+                    commit=False,
+                )
+                if queued.get("success"):
+                    results["queued"].append(chat_id)
+                else:
+                    results["failed"].append(f"{chat_id}: {queued.get('error')}")
+            except Exception as exc:
+                results["failed"].append(f"{recipient.get('chat_id')}: {exc}")
+
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            return {"success": False, "error": "Falha ao persistir enfileiramento da operação"}
+
+        if results["queued"]:
+            return {"success": True, "queued": results["queued"], "failed": results["failed"]}
+        return {"success": False, "error": "; ".join(results["failed"]) or "Nenhum destinatário Telegram disponível"}
+
+
 
     @staticmethod
 

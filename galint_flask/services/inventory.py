@@ -31,6 +31,7 @@ from ..models import (
     TelegramOutbox,
 )
 from .inventory_engine import InventoryEngineError, InventoryOperationResult, inventory_engine
+from .operation_log_service import operation_log_service
 from .unit_conversion_engine import UnitConversionError
 from ..utils.lote_generator import generate_lote
 from ..utils.barcode_generator import generate_barcode, get_barcode_path
@@ -337,6 +338,7 @@ class InventoryService:
             db.session.commit()
             if ledger_result is not None:
                 inventory_engine.record_operation_audit(ledger_result)
+                operation_log_service.notify_telegram(ledger_result.operation_log_id)
 
         return evento
 
@@ -383,8 +385,7 @@ class InventoryService:
 
         unit_value = (from_unit or self._infer_dual_write_unit(item, payload) or "").strip().lower()
         if not unit_value:
-            logger.warning("Dual write ignorado para %s: unidade não pôde ser inferida", item.codigo_item)
-            return None
+            raise ValueError(f"Não foi possível inferir a unidade base para {item.codigo_item}")
 
         mirror_metadata = {
             "dual_write_active": True,
@@ -401,51 +402,44 @@ class InventoryService:
             **(metadata or {}),
         }
 
-        try:
-            if movement_type_norm == "entrada":
-                return inventory_engine.register_entry(
-                    product_id=item.codigo_item,
-                    quantity=quantity_value,
-                    from_unit=unit_value,
-                    metadata=mirror_metadata,
-                    commit=False,
-                    write_audit=False,
-                )
-            if movement_type_norm == "saida":
-                return inventory_engine.register_exit(
-                    product_id=item.codigo_item,
-                    quantity=quantity_value,
-                    from_unit=unit_value,
-                    metadata=mirror_metadata,
-                    commit=False,
-                    write_audit=False,
-                )
-            if movement_type_norm == "devolucao":
-                return inventory_engine.register_return(
-                    product_id=item.codigo_item,
-                    quantity=abs(quantity_value),
-                    from_unit=unit_value,
-                    metadata=mirror_metadata,
-                    commit=False,
-                    write_audit=False,
-                )
-            if movement_type_norm == "ajuste":
-                return inventory_engine.register_adjustment(
-                    product_id=item.codigo_item,
-                    quantity=quantity_value,
-                    from_unit=unit_value,
-                    metadata=mirror_metadata,
-                    commit=False,
-                    write_audit=False,
-                )
-        except (InventoryEngineError, UnitConversionError, ValueError) as exc:
-            logger.warning(
-                "Dual write ignorado para %s (%s): %s",
-                item.codigo_item,
-                movement_type_norm,
-                exc,
+        if movement_type_norm == "entrada":
+            return inventory_engine.register_entry(
+                product_id=item.codigo_item,
+                quantity=quantity_value,
+                from_unit=unit_value,
+                metadata=mirror_metadata,
+                commit=False,
+                write_audit=False,
             )
-            return None
+        if movement_type_norm == "saida":
+            return inventory_engine.register_exit(
+                product_id=item.codigo_item,
+                quantity=quantity_value,
+                from_unit=unit_value,
+                metadata=mirror_metadata,
+                commit=False,
+                write_audit=False,
+            )
+        if movement_type_norm == "devolucao":
+            return inventory_engine.register_return(
+                product_id=item.codigo_item,
+                quantity=abs(quantity_value),
+                from_unit=unit_value,
+                metadata=mirror_metadata,
+                commit=False,
+                write_audit=False,
+            )
+        if movement_type_norm == "ajuste":
+            return inventory_engine.register_adjustment(
+                product_id=item.codigo_item,
+                quantity=quantity_value,
+                from_unit=unit_value,
+                metadata=mirror_metadata,
+                commit=False,
+                write_audit=False,
+            )
+
+        raise ValueError(f"Tipo de movimento não suportado pelo inventory_engine: {movement_type_norm}")
 
         return None
 
@@ -1768,16 +1762,7 @@ class InventoryService:
         db.session.commit()
         if ledger_result is not None:
             inventory_engine.record_operation_audit(ledger_result)
-        # Notificar administradores apenas quando houver AUMENTO de estoque (entrada)
-        # para evitar ruído/confusão com ajustes negativos.
-        if delta > 0:
-            try:
-                from ..services.notification_router import NotificationRouterService
-
-                NotificationRouterService.route_inventory_event(evento.id_evento)
-            except Exception:
-                # Não bloquear o ajuste por falha no Telegram
-                pass
+            operation_log_service.notify_telegram(ledger_result.operation_log_id)
 
     def report_low_stock(self) -> list[dict[str, Any]]:
         return [item for item in self.resumo_estoque() if item["saldo"] <= item["estoque_minimo"]]
@@ -2008,38 +1993,8 @@ class InventoryService:
         db.session.commit()
         if ledger_result is not None:
             inventory_engine.record_operation_audit(ledger_result)
-        
-        # Notificar via Telegram (não bloquear operação em caso de erro)
-        # Se skip_notification=True, não envia notificação (usado quando já enviamos notificação unificada de item criado)
-        if not skip_notification:
-            try:
-                from ..services.telegram_service import TelegramService
-                
-                if is_entrada:
-                    # Notificar sobre nova entrada
-                    entrada_id = getattr(movimento, "id_entrada", None)
-                    if entrada_id:
-                        TelegramService.notify_new_entry(entrada_id, is_devolucao=payload.is_devolucao)
-                else:
-                    # Notificar sobre saída
-                    saida_id = getattr(movimento, "id_saida", None)
-                    if saida_id:
-                        tipo_custodia = (payload.tipo_custodia or "temporaria").strip().lower()
-                        from ..services.notification_router import NotificationRouterService
-
-                        if tipo_custodia == "permanente":
-                            NotificationRouterService.route_permanent_custody(saida_id)
-                        else:
-                            NotificationRouterService.route_withdrawal(
-                                saida_id,
-                                force_single=True,
-                                balance_before=telegram_balance_before,
-                                balance_after=telegram_balance_after,
-                                balance_unit=telegram_balance_unit,
-                            )
-            except Exception:
-                # Não bloquear a operação por falha na notificação
-                pass
+            if not skip_notification:
+                operation_log_service.notify_telegram(ledger_result.operation_log_id)
         
         # Verificar e gerar relatório automático a cada 1000 entradas (apenas para entradas)
         if is_entrada:

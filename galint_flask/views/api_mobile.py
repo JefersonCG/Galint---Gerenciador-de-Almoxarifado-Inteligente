@@ -2128,84 +2128,10 @@ def buscar_produto(codigo: str):
 @mobile_login_required
 def cadastrar_produto():
     """Cadastra novo produto via código de barras."""
-    user = g.mobile_user
-    if not _is_admin_or_supervisor(user):
-        return jsonify({"error": "Acesso negado. Apenas administradores podem cadastrar."}), 403
-
-    data = request.get_json()
-
-    try:
-        payload = {
-            "codigo": (data.get("codigo") or "").strip(),
-            "descricao": (data.get("descricao") or "").strip(),
-            "categoria": data.get("categoria", "Material Elétrico"),
-            "marca": (data.get("marca") or "").strip() or None,
-            "unidade": (data.get("unidade") or "").strip(),
-            "nota_fiscal": (data.get("nota_fiscal") or "").strip() or None,
-            "localizacao": (data.get("localizacao") or "").strip() or None,
-        }
-
-        if not payload["codigo"] or not payload["descricao"]:
-            raise ValueError("Código e descrição são obrigatórios")
-
-        existing = inventory_service.get_item(payload["codigo"])
-        if existing:
-            return jsonify({"error": "Produto com este código já existe"}), 409
-
-        saldo_inicial = int(data.get("saldo_inicial", 0))
-        if saldo_inicial < 0:
-            raise ValueError("Saldo inicial deve ser >= 0")
-
-        if saldo_inicial > 0 and payload["nota_fiscal"]:
-            finance_service.validate_document_backed_stock_entry(
-                codigo_item=payload["codigo"],
-                quantidade=saldo_inicial,
-                numero_documento=str(payload["nota_fiscal"]),
-                tipo_documento="nf",
-                allow_new_document_item=True,
-            )
-
-        codigo = inventory_service.create_item(payload)
-
-        entrada_inicial = None
-        if saldo_inicial > 0:
-            entrada_inicial = inventory_service.registrar_entrada(
-                MovimentoPayload(
-                    codigo=codigo,
-                    quantidade=saldo_inicial,
-                    matricula=user.matricula,
-                    nota_fiscal=payload["nota_fiscal"],
-                ),
-                skip_notification=True,
-            )
-
-            if payload["nota_fiscal"]:
-                finance_service.register_stock_document_entry(
-                    codigo_item=codigo,
-                    quantidade=float(saldo_inicial),
-                    tipo_documento="nf",
-                    numero_documento=str(payload["nota_fiscal"]),
-                    entrada_id=getattr(entrada_inicial, "id_entrada", None),
-                    usuario_matricula=user.matricula,
-                    origem_valor="compra_nf",
-                )
-
-        try:
-            from ..services.notification_router import NotificationRouterService
-            NotificationRouterService.route_item_created(codigo, entrada_inicial=entrada_inicial)
-        except Exception:
-            pass
-
-        return jsonify({
-            "success": True,
-            "message": "Produto cadastrado com sucesso",
-            "codigo": codigo,
-        }), 201
-
-    except ValueError as exc:
-        return jsonify({"error": str(exc)}), 400
-    except Exception as exc:
-        return jsonify({"error": f"Erro ao cadastrar: {str(exc)}"}), 500
+    return jsonify({
+        "error": "Cadastro de itens foi removido do app mobile. Utilize a tela web de Documentos Fiscais para entrada de estoque.",
+        "feature": "mobile_item_maintenance_disabled",
+    }), 410
 
 
 @blueprint.get("/categorias")
@@ -2365,115 +2291,10 @@ def buscar_por_barcode(codigo: str):
 @mobile_login_required
 def criar_item_estoque():
     """Cria novo item no estoque."""
-    user = g.mobile_user
-    if not _is_admin_or_supervisor(user):
-        return jsonify({"error": "Apenas administradores ou supervisores podem cadastrar itens"}), 403
-    
-    # Suportar tanto JSON quanto multipart/form-data (para upload de foto)
-    if request.content_type and 'multipart/form-data' in request.content_type:
-        data = request.form.to_dict()
-    else:
-        data = request.get_json() or {}
-    
-    codigo = (data.get("codigo_barras") or "").strip()
-    descricao = (data.get("descricao") or "").strip()
-    
-    if not codigo or not descricao:
-        return jsonify({"error": "Código e descrição são obrigatórios"}), 400
-    
-    # Verifica se já existe
-    existing = Item.query.filter_by(codigo_item=codigo).first()
-    if existing:
-        return jsonify({"error": "Item com este código já existe"}), 409
-    
-    try:
-        # Processar foto se fornecida
-        foto_path = None
-        if 'foto' in request.files:
-            foto_file = request.files['foto']
-            if foto_file and foto_file.filename:
-                try:
-                    foto_path = ItemFotoService.upload_foto(foto_file, codigo)
-                except ValueError as foto_error:
-                    return jsonify({"error": f"Erro ao fazer upload da foto: {str(foto_error)}"}), 400
-        
-        # Suportar novo sistema de embalagens (compatível com app antigo)
-        tipo_emb_novo = (data.get("tipo_embalagem_novo") or data.get("tipo_embalagem") or "").strip().lower()
-        unidades_por_emb = data.get("unidades_por_embalagem")
-        if unidades_por_emb is None:
-            unidades_por_emb = data.get("grandeza_referencia")
-
-        payload = {
-            "codigo": codigo,
-            "descricao": descricao,
-            "categoria": data.get("categoria", "Material Elétrico"),
-            "marca": (data.get("marca") or "").strip() or None,
-            "unidade": (data.get("unidade") or "Unidade").strip() or "Unidade",
-            "localizacao": (data.get("localizacao") or "").strip() or None,
-            "nota_fiscal": (data.get("nota_fiscal") or "").strip() or None,
-            "tipo_embalagem_novo": tipo_emb_novo or None,
-            "unidades_por_embalagem": float(unidades_por_emb) if unidades_por_emb not in (None, "") else None,
-            "foto_path": foto_path,
-        }
-
-        quantidade_inicial = int(data.get("quantidade", 0))
-        if quantidade_inicial > 0 and payload["nota_fiscal"]:
-            finance_service.validate_document_backed_stock_entry(
-                codigo_item=payload["codigo"],
-                quantidade=quantidade_inicial,
-                numero_documento=str(payload["nota_fiscal"]),
-                tipo_documento="nf",
-                allow_new_document_item=True,
-            )
-        
-        codigo_criado = inventory_service.create_item(payload)
-        
-        # Adiciona saldo inicial se fornecido (entrada)
-        entrada_inicial = None
-        if quantidade_inicial > 0:
-            em_embalagens = None
-            if tipo_emb_novo and unidades_por_emb not in (None, ""):
-                try:
-                    if float(unidades_por_emb) > 0:
-                        em_embalagens = True
-                except (ValueError, TypeError):
-                    em_embalagens = None
-
-            entrada_inicial = inventory_service.registrar_entrada(
-                MovimentoPayload(
-                    codigo=codigo_criado,
-                    quantidade=quantidade_inicial,
-                    matricula=user.matricula,
-                    nota_fiscal=None,
-                    em_embalagens=em_embalagens,
-                ),
-                skip_notification=True,
-            )
-
-            if payload["nota_fiscal"]:
-                finance_service.register_stock_document_entry(
-                    codigo_item=codigo_criado,
-                    quantidade=float(quantidade_inicial),
-                    tipo_documento="nf",
-                    numero_documento=str(payload["nota_fiscal"]),
-                    entrada_id=getattr(entrada_inicial, "id_entrada", None),
-                    usuario_matricula=user.matricula,
-                    origem_valor="compra_nf",
-                )
-
-        try:
-            from ..services.notification_router import NotificationRouterService
-            NotificationRouterService.route_item_created(codigo_criado, entrada_inicial=entrada_inicial)
-        except Exception:
-            pass
-        
-        return jsonify({
-            "id": codigo_criado,
-            "message": "Item cadastrado com sucesso"
-        }), 201
-        
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    return jsonify({
+        "error": "Cadastro de itens foi removido do app mobile. Utilize a tela web de Documentos Fiscais para entrada de estoque.",
+        "feature": "mobile_item_maintenance_disabled",
+    }), 410
 
 
 @blueprint.put("/estoque/<codigo>")
@@ -2485,74 +2306,10 @@ def atualizar_item_estoque(codigo: str):
     Permitido apenas para Administrador ou Gerente.
     Campos aceitos: descricao, categoria, marca, unidade, localizacao, nota_fiscal, foto.
     """
-    user = g.mobile_user
-    if not _is_admin_or_manager(user):
-        return jsonify({"error": "Acesso negado. Apenas administrador ou gerente pode editar itens."}), 403
-
-    codigo = (codigo or "").strip()
-    if not codigo:
-        return jsonify({"error": "Código não fornecido"}), 400
-
-    # Suportar tanto JSON quanto multipart/form-data (para upload de foto)
-    if request.content_type and 'multipart/form-data' in request.content_type:
-        data = request.form.to_dict()
-    else:
-        data = request.get_json() or {}
-
-    try:
-        existing = inventory_service.get_item(codigo)
-        if not existing:
-            return jsonify({"error": "Item não encontrado"}), 404
-
-        # Processar foto se fornecida
-        foto_path = None
-        if 'foto' in request.files:
-            foto_file = request.files['foto']
-            if foto_file and foto_file.filename:
-                try:
-                    # Deletar foto antiga se existir
-                    if existing.get('foto_path'):
-                        ItemFotoService.deletar_foto(existing['foto_path'])
-                    foto_path = ItemFotoService.upload_foto(foto_file, codigo)
-                except ValueError as foto_error:
-                    return jsonify({"error": f"Erro ao fazer upload da foto: {str(foto_error)}"}), 400
-        elif data.get('remover_foto') == 'true' or data.get('remover_foto') is True:
-            # Remover foto existente
-            if existing.get('foto_path'):
-                ItemFotoService.deletar_foto(existing['foto_path'])
-            foto_path = None  # Será setado no payload para limpar
-
-        tipo_emb_novo = (data.get("tipo_embalagem_novo") or data.get("tipo_embalagem") or "").strip().lower()
-        unidades_por_emb = data.get("unidades_por_embalagem")
-        if unidades_por_emb is None:
-            unidades_por_emb = data.get("grandeza_referencia")
-
-        payload = {
-            "descricao": (data.get("descricao") or existing.get("descricao") or "").strip(),
-            "categoria": (data.get("categoria") or existing.get("categoria") or "Material Elétrico"),
-            "marca": (data.get("marca") or "").strip() or None,
-            "unidade": (data.get("unidade") or existing.get("unidade") or "").strip(),
-            "localizacao": (data.get("localizacao") or "").strip() or None,
-            "nota_fiscal": (data.get("nota_fiscal") or "").strip() or None,
-            "tipo_embalagem_novo": tipo_emb_novo or existing.get("tipo_embalagem_novo"),
-            "unidades_por_embalagem": float(unidades_por_emb) if unidades_por_emb not in (None, "") else existing.get("unidades_por_embalagem"),
-        }
-        
-        # Adicionar foto_path ao payload se foi modificada
-        if foto_path is not None or data.get('remover_foto'):
-            payload["foto_path"] = foto_path
-
-        if not payload["descricao"]:
-            raise ValueError("Descrição é obrigatória")
-
-        inventory_service.update_item(codigo, payload)
-        updated = inventory_service.get_item(codigo)
-        return jsonify({"success": True, "item": updated}), 200
-
-    except ValueError as exc:
-        return jsonify({"error": str(exc)}), 400
-    except Exception as exc:
-        return jsonify({"error": f"Erro ao atualizar item: {str(exc)}"}), 500
+    return jsonify({
+        "error": "Edição de itens foi removida do app mobile. Utilize a interface web administrativa.",
+        "feature": "mobile_item_maintenance_disabled",
+    }), 410
 
 
 @blueprint.put("/estoque/<codigo>/saldo")
@@ -2564,40 +2321,10 @@ def atualizar_saldo_item_estoque(codigo: str):
     Permitido apenas para Administrador ou Gerente.
     Espera JSON: {"saldo": <int>}.
     """
-    user = g.mobile_user
-    if not _is_admin_or_manager(user):
-        return jsonify({"error": "Acesso negado. Apenas administrador ou gerente pode ajustar saldo."}), 403
-
-    codigo = (codigo or "").strip()
-    if not codigo:
-        return jsonify({"error": "Código não fornecido"}), 400
-
-    data = request.get_json() or {}
-    saldo_raw = data.get("saldo")
-    try:
-        novo_saldo = int(saldo_raw)
-        if novo_saldo < 0:
-            raise ValueError("Saldo deve ser >= 0")
-    except Exception:
-        return jsonify({"error": "Saldo inválido. Informe um número inteiro (>= 0)."}), 400
-
-    try:
-        existing = inventory_service.get_item(codigo)
-        if not existing:
-            return jsonify({"error": "Item não encontrado"}), 404
-
-        inventory_service.adjust_item_balance(
-            codigo=codigo,
-            novo_saldo=novo_saldo,
-            matricula=getattr(user, "matricula", None),
-            nota_fiscal=None,
-        )
-        updated = inventory_service.get_item(codigo)
-        return jsonify({"success": True, "item": updated}), 200
-    except ValueError as exc:
-        return jsonify({"error": str(exc)}), 400
-    except Exception as exc:
-        return jsonify({"error": f"Erro ao ajustar saldo: {str(exc)}"}), 500
+    return jsonify({
+        "error": "Ajuste de saldo foi removido do app mobile. Utilize Documentos Fiscais para entradas e os fluxos operacionais para saídas/devoluções.",
+        "feature": "mobile_item_maintenance_disabled",
+    }), 410
 
 
 @blueprint.delete("/estoque/<codigo>")
@@ -2609,35 +2336,10 @@ def excluir_item_estoque(codigo: str):
     Permitido apenas para Administrador ou Gerente.
     Bloqueia exclusão se houver movimentações (Entrada/Saída) ou eventos de inventário.
     """
-    user = g.mobile_user
-    if not _is_admin_or_manager(user):
-        return jsonify({"error": "Acesso negado. Apenas administrador ou gerente pode excluir itens."}), 403
-
-    codigo = (codigo or "").strip()
-    if not codigo:
-        return jsonify({"error": "Código não fornecido"}), 400
-
-    try:
-        item = Item.query.filter_by(codigo_item=codigo).first()
-        if not item:
-            return jsonify({"error": "Item não encontrado"}), 404
-
-        has_saida = Saida.query.filter(Saida.codigo_item == codigo).first() is not None
-        has_entrada = Entrada.query.filter(Entrada.codigo_item == codigo).first() is not None
-        has_inventario = (
-            InventarioEvento.query.filter(InventarioEvento.codigo_item == codigo).first() is not None
-        )
-        if has_saida or has_entrada or has_inventario:
-            return jsonify({
-                "error": "Não é possível excluir: item possui movimentações/ajustes registrados."
-            }), 409
-
-        inventory_service.delete_item(codigo)
-        return jsonify({"success": True}), 200
-    except ValueError as exc:
-        return jsonify({"error": str(exc)}), 400
-    except Exception as exc:
-        return jsonify({"error": f"Erro ao excluir item: {str(exc)}"}), 500
+    return jsonify({
+        "error": "Exclusão de itens foi removida do app mobile. Utilize a interface web administrativa.",
+        "feature": "mobile_item_maintenance_disabled",
+    }), 410
 
 
 @blueprint.get("/reports/history")

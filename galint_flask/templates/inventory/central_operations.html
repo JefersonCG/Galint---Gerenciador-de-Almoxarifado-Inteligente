@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+
+{% block title %}Central de Operações{% endblock %}
+
+{% block page_header %}
+<div>
+    <h2 class="mb-1">Central de Operações</h2>
+    <p class="text-muted mb-0">Monitoramento unificado de entradas, saídas, devoluções e erros do estoque.</p>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <div class="text-muted small">Ordenação: mais recentes primeiro</div>
+    <div class="d-flex gap-2 flex-wrap">
+        <a class="btn btn-outline-primary" href="{{ url_for('inventory.list_items') }}">Itens Cadastrados</a>
+        <a class="btn btn-outline-secondary" href="{{ url_for('dashboard.index') }}">Dashboard</a>
+    </div>
+</div>
+
+<div class="section-panel mb-4">
+    <ul class="nav nav-tabs mb-3" id="operationTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="entrada-tab" data-bs-toggle="tab" data-bs-target="#entrada-pane" type="button" role="tab" aria-controls="entrada-pane" aria-selected="true">
+                Entradas <span class="badge bg-secondary ms-1">{{ counts.entrada }}</span>
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="saida-tab" data-bs-toggle="tab" data-bs-target="#saida-pane" type="button" role="tab" aria-controls="saida-pane" aria-selected="false">
+                Saídas <span class="badge bg-secondary ms-1">{{ counts.saida }}</span>
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="devolucao-tab" data-bs-toggle="tab" data-bs-target="#devolucao-pane" type="button" role="tab" aria-controls="devolucao-pane" aria-selected="false">
+                Devoluções <span class="badge bg-secondary ms-1">{{ counts.devolucao }}</span>
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="erro-tab" data-bs-toggle="tab" data-bs-target="#erro-pane" type="button" role="tab" aria-controls="erro-pane" aria-selected="false">
+                Erros <span class="badge bg-secondary ms-1">{{ counts.erro }}</span>
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="operationTabsContent">
+        {% set standard_tabs = [('entrada', 'entrada-pane'), ('saida', 'saida-pane'), ('devolucao', 'devolucao-pane')] %}
+        {% for tab_key, pane_id in standard_tabs %}
+        <div class="tab-pane fade {% if loop.first %}show active{% endif %}" id="{{ pane_id }}" role="tabpanel" aria-labelledby="{{ tab_key }}-tab">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Produto</th>
+                            <th>Quantidade</th>
+                            <th>Quantidade base</th>
+                            <th>Usuário</th>
+                            <th>Origem</th>
+                            <th>Status</th>
+                            <th>Data/Hora</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in logs_by_tab.get(tab_key, []) %}
+                        <tr>
+                            <td>
+                                <div>{{ row.product_label }}</div>
+                                <small class="text-muted">{{ row.product_code }}</small>
+                            </td>
+                            <td>{{ row.quantity_input }}</td>
+                            <td>{{ row.quantity_base }}</td>
+                            <td>{{ row.user_label }}</td>
+                            <td>{{ row.source }}</td>
+                            <td><span class="badge {{ row.status_badge }}">{{ row.status }}</span></td>
+                            <td>{{ row.created_at.strftime('%d/%m/%Y %H:%M:%S') if row.created_at else '—' }}</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="7" class="text-center text-muted py-4">Nenhuma operação registrada nesta aba.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endfor %}
+
+        <div class="tab-pane fade" id="erro-pane" role="tabpanel" aria-labelledby="erro-tab">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Produto</th>
+                            <th>Quantidade</th>
+                            <th>Usuário</th>
+                            <th>Origem</th>
+                            <th>Status</th>
+                            <th>Mensagem de erro</th>
+                            <th>Payload resumido</th>
+                            <th>Data/Hora</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in logs_by_tab.get('erro', []) %}
+                        <tr>
+                            <td>
+                                <div>{{ row.product_label }}</div>
+                                <small class="text-muted">{{ row.product_code }}</small>
+                            </td>
+                            <td>{{ row.quantity_input }}</td>
+                            <td>{{ row.user_label }}</td>
+                            <td>{{ row.source }}</td>
+                            <td><span class="badge {{ row.status_badge }}">{{ row.status }}</span></td>
+                            <td>{{ row.error_message }}</td>
+                            <td><small>{{ row.payload_preview }}</small></td>
+                            <td>{{ row.created_at.strftime('%d/%m/%Y %H:%M:%S') if row.created_at else '—' }}</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="8" class="text-center text-muted py-4">Nenhum erro operacional registrado.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

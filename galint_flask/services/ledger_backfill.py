@@ -384,8 +384,6 @@ class LedgerBackfillService:
         movement.unit_base = self._resolve_unit_base(product_id)
         movement.reference_type = reference_type
         movement.reference_id = reference_id
-        movement.source = metadata.get("source") or "ledger_backfill"
-        movement.user_id = metadata.get("user_id") or metadata.get("matricula")
         movement.metadata_json = {
             **metadata,
             "source": metadata.get("source") or "ledger_backfill",

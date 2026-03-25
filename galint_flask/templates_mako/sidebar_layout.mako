@@ -14,6 +14,7 @@
                     return None
 
             saidas_fracionadas_url = optional_url('movements.saidas_fracionadas_page')
+            saidas_hub_url = optional_url('movements.saidas_hub') or url_for('movements.index')
             saida_fracionada_url = optional_url('movements.saida_fracionada_page')
             ferramentas_retirar_url = optional_url('ferramentas.retirar_page')
             ferramentas_painel_url = optional_url('ferramentas.painel')
@@ -21,6 +22,7 @@
             reparo_url = optional_url('reparo.listar_reparos')
             valor_estoque_url = optional_url('inventory.valor_estoque')
             fornecedores_url = optional_url('config.fornecedores')
+            central_operacoes_url = optional_url('operations.central_operations')
             reports_index_url = optional_url('reports.index')
             percentual_movimentos_url = optional_url('reports.percentual_movimentos')
             mobile_panel_url = '/mobile-panel' if getattr(current_user, 'is_authenticated', False) and getattr(current_user, 'is_admin', False) else None
@@ -33,14 +35,20 @@
             restore_backup_url = optional_url('pages.restore_backup')
 
             lancamentos_active = (
-                p.startswith(url_for('movements.index'))
+                p.startswith(saidas_hub_url)
+                or p.startswith(url_for('movements.index'))
                 or p.startswith(url_for('movements.saida_page'))
                 or (saida_fracionada_url and p.startswith(saida_fracionada_url))
                 or p.startswith(url_for('movements.entrada_page'))
                 or (ferramentas_retirar_url and p.startswith(ferramentas_retirar_url))
                 or (saidas_fracionadas_url and p.startswith(saidas_fracionadas_url))
             )
-            estoque_active = p.startswith('/itens') or p.startswith('/nf') or (fornecedores_url and p.startswith(fornecedores_url))
+            estoque_active = (
+                p.startswith('/itens')
+                or p.startswith('/nf')
+                or (central_operacoes_url and p.startswith(central_operacoes_url))
+                or (fornecedores_url and p.startswith(fornecedores_url))
+            )
             ferramentas_active = (tool_custody_url and p.startswith(tool_custody_url)) or (reparo_url and p.startswith(reparo_url)) or (ferramentas_painel_url and p.startswith(ferramentas_painel_url)) or (ferramentas_retirar_url and p.startswith(ferramentas_retirar_url))
             configuracoes_active = (
                 (empresa_url and p.startswith(empresa_url))
@@ -68,8 +76,8 @@
                 <i class="bi bi-chevron-down small"></i>
             </button>
             <div id="lancamentosMenu" class="collapse ${'show' if lancamentos_active else ''}">
-                <a class="sidebar-link ps-4 ${'active' if p == url_for('movements.index') else ''}"
-                    href="${url_for('movements.index')}">
+                <a class="sidebar-link ps-4 ${'active' if p.startswith(saidas_hub_url) or p == url_for('movements.index') else ''}"
+                    href="${saidas_hub_url}">
                     <i class="bi bi-box-arrow-up-right"></i>
                     <span>Registro de Saídas</span>
                 </a>
@@ -107,6 +115,13 @@
                     href="${valor_estoque_url}">
                     <i class="bi bi-cash-stack"></i>
                     <span>Financeiro</span>
+                </a>
+                % endif
+                % if central_operacoes_url:
+                <a class="sidebar-link ps-4 ${'active' if p.startswith(central_operacoes_url) else ''}"
+                    href="${central_operacoes_url}">
+                    <i class="bi bi-activity"></i>
+                    <span>Central de Operações</span>
                 </a>
                 % endif
                 % if fornecedores_url:

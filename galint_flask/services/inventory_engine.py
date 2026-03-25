@@ -2,17 +2,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
-import json
-import sqlite3
-from pathlib import Path
 from typing import Any
 
-from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 
 from ..extensions import db
 from ..models import StockBalance, StockMovement
 from .balance_provider import balance_provider
+from .operation_log_service import operation_log_service
 from .unit_conversion_engine import ConversionResult, UnitConversionEngine, unit_conversion_engine
 
 
@@ -31,6 +28,7 @@ class InventoryOperationResult:
     balance_before: float
     balance_after: float
     movement_id: int
+    operation_log_id: int | None
     dual_write_applied: bool
     metadata: dict[str, Any]
 
@@ -51,7 +49,7 @@ class InventoryEngine:
         commit: bool = True,
         write_audit: bool = True,
     ) -> InventoryOperationResult:
-        return self._register_movement(
+        return self._execute_operation(
             product_id=product_id,
             quantity=quantity,
             from_unit=from_unit,
@@ -72,7 +70,7 @@ class InventoryEngine:
         commit: bool = True,
         write_audit: bool = True,
     ) -> InventoryOperationResult:
-        return self._register_movement(
+        return self._execute_operation(
             product_id=product_id,
             quantity=quantity,
             from_unit=from_unit,
@@ -94,7 +92,7 @@ class InventoryEngine:
         write_audit: bool = True,
     ) -> InventoryOperationResult:
         adjustment_sign = -1 if float(quantity) < 0 else 1
-        return self._register_movement(
+        return self._execute_operation(
             product_id=product_id,
             quantity=abs(float(quantity)),
             from_unit=from_unit,
@@ -115,7 +113,7 @@ class InventoryEngine:
         commit: bool = True,
         write_audit: bool = True,
     ) -> InventoryOperationResult:
-        return self._register_movement(
+        return self._execute_operation(
             product_id=product_id,
             quantity=quantity,
             from_unit=from_unit,
@@ -127,21 +125,54 @@ class InventoryEngine:
         )
 
     def record_operation_audit(self, result: InventoryOperationResult) -> None:
-        conversion = ConversionResult(
-            quantity_base=result.quantity_base,
-            unit_base=result.unit_base,
-            conversion_path=list(result.metadata.get("conversion_path") or []),
-            factor_applied=float(result.metadata.get("factor_applied") or 1.0),
-            metadata={},
+        operation_log_service.attach_audit_metadata(
+            result.operation_log_id,
+            {
+                "movement_id": result.movement_id,
+                "movement_type": result.movement_type,
+                "quantity_base": result.quantity_base,
+                "unit_base": result.unit_base,
+                "balance_before": result.balance_before,
+                "balance_after": result.balance_after,
+                "conversion_path": list(result.metadata.get("conversion_path") or []),
+                "factor_applied": float(result.metadata.get("factor_applied") or 1.0),
+                "reference_id": result.metadata.get("reference_id"),
+            },
         )
-        self._write_conversion_audit(
-            product_id=result.product_id,
-            quantity=result.quantity_input,
-            from_unit=result.unit_input,
-            conversion=conversion,
-            source=result.movement_type,
-            metadata=result.metadata,
-        )
+
+    def _execute_operation(
+        self,
+        *,
+        product_id: str,
+        quantity: float,
+        from_unit: str,
+        movement_type: str,
+        balance_delta_sign: int,
+        metadata: dict[str, Any] | None,
+        commit: bool,
+        write_audit: bool,
+    ) -> InventoryOperationResult:
+        try:
+            return self._register_movement(
+                product_id=product_id,
+                quantity=quantity,
+                from_unit=from_unit,
+                movement_type=movement_type,
+                balance_delta_sign=balance_delta_sign,
+                metadata=metadata,
+                commit=commit,
+                write_audit=write_audit,
+            )
+        except Exception as exc:
+            self._record_operation_error(
+                product_id=product_id,
+                quantity=quantity,
+                from_unit=from_unit,
+                movement_type=movement_type,
+                metadata=metadata,
+                error=exc,
+            )
+            raise
 
     def _register_movement(
         self,
@@ -186,8 +217,6 @@ class InventoryEngine:
             or "inventory_engine"
         )
         movement_user_id = payload_metadata.get("user_id") or payload_metadata.get("matricula")
-        movement.source = movement_source
-        movement.user_id = str(movement_user_id) if movement_user_id not in {None, ""} else None
         movement.metadata_json = {
             **payload_metadata,
             "source": movement_source,
@@ -200,6 +229,7 @@ class InventoryEngine:
         movement.created_at = datetime.now(timezone.utc).replace(tzinfo=None)
 
         dual_write_applied = bool(payload_metadata.get("dual_write_active", False))
+        operation_log_id: int | None = None
         try:
             db.session.add(movement)
             balance = db.session.get(StockBalance, product_id)
@@ -209,7 +239,30 @@ class InventoryEngine:
                 db.session.add(balance)
             balance.quantity_base = balance_after
             db.session.flush()
-            balance.last_movement_id = movement.id
+            operation_log = operation_log_service.create_success_log(
+                operation_type=operation_log_service.normalize_operation_type(movement_type, quantity_base=quantity_delta),
+                product_id=product_id,
+                quantity_input=float(quantity),
+                quantity_base=float(quantity_delta),
+                unit_input=from_unit,
+                user_id=str(movement_user_id) if movement_user_id not in {None, ""} else None,
+                source=movement_source,
+                payload_json={
+                    **payload_metadata,
+                    "movement_type": movement_type,
+                    "unit_base": conversion.unit_base,
+                    "input_quantity": float(quantity),
+                    "input_unit": from_unit,
+                    "quantity_delta": float(quantity_delta),
+                    "balance_before": balance_before,
+                    "balance_after": balance_after,
+                    "conversion_path": conversion.conversion_path,
+                    "factor_applied": conversion.factor_applied,
+                },
+                created_at=movement.created_at,
+                commit=False,
+            )
+            operation_log_id = operation_log.id
             if commit:
                 db.session.commit()
         except IntegrityError as exc:
@@ -239,6 +292,7 @@ class InventoryEngine:
             balance_before=balance_before,
             balance_after=balance_after,
             movement_id=int(movement.id),
+            operation_log_id=operation_log_id,
             dual_write_applied=dual_write_applied,
             metadata={
                 **payload_metadata,
@@ -247,69 +301,27 @@ class InventoryEngine:
             },
         )
 
-    def _write_conversion_audit(
+    def _record_operation_error(
         self,
         *,
         product_id: str,
         quantity: float,
         from_unit: str,
-        conversion: ConversionResult,
-        source: str,
-        metadata: dict[str, Any],
+        movement_type: str,
+        metadata: dict[str, Any] | None,
+        error: Exception,
     ) -> None:
         try:
-            db_path = Path(__file__).resolve().parents[2] / "instance" / "conversion_logs.db"
-            db_path.parent.mkdir(parents=True, exist_ok=True)
-            connection = sqlite3.connect(db_path)
-            try:
-                connection.execute(
-                    """
-                    CREATE TABLE IF NOT EXISTS conversion_logs (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        timestamp TEXT NOT NULL,
-                        product_id TEXT NOT NULL,
-                        input_unit TEXT NOT NULL,
-                        input_quantity REAL NOT NULL,
-                        output_quantity_base REAL NOT NULL,
-                        output_unit_base TEXT NOT NULL,
-                        conversion_path TEXT NOT NULL,
-                        factor_applied REAL NOT NULL,
-                        metadata_json TEXT NULL,
-                        source TEXT NOT NULL
-                    )
-                    """
-                )
-                connection.execute(
-                    """
-                    INSERT INTO conversion_logs (
-                        timestamp,
-                        product_id,
-                        input_unit,
-                        input_quantity,
-                        output_quantity_base,
-                        output_unit_base,
-                        conversion_path,
-                        factor_applied,
-                        metadata_json,
-                        source
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    """,
-                    (
-                        datetime.now(timezone.utc).isoformat(timespec="seconds"),
-                        product_id,
-                        from_unit,
-                        float(quantity),
-                        float(conversion.quantity_base),
-                        conversion.unit_base,
-                        json.dumps(conversion.conversion_path, ensure_ascii=True),
-                        float(conversion.factor_applied),
-                        json.dumps(metadata, ensure_ascii=True),
-                        source,
-                    ),
-                )
-                connection.commit()
-            finally:
-                connection.close()
+            operation_log_service.create_error_log(
+                requested_operation_type=movement_type,
+                product_id=(product_id or "").strip() or None,
+                quantity_input=float(quantity) if quantity is not None else None,
+                unit_input=(from_unit or "").strip() or None,
+                user_id=(str((metadata or {}).get("user_id") or (metadata or {}).get("matricula") or "").strip() or None),
+                source=str((metadata or {}).get("source") or (metadata or {}).get("origin") or (metadata or {}).get("channel") or "inventory_engine"),
+                payload_json=dict(metadata or {}),
+                error_message=str(error),
+            )
         except Exception:
             return
 

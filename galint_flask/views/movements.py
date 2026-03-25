@@ -369,8 +369,15 @@ def _parse_quantidade(raw: str | None) -> int:
 @blueprint.get("/")
 @login_required
 def index():
-    """Hub unificado de saídas - permite escolher tipo de saída (materiais/ferramentas/fracionados)."""
-    return render_mako_template('movements/saidas_hub.mako')
+    """Mantém compatibilidade com a raiz de movimentos."""
+    return redirect(url_for("movements.saidas_hub"))
+
+
+@blueprint.get("/registro-de-saidas")
+@login_required
+def saidas_hub():
+    """Exibe o hub de registro de saídas com os fluxos disponíveis."""
+    return render_mako_template("movements/saidas_hub.mako")
 
 
 # Página antiga "Controle de Saídas e Devoluções" removida - era inútil
