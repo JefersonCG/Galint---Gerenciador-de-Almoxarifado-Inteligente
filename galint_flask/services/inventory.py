@@ -533,27 +533,34 @@ class InventoryService:
             .all()
         )
 
-        saldo_map = self._bulk_saldos([item.codigo_item for item in rows])
         from ..services.embalagem_service import EmbalagemService
         results: list[dict[str, Any]] = []
         for item in rows:
-            if EmbalagemService.tem_embalagem(item):
-                try:
-                    saldo = float(EmbalagemService.calcular_estoque_total(item) or 0)
-                except Exception:
-                    saldo = 0.0
-            else:
-                saldo = float(saldo_map.get(item.codigo_item, 0.0) or 0.0)
+            try:
+                saldo = float(item.get_saldo_fisico_total() or 0.0)
+            except Exception:
+                if EmbalagemService.tem_embalagem(item):
+                    try:
+                        saldo = float(EmbalagemService.calcular_estoque_total(item) or 0)
+                    except Exception:
+                        saldo = 0.0
+                else:
+                    saldo = float(item.get_saldo_atual() or 0.0)
             results.append(
                 {
                     "codigo": item.codigo_item,
                     "descricao": item.descricao,
                     "categoria": item.categoria,
                     "saldo": saldo,
+                    "saldo_display": item.get_saldo_fisico_display(),
                     "tipo_embalagem_novo": item.tipo_embalagem_novo,
                     "unidades_por_embalagem": item.unidades_por_embalagem,
                     "grandeza_referencia": item.grandeza_referencia,
                     "litros_por_embalagem": item.litros_por_embalagem,
+                    "saldo_embalagens": item.estoque_embalagens,
+                    "saldo_unidades_total": saldo,
+                    "saldo_unidades_soltas": item.estoque_unidades_soltas,
+                    "unidade": item.unidade,
                 }
             )
         return results
@@ -635,7 +642,6 @@ class InventoryService:
 
     def list_items(self) -> list[dict[str, Any]]:
         itens = Item.query.order_by(Item.descricao).all()
-        saldo_map = self._bulk_saldos()
         resultado: list[dict[str, Any]] = []
         atualizado = False
         from ..services.embalagem_service import EmbalagemService
@@ -667,13 +673,16 @@ class InventoryService:
             return float(saldo_total or 0.0) * preco_unitario
 
         for item in itens:
-            if EmbalagemService.tem_embalagem(item):
-                try:
-                    saldo = float(EmbalagemService.calcular_estoque_total(item) or 0)
-                except Exception:
-                    saldo = 0.0
-            else:
-                saldo = saldo_map.get(item.codigo_item, 0.0)
+            try:
+                saldo = float(item.get_saldo_fisico_total() or 0.0)
+            except Exception:
+                if EmbalagemService.tem_embalagem(item):
+                    try:
+                        saldo = float(EmbalagemService.calcular_estoque_total(item) or 0)
+                    except Exception:
+                        saldo = 0.0
+                else:
+                    saldo = float(item.get_saldo_atual() or 0.0)
             minimo = _calculate_min_stock(saldo)
             if item.estoque_minimo != minimo:
                 item.estoque_minimo = minimo
@@ -1372,18 +1381,20 @@ class InventoryService:
 
     def resumo_estoque(self) -> list[dict[str, Any]]:
         itens = Item.query.order_by(Item.setor, Item.descricao).all()
-        saldo_map = self._bulk_saldos()
         resumo: list[dict[str, Any]] = []
         atualizado = False
         from ..services.embalagem_service import EmbalagemService
         for item in itens:
-            if EmbalagemService.tem_embalagem(item):
-                try:
-                    saldo = float(EmbalagemService.calcular_estoque_total(item) or 0)
-                except Exception:
-                    saldo = 0.0
-            else:
-                saldo = saldo_map.get(item.codigo_item, 0.0)
+            try:
+                saldo = float(item.get_saldo_fisico_total() or 0.0)
+            except Exception:
+                if EmbalagemService.tem_embalagem(item):
+                    try:
+                        saldo = float(EmbalagemService.calcular_estoque_total(item) or 0)
+                    except Exception:
+                        saldo = 0.0
+                else:
+                    saldo = float(item.get_saldo_atual() or 0.0)
             minimo = _calculate_min_stock(saldo)
             if item.estoque_minimo != minimo:
                 item.estoque_minimo = minimo

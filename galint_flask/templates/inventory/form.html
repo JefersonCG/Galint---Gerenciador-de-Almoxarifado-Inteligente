@@ -1048,7 +1048,7 @@
                         <div class="input-group">
                             <input class="form-control" id="descricao" name="descricao"
                                 value="{{ form_item.descricao if form_item else '' }}" required>
-                            <button type="button" class="btn btn-secondary" id="btn-foto-url" data-bs-toggle="modal" data-bs-target="#modalFotoUrl" data-foto-url="{{ (request.script_root or '') ~ '/itens/' ~ item.codigo ~ '/foto/url' }}" title="Buscar foto por URL">
+                            <button type="button" class="btn btn-secondary" id="btn-foto-url" data-foto-url="{{ (request.script_root or '') ~ '/itens/' ~ item.codigo ~ '/foto/url' }}" title="Buscar foto por URL">
                                 <i class="bi bi-search"></i>
                             </button>
                         </div>
@@ -2025,7 +2025,7 @@ Conversão: 1 saco = 20 quilos</div>
 </div>
 
 <div class="modal fade" id="priceSuggestionsModal" tabindex="-1" aria-labelledby="priceSuggestionsModalLabel"
-    aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+    aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content price-suggest-modal">
             <div class="modal-header">
@@ -2050,6 +2050,8 @@ Conversão: 1 saco = 20 quilos</div>
                 </div>
 
                 <div class="d-flex gap-2 flex-wrap mt-3" id="price-providers"></div>
+
+                <div class="alert alert-danger mt-3 d-none" id="price-feedback" role="alert"></div>
 
                 <div class="alert alert-light border mt-3 d-none" id="price-stats"></div>
 
@@ -3400,12 +3402,44 @@ Conversão: 1 saco = 20 quilos</div>
     const fotoUrlPendingStatus = document.getElementById('foto-url-pending-status');
     const isExistingItem = {{ 'true' if item else 'false' }};
 
+    const cleanupPhotoModalBackdrops = () => {
+        const visibleModals = document.querySelectorAll('.modal.show').length;
+        if (visibleModals > 0) {
+            document.querySelectorAll('.modal-backdrop').forEach((backdrop, index, allBackdrops) => {
+                if (index < allBackdrops.length - 1) {
+                    backdrop.remove();
+                }
+            });
+            return;
+        }
+        document.querySelectorAll('.modal-backdrop').forEach((backdrop) => backdrop.remove());
+        document.body.classList.remove('modal-open');
+        document.body.style.removeProperty('padding-right');
+        document.body.style.removeProperty('overflow');
+    };
+
     let modalFotoUrl = null;
-    if (btnFotoUrl && modalFotoUrlEl && window.bootstrap) {
-        modalFotoUrl = new bootstrap.Modal(modalFotoUrlEl);
-        btnFotoUrl.addEventListener('click', () => {
+    if (modalFotoUrlEl && window.bootstrap) {
+        if (modalFotoUrlEl.parentElement !== document.body) {
+            document.body.appendChild(modalFotoUrlEl);
+        }
+        modalFotoUrl = bootstrap.Modal.getOrCreateInstance(modalFotoUrlEl);
+        modalFotoUrlEl.addEventListener('show.bs.modal', () => {
             if (inputFotoUrl) inputFotoUrl.value = String(fotoUrlInput?.value || '').trim();
-            if (alertFotoUrl) alertFotoUrl.style.display = 'none';
+            if (alertFotoUrl) {
+                alertFotoUrl.textContent = '';
+                alertFotoUrl.style.display = 'none';
+            }
+        });
+        modalFotoUrlEl.addEventListener('shown.bs.modal', cleanupPhotoModalBackdrops);
+        modalFotoUrlEl.addEventListener('hidden.bs.modal', cleanupPhotoModalBackdrops);
+    }
+
+    if (btnFotoUrl && modalFotoUrl) {
+        btnFotoUrl.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            cleanupPhotoModalBackdrops();
             modalFotoUrl.show();
         });
     }
@@ -4361,7 +4395,22 @@ if (confirmFotoUrl) {
     // BUSCAR PRECO DE REPOSICAO (MODAL)
     // ==========================================
     const priceModalElement = document.getElementById('priceSuggestionsModal');
-    const priceModalInstance = priceModalElement ? new bootstrap.Modal(priceModalElement) : null;
+    const cleanupModalBackdrops = () => {
+        const visibleModals = document.querySelectorAll('.modal.show').length;
+        if (visibleModals > 0) {
+            document.querySelectorAll('.modal-backdrop').forEach((backdrop, index, allBackdrops) => {
+                if (index < allBackdrops.length - 1) {
+                    backdrop.remove();
+                }
+            });
+            return;
+        }
+        document.querySelectorAll('.modal-backdrop').forEach((backdrop) => backdrop.remove());
+        document.body.classList.remove('modal-open');
+        document.body.style.removeProperty('padding-right');
+        document.body.style.removeProperty('overflow');
+    };
+    const priceModalInstance = priceModalElement ? bootstrap.Modal.getOrCreateInstance(priceModalElement) : null;
     const btnBuscarPrecoForm = document.getElementById('btn-buscar-preco-form');
     const precoReposicaoInput = document.getElementById('preco_reposicao_unitario');
     const precoReposicaoFonteInput = document.getElementById('preco_reposicao_fonte');
@@ -4372,6 +4421,19 @@ if (confirmFotoUrl) {
     let priceSuggestions = [];
     let lastPriceStats = null;
     let selectedSuggestionIndex = null;
+
+    const setPriceModalFeedback = (message = '', level = 'danger') => {
+        const feedbackEl = document.getElementById('price-feedback');
+        if (!feedbackEl) return;
+        const normalized = String(message || '').trim();
+        if (!normalized) {
+            feedbackEl.textContent = '';
+            feedbackEl.className = 'alert alert-danger mt-3 d-none';
+            return;
+        }
+        feedbackEl.textContent = normalized;
+        feedbackEl.className = `alert alert-${level} mt-3`;
+    };
 
     const brlFormatter = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
     const formatBrl = (value) => {
@@ -4422,6 +4484,7 @@ if (confirmFotoUrl) {
 
     const openPriceModal = async (item) => {
         if (!priceModalInstance) return;
+        cleanupModalBackdrops();
         currentPriceItem = item;
         selectedSuggestionIndex = null;
         priceSuggestions = [];
@@ -4444,10 +4507,16 @@ if (confirmFotoUrl) {
         providersEl.innerHTML = '';
         statsEl.classList.add('d-none');
         emptyEl.classList.add('d-none');
+        setPriceModalFeedback('');
 
         priceModalInstance.show();
         await refreshPriceSuggestions();
     };
+
+    if (priceModalElement) {
+        priceModalElement.addEventListener('shown.bs.modal', cleanupModalBackdrops);
+        priceModalElement.addEventListener('hidden.bs.modal', cleanupModalBackdrops);
+    }
 
     const refreshPriceSuggestions = async () => {
         const resultsEl = document.getElementById('price-results');
@@ -4473,6 +4542,7 @@ if (confirmFotoUrl) {
         providersEl.innerHTML = '';
         statsEl.classList.add('d-none');
         emptyEl.classList.add('d-none');
+        setPriceModalFeedback('');
 
         try {
             const url = `/itens/${encodeURIComponent(currentPriceItem.codigo)}/precos/reposicao/sugestoes?q=${encodeURIComponent(q)}&uf=${encodeURIComponent(uf)}`;
@@ -4540,9 +4610,7 @@ if (confirmFotoUrl) {
             resultsEl.innerHTML = '';
             emptyEl.classList.remove('d-none');
             emptyEl.textContent = `Erro: ${String(err?.message || err)}`;
-            if (window.Swal) {
-                await Swal.fire('Erro', String(err?.message || err), 'error');
-            }
+            setPriceModalFeedback(String(err?.message || err), 'danger');
         } finally {
             const refreshBtn = document.getElementById('price-refresh-btn');
             if (refreshBtn) {
@@ -4587,15 +4655,12 @@ if (confirmFotoUrl) {
                 }
 
                 if (!chosen) {
-                    if (window.Swal) {
-                        await Swal.fire('Selecione um valor', 'Escolha uma sugestao ou preencha o campo manual.', 'warning');
-                    } else {
-                        alert('Escolha uma sugestao ou preencha o valor manual.');
-                    }
+                    setPriceModalFeedback('Escolha uma sugestao ou preencha o campo manual.', 'warning');
                     return;
                 }
 
                 try {
+                    setPriceModalFeedback('');
                     const resp = await fetch(`/itens/${encodeURIComponent(currentPriceItem.codigo)}/precos/reposicao`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
@@ -4628,13 +4693,10 @@ if (confirmFotoUrl) {
                     if (precoReposicaoQueryInput) {
                         precoReposicaoQueryInput.value = updated.preco_reposicao_query || '';
                     }
+                    setPriceModalFeedback('Preco de reposicao atualizado com sucesso.', 'success');
                     priceModalInstance?.hide();
                 } catch (err) {
-                    if (window.Swal) {
-                        await Swal.fire('Erro', String(err?.message || err), 'error');
-                    } else {
-                        alert(String(err?.message || err));
-                    }
+                    setPriceModalFeedback(String(err?.message || err), 'danger');
                 }
             });
         }

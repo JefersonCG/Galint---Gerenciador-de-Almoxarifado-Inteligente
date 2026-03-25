@@ -21,6 +21,23 @@ class BalanceProvider:
     """Centraliza leitura de saldo durante a migração para ledger."""
 
     @staticmethod
+    def _has_legacy_history(product_id: str) -> bool:
+        product_id = (product_id or "").strip()
+        if not product_id:
+            return False
+        return bool(
+            db.session.query(Entrada.codigo_item)
+            .filter(Entrada.codigo_item == product_id)
+            .first()
+            or db.session.query(Saida.codigo_item)
+            .filter(Saida.codigo_item == product_id)
+            .first()
+            or db.session.query(InventarioEvento.codigo_item)
+            .filter(InventarioEvento.codigo_item == product_id)
+            .first()
+        )
+
+    @staticmethod
     def is_product_migrated(product_id: str) -> bool:
         product_id = (product_id or "").strip()
         if not product_id:
@@ -61,6 +78,16 @@ class BalanceProvider:
 
         quantity = BalanceProvider._get_legacy_balance(product_id)
         unit_base = BalanceProvider._resolve_unit_base(item)
+        if not BalanceProvider._has_legacy_history(product_id):
+            balance = StockBalance.query.get(product_id)
+            if balance is not None:
+                return BalanceSnapshot(
+                    product_id=product_id,
+                    quantity_base=float(balance.quantity_base or 0.0),
+                    unit_base=unit_base,
+                    source="stock_balance_pending_cutover",
+                    migrated=False,
+                )
         return BalanceSnapshot(
             product_id=product_id,
             quantity_base=quantity,

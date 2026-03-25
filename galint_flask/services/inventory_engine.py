@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
+import json
+from pathlib import Path
+import sqlite3
 from typing import Any
 
 from sqlalchemy.exc import IntegrityError
@@ -164,6 +167,10 @@ class InventoryEngine:
                 write_audit=write_audit,
             )
         except Exception as exc:
+            try:
+                db.session.rollback()
+            except Exception:
+                pass
             self._record_operation_error(
                 product_id=product_id,
                 quantity=quantity,
@@ -322,6 +329,72 @@ class InventoryEngine:
                 payload_json=dict(metadata or {}),
                 error_message=str(error),
             )
+        except Exception:
+            return
+
+    def _write_conversion_audit(
+        self,
+        *,
+        product_id: str,
+        quantity: float,
+        from_unit: str,
+        conversion: ConversionResult,
+        source: str,
+        metadata: dict[str, Any],
+    ) -> None:
+        try:
+            db_path = Path(__file__).resolve().parents[2] / "instance" / "conversion_logs.db"
+            db_path.parent.mkdir(parents=True, exist_ok=True)
+            connection = sqlite3.connect(db_path)
+            try:
+                connection.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS conversion_logs (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        timestamp TEXT NOT NULL,
+                        product_id TEXT NOT NULL,
+                        input_unit TEXT NOT NULL,
+                        input_quantity REAL NOT NULL,
+                        output_quantity_base REAL NOT NULL,
+                        output_unit_base TEXT NOT NULL,
+                        conversion_path TEXT NOT NULL,
+                        factor_applied REAL NOT NULL,
+                        metadata_json TEXT NULL,
+                        source TEXT NOT NULL
+                    )
+                    """
+                )
+                connection.execute(
+                    """
+                    INSERT INTO conversion_logs (
+                        timestamp,
+                        product_id,
+                        input_unit,
+                        input_quantity,
+                        output_quantity_base,
+                        output_unit_base,
+                        conversion_path,
+                        factor_applied,
+                        metadata_json,
+                        source
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                        product_id,
+                        from_unit,
+                        float(quantity),
+                        float(conversion.quantity_base),
+                        conversion.unit_base,
+                        json.dumps(conversion.conversion_path, ensure_ascii=True),
+                        float(conversion.factor_applied),
+                        json.dumps(metadata, ensure_ascii=True),
+                        source,
+                    ),
+                )
+                connection.commit()
+            finally:
+                connection.close()
         except Exception:
             return
 

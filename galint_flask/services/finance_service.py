@@ -22,6 +22,8 @@ from ..models import (
     FinanceSupplierPreference,
     Item,
     Saida,
+    StockBalance,
+    StockMovement,
 )
 
 
@@ -782,6 +784,10 @@ class FinanceService:
         if item_row is None:
             raise ValueError("Item do documento fiscal não encontrado.")
 
+        recovered = FinanceService._recover_document_item_movement(item_row)
+        if recovered is not None:
+            return recovered
+
         if item_row.stock_movement_id is not None or item_row.entrada_id is not None:
             if (item_row.status_processamento or "").strip().lower() != "processado":
                 item_row.status_processamento = "processado"
@@ -861,6 +867,67 @@ class FinanceService:
                 failed_row.processado_em = None
                 db.session.commit()
             raise
+
+    @staticmethod
+    def _recover_document_item_movement(item_row: DocumentoEntradaEstoqueItem) -> dict[str, Any] | None:
+        existing_movements = (
+            StockMovement.query
+            .filter(
+                StockMovement.reference_type == "entrada_documento_item",
+                StockMovement.reference_id == str(item_row.id_documento_item),
+                StockMovement.product_id == item_row.codigo_item,
+            )
+            .order_by(StockMovement.id.asc())
+            .all()
+        )
+        if not existing_movements:
+            return None
+
+        canonical = existing_movements[0]
+        duplicate_signature = {
+            (
+                movement.product_id,
+                movement.movement_type,
+                float(movement.quantity_base or 0.0),
+                (movement.unit_base or "").strip().lower(),
+                movement.reference_type,
+                movement.reference_id,
+            )
+            for movement in existing_movements
+        }
+        if len(duplicate_signature) > 1:
+            raise ValueError(
+                f"Item documental {item_row.id_documento_item} possui múltiplos movimentos divergentes no ledger."
+            )
+
+        for duplicate in existing_movements[1:]:
+            db.session.delete(duplicate)
+
+        total_quantity = (
+            db.session.query(func.coalesce(func.sum(StockMovement.quantity_base), 0.0))
+            .filter(StockMovement.product_id == item_row.codigo_item)
+            .scalar()
+        )
+        balance = db.session.get(StockBalance, item_row.codigo_item)
+        if balance is None:
+            balance = StockBalance(product_id=item_row.codigo_item)
+            db.session.add(balance)
+        balance.quantity_base = float(total_quantity or 0.0)
+
+        item_row.stock_movement_id = canonical.id
+        item_row.status_processamento = "processado"
+        item_row.processado_em = item_row.processado_em or datetime.utcnow()
+        item_row.erro_processamento = None
+        db.session.commit()
+        return {
+            "success": True,
+            "processed": False,
+            "skipped": True,
+            "reason": "recovered_existing_movement",
+            "documento_item_id": item_row.id_documento_item,
+            "stock_movement_id": canonical.id,
+            "operation_log_id": item_row.operation_log_id,
+        }
 
     @staticmethod
     def process_stock_document_entries(

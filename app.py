@@ -74,7 +74,10 @@ def _load_migration_funcs():
 def _run_migrations(app: Flask) -> None:
     """Inicliza pasta de migrations (se necessário), gera e aplica migration.
 
-   mn Usa API programática do Flask-Migrate para suportar ambientes sem CLI.
+   mn
+   
+   
+     Usa API programática do Flask-Migrate para suportar ambientes sem CLI.
     """
     from pathlib import Path
 
@@ -112,6 +115,7 @@ def _run_upgrade(app: Flask) -> None:
 
 
 if __name__ == "__main__":
+    import os
     import sys
 
     if len(sys.argv) > 1 and sys.argv[1] in ("migrate", "db-migrate"):
@@ -126,7 +130,9 @@ if __name__ == "__main__":
             _run_upgrade(app)
         sys.exit(0)
 
+    port = int(os.getenv("PORT", "5000"))
+
     print("🌐 Iniciando servidor em modo HTTP")
-    print("   URL: http://localhost:5000")
-    print("   LAN: http://SEU_IP:5000 (ex.: http://10.0.0.245:5000)")
-    app.run(host="0.0.0.0", port=5000, debug=True, use_reloader=False, threaded=True)
+    print(f"   URL: http://localhost:{port}")
+    print(f"   LAN: http://SEU_IP:{port} (ex.: http://10.0.0.245:{port})")
+    app.run(host="0.0.0.0", port=port, debug=True, use_reloader=False, threaded=True)

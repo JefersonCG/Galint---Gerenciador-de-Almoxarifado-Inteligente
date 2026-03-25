@@ -2037,19 +2037,11 @@ def item_barcode_png(codigo: str):
 @login_required
 def get_item_api(codigo: str):
     """API endpoint para buscar informações do item."""
-    from flask import jsonify
-    item = Item.query.get(codigo)
+    item = inventory_service.get_item(codigo)
     if not item:
-        return jsonify({"error": "Item não encontrado"}), 404
-    
-    return jsonify({
-        "codigo": item.codigo,
-        "descricao": item.descricao,
-        "unidade": item.unidade,
-        "tipo_embalagem_novo": item.tipo_embalagem_novo,
-        "unidades_por_embalagem": item.unidades_por_embalagem,
-        "saldo": item.saldo,
-    })
+        return jsonify({"success": False, "message": "Item não encontrado."}), 404
+
+    return jsonify({"success": True, "item": item})
 
 
 @blueprint.get("/api/<codigo>/history")

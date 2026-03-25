@@ -3633,6 +3633,18 @@
         }
     };
 
+    const loadItemSnapshot = async (codigo) => {
+        const response = await fetch(`/itens/api/${encodeURIComponent(codigo)}`, {
+            headers: { 'Accept': 'application/json' },
+            credentials: 'same-origin'
+        });
+        const data = await readJsonResponse(response);
+        if (!response.ok || data?.success === false) {
+            throw new Error(data?.message || 'Falha ao carregar dados atualizados do item');
+        }
+        return data?.item || data;
+    };
+
     const openPriceModal = async (item) => {
         if (!priceModalInstance) return;
         currentPriceItem = item;
@@ -3903,9 +3915,25 @@
         });
     };
 
-    const openItemModal = (item) => {
+    const openItemModal = async (item) => {
         if (!itemModalInstance || !itemModalTitle || !itemModalBody || !itemModalFooter) {
             return;
+        }
+
+        let currentItem = item;
+        if (item?.codigo) {
+            try {
+                const freshItem = await loadItemSnapshot(item.codigo);
+                if (freshItem && typeof freshItem === 'object') {
+                    currentItem = { ...item, ...freshItem };
+                    const itemIndex = items.findIndex((entry) => String(entry.codigo) === String(item.codigo));
+                    if (itemIndex >= 0) {
+                        items[itemIndex] = currentItem;
+                    }
+                }
+            } catch (err) {
+                console.warn('Nao foi possivel atualizar snapshot do item antes de abrir o modal:', err);
+            }
         }
 
         const buildBarcodePngUrl = (codigo) => {
@@ -3916,43 +3944,45 @@
         };
         
         // Atualizar título do modal
-        itemModalTitle.textContent = item.descricao || 'Item';
+        itemModalTitle.textContent = currentItem.descricao || 'Item';
         
         // Popular aba Informações
-        document.getElementById('item-codigo').textContent = item.codigo || '—';
-        document.getElementById('item-categoria').textContent = item.categoria || '—';
-        document.getElementById('item-marca').textContent = item.marca || item.setor || '—';
-        const hasPackaging = item.tipo_embalagem_novo && item.unidades_por_embalagem;
-        const embalagemNome = item.tipo_embalagem_novo || 'embalagem';
-        const saldoDisplay = hasPackaging ? (item.saldo_embalagens ?? item.saldo) : item.saldo;
-        const saldoUnidades = item.saldo_unidades_total ?? item.saldo;
+        document.getElementById('item-codigo').textContent = currentItem.codigo || '—';
+        document.getElementById('item-categoria').textContent = currentItem.categoria || '—';
+        document.getElementById('item-marca').textContent = currentItem.marca || currentItem.setor || '—';
+        const hasPackaging = currentItem.tipo_embalagem_novo && currentItem.unidades_por_embalagem;
+        const embalagemNome = currentItem.tipo_embalagem_novo || 'embalagem';
+        const saldoDisplay = hasPackaging
+            ? (currentItem.saldo_embalagens ?? currentItem.saldo ?? 0)
+            : (currentItem.saldo_display || currentItem.saldo || '0');
+        const saldoUnidades = currentItem.saldo_unidades_total ?? currentItem.saldo;
         
         // Determinar a unidade correta para exibição
         let unidadeExibicao = 'unidades';
-        if (item.grandeza_referencia && item.grandeza_referencia > 0 && 
-            (item.tipo_embalagem_novo === 'balde' || item.tipo_embalagem_novo === 'lata' || 
-             item.unidade === 'Balde' || item.unidade === 'Lata')) {
+        if (currentItem.grandeza_referencia && currentItem.grandeza_referencia > 0 && 
+            (currentItem.tipo_embalagem_novo === 'balde' || currentItem.tipo_embalagem_novo === 'lata' || 
+             currentItem.unidade === 'Balde' || currentItem.unidade === 'Lata')) {
             unidadeExibicao = 'kg';
-        } else if (item.litros_por_embalagem && item.litros_por_embalagem > 0) {
+        } else if (currentItem.litros_por_embalagem && currentItem.litros_por_embalagem > 0) {
             unidadeExibicao = 'litros';
-        } else if (item.tipo_embalagem_novo === 'rolo' || item.unidade === 'Rolo') {
+        } else if (currentItem.tipo_embalagem_novo === 'rolo' || currentItem.unidade === 'Rolo') {
             unidadeExibicao = 'metros';
         }
         
         document.getElementById('item-saldo').textContent = hasPackaging
             ? `${saldoDisplay || 0} ${embalagemNome}`
-            : (item.saldo || '0');
-        document.getElementById('item-unidade').textContent = item.unidade || '—';
+            : String(saldoDisplay || '0');
+        document.getElementById('item-unidade').textContent = currentItem.unidade || '—';
 
-        updateFinanceUI(item);
+        updateFinanceUI(currentItem);
         
         // Imagem do produto (grande à direita)
         const imageContainer = document.getElementById('item-image-large');
         const imageSrc = document.getElementById('item-image-src');
-        if (item.foto_path) {
+        if (currentItem.foto_path) {
             imageContainer.classList.remove('no-image');
-            imageSrc.src = buildStaticItemPhotoUrl(item.foto_path);
-            imageSrc.alt = `Imagem de ${item.descricao}`;
+            imageSrc.src = buildStaticItemPhotoUrl(currentItem.foto_path);
+            imageSrc.alt = `Imagem de ${currentItem.descricao}`;
             imageSrc.style.display = 'block';
         } else {
             imageContainer.classList.add('no-image');
@@ -3962,10 +3992,10 @@
         // Código de barras pequeno (esquerda na aba Informações)
         const barcodeSmallContainer = document.getElementById('item-barcode-small');
         const barcodeSmallImg = document.getElementById('item-barcode-small-img');
-        if (item.codigo && barcodeSmallContainer && barcodeSmallImg) {
+        if (currentItem.codigo && barcodeSmallContainer && barcodeSmallImg) {
             barcodeSmallContainer.style.display = 'block';
-            barcodeSmallImg.src = buildBarcodePngUrl(item.codigo);
-            barcodeSmallImg.alt = `Código de barras do item ${item.codigo}`;
+            barcodeSmallImg.src = buildBarcodePngUrl(currentItem.codigo);
+            barcodeSmallImg.alt = `Código de barras do item ${currentItem.codigo}`;
         } else if (barcodeSmallContainer) {
             barcodeSmallContainer.style.display = 'none';
         }
@@ -3973,48 +4003,49 @@
         // Popular aba Estoque
         document.getElementById('stock-saldo').textContent = hasPackaging
             ? `${saldoDisplay || 0} ${embalagemNome} (${saldoUnidades || 0} ${unidadeExibicao})`
-            : `${item.saldo || 0} ${item.unidade || 'unidades'}`;
+            : `${currentItem.saldo || 0} ${currentItem.unidade || 'unidades'}`;
         const stockExplicacao = document.getElementById('stock-explicacao');
-        if (item.explicacao_saldo) {
-            stockExplicacao.textContent = item.explicacao_saldo;
+        if (currentItem.explicacao_saldo) {
+            stockExplicacao.textContent = currentItem.explicacao_saldo;
             stockExplicacao.style.display = 'block';
         } else {
             stockExplicacao.style.display = 'none';
         }
         const stockBarFill = document.getElementById('stock-bar-fill');
-        const stockPercent = Math.min(100, Math.max(0, (parseInt(item.saldo) || 0) * 5)); // Ajuste conforme necessário
+        const numericSaldo = Number(currentItem.saldo_unidades_total ?? currentItem.saldo ?? 0);
+        const stockPercent = Math.min(100, Math.max(0, (parseInt(numericSaldo, 10) || 0) * 5));
         stockBarFill.style.width = `${stockPercent}%`;
         
         // Popular aba Código de Barras
-        document.getElementById('barcode-codigo').textContent = item.codigo || '—';
+        document.getElementById('barcode-codigo').textContent = currentItem.codigo || '—';
         const barcodeLargeImg = document.getElementById('item-barcode-large-img');
-        if (item.codigo && barcodeLargeImg) {
-            barcodeLargeImg.src = buildBarcodePngUrl(item.codigo);
-            barcodeLargeImg.alt = `Código de barras do item ${item.codigo}`;
+        if (currentItem.codigo && barcodeLargeImg) {
+            barcodeLargeImg.src = buildBarcodePngUrl(currentItem.codigo);
+            barcodeLargeImg.alt = `Código de barras do item ${currentItem.codigo}`;
         }
         
-        loadItemHistory(item.codigo);
+        loadItemHistory(currentItem.codigo);
         
         // Preparar botões do footer
-        const hasManageLinks = Boolean(item.edit_url);
-        const categoria_lower = (item.categoria || '').toLowerCase();
+        const hasManageLinks = Boolean(currentItem.edit_url);
+        const categoria_lower = (currentItem.categoria || '').toLowerCase();
         const canAssign = categoria_lower.includes('ferramenta') || categoria_lower.includes('epi') || (categoria_lower.includes('material') && categoria_lower.includes('ep'));
-        const itemData = {tipo_embalagem_novo: item.tipo_embalagem_novo || '', unidade: item.unidade || '', unidades_por_embalagem: item.unidades_por_embalagem || null};
+        const itemData = {tipo_embalagem_novo: currentItem.tipo_embalagem_novo || '', unidade: currentItem.unidade || '', unidades_por_embalagem: currentItem.unidades_por_embalagem || null};
         
         const editButton = canEditItems && hasManageLinks ? `
-            <a class="btn btn-primary" href="${escapeHtml(item.edit_url)}">
+            <a class="btn btn-primary" href="${escapeHtml(currentItem.edit_url)}">
                 <i class="bi bi-pencil me-1"></i> Editar item
             </a>` : '';
         const imageButton = canManage ? `
-            <button class="btn btn-outline-info" type="button" onclick='openPhotoAssistantModal(${escapeHtml(JSON.stringify({ codigo: item.codigo, descricao: item.descricao, marca: item.marca || item.setor || '', foto_path: item.foto_path || '' }))})'>
+            <button class="btn btn-outline-info" type="button" onclick='openPhotoAssistantModal(${escapeHtml(JSON.stringify({ codigo: currentItem.codigo, descricao: currentItem.descricao, marca: currentItem.marca || currentItem.setor || '', foto_path: currentItem.foto_path || '' }))})'>
                 <i class="bi bi-image me-1"></i> Buscar imagem
             </button>` : '';
         const assignButton = canManage && canAssign ? `
-            <button class="btn btn-success" type="button" onclick='openAssignModal(${escapeHtml(JSON.stringify(item.codigo))}, ${escapeHtml(JSON.stringify(item.descricao))}, ${escapeHtml(JSON.stringify(itemData))})'>
+            <button class="btn btn-success" type="button" onclick='openAssignModal(${escapeHtml(JSON.stringify(currentItem.codigo))}, ${escapeHtml(JSON.stringify(currentItem.descricao))}, ${escapeHtml(JSON.stringify(itemData))})'>
                 <i class="bi bi-person-check me-1"></i> Atribuir
             </button>` : '';
         const repairButton = canManage && canAssign ? `
-            <button class="btn btn-warning" type="button" onclick="sendToRepair('${escapeHtml(item.codigo)}', '${escapeHtml(item.descricao)}')">
+            <button class="btn btn-warning" type="button" onclick="sendToRepair('${escapeHtml(currentItem.codigo)}', '${escapeHtml(currentItem.descricao)}')">
                 <i class="bi bi-tools me-1"></i> Enviado para Reparo
             </button>` : '';
         

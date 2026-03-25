@@ -116,6 +116,14 @@ class Item(db.Model):
         cascade="all, delete-orphan",
     )
 
+    @property
+    def codigo(self) -> str:
+        return self.codigo_item
+
+    @property
+    def saldo(self) -> float:
+        return self.get_saldo_fisico_total()
+
     def to_dict(self, include_balance: bool = False) -> dict[str, object]:
         data = {
             "codigo": self.codigo_item,
