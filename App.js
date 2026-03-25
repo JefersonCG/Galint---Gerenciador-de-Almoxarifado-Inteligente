@@ -8,8 +8,6 @@ import * as Updates from 'expo-updates';
 
 import LoginScreen from './src/screens/LoginScreen';
 import EstoqueScreen from './src/screens/EstoqueScreen';
-import CadastroScreen from './src/screens/CadastroScreen';
-import CadastroMultiploScreen from './src/screens/CadastroMultiploScreen';
 import ScannerScreen from './src/screens/ScannerScreen';
 import EditarItemScreen from './src/screens/EditarItemScreen';
 import RetiradaScreen from './src/screens/RetiradaScreen';
@@ -191,16 +189,6 @@ export default function App() {
                             title: 'GALINT - Estoque',
                             headerBackVisible: false
                         }}
-                    />
-                    <Stack.Screen
-                        name="Cadastro"
-                        component={CadastroScreen}
-                        options={{ title: 'Cadastrar Item' }}
-                    />
-                    <Stack.Screen
-                        name="CadastroMultiplo"
-                        component={CadastroMultiploScreen}
-                        options={{ title: 'Cadastrar Itens' }}
                     />
                     <Stack.Screen
                         name="Scanner"

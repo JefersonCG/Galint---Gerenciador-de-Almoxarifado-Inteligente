@@ -421,7 +421,10 @@ export default function EstoqueScreen({ navigation, route }) {
 
     const handleItemPress = (item) => {
         if (role === 'master') {
-            navigation.navigate('EditarItem', { user, item });
+            Alert.alert(
+                'Consulta somente',
+                'A manutenção de itens foi removida do app mobile. Utilize a interface web administrativa para editar cadastros.'
+            );
         }
     };
 
@@ -613,17 +616,6 @@ export default function EstoqueScreen({ navigation, route }) {
                             >
                                 <Text style={styles.actionLabel}>Retirada Fracionada</Text>
                             </TouchableOpacity>
-
-                            {/* CADASTRAR - MASTER OU GERENCIA */}
-                            {(role === 'master' || role === 'gerencia') && (
-                                <TouchableOpacity
-                                    style={[styles.actionCard, styles.cadastroCard]}
-                                    onPress={() => handleAction('CadastroMultiplo')}
-                                    activeOpacity={0.8}
-                                >
-                                    <Text style={styles.actionLabel}>Cadastrar Itens</Text>
-                                </TouchableOpacity>
-                            )}
 
                         </View>
                     </View>

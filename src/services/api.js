@@ -939,245 +939,35 @@ class ApiService {
     }
 
     async cadastrarItem(itemData) {
-        try {
-            await this.ensureOfflineReady();
-            const online = await this.isOnline();
-            if (!online) {
-                await queueCadastroItemOffline(itemData);
-                return {
-                    success: true,
-                    offline: true,
-                    message: 'Cadastro registrado offline. Sincronização pendente.'
-                };
-            }
-            
-            // Se itemData contém foto, usar FormData senão JSON
-            let requestData;
-            let headers = {};
-            
-            if (itemData.foto) {
-                // Criar FormData para upload de foto
-                const formData = new FormData();
-                
-                // Adicionar campos do item
-                Object.keys(itemData).forEach((key) => {
-                    if (key !== 'foto') {
-                        formData.append(key, itemData[key]);
-                    }
-                });
-                
-                // Adicionar arquivo de foto
-                const uriParts = itemData.foto.uri.split('.');
-                const fileType = uriParts[uriParts.length - 1];
-                
-                formData.append('foto', {
-                    uri: itemData.foto.uri,
-                    name: `foto_${Date.now()}.${fileType}`,
-                    type: `image/${fileType}`,
-                });
-                
-                requestData = formData;
-                headers['Content-Type'] = 'multipart/form-data';
-            } else {
-                // Usar JSON normal
-                requestData = itemData;
-            }
-            
-            const response = await this.client.post('/api/mobile/estoque', requestData, {
-                headers
-            });
-            
-            if (response.data) {
-                await upsertItem(response.data?.data || response.data);
-            }
-            return { success: true, data: response.data };
-        } catch (error) {
-            if (isNetworkError(error)) {
-                await queueCadastroItemOffline(itemData);
-                return {
-                    success: true,
-                    offline: true,
-                    message: 'Cadastro registrado offline. Sincronização pendente.'
-                };
-            }
-            return {
-                success: false,
-                message: error.response?.data?.error || 'Erro ao cadastrar item'
-            };
-        }
+        return {
+            success: false,
+            disabled: true,
+            message: 'Cadastro de itens foi removido do app mobile. Utilize a interface web de Documentos Fiscais.'
+        };
     }
 
     async cadastrarItensMultiplos({ itens, matricula }) {
-        try {
-            await this.ensureOfflineReady();
-            const online = await this.isOnline();
-            
-            let sucessos = 0;
-            let falhas = 0;
-            let mensagensErro = [];
-            
-            for (const item of itens) {
-                try {
-                    const itemCompleto = {
-                        ...item,
-                        matricula_cadastro: matricula
-                    };
-                    
-                    const resultado = await this.cadastrarItem(itemCompleto);
-                    
-                    if (resultado.success) {
-                        sucessos++;
-                    } else {
-                        falhas++;
-                        mensagensErro.push(`${item.descricao}: ${resultado.message || 'Erro desconhecido'}`);
-                    }
-                } catch (error) {
-                    falhas++;
-                    mensagensErro.push(`${item.descricao}: ${error.message || 'Erro ao processar'}`);
-                }
-            }
-            
-            if (sucessos === itens.length) {
-                return {
-                    success: true,
-                    offline: !online,
-                    message: online ? `${sucessos} item(ns) cadastrado(s) com sucesso!` : 'Cadastros salvos offline. Serão sincronizados quando houver conexão.'
-                };
-            } else if (sucessos > 0) {
-                return {
-                    success: false,
-                    message: `${sucessos} item(ns) cadastrado(s), ${falhas} falharam:\n${mensagensErro.join('\n')}`
-                };
-            } else {
-                return {
-                    success: false,
-                    message: `Nenhum item foi cadastrado:\n${mensagensErro.join('\n')}`
-                };
-            }
-        } catch (error) {
-            return {
-                success: false,
-                message: error.message || 'Erro ao cadastrar itens múltiplos'
-            };
-        }
+        return {
+            success: false,
+            disabled: true,
+            message: 'Cadastro em lote foi removido do app mobile. Utilize a interface web de Documentos Fiscais.'
+        };
     }
 
     async atualizarItem(itemId, itemData) {
-        try {
-            // Se itemData contém foto, usar FormData senão JSON
-            let requestData;
-            let headers = {};
-            
-            if (itemData.foto) {
-                // Criar FormData para upload de foto
-                const formData = new FormData();
-                
-                // Adicionar campos do item
-                Object.keys(itemData).forEach((key) => {
-                    if (key !== 'foto') {
-                        formData.append(key, itemData[key]);
-                    }
-                });
-                
-                // Adicionar arquivo de foto
-                const uriParts = itemData.foto.uri.split('.');
-                const fileType = uriParts[uriParts.length - 1];
-                
-                formData.append('foto', {
-                    uri: itemData.foto.uri,
-                    name: `foto_${Date.now()}.${fileType}`,
-                    type: `image/${fileType}`,
-                });
-                
-                requestData = formData;
-                headers['Content-Type'] = 'multipart/form-data';
-            } else {
-                // Usar JSON normal
-                requestData = itemData;
-            }
-            
-            const response = await this.client.put(`/api/mobile/estoque/${itemId}`, requestData, {
-                headers
-            });
-            return { success: true, data: response.data };
-        } catch (error) {
-            // Alguns ambientes/proxies bloqueiam PUT/DELETE. Tentar POST como fallback.
-            try {
-                const status = error?.response?.status;
-                if (!error?.response || status === 405) {
-                    // Preparar requestData novamente para fallback
-                    let requestData;
-                    let headers = {};
-                    
-                    if (itemData.foto) {
-                        const formData = new FormData();
-                        Object.keys(itemData).forEach((key) => {
-                            if (key !== 'foto') {
-                                formData.append(key, itemData[key]);
-                            }
-                        });
-                        const uriParts = itemData.foto.uri.split('.');
-                        const fileType = uriParts[uriParts.length - 1];
-                        formData.append('foto', {
-                            uri: itemData.foto.uri,
-                            name: `foto_${Date.now()}.${fileType}`,
-                            type: `image/${fileType}`,
-                        });
-                        requestData = formData;
-                        headers['Content-Type'] = 'multipart/form-data';
-                    } else {
-                        requestData = itemData;
-                    }
-                    
-                    const response = await this.client.post(`/api/mobile/estoque/${itemId}`, requestData, {
-                        headers
-                    });
-                    return { success: true, data: response.data };
-                }
-            } catch (fallbackError) {
-                // continua para retornar mensagem original
-            }
-
-            return {
-                success: false,
-                message: error.response?.data?.error
-                    || error.response?.data?.message
-                    || (typeof error.response?.data === 'string' ? error.response.data : null)
-                    || (error?.message ? `${error.message}${this.baseURL ? `\nURL: ${this.baseURL}/api/mobile/estoque/${itemId}` : ''}` : null)
-                    || 'Erro ao atualizar item'
-            };
-        }
+        return {
+            success: false,
+            disabled: true,
+            message: 'Edição de itens foi removida do app mobile. Utilize a interface web administrativa.'
+        };
     }
 
     async ajustarSaldo(itemId, saldo) {
-        try {
-            const response = await this.client.put(`/api/mobile/estoque/${itemId}/saldo`, {
-                saldo: Number.isFinite(saldo) ? Math.trunc(saldo) : saldo,
-            });
-            return { success: true, data: response.data };
-        } catch (error) {
-            // Fallback via POST (ambientes que bloqueiam PUT)
-            try {
-                const status = error?.response?.status;
-                if (!error?.response || status === 405) {
-                    const response = await this.client.post(`/api/mobile/estoque/${itemId}/saldo`, {
-                        saldo: Number.isFinite(saldo) ? Math.trunc(saldo) : saldo,
-                    });
-                    return { success: true, data: response.data };
-                }
-            } catch (fallbackError) {
-                // continua para retornar mensagem original
-            }
-
-            return {
-                success: false,
-                message: error.response?.data?.error
-                    || error.response?.data?.message
-                    || (typeof error.response?.data === 'string' ? error.response.data : null)
-                    || (error?.message ? `${error.message}${this.baseURL ? `\nURL: ${this.baseURL}/api/mobile/estoque/${itemId}/saldo` : ''}` : null)
-                    || 'Erro ao ajustar saldo'
-            };
-        }
+        return {
+            success: false,
+            disabled: true,
+            message: 'Ajuste de saldo foi removido do app mobile. Utilize Documentos Fiscais para entradas e os fluxos operacionais para movimentações.'
+        };
     }
 
     async registrarRetiradaMultipla(data) {
@@ -1237,30 +1027,11 @@ class ApiService {
     }
 
     async excluirItem(itemId) {
-        try {
-            const response = await this.client.delete(`/api/mobile/estoque/${itemId}`);
-            return { success: true, data: response.data };
-        } catch (error) {
-            // Fallback via POST (ambientes que bloqueiam DELETE)
-            try {
-                const status = error?.response?.status;
-                if (!error?.response || status === 405) {
-                    const response = await this.client.post(`/api/mobile/estoque/${itemId}/delete`);
-                    return { success: true, data: response.data };
-                }
-            } catch (fallbackError) {
-                // continua para retornar mensagem original
-            }
-
-            return {
-                success: false,
-                message: error.response?.data?.error
-                    || error.response?.data?.message
-                    || (typeof error.response?.data === 'string' ? error.response.data : null)
-                    || (error?.message ? `${error.message}${this.baseURL ? `\nURL: ${this.baseURL}/api/mobile/estoque/${itemId}` : ''}` : null)
-                    || 'Erro ao excluir item'
-            };
-        }
+        return {
+            success: false,
+            disabled: true,
+            message: 'Exclusão de itens foi removida do app mobile. Utilize a interface web administrativa.'
+        };
     }
 
     async syncPendingOps() {
@@ -1300,7 +1071,9 @@ class ApiService {
                 } else if (op.type === 'devolucao_material') {
                     response = await this.client.post('/api/mobile/devolver_material', payload);
                 } else if (op.type === 'cadastro_item') {
-                    response = await this.client.post('/api/mobile/estoque', payload);
+                    await markPendingOpSynced(op.id);
+                    synced += 1;
+                    continue;
                 }
 
                 const success = response?.data?.success !== false;

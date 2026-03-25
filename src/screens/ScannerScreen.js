@@ -164,18 +164,11 @@ export default function ScannerScreen({ navigation, route }) {
             } else if (result.notFound) {
                 Alert.alert(
                     'Item Não Encontrado',
-                    `Código: ${data}\n\nDeseja cadastrar este item?`,
+                    `Código: ${data}\n\nO cadastro mobile foi removido. Cadastre o item pela interface web em Documentos Fiscais.`,
                     [
                         {
-                            text: 'Não',
-                            style: 'cancel',
+                            text: 'OK',
                             onPress: () => setScanned(false),
-                        },
-                        {
-                            text: 'Sim',
-                            onPress: () => {
-                                navigation.replace('Cadastro', { barcode: data });
-                            },
                         },
                     ]
                 );
