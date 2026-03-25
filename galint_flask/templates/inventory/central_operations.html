@@ -1,126 +1,339 @@
 {% extends "base.html" %}
 
+{% block body_class %}central-operations-page{% endblock %}
+
 {% block title %}Central de Operações{% endblock %}
 
+{% block extra_css %}
+<style>
+    .central-operations-page .content-panel {
+        background:
+            radial-gradient(circle at top left, rgba(59, 130, 246, 0.12), transparent 28%),
+            radial-gradient(circle at top right, rgba(16, 185, 129, 0.08), transparent 22%),
+            linear-gradient(180deg, #0b1120 0%, #111827 100%);
+        color: #e2e8f0;
+    }
+
+    .central-operations-page .page-header {
+        margin-bottom: 1.75rem;
+    }
+
+    .operations-hero {
+        position: relative;
+        overflow: hidden;
+        border-radius: 24px;
+        padding: 1.7rem 1.8rem;
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 58%, #1d4ed8 100%);
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        box-shadow: 0 26px 60px rgba(15, 23, 42, 0.24);
+    }
+
+    .operations-hero::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+            radial-gradient(circle at 14% 18%, rgba(96, 165, 250, 0.28), transparent 30%),
+            radial-gradient(circle at 86% 22%, rgba(59, 130, 246, 0.2), transparent 28%),
+            linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 60%);
+        pointer-events: none;
+    }
+
+    .operations-hero > * {
+        position: relative;
+        z-index: 1;
+    }
+
+    .operations-hero h2 {
+        margin: 0;
+        color: #f8fafc;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+    }
+
+    .operations-hero p {
+        color: rgba(226, 232, 240, 0.82);
+    }
+
+    .operations-shell {
+        position: relative;
+    }
+
+    .operations-shell::before {
+        content: "";
+        position: absolute;
+        inset: -1rem 0 auto;
+        height: 240px;
+        background:
+            radial-gradient(circle at 10% 16%, rgba(37, 99, 235, 0.16), transparent 26%),
+            radial-gradient(circle at 88% 10%, rgba(14, 165, 233, 0.12), transparent 22%);
+        pointer-events: none;
+    }
+
+    .operations-shell > * {
+        position: relative;
+        z-index: 1;
+    }
+
+    .operations-toolbar-note {
+        color: #94a3b8;
+    }
+
+    .operations-toolbar .btn {
+        border-radius: 999px;
+        padding-inline: 1rem;
+    }
+
+    .operations-toolbar .btn-outline-primary {
+        color: #bfdbfe;
+        border-color: rgba(59, 130, 246, 0.65);
+        background: rgba(37, 99, 235, 0.1);
+    }
+
+    .operations-toolbar .btn-outline-primary:hover {
+        color: #ffffff;
+        border-color: #60a5fa;
+        background: rgba(37, 99, 235, 0.24);
+    }
+
+    .operations-toolbar .btn-outline-secondary {
+        color: #e2e8f0;
+        border-color: rgba(148, 163, 184, 0.45);
+        background: rgba(15, 23, 42, 0.35);
+    }
+
+    .operations-toolbar .btn-outline-secondary:hover {
+        color: #ffffff;
+        border-color: rgba(226, 232, 240, 0.8);
+        background: rgba(51, 65, 85, 0.62);
+    }
+
+    .operations-panel {
+        background: linear-gradient(135deg, rgba(15, 23, 42, 0.96) 0%, rgba(30, 41, 59, 0.94) 100%);
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        border-radius: 24px;
+        box-shadow: 0 28px 65px rgba(2, 6, 23, 0.35);
+        padding: 1.6rem;
+    }
+
+    .operations-panel .nav-tabs {
+        border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+        gap: 0.6rem;
+    }
+
+    .operations-panel .nav-tabs .nav-link {
+        border: 1px solid transparent;
+        color: #94a3b8;
+        border-radius: 999px;
+        padding: 0.7rem 1rem;
+        background: transparent;
+        transition: all 0.2s ease;
+    }
+
+    .operations-panel .nav-tabs .nav-link:hover {
+        color: #f8fafc;
+        border-color: rgba(59, 130, 246, 0.35);
+        background: rgba(37, 99, 235, 0.12);
+    }
+
+    .operations-panel .nav-tabs .nav-link.active {
+        color: #ffffff;
+        border-color: rgba(59, 130, 246, 0.42);
+        background: linear-gradient(135deg, rgba(37, 99, 235, 0.28), rgba(29, 78, 216, 0.5));
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    }
+
+    .operations-panel .badge.bg-secondary {
+        background: rgba(15, 23, 42, 0.45) !important;
+        color: #e2e8f0;
+        border: 1px solid rgba(148, 163, 184, 0.25);
+    }
+
+    .operations-table {
+        margin-bottom: 0;
+        color: #e2e8f0;
+        --bs-table-bg: transparent;
+        --bs-table-color: #e2e8f0;
+        --bs-table-border-color: rgba(148, 163, 184, 0.16);
+        --bs-table-hover-bg: rgba(37, 99, 235, 0.14);
+        --bs-table-hover-color: #ffffff;
+    }
+
+    .operations-table thead th {
+        background: rgba(15, 23, 42, 0.88);
+        color: #f8fafc;
+        font-size: 0.82rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        padding-top: 0.9rem;
+        padding-bottom: 0.9rem;
+        border-bottom-width: 1px;
+    }
+
+    .operations-table tbody td {
+        padding-top: 0.95rem;
+        padding-bottom: 0.95rem;
+        vertical-align: middle;
+        color: #e2e8f0;
+    }
+
+    .operations-table .product-code,
+    .operations-table .payload-preview,
+    .operations-table .empty-state,
+    .operations-table .text-muted {
+        color: #94a3b8 !important;
+    }
+
+    .operations-table .payload-preview {
+        display: inline-block;
+        max-width: 340px;
+        white-space: normal;
+    }
+
+    .operations-panel .table-responsive {
+        border-radius: 18px;
+        overflow: hidden;
+    }
+
+    @media (max-width: 768px) {
+        .operations-hero {
+            padding: 1.35rem;
+        }
+
+        .operations-panel {
+            padding: 1rem;
+        }
+
+        .operations-panel .nav-tabs {
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            padding-bottom: 0.25rem;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block page_header %}
-<div>
+<div class="operations-hero">
     <h2 class="mb-1">Central de Operações</h2>
-    <p class="text-muted mb-0">Monitoramento unificado de entradas, saídas, devoluções e erros do estoque.</p>
+    <p class="mb-0">Monitoramento unificado de entradas, saídas, devoluções e erros do estoque.</p>
 </div>
 {% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-    <div class="text-muted small">Ordenação: mais recentes primeiro</div>
-    <div class="d-flex gap-2 flex-wrap">
-        <a class="btn btn-outline-primary" href="{{ url_for('inventory.list_items') }}">Itens Cadastrados</a>
-        <a class="btn btn-outline-secondary" href="{{ url_for('dashboard.index') }}">Dashboard</a>
-    </div>
-</div>
-
-<div class="section-panel mb-4">
-    <ul class="nav nav-tabs mb-3" id="operationTabs" role="tablist">
-        <li class="nav-item" role="presentation">
-            <button class="nav-link active" id="entrada-tab" data-bs-toggle="tab" data-bs-target="#entrada-pane" type="button" role="tab" aria-controls="entrada-pane" aria-selected="true">
-                Entradas <span class="badge bg-secondary ms-1">{{ counts.entrada }}</span>
-            </button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" id="saida-tab" data-bs-toggle="tab" data-bs-target="#saida-pane" type="button" role="tab" aria-controls="saida-pane" aria-selected="false">
-                Saídas <span class="badge bg-secondary ms-1">{{ counts.saida }}</span>
-            </button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" id="devolucao-tab" data-bs-toggle="tab" data-bs-target="#devolucao-pane" type="button" role="tab" aria-controls="devolucao-pane" aria-selected="false">
-                Devoluções <span class="badge bg-secondary ms-1">{{ counts.devolucao }}</span>
-            </button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link" id="erro-tab" data-bs-toggle="tab" data-bs-target="#erro-pane" type="button" role="tab" aria-controls="erro-pane" aria-selected="false">
-                Erros <span class="badge bg-secondary ms-1">{{ counts.erro }}</span>
-            </button>
-        </li>
-    </ul>
-
-    <div class="tab-content" id="operationTabsContent">
-        {% set standard_tabs = [('entrada', 'entrada-pane'), ('saida', 'saida-pane'), ('devolucao', 'devolucao-pane')] %}
-        {% for tab_key, pane_id in standard_tabs %}
-        <div class="tab-pane fade {% if loop.first %}show active{% endif %}" id="{{ pane_id }}" role="tabpanel" aria-labelledby="{{ tab_key }}-tab">
-            <div class="table-responsive">
-                <table class="table table-hover mb-0">
-                    <thead>
-                        <tr>
-                            <th>Produto</th>
-                            <th>Quantidade</th>
-                            <th>Quantidade base</th>
-                            <th>Usuário</th>
-                            <th>Origem</th>
-                            <th>Status</th>
-                            <th>Data/Hora</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for row in logs_by_tab.get(tab_key, []) %}
-                        <tr>
-                            <td>
-                                <div>{{ row.product_label }}</div>
-                                <small class="text-muted">{{ row.product_code }}</small>
-                            </td>
-                            <td>{{ row.quantity_input }}</td>
-                            <td>{{ row.quantity_base }}</td>
-                            <td>{{ row.user_label }}</td>
-                            <td>{{ row.source }}</td>
-                            <td><span class="badge {{ row.status_badge }}">{{ row.status }}</span></td>
-                            <td>{{ row.created_at.strftime('%d/%m/%Y %H:%M:%S') if row.created_at else '—' }}</td>
-                        </tr>
-                        {% else %}
-                        <tr>
-                            <td colspan="7" class="text-center text-muted py-4">Nenhuma operação registrada nesta aba.</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+<div class="operations-shell">
+    <div class="operations-toolbar d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+        <div class="operations-toolbar-note small">Ordenação: mais recentes primeiro</div>
+        <div class="d-flex gap-2 flex-wrap">
+            <a class="btn btn-outline-primary" href="{{ url_for('inventory.list_items') }}">Itens Cadastrados</a>
+            <a class="btn btn-outline-secondary" href="{{ url_for('dashboard.index') }}">Dashboard</a>
         </div>
-        {% endfor %}
+    </div>
 
-        <div class="tab-pane fade" id="erro-pane" role="tabpanel" aria-labelledby="erro-tab">
-            <div class="table-responsive">
-                <table class="table table-hover mb-0">
-                    <thead>
-                        <tr>
-                            <th>Produto</th>
-                            <th>Quantidade</th>
-                            <th>Usuário</th>
-                            <th>Origem</th>
-                            <th>Status</th>
-                            <th>Mensagem de erro</th>
-                            <th>Payload resumido</th>
-                            <th>Data/Hora</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for row in logs_by_tab.get('erro', []) %}
-                        <tr>
-                            <td>
-                                <div>{{ row.product_label }}</div>
-                                <small class="text-muted">{{ row.product_code }}</small>
-                            </td>
-                            <td>{{ row.quantity_input }}</td>
-                            <td>{{ row.user_label }}</td>
-                            <td>{{ row.source }}</td>
-                            <td><span class="badge {{ row.status_badge }}">{{ row.status }}</span></td>
-                            <td>{{ row.error_message }}</td>
-                            <td><small>{{ row.payload_preview }}</small></td>
-                            <td>{{ row.created_at.strftime('%d/%m/%Y %H:%M:%S') if row.created_at else '—' }}</td>
-                        </tr>
-                        {% else %}
-                        <tr>
-                            <td colspan="8" class="text-center text-muted py-4">Nenhum erro operacional registrado.</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+    <div class="section-panel operations-panel mb-4">
+        <ul class="nav nav-tabs mb-3" id="operationTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="entrada-tab" data-bs-toggle="tab" data-bs-target="#entrada-pane" type="button" role="tab" aria-controls="entrada-pane" aria-selected="true">
+                    Entradas <span class="badge bg-secondary ms-1">{{ counts.entrada }}</span>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="saida-tab" data-bs-toggle="tab" data-bs-target="#saida-pane" type="button" role="tab" aria-controls="saida-pane" aria-selected="false">
+                    Saídas <span class="badge bg-secondary ms-1">{{ counts.saida }}</span>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="devolucao-tab" data-bs-toggle="tab" data-bs-target="#devolucao-pane" type="button" role="tab" aria-controls="devolucao-pane" aria-selected="false">
+                    Devoluções <span class="badge bg-secondary ms-1">{{ counts.devolucao }}</span>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="erro-tab" data-bs-toggle="tab" data-bs-target="#erro-pane" type="button" role="tab" aria-controls="erro-pane" aria-selected="false">
+                    Erros <span class="badge bg-secondary ms-1">{{ counts.erro }}</span>
+                </button>
+            </li>
+        </ul>
+
+        <div class="tab-content" id="operationTabsContent">
+            {% set standard_tabs = [('entrada', 'entrada-pane'), ('saida', 'saida-pane'), ('devolucao', 'devolucao-pane')] %}
+            {% for tab_key, pane_id in standard_tabs %}
+            <div class="tab-pane fade {% if loop.first %}show active{% endif %}" id="{{ pane_id }}" role="tabpanel" aria-labelledby="{{ tab_key }}-tab">
+                <div class="table-responsive">
+                    <table class="table table-hover operations-table">
+                        <thead>
+                            <tr>
+                                <th>Produto</th>
+                                <th>Quantidade</th>
+                                <th>Quantidade base</th>
+                                <th>Usuário</th>
+                                <th>Origem</th>
+                                <th>Status</th>
+                                <th>Data/Hora</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in logs_by_tab.get(tab_key, []) %}
+                            <tr>
+                                <td>
+                                    <div>{{ row.product_label }}</div>
+                                    <small class="product-code">{{ row.product_code }}</small>
+                                </td>
+                                <td>{{ row.quantity_input }}</td>
+                                <td>{{ row.quantity_base }}</td>
+                                <td>{{ row.user_label }}</td>
+                                <td>{{ row.source }}</td>
+                                <td><span class="badge {{ row.status_badge }}">{{ row.status }}</span></td>
+                                <td>{{ row.created_at.strftime('%d/%m/%Y %H:%M:%S') if row.created_at else '—' }}</td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="7" class="text-center empty-state py-4">Nenhuma operação registrada nesta aba.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% endfor %}
+
+            <div class="tab-pane fade" id="erro-pane" role="tabpanel" aria-labelledby="erro-tab">
+                <div class="table-responsive">
+                    <table class="table table-hover operations-table">
+                        <thead>
+                            <tr>
+                                <th>Produto</th>
+                                <th>Quantidade</th>
+                                <th>Usuário</th>
+                                <th>Origem</th>
+                                <th>Status</th>
+                                <th>Mensagem de erro</th>
+                                <th>Payload resumido</th>
+                                <th>Data/Hora</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in logs_by_tab.get('erro', []) %}
+                            <tr>
+                                <td>
+                                    <div>{{ row.product_label }}</div>
+                                    <small class="product-code">{{ row.product_code }}</small>
+                                </td>
+                                <td>{{ row.quantity_input }}</td>
+                                <td>{{ row.user_label }}</td>
+                                <td>{{ row.source }}</td>
+                                <td><span class="badge {{ row.status_badge }}">{{ row.status }}</span></td>
+                                <td>{{ row.error_message }}</td>
+                                <td><small class="payload-preview">{{ row.payload_preview }}</small></td>
+                                <td>{{ row.created_at.strftime('%d/%m/%Y %H:%M:%S') if row.created_at else '—' }}</td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="8" class="text-center empty-state py-4">Nenhum erro operacional registrado.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
