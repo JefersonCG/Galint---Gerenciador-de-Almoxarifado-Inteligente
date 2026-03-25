@@ -5,7 +5,7 @@
 {% block extra_css %}
 <style>
     .documents-fiscais-shell .content-panel {
-        background: linear-gradient(180deg, #fafbfd 0%, #f1f5f9 100%);
+        background: linear-gradient(180deg, #050c18 0%, #0b1220 100%);
         color: #e5eef5;
     }
 
@@ -16,10 +16,10 @@
     .docf-shell-wrap {
         position: relative;
         padding: 1.6rem;
-        border-radius: 28px;
-        background: linear-gradient(135deg, #0b1220 0%, #13233a 58%, #1d3557 100%);
-        border: 1px solid rgba(125, 156, 204, 0.22);
-        box-shadow: 0 28px 60px rgba(3, 10, 16, 0.34);
+        border-radius: 30px;
+        background: radial-gradient(circle at top left, rgba(37, 99, 235, 0.18), transparent 24%), radial-gradient(circle at top right, rgba(16, 185, 129, 0.14), transparent 20%), linear-gradient(180deg, #07111f 0%, #0b1220 100%);
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        box-shadow: 0 28px 60px rgba(2, 6, 23, 0.45);
         overflow: hidden;
     }
 
@@ -27,10 +27,7 @@
         content: "";
         position: absolute;
         inset: 0;
-        background:
-            radial-gradient(circle at 8% 10%, rgba(59, 130, 246, 0.16), transparent 24%),
-            radial-gradient(circle at 88% 14%, rgba(96, 165, 250, 0.14), transparent 22%),
-            radial-gradient(circle at 55% 100%, rgba(56, 189, 248, 0.08), transparent 28%);
+        background: linear-gradient(115deg, rgba(14, 165, 233, 0.12), transparent 38%, rgba(16, 185, 129, 0.08));
         pointer-events: none;
     }
 
@@ -57,10 +54,10 @@
 
     .docf-title {
         margin: 0;
-        font-size: 1.95rem;
-        font-weight: 800;
+        font-size: clamp(2rem, 3.4vw, 2.8rem);
+        font-weight: 900;
         color: #f8fbfc;
-        letter-spacing: -0.03em;
+        letter-spacing: -0.04em;
     }
 
     .docf-subtitle {
@@ -81,41 +78,105 @@
         margin-top: 1rem;
         padding: 1rem;
         border-radius: 24px;
-        background: rgba(255, 255, 255, 0.58);
-        border: 1px solid rgba(148, 163, 184, 0.24);
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65);
+        background: linear-gradient(180deg, rgba(10, 15, 28, 0.95), rgba(14, 20, 34, 0.95));
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        box-shadow: 0 22px 48px rgba(2, 6, 23, 0.34);
     }
 
     .docf-state-tabs {
-        gap: 0.55rem;
-        border-bottom: 0;
-        margin-bottom: 1rem;
-        flex-wrap: wrap;
+        display: flex;
+        flex-wrap: nowrap;
+        gap: 0;
+        padding: 0 0.35rem;
+        margin: 0 0 -1px;
+        border: none;
+        overflow-x: auto;
+        scrollbar-width: thin;
+        position: relative;
+        z-index: 2;
+    }
+
+    .docf-state-tabs .nav-item {
+        position: relative;
+        flex: 0 0 auto;
+    }
+
+    .docf-state-tabs .nav-item + .nav-item::before {
+        content: "";
+        position: absolute;
+        left: -0.05rem;
+        top: 0.55rem;
+        bottom: 0.55rem;
+        width: 1px;
+        background: linear-gradient(180deg, transparent, rgba(148, 163, 184, 0.26), transparent);
+        pointer-events: none;
     }
 
     .docf-state-tabs .nav-link {
-        border: 1px solid rgba(148, 163, 184, 0.22);
-        background: rgba(11, 18, 32, 0.88);
-        color: #e5eef5;
-        border-radius: 999px;
-        padding: 0.7rem 1rem;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        border-bottom-color: rgba(148, 163, 184, 0.14);
+        background: rgba(15, 23, 42, 0.7);
+        color: #cbd5e1;
+        border-radius: 14px 14px 0 0;
+        padding: 0.75rem 1rem 0.7rem;
         font-weight: 800;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.45rem;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        justify-content: center;
+        min-width: 190px;
+        text-decoration: none;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+        margin: 0 0.1rem 0;
+        position: relative;
+        white-space: nowrap;
     }
 
     .docf-state-tabs .nav-link.active {
-        background: linear-gradient(135deg, #0f2440 0%, #19406b 100%);
-        border-color: rgba(59, 130, 246, 0.35);
+        background: linear-gradient(135deg, #0ea5e9, #2563eb 100%);
+        border-color: transparent;
         color: #ffffff;
-        box-shadow: 0 12px 22px rgba(15, 35, 64, 0.18);
+        box-shadow: 0 12px 22px rgba(37, 99, 235, 0.22);
+        z-index: 3;
     }
 
     .docf-state-tabs .badge {
         border-radius: 999px;
-        background: rgba(255, 255, 255, 0.12);
-        color: #f8fbfc;
+        background: rgba(255, 255, 255, 0.08);
+        color: inherit;
+        margin-top: 0.35rem;
+        font-size: 0.72rem;
+        font-weight: 700;
+        padding: 0.2rem 0.55rem;
+    }
+
+    .docf-state-tabs .nav-link.active .badge {
+        background: rgba(255, 255, 255, 0.16);
+        color: #ffffff;
+    }
+
+    .docf-state-tabs .docf-tab-main {
+        display: block;
+        font-size: 0.95rem;
+        line-height: 1.2;
+    }
+
+    .docf-state-tabs .docf-tab-sub {
+        display: block;
+        margin-top: 0.22rem;
+        font-size: 0.74rem;
+        line-height: 1.3;
+        color: rgba(203, 213, 225, 0.72);
+        white-space: normal;
+    }
+
+    .docf-state-tabs .nav-link.active .docf-tab-sub {
+        color: rgba(239, 246, 255, 0.86);
+    }
+
+    .docf-state-tabs .nav-item:has(.nav-link.active)::before,
+    .docf-state-tabs .nav-item:has(+ .nav-item .nav-link.active)::before {
+        opacity: 0;
     }
 
     .docf-state-pane {
@@ -394,10 +455,9 @@
     .docf-kpi {
         border-radius: 18px;
         padding: 1rem 1.05rem;
-        background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(12, 21, 28, 0.16) 100%);
-        border: 1px solid rgba(138, 170, 160, 0.16);
+        background: linear-gradient(160deg, rgba(15, 23, 42, 0.96), rgba(30, 41, 59, 0.92));
+        border: 1px solid rgba(148, 163, 184, 0.14);
         box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
-        backdrop-filter: blur(8px);
     }
 
     .docf-kpi-label {
@@ -901,6 +961,10 @@
             width: auto;
             bottom: 1rem;
         }
+
+        .docf-state-tabs .nav-link {
+            min-width: 170px;
+        }
     }
 </style>
 {% endblock %}
@@ -1078,11 +1142,40 @@
 
     <div class="docf-main-surface">
         <nav class="nav docf-state-tabs">
-            <a class="nav-link {% if active_tab == 'registro' %}active{% endif %}" href="{{ nf_tab_url('registro', nota_busca or None) }}">Registro</a>
-            <a class="nav-link {% if active_tab == 'processaveis' %}active{% endif %}" href="{{ nf_tab_url('processaveis', nota_busca or None) }}">Processáveis <span class="badge">{{ operational_dashboard.counts.processaveis }}</span></a>
-            <a class="nav-link {% if active_tab == 'pendencias' %}active{% endif %}" href="{{ nf_tab_url('pendencias', nota_busca or None) }}">Pendências <span class="badge">{{ operational_dashboard.counts.pendencias }}</span></a>
-            <a class="nav-link {% if active_tab == 'erros' %}active{% endif %}" href="{{ nf_tab_url('erros', nota_busca or None) }}">Erros <span class="badge">{{ operational_dashboard.counts.erros }}</span></a>
-            <a class="nav-link {% if active_tab == 'historico' %}active{% endif %}" href="{{ nf_tab_url('historico', nota_busca or None) }}">Histórico <span class="badge">{{ operational_dashboard.counts.historico }}</span></a>
+            <div class="nav-item">
+                <a class="nav-link {% if active_tab == 'registro' %}active{% endif %}" href="{{ nf_tab_url('registro', nota_busca or None) }}">
+                    <span class="docf-tab-main">Registro</span>
+                    <span class="docf-tab-sub">Novo lançamento e triagem inicial</span>
+                </a>
+            </div>
+            <div class="nav-item">
+                <a class="nav-link {% if active_tab == 'processaveis' %}active{% endif %}" href="{{ nf_tab_url('processaveis', nota_busca or None) }}">
+                    <span class="docf-tab-main">Processáveis</span>
+                    <span class="docf-tab-sub">Prontos para conferência</span>
+                    <span class="badge">{{ operational_dashboard.counts.processaveis }}</span>
+                </a>
+            </div>
+            <div class="nav-item">
+                <a class="nav-link {% if active_tab == 'pendencias' %}active{% endif %}" href="{{ nf_tab_url('pendencias', nota_busca or None) }}">
+                    <span class="docf-tab-main">Pendências</span>
+                    <span class="docf-tab-sub">Preenchimento incompleto</span>
+                    <span class="badge">{{ operational_dashboard.counts.pendencias }}</span>
+                </a>
+            </div>
+            <div class="nav-item">
+                <a class="nav-link {% if active_tab == 'erros' %}active{% endif %}" href="{{ nf_tab_url('erros', nota_busca or None) }}">
+                    <span class="docf-tab-main">Erros</span>
+                    <span class="docf-tab-sub">Falhas operacionais</span>
+                    <span class="badge">{{ operational_dashboard.counts.erros }}</span>
+                </a>
+            </div>
+            <div class="nav-item">
+                <a class="nav-link {% if active_tab == 'historico' %}active{% endif %}" href="{{ nf_tab_url('historico', nota_busca or None) }}">
+                    <span class="docf-tab-main">Histórico</span>
+                    <span class="docf-tab-sub">Fechamento e rastreabilidade</span>
+                    <span class="badge">{{ operational_dashboard.counts.historico }}</span>
+                </a>
+            </div>
         </nav>
 
         {% if active_tab == 'registro' %}
@@ -2681,5 +2774,6 @@
         field.addEventListener('input', () => syncChecklistWithField(fieldId));
         field.addEventListener('change', () => syncChecklistWithField(fieldId));
     });
+
 </script>
 {% endblock %}

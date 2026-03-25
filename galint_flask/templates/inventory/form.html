@@ -32,7 +32,7 @@
     }
 
     body {
-        background: #f1f5f9;
+        background: linear-gradient(180deg, #07111f 0%, #0b1729 100%);
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     }
 
@@ -44,9 +44,9 @@
 
     /* Cards Soft Depth */
     .soft-depth-card {
-        background: #ffffff;
+        background: linear-gradient(145deg, #0f172a 0%, #1e293b 100%);
         border-radius: 14px;
-        box-shadow: 0 10px 25px rgba(15, 23, 42, 0.08);
+        box-shadow: 0 18px 40px rgba(2, 8, 23, 0.35);
         padding: 0;
         transition: var(--transition);
     }
@@ -58,7 +58,7 @@
     /* Tabs Navigation */
     .tabs-nav {
         display: flex;
-        border-bottom: 2px solid #e2e8f0;
+        border-bottom: 2px solid rgba(148,163,184,0.18);
         padding: 0 1.5rem;
         gap: 0.5rem;
         overflow-x: auto;
@@ -70,7 +70,7 @@
         padding: 0.875rem 1.25rem;
         font-size: 0.95rem;
         font-weight: 600;
-        color: var(--gray-700);
+        color: #cbd5e1;
         cursor: pointer;
         position: relative;
         transition: var(--transition);
@@ -79,7 +79,7 @@
 
     .tab-button:hover {
         color: var(--primary-blue);
-        background: rgba(59, 130, 246, 0.05);
+        background: rgba(59, 130, 246, 0.12);
     }
 
     .tab-button.active {
@@ -135,14 +135,14 @@
     .form-title {
         font-size: 1.75rem;
         font-weight: 700;
-        color: var(--gray-900);
+        color: #0f172a;
         margin-bottom: 0.25rem;
         letter-spacing: -0.025em;
     }
 
     .form-subtitle {
         font-size: 0.95rem;
-        color: var(--gray-700);
+        color: #334155;
         margin-bottom: 1.5rem;
         font-weight: 400;
     }
@@ -159,7 +159,7 @@
     .section-title {
         font-size: 1.05rem;
         font-weight: 700;
-        color: var(--gray-900);
+        color: #f8fafc;
         margin-bottom: 1rem;
         display: flex;
         align-items: center;
@@ -175,7 +175,7 @@
         display: block;
         font-size: 0.85rem;
         font-weight: 600;
-        color: #334155;
+        color: #e2e8f0;
         margin-bottom: 0.4rem;
     }
 
@@ -184,10 +184,10 @@
         width: 100%;
         padding: 0.7rem 0.9rem;
         font-size: 0.975rem;
-        border: 1px solid #e2e8f0;
+        border: 1px solid rgba(148,163,184,0.22);
         border-radius: 10px;
-        background: #ffffff;
-        color: #0f172a;
+        background: rgba(15,23,42,0.82);
+        color: #f8fafc;
         transition: var(--transition);
         font-family: inherit;
     }
@@ -201,13 +201,14 @@
 
     .form-control:disabled,
     .form-control:read-only {
-        background: var(--gray-100);
+        background: rgba(255,255,255,0.06);
+        color: #94a3b8;
         cursor: not-allowed;
     }
 
     .form-text {
         font-size: 0.8125rem;
-        color: var(--gray-700);
+        color: #dbeafe;
         margin-top: 0.375rem;
         display: block;
     }
@@ -236,9 +237,384 @@
 
     .form-check-label {
         font-size: 0.9375rem;
-        color: var(--gray-700);
+        color: #e2e8f0;
         cursor: pointer;
         user-select: none;
+    }
+
+    #tab-unidades .form-text,
+    #tab-unidades .form-label,
+    #advancedUnitsModal .form-text,
+    #advancedUnitsModal .form-label,
+    #advancedUnitsModal .form-check-label {
+        color: #eff6ff !important;
+    }
+
+    .dynamic-units-help-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        border: none;
+        padding: 0;
+        background: transparent;
+        color: #93c5fd;
+        font-weight: 700;
+        text-decoration: none;
+    }
+
+    .dynamic-units-help-link:focus {
+        outline: none;
+        box-shadow: none;
+    }
+
+    .dynamic-units-help-link:hover {
+        color: #dbeafe;
+        text-decoration: underline;
+    }
+
+    .dynamic-units-help-modal .modal-content {
+        background: linear-gradient(180deg, #07111f 0%, #0b1220 100%);
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        border-radius: 28px;
+        color: #e2e8f0;
+        box-shadow: 0 32px 72px rgba(2, 6, 23, 0.52);
+        overflow: hidden;
+    }
+
+    .dynamic-units-help-modal .modal-header,
+    .dynamic-units-help-modal .modal-footer {
+        border-color: rgba(148, 163, 184, 0.14);
+        background: rgba(7, 17, 31, 0.84);
+    }
+
+    .dynamic-units-help-modal .btn-close {
+        filter: invert(1) grayscale(1);
+        opacity: 0.85;
+    }
+
+    .dynamic-units-help-modal .modal-body {
+        padding: 1.25rem;
+        background:
+            radial-gradient(circle at top left, rgba(37, 99, 235, 0.18), transparent 24%),
+            radial-gradient(circle at top right, rgba(16, 185, 129, 0.14), transparent 20%),
+            linear-gradient(180deg, #07111f 0%, #0b1220 100%);
+    }
+
+    .advanced-units-config-modal .modal-dialog {
+        max-width: min(1320px, calc(100vw - 2rem));
+    }
+
+    .advanced-units-config-modal .modal-content {
+        background: linear-gradient(145deg, #0f172a 0%, #1e293b 100%);
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        border-radius: 22px;
+        color: #e2e8f0;
+        box-shadow: 0 28px 70px rgba(2, 8, 23, 0.5);
+        overflow: hidden;
+    }
+
+    .advanced-units-config-modal .modal-header,
+    .advanced-units-config-modal .modal-footer {
+        border-color: rgba(148, 163, 184, 0.18);
+        background: rgba(15, 23, 42, 0.92);
+    }
+
+    .advanced-units-config-modal .modal-body {
+        padding: 1.25rem;
+        background: linear-gradient(180deg, rgba(15, 23, 42, 0.98), rgba(17, 24, 39, 0.98));
+    }
+
+    .advanced-units-config-modal .btn-close {
+        filter: invert(1) grayscale(1);
+        opacity: 0.85;
+    }
+
+    .advanced-units-config-layout {
+        display: grid;
+        grid-template-columns: minmax(250px, 0.72fr) minmax(0, 1.28fr);
+        gap: 1.25rem;
+        align-items: start;
+    }
+
+    .advanced-units-sidebar,
+    .advanced-units-main {
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        border-radius: 18px;
+        background: rgba(15, 23, 42, 0.55);
+        padding: 1rem;
+    }
+
+    .advanced-units-toolbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 0.75rem;
+        flex-wrap: wrap;
+    }
+
+    .advanced-units-toolbar .form-label {
+        margin-bottom: 0;
+    }
+
+    @media (max-width: 992px) {
+        .advanced-units-config-layout {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .du-help-hero {
+        position: relative;
+        overflow: hidden;
+        border-radius: 24px;
+        padding: 1.6rem;
+        background: linear-gradient(135deg, rgba(15, 23, 42, 0.98) 0%, rgba(17, 24, 39, 0.96) 48%, rgba(3, 105, 161, 0.92) 100%);
+        border: 1px solid rgba(125, 211, 252, 0.14);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 22px 52px rgba(15, 23, 42, 0.34);
+        margin-bottom: 1rem;
+    }
+
+    .du-help-hero::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(115deg, rgba(14, 165, 233, 0.12), transparent 38%, rgba(16, 185, 129, 0.08));
+        pointer-events: none;
+    }
+
+    .du-help-hero > * {
+        position: relative;
+        z-index: 1;
+    }
+
+    .du-help-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        border-radius: 999px;
+        padding: 0.36rem 0.8rem;
+        font-weight: 700;
+        font-size: 0.76rem;
+        background: rgba(34, 197, 94, 0.14);
+        color: #86efac;
+    }
+
+    .du-help-hero h2 {
+        margin: 0.8rem 0 0.5rem;
+        font-size: clamp(1.7rem, 3vw, 2.4rem);
+        font-weight: 900;
+        letter-spacing: -0.04em;
+        color: #f8fafc;
+    }
+
+    .du-help-hero p {
+        margin: 0;
+        color: rgba(226, 232, 240, 0.82);
+        max-width: 64rem;
+    }
+
+    .du-help-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.25fr) minmax(280px, 0.75fr);
+        gap: 1rem;
+    }
+
+    .du-help-card {
+        background: linear-gradient(180deg, rgba(10, 15, 28, 0.95), rgba(14, 20, 34, 0.95));
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        border-radius: 22px;
+        box-shadow: 0 22px 48px rgba(2, 6, 23, 0.34);
+        padding: 1.35rem;
+    }
+
+    .du-help-card h3,
+    .du-help-card h4 {
+        color: #f8fafc;
+        font-weight: 800;
+    }
+
+    .du-help-card h3 {
+        font-size: 1.22rem;
+        margin-bottom: 0.9rem;
+    }
+
+    .du-help-card h4 {
+        font-size: 1rem;
+        margin-top: 1.25rem;
+        margin-bottom: 0.55rem;
+    }
+
+    .du-help-card p,
+    .du-help-card li {
+        color: rgba(226, 232, 240, 0.82);
+        line-height: 1.72;
+    }
+
+    .du-help-card ul,
+    .du-help-card ol {
+        padding-left: 1.2rem;
+        margin-bottom: 0;
+    }
+
+    .du-help-chip-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.6rem;
+        margin: 0.9rem 0 0;
+    }
+
+    .du-help-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.42rem 0.8rem;
+        border-radius: 999px;
+        background: rgba(15, 23, 42, 0.58);
+        border: 1px solid rgba(148, 163, 184, 0.12);
+        color: #e2e8f0;
+        font-size: 0.82rem;
+        font-weight: 700;
+    }
+
+    .du-help-callout {
+        border-radius: 18px;
+        padding: 1rem 1.1rem;
+        background: rgba(15, 23, 42, 0.58);
+        border: 1px solid rgba(148, 163, 184, 0.12);
+        margin-top: 1rem;
+    }
+
+    .du-help-callout strong,
+    .du-help-example strong {
+        color: #f8fafc;
+    }
+
+    .du-help-example {
+        border-radius: 16px;
+        padding: 1rem;
+        background: rgba(15, 23, 42, 0.72);
+        border: 1px solid rgba(148, 163, 184, 0.12);
+        margin-top: 0.85rem;
+    }
+
+    .du-help-code {
+        display: block;
+        border-radius: 14px;
+        background: rgba(8, 15, 28, 0.92);
+        border: 1px solid rgba(56, 189, 248, 0.22);
+        padding: 0.9rem 1rem;
+        color: #e2e8f0;
+        line-height: 1.65;
+        white-space: pre-line;
+        margin-top: 0.75rem;
+    }
+
+    @media (max-width: 992px) {
+        .du-help-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .advanced-link-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        margin-top: 0.75rem;
+    }
+
+    .advanced-editor-card {
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        border-radius: 12px;
+        padding: 0.85rem;
+        background: rgba(15, 23, 42, 0.78);
+    }
+
+    .advanced-unit-grid {
+        display: grid;
+        grid-template-columns: minmax(180px, 1.35fr) minmax(120px, 0.8fr) minmax(160px, 1.05fr) minmax(140px, 0.9fr) 72px auto;
+        gap: 0.85rem;
+        align-items: end;
+    }
+
+    .advanced-unit-field {
+        min-width: 0;
+    }
+
+    .advanced-unit-field--base {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-end;
+    }
+
+    .advanced-unit-field--base .form-check {
+        margin-bottom: 0;
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .advanced-unit-field--actions {
+        display: flex;
+        align-items: flex-end;
+        justify-content: flex-end;
+    }
+
+    .advanced-unit-remove {
+        min-width: 110px;
+        white-space: nowrap;
+    }
+
+    .advanced-editor-card .form-control,
+    .advanced-editor-card .form-select {
+        background: rgba(8, 15, 28, 0.92);
+        border-color: rgba(148, 163, 184, 0.24);
+        color: #f8fafc;
+    }
+
+    .advanced-editor-card .form-label {
+        color: #dbeafe !important;
+        font-size: 0.8rem;
+        font-weight: 700;
+    }
+
+    .advanced-editor-card .form-control[readonly] {
+        background: rgba(15, 23, 42, 0.72);
+        border-color: rgba(148, 163, 184, 0.16);
+        color: #f8fafc;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+        cursor: default;
+    }
+
+    @media (max-width: 1200px) {
+        .advanced-unit-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .advanced-unit-field--base,
+        .advanced-unit-field--actions {
+            align-items: flex-start;
+            justify-content: flex-start;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .advanced-unit-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .advanced-unit-remove {
+            width: 100%;
+        }
+    }
+
+    #advanced-unit-summary {
+        background: linear-gradient(135deg, rgba(59, 130, 246, 0.22) 0%, rgba(14, 165, 233, 0.16) 100%);
+        color: #eff6ff;
+        border: 1px solid rgba(125, 211, 252, 0.3);
     }
 
     /* Campos Condicionais com Destaque Dinâmico */
@@ -488,7 +864,7 @@
         padding: 1rem 1.5rem 1.5rem;
         background:
             radial-gradient(circle at top right, rgba(14, 165, 233, 0.12), transparent 24%),
-            linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+            linear-gradient(180deg, rgba(15,23,42,0.96) 0%, rgba(17,24,39,0.94) 100%);
     }
 
     .supplier-gate-grid {
@@ -500,9 +876,9 @@
     .supplier-gate-panel {
         border: 1px solid rgba(148, 163, 184, 0.24);
         border-radius: 18px;
-        background: #ffffff;
+        background: rgba(255,255,255,0.06);
         padding: 1rem;
-        box-shadow: 0 16px 32px rgba(15, 23, 42, 0.06);
+        box-shadow: 0 16px 32px rgba(15, 23, 42, 0.18);
     }
 
     .supplier-gate-tip {
@@ -549,22 +925,22 @@
         text-align: left;
         border: 1px solid rgba(148, 163, 184, 0.22);
         border-radius: 16px;
-        background: #ffffff;
+        background: rgba(255,255,255,0.06);
         padding: 0.9rem 1rem;
         transition: var(--transition);
-        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.04);
+        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.14);
     }
 
     .supplier-gate-item:hover,
     .supplier-gate-item.active {
         border-color: rgba(59, 130, 246, 0.5);
-        background: linear-gradient(135deg, #eff6ff 0%, #ffffff 100%);
+        background: linear-gradient(135deg, rgba(59,130,246,0.16) 0%, rgba(255,255,255,0.08) 100%);
         box-shadow: 0 16px 30px rgba(59, 130, 246, 0.12);
     }
 
     .supplier-gate-item-title {
         font-weight: 700;
-        color: #0f172a;
+        color: #f8fafc;
     }
 
     .supplier-gate-item-meta {
@@ -1186,7 +1562,7 @@
                     <div class="form-group">
                         <label class="form-label">Tipo de Embalagem</label>
                         {% set tipo_emb_novo = form_item.tipo_embalagem_novo if form_item and form_item.tipo_embalagem_novo else '' %}
-                        <p class="form-text" style="margin-bottom: 0.75rem; font-size: 0.9rem; color: #64748b;">
+                        <p class="form-text" style="margin-bottom: 0.75rem; font-size: 0.9rem;">
                             Para conversões automáticas de unidades
                         </p>
                         <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
@@ -1286,6 +1662,11 @@
                             </div>
                             <button type="button" class="btn btn-secondary" id="advanced-units-open-button">Abrir configurações</button>
                         </div>
+                        <div class="advanced-link-row">
+                            <button type="button" class="dynamic-units-help-link" id="advanced-units-help-open-inline">
+                                <i class="bi bi-question-circle"></i> Como usar o configurador de unidades dinâmicas
+                            </button>
+                        </div>
                         <div id="advanced-unit-summary" class="alert alert-info" style="margin-top: 0.75rem; display: block;">
                             Nenhuma configuração avançada definida.
                         </div>
@@ -1293,35 +1674,174 @@
                 </div>
             </div>
 
-            <div id="advancedUnitsModal" style="display: none; margin: 0 1.5rem 1.5rem; border: 1px solid #dbe3ef; border-radius: 14px; background: #ffffff; box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);">
-                <div style="display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 1rem 1.25rem; border-bottom: 1px solid #e2e8f0;">
-                    <h5 id="advancedUnitsModalLabel" style="margin: 0; font-size: 1.05rem; font-weight: 700; color: #0f172a;">Configurações avançadas de grandezas</h5>
-                    <button type="button" class="btn btn-secondary" id="advanced-units-close-button">Fechar</button>
-                </div>
-                <div style="padding: 1.25rem;">
-                    <div class="row g-4">
-                        <div class="col-lg-4">
-                            <label class="form-label">Grandezas habilitadas</label>
-                            <div id="advanced-dimensions-list" style="display: grid; gap: 0.5rem;"></div>
+            <div class="modal fade advanced-units-config-modal" id="advancedUnitsModal" tabindex="-1" aria-labelledby="advancedUnitsModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-xl modal-dialog-scrollable modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="advancedUnitsModalLabel">Configurações avançadas de grandezas</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
                         </div>
-                        <div class="col-lg-8">
-                            <div style="display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 0.75rem;">
-                                <label class="form-label" style="margin-bottom: 0;">Unidades</label>
-                                <button type="button" class="btn btn-secondary" id="advanced-add-unit">Adicionar unidade</button>
+                        <div class="modal-body">
+                            <div class="advanced-units-config-layout">
+                                <section class="advanced-units-sidebar">
+                                    <label class="form-label">Grandezas habilitadas</label>
+                                    <small class="form-text" style="margin-bottom: 0.85rem;">Escolha as famílias de medida que o item realmente precisa usar.</small>
+                                    <div id="advanced-dimensions-list" style="display: grid; gap: 0.5rem;"></div>
+                                </section>
+
+                                <section class="advanced-units-main">
+                                    <div class="advanced-units-toolbar">
+                                        <label class="form-label">Unidades</label>
+                                        <button type="button" class="btn btn-secondary" id="advanced-add-unit">Adicionar unidade</button>
+                                    </div>
+                                    <div id="advanced-units-list" style="display: grid; gap: 0.75rem;"></div>
+
+                                    <hr style="margin: 1.25rem 0;">
+
+                                    <div class="advanced-units-toolbar">
+                                        <label class="form-label">Conversões</label>
+                                        <button type="button" class="btn btn-secondary" id="advanced-add-conversion">Adicionar conversão</button>
+                                    </div>
+                                    <div id="advanced-conversions-list" style="display: grid; gap: 0.75rem;"></div>
+                                </section>
                             </div>
-                            <div id="advanced-units-list" style="display: grid; gap: 0.75rem;"></div>
-                            <hr style="margin: 1.25rem 0;">
-                            <div style="display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 0.75rem;">
-                                <label class="form-label" style="margin-bottom: 0;">Conversões</label>
-                                <button type="button" class="btn btn-secondary" id="advanced-add-conversion">Adicionar conversão</button>
-                            </div>
-                            <div id="advanced-conversions-list" style="display: grid; gap: 0.75rem;"></div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-outline-light" id="advanced-units-help-open-footer">
+                                <i class="bi bi-book me-1"></i> Como usar
+                            </button>
+                            <button type="button" class="btn btn-secondary" id="advanced-units-cancel-button">Fechar</button>
+                            <button type="button" class="btn btn-primary" id="advanced-units-apply">Aplicar configurações</button>
                         </div>
                     </div>
                 </div>
-                <div style="display: flex; justify-content: flex-end; gap: 0.75rem; padding: 0 1.25rem 1.25rem;">
-                    <button type="button" class="btn btn-secondary" id="advanced-units-cancel-button">Fechar</button>
-                    <button type="button" class="btn btn-primary" id="advanced-units-apply">Aplicar configurações</button>
+            </div>
+
+            <div class="modal fade dynamic-units-help-modal" id="dynamicUnitsHelpModal" tabindex="-1" aria-labelledby="dynamicUnitsHelpModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-xl modal-dialog-scrollable modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="dynamicUnitsHelpModalLabel">Guia do configurador de unidades dinâmicas</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                        </div>
+                        <div class="modal-body">
+                            <section class="du-help-hero">
+                                <div class="du-help-badge"><i class="bi bi-sliders"></i> Unidades Dinâmicas</div>
+                                <h2>Guia intuitivo do configurador</h2>
+                                <p>Use este guia sem sair do cadastro. A lógica é simples: escolher a família da medida, cadastrar as unidades reais do item e dizer como uma unidade vira outra.</p>
+                            </section>
+
+                            <div class="du-help-grid">
+                                <section class="du-help-card">
+                                    <h3>Como pensar o configurador</h3>
+                                    <p>O configurador tem três blocos. Primeiro você habilita as grandezas. Depois escolhe as unidades do item. Por fim, define as conversões entre elas.</p>
+
+                                    <h4>1. Grandeza</h4>
+                                    <p>Grandeza é a família da medida. Ela responde o que aquela unidade mede.</p>
+                                    <div class="du-help-chip-row">
+                                        <span class="du-help-chip">Unidade</span>
+                                        <span class="du-help-chip">Massa</span>
+                                        <span class="du-help-chip">Volume</span>
+                                        <span class="du-help-chip">Comprimento</span>
+                                    </div>
+
+                                    <h4>2. Código</h4>
+                                    <p>Agora o código deixa de ser digitado manualmente. Você escolhe a unidade pronta e o sistema preenche o identificador curto automaticamente.</p>
+                                    <div class="du-help-example">
+                                        <strong>Exemplos</strong>
+                                        <div class="du-help-code">Unidade   → codigo: unidade
+Litro     → codigo: litro
+Caixa     → codigo: caixa
+Peça      → codigo: peca</div>
+                                    </div>
+
+                                    <h4>3. Nome</h4>
+                                    <p>Nome também é preenchido automaticamente a partir da unidade escolhida. Ele é o rótulo legível na tela.</p>
+
+                                    <h4>4. Base</h4>
+                                    <p>A unidade base é a referência principal do item. Se o item é controlado por peça, normalmente a base é Unidade. Se é controlado por litro, a base costuma ser Litro.</p>
+
+                                    <div class="du-help-callout">
+                                        <strong>Regra prática:</strong> marque como base a unidade em que você quer enxergar o estoque e fazer as conversões principais.
+                                    </div>
+                                </section>
+
+                                <aside class="du-help-card">
+                                    <h3>O que preencher em cada campo</h3>
+
+                                    <h4>Unidade</h4>
+                                    <p>Selecione a opção pronta. Isso já preenche Código e Nome.</p>
+
+                                    <h4>Código</h4>
+                                    <p>É só conferência. Ele é gerado automaticamente pela unidade escolhida.</p>
+
+                                    <h4>Nome</h4>
+                                    <p>Também fica automático para manter padrão visual e evitar divergência.</p>
+
+                                    <h4>Grandeza</h4>
+                                    <p>Permanece ajustável. O sistema sugere uma grandeza inicial, mas você pode trocar se precisar.</p>
+
+                                    <h4>Conversão</h4>
+                                    <p>O fator sempre significa: 1 unidade de origem equivale a quantas unidades de destino.</p>
+
+                                    <div class="du-help-example">
+                                        <strong>Exemplo de leitura</strong>
+                                        <div class="du-help-code">De: caixa
+Para: unidade
+Fator: 12
+
+Resultado: 1 caixa = 12 unidades</div>
+                                    </div>
+                                </aside>
+
+                                <section class="du-help-card">
+                                    <h3>Exemplos reais</h3>
+
+                                    <h4>Parafuso em caixa</h4>
+                                    <div class="du-help-code">Grandeza: Unidade
+Base: unidade
+Unidade adicional: caixa
+Conversão: 1 caixa = 100 unidades</div>
+
+                                    <h4>Tinta em lata</h4>
+                                    <div class="du-help-code">Grandeza: Volume
+Base: litro
+Unidade adicional: lata
+Conversão: 1 lata = 18 litros</div>
+
+                                    <h4>Cabo em rolo</h4>
+                                    <div class="du-help-code">Grandeza: Comprimento
+Base: metro
+Unidade adicional: rolo
+Conversão: 1 rolo = 100 metros</div>
+
+                                    <h4>Cimento em saco</h4>
+                                    <div class="du-help-code">Grandeza: Massa
+Base: quilo
+Unidade adicional: saco
+Conversão: 1 saco = 20 quilos</div>
+                                </section>
+
+                                <section class="du-help-card">
+                                    <h3>Erros mais comuns</h3>
+                                    <ol>
+                                        <li>Escolher uma grandeza e não cadastrar nenhuma unidade daquela família.</li>
+                                        <li>Esquecer de marcar uma unidade como base.</li>
+                                        <li>Inverter a conversão e cadastrar o fator ao contrário.</li>
+                                        <li>Usar uma unidade pronta com grandeza incompatível sem revisar.</li>
+                                        <li>Criar várias unidades, mas nenhuma conversão prática entre elas.</li>
+                                    </ol>
+
+                                    <div class="du-help-callout">
+                                        <strong>Teste rápido:</strong> leia a regra em voz alta. Se a frase “1 X = Y Z” fizer sentido, a conversão normalmente está correta.
+                                    </div>
+                                </section>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -1577,7 +2097,7 @@
 
     .price-suggest-modal .modal-footer {
         border: none;
-        background: #f1f5f9;
+        background: linear-gradient(180deg, rgba(15,23,42,0.96) 0%, rgba(17,24,39,0.94) 100%);
         padding: 1rem 1.5rem 1.25rem;
     }
 
@@ -1585,7 +2105,8 @@
     .price-suggest-modal .input-group-text {
         border-radius: 12px;
         border: 1px solid #e2e8f0;
-        background: #ffffff;
+        background: rgba(15,23,42,0.82);
+        color: #f8fafc;
     }
 
     .price-suggest-modal .row.g-3.align-items-end > [class*="col-"] {
@@ -1595,7 +2116,7 @@
 
     .price-suggest-modal .form-label {
         font-weight: 600;
-        color: #475569;
+        color: #cbd5e1;
         margin-bottom: 0.45rem;
     }
 
@@ -1623,16 +2144,16 @@
     }
 
     #price-empty {
-        background: #ffffff;
-        border: 1px dashed #e2e8f0;
+        background: rgba(255,255,255,0.06);
+        border: 1px dashed rgba(148,163,184,0.18);
         border-radius: 12px;
         padding: 0.85rem 1rem;
     }
 
     .price-card {
         border-radius: 14px;
-        border: 1px solid #e2e8f0;
-        background: #ffffff;
+        border: 1px solid rgba(148,163,184,0.18);
+        background: rgba(255,255,255,0.06);
         padding: 0.85rem 1rem;
         cursor: pointer;
         transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
@@ -1652,11 +2173,11 @@
     .price-amount {
         font-size: 1.1rem;
         font-weight: 700;
-        color: #0f172a;
+        color: #f8fafc;
     }
 
     .price-meta {
-        color: #475569;
+        color: #cbd5e1;
         font-size: 0.85rem;
         margin-top: 0.25rem;
     }
@@ -1675,7 +2196,7 @@
     }
 
     #price-stats {
-        background: #ffffff;
+        background: rgba(255,255,255,0.06);
         border-radius: 12px;
     }
 </style>
@@ -1836,6 +2357,9 @@
     const advancedUnitsModalElement = document.getElementById('advancedUnitsModal');
     const advancedUnitsCloseButton = document.getElementById('advanced-units-close-button');
     const advancedUnitsCancelButton = document.getElementById('advanced-units-cancel-button');
+    const advancedUnitsHelpInlineButton = document.getElementById('advanced-units-help-open-inline');
+    const advancedUnitsHelpFooterButton = document.getElementById('advanced-units-help-open-footer');
+    const dynamicUnitsHelpModalElement = document.getElementById('dynamicUnitsHelpModal');
     const advancedDimensionsList = document.getElementById('advanced-dimensions-list');
     const advancedUnitsList = document.getElementById('advanced-units-list');
     const advancedConversionsList = document.getElementById('advanced-conversions-list');
@@ -1848,22 +2372,43 @@
         { value: 'volume', label: 'Volume' },
         { value: 'length', label: 'Comprimento' }
     ];
+    const advancedUnitPresetCatalog = [
+        { code: 'unidade', label: 'Unidade', dimension: 'unit' },
+        { code: 'lata', label: 'Lata', dimension: 'volume' },
+        { code: 'litro', label: 'Litro', dimension: 'volume' },
+        { code: 'quilo', label: 'Quilo', dimension: 'mass' },
+        { code: 'caixa', label: 'Caixa', dimension: 'unit' },
+        { code: 'pacote', label: 'Pacote', dimension: 'unit' },
+        { code: 'saco', label: 'Saco', dimension: 'mass' },
+        { code: 'rolo', label: 'Rolo', dimension: 'length' },
+        { code: 'balde', label: 'Balde', dimension: 'mass' },
+        { code: 'par', label: 'Par', dimension: 'unit' },
+        { code: 'peca', label: 'Peça', dimension: 'unit' },
+    ];
+    const advancedUnitsModal = advancedUnitsModalElement && window.bootstrap
+        ? new bootstrap.Modal(advancedUnitsModalElement)
+        : null;
+    const dynamicUnitsHelpModal = dynamicUnitsHelpModalElement && window.bootstrap
+        ? new bootstrap.Modal(dynamicUnitsHelpModalElement)
+        : null;
+    let shouldRestoreAdvancedUnitsModal = false;
     let advancedUnitSettings = JSON.parse(JSON.stringify(initialAdvancedUnitSettings || { dimensions: [], units: [], conversions: [] }));
-
-    function clearBootstrapModalArtifacts() {
-        document.body.classList.remove('modal-open');
-        document.body.style.removeProperty('padding-right');
-        document.querySelectorAll('.modal-backdrop').forEach((element) => element.remove());
-    }
 
     function setAdvancedUnitsPanelVisible(visible) {
         if (!advancedUnitsModalElement) {
             return;
         }
-        clearBootstrapModalArtifacts();
-        advancedUnitsModalElement.style.display = visible ? 'block' : 'none';
-        if (visible) {
-            advancedUnitsModalElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        if (advancedUnitsModal) {
+            if (visible) {
+                advancedUnitsModal.show();
+            } else {
+                advancedUnitsModal.hide();
+            }
+        } else {
+            advancedUnitsModalElement.style.display = visible ? 'block' : 'none';
+            if (visible) {
+                advancedUnitsModalElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
         }
     }
 
@@ -1974,10 +2519,32 @@
     }
 
     function syncAdvancedUnitSettingsInput() {
-        advancedUnitSettings = normalizeAdvancedUnitSettings(advancedUnitSettings);
+        const normalizedSettings = normalizeAdvancedUnitSettings(advancedUnitSettings);
         if (advancedUnitSettingsInput) {
-            advancedUnitSettingsInput.value = JSON.stringify(advancedUnitSettings);
+            advancedUnitSettingsInput.value = JSON.stringify(normalizedSettings);
         }
+    }
+
+    function getAdvancedUnitPreset(row) {
+        const unitCode = String(row?.unit_code || '').trim().toLowerCase();
+        const unitLabel = String(row?.unit_label || '').trim().toLowerCase();
+        return advancedUnitPresetCatalog.find((option) => option.code === unitCode || option.label.toLowerCase() === unitLabel) || null;
+    }
+
+    function buildAdvancedUnitPresetOptions(row) {
+        const preset = getAdvancedUnitPreset(row);
+        const options = [...advancedUnitPresetCatalog];
+        if (!preset && row?.unit_code && row?.unit_label) {
+            options.unshift({
+                code: String(row.unit_code),
+                label: String(row.unit_label),
+                dimension: String(row.dimension || 'unit'),
+            });
+        }
+        const currentCode = preset?.code || String(row?.unit_code || '');
+        return [`<option value="">Selecione...</option>`]
+            .concat(options.map((option) => `<option value="${option.code}" ${option.code === currentCode ? 'selected' : ''}>${option.label}</option>`))
+            .join('');
     }
 
     function isLataSelecionada(tipoSelecionado) {
@@ -2496,13 +3063,14 @@
         if (!advancedUnitSummary) {
             return;
         }
-        const dimensions = advancedUnitSettings.dimensions
+        const normalizedSettings = normalizeAdvancedUnitSettings(advancedUnitSettings);
+        const dimensions = normalizedSettings.dimensions
             .filter((row) => row.enabled)
             .map((row) => advancedDimensionOptions.find((option) => option.value === row.dimension)?.label || row.dimension);
-        const units = advancedUnitSettings.units
+        const units = normalizedSettings.units
             .filter((row) => row.active)
             .map((row) => `${row.unit_label} (${row.unit_code})${row.is_base ? ' base' : ''}`);
-        const conversions = advancedUnitSettings.conversions
+        const conversions = normalizedSettings.conversions
             .filter((row) => row.active)
             .map((row) => `1 ${row.from_unit} = ${row.factor} ${row.to_unit}`);
         const blocks = [];
@@ -2552,29 +3120,35 @@
             return;
         }
         advancedUnitsList.innerHTML = advancedUnitSettings.units.map((unit, index) => `
-            <div class="row g-2 align-items-end" style="border: 1px solid #e2e8f0; border-radius: 10px; padding: 0.75rem; background: #f8fafc;">
-                <div class="col-md-3">
+            <div class="advanced-editor-card advanced-unit-grid">
+                <div class="advanced-unit-field">
+                    <label class="form-label">Unidade</label>
+                    <select class="form-select" data-advanced-unit-field="unit_preset" data-advanced-unit-index="${index}">
+                        ${buildAdvancedUnitPresetOptions(unit)}
+                    </select>
+                </div>
+                <div class="advanced-unit-field">
                     <label class="form-label">Código</label>
-                    <input class="form-control" data-advanced-unit-field="unit_code" data-advanced-unit-index="${index}" value="${unit.unit_code || ''}">
+                    <input class="form-control" value="${unit.unit_code || ''}" readonly>
                 </div>
-                <div class="col-md-3">
+                <div class="advanced-unit-field">
                     <label class="form-label">Nome</label>
-                    <input class="form-control" data-advanced-unit-field="unit_label" data-advanced-unit-index="${index}" value="${unit.unit_label || ''}">
+                    <input class="form-control" value="${unit.unit_label || ''}" readonly>
                 </div>
-                <div class="col-md-3">
+                <div class="advanced-unit-field">
                     <label class="form-label">Grandeza</label>
                     <select class="form-select" data-advanced-unit-field="dimension" data-advanced-unit-index="${index}">
                         ${advancedDimensionOptions.map((option) => `<option value="${option.value}" ${unit.dimension === option.value ? 'selected' : ''}>${option.label}</option>`).join('')}
                     </select>
                 </div>
-                <div class="col-md-1">
+                <div class="advanced-unit-field advanced-unit-field--base">
                     <label class="form-label">Base</label>
                     <div class="form-check" style="padding-top: 0.5rem;">
                         <input class="form-check-input" type="radio" name="advanced-unit-base" data-advanced-unit-field="is_base" data-advanced-unit-index="${index}" ${unit.is_base ? 'checked' : ''}>
                     </div>
                 </div>
-                <div class="col-md-2">
-                    <button class="btn btn-secondary" type="button" data-advanced-remove-unit="${index}" style="width: 100%;">Remover</button>
+                <div class="advanced-unit-field advanced-unit-field--actions">
+                    <button class="btn btn-secondary advanced-unit-remove" type="button" data-advanced-remove-unit="${index}">Remover</button>
                 </div>
             </div>
         `).join('');
@@ -2591,6 +3165,14 @@
                     advancedUnitSettings.units.forEach((row, rowIndex) => {
                         row.is_base = rowIndex === index;
                     });
+                    renderAdvancedUnits();
+                } else if (field === 'unit_preset') {
+                    const preset = advancedUnitPresetCatalog.find((option) => option.code === element.value);
+                    advancedUnitSettings.units[index].unit_code = preset?.code || '';
+                    advancedUnitSettings.units[index].unit_label = preset?.label || '';
+                    if (preset?.dimension) {
+                        advancedUnitSettings.units[index].dimension = preset.dimension;
+                    }
                     renderAdvancedUnits();
                 } else {
                     advancedUnitSettings.units[index][field] = element.value;
@@ -2625,7 +3207,7 @@
             const fromOptions = units.map((unit) => `<option value="${unit.unit_code}" ${unit.unit_code === conversion.from_unit ? 'selected' : ''}>${unit.unit_label} (${unit.unit_code})</option>`).join('');
             const toOptions = units.map((unit) => `<option value="${unit.unit_code}" ${unit.unit_code === conversion.to_unit ? 'selected' : ''}>${unit.unit_label} (${unit.unit_code})</option>`).join('');
             return `
-                <div class="row g-2 align-items-end" style="border: 1px solid #e2e8f0; border-radius: 10px; padding: 0.75rem; background: #f8fafc;">
+                <div class="row g-2 align-items-end advanced-editor-card">
                     <div class="col-md-3">
                         <label class="form-label">De</label>
                         <select class="form-select" data-advanced-conversion-field="from_unit" data-advanced-conversion-index="${index}">${fromOptions}</select>
@@ -2710,6 +3292,7 @@
     advancedAddUnitButton?.addEventListener('click', () => {
         const enabledDimension = advancedUnitSettings.dimensions.find((row) => row.enabled)?.dimension || 'unit';
         advancedUnitSettings.units.push({
+            unit_preset: '',
             unit_code: '',
             unit_label: '',
             dimension: enabledDimension,
@@ -2745,6 +3328,33 @@
         event.preventDefault();
         event.stopPropagation();
         setAdvancedUnitsPanelVisible(true);
+    });
+
+    advancedUnitsHelpInlineButton?.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        shouldRestoreAdvancedUnitsModal = false;
+        dynamicUnitsHelpModal?.show();
+    });
+
+    advancedUnitsHelpFooterButton?.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+        shouldRestoreAdvancedUnitsModal = true;
+        if (advancedUnitsModal) {
+            advancedUnitsModal.hide();
+            setTimeout(() => dynamicUnitsHelpModal?.show(), 180);
+        } else {
+            dynamicUnitsHelpModal?.show();
+        }
+    });
+
+    dynamicUnitsHelpModalElement?.addEventListener('hidden.bs.modal', () => {
+        if (!shouldRestoreAdvancedUnitsModal) {
+            return;
+        }
+        shouldRestoreAdvancedUnitsModal = false;
+        setTimeout(() => setAdvancedUnitsPanelVisible(true), 120);
     });
 
     advancedUnitsCloseButton?.addEventListener('click', () => {

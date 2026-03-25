@@ -1,0 +1,316 @@
+{% extends "base.html" %}
+
+{% block title %}Guia do Configurador de Unidades Dinâmicas{% endblock %}
+
+{% block extra_css %}
+<style>
+    .du-help-shell {
+        max-width: 1180px;
+        margin: 0 auto;
+        background: radial-gradient(circle at top left, rgba(37, 99, 235, 0.18), transparent 24%), radial-gradient(circle at top right, rgba(16, 185, 129, 0.14), transparent 20%), linear-gradient(180deg, #07111f 0%, #0b1220 100%);
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        border-radius: 30px;
+        padding: 1.5rem;
+        color: #e2e8f0;
+        box-shadow: 0 28px 60px rgba(2, 6, 23, 0.45);
+    }
+
+    .du-help-hero {
+        position: relative;
+        overflow: hidden;
+        border-radius: 26px;
+        padding: 1.8rem;
+        background: linear-gradient(135deg, rgba(15, 23, 42, 0.98) 0%, rgba(17, 24, 39, 0.96) 48%, rgba(3, 105, 161, 0.92) 100%);
+        border: 1px solid rgba(125, 211, 252, 0.14);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 22px 52px rgba(15, 23, 42, 0.34);
+        margin-bottom: 1.4rem;
+    }
+
+    .du-help-hero::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(115deg, rgba(14, 165, 233, 0.12), transparent 38%, rgba(16, 185, 129, 0.08));
+        pointer-events: none;
+    }
+
+    .du-help-hero > * {
+        position: relative;
+        z-index: 1;
+    }
+
+    .du-help-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        border-radius: 999px;
+        padding: 0.36rem 0.8rem;
+        font-weight: 700;
+        font-size: 0.76rem;
+        background: rgba(34, 197, 94, 0.14);
+        color: #86efac;
+    }
+
+    .du-help-hero h1 {
+        margin: 0.8rem 0 0.5rem;
+        font-size: clamp(2rem, 3.4vw, 2.8rem);
+        font-weight: 900;
+        letter-spacing: -0.04em;
+        color: #f8fafc;
+    }
+
+    .du-help-hero p {
+        margin: 0;
+        color: rgba(226, 232, 240, 0.82);
+        max-width: 64rem;
+    }
+
+    .du-help-actions {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        margin-top: 1.15rem;
+    }
+
+    .du-help-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.25fr) minmax(300px, 0.75fr);
+        gap: 1rem;
+    }
+
+    .du-help-card {
+        background: linear-gradient(180deg, rgba(10, 15, 28, 0.95), rgba(14, 20, 34, 0.95));
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        border-radius: 24px;
+        box-shadow: 0 22px 48px rgba(2, 6, 23, 0.34);
+        padding: 1.35rem;
+    }
+
+    .du-help-card h2,
+    .du-help-card h3 {
+        color: #f8fafc;
+        font-weight: 800;
+    }
+
+    .du-help-card h2 {
+        font-size: 1.25rem;
+        margin-bottom: 0.9rem;
+    }
+
+    .du-help-card h3 {
+        font-size: 1rem;
+        margin-top: 1.25rem;
+        margin-bottom: 0.55rem;
+    }
+
+    .du-help-card p,
+    .du-help-card li {
+        color: rgba(226, 232, 240, 0.82);
+        line-height: 1.75;
+    }
+
+    .du-help-card ul,
+    .du-help-card ol {
+        padding-left: 1.2rem;
+        margin-bottom: 0;
+    }
+
+    .du-help-chip-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.6rem;
+        margin: 0.9rem 0 0;
+    }
+
+    .du-help-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.42rem 0.8rem;
+        border-radius: 999px;
+        background: rgba(15, 23, 42, 0.58);
+        border: 1px solid rgba(148, 163, 184, 0.12);
+        color: #e2e8f0;
+        font-size: 0.82rem;
+        font-weight: 700;
+    }
+
+    .du-help-callout {
+        border-radius: 20px;
+        padding: 1rem 1.1rem;
+        background: rgba(15, 23, 42, 0.58);
+        border: 1px solid rgba(148, 163, 184, 0.12);
+        margin-top: 1rem;
+    }
+
+    .du-help-callout strong {
+        color: #f8fafc;
+    }
+
+    .du-help-example {
+        border-radius: 18px;
+        padding: 1rem;
+        background: rgba(15, 23, 42, 0.72);
+        border: 1px solid rgba(148, 163, 184, 0.12);
+        margin-top: 0.85rem;
+    }
+
+    .du-help-example strong {
+        color: #f8fafc;
+    }
+
+    .du-help-code {
+        display: block;
+        border-radius: 16px;
+        background: rgba(8, 15, 28, 0.92);
+        border: 1px solid rgba(56, 189, 248, 0.22);
+        padding: 0.9rem 1rem;
+        color: #e2e8f0;
+        line-height: 1.65;
+        white-space: pre-line;
+        margin-top: 0.75rem;
+    }
+
+    @media (max-width: 992px) {
+        .du-help-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block page_header %}{% endblock %}
+
+{% block content %}
+<div class="du-help-shell">
+    <section class="du-help-hero">
+        <div class="du-help-badge"><i class="bi bi-sliders"></i> Unidades Dinâmicas</div>
+        <h1>Guia intuitivo do configurador</h1>
+        <p>Use esta página quando precisar decidir o que entra em Código, Nome, Grandeza, Base e Conversões. A ideia é simples: definir como o item é medido e como uma unidade vira outra sem ambiguidade.</p>
+        <div class="du-help-actions">
+            <a class="btn btn-light rounded-pill px-4" href="{{ url_for('inventory.new_item_form') }}">
+                <i class="bi bi-box-seam me-1"></i> Abrir cadastro de item
+            </a>
+            <a class="btn btn-outline-light rounded-pill px-4" href="{{ url_for('inventory.list_items') }}">
+                <i class="bi bi-arrow-left me-1"></i> Voltar para itens
+            </a>
+        </div>
+    </section>
+
+    <div class="du-help-grid">
+        <section class="du-help-card">
+            <h2>Como pensar o configurador</h2>
+            <p>O configurador tem três blocos lógicos. Primeiro você diz quais grandezas o item usa. Depois cadastra as unidades reais desse item. Por fim, informa como converter uma unidade em outra.</p>
+
+            <h3>1. Grandeza</h3>
+            <p>Grandeza é a família da medida. Ela responde: esta unidade mede o quê?</p>
+            <div class="du-help-chip-row">
+                <span class="du-help-chip">Unidade</span>
+                <span class="du-help-chip">Massa</span>
+                <span class="du-help-chip">Volume</span>
+                <span class="du-help-chip">Comprimento</span>
+            </div>
+
+            <h3>2. Código</h3>
+            <p>Código é o nome técnico curto usado pelo sistema. Deve ser simples, sem acento e sem espaço.</p>
+            <div class="du-help-example">
+                <strong>Exemplos bons</strong>
+                <div class="du-help-code">unidade
+caixa
+litro
+kg
+metro
+rolo</div>
+            </div>
+
+            <h3>3. Nome</h3>
+            <p>Nome é o rótulo humano que aparece para leitura na tela.</p>
+            <div class="du-help-example">
+                <strong>Exemplos</strong>
+                <div class="du-help-code">Código: unidade  |  Nome: Unidade
+Código: litro    |  Nome: Litro
+Código: kg       |  Nome: Quilograma</div>
+            </div>
+
+            <h3>4. Base</h3>
+            <p>A unidade base é a principal referência do item. Se o item é controlado por peça, a base normalmente é Unidade. Se é controlado por litro, a base normalmente é Litro.</p>
+
+            <div class="du-help-callout">
+                <strong>Regra prática:</strong> escolha como base a unidade em que você quer enxergar o item no cadastro e nas conversões principais.
+            </div>
+        </section>
+
+        <aside class="du-help-card">
+            <h2>O que preencher em cada campo</h2>
+
+            <h3>Código</h3>
+            <p>Preencha com o identificador curto da unidade.</p>
+
+            <h3>Nome</h3>
+            <p>Preencha com a forma amigável de exibir essa unidade.</p>
+
+            <h3>Grandeza</h3>
+            <p>Escolha a família da medida da unidade.</p>
+
+            <h3>Conversão</h3>
+            <p>O fator sempre significa: 1 unidade de origem equivale a quantas unidades de destino.</p>
+
+            <div class="du-help-example">
+                <strong>Exemplo de leitura</strong>
+                <div class="du-help-code">De: caixa
+Para: unidade
+Fator: 12
+
+Resultado: 1 caixa = 12 unidades</div>
+            </div>
+
+            <div class="du-help-callout">
+                <strong>Dica:</strong> se você marcou uma grandeza, mas não cadastrou nenhuma unidade dessa grandeza, ela ainda não está útil na prática.
+            </div>
+        </aside>
+
+        <section class="du-help-card">
+            <h2>Exemplos reais de uso</h2>
+
+            <h3>Parafuso em caixa</h3>
+            <div class="du-help-code">Grandeza: Unidade
+Base: unidade
+Unidade adicional: caixa
+Conversão: 1 caixa = 100 unidades</div>
+
+            <h3>Tinta em lata</h3>
+            <div class="du-help-code">Grandeza: Volume
+Base: litro
+Unidade adicional: lata
+Conversão: 1 lata = 18 litros</div>
+
+            <h3>Cabo em rolo</h3>
+            <div class="du-help-code">Grandeza: Comprimento
+Base: metro
+Unidade adicional: rolo
+Conversão: 1 rolo = 100 metros</div>
+
+            <h3>Cimento em saco</h3>
+            <div class="du-help-code">Grandeza: Massa
+Base: kg
+Unidade adicional: saco
+Conversão: 1 saco = 20 kg</div>
+        </section>
+
+        <section class="du-help-card">
+            <h2>Erros mais comuns</h2>
+            <ol>
+                <li>Usar o nome longo no campo Código.</li>
+                <li>Marcar uma grandeza, mas não cadastrar unidade correspondente.</li>
+                <li>Esquecer de marcar uma unidade como base.</li>
+                <li>Criar conversão com fator invertido.</li>
+                <li>Misturar grandezas diferentes sem necessidade, como caixa em Volume.</li>
+            </ol>
+
+            <div class="du-help-callout">
+                <strong>Teste mental rápido:</strong> leia a conversão em voz alta. Se a frase “1 X = Y Z” fizer sentido, você provavelmente configurou certo.
+            </div>
+        </section>
+    </div>
+</div>
+{% endblock %}

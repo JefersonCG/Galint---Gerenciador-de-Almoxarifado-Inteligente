@@ -23,41 +23,122 @@
 {% set fracionado_linhas_ignoradas = fracionado_linhas_ignoradas|default(0) %}
 {% set valor_estoque_pdf_url = url_for('inventory.valor_estoque_pdf', exercicio=exercise.label) if endpoint_exists('inventory.valor_estoque_pdf') else None %}
 
-<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-    <div>
-        <h1 class="h3 mb-1">Financeiro</h1>
-        <div class="text-muted small">
-            Referência: estoque atual + prestação de contas do exercício {{ exercise.label }}{% if uf_empresa %} • UF padrão: <strong>{{ uf_empresa }}</strong>{% endif %}
+<div class="finance-shell">
+    <section class="finance-hero mb-4">
+        <div class="d-flex flex-wrap justify-content-between gap-3 align-items-start">
+            <div>
+                <div class="finance-badge mb-3"><i class="bi bi-cash-stack"></i> Financeiro</div>
+                <h1 class="mb-2">Visão financeira do estoque</h1>
+                <p class="mb-0">Referência: estoque atual + prestação de contas do exercício {{ exercise.label }}{% if uf_empresa %} • UF padrão: <strong>{{ uf_empresa }}</strong>{% endif %}</p>
+            </div>
+            <div class="finance-soft finance-actions">
+                {% if exercise_options %}
+                    <form class="d-flex gap-2 flex-wrap" method="get">
+                        <select class="form-select finance-control" name="exercicio" onchange="this.form.submit()">
+                            {% for option in exercise_options %}
+                            <option value="{{ option.label }}" {% if option.label == exercise.label %}selected{% endif %}>Exercício {{ option.label }}</option>
+                            {% endfor %}
+                        </select>
+                    </form>
+                {% endif %}
+                <div class="d-flex gap-2 flex-wrap">
+                    {% if valor_estoque_pdf_url %}
+                    <a class="btn btn-outline-success rounded-pill px-4" href="{{ valor_estoque_pdf_url }}">
+                        <i class="bi bi-file-earmark-pdf me-1"></i> Exportar PDF
+                    </a>
+                    {% endif %}
+                    <a class="btn btn-outline-light rounded-pill px-4" href="{{ url_for('inventory.list_items') }}">
+                        <i class="bi bi-boxes me-1"></i> Voltar para Itens
+                    </a>
+                </div>
+            </div>
         </div>
-    </div>
-    <div class="d-flex gap-2 flex-wrap">
-        {% if exercise_options %}
-            <form class="d-flex gap-2" method="get">
-                <select class="form-select" name="exercicio" onchange="this.form.submit()">
-                    {% for option in exercise_options %}
-                    <option value="{{ option.label }}" {% if option.label == exercise.label %}selected{% endif %}>Exercício {{ option.label }}</option>
-                    {% endfor %}
-                </select>
-            </form>
-        {% endif %}
-        {% if valor_estoque_pdf_url %}
-        <a class="btn btn-outline-success" href="{{ valor_estoque_pdf_url }}">
-            <i class="bi bi-file-earmark-pdf me-1"></i> Exportar PDF
-        </a>
-        {% endif %}
-        <a class="btn btn-outline-primary" href="{{ url_for('inventory.list_items') }}">
-            <i class="bi bi-boxes me-1"></i> Voltar para Itens
-        </a>
-    </div>
-</div>
+    </section>
 
 <style>
+    .finance-shell {
+        background: radial-gradient(circle at top left, rgba(37, 99, 235, 0.18), transparent 24%), radial-gradient(circle at top right, rgba(16, 185, 129, 0.14), transparent 20%), linear-gradient(180deg, #07111f 0%, #0b1220 100%);
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        border-radius: 30px;
+        padding: 1.5rem;
+        color: #e2e8f0;
+        box-shadow: 0 28px 60px rgba(2, 6, 23, 0.45);
+    }
+
+    .finance-hero {
+        position: relative;
+        overflow: hidden;
+        border-radius: 26px;
+        padding: 1.65rem;
+        background: linear-gradient(135deg, rgba(15, 23, 42, 0.98) 0%, rgba(17, 24, 39, 0.96) 48%, rgba(3, 105, 161, 0.92) 100%);
+        border: 1px solid rgba(125, 211, 252, 0.14);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 22px 52px rgba(15, 23, 42, 0.34);
+    }
+
+    .finance-hero::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(115deg, rgba(14, 165, 233, 0.12), transparent 38%, rgba(16, 185, 129, 0.08));
+        pointer-events: none;
+    }
+
+    .finance-hero > * {
+        position: relative;
+        z-index: 1;
+    }
+
+    .finance-hero h1 {
+        font-size: clamp(2rem, 3.4vw, 2.8rem);
+        font-weight: 900;
+        letter-spacing: -0.04em;
+        color: #f8fafc;
+    }
+
+    .finance-hero p {
+        max-width: 60rem;
+        color: rgba(226, 232, 240, 0.82);
+    }
+
+    .finance-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        border-radius: 999px;
+        padding: 0.36rem 0.8rem;
+        font-weight: 700;
+        font-size: 0.76rem;
+        background: rgba(34, 197, 94, 0.14);
+        color: #86efac;
+    }
+
+    .finance-soft {
+        border-radius: 20px;
+        padding: 1rem;
+        background: rgba(15, 23, 42, 0.58);
+        border: 1px solid rgba(148, 163, 184, 0.12);
+    }
+
+    .finance-actions {
+        min-width: 320px;
+        display: grid;
+        gap: 0.85rem;
+    }
+
+    .finance-control,
+    .finance-control:focus {
+        background: rgba(8, 15, 28, 0.92);
+        color: #f8fafc;
+        border-color: rgba(56, 189, 248, 0.32);
+        box-shadow: none;
+    }
+
     .value-card {
-        border-radius: 16px;
-        border: 1px solid rgba(148, 163, 184, 0.28);
-        background: linear-gradient(135deg, #0f172a 0%, #1e293b 70%);
-        color: #ffffff;
-        box-shadow: 0 24px 60px rgba(15, 23, 42, 0.35);
+        border-radius: 22px;
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        background: linear-gradient(160deg, rgba(15, 23, 42, 0.96), rgba(30, 41, 59, 0.92));
+        color: #f8fafc;
+        box-shadow: 0 22px 48px rgba(2, 6, 23, 0.34);
         overflow: hidden;
         position: relative;
     }
@@ -66,9 +147,7 @@
         content: "";
         position: absolute;
         inset: 0;
-        background: radial-gradient(circle at 20% 20%, rgba(59, 130, 246, 0.25), transparent 55%),
-            radial-gradient(circle at 80% 30%, rgba(16, 185, 129, 0.18), transparent 55%);
-        opacity: 0.9;
+        background: linear-gradient(115deg, rgba(14, 165, 233, 0.12), transparent 38%, rgba(16, 185, 129, 0.08));
         pointer-events: none;
     }
 
@@ -85,22 +164,22 @@
     }
 
     .value-sub {
-        color: rgba(255, 255, 255, 0.8);
+        color: rgba(226, 232, 240, 0.72);
         font-size: 0.85rem;
         margin-bottom: 0;
     }
 
     .value-table {
-        background: #ffffff;
-        border: 1px solid rgba(148, 163, 184, 0.28);
-        border-radius: 16px;
+        background: linear-gradient(180deg, rgba(10, 15, 28, 0.95), rgba(14, 20, 34, 0.95));
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        border-radius: 24px;
         overflow: hidden;
-        box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+        box-shadow: 0 22px 48px rgba(2, 6, 23, 0.34);
     }
 
     .value-table thead th {
-        background: #0f172a;
-        color: #e2e8f0;
+        background: rgba(15, 23, 42, 0.88);
+        color: #93c5fd;
         border: none;
         font-size: 0.85rem;
         text-transform: uppercase;
@@ -111,6 +190,7 @@
     .value-table tbody td {
         padding: 0.85rem 1rem;
         vertical-align: middle;
+        color: #e2e8f0;
     }
 
     .value-pill {
@@ -120,9 +200,9 @@
         padding: 0.15rem 0.6rem;
         border-radius: 999px;
         font-size: 0.75rem;
-        background: rgba(59, 130, 246, 0.12);
-        color: #1e40af;
-        border: 1px solid rgba(59, 130, 246, 0.25);
+        background: rgba(59, 130, 246, 0.14);
+        color: #bfdbfe;
+        border: 1px solid rgba(59, 130, 246, 0.32);
         white-space: nowrap;
     }
 
@@ -132,17 +212,27 @@
     }
 
     .category-card {
-        background: #ffffff;
-        border: 1px solid rgba(148, 163, 184, 0.28);
-        border-radius: 18px;
-        box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+        background: linear-gradient(180deg, rgba(10, 15, 28, 0.95), rgba(14, 20, 34, 0.95));
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        border-radius: 24px;
+        box-shadow: 0 22px 48px rgba(2, 6, 23, 0.34);
         overflow: hidden;
     }
 
     .category-head {
         padding: 1.15rem 1.25rem;
-        background: linear-gradient(135deg, #eff6ff 0%, #f8fafc 100%);
-        border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+        background: linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(17, 24, 39, 0.94));
+        border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+        color: #f8fafc;
+    }
+
+    .category-head .text-muted,
+    .category-head .small {
+        color: rgba(203, 213, 225, 0.78) !important;
+    }
+
+    .category-head strong {
+        color: #f8fafc;
     }
 
     .category-metrics {
@@ -153,8 +243,8 @@
     }
 
     .category-metric {
-        background: rgba(255, 255, 255, 0.85);
-        border: 1px solid rgba(148, 163, 184, 0.22);
+        background: rgba(15, 23, 42, 0.58);
+        border: 1px solid rgba(148, 163, 184, 0.12);
         border-radius: 14px;
         padding: 0.85rem 0.95rem;
     }
@@ -163,19 +253,53 @@
         font-size: 0.74rem;
         text-transform: uppercase;
         letter-spacing: 0.06em;
-        color: #64748b;
+        color: #7dd3fc;
         margin-bottom: 0.25rem;
     }
 
     .category-metric .value {
         font-size: 1rem;
         font-weight: 800;
-        color: #0f172a;
+        color: #f8fafc;
+    }
+
+    .finance-shell .text-muted,
+    .finance-shell .small.text-muted,
+    .finance-shell .form-text {
+        color: rgba(203, 213, 225, 0.78) !important;
+    }
+
+    .finance-shell .table {
+        --bs-table-bg: transparent;
+        --bs-table-color: #e2e8f0;
+        --bs-table-border-color: rgba(148, 163, 184, 0.12);
+        --bs-table-hover-bg: rgba(37, 99, 235, 0.12);
+        --bs-table-hover-color: #f8fafc;
+    }
+
+    .finance-shell .btn-outline-secondary {
+        color: #e2e8f0;
+        border-color: rgba(148, 163, 184, 0.32);
+        background: rgba(15, 23, 42, 0.3);
+    }
+
+    .finance-shell .btn-outline-secondary:hover {
+        color: #ffffff;
+        border-color: rgba(226, 232, 240, 0.68);
+        background: rgba(51, 65, 85, 0.62);
     }
 
     @media (max-width: 991px) {
         .category-metrics {
             grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .finance-shell {
+            padding: 1rem;
+        }
+
+        .finance-actions {
+            min-width: 100%;
         }
     }
 
@@ -400,6 +524,8 @@
         </div>
     </section>
     {% endfor %}
+</div>
+
 </div>
 
 <div class="modal fade" id="priceSuggestionsModal" tabindex="-1" aria-labelledby="priceSuggestionsModalLabel"

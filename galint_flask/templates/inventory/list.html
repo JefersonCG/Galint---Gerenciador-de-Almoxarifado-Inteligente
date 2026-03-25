@@ -827,10 +827,10 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <style>
     #assignModal .modal-content {
-        background: #ffffff;
-        border: none;
+        background: linear-gradient(145deg, #0f172a 0%, #1e293b 100%);
+        border: 1px solid rgba(148,163,184,0.18);
         border-radius: 0.75rem;
-        box-shadow: 0 15px 40px rgba(0, 0, 0, 0.25);
+        box-shadow: 0 18px 44px rgba(2, 8, 23, 0.42);
     }
 
     #assignModal .modal-dialog {
@@ -852,7 +852,8 @@
     
     #assignModal .modal-body {
         padding: 1.25rem;
-        background: #f8fafc;
+        background: linear-gradient(180deg, rgba(15,23,42,0.96) 0%, rgba(17,24,39,0.94) 100%);
+        color: #e2e8f0;
     }
 
     #assignModal .tab-pane {
@@ -860,30 +861,30 @@
     }
     
     #assignModal .alert-info {
-        background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
-        border: 1.5px solid #3b82f6;
+        background: rgba(59, 130, 246, 0.14);
+        border: 1.5px solid rgba(59,130,246,0.38);
         border-radius: 0.5rem;
-        color: #1e40af;
+        color: #bfdbfe;
         padding: 0.75rem;
         font-size: 0.875rem;
     }
     
     #assignModal .alert-info strong {
-        color: #1e3a8a;
+        color: #dbeafe;
         font-size: 0.95rem;
     }
     
     #assignModal .form-label {
         font-size: 0.9rem;
         font-weight: 600;
-        color: #1e293b;
+        color: #e2e8f0;
         margin-bottom: 0.4rem;
     }
     
     #assignModal #assignItemDesc {
-        background: #ffffff;
-        border: 1.5px solid #e2e8f0;
-        color: #0f172a;
+        background: rgba(15,23,42,0.82);
+        border: 1.5px solid rgba(148,163,184,0.22);
+        color: #f8fafc;
         font-size: 0.95rem;
         font-weight: 500;
         padding: 0.65rem;
@@ -892,9 +893,9 @@
     }
     
     #assignModal .form-control {
-        background: #ffffff;
-        border: 1.5px solid #cbd5e1;
-        color: #0f172a;
+        background: rgba(15,23,42,0.82);
+        border: 1.5px solid rgba(148,163,184,0.22);
+        color: #f8fafc;
         font-size: 0.95rem;
         padding: 0.6rem 0.875rem;
         border-radius: 0.4rem;
@@ -903,14 +904,14 @@
     }
     
     #assignModal .form-control:focus {
-        background: #ffffff;
+        background: rgba(15,23,42,0.92);
         border-color: #10b981;
         box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
         outline: none;
     }
     
     #assignModal .form-text {
-        color: #64748b;
+        color: #cbd5e1;
         font-size: 0.8rem;
         margin-top: 0.35rem;
     }
@@ -923,8 +924,8 @@
     }
 
     #assignModal .assign-summary-card {
-        border: 1px solid #dbe4ee;
-        background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+        border: 1px solid rgba(148,163,184,0.18);
+        background: rgba(255,255,255,0.06);
         border-radius: 0.6rem;
         padding: 0.85rem 1rem;
         display: flex;
@@ -934,12 +935,12 @@
     }
 
     #assignModal .assign-summary-card strong {
-        color: #0f172a;
+        color: #f8fafc;
         font-size: 1.1rem;
     }
 
     #assignModal .assign-summary-label {
-        color: #64748b;
+        color: #cbd5e1;
         font-size: 0.78rem;
         text-transform: uppercase;
         letter-spacing: 0.04em;
@@ -947,8 +948,8 @@
     }
     
     #assignModal .modal-footer {
-        background: #f8fafc;
-        border: none;
+        background: linear-gradient(180deg, rgba(15,23,42,0.96) 0%, rgba(17,24,39,0.94) 100%);
+        border-top: 1px solid rgba(148,163,184,0.14);
         padding: 1rem 1.25rem;
         border-radius: 0 0 0.75rem 0.75rem;
     }
@@ -990,8 +991,8 @@
     #assignMatricula-suggestions {
         position: absolute;
         z-index: 1060;
-        background: #ffffff;
-        border: 1.5px solid #cbd5e1;
+        background: linear-gradient(180deg, rgba(15,23,42,0.98) 0%, rgba(30,41,59,0.96) 100%);
+        border: 1.5px solid rgba(148,163,184,0.22);
         border-top: none;
         border-radius: 0 0 0.4rem 0.4rem;
         max-height: 200px;
@@ -1003,7 +1004,7 @@
     #assignMatricula-suggestions .autocomplete-item {
         padding: 0.65rem 0.875rem;
         cursor: pointer;
-        border-bottom: 1px solid #f1f5f9;
+        border-bottom: 1px solid rgba(148,163,184,0.14);
         transition: background 0.15s;
     }
     
@@ -1013,17 +1014,17 @@
     
     #assignMatricula-suggestions .autocomplete-item:hover,
     #assignMatricula-suggestions .autocomplete-item.active {
-        background: #f1f9f5;
+        background: rgba(16, 185, 129, 0.12);
     }
     
     #assignMatricula-suggestions .autocomplete-item strong {
-        color: #0f172a;
+        color: #f8fafc;
         display: block;
         font-size: 0.9rem;
     }
     
     #assignMatricula-suggestions .autocomplete-item small {
-        color: #64748b;
+        color: #cbd5e1;
         font-size: 0.8rem;
     }
 
@@ -1031,15 +1032,15 @@
     #employeesList.assign-employees-shell {
         max-height: 430px;
         overflow-y: auto;
-        background: #fff;
+        background: rgba(255,255,255,0.04);
     }
 
     #employeesList .employee-sector-group {
-        border: 1px solid #e2e8f0;
+        border: 1px solid rgba(148,163,184,0.18);
         border-radius: 0.7rem;
         overflow: hidden;
         margin-bottom: 0.9rem;
-        background: #ffffff;
+        background: rgba(15,23,42,0.72);
     }
 
     #employeesList .employee-sector-group:last-child {
@@ -1052,8 +1053,8 @@
         align-items: center;
         gap: 0.75rem;
         padding: 0.7rem 0.9rem;
-        background: #eff6ff;
-        border-bottom: 1px solid #dbeafe;
+        background: rgba(59, 130, 246, 0.12);
+        border-bottom: 1px solid rgba(59,130,246,0.18);
     }
 
     #employeesList .employee-sector-header-main {
@@ -1066,21 +1067,21 @@
     #employeesList .employee-sector-name {
         font-size: 0.88rem;
         font-weight: 700;
-        color: #1d4ed8;
+        color: #bfdbfe;
     }
 
     #employeesList .employee-sector-subtitle {
-        color: #475569;
+        color: #cbd5e1;
         font-size: 0.78rem;
         font-weight: 600;
     }
 
     #employeesList .employee-sector-count {
-        color: #475569;
+        color: #e2e8f0;
         font-size: 0.78rem;
         font-weight: 600;
-        background: #ffffff;
-        border: 1px solid #dbeafe;
+        background: rgba(255,255,255,0.06);
+        border: 1px solid rgba(148,163,184,0.18);
         border-radius: 999px;
         padding: 0.1rem 0.55rem;
     }
@@ -1300,14 +1301,14 @@
     }
 
     .galint-tab-btn:hover {
-        background: #f1f5f9;
-        color: #334155;
+        background: rgba(59, 130, 246, 0.12);
+        color: #e2e8f0;
     }
 
     .galint-tab-btn.active {
-        color: #3b82f6;
+        color: #bfdbfe;
         border-bottom-color: #3b82f6;
-        background: #ffffff;
+        background: rgba(255,255,255,0.06);
     }
 
     .galint-tab-btn i {
@@ -1361,7 +1362,8 @@
     }
 
     #priceSuggestionsModal .modal-body {
-        background: #f8fafc;
+        background: linear-gradient(180deg, rgba(15,23,42,0.96) 0%, rgba(17,24,39,0.94) 100%);
+        color: #e2e8f0;
     }
 
     .price-results {
@@ -1370,8 +1372,8 @@
     }
 
     .price-card {
-        background: #ffffff;
-        border: 1px solid rgba(148, 163, 184, 0.35);
+        background: rgba(255,255,255,0.06);
+        border: 1px solid rgba(148, 163, 184, 0.18);
         border-radius: 12px;
         padding: 0.85rem 1rem;
         transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease;
@@ -1399,13 +1401,13 @@
     .price-card .price-amount {
         font-size: 1.1rem;
         font-weight: 800;
-        color: #0f172a;
+        color: #f8fafc;
         white-space: nowrap;
     }
 
     .price-card .price-meta {
         font-size: 0.8rem;
-        color: #64748b;
+        color: #cbd5e1;
         margin-top: 0.15rem;
     }
 
@@ -1422,32 +1424,32 @@
 
     #inventoryItemModal .modal-body {
         padding: 1.5rem;
-        background: #ffffff;
+        background: linear-gradient(180deg, rgba(15,23,42,0.96) 0%, rgba(17,24,39,0.94) 100%);
         min-height: 300px;
     }
 
     /* Aba Informações */
     .galint-info-card {
-        background: #f8fafc;
+        background: rgba(255,255,255,0.06);
         padding: 1.25rem;
         border-radius: 8px;
-        border: 1px solid #e2e8f0;
+        border: 1px solid rgba(148,163,184,0.18);
     }
 
     .galint-info-card p {
         font-size: 0.95rem;
-        color: #334155;
+        color: #e2e8f0;
     }
 
     .galint-info-card strong {
-        color: #0f172a;
+        color: #f8fafc;
         font-weight: 600;
     }
 
     /* Container de Imagem Grande */
     .galint-image-container {
-        background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-        border: 2px solid #cbd5e1;
+        background: linear-gradient(135deg, rgba(15,23,42,0.96) 0%, rgba(30,41,59,0.96) 100%);
+        border: 2px solid rgba(148,163,184,0.18);
         border-radius: 12px;
         padding: 1.5rem;
         display: flex;
@@ -1481,13 +1483,13 @@
     }
 
     .galint-image-container.no-image {
-        background: #f1f5f9;
+        background: rgba(255,255,255,0.04);
         border-style: dashed;
     }
 
     .galint-image-container.no-image::after {
         content: 'Sem imagem disponível';
-        color: #94a3b8;
+        color: #cbd5e1;
         font-size: 1rem;
         font-weight: 500;
         position: relative;
@@ -1496,10 +1498,10 @@
 
     /* Código de Barras Pequeno */
     .galint-barcode-container-small {
-        background: #ffffff;
+        background: rgba(255,255,255,0.06);
         padding: 0.75rem;
         border-radius: 6px;
-        border: 1px solid #e2e8f0;
+        border: 1px solid rgba(148,163,184,0.18);
         display: inline-block;
         max-width: 100%;
     }
@@ -1513,10 +1515,10 @@
 
     /* Código de Barras Grande */
     .galint-barcode-container {
-        background: #ffffff;
+        background: rgba(255,255,255,0.06);
         padding: 2rem;
         border-radius: 8px;
-        border: 2px solid #e2e8f0;
+        border: 2px solid rgba(148,163,184,0.18);
         display: inline-block;
         max-width: 100%;
     }
@@ -1772,7 +1774,7 @@
                         <i class="bi bi-tools me-1"></i>
                         Item selecionado
                     </label>
-                    <div class="form-control-plaintext border rounded" id="assignItemDesc" style="background: #ffffff;">-</div>
+                    <div class="form-control-plaintext border rounded" id="assignItemDesc" style="background: rgba(15,23,42,0.82); color: #f8fafc; border-color: rgba(148,163,184,0.22);">-</div>
                 </div>
 
                 <div class="mb-3" id="assignBarcodeSection" style="display: none;">

@@ -3,6 +3,15 @@
 
 {% block extra_css %}
 <style>
+    .supplier-shell-wrap {
+        background: radial-gradient(circle at top left, rgba(37, 99, 235, 0.18), transparent 24%), radial-gradient(circle at top right, rgba(16, 185, 129, 0.14), transparent 20%), linear-gradient(180deg, #07111f 0%, #0b1220 100%);
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        border-radius: 30px;
+        padding: 1.5rem;
+        color: #e2e8f0;
+        box-shadow: 0 28px 60px rgba(2, 6, 23, 0.45);
+    }
+
     .supplier-page {
         padding-bottom: 2rem;
     }
@@ -10,11 +19,12 @@
     .supplier-hero {
         position: relative;
         overflow: hidden;
-        border-radius: 24px;
-        padding: 1.6rem;
-        background: linear-gradient(135deg, #0f172a 0%, #1e293b 62%, #334155 100%);
+        border-radius: 26px;
+        padding: 1.65rem;
+        background: linear-gradient(135deg, rgba(15, 23, 42, 0.98) 0%, rgba(17, 24, 39, 0.96) 48%, rgba(3, 105, 161, 0.92) 100%);
         color: #e2e8f0;
-        box-shadow: 0 26px 60px rgba(15, 23, 42, 0.28);
+        border: 1px solid rgba(125, 211, 252, 0.14);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 22px 52px rgba(15, 23, 42, 0.34);
         margin-bottom: 1.5rem;
     }
 
@@ -22,10 +32,7 @@
         content: "";
         position: absolute;
         inset: 0;
-        background:
-            radial-gradient(circle at 12% 18%, rgba(56, 189, 248, 0.22), transparent 34%),
-            radial-gradient(circle at 82% 26%, rgba(16, 185, 129, 0.18), transparent 28%),
-            radial-gradient(circle at 50% 100%, rgba(245, 158, 11, 0.16), transparent 34%);
+        background: linear-gradient(115deg, rgba(14, 165, 233, 0.12), transparent 38%, rgba(16, 185, 129, 0.08));
         pointer-events: none;
     }
 
@@ -49,11 +56,10 @@
     }
 
     .supplier-kpi {
-        background: rgba(255, 255, 255, 0.1);
-        border: 1px solid rgba(226, 232, 240, 0.16);
-        border-radius: 18px;
+        background: linear-gradient(160deg, rgba(15, 23, 42, 0.96), rgba(30, 41, 59, 0.92));
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        border-radius: 22px;
         padding: 1rem 1.05rem;
-        backdrop-filter: blur(8px);
     }
 
     .supplier-kpi-label {
@@ -83,9 +89,9 @@
     }
 
     .supplier-action-card {
-        background: rgba(15, 23, 42, 0.38);
-        border: 1px solid rgba(226, 232, 240, 0.12);
-        border-radius: 18px;
+        background: rgba(15, 23, 42, 0.58);
+        border: 1px solid rgba(148, 163, 184, 0.12);
+        border-radius: 20px;
         padding: 1rem 1.05rem;
     }
 
@@ -108,21 +114,23 @@
     }
 
     .supplier-card {
-        background: #ffffff;
-        border-radius: 22px;
-        border: 1px solid rgba(148, 163, 184, 0.24);
-        box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+        background: linear-gradient(180deg, rgba(10, 15, 28, 0.95), rgba(14, 20, 34, 0.95));
+        border-radius: 24px;
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        box-shadow: 0 22px 48px rgba(2, 6, 23, 0.34);
         overflow: hidden;
     }
 
     .supplier-card-head {
         padding: 1.25rem 1.35rem;
-        background: linear-gradient(135deg, #eff6ff 0%, #f8fafc 100%);
-        border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+        background: linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(17, 24, 39, 0.94));
+        border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+        color: #f8fafc;
     }
 
     .supplier-card-body {
         padding: 1.35rem;
+        color: #e2e8f0;
     }
 
     .supplier-header {
@@ -141,7 +149,7 @@
         font-size: 0.76rem;
         text-transform: uppercase;
         letter-spacing: 0.08em;
-        color: #64748b;
+        color: #93c5fd;
         border-bottom-width: 1px;
     }
 
@@ -149,6 +157,7 @@
         vertical-align: middle;
         padding-top: 0.95rem;
         padding-bottom: 0.95rem;
+        color: #e2e8f0;
     }
 
     .supplier-badge {
@@ -159,26 +168,27 @@
         border-radius: 999px;
         font-size: 0.75rem;
         font-weight: 600;
-        background: #eff6ff;
-        color: #1d4ed8;
-        border: 1px solid rgba(59, 130, 246, 0.18);
+        background: rgba(59, 130, 246, 0.16);
+        color: #bfdbfe;
+        border: 1px solid rgba(59, 130, 246, 0.28);
     }
 
     .lookup-box {
-        background: linear-gradient(135deg, #eff6ff 0%, #f8fafc 100%);
-        border: 1px solid #bfdbfe;
+        background: rgba(15, 23, 42, 0.58);
+        border: 1px solid rgba(148, 163, 184, 0.12);
         border-radius: 18px;
         padding: 1rem;
         margin-bottom: 1rem;
+        color: #e2e8f0;
     }
 
     .supplier-search {
         position: sticky;
         top: 0;
         z-index: 2;
-        background: #ffffff;
+        background: linear-gradient(180deg, rgba(15, 23, 42, 0.92) 0%, rgba(17, 24, 39, 0.9) 100%);
         padding: 1.1rem 1.35rem 0.9rem;
-        border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+        border-bottom: 1px solid rgba(148, 163, 184, 0.12);
     }
 
     .supplier-row-status {
@@ -205,8 +215,48 @@
         border-radius: 18px;
         padding: 1.5rem;
         text-align: center;
-        color: #64748b;
-        background: #f8fafc;
+        color: rgba(203, 213, 225, 0.78);
+        background: rgba(15, 23, 42, 0.4);
+    }
+
+    .supplier-shell-wrap .form-control,
+    .supplier-shell-wrap .form-control:focus {
+        background: rgba(8, 15, 28, 0.92);
+        color: #f8fafc;
+        border-color: rgba(56, 189, 248, 0.32);
+        box-shadow: none;
+    }
+
+    .supplier-shell-wrap .form-check-input {
+        background-color: rgba(8, 15, 28, 0.92);
+        border-color: rgba(148, 163, 184, 0.32);
+    }
+
+    .supplier-shell-wrap .form-check-label,
+    .supplier-shell-wrap .form-label,
+    .supplier-shell-wrap .text-muted,
+    .supplier-shell-wrap .form-text,
+    .supplier-shell-wrap .small {
+        color: rgba(203, 213, 225, 0.78) !important;
+    }
+
+    .supplier-shell-wrap .btn-light {
+        border-radius: 999px;
+        padding-inline: 1rem;
+    }
+
+    .supplier-shell-wrap .btn-outline-light,
+    .supplier-shell-wrap .btn-outline-secondary,
+    .supplier-shell-wrap .btn-outline-primary {
+        border-radius: 999px;
+    }
+
+    .supplier-shell-wrap .table {
+        --bs-table-bg: transparent;
+        --bs-table-color: #e2e8f0;
+        --bs-table-border-color: rgba(148, 163, 184, 0.12);
+        --bs-table-hover-bg: rgba(37, 99, 235, 0.12);
+        --bs-table-hover-color: #f8fafc;
     }
 
     @media (max-width: 1100px) {
@@ -245,6 +295,7 @@
 {% set total_fornecedores = fornecedores|length %}
 {% set total_ativos = fornecedores|selectattr('ativo')|list|length %}
 {% set total_cnpj = fornecedores|selectattr('cnpj')|list|length %}
+<div class="supplier-shell-wrap">
 <div class="container-fluid py-4 supplier-page">
     <section class="supplier-hero">
         <div class="supplier-hero-grid">
@@ -302,7 +353,7 @@
                 <div class="supplier-header mb-0">
                     <div>
                         <h2 class="h5 mb-1">{{ 'Editar fornecedor' if supplier_edit else 'Novo fornecedor' }}</h2>
-                        <div class="text-muted small">Estrutura preparada para compras futuras, documentos fiscais e preferências do item.</div>
+                        <div class="text-muted small" style="color: #64748b !important;">Estrutura preparada para compras futuras, documentos fiscais e preferências do item.</div>
                     </div>
                     {% if supplier_edit %}
                     <span class="supplier-badge"><i class="bi bi-pencil-square"></i> Modo edição</span>
@@ -321,8 +372,8 @@
                             <i class="bi bi-search me-1"></i> Consultar
                         </button>
                     </div>
-                    <div class="form-text">Usa API pública para preencher razão social, endereço e situação cadastral.</div>
-                    <div class="small mt-2 text-muted" id="cnpj-status"></div>
+                    <div class="form-text" style="color: #64748b;">Usa API pública para preencher razão social, endereço e situação cadastral.</div>
+                    <div class="small mt-2 text-muted" id="cnpj-status" style="color: #64748b !important;"></div>
                 </div>
 
                 <form method="post" id="supplier-form">
@@ -425,7 +476,7 @@
                 <div class="supplier-header mb-0">
                     <div>
                         <h2 class="h5 mb-1">Cadastros existentes</h2>
-                        <div class="text-muted small">Selecione um fornecedor para editar, auditar dados ou confirmar rapidamente se ele já existe.</div>
+                        <div class="text-muted small" style="color: #64748b !important;">Selecione um fornecedor para editar, auditar dados ou confirmar rapidamente se ele já existe.</div>
                     </div>
                     <span class="supplier-badge">{{ total_fornecedores }} registro(s)</span>
                 </div>
@@ -453,7 +504,7 @@
                             <tr data-supplier-search="{{ (fornecedor.nome_exibicao ~ ' ' ~ (fornecedor.razao_social or '') ~ ' ' ~ (fornecedor.cnpj or '') ~ ' ' ~ (fornecedor.endereco_cidade or '') ~ ' ' ~ (fornecedor.endereco_estado or ''))|lower }}">
                                 <td>
                                     <div class="fw-semibold">{{ fornecedor.nome_exibicao }}</div>
-                                    <div class="text-muted small">{{ fornecedor.razao_social }}</div>
+                                    <div class="text-muted small" style="color: #64748b !important;">{{ fornecedor.razao_social }}</div>
                                     <div class="supplier-row-status {{ '' if fornecedor.ativo else 'off' }}">
                                         <i class="bi {{ 'bi-check-circle' if fornecedor.ativo else 'bi-pause-circle' }}"></i>
                                         {{ 'Ativo' if fornecedor.ativo else 'Inativo' }}
@@ -482,6 +533,7 @@
             </div>
         </section>
     </div>
+</div>
 </div>
 {% endblock %}
 

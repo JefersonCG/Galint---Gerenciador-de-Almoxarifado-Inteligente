@@ -4,38 +4,99 @@
 
 {% block extra_css %}
 <style>
+    .reports-shell {
+        background: radial-gradient(circle at top left, rgba(37, 99, 235, 0.18), transparent 24%), radial-gradient(circle at top right, rgba(16, 185, 129, 0.14), transparent 20%), linear-gradient(180deg, #07111f 0%, #0b1220 100%);
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        border-radius: 30px;
+        padding: 1.5rem;
+        color: #e2e8f0;
+        box-shadow: 0 28px 60px rgba(2, 6, 23, 0.45);
+    }
+
+    .reports-hero {
+        position: relative;
+        overflow: hidden;
+        border-radius: 26px;
+        padding: 1.65rem;
+        margin-bottom: 1.5rem;
+        background: linear-gradient(135deg, rgba(15, 23, 42, 0.98) 0%, rgba(17, 24, 39, 0.96) 48%, rgba(3, 105, 161, 0.92) 100%);
+        border: 1px solid rgba(125, 211, 252, 0.14);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 22px 52px rgba(15, 23, 42, 0.34);
+    }
+
+    .reports-hero::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(115deg, rgba(14, 165, 233, 0.12), transparent 38%, rgba(16, 185, 129, 0.08));
+        pointer-events: none;
+    }
+
+    .reports-hero > * {
+        position: relative;
+        z-index: 1;
+    }
+
+    .reports-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        border-radius: 999px;
+        padding: 0.36rem 0.8rem;
+        font-weight: 700;
+        font-size: 0.76rem;
+        background: rgba(34, 197, 94, 0.14);
+        color: #86efac;
+    }
+
+    .reports-hero h1 {
+        font-size: clamp(2rem, 3.4vw, 2.8rem);
+        font-weight: 900;
+        letter-spacing: -0.04em;
+        color: #f8fafc;
+    }
+
+    .reports-hero p {
+        color: rgba(226, 232, 240, 0.82);
+        max-width: 60rem;
+    }
+
     .filter-card {
-        background: var(--bs-dark);
-        border: 1px solid var(--bs-border-color);
-        border-radius: 8px;
+        background: linear-gradient(180deg, rgba(10, 15, 28, 0.95), rgba(14, 20, 34, 0.95));
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        border-radius: 24px;
         padding: 1.5rem;
         margin-bottom: 1.5rem;
+        box-shadow: 0 22px 48px rgba(2, 6, 23, 0.34);
     }
     
     .stats-card {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        border-radius: 8px;
+        background: linear-gradient(160deg, rgba(15, 23, 42, 0.96), rgba(30, 41, 59, 0.92));
+        border-radius: 22px;
         padding: 1rem;
         color: white;
         margin-bottom: 1.5rem;
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        box-shadow: 0 22px 48px rgba(2, 6, 23, 0.34);
     }
     
     /* Cards de relatórios */
     .report-card {
-        background: var(--bs-dark);
-        border: 1px solid var(--bs-border-color);
-        border-radius: 8px;
+        background: linear-gradient(180deg, rgba(10, 15, 28, 0.95), rgba(14, 20, 34, 0.95));
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        border-radius: 24px;
         padding: 1.25rem;
         height: 100%;
         transition: all 0.3s ease;
         position: relative;
         overflow: hidden;
+        box-shadow: 0 22px 48px rgba(2, 6, 23, 0.34);
     }
     
     .report-card:hover {
         transform: translateY(-4px);
-        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
-        border-color: var(--bs-primary);
+        box-shadow: 0 24px 54px rgba(2, 6, 23, 0.42);
+        border-color: rgba(56, 189, 248, 0.32);
     }
     
     .report-card-header {
@@ -54,13 +115,13 @@
     .report-title {
         font-size: 0.95rem;
         font-weight: 600;
-        color: white;
+        color: #f8fafc;
         margin-bottom: 0.25rem;
     }
     
     .report-date {
         font-size: 0.8rem;
-        color: var(--bs-secondary);
+        color: rgba(203, 213, 225, 0.78);
     }
     
     .report-meta {
@@ -78,9 +139,11 @@
     
     /* Visualização em tabela compacta */
     .report-table {
-        background: var(--bs-dark);
-        border-radius: 8px;
+        background: linear-gradient(180deg, rgba(10, 15, 28, 0.95), rgba(14, 20, 34, 0.95));
+        border-radius: 24px;
         overflow: hidden;
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        box-shadow: 0 22px 48px rgba(2, 6, 23, 0.34);
     }
     
     .report-row {
@@ -89,7 +152,7 @@
     }
     
     .report-row:hover {
-        background-color: rgba(255, 255, 255, 0.05);
+        background-color: rgba(37, 99, 235, 0.12);
     }
     
     /* Badges */
@@ -108,8 +171,8 @@
         font-size: 0.7rem;
         padding: 0.2rem 0.4rem;
         border-radius: 3px;
-        background-color: rgba(255, 255, 255, 0.1);
-        color: var(--bs-light);
+        background-color: rgba(255, 255, 255, 0.08);
+        color: #e2e8f0;
     }
     
     /* Paginação */
@@ -120,12 +183,13 @@
         gap: 1rem;
         margin-top: 2rem;
         padding: 1rem;
-        background: var(--bs-dark);
-        border-radius: 8px;
+        background: linear-gradient(180deg, rgba(10, 15, 28, 0.95), rgba(14, 20, 34, 0.95));
+        border-radius: 24px;
+        border: 1px solid rgba(148, 163, 184, 0.14);
     }
     
     .page-info {
-        color: var(--bs-light);
+        color: #e2e8f0;
         font-size: 0.9rem;
     }
     
@@ -139,7 +203,7 @@
         left: 12px;
         top: 50%;
         transform: translateY(-50%);
-        color: var(--bs-secondary);
+        color: rgba(203, 213, 225, 0.58);
     }
     
     .quick-search input {
@@ -164,7 +228,7 @@
     .empty-state {
         text-align: center;
         padding: 3rem;
-        color: var(--bs-secondary);
+        color: rgba(203, 213, 225, 0.78);
     }
     
     .empty-state i {
@@ -174,12 +238,40 @@
     }
     
     /* Forçar texto branco para melhor legibilidade */
-    .form-label, .text-muted, label, p {
-        color: var(--bs-light) !important;
+    .reports-shell .form-label,
+    .reports-shell .text-muted,
+    .reports-shell label,
+    .reports-shell p {
+        color: rgba(203, 213, 225, 0.78) !important;
     }
     
     .report-type, .report-date {
-        color: white !important;
+        color: #f8fafc !important;
+    }
+
+    .reports-shell .form-control,
+    .reports-shell .form-select,
+    .reports-shell .form-control:focus,
+    .reports-shell .form-select:focus {
+        background: rgba(8, 15, 28, 0.92);
+        color: #f8fafc;
+        border-color: rgba(56, 189, 248, 0.32);
+        box-shadow: none;
+    }
+
+    .reports-shell .table {
+        --bs-table-bg: transparent;
+        --bs-table-color: #e2e8f0;
+        --bs-table-border-color: rgba(148, 163, 184, 0.12);
+        --bs-table-hover-bg: rgba(37, 99, 235, 0.12);
+        --bs-table-hover-color: #f8fafc;
+    }
+
+    .reports-shell .btn-outline-light,
+    .reports-shell .btn-outline-success,
+    .reports-shell .btn-outline-danger,
+    .reports-shell .btn-outline-secondary {
+        border-radius: 999px;
     }
     
     /* Responsividade */
@@ -199,14 +291,16 @@
 </style>
 {% endblock %}
 
-{% block page_header %}
-<div>
-    <h2 class="mb-1" style="color: #000 !important;">📊 Relatórios Gerais</h2>
-    <p class="text-muted mb-0" style="color: #000 !important;">Acesse e baixe todos os relatórios gerados pelo sistema</p>
-</div>
-{% endblock %}
+{% block page_header %}{% endblock %}
 
 {% block content %}
+<div class="reports-shell">
+<section class="reports-hero">
+    <div class="reports-badge mb-3"><i class="bi bi-file-earmark-bar-graph"></i> Relatórios Gerais</div>
+    <h1 class="mb-2">Biblioteca operacional de relatórios</h1>
+    <p class="mb-0">Acesse, filtre, gere e distribua os relatórios emitidos pelo sistema com a mesma linguagem visual e leitura executiva da ConversionEngine.</p>
+</section>
+
 <!-- Estatísticas -->
 <div class="row g-3 mb-4">
     <div class="col-md-3 col-sm-6">
@@ -593,6 +687,8 @@
         </a>
     </div>
 {% endif %}
+
+</div>
 
 <!-- Modal de Confirmação de Exclusão (apenas para admins) -->
 {% if current_user.tipo == 'admin' %}

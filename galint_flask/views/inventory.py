@@ -669,6 +669,12 @@ def new_item_form():
     )
 
 
+@blueprint.get("/ajuda/unidades-dinamicas")
+@login_required
+def dynamic_units_help():
+    return render_template("inventory/dynamic_units_help.html")
+
+
 @blueprint.post("/novo")
 @login_required
 def create_item():

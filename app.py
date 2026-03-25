@@ -8,7 +8,7 @@ app = create_app()
 
 # Fallback routes for foto por URL (evita 404 se blueprints nao carregarem)
 try:
-    from flask import jsonify, request
+    from flask import jsonify, request, render_template
     from galint_flask.models import Item
     from galint_flask.extensions import db
     from galint_flask.services.item_foto_service import ItemFotoService
@@ -45,6 +45,18 @@ try:
         app.add_url_rule('/api/itens/foto/url', endpoint='foto_url_api_fallback', view_func=_apply_photo_from_url, methods=['POST'])
     if 'foto_url_fallback' not in app.view_functions:
         app.add_url_rule('/itens/foto/url', endpoint='foto_url_fallback', view_func=_apply_photo_from_url, methods=['POST'])
+
+    def _render_dynamic_units_help_fallback():
+        return render_template('inventory/dynamic_units_help.html')
+
+    has_dynamic_units_help_route = any(rule.rule == '/itens/ajuda/unidades-dinamicas' for rule in app.url_map.iter_rules())
+    if not has_dynamic_units_help_route and 'dynamic_units_help_fallback' not in app.view_functions:
+        app.add_url_rule(
+            '/itens/ajuda/unidades-dinamicas',
+            endpoint='dynamic_units_help_fallback',
+            view_func=_render_dynamic_units_help_fallback,
+            methods=['GET'],
+        )
 except Exception:
     pass
 
