@@ -273,6 +273,7 @@ def item_info(codigo: str):
         "categoria": item.get("categoria"),
         "unidade": item.get("unidade"),
         "saldo": item.get("saldo"),
+        "saldo_display": item.get("saldo_display"),
     })
 
 

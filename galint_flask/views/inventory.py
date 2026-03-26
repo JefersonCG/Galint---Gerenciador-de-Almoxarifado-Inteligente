@@ -1771,7 +1771,7 @@ def category_report(categoria: str):
             cell.alignment = Alignment(horizontal="center")
 
         for item in itens_categoria:
-            saldo = _safe_float(item.get("saldo"))
+            saldo = item.get("saldo_display") or item.get("saldo")
             minimo = item.get("estoque_minimo")
             ultima_edicao_em = item.get("ultima_edicao_em")
             ws.append(
@@ -1858,13 +1858,14 @@ def category_report(categoria: str):
     header = ["Código", "Descrição", "Marca", "Unidade", "Saldo", "Mín.", "Localização"]
     data = [header]
     for item in itens_categoria:
+        saldo = item.get("saldo_display") or item.get("saldo")
         data.append(
             [
                 _safe_text(item.get("codigo")),
                 Paragraph(_safe_text(item.get("descricao"))[:80], body_style),
                 Paragraph((_safe_text(item.get("marca")) or "N/D")[:30], body_style),
                 _safe_text(item.get("unidade")) or "N/D",
-                _safe_text(item.get("saldo")),
+                _safe_text(saldo),
                 _safe_text(item.get("estoque_minimo")),
                 Paragraph((_safe_text(item.get("localizacao")) or "")[:60], body_style),
             ]

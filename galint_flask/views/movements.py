@@ -760,6 +760,7 @@ def item_info(codigo: str):
         "categoria": item.get("categoria"),
         "unidade": item.get("unidade"),
         "saldo": item.get("saldo"),
+        "saldo_display": item.get("saldo_display"),
         "saldo_total_fracionado": saldo_total,
         "tipo_embalagem_novo": item.get("tipo_embalagem_novo"),
         "unidades_por_embalagem": item.get("unidades_por_embalagem"),
