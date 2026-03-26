@@ -743,7 +743,7 @@ ${parent.scripts()}
             return Math.round(saldo) + ' un';
         } catch (e) {
             console.error('Erro ao formatar saldo:', e);
-            return item.saldo ? String(item.saldo) : '';
+            return item.saldo_display ? String(item.saldo_display) : (item.saldo ? String(item.saldo) : '');
         }
     }
 

@@ -201,12 +201,13 @@
             const button = document.createElement('button');
             button.type = 'button';
             button.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-start gap-2';
+            const saldoDisplay = item.saldo_display || item.saldo || '0';
             button.innerHTML = `
                 <div>
                     <div class="fw-semibold">${item.descricao || 'Produto sem descrição'}</div>
                     <div class="text-muted small">Código ${item.codigo || '—'} • ${item.categoria || 'Sem categoria'}</div>
                 </div>
-                <span class="badge bg-primary rounded-pill">Saldo ${item.saldo ?? '0'}</span>
+                <span class="badge bg-primary rounded-pill">Saldo ${saldoDisplay}</span>
             `;
             button.addEventListener('click', () => {
                 appendItemToEditor(item);
@@ -222,7 +223,8 @@
         if (!editor) {
             return;
         }
-        const snippet = `Produto: ${item.descricao || 'Sem descrição'}\nCódigo: ${item.codigo || '—'}\nCategoria: ${item.categoria || '—'}\nSaldo: ${item.saldo ?? '0'} unidades\n\n`;
+        const saldoTexto = item.saldo_display || `${item.saldo ?? '0'} unidades`;
+        const snippet = `Produto: ${item.descricao || 'Sem descrição'}\nCódigo: ${item.codigo || '—'}\nCategoria: ${item.categoria || '—'}\nSaldo: ${saldoTexto}\n\n`;
         editor.insertText(editor.getLength(), snippet, { 'bold': false });
         editor.setSelection(editor.getLength(), 0);
     };
