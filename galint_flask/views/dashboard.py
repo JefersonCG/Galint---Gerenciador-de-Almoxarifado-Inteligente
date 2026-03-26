@@ -81,8 +81,9 @@ def _dashboard_context(
     header_subtitle: str | None = None,
     tag_label: str | None = None,
 ) -> dict[str, Any]:
-    resumo = inventory_service.resumo_estoque()
-    total_quantity = inventory_service.total_quantity()
+    snapshot = inventory_service.dashboard_snapshot()
+    resumo = snapshot["resumo"]
+    total_quantity = snapshot["total_quantity"]
     competencia = date.today().strftime("%m-%Y")
     total_entradas_registradas = db.session.query(Entrada.id_entrada).count()
     can_view_finance = not shared_view
@@ -123,7 +124,7 @@ def _dashboard_context(
         "faltam_entradas": faltam_entradas,
         "progresso_relatorio_pct": progresso_pct,
         "reports": reports,
-        "category_summary": inventory_service.category_summary(),
+        "category_summary": snapshot["category_summary"],
         "shared_view": shared_view,
         "can_view_finance": can_view_finance,
         "header_title": header_title or f"Resumo Mensal de Estoque - {competencia}",

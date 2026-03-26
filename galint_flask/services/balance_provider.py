@@ -55,12 +55,12 @@ class BalanceProvider:
         )
 
     @staticmethod
-    def get_balance(product_id: str) -> BalanceSnapshot:
+    def get_balance(product_id: str, *, item: Item | None = None) -> BalanceSnapshot:
         product_id = (product_id or "").strip()
         if not product_id:
             raise ValueError("product_id é obrigatório")
 
-        item = Item.query.get(product_id)
+        item = item or Item.query.get(product_id)
         if not item:
             raise ValueError("Produto não encontrado")
 

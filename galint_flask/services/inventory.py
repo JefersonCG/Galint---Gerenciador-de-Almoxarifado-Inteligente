@@ -676,6 +676,7 @@ class InventoryService:
             try:
                 saldo = float(item.get_saldo_fisico_total() or 0.0)
             except Exception:
+                db.session.rollback()
                 if EmbalagemService.tem_embalagem(item):
                     try:
                         saldo = float(EmbalagemService.calcular_estoque_total(item) or 0)
@@ -1413,6 +1414,83 @@ class InventoryService:
         if atualizado:
             db.session.commit()
         return resumo
+
+    def dashboard_snapshot(self) -> dict[str, Any]:
+        from ..services.embalagem_service import EmbalagemService
+
+        def _normalize_unidade(value: str | None) -> str:
+            return (value or "").strip().lower()
+
+        def _is_unit(unidade: str | None) -> bool:
+            u = _normalize_unidade(unidade)
+            return u in ("un", "und", "unid", "unidade", "unidades")
+
+        itens = Item.query.order_by(Item.setor, Item.descricao).all()
+        resumo: list[dict[str, Any]] = []
+        categorias: dict[str, dict[str, Any]] = {}
+        total_quantity = 0.0
+        atualizado = False
+
+        for item in itens:
+            tem_embalagem = EmbalagemService.tem_embalagem(item)
+            try:
+                saldo_fisico = float(item.get_saldo_fisico_total() or 0.0)
+            except Exception:
+                db.session.rollback()
+                if tem_embalagem:
+                    try:
+                        saldo_fisico = float(EmbalagemService.calcular_estoque_total(item) or 0)
+                    except Exception:
+                        saldo_fisico = 0.0
+                else:
+                    saldo_fisico = float(item.get_saldo_atual() or 0.0)
+
+            minimo = _calculate_min_stock(saldo_fisico)
+            if item.estoque_minimo != minimo:
+                item.estoque_minimo = minimo
+                atualizado = True
+
+            resumo.append(
+                {
+                    "codigo": item.codigo_item,
+                    "descricao": item.descricao,
+                    "setor": item.setor,
+                    "marca": item.marca,
+                    "estoque_minimo": minimo,
+                    "saldo": saldo_fisico,
+                    "status": "OK" if saldo_fisico > minimo else "Estoque baixo",
+                }
+            )
+
+            saldo_categoria = float(item.estoque_embalagens or 0) if tem_embalagem else saldo_fisico
+            total_quantity += float(item.estoque_embalagens or 0) if tem_embalagem else saldo_fisico
+
+            categoria = item.categoria or "Sem categoria"
+            categoria_resumo = categorias.setdefault(
+                categoria,
+                {
+                    "categoria": categoria,
+                    "total_itens": 0,
+                    "saldo_total": 0.0,
+                },
+            )
+            categoria_resumo["total_itens"] += 1
+            if _is_unit(item.unidade):
+                categoria_resumo["saldo_total"] += round(saldo_categoria)
+            else:
+                categoria_resumo["saldo_total"] += round(saldo_categoria, 1)
+
+        if atualizado:
+            db.session.commit()
+
+        for categoria_resumo in categorias.values():
+            categoria_resumo["saldo_total"] = round(categoria_resumo["saldo_total"], 1)
+
+        return {
+            "resumo": resumo,
+            "total_quantity": int(round(total_quantity)),
+            "category_summary": list(categorias.values()),
+        }
 
     def list_notas_fiscais(self, limit: int = 100) -> list[dict[str, Any]]:
         from .finance_service import finance_service

@@ -11,9 +11,9 @@
         {% endif %}
     </div>
 
-    <div class="docf-period-grid">
+    <div class="docf-period-grid docf-history-grid">
         <div class="docf-panel">
-            <form method="get" class="row g-3 docf-search-form">
+            <form method="get" class="row g-2 docf-search-form">
                 <input type="hidden" name="aba" value="historico">
                 <div class="col-md-6">
                     <label class="form-label" for="periodo_inicio">A partir de</label>
@@ -42,7 +42,7 @@
                         <option value="recibo" {% if period_dashboard.filters.tipo_documento == 'recibo' %}selected{% endif %}>Recibo</option>
                     </select>
                 </div>
-                <div class="col-12 d-flex gap-2 flex-wrap">
+                <div class="col-12 d-flex gap-2 flex-wrap pt-1">
                     <button class="docf-btn-secondary" type="submit" data-help-label="Aplicar período" data-help-text="Atualiza os indicadores e a lista de documentos conforme os filtros escolhidos.">Aplicar período</button>
                     <a class="docf-btn-secondary" href="{{ url_for('nf.nf_index', aba='historico') }}#controle-periodo" data-help-label="Limpar filtros" data-help-text="Remove os filtros do período e retorna para a visão padrão da página.">Limpar</a>
                 </div>
@@ -166,7 +166,7 @@
                 <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
                     data-bs-target="#collapse-{{ collapse_id }}" aria-expanded="false"
                     aria-controls="collapse-{{ collapse_id }}">
-                    <span class="me-3">{{ nota.tipo_documento|default('DOC', true)|upper }} {{ nota.numero_documento|default(nota.nota_fiscal, true) }}</span>
+                    <span class="me-3 fw-semibold">{{ nota.tipo_documento|default('DOC', true)|upper }} {{ nota.numero_documento|default(nota.nota_fiscal, true) }}</span>
                     {% if nota.status_integracao == 'aguardando_certificado' %}
                     <span class="docf-badge me-2">Pendência</span>
                     {% endif %}

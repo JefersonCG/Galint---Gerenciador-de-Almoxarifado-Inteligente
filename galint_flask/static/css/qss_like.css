@@ -8,6 +8,11 @@
     --text-light: #f8fafc;
     --text-dark: #0f172a;
     --border: rgba(255, 255, 255, 0.08);
+    --shell-border: rgba(148, 163, 184, 0.16);
+    --shell-border-strong: rgba(148, 163, 184, 0.24);
+    --shell-surface: rgba(11, 18, 31, 0.92);
+    --shell-surface-soft: rgba(255, 255, 255, 0.05);
+    --shell-text-soft: rgba(226, 232, 240, 0.78);
 }
 
 * {
@@ -31,23 +36,30 @@ html {
 }
 
 .topbar {
-    height: 62px;
+    height: 64px;
     padding: 0 2rem;
-    background: linear-gradient(120deg, var(--accent), var(--accent-2));
+    background: linear-gradient(120deg, #1e3a8a, #2563eb 58%, #38bdf8);
     display: flex;
     align-items: center;
     justify-content: space-between;
     color: var(--text-light);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 10px 24px rgba(2, 6, 23, 0.22);
 }
 
 .topbar-brand .brand-title {
     font-weight: 700;
-    letter-spacing: 0.3rem;
+    letter-spacing: 0.22rem;
+}
+
+.topbar-brand small {
+    color: rgba(239, 246, 255, 0.8) !important;
 }
 
 .topbar-actions button,
 .topbar-actions a {
-    border-color: rgba(255, 255, 255, 0.5);
+    border-color: rgba(255, 255, 255, 0.36);
+    background: rgba(255, 255, 255, 0.06);
 }
 
 .app-body {
@@ -58,7 +70,7 @@ html {
 
 .sidebar-column {
     width: 260px;
-    border-right: 1px solid var(--border);
+    border-right: 1px solid var(--shell-border);
     background: var(--bg);
     transition: width 0.3s ease-in-out;
     flex-shrink: 0;
@@ -78,13 +90,14 @@ html {
     height: 100%;
     display: flex;
     flex-direction: column;
-    background: var(--bg);
+    background: linear-gradient(180deg, #0f1725, #111827 58%, #0f172a);
     transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out;
 }
 
 .sidebar-brand {
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid var(--shell-border);
     text-transform: uppercase;
+    background: rgba(255, 255, 255, 0.03);
 }
 
 .sidebar-brand strong {
@@ -101,7 +114,7 @@ html {
     display: flex;
     flex-direction: column;
     gap: 0.25rem;
-    padding: 0.5rem;
+    padding: 0.6rem;
 }
 
 .sidebar-link,
@@ -109,13 +122,14 @@ html {
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    padding: 0.65rem 1.2rem;
+    padding: 0.68rem 1rem;
     color: var(--text-light);
-    border-radius: 8px;
-    font-size: 0.95rem;
+    border-radius: 12px;
+    font-size: 0.92rem;
     text-decoration: none;
     background: transparent;
-    transition: background 0.2s ease;
+    transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+    border: 1px solid transparent;
 }
 
 .sidebar-link i,
@@ -126,7 +140,14 @@ html {
 .sidebar-link:hover,
 .sidebar-link.active,
 .sidebar-sublink:hover {
-    background: rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.07);
+    border-color: rgba(148, 163, 184, 0.14);
+}
+
+.sidebar-link.active {
+    background: linear-gradient(135deg, rgba(37, 99, 235, 0.22), rgba(56, 189, 248, 0.12));
+    border-color: rgba(96, 165, 250, 0.28);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
 }
 
 .sidebar-group {
@@ -140,18 +161,18 @@ html {
     background: transparent;
     color: var(--text-light);
     text-align: left;
-    padding: 0.65rem 1.2rem;
-    border-radius: 8px;
+    padding: 0.68rem 1rem;
+    border-radius: 12px;
     display: flex;
     justify-content: space-between;
     align-items: center;
     width: 100%;
-    font-size: 0.95rem;
+    font-size: 0.92rem;
     cursor: pointer;
 }
 
 .sidebar-group-toggle:hover {
-    background: rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.07);
 }
 
 .sidebar-submenu {
@@ -167,25 +188,25 @@ html {
 
 .sidebar-divider {
     height: 1px;
-    background: var(--border);
+    background: var(--shell-border);
     margin: 0.75rem 0;
 }
 
 .sidebar-footer {
-    border-top: 1px solid var(--border);
-    background: rgba(20, 24, 28, 0.8);
+    border-top: 1px solid var(--shell-border);
+    background: rgba(15, 23, 36, 0.92);
 }
 
 .content-panel {
     flex: 1;
-    padding: 2rem;
-    background: #f3f6fb;
+    padding: 1.75rem;
+    background: linear-gradient(180deg, #eef4fb, #f5f8fd);
     color: var(--text-dark);
     overflow: auto;
 }
 
 .page-header {
-    margin-bottom: 1.5rem;
+    margin-bottom: 1.25rem;
     display: flex;
     justify-content: space-between;
     align-items: baseline;

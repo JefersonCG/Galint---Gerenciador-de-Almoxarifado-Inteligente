@@ -4,6 +4,19 @@
 
 {% block extra_css %}
 <style>
+    .documents-fiscais-shell {
+        --docf-text-primary: #f8fbff;
+        --docf-text-secondary: rgba(224, 235, 249, 0.9);
+        --docf-text-muted: rgba(196, 212, 234, 0.86);
+        --docf-text-soft: rgba(171, 192, 220, 0.82);
+        --docf-surface-strong: linear-gradient(180deg, rgba(11, 19, 33, 0.98), rgba(14, 23, 37, 0.98));
+        --docf-surface-card: linear-gradient(180deg, rgba(15, 25, 40, 0.96), rgba(18, 30, 48, 0.94));
+        --docf-surface-soft: rgba(11, 20, 32, 0.72);
+        --docf-border-soft: rgba(148, 163, 184, 0.18);
+        --docf-border-strong: rgba(148, 163, 184, 0.24);
+        --docf-focus: rgba(96, 165, 250, 0.48);
+    }
+
     .documents-fiscais-shell .content-panel {
         background: linear-gradient(180deg, #050c18 0%, #0b1220 100%);
         color: #e5eef5;
@@ -18,8 +31,8 @@
         padding: 1.6rem;
         border-radius: 30px;
         background: radial-gradient(circle at top left, rgba(37, 99, 235, 0.18), transparent 24%), radial-gradient(circle at top right, rgba(16, 185, 129, 0.14), transparent 20%), linear-gradient(180deg, #07111f 0%, #0b1220 100%);
-        border: 1px solid rgba(148, 163, 184, 0.16);
-        box-shadow: 0 28px 60px rgba(2, 6, 23, 0.45);
+        border: 1px solid var(--docf-border-soft);
+        box-shadow: 0 22px 46px rgba(2, 6, 23, 0.4);
         overflow: hidden;
     }
 
@@ -62,25 +75,27 @@
 
     .docf-subtitle {
         margin: 0.45rem 0 0;
-        color: rgba(221, 232, 247, 0.78);
+        color: var(--docf-text-secondary);
         font-size: 0.98rem;
         max-width: 62rem;
+        line-height: 1.55;
     }
 
     .docf-search-topbar {
         position: sticky;
         top: 0.9rem;
         z-index: 30;
-        margin-bottom: 1rem;
+        margin-bottom: 0.8rem;
+        backdrop-filter: blur(14px);
     }
 
     .docf-main-surface {
         margin-top: 1rem;
         padding: 1rem;
         border-radius: 24px;
-        background: linear-gradient(180deg, rgba(10, 15, 28, 0.95), rgba(14, 20, 34, 0.95));
-        border: 1px solid rgba(148, 163, 184, 0.14);
-        box-shadow: 0 22px 48px rgba(2, 6, 23, 0.34);
+        background: var(--docf-surface-strong);
+        border: 1px solid var(--docf-border-soft);
+        box-shadow: 0 18px 36px rgba(2, 6, 23, 0.28);
     }
 
     .docf-state-tabs {
@@ -113,12 +128,12 @@
     }
 
     .docf-state-tabs .nav-link {
-        border: 1px solid rgba(148, 163, 184, 0.18);
-        border-bottom-color: rgba(148, 163, 184, 0.14);
-        background: rgba(15, 23, 42, 0.7);
-        color: #cbd5e1;
+        border: 1px solid var(--docf-border-soft);
+        border-bottom-color: rgba(148, 163, 184, 0.12);
+        background: rgba(13, 23, 38, 0.84);
+        color: #d9e6f7;
         border-radius: 14px 14px 0 0;
-        padding: 0.75rem 1rem 0.7rem;
+        padding: 0.82rem 1rem 0.78rem;
         font-weight: 800;
         display: flex;
         flex-direction: column;
@@ -164,9 +179,9 @@
     .docf-state-tabs .docf-tab-sub {
         display: block;
         margin-top: 0.22rem;
-        font-size: 0.74rem;
+        font-size: 0.76rem;
         line-height: 1.3;
-        color: rgba(203, 213, 225, 0.72);
+        color: rgba(219, 231, 247, 0.82);
         white-space: normal;
     }
 
@@ -181,19 +196,21 @@
 
     .docf-state-pane {
         display: grid;
-        gap: 1rem;
+        gap: 0.9rem;
     }
 
     .docf-step-flow {
         display: grid;
         gap: 0.9rem;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
     }
 
     .docf-step {
         border-radius: 18px;
-        padding: 1rem;
-        background: rgba(8, 15, 28, 0.3);
-        border: 1px solid rgba(148, 163, 184, 0.16);
+        padding: 0.95rem 1rem;
+        background: rgba(9, 18, 31, 0.62);
+        border: 1px solid var(--docf-border-soft);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
     }
 
     .docf-step-index {
@@ -213,7 +230,7 @@
         display: flex;
         align-items: flex-start;
         gap: 0.85rem;
-        margin-bottom: 0.85rem;
+        margin-bottom: 0;
     }
 
     .docf-step-header h3 {
@@ -225,8 +242,9 @@
 
     .docf-step-header p {
         margin: 0.2rem 0 0;
-        color: rgba(188, 205, 230, 0.78);
+        color: var(--docf-text-muted);
         font-size: 0.84rem;
+        line-height: 1.5;
     }
 
     .docf-status-list {
@@ -237,10 +255,10 @@
     .docf-status-card {
         border-radius: 18px;
         padding: 1rem;
-        background: linear-gradient(135deg, #102038 0%, #17304c 70%, #1d3d60 100%);
-        border: 1px solid rgba(137, 164, 201, 0.2);
-        box-shadow: 0 20px 44px rgba(4, 12, 19, 0.18);
-        color: #f8fbfc;
+        background: var(--docf-surface-card);
+        border: 1px solid var(--docf-border-soft);
+        box-shadow: 0 16px 30px rgba(4, 12, 19, 0.18);
+        color: var(--docf-text-primary);
     }
 
     .docf-status-card.is-highlighted {
@@ -277,8 +295,9 @@
 
     .docf-status-subtitle {
         margin: 0.25rem 0 0;
-        color: rgba(188, 205, 230, 0.76);
+        color: var(--docf-text-muted);
         font-size: 0.84rem;
+        line-height: 1.45;
     }
 
     .docf-status-meta {
@@ -298,8 +317,8 @@
     .docf-status-cell {
         border-radius: 14px;
         padding: 0.8rem 0.9rem;
-        background: rgba(4, 11, 16, 0.32);
-        border: 1px solid rgba(145, 177, 168, 0.12);
+        background: rgba(7, 14, 24, 0.66);
+        border: 1px solid rgba(148, 163, 184, 0.14);
     }
 
     .docf-status-cell strong {
@@ -307,7 +326,7 @@
         font-size: 0.72rem;
         text-transform: uppercase;
         letter-spacing: 0.07em;
-        color: rgba(177, 198, 228, 0.74);
+        color: var(--docf-text-soft);
         margin-bottom: 0.25rem;
     }
 
@@ -366,9 +385,9 @@
         font-size: 0.78rem;
         font-weight: 700;
         letter-spacing: 0.03em;
-        background: rgba(255, 255, 255, 0.06);
-        color: #dbe9fb;
-        border: 1px solid rgba(148, 163, 184, 0.2);
+        background: rgba(255, 255, 255, 0.07);
+        color: #eef5ff;
+        border: 1px solid var(--docf-border-soft);
         white-space: nowrap;
     }
 
@@ -447,61 +466,77 @@
 
     .docf-kpis {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-        gap: 0.9rem;
-        margin-bottom: 1.35rem;
+        grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));
+        gap: 0.75rem;
+        margin-bottom: 1.1rem;
     }
 
     .docf-kpi {
+        position: relative;
         border-radius: 18px;
-        padding: 1rem 1.05rem;
-        background: linear-gradient(160deg, rgba(15, 23, 42, 0.96), rgba(30, 41, 59, 0.92));
-        border: 1px solid rgba(148, 163, 184, 0.14);
+        padding: 0.85rem 0.95rem 0.9rem;
+        background: rgba(10, 18, 31, 0.84);
+        border: 1px solid var(--docf-border-soft);
         box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
     }
 
+    .docf-kpi::before {
+        content: "";
+        position: absolute;
+        left: 0.95rem;
+        right: 0.95rem;
+        top: 0.65rem;
+        height: 2px;
+        border-radius: 999px;
+        background: linear-gradient(90deg, rgba(56, 189, 248, 0.9), rgba(96, 165, 250, 0.25));
+        opacity: 0.58;
+    }
+
     .docf-kpi-label {
-        font-size: 0.76rem;
+        margin-top: 0.2rem;
+        font-size: 0.73rem;
         text-transform: uppercase;
         letter-spacing: 0.08em;
-        color: rgba(172, 193, 223, 0.76);
+        color: var(--docf-text-soft);
         font-weight: 700;
     }
 
     .docf-kpi-value {
-        margin-top: 0.35rem;
-        color: #f8fbfc;
-        font-size: 1.22rem;
+        margin-top: 0.42rem;
+        color: var(--docf-text-primary);
+        font-size: 1.12rem;
         font-weight: 800;
+        letter-spacing: -0.02em;
     }
 
     .docf-mode-actions {
         display: grid;
         grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 0.7rem;
-        margin-bottom: 1rem;
+        gap: 0.6rem;
+        margin-bottom: 0.85rem;
     }
 
     .docf-mode-btn {
-        border: 1px solid rgba(148, 163, 184, 0.2);
-        background: rgba(255, 255, 255, 0.04);
-        color: #eef4ff;
-        border-radius: 16px;
-        padding: 0.9rem 0.95rem;
+        border: 1px solid var(--docf-border-soft);
+        background: rgba(12, 21, 34, 0.72);
+        color: var(--docf-text-primary);
+        border-radius: 14px;
+        padding: 0.78rem 0.9rem;
         text-align: left;
         transition: border-color 0.18s ease, transform 0.18s ease, background 0.18s ease;
     }
 
     .docf-mode-btn strong {
         display: block;
-        font-size: 0.92rem;
-        margin-bottom: 0.2rem;
+        font-size: 0.88rem;
+        margin-bottom: 0.16rem;
     }
 
     .docf-mode-btn span {
         display: block;
-        font-size: 0.78rem;
-        color: rgba(201, 215, 236, 0.74);
+        font-size: 0.75rem;
+        color: var(--docf-text-muted);
+        line-height: 1.4;
     }
 
     .docf-mode-btn.is-active {
@@ -548,11 +583,11 @@
         align-items: center;
         border-radius: 999px;
         padding: 0.3rem 0.65rem;
-        background: rgba(255, 255, 255, 0.06);
-        border: 1px solid rgba(148, 163, 184, 0.16);
+        background: rgba(255, 255, 255, 0.07);
+        border: 1px solid rgba(148, 163, 184, 0.18);
         font-size: 0.74rem;
         font-weight: 700;
-        color: #e7f0ff;
+        color: #f0f5ff;
     }
 
     .docf-chip.success {
@@ -582,10 +617,10 @@
         position: relative;
         overflow: hidden;
         border-radius: 22px;
-        padding: 1.15rem;
-        background: linear-gradient(135deg, #102038 0%, #17304c 70%, #1d3d60 100%);
-        border: 1px solid rgba(137, 164, 201, 0.2);
-        box-shadow: 0 20px 44px rgba(4, 12, 19, 0.26);
+        padding: 0.95rem;
+        background: var(--docf-surface-card);
+        border: 1px solid var(--docf-border-soft);
+        box-shadow: 0 16px 30px rgba(4, 12, 19, 0.24);
     }
 
     .docf-card::before {
@@ -593,9 +628,9 @@
         position: absolute;
         inset: 0;
         background:
-            radial-gradient(circle at top left, rgba(96, 165, 250, 0.14), transparent 28%),
-            radial-gradient(circle at 84% 18%, rgba(59, 130, 246, 0.14), transparent 22%),
-            linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 60%);
+            radial-gradient(circle at top left, rgba(96, 165, 250, 0.08), transparent 28%),
+            radial-gradient(circle at 84% 18%, rgba(59, 130, 246, 0.08), transparent 22%),
+            linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 60%);
         pointer-events: none;
     }
 
@@ -609,7 +644,7 @@
         justify-content: space-between;
         align-items: flex-start;
         gap: 0.75rem;
-        margin-bottom: 1rem;
+        margin-bottom: 0.85rem;
     }
 
     .docf-kicker {
@@ -617,7 +652,7 @@
         font-weight: 800;
         text-transform: uppercase;
         letter-spacing: 0.08em;
-        color: rgba(181, 200, 230, 0.82);
+        color: var(--docf-text-soft);
         margin-bottom: 0.3rem;
     }
 
@@ -629,28 +664,53 @@
     }
 
     .docf-panel {
+        position: relative;
         border-radius: 16px;
-        padding: 0.95rem 1rem;
-        background: linear-gradient(135deg, rgba(255, 255, 255, 0.06) 0%, rgba(7, 15, 21, 0.18) 100%);
-        border: 1px solid rgba(145, 177, 168, 0.14);
-        color: rgba(229, 238, 245, 0.88);
+        padding: 0.72rem 0.85rem;
+        background: linear-gradient(180deg, rgba(14, 23, 37, 0.88) 0%, rgba(10, 18, 29, 0.9) 100%);
+        border: 1px solid var(--docf-border-soft);
+        color: var(--docf-text-secondary);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
+    }
+
+    .docf-panel::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 0.9rem;
+        bottom: 0.9rem;
+        width: 3px;
+        border-radius: 999px;
+        background: rgba(125, 211, 252, 0.45);
     }
 
     .docf-panel.info {
-        background: linear-gradient(135deg, rgba(34, 197, 94, 0.12) 0%, rgba(15, 118, 110, 0.08) 100%);
-        border-color: rgba(96, 165, 250, 0.18);
+        background: linear-gradient(180deg, rgba(9, 32, 48, 0.9) 0%, rgba(10, 26, 40, 0.92) 100%);
+        border-color: rgba(96, 165, 250, 0.22);
+    }
+
+    .docf-panel.info::before {
+        background: rgba(125, 211, 252, 0.8);
     }
 
     .docf-panel.warning {
-        background: linear-gradient(135deg, rgba(250, 204, 21, 0.12) 0%, rgba(161, 98, 7, 0.08) 100%);
-        border-color: rgba(245, 158, 11, 0.18);
-        color: #fde68a;
+        background: linear-gradient(180deg, rgba(56, 34, 5, 0.84) 0%, rgba(42, 27, 7, 0.9) 100%);
+        border-color: rgba(245, 158, 11, 0.26);
+        color: #fef3c7;
+    }
+
+    .docf-panel.warning::before {
+        background: rgba(251, 191, 36, 0.9);
     }
 
     .docf-panel.danger {
-        background: linear-gradient(135deg, rgba(239, 68, 68, 0.14) 0%, rgba(127, 29, 29, 0.1) 100%);
-        border-color: rgba(248, 113, 113, 0.22);
-        color: #fecaca;
+        background: linear-gradient(180deg, rgba(60, 20, 22, 0.88) 0%, rgba(48, 18, 21, 0.92) 100%);
+        border-color: rgba(248, 113, 113, 0.28);
+        color: #fee2e2;
+    }
+
+    .docf-panel.danger::before {
+        background: rgba(248, 113, 113, 0.92);
     }
 
     .docf-form label,
@@ -665,52 +725,94 @@
     .docf-search-form .form-control,
     .docf-search-form .form-select,
     .docf-form .input-group-text {
-        background: rgba(8, 16, 24, 0.84);
-        border: 1px solid rgba(129, 170, 157, 0.22);
-        color: #f8fbfc;
-        min-height: 46px;
-        border-radius: 14px;
+        background: rgba(7, 14, 24, 0.92);
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        color: var(--docf-text-primary);
+        min-height: 40px;
+        border-radius: 12px;
+        padding: 0.52rem 0.76rem;
+    }
+
+    .docf-form textarea.form-control {
+        min-height: 74px;
     }
 
     .docf-form .form-control::placeholder,
     .docf-search-form .form-control::placeholder {
-        color: rgba(192, 212, 205, 0.5);
+        color: rgba(183, 199, 222, 0.64);
     }
 
     .docf-form .form-control:focus,
     .docf-form .form-select:focus,
     .docf-search-form .form-control:focus {
-        border-color: rgba(96, 165, 250, 0.45);
+        border-color: var(--docf-focus);
         box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.16);
     }
 
     .docf-form .form-text,
     .docf-search-form .form-text,
     .docf-muted {
-        color: rgba(188, 205, 230, 0.74) !important;
+        color: var(--docf-text-muted) !important;
+        line-height: 1.5;
+    }
+
+    .docf-form-section {
+        display: grid;
+        gap: 0.7rem;
+        padding: 0.72rem 0;
+        border-top: 1px solid rgba(148, 163, 184, 0.14);
+    }
+
+    .docf-form-section:first-of-type {
+        padding-top: 0.2rem;
+        border-top: none;
+    }
+
+    .docf-form-section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+    }
+
+    .docf-form-section-title {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 800;
+        color: var(--docf-text-primary);
+        letter-spacing: -0.02em;
+    }
+
+    .docf-form-section-text {
+        margin: 0.25rem 0 0;
+        max-width: 48rem;
+        color: var(--docf-text-muted);
+        font-size: 0.84rem;
+        line-height: 1.5;
     }
 
     .docf-option-checklist {
         display: grid;
-        gap: 0.75rem;
-        margin-top: 0.8rem;
+        gap: 0.55rem;
+        margin-top: 0.65rem;
     }
 
     .docf-option-checklist-grid {
         display: flex;
         flex-wrap: wrap;
-        gap: 0.55rem;
+        gap: 0.45rem;
     }
 
     .docf-field-card {
         display: flex;
         flex-direction: column;
-        gap: 0.75rem;
+        gap: 0.55rem;
         min-height: 100%;
-        padding: 1rem;
-        border-radius: 18px;
-        border: 1px solid rgba(148, 163, 184, 0.18);
-        background: rgba(8, 15, 28, 0.38);
+        padding: 0.72rem;
+        border-radius: 16px;
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        background: rgba(8, 15, 28, 0.54);
     }
 
     .docf-field-card .form-control[readonly] {
@@ -726,8 +828,9 @@
 
     .docf-field-hint {
         margin: -0.15rem 0 0;
-        font-size: 0.78rem;
-        color: rgba(188, 205, 230, 0.78);
+        font-size: 0.75rem;
+        color: var(--docf-text-muted);
+        line-height: 1.4;
     }
 
     .docf-inline-results {
@@ -752,11 +855,23 @@
         display: inline-flex;
         align-items: center;
         gap: 0.45rem;
-        padding: 0.55rem 0.85rem;
+        padding: 0.45rem 0.72rem;
         border-radius: 999px;
         border: 1px solid rgba(148, 163, 184, 0.2);
-        background: rgba(255, 255, 255, 0.04);
-        color: #e7f0ff;
+            .docf-form .row.g-3 {
+                --bs-gutter-x: 0.85rem;
+                --bs-gutter-y: 0.85rem;
+            }
+
+            .docf-form .input-group > .docf-btn-secondary,
+            .docf-form .docf-btn-primary,
+            .docf-form .docf-btn-secondary {
+                min-height: 40px;
+                padding: 0.52rem 0.9rem;
+            }
+
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--docf-text-primary);
         font-size: 0.8rem;
         font-weight: 700;
         cursor: pointer;
@@ -789,8 +904,8 @@
         align-items: center;
         justify-content: center;
         border-radius: 12px;
-        min-height: 42px;
-        padding: 0.7rem 1rem;
+        min-height: 40px;
+        padding: 0.62rem 0.9rem;
         font-weight: 800;
         border: 1px solid transparent;
         text-decoration: none;
@@ -804,9 +919,9 @@
     }
 
     .docf-btn-secondary {
-        background: rgba(255, 255, 255, 0.06);
-        color: #ffffff;
-        border-color: rgba(148, 163, 184, 0.18);
+        background: rgba(255, 255, 255, 0.07);
+        color: var(--docf-text-primary);
+        border-color: rgba(148, 163, 184, 0.22);
     }
 
     .docf-btn-danger {
@@ -827,15 +942,15 @@
     .docf-detail-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-        gap: 0.7rem;
-        margin-bottom: 1rem;
+        gap: 0.6rem;
+        margin-bottom: 0.85rem;
     }
 
     .docf-detail-box {
         border-radius: 14px;
-        padding: 0.8rem 0.9rem;
-        background: rgba(4, 11, 16, 0.4);
-        border: 1px solid rgba(145, 177, 168, 0.12);
+        padding: 0.72rem 0.82rem;
+        background: rgba(8, 16, 25, 0.78);
+        border: 1px solid rgba(148, 163, 184, 0.14);
     }
 
     .docf-detail-label {
@@ -843,7 +958,7 @@
         font-size: 0.72rem;
         text-transform: uppercase;
         letter-spacing: 0.08em;
-        color: rgba(177, 198, 228, 0.74);
+        color: var(--docf-text-soft);
         margin-bottom: 0.28rem;
         font-weight: 800;
     }
@@ -858,8 +973,8 @@
     .docf-table-wrap {
         border-radius: 18px;
         overflow: hidden;
-        border: 1px solid rgba(145, 177, 168, 0.14);
-        background: rgba(6, 13, 18, 0.58);
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        background: rgba(7, 13, 22, 0.68);
     }
 
     .docf-table {
@@ -868,21 +983,21 @@
     }
 
     .docf-table thead th {
-        background: rgba(255, 255, 255, 0.05);
-        color: #f8fbff;
-        border-bottom: 1px solid rgba(145, 177, 168, 0.14);
+        background: rgba(15, 23, 42, 0.82);
+        color: #eef5ff;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.14);
         font-size: 0.76rem;
         text-transform: uppercase;
         letter-spacing: 0.07em;
         font-weight: 800;
-        padding: 0.9rem 0.95rem;
+        padding: 0.8rem 0.9rem;
     }
 
     .docf-table tbody td {
         background: transparent;
-        color: #ffffff;
-        border-color: rgba(145, 177, 168, 0.08);
-        padding: 0.95rem;
+        color: #f8fbff;
+        border-color: rgba(148, 163, 184, 0.08);
+        padding: 0.8rem 0.9rem;
         vertical-align: middle;
     }
 
@@ -925,11 +1040,12 @@
         padding: 1.1rem;
         border-radius: 16px;
         background: rgba(255, 255, 255, 0.04);
-        border: 1px dashed rgba(145, 177, 168, 0.18);
-        color: rgba(212, 226, 245, 0.74);
+        border: 1px dashed rgba(148, 163, 184, 0.2);
+        color: var(--docf-text-muted);
     }
 
     @media (max-width: 1100px) {
+        .docf-step-flow,
         .docf-period-grid,
         .docf-period-layout,
         .docf-grid {
@@ -1246,22 +1362,38 @@
 
                 <form method="post" class="docf-form" id="nf-registration-form">
                     <input type="hidden" name="active_tab" value="registro">
-                    <div class="mb-3">
-                        <label class="form-label" for="item_search">Item</label>
-                        <div class="position-relative">
-                            <input class="form-control" id="item_search" type="text" autocomplete="off"
-                                placeholder="Digite código ou descrição do item"
-                                value="{% if selected_item %}{{ selected_item.codigo }} — {{ selected_item.descricao }}{% endif %}">
-                            <input type="hidden" id="codigo" name="codigo" value="{{ codigo_prefill }}" required>
-                            <div class="list-group position-absolute w-100 shadow d-none" id="item_results" style="z-index: 60;"></div>
+                    <div class="docf-form-section">
+                        <div class="docf-form-section-header">
+                            <div>
+                                <h3 class="docf-form-section-title">1. Item e vínculo operacional</h3>
+                                <p class="docf-form-section-text">Comece localizando um item existente. Se o produto ainda não estiver cadastrado, use a área logo abaixo para criar o item e continuar o lançamento na mesma rotina.</p>
+                            </div>
                         </div>
-                        <div class="form-text">Digite parte do código ou da descrição para localizar o item.</div>
+                        <div class="mb-0">
+                            <label class="form-label" for="item_search">Item</label>
+                            <div class="position-relative">
+                                <input class="form-control" id="item_search" type="text" autocomplete="off"
+                                    placeholder="Digite código ou descrição do item"
+                                    value="{% if selected_item %}{{ selected_item.codigo }} — {{ selected_item.descricao }}{% endif %}">
+                                <input type="hidden" id="codigo" name="codigo" value="{{ codigo_prefill }}" required>
+                                <div class="list-group position-absolute w-100 shadow d-none" id="item_results" style="z-index: 60;"></div>
+                            </div>
+                            <div class="form-text">Digite parte do código ou da descrição para localizar o item.</div>
+                        </div>
                     </div>
-                    <div class="docf-panel mb-3">
+
+                    <div class="docf-form-section">
+                        <div class="docf-form-section-header">
+                            <div>
+                                <h3 class="docf-form-section-title">2. Item novo, se necessário</h3>
+                                <p class="docf-form-section-text">Use esta etapa somente quando o material ainda não existir no estoque. O objetivo é evitar cadastro duplicado e manter a classificação inicial já consistente.</p>
+                            </div>
+                        </div>
+                        <div class="docf-panel mb-0">
                         <div class="docf-kicker">Item novo</div>
                         <p class="mb-3 docf-muted">Se o produto desta NF ainda não existir no estoque, preencha os campos abaixo para criar o item antes de registrar o documento.</p>
-                        <div class="row g-3 align-items-stretch">
-                            <div class="col-md-4">
+                        <div class="row g-2 align-items-stretch">
+                            <div class="col-md-3">
                                 <div class="docf-field-card">
                                     <div>
                                         <label class="form-label" for="novo_codigo">Código do novo item</label>
@@ -1270,7 +1402,7 @@
                                     <input class="form-control" id="novo_codigo" name="novo_codigo" placeholder="Código de barras ou código interno">
                                 </div>
                             </div>
-                            <div class="col-md-8">
+                            <div class="col-md-9">
                                 <div class="docf-field-card">
                                     <div>
                                         <label class="form-label" for="nova_descricao">Descrição do novo item</label>
@@ -1282,7 +1414,7 @@
                                     </div>
                                 </div>
                             </div>
-                            <div class="col-md-7">
+                            <div class="col-md-8">
                                 <div class="docf-field-card">
                                     <div>
                                         <label class="form-label" for="nova_categoria">Categoria</label>
@@ -1299,7 +1431,7 @@
                                     </div>
                                 </div>
                             </div>
-                            <div class="col-md-5">
+                            <div class="col-md-4">
                                 <div class="docf-field-card">
                                     <div>
                                         <label class="form-label" for="nova_unidade">Unidade</label>
@@ -1325,87 +1457,106 @@
                             <div class="docf-muted">Os valores continuam sendo enviados no formulário, mas agora a escolha é feita apenas pelo checklist.</div>
                         </div>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label" for="quantidade">Quantidade</label>
-                        <input class="form-control" id="quantidade" name="quantidade" type="number" min="1" value="1"
-                            required>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label" for="nota_fiscal" id="nota_fiscal_label">Número da NF</label>
-                        <input class="form-control" id="nota_fiscal" name="nota_fiscal" required>
-                        <div class="list-group mt-2 d-none" id="nota_fiscal_results"></div>
-                        <div class="form-text" id="nota_fiscal_help">Se essa NF já tiver sido usada no sistema, os dados da empresa serão preenchidos automaticamente.</div>
-                    </div>
-                    <div class="mb-3 position-relative">
-                        <label class="form-label" for="finance_supplier_search">Fornecedor / Loja</label>
-                        <input class="form-control" id="finance_supplier_search" autocomplete="off"
-                            name="supplier_name" placeholder="Digite nome, fantasia ou CNPJ">
-                        <input type="hidden" id="finance_supplier_id" name="finance_supplier_id">
-                        <div class="list-group position-absolute w-100 shadow d-none" id="finance_supplier_results" style="z-index: 50;"></div>
-                    </div>
-                    <div class="row g-3 mb-3">
-                        <div class="col-md-7">
-                            <label class="form-label" for="supplier_cnpj">CNPJ da loja</label>
-                            <div class="input-group">
-                                <input class="form-control" id="supplier_cnpj" name="supplier_cnpj" placeholder="00.000.000/0000-00">
-                                <button class="docf-btn-secondary" type="button" id="btn-buscar-cnpj" data-help-label="Consultar CNPJ" data-help-text="Consulta o CNPJ informado para localizar ou completar automaticamente o fornecedor.">Consultar</button>
+
+                    <div class="docf-form-section">
+                        <div class="docf-form-section-header">
+                            <div>
+                                <h3 class="docf-form-section-title">3. Dados do documento</h3>
+                                <p class="docf-form-section-text">Preencha somente os dados fiscais e de recebimento que sustentam a conferência. Essa parte define o rastreamento do documento nas abas operacionais.</p>
                             </div>
-                            <div class="form-text">Se o fornecedor não existir, o sistema tenta criar pelo CNPJ.</div>
                         </div>
-                        <div class="col-md-5">
-                            <label class="form-label" for="data_emissao">Emissão do documento</label>
-                            <input class="form-control" id="data_emissao" name="data_emissao" type="date">
-                        </div>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label" for="data_recebimento">Data de recebimento</label>
-                        <input class="form-control" id="data_recebimento" name="data_recebimento" type="date">
-                    </div>
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label class="form-label" for="preco_unitario">Valor unitário (R$)</label>
-                            <input class="form-control" id="preco_unitario" name="preco_unitario" type="number" min="0" step="0.01">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label" for="finance_tipo_documento">Tipo de documento</label>
-                            <select class="form-select" id="finance_tipo_documento" name="finance_tipo_documento">
-                                <option value="nf">Nota fiscal</option>
-                                <option value="cupom">Cupom não fiscal</option>
-                                <option value="recibo">Recibo</option>
-                                <option value="manual">Manual</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="row g-3 mt-1">
-                        <div class="col-md-6">
-                            <label class="form-label" for="finance_origem_valor">Origem do valor</label>
-                            <select class="form-select" id="finance_origem_valor" name="finance_origem_valor">
-                                <option value="compra_nf">Compra com NF</option>
-                                <option value="compra_cupom">Compra com cupom</option>
-                                <option value="valor_estimado">Valor estimado</option>
-                                <option value="inventario_inicial">Inventário inicial</option>
-                            </select>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label" for="finance_comprovacao_status">Comprovação</label>
-                            <select class="form-select" id="finance_comprovacao_status" name="finance_comprovacao_status">
-                                <option value="comprovado">Comprovado</option>
-                                <option value="parcial">Parcialmente comprovado</option>
-                                <option value="sem_comprovacao">Sem comprovação</option>
-                            </select>
+                        <div class="row g-2">
+                            <div class="col-md-2">
+                                <label class="form-label" for="quantidade">Quantidade</label>
+                                <input class="form-control" id="quantidade" name="quantidade" type="number" min="1" value="1"
+                                    required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label" for="nota_fiscal" id="nota_fiscal_label">Número da NF</label>
+                                <input class="form-control" id="nota_fiscal" name="nota_fiscal" required>
+                                <div class="list-group mt-2 d-none" id="nota_fiscal_results"></div>
+                                <div class="form-text" id="nota_fiscal_help">Se essa NF já tiver sido usada no sistema, os dados da empresa serão preenchidos automaticamente.</div>
+                            </div>
+                            <div class="col-md-6 position-relative">
+                                <label class="form-label" for="finance_supplier_search">Fornecedor / Loja</label>
+                                <input class="form-control" id="finance_supplier_search" autocomplete="off"
+                                    name="supplier_name" placeholder="Digite nome, fantasia ou CNPJ">
+                                <input type="hidden" id="finance_supplier_id" name="finance_supplier_id">
+                                <div class="list-group position-absolute w-100 shadow d-none" id="finance_supplier_results" style="z-index: 50;"></div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="supplier_cnpj">CNPJ da loja</label>
+                                <div class="input-group">
+                                    <input class="form-control" id="supplier_cnpj" name="supplier_cnpj" placeholder="00.000.000/0000-00">
+                                    <button class="docf-btn-secondary" type="button" id="btn-buscar-cnpj" data-help-label="Consultar CNPJ" data-help-text="Consulta o CNPJ informado para localizar ou completar automaticamente o fornecedor.">Consultar</button>
+                                </div>
+                                <div class="form-text">Se o fornecedor não existir, o sistema tenta criar pelo CNPJ.</div>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label" for="data_emissao">Emissão do documento</label>
+                                <input class="form-control" id="data_emissao" name="data_emissao" type="date">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label" for="data_recebimento">Data de recebimento</label>
+                                <input class="form-control" id="data_recebimento" name="data_recebimento" type="date">
+                            </div>
+                            <div class="col-md-6" data-chave-acesso-group>
+                                <label class="form-label" for="chave_acesso">Chave de acesso</label>
+                                <input class="form-control" id="chave_acesso" name="chave_acesso" placeholder="44 dígitos da NF-e / NFC-e">
+                                <div class="form-text">A chave deixa a NF pronta no sistema. A consulta automática ficará bloqueada até configurar o certificado digital.</div>
+                            </div>
                         </div>
                     </div>
-                    <div class="mb-3 mt-3" data-chave-acesso-group>
-                        <label class="form-label" for="chave_acesso">Chave de acesso</label>
-                        <input class="form-control" id="chave_acesso" name="chave_acesso" placeholder="44 dígitos da NF-e / NFC-e">
-                        <div class="form-text">A chave deixa a NF pronta no sistema. A consulta automática ficará bloqueada até configurar o certificado digital.</div>
+
+                    <div class="docf-form-section">
+                        <div class="docf-form-section-header">
+                            <div>
+                                <h3 class="docf-form-section-title">4. Classificação financeira</h3>
+                                <p class="docf-form-section-text">Defina como o valor será tratado no Financeiro e deixe a comprovação pronta para auditoria posterior. Essa etapa pode ser curta, mas precisa ser consistente.</p>
+                            </div>
+                        </div>
+                        <div class="row g-2">
+                            <div class="col-md-6">
+                                <label class="form-label" for="preco_unitario">Valor unitário (R$)</label>
+                                <input class="form-control" id="preco_unitario" name="preco_unitario" type="number" min="0" step="0.01">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="finance_tipo_documento">Tipo de documento</label>
+                                <select class="form-select" id="finance_tipo_documento" name="finance_tipo_documento">
+                                    <option value="nf">Nota fiscal</option>
+                                    <option value="cupom">Cupom não fiscal</option>
+                                    <option value="recibo">Recibo</option>
+                                    <option value="manual">Manual</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="finance_origem_valor">Origem do valor</label>
+                                <select class="form-select" id="finance_origem_valor" name="finance_origem_valor">
+                                    <option value="compra_nf">Compra com NF</option>
+                                    <option value="compra_cupom">Compra com cupom</option>
+                                    <option value="valor_estimado">Valor estimado</option>
+                                    <option value="inventario_inicial">Inventário inicial</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="finance_comprovacao_status">Comprovação</label>
+                                <select class="form-select" id="finance_comprovacao_status" name="finance_comprovacao_status">
+                                    <option value="comprovado">Comprovado</option>
+                                    <option value="parcial">Parcialmente comprovado</option>
+                                    <option value="sem_comprovacao">Sem comprovação</option>
+                                </select>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label" for="finance_observacao">Observação financeira</label>
+                                <textarea class="form-control" id="finance_observacao" name="finance_observacao" rows="2"
+                                    placeholder="Ex.: compra emergencial, documento conferido, valor estimado..."></textarea>
+                            </div>
+                            <div class="col-12">
+                                <button class="docf-btn-primary w-100" type="submit" data-help-label="Registrar documento fiscal" data-help-text="Salva o documento principal com item, fornecedor e classificação documental.">Registrar documento fiscal</button>
+                            </div>
+                        </div>
                     </div>
-                    <div class="mb-3 mt-3">
-                        <label class="form-label" for="finance_observacao">Observação financeira</label>
-                        <textarea class="form-control" id="finance_observacao" name="finance_observacao" rows="2"
-                            placeholder="Ex.: compra emergencial, documento conferido, valor estimado..."></textarea>
-                    </div>
-                    <button class="docf-btn-primary w-100" type="submit" data-help-label="Registrar documento fiscal" data-help-text="Salva o documento principal com item, fornecedor e classificação documental.">Registrar documento fiscal</button>
                 </form>
             </section>
             {% else %}
