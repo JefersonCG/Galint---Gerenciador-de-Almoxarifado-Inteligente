@@ -21,6 +21,147 @@ class BalanceProvider:
     """Centraliza leitura de saldo durante a migração para ledger."""
 
     @staticmethod
+    def get_balances(product_ids: list[str], *, items_by_id: dict[str, Item] | None = None) -> dict[str, BalanceSnapshot]:
+        normalized_ids = []
+        seen_ids: set[str] = set()
+        for raw_product_id in product_ids:
+            product_id = (raw_product_id or "").strip()
+            if product_id and product_id not in seen_ids:
+                seen_ids.add(product_id)
+                normalized_ids.append(product_id)
+
+        if not normalized_ids:
+            return {}
+
+        item_lookup = dict(items_by_id or {})
+        missing_ids = [product_id for product_id in normalized_ids if product_id not in item_lookup]
+        if missing_ids:
+            rows = Item.query.filter(Item.codigo_item.in_(missing_ids)).all()
+            item_lookup.update({item.codigo_item: item for item in rows if item.codigo_item})
+
+        balance_rows = {
+            row.product_id: row
+            for row in StockBalance.query.filter(StockBalance.product_id.in_(normalized_ids)).all()
+        }
+
+        migrated_ids: set[str] = set()
+        if stock_balance_supports_read_model_ready():
+            migrated_ids = {
+                product_id
+                for product_id, row in balance_rows.items()
+                if bool(getattr(row, "read_model_ready", False))
+            }
+
+        legacy_candidate_ids = [product_id for product_id in normalized_ids if product_id not in migrated_ids]
+        legacy_history_ids: set[str] = set()
+        legacy_balances: dict[str, float] = {}
+
+        if legacy_candidate_ids:
+            for model in (Entrada, Saida, InventarioEvento):
+                rows = (
+                    db.session.query(model.codigo_item)
+                    .filter(model.codigo_item.in_(legacy_candidate_ids))
+                    .distinct()
+                    .all()
+                )
+                legacy_history_ids.update(codigo for (codigo,) in rows if codigo)
+
+            if legacy_history_ids:
+                entradas = {
+                    codigo: float(total or 0.0)
+                    for codigo, total in (
+                        db.session.query(
+                            Entrada.codigo_item,
+                            func.coalesce(func.sum(Entrada.quantidade), 0.0),
+                        )
+                        .filter(Entrada.codigo_item.in_(legacy_history_ids))
+                        .group_by(Entrada.codigo_item)
+                        .all()
+                    )
+                    if codigo
+                }
+                saidas = {
+                    codigo: float(total or 0.0)
+                    for codigo, total in (
+                        db.session.query(
+                            Saida.codigo_item,
+                            func.coalesce(func.sum(Saida.quantidade), 0.0),
+                        )
+                        .filter(Saida.codigo_item.in_(legacy_history_ids))
+                        .group_by(Saida.codigo_item)
+                        .all()
+                    )
+                    if codigo
+                }
+                ajustes = {
+                    codigo: float(total or 0.0)
+                    for codigo, total in (
+                        db.session.query(
+                            InventarioEvento.codigo_item,
+                            func.coalesce(func.sum(InventarioEvento.quantidade), 0.0),
+                        )
+                        .filter(InventarioEvento.codigo_item.in_(legacy_history_ids))
+                        .group_by(InventarioEvento.codigo_item)
+                        .all()
+                    )
+                    if codigo
+                }
+
+                for product_id in legacy_history_ids:
+                    legacy_balances[product_id] = (
+                        entradas.get(product_id, 0.0)
+                        - saidas.get(product_id, 0.0)
+                        + ajustes.get(product_id, 0.0)
+                    )
+
+        snapshots: dict[str, BalanceSnapshot] = {}
+        for product_id in normalized_ids:
+            item = item_lookup.get(product_id)
+            unit_base = ((item.unidade or "").strip() if item else "") or None
+
+            if product_id in migrated_ids:
+                balance = balance_rows.get(product_id)
+                snapshots[product_id] = BalanceSnapshot(
+                    product_id=product_id,
+                    quantity_base=float(balance.quantity_base if balance else 0.0),
+                    unit_base=unit_base,
+                    source="stock_balance",
+                    migrated=True,
+                )
+                continue
+
+            if product_id in legacy_history_ids:
+                snapshots[product_id] = BalanceSnapshot(
+                    product_id=product_id,
+                    quantity_base=float(legacy_balances.get(product_id, 0.0)),
+                    unit_base=unit_base,
+                    source="legacy",
+                    migrated=False,
+                )
+                continue
+
+            balance = balance_rows.get(product_id)
+            if balance is not None:
+                snapshots[product_id] = BalanceSnapshot(
+                    product_id=product_id,
+                    quantity_base=float(balance.quantity_base or 0.0),
+                    unit_base=unit_base,
+                    source="stock_balance_pending_cutover",
+                    migrated=False,
+                )
+                continue
+
+            snapshots[product_id] = BalanceSnapshot(
+                product_id=product_id,
+                quantity_base=0.0,
+                unit_base=unit_base,
+                source="legacy",
+                migrated=False,
+            )
+
+        return snapshots
+
+    @staticmethod
     def _has_legacy_history(product_id: str) -> bool:
         product_id = (product_id or "").strip()
         if not product_id:

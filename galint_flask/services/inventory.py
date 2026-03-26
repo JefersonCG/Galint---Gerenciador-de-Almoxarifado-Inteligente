@@ -7,6 +7,7 @@ from datetime import datetime, date, timedelta
 import json
 import logging
 import math
+from time import monotonic
 from typing import Any
 
 from sqlalchemy import or_, func
@@ -33,6 +34,7 @@ from ..models import (
 from .inventory_engine import InventoryEngineError, InventoryOperationResult, inventory_engine
 from .operation_log_service import operation_log_service
 from .unit_conversion_engine import UnitConversionError
+from .balance_provider import balance_provider
 from ..utils.lote_generator import generate_lote
 from ..utils.barcode_generator import generate_barcode, get_barcode_path
 
@@ -199,6 +201,9 @@ class MovimentoPayload:
 class InventoryService:
     """Facade responsável por CRUD de itens e lançamentos de estoque."""
 
+    def __init__(self) -> None:
+        self._runtime_cache: dict[str, tuple[float, Any]] = {}
+
     @staticmethod
     def _as_positive_float(value: object) -> float:
         try:
@@ -208,6 +213,40 @@ class InventoryService:
         if math.isnan(f) or math.isinf(f):
             return 0.0
         return f
+
+    def _get_cached(self, key: str) -> Any | None:
+        cached = self._runtime_cache.get(key)
+        if not cached:
+            return None
+        expires_at, value = cached
+        if expires_at <= monotonic():
+            self._runtime_cache.pop(key, None)
+            return None
+        return value
+
+    def _set_cached(self, key: str, value: Any, *, ttl_seconds: float) -> Any:
+        self._runtime_cache[key] = (monotonic() + ttl_seconds, value)
+        return value
+
+    @staticmethod
+    def _build_simple_balance_display(item: Item, saldo: float) -> str:
+        return f"{float(saldo or 0.0):g} {item.unidade or 'un'}"
+
+    @staticmethod
+    def _should_use_packaging_display(item: Item) -> bool:
+        from ..services.embalagem_service import EmbalagemService
+
+        return EmbalagemService.tem_embalagem(item) or EmbalagemService.tem_rolo_legacy(item)
+
+    def _resolve_balances_in_bulk(self, items: list[Item]) -> dict[str, float]:
+        snapshots = balance_provider.get_balances(
+            [item.codigo_item for item in items if item.codigo_item],
+            items_by_id={item.codigo_item: item for item in items if item.codigo_item},
+        )
+        return {
+            product_id: float(snapshot.quantity_base or 0.0)
+            for product_id, snapshot in snapshots.items()
+        }
 
     def get_material_return_pending(self, *, codigo: str, matricula: str) -> float:
         """Retorna quanto ainda pode ser devolvido (estornado) para um material.
@@ -525,6 +564,11 @@ class InventoryService:
         if not q or len(q) < 1:
             return []
 
+        cache_key = f"search_items_for_autocomplete:{q.lower()}:{int(limit)}"
+        cached = self._get_cached(cache_key)
+        if cached is not None:
+            return [dict(item) for item in cached]
+
         like = f"%{q}%"
         rows = (
             Item.query.filter(or_(Item.codigo_item.ilike(like), Item.descricao.ilike(like)))
@@ -534,25 +578,25 @@ class InventoryService:
         )
 
         from ..services.embalagem_service import EmbalagemService
+        bulk_balances = self._resolve_balances_in_bulk(rows)
         results: list[dict[str, Any]] = []
         for item in rows:
-            try:
-                saldo = float(item.get_saldo_fisico_total() or 0.0)
-            except Exception:
-                if EmbalagemService.tem_embalagem(item):
-                    try:
-                        saldo = float(EmbalagemService.calcular_estoque_total(item) or 0)
-                    except Exception:
-                        saldo = 0.0
-                else:
-                    saldo = float(item.get_saldo_atual() or 0.0)
+            if EmbalagemService.tem_embalagem(item):
+                try:
+                    saldo = float(EmbalagemService.calcular_estoque_total(item) or 0.0)
+                except Exception:
+                    saldo = float(item.get_estoque_total_com_embalagens() or 0.0)
+                saldo_display = item.get_saldo_fisico_display()
+            else:
+                saldo = float(bulk_balances.get(item.codigo_item, 0.0))
+                saldo_display = self._build_simple_balance_display(item, saldo)
             results.append(
                 {
                     "codigo": item.codigo_item,
                     "descricao": item.descricao,
                     "categoria": item.categoria,
                     "saldo": saldo,
-                    "saldo_display": item.get_saldo_fisico_display(),
+                    "saldo_display": saldo_display,
                     "tipo_embalagem_novo": item.tipo_embalagem_novo,
                     "unidades_por_embalagem": item.unidades_por_embalagem,
                     "grandeza_referencia": item.grandeza_referencia,
@@ -563,7 +607,7 @@ class InventoryService:
                     "unidade": item.unidade,
                 }
             )
-        return results
+        return self._set_cached(cache_key, [dict(item) for item in results], ttl_seconds=3.0)
 
     def _has_active_tool_withdrawal(self, codigo_item: str, matricula: str | None) -> bool:
         """Retorna True se a matrícula já possui retirada ativa da mesma ferramenta."""
@@ -641,10 +685,15 @@ class InventoryService:
         return stats
 
     def list_items(self) -> list[dict[str, Any]]:
+        cached = self._get_cached("list_items")
+        if cached is not None:
+            return [dict(item) for item in cached]
+
         itens = Item.query.order_by(Item.descricao).all()
         resultado: list[dict[str, Any]] = []
         atualizado = False
         from ..services.embalagem_service import EmbalagemService
+        bulk_balances = self._resolve_balances_in_bulk(itens)
 
         def _safe_float_or_none(value: object) -> float | None:
             if value in ("", None):
@@ -673,25 +722,25 @@ class InventoryService:
             return float(saldo_total or 0.0) * preco_unitario
 
         for item in itens:
-            try:
-                saldo = float(item.get_saldo_fisico_total() or 0.0)
-            except Exception:
-                db.session.rollback()
-                if EmbalagemService.tem_embalagem(item):
+            if self._should_use_packaging_display(item):
+                try:
+                    saldo = float(item.get_saldo_fisico_total() or 0.0)
+                except Exception:
+                    db.session.rollback()
                     try:
-                        saldo = float(EmbalagemService.calcular_estoque_total(item) or 0)
+                        saldo = float(EmbalagemService.calcular_estoque_total(item) or 0.0)
                     except Exception:
-                        saldo = 0.0
-                else:
-                    saldo = float(item.get_saldo_atual() or 0.0)
+                        saldo = float(item.get_estoque_total_com_embalagens() or 0.0)
+                saldo_display = item.get_saldo_fisico_display()
+                explicacao_saldo = item.get_explicacao_saldo()
+            else:
+                saldo = float(bulk_balances.get(item.codigo_item, 0.0))
+                saldo_display = self._build_simple_balance_display(item, saldo)
+                explicacao_saldo = None
             minimo = _calculate_min_stock(saldo)
             if item.estoque_minimo != minimo:
                 item.estoque_minimo = minimo
                 atualizado = True
-            
-            # Obter display formatado e explicação
-            saldo_display = item.get_saldo_fisico_display()
-            explicacao_saldo = item.get_explicacao_saldo()
 
             preco_compra = _safe_float_or_none(getattr(item, "preco_compra_unitario", None))
             preco_reposicao = _safe_float_or_none(getattr(item, "preco_reposicao_unitario", None))
@@ -745,7 +794,7 @@ class InventoryService:
             )
         if atualizado:
             db.session.commit()
-        return resultado
+        return self._set_cached("list_items", [dict(item) for item in resultado], ttl_seconds=5.0)
 
     def get_item(self, codigo: str) -> dict[str, Any] | None:
         item = Item.query.get(codigo)
@@ -1416,6 +1465,10 @@ class InventoryService:
         return resumo
 
     def dashboard_snapshot(self) -> dict[str, Any]:
+        cached = self._get_cached("dashboard_snapshot")
+        if cached is not None:
+            return dict(cached)
+
         from ..services.embalagem_service import EmbalagemService
 
         def _normalize_unidade(value: str | None) -> str:
@@ -1430,20 +1483,21 @@ class InventoryService:
         categorias: dict[str, dict[str, Any]] = {}
         total_quantity = 0.0
         atualizado = False
+        bulk_balances = self._resolve_balances_in_bulk(itens)
 
         for item in itens:
             tem_embalagem = EmbalagemService.tem_embalagem(item)
-            try:
-                saldo_fisico = float(item.get_saldo_fisico_total() or 0.0)
-            except Exception:
-                db.session.rollback()
-                if tem_embalagem:
+            if tem_embalagem:
+                try:
+                    saldo_fisico = float(item.get_saldo_fisico_total() or 0.0)
+                except Exception:
+                    db.session.rollback()
                     try:
-                        saldo_fisico = float(EmbalagemService.calcular_estoque_total(item) or 0)
+                        saldo_fisico = float(EmbalagemService.calcular_estoque_total(item) or 0.0)
                     except Exception:
-                        saldo_fisico = 0.0
-                else:
-                    saldo_fisico = float(item.get_saldo_atual() or 0.0)
+                        saldo_fisico = float(item.get_estoque_total_com_embalagens() or 0.0)
+            else:
+                saldo_fisico = float(bulk_balances.get(item.codigo_item, 0.0))
 
             minimo = _calculate_min_stock(saldo_fisico)
             if item.estoque_minimo != minimo:
@@ -1486,13 +1540,19 @@ class InventoryService:
         for categoria_resumo in categorias.values():
             categoria_resumo["saldo_total"] = round(categoria_resumo["saldo_total"], 1)
 
-        return {
+        snapshot = {
             "resumo": resumo,
             "total_quantity": int(round(total_quantity)),
             "category_summary": list(categorias.values()),
         }
+        return self._set_cached("dashboard_snapshot", dict(snapshot), ttl_seconds=5.0)
 
     def list_notas_fiscais(self, limit: int = 100) -> list[dict[str, Any]]:
+        cache_key = f"list_notas_fiscais:{int(limit)}"
+        cached = self._get_cached(cache_key)
+        if cached is not None:
+            return [dict(item) for item in cached]
+
         from .finance_service import finance_service
 
         documentos = finance_service.list_stock_documents(limit=limit)
@@ -1519,7 +1579,8 @@ class InventoryService:
             key=lambda nota: nota.get("data") or datetime.min,
             reverse=True,
         )
-        return notas[:limit]
+        payload = notas[:limit]
+        return self._set_cached(cache_key, [dict(item) for item in payload], ttl_seconds=8.0)
 
     def get_nota_fiscal(self, numero: str) -> dict[str, Any] | None:
         from .finance_service import finance_service
@@ -1527,10 +1588,14 @@ class InventoryService:
         numero = (numero or "").strip()
         if not numero:
             return None
+        cache_key = f"get_nota_fiscal:{numero}"
+        cached = self._get_cached(cache_key)
+        if cached is not None:
+            return dict(cached)
 
         documento = finance_service.get_stock_document_by_number(numero)
         if documento:
-            return documento
+            return self._set_cached(cache_key, dict(documento), ttl_seconds=8.0)
 
         registros = (
             Entrada.query.filter(Entrada.nota_fiscal == numero)
@@ -1540,7 +1605,10 @@ class InventoryService:
         if not registros:
             return None
         notas = _agrupar_notas(registros)
-        return notas.get(numero)
+        nota = notas.get(numero)
+        if nota is None:
+            return None
+        return self._set_cached(cache_key, dict(nota), ttl_seconds=8.0)
 
     def registrar_nota_fiscal(self, payload: MovimentoPayload) -> None:
         if not payload.nota_fiscal:
@@ -1978,8 +2046,8 @@ class InventoryService:
             if unidade_item.lower().strip() == tipo_emb:
                 if tipo_emb == "rolo":
                     telegram_balance_unit = "metros"
-                elif tipo_emb in ("lata", "balde"):
-                    # Para lata/balde, usar a unidade de referência (L ou KG)
+                elif tipo_emb in ("lata", "balde", "bombona"):
+                    # Para lata/balde/bombona, usar a unidade de referência (L ou KG)
                     if item.litros_por_embalagem and float(item.litros_por_embalagem) > 0:
                         telegram_balance_unit = "L"
                     elif item.grandeza_referencia and float(item.grandeza_referencia) > 0:

@@ -7,7 +7,7 @@ from typing import Any
 
 from flask import Blueprint, abort, current_app, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
-from sqlalchemy import or_
+from sqlalchemy import Date, cast, func, or_
 from sqlalchemy.orm import joinedload
 
 from ..extensions import db
@@ -33,6 +33,7 @@ DEFAULT_DOCUMENT_CATEGORY_OPTIONS = [
 DEFAULT_DOCUMENT_UNIT_OPTIONS = [
     "Unidade",
     "Lata",
+    "Bombona",
     "Litro",
     "Quilo",
     "Caixa",
@@ -343,12 +344,20 @@ def _query_period_documents(
     fornecedor_id: int | None = None,
     tipo_documento: str | None = None,
 ) -> list[DocumentoEntradaEstoque]:
+    reference_date = func.coalesce(
+        DocumentoEntradaEstoque.data_recebimento,
+        DocumentoEntradaEstoque.data_emissao,
+        cast(DocumentoEntradaEstoque.criado_em, Date),
+    )
+
     query = (
         DocumentoEntradaEstoque.query
         .options(
             joinedload(DocumentoEntradaEstoque.fornecedor),
             joinedload(DocumentoEntradaEstoque.itens).joinedload(DocumentoEntradaEstoqueItem.item),
         )
+        .filter(reference_date >= data_inicio)
+        .filter(reference_date <= data_fim)
         .order_by(DocumentoEntradaEstoque.criado_em.desc(), DocumentoEntradaEstoque.id_documento.desc())
     )
 
@@ -357,12 +366,7 @@ def _query_period_documents(
     if tipo_documento and tipo_documento != "todos":
         query = query.filter(DocumentoEntradaEstoque.tipo_documento == tipo_documento)
 
-    rows = query.all()
-    return [
-        row
-        for row in rows
-        if data_inicio <= _document_reference_date(row) <= data_fim
-    ]
+    return query.all()
 
 
 def _build_document_category_options() -> list[str]:
@@ -767,13 +771,11 @@ def nf_index():
     codigo_prefill = (request.args.get("codigo") or "").strip()
     period_dashboard = _build_period_dashboard()
     nota_detalhes = inventory_service.get_nota_fiscal(nota_busca) if nota_busca else None
-    itens = inventory_service.list_items()
-    selected_item = next((item for item in itens if str(item.get("codigo") or "") == codigo_prefill), None) if codigo_prefill else None
+    selected_item = inventory_service.get_item(codigo_prefill) if codigo_prefill else None
     notas = inventory_service.list_notas_fiscais()
     can_manage = bool(getattr(current_user, "is_admin", False))
     return render_template(
         "nf/index.html",
-        itens=itens,
         selected_item=selected_item,
         notas=notas,
         nota_busca=nota_busca,

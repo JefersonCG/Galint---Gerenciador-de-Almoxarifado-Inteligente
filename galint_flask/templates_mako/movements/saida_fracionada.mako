@@ -385,7 +385,7 @@ ${parent.scripts()}
     let pendingItem = null;
     const CAN_MANAGE = ${'true' if can_manage else 'false'};
     const usuariosAutocompleteData = ${tojson(usuarios)|n};
-    const itensAutocompleteData = ${tojson(itens)|n};
+    const itemSearchUrl = '${url_for("movements.buscar_item")}';
 
     function normalizeAutocompleteText(value) {
         return String(value || '')
@@ -393,6 +393,17 @@ ${parent.scripts()}
             .replace(/[\u0300-\u036f]/g, '')
             .toLowerCase()
             .trim();
+    }
+
+    async function fetchItemSuggestions(query) {
+        const response = await fetch(itemSearchUrl + '?q=' + encodeURIComponent(query), {
+            headers: { 'Accept': 'application/json' }
+        });
+        if (!response.ok) {
+            throw new Error('Falha ao buscar itens');
+        }
+        const data = await response.json();
+        return (data.items || data.itens || []).slice(0, 20);
     }
     
     const inputUsuario = document.getElementById('input-usuario');
@@ -526,6 +537,7 @@ ${parent.scripts()}
     const dropdownCodigo = document.getElementById('autocomplete-dropdown-codigo');
     let debounceTimerUsuario = null;
     let debounceTimerCodigo = null;
+    let itemSearchRequestId = 0;
     let currentFuncionarios = [];
     let currentItens = [];
     
@@ -627,15 +639,21 @@ ${parent.scripts()}
             return;
         }
         
-        debounceTimerCodigo = setTimeout(() => {
-            const normalizedQuery = normalizeAutocompleteText(query);
-            currentItens = itensAutocompleteData.filter(item => {
-                const codigo = normalizeAutocompleteText(item.codigo);
-                const descricao = normalizeAutocompleteText(item.descricao);
-                return codigo.includes(normalizedQuery) || descricao.includes(normalizedQuery);
-            }).slice(0, 20);
-
-            showAutocompleteCodigo(currentItens);
+        debounceTimerCodigo = setTimeout(async () => {
+            const requestId = ++itemSearchRequestId;
+            try {
+                currentItens = await fetchItemSuggestions(query);
+                if (requestId !== itemSearchRequestId) {
+                    return;
+                }
+                showAutocompleteCodigo(currentItens);
+            } catch (error) {
+                console.error('Erro ao buscar itens:', error);
+                if (requestId === itemSearchRequestId) {
+                    currentItens = [];
+                    dropdownCodigo.classList.remove('show');
+                }
+            }
         }, 150);
     });
     
@@ -658,7 +676,7 @@ ${parent.scripts()}
                 let unidadeSolta = 'un';
                 if (litrosPorEmb > 0) {
                     unidadeSolta = 'L';
-                } else if (grandezaRef > 0 && (tipoEmbalagem === 'balde' || tipoEmbalagem === 'lata')) {
+                } else if (grandezaRef > 0 && (tipoEmbalagem === 'balde' || tipoEmbalagem === 'bombona' || tipoEmbalagem === 'lata')) {
                     unidadeSolta = 'kg';
                 } else if (tipoEmbalagem === 'rolo') {
                     unidadeSolta = 'm';

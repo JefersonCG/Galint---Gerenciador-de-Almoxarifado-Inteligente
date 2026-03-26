@@ -375,6 +375,7 @@
                 'Unidade',
                 'Galão',
                 'Lata',
+                'Bombona',
                 'Litro',
                 'Quilo',
                 'Metro',
@@ -410,10 +411,10 @@
 
             <div id="campo-quantidade-lata" class="dynamic-field">
                 <div class="form-group">
-                    <label class="form-label" for="grandeza_kg">Peso por lata/balde (kg)</label>
+                    <label class="form-label" for="grandeza_kg">Peso por lata/balde/bombona (kg)</label>
                     <input class="form-control" id="grandeza_kg" name="grandeza_referencia" type="number" step="0.001"
                         value="{{ form_item.grandeza_referencia if form_item and form_item.grandeza_referencia else '' }}">
-                    <small class="form-text">Ex: 18 kg por lata</small>
+                    <small class="form-text">Ex: 5 litros por bombona ou 18 kg por lata</small>
                 </div>
 
                 <div class="form-group">
@@ -570,7 +571,7 @@
         const unidade = unidadeSelect.value;
         resetUnidadeFields();
 
-        if (unidade === 'Lata' || unidade === 'Balde') {
+        if (unidade === 'Lata' || unidade === 'Balde' || unidade === 'Bombona') {
             unidadeLata.classList.add('show');
         } else if (unidade === 'Rolo') {
             unidadeRolo.classList.add('show');
@@ -615,7 +616,8 @@
         }
 
         const quilos = saldo * grandeza;
-        let preview = `${saldo} latas = ${quilos.toFixed(2)} kg`;
+        const nomeRecipiente = (unidadeSelect.value || 'Lata').toLowerCase();
+        let preview = `${saldo} ${nomeRecipiente}${saldo === 1 ? '' : 's'} = ${quilos.toFixed(2)} kg`;
 
         if (densidade > 0) {
             const litros = quilos / densidade;

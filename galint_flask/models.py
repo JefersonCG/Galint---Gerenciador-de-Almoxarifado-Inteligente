@@ -230,7 +230,7 @@ class Item(db.Model):
         try:
             if (self.litros_por_embalagem or 0) > 0:
                 return "L"
-            if (self.grandeza_referencia or 0) > 0 and (self.tipo_embalagem_novo or "").strip().lower() in ("lata", "balde", "pacote", "saco"):
+            if (self.grandeza_referencia or 0) > 0 and (self.tipo_embalagem_novo or "").strip().lower() in ("lata", "balde", "bombona", "pacote", "saco"):
                 return "Kg"
             if (self.tipo_embalagem_novo or "").strip().lower() == "rolo":
                 return "m"
@@ -289,6 +289,7 @@ class Item(db.Model):
             'caixa': 'caixa',
             'litro': 'litro',
             'balde': 'balde',
+            'bombona': 'bombona',
             'saco': 'saco'
         }
         return nomes.get(self.tipo_embalagem_novo, 'embalagem')
@@ -302,6 +303,7 @@ class Item(db.Model):
             'caixa': 'caixas',
             'litro': 'litros',
             'balde': 'baldes',
+            'bombona': 'bombonas',
             'saco': 'sacos'
         }
         return nomes.get(self.tipo_embalagem_novo, 'embalagens')

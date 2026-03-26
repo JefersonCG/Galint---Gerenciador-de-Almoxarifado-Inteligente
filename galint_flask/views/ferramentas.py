@@ -30,7 +30,7 @@ def retirar_page():
     return render_mako_template(
         'ferramentas/retirar.mako',
         usuarios=user_service.list_users(),
-        itens=inventory_service.list_items(),
+        itens=[],
     )
 
 

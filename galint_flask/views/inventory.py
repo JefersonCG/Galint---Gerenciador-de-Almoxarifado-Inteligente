@@ -758,7 +758,7 @@ def create_item():
     grandeza_var = None
     unidades_var = None
 
-    if tipo_novo in ["lata", "balde"]:
+    if tipo_novo in ["lata", "balde", "bombona"]:
         val = float(unidades_por_emb_raw) if unidades_por_emb_raw and unidades_por_emb_raw.strip() else None
         unidades_var = val
         if unidade_embalagem_novo == "litro":
@@ -779,7 +779,7 @@ def create_item():
         unidades_var = litros_var
 
     em_embalagens = None
-    if tipo_novo in ["lata", "rolo", "pacote", "caixa", "litro", "balde", "saco"] and unidades_var and unidades_var > 0:
+    if tipo_novo in ["lata", "rolo", "pacote", "caixa", "litro", "balde", "bombona", "saco"] and unidades_var and unidades_var > 0:
         em_embalagens = True
     
     payload = {
@@ -1016,7 +1016,7 @@ def update_item(codigo: str):
     grandeza_var = None
     unidades_var = None
     
-    if tipo_novo in ['lata', 'balde']:
+    if tipo_novo in ['lata', 'balde', 'bombona']:
         val = float(unidades_por_emb_raw) if unidades_por_emb_raw and unidades_por_emb_raw.strip() else None
         unidades_var = val
         if unidade_embalagem_novo == 'litro':
@@ -1144,9 +1144,14 @@ def update_item(codigo: str):
         current_packaged_balance = float(prev_item.get("estoque_embalagens") or 0.0)
         current_loose_balance = float(prev_item.get("estoque_unidades_soltas") or 0.0)
         current_total_balance = float(prev_item.get("saldo") or 0.0)
-        effective_tipo_embalagem = tipo_novo if tipo_novo is not None else (prev_item.get("tipo_embalagem_novo") or None)
+        previous_tipo_embalagem = prev_item.get("tipo_embalagem_novo") or None
+        effective_tipo_embalagem = tipo_novo if tipo_novo is not None else previous_tipo_embalagem
+        previous_uses_packaging = bool(previous_tipo_embalagem and prev_item.get("unidades_por_embalagem"))
 
-        if effective_tipo_embalagem:
+        # A validação do saldo deve respeitar o modo de estoque ANTERIOR.
+        # Ao definir litragem/embalagem pela primeira vez, o usuário está ajustando metadados,
+        # não alterando o saldo operacional já bloqueado.
+        if previous_uses_packaging:
             if abs(float(saldo_desejado) - current_packaged_balance) > 1e-6:
                 raise ValueError("O saldo do item não pode mais ser alterado pela edição. Use Documentos Fiscais para entradas e rotinas operacionais para saídas/devoluções.")
             if saldo_unidades_soltas_raw:

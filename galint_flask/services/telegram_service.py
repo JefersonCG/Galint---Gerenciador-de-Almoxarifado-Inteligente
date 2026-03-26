@@ -2553,12 +2553,12 @@ class TelegramService:
 
             def _lata_ou_balde(item: Item) -> bool:
                 try:
-                    if (item.tipo_embalagem_novo or "").strip().lower() in {"lata", "balde"}:
+                    if (item.tipo_embalagem_novo or "").strip().lower() in {"lata", "balde", "bombona"}:
                         return True
                 except Exception:
                     pass
                 try:
-                    if (item.unidade or "").strip().lower() in {"lata", "balde"}:
+                    if (item.unidade or "").strip().lower() in {"lata", "balde", "bombona"}:
                         return True
                 except Exception:
                     pass
@@ -2762,12 +2762,12 @@ class TelegramService:
 
             def _lata_ou_balde(item: Item) -> bool:
                 try:
-                    if (item.tipo_embalagem_novo or "").strip().lower() in {"lata", "balde"}:
+                    if (item.tipo_embalagem_novo or "").strip().lower() in {"lata", "balde", "bombona"}:
                         return True
                 except Exception:
                     pass
                 try:
-                    if (item.unidade or "").strip().lower() in {"lata", "balde"}:
+                    if (item.unidade or "").strip().lower() in {"lata", "balde", "bombona"}:
                         return True
                 except Exception:
                     pass
@@ -2992,12 +2992,12 @@ class TelegramService:
             
             def _lata_ou_balde(item: Item) -> bool:
                 try:
-                    if (item.tipo_embalagem_novo or "").strip().lower() in {"lata", "balde"}:
+                    if (item.tipo_embalagem_novo or "").strip().lower() in {"lata", "balde", "bombona"}:
                         return True
                 except Exception:
                     pass
                 try:
-                    if (item.unidade or "").strip().lower() in {"lata", "balde"}:
+                    if (item.unidade or "").strip().lower() in {"lata", "balde", "bombona"}:
                         return True
                 except Exception:
                     pass
@@ -11430,15 +11430,15 @@ class TelegramService:
 
             tipo = t_lower
 
-            if tipo not in ("lata", "balde", "rolo", "pacote", "caixa", "litro"):
+            if tipo not in ("lata", "balde", "bombona", "rolo", "pacote", "caixa", "litro"):
 
-                TelegramService.send_message(chat_id, "❌ Tipo inválido. Informe lata/balde/rolo/pacote/caixa/litro.", parse_mode=None)
+                TelegramService.send_message(chat_id, "❌ Tipo inválido. Informe lata/balde/bombona/rolo/pacote/caixa/litro.", parse_mode=None)
 
                 return True
 
             TelegramService._item_create_update(chat_id, "item_create:embalagem_unidade", {"tipo_embalagem_novo": tipo})
 
-            if tipo in ("lata", "balde", "litro"):
+            if tipo in ("lata", "balde", "bombona", "litro"):
 
                 TelegramService.send_message(chat_id, "<b>16) Unidade da embalagem</b> (litro ou kg):", parse_mode="HTML")
 
@@ -11454,7 +11454,7 @@ class TelegramService:
 
             tipo = (meta.get("tipo_embalagem_novo") or "").lower()
 
-            if tipo in ("lata", "balde", "litro"):
+            if tipo in ("lata", "balde", "bombona", "litro"):
 
                 if t_lower not in ("litro", "kg"):
 

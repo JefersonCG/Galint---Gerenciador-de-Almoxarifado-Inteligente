@@ -436,6 +436,7 @@ ${parent.scripts()}
 
     const unidadeBaseEmbalagem = {
         'lata': 'litros',
+        'bombona': 'litros',
         'rolo': 'metros',
         'pacote': 'unidades',
         'caixa': 'unidades',

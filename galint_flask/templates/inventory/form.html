@@ -206,6 +206,33 @@
         cursor: not-allowed;
     }
 
+    input.form-control[type="date"] {
+        background: #ffffff;
+        color: #0f172a;
+        caret-color: #0f172a;
+        color-scheme: light;
+    }
+
+    input.form-control[type="date"]::-webkit-datetime-edit,
+    input.form-control[type="date"]::-webkit-datetime-edit-text,
+    input.form-control[type="date"]::-webkit-datetime-edit-month-field,
+    input.form-control[type="date"]::-webkit-datetime-edit-day-field,
+    input.form-control[type="date"]::-webkit-datetime-edit-year-field {
+        color: #0f172a;
+    }
+
+    input.form-control[type="date"]::-webkit-calendar-picker-indicator {
+        filter: none;
+        opacity: 0.85;
+        cursor: pointer;
+    }
+
+    input.form-control[type="date"]:disabled,
+    input.form-control[type="date"]:read-only {
+        background: rgba(255,255,255,0.82);
+        color: #475569;
+    }
+
     .form-text {
         font-size: 0.8125rem;
         color: #dbeafe;
@@ -1178,11 +1205,12 @@
                             {% endif %}
 
                             {% set tem_embalagem = form_item and form_item.tipo_embalagem_novo and form_item.unidades_por_embalagem %}
+                            {% set saldo_base_valor = saldo_base if saldo_base is not none else 0 %}
                             <label class="form-label" for="saldo_atual">
                                 {% if tem_embalagem %}Saldo em embalagens{% else %}Saldo em estoque{% endif %}
                             </label>
-                            <input class="form-control" id="saldo_atual" name="saldo_atual" type="number" min="0" step="1"
-                                value="{{ saldo_base|int }}" readonly>
+                            <input class="form-control" id="saldo_atual" name="saldo_atual" type="number" min="0" step="0.01"
+                                value="{{ saldo_base_valor }}" readonly>
                             <small class="form-text">
                                 Saldo bloqueado para edição manual. Entradas devem ser registradas em <strong>Documentos Fiscais</strong>{% if tem_embalagem %} e este campo representa <strong>embalagens</strong>{% endif %}.
                             </small>
@@ -1197,9 +1225,9 @@
                                 {% set label_solta = 'Metros soltos' %}
                             {% elif tipo_emb in ['caixa', 'pacote'] %}
                                 {% set label_solta = 'Unidades soltas' %}
-                            {% elif tipo_emb in ['lata', 'balde', 'litro'] and form_item.litros_por_embalagem %}
+                            {% elif tipo_emb in ['lata', 'balde', 'bombona', 'litro'] and form_item.litros_por_embalagem %}
                                 {% set label_solta = 'Litros soltos' %}
-                            {% elif tipo_emb in ['lata', 'balde'] and form_item.grandeza_referencia %}
+                            {% elif tipo_emb in ['lata', 'balde', 'bombona'] and form_item.grandeza_referencia %}
                                 {% set label_solta = 'Kg soltos' %}
                             {% endif %}
                             <label class="form-label" for="saldo_unidades_soltas">{{ label_solta }}</label>
@@ -1215,6 +1243,7 @@
                                 {% for choice in [
                                 'Unidade',
                                 'Lata',
+                                'Bombona',
                                 'Litro',
                                 'Quilo',
                                 'Caixa',
@@ -1600,6 +1629,10 @@
                                 <label class="form-check-label" for="tipo_novo_balde">Balde</label>
                             </div>
                             <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="tipo_embalagem_novo" id="tipo_novo_bombona" value="bombona" {% if tipo_emb_novo=='bombona' %}checked{% endif %}>
+                                <label class="form-check-label" for="tipo_novo_bombona">Bombona</label>
+                            </div>
+                            <div class="form-check form-check-inline">
                                 <input class="form-check-input" type="radio" name="tipo_embalagem_novo" id="tipo_novo_saco" value="saco" {% if tipo_emb_novo=='saco' %}checked{% endif %}>
                                 <label class="form-check-label" for="tipo_novo_saco">Saco</label>
                             </div>
@@ -1615,7 +1648,7 @@
                         {% set unidade_emb_nova = 'unidade' %}
                         {% if form_item and form_item.litros_por_embalagem %}
                             {% set unidade_emb_nova = 'litro' %}
-                        {% elif form_item and form_item.grandeza_referencia and tipo_emb_novo in ['lata', 'balde', 'pacote', 'saco'] %}
+                        {% elif form_item and form_item.grandeza_referencia and tipo_emb_novo in ['lata', 'balde', 'bombona', 'pacote', 'saco'] %}
                             {% set unidade_emb_nova = 'kg' %}
                         {% elif tipo_emb_novo in ['pacote', 'caixa', 'saco'] %}
                             {% set unidade_emb_nova = 'unidade' %}
@@ -1647,7 +1680,7 @@
                             {% set val_inicial = form_item.unidades_por_embalagem if form_item and form_item.unidades_por_embalagem else '' %}
                             {% if form_item and form_item.litros_por_embalagem %}
                                 {% set val_inicial = form_item.litros_por_embalagem %}
-                            {% elif form_item and form_item.grandeza_referencia and tipo_emb_novo in ['lata', 'balde', 'pacote', 'saco'] %}
+                            {% elif form_item and form_item.grandeza_referencia and tipo_emb_novo in ['lata', 'balde', 'bombona', 'pacote', 'saco'] %}
                                 {% set val_inicial = form_item.grandeza_referencia %}
                             {% endif %}
                             <input class="form-control" id="unidades_por_embalagem" name="unidades_por_embalagem" type="number" step="0.01" min="0"
@@ -2386,6 +2419,7 @@ Conversão: 1 saco = 20 quilos</div>
     const advancedUnitPresetCatalog = [
         { code: 'unidade', label: 'Unidade', dimension: 'unit' },
         { code: 'lata', label: 'Lata', dimension: 'volume' },
+        { code: 'bombona', label: 'Bombona', dimension: 'volume' },
         { code: 'litro', label: 'Litro', dimension: 'volume' },
         { code: 'quilo', label: 'Quilo', dimension: 'mass' },
         { code: 'caixa', label: 'Caixa', dimension: 'unit' },
@@ -2560,7 +2594,7 @@ Conversão: 1 saco = 20 quilos</div>
 
     function isLataSelecionada(tipoSelecionado) {
         const unidadeSelecionada = unidadeSelect ? unidadeSelect.value : '';
-        return tipoSelecionado === 'Lata' || unidadeSelecionada === 'Lata';
+        return ['Lata', 'Balde', 'Bombona'].includes(tipoSelecionado) || ['Lata', 'Balde', 'Bombona'].includes(unidadeSelecionada);
     }
 
     function atualizarCamposEmbalagem() {
@@ -2655,7 +2689,7 @@ Conversão: 1 saco = 20 quilos</div>
     // ==========================================
     // ABA UNIDADES DINAMICAS (EXIBIR CONDICIONAL)
     // ==========================================
-        const unidadesDinamicasPermitidas = ['Lata', 'Litro', 'Balde', 'Rolo', 'Caixa', 'Pacote', 'Saco'];
+        const unidadesDinamicasPermitidas = ['Lata', 'Bombona', 'Litro', 'Balde', 'Rolo', 'Caixa', 'Pacote', 'Saco'];
 
     function toggleTabUnidadesDinamicas() {
         if (!unidadeSelect || !tabUnidadesButton || !tabUnidadesPane) return;
@@ -2728,11 +2762,14 @@ Conversão: 1 saco = 20 quilos</div>
 
         switch(tipoSelecionado || (isLata ? 'Lata' : '')) {
             case 'Lata':
+            case 'Balde':
+            case 'Bombona':
                 const total = quantidade * grandeza;
+                const nomeRecipiente = (tipoSelecionado || 'Lata').toLowerCase();
                 if (conteudoRef === 'litro') {
-                     resultado = `<div>${quantidade} latas = ${total.toFixed(2)} litros</div>`;
+                     resultado = `<div>${quantidade} ${nomeRecipiente}${quantidade > 1 ? 's' : ''} = ${total.toFixed(2)} litros</div>`;
                 } else {
-                    resultado = `<div>${quantidade} latas = ${total.toFixed(2)} kg</div>`;
+                    resultado = `<div>${quantidade} ${nomeRecipiente}${quantidade > 1 ? 's' : ''} = ${total.toFixed(2)} kg</div>`;
                 }
                 break;
             case 'Litro':
@@ -2925,9 +2962,12 @@ Conversão: 1 saco = 20 quilos</div>
     const helpUnidadeEmbalagem = document.getElementById('help-unidade-embalagem');
     const unidadeEmbOpcaoLitro = document.getElementById('unidade-emb-opcao-litro');
     const unidadeEmbOpcaoUnidade = document.getElementById('unidade-emb-opcao-unidade');
+    const descricaoInput = document.getElementById('descricao');
+    const isEditMode = {{ 'true' if item else 'false' }};
     
     const nomesEmbalagem = {
         'lata': 'Lata',
+        'bombona': 'Bombona',
         'rolo': 'Rolo',
         'pacote': 'Pacote',
         'caixa': 'Caixa',
@@ -2938,6 +2978,7 @@ Conversão: 1 saco = 20 quilos</div>
     
     const exemplosEmbalagem = {
         'lata': '18 litros por lata',
+        'bombona': '5 litros por bombona',
         'rolo': '100 metros por rolo',
         'pacote': '100 unidades por pacote',
         'caixa': '500 unidades por caixa',
@@ -2951,11 +2992,12 @@ Conversão: 1 saco = 20 quilos</div>
         'pacote': 'unidades',
         'caixa': 'unidades',
         'litro': 'litros',
+        'bombona': 'litros',
         'saco': 'unidades'
     };
 
     function getUnidadeBaseEmbalagem(tipoSelecionado) {
-        if (tipoSelecionado === 'lata' || tipoSelecionado === 'balde' || tipoSelecionado === 'pacote' || tipoSelecionado === 'saco') {
+        if (tipoSelecionado === 'lata' || tipoSelecionado === 'balde' || tipoSelecionado === 'bombona' || tipoSelecionado === 'pacote' || tipoSelecionado === 'saco') {
             const unidadeSelecionada = document.querySelector('input[name="unidade_embalagem_novo"]:checked')?.value;
             if (unidadeSelecionada === 'kg') return 'kg';
             if (unidadeSelecionada === 'unidade') return 'unidades';
@@ -2966,7 +3008,7 @@ Conversão: 1 saco = 20 quilos</div>
 
     function applyDefaultPackagingUnit(tipoSelecionado) {
         const unidadeSelecionada = document.querySelector('input[name="unidade_embalagem_novo"]:checked')?.value;
-        const unidadesPermitidas = tipoSelecionado === 'lata' || tipoSelecionado === 'balde'
+        const unidadesPermitidas = tipoSelecionado === 'lata' || tipoSelecionado === 'balde' || tipoSelecionado === 'bombona'
             ? ['litro', 'kg']
             : tipoSelecionado === 'pacote' || tipoSelecionado === 'saco'
             ? ['unidade', 'kg']
@@ -2977,6 +3019,8 @@ Conversão: 1 saco = 20 quilos</div>
         let defaultId = '';
         if (tipoSelecionado === 'balde' || tipoSelecionado === 'saco') {
             defaultId = 'unidade_emb_kg';
+        } else if (tipoSelecionado === 'bombona') {
+            defaultId = 'unidade_emb_litro';
         } else if (tipoSelecionado === 'lata') {
             defaultId = 'unidade_emb_litro';
         } else if (tipoSelecionado === 'pacote') {
@@ -2990,14 +3034,14 @@ Conversão: 1 saco = 20 quilos</div>
     
     function atualizarCamposEmbalagemNovo() {
         const tipoSelecionado = document.querySelector('input[name="tipo_embalagem_novo"]:checked')?.value;
-        const precisaUnidadeEmbalagem = tipoSelecionado === 'lata' || tipoSelecionado === 'balde' || tipoSelecionado === 'pacote' || tipoSelecionado === 'saco';
+        const precisaUnidadeEmbalagem = tipoSelecionado === 'lata' || tipoSelecionado === 'balde' || tipoSelecionado === 'bombona' || tipoSelecionado === 'pacote' || tipoSelecionado === 'saco';
 
         if (unidadeEmbalagemField) {
             unidadeEmbalagemField.style.display = precisaUnidadeEmbalagem ? 'block' : 'none';
         }
         if (precisaUnidadeEmbalagem) {
             if (unidadeEmbOpcaoLitro) {
-                unidadeEmbOpcaoLitro.style.display = (tipoSelecionado === 'lata' || tipoSelecionado === 'balde') ? 'inline-flex' : 'none';
+                unidadeEmbOpcaoLitro.style.display = (tipoSelecionado === 'lata' || tipoSelecionado === 'balde' || tipoSelecionado === 'bombona') ? 'inline-flex' : 'none';
             }
             if (unidadeEmbOpcaoUnidade) {
                 unidadeEmbOpcaoUnidade.style.display = (tipoSelecionado === 'pacote' || tipoSelecionado === 'saco') ? 'inline-flex' : (tipoSelecionado === 'caixa' ? 'inline-flex' : 'none');
@@ -3020,8 +3064,11 @@ Conversão: 1 saco = 20 quilos</div>
             let exemplo = exemplosEmbalagem[tipoSelecionado] || 'Quantidade por embalagem';
             const unidadeBase = getUnidadeBaseEmbalagem(tipoSelecionado);
 
-            if (tipoSelecionado === 'lata' || tipoSelecionado === 'balde' || tipoSelecionado === 'pacote' || tipoSelecionado === 'saco') {
+            if (tipoSelecionado === 'lata' || tipoSelecionado === 'balde' || tipoSelecionado === 'bombona' || tipoSelecionado === 'pacote' || tipoSelecionado === 'saco') {
                 exemplo = `18 ${unidadeBase} por ${nome.toLowerCase()}`;
+                if (tipoSelecionado === 'bombona') {
+                    exemplo = '5 litros por bombona';
+                }
             }
             
             nomeEmbalagemSpan.textContent = nome;
@@ -3044,6 +3091,7 @@ Conversão: 1 saco = 20 quilos</div>
             const nomeEmb = nomesEmbalagem[tipoSelecionado].toLowerCase();
             const nomeEmbPlural = {
                 'lata': 'latas',
+                'bombona': 'bombonas',
                 'rolo': 'rolos',
                 'pacote': 'pacotes',
                 'caixa': 'caixas',
@@ -3068,6 +3116,56 @@ Conversão: 1 saco = 20 quilos</div>
         } else {
             previewEmbalagem.style.display = 'none';
         }
+    }
+
+    function normalizeBombonaSuggestionText(value) {
+        return String(value || '')
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase()
+            .trim();
+    }
+
+    function isFiveLiterBombonaDescription(value) {
+        const text = normalizeBombonaSuggestionText(value);
+        return /\b5\s*(l|lt|lts|litro|litros)\b/.test(text);
+    }
+
+    function maybeSuggestBombonaFromDescription() {
+        if (isEditMode || !descricaoInput || !isFiveLiterBombonaDescription(descricaoInput.value)) {
+            return;
+        }
+
+        const selectedTipo = document.querySelector('input[name="tipo_embalagem_novo"]:checked')?.value || '';
+        const selectedUnit = document.querySelector('input[name="unidade_embalagem_novo"]:checked')?.value || '';
+        const currentPackagingValue = parseFloat(unidadesPorEmbalagemInput?.value || '');
+        const shouldSetBombona = !selectedTipo || ['litro', 'lata', 'balde'].includes(selectedTipo);
+
+        if (shouldSetBombona) {
+            const bombonaRadio = document.getElementById('tipo_novo_bombona');
+            if (bombonaRadio) {
+                bombonaRadio.checked = true;
+            }
+        }
+
+        if (unidadeSelect && (!unidadeSelect.value || ['Unidade', 'L', 'Litro', 'Galão', 'Galao'].includes(unidadeSelect.value))) {
+            unidadeSelect.value = 'Litro';
+        }
+
+        if (!selectedUnit || selectedUnit === 'litro') {
+            const litroRadio = document.getElementById('unidade_emb_litro');
+            if (litroRadio) {
+                litroRadio.checked = true;
+            }
+        }
+
+        if ((!Number.isFinite(currentPackagingValue) || currentPackagingValue <= 0 || Math.abs(currentPackagingValue - 5) < 0.0001) && unidadesPorEmbalagemInput) {
+            unidadesPorEmbalagemInput.value = '5';
+        }
+
+        atualizarCamposEmbalagemNovo();
+        toggleTabUnidadesDinamicas();
+        syncAdvancedUnitSettingsInput();
     }
 
     function renderAdvancedSummary() {
@@ -3290,6 +3388,10 @@ Conversão: 1 saco = 20 quilos</div>
     if (unidadesPorEmbalagemInput) {
         unidadesPorEmbalagemInput.addEventListener('input', atualizarPreviewEmbalagem);
     }
+    if (descricaoInput) {
+        descricaoInput.addEventListener('input', maybeSuggestBombonaFromDescription);
+        descricaoInput.addEventListener('blur', maybeSuggestBombonaFromDescription);
+    }
     const saldoAtualInput = document.getElementById('saldo_atual');
     if (saldoAtualInput) {
         saldoAtualInput.addEventListener('input', atualizarPreviewEmbalagem);
@@ -3298,6 +3400,7 @@ Conversão: 1 saco = 20 quilos</div>
     // Inicializar
     toggleTabUnidadesDinamicas();
     atualizarCamposEmbalagemNovo();
+    maybeSuggestBombonaFromDescription();
     initializeAdvancedUnitSettings();
 
     advancedAddUnitButton?.addEventListener('click', () => {

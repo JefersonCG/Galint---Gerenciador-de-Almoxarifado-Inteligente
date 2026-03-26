@@ -398,7 +398,7 @@ ${parent.scripts()}
 <script>
 (function() {
     const usuariosAutocompleteData = ${tojson(usuarios)|n};
-    const itensAutocompleteData = ${tojson(itens)|n};
+    const itemSearchUrl = '${url_for("ferramentas.buscar_item")}';
 
     function normalizeAutocompleteText(value) {
         return String(value || '')
@@ -406,6 +406,17 @@ ${parent.scripts()}
             .replace(/[\u0300-\u036f]/g, '')
             .toLowerCase()
             .trim();
+    }
+
+    async function fetchItemSuggestions(query) {
+        const response = await fetch(itemSearchUrl + '?q=' + encodeURIComponent(query), {
+            headers: { 'Accept': 'application/json' }
+        });
+        if (!response.ok) {
+            throw new Error('Falha ao buscar ferramentas');
+        }
+        const data = await response.json();
+        return (data.items || data.itens || []).slice(0, 20);
     }
 
     const inputMatricula = document.getElementById('input-matricula');
@@ -430,6 +441,7 @@ ${parent.scripts()}
     let currentGroupId = null;
     let debounceTimer;
     let debounceTimerMatricula;
+    let itemSearchRequestId = 0;
     let currentFocus = -1;
     let currentFocusMatricula = -1;
     let currentItems = [];
@@ -569,18 +581,25 @@ ${parent.scripts()}
             return;
         }
         
-        debounceTimer = setTimeout(function() {
-            const normalizedQuery = normalizeAutocompleteText(query);
-            const resultados = itensAutocompleteData.filter(item => {
-                const codigo = normalizeAutocompleteText(item.codigo);
-                const descricao = normalizeAutocompleteText(item.descricao);
-                return codigo.includes(normalizedQuery) || descricao.includes(normalizedQuery);
-            }).slice(0, 20);
+        debounceTimer = setTimeout(async function() {
+            const requestId = ++itemSearchRequestId;
+            try {
+                const resultados = await fetchItemSuggestions(query);
+                if (requestId !== itemSearchRequestId) {
+                    return;
+                }
 
-            if (resultados.length > 0) {
-                showAutocomplete(resultados);
-            } else {
-                dropdown.classList.remove('show');
+                if (resultados.length > 0) {
+                    showAutocomplete(resultados);
+                } else {
+                    dropdown.classList.remove('show');
+                }
+            } catch (error) {
+                console.error('Erro ao buscar ferramentas:', error);
+                if (requestId === itemSearchRequestId) {
+                    currentItems = [];
+                    dropdown.classList.remove('show');
+                }
             }
         }, 150);
     });

@@ -6,6 +6,7 @@ from io import BytesIO
 from typing import Any
 import calendar
 import re
+from time import monotonic
 
 import requests
 from flask import current_app
@@ -29,6 +30,24 @@ from ..models import (
 
 class FinanceService:
     """Serviço de fornecedores, exercício financeiro e prestação de contas."""
+
+    _runtime_cache: dict[str, tuple[float, Any]] = {}
+
+    @classmethod
+    def _get_cached(cls, key: str) -> Any | None:
+        cached = cls._runtime_cache.get(key)
+        if not cached:
+            return None
+        expires_at, value = cached
+        if expires_at <= monotonic():
+            cls._runtime_cache.pop(key, None)
+            return None
+        return value
+
+    @classmethod
+    def _set_cached(cls, key: str, value: Any, *, ttl_seconds: float) -> Any:
+        cls._runtime_cache[key] = (monotonic() + ttl_seconds, value)
+        return value
 
     @staticmethod
     def normalize_cnpj(value: str | None) -> str:
@@ -204,13 +223,19 @@ class FinanceService:
 
     @staticmethod
     def list_suppliers(limit: int = 200) -> list[dict[str, Any]]:
+        cache_key = f"list_suppliers:{int(limit)}"
+        cached = FinanceService._get_cached(cache_key)
+        if cached is not None:
+            return [dict(row) for row in cached]
+
         rows = (
             FinanceSupplier.query
             .order_by(FinanceSupplier.ativo.desc(), FinanceSupplier.nome_fantasia.asc(), FinanceSupplier.razao_social.asc())
             .limit(limit)
             .all()
         )
-        return [row.to_dict() for row in rows]
+        payload = [row.to_dict() for row in rows]
+        return FinanceService._set_cached(cache_key, [dict(row) for row in payload], ttl_seconds=20.0)
 
     @staticmethod
     def get_supplier(supplier_id: int | None) -> FinanceSupplier | None:
@@ -459,6 +484,11 @@ class FinanceService:
 
     @staticmethod
     def list_stock_documents(limit: int = 100) -> list[dict[str, Any]]:
+        cache_key = f"list_stock_documents:{int(limit)}"
+        cached = FinanceService._get_cached(cache_key)
+        if cached is not None:
+            return [dict(row) for row in cached]
+
         rows = (
             DocumentoEntradaEstoque.query
             .options(
@@ -469,13 +499,19 @@ class FinanceService:
             .limit(limit)
             .all()
         )
-        return [FinanceService._serialize_stock_document(row) for row in rows]
+        payload = [FinanceService._serialize_stock_document(row) for row in rows]
+        return FinanceService._set_cached(cache_key, [dict(row) for row in payload], ttl_seconds=8.0)
 
     @staticmethod
     def get_stock_document_by_number(numero_documento: str) -> dict[str, Any] | None:
         numero = (numero_documento or "").strip()
         if not numero:
             return None
+        cache_key = f"get_stock_document_by_number:{numero}"
+        cached = FinanceService._get_cached(cache_key)
+        if cached is not None:
+            return dict(cached)
+
         row = (
             DocumentoEntradaEstoque.query
             .options(
@@ -488,7 +524,8 @@ class FinanceService:
         )
         if not row:
             return None
-        return FinanceService._serialize_stock_document(row)
+        payload = FinanceService._serialize_stock_document(row)
+        return FinanceService._set_cached(cache_key, dict(payload), ttl_seconds=8.0)
 
     @staticmethod
     def search_stock_documents(query: str, limit: int = 8) -> list[dict[str, Any]]:
@@ -1051,6 +1088,11 @@ class FinanceService:
         from .inventory import inventory_service
 
         exercise = FinanceService.resolve_exercise(exercise_label)
+        cache_key = f"get_stock_value_report:{exercise['label']}"
+        cached = FinanceService._get_cached(cache_key)
+        if cached is not None:
+            return dict(cached)
+
         items = [dict(item) for item in inventory_service.list_items()]
         item_map = {str(item.get("codigo")): item for item in items}
 
@@ -1292,7 +1334,7 @@ class FinanceService:
         for card in category_cards:
             card["items"].sort(key=lambda item: (str(item.get("descricao") or "").lower(), str(item.get("codigo") or "")))
 
-        return {
+        report = {
             "exercise": exercise,
             "exercise_options": FinanceService.get_available_exercises(),
             "items": items,
@@ -1310,6 +1352,7 @@ class FinanceService:
             "total_fracionado_quilos": round(total_fracionado_quilos, 3),
             "fracionado_linhas_ignoradas": int(fracionado_linhas_ignoradas),
         }
+        return FinanceService._set_cached(cache_key, dict(report), ttl_seconds=10.0)
 
     @staticmethod
     def build_stock_value_pdf(exercise_label: str | None = None) -> BytesIO:
