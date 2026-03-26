@@ -264,6 +264,7 @@ export default function RetiradaScreen({ navigation, route }) {
                 ? (tipoEmbalagem || 'unidade')
                 : (tipoEmbalagem === 'rolo' ? 'rolos' : 
                    tipoEmbalagem === 'lata' ? 'latas' : 
+                         tipoEmbalagem === 'bombona' ? 'bombonas' : 
                    tipoEmbalagem === 'pacote' ? 'pacotes' : 
                    tipoEmbalagem === 'caixa' ? 'caixas' : 
                    tipoEmbalagem === 'balde' ? 'baldes' : 'unidades');
@@ -297,6 +298,7 @@ export default function RetiradaScreen({ navigation, route }) {
         if (Number.isFinite(unidadesPorEmbalagem) && unidadesPorEmbalagem > 0) {
             const nomeEmbalagem = tipoEmbalagem === 'rolo' ? 'Rolo' : 
                                  tipoEmbalagem === 'lata' ? 'Lata' : 
+                                 tipoEmbalagem === 'bombona' ? 'Bombona' : 
                                  tipoEmbalagem === 'pacote' ? 'Pacote' : 
                                  tipoEmbalagem === 'caixa' ? 'Caixa' : 
                                  tipoEmbalagem === 'balde' ? 'Balde' : 'Unidade';
@@ -367,6 +369,7 @@ export default function RetiradaScreen({ navigation, route }) {
         if (!tipo) return plural ? 'embalagens' : 'embalagem';
         const nomes = {
             lata: plural ? 'latas' : 'lata',
+            bombona: plural ? 'bombonas' : 'bombona',
             rolo: plural ? 'rolos' : 'rolo',
             pacote: plural ? 'pacotes' : 'pacote',
             caixa: plural ? 'caixas' : 'caixa',

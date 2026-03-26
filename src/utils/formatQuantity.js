@@ -24,10 +24,10 @@ export function formatQuantityWithPackaging(quantidade, item) {
         return `${formatNumber(totalMetros)} metros (${formatNumber(qtd)} ${nomeRolo})`;
     }
 
-    // Sistema de embalagens com volume em litros (lata/balde)
+    // Sistema de embalagens com volume em litros (lata/balde/bombona)
     if (item.litros_por_embalagem && item.litros_por_embalagem > 0 &&
         (item.tipo_embalagem_novo || item.unidade) &&
-        ['lata', 'litro', 'balde'].includes((item.tipo_embalagem_novo || item.unidade || '').toLowerCase())) {
+        ['lata', 'litro', 'balde', 'bombona'].includes((item.tipo_embalagem_novo || item.unidade || '').toLowerCase())) {
         
         const usaSistemaNovo = Boolean(item.tipo_embalagem_novo && item.unidades_por_embalagem);
         const qtdeEmbalagens = usaSistemaNovo ? (item.estoque_embalagens || 0) : qtd;
@@ -39,10 +39,10 @@ export function formatQuantityWithPackaging(quantidade, item) {
         return `${formatNumber(volumeTotal, 1)} litros (${formatNumber(qtdeEmbalagens)} ${nomeEmb})`;
     }
 
-    // Sistema de embalagens com peso em kg (lata/balde com grandeza_referencia)
+    // Sistema de embalagens com peso em kg (lata/balde/bombona com grandeza_referencia)
     if (item.grandeza_referencia && item.grandeza_referencia > 0 &&
         (item.tipo_embalagem_novo || item.unidade) &&
-        ['lata', 'balde'].includes((item.tipo_embalagem_novo || item.unidade || '').toLowerCase())) {
+        ['lata', 'balde', 'bombona'].includes((item.tipo_embalagem_novo || item.unidade || '').toLowerCase())) {
         
         const usaSistemaNovo = Boolean(item.tipo_embalagem_novo && item.unidades_por_embalagem);
         const qtdeEmbalagens = usaSistemaNovo ? (item.estoque_embalagens || 0) : qtd;
@@ -141,6 +141,7 @@ function getNomeEmbalagemSingular(item) {
     const tipo = (item.tipo_embalagem_novo || item.unidade || '').toLowerCase();
     const nomes = {
         'lata': 'lata',
+        'bombona': 'bombona',
         'rolo': 'rolo',
         'pacote': 'pacote',
         'caixa': 'caixa',
@@ -157,6 +158,7 @@ function getNomeEmbalagemPlural(item) {
     const tipo = (item.tipo_embalagem_novo || item.unidade || '').toLowerCase();
     const nomes = {
         'lata': 'latas',
+        'bombona': 'bombonas',
         'rolo': 'rolos',
         'pacote': 'pacotes',
         'caixa': 'caixas',
