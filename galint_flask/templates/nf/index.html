@@ -2152,7 +2152,7 @@
         itemResults.innerHTML = items.map((item, index) => `
             <button type="button" class="list-group-item list-group-item-action" data-index="${index}">
                 <div class="fw-semibold">${item.descricao || item.codigo}</div>
-                <div class="small text-muted">Código: ${item.codigo}${item.categoria ? ` • ${item.categoria}` : ''}${item.saldo !== undefined ? ` • Saldo: ${item.saldo}` : ''}</div>
+                <div class="small text-muted">Código: ${item.codigo}${item.categoria ? ` • ${item.categoria}` : ''}${(item.saldo_display || item.saldo) !== undefined ? ` • Saldo: ${item.saldo_display || item.saldo}` : ''}</div>
             </button>
         `).join('');
         itemResults.classList.remove('d-none');
@@ -2405,7 +2405,7 @@
         resultsContainer.innerHTML = items.map((item, index) => `
             <button type="button" class="list-group-item list-group-item-action" data-index="${index}">
                 <div class="fw-semibold">${item.descricao || item.codigo}</div>
-                <div class="small text-muted">Código: ${item.codigo}${item.categoria ? ` • ${item.categoria}` : ''}${item.saldo !== undefined ? ` • Saldo: ${item.saldo}` : ''}</div>
+                <div class="small text-muted">Código: ${item.codigo}${item.categoria ? ` • ${item.categoria}` : ''}${(item.saldo_display || item.saldo) !== undefined ? ` • Saldo: ${item.saldo_display || item.saldo}` : ''}</div>
             </button>
         `).join('');
         resultsContainer.classList.remove('d-none');

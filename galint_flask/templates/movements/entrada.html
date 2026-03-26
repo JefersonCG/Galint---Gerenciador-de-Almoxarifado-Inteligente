@@ -465,11 +465,12 @@
         }
         
         dropdown.innerHTML = itens.map((item, index) => {
+            const saldoDisplay = item.saldo_display || item.saldo;
             return '<div class="autocomplete-item" data-index="' + index + '">' +
                 '<div class="autocomplete-item-title">' + (item.descricao || item.codigo) + '</div>' +
                 '<div class="autocomplete-item-details">' +
                 '<span class="autocomplete-item-code">Código: ' + item.codigo + '</span>' +
-                (item.saldo !== undefined ? ' | Saldo: ' + item.saldo : '') +
+                (saldoDisplay !== undefined ? ' | Saldo: ' + saldoDisplay : '') +
                 (item.categoria ? ' | Categoria: ' + item.categoria : '') + '</div>' +
                 '</div>';
         }).join('');

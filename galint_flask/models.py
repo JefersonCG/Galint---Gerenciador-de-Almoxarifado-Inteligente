@@ -4,9 +4,9 @@ from __future__ import annotations
 from datetime import date, datetime, timedelta
 
 from flask_login import UserMixin
-from sqlalchemy import BigInteger, Boolean, CheckConstraint, Date, DateTime, Enum, Float, ForeignKey, Integer, String, Text, UniqueConstraint, false, func, inspect as sa_inspect
+from sqlalchemy import BigInteger, Boolean, CheckConstraint, Date, DateTime, Enum, Float, ForeignKey, Integer, String, Text, UniqueConstraint, func, inspect as sa_inspect
 from sqlalchemy.dialects.postgresql import INET, JSONB, UUID
-from sqlalchemy.orm import Mapped, mapped_column, relationship, backref, column_property, synonym, validates
+from sqlalchemy.orm import Mapped, mapped_column, relationship, backref, validates
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from .extensions import db
@@ -515,21 +515,14 @@ class StockMovement(db.Model):
     __tablename__ = "stock_movements"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    codigo_item: Mapped[str] = mapped_column("codigo_item", ForeignKey("itens.codigo_item", ondelete="CASCADE"), nullable=False, index=True)
-    motion_type: Mapped[str] = mapped_column("motion_type", String(30), nullable=False, index=True)
-    amount_base: Mapped[float] = mapped_column("amount_base", Float, nullable=False)
-    unit_type: Mapped[str] = mapped_column("unit_type", String(30), nullable=False)
+    product_id: Mapped[str] = mapped_column(ForeignKey("itens.codigo_item", ondelete="CASCADE"), nullable=False, index=True)
+    movement_type: Mapped[str] = mapped_column(String(30), nullable=False, index=True)
+    quantity_base: Mapped[float] = mapped_column(Float, nullable=False)
+    unit_base: Mapped[str] = mapped_column(String(30), nullable=False)
     reference_type: Mapped[str | None] = mapped_column(String(50), nullable=True, index=True)
     reference_id: Mapped[str | None] = mapped_column(String(100), nullable=True, index=True)
-    source: Mapped[str | None] = mapped_column(String(20), nullable=True, index=True)
-    user_id: Mapped[str | None] = mapped_column(ForeignKey("usuarios.matricula", ondelete="SET NULL"), nullable=True, index=True)
     metadata_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now(), index=True)
-
-    product_id = synonym("codigo_item")
-    movement_type = synonym("motion_type")
-    quantity_base = synonym("amount_base")
-    unit_base = synonym("unit_type")
 
     item: Mapped[Item] = relationship("Item", back_populates="stock_movements")
 
@@ -537,13 +530,10 @@ class StockMovement(db.Model):
 class StockBalance(db.Model):
     __tablename__ = "stock_balances"
 
-    codigo_item: Mapped[str] = mapped_column("codigo_item", ForeignKey("itens.codigo_item", ondelete="CASCADE"), primary_key=True)
+    product_id: Mapped[str] = mapped_column(ForeignKey("itens.codigo_item", ondelete="CASCADE"), primary_key=True)
     quantity_base: Mapped[float] = mapped_column(Float, nullable=False, default=0)
-    read_model_ready = column_property(false())
+    read_model_ready: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
-    last_movement_id: Mapped[int | None] = mapped_column(ForeignKey("stock_movements.id", ondelete="SET NULL"), nullable=True)
-
-    product_id = synonym("codigo_item")
 
     item: Mapped[Item] = relationship("Item", back_populates="stock_balance")
 

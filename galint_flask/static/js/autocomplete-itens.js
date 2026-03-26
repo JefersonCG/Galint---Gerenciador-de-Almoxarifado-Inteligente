@@ -48,11 +48,12 @@ function initItemAutocomplete(inputElement, dropdownElement, apiUrl) {
         items.forEach((item, index) => {
             const div = document.createElement('div');
             div.className = 'autocomplete-item';
+            const saldoDisplay = item.saldo_display || item.saldo;
             div.innerHTML = 
                 '<div class="autocomplete-item-title">' + escapeHtml(item.descricao) + '</div>' +
                 '<div class="autocomplete-item-details">' +
                 '  <span class="autocomplete-item-code">Código: ' + escapeHtml(item.codigo) + '</span>' +
-                '  | Saldo: ' + item.saldo +
+                '  | Saldo: ' + escapeHtml(String(saldoDisplay ?? '0')) +
                 (item.categoria ? ' | ' + escapeHtml(item.categoria) : '') +
                 '</div>';
             
