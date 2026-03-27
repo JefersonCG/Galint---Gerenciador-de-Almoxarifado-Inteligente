@@ -47,6 +47,54 @@
         <article class="backup-kpi"><span class="backup-kpi-label">Restauração oficial</span><div class="backup-kpi-value">ConversionEngine</div><div class="backup-kpi-caption">Pipeline controlado de implantação, validação e progresso operacional.</div></article>
     </section>
     <div class="card backup-panel mb-4">
+        <div class="card-header"><strong>Prontidão do backup</strong><span class="text-muted small d-block mt-1">Validação automática do ambiente atual antes de gerar ou restaurar artefatos.</span></div>
+        <div class="card-body">
+            {% if diagnostic %}
+            <div class="backup-soft mb-3">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                    <div>
+                        <div class="fw-semibold">Status geral</div>
+                        <div class="small text-muted">{{ 'Pronto para operação' if diagnostic.ready else 'Há pontos a corrigir antes de operar' }}</div>
+                    </div>
+                    <span class="backup-badge {% if diagnostic.ready %}backup-badge-complete{% else %}backup-badge-database{% endif %}">{% if diagnostic.ready %}OK{% else %}Atenção{% endif %}</span>
+                </div>
+                <div class="small text-muted">Retenção: {% if diagnostic.retention.enabled %}{{ diagnostic.retention.days }} dias / limite {{ diagnostic.retention.count }} arquivos{% else %}desativada{% endif %}</div>
+                <div class="small mt-2 {% if diagnostic.ready %}text-success{% else %}text-warning{% endif %}">
+                    {% if diagnostic.ready %}
+                    O ambiente está coerente para gerar backup.
+                    {% else %}
+                    Corrija os itens em falha antes de depender deste fluxo em produção.
+                    {% endif %}
+                </div>
+            </div>
+            <div class="backup-soft mb-3">
+                <div class="d-flex flex-wrap gap-3 small text-muted">
+                    <div><strong class="text-white">Backup root:</strong> {{ diagnostic.backup_root }}</div>
+                    <div><strong class="text-white">Checks obrigatórios:</strong> {{ diagnostic.checks | selectattr('required') | list | length }}</div>
+                    <div><strong class="text-white">Checks opcionais:</strong> {{ diagnostic.checks | rejectattr('required') | list | length }}</div>
+                </div>
+            </div>
+            <div class="row g-3">
+                {% for check in diagnostic.checks %}
+                <div class="col-12 col-lg-6">
+                    <div class="backup-soft h-100">
+                        <div class="d-flex justify-content-between align-items-start gap-3">
+                            <div>
+                                <div class="fw-semibold">{{ check.name }}</div>
+                                <div class="small text-muted mt-1">{{ check.detail }}</div>
+                            </div>
+                            <span class="backup-badge {% if check.ok %}backup-badge-complete{% else %}backup-badge-database{% endif %}">{% if check.ok %}OK{% else %}Falha{% endif %}</span>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-muted mb-0">Não foi possível calcular o diagnóstico do backup neste momento.</p>
+            {% endif %}
+        </div>
+    </div>
+    <div class="card backup-panel mb-4">
         <div class="card-body">
             <h5 class="card-title">Gerar backup</h5>
             <p class="card-text text-muted">Use o backup SQL para recuperacao do banco e o pacote completo para enviar ao ConversionEngine com dump, manifesto e artefatos de disco relevantes.</p>
@@ -58,6 +106,7 @@
                     <button class="btn btn-primary rounded-pill px-4" type="submit" name="backup_kind" value="database">Gerar backup SQL</button>
                     <button class="btn btn-outline-success rounded-pill px-4" type="submit" name="backup_kind" value="complete">Gerar pacote completo</button>
                     <a class="btn btn-outline-info rounded-pill px-4" href="{{ url_for('pages.config_conversionengine') }}">Abrir restaurador oficial</a>
+                    <a class="btn btn-outline-warning rounded-pill px-4" href="{{ url_for('pages.backup_final_checklist') }}">Baixar checklist final</a>
                     <a class="btn btn-outline-secondary rounded-pill px-4" href="{{ url_for('pages.config') }}">Voltar</a>
                 </div>
             </form>

@@ -66,6 +66,18 @@ class BackupService:
             or os.environ.get("RESTORE_MAINTENANCE_DB")
             or "postgres"
         )
+        self._retention_days = int(
+            app.config.get("BACKUP_RETENTION_DAYS")
+            or os.environ.get("GALINT_BACKUP_RETENTION_DAYS")
+            or os.environ.get("BACKUP_RETENTION_DAYS")
+            or 0
+        )
+        self._retention_count = int(
+            app.config.get("BACKUP_RETENTION_COUNT")
+            or os.environ.get("GALINT_BACKUP_RETENTION_COUNT")
+            or os.environ.get("BACKUP_RETENTION_COUNT")
+            or 0
+        )
         self._project_root = Path(app.root_path).parent
         self._full_backup_directories = [
             {
@@ -303,6 +315,106 @@ class BackupService:
             )
         return entries
 
+    def diagnostic_report(self) -> dict[str, Any]:
+        checks: list[dict[str, Any]] = []
+
+        def add_check(name: str, ok: bool, detail: str, *, required: bool = True) -> None:
+            checks.append(
+                {
+                    "name": name,
+                    "ok": bool(ok),
+                    "detail": detail,
+                    "required": required,
+                }
+            )
+
+        try:
+            uri = self._ensure_uri()
+            add_check("Banco configurado", True, "SQLALCHEMY_DATABASE_URI presente.")
+        except Exception as exc:
+            uri = ""
+            add_check("Banco configurado", False, str(exc))
+
+        pg_dump_cmd = self._resolve_postgres_tool("pg_dump")
+        pg_dump_found = bool(shutil.which(pg_dump_cmd) or Path(pg_dump_cmd).is_file())
+        add_check(
+            "pg_dump disponível",
+            pg_dump_found,
+            pg_dump_cmd if pg_dump_found else "Não localizado no PATH nem por configuração.",
+        )
+
+        psql_cmd = self._resolve_postgres_tool("psql")
+        psql_found = bool(shutil.which(psql_cmd) or Path(psql_cmd).is_file())
+        add_check(
+            "psql disponível",
+            psql_found,
+            psql_cmd if psql_found else "Não localizado no PATH nem por configuração.",
+        )
+
+        backup_root_ok = False
+        backup_root_detail = str(self._backup_root)
+        try:
+            self._backup_root.mkdir(parents=True, exist_ok=True)
+            with tempfile.NamedTemporaryFile(dir=self._backup_root, delete=True):
+                pass
+            backup_root_ok = True
+            backup_root_detail = f"Gravação validada em {self._backup_root}"
+        except Exception as exc:
+            backup_root_detail = str(exc)
+        add_check("Pasta de backups gravável", backup_root_ok, backup_root_detail)
+
+        database_ok = False
+        database_detail = "Não validada."
+        if uri:
+            engine = create_engine(uri, future=True)
+            try:
+                with engine.connect() as conn:
+                    conn.execute(text("SELECT 1"))
+                database_ok = True
+                database_detail = "Conexão de validação respondeu com sucesso."
+            except Exception as exc:
+                database_detail = str(exc)
+            finally:
+                try:
+                    engine.dispose()
+                except Exception:
+                    pass
+        add_check("Conexão com PostgreSQL", database_ok, database_detail)
+
+        disk_ok = False
+        disk_detail = "Não foi possível obter uso de disco."
+        try:
+            disk_usage = shutil.disk_usage(self._backup_root)
+            disk_ok = True
+            disk_detail = f"Livre: {disk_usage.free // (1024 * 1024)} MB"
+        except Exception as exc:
+            disk_detail = str(exc)
+        add_check("Espaço em disco", disk_ok, disk_detail, required=False)
+
+        retention_enabled = self._retention_days > 0 or self._retention_count > 0
+        add_check(
+            "Retenção configurada",
+            retention_enabled,
+            (
+                f"Dias={self._retention_days}, limite={self._retention_count}"
+                if retention_enabled
+                else "Retenção automática desativada."
+            ),
+            required=False,
+        )
+
+        ready = all(check["ok"] for check in checks if check["required"])
+        return {
+            "ready": ready,
+            "checks": checks,
+            "backup_root": str(self._backup_root),
+            "retention": {
+                "days": self._retention_days,
+                "count": self._retention_count,
+                "enabled": retention_enabled,
+            },
+        }
+
     def create_backup(self, backup_kind: str = DATABASE_BACKUP_KIND) -> str:
         url = make_url(self._ensure_uri())
         if not url.drivername.startswith("postgresql"):
@@ -310,10 +422,14 @@ class BackupService:
 
         normalized_kind = (backup_kind or self.DATABASE_BACKUP_KIND).strip().lower()
         if normalized_kind == self.DATABASE_BACKUP_KIND:
-            return self._create_postgres_backup()
-        if normalized_kind == self.COMPLETE_BACKUP_KIND:
-            return self._create_complete_backup_package()
-        raise ValueError("Tipo de backup inválido")
+            created_backup = self._create_postgres_backup()
+        elif normalized_kind == self.COMPLETE_BACKUP_KIND:
+            created_backup = self._create_complete_backup_package()
+        else:
+            raise ValueError("Tipo de backup inválido")
+
+        self._apply_retention_policy()
+        return created_backup
 
     def restore_backup(self, backup_name: str) -> str:
         return self.restore_backup_with_progress(backup_name)
@@ -322,6 +438,8 @@ class BackupService:
         self,
         backup_name: str,
         reporter: Callable[[int, str], None] | None = None,
+        *,
+        capture_delta: bool = True,
     ) -> str:
         def _report(progress: int, message: str) -> None:
             if reporter is None:
@@ -341,15 +459,18 @@ class BackupService:
             if not url.drivername.startswith("postgresql"):
                 raise ValueError("Este backup é de PostgreSQL, mas o banco atual não é PostgreSQL")
 
-            _report(15, "Capturando movimentos pós-backup...")
-            cutoff = self._backup_cutoff_from_name(backup_name, source)
-            delta = self._capture_post_backup_delta(cutoff, reporter=_report)
+            delta: dict[str, object] = {"tables": {}}
+            if capture_delta:
+                _report(15, "Capturando movimentos pós-backup...")
+                cutoff = self._backup_cutoff_from_name(backup_name, source)
+                delta = self._capture_post_backup_delta(cutoff, reporter=_report)
 
             _report(60, "Restaurando backup no PostgreSQL...")
             self._restore_postgres_backup(source, reporter=_report)
 
-            _report(85, "Reaplicando movimentos pós-backup...")
-            self._reapply_post_backup_delta(delta, reporter=_report)
+            if capture_delta:
+                _report(85, "Reaplicando movimentos pós-backup...")
+                self._reapply_post_backup_delta(delta, reporter=_report)
 
             _report(100, "Restauração concluída.")
             return backup_name
@@ -627,6 +748,39 @@ class BackupService:
                 destination.unlink()
             raise ValueError(f"Erro ao gerar backup PostgreSQL: {message}")
         return backup_name
+
+    def _apply_retention_policy(self) -> list[str]:
+        if self._retention_days <= 0 and self._retention_count <= 0:
+            return []
+
+        supported_suffixes = {".sql", ".zip"}
+        backups = sorted(
+            [backup for backup in self._backup_root.glob("*") if backup.suffix.lower() in supported_suffixes],
+            key=lambda item: item.stat().st_mtime,
+            reverse=True,
+        )
+        keep_names: set[str] = set()
+
+        if self._retention_count > 0:
+            keep_names.update(backup.name for backup in backups[: self._retention_count])
+
+        if self._retention_days > 0:
+            cutoff = time.time() - (self._retention_days * 86400)
+            for backup in backups:
+                if backup.stat().st_mtime >= cutoff:
+                    keep_names.add(backup.name)
+
+        removed: list[str] = []
+        for backup in backups:
+            if backup.name in keep_names:
+                continue
+            try:
+                backup.unlink()
+                removed.append(backup.name)
+            except Exception:
+                continue
+
+        return removed
 
     def _restore_postgres_backup(
         self,

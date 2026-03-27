@@ -87,6 +87,8 @@ class BaseConfig:
         or os.environ.get("BACKUP_PSQL")
         or "psql"
     )
+    BACKUP_RETENTION_DAYS = int(os.environ.get("GALINT_BACKUP_RETENTION_DAYS") or os.environ.get("BACKUP_RETENTION_DAYS") or 30)
+    BACKUP_RETENTION_COUNT = int(os.environ.get("GALINT_BACKUP_RETENTION_COUNT") or os.environ.get("BACKUP_RETENTION_COUNT") or 20)
     FEATURE_NOTAS_ENABLED = _env_flag("GALINT_FEATURE_NOTAS", True)
     FEATURE_LIVE_FEED_ENABLED = _env_flag("GALINT_FEATURE_LIVE_FEED", False)
     FEATURE_MOBILE_PANEL_ENABLED = _env_flag("GALINT_FEATURE_MOBILE_PANEL", True)

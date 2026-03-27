@@ -151,8 +151,19 @@ def config_backup():
     # (Esse request ainda usa login_required e pode consultar DB; é antes da restauração começar.)
     _prime_admin_session()
 
-    backups = BackupService(current_app).list_backups()
-    return render_template("config_backup.html", backups=backups)
+    service = BackupService(current_app)
+    backups = service.list_backups()
+    diagnostic = service.diagnostic_report()
+    return render_template("config_backup.html", backups=backups, diagnostic=diagnostic)
+
+
+@blueprint.get("/configuracoes/backup/checklist-final")
+@login_required
+def backup_final_checklist():
+    checklist_path = Path(current_app.root_path).parent / "CHECKLIST_FINAL_BACKUP_GALINT.md"
+    if not checklist_path.exists():
+        abort(404)
+    return send_file(checklist_path, as_attachment=True, download_name=checklist_path.name)
 
 
 @blueprint.get("/configuracoes/conversionengine")
