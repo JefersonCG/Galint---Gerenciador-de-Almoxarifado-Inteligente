@@ -13,6 +13,7 @@ from sqlalchemy.orm import joinedload
 from ..extensions import db
 from ..models import CompraPeriodoFechamento, DocumentoEntradaEstoque, DocumentoEntradaEstoqueItem, Entrada, FinanceLedgerEntry, Item, TelegramOutbox
 from ..services.finance_service import finance_service
+from ..services.nf_deletion_audit_sqlite import log_document_item_deletion
 from ..services.inventory import inventory_service
 
 blueprint = Blueprint("nf", __name__, url_prefix="/nf")
@@ -299,6 +300,74 @@ def _purge_linked_entry(entrada_id: int | None) -> None:
     linked_entry = db.session.get(Entrada, entrada_id)
     if linked_entry is not None:
         db.session.delete(linked_entry)
+
+
+def _purge_document_item_financial_entry(
+    documento: DocumentoEntradaEstoque,
+    item_row: DocumentoEntradaEstoqueItem,
+) -> int:
+    if documento is None or item_row is None:
+        return 0
+
+    deleted = 0
+    if item_row.entrada_id is not None:
+        deleted += FinanceLedgerEntry.query.filter_by(entrada_id=item_row.entrada_id).delete(synchronize_session=False)
+        return deleted
+
+    base_query = FinanceLedgerEntry.query.filter(
+        FinanceLedgerEntry.codigo_item == item_row.codigo_item,
+        FinanceLedgerEntry.numero_documento == documento.numero_documento,
+    )
+    if documento.tipo_documento:
+        exact_query = base_query.filter(FinanceLedgerEntry.tipo_documento == documento.tipo_documento)
+        deleted = exact_query.delete(synchronize_session=False)
+        if deleted:
+            return deleted
+
+    if documento.fornecedor_id is not None:
+        exact_query = base_query.filter(FinanceLedgerEntry.fornecedor_id == documento.fornecedor_id)
+        deleted = exact_query.delete(synchronize_session=False)
+        if deleted:
+            return deleted
+
+    deleted = base_query.delete(synchronize_session=False)
+    return deleted
+
+
+def _clear_finance_reports_cache() -> None:
+    try:
+        finance_service.clear_runtime_cache("get_stock_value_report:")
+        finance_service.clear_runtime_cache("get_supplier_lab_report:")
+    except Exception:
+        pass
+
+
+def _audit_document_item_deletion(
+    *,
+    item_snapshot: dict[str, Any],
+    reason: str,
+    action_type: str,
+    action_result: str = "success",
+    extra_details: dict[str, Any] | None = None,
+) -> None:
+    details: dict[str, Any] = {
+        "document_id": item_snapshot.get("document_id"),
+        "document_item_id": item_snapshot.get("document_item_id"),
+        "numero_documento": item_snapshot.get("numero_documento"),
+        "codigo_item": item_snapshot.get("codigo_item"),
+        "status_processamento": item_snapshot.get("status_processamento"),
+        "reason": reason,
+        "user_id": getattr(current_user, "id", None),
+        "route": request.path,
+        "ip_address": request.remote_addr,
+        "user_agent": request.user_agent.string if request.user_agent else None,
+        "stock_movement_id": item_snapshot.get("stock_movement_id"),
+        "balance_before": item_snapshot.get("balance_before"),
+        "balance_after": item_snapshot.get("balance_after"),
+    }
+    if extra_details:
+        details.update(extra_details)
+    log_document_item_deletion(action_type=action_type, action_result=action_result, details=details)
 
 
 @blueprint.before_request
@@ -623,10 +692,12 @@ def _redirect_to_nf_context(
     numero_documento: str | None = None,
     anchor: str | None = None,
     fallback_tab: str = "registro",
+    clear_selection: bool = False,
 ) -> str:
     requested_tab = _requested_operational_tab()
     active_tab = requested_tab or _resolve_document_tab(numero_documento, fallback=fallback_tab)
-    base_url = url_for("nf.nf_index", nota=(numero_documento or None), aba=active_tab)
+    nota_value = None if clear_selection else (numero_documento or None)
+    base_url = url_for("nf.nf_index", nota=nota_value, aba=active_tab)
     return f"{base_url}#{anchor}" if anchor else base_url
 
 
@@ -1171,8 +1242,8 @@ def editar_documento(documento_id: int):
     return redirect(
         _redirect_to_nf_context(
             numero_documento=documento.numero_documento,
-            anchor=f"documento-editar-{documento.id_documento}",
             fallback_tab="pendencias",
+            clear_selection=True,
         )
     )
 
@@ -1280,24 +1351,130 @@ def excluir_item_documento(documento_id: int, documento_item_id: int):
 
     numero_documento = documento.numero_documento
     codigo_item = item_row.codigo_item
+    motivo_exclusao = (request.form.get("motivo_exclusao") or "").strip()
 
-    if (item_row.status_processamento or "").strip().lower() == "processado":
-        flash("O item já foi incorporado ao estoque e não pode ser excluído deste documento fiscal.", "danger")
+    if not motivo_exclusao:
+        flash("Informe o motivo da exclusão.", "danger")
         return redirect(_redirect_to_nf_context(numero_documento=numero_documento, fallback_tab="historico"))
 
-    _purge_linked_entry(item_row.entrada_id)
-    db.session.delete(item_row)
-    db.session.flush()
+    item_snapshot = {
+        "document_id": documento.id_documento,
+        "document_item_id": item_row.id_documento_item,
+        "numero_documento": documento.numero_documento,
+        "codigo_item": item_row.codigo_item,
+        "status_processamento": item_row.status_processamento,
+        "stock_movement_id": item_row.stock_movement_id,
+        "balance_before": None,
+        "balance_after": None,
+    }
 
-    has_items = (
-        DocumentoEntradaEstoqueItem.query
-        .filter_by(documento_id=documento.id_documento)
-        .first()
-        is not None
-    )
-    if not has_items:
-        db.session.delete(documento)
+    if (item_row.status_processamento or "").strip().lower() == "processado":
+        flash(
+            "Use a exclusão por erro de digitação para itens já incorporados ao estoque.",
+            "info",
+        )
+        return redirect(_redirect_to_nf_context(numero_documento=numero_documento, fallback_tab="historico"))
 
-    db.session.commit()
+    try:
+        _purge_linked_entry(item_row.entrada_id)
+        _purge_document_item_financial_entry(documento, item_row)
+        db.session.delete(item_row)
+        db.session.flush()
+
+        has_items = (
+            DocumentoEntradaEstoqueItem.query
+            .filter_by(documento_id=documento.id_documento)
+            .first()
+            is not None
+        )
+        if not has_items:
+            db.session.delete(documento)
+
+        db.session.commit()
+        _clear_finance_reports_cache()
+        _audit_document_item_deletion(
+            item_snapshot=item_snapshot,
+            reason=motivo_exclusao,
+            action_type="nf.document_item.delete",
+        )
+    except ValueError as exc:
+        db.session.rollback()
+        flash(str(exc), "danger")
+        return redirect(_redirect_to_nf_context(numero_documento=numero_documento, fallback_tab="historico"))
+
     flash(f"Item {codigo_item} removido do documento fiscal {numero_documento}.", "success")
+    return redirect(_redirect_to_nf_context(numero_documento=numero_documento, fallback_tab="pendencias"))
+
+
+@blueprint.post("/<int:documento_id>/itens/<int:documento_item_id>/excluir-por-erro-digitacao")
+@login_required
+def excluir_item_documento_por_erro_digitacao(documento_id: int, documento_item_id: int):
+    _require_admin()
+    documento = db.session.get(DocumentoEntradaEstoque, documento_id)
+    item_row = db.session.get(DocumentoEntradaEstoqueItem, documento_item_id)
+
+    if documento is None or item_row is None or item_row.documento_id != documento.id_documento:
+        flash("Item do documento fiscal não encontrado.", "danger")
+        return redirect(url_for("nf.nf_index"))
+
+    numero_documento = documento.numero_documento
+    codigo_item = item_row.codigo_item
+    motivo_exclusao = (request.form.get("motivo_exclusao") or "").strip()
+
+    if not motivo_exclusao:
+        flash("Informe o motivo da exclusão por erro de digitação.", "danger")
+        return redirect(_redirect_to_nf_context(numero_documento=numero_documento, fallback_tab="historico"))
+
+    item_snapshot = {
+        "document_id": documento.id_documento,
+        "document_item_id": item_row.id_documento_item,
+        "numero_documento": documento.numero_documento,
+        "codigo_item": item_row.codigo_item,
+        "status_processamento": item_row.status_processamento,
+        "stock_movement_id": item_row.stock_movement_id,
+        "balance_before": None,
+        "balance_after": None,
+    }
+
+    try:
+        reversal_result = finance_service.delete_document_item_for_typo(
+            item_row,
+            usuario_matricula=current_user.id,
+        )
+
+        _purge_linked_entry(item_row.entrada_id)
+        _purge_document_item_financial_entry(documento, item_row)
+        db.session.delete(item_row)
+        db.session.flush()
+
+        has_items = (
+            DocumentoEntradaEstoqueItem.query
+            .filter_by(documento_id=documento.id_documento)
+            .first()
+            is not None
+        )
+        if not has_items:
+            db.session.delete(documento)
+
+        db.session.commit()
+        _clear_finance_reports_cache()
+        item_snapshot.update({
+            "stock_movement_id": reversal_result.get("stock_movement_id"),
+            "balance_before": reversal_result.get("balance_before"),
+            "balance_after": reversal_result.get("balance_after"),
+        })
+        _audit_document_item_deletion(
+            item_snapshot=item_snapshot,
+            reason=motivo_exclusao,
+            action_type="nf.document_item.delete.typo",
+        )
+    except ValueError as exc:
+        db.session.rollback()
+        flash(str(exc), "danger")
+        return redirect(_redirect_to_nf_context(numero_documento=numero_documento, fallback_tab="historico"))
+
+    flash(
+        f"Item {codigo_item} removido do documento fiscal {numero_documento} por erro de digitação, com estorno do estoque.",
+        "success",
+    )
     return redirect(_redirect_to_nf_context(numero_documento=numero_documento, fallback_tab="pendencias"))

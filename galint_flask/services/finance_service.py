@@ -34,6 +34,15 @@ class FinanceService:
     _runtime_cache: dict[str, tuple[float, Any]] = {}
 
     @classmethod
+    def clear_runtime_cache(cls, prefix: str | None = None) -> None:
+        if prefix is None:
+            cls._runtime_cache.clear()
+            return
+        keys = [key for key in cls._runtime_cache if key.startswith(prefix)]
+        for key in keys:
+            cls._runtime_cache.pop(key, None)
+
+    @classmethod
     def _get_cached(cls, key: str) -> Any | None:
         cached = cls._runtime_cache.get(key)
         if not cached:
@@ -904,6 +913,93 @@ class FinanceService:
                 failed_row.processado_em = None
                 db.session.commit()
             raise
+
+    @staticmethod
+    def reverse_and_delete_document_item(
+        item_row: DocumentoEntradaEstoqueItem,
+        *,
+        usuario_matricula: str | None = None,
+    ) -> dict[str, Any]:
+        from .inventory_engine import inventory_engine
+
+        if item_row is None:
+            raise ValueError("Item do documento fiscal não encontrado.")
+
+        if (item_row.status_processamento or "").strip().lower() != "processado":
+            raise ValueError("A exclusão com estorno só se aplica a itens já processados.")
+
+        stock_movement = item_row.stock_movement or (
+            db.session.get(StockMovement, item_row.stock_movement_id)
+            if item_row.stock_movement_id is not None
+            else None
+        )
+        if stock_movement is None:
+            raise ValueError("Não foi possível localizar o movimento de estoque para estorno.")
+
+        quantity_base = abs(float(stock_movement.quantity_base or 0.0))
+        if quantity_base <= 0:
+            raise ValueError("Quantidade inválida para estornar a exclusão do item.")
+
+        unit_base = (stock_movement.unit_base or "").strip() or (
+            (item_row.item.unidade or "").strip() if item_row.item is not None else ""
+        ) or "Unidade"
+
+        documento = item_row.documento
+        metadata = {
+            "source": "documento_fiscal",
+            "channel": "documento_fiscal",
+            "reference_type": "entrada_documento_item_exclusao",
+            "reference_id": str(item_row.id_documento_item),
+            "documento_id": item_row.documento_id,
+            "documento_item_id": item_row.id_documento_item,
+            "numero_documento": documento.numero_documento if documento else None,
+            "tipo_documento": documento.tipo_documento if documento else None,
+            "user_id": usuario_matricula,
+            "matricula": usuario_matricula,
+            "observacao": item_row.observacao or (documento.observacao if documento else None),
+            "origin_movement_id": stock_movement.id,
+            "origin_movement_type": stock_movement.movement_type,
+        }
+
+        result = inventory_engine.register_exit(
+            product_id=item_row.codigo_item,
+            quantity=quantity_base,
+            from_unit=unit_base,
+            metadata=metadata,
+            commit=False,
+            write_audit=True,
+        )
+
+        return {
+            "success": True,
+            "reversed": True,
+            "documento_item_id": item_row.id_documento_item,
+            "stock_movement_id": result.movement_id,
+            "operation_log_id": result.operation_log_id,
+            "balance_before": result.balance_before,
+            "balance_after": result.balance_after,
+            "quantity_base": result.quantity_base,
+            "unit_base": result.unit_base,
+        }
+
+    @staticmethod
+    def delete_document_item_for_typo(
+        item_row: DocumentoEntradaEstoqueItem,
+        *,
+        usuario_matricula: str | None = None,
+    ) -> dict[str, Any]:
+        if item_row is None:
+            raise ValueError("Item do documento fiscal não encontrado.")
+
+        if (item_row.status_processamento or "").strip().lower() != "processado":
+            raise ValueError("A exclusão por erro de digitação é destinada a itens já processados.")
+
+        result = FinanceService.reverse_and_delete_document_item(
+            item_row,
+            usuario_matricula=usuario_matricula,
+        )
+        result["reason"] = "erro_digitacao"
+        return result
 
     @staticmethod
     def _recover_document_item_movement(item_row: DocumentoEntradaEstoqueItem) -> dict[str, Any] | None:

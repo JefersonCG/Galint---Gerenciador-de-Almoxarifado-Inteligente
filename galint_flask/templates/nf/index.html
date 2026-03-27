@@ -1831,10 +1831,35 @@
                                 <td>{% if item.valor_total is defined and item.valor_total is not none %}{{ item.valor_total|currency_br }}{% else %}-{% endif %}</td>
                                 {% if can_manage and nota_detalhes.id_documento is defined and nota_detalhes.id_documento is not none and item.id is defined and item.id is not none %}
                                 <td class="text-end">
-                                    <form method="post" action="{{ url_for('nf.excluir_item_documento', documento_id=nota_detalhes.id_documento, documento_item_id=item.id) }}" onsubmit="return confirm('Excluir este item do documento fiscal?');">
-                                        <input type="hidden" name="active_tab" value="{{ active_tab }}">
-                                        <button class="docf-btn-danger" type="submit" {% if item.status_processamento == 'processado' %}disabled title="Item já incorporado ao estoque"{% endif %}>Excluir</button>
-                                    </form>
+                                    {% if item.status_processamento == 'processado' %}
+                                    <button
+                                        class="docf-btn-danger"
+                                        type="button"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#docfDeleteModal"
+                                        data-delete-action-url="{{ url_for('nf.excluir_item_documento_por_erro_digitacao', documento_id=nota_detalhes.id_documento, documento_item_id=item.id) }}"
+                                        data-delete-title="Excluir por erro de digitação"
+                                        data-delete-summary="{{ item.codigo }} - {{ item.descricao }}"
+                                        data-delete-status="processado"
+                                        data-delete-reason="erro de digitação"
+                                        data-delete-warning="O item será estornado do estoque antes da remoção."
+                                        title="Excluir por erro de digitação e estornar o estoque."
+                                    >Excluir por erro de digitação</button>
+                                    {% else %}
+                                    <button
+                                        class="docf-btn-danger"
+                                        type="button"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#docfDeleteModal"
+                                        data-delete-action-url="{{ url_for('nf.excluir_item_documento', documento_id=nota_detalhes.id_documento, documento_item_id=item.id) }}"
+                                        data-delete-title="Excluir item do documento fiscal"
+                                        data-delete-summary="{{ item.codigo }} - {{ item.descricao }}"
+                                        data-delete-status="pendente"
+                                        data-delete-reason=""
+                                        data-delete-warning="A exclusão será registrada em SQLite para auditoria futura."
+                                        title="Excluir o item do documento fiscal."
+                                    >Excluir</button>
+                                    {% endif %}
                                 </td>
                                 {% endif %}
                             </tr>
@@ -1882,6 +1907,34 @@
         {% endif %}
     </div>
 </div>
+<div class="modal fade" id="docfDeleteModal" tabindex="-1" aria-labelledby="docfDeleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content docf-card" style="border-radius: 20px;">
+            <div class="modal-header border-0 pb-0">
+                <div>
+                    <div class="docf-kicker">Exclusão de item</div>
+                    <h5 class="modal-title docf-card-title" id="docfDeleteModalLabel">Excluir item</h5>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body pt-2">
+                <p class="docf-muted mb-2" id="docfDeleteModalSummary"></p>
+                <div class="alert alert-warning mb-3" id="docfDeleteModalWarning"></div>
+                <form method="post" id="docfDeleteForm">
+                    <input type="hidden" name="active_tab" value="{{ active_tab }}">
+                    <div class="mb-3">
+                        <label for="docfDeleteReason" class="form-label">Motivo da exclusão</label>
+                        <textarea class="form-control" id="docfDeleteReason" name="motivo_exclusao" rows="3" maxlength="500" required placeholder="Descreva o motivo para auditoria interna."></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="submit" class="btn btn-danger" form="docfDeleteForm" id="docfDeleteSubmit">Excluir</button>
+            </div>
+        </div>
+    </div>
+</div>
 <div class="docf-help-toast" id="docf-help-toast" aria-hidden="true">
     <div class="docf-help-toast-kicker">Ajuda contextual</div>
     <div class="docf-help-toast-title" id="docf-help-toast-title">Passe o mouse em um campo</div>
@@ -1920,6 +1973,13 @@
     const helpToast = document.getElementById('docf-help-toast');
     const helpToastTitle = document.getElementById('docf-help-toast-title');
     const helpToastBody = document.getElementById('docf-help-toast-body');
+    const deleteModal = document.getElementById('docfDeleteModal');
+    const deleteModalLabel = document.getElementById('docfDeleteModalLabel');
+    const deleteModalSummary = document.getElementById('docfDeleteModalSummary');
+    const deleteModalWarning = document.getElementById('docfDeleteModalWarning');
+    const deleteModalForm = document.getElementById('docfDeleteForm');
+    const deleteModalReason = document.getElementById('docfDeleteReason');
+    const deleteModalSubmit = document.getElementById('docfDeleteSubmit');
     let itemTimer = null;
     let newItemDescriptionTimer = null;
     let supplierTimer = null;
@@ -2536,6 +2596,40 @@
         });
     });
     applyRegistrationMode(tipoDocumentoInput?.value === 'cupom' ? 'cupom' : (tipoDocumentoInput?.value === 'manual' ? 'manual' : 'nf'));
+
+    deleteModal?.addEventListener('show.bs.modal', (event) => {
+        const trigger = event.relatedTarget;
+        if (!(trigger instanceof HTMLElement)) {
+            return;
+        }
+
+        const actionUrl = trigger.dataset.deleteActionUrl || '';
+        const title = trigger.dataset.deleteTitle || 'Excluir item';
+        const summary = trigger.dataset.deleteSummary || '';
+        const warning = trigger.dataset.deleteWarning || '';
+        const defaultReason = trigger.dataset.deleteReason || '';
+
+        if (deleteModalLabel) {
+            deleteModalLabel.textContent = title;
+        }
+        if (deleteModalSummary) {
+            deleteModalSummary.textContent = summary;
+        }
+        if (deleteModalWarning) {
+            deleteModalWarning.textContent = warning;
+        }
+        if (deleteModalForm) {
+            deleteModalForm.action = actionUrl;
+        }
+        if (deleteModalReason) {
+            deleteModalReason.value = defaultReason;
+            deleteModalReason.focus();
+            deleteModalReason.select();
+        }
+        if (deleteModalSubmit) {
+            deleteModalSubmit.textContent = title;
+        }
+    });
 
     document.querySelectorAll('input[name="chave_acesso"]').forEach((chaveField) => {
         chaveField.addEventListener('input', () => normalizeAccessKeyInput(chaveField));
