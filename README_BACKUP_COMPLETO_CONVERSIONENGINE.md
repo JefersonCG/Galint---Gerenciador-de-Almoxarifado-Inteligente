@@ -147,6 +147,7 @@ O papel do ConversionEngine aqui e:
 3. preparar staging isolado
 4. validar compatibilidade da origem
 5. bloquear implantacao direta quando a origem nao for segura
+6. quando o pacote for um backup completo compativel, restaurar o banco e os arquivos externos pelo pipeline oficial
 
 ---
 
@@ -172,6 +173,17 @@ Na pratica:
 3. se o backup falhar, a instalacao do update e bloqueada
 
 Isso reduz o risco de atualizar o executavel sem uma trilha minima de rollback.
+
+---
+
+## Restore completo do pacote
+
+Quando um pacote completo do GALINT passa pela analise do ConversionEngine e e considerado compativel para deploy direto, o pipeline oficial agora faz duas etapas:
+
+1. restaura o dump SQL interno do ZIP
+2. repoe os arquivos externos listados no manifesto para os destinos de static e instance
+
+Essa restauracao continua restrita ao fluxo oficial e nao foi exposta como restauracao destrutiva direta na tela de backup.
 
 ---
 

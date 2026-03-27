@@ -368,13 +368,22 @@ def conversionengine_deploy(job_id: str):
     summary = ((state.get("result") or {}).get("summary") or {})
     artifacts = ((state.get("result") or {}).get("artifacts") or {})
     backup_name = (artifacts.get("deploy_backup_name") or "").strip()
-    if not summary.get("deployable") or not backup_name:
+    source_kind = str(summary.get("source_kind") or "")
+    package_backup_kind = str(summary.get("package_backup_kind") or "")
+    if not summary.get("deployable"):
         return jsonify({"ok": False, "error": "Esta conversão não foi liberada para implantação direta."}), 409
 
     app = current_app._get_current_object()
+    conversion_service = ConversionEngineService(current_app)
 
     def _restore(reporter):
         service = BackupService(app)
+        if source_kind == "zip_package" and package_backup_kind == BackupService.COMPLETE_BACKUP_KIND:
+            source_path = conversion_service.sources_dir / str(state.get("stored_name") or "")
+            service.restore_complete_package(source_path, reporter)
+            return
+        if not backup_name:
+            raise ValueError("Nenhum artefato de restore foi gerado para esta conversão.")
         service.restore_backup_with_progress(backup_name, reporter)
 
     try:

@@ -435,6 +435,65 @@ class BackupService:
     def restore_backup(self, backup_name: str) -> str:
         return self.restore_backup_with_progress(backup_name)
 
+    def restore_complete_package(self, package_path: Path, reporter: Callable[[int, str], None] | None = None) -> str:
+        def _report(progress: int, message: str) -> None:
+            if reporter is None:
+                return
+            try:
+                reporter(int(progress), str(message))
+            except Exception:
+                return
+
+        _report(5, "Validando pacote completo...")
+        if not package_path.exists() or not package_path.is_file():
+            raise ValueError("Pacote completo não encontrado para restauração.")
+        if package_path.suffix.lower() != ".zip":
+            raise ValueError("A restauração completa exige um pacote .zip válido.")
+
+        with tempfile.TemporaryDirectory(prefix="galint_restore_full_") as temp_dir_name:
+            temp_dir = Path(temp_dir_name)
+            extracted_dir = temp_dir / "extracted"
+            extracted_dir.mkdir(parents=True, exist_ok=True)
+
+            with zipfile.ZipFile(package_path) as archive:
+                members = archive.infolist()
+                if not members:
+                    raise ValueError("O pacote ZIP está vazio.")
+                for member in members:
+                    member_path = Path(member.filename)
+                    if member_path.is_absolute() or ".." in member_path.parts:
+                        raise ValueError("O pacote ZIP contém caminhos inválidos para restauração segura.")
+                archive.extractall(extracted_dir)
+
+            manifest_path = extracted_dir / "manifest.json"
+            if not manifest_path.exists():
+                raise ValueError("O pacote completo não contém manifest.json.")
+
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            if str(manifest.get("backup_kind") or "") != self.COMPLETE_BACKUP_KIND:
+                raise ValueError("O pacote informado não é um backup completo do GALINT.")
+
+            dump_info = manifest.get("database_dump") or {}
+            dump_archive_path = str(dump_info.get("archive_path") or "").strip()
+            if not dump_archive_path:
+                raise ValueError("O manifesto do pacote não informa o dump SQL interno.")
+
+            sql_path = extracted_dir / Path(dump_archive_path)
+            if not sql_path.exists() or not sql_path.is_file():
+                raise ValueError("O dump SQL interno do pacote não foi encontrado.")
+
+            _report(25, "Restaurando dump SQL interno do pacote...")
+            self._restore_postgres_backup(sql_path, reporter=_report)
+
+            asset_entries = manifest.get("asset_entries") or []
+            restorable_assets = [entry for entry in asset_entries if entry.get("exists")]
+            if restorable_assets:
+                _report(82, "Restaurando arquivos externos do pacote...")
+                self._restore_complete_package_assets(extracted_dir=extracted_dir, asset_entries=restorable_assets, reporter=_report)
+
+        _report(100, "Restauração completa do pacote concluída.")
+        return package_path.name
+
     def get_backup_path(self, backup_name: str) -> Path:
         return self._safe_backup_path(backup_name)
 
@@ -599,6 +658,53 @@ class BackupService:
                 archive.write(source, arcname=str(entry["archive_path"]))
 
         return package_name
+
+    def _restore_complete_package_assets(
+        self,
+        *,
+        extracted_dir: Path,
+        asset_entries: list[dict[str, Any]],
+        reporter: Callable[[int, str], None] | None = None,
+    ) -> None:
+        total = max(1, len(asset_entries))
+        for index, entry in enumerate(asset_entries, start=1):
+            archive_path = str(entry.get("archive_path") or "").strip().replace("\\", "/")
+            if not archive_path:
+                continue
+            source = extracted_dir / Path(archive_path)
+            if not source.exists() or not source.is_file():
+                continue
+
+            destination = self._resolve_asset_restore_path(archive_path)
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source, destination)
+
+            if reporter is not None:
+                try:
+                    progress = 82 + int((index / total) * 16)
+                    reporter(progress, f"Restaurando ativo: {archive_path}")
+                except Exception:
+                    pass
+
+    def _resolve_asset_restore_path(self, archive_path: str) -> Path:
+        normalized = archive_path.strip().replace("\\", "/")
+        if normalized.startswith("assets/static/"):
+            relative = normalized.removeprefix("assets/static/")
+            target = Path(self._app.root_path) / "static" / Path(relative)
+        elif normalized.startswith("assets/instance/"):
+            relative = normalized.removeprefix("assets/instance/")
+            target = Path(self._app.instance_path) / Path(relative)
+        else:
+            raise ValueError(f"Caminho de ativo não suportado para restore: {archive_path}")
+
+        target_resolved = target.resolve()
+        allowed_roots = [
+            (Path(self._app.root_path) / "static").resolve(),
+            Path(self._app.instance_path).resolve(),
+        ]
+        if not any(str(target_resolved).startswith(str(root)) for root in allowed_roots):
+            raise ValueError(f"Destino inseguro detectado no restore do ativo: {archive_path}")
+        return target_resolved
 
     def _collect_complete_backup_assets(self) -> list[dict[str, Any]]:
         entries: list[dict[str, Any]] = []
