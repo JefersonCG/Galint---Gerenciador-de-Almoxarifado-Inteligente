@@ -69,6 +69,38 @@ def _parse_optional_float(raw_value: str | None, *, fallback: float | None = Non
         return fallback
 
 
+def _parse_form_checkbox(form_name: str, *, default: bool = False) -> bool:
+    values = request.form.getlist(form_name)
+    if not values:
+        return default
+    normalized = [str(value).strip().lower() for value in values]
+    truthy = {"1", "true", "on", "yes", "sim"}
+    falsy = {"0", "false", "off", "no", "nao", "não"}
+    if any(value in truthy for value in normalized):
+        return True
+    if any(value in falsy for value in normalized):
+        return False
+    return default
+
+
+def _document_reference_date_for_age(documento_emissao: date | None, documento_recebimento: date | None) -> date:
+    return documento_recebimento or documento_emissao or date.today()
+
+
+def _validate_documento_antigo(*, documento_antigo: bool, data_emissao: date | None, data_recebimento: date | None) -> None:
+    if not documento_antigo:
+        return
+
+    data_referencia = _document_reference_date_for_age(data_emissao, data_recebimento)
+    dias_corridos = (date.today() - data_referencia).days
+    if dias_corridos < 0:
+        dias_corridos = 0
+    if dias_corridos <= 28:
+        raise ValueError(
+            "Documentos com até 28 dias da data de emissão/recebimento não podem ser marcados como antigos."
+        )
+
+
 def _document_is_ready_for_nf_confirmation(documento: DocumentoEntradaEstoque) -> bool:
     tipo_documento = (documento.tipo_documento or "nf").strip().lower() or "nf"
     if not documento.data_emissao or not documento.data_recebimento:
@@ -514,6 +546,7 @@ def _document_is_complete_for_operations(documento: dict[str, Any]) -> bool:
         and items
         and all(item.get("quantidade_valida") for item in items)
         and not any(item.get("has_error") for item in items)
+        and bool(documento.get("movimenta_estoque", True))
     )
 
 def _document_missing_reasons(documento: dict[str, Any]) -> list[str]:
@@ -533,6 +566,8 @@ def _document_missing_reasons(documento: dict[str, Any]) -> list[str]:
 
     if any(item.get("has_error") for item in items):
         reasons.append("há item com erro operacional")
+    if not bool(documento.get("movimenta_estoque", True)):
+        reasons.append("lançamento financeiro sem movimentar estoque")
 
     if not reasons and any(not item.get("is_processed") for item in items):
         reasons.append("aguardando conferência operacional")
@@ -882,6 +917,8 @@ def registrar_nf():
     origem_valor = (request.form.get("finance_origem_valor") or "compra_nf").strip() or "compra_nf"
     tipo_documento = (request.form.get("finance_tipo_documento") or "nf").strip() or "nf"
     comprovacao_status = (request.form.get("finance_comprovacao_status") or "comprovado").strip() or "comprovado"
+    documento_antigo = _parse_form_checkbox("documento_antigo", default=False)
+    movimenta_estoque = not documento_antigo
     preco_unitario_raw = (request.form.get("preco_unitario") or "").strip()
     observacao = (request.form.get("finance_observacao") or "").strip() or None
     chave_acesso = (request.form.get("chave_acesso") or "").strip() or None
@@ -903,6 +940,12 @@ def registrar_nf():
         data_recebimento = date.fromisoformat(data_recebimento_raw) if data_recebimento_raw else date.today()
     except ValueError:
         data_recebimento = date.today()
+
+    _validate_documento_antigo(
+        documento_antigo=documento_antigo,
+        data_emissao=data_emissao,
+        data_recebimento=data_recebimento,
+    )
 
     try:
         if not codigo and novo_codigo:
@@ -960,6 +1003,7 @@ def registrar_nf():
             usuario_matricula=current_user.id,
             origem_valor=origem_valor,
             document_only=True,
+            movimenta_estoque=movimenta_estoque,
         )
         document_item = document_result.get("document_item")
         documento = document_result.get("document")
@@ -977,7 +1021,9 @@ def registrar_nf():
                 item_model.pre_cadastro_criado_em = item_model.pre_cadastro_criado_em or datetime.utcnow()
                 item_model.pre_cadastro_finalizado_em = None
                 db.session.commit()
-        if process_result["errors"]:
+        if not documento.movimenta_estoque:
+            flash("Documento fiscal registrado apenas no financeiro. O estoque não foi movimentado por opção do lançamento.", "info")
+        elif process_result["errors"]:
             flash("Documento registrado, mas houve falhas ao incorporar alguns itens no estoque.", "warning")
         else:
             flash("Documento fiscal registrado e incorporado ao estoque documental.", "success")
@@ -1128,6 +1174,8 @@ def editar_documento(documento_id: int):
     try:
         numero_documento = (request.form.get("numero_documento") or "").strip()
         tipo_documento = (request.form.get("tipo_documento") or "nf").strip() or "nf"
+        documento_antigo = _parse_form_checkbox("documento_antigo", default=False)
+        movimenta_estoque = not documento_antigo
         supplier_raw = (request.form.get("finance_supplier_id") or "").strip()
         supplier_id = int(supplier_raw) if supplier_raw.isdigit() else None
         supplier_name = (
@@ -1143,6 +1191,12 @@ def editar_documento(documento_id: int):
         if tipo_documento != "nf":
             chave_acesso = None
         observacao = (request.form.get("finance_observacao") or "").strip() or None
+
+        _validate_documento_antigo(
+            documento_antigo=documento_antigo,
+            data_emissao=data_emissao,
+            data_recebimento=data_recebimento,
+        )
 
         if not numero_documento:
             raise ValueError("Informe o número do documento fiscal.")
@@ -1164,6 +1218,7 @@ def editar_documento(documento_id: int):
         documento.data_recebimento = data_recebimento
         documento.chave_acesso = chave_acesso
         documento.observacao = observacao
+        documento.movimenta_estoque = movimenta_estoque
         if chave_acesso and tipo_documento == "nf":
             documento.status_integracao = "aguardando_certificado"
             documento.mensagem_integracao = "Consulta automática bloqueada até a configuração do certificado digital."
@@ -1226,7 +1281,9 @@ def editar_documento(documento_id: int):
                 "Documento fiscal atualizado. O vínculo financeiro foi sincronizado, mas a troca automática para compra com NF só ocorre após informar datas, chave de acesso e valores dos itens.",
                 "warning",
             )
-        if process_result["processed"]:
+        if not documento.movimenta_estoque:
+            flash("Documento fiscal atualizado apenas no financeiro. O estoque permaneceu inalterado.", "info")
+        elif process_result["processed"]:
             flash(f"{process_result['processed']} item(ns) pendente(s) foram incorporados ao estoque.", "info")
         if process_result["errors"]:
             flash("Nem todos os itens pendentes puderam ser incorporados ao estoque. Revise o documento para detalhes.", "warning")
@@ -1321,7 +1378,9 @@ def adicionar_item_documento(documento_id: int):
                 f"{sync_result['skipped']} item(ns) seguem sem lançamento financeiro compatível para sincronização automática.",
                 "info",
             )
-        if process_result["processed"]:
+        if not documento.movimenta_estoque:
+            flash("Item adicionado apenas no financeiro. O documento está configurado para não movimentar estoque.", "info")
+        elif process_result["processed"]:
             flash(f"{process_result['processed']} item(ns) foram incorporados ao estoque documental.", "info")
         if process_result["errors"]:
             flash("Falha ao incorporar um ou mais itens adicionados ao estoque. Revise o documento fiscal.", "warning")

@@ -1553,6 +1553,18 @@
                                     placeholder="Ex.: compra emergencial, documento conferido, valor estimado..."></textarea>
                             </div>
                             <div class="col-12">
+                                <div class="docf-panel warning mb-0">
+                                    <input type="hidden" name="documento_antigo" value="0">
+                                    <label class="form-check d-flex align-items-start gap-2 mb-0">
+                                        <input class="form-check-input mt-1" type="checkbox" name="documento_antigo" value="1">
+                                        <span>
+                                            <strong>Marcar como NF/CUPOM antigo.</strong>
+                                            <span class="d-block docf-muted">Use somente para documentos com mais de 28 dias da emissão ou do recebimento. O sistema registra os valores financeiros, mas não cria nova movimentação de materiais.</span>
+                                        </span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-12">
                                 <button class="docf-btn-primary w-100" type="submit" data-help-label="Registrar documento fiscal" data-help-text="Salva o documento principal com item, fornecedor e classificação documental.">Registrar documento fiscal</button>
                             </div>
                         </div>
@@ -1770,6 +1782,16 @@
                             <div class="docf-panel mt-3 mb-3">
                                 <div class="docf-kicker">Itens da NF</div>
                                 <p class="docf-muted mb-3">Preencha quantidade e valor unitário dos itens. Quando a NF tiver datas, chave de acesso e valores, o sistema promove automaticamente os materiais vinculados de sem comprovação para compra com NF.</p>
+                                <div class="docf-panel warning mb-3">
+                                    <input type="hidden" name="documento_antigo" value="0">
+                                    <label class="form-check d-flex align-items-start gap-2 mb-0">
+                                        <input class="form-check-input mt-1" type="checkbox" name="documento_antigo" value="1" {% if not nota_detalhes.movimenta_estoque|default(True, true) %}checked{% endif %}>
+                                        <span>
+                                            <strong>Marcar como NF/CUPOM antigo.</strong>
+                                            <span class="d-block docf-muted">Use somente para documentos com mais de 28 dias da emissão ou do recebimento. O sistema mantém os valores financeiros e bloqueia novo lançamento no estoque.</span>
+                                        </span>
+                                    </label>
+                                </div>
                                 {% for item in nota_detalhes.itens %}
                                 <div class="row g-3 align-items-end mb-3">
                                     <div class="col-lg-3">

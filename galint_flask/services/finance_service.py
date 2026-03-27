@@ -477,6 +477,7 @@ class FinanceService:
             "data": document.criado_em,
             "data_emissao": document.data_emissao,
             "data_recebimento": document.data_recebimento,
+            "movimenta_estoque": bool(document.movimenta_estoque) if document.movimenta_estoque is not None else True,
             "chave_acesso": document.chave_acesso,
             "fornecedor_id": document.fornecedor_id,
             "fornecedor_nome": supplier_name,
@@ -705,6 +706,7 @@ class FinanceService:
         usuario_matricula: str | None = None,
         origem_valor: str | None = None,
         document_only: bool = False,
+        movimenta_estoque: bool | None = None,
     ) -> dict[str, Any]:
         codigo = (codigo_item or "").strip()
         numero = (numero_documento or "").strip()
@@ -728,6 +730,7 @@ class FinanceService:
             if chave and tipo == "nf"
             else None
         )
+        movimenta_estoque_documento = True if movimenta_estoque is None else bool(movimenta_estoque)
 
         document_query = DocumentoEntradaEstoque.query.filter(
             DocumentoEntradaEstoque.tipo_documento == tipo,
@@ -746,6 +749,7 @@ class FinanceService:
                 numero_documento=numero,
                 data_emissao=data_emissao,
                 data_recebimento=data_recebimento,
+                movimenta_estoque=movimenta_estoque_documento,
                 chave_acesso=chave,
                 cnpj_emitente=cnpj,
                 fornecedor_nome=supplier_display,
@@ -757,6 +761,8 @@ class FinanceService:
             db.session.add(document)
             db.session.flush()
         else:
+            if movimenta_estoque is not None:
+                document.movimenta_estoque = movimenta_estoque_documento
             if supplier and not document.fornecedor_id:
                 document.fornecedor_id = supplier.id
             if cnpj and not document.cnpj_emitente:
@@ -829,6 +835,18 @@ class FinanceService:
         )
         if item_row is None:
             raise ValueError("Item do documento fiscal não encontrado.")
+
+        documento = item_row.documento
+        if documento is not None and not bool(getattr(documento, "movimenta_estoque", True)):
+            return {
+                "success": True,
+                "processed": False,
+                "skipped": True,
+                "reason": "movimenta_estoque_desativado",
+                "documento_item_id": item_row.id_documento_item,
+                "stock_movement_id": item_row.stock_movement_id,
+                "operation_log_id": item_row.operation_log_id,
+            }
 
         recovered = FinanceService._recover_document_item_movement(item_row)
         if recovered is not None:
@@ -1077,6 +1095,14 @@ class FinanceService:
         )
         if documento is None:
             raise ValueError("Documento fiscal não encontrado.")
+
+        if not bool(getattr(documento, "movimenta_estoque", True)):
+            return {
+                "processed": 0,
+                "skipped": len(documento.itens),
+                "errors": 0,
+                "messages": ["Documento configurado para lançamento financeiro sem movimentar estoque."],
+            }
 
         processed = 0
         skipped = 0

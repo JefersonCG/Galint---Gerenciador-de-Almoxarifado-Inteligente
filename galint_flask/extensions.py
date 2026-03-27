@@ -83,6 +83,28 @@ def _ensure_document_item_processing_columns() -> None:
         )
 
 
+def _ensure_stock_document_columns() -> None:
+    inspector = inspect(db.engine)
+    try:
+        columns = {column["name"] for column in inspector.get_columns("entrada_documentos")}
+    except Exception:
+        return
+
+    if "movimenta_estoque" in columns:
+        return
+
+    logging.getLogger(__name__).warning(
+        "Schema legado detectado em entrada_documentos; aplicando compatibilidade automatica"
+    )
+
+    with db.engine.begin() as connection:
+        connection.execute(
+            text(
+                "ALTER TABLE entrada_documentos ADD COLUMN IF NOT EXISTS movimenta_estoque boolean NOT NULL DEFAULT true"
+            )
+        )
+
+
 def register_extensions(app) -> None:
     """Attach extensions to the app instance."""
     db.init_app(app)
@@ -108,6 +130,7 @@ def register_extensions(app) -> None:
     with app.app_context():
         logging.getLogger(__name__).info("Garantindo estrutura do banco de dados")
         db.create_all()
+        _ensure_stock_document_columns()
         _ensure_document_item_processing_columns()
 
     @login_manager.user_loader

@@ -430,6 +430,7 @@ class DocumentoEntradaEstoque(db.Model):
     numero_documento: Mapped[str] = mapped_column(String(120), nullable=False)
     data_emissao: Mapped[date | None] = mapped_column(Date, nullable=True)
     data_recebimento: Mapped[date | None] = mapped_column(Date, nullable=True)
+    movimenta_estoque: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     chave_acesso: Mapped[str | None] = mapped_column(String(64), nullable=True)
     cnpj_emitente: Mapped[str | None] = mapped_column(String(18), nullable=True)
     fornecedor_nome: Mapped[str | None] = mapped_column(String(200), nullable=True)
