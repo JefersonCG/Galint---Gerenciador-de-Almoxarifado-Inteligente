@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from datetime import date, datetime, time, timedelta
+from datetime import date, datetime, time
 from io import BytesIO
 from typing import Any
-import calendar
 import re
 from time import monotonic
 
@@ -70,6 +69,21 @@ class FinanceService:
         return "".join(ch for ch in (value or "") if ch.isdigit())
 
     @staticmethod
+    def _payload_value(payload: Any, *path: str) -> Any:
+        current = payload
+        for key in path:
+            if not isinstance(current, dict):
+                return None
+            current = current.get(key)
+            if current is None:
+                return None
+        return current
+
+    @staticmethod
+    def _as_text(value: Any) -> str:
+        return str(value or "").strip()
+
+    @staticmethod
     def get_config() -> FinanceConfig:
         config = FinanceConfig.query.first()
         if not config:
@@ -101,14 +115,8 @@ class FinanceService:
         return config
 
     @staticmethod
-    def _clamped_closing_date(year: int, month: int, day: int) -> date:
-        max_day = calendar.monthrange(year, month)[1]
-        safe_day = max(1, min(day, max_day))
-        return date(year, month, safe_day)
-
     @staticmethod
     def get_exercise_for_date(reference: date | datetime | None = None) -> dict[str, Any]:
-        config = FinanceService.get_config()
         if reference is None:
             ref_date = date.today()
         elif isinstance(reference, datetime):
@@ -116,33 +124,16 @@ class FinanceService:
         else:
             ref_date = reference
 
-        current_year_closing = FinanceService._clamped_closing_date(
-            ref_date.year,
-            int(config.mes_fechamento or 2),
-            int(config.dia_fechamento or 10),
-        )
-        if ref_date <= current_year_closing:
-            end_date = current_year_closing
-        else:
-            end_date = FinanceService._clamped_closing_date(
-                ref_date.year + 1,
-                int(config.mes_fechamento or 2),
-                int(config.dia_fechamento or 10),
-            )
-        previous_closing = FinanceService._clamped_closing_date(
-            end_date.year - 1,
-            int(config.mes_fechamento or 2),
-            int(config.dia_fechamento or 10),
-        )
-        start_date = previous_closing + timedelta(days=1)
+        start_date = date(ref_date.year, 1, 1)
+        end_date = date(ref_date.year, 12, 31)
         return {
-            "label": f"{start_date.year}/{end_date.year}",
+            "label": f"{ref_date.year}",
             "start_date": start_date,
             "end_date": end_date,
             "start_dt": datetime.combine(start_date, time.min),
             "end_dt": datetime.combine(end_date, time.max),
-            "closing_day": int(config.dia_fechamento or 10),
-            "closing_month": int(config.mes_fechamento or 2),
+            "closing_day": 31,
+            "closing_month": 12,
         }
 
     @staticmethod
@@ -165,11 +156,10 @@ class FinanceService:
         end_ref = max(today, max_dt.date() if max_dt else today)
 
         labels: dict[str, dict[str, Any]] = {}
-        cursor_year = start_ref.year - 1
-        last_year = end_ref.year + 1
+        cursor_year = start_ref.year
+        last_year = end_ref.year
         while cursor_year <= last_year:
-            ref = date(cursor_year, 7, 1)
-            exercise = FinanceService.get_exercise_for_date(ref)
+            exercise = FinanceService.get_exercise_for_date(date(cursor_year, 7, 1))
             labels[exercise["label"]] = exercise
             cursor_year += 1
 
@@ -183,24 +173,34 @@ class FinanceService:
             return FinanceService.get_exercise_for_date()
 
         clean = (label or "").strip()
-        match = re.match(r"^(\d{4})\/(\d{4})$", clean)
-        if match:
-            start_year = int(match.group(1))
-            end_year = int(match.group(2))
-            config = FinanceService.get_config()
-            closing_month = int(config.mes_fechamento or 2)
-            closing_day = int(config.dia_fechamento or 10)
-            end_date = FinanceService._clamped_closing_date(end_year, closing_month, closing_day)
-            previous_closing = FinanceService._clamped_closing_date(start_year, closing_month, closing_day)
-            start_date = previous_closing + timedelta(days=1)
+        year_match = re.match(r"^(\d{4})$", clean)
+        if year_match:
+            year = int(year_match.group(1))
+            start_date = date(year, 1, 1)
+            end_date = date(year, 12, 31)
             return {
-                "label": f"{start_date.year}/{end_date.year}",
+                "label": f"{year}",
                 "start_date": start_date,
                 "end_date": end_date,
                 "start_dt": datetime.combine(start_date, time.min),
                 "end_dt": datetime.combine(end_date, time.max),
-                "closing_day": closing_day,
-                "closing_month": closing_month,
+                "closing_day": 31,
+                "closing_month": 12,
+            }
+
+        match = re.match(r"^(\d{4})\/(\d{4})$", clean)
+        if match:
+            year = int(match.group(2))
+            start_date = date(year, 1, 1)
+            end_date = date(year, 12, 31)
+            return {
+                "label": f"{year}",
+                "start_date": start_date,
+                "end_date": end_date,
+                "start_dt": datetime.combine(start_date, time.min),
+                "end_dt": datetime.combine(end_date, time.max),
+                "closing_day": 31,
+                "closing_month": 12,
             }
 
         for exercise in FinanceService.get_available_exercises():
@@ -316,6 +316,11 @@ class FinanceService:
                 FinanceService._map_brasilapi_supplier,
                 "BrasilAPI",
             ),
+            (
+                f"https://publica.cnpj.ws/cnpj/{digits}",
+                FinanceService._map_cnpjws_supplier,
+                "CNPJ.ws",
+            ),
         ]
 
         errors: list[str] = []
@@ -326,7 +331,11 @@ class FinanceService:
                 if response.status_code >= 400:
                     errors.append(f"{source}: HTTP {response.status_code}")
                     continue
-                payload = response.json()
+                try:
+                    payload = response.json()
+                except ValueError as exc:
+                    errors.append(f"{source}: resposta JSON inválida ({exc})")
+                    continue
                 mapped = mapper(payload)
                 mapped["api_origem"] = source
                 mapped["data_consulta_cnpj"] = datetime.utcnow()
@@ -339,22 +348,51 @@ class FinanceService:
     @staticmethod
     def _map_brasilapi_supplier(payload: dict[str, Any]) -> dict[str, Any]:
         return {
-            "razao_social": (payload.get("razao_social") or payload.get("nome") or "").strip(),
-            "nome_fantasia": (payload.get("nome_fantasia") or "").strip() or None,
+            "razao_social": FinanceService._as_text(payload.get("razao_social") or payload.get("nome")),
+            "nome_fantasia": FinanceService._as_text(payload.get("nome_fantasia")) or None,
             "cnpj": FinanceService.normalize_cnpj(payload.get("cnpj")),
             "inscricao_estadual": None,
-            "endereco_rua": (payload.get("logradouro") or "").strip() or None,
-            "endereco_numero": (payload.get("numero") or "").strip() or None,
-            "endereco_complemento": (payload.get("complemento") or "").strip() or None,
-            "endereco_bairro": (payload.get("bairro") or "").strip() or None,
-            "endereco_cidade": (payload.get("municipio") or "").strip() or None,
-            "endereco_estado": (payload.get("uf") or "").strip() or None,
-            "endereco_cep": (payload.get("cep") or "").strip() or None,
-            "telefone": (payload.get("ddd_telefone_1") or payload.get("ddd_telefone_2") or "").strip() or None,
-            "email": (payload.get("email") or "").strip() or None,
-            "situacao_cadastral": (payload.get("descricao_situacao_cadastral") or payload.get("situacao_cadastral") or "").strip() or None,
+            "endereco_rua": FinanceService._as_text(payload.get("logradouro")) or None,
+            "endereco_numero": FinanceService._as_text(payload.get("numero")) or None,
+            "endereco_complemento": FinanceService._as_text(payload.get("complemento")) or None,
+            "endereco_bairro": FinanceService._as_text(payload.get("bairro")) or None,
+            "endereco_cidade": FinanceService._as_text(payload.get("municipio")) or None,
+            "endereco_estado": FinanceService._as_text(payload.get("uf")) or None,
+            "endereco_cep": FinanceService._as_text(payload.get("cep")) or None,
+            "telefone": FinanceService._as_text(payload.get("ddd_telefone_1") or payload.get("ddd_telefone_2")) or None,
+            "email": FinanceService._as_text(payload.get("email")) or None,
+            "situacao_cadastral": FinanceService._as_text(payload.get("descricao_situacao_cadastral") or payload.get("situacao_cadastral")) or None,
             "site": None,
             "observacoes": None,
+            "ativo": True,
+        }
+
+    @staticmethod
+    def _map_cnpjws_supplier(payload: dict[str, Any]) -> dict[str, Any]:
+        estabelecimento = payload.get("estabelecimento") or {}
+        atividade_principal = payload.get("atividade_principal") or {}
+        razao_social = FinanceService._as_text(payload.get("razao_social") or payload.get("empresa", {}).get("razao_social") if isinstance(payload.get("empresa"), dict) else None)
+        if not razao_social:
+            razao_social = FinanceService._as_text(payload.get("nome"))
+        nome_fantasia = FinanceService._as_text(estabelecimento.get("nome_fantasia") or payload.get("nome_fantasia")) or None
+        endereco_numero = FinanceService._as_text(estabelecimento.get("numero")) or None
+        return {
+            "razao_social": razao_social,
+            "nome_fantasia": nome_fantasia,
+            "cnpj": FinanceService.normalize_cnpj(payload.get("cnpj") or estabelecimento.get("cnpj")),
+            "inscricao_estadual": FinanceService._as_text(estabelecimento.get("inscricoes_estaduais", [None])[0] if isinstance(estabelecimento.get("inscricoes_estaduais"), list) and estabelecimento.get("inscricoes_estaduais") else estabelecimento.get("inscricao_estadual")) or None,
+            "endereco_rua": FinanceService._as_text(estabelecimento.get("logradouro")) or None,
+            "endereco_numero": endereco_numero,
+            "endereco_complemento": FinanceService._as_text(estabelecimento.get("complemento")) or None,
+            "endereco_bairro": FinanceService._as_text(estabelecimento.get("bairro")) or None,
+            "endereco_cidade": FinanceService._as_text(estabelecimento.get("cidade", {}).get("nome") if isinstance(estabelecimento.get("cidade"), dict) else estabelecimento.get("municipio")) or None,
+            "endereco_estado": FinanceService._as_text(estabelecimento.get("estado", {}).get("sigla") if isinstance(estabelecimento.get("estado"), dict) else estabelecimento.get("uf")) or None,
+            "endereco_cep": FinanceService._as_text(estabelecimento.get("cep")) or None,
+            "telefone": FinanceService._as_text(estabelecimento.get("ddd1") or estabelecimento.get("ddd2") or payload.get("telefone")) or None,
+            "email": FinanceService._as_text(estabelecimento.get("email")) or None,
+            "situacao_cadastral": FinanceService._as_text(payload.get("situacao_cadastral") or estabelecimento.get("situacao_cadastral")) or None,
+            "site": FinanceService._as_text(payload.get("site")) or None,
+            "observacoes": atividade_principal.get("descricao") or None,
             "ativo": True,
         }
 

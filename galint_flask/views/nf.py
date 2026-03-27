@@ -870,6 +870,30 @@ def autocomplete_documentos():
     return jsonify({"success": True, "results": finance_service.search_stock_documents(term, limit=8)})
 
 
+@blueprint.get("/api/documentos/<numero>/detalhes")
+@login_required
+def documento_detalhes(numero: str):
+    _require_admin()
+    documento = inventory_service.get_nota_fiscal(numero)
+    if not documento:
+        return jsonify({"success": False, "message": "Documento não encontrado."}), 404
+
+    payload = {
+        "numero_documento": documento.get("numero_documento") or documento.get("nota_fiscal") or numero,
+        "tipo_documento": documento.get("tipo_documento"),
+        "fornecedor_id": documento.get("fornecedor_id"),
+        "fornecedor_nome": documento.get("fornecedor_nome"),
+        "cnpj_emitente": documento.get("cnpj_emitente"),
+        "data_emissao": documento.get("data_emissao").isoformat() if getattr(documento.get("data_emissao"), "isoformat", None) else None,
+        "data_recebimento": documento.get("data_recebimento").isoformat() if getattr(documento.get("data_recebimento"), "isoformat", None) else None,
+        "chave_acesso": documento.get("chave_acesso"),
+        "movimenta_estoque": bool(documento.get("movimenta_estoque", True)),
+        "status_integracao": documento.get("status_integracao"),
+        "mensagem_integracao": documento.get("mensagem_integracao"),
+    }
+    return jsonify({"success": True, "document": payload})
+
+
 @blueprint.get("/")
 @login_required
 def nf_index():

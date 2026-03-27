@@ -1981,6 +1981,7 @@
     const supplierCnpjInput = document.getElementById('supplier_cnpj');
     const emissionDateInput = document.getElementById('data_emissao');
     const receiptDateInput = document.getElementById('data_recebimento');
+    const chaveAcessoInput = document.getElementById('chave_acesso');
     const lookupCnpjButton = document.getElementById('btn-buscar-cnpj');
     const tipoDocumentoInput = document.getElementById('finance_tipo_documento');
     const origemValorInput = document.getElementById('finance_origem_valor');
@@ -2742,7 +2743,31 @@
         if (tipoDocumentoInput && doc.tipo_documento) tipoDocumentoInput.value = doc.tipo_documento;
         if (emissionDateInput && doc.data_emissao) emissionDateInput.value = doc.data_emissao;
         if (receiptDateInput && doc.data_recebimento) receiptDateInput.value = doc.data_recebimento;
+        if (chaveAcessoInput && doc.chave_acesso) chaveAcessoInput.value = doc.chave_acesso;
         hideNotaResults();
+    };
+
+    const lookupDocumentDetailsForForm = async (form, numeroDocumento) => {
+        if (!form || !numeroDocumento) return null;
+        const digits = String(numeroDocumento).trim();
+        if (digits.length < 2) return null;
+        try {
+            const response = await fetch(`{{ url_for('nf.documento_detalhes', numero='__NUM__') }}`.replace('__NUM__', encodeURIComponent(digits)), {
+                headers: { 'Accept': 'application/json' },
+                credentials: 'same-origin'
+            });
+            if (!response.ok) {
+                return null;
+            }
+            const data = await response.json();
+            if (!data.success || !data.document) {
+                return null;
+            }
+            applyDocumentSuggestion(data.document);
+            return data.document;
+        } catch (_) {
+            return null;
+        }
     };
 
     const renderNotaResults = (items) => {
@@ -2828,7 +2853,18 @@
             } catch (_) {
                 hideNotaResults();
             }
+            await lookupDocumentDetailsForForm(nfForm, q);
         }, 220);
+    });
+
+    notaFiscalInput?.addEventListener('blur', () => {
+        const q = notaFiscalInput.value.trim();
+        lookupDocumentDetailsForForm(nfForm, q);
+    });
+
+    notaFiscalInput?.addEventListener('change', () => {
+        const q = notaFiscalInput.value.trim();
+        lookupDocumentDetailsForForm(nfForm, q);
     });
 
     document.addEventListener('click', (event) => {
