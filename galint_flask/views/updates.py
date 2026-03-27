@@ -1,7 +1,8 @@
 """Views para gerenciamento de atualizações."""
-from flask import Blueprint, render_template, jsonify, request, flash, redirect, url_for
+from flask import Blueprint, render_template, jsonify, request, flash, redirect, url_for, current_app
 from flask_login import login_required, current_user
 
+from ..services.backup import BackupService
 from ..services.update_service import UpdateService
 from ..paths import get_version, is_frozen
 
@@ -26,6 +27,7 @@ def index():
     settings = UpdateService.get_auto_update_settings()
     history = UpdateService.get_update_history()
     pending = UpdateService.get_pending_update()
+    latest_backup = BackupService(current_app).list_backups()[:1]
     
     return render_template(
         'updates/index.html',
@@ -33,7 +35,8 @@ def index():
         is_executable=is_executable,
         settings=settings,
         history=history,
-        pending=pending
+        pending=pending,
+        latest_backup=latest_backup[0] if latest_backup else None,
     )
 
 
@@ -116,6 +119,11 @@ def install():
     
     if not update_file.exists():
         return jsonify({'error': 'Arquivo de atualização não encontrado'}), 404
+
+    try:
+        backup_info = BackupService(current_app).ensure_backup_for_update(prefer_complete=True)
+    except ValueError as exc:
+        return jsonify({'error': f'Falha ao gerar backup pré-update: {exc}'}), 500
     
     # Agenda instalação
     success = UpdateService.install_update(update_file)
@@ -126,7 +134,8 @@ def install():
     return jsonify({
         'success': True,
         'message': 'Instalação agendada! O sistema será reiniciado em instantes...',
-        'action': 'restart_required'
+        'action': 'restart_required',
+        'backup_info': backup_info,
     })
 
 

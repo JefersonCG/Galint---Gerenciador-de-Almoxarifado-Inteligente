@@ -210,6 +210,7 @@
         const packageTemplate = "{{ url_for('pages.conversionengine_download_package', job_id='__JOB__') }}";
         const deployTemplate = "{{ url_for('pages.conversionengine_deploy', job_id='__JOB__') }}";
         const restoreStatusTemplate = "{{ url_for('pages.restore_backup_status', job_id='__JOB__') }}";
+        const initialJobId = {{ initial_job_id|tojson }};
 
         const form = document.getElementById('conversionForm');
         const startBtn = document.getElementById('startConversionBtn');
@@ -346,6 +347,14 @@
                 deployabilityBadge.innerHTML = '<i class="bi bi-shield-exclamation"></i> Deploy direto bloqueado';
                 const blockers = (summary.deploy_blockers || []).join(' ');
                 deployHint.textContent = blockers || 'O motor gerou apenas o pacote técnico para revisão.';
+            }
+
+            if (summary.required_app_version || summary.source_app_version) {
+                const versionNotes = [];
+                if (summary.source_app_version) versionNotes.push('Origem: ' + summary.source_app_version);
+                if (summary.current_app_version) versionNotes.push('Destino: ' + summary.current_app_version);
+                if (summary.required_app_version) versionNotes.push('Mínimo: ' + summary.required_app_version);
+                deployHint.textContent += ' ' + versionNotes.join(' | ');
             }
 
             downloadSqlBtn.classList.toggle('disabled', !artifacts.converted_sql_name);
@@ -515,6 +524,15 @@
 
         form?.addEventListener('submit', startConversion);
         deployNowBtn?.addEventListener('click', deployNow);
+
+        if (initialJobId) {
+            currentJobId = initialJobId;
+            progressWrap.style.display = 'block';
+            jobLabel.textContent = initialJobId;
+            refreshJob();
+            stopPolling();
+            pollTimer = window.setInterval(refreshJob, 2200);
+        }
     })();
 </script>
 {% endblock %}

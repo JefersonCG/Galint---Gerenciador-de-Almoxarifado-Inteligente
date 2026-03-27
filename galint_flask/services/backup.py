@@ -28,6 +28,7 @@ class BackupService:
     MANIFEST_SCHEMA_VERSION = "1.0"
     COMPLETE_BACKUP_KIND = "complete"
     DATABASE_BACKUP_KIND = "database"
+    UPDATE_BACKUP_MAX_AGE_MINUTES = 30
 
     def __init__(self, app):
         self._app = app
@@ -434,6 +435,38 @@ class BackupService:
     def restore_backup(self, backup_name: str) -> str:
         return self.restore_backup_with_progress(backup_name)
 
+    def get_backup_path(self, backup_name: str) -> Path:
+        return self._safe_backup_path(backup_name)
+
+    def ensure_backup_for_update(self, *, max_age_minutes: int | None = None, prefer_complete: bool = True) -> dict[str, Any]:
+        age_limit = max_age_minutes if max_age_minutes is not None else self.UPDATE_BACKUP_MAX_AGE_MINUTES
+        backups = self.list_backups()
+        candidates = backups
+        if prefer_complete:
+            complete_backups = [item for item in backups if item.get("kind") == self.COMPLETE_BACKUP_KIND]
+            candidates = complete_backups or backups
+
+        latest = candidates[0] if candidates else None
+        if latest:
+            candidate = self.get_backup_path(str(latest["name"]))
+            age_minutes = max(0.0, (time.time() - candidate.stat().st_mtime) / 60.0)
+            if age_minutes <= age_limit:
+                return {
+                    "backup_name": str(latest["name"]),
+                    "kind": str(latest.get("kind") or self.DATABASE_BACKUP_KIND),
+                    "created_now": False,
+                    "age_minutes": round(age_minutes, 1),
+                }
+
+        backup_kind = self.COMPLETE_BACKUP_KIND if prefer_complete else self.DATABASE_BACKUP_KIND
+        backup_name = self.create_backup(backup_kind=backup_kind)
+        return {
+            "backup_name": backup_name,
+            "kind": backup_kind,
+            "created_now": True,
+            "age_minutes": 0.0,
+        }
+
     def restore_backup_with_progress(
         self,
         backup_name: str,
@@ -642,6 +675,7 @@ class BackupService:
             "app_version": current_version,
             "compatibility": {
                 "minimum_app_version": current_version,
+                "source_app_version": current_version,
                 "recommended_restore_path": "ConversionEngine",
                 "direct_restore_supported": False,
             },

@@ -31,6 +31,7 @@ from werkzeug.utils import secure_filename
 
 from .backup import BackupService
 from ..extensions import db
+from ..paths import get_version
 
 
 class _AppWithContext(Protocol):
@@ -181,6 +182,20 @@ def get_conversion_job_state(*, job_id: str, user_key: str) -> dict[str, Any] | 
         return asdict(state)
 
 
+def is_newer_version(new: str, current: str) -> bool:
+    try:
+        new = (new or "").lstrip("v")
+        current = (current or "").lstrip("v")
+        new_parts = [int(x) for x in new.split(".") if x != ""]
+        current_parts = [int(x) for x in current.split(".") if x != ""]
+        max_len = max(len(new_parts), len(current_parts))
+        new_parts.extend([0] * (max_len - len(new_parts)))
+        current_parts.extend([0] * (max_len - len(current_parts)))
+        return new_parts > current_parts
+    except Exception:
+        return False
+
+
 class ConversionEngineService:
     ALLOWED_SUFFIXES = {".sql", ".zip", ".sqlite", ".db"}
     SQL_SUFFIXES = {".sql"}
@@ -286,6 +301,16 @@ class ConversionEngineService:
             "stored_name": stored_name,
         }
 
+    def register_existing_backup(self, backup_name: str) -> dict[str, str]:
+        source = self.backup_service.get_backup_path(backup_name)
+        stored_name = f"{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}_{uuid4().hex[:10]}_{source.name}"
+        destination = self.sources_dir / stored_name
+        shutil.copy2(source, destination)
+        return {
+            "source_name": source.name,
+            "stored_name": stored_name,
+        }
+
     def run_conversion(self, *, stored_name: str, source_name: str, reporter) -> dict[str, Any]:
         source_path = self.sources_dir / stored_name
         if not source_path.exists():
@@ -370,6 +395,7 @@ class ConversionEngineService:
             "stored_name": source_path.name,
             "received_at": _now_iso(),
             "stage_token": stage_token,
+            "package_manifest": None,
         }
 
         if source_suffix in self.SQL_SUFFIXES:
@@ -401,6 +427,13 @@ class ConversionEngineService:
                     if member_path.is_absolute() or ".." in member_path.parts:
                         raise ValueError("O ZIP contém caminhos inválidos para extração segura.")
                 archive.extractall(extracted_dir)
+
+            manifest_path = extracted_dir / "manifest.json"
+            if manifest_path.exists() and manifest_path.is_file():
+                try:
+                    metadata["package_manifest"] = json.loads(manifest_path.read_text(encoding="utf-8"))
+                except Exception:
+                    metadata["package_manifest"] = None
 
             candidates = [
                 item
@@ -444,6 +477,7 @@ class ConversionEngineService:
         profile["source_kind"] = source_kind
         profile["analysis_source_name"] = prepared["analysis_source_name"]
         profile["staging_workspace"] = prepared["stage_token"]
+        profile["package_manifest"] = prepared.get("package_manifest")
         if prepared.get("zip_candidates"):
             profile["zip_candidates"] = prepared["zip_candidates"]
         return profile
@@ -688,6 +722,8 @@ class ConversionEngineService:
         alias_mapped_tables: list[str] = []
         source_engine = str(profile.get("source_engine") or "postgresql")
         source_kind = str(profile.get("source_kind") or "sql_dump")
+        package_manifest = profile.get("package_manifest") or {}
+        current_app_version = get_version()
 
         for source_table, source_meta in profile["tables"].items():
             target_table, mapped_by_alias = self.resolve_target_table(source_table, target_schema)
@@ -767,6 +803,23 @@ class ConversionEngineService:
             risk_level = "alto"
 
         blockers: list[str] = []
+        compatibility = package_manifest.get("compatibility") or {}
+        package_backup_kind = str(package_manifest.get("backup_kind") or "").strip()
+        minimum_app_version = str(compatibility.get("minimum_app_version") or "").strip()
+        source_app_version = str(compatibility.get("source_app_version") or package_manifest.get("app_version") or "").strip()
+
+        if minimum_app_version and is_newer_version(minimum_app_version, current_app_version):
+            blockers.append(
+                f"O pacote exige GALINT {minimum_app_version} ou superior, mas o ambiente atual está em {current_app_version}."
+            )
+            deployable = False
+
+        if package_backup_kind == BackupService.COMPLETE_BACKUP_KIND and source_app_version and source_app_version != current_app_version:
+            blockers.append(
+                f"O pacote completo foi gerado na versão {source_app_version} e o ambiente atual está em {current_app_version}; revisar compatibilidade antes de implantar."
+            )
+            deployable = False
+
         if source_engine != "postgresql":
             blockers.append(
                 f"Origem detectada como {source_engine}; o deploy direto do GALINT continua restrito a artefatos PostgreSQL compatíveis."
@@ -844,6 +897,10 @@ class ConversionEngineService:
                 "deploy_blockers": blockers,
                 "source_engine": source_engine,
                 "source_kind": source_kind,
+                "current_app_version": current_app_version,
+                "required_app_version": minimum_app_version or None,
+                "source_app_version": source_app_version or None,
+                "package_backup_kind": package_backup_kind or None,
             },
             "mappings": sorted(mappings, key=lambda item: (-item["rows"], item["source_table"])),
             "tasks": tasks,

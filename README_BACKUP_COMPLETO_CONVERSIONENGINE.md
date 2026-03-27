@@ -130,8 +130,8 @@ Ele registra:
 1. abrir Configuracoes > Backup
 2. clicar em Gerar pacote completo
 3. aguardar a criacao do arquivo ZIP
-4. abrir Configuracoes > ConversionEngine
-5. enviar o arquivo ZIP gerado
+4. selecionar o backup na grade e usar Enviar ao ConversionEngine
+5. o sistema abrirá o ConversionEngine com o job ja iniciado
 6. deixar o motor extrair e localizar o dump SQL interno
 7. revisar staging, manifest.json e compatibilidade
 8. somente depois decidir pela implantacao ou restauracao oficial
@@ -147,6 +147,31 @@ O papel do ConversionEngine aqui e:
 3. preparar staging isolado
 4. validar compatibilidade da origem
 5. bloquear implantacao direta quando a origem nao for segura
+
+---
+
+## Compatibilidade de versao
+
+O pacote completo agora declara no manifesto:
+
+1. versao do GALINT que gerou o pacote
+2. versao minima do GALINT para aceitacao
+
+Durante a analise no ConversionEngine, o pipeline compara essas informacoes com a versao atual da aplicacao. Quando houver incompatibilidade, o deploy direto e bloqueado e o usuario recebe o bloqueio no resultado do job.
+
+---
+
+## Integracao com update
+
+O fluxo de atualizacao passou a exigir um backup recente antes da instalacao.
+
+Na pratica:
+
+1. ao instalar uma atualizacao, o GALINT tenta reutilizar um backup recente
+2. se nao houver um pacote recente, ele gera um pacote completo antes do update
+3. se o backup falhar, a instalacao do update e bloqueada
+
+Isso reduz o risco de atualizar o executavel sem uma trilha minima de rollback.
 
 ---
 

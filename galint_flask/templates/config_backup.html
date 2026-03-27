@@ -117,7 +117,7 @@
         <div class="card-header"><strong>Arquivos de backup</strong><span class="text-muted small d-block mt-1">Gerencie as cópias geradas localmente. A restauração foi centralizada no ConversionEngine.</span></div>
         <div class="card-body">
             {% if backups %}
-            <form method="post" action="{{ url_for('pages.delete_backup') }}">
+            <form method="post" action="{{ url_for('pages.delete_backup') }}" id="backupCatalogForm">
                 <div class="table-responsive mb-3">
                     <table class="table table-sm align-middle mb-0">
                         <thead>
@@ -147,6 +147,7 @@
                     </table>
                 </div>
                 <div class="backup-actions justify-content-end">
+                    <button class="btn btn-outline-info rounded-pill px-4" type="submit" formaction="{{ url_for('pages.conversionengine_start_from_backup') }}">Enviar ao ConversionEngine</button>
                     <button class="btn btn-outline-danger rounded-pill px-4" type="submit" onclick="return confirm('Apagar o backup selecionado?');">Apagar backup</button>
                 </div>
             </form>

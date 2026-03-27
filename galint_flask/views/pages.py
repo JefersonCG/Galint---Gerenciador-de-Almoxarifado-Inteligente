@@ -178,6 +178,7 @@ def config_conversionengine():
         "config_conversionengine.html",
         dashboard=service.dashboard_payload(),
         content_html=content_html,
+        initial_job_id=(request.args.get("job_id") or "").strip(),
     )
 
 
@@ -273,6 +274,39 @@ def conversionengine_start():
     except ValueError as exc:
         return jsonify({"ok": False, "error": str(exc)}), 400
     return jsonify({"ok": True, "job_id": job_id})
+
+
+@blueprint.post("/configuracoes/conversionengine/analisar-backup")
+@login_required
+def conversionengine_start_from_backup():
+    _require_admin()
+    _prime_admin_session()
+
+    backup_name = (request.form.get("backup_name") or "").strip()
+    if not backup_name:
+        flash("Selecione um backup para enviar ao ConversionEngine.", "warning")
+        return redirect(url_for("pages.config_backup"))
+
+    user_key = str(session.get("_user_id") or "").strip()
+    if not user_key:
+        flash("Sessão administrativa inválida para iniciar o ConversionEngine.", "danger")
+        return redirect(url_for("pages.config_backup"))
+
+    try:
+        service = ConversionEngineService(current_app)
+        stored = service.register_existing_backup(backup_name)
+        job_id = start_conversion_job(
+            app=current_app._get_current_object(),
+            user_key=user_key,
+            source_name=stored["source_name"],
+            stored_name=stored["stored_name"],
+        )
+    except ValueError as exc:
+        flash(str(exc), "danger")
+        return redirect(url_for("pages.config_backup"))
+
+    flash(f"Backup enviado ao ConversionEngine: {backup_name}", "success")
+    return redirect(url_for("pages.config_conversionengine", job_id=job_id))
 
 
 @blueprint.get("/configuracoes/conversionengine/status/<job_id>")

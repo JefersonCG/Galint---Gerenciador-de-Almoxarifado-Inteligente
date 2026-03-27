@@ -147,6 +147,13 @@
         border: 1px solid rgba(245, 158, 11, 0.24);
     }
     .updates-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+    .updates-backup-banner {
+        border-radius: 20px;
+        border: 1px solid rgba(34,197,94,0.22);
+        background: linear-gradient(145deg, rgba(6,78,59,0.36), rgba(15,23,42,0.88));
+        padding: 1rem;
+        margin-top: 1rem;
+    }
     @media (max-width: 1200px) { .updates-kpis { grid-template-columns: repeat(2, minmax(0,1fr)); } }
     @media (max-width: 768px) {
         .updates-shell { padding: 1rem; border-radius: 22px; }
@@ -259,6 +266,17 @@
                             </div>
                             <button class="btn btn-success rounded-pill px-4" id="btnInstall"><i class="bi bi-arrow-repeat me-2"></i>Instalar e reiniciar</button>
                         </div>
+                    </div>
+
+                    <div class="updates-backup-banner">
+                        <div class="small text-uppercase text-muted fw-semibold mb-2">Proteção pré-update</div>
+                        {% if latest_backup %}
+                        <div class="fw-semibold">Último backup detectado: {{ latest_backup.name }}</div>
+                        <div class="text-muted small">Tipo: {{ latest_backup.label }}. A instalação agora força um backup completo recente antes de prosseguir.</div>
+                        {% else %}
+                        <div class="fw-semibold">Nenhum backup detectado.</div>
+                        <div class="text-muted small">Se necessário, o GALINT tentará gerar um pacote completo imediatamente antes da instalação.</div>
+                        {% endif %}
                     </div>
 
                     {% if not is_executable %}
@@ -463,7 +481,9 @@ async function installUpdate() {
         const data = await response.json();
         
         if (data.success) {
-            alert('Atualização agendada! O sistema será reiniciado em instantes...');
+            const backupInfo = data.backup_info || null;
+            const backupMessage = backupInfo ? '\nBackup pré-update: ' + backupInfo.backup_name : '';
+            alert('Atualização agendada! O sistema será reiniciado em instantes...' + backupMessage);
             
             // Aguardar 2 segundos e fechar a janela
             setTimeout(() => {
