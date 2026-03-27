@@ -282,7 +282,8 @@ def conversionengine_start_from_backup():
     _require_admin()
     _prime_admin_session()
 
-    backup_name = (request.form.get("backup_name") or "").strip()
+    selected_names = [str(name).strip() for name in request.form.getlist("backup_names") if str(name).strip()]
+    backup_name = selected_names[0] if len(selected_names) == 1 else ""
     if not backup_name:
         flash("Selecione um backup para enviar ao ConversionEngine.", "warning")
         return redirect(url_for("pages.config_backup"))
@@ -403,16 +404,29 @@ def conversionengine_deploy(job_id: str):
 @login_required
 def delete_backup():
     _require_admin()
-    backup_name = request.form.get("backup_name")
-    if not backup_name:
-        flash("Selecione um backup para apagar.", "warning")
+    backup_names = [str(name).strip() for name in request.form.getlist("backup_names") if str(name).strip()]
+    if not backup_names:
+        flash("Selecione ao menos um backup para apagar.", "warning")
         return redirect(url_for("pages.config_backup"))
+
     service = BackupService(current_app)
-    try:
-        removed = service.delete_backup(backup_name)
-        flash(f"Backup removido: {removed}", "success")
-    except ValueError as exc:
-        flash(str(exc), "danger")
+    removed_names: list[str] = []
+    failed_messages: list[str] = []
+    for backup_name in backup_names:
+        try:
+            removed_names.append(service.delete_backup(backup_name))
+        except ValueError as exc:
+            failed_messages.append(f"{backup_name}: {exc}")
+
+    if removed_names:
+        if len(removed_names) == 1:
+            flash(f"Backup removido: {removed_names[0]}", "success")
+        else:
+            flash(f"{len(removed_names)} backups removidos com sucesso.", "success")
+
+    for message in failed_messages:
+        flash(message, "danger")
+
     return redirect(url_for("pages.config_backup"))
 
 

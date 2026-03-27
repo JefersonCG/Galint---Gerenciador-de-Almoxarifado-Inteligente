@@ -20,14 +20,18 @@
     .backup-panel .text-muted { color: rgba(226,232,240,0.84) !important; }
     .backup-panel .card-header { padding: 1.1rem 1.35rem 0.95rem; }
     .backup-panel .card-body { padding: 1.25rem 1.35rem 1.35rem; }
-    .backup-panel .table { color: #e2e8f0; }
-    .backup-panel .table thead th { color: #93c5fd; border-color: rgba(148,163,184,0.16); text-transform: uppercase; font-size: 0.77rem; letter-spacing: 0.05em; }
-    .backup-panel .table td { border-color: rgba(148,163,184,0.12); }
+    .backup-panel .table { color: #0f172a; }
+    .backup-panel .table thead th { color: #1d4ed8; border-color: rgba(148,163,184,0.22); text-transform: uppercase; font-size: 0.77rem; letter-spacing: 0.05em; }
+    .backup-panel .table td { color: #0f172a; border-color: rgba(148,163,184,0.18); }
+    .backup-panel .table tbody tr:hover { background: rgba(148,163,184,0.08); }
     .backup-soft { border-radius: 18px; border: 1px solid rgba(148,163,184,0.14); background: rgba(255,255,255,0.06); padding: 1rem; }
     .backup-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; }
     .backup-badge { display: inline-flex; align-items: center; gap: 0.35rem; border-radius: 999px; padding: 0.22rem 0.65rem; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
-    .backup-badge-database { background: rgba(59,130,246,0.18); color: #bfdbfe; border: 1px solid rgba(96,165,250,0.28); }
-    .backup-badge-complete { background: rgba(16,185,129,0.18); color: #bbf7d0; border: 1px solid rgba(52,211,153,0.26); }
+    .backup-badge-database { background: rgba(59,130,246,0.16); color: #1d4ed8; border: 1px solid rgba(96,165,250,0.28); }
+    .backup-badge-complete { background: rgba(16,185,129,0.16); color: #047857; border: 1px solid rgba(52,211,153,0.26); }
+    .backup-panel .form-check-input { width: 1.05rem; height: 1.05rem; border-color: rgba(15,23,42,0.28); }
+    .backup-panel .form-check-input:checked { background-color: #1d4ed8; border-color: #1d4ed8; }
+    .backup-selection-hint { color: rgba(15,23,42,0.72); }
     @media (max-width: 768px) { .backup-shell { padding: 1rem; border-radius: 22px; } .backup-hero { padding: 1.15rem; border-radius: 20px; } .backup-kpis { grid-template-columns: 1fr; } }
 </style>
 {% endblock %}
@@ -118,6 +122,13 @@
         <div class="card-body">
             {% if backups %}
             <form method="post" action="{{ url_for('pages.delete_backup') }}" id="backupCatalogForm">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="backupSelectAll">
+                        <label class="form-check-label backup-selection-hint" for="backupSelectAll">Selecionar todos os backups visíveis</label>
+                    </div>
+                    <div class="small backup-selection-hint">Para excluir, pode marcar vários. Para enviar ao ConversionEngine, selecione apenas um.</div>
+                </div>
                 <div class="table-responsive mb-3">
                     <table class="table table-sm align-middle mb-0">
                         <thead>
@@ -126,7 +137,7 @@
                         <tbody>
                             {% for backup in backups %}
                             <tr>
-                                <td><div class="form-check"><input class="form-check-input" type="radio" name="backup_name" value="{{ backup.name }}" required></div></td>
+                                <td><div class="form-check"><input class="form-check-input backup-checkbox" type="checkbox" name="backup_names" value="{{ backup.name }}"></div></td>
                                 <td>{{ backup.name }}</td>
                                 <td>
                                     <span class="backup-badge {% if backup.kind == 'complete' %}backup-badge-complete{% else %}backup-badge-database{% endif %}">
@@ -147,8 +158,8 @@
                     </table>
                 </div>
                 <div class="backup-actions justify-content-end">
-                    <button class="btn btn-outline-info rounded-pill px-4" type="submit" formaction="{{ url_for('pages.conversionengine_start_from_backup') }}">Enviar ao ConversionEngine</button>
-                    <button class="btn btn-outline-danger rounded-pill px-4" type="submit" onclick="return confirm('Apagar o backup selecionado?');">Apagar backup</button>
+                    <button class="btn btn-outline-info rounded-pill px-4" type="submit" formaction="{{ url_for('pages.conversionengine_start_from_backup') }}" data-action="conversionengine">Enviar ao ConversionEngine</button>
+                    <button class="btn btn-outline-danger rounded-pill px-4" type="submit" data-action="delete" onclick="return confirm('Apagar os backups selecionados?');">Apagar backups selecionados</button>
                 </div>
             </form>
             {% else %}
@@ -157,4 +168,52 @@
         </div>
     </div>
 </div>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const form = document.getElementById('backupCatalogForm');
+    if (!form) return;
+
+    const selectAll = document.getElementById('backupSelectAll');
+    const checkboxes = Array.from(form.querySelectorAll('.backup-checkbox'));
+
+    function syncSelectAll() {
+        if (!selectAll) return;
+        const checkedCount = checkboxes.filter((checkbox) => checkbox.checked).length;
+        selectAll.checked = checkedCount > 0 && checkedCount === checkboxes.length;
+        selectAll.indeterminate = checkedCount > 0 && checkedCount < checkboxes.length;
+    }
+
+    if (selectAll) {
+        selectAll.addEventListener('change', function () {
+            checkboxes.forEach((checkbox) => {
+                checkbox.checked = selectAll.checked;
+            });
+            syncSelectAll();
+        });
+    }
+
+    checkboxes.forEach((checkbox) => {
+        checkbox.addEventListener('change', syncSelectAll);
+    });
+
+    form.addEventListener('submit', function (event) {
+        const submitter = event.submitter;
+        const checked = checkboxes.filter((checkbox) => checkbox.checked);
+        const action = submitter ? submitter.getAttribute('data-action') : '';
+
+        if (!checked.length) {
+            event.preventDefault();
+            window.alert('Selecione ao menos um backup.');
+            return;
+        }
+
+        if (action === 'conversionengine' && checked.length !== 1) {
+            event.preventDefault();
+            window.alert('Selecione exatamente um backup para enviar ao ConversionEngine.');
+        }
+    });
+
+    syncSelectAll();
+});
+</script>
 {% endblock %}
