@@ -25,6 +25,9 @@
     .backup-panel .table td { border-color: rgba(148,163,184,0.12); }
     .backup-soft { border-radius: 18px; border: 1px solid rgba(148,163,184,0.14); background: rgba(255,255,255,0.06); padding: 1rem; }
     .backup-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+    .backup-badge { display: inline-flex; align-items: center; gap: 0.35rem; border-radius: 999px; padding: 0.22rem 0.65rem; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+    .backup-badge-database { background: rgba(59,130,246,0.18); color: #bfdbfe; border: 1px solid rgba(96,165,250,0.28); }
+    .backup-badge-complete { background: rgba(16,185,129,0.18); color: #bbf7d0; border: 1px solid rgba(52,211,153,0.26); }
     @media (max-width: 768px) { .backup-shell { padding: 1rem; border-radius: 22px; } .backup-hero { padding: 1.15rem; border-radius: 20px; } .backup-kpis { grid-template-columns: 1fr; } }
 </style>
 {% endblock %}
@@ -35,7 +38,7 @@
     <section class="backup-hero">
         <div class="backup-eyebrow"><i class="bi bi-database-check"></i> Segurança operacional</div>
         <h1 class="backup-title">Backups</h1>
-        <p class="backup-subtitle">Área dedicada a gerar e organizar cópias de segurança do banco. A restauração oficial do GALINT passa pelo ConversionEngine, que executa o pipeline controlado de implantação.</p>
+        <p class="backup-subtitle">Área dedicada a gerar e organizar cópias de segurança do banco e pacotes completos do ambiente. A restauração oficial do GALINT continua centralizada no ConversionEngine.</p>
     </section>
 
     <section class="backup-kpis">
@@ -45,14 +48,15 @@
     </section>
     <div class="card backup-panel mb-4">
         <div class="card-body">
-            <h5 class="card-title">Backup completo do sistema</h5>
-            <p class="card-text text-muted">Cria uma cópia do banco PostgreSQL configurado usando pg_dump.</p>
+            <h5 class="card-title">Gerar backup</h5>
+            <p class="card-text text-muted">Use o backup SQL para recuperacao do banco e o pacote completo para enviar ao ConversionEngine com dump, manifesto e artefatos de disco relevantes.</p>
             <div class="backup-soft mb-3">
-                <div class="small text-muted">Use esta ação antes de atualizações maiores, migrações ou implantações executadas pelo ConversionEngine.</div>
+                <div class="small text-muted">O pacote completo gera um arquivo .zip com o dump SQL dentro e um manifest.json para validacao em staging pelo ConversionEngine.</div>
             </div>
             <form method="post" action="{{ url_for('pages.create_backup') }}">
                 <div class="backup-actions">
-                    <button class="btn btn-primary rounded-pill px-4" type="submit">Gerar backup agora</button>
+                    <button class="btn btn-primary rounded-pill px-4" type="submit" name="backup_kind" value="database">Gerar backup SQL</button>
+                    <button class="btn btn-outline-success rounded-pill px-4" type="submit" name="backup_kind" value="complete">Gerar pacote completo</button>
                     <a class="btn btn-outline-info rounded-pill px-4" href="{{ url_for('pages.config_conversionengine') }}">Abrir restaurador oficial</a>
                     <a class="btn btn-outline-secondary rounded-pill px-4" href="{{ url_for('pages.config') }}">Voltar</a>
                 </div>
@@ -68,15 +72,26 @@
                 <div class="table-responsive mb-3">
                     <table class="table table-sm align-middle mb-0">
                         <thead>
-                            <tr><th></th><th>Backup</th><th>Data</th><th>Tamanho</th></tr>
+                            <tr><th></th><th>Backup</th><th>Tipo</th><th>Data</th><th>Tamanho</th><th>Uso</th></tr>
                         </thead>
                         <tbody>
                             {% for backup in backups %}
                             <tr>
                                 <td><div class="form-check"><input class="form-check-input" type="radio" name="backup_name" value="{{ backup.name }}" required></div></td>
                                 <td>{{ backup.name }}</td>
+                                <td>
+                                    <span class="backup-badge {% if backup.kind == 'complete' %}backup-badge-complete{% else %}backup-badge-database{% endif %}">
+                                        {% if backup.kind == 'complete' %}Pacote completo{% else %}Banco SQL{% endif %}
+                                    </span>
+                                </td>
                                 <td>{{ backup.created }}</td>
                                 <td>{{ backup.size }}</td>
+                                <td>
+                                    <div>{{ backup.restore_hint }}</div>
+                                    {% if backup.manifest_version and backup.manifest_version != '-' %}
+                                    <div class="small text-muted">Manifesto v{{ backup.manifest_version }}</div>
+                                    {% endif %}
+                                </td>
                             </tr>
                             {% endfor %}
                         </tbody>

@@ -3,21 +3,31 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from datetime import datetime
+import hashlib
 import json
 import os
 from pathlib import Path
 import re
 import shutil
+import socket
 import subprocess
 import tempfile
 import time
+from typing import Any
+import zipfile
 
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import make_url
 
+from ..paths import get_version
+
 
 class BackupService:
     """Responsável por gerar/restaurar cópias do banco configurado."""
+
+    MANIFEST_SCHEMA_VERSION = "1.0"
+    COMPLETE_BACKUP_KIND = "complete"
+    DATABASE_BACKUP_KIND = "database"
 
     def __init__(self, app):
         self._app = app
@@ -56,6 +66,53 @@ class BackupService:
             or os.environ.get("RESTORE_MAINTENANCE_DB")
             or "postgres"
         )
+        self._project_root = Path(app.root_path).parent
+        self._full_backup_directories = [
+            {
+                "source": Path(app.root_path) / "static" / "uploads",
+                "archive_prefix": "assets/static/uploads",
+                "criticality": "important",
+                "group": "item_photos",
+                "description": "Fotos e anexos salvos em uploads.",
+            },
+            {
+                "source": Path(app.root_path) / "static" / "logo",
+                "archive_prefix": "assets/static/logo",
+                "criticality": "important",
+                "group": "branding",
+                "description": "Logo e arquivos visuais institucionais.",
+            },
+            {
+                "source": Path(app.instance_path) / "barcodes",
+                "archive_prefix": "assets/instance/barcodes",
+                "criticality": "important",
+                "group": "barcodes",
+                "description": "Codigos de barras gerados localmente.",
+            },
+            {
+                "source": Path(app.instance_path) / "reports",
+                "archive_prefix": "assets/instance/reports",
+                "criticality": "important",
+                "group": "reports",
+                "description": "Relatorios e PDFs persistidos em disco.",
+            },
+        ]
+        self._full_backup_files = [
+            {
+                "source": Path(app.instance_path) / "network_settings.json",
+                "archive_path": "assets/instance/network_settings.json",
+                "criticality": "important",
+                "group": "runtime_config",
+                "description": "Configuracao de rede do ambiente.",
+            },
+            {
+                "source": Path(app.instance_path) / "secret_key.txt",
+                "archive_path": "assets/instance/secret_key.txt",
+                "criticality": "critical",
+                "group": "runtime_config",
+                "description": "Chave secreta local do ambiente.",
+            },
+        ]
 
     def _apply_pg_timeouts(self, env: dict[str, str]) -> None:
         if self._connect_timeout_seconds > 0:
@@ -223,29 +280,40 @@ class BackupService:
         }
 
     def list_backups(self) -> list[dict[str, str]]:
-        entries = []
-        suportados = {".sql"}
+        entries: list[dict[str, str]] = []
+        suportados = {".sql", ".zip"}
         arquivos = sorted(
             (backup for backup in self._backup_root.glob("*") if backup.suffix.lower() in suportados),
             reverse=True,
         )
         for backup in arquivos:
             stat = backup.stat()
+            metadata = self._read_backup_metadata(backup)
             entries.append(
                 {
                     "name": backup.name,
                     "path": str(backup),
                     "size": f"{stat.st_size // 1024} KB",
                     "created": datetime.fromtimestamp(stat.st_ctime).isoformat(sep=" ", timespec="seconds"),
+                    "kind": str(metadata.get("kind") or "database"),
+                    "label": str(metadata.get("label") or "Banco SQL"),
+                    "restore_hint": str(metadata.get("restore_hint") or "Restaure com o fluxo oficial."),
+                    "manifest_version": str(metadata.get("manifest_version") or "-"),
                 }
             )
         return entries
 
-    def create_backup(self) -> str:
+    def create_backup(self, backup_kind: str = DATABASE_BACKUP_KIND) -> str:
         url = make_url(self._ensure_uri())
-        if url.drivername.startswith("postgresql"):
+        if not url.drivername.startswith("postgresql"):
+            raise ValueError("Somente PostgreSQL é suportado pelo backup automático")
+
+        normalized_kind = (backup_kind or self.DATABASE_BACKUP_KIND).strip().lower()
+        if normalized_kind == self.DATABASE_BACKUP_KIND:
             return self._create_postgres_backup()
-        raise ValueError("Somente PostgreSQL é suportado pelo backup automático")
+        if normalized_kind == self.COMPLETE_BACKUP_KIND:
+            return self._create_complete_backup_package()
+        raise ValueError("Tipo de backup inválido")
 
     def restore_backup(self, backup_name: str) -> str:
         return self.restore_backup_with_progress(backup_name)
@@ -311,12 +379,203 @@ class BackupService:
         except Exception:
             raise ValueError("Nome de backup inválido")
 
-        if target.suffix.lower() != ".sql":
+        if target.suffix.lower() not in {".sql", ".zip"}:
             raise ValueError("Formato de backup inválido")
 
         return target
 
     # Helpers -----------------------------------------------------------------
+
+    def _read_backup_metadata(self, backup: Path) -> dict[str, str]:
+        if backup.suffix.lower() == ".sql":
+            return {
+                "kind": self.DATABASE_BACKUP_KIND,
+                "label": "Banco SQL",
+                "restore_hint": "Pode ser restaurado localmente ou enviado ao ConversionEngine.",
+                "manifest_version": "-",
+            }
+
+        metadata = {
+            "kind": self.COMPLETE_BACKUP_KIND,
+            "label": "Pacote completo",
+            "restore_hint": "Use o arquivo ZIP no ConversionEngine para validacao e staging.",
+            "manifest_version": "-",
+        }
+        try:
+            with zipfile.ZipFile(backup) as archive:
+                if "manifest.json" not in archive.namelist():
+                    return metadata
+                payload = json.loads(archive.read("manifest.json").decode("utf-8"))
+                metadata["kind"] = str(payload.get("backup_kind") or metadata["kind"])
+                metadata["manifest_version"] = str(payload.get("manifest_schema_version") or "-")
+                compatibility = payload.get("compatibility") or {}
+                minimum_version = str(compatibility.get("minimum_app_version") or "").strip()
+                if minimum_version:
+                    metadata["restore_hint"] = (
+                        f"Use no ConversionEngine. Compatibilidade minima declarada: {minimum_version}."
+                    )
+        except Exception:
+            return metadata
+        return metadata
+
+    def _create_complete_backup_package(self) -> str:
+        sql_name = self._create_postgres_backup()
+        sql_path = self._backup_root / sql_name
+        timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        package_name = f"galint_backup_full_{timestamp}.zip"
+        package_path = self._backup_root / package_name
+
+        asset_entries = self._collect_complete_backup_assets()
+        manifest = self._build_complete_backup_manifest(
+            sql_name=sql_name,
+            sql_path=sql_path,
+            package_name=package_name,
+            asset_entries=asset_entries,
+        )
+        readme_content = self._build_complete_backup_readme(manifest)
+
+        with zipfile.ZipFile(package_path, mode="w", compression=zipfile.ZIP_DEFLATED) as archive:
+            archive.write(sql_path, arcname=f"database/{sql_name}")
+            archive.writestr("manifest.json", json.dumps(manifest, ensure_ascii=False, indent=2))
+            archive.writestr("README_backup_completo.txt", readme_content)
+            for entry in asset_entries:
+                source = Path(entry["source_path"])
+                if not source.exists() or not source.is_file():
+                    continue
+                archive.write(source, arcname=str(entry["archive_path"]))
+
+        return package_name
+
+    def _collect_complete_backup_assets(self) -> list[dict[str, Any]]:
+        entries: list[dict[str, Any]] = []
+
+        for directory in self._full_backup_directories:
+            source = Path(directory["source"])
+            if not source.exists() or not source.is_dir():
+                entries.append(
+                    {
+                        "source_path": str(source),
+                        "archive_path": str(directory["archive_prefix"]),
+                        "criticality": str(directory["criticality"]),
+                        "group": str(directory["group"]),
+                        "description": str(directory["description"]),
+                        "exists": False,
+                        "size_bytes": 0,
+                        "sha256": None,
+                    }
+                )
+                continue
+
+            for file_path in sorted(path for path in source.rglob("*") if path.is_file()):
+                relative = file_path.relative_to(source).as_posix()
+                archive_path = f"{directory['archive_prefix']}/{relative}"
+                entries.append(
+                    {
+                        "source_path": str(file_path),
+                        "archive_path": archive_path,
+                        "criticality": str(directory["criticality"]),
+                        "group": str(directory["group"]),
+                        "description": str(directory["description"]),
+                        "exists": True,
+                        "size_bytes": file_path.stat().st_size,
+                        "sha256": self._hash_file(file_path),
+                    }
+                )
+
+        for file_entry in self._full_backup_files:
+            source = Path(file_entry["source"])
+            exists = source.exists() and source.is_file()
+            entries.append(
+                {
+                    "source_path": str(source),
+                    "archive_path": str(file_entry["archive_path"]),
+                    "criticality": str(file_entry["criticality"]),
+                    "group": str(file_entry["group"]),
+                    "description": str(file_entry["description"]),
+                    "exists": exists,
+                    "size_bytes": source.stat().st_size if exists else 0,
+                    "sha256": self._hash_file(source) if exists else None,
+                }
+            )
+
+        return entries
+
+    def _build_complete_backup_manifest(
+        self,
+        *,
+        sql_name: str,
+        sql_path: Path,
+        package_name: str,
+        asset_entries: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        existing_assets = [entry for entry in asset_entries if entry.get("exists")]
+        missing_assets = [entry for entry in asset_entries if not entry.get("exists")]
+        created_at = datetime.utcnow().isoformat(timespec="seconds") + "Z"
+        current_version = get_version()
+
+        return {
+            "manifest_schema_version": self.MANIFEST_SCHEMA_VERSION,
+            "backup_kind": self.COMPLETE_BACKUP_KIND,
+            "created_at": created_at,
+            "package_name": package_name,
+            "app_version": current_version,
+            "compatibility": {
+                "minimum_app_version": current_version,
+                "recommended_restore_path": "ConversionEngine",
+                "direct_restore_supported": False,
+            },
+            "origin": {
+                "hostname": socket.gethostname(),
+                "instance_path": str(Path(self._app.instance_path)),
+                "project_root": str(self._project_root),
+            },
+            "database_dump": {
+                "name": sql_name,
+                "archive_path": f"database/{sql_name}",
+                "size_bytes": sql_path.stat().st_size,
+                "sha256": self._hash_file(sql_path),
+                "criticality": "critical",
+            },
+            "asset_summary": {
+                "files_included": len(existing_assets),
+                "files_missing": len(missing_assets),
+                "groups": sorted({str(entry.get("group") or "") for entry in asset_entries if entry.get("group")}),
+            },
+            "asset_entries": asset_entries,
+        }
+
+    def _build_complete_backup_readme(self, manifest: dict[str, Any]) -> str:
+        database_dump = manifest.get("database_dump") or {}
+        compatibility = manifest.get("compatibility") or {}
+        summary = manifest.get("asset_summary") or {}
+        return (
+            "GALINT - BACKUP COMPLETO DO SISTEMA\n"
+            "=================================\n\n"
+            f"Pacote: {manifest.get('package_name')}\n"
+            f"Criado em: {manifest.get('created_at')}\n"
+            f"Versao do GALINT: {manifest.get('app_version')}\n"
+            f"Backup SQL interno: {database_dump.get('name')}\n"
+            f"Arquivos incluidos: {summary.get('files_included', 0)}\n"
+            f"Arquivos ausentes no inventario: {summary.get('files_missing', 0)}\n\n"
+            "COMO USAR COM O CONVERSIONENGINE\n"
+            "1. Abra Configuracoes > ConversionEngine.\n"
+            "2. Envie este arquivo .zip como origem.\n"
+            "3. O motor vai extrair o pacote, localizar o dump SQL e validar o staging.\n"
+            "4. Revise o manifest.json, a compatibilidade e os avisos antes de qualquer implantacao.\n"
+            "5. Use restore direto apenas pelo pipeline oficial.\n\n"
+            "OBSERVACOES\n"
+            f"- Compatibilidade minima declarada: {compatibility.get('minimum_app_version')}.\n"
+            "- Este pacote inclui dump SQL e artefatos de disco selecionados do ambiente GALINT.\n"
+            "- A restauracao local direta do .zip nao e suportada por este servico; use o ConversionEngine.\n"
+        )
+
+    @staticmethod
+    def _hash_file(path: Path) -> str:
+        digest = hashlib.sha256()
+        with path.open("rb") as stream:
+            for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                digest.update(chunk)
+        return digest.hexdigest()
 
     def _create_postgres_backup(self) -> str:
         params = self._postgres_params()
