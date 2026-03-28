@@ -640,6 +640,11 @@
                     <button class="btn btn-outline-primary" type="button" id="category-report-pdf-btn" data-category="">Relatório PDF</button>
                     <button class="btn btn-outline-success" type="button" id="category-report-xlsx-btn" data-category="">Relatório XLSX</button>
                     {% if can_manage %}
+                    <button class="btn btn-outline-info" type="button" id="category-price-batch-btn" data-category="">
+                        <i class="bi bi-search me-1"></i> Buscar 10 preços
+                    </button>
+                    {% endif %}
+                    {% if can_manage %}
                     <button class="btn btn-danger" type="button" id="delete-category-btn" data-category="">Excluir categoria</button>
                     {% endif %}
                 </div>
@@ -834,6 +839,48 @@
                 <button class="btn btn-success" type="button" id="price-save">
                     <i class="bi bi-check2-circle me-1"></i> Salvar
                 </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="priceBatchModal" tabindex="-1" aria-labelledby="priceBatchModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h5 class="modal-title" id="priceBatchModalLabel">Pesquisa em lote por categoria</h5>
+                    <div class="small text-white-50">Consulta até 10 itens da categoria usando a integração atual do Mercado Livre.</div>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-3 align-items-end">
+                    <div class="col-lg-6">
+                        <label class="form-label" for="price-batch-category">Categoria</label>
+                        <input class="form-control" id="price-batch-category" readonly>
+                    </div>
+                    <div class="col-sm-3 col-lg-2">
+                        <label class="form-label" for="price-batch-limit">Itens</label>
+                        <input class="form-control" id="price-batch-limit" type="number" min="1" max="10" value="10">
+                    </div>
+                    <div class="col-sm-3 col-lg-2">
+                        <label class="form-label" for="price-batch-uf">UF</label>
+                        <input class="form-control text-uppercase" id="price-batch-uf" maxlength="2" placeholder="SP">
+                    </div>
+                    <div class="col-lg-2 d-grid">
+                        <button class="btn btn-info" type="button" id="price-batch-refresh-btn">
+                            <i class="bi bi-search me-1"></i> Pesquisar
+                        </button>
+                    </div>
+                </div>
+
+                <div class="alert alert-light border mt-3 d-none" id="price-batch-summary"></div>
+                <div class="mt-3 price-batch-results" id="price-batch-results"></div>
+                <div id="price-batch-empty" class="text-muted small d-none">Nenhum item pesquisado ainda.</div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Fechar</button>
             </div>
         </div>
     </div>
@@ -1550,6 +1597,114 @@
         font-size: 0.8rem;
         color: #cbd5e1;
         margin-top: 0.15rem;
+    }
+
+    #priceBatchModal .modal-content {
+        border: none;
+        border-radius: 14px;
+        overflow: hidden;
+        box-shadow: 0 20px 50px rgba(15, 23, 42, 0.35);
+    }
+
+    #priceBatchModal .modal-header {
+        background: linear-gradient(135deg, #14532d 0%, #1d4ed8 100%);
+        color: #ffffff;
+        border: none;
+        padding: 1rem 1.25rem;
+    }
+
+    #priceBatchModal .modal-body {
+        background: linear-gradient(180deg, rgba(15,23,42,0.96) 0%, rgba(17,24,39,0.94) 100%);
+        color: #e2e8f0;
+    }
+
+    .price-batch-results {
+        display: grid;
+        gap: 0.85rem;
+    }
+
+    .price-batch-card {
+        background: rgba(255,255,255,0.06);
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        border-radius: 12px;
+        padding: 0.95rem 1rem;
+    }
+
+    .price-batch-card.is-error {
+        border-color: rgba(239, 68, 68, 0.55);
+    }
+
+    .price-batch-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 0.55rem;
+    }
+
+    .price-batch-title {
+        font-size: 1rem;
+        font-weight: 700;
+        color: #f8fafc;
+        margin: 0;
+    }
+
+    .price-batch-code {
+        color: #94a3b8;
+        font-size: 0.78rem;
+    }
+
+    .price-batch-summary {
+        text-align: right;
+        min-width: 165px;
+    }
+
+    .price-batch-median {
+        font-size: 1rem;
+        font-weight: 800;
+        color: #86efac;
+    }
+
+    .price-batch-query {
+        color: #cbd5e1;
+        font-size: 0.8rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .price-batch-suggestions {
+        display: grid;
+        gap: 0.4rem;
+        margin-top: 0.5rem;
+    }
+
+    .price-batch-suggestion {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        font-size: 0.78rem;
+        color: #cbd5e1;
+        background: rgba(15, 23, 42, 0.3);
+        border-radius: 8px;
+        padding: 0.45rem 0.6rem;
+    }
+
+    .price-batch-actions {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 0.5rem;
+        margin-top: 0.75rem;
+    }
+
+    .price-batch-status {
+        font-size: 0.78rem;
+        color: #94a3b8;
+        margin-top: 0.45rem;
+    }
+
+    .price-batch-status.is-saved {
+        color: #86efac;
     }
 
     @keyframes fadeIn {
@@ -3116,10 +3271,14 @@
 
     const priceModalElement = document.getElementById('priceSuggestionsModal');
     const priceModalInstance = priceModalElement ? new bootstrap.Modal(priceModalElement) : null;
+    const priceBatchModalElement = document.getElementById('priceBatchModal');
+    const priceBatchModalInstance = priceBatchModalElement ? new bootstrap.Modal(priceBatchModalElement) : null;
     let currentPriceItem = null;
     let priceSuggestions = [];
     let lastPriceStats = null;
     let selectedSuggestionIndex = null;
+    let currentBatchCategory = null;
+    let currentBatchResults = [];
 
     const brlFormatter = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
     const buildStaticItemPhotoUrl = (fotoPath) => {
@@ -3658,6 +3817,45 @@
         return data?.item || data;
     };
 
+    const updateCachedItem = (codigo, patch) => {
+        const itemIndex = items.findIndex((entry) => String(entry.codigo) === String(codigo));
+        if (itemIndex < 0) {
+            return null;
+        }
+        items[itemIndex] = { ...items[itemIndex], ...patch };
+        return items[itemIndex];
+    };
+
+    const persistReplacementPrice = async (item, chosen, query, uf) => {
+        const resp = await fetch(`/itens/${encodeURIComponent(item.codigo)}/precos/reposicao`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+            body: JSON.stringify({
+                preco_reposicao_unitario: chosen.price,
+                preco_reposicao_fonte: chosen.source,
+                preco_reposicao_uf: String(uf || '').trim(),
+                preco_reposicao_query: String(query || '').trim(),
+                preco_reposicao_url: chosen.url,
+            }),
+        });
+        const data = await readJsonResponse(resp);
+        if (!resp.ok || !data?.success) {
+            throw new Error(data?.message || 'Falha ao salvar');
+        }
+        const updated = data.item || {};
+        Object.assign(item, updated);
+        updateCachedItem(item.codigo, updated);
+        return updated;
+    };
+
+    const syncBatchResultSavedState = (codigo, updated) => {
+        const target = currentBatchResults.find((entry) => String(entry?.item?.codigo) === String(codigo));
+        if (!target) {
+            return;
+        }
+        target.item = { ...target.item, ...updated };
+    };
+
     const openPriceModal = async (item) => {
         if (!priceModalInstance) return;
         currentPriceItem = item;
@@ -3774,10 +3972,208 @@
         }
     };
 
+    const renderBatchResults = () => {
+        const resultsEl = document.getElementById('price-batch-results');
+        const emptyEl = document.getElementById('price-batch-empty');
+        const summaryEl = document.getElementById('price-batch-summary');
+        if (!resultsEl || !emptyEl || !summaryEl) {
+            return;
+        }
+
+        if (!currentBatchResults.length) {
+            resultsEl.innerHTML = '';
+            emptyEl.classList.remove('d-none');
+            summaryEl.classList.add('d-none');
+            return;
+        }
+
+        emptyEl.classList.add('d-none');
+        resultsEl.innerHTML = currentBatchResults.map((entry) => {
+            const item = entry.item || {};
+            const stats = entry.stats || {};
+            const providers = Array.isArray(entry.providers) ? entry.providers : [];
+            const median = Number(stats.median);
+            const count = Number(stats.count || 0);
+            const isSaved = !!item.preco_reposicao_unitario;
+            const updatedAt = item.preco_reposicao_atualizado_em ? new Date(item.preco_reposicao_atualizado_em) : null;
+            const updatedLabel = updatedAt && !Number.isNaN(updatedAt.getTime())
+                ? updatedAt.toLocaleDateString('pt-BR')
+                : '';
+            const suggestions = (Array.isArray(entry.suggestions) ? entry.suggestions : []).slice(0, 3);
+            const providerBadges = providers.map((provider) => {
+                const ok = !!provider.ok;
+                return `<span class="badge ${ok ? 'bg-success' : 'bg-danger'}">${escapeHtml(provider.name || 'API')}</span>`;
+            }).join(' ');
+            const suggestionHtml = suggestions.length
+                ? suggestions.map((suggestion) => `
+                    <div class="price-batch-suggestion">
+                        <span>${escapeHtml(suggestion.title || '(sem título)')}</span>
+                        <strong>${formatBrl(suggestion.price)}</strong>
+                    </div>
+                `).join('')
+                : '<div class="text-muted small">Nenhuma oferta útil encontrada para este item.</div>';
+            return `
+                <div class="price-batch-card ${entry.success ? '' : 'is-error'}" data-batch-item="${escapeHtml(item.codigo || '')}">
+                    <div class="price-batch-head">
+                        <div>
+                            <p class="price-batch-title">${escapeHtml(item.descricao || 'Item')}</p>
+                            <div class="price-batch-code">Código ${escapeHtml(item.codigo || '—')} • ${escapeHtml(item.categoria || 'Sem categoria')}</div>
+                        </div>
+                        <div class="price-batch-summary">
+                            <div class="price-batch-median">${Number.isFinite(median) && median > 0 ? formatBrl(median) : '—'}</div>
+                            <div class="small text-muted">mediana • amostra ${Number.isFinite(count) ? count : 0}</div>
+                        </div>
+                    </div>
+                    <div class="price-batch-query">Busca: ${escapeHtml(entry.query || '')}</div>
+                    <div class="d-flex flex-wrap gap-2">${providerBadges}</div>
+                    <div class="price-batch-suggestions">${suggestionHtml}</div>
+                    ${entry.error ? `<div class="text-danger small mt-2">${escapeHtml(entry.error)}</div>` : ''}
+                    <div class="price-batch-actions">
+                        <button class="btn btn-outline-light btn-sm" type="button" data-batch-open-item="${escapeHtml(item.codigo || '')}">
+                            <i class="bi bi-box-arrow-up-right me-1"></i> Abrir item
+                        </button>
+                        <button class="btn btn-success btn-sm" type="button" data-batch-save-median="${escapeHtml(item.codigo || '')}" ${Number.isFinite(median) && median > 0 ? '' : 'disabled'}>
+                            <i class="bi bi-check2-circle me-1"></i> Usar mediana
+                        </button>
+                    </div>
+                    <div class="price-batch-status ${isSaved ? 'is-saved' : ''}">
+                        ${isSaved ? `Preço atual ${formatBrl(item.preco_reposicao_unitario)}${updatedLabel ? ` • salvo em ${escapeHtml(updatedLabel)}` : ''}` : 'Preço de reposição ainda não salvo para este item.'}
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        resultsEl.querySelectorAll('[data-batch-open-item]').forEach((button) => {
+            button.addEventListener('click', () => {
+                const codigo = button.getAttribute('data-batch-open-item');
+                const item = items.find((entry) => String(entry.codigo) === String(codigo));
+                if (item) {
+                    openItemModal(item);
+                }
+            });
+        });
+
+        resultsEl.querySelectorAll('[data-batch-save-median]').forEach((button) => {
+            button.addEventListener('click', async () => {
+                const codigo = button.getAttribute('data-batch-save-median');
+                const entry = currentBatchResults.find((row) => String(row?.item?.codigo) === String(codigo));
+                const item = entry?.item;
+                const median = Number(entry?.stats?.median);
+                if (!item || !Number.isFinite(median) || median <= 0) {
+                    return;
+                }
+
+                const originalHtml = button.innerHTML;
+                button.disabled = true;
+                button.innerHTML = '<span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span> Salvando';
+
+                try {
+                    const updated = await persistReplacementPrice(
+                        item,
+                        { price: median, source: 'Mercado Livre (mediana lote)', url: null },
+                        entry.query,
+                        document.getElementById('price-batch-uf')?.value || entry.uf || ''
+                    );
+                    syncBatchResultSavedState(codigo, updated);
+                    if (currentPriceItem && String(currentPriceItem.codigo) === String(codigo)) {
+                        Object.assign(currentPriceItem, updated);
+                        updateFinanceUI(currentPriceItem);
+                    }
+                    renderBatchResults();
+                } catch (err) {
+                    if (window.Swal) {
+                        await Swal.fire('Erro', String(err?.message || err), 'error');
+                    } else {
+                        alert(String(err?.message || err));
+                    }
+                    button.disabled = false;
+                    button.innerHTML = originalHtml;
+                }
+            });
+        });
+    };
+
+    const refreshBatchPriceSuggestions = async () => {
+        if (!currentBatchCategory) {
+            return;
+        }
+        const categoryEl = document.getElementById('price-batch-category');
+        const ufEl = document.getElementById('price-batch-uf');
+        const limitEl = document.getElementById('price-batch-limit');
+        const resultsEl = document.getElementById('price-batch-results');
+        const emptyEl = document.getElementById('price-batch-empty');
+        const summaryEl = document.getElementById('price-batch-summary');
+        if (!categoryEl || !ufEl || !limitEl || !resultsEl || !emptyEl || !summaryEl) {
+            return;
+        }
+
+        const itemLimit = Math.max(1, Math.min(Number(limitEl.value || 10), 10));
+        limitEl.value = String(itemLimit);
+        resultsEl.innerHTML = '<div class="text-muted small">Buscando sugestões para a categoria…</div>';
+        emptyEl.classList.add('d-none');
+        summaryEl.classList.add('d-none');
+
+        try {
+            const url = `/itens/categoria/${encodeURIComponent(currentBatchCategory)}/precos/reposicao/lote?item_limit=${encodeURIComponent(itemLimit)}&uf=${encodeURIComponent((ufEl.value || '').trim())}`;
+            const response = await fetch(url, { headers: { 'Accept': 'application/json' } });
+            const data = await readJsonResponse(response);
+            if (!response.ok || !data?.success) {
+                throw new Error(data?.message || 'Falha ao buscar sugestões em lote');
+            }
+
+            currentBatchResults = Array.isArray(data.items) ? data.items : [];
+            if (data.uf && !ufEl.value.trim()) {
+                ufEl.value = data.uf;
+            }
+
+            const summary = data.summary || {};
+            summaryEl.classList.remove('d-none');
+            summaryEl.innerHTML = `
+                <strong>${escapeHtml(data.categoria || currentBatchCategory)}</strong> •
+                consultados ${Number(summary.completed || 0)} de ${Number(summary.requested || 0)} itens •
+                ${Number(summary.with_results || 0)} com resultados •
+                ${Number(summary.failed || 0)} falhas
+            `;
+            renderBatchResults();
+        } catch (err) {
+            currentBatchResults = [];
+            resultsEl.innerHTML = '';
+            emptyEl.classList.remove('d-none');
+            emptyEl.textContent = `Erro: ${String(err?.message || err)}`;
+        }
+    };
+
+    const openBatchPriceModal = async (category) => {
+        if (!priceBatchModalInstance || !category) {
+            return;
+        }
+        currentBatchCategory = category;
+        currentBatchResults = [];
+        const categoryEl = document.getElementById('price-batch-category');
+        const summaryEl = document.getElementById('price-batch-summary');
+        const resultsEl = document.getElementById('price-batch-results');
+        const emptyEl = document.getElementById('price-batch-empty');
+        if (categoryEl) {
+            categoryEl.value = category;
+        }
+        if (summaryEl) {
+            summaryEl.classList.add('d-none');
+        }
+        if (resultsEl) {
+            resultsEl.innerHTML = '';
+        }
+        if (emptyEl) {
+            emptyEl.classList.add('d-none');
+        }
+        priceBatchModalInstance.show();
+        await refreshBatchPriceSuggestions();
+    };
+
     const bindPriceModalControls = () => {
         const refreshBtn = document.getElementById('price-refresh-btn');
         const useMedianBtn = document.getElementById('price-use-median');
         const saveBtn = document.getElementById('price-save');
+        const batchRefreshBtn = document.getElementById('price-batch-refresh-btn');
         const manualEl = document.getElementById('price-manual');
 
         if (refreshBtn) {
@@ -3823,24 +4219,13 @@
                 }
 
                 try {
-                    const resp = await fetch(`/itens/${encodeURIComponent(currentPriceItem.codigo)}/precos/reposicao`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-                        body: JSON.stringify({
-                            preco_reposicao_unitario: chosen.price,
-                            preco_reposicao_fonte: chosen.source,
-                            preco_reposicao_uf: (ufEl?.value || '').trim(),
-                            preco_reposicao_query: (qEl?.value || '').trim(),
-                            preco_reposicao_url: chosen.url,
-                        }),
-                    });
-                    const data = await readJsonResponse(resp);
-                    if (!resp.ok || !data?.success) {
-                        throw new Error(data?.message || 'Falha ao salvar');
-                    }
-
-                    const updated = data.item || {};
-                    Object.assign(currentPriceItem, updated);
+                    const updated = await persistReplacementPrice(
+                        currentPriceItem,
+                        chosen,
+                        (qEl?.value || '').trim(),
+                        (ufEl?.value || '').trim()
+                    );
+                    syncBatchResultSavedState(currentPriceItem.codigo, updated);
                     updateFinanceUI(currentPriceItem);
                     priceModalInstance?.hide();
                 } catch (err) {
@@ -3851,6 +4236,10 @@
                     }
                 }
             });
+        }
+
+        if (batchRefreshBtn) {
+            batchRefreshBtn.addEventListener('click', refreshBatchPriceSuggestions);
         }
     };
 
@@ -4364,6 +4753,7 @@
     const modalInstance = new bootstrap.Modal(modalElement);
     const reportPdfBtn = document.getElementById('category-report-pdf-btn');
     const reportXlsxBtn = document.getElementById('category-report-xlsx-btn');
+    const categoryPriceBatchBtn = document.getElementById('category-price-batch-btn');
     const deleteCategoryBtn = document.getElementById('delete-category-btn');
     let currentCategory = null;
 
@@ -4386,6 +4776,10 @@
         if (reportXlsxBtn) {
             reportXlsxBtn.setAttribute('data-category', category);
             reportXlsxBtn.style.display = 'inline-block';
+        }
+        if (categoryPriceBatchBtn) {
+            categoryPriceBatchBtn.setAttribute('data-category', category);
+            categoryPriceBatchBtn.style.display = canManage ? 'inline-block' : 'none';
         }
         
         // Atualizar o botão de exclusão com a categoria atual
@@ -4414,6 +4808,16 @@
                 return;
             }
             window.location.href = `/itens/categoria/${encodeURIComponent(category)}/relatorio?format=xlsx`;
+        });
+    }
+
+    if (categoryPriceBatchBtn && canManage) {
+        categoryPriceBatchBtn.addEventListener('click', async () => {
+            const category = categoryPriceBatchBtn.getAttribute('data-category');
+            if (!category) {
+                return;
+            }
+            await openBatchPriceModal(category);
         });
     }
 

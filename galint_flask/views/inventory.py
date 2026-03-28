@@ -212,6 +212,51 @@ def _sanitize_filename_component(value: str) -> str:
     return result or "categoria"
 
 
+def _resolve_replacement_price_uf(raw_uf: str | None = None) -> str:
+    uf = (raw_uf or "").strip().upper()
+    if uf:
+        return uf
+    try:
+        return (ConfigService.get_empresa_config().endereco_estado or "").strip().upper()
+    except Exception:
+        return ""
+
+
+def _build_replacement_price_query(item: Item | dict | None) -> str:
+    if isinstance(item, dict):
+        descricao = _safe_text(item.get("descricao")).strip()
+        marca = _safe_text(item.get("marca")).strip()
+        tipo_embalagem = _safe_text(item.get("tipo_embalagem_novo")).strip()
+        unidades_por_embalagem = _safe_float(item.get("unidades_por_embalagem"))
+    else:
+        descricao = _safe_text(getattr(item, "descricao", "")).strip()
+        marca = _safe_text(getattr(item, "marca", "")).strip()
+        tipo_embalagem = _safe_text(getattr(item, "tipo_embalagem_novo", "")).strip()
+        unidades_por_embalagem = _safe_float(getattr(item, "unidades_por_embalagem", 0))
+
+    extra = f" {tipo_embalagem} {int(unidades_por_embalagem) if unidades_por_embalagem.is_integer() else unidades_por_embalagem}" if tipo_embalagem and unidades_por_embalagem > 0 else ""
+    return f"{descricao}{f' {marca}' if marca else ''}{extra}".strip()
+
+
+def _serialize_batch_price_item(item: Item) -> dict[str, object]:
+    return {
+        "codigo": item.codigo_item,
+        "descricao": item.descricao,
+        "categoria": item.categoria,
+        "marca": item.marca,
+        "unidade": item.unidade,
+        "tipo_embalagem_novo": item.tipo_embalagem_novo,
+        "unidades_por_embalagem": item.unidades_por_embalagem,
+        "preco_reposicao_unitario": item.preco_reposicao_unitario,
+        "preco_reposicao_fonte": item.preco_reposicao_fonte,
+        "preco_reposicao_uf": item.preco_reposicao_uf,
+        "preco_reposicao_query": item.preco_reposicao_query,
+        "preco_reposicao_url": item.preco_reposicao_url,
+        "preco_reposicao_atualizado_em": TimeService.isoformat_utc(item.preco_reposicao_atualizado_em),
+        "preco_reposicao_atualizado_por": item.preco_reposicao_atualizado_por,
+    }
+
+
 def _extract_finance_payload(form, *, current_item: dict | None = None) -> dict[str, object]:
     def _parse_iso_date(value: str | None) -> date | None:
         raw = (value or "").strip()
@@ -1258,12 +1303,7 @@ def sugestoes_preco_reposicao(codigo: str):
         return {"success": False, "message": "Item nÃ£o encontrado"}, 404
 
     query = (request.args.get("q") or "").strip() or (item.descricao or "").strip()
-    uf = (request.args.get("uf") or "").strip().upper()
-    if not uf:
-        try:
-            uf = (ConfigService.get_empresa_config().endereco_estado or "").strip().upper()
-        except Exception:
-            uf = ""
+    uf = _resolve_replacement_price_uf(request.args.get("uf"))
 
     try:
         data = price_suggestion_service.get_replacement_suggestions(query=query, uf=uf or None, limit=20)
@@ -1272,6 +1312,94 @@ def sugestoes_preco_reposicao(codigo: str):
         return {"success": False, "message": "Erro interno ao buscar sugestoes"}, 500
     data["success"] = True
     return data
+
+
+@blueprint.get("/categoria/<path:categoria>/precos/reposicao/lote")
+@login_required
+def sugestoes_preco_reposicao_lote(categoria: str):
+    if not _is_admin(current_user):
+        return {"success": False, "message": "Acesso negado"}, 403
+
+    categoria_norm = (categoria or "").strip()
+    if not categoria_norm:
+        return {"success": False, "message": "Categoria invalida"}, 400
+
+    try:
+        item_limit = max(1, min(int(request.args.get("item_limit") or request.args.get("limit") or 10), 10))
+    except (TypeError, ValueError):
+        item_limit = 10
+
+    try:
+        suggestion_limit = max(1, min(int(request.args.get("suggestion_limit") or 10), 20))
+    except (TypeError, ValueError):
+        suggestion_limit = 10
+
+    uf = _resolve_replacement_price_uf(request.args.get("uf"))
+
+    items = (
+        Item.query
+        .filter(Item.categoria == categoria_norm)
+        .order_by(Item.descricao.asc(), Item.codigo_item.asc())
+        .limit(item_limit)
+        .all()
+    )
+
+    requests_payload: list[dict[str, object]] = []
+    item_map: dict[str, Item] = {}
+    for item in items:
+        query = _build_replacement_price_query(item)
+        if not query:
+            continue
+        item_map[item.codigo_item] = item
+        requests_payload.append({"item_id": item.codigo_item, "query": query})
+
+    try:
+        batch_data = price_suggestion_service.get_replacement_suggestions_batch(
+            requests_payload=requests_payload,
+            uf=uf or None,
+            suggestion_limit=suggestion_limit,
+            max_workers=min(4, max(len(requests_payload), 1)),
+        )
+    except Exception:
+        current_app.logger.exception(
+            "Erro ao buscar sugestoes em lote por categoria (categoria=%s)",
+            categoria_norm,
+        )
+        return {"success": False, "message": "Erro interno ao buscar sugestões em lote"}, 500
+
+    payload_items: list[dict[str, object]] = []
+    for row in batch_data.get("items") or []:
+        item_id = _safe_text(row.get("item_id")).strip()
+        item = item_map.get(item_id)
+        if not item:
+            continue
+        payload_items.append(
+            {
+                "item": _serialize_batch_price_item(item),
+                "query": row.get("query"),
+                "uf": row.get("uf"),
+                "suggestions": row.get("suggestions") or [],
+                "stats": row.get("stats") or {},
+                "providers": row.get("providers") or [],
+                "success": bool(row.get("success", True)),
+                "error": row.get("error"),
+            }
+        )
+
+    return {
+        "success": True,
+        "categoria": categoria_norm,
+        "uf": batch_data.get("uf") or uf or None,
+        "limit": item_limit,
+        "suggestion_limit": suggestion_limit,
+        "items": payload_items,
+        "summary": batch_data.get("summary") or {
+            "requested": len(requests_payload),
+            "completed": len(payload_items),
+            "failed": 0,
+            "with_results": 0,
+        },
+    }
 
 
 @blueprint.post("/<codigo>/precos/reposicao")

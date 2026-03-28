@@ -7,6 +7,7 @@ o sistema sugere, o usuário confirma e então salvamos o valor escolhido.
 
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import json
 import statistics
 import time
@@ -68,6 +69,16 @@ class PriceSuggestionService:
         self._cache: dict[tuple[str, str | None, int], tuple[float, dict[str, Any]]] = {}
 
     @staticmethod
+    def _empty_payload(*, query: str, uf: str | None) -> dict[str, Any]:
+        return {
+            "query": query,
+            "uf": uf,
+            "suggestions": [],
+            "stats": {"count": 0, "median": None, "min": None, "max": None},
+            "providers": [{"name": "MercadoLivre", "ok": True}],
+        }
+
+    @staticmethod
     def _request_headers() -> dict[str, str]:
         return {
             "User-Agent": (
@@ -83,13 +94,7 @@ class PriceSuggestionService:
     def get_replacement_suggestions(self, *, query: str, uf: str | None, limit: int = 20) -> dict[str, Any]:
         query_norm = (query or "").strip()
         if not query_norm:
-            return {
-                "query": query_norm,
-                "uf": _normalize_uf(uf),
-                "suggestions": [],
-                "stats": {"count": 0, "median": None, "min": None, "max": None},
-                "providers": [{"name": "MercadoLivre", "ok": True}],
-            }
+            return self._empty_payload(query=query_norm, uf=_normalize_uf(uf))
 
         uf_norm = _normalize_uf(uf)
         limit_i = max(1, min(int(limit or 20), 50))
@@ -130,6 +135,99 @@ class PriceSuggestionService:
         # Cache (TTL 1 hora)
         self._cache[cache_key] = (now + 3600, payload)
         return payload
+
+    def get_replacement_suggestions_batch(
+        self,
+        *,
+        requests_payload: list[dict[str, Any]],
+        uf: str | None,
+        suggestion_limit: int = 10,
+        max_workers: int = 4,
+    ) -> dict[str, Any]:
+        uf_norm = _normalize_uf(uf)
+        limit_i = max(1, min(int(suggestion_limit or 10), 50))
+
+        normalized_requests: list[dict[str, Any]] = []
+        for entry in requests_payload or []:
+            if not isinstance(entry, dict):
+                continue
+            query_norm = str(entry.get("query") or "").strip()
+            if not query_norm:
+                continue
+            normalized_requests.append(
+                {
+                    "item_id": str(entry.get("item_id") or "").strip() or None,
+                    "query": query_norm,
+                }
+            )
+
+        if not normalized_requests:
+            return {
+                "uf": uf_norm,
+                "items": [],
+                "summary": {
+                    "requested": 0,
+                    "completed": 0,
+                    "failed": 0,
+                    "with_results": 0,
+                },
+            }
+
+        results: list[dict[str, Any] | None] = [None] * len(normalized_requests)
+
+        def _fetch(entry: dict[str, Any]) -> dict[str, Any]:
+            payload = self.get_replacement_suggestions(query=entry["query"], uf=uf_norm, limit=limit_i)
+            payload["success"] = True
+            payload["item_id"] = entry.get("item_id")
+            return payload
+
+        worker_count = max(1, min(int(max_workers or 4), len(normalized_requests), 8))
+
+        if worker_count == 1:
+            for index, entry in enumerate(normalized_requests):
+                try:
+                    results[index] = _fetch(entry)
+                except Exception as exc:
+                    results[index] = {
+                        **self._empty_payload(query=entry["query"], uf=uf_norm),
+                        "success": False,
+                        "item_id": entry.get("item_id"),
+                        "error": str(exc),
+                        "providers": [{"name": "MercadoLivre", "ok": False, "error": str(exc)}],
+                    }
+        else:
+            with ThreadPoolExecutor(max_workers=worker_count, thread_name_prefix="price-batch") as executor:
+                futures = {
+                    executor.submit(_fetch, entry): index
+                    for index, entry in enumerate(normalized_requests)
+                }
+                for future in as_completed(futures):
+                    index = futures[future]
+                    entry = normalized_requests[index]
+                    try:
+                        results[index] = future.result()
+                    except Exception as exc:
+                        results[index] = {
+                            **self._empty_payload(query=entry["query"], uf=uf_norm),
+                            "success": False,
+                            "item_id": entry.get("item_id"),
+                            "error": str(exc),
+                            "providers": [{"name": "MercadoLivre", "ok": False, "error": str(exc)}],
+                        }
+
+        safe_results = [row for row in results if isinstance(row, dict)]
+        failed = sum(1 for row in safe_results if not row.get("success"))
+        with_results = sum(1 for row in safe_results if row.get("stats", {}).get("count"))
+        return {
+            "uf": uf_norm,
+            "items": safe_results,
+            "summary": {
+                "requested": len(normalized_requests),
+                "completed": len(safe_results),
+                "failed": failed,
+                "with_results": with_results,
+            },
+        }
 
     def _fetch_mercado_livre(self, *, query: str, uf: str | None, limit: int) -> list[PriceSuggestion]:
         try:
