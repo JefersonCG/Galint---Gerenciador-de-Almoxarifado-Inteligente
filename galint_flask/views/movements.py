@@ -811,6 +811,17 @@ def saida_page():
     )
 
 
+@blueprint.get('/painel-espelho')
+@login_required
+def painel_espelho_page():
+    """Tela dedicada para segundo monitor com o estado visual da operação."""
+    _require_admin()
+    mode = (request.args.get("mode") or "").strip().lower()
+    if mode not in {"", "saida", "entrada", "ferramenta", "fracionada"}:
+        abort(404)
+    return render_template('movements/painel_espelho.html', mirror_mode=mode)
+
+
 @blueprint.get('/saida-fracionada/page')
 @login_required
 def saida_fracionada_page():

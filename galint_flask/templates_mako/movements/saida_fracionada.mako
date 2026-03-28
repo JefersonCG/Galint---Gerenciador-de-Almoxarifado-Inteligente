@@ -52,6 +52,33 @@
         opacity: 0.95;
         font-size: 0.95rem;
     }
+
+    .page-header-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-top: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .btn-mirror-screen {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.55rem;
+        border-radius: 999px;
+        padding: 0.75rem 1rem;
+        border: 1px solid rgba(191, 219, 254, 0.24);
+        background: rgba(255, 255, 255, 0.08);
+        color: #eff6ff;
+        font-weight: 700;
+        text-decoration: none;
+        box-shadow: 0 12px 26px rgba(15, 23, 42, 0.18);
+    }
+
+    .btn-mirror-screen:hover {
+        background: rgba(255, 255, 255, 0.14);
+        color: #ffffff;
+    }
     
     .input-card {
         background: linear-gradient(145deg, #0f172a 0%, #1e293b 100%);
@@ -261,6 +288,136 @@
     .summary-warning.show {
         display: block;
     }
+
+    .operation-preview {
+        display: grid;
+        grid-template-columns: 220px 1fr;
+        gap: 1.25rem;
+        background: linear-gradient(145deg, #0f172a 0%, #1e293b 100%);
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        border-radius: 24px;
+        padding: 1.25rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 22px 48px rgba(15, 23, 42, 0.16);
+    }
+
+    .operation-preview.is-empty {
+        grid-template-columns: 1fr;
+    }
+
+    .operation-preview-media {
+        min-height: 220px;
+        border-radius: 20px;
+        overflow: hidden;
+        background: linear-gradient(135deg, rgba(30, 41, 59, 0.96) 0%, rgba(15, 23, 42, 0.96) 100%);
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .operation-preview-media img {
+        width: 100%;
+        height: 220px;
+        object-fit: contain;
+        background: rgba(255, 255, 255, 0.04);
+    }
+
+    .operation-preview-placeholder {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        color: #cbd5e1;
+        text-align: center;
+        padding: 1.25rem;
+    }
+
+    .operation-preview-placeholder i {
+        font-size: 3.25rem;
+        color: #60a5fa;
+    }
+
+    .operation-preview-body {
+        color: #e2e8f0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.85rem;
+    }
+
+    .operation-preview-eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        width: fit-content;
+        padding: 0.4rem 0.7rem;
+        border-radius: 999px;
+        background: rgba(59, 130, 246, 0.16);
+        border: 1px solid rgba(59, 130, 246, 0.24);
+        color: #bfdbfe;
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .operation-preview-title {
+        margin: 0;
+        color: #f8fafc;
+        font-size: 1.35rem;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+    }
+
+    .operation-preview-subtitle {
+        color: #93c5fd;
+        font-size: 0.92rem;
+    }
+
+    .operation-preview-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.75rem;
+    }
+
+    .operation-preview-stat {
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        border-radius: 14px;
+        padding: 0.8rem 0.9rem;
+    }
+
+    .operation-preview-stat-label {
+        display: block;
+        color: #94a3b8;
+        font-size: 0.78rem;
+        margin-bottom: 0.25rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+
+    .operation-preview-stat-value {
+        color: #f8fafc;
+        font-size: 1rem;
+        font-weight: 700;
+        line-height: 1.35;
+    }
+
+    .operation-preview-note {
+        color: #cbd5e1;
+        font-size: 0.88rem;
+    }
+
+    @media (max-width: 991.98px) {
+        .operation-preview {
+            grid-template-columns: 1fr;
+        }
+
+        .operation-preview-grid {
+            grid-template-columns: 1fr;
+        }
+    }
 </style>
 </%block>
 
@@ -270,6 +427,11 @@
     <div class="page-header">
         <h2><i class="bi bi-droplet-half me-2"></i>Registro de Saída Fracionada</h2>
         <p>Insira a quantidade pesada com o novo container dark, mantendo o fluxo específico para itens líquidos e fracionados.</p>
+        <div class="page-header-actions">
+            <a class="btn-mirror-screen" href="${url_for('movements.painel_espelho_page', mode='fracionada')}" target="_blank" rel="noopener">
+                <i class="bi bi-display"></i> Abrir painel do colaborador
+            </a>
+        </div>
     </div>
 
     <div class="info-strip" role="alert">
@@ -302,6 +464,19 @@
                 <button class="btn btn-register w-100" type="button" id="btn-registrar" disabled>
                     <i class="bi bi-check-circle me-2"></i>Registrar Saída
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="operation-preview is-empty" id="current-item-preview">
+        <div class="operation-preview-body">
+            <span class="operation-preview-eyebrow"><i class="bi bi-display"></i> Painel operacional</span>
+            <div class="operation-preview-placeholder">
+                <i class="bi bi-droplet-half"></i>
+                <div>
+                    <strong>Nenhum item fracionado em foco</strong>
+                    <div class="operation-preview-note">Selecione um item para exibir foto, saldo total e contexto da retirada fracionada.</div>
+                </div>
             </div>
         </div>
     </div>
@@ -426,11 +601,131 @@ ${parent.scripts()}
     const modalSaldoRestante = document.getElementById('modal-saldo-restante');
     const modalRestanteEmbalagens = document.getElementById('modal-restante-embalagens');
     const modalSummaryWarning = document.getElementById('modal-summary-warning');
+    const currentItemPreview = document.getElementById('current-item-preview');
+    const mirrorChannelName = 'galint-operation-mirror-v1';
+    const mirrorStorageKey = 'galint.operationMirrorState.v1';
+    const mirrorChannel = typeof window.BroadcastChannel !== 'undefined' ? new BroadcastChannel(mirrorChannelName) : null;
     
     // Radio buttons de unidade
     const radioKg = document.getElementById('unidade-kg');
     const radioLitro = document.getElementById('unidade-litro');
     const hintUnidade = document.getElementById('hint-unidade');
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text == null ? '' : String(text);
+        return div.innerHTML;
+    }
+
+    function publishMirrorState(payload) {
+        try {
+            window.localStorage.setItem(mirrorStorageKey, JSON.stringify(payload));
+        } catch (error) {
+            console.error('Erro ao persistir estado do painel espelho:', error);
+        }
+        if (mirrorChannel) {
+            try {
+                mirrorChannel.postMessage(payload);
+            } catch (error) {
+                console.error('Erro ao publicar estado do painel espelho:', error);
+            }
+        }
+    }
+
+    function buildMirrorPayload(status, item, extra) {
+        const actor = String(inputUsuario.value || '').trim();
+        const local = String(inputLocal.value || '').trim();
+        const unidadeSelecionada = document.querySelector('input[name="unidade-tipo"]:checked');
+        const unidade = unidadeSelecionada ? String(unidadeSelecionada.value || '').trim() : '';
+        const quantidadeAtual = extra && extra.quantidade != null ? extra.quantidade : parseFloat(modalQuantidadeInput.value || '0');
+        const quantidadeDisplay = quantidadeAtual && quantidadeAtual > 0
+            ? formatDecimal(quantidadeAtual) + ' ' + (unidade === 'litro' ? 'L' : 'kg')
+            : '--';
+        const payload = {
+            kind: 'fracionada',
+            kind_label: 'Saida fracionada',
+            status: status,
+            generated_at: new Date().toISOString(),
+            source_label: 'saida fracionada',
+            batch_label: 'retirada pesada em balanca',
+            actor: {
+                nome: actor,
+            },
+            context: {
+                local_servico: local,
+            },
+        };
+
+        if (item) {
+            payload.item = {
+                codigo: item.codigo || '',
+                descricao: item.descricao || item.codigo || '',
+                categoria: item.categoria || '',
+                foto_url: item.fotoUrl || item.foto_url || '',
+                saldo: item.totalBase,
+                saldo_display: formatDecimal(item.totalBase || 0) + ' ' + String(item.displayUnit || 'L'),
+            };
+            payload.movement = {
+                quantidade: quantidadeAtual || null,
+                quantidade_display: quantidadeDisplay,
+            };
+        }
+
+        return payload;
+    }
+
+    function renderCurrentPreview(item, status, publishState, extra) {
+        const previewStatus = status || (item ? 'preview' : 'idle');
+        const shouldPublish = publishState !== false;
+        if (!currentItemPreview) return;
+        if (!item) {
+            currentItemPreview.className = 'operation-preview is-empty';
+            currentItemPreview.innerHTML = '' +
+                '<div class="operation-preview-body">' +
+                    '<span class="operation-preview-eyebrow"><i class="bi bi-display"></i> Painel operacional</span>' +
+                    '<div class="operation-preview-placeholder">' +
+                        '<i class="bi bi-droplet-half"></i>' +
+                        '<div><strong>Nenhum item fracionado em foco</strong><div class="operation-preview-note">Selecione um item para exibir foto, saldo total e contexto da retirada fracionada.</div></div>' +
+                    '</div>' +
+                '</div>';
+            if (shouldPublish) {
+                publishMirrorState(buildMirrorPayload(previewStatus, null, extra));
+            }
+            return;
+        }
+
+        const unidadeSelecionada = document.querySelector('input[name="unidade-tipo"]:checked');
+        const unidade = unidadeSelecionada ? String(unidadeSelecionada.value || '').trim() : '';
+        const quantidadeAtual = extra && extra.quantidade != null ? extra.quantidade : parseFloat(modalQuantidadeInput.value || '0');
+        const quantidadeDisplay = quantidadeAtual && quantidadeAtual > 0
+            ? formatDecimal(quantidadeAtual) + ' ' + (unidade === 'litro' ? 'L' : 'kg')
+            : 'Aguardando pesagem';
+        const saldoDisplay = formatDecimal(item.totalBase || 0) + ' ' + String(item.displayUnit || 'L');
+        const fotoHtml = item.fotoUrl || item.foto_url
+            ? '<img src="' + escapeHtml(item.fotoUrl || item.foto_url) + '" alt="' + escapeHtml(item.descricao || item.codigo || 'Item fracionado') + '">'
+            : '<div class="operation-preview-placeholder"><i class="bi bi-image"></i><div>Sem foto do item</div></div>';
+
+        currentItemPreview.className = 'operation-preview';
+        currentItemPreview.innerHTML = '' +
+            '<div class="operation-preview-media">' + fotoHtml + '</div>' +
+            '<div class="operation-preview-body">' +
+                '<span class="operation-preview-eyebrow"><i class="bi bi-droplet-half"></i> Retirada pesada</span>' +
+                '<div>' +
+                    '<h3 class="operation-preview-title">' + escapeHtml(item.descricao || item.codigo || 'Item') + '</h3>' +
+                    '<div class="operation-preview-subtitle">Codigo ' + escapeHtml(item.codigo || '—') + '</div>' +
+                '</div>' +
+                '<div class="operation-preview-grid">' +
+                    '<div class="operation-preview-stat"><span class="operation-preview-stat-label">Quantidade</span><span class="operation-preview-stat-value">' + escapeHtml(quantidadeDisplay) + '</span></div>' +
+                    '<div class="operation-preview-stat"><span class="operation-preview-stat-label">Saldo total</span><span class="operation-preview-stat-value">' + escapeHtml(saldoDisplay) + '</span></div>' +
+                    '<div class="operation-preview-stat"><span class="operation-preview-stat-label">Colaborador</span><span class="operation-preview-stat-value">' + escapeHtml(String(inputUsuario.value || '').trim() || 'Nao informado') + '</span></div>' +
+                    '<div class="operation-preview-stat"><span class="operation-preview-stat-label">Local</span><span class="operation-preview-stat-value">' + escapeHtml(String(inputLocal.value || '').trim() || 'Nao informado') + '</span></div>' +
+                '</div>' +
+                '<div class="operation-preview-note">Use a balanca para informar o valor real retirado em kg ou litro.</div>' +
+            '</div>';
+        if (shouldPublish) {
+            publishMirrorState(buildMirrorPayload(previewStatus, item, extra));
+        }
+    }
     
     // Atualizar display da unidade selecionada
     function atualizarUnidadeModal() {
@@ -438,6 +733,9 @@ ${parent.scripts()}
         modalQuantidadeUnidade.textContent = unidadeSelecionada === 'kg' ? 'kg' : 'L';
         hintUnidade.textContent = unidadeSelecionada === 'kg' ? 'ou LITRO' : 'ou KG';
         atualizarResumoRetirada();
+        if (pendingItem) {
+            renderCurrentPreview(pendingItem, 'preview');
+        }
     }
 
     function formatDecimal(value) {
@@ -498,6 +796,7 @@ ${parent.scripts()}
         modalRestanteEmbalagens.textContent = buildRestanteEmbalagens(pendingItem, remainingBase);
         modalLiveSummary.classList.toggle('invalid', isInvalid);
         modalSummaryWarning.classList.toggle('show', isInvalid);
+        renderCurrentPreview(pendingItem, 'preview', true, { quantidade: Number.isFinite(retirado) ? retirado : 0 });
 
         if (isInvalid) {
             btnConfirmarQuantidade.disabled = true;
@@ -636,6 +935,9 @@ ${parent.scripts()}
         
         if (query.length < 1) {
             dropdownCodigo.classList.remove('show');
+            if (!pendingItem) {
+                renderCurrentPreview(null, 'idle');
+            }
             return;
         }
         
@@ -734,6 +1036,17 @@ ${parent.scripts()}
         inputCodigo.dataset.descricao = item.descricao;
         inputCodigo.dataset.unidade = item.unidade;
         dropdownCodigo.classList.remove('show');
+        pendingItem = {
+            ...pendingItem,
+            codigo: item.codigo,
+            descricao: item.descricao || item.codigo,
+            categoria: item.categoria,
+            saldo: item.saldo,
+            saldo_display: item.saldo_display,
+            foto_url: item.foto_url,
+            fotoUrl: item.foto_url,
+        };
+        renderCurrentPreview(pendingItem, 'preview');
         updateButtonState();
     }
     
@@ -835,6 +1148,7 @@ ${parent.scripts()}
                 pendingItem = {
                     codigo: codigo,
                     descricao: data.descricao,
+                    categoria: data.categoria,
                     unidade: data.nome_embalagem || data.unidade || 'un',
                     usuario: usuario,
                     local: local,
@@ -846,6 +1160,7 @@ ${parent.scripts()}
                     packagePlural: String(data.nome_embalagem_plural || 'embalagens'),
                     fotoUrl: data.foto_url || null
                 };
+                renderCurrentPreview(pendingItem, 'preview');
                 
                 mostrarModalQuantidade(pendingItem);
                 
@@ -942,6 +1257,7 @@ ${parent.scripts()}
                 
                 // Mostrar mensagem de sucesso
                 alert(data.message || 'Saída registrada com sucesso!');
+                publishMirrorState(buildMirrorPayload('completed', pendingItem, { quantidade: quantidade }));
                 
                 // Limpar campos para nova entrada
                 inputUsuario.value = '';
@@ -949,6 +1265,7 @@ ${parent.scripts()}
                 inputCodigo.value = '';
                 btnRegistrar.disabled = true;
                 pendingItem = null;
+                renderCurrentPreview(null, 'idle', false);
                 
                 // Focar no campo de usuário para próxima entrada
                 inputUsuario.focus();
@@ -984,6 +1301,47 @@ ${parent.scripts()}
     });
 
     modalQuantidadeInput.addEventListener('input', atualizarResumoRetirada);
+
+    inputUsuario.addEventListener('blur', function() {
+        if (pendingItem) {
+            renderCurrentPreview(pendingItem, 'preview');
+        }
+    });
+
+    inputLocal.addEventListener('input', function() {
+        if (pendingItem) {
+            pendingItem.local = String(inputLocal.value || '').trim();
+            renderCurrentPreview(pendingItem, 'preview');
+        }
+    });
+
+    inputCodigo.addEventListener('blur', async function() {
+        const codigo = String(inputCodigo.value || '').trim();
+        if (!codigo) return;
+        try {
+            const response = await fetch('/movimentos/item-info/' + encodeURIComponent(codigo));
+            const data = await response.json();
+            if (!response.ok || !data || !data.found) return;
+            pendingItem = {
+                ...pendingItem,
+                codigo: data.codigo || codigo,
+                descricao: data.descricao || codigo,
+                categoria: data.categoria,
+                totalBase: Number(data.saldo_total_fracionado || data.saldo || 0),
+                displayUnit: String(data.unidade_exibicao_total || 'L'),
+                packageCapacity: Number(data.capacidade_embalagem || 0),
+                packageName: String(data.nome_embalagem || 'embalagem'),
+                packagePlural: String(data.nome_embalagem_plural || 'embalagens'),
+                fotoUrl: data.foto_url || null,
+                local: String(inputLocal.value || '').trim(),
+            };
+            renderCurrentPreview(pendingItem, 'preview');
+        } catch (error) {
+            console.error('Erro ao carregar preview fracionado:', error);
+        }
+    });
+
+    renderCurrentPreview(null, 'idle');
     
     // Foco inicial
     inputUsuario.focus();

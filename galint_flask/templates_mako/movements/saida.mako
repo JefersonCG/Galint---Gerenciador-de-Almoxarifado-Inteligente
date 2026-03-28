@@ -54,6 +54,33 @@
         opacity: 0.95;
         font-size: 0.95rem;
     }
+
+    .page-header-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-top: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .btn-mirror-screen {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.55rem;
+        border-radius: 999px;
+        padding: 0.75rem 1rem;
+        border: 1px solid rgba(191, 219, 254, 0.24);
+        background: rgba(255, 255, 255, 0.08);
+        color: #eff6ff;
+        font-weight: 700;
+        text-decoration: none;
+        box-shadow: 0 12px 26px rgba(15, 23, 42, 0.18);
+    }
+
+    .btn-mirror-screen:hover {
+        background: rgba(255, 255, 255, 0.14);
+        color: #ffffff;
+    }
     
     .input-card {
         background: linear-gradient(145deg, #0f172a 0%, #1e293b 100%);
@@ -515,6 +542,11 @@
     <div class="page-header">
         <h2><i class="bi bi-box-arrow-right me-2"></i>Registro de Saída</h2>
         <p>Adicione itens à lista e registre a saída em lote com o novo padrão visual dark do fluxo de lançamentos.</p>
+        <div class="page-header-actions">
+            <a class="btn-mirror-screen" href="${url_for('movements.painel_espelho_page', mode='saida')}" target="_blank" rel="noopener">
+                <i class="bi bi-display"></i> Abrir painel do colaborador
+            </a>
+        </div>
     </div>
     
     <div class="alert-info-custom">
@@ -721,6 +753,9 @@ ${parent.scripts()}
     const btnMetros = document.getElementById('btn-metros');
     const btnCentimetros = document.getElementById('btn-centimetros');
     const currentItemPreview = document.getElementById('current-item-preview');
+    const mirrorChannelName = 'galint-operation-mirror-v1';
+    const mirrorStorageKey = 'galint.operationMirrorState.v1';
+    const mirrorChannel = typeof window.BroadcastChannel !== 'undefined' ? new BroadcastChannel(mirrorChannelName) : null;
     
     const nomesEmbalagem = {
         'lata': { singular: 'lata', plural: 'latas' },
@@ -792,7 +827,60 @@ ${parent.scripts()}
         return unidade ? quantidade + ' ' + unidade : String(quantidade);
     }
 
-    function renderCurrentPreview(item) {
+    function publishMirrorState(payload) {
+        try {
+            window.localStorage.setItem(mirrorStorageKey, JSON.stringify(payload));
+        } catch (error) {
+            console.error('Erro ao persistir estado do painel espelho:', error);
+        }
+        if (mirrorChannel) {
+            try {
+                mirrorChannel.postMessage(payload);
+            } catch (error) {
+                console.error('Erro ao publicar estado do painel espelho:', error);
+            }
+        }
+    }
+
+    function buildMirrorPayload(status, item, extra) {
+        const actor = String((item && item.usuario) || inputUsuario.value || '').trim();
+        const local = String((item && item.local) || inputLocal.value || '').trim();
+        const payload = {
+            kind: 'saida',
+            kind_label: 'Saida',
+            status: status,
+            generated_at: new Date().toISOString(),
+            source_label: 'registro de saida',
+            batch_label: ((extra && extra.itemCount) || items.length || 0) + ' item(ns) na coleta',
+            actor: {
+                nome: actor,
+            },
+            context: {
+                local_servico: local,
+            },
+        };
+
+        if (item) {
+            payload.item = {
+                codigo: item.codigo || '',
+                descricao: item.descricao || item.codigo || '',
+                categoria: item.categoria || '',
+                foto_url: item.foto_url || '',
+                saldo: item.saldo,
+                saldo_display: item.saldo_display || '',
+            };
+            payload.movement = {
+                quantidade: item.quantidade_exibicao || item.quantidade_input || item.quantidade || 1,
+                quantidade_display: formatPreviewQuantity(item),
+            };
+        }
+
+        return payload;
+    }
+
+    function renderCurrentPreview(item, status, publishState) {
+        const previewStatus = status || (item ? 'preview' : 'idle');
+        const shouldPublish = publishState !== false;
         if (!currentItemPreview) return;
         if (!item) {
             currentItemPreview.className = 'operation-preview is-empty';
@@ -804,6 +892,9 @@ ${parent.scripts()}
                         '<div><strong>Nenhum item em foco</strong><div class="operation-preview-note">Selecione ou adicione um item para ver foto, quantidade e contexto da saida.</div></div>' +
                     '</div>' +
                 '</div>';
+            if (shouldPublish) {
+                publishMirrorState(buildMirrorPayload(previewStatus, null));
+            }
             return;
         }
 
@@ -832,6 +923,9 @@ ${parent.scripts()}
                 '</div>' +
                 '<div class="operation-preview-note">Este painel e a base da futura tela espelho para segundo monitor.</div>' +
             '</div>';
+        if (shouldPublish) {
+            publishMirrorState(buildMirrorPayload(previewStatus, item));
+        }
     }
 
     async function loadPreviewForCode(codigo) {
@@ -855,7 +949,7 @@ ${parent.scripts()}
                 local: String(inputLocal.value || '').trim(),
                 quantidade_input: parseInt(inputQuantidade.value, 10) || 1,
             };
-            renderCurrentPreview(currentPreviewItem);
+            renderCurrentPreview(currentPreviewItem, 'preview');
         } catch (error) {
             console.error('Erro ao carregar preview do item:', error);
         }
@@ -1243,21 +1337,21 @@ ${parent.scripts()}
         }
         if (currentPreviewItem) {
             currentPreviewItem.quantidade_input = parseInt(this.value, 10) || 1;
-            renderCurrentPreview(currentPreviewItem);
+            renderCurrentPreview(currentPreviewItem, 'preview');
         }
     });
 
     inputUsuario.addEventListener('blur', function() {
         if (currentPreviewItem) {
             currentPreviewItem.usuario = String(inputUsuario.value || '').trim();
-            renderCurrentPreview(currentPreviewItem);
+            renderCurrentPreview(currentPreviewItem, 'preview');
         }
     });
 
     inputLocal.addEventListener('input', function() {
         if (currentPreviewItem) {
             currentPreviewItem.local = String(inputLocal.value || '').trim();
-            renderCurrentPreview(currentPreviewItem);
+            renderCurrentPreview(currentPreviewItem, 'preview');
         }
     });
 
@@ -1357,7 +1451,7 @@ ${parent.scripts()}
             inputCodigo.value = '';
             inputQuantidade.value = '1';
             currentPreviewItem = null;
-            renderCurrentPreview(null);
+            renderCurrentPreview(null, 'idle');
             inputCodigo.focus();
             
         } catch (error) {
@@ -1415,7 +1509,7 @@ ${parent.scripts()}
         group.itens.push(item);
         items.push(item);
         currentPreviewItem = { ...item };
-        renderCurrentPreview(currentPreviewItem);
+        renderCurrentPreview(currentPreviewItem, 'queued');
         renderItems();
     }
 
@@ -1424,7 +1518,7 @@ ${parent.scripts()}
         return localLabel ? (escapeHtml(usuario) + ' <span class="group-meta">• ' + escapeHtml(localLabel) + '</span>') : escapeHtml(usuario);
     }
 
-    function resetCurrentGroupForm() {
+    function resetCurrentGroupForm(suppressMirrorReset) {
         currentGroupId = null;
         inputUsuario.value = '';
         inputLocal.value = '';
@@ -1433,7 +1527,7 @@ ${parent.scripts()}
         dropdownUsuario.classList.remove('show');
         dropdownCodigo.classList.remove('show');
         currentPreviewItem = null;
-        renderCurrentPreview(null);
+        renderCurrentPreview(null, 'idle', suppressMirrorReset !== true);
         inputUsuario.focus();
     }
     
@@ -1501,7 +1595,7 @@ ${parent.scripts()}
                 }
             }
             currentPreviewItem = items.length ? { ...items[items.length - 1] } : null;
-            renderCurrentPreview(currentPreviewItem);
+            renderCurrentPreview(currentPreviewItem, currentPreviewItem ? 'queued' : 'idle');
             renderItems();
         }
     };
@@ -1531,6 +1625,8 @@ ${parent.scripts()}
         try {
             const failedItems = [];
             let successCount = 0;
+            const completedSnapshot = items.length ? { ...items[items.length - 1] } : null;
+            const completedCount = items.length;
 
             for (const group of groups.filter(entry => entry.itens.length > 0)) {
                 const payload = {
@@ -1601,8 +1697,11 @@ ${parent.scripts()}
             renderItems();
 
             if (failedItems.length === 0) {
+                if (completedSnapshot && successCount > 0) {
+                    publishMirrorState(buildMirrorPayload('completed', completedSnapshot, { itemCount: completedCount }));
+                }
                 alert('✓ Saídas registradas com sucesso.');
-                resetCurrentGroupForm();
+                resetCurrentGroupForm(true);
             } else {
                 const erros = failedItems.map(item => item.codigo + ': ' + item.error).join('\n');
                 alert('⚠️ Parte das saídas não foi registrada. Os itens com falha permaneceram na lista.\n' + erros);
@@ -1621,6 +1720,8 @@ ${parent.scripts()}
         return div.innerHTML;
     }
     
+    renderCurrentPreview(null, 'idle');
+
     // Foco inicial
     inputUsuario.focus();
 })();

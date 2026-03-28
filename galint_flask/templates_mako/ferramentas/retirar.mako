@@ -56,6 +56,33 @@
         opacity: 0.95;
         font-size: 0.95rem;
     }
+
+    .page-header-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-top: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .btn-mirror-screen {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.55rem;
+        border-radius: 999px;
+        padding: 0.75rem 1rem;
+        border: 1px solid rgba(191, 219, 254, 0.24);
+        background: rgba(255, 255, 255, 0.08);
+        color: #eff6ff;
+        font-weight: 700;
+        text-decoration: none;
+        box-shadow: 0 12px 26px rgba(15, 23, 42, 0.18);
+    }
+
+    .btn-mirror-screen:hover {
+        background: rgba(255, 255, 255, 0.14);
+        color: #ffffff;
+    }
     
     .input-card {
         background: linear-gradient(145deg, #0f172a 0%, #1e293b 100%);
@@ -277,6 +304,172 @@
         color: #dbeafe;
     }
 
+    .operation-preview {
+        display: grid;
+        grid-template-columns: 220px 1fr;
+        gap: 1.25rem;
+        background: linear-gradient(145deg, #0f172a 0%, #1e293b 100%);
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        border-radius: 24px;
+        padding: 1.25rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 22px 48px rgba(15, 23, 42, 0.16);
+    }
+
+    .operation-preview.is-empty {
+        grid-template-columns: 1fr;
+    }
+
+    .operation-preview-media {
+        min-height: 220px;
+        border-radius: 20px;
+        overflow: hidden;
+        background: linear-gradient(135deg, rgba(30, 41, 59, 0.96) 0%, rgba(15, 23, 42, 0.96) 100%);
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .operation-preview-media img {
+        width: 100%;
+        height: 220px;
+        object-fit: contain;
+        background: rgba(255, 255, 255, 0.04);
+    }
+
+    .operation-preview-placeholder {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        color: #cbd5e1;
+        text-align: center;
+        padding: 1.25rem;
+    }
+
+    .operation-preview-placeholder i {
+        font-size: 3.25rem;
+        color: #60a5fa;
+    }
+
+    .operation-preview-body {
+        color: #e2e8f0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.85rem;
+    }
+
+    .operation-preview-eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        width: fit-content;
+        padding: 0.4rem 0.7rem;
+        border-radius: 999px;
+        background: rgba(59, 130, 246, 0.16);
+        border: 1px solid rgba(59, 130, 246, 0.24);
+        color: #bfdbfe;
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .operation-preview-title {
+        margin: 0;
+        color: #f8fafc;
+        font-size: 1.35rem;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+    }
+
+    .operation-preview-subtitle {
+        color: #93c5fd;
+        font-size: 0.92rem;
+    }
+
+    .operation-preview-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.75rem;
+    }
+
+    .operation-preview-stat {
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        border-radius: 14px;
+        padding: 0.8rem 0.9rem;
+    }
+
+    .operation-preview-stat-label {
+        display: block;
+        color: #94a3b8;
+        font-size: 0.78rem;
+        margin-bottom: 0.25rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+
+    .operation-preview-stat-value {
+        color: #f8fafc;
+        font-size: 1rem;
+        font-weight: 700;
+        line-height: 1.35;
+    }
+
+    .operation-preview-note {
+        color: #cbd5e1;
+        font-size: 0.88rem;
+    }
+
+    .item-thumb-cell {
+        display: flex;
+        align-items: center;
+        gap: 0.85rem;
+    }
+
+    .item-thumb {
+        width: 56px;
+        height: 56px;
+        border-radius: 12px;
+        object-fit: cover;
+        flex-shrink: 0;
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        background: rgba(255, 255, 255, 0.04);
+    }
+
+    .item-thumb-placeholder {
+        width: 56px;
+        height: 56px;
+        border-radius: 12px;
+        flex-shrink: 0;
+        border: 1px dashed rgba(148, 163, 184, 0.3);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #93c5fd;
+        background: rgba(255, 255, 255, 0.03);
+    }
+
+    .item-desc-meta {
+        display: block;
+        margin-top: 0.2rem;
+        color: #94a3b8;
+        font-size: 0.8rem;
+    }
+
+    @media (max-width: 991.98px) {
+        .operation-preview {
+            grid-template-columns: 1fr;
+        }
+
+        .operation-preview-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
 </style>
 </%block>
 
@@ -286,6 +479,11 @@
     <div class="page-header">
         <h2><i class="bi bi-tools me-2"></i>Retirada de Ferramentas</h2>
         <p>Registre retiradas com o novo padrão visual dark, preservando o fluxo especial de custódia temporária.</p>
+        <div class="page-header-actions">
+            <a class="btn-mirror-screen" href="${url_for('movements.painel_espelho_page', mode='ferramenta')}" target="_blank" rel="noopener">
+                <i class="bi bi-display"></i> Abrir painel do colaborador
+            </a>
+        </div>
     </div>
     
     <div class="alert-info-custom">
@@ -329,6 +527,19 @@
                     <button class="btn btn-new-group" type="button" id="btn-novo-funcionario">
                         <i class="bi bi-people me-2"></i>Adicionar Funcionário
                     </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="operation-preview is-empty" id="current-item-preview">
+            <div class="operation-preview-body">
+                <span class="operation-preview-eyebrow"><i class="bi bi-display"></i> Painel operacional</span>
+                <div class="operation-preview-placeholder">
+                    <i class="bi bi-tools"></i>
+                    <div>
+                        <strong>Nenhuma ferramenta em foco</strong>
+                        <div class="operation-preview-note">Selecione ou adicione uma ferramenta para exibir foto, quantidade e contexto da retirada.</div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -433,12 +644,17 @@ ${parent.scripts()}
     const itemsContainer = document.getElementById('items-container');
     const itemsList = document.getElementById('items-list');
     const totalBadge = document.getElementById('total-items-badge');
+    const currentItemPreview = document.getElementById('current-item-preview');
+    const mirrorChannelName = 'galint-operation-mirror-v1';
+    const mirrorStorageKey = 'galint.operationMirrorState.v1';
+    const mirrorChannel = typeof window.BroadcastChannel !== 'undefined' ? new BroadcastChannel(mirrorChannelName) : null;
 
     const items = [];
     const groups = [];
     let itemCounter = 0;
     let groupCounter = 0;
     let currentGroupId = null;
+    let currentPreviewItem = null;
     let debounceTimer;
     let debounceTimerMatricula;
     let itemSearchRequestId = 0;
@@ -479,7 +695,115 @@ ${parent.scripts()}
         if (this.value === '' || parseInt(this.value) < 1) {
             this.value = '1';
         }
+        if (currentPreviewItem) {
+            currentPreviewItem.quantidade = parseInt(this.value, 10) || 1;
+            renderCurrentPreview(currentPreviewItem, 'preview');
+        }
     });
+
+    function publishMirrorState(payload) {
+        try {
+            window.localStorage.setItem(mirrorStorageKey, JSON.stringify(payload));
+        } catch (error) {
+            console.error('Erro ao persistir estado do painel espelho:', error);
+        }
+        if (mirrorChannel) {
+            try {
+                mirrorChannel.postMessage(payload);
+            } catch (error) {
+                console.error('Erro ao publicar estado do painel espelho:', error);
+            }
+        }
+    }
+
+    function buildMirrorPayload(status, item, extra) {
+        const actor = String((item && item.matricula) || inputMatricula.value || '').trim();
+        const local = String((item && item.local) || inputLocal.value || '').trim();
+        const observacao = String(inputObservacao && inputObservacao.value ? inputObservacao.value : '').trim();
+        const payload = {
+            kind: 'ferramenta',
+            kind_label: 'Ferramenta',
+            status: status,
+            generated_at: new Date().toISOString(),
+            source_label: 'retirada de ferramenta',
+            batch_label: ((extra && extra.itemCount) || items.length || 0) + ' ferramenta(s) na coleta',
+            actor: {
+                matricula: actor,
+                nome: actor,
+            },
+            context: {
+                local_servico: local,
+                observacao: observacao,
+            },
+        };
+
+        if (item) {
+            payload.item = {
+                codigo: item.codigo || '',
+                descricao: item.descricao || item.codigo || '',
+                categoria: item.categoria || '',
+                foto_url: item.foto_url || '',
+                saldo: item.saldo,
+                saldo_display: item.saldo_display || '',
+            };
+            payload.movement = {
+                quantidade: item.quantidade || 1,
+                quantidade_display: String(item.quantidade || 1),
+            };
+        }
+
+        return payload;
+    }
+
+    function renderCurrentPreview(item, status, publishState) {
+        const previewStatus = status || (item ? 'preview' : 'idle');
+        const shouldPublish = publishState !== false;
+        if (!currentItemPreview) return;
+        if (!item) {
+            currentItemPreview.className = 'operation-preview is-empty';
+            currentItemPreview.innerHTML = '' +
+                '<div class="operation-preview-body">' +
+                    '<span class="operation-preview-eyebrow"><i class="bi bi-display"></i> Painel operacional</span>' +
+                    '<div class="operation-preview-placeholder">' +
+                        '<i class="bi bi-tools"></i>' +
+                        '<div><strong>Nenhuma ferramenta em foco</strong><div class="operation-preview-note">Selecione ou adicione uma ferramenta para exibir foto, quantidade e contexto da retirada.</div></div>' +
+                    '</div>' +
+                '</div>';
+            if (shouldPublish) {
+                publishMirrorState(buildMirrorPayload(previewStatus, null));
+            }
+            return;
+        }
+
+        const fotoHtml = item.foto_url
+            ? '<img src="' + escapeHtml(item.foto_url) + '" alt="' + escapeHtml(item.descricao || item.codigo || 'Ferramenta') + '">'
+            : '<div class="operation-preview-placeholder"><i class="bi bi-image"></i><div>Sem foto da ferramenta</div></div>';
+        const matricula = String(item.matricula || inputMatricula.value || '').trim() || 'Nao informado';
+        const local = String(item.local || inputLocal.value || '').trim() || 'Nao informado';
+        const saldo = String(item.saldo_display || item.saldo || '').trim() || 'Nao informado';
+        const observacao = String(item.observacao || (inputObservacao && inputObservacao.value) || '').trim() || 'Sem observacao';
+
+        currentItemPreview.className = 'operation-preview';
+        currentItemPreview.innerHTML = '' +
+            '<div class="operation-preview-media">' + fotoHtml + '</div>' +
+            '<div class="operation-preview-body">' +
+                '<span class="operation-preview-eyebrow"><i class="bi bi-tools"></i> Custodia diaria</span>' +
+                '<div>' +
+                    '<h3 class="operation-preview-title">' + escapeHtml(item.descricao || item.codigo || 'Ferramenta') + '</h3>' +
+                    '<div class="operation-preview-subtitle">Codigo ' + escapeHtml(item.codigo || '—') + (item.categoria ? ' • ' + escapeHtml(item.categoria) : '') + '</div>' +
+                '</div>' +
+                '<div class="operation-preview-grid">' +
+                    '<div class="operation-preview-stat"><span class="operation-preview-stat-label">Quantidade</span><span class="operation-preview-stat-value">' + escapeHtml(String(item.quantidade || 1)) + '</span></div>' +
+                    '<div class="operation-preview-stat"><span class="operation-preview-stat-label">Saldo</span><span class="operation-preview-stat-value">' + escapeHtml(saldo) + '</span></div>' +
+                    '<div class="operation-preview-stat"><span class="operation-preview-stat-label">Colaborador</span><span class="operation-preview-stat-value">' + escapeHtml(matricula) + '</span></div>' +
+                    '<div class="operation-preview-stat"><span class="operation-preview-stat-label">Local</span><span class="operation-preview-stat-value">' + escapeHtml(local) + '</span></div>' +
+                '</div>' +
+                '<div class="operation-preview-note">' + escapeHtml(observacao) + '</div>' +
+            '</div>';
+        if (shouldPublish) {
+            publishMirrorState(buildMirrorPayload(previewStatus, item));
+        }
+    }
         // Autocomplete para matrícula/nome do funcionário
     inputMatricula.addEventListener('input', function() {
         clearTimeout(debounceTimerMatricula);
@@ -535,6 +859,10 @@ ${parent.scripts()}
     function selectFuncionario(func) {
         inputMatricula.value = func.matricula;
         dropdownMatricula.classList.remove('show');
+        if (currentPreviewItem) {
+            currentPreviewItem.matricula = func.matricula;
+            renderCurrentPreview(currentPreviewItem, 'preview');
+        }
         inputCodigo.focus();
     }
     
@@ -634,6 +962,20 @@ ${parent.scripts()}
     function selectItem(item) {
         inputCodigo.value = item.codigo;
         dropdown.classList.remove('show');
+        currentPreviewItem = {
+            ...currentPreviewItem,
+            codigo: item.codigo,
+            descricao: item.descricao || item.codigo,
+            categoria: item.categoria,
+            saldo: item.saldo,
+            saldo_display: item.saldo_display,
+            foto_url: item.foto_url,
+            matricula: String(inputMatricula.value || '').trim(),
+            local: String(inputLocal.value || '').trim(),
+            observacao: String(inputObservacao && inputObservacao.value ? inputObservacao.value : '').trim(),
+            quantidade: parseInt(inputQuantidade.value, 10) || 1,
+        };
+        renderCurrentPreview(currentPreviewItem, 'preview');
         inputQuantidade.focus();
     }
 
@@ -658,7 +1000,14 @@ ${parent.scripts()}
             const groupItems = group.itens.map(item =>
                 '<tr>' +
                     '<td><code>' + escapeHtml(item.codigo) + '</code></td>' +
-                    '<td><strong>' + escapeHtml(item.descricao || '-') + '</strong></td>' +
+                    '<td>' +
+                        '<div class="item-thumb-cell">' +
+                            (item.foto_url
+                                ? '<img class="item-thumb" src="' + escapeHtml(item.foto_url) + '" alt="' + escapeHtml(item.descricao || item.codigo) + '">'
+                                : '<span class="item-thumb-placeholder"><i class="bi bi-image"></i></span>') +
+                            '<div><strong>' + escapeHtml(item.descricao || '-') + '</strong><span class="item-desc-meta">' + escapeHtml(item.categoria || 'Sem categoria') + '</span></div>' +
+                        '</div>' +
+                    '</td>' +
                     '<td class="text-center"><span class="badge-qty">' + item.quantidade + '</span></td>' +
                     '<td class="text-end">' +
                         '<button type="button" class="btn-remove-item" onclick="removeItem(' + item.id + ')">' +
@@ -689,11 +1038,13 @@ ${parent.scripts()}
                     groups.splice(idx, 1);
                 }
             }
+            currentPreviewItem = items.length ? { ...items[items.length - 1] } : null;
+            renderCurrentPreview(currentPreviewItem, currentPreviewItem ? 'queued' : 'idle');
             renderItems();
         }
     };
 
-    function resetCurrentGroupForm() {
+    function resetCurrentGroupForm(suppressMirrorReset) {
         currentGroupId = null;
         inputMatricula.value = '';
         inputCodigo.value = '';
@@ -704,6 +1055,8 @@ ${parent.scripts()}
         }
         dropdown.classList.remove('show');
         dropdownMatricula.classList.remove('show');
+        currentPreviewItem = null;
+        renderCurrentPreview(null, 'idle', suppressMirrorReset !== true);
         inputMatricula.focus();
     }
 
@@ -715,12 +1068,12 @@ ${parent.scripts()}
         resetCurrentGroupForm();
     });
 
-    async function buscarDescricaoPorCodigo(codigo) {
+    async function buscarInfoFerramenta(codigo) {
         try {
             const response = await fetch('/ferramentas/item-info/' + encodeURIComponent(codigo));
             if (!response.ok) return null;
             const data = await response.json();
-            return data && data.descricao ? data.descricao : null;
+            return data && data.descricao ? data : null;
         } catch (e) {
             return null;
         }
@@ -753,16 +1106,17 @@ ${parent.scripts()}
         btnAdicionar.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Adicionando...';
 
         try {
-            const descricao = await buscarDescricaoPorCodigo(codigo);
+            const itemInfo = await buscarInfoFerramenta(codigo);
             const matriculaAtual = String(inputMatricula.value || '').trim();
             const localAtual = String(inputLocal.value || '').trim();
+            const observacaoAtual = (inputObservacao && inputObservacao.value ? inputObservacao.value.trim() : '') || '';
             let group = groups.find((entry) => entry.id === currentGroupId);
             if (!group || group.matricula !== matriculaAtual || group.local !== localAtual) {
                 group = {
                     id: ++groupCounter,
                     matricula: matriculaAtual,
                     local: localAtual,
-                    observacao: (inputObservacao && inputObservacao.value ? inputObservacao.value.trim() : '') || '',
+                    observacao: observacaoAtual,
                     itens: []
                 };
                 groups.push(group);
@@ -772,11 +1126,20 @@ ${parent.scripts()}
             const toolItem = {
                 id: ++itemCounter,
                 codigo: codigo,
-                descricao: descricao || codigo,
+                descricao: itemInfo && itemInfo.descricao ? itemInfo.descricao : codigo,
                 quantidade: quantidade,
+                categoria: itemInfo ? itemInfo.categoria : '',
+                saldo: itemInfo ? itemInfo.saldo : null,
+                saldo_display: itemInfo ? itemInfo.saldo_display : '',
+                foto_url: itemInfo ? itemInfo.foto_url : null,
+                matricula: matriculaAtual,
+                local: localAtual,
+                observacao: observacaoAtual,
             };
             group.itens.push(toolItem);
             items.push(toolItem);
+            currentPreviewItem = { ...toolItem };
+            renderCurrentPreview(currentPreviewItem, 'queued');
             renderItems();
 
             inputCodigo.value = '';
@@ -814,6 +1177,8 @@ ${parent.scripts()}
         try {
             const failedItems = [];
             let successCount = 0;
+            const completedSnapshot = items.length ? { ...items[items.length - 1] } : null;
+            const completedCount = items.length;
 
             for (const group of groups.filter(entry => entry.itens.length > 0)) {
                 const payload = {
@@ -893,6 +1258,13 @@ ${parent.scripts()}
                     codigo: item.codigo,
                     descricao: item.descricao,
                     quantidade: item.quantidade,
+                    categoria: item.categoria,
+                    saldo: item.saldo,
+                    saldo_display: item.saldo_display,
+                    foto_url: item.foto_url,
+                    matricula: item.matricula,
+                    local: item.local,
+                    observacao: item.observacao,
                 };
                 group.itens.push(toolItem);
                 items.push(toolItem);
@@ -900,8 +1272,11 @@ ${parent.scripts()}
             renderItems();
 
             if (failedItems.length === 0) {
+                if (completedSnapshot && successCount > 0) {
+                    publishMirrorState(buildMirrorPayload('completed', completedSnapshot, { itemCount: completedCount }));
+                }
                 alert('✓ Retiradas registradas com sucesso.');
-                resetCurrentGroupForm();
+                resetCurrentGroupForm(true);
             } else {
                 showErrorModal(
                     'Parte das retiradas falhou',
@@ -986,6 +1361,39 @@ ${parent.scripts()}
             dropdown.classList.remove('show');
         }
     });
+
+    inputLocal.addEventListener('input', function() {
+        if (currentPreviewItem) {
+            currentPreviewItem.local = String(inputLocal.value || '').trim();
+            renderCurrentPreview(currentPreviewItem, 'preview');
+        }
+    });
+
+    inputObservacao.addEventListener('input', function() {
+        if (currentPreviewItem) {
+            currentPreviewItem.observacao = String(inputObservacao.value || '').trim();
+            renderCurrentPreview(currentPreviewItem, 'preview');
+        }
+    });
+
+    inputCodigo.addEventListener('blur', async function() {
+        const codigo = String(inputCodigo.value || '').trim();
+        if (!codigo) return;
+        const itemInfo = await buscarInfoFerramenta(codigo);
+        if (!itemInfo) return;
+        currentPreviewItem = {
+            ...currentPreviewItem,
+            ...itemInfo,
+            quantidade: parseInt(inputQuantidade.value, 10) || 1,
+            matricula: String(inputMatricula.value || '').trim(),
+            local: String(inputLocal.value || '').trim(),
+            observacao: String(inputObservacao.value || '').trim(),
+            foto_url: itemInfo.foto_url,
+        };
+        renderCurrentPreview(currentPreviewItem, 'preview');
+    });
+
+    renderCurrentPreview(null, 'idle');
     
     function setActive(items) {
         items.forEach((item, index) => {

@@ -72,11 +72,37 @@ Adicionar foto e contexto visual nas telas de saida e devolucao, sem mudar regra
 - Miniatura da foto na lista de itens adicionados.
 - Destaque do ultimo item adicionado para confirmar visualmente o que entrou na fila.
 
+#### Saida fracionada
+
+- Preview visual persistente fora do modal com:
+  - foto
+  - descricao
+  - codigo
+  - saldo total fracionado
+  - quantidade pesada em foco
+  - usuario atual
+  - local do servico
+- Reaproveitamento do mesmo estado visual no modal de pesagem e na futura tela espelho.
+
 #### Devolucao
 
 - Mesmo padrao de preview visual do item.
 - Miniatura na lista de itens adicionados.
 - Informacoes da devolucao com linguagem visual alinhada a saida.
+
+#### Ferramentas
+
+- Preview visual do item em retirada com:
+  - foto
+  - descricao
+  - codigo
+  - categoria
+  - saldo
+  - quantidade
+  - matricula
+  - local e observacao
+- Miniatura da ferramenta na lista de itens adicionados.
+- Compatibilidade com a futura tela espelho sem alterar a regra de custodia.
 
 ### Fora do escopo da Fase 1
 
@@ -257,7 +283,9 @@ Nao integrar antes de o contrato do evento estar estabilizado no sistema web.
 ## Entregaveis da Fase 1
 
 - Tela de saida com preview visual e foto
+- Tela de saida fracionada com preview visual e foto
 - Tela de devolucao com preview visual e foto
+- Tela de retirada de ferramentas com preview visual e foto
 - Miniatura nas linhas dos itens adicionados
 - Estado JS preparado para reaproveitamento em tela espelho
 - Validacao manual e renderizacao via app

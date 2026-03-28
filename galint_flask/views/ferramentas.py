@@ -265,6 +265,8 @@ def item_info(codigo: str):
     item = inventory_service.get_item(codigo)
     if not item:
         return jsonify({"found": False}), 404
+
+    foto_path = item.get("foto_path")
     
     return jsonify({
         "found": True,
@@ -274,6 +276,8 @@ def item_info(codigo: str):
         "unidade": item.get("unidade"),
         "saldo": item.get("saldo"),
         "saldo_display": item.get("saldo_display"),
+        "foto_path": foto_path,
+        "foto_url": url_for("static", filename=foto_path) if foto_path else None,
     })
 
 

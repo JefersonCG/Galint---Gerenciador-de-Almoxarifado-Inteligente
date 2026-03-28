@@ -22,6 +22,33 @@
         opacity: 0.95;
         font-size: 0.95rem;
     }
+
+    .page-header-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-top: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .btn-mirror-screen {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.55rem;
+        border-radius: 999px;
+        padding: 0.75rem 1rem;
+        border: 1px solid rgba(255, 255, 255, 0.35);
+        background: rgba(255, 255, 255, 0.14);
+        color: #ffffff;
+        font-weight: 700;
+        text-decoration: none;
+        box-shadow: 0 12px 24px rgba(37, 99, 235, 0.18);
+    }
+
+    .btn-mirror-screen:hover {
+        background: rgba(255, 255, 255, 0.22);
+        color: #ffffff;
+    }
     
     .input-card {
         background: #ffffff;
@@ -390,6 +417,11 @@
     <div class="page-header">
         <h2><i class="bi bi-arrow-return-left me-2"></i>Registro de Devolução</h2>
         <p>Adicione itens à lista e registre a devolução de uma só vez</p>
+        <div class="page-header-actions">
+            <a class="btn-mirror-screen" href="{{ url_for('movements.painel_espelho_page', mode='entrada') }}" target="_blank" rel="noopener">
+                <i class="bi bi-display"></i> Abrir painel do colaborador
+            </a>
+        </div>
     </div>
     
     <div class="alert-info-custom">
@@ -535,6 +567,9 @@
     const dropdownMatricula = document.getElementById('autocomplete-matricula-dropdown');
     const dropdown = document.getElementById('autocomplete-dropdown');
     const currentItemPreview = document.getElementById('current-item-preview');
+    const mirrorChannelName = 'galint-operation-mirror-v1';
+    const mirrorStorageKey = 'galint.operationMirrorState.v1';
+    const mirrorChannel = typeof window.BroadcastChannel !== 'undefined' ? new BroadcastChannel(mirrorChannelName) : null;
     let currentPreviewItem = null;
 
     function escapeHtml(text) {
@@ -548,7 +583,61 @@
         return String(quantidade);
     }
 
-    function renderCurrentPreview(item) {
+    function publishMirrorState(payload) {
+        try {
+            window.localStorage.setItem(mirrorStorageKey, JSON.stringify(payload));
+        } catch (error) {
+            console.error('Erro ao persistir estado do painel espelho:', error);
+        }
+        if (mirrorChannel) {
+            try {
+                mirrorChannel.postMessage(payload);
+            } catch (error) {
+                console.error('Erro ao publicar estado do painel espelho:', error);
+            }
+        }
+    }
+
+    function buildMirrorPayload(status, item, extra) {
+        const matricula = String((item && item.matricula) || matriculaSelecionada || inputMatricula.value || '').trim();
+        const observacao = String(inputObservacao.value || '').trim();
+        const payload = {
+            kind: 'entrada',
+            kind_label: 'Devolucao',
+            status: status,
+            generated_at: new Date().toISOString(),
+            source_label: 'registro de devolucao',
+            batch_label: ((extra && extra.itemCount) || items.length || 0) + ' item(ns) na devolucao',
+            actor: {
+                matricula: matricula,
+                nome: matricula,
+            },
+            context: {
+                observacao: observacao,
+            },
+        };
+
+        if (item) {
+            payload.item = {
+                codigo: item.codigo || '',
+                descricao: item.descricao || item.codigo || '',
+                categoria: item.categoria || '',
+                foto_url: item.foto_url || '',
+                saldo: item.saldo,
+                saldo_display: item.saldo_display || '',
+            };
+            payload.movement = {
+                quantidade: item.quantidade || 1,
+                quantidade_display: formatPreviewQuantity(item),
+            };
+        }
+
+        return payload;
+    }
+
+    function renderCurrentPreview(item, status, publishState) {
+        const previewStatus = status || (item ? 'preview' : 'idle');
+        const shouldPublish = publishState !== false;
         if (!currentItemPreview) return;
         if (!item) {
             currentItemPreview.className = 'operation-preview is-empty';
@@ -560,6 +649,9 @@
                         '<div><strong>Nenhum item em foco</strong><div class="operation-preview-note">Selecione ou adicione um item para ver foto e contexto da devolucao.</div></div>' +
                     '</div>' +
                 '</div>';
+            if (shouldPublish) {
+                publishMirrorState(buildMirrorPayload(previewStatus, null));
+            }
             return;
         }
 
@@ -587,6 +679,9 @@
                 '</div>' +
                 '<div class="operation-preview-note">Este painel sera a base do futuro modo de segunda tela para o colaborador.</div>' +
             '</div>';
+        if (shouldPublish) {
+            publishMirrorState(buildMirrorPayload(previewStatus, item));
+        }
     }
 
     async function fetchItemDetails(codigo) {
@@ -616,7 +711,7 @@
                 matricula: matriculaSelecionada || String(inputMatricula.value || '').trim(),
                 quantidade: parseInt(inputQuantidade.value, 10) || 1,
             };
-            renderCurrentPreview(currentPreviewItem);
+            renderCurrentPreview(currentPreviewItem, 'preview');
         } catch (error) {
             console.error('Erro ao carregar preview da devolucao:', error);
         }
@@ -849,7 +944,7 @@
 
             items.push(item);
             currentPreviewItem = { ...item };
-            renderCurrentPreview(currentPreviewItem);
+            renderCurrentPreview(currentPreviewItem, 'queued');
             renderItems();
             inputCodigo.value = '';
             inputQuantidade.value = '1';
@@ -899,7 +994,7 @@
     window.removeItem = function(index) {
         items.splice(index, 1);
         currentPreviewItem = items.length ? { ...items[items.length - 1] } : null;
-        renderCurrentPreview(currentPreviewItem);
+        renderCurrentPreview(currentPreviewItem, currentPreviewItem ? 'queued' : 'idle');
         renderItems();
     };
     
@@ -916,6 +1011,8 @@
         btnRegistrar.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Registrando...';
         
         try {
+            const completedSnapshot = items.length ? { ...items[items.length - 1] } : null;
+            const completedCount = items.length;
             const promises = items.map(item => {
                 const formData = new FormData();
                 formData.append('usuario', item.matricula);
@@ -935,11 +1032,14 @@
             const allOk = responses.every(r => r.ok);
             
             if (allOk) {
+                if (completedSnapshot) {
+                    publishMirrorState(buildMirrorPayload('completed', completedSnapshot, { itemCount: completedCount }));
+                }
                 alert('✓ Devolução registrada com sucesso!');
                 items.length = 0;
                 renderItems();
                 currentPreviewItem = null;
-                renderCurrentPreview(null);
+                renderCurrentPreview(null, 'idle', false);
                 inputMatricula.value = '';
                 inputCodigo.value = '';
                 inputQuantidade.value = '1';
@@ -976,15 +1076,17 @@
     inputQuantidade.addEventListener('input', function() {
         if (currentPreviewItem) {
             currentPreviewItem.quantidade = parseInt(inputQuantidade.value, 10) || 1;
-            renderCurrentPreview(currentPreviewItem);
+            renderCurrentPreview(currentPreviewItem, 'preview');
         }
     });
 
     inputObservacao.addEventListener('input', function() {
         if (currentPreviewItem) {
-            renderCurrentPreview(currentPreviewItem);
+            renderCurrentPreview(currentPreviewItem, 'preview');
         }
     });
+
+    renderCurrentPreview(null, 'idle');
 })();
 </script>
 {% endblock %}
