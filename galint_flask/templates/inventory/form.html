@@ -3,6 +3,7 @@
 {% block body_attributes %}data-script-root="{{ request.script_root }}"{% endblock %}
 {% set form_item = item if item else form_data %}
 {% set saldo_total_ean = saldo_total_ean if saldo_total_ean is defined else None %}
+{% set supplier_count = all_suppliers|length if all_suppliers else 0 %}
 {% block title %}{% if item %}Editar{% else %}Novo{% endif %} Item{% endblock %}
 
 {% block extra_css %}
@@ -39,7 +40,239 @@
     /* Container Principal */
     .soft-depth-form {
         margin: 1.5rem auto;
-        max-width: 900px;
+        max-width: 1080px;
+    }
+
+    .form-commandbar {
+        display: grid;
+        gap: 1rem;
+        margin-bottom: 1.25rem;
+    }
+
+    .form-command-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 1rem;
+    }
+
+    .form-command-card {
+        border-radius: 1.15rem;
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        background: linear-gradient(180deg, rgba(8, 17, 31, 0.98), rgba(15, 27, 45, 0.96));
+        padding: 1rem;
+        color: #e2e8f0;
+        box-shadow: 0 18px 40px rgba(2, 8, 23, 0.28);
+    }
+
+    .form-command-label {
+        display: block;
+        margin-bottom: 0.45rem;
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: rgba(226, 232, 240, 0.68);
+    }
+
+    .form-command-value {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #ffffff;
+    }
+
+    .form-command-copy {
+        margin: 0.4rem 0 0;
+        font-size: 0.84rem;
+        color: rgba(226, 232, 240, 0.78);
+    }
+
+    .tab-overview {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 0.9rem;
+        margin-bottom: 1.2rem;
+    }
+
+    .tab-overview-card {
+        border-radius: 1rem;
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        background: rgba(255, 255, 255, 0.05);
+        padding: 0.95rem 1rem;
+        color: #e2e8f0;
+    }
+
+    .tab-overview-label {
+        display: block;
+        margin-bottom: 0.4rem;
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: rgba(226, 232, 240, 0.66);
+    }
+
+    .tab-overview-value {
+        font-size: 1.05rem;
+        font-weight: 700;
+        color: #ffffff;
+    }
+
+    .tab-overview-copy {
+        margin: 0.35rem 0 0;
+        font-size: 0.82rem;
+        color: rgba(226, 232, 240, 0.76);
+    }
+
+    .tab-section-shell {
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        border-radius: 1rem;
+        background: rgba(255, 255, 255, 0.04);
+        padding: 1.1rem;
+        margin-bottom: 1rem;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+    }
+
+    .tab-section-shell:last-child {
+        margin-bottom: 0;
+    }
+
+    .tab-section-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .tab-section-eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.3rem 0.64rem;
+        border-radius: 999px;
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        background: rgba(255,255,255,0.05);
+        color: #cbd5e1;
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+    }
+
+    .tab-section-title {
+        margin: 0.65rem 0 0;
+        font-size: 1.02rem;
+        font-weight: 700;
+        color: #f8fafc;
+    }
+
+    .tab-section-copy {
+        margin: 0.35rem 0 0;
+        color: #cbd5e1;
+        font-size: 0.86rem;
+        line-height: 1.55;
+    }
+
+    .form-modal-shell {
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        border-radius: 1.25rem;
+        overflow: hidden;
+        box-shadow: 0 24px 58px rgba(15, 23, 42, 0.34);
+        background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(241,245,249,0.96));
+    }
+
+    .form-modal-shell-dark {
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        border-radius: 1.25rem;
+        overflow: hidden;
+        box-shadow: 0 24px 58px rgba(15, 23, 42, 0.34);
+        background: linear-gradient(180deg, rgba(8,17,31,0.98), rgba(15,27,45,0.96));
+        color: #e2e8f0;
+    }
+
+    .form-modal-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 1.1rem 1.25rem;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+    }
+
+    .form-modal-shell .form-modal-header {
+        background: linear-gradient(180deg, rgba(248,250,252,0.96), rgba(241,245,249,0.92));
+    }
+
+    .form-modal-shell-dark .form-modal-header {
+        background: linear-gradient(135deg, rgba(8,17,31,0.98), rgba(15,27,45,0.95) 46%, rgba(37,99,235,0.72) 100%);
+    }
+
+    .form-modal-kicker {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.3rem 0.65rem;
+        border-radius: 999px;
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+    }
+
+    .form-modal-shell .form-modal-kicker {
+        background: rgba(37,99,235,0.08);
+        color: #2563eb;
+    }
+
+    .form-modal-shell-dark .form-modal-kicker {
+        background: rgba(255,255,255,0.08);
+        color: #e2e8f0;
+    }
+
+    .form-modal-heading {
+        margin: 0.65rem 0 0;
+        font-size: 1.08rem;
+        font-weight: 700;
+    }
+
+    .form-modal-copy {
+        margin: 0.35rem 0 0;
+        font-size: 0.86rem;
+        line-height: 1.55;
+    }
+
+    .form-modal-shell .form-modal-copy {
+        color: #475569;
+    }
+
+    .form-modal-shell-dark .form-modal-copy {
+        color: rgba(226, 232, 240, 0.8);
+    }
+
+    .form-modal-body-lite {
+        padding: 1.15rem 1.25rem 1.25rem;
+    }
+
+    .form-modal-footer-lite {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        padding: 1rem 1.25rem 1.15rem;
+        border-top: 1px solid rgba(148,163,184,0.16);
+    }
+
+    .form-modal-panel {
+        border-radius: 0.95rem;
+        border: 1px solid rgba(148,163,184,0.16);
+        background: rgba(255,255,255,0.72);
+        padding: 1rem;
+    }
+
+    .form-modal-shell-dark .form-modal-panel {
+        background: rgba(255,255,255,0.05);
     }
 
     /* Cards Soft Depth */
@@ -798,11 +1031,46 @@
 
     .button-group {
         display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
         gap: 1rem;
         margin-top: 1.5rem;
-        padding: 0 1.5rem 1.5rem;
-        border-top: 1px solid var(--gray-200);
+        padding: 1.25rem 1.5rem 1.5rem;
+        border-top: 1px solid rgba(148,163,184,0.18);
         padding-top: 1.5rem;
+        background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.06));
+    }
+
+    .button-group-meta {
+        max-width: 28rem;
+    }
+
+    .button-group-kicker {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.32rem 0.68rem;
+        border-radius: 999px;
+        border: 1px solid rgba(148,163,184,0.18);
+        background: rgba(255,255,255,0.06);
+        color: #cbd5e1;
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+    }
+
+    .button-group-copy {
+        margin: 0.6rem 0 0;
+        color: #cbd5e1;
+        font-size: 0.88rem;
+    }
+
+    .button-group-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
     }
 
     /* Responsividade Mobile-First */
@@ -832,6 +1100,15 @@
         .button-group {
             flex-direction: column;
             padding: 0 1.5rem 1.5rem;
+        }
+
+        .button-group-meta {
+            max-width: none;
+        }
+
+        .button-group-actions {
+            width: 100%;
+            flex-direction: column;
         }
 
         .btn {
@@ -1012,10 +1289,43 @@
 </style>
 {% endblock %}
 
+{% block page_header %}
+<section class="galint-page-header-card">
+    <div class="galint-page-heading gap-4">
+        <div>
+            <span class="galint-kicker"><i class="bi bi-box-seam"></i> Cadastro operacional</span>
+            <h1 class="galint-title text-white mt-3">{% if item %}Editar item{% else %}Novo item{% endif %}</h1>
+            <p class="galint-subtitle text-slate-200 mt-3">Estruture identificação, classificação, financeiro e rastreabilidade em um único fluxo de cadastro orientado por operação.</p>
+        </div>
+        <div class="d-flex flex-wrap gap-2 justify-content-start justify-content-md-end align-items-start">
+            <span class="galint-badge"><i class="bi bi-diagram-3"></i> {{ supplier_count }} fornecedores carregados</span>
+            <span class="galint-badge"><i class="bi bi-shield-check"></i> {% if item %}Edição controlada{% else %}Cadastro guiado{% endif %}</span>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
 {% block content %}
 <div class="soft-depth-form">
-    <h1 class="form-title">{% if item %}Editar{% else %}Novo{% endif %} Item</h1>
-    <p class="form-subtitle">Preencha os campos abaixo com as informações do produto</p>
+    <div class="form-commandbar">
+        <div class="form-command-grid">
+            <div class="form-command-card">
+                <span class="form-command-label">Modo</span>
+                <div class="form-command-value">{% if item %}Edição{% else %}Cadastro{% endif %}</div>
+                <p class="form-command-copy">{% if item %}Ajuste dados já existentes sem sair do fluxo principal do item.{% else %}Crie o item com contexto fiscal, unidades e rastreabilidade desde o início.{% endif %}</p>
+            </div>
+            <div class="form-command-card">
+                <span class="form-command-label">Código</span>
+                <div class="form-command-value">{{ (form_item.codigo if form_item and form_item.codigo else 'Pendente') }}</div>
+                <p class="form-command-copy">EAN ou identificador principal usado pelo estoque, documentos e consultas.</p>
+            </div>
+            <div class="form-command-card">
+                <span class="form-command-label">Saldo agregado</span>
+                <div class="form-command-value">{{ saldo_total_ean if saldo_total_ean is not none else 0 }}</div>
+                <p class="form-command-copy">Soma localizada para o mesmo código, útil ao revisar itens já existentes.</p>
+            </div>
+        </div>
+    </div>
     {% if form_item and form_item.pre_cadastro_pendente %}
     <div class="alert alert-info border-0 shadow-sm mb-4">
         <strong>Pré-cadastro vindo da NF.</strong> Os dados base do item já foram reaproveitados do documento fiscal.
@@ -1052,6 +1362,32 @@
             <!-- Tab 1: Identificação -->
             <div class="tab-content galint-folder-panel">
                 <div class="tab-pane active" id="tab-identificacao">
+                    <div class="tab-overview">
+                        <div class="tab-overview-card">
+                            <span class="tab-overview-label">Código principal</span>
+                            <div class="tab-overview-value">{{ form_item.codigo if form_item and form_item.codigo else 'Pendente' }}</div>
+                            <p class="tab-overview-copy">Identificador usado no estoque, documentos e consultas rápidas.</p>
+                        </div>
+                        <div class="tab-overview-card">
+                            <span class="tab-overview-label">Documento base</span>
+                            <div class="tab-overview-value">{{ form_item.nota_fiscal if form_item and form_item.nota_fiscal else 'Sem NF' }}</div>
+                            <p class="tab-overview-copy">Número fiscal ou referência inicial para reaproveitar contexto documental.</p>
+                        </div>
+                        <div class="tab-overview-card">
+                            <span class="tab-overview-label">Mídia</span>
+                            <div class="tab-overview-value">{% if form_item and (form_item.foto_path or form_item.foto_url) %}Imagem vinculada{% else %}Sem imagem{% endif %}</div>
+                            <p class="tab-overview-copy">Arquivo local ou link pronto para baixar e padronizar a foto do item.</p>
+                        </div>
+                    </div>
+
+                    <section class="tab-section-shell">
+                        <div class="tab-section-header">
+                            <div>
+                                <span class="tab-section-eyebrow"><i class="bi bi-card-checklist"></i> Identidade base</span>
+                                <h3 class="tab-section-title">Dados principais do item</h3>
+                                <p class="tab-section-copy">Defina código, documento, descrição comercial e fabricante antes de avançar para classificação e financeiro.</p>
+                            </div>
+                        </div>
                     <div class="form-row">
                         <div class="form-group">
                             <label class="form-label" for="codigo">Código de barras</label>
@@ -1086,8 +1422,17 @@
                         <input class="form-control" id="marca" name="marca"
                             value="{{ form_item.marca if form_item and form_item.marca else '' }}">
                     </div>
+                    </section>
                     
                     <!-- Upload de Foto -->
+                    <section class="tab-section-shell">
+                        <div class="tab-section-header">
+                            <div>
+                                <span class="tab-section-eyebrow"><i class="bi bi-image"></i> Mídia operacional</span>
+                                <h3 class="tab-section-title">Foto e referência visual</h3>
+                                <p class="tab-section-copy">Anexe arquivo local ou aplique uma URL direta para padronizar a identificação visual do catálogo.</p>
+                            </div>
+                        </div>
                     <div class="form-group">
                         <label class="form-label" for="foto">Foto do Item</label>
                         <input type="hidden" id="foto_url" name="foto_url" value="{{ form_item.foto_url if form_item and form_item.foto_url else '' }}">
@@ -1130,10 +1475,37 @@
                             </div>
                         </div>
                     </div>
+                    </section>
                 </div>
 
             <!-- Tab 2: Classificação -->
                 <div class="tab-pane" id="tab-classificacao">
+                    <div class="tab-overview">
+                        <div class="tab-overview-card">
+                            <span class="tab-overview-label">Categoria</span>
+                            <div class="tab-overview-value">{{ form_item.categoria if form_item and form_item.categoria else 'Pendente' }}</div>
+                            <p class="tab-overview-copy">Família que determina comportamento operacional, visibilidade e regras condicionais.</p>
+                        </div>
+                        <div class="tab-overview-card">
+                            <span class="tab-overview-label">Unidade</span>
+                            <div class="tab-overview-value">{{ form_item.unidade if form_item and form_item.unidade else 'Unidade' }}</div>
+                            <p class="tab-overview-copy">Forma principal de contabilização usada no saldo, documentos e alertas.</p>
+                        </div>
+                        <div class="tab-overview-card">
+                            <span class="tab-overview-label">Saldo agregado</span>
+                            <div class="tab-overview-value">{{ saldo_total_ean if saldo_total_ean is not none else 0 }}</div>
+                            <p class="tab-overview-copy">Visão consolidada para o mesmo código, útil ao revisar novas entradas do mesmo item.</p>
+                        </div>
+                    </div>
+
+                    <section class="tab-section-shell">
+                        <div class="tab-section-header">
+                            <div>
+                                <span class="tab-section-eyebrow"><i class="bi bi-tags"></i> Classificação</span>
+                                <h3 class="tab-section-title">Categoria, localização e comportamento especial</h3>
+                                <p class="tab-section-copy">Agrupe o item corretamente e habilite os campos extras de ferramenta ou equipamento quando o fluxo exigir rastreio técnico maior.</p>
+                            </div>
+                        </div>
                     <div class="form-row">
                         <div class="form-group">
                             <label class="form-label" for="categoria">Categoria</label>
@@ -1194,7 +1566,16 @@
                             </div>
                         </div>
                     </div>
+                    </section>
 
+                    <section class="tab-section-shell">
+                        <div class="tab-section-header">
+                            <div>
+                                <span class="tab-section-eyebrow"><i class="bi bi-boxes"></i> Estoque inicial</span>
+                                <h3 class="tab-section-title">Saldo e unidade principal</h3>
+                                <p class="tab-section-copy">Consulte o saldo consolidado do código e mantenha a unidade coerente com a forma real de controle do estoque.</p>
+                            </div>
+                        </div>
                     <div class="form-row" style="margin-top: 1rem;">
                         <div class="form-group">
                             {% set saldo_base = 0 %}
@@ -1281,12 +1662,30 @@
                         </small>
                     </div>
                     {% endif %}
+                    </section>
                 </div>
 
             <!-- Tab 3: Financeiro -->
                 <div class="tab-pane" id="tab-financeiro">
                     {% set finance_section_can_edit = finance_section_can_edit if finance_section_can_edit is defined else (item is none or current_user.is_admin) %}
                     {% set finance_locked = item is not none and not finance_section_can_edit %}
+                    <div class="tab-overview">
+                        <div class="tab-overview-card">
+                            <span class="tab-overview-label">Status</span>
+                            <div class="tab-overview-value">{% if finance_locked %}Bloqueada{% else %}Liberada{% endif %}</div>
+                            <p class="tab-overview-copy">A edição financeira pode exigir credencial administrativa para preservar governança.</p>
+                        </div>
+                        <div class="tab-overview-card">
+                            <span class="tab-overview-label">Fornecedor</span>
+                            <div class="tab-overview-value">{{ preferred_supplier.nome_exibicao if preferred_supplier else 'Não vinculado' }}</div>
+                            <p class="tab-overview-copy">Loja preferencial usada para futuras entradas e leitura financeira do item.</p>
+                        </div>
+                        <div class="tab-overview-card">
+                            <span class="tab-overview-label">Origem do valor</span>
+                            <div class="tab-overview-value">{{ form_item.finance_origem_valor if form_item and form_item.finance_origem_valor else 'inventario_inicial' }}</div>
+                            <p class="tab-overview-copy">Base documental que define comprovação, observação e contexto da compra.</p>
+                        </div>
+                    </div>
                     <div class="section">
                         <div class="d-flex align-items-start justify-content-between gap-2">
                             <h3 class="section-title">💰 Valores do item</h3>
@@ -1507,6 +1906,31 @@
 
             <!-- Tab 3: Rastreabilidade -->
                 <div class="tab-pane" id="tab-rastreabilidade">
+                    <div class="tab-overview">
+                        <div class="tab-overview-card">
+                            <span class="tab-overview-label">Entrada</span>
+                            <div class="tab-overview-value">{{ form_item.data_entrada if form_item and form_item.data_entrada else 'Não informada' }}</div>
+                            <p class="tab-overview-copy">Marco inicial para histórico de lote e cronologia do estoque.</p>
+                        </div>
+                        <div class="tab-overview-card">
+                            <span class="tab-overview-label">Lote</span>
+                            <div class="tab-overview-value">{{ form_item.lote if form_item and form_item.lote else 'Automático ou vazio' }}</div>
+                            <p class="tab-overview-copy">Rastreio usado em consultas, documentos e validações de saída.</p>
+                        </div>
+                        <div class="tab-overview-card">
+                            <span class="tab-overview-label">Validade</span>
+                            <div class="tab-overview-value">{{ form_item.data_validade if form_item and form_item.data_validade else 'Sem data' }}</div>
+                            <p class="tab-overview-copy">Controle de vencimento para bloqueio operacional e alertas preventivos.</p>
+                        </div>
+                    </div>
+                    <section class="tab-section-shell">
+                        <div class="tab-section-header">
+                            <div>
+                                <span class="tab-section-eyebrow"><i class="bi bi-box"></i> Rastreio de lote</span>
+                                <h3 class="tab-section-title">Entrada, lote e datas críticas</h3>
+                                <p class="tab-section-copy">Registre os marcos mínimos para acompanhar origem, fabricação e vencimento do material.</p>
+                            </div>
+                        </div>
                     <div class="form-row">
                         <div class="form-group">
                             <label class="form-label" for="data_entrada">Data de Entrada</label>
@@ -1549,6 +1973,7 @@
                             </div>
                         </div>
                     </div>
+                    </section>
                 </div>
 
             <!-- Tab 4: Equipamentos/Máquinas -->
@@ -1596,6 +2021,31 @@
             <!-- Tab 5: Unidades Dinâmicas -->
                 <div class="tab-pane" id="tab-unidades">
                     <input type="hidden" id="advanced_unit_settings_json" name="advanced_unit_settings_json">
+                    <div class="tab-overview">
+                        <div class="tab-overview-card">
+                            <span class="tab-overview-label">Embalagem</span>
+                            <div class="tab-overview-value">{{ form_item.tipo_embalagem_novo if form_item and form_item.tipo_embalagem_novo else 'Nenhuma' }}</div>
+                            <p class="tab-overview-copy">Tipo principal usado para saídas automáticas e leitura de saldo por embalagem.</p>
+                        </div>
+                        <div class="tab-overview-card">
+                            <span class="tab-overview-label">Fator base</span>
+                            <div class="tab-overview-value">{{ form_item.unidades_por_embalagem if form_item and form_item.unidades_por_embalagem else 'Não definido' }}</div>
+                            <p class="tab-overview-copy">Quantidade por embalagem ou referência que sustenta a conversão principal.</p>
+                        </div>
+                        <div class="tab-overview-card">
+                            <span class="tab-overview-label">Modo avançado</span>
+                            <div class="tab-overview-value">Configurável</div>
+                            <p class="tab-overview-copy">Grandezas extras e conversões adicionais para itens com controle mais complexo.</p>
+                        </div>
+                    </div>
+                    <section class="tab-section-shell">
+                        <div class="tab-section-header">
+                            <div>
+                                <span class="tab-section-eyebrow"><i class="bi bi-boxes"></i> Conversão principal</span>
+                                <h3 class="tab-section-title">Tipo, unidade e fator da embalagem</h3>
+                                <p class="tab-section-copy">Defina como a embalagem se converte na unidade real de estoque antes de abrir as grandezas avançadas.</p>
+                            </div>
+                        </div>
                     <!-- Sistema de Embalagens -->
                     <div class="form-group">
                         <label class="form-label">Tipo de Embalagem</label>
@@ -1695,7 +2145,16 @@
                             <div id="preview-texto"></div>
                         </div>
                     </div>
+                    </section>
 
+                    <section class="tab-section-shell">
+                        <div class="tab-section-header">
+                            <div>
+                                <span class="tab-section-eyebrow"><i class="bi bi-sliders"></i> Grandezas adicionais</span>
+                                <h3 class="tab-section-title">Configuração avançada de unidades</h3>
+                                <p class="tab-section-copy">Abra o configurador quando o item exigir múltiplas grandezas, unidades extras ou regras próprias de conversão.</p>
+                            </div>
+                        </div>
                     <div class="form-group" style="margin-top: 1.5rem;">
                         <div style="display: flex; justify-content: space-between; gap: 1rem; align-items: center; flex-wrap: wrap;">
                             <div>
@@ -1713,6 +2172,7 @@
                             Nenhuma configuração avançada definida.
                         </div>
                     </div>
+                    </section>
                 </div>
             </div>
 
@@ -1940,11 +2400,17 @@ Conversão: 1 saco = 20 quilos</div>
 
             <!-- Botões de Ação -->
             <div class="button-group">
-                <button class="btn btn-primary" type="submit">✓ Salvar</button>
-                {% if item %}
-                <button class="btn btn-secondary" type="button" id="btnNovaEntradaNF" data-nf-url="{{ url_for('nf.nf_index', codigo=item.codigo) }}" onclick="prepararNovaEntrada()">＋ Documentos Fiscais</button>
-                {% endif %}
-                <a class="btn btn-secondary" href="{{ url_for('inventory.list_items') }}">← Cancelar</a>
+                <div class="button-group-meta">
+                    <span class="button-group-kicker"><i class="bi bi-check2-square"></i> Fechamento do cadastro</span>
+                    <p class="button-group-copy">Revise as abas antes de salvar. O GALINT aplica validações de financeiro, rastreabilidade e vínculo documental conforme o contexto do item.</p>
+                </div>
+                <div class="button-group-actions">
+                    <button class="galint-btn-primary" type="submit"><i class="bi bi-check2-circle"></i> Salvar</button>
+                    {% if item %}
+                    <button class="galint-btn-secondary" type="button" id="btnNovaEntradaNF" data-nf-url="{{ url_for('nf.nf_index', codigo=item.codigo) }}" onclick="prepararNovaEntrada()"><i class="bi bi-receipt"></i> Documentos Fiscais</button>
+                    {% endif %}
+                    <a class="galint-btn-secondary" href="{{ url_for('inventory.list_items') }}"><i class="bi bi-arrow-left"></i> Cancelar</a>
+                </div>
             </div>
         </div>
     </form>
@@ -2006,12 +2472,17 @@ Conversão: 1 saco = 20 quilos</div>
 <div class="modal fade" id="financeObservationRequiredModal" tabindex="-1"
     aria-labelledby="financeObservationRequiredModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="financeObservationRequiredModalLabel">Observação financeira obrigatória</h5>
+        <div class="modal-content form-modal-shell">
+            <div class="modal-header form-modal-header">
+                <div>
+                    <span class="form-modal-kicker"><i class="bi bi-journal-text"></i> Exigência financeira</span>
+                    <h5 class="modal-title form-modal-heading" id="financeObservationRequiredModalLabel">Observação financeira obrigatória</h5>
+                    <p class="form-modal-copy">Explique a origem do valor quando o item não tiver comprovação documental suficiente para auditoria.</p>
+                </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body form-modal-body-lite">
+                <div class="form-modal-panel">
                 <p class="mb-2">Para cadastros de itens sem comprovação fiscal, o campo <strong>Observação financeira</strong> precisa ser preenchido antes de salvar.</p>
                 <p class="text-muted">Informe a justificativa da origem do valor, por exemplo: compra emergencial, saldo anterior sem comprovante ou valor estimado.</p>
                 <div class="form-group mb-0">
@@ -2020,10 +2491,11 @@ Conversão: 1 saco = 20 quilos</div>
                         placeholder="Ex.: compra emergencial, saldo anterior sem comprovante, valor estimado pela diretoria"></textarea>
                     <small class="form-text">Esse texto será salvo automaticamente no cadastro do item.</small>
                 </div>
+                </div>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
-                <button type="button" class="btn btn-primary" id="financeObservationRequiredAction">Salvar observação e continuar</button>
+            <div class="modal-footer form-modal-footer-lite">
+                <button type="button" class="galint-btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                <button type="button" class="galint-btn-primary" id="financeObservationRequiredAction">Salvar observação e continuar</button>
             </div>
         </div>
     </div>
@@ -2032,12 +2504,17 @@ Conversão: 1 saco = 20 quilos</div>
 <div class="modal fade" id="financeSectionUnlockModal" tabindex="-1"
     aria-labelledby="financeSectionUnlockModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="financeSectionUnlockModalLabel">Liberar edição financeira</h5>
+        <div class="modal-content form-modal-shell">
+            <div class="modal-header form-modal-header">
+                <div>
+                    <span class="form-modal-kicker"><i class="bi bi-shield-lock"></i> Liberação controlada</span>
+                    <h5 class="modal-title form-modal-heading" id="financeSectionUnlockModalLabel">Liberar edição financeira</h5>
+                    <p class="form-modal-copy">Use credenciais administrativas para abrir temporariamente a seção Origem da compra deste item.</p>
+                </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body form-modal-body-lite">
+                <div class="form-modal-panel">
                 <p class="mb-3">Informe as credenciais de um administrador para liberar a seção <strong>Origem da compra</strong> deste item.</p>
                 <div class="form-group">
                     <label class="form-label" for="finance_admin_matricula">Matrícula do administrador</label>
@@ -2048,10 +2525,11 @@ Conversão: 1 saco = 20 quilos</div>
                     <input class="form-control" id="finance_admin_password" type="password" autocomplete="current-password" placeholder="Digite a senha do administrador">
                 </div>
                 <div class="alert alert-danger mt-3 mb-0" id="finance-section-unlock-feedback" style="display: none;"></div>
+                </div>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                <button type="button" class="btn btn-primary" id="financeSectionUnlockAction">Liberar seção</button>
+            <div class="modal-footer form-modal-footer-lite">
+                <button type="button" class="galint-btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="galint-btn-primary" id="financeSectionUnlockAction">Liberar seção</button>
             </div>
         </div>
     </div>
@@ -2060,9 +2538,13 @@ Conversão: 1 saco = 20 quilos</div>
 <div class="modal fade" id="priceSuggestionsModal" tabindex="-1" aria-labelledby="priceSuggestionsModalLabel"
     aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
-        <div class="modal-content price-suggest-modal">
-            <div class="modal-header">
-                <h5 class="modal-title" id="priceSuggestionsModalLabel">Buscar preco de reposicao</h5>
+        <div class="modal-content price-suggest-modal form-modal-shell-dark">
+            <div class="modal-header form-modal-header">
+                <div>
+                    <span class="form-modal-kicker"><i class="bi bi-currency-exchange"></i> Pesquisa de mercado</span>
+                    <h5 class="modal-title form-modal-heading" id="priceSuggestionsModalLabel">Buscar preco de reposicao</h5>
+                    <p class="form-modal-copy">Compare referências externas, aplique um valor manual se necessário e grave a melhor estimativa de recompra.</p>
+                </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
             </div>
             <div class="modal-body">
@@ -2076,7 +2558,7 @@ Conversão: 1 saco = 20 quilos</div>
                         <input class="form-control text-uppercase" id="price-uf" maxlength="2" placeholder="SP">
                     </div>
                     <div class="col-md-2 d-grid">
-                        <button class="btn btn-primary" type="button" id="price-refresh-btn" onclick="window.refreshPriceSuggestionsFromForm(event)">
+                        <button class="galint-btn-primary" type="button" id="price-refresh-btn" onclick="window.refreshPriceSuggestionsFromForm(event)">
                             <i class="bi bi-search me-1"></i> Pesquisar
                         </button>
                     </div>
@@ -2101,9 +2583,9 @@ Conversão: 1 saco = 20 quilos</div>
                     <div id="price-empty" class="text-muted small d-none">Nenhuma sugestao encontrada para esta busca.</div>
                 </div>
             </div>
-            <div class="modal-footer">
-                <button class="btn btn-outline-secondary" type="button" id="price-use-median">Usar mediana</button>
-                <button class="btn btn-success" type="button" id="price-save">
+            <div class="modal-footer form-modal-footer-lite">
+                <button class="galint-btn-secondary" type="button" id="price-use-median">Usar mediana</button>
+                <button class="galint-btn-primary" type="button" id="price-save">
                     <i class="bi bi-check2-circle me-1"></i> Salvar
                 </button>
             </div>
