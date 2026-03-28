@@ -2,65 +2,144 @@
 {% block title %}Registro de Devolução{% endblock %}
 {% block extra_css %}
 <style>
-    .page-header {
-        background: linear-gradient(120deg, #2563eb 0%, #3b82f6 100%);
-        color: white;
-        padding: 2rem;
-        border-radius: 12px;
-        margin-bottom: 2rem;
-        box-shadow: 0 4px 20px rgba(37, 99, 235, 0.4);
+    .returns-shell {
+        max-width: 1080px;
+        margin: 0 auto 2rem;
     }
-    
-    .page-header h2 {
-        margin: 0;
+
+    .returns-command-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.25rem;
+    }
+
+    .returns-command-card {
+        border-radius: 1.15rem;
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        background: linear-gradient(180deg, rgba(8, 17, 31, 0.98), rgba(15, 27, 45, 0.96));
+        padding: 1rem;
+        color: #e2e8f0;
+        box-shadow: 0 18px 40px rgba(2, 8, 23, 0.28);
+    }
+
+    .returns-command-label {
+        display: block;
+        margin-bottom: 0.45rem;
+        font-size: 0.68rem;
         font-weight: 700;
-        font-size: 1.75rem;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: rgba(226, 232, 240, 0.68);
     }
-    
-    .page-header p {
-        margin: 0.5rem 0 0 0;
-        opacity: 0.95;
-        font-size: 0.95rem;
+
+    .returns-command-value {
+        font-size: 1.2rem;
+        font-weight: 700;
+        color: #ffffff;
     }
-    
+
+    .returns-command-copy {
+        margin: 0.4rem 0 0;
+        font-size: 0.84rem;
+        color: rgba(226, 232, 240, 0.78);
+    }
+
+    .returns-panel {
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        border-radius: 1.25rem;
+        background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(241,245,249,0.96));
+        box-shadow: 0 24px 54px rgba(15, 23, 42, 0.12);
+        margin-bottom: 1.25rem;
+    }
+
+    .returns-panel-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 1.15rem 1.35rem;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+        background: linear-gradient(135deg, rgba(248,250,252,0.95), rgba(226,232,240,0.82));
+    }
+
+    .returns-panel-title {
+        margin: 0.55rem 0 0;
+        font-size: 1.05rem;
+        font-weight: 700;
+        color: #0f172a;
+    }
+
+    .returns-panel-copy {
+        margin: 0.35rem 0 0;
+        color: #475569;
+        font-size: 0.88rem;
+        line-height: 1.55;
+    }
+
+    .returns-kicker {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.3rem 0.68rem;
+        border-radius: 999px;
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        background: rgba(37, 99, 235, 0.08);
+        color: #2563eb;
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+    }
+
+    .returns-panel-body {
+        padding: 1.35rem;
+    }
+
+    .returns-inline-note {
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        border-radius: 1rem;
+        background: linear-gradient(135deg, rgba(219, 234, 254, 0.9), rgba(239, 246, 255, 0.92));
+        padding: 1rem 1.1rem;
+        color: #1e3a8a;
+        margin-bottom: 1.1rem;
+    }
+
+    .returns-inline-note strong {
+        color: #1d4ed8;
+    }
+
     .input-card {
-        background: #ffffff;
-        border-radius: 12px;
-        padding: 2rem;
-        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
-        margin-bottom: 1.5rem;
-        border: 1px solid #e9ecef;
+        background: transparent;
+        border-radius: 0;
+        padding: 0;
+        box-shadow: none;
+        margin-bottom: 0;
+        border: 0;
         position: relative;
     }
-    
+
     .input-card .form-label {
         font-weight: 600;
-        color: #495057;
+        color: #334155;
         margin-bottom: 0.5rem;
         font-size: 0.9rem;
     }
-    
+
     .input-card .form-control {
-        border-radius: 8px;
-        border: 2px solid #e9ecef;
-        padding: 0.75rem 1rem;
+        border-radius: 0.9rem;
+        border: 1px solid rgba(148, 163, 184, 0.25);
+        padding: 0.82rem 1rem;
         transition: all 0.3s ease;
+        background: rgba(255,255,255,0.92);
     }
-    
+
     .input-card .form-control:focus {
-        border-color: #3b82f6;
-        box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.15);
+        border-color: #2563eb;
+        box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.12);
+        background: #ffffff;
     }
-    
-    .alert-info-custom {
-        background: #e7f3ff;
-        border: 1px solid #b3d9ff;
-        border-radius: 8px;
-        padding: 1rem;
-        color: #004085;
-        margin-bottom: 1.5rem;
-    }
-    
+
     .autocomplete-dropdown {
         position: absolute;
         top: 100%;
@@ -69,12 +148,12 @@
         max-height: 300px;
         overflow-y: auto;
         background: white;
-        border: 2px solid #3b82f6;
+        border: 1px solid rgba(37, 99, 235, 0.22);
         border-top: none;
-        border-radius: 0 0 8px 8px;
+        border-radius: 0 0 14px 14px;
         z-index: 1000;
         display: none;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        box-shadow: 0 18px 36px rgba(15, 23, 42, 0.16);
     }
     
     .autocomplete-dropdown.show {
@@ -94,7 +173,7 @@
     
     .autocomplete-item:hover,
     .autocomplete-item.active {
-        background: #e7f3ff;
+        background: #eff6ff;
     }
     
     .autocomplete-item-title {
@@ -114,19 +193,19 @@
     }
 
     .items-table {
-        background: white;
-        border-radius: 12px;
+        background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,250,252,0.96));
+        border-radius: 1.2rem;
         overflow: hidden;
-        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
-        border: 1px solid #e9ecef;
+        box-shadow: 0 24px 54px rgba(15, 23, 42, 0.12);
+        border: 1px solid rgba(148, 163, 184, 0.16);
         margin-top: 1.25rem;
         margin-bottom: 1rem;
     }
 
     .items-table-header {
-        background: linear-gradient(120deg, #2563eb 0%, #3b82f6 100%);
+        background: linear-gradient(135deg, #020617 0%, #172554 48%, #2563eb 100%);
         color: white;
-        padding: 1rem 1.5rem;
+        padding: 1rem 1.35rem;
         font-weight: 700;
         display: flex;
         align-items: center;
@@ -142,27 +221,19 @@
     }
 
     .btn-add-item {
-        background: #0d6efd;
-        border: none;
-        border-radius: 8px;
-        padding: 1rem 1.25rem;
-        font-weight: 700;
-        color: white;
-        transition: all 0.2s ease;
-        box-shadow: 0 4px 12px rgba(13, 110, 253, 0.2);
+        width: 100%;
     }
 
     .btn-add-item:hover {
         transform: translateY(-1px);
-        box-shadow: 0 6px 18px rgba(13, 110, 253, 0.35);
     }
 
     .btn-remove-item {
-        background: #dc3545;
+        background: linear-gradient(135deg, #b91c1c, #ef4444);
         border: none;
         color: white;
         padding: 0.5rem 0.75rem;
-        border-radius: 6px;
+        border-radius: 0.7rem;
         font-weight: 600;
         font-size: 0.9rem;
     }
@@ -172,15 +243,6 @@
     }
 
     .btn-submit {
-        background: linear-gradient(120deg, #10b981 0%, #059669 100%);
-        border: none;
-        border-radius: 8px;
-        padding: 1rem 2rem;
-        font-weight: 700;
-        color: white;
-        font-size: 1.1rem;
-        transition: all 0.3s ease;
-        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
         width: 100%;
     }
     
@@ -209,7 +271,10 @@
     .empty-state {
         text-align: center;
         padding: 3rem 1.5rem;
-        color: #9ca3af;
+        color: #64748b;
+        border: 1px dashed rgba(148, 163, 184, 0.36);
+        border-radius: 1.2rem;
+        background: rgba(255,255,255,0.55);
     }
 
     .empty-state i {
@@ -218,22 +283,94 @@
         margin-bottom: 1rem;
     }
 
+    .returns-actions {
+        margin-top: 1.5rem;
+        display: flex;
+        justify-content: center;
+    }
+
+    .returns-actions .btn-submit {
+        max-width: 420px;
+    }
+
+    .items-table thead th {
+        color: #475569;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+        background: rgba(248,250,252,0.92);
+        text-transform: uppercase;
+        font-size: 0.74rem;
+        letter-spacing: 0.08em;
+    }
+
+    .items-table tbody td {
+        vertical-align: middle;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+        color: #0f172a;
+    }
+
+    @media (max-width: 767px) {
+        .returns-panel-header {
+            flex-direction: column;
+        }
+
+        .returns-panel-body {
+            padding: 1rem;
+        }
+    }
+
 </style>
 {% endblock %}
+{% block page_header %}
+<section class="galint-page-header-card">
+    <div class="galint-page-heading gap-4">
+        <div>
+            <span class="galint-kicker"><i class="bi bi-arrow-return-left"></i> Movimentos de devolução</span>
+            <h1 class="galint-title text-white mt-3">Registro de devolução</h1>
+            <p class="galint-subtitle text-slate-200 mt-3">Agrupe múltiplos itens do mesmo colaborador, revise a lista e confirme a devolução em lote sem perder rastreabilidade operacional.</p>
+        </div>
+        <div class="d-flex flex-wrap gap-2 justify-content-start justify-content-md-end align-items-start">
+            <span class="galint-badge"><i class="bi bi-people"></i> {{ usuarios|length }} colaboradores carregados</span>
+            <span class="galint-badge"><i class="bi bi-list-check"></i> Fluxo em lote</span>
+        </div>
+    </div>
+</section>
+{% endblock %}
 {% block content %}
-<div class="container-fluid" style="max-width: 900px;">
-    <div class="page-header">
-        <h2><i class="bi bi-arrow-return-left me-2"></i>Registro de Devolução</h2>
-        <p>Adicione itens à lista e registre a devolução de uma só vez</p>
+<div class="returns-shell">
+    <div class="returns-command-grid">
+        <div class="returns-command-card">
+            <span class="returns-command-label">Fluxo</span>
+            <div class="returns-command-value">Devolução agrupada</div>
+            <p class="returns-command-copy">Monte uma fila única por colaborador antes de registrar tudo de uma vez.</p>
+        </div>
+        <div class="returns-command-card">
+            <span class="returns-command-label">Leitura</span>
+            <div class="returns-command-value">Matrícula + item</div>
+            <p class="returns-command-copy">A tela continua otimizada para leitor, busca parcial e digitação manual.</p>
+        </div>
+        <div class="returns-command-card">
+            <span class="returns-command-label">Ritmo</span>
+            <div class="returns-command-value">Operação contínua</div>
+            <p class="returns-command-copy">A lista fica visível e editável até o fechamento da devolução em lote.</p>
+        </div>
     </div>
+
+    <section class="returns-panel">
+        <div class="returns-panel-header">
+            <div>
+                <span class="returns-kicker"><i class="bi bi-plus-square"></i> Montagem da devolução</span>
+                <h2 class="returns-panel-title">Adicionar itens à fila operacional</h2>
+                <p class="returns-panel-copy">Informe matrícula, item e quantidade. Se houver troca de colaborador no meio da operação, o sistema confirma a limpeza da lista para evitar mistura de devoluções.</p>
+            </div>
+        </div>
+        <div class="returns-panel-body">
+            <div class="returns-inline-note">
+                <i class="bi bi-info-circle me-2"></i>
+                <strong>Dica:</strong> você pode adicionar múltiplos itens do mesmo colaborador e registrar tudo junto ao final.
+            </div>
     
-    <div class="alert-info-custom">
-        <i class="bi bi-info-circle me-2"></i>
-        <strong>Dica:</strong> Você pode adicionar múltiplos itens de uma vez e registrar tudo junto.
-    </div>
-    
-    <form id="form-devolucao" autocomplete="off">
-        <div class="input-card">
+            <form id="form-devolucao" autocomplete="off">
+                <div class="input-card">
             <div class="row g-3">
                 <div class="col-md-6">
                     <label class="form-label"><i class="bi bi-person-badge me-1"></i>Crachá/Matrícula</label>
@@ -254,7 +391,7 @@
                     <input class="form-control" type="number" id="input-quantidade" name="quantidade" value="1" min="1" step="1" required>
                 </div>
                 <div class="col-md-6 d-flex align-items-end">
-                    <button type="button" class="btn btn-add-item w-100" id="btn-adicionar">
+                    <button type="button" class="galint-btn-secondary btn-add-item" id="btn-adicionar">
                         <i class="bi bi-plus-circle me-2"></i>Adicionar Item
                     </button>
                 </div>
@@ -263,13 +400,15 @@
                     <textarea class="form-control" id="input-observacao" name="observacao" rows="2" placeholder="Ex: Item devolvido em perfeito estado"></textarea>
                 </div>
             </div>
+                </div>
+            </form>
         </div>
-    </form>
+    </section>
 
     <div class="items-table" id="items-container" style="display: none;">
         <div class="items-table-header">
             <i class="bi bi-list-ul"></i>
-            <span>Itens Adicionados</span>
+            <span>Fila de devolução</span>
             <span class="total-items-badge"><span id="total-items">0</span> item(ns)</span>
         </div>
         <div class="table-responsive">
@@ -291,11 +430,11 @@
     <div class="empty-state" id="empty-state">
         <i class="bi bi-inbox"></i>
         <p class="mb-0">Nenhum item adicionado ainda</p>
-        <small>Use o formulário acima para adicionar itens</small>
+        <small>Use o painel acima para montar a fila de devolução.</small>
     </div>
 
-    <div style="text-align: center; margin-top: 2rem;">
-        <button type="button" class="btn btn-submit" id="btn-registrar" disabled>
+    <div class="returns-actions">
+        <button type="button" class="galint-btn-primary btn-submit" id="btn-registrar" disabled>
             <i class="bi bi-check-circle me-2"></i>Registrar Devolução
         </button>
     </div>

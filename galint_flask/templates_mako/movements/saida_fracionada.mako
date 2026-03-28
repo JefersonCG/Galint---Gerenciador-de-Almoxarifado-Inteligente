@@ -5,7 +5,7 @@
 <%block name="extra_css">
 <style>
     .saida-container {
-        max-width: 900px;
+        max-width: 1080px;
         margin: 0 auto;
     }
 
@@ -51,6 +51,93 @@
         margin: 0.5rem 0 0 0;
         opacity: 0.95;
         font-size: 0.95rem;
+    }
+
+    .saida-command-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.35rem;
+    }
+
+    .saida-command-card {
+        border-radius: 1.15rem;
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        background: linear-gradient(180deg, rgba(8, 17, 31, 0.98), rgba(15, 27, 45, 0.96));
+        padding: 1rem;
+        color: #e2e8f0;
+        box-shadow: 0 18px 42px rgba(15, 23, 42, 0.18);
+    }
+
+    .saida-command-label {
+        display: block;
+        margin-bottom: 0.45rem;
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: rgba(226, 232, 240, 0.68);
+    }
+
+    .saida-command-value {
+        font-size: 1.2rem;
+        font-weight: 700;
+        color: #ffffff;
+    }
+
+    .saida-command-copy {
+        margin: 0.4rem 0 0;
+        font-size: 0.84rem;
+        color: rgba(226, 232, 240, 0.78);
+        line-height: 1.55;
+    }
+
+    .workflow-panel {
+        border-radius: 1.15rem;
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(241,245,249,0.96));
+        padding: 1.2rem 1.25rem;
+        box-shadow: 0 18px 42px rgba(15, 23, 42, 0.08);
+        margin-bottom: 1.35rem;
+    }
+
+    .workflow-kicker {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.3rem 0.68rem;
+        border-radius: 999px;
+        border: 1px solid rgba(37, 99, 235, 0.12);
+        background: rgba(37, 99, 235, 0.08);
+        color: #2563eb;
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+    }
+
+    .workflow-title {
+        margin: 0.7rem 0 0;
+        font-size: 1.05rem;
+        font-weight: 800;
+        color: #0f172a;
+    }
+
+    .workflow-copy {
+        margin: 0.4rem 0 0;
+        color: #475569;
+        font-size: 0.9rem;
+        line-height: 1.6;
+    }
+
+    .workflow-list {
+        margin: 0.85rem 0 0;
+        padding-left: 1.05rem;
+        color: #334155;
+    }
+
+    .workflow-list li + li {
+        margin-top: 0.35rem;
     }
     
     .input-card {
@@ -261,6 +348,79 @@
     .summary-warning.show {
         display: block;
     }
+
+    .fracionada-modal-shell {
+        border-radius: 1.2rem;
+        overflow: hidden;
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        box-shadow: 0 24px 58px rgba(15, 23, 42, 0.28);
+        background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(241,245,249,0.96));
+    }
+
+    .fracionada-modal-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 1.1rem 1.25rem;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+        background: linear-gradient(135deg, rgba(8,17,31,0.98), rgba(15,27,45,0.95) 46%, rgba(37,99,235,0.72) 100%);
+        color: #e2e8f0;
+    }
+
+    .fracionada-modal-kicker {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.3rem 0.65rem;
+        border-radius: 999px;
+        border: 1px solid rgba(255,255,255,0.14);
+        background: rgba(255,255,255,0.08);
+        color: #e2e8f0;
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+    }
+
+    .fracionada-modal-title {
+        margin: 0.65rem 0 0;
+        font-size: 1.08rem;
+        font-weight: 700;
+    }
+
+    .fracionada-modal-copy {
+        margin: 0.35rem 0 0;
+        font-size: 0.86rem;
+        line-height: 1.55;
+        color: rgba(226, 232, 240, 0.82);
+    }
+
+    .fracionada-modal-body {
+        padding: 1.15rem 1.25rem 1.25rem;
+    }
+
+    .fracionada-modal-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        padding: 1rem 1.25rem 1.15rem;
+        border-top: 1px solid rgba(148,163,184,0.16);
+    }
+
+    @media (max-width: 767px) {
+        .saida-shell {
+            padding: 1rem;
+            border-radius: 22px;
+        }
+
+        .page-header {
+            padding: 1.35rem 1rem;
+            border-radius: 20px;
+        }
+    }
 </style>
 </%block>
 
@@ -270,6 +430,35 @@
     <div class="page-header">
         <h2><i class="bi bi-droplet-half me-2"></i>Registro de Saída Fracionada</h2>
         <p>Insira a quantidade pesada com o novo container dark, mantendo o fluxo específico para itens líquidos e fracionados.</p>
+    </div>
+
+    <div class="saida-command-grid">
+        <div class="saida-command-card">
+            <span class="saida-command-label">Tipo</span>
+            <div class="saida-command-value">Retirada por pesagem</div>
+            <p class="saida-command-copy">Use esta rotina quando a quantidade real depender do valor pesado ou medido no momento da saída.</p>
+        </div>
+        <div class="saida-command-card">
+            <span class="saida-command-label">Unidade</span>
+            <div class="saida-command-value">Kg ou litro</div>
+            <p class="saida-command-copy">O fluxo já prepara o operador para escolher a unidade correta dentro do modal de confirmação.</p>
+        </div>
+        <div class="saida-command-card">
+            <span class="saida-command-label">Conferência</span>
+            <div class="saida-command-value">Saldo em tempo real</div>
+            <p class="saida-command-copy">A confirmação mostra saldo restante e leitura estimada da embalagem antes de gravar a baixa.</p>
+        </div>
+    </div>
+
+    <div class="workflow-panel">
+        <span class="workflow-kicker"><i class="bi bi-bezier2"></i> Fluxo guiado</span>
+        <h3 class="workflow-title">Operação em três passos</h3>
+        <p class="workflow-copy">Primeiro identifique colaborador e local de uso. Depois localize o item. Por fim, confirme no modal a quantidade real retirada e a unidade de medição.</p>
+        <ul class="workflow-list">
+            <li>Produtos com volume ou massa variável devem sair por esta tela, não pela saída comum.</li>
+            <li>O modal final serve como barreira de conferência antes de descontar o saldo.</li>
+            <li>O local do serviço permanece registrado para rastreabilidade operacional.</li>
+        </ul>
     </div>
 
     <div class="info-strip" role="alert">
@@ -311,12 +500,16 @@
 <!-- Modal de Quantidade Manual -->
 <div class="modal fade" id="modalQuantidade" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header" style="background: linear-gradient(120deg, #2563eb 0%, #3b82f6 100%); color: white;">
-                <h5 class="modal-title"><i class="bi bi-calculator me-2"></i>Quantidade Retirada</h5>
+        <div class="modal-content fracionada-modal-shell">
+            <div class="modal-header fracionada-modal-header">
+                <div>
+                    <span class="fracionada-modal-kicker"><i class="bi bi-calculator"></i> Conferência final</span>
+                    <h5 class="modal-title fracionada-modal-title"><i class="bi bi-calculator me-2"></i>Quantidade Retirada</h5>
+                    <p class="fracionada-modal-copy">Confirme a unidade correta, revise o saldo projetado e só então grave a saída fracionada do item.</p>
+                </div>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body fracionada-modal-body">
                 <div class="modal-item-layout mb-3">
                     <div>
                         <img id="modal-item-photo" class="modal-item-photo" alt="Foto do item">
@@ -361,9 +554,9 @@
                     </div>
                 </div>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                <button type="button" class="btn btn-primary" id="btn-confirmar-quantidade">Confirmar</button>
+            <div class="modal-footer fracionada-modal-footer">
+                <button type="button" class="galint-btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="galint-btn-primary" id="btn-confirmar-quantidade">Confirmar</button>
             </div>
         </div>
     </div>

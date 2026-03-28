@@ -74,6 +74,100 @@
         color: rgba(226,232,240,0.82);
         margin-bottom: 0;
     }
+
+    .hub-command-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.4rem;
+    }
+
+    .hub-command-card {
+        border-radius: 1.1rem;
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        background: linear-gradient(180deg, rgba(8, 17, 31, 0.98), rgba(15, 27, 45, 0.96));
+        padding: 1rem 1.05rem;
+        color: #e2e8f0;
+        box-shadow: 0 18px 42px rgba(15, 23, 42, 0.18);
+    }
+
+    .hub-command-label {
+        display: block;
+        margin-bottom: 0.45rem;
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: rgba(226, 232, 240, 0.68);
+    }
+
+    .hub-command-value {
+        font-size: 1.18rem;
+        font-weight: 700;
+        color: #ffffff;
+    }
+
+    .hub-command-copy {
+        margin: 0.4rem 0 0;
+        font-size: 0.84rem;
+        color: rgba(226, 232, 240, 0.78);
+        line-height: 1.55;
+    }
+
+    .hub-guidance {
+        display: grid;
+        grid-template-columns: 1.1fr 0.9fr;
+        gap: 1rem;
+        margin-bottom: 1.4rem;
+    }
+
+    .hub-guidance-card,
+    .hub-guidance-note {
+        border-radius: 1.15rem;
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(241,245,249,0.96));
+        padding: 1.15rem 1.2rem;
+        box-shadow: 0 18px 42px rgba(15, 23, 42, 0.08);
+    }
+
+    .hub-guidance-kicker {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.3rem 0.68rem;
+        border-radius: 999px;
+        border: 1px solid rgba(37, 99, 235, 0.12);
+        background: rgba(37, 99, 235, 0.08);
+        color: #2563eb;
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+    }
+
+    .hub-guidance-title {
+        margin: 0.7rem 0 0;
+        font-size: 1.05rem;
+        font-weight: 800;
+        color: #0f172a;
+    }
+
+    .hub-guidance-copy {
+        margin: 0.4rem 0 0;
+        color: #475569;
+        font-size: 0.9rem;
+        line-height: 1.6;
+    }
+
+    .hub-guidance-list {
+        margin: 0.9rem 0 0;
+        padding-left: 1.05rem;
+        color: #334155;
+    }
+
+    .hub-guidance-list li + li {
+        margin-top: 0.4rem;
+    }
     
     .saidas-grid {
         display: grid;
@@ -210,6 +304,10 @@
         .saidas-grid {
             gap: 1rem;
         }
+
+        .hub-guidance {
+            grid-template-columns: 1fr;
+        }
     }
 </style>
 </%block>
@@ -221,6 +319,40 @@
             <div class="hub-eyebrow"><i class="bi bi-grid-1x2"></i> Central de lançamentos</div>
             <h2><i class="bi bi-box-arrow-up-right me-2"></i>Registro de Saídas</h2>
             <p>Selecione o tipo de retirada e siga com o fluxo adequado sem perder a organização centralizada dos cards.</p>
+        </div>
+
+        <div class="hub-command-grid">
+            <div class="hub-command-card">
+                <span class="hub-command-label">Decisão</span>
+                <div class="hub-command-value">Escolha por contexto</div>
+                <p class="hub-command-copy">A central separa o fluxo comum, a custódia de ferramentas e a retirada fracionada antes do lançamento.</p>
+            </div>
+            <div class="hub-command-card">
+                <span class="hub-command-label">Rastreamento</span>
+                <div class="hub-command-value">Operação segmentada</div>
+                <p class="hub-command-copy">Cada card envia para a rotina certa, evitando mistura de regras e reduzindo retrabalho no estoque.</p>
+            </div>
+            <div class="hub-command-card">
+                <span class="hub-command-label">Velocidade</span>
+                <div class="hub-command-value">Acesso direto</div>
+                <p class="hub-command-copy">Os atalhos permanecem objetivos para uso com leitor, teclado ou navegação rápida da operação.</p>
+            </div>
+        </div>
+
+        <div class="hub-guidance">
+            <div class="hub-guidance-card">
+                <span class="hub-guidance-kicker"><i class="bi bi-signpost"></i> Como escolher</span>
+                <h3 class="hub-guidance-title">Use o card pelo tipo real da retirada</h3>
+                <p class="hub-guidance-copy">A escolha certa aqui evita retrabalho, garante a validação correta do estoque e mantém o histórico coerente para auditoria e Telegram.</p>
+            </div>
+            <div class="hub-guidance-note">
+                <span class="hub-guidance-kicker"><i class="bi bi-clipboard2-pulse"></i> Regra prática</span>
+                <ul class="hub-guidance-list">
+                    <li>Materiais comuns: saída padrão por unidade, caixa ou pacote.</li>
+                    <li>Ferramentas: retirada com custódia e controle especial.</li>
+                    <li>Fracionados: produtos com pesagem ou volume real em kg e litros.</li>
+                </ul>
+            </div>
         </div>
         
         <div class="saidas-grid">

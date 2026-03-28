@@ -1457,20 +1457,26 @@
 
                     <div class="modal fade" id="modalFotoUrl" tabindex="-1" aria-labelledby="modalFotoUrlLabel" aria-hidden="true">
                         <div class="modal-dialog">
-                            <div class="modal-content">
-                                <div class="modal-header">
-                                    <h5 class="modal-title" id="modalFotoUrlLabel">Aplicar foto por URL</h5>
+                            <div class="modal-content form-modal-shell">
+                                <div class="modal-header form-modal-header">
+                                    <div>
+                                        <span class="form-modal-kicker"><i class="bi bi-image"></i> Fonte externa</span>
+                                        <h5 class="modal-title form-modal-heading" id="modalFotoUrlLabel">Aplicar foto por URL</h5>
+                                        <p class="form-modal-copy">Cole um link direto de imagem para o GALINT baixar, comprimir e anexar ao cadastro sem sair do formulário.</p>
+                                    </div>
                                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
                                 </div>
-                                <div class="modal-body">
+                                <div class="modal-body form-modal-body-lite">
+                                    <div class="form-modal-panel">
                                     <label class="form-label" for="input-foto-url">Cole o link direto da imagem</label>
                                     <input class="form-control" id="input-foto-url" placeholder="https://site.com/imagem.jpg">
                                     <small class="form-text">A imagem será baixada, redimensionada e comprimida automaticamente.</small>
                                     <div class="alert alert-warning mt-3 mb-0" id="alert-foto-url" style="display: none;"></div>
+                                    </div>
                                 </div>
-                                <div class="modal-footer">
-                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                                    <button type="button" class="btn btn-primary" id="confirm-foto-url">Aplicar foto</button>
+                                <div class="modal-footer form-modal-footer-lite">
+                                    <button type="button" class="galint-btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                    <button type="button" class="galint-btn-primary" id="confirm-foto-url">Aplicar foto</button>
                                 </div>
                             </div>
                         </div>
@@ -2178,12 +2184,16 @@
 
             <div class="modal fade advanced-units-config-modal" id="advancedUnitsModal" tabindex="-1" aria-labelledby="advancedUnitsModalLabel" aria-hidden="true">
                 <div class="modal-dialog modal-xl modal-dialog-scrollable modal-dialog-centered">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h5 class="modal-title" id="advancedUnitsModalLabel">Configurações avançadas de grandezas</h5>
+                    <div class="modal-content form-modal-shell-dark">
+                        <div class="modal-header form-modal-header">
+                            <div>
+                                <span class="form-modal-kicker"><i class="bi bi-sliders"></i> Engenharia de unidade</span>
+                                <h5 class="modal-title form-modal-heading" id="advancedUnitsModalLabel">Configurações avançadas de grandezas</h5>
+                                <p class="form-modal-copy">Monte famílias, unidades e conversões do item em uma única estação de configuração, sem depender de cadastro externo.</p>
+                            </div>
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
                         </div>
-                        <div class="modal-body">
+                        <div class="modal-body form-modal-body-lite">
                             <div class="advanced-units-config-layout">
                                 <section class="advanced-units-sidebar">
                                     <label class="form-label">Grandezas habilitadas</label>
@@ -2208,12 +2218,12 @@
                                 </section>
                             </div>
                         </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-outline-light" id="advanced-units-help-open-footer">
+                        <div class="modal-footer form-modal-footer-lite">
+                            <button type="button" class="galint-btn-secondary" id="advanced-units-help-open-footer">
                                 <i class="bi bi-book me-1"></i> Como usar
                             </button>
-                            <button type="button" class="btn btn-secondary" id="advanced-units-cancel-button">Fechar</button>
-                            <button type="button" class="btn btn-primary" id="advanced-units-apply">Aplicar configurações</button>
+                            <button type="button" class="galint-btn-secondary" id="advanced-units-cancel-button">Fechar</button>
+                            <button type="button" class="galint-btn-primary" id="advanced-units-apply">Aplicar configurações</button>
                         </div>
                     </div>
                 </div>
@@ -2221,12 +2231,16 @@
 
             <div class="modal fade dynamic-units-help-modal" id="dynamicUnitsHelpModal" tabindex="-1" aria-labelledby="dynamicUnitsHelpModalLabel" aria-hidden="true">
                 <div class="modal-dialog modal-xl modal-dialog-scrollable modal-dialog-centered">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h5 class="modal-title" id="dynamicUnitsHelpModalLabel">Guia do configurador de unidades dinâmicas</h5>
+                    <div class="modal-content form-modal-shell">
+                        <div class="modal-header form-modal-header">
+                            <div>
+                                <span class="form-modal-kicker"><i class="bi bi-compass"></i> Ajuda guiada</span>
+                                <h5 class="modal-title form-modal-heading" id="dynamicUnitsHelpModalLabel">Guia do configurador de unidades dinâmicas</h5>
+                                <p class="form-modal-copy">Consulte a lógica do configurador sem perder o contexto do cadastro atual do item.</p>
+                            </div>
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
                         </div>
-                        <div class="modal-body">
+                        <div class="modal-body form-modal-body-lite">
                             <section class="du-help-hero">
                                 <div class="du-help-badge"><i class="bi bi-sliders"></i> Unidades Dinâmicas</div>
                                 <h2>Guia intuitivo do configurador</h2>
@@ -2340,8 +2354,8 @@ Conversão: 1 saco = 20 quilos</div>
                                 </section>
                             </div>
                         </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                        <div class="modal-footer form-modal-footer-lite">
+                            <button type="button" class="galint-btn-secondary" data-bs-dismiss="modal">Fechar</button>
                         </div>
                     </div>
                 </div>
@@ -2420,15 +2434,16 @@ Conversão: 1 saco = 20 quilos</div>
 <div class="modal fade" id="supplierGateModal" tabindex="-1" aria-labelledby="supplierGateModalLabel"
     aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
     <div class="modal-dialog modal-dialog-centered modal-lg">
-        <div class="modal-content supplier-gate-modal">
-            <div class="modal-header">
+        <div class="modal-content supplier-gate-modal form-modal-shell">
+            <div class="modal-header form-modal-header">
                 <div>
-                    <div class="text-uppercase small fw-semibold text-primary" style="letter-spacing: 0.1em;">Etapa inicial</div>
-                    <h5 class="modal-title" id="supplierGateModalLabel">Este item já tem fornecedor cadastrado?</h5>
+                    <span class="form-modal-kicker"><i class="bi bi-shop"></i> Etapa inicial</span>
+                    <h5 class="modal-title form-modal-heading" id="supplierGateModalLabel">Este item já tem fornecedor cadastrado?</h5>
+                    <p class="form-modal-copy">Comece o item com o vínculo comercial certo para acelerar NF, cupom, histórico de compra e leitura de preços.</p>
                 </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body form-modal-body-lite">
                 <div class="supplier-gate-grid">
                     <div class="supplier-gate-panel">
                         <label class="form-label" for="supplierGateSearch">Buscar fornecedor existente</label>
@@ -2439,10 +2454,10 @@ Conversão: 1 saco = 20 quilos</div>
                         </div>
                         <div class="supplier-gate-status" id="supplierGateStatus">Selecione um fornecedor da lista completa ou use a barra de pesquisa para filtrar.</div>
                         <div class="supplier-gate-actions">
-                            <button class="btn btn-primary" type="button" id="supplierGateConfirmButton" disabled>
+                            <button class="galint-btn-primary" type="button" id="supplierGateConfirmButton" disabled>
                                 <i class="bi bi-check2-circle me-1"></i> Usar fornecedor selecionado
                             </button>
-                            <button class="btn btn-secondary" type="button" id="supplierGateSkipButton">
+                            <button class="galint-btn-secondary" type="button" id="supplierGateSkipButton">
                                 Continuar sem fornecedor por enquanto
                             </button>
                         </div>
@@ -2456,7 +2471,7 @@ Conversão: 1 saco = 20 quilos</div>
                         </ul>
                         {% if endpoint_exists('config.fornecedores') %}
                         <div class="mt-3">
-                            <a class="btn btn-light" href="{{ url_for('config.fornecedores') }}" target="_blank" rel="noopener">
+                            <a class="galint-btn-secondary" href="{{ url_for('config.fornecedores') }}" target="_blank" rel="noopener">
                                 <i class="bi bi-plus-circle me-1"></i> Cadastrar novo fornecedor
                             </a>
                         </div>
