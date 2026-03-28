@@ -411,6 +411,10 @@
     }
 
     @media (max-width: 767px) {
+        .saida-container {
+            padding: 0 0.75rem 1.5rem;
+        }
+
         .saida-shell {
             padding: 1rem;
             border-radius: 22px;
@@ -419,6 +423,15 @@
         .page-header {
             padding: 1.35rem 1rem;
             border-radius: 20px;
+        }
+
+        .modal-item-layout {
+            grid-template-columns: 1fr;
+        }
+
+        .fracionada-modal-footer {
+            flex-direction: column;
+            align-items: stretch;
         }
     }
 </style>

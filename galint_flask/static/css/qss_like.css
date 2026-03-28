@@ -212,6 +212,15 @@ html {
     align-items: baseline;
 }
 
+.galint-page-header-slot {
+    margin-bottom: 1.25rem;
+}
+
+.galint-page-header-slot:empty {
+    display: none;
+    margin-bottom: 0;
+}
+
 .summary-card {
     padding: 1.25rem;
     border-radius: 12px;

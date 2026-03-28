@@ -291,6 +291,10 @@
     }
 
     @media (max-width: 768px) {
+        .hub-container {
+            padding: 1rem 0.75rem 1.5rem;
+        }
+
         .hub-shell {
             padding: 1rem;
             border-radius: 22px;
@@ -307,6 +311,10 @@
 
         .hub-guidance {
             grid-template-columns: 1fr;
+        }
+
+        .saida-card {
+            padding: 1.4rem 1.2rem;
         }
     }
 </style>

@@ -13,6 +13,11 @@
 
 <%block name="extra_css">
 <style>
+    .tool-page {
+        max-width: 1080px;
+        margin: 0 auto;
+    }
+
     .tool-shell {
         background: linear-gradient(180deg, #eef2f7 0%, #f8fafc 100%);
         border: 1px solid rgba(148, 163, 184, 0.18);
@@ -56,6 +61,93 @@
         opacity: 0.95;
         font-size: 0.95rem;
     }
+
+    .tool-command-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.35rem;
+    }
+
+    .tool-command-card {
+        border-radius: 1.15rem;
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        background: linear-gradient(180deg, rgba(8, 17, 31, 0.98), rgba(15, 27, 45, 0.96));
+        padding: 1rem;
+        color: #e2e8f0;
+        box-shadow: 0 18px 42px rgba(15, 23, 42, 0.18);
+    }
+
+    .tool-command-label {
+        display: block;
+        margin-bottom: 0.45rem;
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: rgba(226, 232, 240, 0.68);
+    }
+
+    .tool-command-value {
+        font-size: 1.18rem;
+        font-weight: 700;
+        color: #ffffff;
+    }
+
+    .tool-command-copy {
+        margin: 0.4rem 0 0;
+        font-size: 0.84rem;
+        color: rgba(226, 232, 240, 0.78);
+        line-height: 1.55;
+    }
+
+    .tool-guidance {
+        border-radius: 1.15rem;
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(241,245,249,0.96));
+        padding: 1.15rem 1.2rem;
+        box-shadow: 0 18px 42px rgba(15, 23, 42, 0.08);
+        margin-bottom: 1.35rem;
+    }
+
+    .tool-guidance-kicker {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.3rem 0.68rem;
+        border-radius: 999px;
+        border: 1px solid rgba(245, 158, 11, 0.16);
+        background: rgba(245, 158, 11, 0.12);
+        color: #b45309;
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+    }
+
+    .tool-guidance-title {
+        margin: 0.7rem 0 0;
+        font-size: 1.05rem;
+        font-weight: 800;
+        color: #0f172a;
+    }
+
+    .tool-guidance-copy {
+        margin: 0.4rem 0 0;
+        color: #475569;
+        font-size: 0.9rem;
+        line-height: 1.6;
+    }
+
+    .tool-guidance-list {
+        margin: 0.85rem 0 0;
+        padding-left: 1.05rem;
+        color: #334155;
+    }
+
+    .tool-guidance-list li + li {
+        margin-top: 0.35rem;
+    }
     
     .input-card {
         background: linear-gradient(145deg, #0f172a 0%, #1e293b 100%);
@@ -94,15 +186,7 @@
     }
     
     .btn-submit {
-        background: linear-gradient(120deg, #2563eb 0%, #3b82f6 100%);
-        border: none;
-        border-radius: 8px;
-        padding: 1rem 2rem;
-        font-weight: 700;
-        color: white;
-        font-size: 1.1rem;
-        transition: all 0.3s ease;
-        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+        width: 100%;
     }
     
     .btn-submit:hover {
@@ -128,10 +212,10 @@
         max-height: 300px;
         overflow-y: auto;
         background: white;
-        border: 1px solid #dee2e6;
+        border: 1px solid rgba(37, 99, 235, 0.22);
         border-top: none;
-        border-radius: 0 0 8px 8px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        border-radius: 0 0 14px 14px;
+        box-shadow: 0 18px 36px rgba(15, 23, 42, 0.16);
         z-index: 1000;
         display: none;
     }
@@ -197,14 +281,7 @@
     }
 
     .btn-add-item {
-        background: #0d6efd;
-        border: none;
-        border-radius: 8px;
-        padding: 1rem 1.25rem;
-        font-weight: 700;
-        color: white;
-        transition: all 0.2s ease;
-        box-shadow: 0 4px 12px rgba(13, 110, 253, 0.2);
+        width: 100%;
     }
 
     .btn-add-item:hover {
@@ -213,13 +290,7 @@
     }
 
     .btn-new-group {
-        background: rgba(148, 163, 184, 0.12);
-        border: 1px solid rgba(148, 163, 184, 0.28);
-        border-radius: 8px;
-        padding: 0.9rem 1.25rem;
-        font-weight: 700;
-        color: #e2e8f0;
-        transition: all 0.2s ease;
+        width: 100%;
     }
 
     .btn-new-group:hover {
@@ -228,11 +299,11 @@
     }
 
     .btn-remove-item {
-        background: #dc3545;
+        background: linear-gradient(135deg, #b91c1c, #ef4444);
         border: none;
         color: white;
         padding: 0.5rem 0.75rem;
-        border-radius: 6px;
+        border-radius: 0.7rem;
         font-weight: 600;
         font-size: 0.9rem;
     }
@@ -277,15 +348,70 @@
         color: #dbeafe;
     }
 
+    .tool-actions {
+        margin-top: 1rem;
+        display: flex;
+        justify-content: center;
+    }
+
+    .tool-actions .btn-submit {
+        max-width: 420px;
+    }
+
+    @media (max-width: 767px) {
+        .tool-shell {
+            padding: 1rem;
+            border-radius: 22px;
+        }
+
+        .page-header {
+            padding: 1.35rem 1rem;
+            border-radius: 20px;
+        }
+
+        .tool-actions .btn-submit {
+            max-width: none;
+        }
+    }
+
 </style>
 </%block>
 
 <%block name="content">
-<div class="container-fluid" style="max-width: 900px;">
+<div class="tool-page">
     <div class="tool-shell">
     <div class="page-header">
         <h2><i class="bi bi-tools me-2"></i>Retirada de Ferramentas</h2>
         <p>Registre retiradas com o novo padrão visual dark, preservando o fluxo especial de custódia temporária.</p>
+    </div>
+
+    <div class="tool-command-grid">
+        <div class="tool-command-card">
+            <span class="tool-command-label">Fluxo</span>
+            <div class="tool-command-value">Custódia operacional</div>
+            <p class="tool-command-copy">Agrupe ferramentas por colaborador e mantenha o controle especial de retirada no mesmo lançamento.</p>
+        </div>
+        <div class="tool-command-card">
+            <span class="tool-command-label">Risco</span>
+            <div class="tool-command-value">Devolução no dia</div>
+            <p class="tool-command-copy">A interface reforça que ferramenta não é saída comum e precisa de retorno com rastreio claro.</p>
+        </div>
+        <div class="tool-command-card">
+            <span class="tool-command-label">Operação</span>
+            <div class="tool-command-value">Lote por funcionário</div>
+            <p class="tool-command-copy">Você pode preparar grupos diferentes de colaboradores sem perder a separação de itens na coleta.</p>
+        </div>
+    </div>
+
+    <div class="tool-guidance">
+        <span class="tool-guidance-kicker"><i class="bi bi-shield-check"></i> Regra da custódia</span>
+        <h3 class="tool-guidance-title">Ferramentas exigem um fluxo separado do estoque comum</h3>
+        <p class="tool-guidance-copy">A retirada daqui prepara o histórico para devolução, alerta e auditoria. Use sempre esta rotina quando o item ficar temporariamente em posse do colaborador.</p>
+        <ul class="tool-guidance-list">
+            <li>Selecione o funcionário primeiro e monte o grupo antes de registrar.</li>
+            <li>Use o local do serviço para facilitar retorno e conferência em campo.</li>
+            <li>Se mudar de colaborador, abra um novo grupo para evitar mistura de custódias.</li>
+        </ul>
     </div>
     
     <div class="alert-info-custom">
@@ -323,10 +449,10 @@
                     <textarea class="form-control" name="observacao" rows="2" placeholder="Informações adicionais sobre a retirada"></textarea>
                 </div>
                 <div class="col-12 d-grid gap-2">
-                    <button class="btn btn-add-item" type="button" id="btn-adicionar">
+                    <button class="galint-btn-primary btn-add-item" type="button" id="btn-adicionar">
                         <i class="bi bi-plus-circle me-2"></i>Adicionar Ferramenta
                     </button>
-                    <button class="btn btn-new-group" type="button" id="btn-novo-funcionario">
+                    <button class="galint-btn-secondary btn-new-group" type="button" id="btn-novo-funcionario">
                         <i class="bi bi-people me-2"></i>Adicionar Funcionário
                     </button>
                 </div>
@@ -352,8 +478,8 @@
             </table>
         </div>
 
-        <div class="d-grid gap-2 mt-3">
-            <button class="btn btn-submit" type="button" id="btn-registrar" disabled>
+        <div class="tool-actions">
+            <button class="galint-btn-primary btn-submit" type="button" id="btn-registrar" disabled>
                 <i class="bi bi-box-arrow-right me-2"></i>Registrar Retirada
             </button>
         </div>
