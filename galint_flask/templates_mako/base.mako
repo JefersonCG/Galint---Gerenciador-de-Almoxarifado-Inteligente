@@ -38,7 +38,7 @@
             <%include file="sidebar_layout.mako"/>
         </aside>
         <section class="content-panel">
-            <div class="page-header">
+            <div class="galint-page-header-slot">
                 <%block name="page_header"></%block>
             </div>
             <%
