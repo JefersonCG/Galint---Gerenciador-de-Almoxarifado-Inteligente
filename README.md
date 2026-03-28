@@ -578,6 +578,7 @@ Existe uma observação prática importante neste workspace:
 - [README_PERCENTUAL_MOVIMENTOS.md](README_PERCENTUAL_MOVIMENTOS.md): detalhamento do relatório Percentual Movimentos
 - [BUILD_APK_v1.3.0_INSTRUCOES.md](BUILD_APK_v1.3.0_INSTRUCOES.md): instruções de build do app
 - [DB_MIGRATION.md](DB_MIGRATION.md): notas de migração de banco
+- [README_PLANO_MODERNIZACAO_VISUAL_GALINT.md](README_PLANO_MODERNIZACAO_VISUAL_GALINT.md): plano técnico de modernização visual, modais e rollout do frontend
 
 ## Direção atual do produto
 

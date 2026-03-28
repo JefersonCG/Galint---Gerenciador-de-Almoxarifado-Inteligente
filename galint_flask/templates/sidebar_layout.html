@@ -1,7 +1,9 @@
 <div class="sidebar-wrapper">
-    <div class="sidebar-brand px-3 py-4 text-uppercase text-light">
+    <div class="sidebar-brand text-light">
+        <div class="sidebar-ops-pill"><i class="bi bi-shield-check"></i> Operação protegida</div>
         <strong>GALINT</strong>
-        <small class="text-white-50 d-block">Gestão de Almoxarifado</small>
+        <small class="d-block">Gestão de Almoxarifado</small>
+        <small class="d-block mt-2">Fluxos críticos, rastreabilidade e manutenção técnica em um único cockpit.</small>
     </div>
     <div class="sidebar-scroll">
         {% set p = request.path %}
@@ -16,13 +18,13 @@
             {% set valor_estoque_url = url_for('inventory.valor_estoque') if endpoint_exists('inventory.valor_estoque') else None %}
             {% set fornecedores_url = url_for('config.fornecedores') if endpoint_exists('config.fornecedores') else None %}
             {% set central_operacoes_url = url_for('operations.central_operations') if endpoint_exists('operations.central_operations') else None %}
+            <div class="sidebar-section-label">Painel principal</div>
             <a class="sidebar-link {% if p == url_for('dashboard.index') %}active{% endif %}"
                 href="{{ url_for('dashboard.index') }}">
                 <i class="bi bi-speedometer2"></i>
                 <span>Dashboard</span>
             </a>
-            <!-- Grupo removido: -->
-            <!-- Mantemos links diretos para registros e controles relacionados ao estoque -->
+            <div class="sidebar-section-label">Operação</div>
             {% set lancamentos_active = p.startswith(saidas_hub_url) or
             p.startswith(url_for('movements.index')) or
             p.startswith(url_for('movements.saida_page')) or
@@ -154,6 +156,7 @@
             </a>
             {% endif %}
             {% if current_user.is_authenticated and current_user.is_admin %}
+            <div class="sidebar-section-label">Governança</div>
             <a class="sidebar-link {% if p.startswith(url_for('users.list_users')) %}active{% endif %}"
                 href="{{ url_for('users.list_users') }}">
                 <i class="bi bi-people-fill"></i>
@@ -239,11 +242,12 @@
             {% endif %}
 <div class="sidebar-divider"></div>
             <a class="sidebar-link {% if p == url_for('pages.sobre') %}active{% endif %}"
-                href="{{ url_for('pages.sobre') }}">Sobre</a>
+                href="{{ url_for('pages.sobre') }}"><i class="bi bi-info-circle"></i><span>Sobre</span></a>
         </nav>
     </div>
     <div class="sidebar-footer px-3 py-3">
-        <small class="text-muted">Usuário: {% if current_user.is_authenticated %}{{ current_user.nome }}{% else
+        <small class="text-muted d-block">Usuário: {% if current_user.is_authenticated %}{{ current_user.nome }}{% else
             %}Visitante{% endif %}</small>
+        <small class="text-muted d-block mt-1">Ambiente web do GALINT com rollout visual progressivo.</small>
     </div>
 </div>

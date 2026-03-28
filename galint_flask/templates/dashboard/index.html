@@ -2,97 +2,138 @@
 {% block title %}Resumo Mensal{% endblock %}
 {% block extra_css %}
 <style>
-    .galint-header {
+    .dashboard-commandbar {
         display: flex;
+        flex-wrap: wrap;
         justify-content: space-between;
-        align-items: center;
-        margin-bottom: 2rem;
-    }
-
-    .galint-logo-section {
-        display: flex;
         align-items: center;
         gap: 1rem;
     }
 
-    .galint-logo {
-        width: 48px;
-        height: 48px;
-        background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
-        border-radius: 12px;
+    .dashboard-commandbar-copy {
+        max-width: 56rem;
+    }
+
+    .dashboard-commandbar-meta {
         display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        justify-content: flex-end;
+        align-items: center;
+    }
+
+    .dashboard-month-indicator,
+    .dashboard-clock {
+        display: inline-flex;
         align-items: center;
         justify-content: center;
-        font-size: 1.5rem;
-        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+        gap: 0.6rem;
+        min-height: 3.5rem;
+        padding: 0.75rem 1rem;
+        border-radius: 1.05rem;
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        background: rgba(255, 255, 255, 0.08);
+        color: #f8fafc;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
     }
 
-    .galint-title-section h1 {
-        font-size: 1.5rem;
-        font-weight: 700;
-        margin: 0 0 0.25rem 0;
-        color: #0f172a;
-        letter-spacing: 0.1rem;
+    .dashboard-month-indicator strong {
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-size: 0.82rem;
     }
 
-    .galint-subtitle {
-        font-size: 0.875rem;
-        color: #64748b;
-        margin: 0;
-    }
-
-    .galint-header-actions {
-        display: flex;
-        align-items: center;
-        gap: 1.5rem;
-    }
-
-    .galint-month-indicator {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        padding: 0.5rem 1rem;
-        background: #f1f5f9;
-        border-radius: 8px;
-        font-size: 0.9rem;
-        color: #334155;
-    }
-
-    .galint-month-icon {
-        font-size: 1.25rem;
-    }
-
-    .galint-clock {
-        font-size: 1.75rem;
+    .dashboard-clock {
+        min-width: 190px;
+        font-size: 1.55rem;
         font-weight: 700;
         font-variant-numeric: tabular-nums;
-        color: #0f172a;
-        padding: 0.5rem 1.25rem;
-        background: #ffffff;
-        border-radius: 12px;
-        box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
-        min-width: 180px;
-        text-align: center;
+    }
+
+    .dashboard-mini-kpis {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 1rem;
+        margin: 1.25rem 0 0;
+    }
+
+    .dashboard-mini-kpi {
+        border-radius: 1.15rem;
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        background: rgba(255, 255, 255, 0.08);
+        padding: 1rem;
+        color: #e2e8f0;
+    }
+
+    .dashboard-mini-kpi-label {
+        display: block;
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: rgba(226, 232, 240, 0.68);
+        margin-bottom: 0.45rem;
+    }
+
+    .dashboard-mini-kpi-value {
+        font-size: 1.35rem;
+        font-weight: 700;
+        color: #ffffff;
+    }
+
+    .dashboard-mini-kpi-copy {
+        margin: 0.4rem 0 0;
+        font-size: 0.82rem;
+        color: rgba(226, 232, 240, 0.78);
+    }
+
+    @media (max-width: 768px) {
+        .dashboard-commandbar-meta {
+            justify-content: flex-start;
+        }
+
+        .dashboard-clock {
+            min-width: 0;
+            width: 100%;
+        }
     }
 </style>
 {% endblock %}
 {% block page_header %}
-<div class="galint-header">
-    <div class="galint-logo-section">
-        <div class="galint-logo">📦</div>
-        <div class="galint-title-section">
-            <h1>{{ system_name }}</h1>
-            <p class="galint-subtitle">Sistema Integrado de Gestão de Almoxarifado</p>
+<section class="galint-page-header-card">
+    <div class="dashboard-commandbar">
+        <div class="dashboard-commandbar-copy">
+            <span class="galint-kicker">{{ tag_label }}</span>
+            <h1 class="galint-title text-white mt-3">{{ header_title }}</h1>
+            <p class="galint-subtitle text-slate-200 mt-3">{{ header_subtitle }} com visão operacional do estoque, alertas críticos, acompanhamento de entradas e painéis rápidos de apoio.</p>
         </div>
-    </div>
-    <div class="galint-header-actions">
-        <div id="dashboard-month" class="galint-month-indicator">
-            <span id="dashboard-month-icon" class="galint-month-icon">🎯</span>
+        <div class="dashboard-commandbar-meta">
+        <div id="dashboard-month" class="dashboard-month-indicator">
+            <span id="dashboard-month-icon" class="dashboard-month-icon">🎯</span>
             <strong id="dashboard-month-name">Dezembro</strong>
         </div>
-        <div id="dashboard-clock" class="galint-clock">00:00:00</div>
+        <div id="dashboard-clock" class="dashboard-clock">00:00:00</div>
+        </div>
     </div>
-</div>
+
+    <div class="dashboard-mini-kpis">
+        <div class="dashboard-mini-kpi">
+            <span class="dashboard-mini-kpi-label">Competência</span>
+            <div class="dashboard-mini-kpi-value">{{ competencia }}</div>
+            <p class="dashboard-mini-kpi-copy">Referência mensal ativa do painel.</p>
+        </div>
+        <div class="dashboard-mini-kpi">
+            <span class="dashboard-mini-kpi-label">Catálogo atual</span>
+            <div class="dashboard-mini-kpi-value">{{ resumo|length }} itens</div>
+            <p class="dashboard-mini-kpi-copy">Produtos distintos monitorados no almoxarifado.</p>
+        </div>
+        <div class="dashboard-mini-kpi">
+            <span class="dashboard-mini-kpi-label">Visibilidade</span>
+            <div class="dashboard-mini-kpi-value">{% if shared_view %}Compartilhada{% else %}Interna{% endif %}</div>
+            <p class="dashboard-mini-kpi-copy">{% if shared_view %}Ações administrativas e dados sensíveis permanecem protegidos.{% else %}Painel completo com controles administrativos ativos.{% endif %}</p>
+        </div>
+    </div>
+</section>
 {% endblock %}
 {% if shared_view %}
 <style>
@@ -109,6 +150,13 @@
     .content-panel {
         width: 100%;
         padding: 2rem 3rem;
+    }
+
+    .galint-page-frame {
+        background: transparent;
+        border: none;
+        box-shadow: none;
+        padding: 0;
     }
 
     body {
@@ -133,7 +181,7 @@
 {% set low_stock = (resumo | selectattr('status', 'equalto', 'Estoque baixo') | list | length) if resumo else 0 %}
 {% set total_items = resumo | length %}
 {% if shared_view %}
-<div class="alert alert-info" role="alert">
+<div class="alert alert-info rounded-4 border-0 shadow-sm" role="alert">
     Visualização compartilhada somente para consulta. Faça login no sistema para acessar ações administrativas e
     exportações.
 </div>

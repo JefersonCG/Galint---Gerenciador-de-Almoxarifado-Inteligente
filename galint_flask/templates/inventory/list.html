@@ -1,39 +1,184 @@
 {% extends "base.html" %}
 {% block title %}Itens{% endblock %}
-{% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-    <h1 class="h3 mb-0">Itens cadastrados</h1>
-    <div class="d-flex gap-2 flex-wrap">
-        {% if can_create %}
-        <button class="btn btn-outline-warning" type="button" data-bs-toggle="modal" data-bs-target="#preRegisteredModal">PRÉ CADASTRADOS</button>
-        {% endif %}
-        {% if can_manage and endpoint_exists('inventory.generate_all_barcodes') %}
-        <form method="post" action="{{ url_for('inventory.generate_all_barcodes') }}" class="d-inline">
-            <button class="btn btn-outline-primary" type="submit">Gerar códigos de barras</button>
-        </form>
-        {% endif %}
-        {% if can_create %}
-        <a class="btn btn-success" href="{{ url_for('inventory.new_item_form') }}">Novo item</a>
-        {% endif %}
-    </div>
-</div>
+{% set total_categories = category_cards|length if category_cards else 0 %}
+{% set total_items_catalog = itens|length if itens else 0 %}
+{% block extra_css %}
+<style>
+    .inventory-command-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 1rem;
+        margin-top: 1.25rem;
+    }
 
-<div class="section-panel mb-5" data-inventory-search>
-    <div class="d-flex justify-content-between flex-wrap gap-2 align-items-end mb-2">
+    .inventory-command-card {
+        border-radius: 1.15rem;
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        background: rgba(255, 255, 255, 0.08);
+        padding: 1rem;
+        color: #e2e8f0;
+    }
+
+    .inventory-command-label {
+        display: block;
+        margin-bottom: 0.45rem;
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: rgba(226, 232, 240, 0.68);
+    }
+
+    .inventory-command-value {
+        font-size: 1.35rem;
+        font-weight: 700;
+        color: #ffffff;
+    }
+
+    .inventory-command-copy {
+        margin: 0.4rem 0 0;
+        font-size: 0.82rem;
+        color: rgba(226, 232, 240, 0.78);
+    }
+
+    .inventory-top-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        align-items: center;
+    }
+
+    .inventory-search-panel {
+        border-radius: 1.5rem;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(248, 250, 252, 0.94));
+        box-shadow: 0 18px 44px rgba(15, 23, 42, 0.08);
+        padding: 1.4rem;
+    }
+
+    .inventory-search-shell {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .inventory-search-header {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        align-items: end;
+        gap: 0.9rem;
+    }
+
+    .inventory-search-input-wrap {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 0.85rem;
+        align-items: center;
+    }
+
+    .inventory-search-input {
+        min-height: 3.6rem;
+        border-radius: 1rem !important;
+        border: 1px solid rgba(148, 163, 184, 0.24) !important;
+        box-shadow: none !important;
+    }
+
+    .inventory-search-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 3.6rem;
+        padding: 0 1rem;
+        border-radius: 1rem !important;
+        border: 1px solid rgba(148, 163, 184, 0.2) !important;
+        background: #0f172a !important;
+        color: #f8fafc !important;
+        font-weight: 600;
+    }
+
+    .inventory-results-panel {
+        border-radius: 1rem;
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        overflow: hidden;
+    }
+
+    .inventory-category-frame {
+        border-radius: 1.5rem;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(248, 250, 252, 0.96));
+        box-shadow: 0 18px 44px rgba(15, 23, 42, 0.08);
+        padding: 1.4rem;
+    }
+
+    @media (max-width: 768px) {
+        .inventory-search-input-wrap {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+{% block page_header %}
+<section class="galint-page-header-card">
+    <div class="galint-page-heading gap-4">
+        <div>
+            <span class="galint-kicker"><i class="bi bi-box-seam"></i> Catálogo operacional</span>
+            <h1 class="galint-title text-white mt-3">Itens cadastrados</h1>
+            <p class="galint-subtitle text-slate-200 mt-3">Busca rápida, edição orientada por categoria e ações administrativas do catálogo central do almoxarifado.</p>
+        </div>
+        <div class="inventory-top-actions justify-content-start justify-content-md-end">
+            {% if can_create %}
+            <a class="galint-btn-primary" href="{{ url_for('inventory.new_item_form') }}"><i class="bi bi-plus-circle"></i> Novo item</a>
+            {% endif %}
+            {% if can_create %}
+            <button class="galint-btn-secondary" type="button" data-bs-toggle="modal" data-bs-target="#preRegisteredModal"><i class="bi bi-layers"></i> Pré cadastrados</button>
+            {% endif %}
+            {% if can_manage and endpoint_exists('inventory.generate_all_barcodes') %}
+            <form method="post" action="{{ url_for('inventory.generate_all_barcodes') }}" class="d-inline">
+                <button class="galint-btn-secondary" type="submit"><i class="bi bi-upc-scan"></i> Gerar códigos</button>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="inventory-command-grid">
+        <div class="inventory-command-card">
+            <span class="inventory-command-label">Catálogo</span>
+            <div class="inventory-command-value">{{ total_items_catalog }}</div>
+            <p class="inventory-command-copy">Itens distintos disponíveis para busca e edição.</p>
+        </div>
+        <div class="inventory-command-card">
+            <span class="inventory-command-label">Categorias</span>
+            <div class="inventory-command-value">{{ total_categories }}</div>
+            <p class="inventory-command-copy">Grupos mapeados para navegação por categoria.</p>
+        </div>
+        <div class="inventory-command-card">
+            <span class="inventory-command-label">Permissão</span>
+            <div class="inventory-command-value">{% if can_manage %}Admin{% elif can_edit_items %}Supervisor{% else %}Consulta{% endif %}</div>
+            <p class="inventory-command-copy">Escopo atual para criação, edição e exclusão de itens.</p>
+        </div>
+    </div>
+</section>
+{% endblock %}
+{% block content %}
+<div class="inventory-search-panel mt-4 mb-5" data-inventory-search>
+    <div class="inventory-search-shell">
+    <div class="inventory-search-header">
         <div>
             <h3 class="h5 mb-1">Busca rápida</h3>
             <p class="text-muted small mb-0">Digite o nome ou escaneie o código de barras e pressione Enter para abrir o
                 item.</p>
         </div>
-        <button class="btn btn-outline-light btn-sm" type="button" id="inventory-search-clear"
+        <button class="galint-btn-secondary" type="button" id="inventory-search-clear"
             aria-label="Limpar busca">Limpar</button>
     </div>
-    <div class="input-group input-group-lg">
-        <input class="form-control" type="search" id="inventory-search" placeholder="Buscar por descrição ou código"
+    <div class="inventory-search-input-wrap">
+        <input class="form-control inventory-search-input" type="search" id="inventory-search" placeholder="Buscar por descrição ou código"
             autocomplete="off" spellcheck="false">
-        <span class="input-group-text" id="inventory-search-badge">0 resultado</span>
+        <span class="inventory-search-badge" id="inventory-search-badge">0 resultado</span>
     </div>
-    <div id="inventory-search-results" class="list-group mt-3 d-none" aria-live="polite"></div>
+    <div id="inventory-search-results" class="list-group inventory-results-panel d-none" aria-live="polite"></div>
+    </div>
 </div>
 
 {% if category_cards %}
@@ -500,9 +645,14 @@
         }
     }
 </style>
-<div class="section-panel mb-5">
-    <h3>Estoque por categoria</h3>
-    <p class="text-muted">Clique em cada card para editar os itens cadastrados nesta categoria.</p>
+<div class="inventory-category-frame mb-5">
+    <div class="d-flex flex-wrap justify-content-between align-items-end gap-3 mb-4">
+        <div>
+            <h3 class="h4 mb-1">Estoque por categoria</h3>
+            <p class="text-muted mb-0">Clique em cada card para abrir a lista de itens da categoria e seguir para edição.</p>
+        </div>
+        <span class="galint-badge"><i class="bi bi-collection"></i> {{ total_categories }} categorias monitoradas</span>
+    </div>
     <div class="row g-3">
         {% for category in category_cards %}
         <div class="col-xl-3 col-lg-4 col-md-6">
@@ -626,24 +776,30 @@
 </div>
 {% endif %}
 <div class="modal fade" id="categoryModal" tabindex="-1" aria-labelledby="categoryModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-scrollable">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="categoryModalLabel">Categoria</h5>
+    <div class="modal-dialog modal-lg modal-dialog-scrollable galint-modal-dialog">
+        <div class="modal-content galint-modal-shell">
+            <div class="modal-header galint-modal-header">
+                <div>
+                    <span class="galint-modal-kicker"><i class="bi bi-collection"></i> Navegação por categoria</span>
+                    <h5 class="modal-title galint-modal-heading" id="categoryModalLabel">Categoria</h5>
+                    <p class="galint-modal-copy">Inspecione os itens do grupo selecionado, exporte relatórios e execute ações administrativas sem sair do contexto da categoria.</p>
+                </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
             </div>
-            <div class="modal-body">
-                <p class="text-muted mb-0">Selecione uma categoria para visualizar os itens.</p>
+            <div class="modal-body galint-modal-body-lite">
+                <div class="galint-modal-info-panel">
+                    <p class="text-muted mb-0">Selecione uma categoria para visualizar os itens e seguir para relatórios, edição e governança do catálogo.</p>
+                </div>
             </div>
-            <div class="modal-footer d-flex justify-content-between">
+            <div class="modal-footer galint-modal-footer-lite">
                 <div class="d-flex flex-wrap gap-2">
-                    <button class="btn btn-outline-primary" type="button" id="category-report-pdf-btn" data-category="">Relatório PDF</button>
-                    <button class="btn btn-outline-success" type="button" id="category-report-xlsx-btn" data-category="">Relatório XLSX</button>
+                    <button class="galint-btn-secondary" type="button" id="category-report-pdf-btn" data-category=""><i class="bi bi-filetype-pdf"></i> Relatório PDF</button>
+                    <button class="galint-btn-primary" type="button" id="category-report-xlsx-btn" data-category=""><i class="bi bi-file-earmark-spreadsheet"></i> Relatório XLSX</button>
                     {% if can_manage %}
-                    <button class="btn btn-danger" type="button" id="delete-category-btn" data-category="">Excluir categoria</button>
+                    <button class="galint-btn-danger" type="button" id="delete-category-btn" data-category=""><i class="bi bi-trash3"></i> Excluir categoria</button>
                     {% endif %}
                 </div>
-                <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Fechar</button>
+                <button class="galint-btn-secondary" type="button" data-bs-dismiss="modal">Fechar</button>
             </div>
         </div>
     </div>
@@ -789,10 +945,14 @@
 
 <div class="modal fade" id="priceSuggestionsModal" tabindex="-1" aria-labelledby="priceSuggestionsModalLabel"
     aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-scrollable">
-        <div class="modal-content price-suggest-modal">
-            <div class="modal-header">
-                <h5 class="modal-title" id="priceSuggestionsModalLabel">Buscar preço de reposição</h5>
+    <div class="modal-dialog modal-lg modal-dialog-scrollable galint-modal-dialog">
+        <div class="modal-content price-suggest-modal galint-modal-shell-dark">
+            <div class="modal-header galint-modal-header">
+                <div>
+                    <span class="galint-modal-kicker"><i class="bi bi-currency-exchange"></i> Inteligência financeira</span>
+                    <h5 class="modal-title galint-modal-heading" id="priceSuggestionsModalLabel">Buscar preço de reposição</h5>
+                    <p class="galint-modal-copy">Compare referências externas, aplique valor manual quando necessário e grave a melhor estimativa para o item.</p>
+                </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
             </div>
             <div class="modal-body">
@@ -806,7 +966,7 @@
                         <input class="form-control text-uppercase" id="price-uf" maxlength="2" placeholder="SP">
                     </div>
                     <div class="col-md-2 d-grid">
-                        <button class="btn btn-primary" type="button" id="price-refresh-btn">
+                        <button class="galint-btn-primary" type="button" id="price-refresh-btn">
                             <i class="bi bi-search me-1"></i> Pesquisar
                         </button>
                     </div>
@@ -829,9 +989,9 @@
                     <div id="price-empty" class="text-muted small d-none">Nenhuma sugestão encontrada para esta busca.</div>
                 </div>
             </div>
-            <div class="modal-footer">
-                <button class="btn btn-outline-secondary" type="button" id="price-use-median">Usar mediana</button>
-                <button class="btn btn-success" type="button" id="price-save">
+            <div class="modal-footer galint-modal-footer-lite">
+                <button class="galint-btn-secondary" type="button" id="price-use-median">Usar mediana</button>
+                <button class="galint-btn-primary" type="button" id="price-save">
                     <i class="bi bi-check2-circle me-1"></i> Salvar
                 </button>
             </div>
@@ -840,34 +1000,39 @@
 </div>
 
 <div class="modal fade" id="preRegisteredModal" tabindex="-1" aria-labelledby="preRegisteredModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-xl modal-dialog-scrollable pre-registered-modal">
-        <div class="modal-content">
-            <div class="modal-header">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable pre-registered-modal galint-modal-dialog">
+        <div class="modal-content galint-modal-shell">
+            <div class="modal-header galint-modal-header">
                 <div>
-                    <h5 class="modal-title" id="preRegisteredModalLabel">Pré-cadastrados por NF</h5>
-                    <div class="text-muted small">Informe a NF, escolha um item criado pelo documento e siga para concluir o cadastro.</div>
+                    <span class="galint-modal-kicker"><i class="bi bi-receipt-cutoff"></i> Fluxo por documento</span>
+                    <h5 class="modal-title galint-modal-heading" id="preRegisteredModalLabel">Pré-cadastrados por NF</h5>
+                    <div class="galint-modal-copy">Informe a nota fiscal, recupere os itens pendentes e conclua o cadastro com o mesmo contexto operacional do documento.</div>
                 </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body galint-modal-body-lite">
+                <div class="galint-modal-section-grid">
                 <div class="row g-3 align-items-end">
                     <div class="col-lg-8">
                         <label class="form-label" for="pre-registered-nf-number">Número da NF</label>
                         <input class="form-control" id="pre-registered-nf-number" placeholder="Digite o número da nota fiscal">
                     </div>
                     <div class="col-lg-4 d-grid">
-                        <button class="btn btn-primary" type="button" id="pre-registered-search-btn">
+                        <button class="galint-btn-primary" type="button" id="pre-registered-search-btn">
                             <i class="bi bi-search me-1"></i> Buscar itens pré-cadastrados
                         </button>
                     </div>
                 </div>
+                <div class="galint-modal-info-panel">
                 <div class="pre-registered-doc-summary d-none" id="pre-registered-doc-summary"></div>
                 <div class="form-text mt-3" id="pre-registered-status">Use o número da NF para localizar somente os itens ainda pendentes de finalização.</div>
+                </div>
                 <div class="pre-registered-results" id="pre-registered-results"></div>
+                </div>
             </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Fechar</button>
-                <button class="btn btn-success" type="button" id="pre-registered-finish-btn" disabled>
+            <div class="modal-footer galint-modal-footer-lite">
+                <button class="galint-btn-secondary" type="button" data-bs-dismiss="modal">Fechar</button>
+                <button class="galint-btn-primary" type="button" id="pre-registered-finish-btn" disabled>
                     FINALIZAR CADASTRO
                 </button>
             </div>
@@ -876,10 +1041,14 @@
 </div>
 
 <div class="modal fade" id="photoAssistantModal" tabindex="-1" aria-labelledby="photoAssistantModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-scrollable photo-assistant-dialog">
-        <div class="modal-content photo-assistant-modal">
-            <div class="modal-header">
-                <h5 class="modal-title" id="photoAssistantModalLabel">Buscar imagem do item</h5>
+    <div class="modal-dialog modal-dialog-scrollable photo-assistant-dialog galint-modal-dialog">
+        <div class="modal-content photo-assistant-modal galint-modal-shell-dark">
+            <div class="modal-header galint-modal-header">
+                <div>
+                    <span class="galint-modal-kicker"><i class="bi bi-image"></i> Assistente rápido</span>
+                    <h5 class="modal-title galint-modal-heading" id="photoAssistantModalLabel">Buscar imagem do item</h5>
+                    <p class="galint-modal-copy">Abra buscadores externos, avalie a prévia e aplique a mídia no cadastro sem sair da listagem.</p>
+                </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
             </div>
             <div class="modal-body">
@@ -901,17 +1070,17 @@
                         <div class="form-text">Você pode ajustar o termo antes de abrir o buscador externo.</div>
                     </div>
                     <div class="col-md-4 d-flex align-items-end">
-                        <button class="btn btn-outline-secondary w-100" type="button" id="photo-copy-query-btn">
+                        <button class="galint-btn-secondary w-100" type="button" id="photo-copy-query-btn">
                             <i class="bi bi-clipboard me-1"></i>Copiar termo
                         </button>
                     </div>
                 </div>
 
                 <div class="d-flex flex-wrap gap-2 mt-3">
-                    <button class="btn btn-outline-primary" type="button" id="photo-search-google-btn">
+                    <button class="galint-btn-secondary" type="button" id="photo-search-google-btn">
                         <i class="bi bi-google me-1"></i>Abrir Google Imagens
                     </button>
-                    <button class="btn btn-outline-info" type="button" id="photo-search-bing-btn">
+                    <button class="galint-btn-secondary" type="button" id="photo-search-bing-btn">
                         <i class="bi bi-search me-1"></i>Abrir Bing Images
                     </button>
                 </div>
@@ -921,10 +1090,10 @@
                 <label class="form-label" for="photo-url-input">Cole o link direto da imagem</label>
                 <input class="form-control" id="photo-url-input" placeholder="https://site.com/imagem.jpg">
                 <div class="d-flex flex-wrap gap-2 mt-2">
-                    <button class="btn btn-outline-light btn-sm" type="button" id="photo-preview-url-btn">
+                    <button class="galint-btn-secondary" type="button" id="photo-preview-url-btn">
                         <i class="bi bi-eye me-1"></i>Ver prévia da URL
                     </button>
-                    <button class="btn btn-outline-warning btn-sm d-none" type="button" id="photo-paste-suggestion-btn">
+                    <button class="galint-btn-secondary d-none" type="button" id="photo-paste-suggestion-btn">
                         <i class="bi bi-clipboard-check me-1"></i>Usar link copiado
                     </button>
                 </div>
@@ -940,19 +1109,19 @@
                 <label class="form-label" for="photo-file-input">Ou envie um arquivo direto</label>
                 <input class="form-control" id="photo-file-input" type="file" accept="image/*">
                 <div class="d-flex flex-wrap gap-2 mt-2">
-                    <button class="btn btn-outline-success btn-sm" type="button" id="photo-upload-btn">
+                    <button class="galint-btn-primary" type="button" id="photo-upload-btn">
                         <i class="bi bi-upload me-1"></i>Enviar arquivo agora
                     </button>
-                    <button class="btn btn-outline-secondary btn-sm" type="button" id="photo-preview-file-btn">
+                    <button class="galint-btn-secondary" type="button" id="photo-preview-file-btn">
                         <i class="bi bi-image me-1"></i>Ver prévia do arquivo
                     </button>
                 </div>
 
                 <div class="alert d-none mt-3 mb-0" id="photo-assistant-feedback" role="alert"></div>
             </div>
-            <div class="modal-footer d-flex justify-content-between">
-                <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Fechar</button>
-                <button class="btn btn-primary" type="button" id="photo-apply-btn">
+            <div class="modal-footer galint-modal-footer-lite d-flex justify-content-between">
+                <button class="galint-btn-secondary" type="button" data-bs-dismiss="modal">Fechar</button>
+                <button class="galint-btn-primary" type="button" id="photo-apply-btn">
                     <i class="bi bi-download me-1"></i>Aplicar imagem no item
                 </button>
             </div>
@@ -966,6 +1135,125 @@
 <!-- SweetAlert2 para modais amigáveis -->
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <style>
+    .galint-modal-dialog {
+        max-width: min(1180px, 94vw);
+    }
+
+    .galint-modal-shell,
+    .galint-modal-shell-dark {
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        border-radius: 1.35rem;
+        overflow: hidden;
+        box-shadow: 0 24px 58px rgba(15, 23, 42, 0.32);
+    }
+
+    .galint-modal-shell {
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(241, 245, 249, 0.96));
+        color: #0f172a;
+    }
+
+    .galint-modal-shell-dark {
+        background: linear-gradient(180deg, rgba(8, 17, 31, 0.98), rgba(15, 27, 45, 0.96));
+        color: #e2e8f0;
+    }
+
+    .galint-modal-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 1.15rem 1.25rem;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+    }
+
+    .galint-modal-shell .galint-modal-header {
+        background: linear-gradient(180deg, rgba(248, 250, 252, 0.96), rgba(241, 245, 249, 0.92));
+    }
+
+    .galint-modal-shell-dark .galint-modal-header {
+        background: linear-gradient(135deg, rgba(8, 17, 31, 0.98), rgba(15, 27, 45, 0.95) 46%, rgba(37, 99, 235, 0.72) 100%);
+    }
+
+    .galint-modal-kicker {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.32rem 0.7rem;
+        border-radius: 999px;
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+    }
+
+    .galint-modal-shell .galint-modal-kicker {
+        background: rgba(37, 99, 235, 0.08);
+        color: #2563eb;
+    }
+
+    .galint-modal-shell-dark .galint-modal-kicker {
+        background: rgba(255, 255, 255, 0.08);
+        color: #e2e8f0;
+    }
+
+    .galint-modal-heading {
+        margin: 0.7rem 0 0;
+        font-size: 1.2rem;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+    }
+
+    .galint-modal-copy {
+        margin: 0.45rem 0 0;
+        max-width: 48rem;
+        font-size: 0.92rem;
+        line-height: 1.6;
+    }
+
+    .galint-modal-shell .galint-modal-copy {
+        color: #475569;
+    }
+
+    .galint-modal-shell-dark .galint-modal-copy {
+        color: rgba(226, 232, 240, 0.82);
+    }
+
+    .galint-modal-body-lite {
+        padding: 1.25rem;
+    }
+
+    .galint-modal-info-panel {
+        border-radius: 1rem;
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        background: rgba(255, 255, 255, 0.72);
+        padding: 1rem;
+    }
+
+    .galint-modal-shell-dark .galint-modal-info-panel {
+        background: rgba(255, 255, 255, 0.05);
+        border-color: rgba(148, 163, 184, 0.18);
+    }
+
+    .galint-modal-footer-lite {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        padding: 1rem 1.25rem 1.15rem;
+        border-top: 1px solid rgba(148, 163, 184, 0.16);
+    }
+
+    .galint-modal-shell-dark .galint-modal-footer-lite {
+        background: rgba(255, 255, 255, 0.03);
+    }
+
+    .galint-modal-section-grid {
+        display: grid;
+        gap: 1rem;
+    }
+
     #assignModal .modal-content {
         background: linear-gradient(145deg, #0f172a 0%, #1e293b 100%);
         border: 1px solid rgba(148,163,184,0.18);
@@ -1904,8 +2192,8 @@
 </style>
 
 <div class="modal fade" id="assignModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-xl">
-        <form class="modal-content" method="POST" id="assignForm">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-xl galint-modal-dialog">
+        <form class="modal-content galint-modal-shell-dark" method="POST" id="assignForm">
             <div class="modal-header">
                 <h5 class="modal-title">
                     <i class="bi bi-person-check-fill me-2"></i>

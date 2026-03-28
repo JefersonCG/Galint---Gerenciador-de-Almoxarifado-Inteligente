@@ -86,6 +86,7 @@ instance/reports/*.png
 instance/barcodes/*.png
 
 # Node modules (mobile)
+node_modules/
 galint-mobile/node_modules/
 galint-mobile/.expo/
 galint-mobile/build/

@@ -3,58 +3,132 @@
 
 {% block extra_css %}
 <style>
-    .backup-shell { background: linear-gradient(180deg, #eef2f7 0%, #f8fafc 100%); border: 1px solid rgba(148,163,184,0.18); border-radius: 28px; padding: 1.75rem; box-shadow: 0 24px 54px rgba(15,23,42,0.1); }
-    .backup-hero { position: relative; overflow: hidden; border-radius: 24px; padding: 1.6rem; margin-bottom: 1.5rem; color: #f8fafc; background: linear-gradient(135deg, #0f172a 0%, #1e293b 46%, #2563eb 100%); box-shadow: 0 26px 60px rgba(15,23,42,0.18); }
-    .backup-hero::before { content: ""; position: absolute; inset: 0; background: radial-gradient(circle at 16% 18%, rgba(59,130,246,0.22), transparent 28%), radial-gradient(circle at 84% 14%, rgba(96,165,250,0.18), transparent 22%); pointer-events: none; }
-    .backup-hero > * { position: relative; z-index: 1; }
-    .backup-eyebrow { display: inline-flex; align-items: center; gap: 0.45rem; padding: 0.38rem 0.72rem; border-radius: 999px; background: rgba(255,255,255,0.08); border: 1px solid rgba(226,232,240,0.14); font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: rgba(226,232,240,0.9); margin-bottom: 0.9rem; }
-    .backup-title { margin: 0; font-size: clamp(1.9rem, 3vw, 2.5rem); font-weight: 800; letter-spacing: -0.03em; }
-    .backup-subtitle { margin: 0.65rem 0 0; max-width: 54rem; color: rgba(226,232,240,0.82); line-height: 1.6; }
-    .backup-kpis { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 1rem; margin-bottom: 1.5rem; }
-    .backup-kpi { border-radius: 22px; padding: 1.1rem; background: linear-gradient(145deg, #0f172a 0%, #1e293b 68%, #334155 100%); color: #f8fafc; border: 1px solid rgba(148,163,184,0.18); box-shadow: 0 20px 42px rgba(15,23,42,0.18); }
-    .backup-kpi-label { display: block; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; color: rgba(226,232,240,0.72); margin-bottom: 0.45rem; }
-    .backup-kpi-value { font-size: 1.5rem; font-weight: 800; }
-    .backup-kpi-caption { font-size: 0.82rem; color: rgba(226,232,240,0.74); }
-    .backup-panel { background: linear-gradient(145deg, #0f172a 0%, #1e293b 100%); border: 1px solid rgba(148,163,184,0.18); border-radius: 24px; box-shadow: 0 22px 48px rgba(15,23,42,0.16); color: #e2e8f0; }
-    .backup-panel .card-header, .backup-panel .card-body { background: transparent; color: inherit; border-color: rgba(148,163,184,0.14); }
-    .backup-panel .text-muted { color: rgba(226,232,240,0.84) !important; }
-    .backup-panel .card-header { padding: 1.1rem 1.35rem 0.95rem; }
-    .backup-panel .card-body { padding: 1.25rem 1.35rem 1.35rem; }
-    .backup-panel .table { color: #0f172a; }
-    .backup-panel .table thead th { color: #1d4ed8; border-color: rgba(148,163,184,0.22); text-transform: uppercase; font-size: 0.77rem; letter-spacing: 0.05em; }
-    .backup-panel .table td { color: #0f172a; border-color: rgba(148,163,184,0.18); }
-    .backup-panel .table tbody tr:hover { background: rgba(148,163,184,0.08); }
-    .backup-soft { border-radius: 18px; border: 1px solid rgba(148,163,184,0.14); background: rgba(255,255,255,0.06); padding: 1rem; }
-    .backup-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; }
-    .backup-badge { display: inline-flex; align-items: center; gap: 0.35rem; border-radius: 999px; padding: 0.22rem 0.65rem; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
-    .backup-badge-database { background: rgba(59,130,246,0.16); color: #1d4ed8; border: 1px solid rgba(96,165,250,0.28); }
-    .backup-badge-complete { background: rgba(16,185,129,0.16); color: #047857; border: 1px solid rgba(52,211,153,0.26); }
-    .backup-panel .form-check-input { width: 1.05rem; height: 1.05rem; border-color: rgba(15,23,42,0.28); }
-    .backup-panel .form-check-input:checked { background-color: #1d4ed8; border-color: #1d4ed8; }
-    .backup-selection-hint { color: rgba(15,23,42,0.72); }
-    @media (max-width: 768px) { .backup-shell { padding: 1rem; border-radius: 22px; } .backup-hero { padding: 1.15rem; border-radius: 20px; } .backup-kpis { grid-template-columns: 1fr; } }
+    .backup-check-input { width: 1.05rem; height: 1.05rem; border-color: rgba(15, 23, 42, 0.24); }
+    .backup-check-input:checked { background-color: #2563eb; border-color: #2563eb; }
+    .backup-selection-hint { color: rgba(15, 23, 42, 0.68); }
+    .backup-use-copy { max-width: 26rem; }
 </style>
 {% endblock %}
 
-{% block page_header %}{% endblock %}
+{% block page_header %}
+<section class="galint-page-header-card">
+    <div class="galint-page-heading gap-4">
+        <div>
+            <span class="galint-kicker"><i class="bi bi-database-check"></i> Segurança operacional</span>
+            <h1 class="galint-title text-white mt-3">Backups</h1>
+            <p class="galint-subtitle text-slate-200 mt-3">Geração, retenção e envio controlado de artefatos críticos do GALINT para restauração oficial via ConversionEngine.</p>
+        </div>
+        <div class="d-flex flex-wrap gap-2 justify-content-start justify-content-md-end align-items-start">
+            <span class="backup-badge backup-badge-complete"><i class="bi bi-shield-lock"></i> Retenção monitorada</span>
+            <span class="backup-badge backup-badge-database"><i class="bi bi-cpu"></i> Restore oficial centralizado</span>
+        </div>
+    </div>
+</section>
+{% endblock %}
 {% block content %}
-<div class="backup-shell">
-    <section class="backup-hero">
-        <div class="backup-eyebrow"><i class="bi bi-database-check"></i> Segurança operacional</div>
-        <h1 class="backup-title">Backups</h1>
-        <p class="backup-subtitle">Área dedicada a gerar e organizar cópias de segurança do banco e pacotes completos do ambiente. A restauração oficial do GALINT continua centralizada no ConversionEngine.</p>
+<div class="backup-pilot-shell mt-4">
+    <section class="galint-kpi-grid">
+        <article class="galint-kpi-card"><span class="galint-kpi-label">Backups disponíveis</span><div class="galint-kpi-value">{{ backups|length }}</div><div class="galint-kpi-caption">Arquivos prontos para retenção, auditoria e envio controlado.</div></article>
+        <article class="galint-kpi-card"><span class="galint-kpi-label">Último artefato</span><div class="galint-kpi-value">{{ backups[0].name if backups else 'Nenhum' }}</div><div class="galint-kpi-caption">Primeiro item listado no catálogo local do ambiente.</div></article>
+        <article class="galint-kpi-card"><span class="galint-kpi-label">Restauração oficial</span><div class="galint-kpi-value">ConversionEngine</div><div class="galint-kpi-caption">Implantação guiada com staging, validação e governança de versão.</div></article>
     </section>
 
-    <section class="backup-kpis">
-        <article class="backup-kpi"><span class="backup-kpi-label">Backups disponíveis</span><div class="backup-kpi-value">{{ backups|length }}</div><div class="backup-kpi-caption">Arquivos prontos para retenção e uso pelo mecanismo oficial.</div></article>
-        <article class="backup-kpi"><span class="backup-kpi-label">Último arquivo</span><div class="backup-kpi-value">{{ backups[0].name if backups else 'Nenhum' }}</div><div class="backup-kpi-caption">Primeiro item listado no histórico.</div></article>
-        <article class="backup-kpi"><span class="backup-kpi-label">Restauração oficial</span><div class="backup-kpi-value">ConversionEngine</div><div class="backup-kpi-caption">Pipeline controlado de implantação, validação e progresso operacional.</div></article>
-    </section>
-    <div class="card backup-panel mb-4">
-        <div class="card-header"><strong>Prontidão do backup</strong><span class="text-muted small d-block mt-1">Validação automática do ambiente atual antes de gerar ou restaurar artefatos.</span></div>
-        <div class="card-body">
+    <section class="backup-pilot-grid">
+        <div class="backup-pilot-stack">
+            <div class="backup-pilot-panel-dark">
+                <div class="d-flex flex-wrap justify-content-between gap-3 align-items-start">
+                    <div>
+                        <h2 class="backup-pilot-panel-title">Gerar e preparar artefatos</h2>
+                        <p class="backup-pilot-panel-copy">Use o backup SQL para contingência direta do banco ou gere o pacote completo com dump, manifesto e arquivos relevantes para análise e restauração pelo fluxo oficial.</p>
+                    </div>
+                    <span class="backup-badge backup-badge-complete"><i class="bi bi-box-arrow-in-down"></i> Pipeline pronto</span>
+                </div>
+                <div class="backup-soft-panel-dark mt-4">
+                    <div class="small text-slate-300/80">O pacote completo gera um arquivo .zip com o dump SQL interno e um manifest.json usado para validação técnica e staging isolado pelo ConversionEngine.</div>
+                </div>
+                <form method="post" action="{{ url_for('pages.create_backup') }}" class="mt-4">
+                    <div class="backup-pilot-actions">
+                        <button class="galint-btn-primary" type="submit" name="backup_kind" value="database"><i class="bi bi-database-add"></i> Gerar backup SQL</button>
+                        <button class="galint-btn-secondary" type="submit" name="backup_kind" value="complete"><i class="bi bi-archive"></i> Gerar pacote completo</button>
+                        <a class="galint-btn-secondary" href="{{ url_for('pages.config_conversionengine') }}"><i class="bi bi-cpu"></i> Abrir restaurador oficial</a>
+                        <a class="galint-btn-secondary" href="{{ url_for('pages.backup_final_checklist') }}"><i class="bi bi-card-checklist"></i> Baixar checklist final</a>
+                        <a class="galint-btn-secondary" href="{{ url_for('pages.config') }}"><i class="bi bi-arrow-left"></i> Voltar</a>
+                    </div>
+                </form>
+            </div>
+
+            <div class="backup-pilot-panel">
+                <div class="d-flex flex-wrap justify-content-between gap-3 align-items-start">
+                    <div>
+                        <h2 class="backup-pilot-panel-title text-slate-950">Catálogo de backups</h2>
+                        <p class="backup-pilot-panel-copy">Gerencie as cópias geradas localmente. A exclusão em lote fica aqui; a restauração continua centralizada no ConversionEngine.</p>
+                    </div>
+                    <span class="galint-badge"><i class="bi bi-folder2-open"></i> Histórico local</span>
+                </div>
+                {% if backups %}
+                <form method="post" action="{{ url_for('pages.delete_backup') }}" id="backupCatalogForm" class="mt-4">
+                    <div class="backup-catalog-toolbar mb-4">
+                        <div class="form-check m-0">
+                            <input class="form-check-input backup-check-input" type="checkbox" id="backupSelectAll">
+                            <label class="form-check-label backup-selection-hint" for="backupSelectAll">Selecionar todos os backups visíveis</label>
+                        </div>
+                        <div class="small backup-selection-hint backup-use-copy">Para excluir, pode marcar vários. Para enviar ao ConversionEngine, selecione exatamente um item.</div>
+                    </div>
+                    <div class="table-responsive mb-4">
+                        <table class="galint-data-table table table-sm align-middle mb-0">
+                            <thead>
+                                <tr><th></th><th>Backup</th><th>Tipo</th><th>Data</th><th>Tamanho</th><th>Uso</th></tr>
+                            </thead>
+                            <tbody>
+                                {% for backup in backups %}
+                                <tr>
+                                    <td><div class="form-check"><input class="form-check-input backup-checkbox backup-check-input" type="checkbox" name="backup_names" value="{{ backup.name }}"></div></td>
+                                    <td><strong>{{ backup.name }}</strong></td>
+                                    <td>
+                                        <span class="backup-badge {% if backup.kind == 'complete' %}backup-badge-complete{% else %}backup-badge-database{% endif %}">
+                                            {% if backup.kind == 'complete' %}Pacote completo{% else %}Banco SQL{% endif %}
+                                        </span>
+                                    </td>
+                                    <td>{{ backup.created }}</td>
+                                    <td>{{ backup.size }}</td>
+                                    <td>
+                                        <div>{{ backup.restore_hint }}</div>
+                                        {% if backup.manifest_version and backup.manifest_version != '-' %}
+                                        <div class="small text-muted mt-1">Manifesto v{{ backup.manifest_version }}</div>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="backup-pilot-actions justify-content-end">
+                        <button class="galint-btn-secondary" type="submit" formaction="{{ url_for('pages.conversionengine_start_from_backup') }}" data-action="conversionengine"><i class="bi bi-cpu"></i> Enviar ao ConversionEngine</button>
+                        <button class="galint-btn-danger" type="submit" data-action="delete" onclick="return confirm('Apagar os backups selecionados?');"><i class="bi bi-trash3"></i> Apagar backups selecionados</button>
+                    </div>
+                </form>
+                {% else %}
+                <div class="backup-soft-panel mt-4">
+                    <p class="text-muted mb-0">Nenhum backup disponível. Gere um artefato antes de executar implantações ou depender da restauração oficial.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <aside class="backup-pilot-stack">
+            <div class="backup-pilot-panel">
+                <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+                    <div>
+                        <h2 class="backup-pilot-panel-title text-slate-950">Prontidão do ambiente</h2>
+                        <p class="backup-pilot-panel-copy">Validação automática do estado atual antes de gerar ou restaurar artefatos críticos.</p>
+                    </div>
+                    {% if diagnostic %}
+                    <span class="backup-badge {% if diagnostic.ready %}backup-badge-complete{% else %}backup-badge-database{% endif %}">{% if diagnostic.ready %}OK{% else %}Atenção{% endif %}</span>
+                    {% endif %}
+                </div>
+
             {% if diagnostic %}
-            <div class="backup-soft mb-3">
+            <div class="backup-soft-panel mt-4">
                 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
                     <div>
                         <div class="fw-semibold">Status geral</div>
@@ -71,17 +145,17 @@
                     {% endif %}
                 </div>
             </div>
-            <div class="backup-soft mb-3">
+            <div class="backup-soft-panel mt-4">
                 <div class="d-flex flex-wrap gap-3 small text-muted">
-                    <div><strong class="text-white">Backup root:</strong> {{ diagnostic.backup_root }}</div>
-                    <div><strong class="text-white">Checks obrigatórios:</strong> {{ diagnostic.checks | selectattr('required') | list | length }}</div>
-                    <div><strong class="text-white">Checks opcionais:</strong> {{ diagnostic.checks | rejectattr('required') | list | length }}</div>
+                    <div><strong class="text-slate-950">Backup root:</strong> {{ diagnostic.backup_root }}</div>
+                    <div><strong class="text-slate-950">Checks obrigatórios:</strong> {{ diagnostic.checks | selectattr('required') | list | length }}</div>
+                    <div><strong class="text-slate-950">Checks opcionais:</strong> {{ diagnostic.checks | rejectattr('required') | list | length }}</div>
                 </div>
             </div>
-            <div class="row g-3">
+            <div class="row g-3 mt-1">
                 {% for check in diagnostic.checks %}
                 <div class="col-12 col-lg-6">
-                    <div class="backup-soft h-100">
+                    <div class="backup-soft-panel h-100">
                         <div class="d-flex justify-content-between align-items-start gap-3">
                             <div>
                                 <div class="fw-semibold">{{ check.name }}</div>
@@ -94,79 +168,30 @@
                 {% endfor %}
             </div>
             {% else %}
-            <p class="text-muted mb-0">Não foi possível calcular o diagnóstico do backup neste momento.</p>
-            {% endif %}
-        </div>
-    </div>
-    <div class="card backup-panel mb-4">
-        <div class="card-body">
-            <h5 class="card-title">Gerar backup</h5>
-            <p class="card-text text-muted">Use o backup SQL para recuperacao do banco e o pacote completo para enviar ao ConversionEngine com dump, manifesto e artefatos de disco relevantes.</p>
-            <div class="backup-soft mb-3">
-                <div class="small text-muted">O pacote completo gera um arquivo .zip com o dump SQL dentro e um manifest.json para validacao em staging pelo ConversionEngine.</div>
+            <div class="backup-soft-panel mt-4">
+                <p class="text-muted mb-0">Não foi possível calcular o diagnóstico do backup neste momento.</p>
             </div>
-            <form method="post" action="{{ url_for('pages.create_backup') }}">
-                <div class="backup-actions">
-                    <button class="btn btn-primary rounded-pill px-4" type="submit" name="backup_kind" value="database">Gerar backup SQL</button>
-                    <button class="btn btn-outline-success rounded-pill px-4" type="submit" name="backup_kind" value="complete">Gerar pacote completo</button>
-                    <a class="btn btn-outline-info rounded-pill px-4" href="{{ url_for('pages.config_conversionengine') }}">Abrir restaurador oficial</a>
-                    <a class="btn btn-outline-warning rounded-pill px-4" href="{{ url_for('pages.backup_final_checklist') }}">Baixar checklist final</a>
-                    <a class="btn btn-outline-secondary rounded-pill px-4" href="{{ url_for('pages.config') }}">Voltar</a>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <div class="card backup-panel">
-        <div class="card-header"><strong>Arquivos de backup</strong><span class="text-muted small d-block mt-1">Gerencie as cópias geradas localmente. A restauração foi centralizada no ConversionEngine.</span></div>
-        <div class="card-body">
-            {% if backups %}
-            <form method="post" action="{{ url_for('pages.delete_backup') }}" id="backupCatalogForm">
-                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" id="backupSelectAll">
-                        <label class="form-check-label backup-selection-hint" for="backupSelectAll">Selecionar todos os backups visíveis</label>
-                    </div>
-                    <div class="small backup-selection-hint">Para excluir, pode marcar vários. Para enviar ao ConversionEngine, selecione apenas um.</div>
-                </div>
-                <div class="table-responsive mb-3">
-                    <table class="table table-sm align-middle mb-0">
-                        <thead>
-                            <tr><th></th><th>Backup</th><th>Tipo</th><th>Data</th><th>Tamanho</th><th>Uso</th></tr>
-                        </thead>
-                        <tbody>
-                            {% for backup in backups %}
-                            <tr>
-                                <td><div class="form-check"><input class="form-check-input backup-checkbox" type="checkbox" name="backup_names" value="{{ backup.name }}"></div></td>
-                                <td>{{ backup.name }}</td>
-                                <td>
-                                    <span class="backup-badge {% if backup.kind == 'complete' %}backup-badge-complete{% else %}backup-badge-database{% endif %}">
-                                        {% if backup.kind == 'complete' %}Pacote completo{% else %}Banco SQL{% endif %}
-                                    </span>
-                                </td>
-                                <td>{{ backup.created }}</td>
-                                <td>{{ backup.size }}</td>
-                                <td>
-                                    <div>{{ backup.restore_hint }}</div>
-                                    {% if backup.manifest_version and backup.manifest_version != '-' %}
-                                    <div class="small text-muted">Manifesto v{{ backup.manifest_version }}</div>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                <div class="backup-actions justify-content-end">
-                    <button class="btn btn-outline-info rounded-pill px-4" type="submit" formaction="{{ url_for('pages.conversionengine_start_from_backup') }}" data-action="conversionengine">Enviar ao ConversionEngine</button>
-                    <button class="btn btn-outline-danger rounded-pill px-4" type="submit" data-action="delete" onclick="return confirm('Apagar os backups selecionados?');">Apagar backups selecionados</button>
-                </div>
-            </form>
-            {% else %}
-            <p class="text-muted mb-0">Nenhum backup disponível. Gere um backup antes de realizar uma implantação pelo ConversionEngine.</p>
             {% endif %}
-        </div>
-    </div>
+            </div>
+            <div class="backup-pilot-panel-dark">
+                <div class="d-flex flex-wrap justify-content-between gap-3 align-items-start">
+                    <div>
+                        <h2 class="backup-pilot-panel-title">Uso recomendado</h2>
+                        <p class="backup-pilot-panel-copy">A tela de backup agora funciona como cockpit de preparo e retenção. A restauração segue governada por análise técnica e deploy controlado.</p>
+                    </div>
+                    <span class="backup-badge backup-badge-database"><i class="bi bi-diagram-3"></i> Fluxo oficial</span>
+                </div>
+                <div class="backup-soft-panel-dark mt-4">
+                    <div class="fw-semibold">Quando usar cada artefato</div>
+                    <ul class="mt-3 mb-0 ps-3 small text-slate-300/80">
+                        <li class="mb-2">Backup SQL: contingência direta do banco e retenção operacional simples.</li>
+                        <li class="mb-2">Pacote completo: envio ao ConversionEngine com manifesto e arquivos complementares.</li>
+                        <li>Restauração: sempre pelo pipeline oficial, com staging e validação antes da implantação.</li>
+                    </ul>
+                </div>
+            </div>
+        </aside>
+    </section>
 </div>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
