@@ -246,6 +246,180 @@
         margin-top: 0.45rem;
         color: #93c5fd !important;
     }
+
+    .operation-preview {
+        display: grid;
+        grid-template-columns: 220px 1fr;
+        gap: 1.25rem;
+        background: linear-gradient(145deg, #0f172a 0%, #1e293b 100%);
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        border-radius: 24px;
+        padding: 1.25rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 22px 48px rgba(15, 23, 42, 0.16);
+    }
+
+    .operation-preview.is-empty {
+        grid-template-columns: 1fr;
+    }
+
+    .operation-preview-media {
+        min-height: 220px;
+        border-radius: 20px;
+        overflow: hidden;
+        background: linear-gradient(135deg, rgba(30, 41, 59, 0.96) 0%, rgba(15, 23, 42, 0.96) 100%);
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .operation-preview-media img {
+        width: 100%;
+        height: 220px;
+        object-fit: contain;
+        background: rgba(255, 255, 255, 0.04);
+    }
+
+    .operation-preview-placeholder {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        color: #cbd5e1;
+        text-align: center;
+        padding: 1.25rem;
+    }
+
+    .operation-preview-placeholder i {
+        font-size: 3.25rem;
+        color: #60a5fa;
+    }
+
+    .operation-preview-body {
+        color: #e2e8f0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.85rem;
+    }
+
+    .operation-preview-eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        width: fit-content;
+        padding: 0.4rem 0.7rem;
+        border-radius: 999px;
+        background: rgba(59, 130, 246, 0.16);
+        border: 1px solid rgba(59, 130, 246, 0.24);
+        color: #bfdbfe;
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .operation-preview-title {
+        margin: 0;
+        color: #f8fafc;
+        font-size: 1.35rem;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+    }
+
+    .operation-preview-subtitle {
+        color: #93c5fd;
+        font-size: 0.92rem;
+    }
+
+    .operation-preview-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.75rem;
+    }
+
+    .operation-preview-stat {
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        border-radius: 14px;
+        padding: 0.8rem 0.9rem;
+    }
+
+    .operation-preview-stat-label {
+        display: block;
+        color: #94a3b8;
+        font-size: 0.78rem;
+        margin-bottom: 0.25rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+
+    .operation-preview-stat-value {
+        color: #f8fafc;
+        font-size: 1rem;
+        font-weight: 700;
+        line-height: 1.35;
+    }
+
+    .operation-preview-note {
+        color: #cbd5e1;
+        font-size: 0.88rem;
+    }
+
+    .item-thumb-cell {
+        display: flex;
+        align-items: center;
+        gap: 0.85rem;
+    }
+
+    .item-thumb {
+        width: 56px;
+        height: 56px;
+        border-radius: 12px;
+        object-fit: cover;
+        flex-shrink: 0;
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        background: rgba(255, 255, 255, 0.04);
+    }
+
+    .item-thumb-placeholder {
+        width: 56px;
+        height: 56px;
+        border-radius: 12px;
+        flex-shrink: 0;
+        border: 1px dashed rgba(148, 163, 184, 0.3);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #93c5fd;
+        background: rgba(255, 255, 255, 0.03);
+    }
+
+    .item-thumb-placeholder i {
+        font-size: 1.2rem;
+    }
+
+    .item-desc-meta {
+        display: block;
+        margin-top: 0.2rem;
+        color: #94a3b8;
+        font-size: 0.8rem;
+    }
+
+    @media (max-width: 991.98px) {
+        .operation-preview {
+            grid-template-columns: 1fr;
+        }
+
+        .operation-preview-media img {
+            height: 180px;
+        }
+
+        .operation-preview-grid {
+            grid-template-columns: 1fr;
+        }
+    }
     
     .badge-qty {
         background: linear-gradient(120deg, #2563eb 0%, #3b82f6 100%);
@@ -385,6 +559,19 @@
             </div>
         </div>
     </div>
+
+    <div class="operation-preview is-empty" id="current-item-preview">
+        <div class="operation-preview-body">
+            <span class="operation-preview-eyebrow"><i class="bi bi-display"></i> Painel operacional</span>
+            <div class="operation-preview-placeholder">
+                <i class="bi bi-card-image"></i>
+                <div>
+                    <strong>Nenhum item em foco</strong>
+                    <div class="operation-preview-note">Selecione ou adicione um item para ver foto, quantidade e contexto da saida.</div>
+                </div>
+            </div>
+        </div>
+    </div>
     
     <div class="items-table" id="items-container" style="display: none;">
         <div class="items-table-header">
@@ -510,6 +697,7 @@ ${parent.scripts()}
     const groups = [];
     let groupCounter = 0;
     let currentGroupId = null;
+    let currentPreviewItem = null;
     
     // Modal
     const modalUnidade = new bootstrap.Modal(document.getElementById('modalUnidade'));
@@ -532,6 +720,7 @@ ${parent.scripts()}
     const btnEmbalagensRolo = document.getElementById('btn-embalagens-rolo');
     const btnMetros = document.getElementById('btn-metros');
     const btnCentimetros = document.getElementById('btn-centimetros');
+    const currentItemPreview = document.getElementById('current-item-preview');
     
     const nomesEmbalagem = {
         'lata': { singular: 'lata', plural: 'latas' },
@@ -594,6 +783,82 @@ ${parent.scripts()}
         }
 
         return 0;
+    }
+
+    function formatPreviewQuantity(item) {
+        if (!item) return '1';
+        const quantidade = Number(item.quantidade_exibicao || item.quantidade_input || item.quantidade || inputQuantidade.value || 1);
+        const unidade = String(item.unidade_label || '').trim();
+        return unidade ? quantidade + ' ' + unidade : String(quantidade);
+    }
+
+    function renderCurrentPreview(item) {
+        if (!currentItemPreview) return;
+        if (!item) {
+            currentItemPreview.className = 'operation-preview is-empty';
+            currentItemPreview.innerHTML = '' +
+                '<div class="operation-preview-body">' +
+                    '<span class="operation-preview-eyebrow"><i class="bi bi-display"></i> Painel operacional</span>' +
+                    '<div class="operation-preview-placeholder">' +
+                        '<i class="bi bi-card-image"></i>' +
+                        '<div><strong>Nenhum item em foco</strong><div class="operation-preview-note">Selecione ou adicione um item para ver foto, quantidade e contexto da saida.</div></div>' +
+                    '</div>' +
+                '</div>';
+            return;
+        }
+
+        const fotoHtml = item.foto_url
+            ? '<img src="' + escapeHtml(item.foto_url) + '" alt="' + escapeHtml(item.descricao || item.codigo || 'Item') + '">' 
+            : '<div class="operation-preview-placeholder"><i class="bi bi-image"></i><div>Sem foto do item</div></div>';
+        const usuario = String(item.usuario || inputUsuario.value || '').trim() || 'Nao informado';
+        const local = String(item.local || inputLocal.value || '').trim() || 'Nao informado';
+        const saldo = String(item.saldo_display || item.saldo || '').trim() || 'Nao informado';
+        const quantidade = formatPreviewQuantity(item);
+
+        currentItemPreview.className = 'operation-preview';
+        currentItemPreview.innerHTML = '' +
+            '<div class="operation-preview-media">' + fotoHtml + '</div>' +
+            '<div class="operation-preview-body">' +
+                '<span class="operation-preview-eyebrow"><i class="bi bi-box-arrow-right"></i> Em preparacao</span>' +
+                '<div>' +
+                    '<h3 class="operation-preview-title">' + escapeHtml(item.descricao || item.codigo || 'Item') + '</h3>' +
+                    '<div class="operation-preview-subtitle">Codigo ' + escapeHtml(item.codigo || '—') + (item.categoria ? ' • ' + escapeHtml(item.categoria) : '') + '</div>' +
+                '</div>' +
+                '<div class="operation-preview-grid">' +
+                    '<div class="operation-preview-stat"><span class="operation-preview-stat-label">Quantidade</span><span class="operation-preview-stat-value">' + escapeHtml(quantidade) + '</span></div>' +
+                    '<div class="operation-preview-stat"><span class="operation-preview-stat-label">Saldo</span><span class="operation-preview-stat-value">' + escapeHtml(saldo) + '</span></div>' +
+                    '<div class="operation-preview-stat"><span class="operation-preview-stat-label">Colaborador</span><span class="operation-preview-stat-value">' + escapeHtml(usuario) + '</span></div>' +
+                    '<div class="operation-preview-stat"><span class="operation-preview-stat-label">Local</span><span class="operation-preview-stat-value">' + escapeHtml(local) + '</span></div>' +
+                '</div>' +
+                '<div class="operation-preview-note">Este painel e a base da futura tela espelho para segundo monitor.</div>' +
+            '</div>';
+    }
+
+    async function loadPreviewForCode(codigo) {
+        const rawCodigo = String(codigo || '').trim();
+        if (!rawCodigo) {
+            currentPreviewItem = null;
+            renderCurrentPreview(null);
+            return;
+        }
+        try {
+            const response = await fetch('/movimentos/item-info/' + encodeURIComponent(rawCodigo));
+            const data = await response.json();
+            if (!response.ok || !data?.found) {
+                return;
+            }
+            currentPreviewItem = {
+                ...currentPreviewItem,
+                ...data,
+                codigo: data.codigo || rawCodigo,
+                usuario: String(inputUsuario.value || '').trim(),
+                local: String(inputLocal.value || '').trim(),
+                quantidade_input: parseInt(inputQuantidade.value, 10) || 1,
+            };
+            renderCurrentPreview(currentPreviewItem);
+        } catch (error) {
+            console.error('Erro ao carregar preview do item:', error);
+        }
     }
     
     const dropdownUsuario = document.getElementById('autocomplete-dropdown-usuario');
@@ -842,6 +1107,7 @@ ${parent.scripts()}
     function selectCodigo(item) {
         inputCodigo.value = item.codigo;
         dropdownCodigo.classList.remove('show');
+        loadPreviewForCode(item.codigo);
         inputQuantidade.focus();
     }
     
@@ -975,6 +1241,31 @@ ${parent.scripts()}
         if (this.value === '' || parseInt(this.value) < 1) {
             this.value = '1';
         }
+        if (currentPreviewItem) {
+            currentPreviewItem.quantidade_input = parseInt(this.value, 10) || 1;
+            renderCurrentPreview(currentPreviewItem);
+        }
+    });
+
+    inputUsuario.addEventListener('blur', function() {
+        if (currentPreviewItem) {
+            currentPreviewItem.usuario = String(inputUsuario.value || '').trim();
+            renderCurrentPreview(currentPreviewItem);
+        }
+    });
+
+    inputLocal.addEventListener('input', function() {
+        if (currentPreviewItem) {
+            currentPreviewItem.local = String(inputLocal.value || '').trim();
+            renderCurrentPreview(currentPreviewItem);
+        }
+    });
+
+    inputCodigo.addEventListener('blur', function() {
+        const codigo = String(inputCodigo.value || '').trim();
+        if (codigo) {
+            loadPreviewForCode(codigo);
+        }
     });
     
     btnAdicionar.addEventListener('click', async function() {
@@ -1037,7 +1328,10 @@ ${parent.scripts()}
                     grandeza_referencia: data.grandeza_referencia,
                     litros_por_embalagem: data.litros_por_embalagem,
                     capacidade_embalagem: data.capacidade_embalagem,
-                    em_embalagens: null
+                    em_embalagens: null,
+                    saldo: data.saldo,
+                    saldo_display: data.saldo_display,
+                    foto_url: data.foto_url
                 };
                 
                 mostrarModalUnidade(pendingItem);
@@ -1051,13 +1345,19 @@ ${parent.scripts()}
                     quantidade: quantidade,
                     usuario: usuario,
                     local: local,
-                    em_embalagens: null
+                    em_embalagens: null,
+                    categoria: data.categoria,
+                    saldo: data.saldo,
+                    saldo_display: data.saldo_display,
+                    foto_url: data.foto_url
                 });
             }
             
             // Limpa campos
             inputCodigo.value = '';
             inputQuantidade.value = '1';
+            currentPreviewItem = null;
+            renderCurrentPreview(null);
             inputCodigo.focus();
             
         } catch (error) {
@@ -1114,6 +1414,8 @@ ${parent.scripts()}
         }
         group.itens.push(item);
         items.push(item);
+        currentPreviewItem = { ...item };
+        renderCurrentPreview(currentPreviewItem);
         renderItems();
     }
 
@@ -1130,6 +1432,8 @@ ${parent.scripts()}
         inputQuantidade.value = '1';
         dropdownUsuario.classList.remove('show');
         dropdownCodigo.classList.remove('show');
+        currentPreviewItem = null;
+        renderCurrentPreview(null);
         inputUsuario.focus();
     }
     
@@ -1157,7 +1461,15 @@ ${parent.scripts()}
             const groupItems = group.itens.map(item =>
                 '<tr>' +
                     '<td><code>' + escapeHtml(item.codigo) + '</code></td>' +
-                    '<td><strong>' + escapeHtml(item.descricao) + '</strong></td>' +
+                    '<td>' +
+                        '<div class="item-thumb-cell">' +
+                            (item.foto_url
+                                ? '<img class="item-thumb" src="' + escapeHtml(item.foto_url) + '" alt="' + escapeHtml(item.descricao || item.codigo) + '">'
+                                : '<span class="item-thumb-placeholder"><i class="bi bi-image"></i></span>') +
+                            '<div><strong>' + escapeHtml(item.descricao) + '</strong>' +
+                            '<span class="item-desc-meta">' + escapeHtml(item.categoria || 'Sem categoria') + '</span></div>' +
+                        '</div>' +
+                    '</td>' +
                     '<td class="text-center"><span class="badge-qty">' + (item.quantidade_exibicao || item.quantidade) + (item.unidade_label ? ' ' + item.unidade_label : '') + '</span></td>' +
                     '<td class="text-end">' +
                         '<button type="button" class="btn-remove-item" onclick="removeItem(' + item.id + ')">' +
@@ -1188,6 +1500,8 @@ ${parent.scripts()}
                     groups.splice(idx, 1);
                 }
             }
+            currentPreviewItem = items.length ? { ...items[items.length - 1] } : null;
+            renderCurrentPreview(currentPreviewItem);
             renderItems();
         }
     };

@@ -218,6 +218,171 @@
         margin-bottom: 1rem;
     }
 
+    .operation-preview {
+        display: grid;
+        grid-template-columns: 220px 1fr;
+        gap: 1.25rem;
+        background: #ffffff;
+        border-radius: 12px;
+        padding: 1.25rem;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+        border: 1px solid #e9ecef;
+        margin-bottom: 1.5rem;
+    }
+
+    .operation-preview.is-empty {
+        grid-template-columns: 1fr;
+    }
+
+    .operation-preview-media {
+        min-height: 220px;
+        border-radius: 12px;
+        overflow: hidden;
+        background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+        border: 1px solid #dbe4ee;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .operation-preview-media img {
+        width: 100%;
+        height: 220px;
+        object-fit: contain;
+        background: #ffffff;
+    }
+
+    .operation-preview-placeholder {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        color: #64748b;
+        text-align: center;
+        padding: 1rem;
+    }
+
+    .operation-preview-placeholder i {
+        font-size: 3rem;
+        color: #3b82f6;
+    }
+
+    .operation-preview-body {
+        display: flex;
+        flex-direction: column;
+        gap: 0.85rem;
+        color: #0f172a;
+    }
+
+    .operation-preview-eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        width: fit-content;
+        padding: 0.4rem 0.7rem;
+        border-radius: 999px;
+        background: rgba(37, 99, 235, 0.1);
+        border: 1px solid rgba(37, 99, 235, 0.18);
+        color: #1d4ed8;
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .operation-preview-title {
+        margin: 0;
+        font-size: 1.3rem;
+        font-weight: 800;
+        color: #0f172a;
+        letter-spacing: -0.02em;
+    }
+
+    .operation-preview-subtitle {
+        color: #475569;
+        font-size: 0.92rem;
+    }
+
+    .operation-preview-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.75rem;
+    }
+
+    .operation-preview-stat {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 0.8rem 0.9rem;
+    }
+
+    .operation-preview-stat-label {
+        display: block;
+        color: #64748b;
+        font-size: 0.78rem;
+        margin-bottom: 0.25rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+
+    .operation-preview-stat-value {
+        color: #0f172a;
+        font-size: 1rem;
+        font-weight: 700;
+    }
+
+    .operation-preview-note {
+        color: #64748b;
+        font-size: 0.88rem;
+    }
+
+    .item-thumb-cell {
+        display: flex;
+        align-items: center;
+        gap: 0.85rem;
+    }
+
+    .item-thumb {
+        width: 56px;
+        height: 56px;
+        border-radius: 12px;
+        object-fit: cover;
+        flex-shrink: 0;
+        border: 1px solid #dbe4ee;
+        background: #ffffff;
+    }
+
+    .item-thumb-placeholder {
+        width: 56px;
+        height: 56px;
+        border-radius: 12px;
+        flex-shrink: 0;
+        border: 1px dashed #cbd5e1;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #3b82f6;
+        background: #f8fafc;
+    }
+
+    .item-desc-meta {
+        display: block;
+        margin-top: 0.2rem;
+        color: #64748b;
+        font-size: 0.8rem;
+    }
+
+    @media (max-width: 991.98px) {
+        .operation-preview {
+            grid-template-columns: 1fr;
+        }
+
+        .operation-preview-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
 </style>
 {% endblock %}
 {% block content %}
@@ -265,6 +430,19 @@
             </div>
         </div>
     </form>
+
+    <div class="operation-preview is-empty" id="current-item-preview">
+        <div class="operation-preview-body">
+            <span class="operation-preview-eyebrow"><i class="bi bi-display"></i> Painel operacional</span>
+            <div class="operation-preview-placeholder">
+                <i class="bi bi-card-image"></i>
+                <div>
+                    <strong>Nenhum item em foco</strong>
+                    <div class="operation-preview-note">Selecione ou adicione um item para ver foto e contexto da devolucao.</div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <div class="items-table" id="items-container" style="display: none;">
         <div class="items-table-header">
@@ -356,6 +534,93 @@
     const totalItemsSpan = document.getElementById('total-items');
     const dropdownMatricula = document.getElementById('autocomplete-matricula-dropdown');
     const dropdown = document.getElementById('autocomplete-dropdown');
+    const currentItemPreview = document.getElementById('current-item-preview');
+    let currentPreviewItem = null;
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text == null ? '' : String(text);
+        return div.innerHTML;
+    }
+
+    function formatPreviewQuantity(item) {
+        const quantidade = Number(item?.quantidade || inputQuantidade.value || 1);
+        return String(quantidade);
+    }
+
+    function renderCurrentPreview(item) {
+        if (!currentItemPreview) return;
+        if (!item) {
+            currentItemPreview.className = 'operation-preview is-empty';
+            currentItemPreview.innerHTML = '' +
+                '<div class="operation-preview-body">' +
+                    '<span class="operation-preview-eyebrow"><i class="bi bi-display"></i> Painel operacional</span>' +
+                    '<div class="operation-preview-placeholder">' +
+                        '<i class="bi bi-card-image"></i>' +
+                        '<div><strong>Nenhum item em foco</strong><div class="operation-preview-note">Selecione ou adicione um item para ver foto e contexto da devolucao.</div></div>' +
+                    '</div>' +
+                '</div>';
+            return;
+        }
+
+        const fotoHtml = item.foto_url
+            ? '<img src="' + escapeHtml(item.foto_url) + '" alt="' + escapeHtml(item.descricao || item.codigo || 'Item') + '">'
+            : '<div class="operation-preview-placeholder"><i class="bi bi-image"></i><div>Sem foto do item</div></div>';
+        const matricula = String(item.matricula || matriculaSelecionada || inputMatricula.value || '').trim() || 'Nao informado';
+        const observacao = String(inputObservacao.value || '').trim() || 'Sem observacao';
+        const saldo = String(item.saldo_display || item.saldo || '').trim() || 'Nao informado';
+
+        currentItemPreview.className = 'operation-preview';
+        currentItemPreview.innerHTML = '' +
+            '<div class="operation-preview-media">' + fotoHtml + '</div>' +
+            '<div class="operation-preview-body">' +
+                '<span class="operation-preview-eyebrow"><i class="bi bi-arrow-return-left"></i> Em devolucao</span>' +
+                '<div>' +
+                    '<h3 class="operation-preview-title">' + escapeHtml(item.descricao || item.codigo || 'Item') + '</h3>' +
+                    '<div class="operation-preview-subtitle">Codigo ' + escapeHtml(item.codigo || '—') + (item.categoria ? ' • ' + escapeHtml(item.categoria) : '') + '</div>' +
+                '</div>' +
+                '<div class="operation-preview-grid">' +
+                    '<div class="operation-preview-stat"><span class="operation-preview-stat-label">Quantidade</span><span class="operation-preview-stat-value">' + escapeHtml(formatPreviewQuantity(item)) + '</span></div>' +
+                    '<div class="operation-preview-stat"><span class="operation-preview-stat-label">Saldo atual</span><span class="operation-preview-stat-value">' + escapeHtml(saldo) + '</span></div>' +
+                    '<div class="operation-preview-stat"><span class="operation-preview-stat-label">Colaborador</span><span class="operation-preview-stat-value">' + escapeHtml(matricula) + '</span></div>' +
+                    '<div class="operation-preview-stat"><span class="operation-preview-stat-label">Observacao</span><span class="operation-preview-stat-value">' + escapeHtml(observacao) + '</span></div>' +
+                '</div>' +
+                '<div class="operation-preview-note">Este painel sera a base do futuro modo de segunda tela para o colaborador.</div>' +
+            '</div>';
+    }
+
+    async function fetchItemDetails(codigo) {
+        const response = await fetch(`/movimentos/item-info/${encodeURIComponent(codigo)}`, {
+            headers: { 'Accept': 'application/json' }
+        });
+        const data = await response.json();
+        if (!response.ok || !data?.found) {
+            throw new Error(data?.message || 'Item nao encontrado');
+        }
+        return data;
+    }
+
+    async function loadPreviewForCode(codigo) {
+        const rawCodigo = String(codigo || '').trim();
+        if (!rawCodigo) {
+            currentPreviewItem = null;
+            renderCurrentPreview(null);
+            return;
+        }
+        try {
+            const data = await fetchItemDetails(rawCodigo);
+            currentPreviewItem = {
+                ...currentPreviewItem,
+                ...data,
+                codigo: data.codigo || rawCodigo,
+                matricula: matriculaSelecionada || String(inputMatricula.value || '').trim(),
+                quantidade: parseInt(inputQuantidade.value, 10) || 1,
+            };
+            renderCurrentPreview(currentPreviewItem);
+        } catch (error) {
+            console.error('Erro ao carregar preview da devolucao:', error);
+        }
+    }
     
     // Autocomplete de matrícula
     inputMatricula.addEventListener('input', function() {
@@ -506,6 +771,7 @@
     function selectItem(item) {
         inputCodigo.value = item.codigo;
         dropdown.classList.remove('show');
+        loadPreviewForCode(item.codigo);
         inputQuantidade.focus();
     }
     
@@ -547,7 +813,7 @@
     }
     
     // Adicionar item à lista
-    btnAdicionar.addEventListener('click', function() {
+    btnAdicionar.addEventListener('click', async function() {
         const matricula = inputMatricula.value.trim();
         const codigo = inputCodigo.value.trim();
         const quantidade = parseInt(inputQuantidade.value) || 1;
@@ -565,21 +831,35 @@
             items.length = 0;
         }
         
-        // Buscar nome do item
-        const itemInfo = currentItens.find(i => i.codigo === codigo);
-        const descricao = itemInfo ? (itemInfo.descricao || codigo) : codigo;
-        
-        items.push({
-            matricula: matricula,
-            codigo: codigo,
-            quantidade: quantidade,
-            descricao: descricao
-        });
-        
-        renderItems();
-        inputCodigo.value = '';
-        inputQuantidade.value = '1';
-        inputCodigo.focus();
+        btnAdicionar.disabled = true;
+        btnAdicionar.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Adicionando';
+
+        try {
+            const data = await fetchItemDetails(codigo);
+            const item = {
+                matricula: matricula,
+                codigo: codigo,
+                quantidade: quantidade,
+                descricao: data.descricao || codigo,
+                categoria: data.categoria,
+                saldo: data.saldo,
+                saldo_display: data.saldo_display,
+                foto_url: data.foto_url,
+            };
+
+            items.push(item);
+            currentPreviewItem = { ...item };
+            renderCurrentPreview(currentPreviewItem);
+            renderItems();
+            inputCodigo.value = '';
+            inputQuantidade.value = '1';
+            inputCodigo.focus();
+        } catch (error) {
+            alert(error.message || 'Falha ao buscar item');
+        } finally {
+            btnAdicionar.disabled = false;
+            btnAdicionar.innerHTML = '<i class="bi bi-plus-circle me-2"></i>Adicionar Item';
+        }
     });
     
     // Renderizar lista de itens
@@ -598,7 +878,14 @@
         
         itemsTbody.innerHTML = items.map((item, index) => {
             return '<tr>' +
-                '<td><strong>' + item.descricao + '</strong></td>' +
+                '<td>' +
+                    '<div class="item-thumb-cell">' +
+                        (item.foto_url
+                            ? '<img class="item-thumb" src="' + escapeHtml(item.foto_url) + '" alt="' + escapeHtml(item.descricao || item.codigo) + '">'
+                            : '<span class="item-thumb-placeholder"><i class="bi bi-image"></i></span>') +
+                        '<div><strong>' + escapeHtml(item.descricao) + '</strong><span class="item-desc-meta">' + escapeHtml(item.categoria || 'Sem categoria') + '</span></div>' +
+                    '</div>' +
+                '</td>' +
                 '<td><code>' + item.codigo + '</code></td>' +
                 '<td class="text-center"><span class="badge-qty">' + item.quantidade + '</span></td>' +
                 '<td class="text-center">' +
@@ -611,6 +898,8 @@
     
     window.removeItem = function(index) {
         items.splice(index, 1);
+        currentPreviewItem = items.length ? { ...items[items.length - 1] } : null;
+        renderCurrentPreview(currentPreviewItem);
         renderItems();
     };
     
@@ -649,6 +938,8 @@
                 alert('✓ Devolução registrada com sucesso!');
                 items.length = 0;
                 renderItems();
+                currentPreviewItem = null;
+                renderCurrentPreview(null);
                 inputMatricula.value = '';
                 inputCodigo.value = '';
                 inputQuantidade.value = '1';
@@ -672,6 +963,26 @@
         }
         if (e.target !== inputMatricula && !dropdownMatricula.contains(e.target)) {
             dropdownMatricula.classList.remove('show');
+        }
+    });
+
+    inputCodigo.addEventListener('blur', function() {
+        const codigo = String(inputCodigo.value || '').trim();
+        if (codigo) {
+            loadPreviewForCode(codigo);
+        }
+    });
+
+    inputQuantidade.addEventListener('input', function() {
+        if (currentPreviewItem) {
+            currentPreviewItem.quantidade = parseInt(inputQuantidade.value, 10) || 1;
+            renderCurrentPreview(currentPreviewItem);
+        }
+    });
+
+    inputObservacao.addEventListener('input', function() {
+        if (currentPreviewItem) {
+            renderCurrentPreview(currentPreviewItem);
         }
     });
 })();
