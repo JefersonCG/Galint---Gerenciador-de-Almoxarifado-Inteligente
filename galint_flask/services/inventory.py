@@ -25,6 +25,7 @@ from ..models import (
     Item,
     MaterialInventario,
     ProductDimension,
+    StockBalance,
     ProductUnit,
     ProductUnitConversion,
     RetiradaFerramenta,
@@ -407,6 +408,88 @@ class InventoryService:
 
         return None
 
+    @staticmethod
+    def _resolve_packaging_dual_write(
+        item: Item,
+        quantity_value: float,
+        payload: MovimentoPayload | None = None,
+    ) -> tuple[float, str] | None:
+        if not payload or payload.em_embalagens is not True:
+            return None
+
+        # Se o produto já possui unidades/conversões avançadas, delegamos ao motor normal.
+        has_active_units = any(unit.is_base and unit.active for unit in item.product_units)
+        has_active_conversions = any(conversion.active for conversion in item.product_unit_conversions)
+        if has_active_units or has_active_conversions:
+            return None
+
+        tipo_emb = (item.tipo_embalagem_novo or "").strip().lower()
+        unidade_item = (item.unidade or "").strip().lower()
+        unidades_por = InventoryService._as_positive_float(item.unidades_por_embalagem)
+        litros_por = InventoryService._as_positive_float(item.litros_por_embalagem)
+        grandeza_ref = InventoryService._as_positive_float(item.grandeza_referencia)
+
+        if tipo_emb in {"pacote", "caixa"} and unidades_por > 0:
+            return quantity_value * unidades_por, (unidade_item or "un")
+
+        if tipo_emb == "rolo" and unidades_por > 0:
+            return quantity_value * unidades_por, (unidade_item or "metros")
+
+        if tipo_emb in {"lata", "balde", "bombona", "litro"}:
+            if litros_por > 0:
+                return quantity_value * litros_por, (unidade_item or "l")
+            if grandeza_ref > 0:
+                return quantity_value * grandeza_ref, (unidade_item or "kg")
+            if unidades_por > 0:
+                return quantity_value * unidades_por, (unidade_item or "un")
+
+        if tipo_emb == "saco":
+            if grandeza_ref > 0:
+                return quantity_value * grandeza_ref, (unidade_item or "kg")
+            if unidades_por > 0:
+                return quantity_value * unidades_por, (unidade_item or "un")
+
+        return None
+
+    @staticmethod
+    def _sync_packaging_balance_before_dual_write(
+        item: Item,
+        *,
+        movement_type: str,
+        quantity_base: float,
+    ) -> None:
+        from ..services.embalagem_service import EmbalagemService
+
+        if not EmbalagemService.tem_embalagem(item):
+            return
+
+        current_total = float(EmbalagemService.calcular_estoque_total(item) or 0)
+        movement_type_norm = (movement_type or "").strip().lower()
+        if movement_type_norm == "saida":
+            expected_before = current_total + quantity_base
+        elif movement_type_norm in {"entrada", "devolucao"}:
+            expected_before = current_total - quantity_base
+        else:
+            expected_before = current_total
+
+        if expected_before < 0:
+            expected_before = 0.0
+
+        balance = db.session.get(StockBalance, item.codigo_item)
+        if balance is None:
+            balance = StockBalance()
+            balance.product_id = item.codigo_item
+            db.session.add(balance)
+
+        current_balance = float(getattr(balance, "quantity_base", 0) or 0)
+        if abs(current_balance - expected_before) <= 1e-6:
+            return
+
+        balance.quantity_base = expected_before
+        if hasattr(balance, "read_model_ready"):
+            balance.read_model_ready = True
+        db.session.flush()
+
     def _mirror_payload_to_ledger(
         self,
         *,
@@ -421,6 +504,15 @@ class InventoryService:
         quantity_value = float(quantity if quantity is not None else payload.quantidade)
         if quantity_value == 0:
             return None
+
+        packaging_resolution = self._resolve_packaging_dual_write(item, quantity_value, payload)
+        if packaging_resolution is not None and from_unit is None:
+            quantity_value, from_unit = packaging_resolution
+            self._sync_packaging_balance_before_dual_write(
+                item,
+                movement_type=movement_type_norm,
+                quantity_base=quantity_value,
+            )
 
         unit_value = (from_unit or self._infer_dual_write_unit(item, payload) or "").strip().lower()
         if not unit_value:
