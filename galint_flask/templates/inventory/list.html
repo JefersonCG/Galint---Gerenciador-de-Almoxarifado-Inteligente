@@ -4094,9 +4094,6 @@
     };
 
     const refreshBatchPriceSuggestions = async () => {
-        if (!currentBatchCategory) {
-            return;
-        }
         const categoryEl = document.getElementById('price-batch-category');
         const ufEl = document.getElementById('price-batch-uf');
         const limitEl = document.getElementById('price-batch-limit');
@@ -4107,6 +4104,17 @@
             return;
         }
 
+        const category = String(currentBatchCategory || categoryEl.value || '').trim();
+        if (!category) {
+            resultsEl.innerHTML = '';
+            summaryEl.classList.add('d-none');
+            emptyEl.classList.remove('d-none');
+            emptyEl.textContent = 'Selecione uma categoria antes de pesquisar.';
+            return;
+        }
+        currentBatchCategory = category;
+        categoryEl.value = category;
+
         const itemLimit = Math.max(1, Math.min(Number(limitEl.value || 10), 10));
         limitEl.value = String(itemLimit);
         resultsEl.innerHTML = '<div class="text-muted small">Buscando sugestões para a categoria…</div>';
@@ -4114,7 +4122,7 @@
         summaryEl.classList.add('d-none');
 
         try {
-            const url = `/itens/categoria/${encodeURIComponent(currentBatchCategory)}/precos/reposicao/lote?item_limit=${encodeURIComponent(itemLimit)}&uf=${encodeURIComponent((ufEl.value || '').trim())}`;
+            const url = `/itens/categoria/${encodeURIComponent(category)}/precos/reposicao/lote?item_limit=${encodeURIComponent(itemLimit)}&uf=${encodeURIComponent((ufEl.value || '').trim())}`;
             const response = await fetch(url, { headers: { 'Accept': 'application/json' } });
             const data = await readJsonResponse(response);
             if (!response.ok || !data?.success) {
@@ -4129,7 +4137,7 @@
             const summary = data.summary || {};
             summaryEl.classList.remove('d-none');
             summaryEl.innerHTML = `
-                <strong>${escapeHtml(data.categoria || currentBatchCategory)}</strong> •
+                <strong>${escapeHtml(data.categoria || category)}</strong> •
                 consultados ${Number(summary.completed || 0)} de ${Number(summary.requested || 0)} itens •
                 ${Number(summary.with_results || 0)} com resultados •
                 ${Number(summary.failed || 0)} falhas
@@ -4240,6 +4248,16 @@
 
         if (batchRefreshBtn) {
             batchRefreshBtn.addEventListener('click', refreshBatchPriceSuggestions);
+        }
+
+        if (priceBatchModalElement) {
+            priceBatchModalElement.addEventListener('click', (event) => {
+                const target = event.target instanceof Element ? event.target.closest('#price-batch-refresh-btn') : null;
+                if (!target) {
+                    return;
+                }
+                refreshBatchPriceSuggestions();
+            });
         }
     };
 
