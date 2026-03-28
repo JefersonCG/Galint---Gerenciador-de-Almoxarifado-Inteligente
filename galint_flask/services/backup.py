@@ -1105,6 +1105,73 @@ class BackupService:
             """
             DO $$
             BEGIN
+                            IF EXISTS (
+                                SELECT 1 FROM information_schema.tables
+                                WHERE table_schema = 'public' AND table_name = 'stock_balances'
+                            ) THEN
+                                IF EXISTS (
+                                    SELECT 1 FROM information_schema.columns
+                                    WHERE table_schema = 'public' AND table_name = 'stock_balances' AND column_name = 'product_id'
+                                ) AND NOT EXISTS (
+                                    SELECT 1 FROM information_schema.columns
+                                    WHERE table_schema = 'public' AND table_name = 'stock_balances' AND column_name = 'codigo_item'
+                                ) THEN
+                                    ALTER TABLE stock_balances RENAME COLUMN product_id TO codigo_item;
+                                END IF;
+
+                                IF NOT EXISTS (
+                                    SELECT 1 FROM information_schema.columns
+                                    WHERE table_schema = 'public' AND table_name = 'stock_balances' AND column_name = 'last_movement_id'
+                                ) THEN
+                                    ALTER TABLE stock_balances ADD COLUMN last_movement_id integer NULL;
+                                END IF;
+                            END IF;
+
+                            IF EXISTS (
+                                SELECT 1 FROM information_schema.tables
+                                WHERE table_schema = 'public' AND table_name = 'stock_movements'
+                            ) THEN
+                                IF EXISTS (
+                                    SELECT 1 FROM information_schema.columns
+                                    WHERE table_schema = 'public' AND table_name = 'stock_movements' AND column_name = 'product_id'
+                                ) AND NOT EXISTS (
+                                    SELECT 1 FROM information_schema.columns
+                                    WHERE table_schema = 'public' AND table_name = 'stock_movements' AND column_name = 'codigo_item'
+                                ) THEN
+                                    ALTER TABLE stock_movements RENAME COLUMN product_id TO codigo_item;
+                                END IF;
+
+                                IF EXISTS (
+                                    SELECT 1 FROM information_schema.columns
+                                    WHERE table_schema = 'public' AND table_name = 'stock_movements' AND column_name = 'movement_type'
+                                ) AND NOT EXISTS (
+                                    SELECT 1 FROM information_schema.columns
+                                    WHERE table_schema = 'public' AND table_name = 'stock_movements' AND column_name = 'motion_type'
+                                ) THEN
+                                    ALTER TABLE stock_movements RENAME COLUMN movement_type TO motion_type;
+                                END IF;
+
+                                IF EXISTS (
+                                    SELECT 1 FROM information_schema.columns
+                                    WHERE table_schema = 'public' AND table_name = 'stock_movements' AND column_name = 'quantity_base'
+                                ) AND NOT EXISTS (
+                                    SELECT 1 FROM information_schema.columns
+                                    WHERE table_schema = 'public' AND table_name = 'stock_movements' AND column_name = 'amount_base'
+                                ) THEN
+                                    ALTER TABLE stock_movements RENAME COLUMN quantity_base TO amount_base;
+                                END IF;
+
+                                IF EXISTS (
+                                    SELECT 1 FROM information_schema.columns
+                                    WHERE table_schema = 'public' AND table_name = 'stock_movements' AND column_name = 'unit_base'
+                                ) AND NOT EXISTS (
+                                    SELECT 1 FROM information_schema.columns
+                                    WHERE table_schema = 'public' AND table_name = 'stock_movements' AND column_name = 'unit_type'
+                                ) THEN
+                                    ALTER TABLE stock_movements RENAME COLUMN unit_base TO unit_type;
+                                END IF;
+                            END IF;
+
               IF EXISTS (
                 SELECT 1 FROM information_schema.tables
                 WHERE table_schema = 'public' AND table_name = 'entrada_documentos'
