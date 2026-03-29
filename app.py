@@ -74,10 +74,7 @@ def _load_migration_funcs():
 def _run_migrations(app: Flask) -> None:
     """Inicliza pasta de migrations (se necessário), gera e aplica migration.
 
-   mn
-   
-   
-     Usa API programática do Flask-Migrate para suportar ambientes sem CLI.
+    Usa API programática do Flask-Migrate para suportar ambientes sem CLI.
     """
     from pathlib import Path
 

@@ -16,6 +16,7 @@ from ..models import (
     TelegramUser,
 )
 from .galint_notify_service import GalintNotifyService
+from .operation_visual_payload import operation_visual_payload_service
 from .telegram_service import TelegramService
 
 
@@ -136,6 +137,12 @@ class NotificationRouterService:
             return {"success": False, "error": "Saída não encontrada."}
         item_desc = saida.item.descricao if saida.item else saida.codigo_item or "Item"
         user_name = saida.usuario.nome if saida.usuario else saida.matricula or "Usuário"
+        visual_payload = operation_visual_payload_service.build_for_saida(
+            saida,
+            balance_before=balance_before,
+            balance_after=balance_after,
+            balance_unit=balance_unit,
+        )
         payload = {
             "recipient_ids": NotificationRouterService._resolve_saida_recipients(saida),
             "title": "Nova retirada registrada",
@@ -151,6 +158,7 @@ class NotificationRouterService:
                 "balanceBefore": balance_before,
                 "balanceAfter": balance_after,
                 "balanceUnit": balance_unit,
+                "visual": visual_payload,
             },
         }
         return NotificationRouterService.route_event(
@@ -191,6 +199,7 @@ class NotificationRouterService:
         if event is None:
             return {"success": False, "error": "Evento não encontrado."}
         item = Item.query.get(event.codigo_item) if event.codigo_item else None
+        visual_payload = operation_visual_payload_service.build_for_inventory_event(event)
         payload = {
             "recipient_ids": NotificationRouterService._resolve_inventory_recipients(event),
             "title": "Movimento de inventário registrado",
@@ -203,6 +212,7 @@ class NotificationRouterService:
                 "codigo": event.codigo_item,
                 "matricula": event.matricula,
                 "tipo": event.tipo,
+                "visual": visual_payload,
             },
         }
         return NotificationRouterService.route_event(

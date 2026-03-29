@@ -194,6 +194,24 @@
             font-size: clamp(1rem, 1.4vw, 1.2rem);
         }
 
+        .mirror-callout {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            padding: 1rem 1.1rem;
+            border-radius: 22px;
+            background: linear-gradient(135deg, rgba(14, 116, 144, 0.22), rgba(37, 99, 235, 0.12));
+            border: 1px solid rgba(125, 211, 252, 0.18);
+            color: #e0f2fe;
+            font-size: clamp(1rem, 1.5vw, 1.22rem);
+            font-weight: 700;
+        }
+
+        .mirror-callout i {
+            font-size: 1.5rem;
+            color: #7dd3fc;
+        }
+
         .mirror-grid {
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -314,6 +332,8 @@
                     <div class="mirror-subtitle" id="mirror-subtitle">Quando um item entrar em foco, a foto e o contexto operacional aparecem aqui em tempo real.</div>
                 </div>
 
+                <div class="mirror-callout" id="mirror-callout"><i class="bi bi-person-badge"></i><span>Aguardando o proximo item no monitor principal.</span></div>
+
                 <div class="mirror-grid">
                     <article class="mirror-stat">
                         <span class="mirror-stat-label">Operacao</span>
@@ -361,6 +381,7 @@
             const eyebrow = document.getElementById('mirror-eyebrow');
             const title = document.getElementById('mirror-title');
             const subtitle = document.getElementById('mirror-subtitle');
+            const callout = document.getElementById('mirror-callout');
             const kind = document.getElementById('mirror-kind');
             const quantity = document.getElementById('mirror-quantity');
             const actor = document.getElementById('mirror-actor');
@@ -387,6 +408,22 @@
                 if (kind === 'ferramenta') return 'bi-tools';
                 if (kind === 'fracionada') return 'bi-droplet-half';
                 return 'bi-box-arrow-right';
+            }
+
+            function calloutText(payload) {
+                if (!payload || payload.status === 'idle' || !payload.item) {
+                    return 'Aguardando o proximo item no monitor principal.';
+                }
+                const item = payload.item || {};
+                const movement = payload.movement || {};
+                const amount = movement.quantidade_display || movement.quantidade || 'quantidade nao informada';
+                if (payload.status === 'completed') {
+                    return 'Operacao registrada: confira ' + amount + ' de ' + (item.descricao || item.codigo || 'item') + '.';
+                }
+                if (payload.status === 'queued') {
+                    return 'Operacao em fila: prepare a conferencia de ' + (item.descricao || item.codigo || 'item') + '.';
+                }
+                return 'Item em foco: confirme visualmente ' + (item.descricao || item.codigo || 'item') + '.';
             }
 
             function formatTimestamp(value) {
@@ -416,6 +453,7 @@
                 eyebrow.innerHTML = '<i class="bi bi-stars"></i> Modo colaborador';
                 title.textContent = 'Painel pronto para espelhamento';
                 subtitle.textContent = 'Quando um item entrar em foco, a foto e o contexto operacional aparecem aqui em tempo real.';
+                callout.innerHTML = '<i class="bi bi-person-badge"></i><span>' + escapeHtml(calloutText(payload)) + '</span>';
                 kind.textContent = mirrorMode ? mirrorMode.charAt(0).toUpperCase() + mirrorMode.slice(1) : 'Aguardando';
                 quantity.textContent = '--';
                 actor.textContent = '--';
@@ -449,6 +487,7 @@
                 eyebrow.innerHTML = '<i class="bi ' + kindIcon(payload.kind) + '"></i> ' + escapeHtml(payload.kind_label || payload.kind || 'Operacao');
                 title.textContent = item.descricao || item.codigo || 'Item';
                 subtitle.textContent = 'Codigo ' + (item.codigo || '--') + (item.categoria ? ' • ' + item.categoria : '');
+                callout.innerHTML = '<i class="bi ' + meta.icon + '"></i><span>' + escapeHtml(calloutText(payload)) + '</span>';
                 kind.textContent = payload.kind_label || payload.kind || '--';
                 quantity.textContent = movement.quantidade_display || movement.quantidade || '--';
                 actor.textContent = actorInfo.nome || actorInfo.matricula || '--';

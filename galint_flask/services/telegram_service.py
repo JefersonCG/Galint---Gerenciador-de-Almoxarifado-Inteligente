@@ -57,6 +57,7 @@ from ..models import (
     Usuario,
 
 )
+from .operation_visual_payload import operation_visual_payload_service
 
 import threading
 
@@ -533,6 +534,8 @@ class TelegramService:
 
         reply_markup: dict[str, Any] | None = None,
 
+        media_payload: dict[str, Any] | None = None,
+
         saida_id: int | None = None,
 
         entrada_id: int | None = None,
@@ -702,7 +705,10 @@ class TelegramService:
 
             parse_mode=parse_mode,
 
-            reply_markup_json=json.dumps(reply_markup, ensure_ascii=False) if reply_markup else None,
+            reply_markup_json=TelegramService._serialize_outbox_payload(
+                reply_markup=reply_markup,
+                media_payload=media_payload,
+            ),
 
             available_at=datetime.utcnow(),
 
@@ -938,30 +944,16 @@ class TelegramService:
 
 
 
-                    reply_markup = None
+                    reply_markup, media_payload = TelegramService._deserialize_outbox_payload(
+                        getattr(msg, "reply_markup_json", None)
+                    )
 
-                    try:
-
-                        if getattr(msg, "reply_markup_json", None):
-
-                            reply_markup = json.loads(msg.reply_markup_json)
-
-                    except Exception:
-
-                        reply_markup = None
-
-
-
-                    res = TelegramService.send_message(
-
-                        msg.chat_id,
-
-                        msg.message_text,
-
+                    res = TelegramService._deliver_outbox_message(
+                        chat_id=msg.chat_id,
+                        message_text=msg.message_text,
                         parse_mode=getattr(msg, "parse_mode", None),
-
                         reply_markup=reply_markup,
-
+                        media_payload=media_payload,
                     )
 
 
@@ -2167,6 +2159,136 @@ class TelegramService:
             logger.error(f"Erro ao enviar documento Telegram: {e}")
 
             return {"success": False, "error": str(e)}
+
+
+    @staticmethod
+    def send_photo(
+        chat_id: str,
+        photo: str,
+        *,
+        caption: str | None = None,
+        parse_mode: str | None = "HTML",
+    ) -> dict[str, Any]:
+
+        config = TelegramService.get_config()
+
+        if not config or not config.bot_token:
+
+            return {"success": False, "error": "Bot não configurado"}
+
+
+
+        try:
+
+            url = TelegramService.BASE_URL.format(token=config.bot_token, method="sendPhoto")
+            data: dict[str, Any] = {"chat_id": chat_id}
+            if caption:
+                data["caption"] = caption
+            if parse_mode:
+                data["parse_mode"] = parse_mode
+
+            if re.match(r"^https?://", photo, flags=re.IGNORECASE):
+                data["photo"] = photo
+                response = requests.post(url, data=data, timeout=30)
+            else:
+                with open(photo, "rb") as fh:
+                    files = {"photo": fh}
+                    response = requests.post(url, data=data, files=files, timeout=30)
+
+            res = response.json()
+
+            if res.get("ok"):
+
+                return {"success": True, "message_id": res.get("result", {}).get("message_id")}
+
+            return {"success": False, "error": res.get("description", "Erro ao enviar foto")}
+
+        except FileNotFoundError:
+
+            return {"success": False, "error": "Arquivo de foto não encontrado"}
+
+        except requests.RequestException as e:
+
+            logger.error(f"Erro ao enviar foto Telegram: {e}")
+
+            return {"success": False, "error": str(e)}
+
+
+    @staticmethod
+    def _serialize_outbox_payload(
+        *,
+        reply_markup: dict[str, Any] | None = None,
+        media_payload: dict[str, Any] | None = None,
+    ) -> str | None:
+
+        if not reply_markup and not media_payload:
+
+            return None
+
+        payload: dict[str, Any] = {}
+        if reply_markup:
+            payload["reply_markup"] = reply_markup
+        if media_payload:
+            payload["media"] = media_payload
+        return json.dumps(payload, ensure_ascii=False)
+
+
+    @staticmethod
+    def _deserialize_outbox_payload(raw_payload: str | None) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+
+        if not raw_payload:
+
+            return None, None
+
+        try:
+
+            payload = json.loads(raw_payload)
+
+        except Exception:
+
+            return None, None
+
+        if isinstance(payload, dict) and ("reply_markup" in payload or "media" in payload):
+            reply_markup = payload.get("reply_markup") if isinstance(payload.get("reply_markup"), dict) else None
+            media_payload = payload.get("media") if isinstance(payload.get("media"), dict) else None
+            return reply_markup, media_payload
+        if isinstance(payload, dict):
+            return payload, None
+        return None, None
+
+
+    @staticmethod
+    def _deliver_outbox_message(
+        *,
+        chat_id: str,
+        message_text: str,
+        parse_mode: str | None,
+        reply_markup: dict[str, Any] | None,
+        media_payload: dict[str, Any] | None,
+    ) -> dict[str, Any]:
+
+        if isinstance(media_payload, dict) and (media_payload.get("path") or media_payload.get("url")):
+            photo_source = media_payload.get("path") or media_payload.get("url")
+            result = TelegramService.send_photo(
+                chat_id,
+                str(photo_source),
+                caption=message_text,
+                parse_mode=parse_mode,
+            )
+            if result.get("success"):
+                return result
+            logger.warning(
+                "Falha ao enviar foto no outbox; usando fallback texto. chat_id=%s erro=%s",
+                chat_id,
+                result.get("error"),
+            )
+
+        return TelegramService.send_message(
+            chat_id,
+            message_text,
+            parse_mode=parse_mode,
+            reply_markup=reply_markup,
+        )
 
 
 
@@ -4536,6 +4658,14 @@ class TelegramService:
 
             return {"success": False, "error": "Saída não encontrada ou incompleta"}
 
+        visual_payload = operation_visual_payload_service.build_for_saida(
+            saida,
+            balance_before=balance_before,
+            balance_after=balance_after,
+            balance_unit=balance_unit,
+        )
+        media_payload = operation_visual_payload_service.build_media_payload(visual_payload)
+
         
 
         # AGRUPAMENTO: Detectar múltiplas saídas em sequência
@@ -4639,6 +4769,8 @@ class TelegramService:
 
                     message_text=message_text,
 
+                    media_payload=media_payload,
+
                     idempotency_key=key,
 
                     saida_id=saida_id,
@@ -4701,6 +4833,8 @@ class TelegramService:
                 message_type="withdrawal",
 
                 message_text=message_text,
+
+                media_payload=media_payload,
 
                 idempotency_key=key,
 
@@ -5913,6 +6047,8 @@ class TelegramService:
             return {"success": False, "error": "Evento não é entrada"}
 
         item = db.session.get(Item, evento.codigo_item) if evento.codigo_item else None
+        visual_payload = operation_visual_payload_service.build_for_inventory_event(evento)
+        media_payload = operation_visual_payload_service.build_media_payload(visual_payload)
 
         message_text, message_type, is_devolucao = TelegramService.format_inventory_event_message(
             evento, item
@@ -5932,6 +6068,7 @@ class TelegramService:
                     recipient_name=recipient.get("recipient_name"),
                     message_type=message_type,
                     message_text=message_text,
+                    media_payload=media_payload,
                     idempotency_key=key,
                     inventario_evento_id=event_id,
                     commit=False,
