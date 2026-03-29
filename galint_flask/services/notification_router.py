@@ -235,6 +235,13 @@ class NotificationRouterService:
     def route_item_created(codigo: str, *, entrada_inicial: dict[str, Any] | None = None) -> dict[str, Any]:
         item = Item.query.get(codigo)
         recipients = NotificationRouterService._resolve_item_recipients(item)
+        visual_payload = operation_visual_payload_service.build_for_item(
+            item,
+            kind="item_created",
+            kind_label="Novo item cadastrado",
+            item_code=codigo,
+            source_label="cadastro de item",
+        )
         payload = {
             "recipient_ids": recipients,
             "title": "Novo item cadastrado",
@@ -245,6 +252,7 @@ class NotificationRouterService:
                 "kind": "item_created",
                 "codigo": codigo,
                 "entradaInicial": entrada_inicial or {},
+                "visual": visual_payload,
             },
         }
         return NotificationRouterService.route_event(

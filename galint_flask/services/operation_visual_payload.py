@@ -92,6 +92,58 @@ class OperationVisualPayloadService:
         }
 
     @staticmethod
+    def build_for_item(
+        item: Item | None,
+        *,
+        kind: str = "item",
+        kind_label: str | None = None,
+        item_code: str | None = None,
+        item_description: str | None = None,
+        item_category: str | None = None,
+        unit: str | None = None,
+        quantity: float | None = None,
+        quantity_display: str | None = None,
+        actor_name: str | None = None,
+        actor_matricula: str | None = None,
+        context: dict[str, Any] | None = None,
+        source_label: str | None = None,
+        generated_at: Any = None,
+    ) -> dict[str, Any]:
+        resolved_unit = unit or (item.unidade if item else None)
+        photo = OperationVisualPayloadService._photo_payload(item)
+        generated_value = generated_at.isoformat() if hasattr(generated_at, "isoformat") else generated_at
+        context = context or {}
+
+        return {
+            "kind": kind,
+            "kind_label": kind_label or OperationVisualPayloadService._kind_label(kind),
+            "status": "completed",
+            "item": {
+                "codigo": item_code or (item.codigo_item if item else None),
+                "descricao": item_description or (item.descricao if item else (item_code or "Item")),
+                "categoria": item_category or (item.categoria if item else None),
+                "unidade": resolved_unit,
+                **photo,
+            },
+            "movement": {
+                "id": None,
+                "quantidade": quantity,
+                "quantidade_display": quantity_display or OperationVisualPayloadService._format_balance(quantity, resolved_unit),
+            },
+            "actor": {
+                "matricula": actor_matricula,
+                "nome": actor_name,
+            },
+            "context": {
+                "local_servico": (str(context.get("local_servico", "") or "").strip() or None),
+                "observacao": (str(context.get("observacao", "") or "").strip() or None),
+            },
+            "batch_label": ((getattr(item, "lote", None) or "").strip() if item else None) or None,
+            "source_label": source_label or "notificacao operacional",
+            "generated_at": generated_value,
+        }
+
+    @staticmethod
     def build_media_payload(visual_payload: dict[str, Any] | None) -> dict[str, Any] | None:
         if not isinstance(visual_payload, dict):
             return None

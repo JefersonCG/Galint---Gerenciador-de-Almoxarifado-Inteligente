@@ -5775,6 +5775,25 @@ class TelegramService:
         text += f"<b>Origem:</b> {(log.source or 'web').strip().lower()}\n"
         text += f"<b>Data/Hora:</b> {TimeService.format_local(log.created_at)}"
 
+        visual_payload = operation_visual_payload_service.build_for_item(
+            item,
+            kind=log.operation_type or "operation_log",
+            kind_label=operation_label,
+            item_code=log.product_id,
+            unit=unit_input,
+            quantity=quantity_input,
+            quantity_display=f"{quantity_input:g} {unit_input}".strip(),
+            actor_name=user.nome if user else (log.user_id or "Sistema"),
+            actor_matricula=log.user_id,
+            context={
+                "local_servico": payload.get("local_servico") if isinstance(payload, dict) else None,
+                "observacao": f"Origem: {(log.source or 'web').strip().lower()}",
+            },
+            source_label="log operacional",
+            generated_at=log.created_at,
+        )
+        media_payload = operation_visual_payload_service.build_media_payload(visual_payload)
+
         results = {"queued": [], "failed": []}
         recipients = TelegramService._inventory_alert_recipients()
         for recipient in recipients:
@@ -5788,6 +5807,7 @@ class TelegramService:
                     message_type="operation_log",
                     message_text=text,
                     idempotency_key=key,
+                    media_payload=media_payload,
                     commit=False,
                 )
                 if queued.get("success"):
@@ -6177,9 +6197,21 @@ class TelegramService:
 
             message_text += "\n" + totals
 
+        visual_payload = operation_visual_payload_service.build_for_item(
+            item,
+            kind="manual_item",
+            kind_label="Notificação manual",
+            item_code=item.codigo_item,
+            quantity_display=str(saldo),
+            context={"observacao": "Notificar agora"},
+            source_label="notificacao manual",
+            generated_at=TimeService.now_local(),
+        )
+        media_payload = operation_visual_payload_service.build_media_payload(visual_payload)
 
 
-        results = {"sent": [], "failed": []}
+
+        results = {"queued": [], "failed": []}
 
         admins = TelegramService._privileged_users_query().all()
 
@@ -6189,11 +6221,11 @@ class TelegramService:
 
             try:
 
-                res = TelegramService.send_message(admin.chat_id, message_text)
+                key = f"manual_item:{codigo}:{admin.chat_id}:{data_fmt}"
 
-                notification = TelegramNotification(
+                queued = TelegramService.enqueue_outbox_message(
 
-                    chat_id=admin.chat_id,
+                    chat_id=str(admin.chat_id),
 
                     recipient_name=admin.usuario.nome if getattr(admin, 'usuario', None) else None,
 
@@ -6201,23 +6233,23 @@ class TelegramService:
 
                     message_text=message_text,
 
-                    status="sent" if res.get("success") else "failed",
+                    idempotency_key=key,
 
-                    error_message=res.get("error"),
+                    media_payload=media_payload,
+
+                    commit=False,
 
                 )
 
-                db.session.add(notification)
-
-                if res.get("success"):
+                if queued.get("success"):
 
                     admin.last_notification = datetime.utcnow()
 
-                    results["sent"].append(admin.chat_id)
+                    results["queued"].append(str(admin.chat_id))
 
                 else:
 
-                    results["failed"].append(f"{admin.chat_id}: {res.get('error')}")
+                    results["failed"].append(f"{admin.chat_id}: {queued.get('error')}")
 
             except Exception as e:
 
@@ -6225,9 +6257,17 @@ class TelegramService:
 
 
 
-        db.session.commit()
+        try:
 
-        return {"success": True, "sent": results["sent"], "failed": results["failed"]}
+            db.session.commit()
+
+        except Exception:
+
+            db.session.rollback()
+
+            return {"success": False, "error": "Falha ao persistir enfileiramento manual_item"}
+
+        return {"success": True, "sent": results["queued"], "queued": results["queued"], "failed": results["failed"]}
 
 
 
@@ -6464,6 +6504,19 @@ class TelegramService:
 
             text += "\n\n" + totals
 
+        visual_payload = operation_visual_payload_service.build_for_item(
+            item,
+            kind="item_created",
+            kind_label="Novo item cadastrado",
+            item_code=codigo,
+            quantity_display=estoque_str,
+            actor_name=usuario_cadastro,
+            context={"observacao": "Cadastro inicial de item"},
+            source_label="cadastro de item",
+            generated_at=data_cadastro,
+        )
+        media_payload = operation_visual_payload_service.build_media_payload(visual_payload)
+
 
 
         results = {"queued": [], "failed": []}
@@ -6492,6 +6545,8 @@ class TelegramService:
                     message_text=text,
 
                     idempotency_key=key,
+
+                    media_payload=media_payload,
 
                     commit=False,
 
