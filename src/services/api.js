@@ -281,6 +281,71 @@ class ApiService {
         return AsyncStorage.getItem('token');
     }
 
+    async getNotifySummary() {
+        const result = await this.getNotifyInbox(1, 1);
+        return {
+            success: Boolean(result?.success),
+            unread_count: Number(result?.unread_count || 0),
+            total: Number(result?.total || 0),
+            message: result?.message,
+        };
+    }
+
+    async registerNotifyPushToken(pushToken, provider = 'expo') {
+        try {
+            if (!this.client || !this.baseURL) {
+                throw new Error('Servidor não configurado');
+            }
+
+            const authToken = await AsyncStorage.getItem('token');
+            if (!authToken) {
+                throw new Error('Token não encontrado');
+            }
+
+            const normalizedToken = String(pushToken || '').trim();
+            if (!normalizedToken) {
+                throw new Error('Push token ausente');
+            }
+
+            const deviceInfo = await getDeviceInfo();
+            const registrationFingerprint = JSON.stringify({
+                baseURL: this.baseURL,
+                device_uuid: deviceInfo.device_uuid,
+                provider,
+                token: normalizedToken,
+            });
+            const previousFingerprint = await AsyncStorage.getItem('notify_push_registration');
+            if (previousFingerprint === registrationFingerprint) {
+                return { success: true, skipped: true, provider };
+            }
+
+            const response = await this.client.post(
+                '/api/notify/push/register',
+                {
+                    device_uuid: deviceInfo.device_uuid,
+                    token: normalizedToken,
+                    provider,
+                },
+                {
+                    headers: {
+                        Authorization: `Bearer ${authToken}`,
+                        'Content-Type': 'application/json',
+                    },
+                }
+            );
+
+            if (response.data?.success) {
+                await AsyncStorage.setItem('notify_push_registration', registrationFingerprint);
+            }
+            return response.data;
+        } catch (error) {
+            return {
+                success: false,
+                message: error.response?.data?.message || error.response?.data?.error || error.message || 'Erro ao registrar push token',
+            };
+        }
+    }
+
     async getNotifyInbox(page = 1, perPage = 20) {
         try {
             const token = await AsyncStorage.getItem('token');

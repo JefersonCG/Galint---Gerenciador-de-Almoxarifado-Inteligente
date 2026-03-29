@@ -114,6 +114,18 @@ export default function LoginScreen({ navigation }) {
                 await ApiService.setOfflineMode(false);
                 await saveCredentials(username, password, rememberMe);
                 await saveServerConfig(serverIP, serverPort);
+                try {
+                    const pushRegistration = await ApiService.getToken();
+                    if (pushRegistration) {
+                        // O bootstrap do App faz a aquisição do Expo token; aqui só reaproveitamos o fluxo se ele já estiver disponível.
+                        const lastPushToken = await AsyncStorage.getItem('last_expo_push_token');
+                        if (lastPushToken) {
+                            await ApiService.registerNotifyPushToken(lastPushToken);
+                        }
+                    }
+                } catch (error) {
+                    console.warn('[Login] Não foi possível sincronizar push token:', error?.message || error);
+                }
                 
                 // 🔄 PRE-LOAD DO ESTOQUE COMPLETO (modo offline aprimorado)
                 console.log('[Login] Iniciando pre-load do estoque...');

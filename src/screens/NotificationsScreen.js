@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
     ActivityIndicator,
     FlatList,
@@ -77,17 +78,19 @@ function NotificationCard({ item, onMarkRead }) {
 
 export default function NotificationsScreen() {
     const [items, setItems] = useState([]);
+    const [unreadCount, setUnreadCount] = useState(0);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState('');
 
-    const loadInbox = async (refresh = false) => {
+    const loadInbox = useCallback(async (refresh = false) => {
         if (refresh) setRefreshing(true);
         else setLoading(true);
 
         const result = await ApiService.getNotifyInbox();
         if (result?.success) {
             setItems(Array.isArray(result.items) ? result.items : []);
+            setUnreadCount(Number(result.unread_count || 0));
             setError('');
         } else {
             setError(result?.message || 'Falha ao carregar notificações');
@@ -95,17 +98,20 @@ export default function NotificationsScreen() {
 
         setLoading(false);
         setRefreshing(false);
-    };
-
-    useEffect(() => {
-        loadInbox();
     }, []);
+
+    useFocusEffect(
+        useCallback(() => {
+            loadInbox();
+        }, [loadInbox])
+    );
 
     const handleMarkRead = async (item) => {
         if (!item?.id) return;
         const result = await ApiService.markNotifyRead(item.id);
         if (result?.success) {
             setItems((current) => current.map((entry) => (entry.id === item.id ? { ...entry, status: 'read' } : entry)));
+            setUnreadCount((current) => Math.max(0, current - 1));
         }
     };
 
@@ -121,6 +127,10 @@ export default function NotificationsScreen() {
     return (
         <View style={styles.container}>
             {error ? <Text style={styles.errorText}>{error}</Text> : null}
+            <View style={styles.summaryBar}>
+                <Text style={styles.summaryLabel}>Inbox operacional</Text>
+                <Text style={styles.summaryValue}>{unreadCount > 0 ? `${unreadCount} não lidas` : 'Tudo lido'}</Text>
+            </View>
             <FlatList
                 data={items}
                 keyExtractor={(item) => String(item.id)}
@@ -142,6 +152,25 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#eef4ff',
+    },
+    summaryBar: {
+        paddingHorizontal: 16,
+        paddingTop: 16,
+        paddingBottom: 8,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+    },
+    summaryLabel: {
+        fontSize: 13,
+        fontWeight: '700',
+        color: '#1e3a8a',
+        textTransform: 'uppercase',
+    },
+    summaryValue: {
+        fontSize: 13,
+        fontWeight: '700',
+        color: '#0f172a',
     },
     listContent: {
         padding: 16,

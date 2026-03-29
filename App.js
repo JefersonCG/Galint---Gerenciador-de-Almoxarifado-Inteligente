@@ -3,7 +3,11 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
-import { Alert, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Alert, Platform, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import Constants from 'expo-constants';
+import * as Device from 'expo-device';
+import * as Notifications from 'expo-notifications';
 import * as Updates from 'expo-updates';
 
 import LoginScreen from './src/screens/LoginScreen';
@@ -25,6 +29,52 @@ import ApiService from './src/services/api';
 import { initOfflineDb } from './src/services/offlineDb'; // Inicializar DB
 
 const Stack = createNativeStackNavigator();
+
+Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+        shouldPlaySound: true,
+        shouldSetBadge: false,
+        shouldShowBanner: true,
+        shouldShowList: true,
+    }),
+});
+
+function resolveExpoProjectId() {
+    return Constants?.expoConfig?.extra?.eas?.projectId || Constants?.easConfig?.projectId || null;
+}
+
+async function getExpoPushToken() {
+    if (!Device.isDevice) {
+        return { success: false, skipped: true, reason: 'physical_device_required' };
+    }
+
+    const permissionState = await Notifications.getPermissionsAsync();
+    let finalStatus = permissionState.status;
+    if (finalStatus !== 'granted') {
+        const request = await Notifications.requestPermissionsAsync();
+        finalStatus = request.status;
+    }
+    if (finalStatus !== 'granted') {
+        return { success: false, skipped: true, reason: 'permission_denied' };
+    }
+
+    if (Platform.OS === 'android') {
+        await Notifications.setNotificationChannelAsync('default', {
+            name: 'default',
+            importance: Notifications.AndroidImportance.MAX,
+            vibrationPattern: [0, 250, 250, 250],
+            lightColor: '#0d6efd',
+        });
+    }
+
+    const projectId = resolveExpoProjectId();
+    const response = projectId
+        ? await Notifications.getExpoPushTokenAsync({ projectId })
+        : await Notifications.getExpoPushTokenAsync();
+
+    await AsyncStorage.setItem('last_expo_push_token', response.data);
+    return { success: true, token: response.data };
+}
 
 class AppErrorBoundary extends React.Component {
     constructor(props) {
@@ -89,6 +139,26 @@ export default function App() {
         } catch (error) {
             // Sem NetInfo disponível, não registra listener
         }
+
+        ApiService.loadSavedConfig()
+            .then(async (config) => {
+                if (!config) return;
+                const authToken = await ApiService.getToken();
+                if (!authToken) return;
+
+                const pushTokenResult = await getExpoPushToken();
+                if (!pushTokenResult?.success || !pushTokenResult?.token) {
+                    return;
+                }
+
+                const registrationResult = await ApiService.registerNotifyPushToken(pushTokenResult.token);
+                if (!registrationResult?.success && !registrationResult?.skipped) {
+                    console.warn('[Push] Falha ao registrar token:', registrationResult?.message || 'erro desconhecido');
+                }
+            })
+            .catch((error) => {
+                console.warn('[Push] Falha na inicialização automática:', error?.message || error);
+            });
 
         // Cleanup ao desmontar
         return () => {

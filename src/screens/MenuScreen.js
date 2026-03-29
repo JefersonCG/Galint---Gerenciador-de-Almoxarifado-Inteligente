@@ -1,7 +1,33 @@
-import React from 'react';
+import React, { useCallback, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 
+import ApiService from '../services/api';
+
 export default function MenuScreen({ navigation }) {
+    const [unreadCount, setUnreadCount] = useState(0);
+
+    useFocusEffect(
+        useCallback(() => {
+            let active = true;
+
+            const loadSummary = async () => {
+                const result = await ApiService.getNotifySummary();
+                if (!active) return;
+                if (result?.success) {
+                    setUnreadCount(Number(result.unread_count || 0));
+                } else {
+                    setUnreadCount(0);
+                }
+            };
+
+            loadSummary();
+            return () => {
+                active = false;
+            };
+        }, [])
+    );
+
     return (
         <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
             {/* Header Moderno */}
@@ -38,6 +64,11 @@ export default function MenuScreen({ navigation }) {
                     <Text style={styles.cardTitle}>Notificações</Text>
                     <Text style={styles.cardSubtitle}>Ver mensagens operacionais com foto e contexto visual</Text>
                 </View>
+                {unreadCount > 0 ? (
+                    <View style={styles.notificationBadge}>
+                        <Text style={styles.notificationBadgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
+                    </View>
+                ) : null}
                 <Text style={styles.cardArrow}>›</Text>
             </TouchableOpacity>
 
@@ -168,6 +199,21 @@ const styles = StyleSheet.create({
         fontSize: 32,
         color: '#d1d5db',
         fontWeight: '300',
+    },
+    notificationBadge: {
+        minWidth: 28,
+        height: 28,
+        borderRadius: 14,
+        paddingHorizontal: 8,
+        marginRight: 10,
+        backgroundColor: '#dc2626',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    notificationBadgeText: {
+        color: '#ffffff',
+        fontSize: 12,
+        fontWeight: '800',
     },
     footerInfo: {
         alignItems: 'center',
