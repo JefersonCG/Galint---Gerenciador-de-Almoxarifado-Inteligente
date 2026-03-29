@@ -428,7 +428,7 @@
         <h2><i class="bi bi-droplet-half me-2"></i>Registro de Saída Fracionada</h2>
         <p>Insira a quantidade pesada com o novo container dark, mantendo o fluxo específico para itens líquidos e fracionados.</p>
         <div class="page-header-actions">
-            <a class="btn-mirror-screen" href="/movimentos/painel-espelho?mode=fracionada" target="_blank" rel="noopener">
+            <a class="btn-mirror-screen" href="${url_for('movements.painel_espelho_page', mode='fracionada')}" target="_blank" rel="noopener">
                 <i class="bi bi-display"></i> Abrir painel do colaborador
             </a>
         </div>

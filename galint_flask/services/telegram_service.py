@@ -3290,6 +3290,16 @@ class TelegramService:
 
                 return
 
+            visual_payload = operation_visual_payload_service.build_for_saida(primeiro)
+            visual_payload["movement"] = {
+                "id": [saida.id_saida for saida in saidas],
+                "quantidade": len(saidas),
+                "quantidade_display": f"{len(saidas)} itens",
+                "batch": True,
+            }
+            visual_payload["batch_label"] = f"{len(saidas)} retiradas"
+            media_payload = operation_visual_payload_service.build_media_payload(visual_payload)
+
 
 
             notified_chat_ids: set[str] = set()
@@ -3324,6 +3334,8 @@ class TelegramService:
 
                     message_text=message,
 
+                    media_payload=media_payload,
+
                     idempotency_key=key,
 
                     saida_id=saidas[0].id_saida if saidas else None,
@@ -3353,6 +3365,8 @@ class TelegramService:
                     message_type="withdrawal",
 
                     message_text=message,
+
+                    media_payload=media_payload,
 
                     idempotency_key=key,
 
@@ -4894,6 +4908,9 @@ class TelegramService:
         if not saida or not saida.item or not saida.usuario:
             return {"success": False, "error": "Saída não encontrada ou incompleta"}
 
+        visual_payload = operation_visual_payload_service.build_for_saida(saida)
+        media_payload = operation_visual_payload_service.build_media_payload(visual_payload)
+
         results = {"queued": [], "failed": [], "skipped": []}
 
         # 1. Notificar funcionário (se tiver Telegram vinculado)
@@ -4914,6 +4931,7 @@ class TelegramService:
                     recipient_name=saida.usuario.nome,
                     message_type="permanent_custody",
                     message_text=message_text,
+                    media_payload=media_payload,
                     idempotency_key=key,
                     saida_id=saida_id,
                     commit=True,
@@ -4950,6 +4968,7 @@ class TelegramService:
                     recipient_name=f"Admin: {getattr(adm.usuario, 'nome', adm.matricula)}",
                     message_type="permanent_custody",
                     message_text=message_text,
+                    media_payload=media_payload,
                     idempotency_key=key,
                     saida_id=saida_id,
                     commit=True,

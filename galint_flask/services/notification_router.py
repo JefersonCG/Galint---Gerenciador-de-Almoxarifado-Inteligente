@@ -179,13 +179,23 @@ class NotificationRouterService:
         recipients: set[str] = set()
         for saida in saidas:
             recipients.update(NotificationRouterService._resolve_saida_recipients(saida))
+        visual_payload = None
+        if saidas:
+            visual_payload = operation_visual_payload_service.build_for_saida(saidas[0])
+            visual_payload["movement"] = {
+                "id": [saida.id_saida for saida in saidas],
+                "quantidade": len(saidas),
+                "quantidade_display": f"{len(saidas)} itens",
+                "batch": True,
+            }
+            visual_payload["batch_label"] = f"{len(saidas)} retiradas"
         payload = {
             "recipient_ids": sorted(recipients),
             "title": "Retiradas agrupadas concluídas",
             "body": f"{len(saidas)} retiradas foram registradas e agrupadas para notificação.",
             "category": "withdrawal",
             "message_type": "withdrawal_batch",
-            "payload": {"kind": "withdrawal_batch", "saidaIds": saida_ids},
+            "payload": {"kind": "withdrawal_batch", "saidaIds": saida_ids, "visual": visual_payload},
         }
         return NotificationRouterService.route_event(
             event_name="withdrawal_batch",
@@ -246,13 +256,14 @@ class NotificationRouterService:
     @staticmethod
     def route_permanent_custody(saida_id: int) -> dict[str, Any]:
         saida = Saida.query.get(saida_id)
+        visual_payload = operation_visual_payload_service.build_for_saida(saida) if saida else None
         payload = {
             "recipient_ids": NotificationRouterService._resolve_saida_recipients(saida) if saida else [],
             "title": "Custódia permanente registrada",
             "body": f"Saída {saida_id} foi registrada como custódia permanente.",
             "category": "custody",
             "message_type": "permanent_custody",
-            "payload": {"kind": "permanent_custody", "saidaId": saida_id},
+            "payload": {"kind": "permanent_custody", "saidaId": saida_id, "visual": visual_payload},
         }
         return NotificationRouterService.route_event(
             event_name="permanent_custody",

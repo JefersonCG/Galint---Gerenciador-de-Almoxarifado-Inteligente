@@ -543,7 +543,7 @@
         <h2><i class="bi bi-box-arrow-right me-2"></i>Registro de Saída</h2>
         <p>Adicione itens à lista e registre a saída em lote com o novo padrão visual dark do fluxo de lançamentos.</p>
         <div class="page-header-actions">
-            <a class="btn-mirror-screen" href="/movimentos/painel-espelho?mode=saida" target="_blank" rel="noopener">
+            <a class="btn-mirror-screen" href="${url_for('movements.painel_espelho_page', mode='saida')}" target="_blank" rel="noopener">
                 <i class="bi bi-display"></i> Abrir painel do colaborador
             </a>
         </div>

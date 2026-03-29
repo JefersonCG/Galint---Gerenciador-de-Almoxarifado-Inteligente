@@ -480,7 +480,7 @@
         <h2><i class="bi bi-tools me-2"></i>Retirada de Ferramentas</h2>
         <p>Registre retiradas com o novo padrão visual dark, preservando o fluxo especial de custódia temporária.</p>
         <div class="page-header-actions">
-            <a class="btn-mirror-screen" href="/movimentos/painel-espelho?mode=ferramenta" target="_blank" rel="noopener">
+            <a class="btn-mirror-screen" href="${url_for('movements.painel_espelho_page', mode='ferramenta')}" target="_blank" rel="noopener">
                 <i class="bi bi-display"></i> Abrir painel do colaborador
             </a>
         </div>

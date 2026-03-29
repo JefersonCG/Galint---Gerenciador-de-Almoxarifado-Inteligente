@@ -31,14 +31,16 @@ def render_mako_template(template_name: str, **context: Any) -> str:
         return current_app.json.dumps(value)
 
     # Base context shared with all templates so they mirror the Jinja environment.
-    shared_context: dict[str, Any] = {
-        "url_for": url_for,
-        "current_user": current_user,
-        "get_flashed_messages": get_flashed_messages,
-        "request": request,
-        "tojson": tojson,
-    }
-    shared_context.update(current_app.jinja_env.globals)
+    shared_context: dict[str, Any] = dict(current_app.jinja_env.globals)
+    shared_context.update(
+        {
+            "url_for": url_for,
+            "current_user": current_user,
+            "get_flashed_messages": get_flashed_messages,
+            "request": request,
+            "tojson": tojson,
+        }
+    )
     shared_context.update(context)
 
     rendered = template.render(**shared_context)

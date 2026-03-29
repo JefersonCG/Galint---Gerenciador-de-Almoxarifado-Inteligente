@@ -418,7 +418,7 @@
         <h2><i class="bi bi-arrow-return-left me-2"></i>Registro de Devolução</h2>
         <p>Adicione itens à lista e registre a devolução de uma só vez</p>
         <div class="page-header-actions">
-            <a class="btn-mirror-screen" href="/movimentos/painel-espelho?mode=entrada" target="_blank" rel="noopener">
+            <a class="btn-mirror-screen" href="{{ url_for('movements.painel_espelho_page', mode='entrada') }}" target="_blank" rel="noopener">
                 <i class="bi bi-display"></i> Abrir painel do colaborador
             </a>
         </div>
