@@ -201,21 +201,45 @@
                 <button type="reset" class="btn btn-secondary">
                     <i class="bi bi-x-circle me-2"></i>Limpar
                 </button>
+                <button type="button" class="galint-help-link" data-bs-toggle="modal" data-bs-target="#custodyReportsHelpModal">
+                    <i class="bi bi-info-circle"></i> Ajuda rápida
+                </button>
             </div>
         </form>
     </div>
+</div>
 
-    <!-- Dicas -->
-    <div class="alert alert-info">
-        <h6 class="alert-heading">
-            <i class="bi bi-lightbulb me-2"></i>Dicas de uso:
-        </h6>
-        <ul class="mb-0">
-            <li>Use o <strong>formato PDF</strong> para visualizar ou imprimir rapidamente</li>
-            <li>Use o <strong>formato XLSX</strong> para fazer análises ou editar os dados</li>
-            <li>Relatórios grandes podem demorar alguns segundos para serem gerados</li>
-            <li>O relatório mostra o status de devolução de cada ferramenta</li>
-        </ul>
+<div class="modal fade" id="custodyReportsHelpModal" tabindex="-1" aria-labelledby="custodyReportsHelpModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content galint-help-modal-content">
+            <div class="modal-header">
+                <div>
+                    <span class="galint-help-kicker"><i class="bi bi-file-earmark-bar-graph"></i> Ajuda rápida</span>
+                    <h5 class="modal-title galint-help-title" id="custodyReportsHelpModalLabel">Como gerar relatórios de custódia</h5>
+                    <p class="galint-help-copy">As orientações ficam aqui para não ocupar a área principal do filtro e da geração.</p>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <div class="galint-help-grid">
+                    <section class="galint-help-card">
+                        <h6>Formato</h6>
+                        <p>Use PDF para leitura rápida e impressão. Use XLSX quando precisar analisar ou editar os dados depois.</p>
+                    </section>
+                    <section class="galint-help-card">
+                        <h6>Prazo</h6>
+                        <p>Relatórios grandes podem levar alguns segundos para serem montados, principalmente em períodos extensos.</p>
+                    </section>
+                    <section class="galint-help-card">
+                        <h6>Conteúdo</h6>
+                        <p>O relatório destaca o status de devolução e a situação operacional de cada ferramenta no intervalo consultado.</p>
+                    </section>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="galint-btn-secondary" data-bs-dismiss="modal">Fechar</button>
+            </div>
+        </div>
     </div>
 </div>
 

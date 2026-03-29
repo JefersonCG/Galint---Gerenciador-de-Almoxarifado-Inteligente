@@ -66,7 +66,7 @@
                 <span>Dashboard</span>
             </a>
             <button
-                class="sidebar-link d-flex justify-content-between align-items-center border-0 bg-transparent text-start w-100 ${'active' if lancamentos_active else 'collapsed'}"
+                class="sidebar-link d-flex justify-content-between align-items-center border-0 bg-transparent text-start w-100"
                 type="button" data-bs-toggle="collapse" data-bs-target="#lancamentosMenu"
                 aria-expanded="${'true' if lancamentos_active else 'false'}">
                 <span>
@@ -95,7 +95,7 @@
                 % endif
             </div>
             <button
-                class="sidebar-link d-flex justify-content-between align-items-center border-0 bg-transparent text-start w-100 ${'active' if estoque_active else 'collapsed'}"
+                class="sidebar-link d-flex justify-content-between align-items-center border-0 bg-transparent text-start w-100"
                 type="button" data-bs-toggle="collapse" data-bs-target="#estoqueMenu"
                 aria-expanded="${'true' if estoque_active else 'false'}">
                 <span>
@@ -146,7 +146,7 @@
             </div>
 
             <button
-                class="sidebar-link d-flex justify-content-between align-items-center border-0 bg-transparent text-start w-100 ${'active' if ferramentas_active else 'collapsed'}"
+                class="sidebar-link d-flex justify-content-between align-items-center border-0 bg-transparent text-start w-100"
                 type="button" data-bs-toggle="collapse" data-bs-target="#ferramentasMenu"
                 aria-expanded="${'true' if ferramentas_active else 'false'}">
                 <span>
@@ -216,7 +216,7 @@
                 <div class="sidebar-divider"></div>
 
                 <button
-                    class="sidebar-link d-flex justify-content-between align-items-center border-0 bg-transparent text-start w-100 ${'active' if configuracoes_active else 'collapsed'}"
+                    class="sidebar-link d-flex justify-content-between align-items-center border-0 bg-transparent text-start w-100"
                     type="button" data-bs-toggle="collapse" data-bs-target="#configuracoesMenu"
                     aria-expanded="${'true' if configuracoes_active else 'false'}">
                     <span>

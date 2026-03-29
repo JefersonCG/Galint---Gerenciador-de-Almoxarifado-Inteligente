@@ -361,59 +361,6 @@
         color: #bbf7d0;
     }
 
-    .docf-search-status.pendente {
-        background: rgba(250, 204, 21, 0.14);
-        color: #fde68a;
-    }
-
-    .docf-search-status.erro {
-        background: rgba(239, 68, 68, 0.14);
-        color: #fecaca;
-    }
-
-    .docf-search-status.historico {
-        background: rgba(96, 165, 250, 0.14);
-        color: #bfdbfe;
-    }
-
-    .docf-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.45rem;
-        padding: 0.48rem 0.85rem;
-        border-radius: 999px;
-        font-size: 0.78rem;
-        font-weight: 700;
-        letter-spacing: 0.03em;
-        background: rgba(255, 255, 255, 0.07);
-        color: #eef5ff;
-        border: 1px solid var(--docf-border-soft);
-        white-space: nowrap;
-    }
-
-    .docf-help-toggle {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.45rem;
-        border: 1px solid rgba(148, 163, 184, 0.22);
-        background: rgba(9, 19, 31, 0.72);
-        color: #dbe9fb;
-        border-radius: 999px;
-        padding: 0.52rem 0.9rem;
-        font-size: 0.82rem;
-        font-weight: 700;
-        transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
-    }
-
-    .docf-help-toggle:hover {
-        background: rgba(20, 38, 62, 0.9);
-        border-color: rgba(96, 165, 250, 0.4);
-        transform: translateY(-1px);
-    }
-
-    .docf-help-toggle.is-active {
-        background: linear-gradient(135deg, rgba(14, 116, 144, 0.42) 0%, rgba(37, 99, 235, 0.32) 100%);
-        border-color: rgba(125, 211, 252, 0.45);
         color: #f0f9ff;
         box-shadow: 0 10px 24px rgba(8, 47, 73, 0.28);
     }
@@ -1178,9 +1125,9 @@
             <p class="docf-subtitle">Painel operacional por estado documental. Registro, triagem, correção e histórico ficam separados para reduzir ruído na rotina.</p>
         </div>
         <div class="docf-header-actions">
-            <button class="docf-help-toggle" id="docf-help-toggle" type="button">
+            <button class="docf-help-toggle" id="docf-help-toggle" type="button" data-bs-toggle="modal" data-bs-target="#docfHelpModal">
                 <i class="bi bi-question-circle"></i>
-                <span>Ajuda por campo</span>
+                <span>Guia rápido</span>
             </button>
             <span class="docf-badge"><i class="bi bi-receipt-cutoff"></i> Hub documental ativo</span>
         </div>
@@ -1304,40 +1251,6 @@
                         <h2 class="docf-card-title">Cadastrar novo documento fiscal</h2>
                     </div>
                     <span class="docf-badge">Entrada vinculada por conferência</span>
-                </div>
-
-                <div class="docf-step-flow mb-3">
-                    <div class="docf-step">
-                        <div class="docf-step-header">
-                            <span class="docf-step-index">1</span>
-                            <div>
-                                <h3>Identifique o item e o tipo documental</h3>
-                                <p>Escolha o item existente ou cadastre um novo, depois defina se o comprovante é NF, cupom ou manual.</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="docf-step">
-                        <div class="docf-step-header">
-                            <span class="docf-step-index">2</span>
-                            <div>
-                                <h3>Preencha fornecedor, datas e valores</h3>
-                                <p>O documento entra no radar operacional com o máximo de contexto para triagem posterior.</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="docf-step">
-                        <div class="docf-step-header">
-                            <span class="docf-step-index">3</span>
-                            <div>
-                                <h3>Salve e acompanhe pelas abas</h3>
-                                <p>Depois do cadastro, o documento passa automaticamente para Processáveis, Pendências, Erros ou Histórico.</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="docf-panel info mb-3">
-                    O cadastro permanece rastreável e a conferência operacional acontece nas abas seguintes, sem misturar histórico e triagem na mesma tela.
                 </div>
 
                 <div class="docf-mode-actions" id="doc-mode-actions">
@@ -1957,10 +1870,50 @@
         </div>
     </div>
 </div>
-<div class="docf-help-toast" id="docf-help-toast" aria-hidden="true">
-    <div class="docf-help-toast-kicker">Ajuda contextual</div>
-    <div class="docf-help-toast-title" id="docf-help-toast-title">Passe o mouse em um campo</div>
-    <div class="docf-help-toast-body" id="docf-help-toast-body">Ative a ajuda e passe sobre os campos desta página para ver uma explicação rápida do que preencher.</div>
+<div class="modal fade" id="docfHelpModal" tabindex="-1" aria-labelledby="docfHelpModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content galint-help-modal-content">
+            <div class="modal-header">
+                <div>
+                    <span class="galint-help-kicker"><i class="bi bi-receipt-cutoff"></i> Guia documental</span>
+                    <h5 class="modal-title galint-help-title" id="docfHelpModalLabel">Como usar a tela de Documentos Fiscais</h5>
+                    <p class="galint-help-copy">O conteúdo de orientação sai da área operacional e fica disponível aqui, em consulta rápida.</p>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <div class="galint-help-grid">
+                    <section class="galint-help-card">
+                        <h6>Fluxo principal</h6>
+                        <ol>
+                            <li>Identifique o item e o tipo documental.</li>
+                            <li>Preencha fornecedor, datas e valores.</li>
+                            <li>Salve e acompanhe pelas abas operacionais.</li>
+                        </ol>
+                    </section>
+                    <section class="galint-help-card">
+                        <h6>Registro novo</h6>
+                        <p>Use Registro para lançamento inicial. Depois o documento seguirá automaticamente para Processáveis, Pendências, Erros ou Histórico.</p>
+                    </section>
+                    <section class="galint-help-card">
+                        <h6>Item novo</h6>
+                        <p>Use a etapa de item novo apenas quando o material ainda não existir no estoque, evitando duplicidade de cadastro.</p>
+                    </section>
+                    <section class="galint-help-card">
+                        <h6>Tipos de comprovante</h6>
+                        <ul>
+                            <li>NF: documento completo com chave quando aplicável.</li>
+                            <li>Cupom: controle simples de balcão, sem exigir chave.</li>
+                            <li>Manual: uso excepcional para não perder rastreabilidade.</li>
+                        </ul>
+                    </section>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="docf-btn-secondary" data-bs-dismiss="modal">Fechar</button>
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}
 
@@ -1993,9 +1946,6 @@
     const notaFiscalHelp = document.getElementById('nota_fiscal_help');
     const nfForm = document.getElementById('nf-registration-form');
     const helpToggleButton = document.getElementById('docf-help-toggle');
-    const helpToast = document.getElementById('docf-help-toast');
-    const helpToastTitle = document.getElementById('docf-help-toast-title');
-    const helpToastBody = document.getElementById('docf-help-toast-body');
     const deleteModal = document.getElementById('docfDeleteModal');
     const deleteModalLabel = document.getElementById('docfDeleteModalLabel');
     const deleteModalSummary = document.getElementById('docfDeleteModalSummary');
@@ -2009,10 +1959,6 @@
     let notaTimer = null;
     let notaSuggestions = [];
     let newItemDescriptionSuggestions = [];
-    let helpHideTimer = null;
-
-    const HELP_STORAGE_KEY = 'galint:nf:help-enabled';
-    let helpEnabled = window.localStorage.getItem(HELP_STORAGE_KEY) === 'true';
 
     const registrationModes = {
         nf: {
@@ -2163,49 +2109,7 @@
         return null;
     };
 
-    const hideHelpToast = () => {
-        if (!helpToast) return;
-        helpToast.classList.remove('is-visible');
-        helpToast.setAttribute('aria-hidden', 'true');
-    };
-
     const hideNewItemDescriptionResults = () => newItemDescriptionResults?.classList.add('d-none');
-
-    const showHelpToast = (element) => {
-        if (!helpEnabled || !helpToast || !(element instanceof HTMLElement)) return;
-        const helpText = resolveHelpText(element);
-        if (!helpText) return;
-        if (helpHideTimer) {
-            clearTimeout(helpHideTimer);
-            helpHideTimer = null;
-        }
-        if (helpToastTitle) {
-            helpToastTitle.textContent = getFieldLabel(element);
-        }
-        if (helpToastBody) {
-            helpToastBody.textContent = helpText;
-        }
-        helpToast.classList.add('is-visible');
-        helpToast.setAttribute('aria-hidden', 'false');
-    };
-
-    const scheduleHelpToastHide = () => {
-        if (helpHideTimer) clearTimeout(helpHideTimer);
-        helpHideTimer = window.setTimeout(() => {
-            hideHelpToast();
-        }, 120);
-    };
-
-    const updateHelpToggleState = () => {
-        if (!helpToggleButton) return;
-        helpToggleButton.classList.toggle('is-active', helpEnabled);
-        helpToggleButton.innerHTML = helpEnabled
-            ? '<i class="bi bi-question-circle-fill"></i><span>Ajuda por campo ligada</span>'
-            : '<i class="bi bi-question-circle"></i><span>Ajuda por campo</span>';
-        if (!helpEnabled) {
-            hideHelpToast();
-        }
-    };
 
     const hideItemResults = () => itemResults?.classList.add('d-none');
 
@@ -2607,11 +2511,9 @@
     });
 
     helpToggleButton?.addEventListener('click', () => {
-        helpEnabled = !helpEnabled;
-        window.localStorage.setItem(HELP_STORAGE_KEY, helpEnabled ? 'true' : 'false');
-        updateHelpToggleState();
+        hideItemResults();
+        hideNewItemDescriptionResults();
     });
-    updateHelpToggleState();
 
     modeButtons.forEach((button) => {
         button.addEventListener('click', () => {
@@ -2893,30 +2795,6 @@
         if (!notaFiscalResults || !notaFiscalInput) return;
         if (notaFiscalResults.contains(event.target) || notaFiscalInput.contains(event.target)) return;
         hideNotaResults();
-    });
-
-    document.addEventListener('mouseover', (event) => {
-        const target = event.target instanceof Element ? event.target.closest('input:not([type="hidden"]), select, textarea, button.docf-btn-primary, button.docf-btn-secondary, a.docf-btn-secondary, .docf-mode-btn') : null;
-        if (!target) return;
-        showHelpToast(target);
-    });
-
-    document.addEventListener('mouseout', (event) => {
-        const target = event.target instanceof Element ? event.target.closest('input:not([type="hidden"]), select, textarea, button.docf-btn-primary, button.docf-btn-secondary, a.docf-btn-secondary, .docf-mode-btn') : null;
-        if (!target) return;
-        scheduleHelpToastHide();
-    });
-
-    document.addEventListener('focusin', (event) => {
-        const target = event.target instanceof Element ? event.target.closest('input:not([type="hidden"]), select, textarea') : null;
-        if (!target) return;
-        showHelpToast(target);
-    });
-
-    document.addEventListener('focusout', (event) => {
-        const target = event.target instanceof Element ? event.target.closest('input:not([type="hidden"]), select, textarea') : null;
-        if (!target) return;
-        scheduleHelpToastHide();
     });
 
     lookupCnpjButton?.addEventListener('click', async () => {

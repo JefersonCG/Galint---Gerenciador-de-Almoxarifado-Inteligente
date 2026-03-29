@@ -33,7 +33,7 @@
             (ferramentas_retirar_url and p.startswith(ferramentas_retirar_url)) or
             (saidas_fracionadas_url and p.startswith(saidas_fracionadas_url)) %}
             <button
-                class="sidebar-link d-flex justify-content-between align-items-center border-0 bg-transparent text-start w-100 {{ 'active' if lancamentos_active else 'collapsed' }}"
+                class="sidebar-link d-flex justify-content-between align-items-center border-0 bg-transparent text-start w-100"
                 type="button" data-bs-toggle="collapse" data-bs-target="#lancamentosMenu"
                 aria-expanded="{{ 'true' if lancamentos_active else 'false' }}">
                 <span>
@@ -63,7 +63,7 @@
             </div>
             {% set estoque_active = p.startswith('/itens') or p.startswith('/nf') or p.startswith('/estoque') or (fornecedores_url and p.startswith(fornecedores_url)) %}
             <button
-                class="sidebar-link d-flex justify-content-between align-items-center border-0 bg-transparent text-start w-100 {{ 'active' if estoque_active else 'collapsed' }}"
+                class="sidebar-link d-flex justify-content-between align-items-center border-0 bg-transparent text-start w-100"
                 type="button" data-bs-toggle="collapse" data-bs-target="#estoqueMenu"
                 aria-expanded="{{ 'true' if estoque_active else 'false' }}">
                 <span>
@@ -116,7 +116,7 @@
             </div>
             {% set ferramentas_active = (tool_custody_url and p.startswith(tool_custody_url)) or (reparo_url and p.startswith(reparo_url)) %}
             <button
-                class="sidebar-link d-flex justify-content-between align-items-center border-0 bg-transparent text-start w-100 {{ 'active' if ferramentas_active else 'collapsed' }}"
+                class="sidebar-link d-flex justify-content-between align-items-center border-0 bg-transparent text-start w-100"
                 type="button" data-bs-toggle="collapse" data-bs-target="#ferramentasMenu"
                 aria-expanded="{{ 'true' if ferramentas_active else 'false' }}">
                 <span>
@@ -173,7 +173,7 @@
 
             {% set configuracoes_active = p.startswith(url_for('pages.config')) %}
             <button
-                class="sidebar-link d-flex justify-content-between align-items-center border-0 bg-transparent text-start w-100 {{ 'active' if configuracoes_active else 'collapsed' }}"
+                class="sidebar-link d-flex justify-content-between align-items-center border-0 bg-transparent text-start w-100"
                 type="button" data-bs-toggle="collapse" data-bs-target="#configuracoesMenu"
                 aria-expanded="{{ 'true' if configuracoes_active else 'false' }}">
                 <span>

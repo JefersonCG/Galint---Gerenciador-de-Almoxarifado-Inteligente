@@ -109,15 +109,15 @@
     }
 
     .galint-topbar-inner {
-        @apply mx-auto flex w-full max-w-[1680px] flex-col gap-4 lg:flex-row lg:items-center lg:justify-between;
+        @apply mx-auto flex w-full max-w-[1680px] flex-col gap-3 lg:grid lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center;
     }
 
     .galint-topbar-brand {
-        @apply flex items-center gap-3;
+        @apply flex items-start gap-3;
     }
 
     .galint-topbar-copy {
-        @apply flex min-w-0 flex-col;
+        @apply flex min-w-0 flex-col gap-1;
     }
 
     .galint-topbar-kicker {
@@ -125,15 +125,15 @@
     }
 
     .galint-topbar-title {
-        @apply text-lg font-semibold tracking-[0.22em] text-white md:text-xl;
+        @apply text-lg font-semibold tracking-[0.18em] text-white md:text-xl;
     }
 
     .galint-topbar-subtitle {
-        @apply text-sm text-slate-100/72;
+        @apply max-w-[60rem] text-[0.82rem] leading-5 text-slate-100/72 md:text-sm;
     }
 
     .galint-topbar-actions {
-        @apply flex flex-wrap items-center gap-2 md:gap-3;
+        @apply flex flex-wrap items-center gap-2 self-start lg:self-center md:gap-3;
     }
 
     .galint-topbar-user {
@@ -149,11 +149,15 @@
     }
 
     .galint-content-shell {
-        @apply mx-auto flex w-full max-w-[1680px] flex-1 gap-6;
+        @apply mx-auto w-full max-w-[1680px] flex-1 gap-6;
+        display: grid;
+        grid-template-columns: minmax(0, 320px) minmax(0, 1fr);
+        align-items: start;
     }
 
     .sidebar-column {
-        width: 320px;
+        width: auto;
+        min-width: 0;
         border-right: none;
         background: transparent;
         padding: 1.5rem 0 1.5rem 1.5rem;
@@ -177,6 +181,11 @@
         overflow: hidden;
         position: sticky;
         top: 6.8rem;
+    }
+
+    .sidebar-menu .collapse,
+    .sidebar-menu .collapsing {
+        visibility: visible;
     }
 
     .sidebar-brand {
@@ -226,6 +235,15 @@
 
     .galint-page-frame {
         @apply rounded-[1.75rem] border border-slate-200/70 bg-white/80 p-4 shadow-panel shadow-slate-900/5 backdrop-blur sm:p-5 lg:p-6;
+        min-width: 0;
+    }
+
+    .content-panel {
+        min-width: 0;
+        width: 100%;
+        padding: 1.5rem 1.5rem 1.5rem 0;
+        overflow: visible;
+        align-self: auto;
     }
 
     .galint-page-header-card {
@@ -435,13 +453,17 @@
     }
 
     .galint-content-shell {
-        flex-direction: column;
+        grid-template-columns: minmax(0, 1fr);
         gap: 1rem;
     }
 
     .sidebar-column {
         width: 100%;
         padding: 0 1rem;
+    }
+
+    .galint-topbar-subtitle {
+        max-width: none;
     }
 
     .sidebar-wrapper {

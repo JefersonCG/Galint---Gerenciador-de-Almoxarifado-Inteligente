@@ -7,44 +7,6 @@
         margin: 0 auto 2rem;
     }
 
-    .returns-command-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-        gap: 1rem;
-        margin-bottom: 1.25rem;
-    }
-
-    .returns-command-card {
-        border-radius: 1.15rem;
-        border: 1px solid rgba(148, 163, 184, 0.16);
-        background: linear-gradient(180deg, rgba(8, 17, 31, 0.98), rgba(15, 27, 45, 0.96));
-        padding: 1rem;
-        color: #e2e8f0;
-        box-shadow: 0 18px 40px rgba(2, 8, 23, 0.28);
-    }
-
-    .returns-command-label {
-        display: block;
-        margin-bottom: 0.45rem;
-        font-size: 0.68rem;
-        font-weight: 700;
-        letter-spacing: 0.18em;
-        text-transform: uppercase;
-        color: rgba(226, 232, 240, 0.68);
-    }
-
-    .returns-command-value {
-        font-size: 1.2rem;
-        font-weight: 700;
-        color: #ffffff;
-    }
-
-    .returns-command-copy {
-        margin: 0.4rem 0 0;
-        font-size: 0.84rem;
-        color: rgba(226, 232, 240, 0.78);
-    }
-
     .returns-panel {
         border: 1px solid rgba(148, 163, 184, 0.16);
         border-radius: 1.25rem;
@@ -94,19 +56,6 @@
 
     .returns-panel-body {
         padding: 1.35rem;
-    }
-
-    .returns-inline-note {
-        border: 1px solid rgba(148, 163, 184, 0.16);
-        border-radius: 1rem;
-        background: linear-gradient(135deg, rgba(219, 234, 254, 0.9), rgba(239, 246, 255, 0.92));
-        padding: 1rem 1.1rem;
-        color: #1e3a8a;
-        margin-bottom: 1.1rem;
-    }
-
-    .returns-inline-note strong {
-        color: #1d4ed8;
     }
 
     .input-card {
@@ -337,24 +286,6 @@
 {% endblock %}
 {% block content %}
 <div class="returns-shell">
-    <div class="returns-command-grid">
-        <div class="returns-command-card">
-            <span class="returns-command-label">Fluxo</span>
-            <div class="returns-command-value">Devolução agrupada</div>
-            <p class="returns-command-copy">Monte uma fila única por colaborador antes de registrar tudo de uma vez.</p>
-        </div>
-        <div class="returns-command-card">
-            <span class="returns-command-label">Leitura</span>
-            <div class="returns-command-value">Matrícula + item</div>
-            <p class="returns-command-copy">A tela continua otimizada para leitor, busca parcial e digitação manual.</p>
-        </div>
-        <div class="returns-command-card">
-            <span class="returns-command-label">Ritmo</span>
-            <div class="returns-command-value">Operação contínua</div>
-            <p class="returns-command-copy">A lista fica visível e editável até o fechamento da devolução em lote.</p>
-        </div>
-    </div>
-
     <section class="returns-panel">
         <div class="returns-panel-header">
             <div>
@@ -362,13 +293,11 @@
                 <h2 class="returns-panel-title">Adicionar itens à fila operacional</h2>
                 <p class="returns-panel-copy">Informe matrícula, item e quantidade. Se houver troca de colaborador no meio da operação, o sistema confirma a limpeza da lista para evitar mistura de devoluções.</p>
             </div>
+            <button class="galint-help-link" type="button" data-bs-toggle="modal" data-bs-target="#returnsHelpModal">
+                <i class="bi bi-info-circle"></i> Regras da devolução
+            </button>
         </div>
         <div class="returns-panel-body">
-            <div class="returns-inline-note">
-                <i class="bi bi-info-circle me-2"></i>
-                <strong>Dica:</strong> você pode adicionar múltiplos itens do mesmo colaborador e registrar tudo junto ao final.
-            </div>
-    
             <form id="form-devolucao" autocomplete="off">
                 <div class="input-card">
             <div class="row g-3">
@@ -437,6 +366,44 @@
         <button type="button" class="galint-btn-primary btn-submit" id="btn-registrar" disabled>
             <i class="bi bi-check-circle me-2"></i>Registrar Devolução
         </button>
+    </div>
+</div>
+
+<div class="modal fade" id="returnsHelpModal" tabindex="-1" aria-labelledby="returnsHelpModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content galint-help-modal-content">
+            <div class="modal-header">
+                <div>
+                    <span class="galint-help-kicker"><i class="bi bi-arrow-return-left"></i> Ajuda operacional</span>
+                    <h5 class="modal-title galint-help-title" id="returnsHelpModalLabel">Como montar a devolução em lote</h5>
+                    <p class="galint-help-copy">Use este resumo apenas quando necessário. A área principal permanece dedicada à execução da devolução.</p>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <div class="galint-help-grid">
+                    <section class="galint-help-card">
+                        <h6>Fluxo</h6>
+                        <p>Monte a fila por colaborador, revise os itens adicionados e só então confirme o lote completo.</p>
+                    </section>
+                    <section class="galint-help-card">
+                        <h6>Troca de colaborador</h6>
+                        <p>Se mudar de colaborador no meio da fila, limpe a lista atual antes de continuar para não misturar devoluções.</p>
+                    </section>
+                    <section class="galint-help-card">
+                        <h6>Leitura</h6>
+                        <p>A tela aceita leitor, busca parcial e digitação manual para matrícula e item.</p>
+                    </section>
+                    <section class="galint-help-card">
+                        <h6>Dica prática</h6>
+                        <p>Você pode adicionar vários itens do mesmo colaborador e registrar tudo no final, mantendo a devolução concentrada em um único fechamento.</p>
+                    </section>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="galint-btn-secondary" data-bs-dismiss="modal">Fechar</button>
+            </div>
+        </div>
     </div>
 </div>
 

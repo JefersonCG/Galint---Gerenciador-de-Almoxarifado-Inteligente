@@ -26,7 +26,7 @@
         box-shadow: 0 24px 54px rgba(15, 23, 42, 0.1);
     }
 
-    .page-header {
+    .tool-page-header {
         position: relative;
         overflow: hidden;
         background: linear-gradient(135deg, #020617 0%, #1e293b 42%, #2563eb 100%);
@@ -37,7 +37,7 @@
         box-shadow: 0 28px 64px rgba(15, 23, 42, 0.2);
     }
 
-    .page-header::before {
+    .tool-page-header::before {
         content: "";
         position: absolute;
         inset: 0;
@@ -45,110 +45,23 @@
         pointer-events: none;
     }
 
-    .page-header > * {
+    .tool-page-header > * {
         position: relative;
         z-index: 1;
     }
     
-    .page-header h2 {
+    .tool-page-header h2 {
         margin: 0;
         font-weight: 700;
         font-size: 1.75rem;
     }
     
-    .page-header p {
+    .tool-page-header p {
         margin: 0.5rem 0 0 0;
         opacity: 0.95;
         font-size: 0.95rem;
     }
 
-    .tool-command-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-        gap: 1rem;
-        margin-bottom: 1.35rem;
-    }
-
-    .tool-command-card {
-        border-radius: 1.15rem;
-        border: 1px solid rgba(148, 163, 184, 0.16);
-        background: linear-gradient(180deg, rgba(8, 17, 31, 0.98), rgba(15, 27, 45, 0.96));
-        padding: 1rem;
-        color: #e2e8f0;
-        box-shadow: 0 18px 42px rgba(15, 23, 42, 0.18);
-    }
-
-    .tool-command-label {
-        display: block;
-        margin-bottom: 0.45rem;
-        font-size: 0.68rem;
-        font-weight: 700;
-        letter-spacing: 0.18em;
-        text-transform: uppercase;
-        color: rgba(226, 232, 240, 0.68);
-    }
-
-    .tool-command-value {
-        font-size: 1.18rem;
-        font-weight: 700;
-        color: #ffffff;
-    }
-
-    .tool-command-copy {
-        margin: 0.4rem 0 0;
-        font-size: 0.84rem;
-        color: rgba(226, 232, 240, 0.78);
-        line-height: 1.55;
-    }
-
-    .tool-guidance {
-        border-radius: 1.15rem;
-        border: 1px solid rgba(148, 163, 184, 0.16);
-        background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(241,245,249,0.96));
-        padding: 1.15rem 1.2rem;
-        box-shadow: 0 18px 42px rgba(15, 23, 42, 0.08);
-        margin-bottom: 1.35rem;
-    }
-
-    .tool-guidance-kicker {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.45rem;
-        padding: 0.3rem 0.68rem;
-        border-radius: 999px;
-        border: 1px solid rgba(245, 158, 11, 0.16);
-        background: rgba(245, 158, 11, 0.12);
-        color: #b45309;
-        font-size: 0.68rem;
-        font-weight: 700;
-        letter-spacing: 0.16em;
-        text-transform: uppercase;
-    }
-
-    .tool-guidance-title {
-        margin: 0.7rem 0 0;
-        font-size: 1.05rem;
-        font-weight: 800;
-        color: #0f172a;
-    }
-
-    .tool-guidance-copy {
-        margin: 0.4rem 0 0;
-        color: #475569;
-        font-size: 0.9rem;
-        line-height: 1.6;
-    }
-
-    .tool-guidance-list {
-        margin: 0.85rem 0 0;
-        padding-left: 1.05rem;
-        color: #334155;
-    }
-
-    .tool-guidance-list li + li {
-        margin-top: 0.35rem;
-    }
-    
     .input-card {
         background: linear-gradient(145deg, #0f172a 0%, #1e293b 100%);
         border-radius: 24px;
@@ -192,15 +105,6 @@
     .btn-submit:hover {
         transform: translateY(-2px);
         box-shadow: 0 6px 20px rgba(37, 99, 235, 0.5);
-    }
-    
-    .alert-info-custom {
-        background: rgba(245, 158, 11, 0.12);
-        border: 1px solid rgba(245, 158, 11, 0.22);
-        border-radius: 18px;
-        padding: 1rem;
-        color: #78350f;
-        margin-bottom: 1.5rem;
     }
     
     /* Autocomplete dropdown */
@@ -364,7 +268,7 @@
             border-radius: 22px;
         }
 
-        .page-header {
+        .tool-page-header {
             padding: 1.35rem 1rem;
             border-radius: 20px;
         }
@@ -380,43 +284,14 @@
 <%block name="content">
 <div class="tool-page">
     <div class="tool-shell">
-    <div class="page-header">
+    <div class="tool-page-header">
         <h2><i class="bi bi-tools me-2"></i>Retirada de Ferramentas</h2>
         <p>Registre retiradas com o novo padrão visual dark, preservando o fluxo especial de custódia temporária.</p>
     </div>
-
-    <div class="tool-command-grid">
-        <div class="tool-command-card">
-            <span class="tool-command-label">Fluxo</span>
-            <div class="tool-command-value">Custódia operacional</div>
-            <p class="tool-command-copy">Agrupe ferramentas por colaborador e mantenha o controle especial de retirada no mesmo lançamento.</p>
-        </div>
-        <div class="tool-command-card">
-            <span class="tool-command-label">Risco</span>
-            <div class="tool-command-value">Devolução no dia</div>
-            <p class="tool-command-copy">A interface reforça que ferramenta não é saída comum e precisa de retorno com rastreio claro.</p>
-        </div>
-        <div class="tool-command-card">
-            <span class="tool-command-label">Operação</span>
-            <div class="tool-command-value">Lote por funcionário</div>
-            <p class="tool-command-copy">Você pode preparar grupos diferentes de colaboradores sem perder a separação de itens na coleta.</p>
-        </div>
-    </div>
-
-    <div class="tool-guidance">
-        <span class="tool-guidance-kicker"><i class="bi bi-shield-check"></i> Regra da custódia</span>
-        <h3 class="tool-guidance-title">Ferramentas exigem um fluxo separado do estoque comum</h3>
-        <p class="tool-guidance-copy">A retirada daqui prepara o histórico para devolução, alerta e auditoria. Use sempre esta rotina quando o item ficar temporariamente em posse do colaborador.</p>
-        <ul class="tool-guidance-list">
-            <li>Selecione o funcionário primeiro e monte o grupo antes de registrar.</li>
-            <li>Use o local do serviço para facilitar retorno e conferência em campo.</li>
-            <li>Se mudar de colaborador, abra um novo grupo para evitar mistura de custódias.</li>
-        </ul>
-    </div>
-    
-    <div class="alert-info-custom">
-        <i class="bi bi-info-circle me-2"></i>
-        <strong>Importante:</strong> As ferramentas devem ser devolvidas até o final do dia. Você pode montar vários funcionários na mesma coleta; o envio continua separado por ferramenta.
+    <div class="galint-help-inline justify-content-end mb-3">
+        <button class="galint-help-link" type="button" data-bs-toggle="modal" data-bs-target="#toolRetiradaHelpModal">
+            <i class="bi bi-info-circle"></i> Regras da custódia
+        </button>
     </div>
     
     <form id="form-retirada" autocomplete="off">
@@ -512,6 +387,48 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Entendi</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="toolRetiradaHelpModal" tabindex="-1" aria-labelledby="toolRetiradaHelpModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content galint-help-modal-content">
+            <div class="modal-header">
+                <div>
+                    <span class="galint-help-kicker"><i class="bi bi-tools"></i> Ajuda operacional</span>
+                    <h5 class="modal-title galint-help-title" id="toolRetiradaHelpModalLabel">Quando usar esta rotina de ferramentas</h5>
+                    <p class="galint-help-copy">Consulte as regras sem manter texto instrutivo ocupando a superfície principal da operação.</p>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <div class="galint-help-grid">
+                    <section class="galint-help-card">
+                        <h6>Fluxo correto</h6>
+                        <p>Use esta tela quando a ferramenta sair para custódia de um colaborador e precisar de devolução rastreável.</p>
+                    </section>
+                    <section class="galint-help-card">
+                        <h6>Montagem do lote</h6>
+                        <ul>
+                            <li>Selecione o funcionário primeiro.</li>
+                            <li>Adicione as ferramentas do mesmo colaborador no mesmo grupo.</li>
+                            <li>Se trocar de colaborador, abra um novo grupo.</li>
+                        </ul>
+                    </section>
+                    <section class="galint-help-card">
+                        <h6>Conferência</h6>
+                        <p>Use o local do serviço e a observação para facilitar retorno, auditoria e leitura de alertas depois.</p>
+                    </section>
+                    <section class="galint-help-card">
+                        <h6>Regra prática</h6>
+                        <p>Ferramenta não entra como saída comum. Se precisa voltar ao estoque, registre sempre por esta rotina.</p>
+                    </section>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="galint-btn-secondary" data-bs-dismiss="modal">Fechar</button>
             </div>
         </div>
     </div>

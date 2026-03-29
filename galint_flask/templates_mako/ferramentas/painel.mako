@@ -13,7 +13,7 @@
 
 <%block name="extra_css">
 <style>
-    .page-header {
+    .tools-panel-header {
         background: linear-gradient(120deg, #2563eb 0%, #3b82f6 100%);
         color: white;
         padding: 2rem;
@@ -22,13 +22,13 @@
         box-shadow: 0 4px 20px rgba(37, 99, 235, 0.4);
     }
     
-    .page-header h2 {
+    .tools-panel-header h2 {
         margin: 0;
         font-weight: 700;
         font-size: 1.75rem;
     }
     
-    .page-header p {
+    .tools-panel-header p {
         margin: 0.5rem 0 0 0;
         opacity: 0.95;
         font-size: 0.95rem;
@@ -229,7 +229,7 @@
 
 <%block name="content">
 <div class="container-fluid">
-    <div class="page-header">
+    <div class="tools-panel-header">
         <h2><i class="bi bi-speedometer2 me-2"></i>Painel de Ferramentas</h2>
         <p>Controle e rastreabilidade de ferramentas em uso</p>
     </div>

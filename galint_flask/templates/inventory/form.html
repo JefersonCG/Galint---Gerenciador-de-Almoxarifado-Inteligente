@@ -1716,7 +1716,7 @@
                                 {% endif %}
                             </div>
                         </div>
-                        <p class="form-text" style="margin-top: -0.5rem;">
+                        <p class="form-text" style="margin-top: 0.35rem;">
                             Esses valores alimentam a página <strong>Financeiro</strong> e o modal de detalhes do item.
                         </p>
                         {% if item %}
@@ -1799,6 +1799,13 @@
 
                     <div id="finance_purchase_document_fields" {% if not origem_documental %}style="display: none;"{% endif %}>
 
+                    <div class="galint-help-inline mb-3">
+                        <button class="galint-help-link" type="button" data-bs-toggle="modal" data-bs-target="#financeGuidanceModal">
+                            <i class="bi bi-info-circle"></i> Como preencher origem da compra
+                        </button>
+                        <span class="galint-help-caption">Detalhes de documento, comprovação e reposição ficam no modal para manter esta aba mais limpa.</span>
+                    </div>
+
                     <div class="form-row">
                         <div class="form-group">
                             <label class="form-label" for="preco_compra_unitario">Preço de compra (R$)</label>
@@ -1826,7 +1833,7 @@
                             value="{{ form_item.preco_compra_documento if form_item and form_item.preco_compra_documento else '' }}"
                             placeholder="Ex.: NF 12345 / Cupom 000123" {% if finance_locked %}readonly{% endif %}>
                         {% if not finance_locked %}
-                        <small class="form-text">Ao salvar um novo item com esse documento, o sistema cria ou atualiza o vínculo em Documentos Fiscais. Para NF nova, informe fornecedor, chave de acesso e data de emissão. Para cupom, a chave de acesso não é obrigatória.</small>
+                        <small class="form-text">Informe o identificador do comprovante. Regras completas ficam no guia desta seção.</small>
                         {% endif %}
                     </div>
 
@@ -1836,7 +1843,7 @@
                             <input class="form-control" id="preco_compra_chave_acesso" name="preco_compra_chave_acesso"
                                 value="{{ form_item.preco_compra_chave_acesso if form_item and form_item.preco_compra_chave_acesso else '' }}"
                                 placeholder="44 dígitos da NF-e / NFC-e" {% if finance_locked %}readonly{% endif %}>
-                            <small class="form-text">Obrigatória para NF-e/NFC-e. Para cupom, pode ficar em branco.</small>
+                            <small class="form-text">Obrigatória em NF-e/NFC-e.</small>
                         </div>
                         <div class="form-group">
                             <label class="form-label" for="preco_compra_data_emissao">Data de emissão</label>
@@ -1868,11 +1875,11 @@
                         <small class="form-text">Obrigatória para cadastros sem comprovação fiscal ou parcialmente comprovados.</small>
                     </div>
 
-                    <div class="section" style="margin-top: 1.5rem;">
-                        <h3 class="section-title">🧾 Preço de reposição</h3>
-                        <p class="form-text" style="margin-top: -0.5rem;">
-                            Use quando não houver comprovante ou para comparar “quanto custaria recomprar hoje”.
-                        </p>
+                    <div class="section d-flex flex-wrap justify-content-between align-items-center gap-2" style="margin-top: 1.5rem;">
+                        <h3 class="section-title mb-0">🧾 Preço de reposição</h3>
+                        <button class="galint-help-link" type="button" data-bs-toggle="modal" data-bs-target="#financeGuidanceModal">
+                            <i class="bi bi-book"></i> Guia financeiro
+                        </button>
                     </div>
 
                     <div class="form-row">
@@ -2483,6 +2490,48 @@ Conversão: 1 saco = 20 quilos</div>
     </div>
 </div>
 {% endif %}
+
+<div class="modal fade" id="financeGuidanceModal" tabindex="-1" aria-labelledby="financeGuidanceModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content galint-help-modal-content">
+            <div class="modal-header">
+                <div>
+                    <span class="galint-help-kicker"><i class="bi bi-receipt"></i> Guia financeiro</span>
+                    <h5 class="modal-title galint-help-title" id="financeGuidanceModalLabel">Como preencher origem da compra e reposição</h5>
+                    <p class="galint-help-copy">Use este guia para consultar regras de documento, comprovação e preço de reposição sem poluir a aba financeira.</p>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <div class="galint-help-grid">
+                    <section class="galint-help-card">
+                        <h6>Documento de compra</h6>
+                        <p>Informe o número da NF, cupom ou controle interno. Se for NF nova, complete também fornecedor, chave e data de emissão.</p>
+                    </section>
+                    <section class="galint-help-card">
+                        <h6>Comprovação</h6>
+                        <p>Sem documento completo, use a observação financeira para justificar a origem do valor e manter a auditoria consistente.</p>
+                    </section>
+                    <section class="galint-help-card">
+                        <h6>Preço de reposição</h6>
+                        <p>Preencha quando não houver comprovante suficiente ou quando precisar registrar quanto custaria recomprar o item hoje.</p>
+                    </section>
+                    <section class="galint-help-card">
+                        <h6>Referência prática</h6>
+                        <ul>
+                            <li>NF-e/NFC-e: chave obrigatória.</li>
+                            <li>Cupom: chave pode ficar em branco.</li>
+                            <li>Reposição: pode ser manual ou via busca de preço.</li>
+                        </ul>
+                    </section>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="galint-btn-secondary" data-bs-dismiss="modal">Fechar</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 <div class="modal fade" id="financeObservationRequiredModal" tabindex="-1"
     aria-labelledby="financeObservationRequiredModalLabel" aria-hidden="true">

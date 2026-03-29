@@ -19,7 +19,7 @@
         box-shadow: 0 24px 54px rgba(15, 23, 42, 0.1);
     }
     
-    .page-header {
+    .saida-batch-page-header {
         position: relative;
         overflow: hidden;
         background: linear-gradient(135deg, #020617 0%, #172554 45%, #2563eb 100%);
@@ -30,7 +30,7 @@
         box-shadow: 0 28px 64px rgba(15, 23, 42, 0.2);
     }
 
-    .page-header::before {
+    .saida-batch-page-header::before {
         content: "";
         position: absolute;
         inset: 0;
@@ -38,18 +38,18 @@
         pointer-events: none;
     }
 
-    .page-header > * {
+    .saida-batch-page-header > * {
         position: relative;
         z-index: 1;
     }
     
-    .page-header h2 {
+    .saida-batch-page-header h2 {
         margin: 0;
         font-weight: 700;
         font-size: 1.75rem;
     }
     
-    .page-header p {
+    .saida-batch-page-header p {
         margin: 0.5rem 0 0 0;
         opacity: 0.95;
         font-size: 0.95rem;
@@ -338,7 +338,7 @@
 <%block name="content">
 <div class="saida-container">
     <div class="saida-shell">
-    <div class="page-header">
+    <div class="saida-batch-page-header">
         <h2><i class="bi bi-box-arrow-right me-2"></i>Registro de Saída</h2>
         <p>Adicione itens à lista e registre a saída em lote com o novo padrão visual dark do fluxo de lançamentos.</p>
     </div>

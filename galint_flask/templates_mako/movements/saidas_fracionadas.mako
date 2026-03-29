@@ -21,7 +21,7 @@
 
 <%block name="extra_css">
 <style>
-    .page-header {
+    .fraction-history-header {
         background: linear-gradient(120deg, #2563eb 0%, #3b82f6 100%);
         color: white;
         padding: 2rem;
@@ -30,13 +30,13 @@
         box-shadow: 0 4px 20px rgba(37, 99, 235, 0.4);
     }
     
-    .page-header h2 {
+    .fraction-history-header h2 {
         margin: 0;
         font-weight: 700;
         font-size: 1.75rem;
     }
     
-    .page-header p {
+    .fraction-history-header p {
         margin: 0.5rem 0 0 0;
         opacity: 0.95;
         font-size: 0.95rem;
@@ -46,7 +46,7 @@
 
 <%block name="content">
     <div class="container-fluid">
-        <div class="page-header">
+        <div class="fraction-history-header">
             <h2><i class="bi bi-droplet-half me-2"></i>Saídas Fracionadas</h2>
             <p>Histórico de retiradas fracionadas (entrada manual pesada)</p>
         </div>

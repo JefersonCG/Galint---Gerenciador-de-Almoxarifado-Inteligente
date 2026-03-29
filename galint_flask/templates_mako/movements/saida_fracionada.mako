@@ -17,7 +17,7 @@
         box-shadow: 0 24px 54px rgba(15, 23, 42, 0.1);
     }
     
-    .page-header {
+    .saida-page-header {
         position: relative;
         overflow: hidden;
         background: linear-gradient(135deg, #020617 0%, #172554 45%, #2563eb 100%);
@@ -28,7 +28,7 @@
         box-shadow: 0 28px 64px rgba(15, 23, 42, 0.2);
     }
 
-    .page-header::before {
+    .saida-page-header::before {
         content: "";
         position: absolute;
         inset: 0;
@@ -36,110 +36,23 @@
         pointer-events: none;
     }
 
-    .page-header > * {
+    .saida-page-header > * {
         position: relative;
         z-index: 1;
     }
     
-    .page-header h2 {
+    .saida-page-header h2 {
         margin: 0;
         font-weight: 700;
         font-size: 1.75rem;
     }
     
-    .page-header p {
+    .saida-page-header p {
         margin: 0.5rem 0 0 0;
         opacity: 0.95;
         font-size: 0.95rem;
     }
 
-    .saida-command-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-        gap: 1rem;
-        margin-bottom: 1.35rem;
-    }
-
-    .saida-command-card {
-        border-radius: 1.15rem;
-        border: 1px solid rgba(148, 163, 184, 0.16);
-        background: linear-gradient(180deg, rgba(8, 17, 31, 0.98), rgba(15, 27, 45, 0.96));
-        padding: 1rem;
-        color: #e2e8f0;
-        box-shadow: 0 18px 42px rgba(15, 23, 42, 0.18);
-    }
-
-    .saida-command-label {
-        display: block;
-        margin-bottom: 0.45rem;
-        font-size: 0.68rem;
-        font-weight: 700;
-        letter-spacing: 0.18em;
-        text-transform: uppercase;
-        color: rgba(226, 232, 240, 0.68);
-    }
-
-    .saida-command-value {
-        font-size: 1.2rem;
-        font-weight: 700;
-        color: #ffffff;
-    }
-
-    .saida-command-copy {
-        margin: 0.4rem 0 0;
-        font-size: 0.84rem;
-        color: rgba(226, 232, 240, 0.78);
-        line-height: 1.55;
-    }
-
-    .workflow-panel {
-        border-radius: 1.15rem;
-        border: 1px solid rgba(148, 163, 184, 0.16);
-        background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(241,245,249,0.96));
-        padding: 1.2rem 1.25rem;
-        box-shadow: 0 18px 42px rgba(15, 23, 42, 0.08);
-        margin-bottom: 1.35rem;
-    }
-
-    .workflow-kicker {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.4rem;
-        padding: 0.3rem 0.68rem;
-        border-radius: 999px;
-        border: 1px solid rgba(37, 99, 235, 0.12);
-        background: rgba(37, 99, 235, 0.08);
-        color: #2563eb;
-        font-size: 0.68rem;
-        font-weight: 700;
-        letter-spacing: 0.16em;
-        text-transform: uppercase;
-    }
-
-    .workflow-title {
-        margin: 0.7rem 0 0;
-        font-size: 1.05rem;
-        font-weight: 800;
-        color: #0f172a;
-    }
-
-    .workflow-copy {
-        margin: 0.4rem 0 0;
-        color: #475569;
-        font-size: 0.9rem;
-        line-height: 1.6;
-    }
-
-    .workflow-list {
-        margin: 0.85rem 0 0;
-        padding-left: 1.05rem;
-        color: #334155;
-    }
-
-    .workflow-list li + li {
-        margin-top: 0.35rem;
-    }
-    
     .input-card {
         background: linear-gradient(145deg, #0f172a 0%, #1e293b 100%);
         border-radius: 24px;
@@ -198,24 +111,6 @@
         cursor: not-allowed;
     }
 
-    .info-strip {
-        background: linear-gradient(145deg, rgba(15, 23, 42, 0.94) 0%, rgba(30, 41, 59, 0.92) 100%);
-        border: 1px solid rgba(56, 189, 248, 0.28);
-        color: #dbeafe;
-        border-radius: 18px;
-        padding: 1rem;
-        box-shadow: 0 16px 34px rgba(15, 23, 42, 0.14);
-        margin-bottom: 1.5rem;
-    }
-
-    .info-strip strong {
-        color: #ffffff;
-    }
-
-    .info-strip i {
-        color: #7dd3fc;
-    }
-    
     .autocomplete-dropdown {
         position: absolute;
         top: 100%;
@@ -420,7 +315,7 @@
             border-radius: 22px;
         }
 
-        .page-header {
+        .saida-page-header {
             padding: 1.35rem 1rem;
             border-radius: 20px;
         }
@@ -440,43 +335,14 @@
 <%block name="content">
 <div class="saida-container">
     <div class="saida-shell">
-    <div class="page-header">
+    <div class="saida-page-header">
         <h2><i class="bi bi-droplet-half me-2"></i>Registro de Saída Fracionada</h2>
         <p>Insira a quantidade pesada com o novo container dark, mantendo o fluxo específico para itens líquidos e fracionados.</p>
     </div>
-
-    <div class="saida-command-grid">
-        <div class="saida-command-card">
-            <span class="saida-command-label">Tipo</span>
-            <div class="saida-command-value">Retirada por pesagem</div>
-            <p class="saida-command-copy">Use esta rotina quando a quantidade real depender do valor pesado ou medido no momento da saída.</p>
-        </div>
-        <div class="saida-command-card">
-            <span class="saida-command-label">Unidade</span>
-            <div class="saida-command-value">Kg ou litro</div>
-            <p class="saida-command-copy">O fluxo já prepara o operador para escolher a unidade correta dentro do modal de confirmação.</p>
-        </div>
-        <div class="saida-command-card">
-            <span class="saida-command-label">Conferência</span>
-            <div class="saida-command-value">Saldo em tempo real</div>
-            <p class="saida-command-copy">A confirmação mostra saldo restante e leitura estimada da embalagem antes de gravar a baixa.</p>
-        </div>
-    </div>
-
-    <div class="workflow-panel">
-        <span class="workflow-kicker"><i class="bi bi-bezier2"></i> Fluxo guiado</span>
-        <h3 class="workflow-title">Operação em três passos</h3>
-        <p class="workflow-copy">Primeiro identifique colaborador e local de uso. Depois localize o item. Por fim, confirme no modal a quantidade real retirada e a unidade de medição.</p>
-        <ul class="workflow-list">
-            <li>Produtos com volume ou massa variável devem sair por esta tela, não pela saída comum.</li>
-            <li>O modal final serve como barreira de conferência antes de descontar o saldo.</li>
-            <li>O local do serviço permanece registrado para rastreabilidade operacional.</li>
-        </ul>
-    </div>
-
-    <div class="info-strip" role="alert">
-        <i class="bi bi-info-circle me-2"></i>
-        <strong>Dica:</strong> Use esta tela quando a retirada depender da pesagem real, em kg ou litro.
+    <div class="galint-help-inline justify-content-end mb-3">
+        <button class="galint-help-link" type="button" data-bs-toggle="modal" data-bs-target="#saidaFracionadaHelpModal">
+            <i class="bi bi-info-circle"></i> Quando usar esta rotina
+        </button>
     </div>
 
     <div class="input-card">
@@ -507,6 +373,48 @@
             </div>
         </div>
     </div>
+    </div>
+</div>
+
+<div class="modal fade" id="saidaFracionadaHelpModal" tabindex="-1" aria-labelledby="saidaFracionadaHelpModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content galint-help-modal-content">
+            <div class="modal-header">
+                <div>
+                    <span class="galint-help-kicker"><i class="bi bi-droplet-half"></i> Ajuda operacional</span>
+                    <h5 class="modal-title galint-help-title" id="saidaFracionadaHelpModalLabel">Guia rápido da saída fracionada</h5>
+                    <p class="galint-help-copy">Mantenha a área principal limpa e consulte este resumo só quando precisar confirmar o fluxo.</p>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <div class="galint-help-grid">
+                    <section class="galint-help-card">
+                        <h6>Quando usar</h6>
+                        <p>Use esta rotina quando a quantidade baixada depende da pesagem ou medição real feita no momento da saída.</p>
+                    </section>
+                    <section class="galint-help-card">
+                        <h6>Fluxo</h6>
+                        <ol>
+                            <li>Identifique colaborador e local.</li>
+                            <li>Localize o item correto.</li>
+                            <li>Confirme no modal a quantidade real e a unidade.</li>
+                        </ol>
+                    </section>
+                    <section class="galint-help-card">
+                        <h6>Conferência final</h6>
+                        <p>O modal de confirmação existe para revisar saldo projetado, capacidade da embalagem e unidade antes de gravar a baixa.</p>
+                    </section>
+                    <section class="galint-help-card">
+                        <h6>Regra prática</h6>
+                        <p>Se o item sai por unidade inteira, não use esta tela. Se sai por volume ou massa real, use esta rotina.</p>
+                    </section>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="galint-btn-secondary" data-bs-dismiss="modal">Fechar</button>
+            </div>
+        </div>
     </div>
 </div>
 
