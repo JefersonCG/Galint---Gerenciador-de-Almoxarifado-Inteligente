@@ -281,6 +281,57 @@ class ApiService {
         return AsyncStorage.getItem('token');
     }
 
+    async getNotifyInbox(page = 1, perPage = 20) {
+        try {
+            const token = await AsyncStorage.getItem('token');
+            if (!token) {
+                throw new Error('Token não encontrado');
+            }
+
+            const response = await this.client.get('/api/notify/inbox', {
+                params: { page, per_page: perPage },
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+            });
+
+            return response.data;
+        } catch (error) {
+            return {
+                success: false,
+                message: error.response?.data?.message || error.response?.data?.error || 'Erro ao carregar notificações',
+                items: [],
+            };
+        }
+    }
+
+    async markNotifyRead(messageId) {
+        try {
+            const token = await AsyncStorage.getItem('token');
+            if (!token) {
+                throw new Error('Token não encontrado');
+            }
+
+            const response = await this.client.post(
+                `/api/notify/inbox/${messageId}/read`,
+                {},
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                    },
+                }
+            );
+
+            return response.data;
+        } catch (error) {
+            return {
+                success: false,
+                message: error.response?.data?.message || error.response?.data?.error || 'Erro ao marcar notificação como lida',
+            };
+        }
+    }
+
     getReportUrl(type, params = {}) {
         if (!this.baseURL) {
             throw new Error('Servidor não configurado');

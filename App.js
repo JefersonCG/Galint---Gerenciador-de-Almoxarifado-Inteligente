@@ -15,6 +15,7 @@ import DevolverScreen from './src/screens/DevolverScreen';
 import ConfigScreen from './src/screens/ConfigScreen';
 import MenuScreen from './src/screens/MenuScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
+import NotificationsScreen from './src/screens/NotificationsScreen';
 import ReportsScreen from './src/screens/ReportsScreen';
 import ReportsDailyScreen from './src/screens/ReportsDailyScreen';
 import ReportsMonthlyScreen from './src/screens/ReportsMonthlyScreen';
@@ -230,6 +231,11 @@ export default function App() {
                         name="Profile"
                         component={ProfileScreen}
                         options={{ title: 'Perfil do Usuário' }}
+                    />
+                    <Stack.Screen
+                        name="Notifications"
+                        component={NotificationsScreen}
+                        options={{ title: 'Notificações' }}
                     />
                     <Stack.Screen
                         name="Reports"

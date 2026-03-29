@@ -27,6 +27,21 @@ export default function MenuScreen({ navigation }) {
             </TouchableOpacity>
 
             <TouchableOpacity 
+                style={[styles.modernCard, styles.notificationsCard]} 
+                onPress={() => navigation.navigate('Notifications')}
+                activeOpacity={0.85}
+            >
+                <View style={styles.cardIconContainer}>
+                    <Text style={styles.cardIcon}>🔔</Text>
+                </View>
+                <View style={styles.cardContent}>
+                    <Text style={styles.cardTitle}>Notificações</Text>
+                    <Text style={styles.cardSubtitle}>Ver mensagens operacionais com foto e contexto visual</Text>
+                </View>
+                <Text style={styles.cardArrow}>›</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
                 style={[styles.modernCard, styles.updatesCard]} 
                 onPress={() => navigation.navigate('Config')}
                 activeOpacity={0.85}
@@ -116,6 +131,9 @@ const styles = StyleSheet.create({
     },
     updatesCard: {
         borderLeftColor: '#8b5cf6',
+    },
+    notificationsCard: {
+        borderLeftColor: '#0ea5e9',
     },
     reportsCard: {
         borderLeftColor: '#f59e0b',
