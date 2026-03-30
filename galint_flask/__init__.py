@@ -12,6 +12,7 @@ from werkzeug.exceptions import HTTPException
 
 from .config import load_config
 from .extensions import register_extensions
+from .services.document_integrity_service import install_document_integrity_guards
 from .views import register_blueprints
 from .cli import register_cli
 import logging
@@ -76,6 +77,7 @@ def create_app(config_name: str | None = None) -> Flask:
     load_config(app, config_name)
     app.config["PROPAGATE_EXCEPTIONS"] = False
     register_extensions(app)
+    install_document_integrity_guards()
     register_blueprints(app)
     register_cli(app)
     _register_error_handlers(app)

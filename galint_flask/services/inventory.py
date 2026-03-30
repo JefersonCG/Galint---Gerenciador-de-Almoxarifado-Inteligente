@@ -229,6 +229,14 @@ class InventoryService:
         self._runtime_cache[key] = (monotonic() + ttl_seconds, value)
         return value
 
+    def clear_runtime_cache(self, prefix: str | None = None) -> None:
+        if prefix is None:
+            self._runtime_cache.clear()
+            return
+        keys = [key for key in self._runtime_cache if key.startswith(prefix)]
+        for key in keys:
+            self._runtime_cache.pop(key, None)
+
     @staticmethod
     def _build_simple_balance_display(item: Item, saldo: float) -> str:
         return f"{float(saldo or 0.0):g} {item.unidade or 'un'}"

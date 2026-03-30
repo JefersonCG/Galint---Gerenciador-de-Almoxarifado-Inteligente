@@ -12,6 +12,7 @@ from sqlalchemy.orm import joinedload
 
 from ..extensions import db
 from ..models import CompraPeriodoFechamento, DocumentoEntradaEstoque, DocumentoEntradaEstoqueItem, Entrada, FinanceLedgerEntry, Item, TelegramOutbox
+from ..services.document_integrity_service import allow_document_quantity_update
 from ..services.finance_service import finance_service
 from ..services.nf_deletion_audit_sqlite import log_document_item_deletion
 from ..services.inventory import inventory_service
@@ -69,6 +70,77 @@ def _parse_optional_float(raw_value: str | None, *, fallback: float | None = Non
         return fallback
 
 
+def _has_explicit_form_value(raw_value: str | None) -> bool:
+    return bool((raw_value or "").strip())
+
+
+def _derive_item_total(*, quantidade: float, valor_unitario: float | None) -> float | None:
+    if valor_unitario is None:
+        return None
+    return round(float(quantidade) * float(valor_unitario), 2)
+
+
+def _derive_item_unit_price(*, quantidade: float, valor_total: float | None) -> float | None:
+    if valor_total is None or float(quantidade) <= 0:
+        return None
+    return round(float(valor_total) / float(quantidade), 6)
+
+
+def _float_changed(current: float | None, fallback: float | None, *, tolerance: float = 0.01) -> bool:
+    if current is None and fallback is None:
+        return False
+    if current is None or fallback is None:
+        return True
+    return abs(float(current) - float(fallback)) > tolerance
+
+
+def _resolve_document_item_values(
+    *,
+    quantidade: float,
+    valor_unitario_raw: str | None,
+    valor_total_raw: str | None,
+    fallback_valor_unitario: float | None,
+    fallback_valor_total: float | None,
+) -> tuple[float | None, float | None]:
+    has_unit_input = _has_explicit_form_value(valor_unitario_raw)
+    has_total_input = _has_explicit_form_value(valor_total_raw)
+
+    if not has_unit_input and not has_total_input:
+        return fallback_valor_unitario, fallback_valor_total
+
+    valor_unitario = _parse_optional_float(valor_unitario_raw, fallback=None)
+    valor_total = _parse_optional_float(valor_total_raw, fallback=None)
+
+    if has_unit_input and has_total_input:
+        if valor_unitario is None and valor_total is None:
+            return fallback_valor_unitario, fallback_valor_total
+        if valor_unitario is None:
+            return _derive_item_unit_price(quantidade=quantidade, valor_total=valor_total), valor_total
+        if valor_total is None:
+            return valor_unitario, _derive_item_total(quantidade=quantidade, valor_unitario=valor_unitario)
+
+        total_calculado = _derive_item_total(quantidade=quantidade, valor_unitario=valor_unitario)
+        if total_calculado is not None and abs(float(total_calculado) - float(valor_total)) <= 0.01:
+            return valor_unitario, total_calculado
+
+        unit_changed = _float_changed(valor_unitario, fallback_valor_unitario)
+        total_changed = _float_changed(valor_total, fallback_valor_total)
+        if total_changed and not unit_changed:
+            valor_unitario_derivado = _derive_item_unit_price(quantidade=quantidade, valor_total=valor_total)
+            return valor_unitario_derivado if valor_unitario_derivado is not None else valor_unitario, valor_total
+
+        if unit_changed or not total_changed:
+            return valor_unitario, total_calculado
+
+        valor_unitario_derivado = _derive_item_unit_price(quantidade=quantidade, valor_total=valor_total)
+        return valor_unitario_derivado if valor_unitario_derivado is not None else valor_unitario, valor_total
+
+    if has_unit_input:
+        return valor_unitario, _derive_item_total(quantidade=quantidade, valor_unitario=valor_unitario)
+
+    return _derive_item_unit_price(quantidade=quantidade, valor_total=valor_total), valor_total
+
+
 def _parse_form_checkbox(form_name: str, *, default: bool = False) -> bool:
     values = request.form.getlist(form_name)
     if not values:
@@ -83,22 +155,11 @@ def _parse_form_checkbox(form_name: str, *, default: bool = False) -> bool:
     return default
 
 
-def _document_reference_date_for_age(documento_emissao: date | None, documento_recebimento: date | None) -> date:
-    return documento_recebimento or documento_emissao or date.today()
-
-
-def _validate_documento_antigo(*, documento_antigo: bool, data_emissao: date | None, data_recebimento: date | None) -> None:
-    if not documento_antigo:
-        return
-
-    data_referencia = _document_reference_date_for_age(data_emissao, data_recebimento)
-    dias_corridos = (date.today() - data_referencia).days
-    if dias_corridos < 0:
-        dias_corridos = 0
-    if dias_corridos <= 28:
-        raise ValueError(
-            "Documentos com até 28 dias da data de emissão/recebimento não podem ser marcados como antigos."
-        )
+def _resolve_documento_movimenta_estoque(*, data_emissao: date | None, data_recebimento: date | None) -> bool:
+    return finance_service.resolve_document_movimenta_estoque(
+        data_emissao=data_emissao,
+        data_recebimento=data_recebimento,
+    )
 
 
 def _document_is_ready_for_nf_confirmation(documento: DocumentoEntradaEstoque) -> bool:
@@ -370,6 +431,21 @@ def _clear_finance_reports_cache() -> None:
     try:
         finance_service.clear_runtime_cache("get_stock_value_report:")
         finance_service.clear_runtime_cache("get_supplier_lab_report:")
+    except Exception:
+        pass
+
+
+def _clear_nf_runtime_cache(numero_documento: str | None = None) -> None:
+    try:
+        inventory_service.clear_runtime_cache("list_notas_fiscais:")
+        inventory_service.clear_runtime_cache("dashboard_snapshot")
+        finance_service.clear_runtime_cache("list_stock_documents:")
+        if numero_documento:
+            inventory_service.clear_runtime_cache(f"get_nota_fiscal:{str(numero_documento).strip()}")
+            finance_service.clear_runtime_cache(f"get_stock_document_by_number:{str(numero_documento).strip()}")
+        else:
+            inventory_service.clear_runtime_cache("get_nota_fiscal:")
+            finance_service.clear_runtime_cache("get_stock_document_by_number:")
     except Exception:
         pass
 
@@ -941,8 +1017,6 @@ def registrar_nf():
     origem_valor = (request.form.get("finance_origem_valor") or "compra_nf").strip() or "compra_nf"
     tipo_documento = (request.form.get("finance_tipo_documento") or "nf").strip() or "nf"
     comprovacao_status = (request.form.get("finance_comprovacao_status") or "comprovado").strip() or "comprovado"
-    documento_antigo = _parse_form_checkbox("documento_antigo", default=False)
-    movimenta_estoque = not documento_antigo
     preco_unitario_raw = (request.form.get("preco_unitario") or "").strip()
     observacao = (request.form.get("finance_observacao") or "").strip() or None
     chave_acesso = (request.form.get("chave_acesso") or "").strip() or None
@@ -965,8 +1039,7 @@ def registrar_nf():
     except ValueError:
         data_recebimento = date.today()
 
-    _validate_documento_antigo(
-        documento_antigo=documento_antigo,
+    movimenta_estoque = _resolve_documento_movimenta_estoque(
         data_emissao=data_emissao,
         data_recebimento=data_recebimento,
     )
@@ -1036,6 +1109,7 @@ def registrar_nf():
             documento.id_documento,
             usuario_matricula=current_user.id,
         )
+        _clear_nf_runtime_cache(documento.numero_documento)
         if item_criado_na_nf and document_item and codigo:
             item_model = Item.query.get(codigo)
             if item_model:
@@ -1161,6 +1235,7 @@ def converter_documento_legado():
     try:
         document, created, imported_items = _get_or_create_document_from_legacy_number(numero_documento)
         db.session.commit()
+        _clear_nf_runtime_cache(document.numero_documento)
         if created:
             flash(
                 f"Documento legado {document.numero_documento} convertido para documento fiscal editável com {imported_items} item(ns).",
@@ -1198,8 +1273,6 @@ def editar_documento(documento_id: int):
     try:
         numero_documento = (request.form.get("numero_documento") or "").strip()
         tipo_documento = (request.form.get("tipo_documento") or "nf").strip() or "nf"
-        documento_antigo = _parse_form_checkbox("documento_antigo", default=False)
-        movimenta_estoque = not documento_antigo
         supplier_raw = (request.form.get("finance_supplier_id") or "").strip()
         supplier_id = int(supplier_raw) if supplier_raw.isdigit() else None
         supplier_name = (
@@ -1216,8 +1289,7 @@ def editar_documento(documento_id: int):
             chave_acesso = None
         observacao = (request.form.get("finance_observacao") or "").strip() or None
 
-        _validate_documento_antigo(
-            documento_antigo=documento_antigo,
+        movimenta_estoque = _resolve_documento_movimenta_estoque(
             data_emissao=data_emissao,
             data_recebimento=data_recebimento,
         )
@@ -1250,46 +1322,48 @@ def editar_documento(documento_id: int):
             documento.status_integracao = "manual"
             documento.mensagem_integracao = None
 
-        for item_row in documento.itens:
-            quantidade = _parse_optional_float(
-                request.form.get(f"item_quantidade_{item_row.id_documento_item}"),
-                fallback=float(item_row.quantidade or 0.0),
-            )
-            valor_unitario = _parse_optional_float(
-                request.form.get(f"item_valor_unitario_{item_row.id_documento_item}"),
-                fallback=item_row.valor_unitario,
-            )
-            valor_total = _parse_optional_float(
-                request.form.get(f"item_valor_total_{item_row.id_documento_item}"),
-                fallback=item_row.valor_total,
-            )
-            observacao_item = (
-                request.form.get(f"item_observacao_{item_row.id_documento_item}")
-                or item_row.observacao
-                or ""
-            ).strip() or None
-
-            if quantidade is None or quantidade <= 0:
-                raise ValueError(f"Informe uma quantidade válida para o item {item_row.codigo_item}.")
-
-            if (
-                (item_row.status_processamento or "").strip().lower() == "processado"
-                and abs(float(quantidade) - float(item_row.quantidade or 0.0)) > 1e-6
-            ):
-                raise ValueError(
-                    f"O item {item_row.codigo_item} já foi incorporado ao estoque e não pode ter a quantidade alterada neste documento."
+        with allow_document_quantity_update("nf.editar_documento"):
+            for item_row in documento.itens:
+                quantidade = _parse_optional_float(
+                    request.form.get(f"item_quantidade_{item_row.id_documento_item}"),
+                    fallback=float(item_row.quantidade or 0.0),
                 )
+                valor_unitario_raw = request.form.get(f"item_valor_unitario_{item_row.id_documento_item}")
+                valor_total_raw = request.form.get(f"item_valor_total_{item_row.id_documento_item}")
+                valor_unitario, valor_total = _resolve_document_item_values(
+                    quantidade=float(quantidade or 0.0),
+                    valor_unitario_raw=valor_unitario_raw,
+                    valor_total_raw=valor_total_raw,
+                    fallback_valor_unitario=item_row.valor_unitario,
+                    fallback_valor_total=item_row.valor_total,
+                )
+                observacao_item = (
+                    request.form.get(f"item_observacao_{item_row.id_documento_item}")
+                    or item_row.observacao
+                    or ""
+                ).strip() or None
 
-            item_row.quantidade = quantidade
-            item_row.valor_unitario = valor_unitario
-            if valor_unitario is not None:
-                item_row.valor_total = round(float(valor_unitario) * float(quantidade), 2)
-            else:
+                if quantidade is None or quantidade <= 0:
+                    raise ValueError(f"Informe uma quantidade válida para o item {item_row.codigo_item}.")
+
+                if (
+                    bool(documento.movimenta_estoque)
+                    and (item_row.status_processamento or "").strip().lower() == "processado"
+                    and item_row.stock_movement_id is not None
+                    and abs(float(quantidade) - float(item_row.quantidade or 0.0)) > 1e-6
+                ):
+                    raise ValueError(
+                        f"O item {item_row.codigo_item} já foi incorporado ao estoque e não pode ter a quantidade alterada neste documento."
+                    )
+
+                item_row.quantidade = quantidade
+                item_row.valor_unitario = valor_unitario
                 item_row.valor_total = valor_total
-            item_row.observacao = observacao_item
+                item_row.observacao = observacao_item
 
-        sync_result = _sync_document_financial_entries(documento)
-        db.session.commit()
+            sync_result = _sync_document_financial_entries(documento)
+            db.session.commit()
+        _clear_nf_runtime_cache(documento.numero_documento)
         process_result = finance_service.process_stock_document_entries(
             documento.id_documento,
             usuario_matricula=current_user.id,
@@ -1358,41 +1432,43 @@ def adicionar_item_documento(documento_id: int):
         elif valor_total is not None and quantidade > 0:
             valor_unitario = round(float(valor_total) / float(quantidade), 2)
 
-        existing_row = next(
-            (
-                row for row in documento.itens
-                if row.codigo_item == codigo_item and (row.status_processamento or "pendente").strip().lower() != "processado"
-            ),
-            None,
-        )
-        if existing_row is not None:
-            existing_row.quantidade = round(float(existing_row.quantidade or 0.0) + float(quantidade), 2)
-            if valor_unitario is not None:
-                existing_row.valor_unitario = valor_unitario
-                existing_row.valor_total = round(float(existing_row.quantidade or 0.0) * float(valor_unitario), 2)
-            elif valor_total is not None:
-                existing_row.valor_total = round(float(existing_row.valor_total or 0.0) + float(valor_total), 2)
-            if observacao:
-                existing_row.observacao = observacao if not existing_row.observacao else f"{existing_row.observacao} | {observacao}"
-            flash(f"Item {codigo_item} já existia na NF e teve a quantidade somada.", "success")
-        else:
-            db.session.add(
-                DocumentoEntradaEstoqueItem(
-                    documento_id=documento.id_documento,
-                    entrada_id=None,
-                    codigo_item=codigo_item,
-                    quantidade=float(quantidade),
-                    valor_unitario=valor_unitario,
-                    valor_total=valor_total,
-                    lote=(item.get("lote") or "") if item else None,
-                    data_validade=None,
-                    observacao=observacao,
-                )
+        with allow_document_quantity_update("nf.adicionar_item_documento"):
+            existing_row = next(
+                (
+                    row for row in documento.itens
+                    if row.codigo_item == codigo_item and (row.status_processamento or "pendente").strip().lower() != "processado"
+                ),
+                None,
             )
-            flash(f"Item {codigo_item} adicionado ao documento fiscal {documento.numero_documento}.", "success")
+            if existing_row is not None:
+                existing_row.quantidade = round(float(existing_row.quantidade or 0.0) + float(quantidade), 2)
+                if valor_unitario is not None:
+                    existing_row.valor_unitario = valor_unitario
+                    existing_row.valor_total = round(float(existing_row.quantidade or 0.0) * float(valor_unitario), 2)
+                elif valor_total is not None:
+                    existing_row.valor_total = round(float(existing_row.valor_total or 0.0) + float(valor_total), 2)
+                if observacao:
+                    existing_row.observacao = observacao if not existing_row.observacao else f"{existing_row.observacao} | {observacao}"
+                flash(f"Item {codigo_item} já existia na NF e teve a quantidade somada.", "success")
+            else:
+                db.session.add(
+                    DocumentoEntradaEstoqueItem(
+                        documento_id=documento.id_documento,
+                        entrada_id=None,
+                        codigo_item=codigo_item,
+                        quantidade=float(quantidade),
+                        valor_unitario=valor_unitario,
+                        valor_total=valor_total,
+                        lote=(item.get("lote") or "") if item else None,
+                        data_validade=None,
+                        observacao=observacao,
+                    )
+                )
+                flash(f"Item {codigo_item} adicionado ao documento fiscal {documento.numero_documento}.", "success")
 
-        sync_result = _sync_document_financial_entries(documento)
-        db.session.commit()
+            sync_result = _sync_document_financial_entries(documento)
+            db.session.commit()
+        _clear_nf_runtime_cache(documento.numero_documento)
         process_result = finance_service.process_stock_document_entries(
             documento.id_documento,
             usuario_matricula=current_user.id,
@@ -1474,6 +1550,7 @@ def excluir_item_documento(documento_id: int, documento_item_id: int):
             db.session.delete(documento)
 
         db.session.commit()
+        _clear_nf_runtime_cache(numero_documento)
         _clear_finance_reports_cache()
         _audit_document_item_deletion(
             item_snapshot=item_snapshot,
@@ -1540,6 +1617,7 @@ def excluir_item_documento_por_erro_digitacao(documento_id: int, documento_item_
             db.session.delete(documento)
 
         db.session.commit()
+        _clear_nf_runtime_cache(numero_documento)
         _clear_finance_reports_cache()
         item_snapshot.update({
             "stock_movement_id": reversal_result.get("stock_movement_id"),

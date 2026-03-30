@@ -84,6 +84,16 @@ class FinanceService:
         return str(value or "").strip()
 
     @staticmethod
+    def resolve_document_movimenta_estoque(*, data_emissao: date | None, data_recebimento: date | None) -> bool:
+        reference_date = data_recebimento or data_emissao
+        if reference_date is None:
+            return True
+        days_elapsed = (date.today() - reference_date).days
+        if days_elapsed < 0:
+            days_elapsed = 0
+        return days_elapsed <= 28
+
+    @staticmethod
     def get_config() -> FinanceConfig:
         config = FinanceConfig.query.first()
         if not config:
@@ -768,7 +778,10 @@ class FinanceService:
             if chave and tipo == "nf"
             else None
         )
-        movimenta_estoque_documento = True if movimenta_estoque is None else bool(movimenta_estoque)
+        movimenta_estoque_documento = FinanceService.resolve_document_movimenta_estoque(
+            data_emissao=data_emissao,
+            data_recebimento=data_recebimento,
+        )
 
         document_query = DocumentoEntradaEstoque.query.filter(
             DocumentoEntradaEstoque.tipo_documento == tipo,
@@ -799,8 +812,7 @@ class FinanceService:
             db.session.add(document)
             db.session.flush()
         else:
-            if movimenta_estoque is not None:
-                document.movimenta_estoque = movimenta_estoque_documento
+            document.movimenta_estoque = movimenta_estoque_documento
             if supplier and not document.fornecedor_id:
                 document.fornecedor_id = supplier.id
             if cnpj and not document.cnpj_emitente:

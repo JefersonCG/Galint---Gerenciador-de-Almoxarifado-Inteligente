@@ -1554,14 +1554,8 @@
                             </div>
                             <div class="col-12">
                                 <div class="docf-panel warning mb-0">
-                                    <input type="hidden" name="documento_antigo" value="0">
-                                    <label class="form-check d-flex align-items-start gap-2 mb-0">
-                                        <input class="form-check-input mt-1" type="checkbox" name="documento_antigo" value="1">
-                                        <span>
-                                            <strong>Marcar como NF/CUPOM antigo.</strong>
-                                            <span class="d-block docf-muted">Use somente para documentos com mais de 28 dias da emissão ou do recebimento. O sistema registra os valores financeiros, mas não cria nova movimentação de materiais.</span>
-                                        </span>
-                                    </label>
+                                    <strong>Regra automática.</strong>
+                                    <span class="d-block docf-muted">Se a emissão ou o recebimento tiver mais de 28 dias, o documento entra apenas no financeiro e não movimenta estoque. A decisão é automática e não depende de marcação manual.</span>
                                 </div>
                             </div>
                             <div class="col-12">
@@ -1783,14 +1777,8 @@
                                 <div class="docf-kicker">Itens da NF</div>
                                 <p class="docf-muted mb-3">Preencha quantidade e valor unitário dos itens. Quando a NF tiver datas, chave de acesso e valores, o sistema promove automaticamente os materiais vinculados de sem comprovação para compra com NF.</p>
                                 <div class="docf-panel warning mb-3">
-                                    <input type="hidden" name="documento_antigo" value="0">
-                                    <label class="form-check d-flex align-items-start gap-2 mb-0">
-                                        <input class="form-check-input mt-1" type="checkbox" name="documento_antigo" value="1" {% if not nota_detalhes.movimenta_estoque|default(True, true) %}checked{% endif %}>
-                                        <span>
-                                            <strong>Marcar como NF/CUPOM antigo.</strong>
-                                            <span class="d-block docf-muted">Use somente para documentos com mais de 28 dias da emissão ou do recebimento. O sistema mantém os valores financeiros e bloqueia novo lançamento no estoque.</span>
-                                        </span>
-                                    </label>
+                                    <strong>Regra automática de estoque.</strong>
+                                    <span class="d-block docf-muted">Documentos com mais de 28 dias da emissão ou do recebimento permanecem só no financeiro e não entram no estoque como item agregado.</span>
                                 </div>
                                 {% for item in nota_detalhes.itens %}
                                 <div class="row g-3 align-items-end mb-3">
@@ -1804,7 +1792,7 @@
                                     </div>
                                     <div class="col-md-2">
                                         <label class="form-label" for="nota-detalhe-quantidade-{{ item.id }}">Quantidade</label>
-                                        <input class="form-control" id="nota-detalhe-quantidade-{{ item.id }}" name="item_quantidade_{{ item.id }}" type="number" min="0.01" step="0.01" value="{{ item.quantidade|default(0, true) }}" {% if item.status_processamento == 'processado' %}readonly{% else %}required{% endif %}>
+                                        <input class="form-control" id="nota-detalhe-quantidade-{{ item.id }}" name="item_quantidade_{{ item.id }}" type="number" min="0.01" step="0.01" value="{{ item.quantidade|default(0, true) }}" {% if nota_detalhes.movimenta_estoque|default(True, true) and item.status_processamento == 'processado' and item.stock_movement_id is not none %}readonly{% else %}required{% endif %}>
                                     </div>
                                     <div class="col-md-2">
                                         <label class="form-label" for="nota-detalhe-unitario-{{ item.id }}">Valor unitário</label>
