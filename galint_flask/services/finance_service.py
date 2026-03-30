@@ -1136,6 +1136,7 @@ class FinanceService:
         *,
         usuario_matricula: str | None = None,
         only_pending: bool = True,
+        item_ids: list[int] | None = None,
     ) -> dict[str, Any]:
         documento = (
             DocumentoEntradaEstoque.query
@@ -1158,8 +1159,12 @@ class FinanceService:
         skipped = 0
         errors = 0
         messages: list[str] = []
+        item_filter = {int(item_id) for item_id in item_ids} if item_ids else None
 
         for row in sorted(documento.itens, key=lambda item: item.id_documento_item):
+            if item_filter is not None and row.id_documento_item not in item_filter:
+                skipped += 1
+                continue
             status = (row.status_processamento or "pendente").strip().lower() or "pendente"
             if only_pending and status == "processado":
                 skipped += 1

@@ -162,6 +162,15 @@ def _resolve_documento_movimenta_estoque(*, data_emissao: date | None, data_rece
     )
 
 
+def _empty_process_result() -> dict[str, int | list[str]]:
+    return {
+        "processed": 0,
+        "skipped": 0,
+        "errors": 0,
+        "messages": [],
+    }
+
+
 def _document_is_ready_for_nf_confirmation(documento: DocumentoEntradaEstoque) -> bool:
     tipo_documento = (documento.tipo_documento or "nf").strip().lower() or "nf"
     if not documento.data_emissao or not documento.data_recebimento:
@@ -1271,6 +1280,7 @@ def editar_documento(documento_id: int):
         return redirect(url_for("nf.nf_index"))
 
     try:
+        previous_document_movimenta_estoque = bool(getattr(documento, "movimenta_estoque", True))
         numero_documento = (request.form.get("numero_documento") or "").strip()
         tipo_documento = (request.form.get("tipo_documento") or "nf").strip() or "nf"
         supplier_raw = (request.form.get("finance_supplier_id") or "").strip()
@@ -1323,7 +1333,13 @@ def editar_documento(documento_id: int):
             documento.mensagem_integracao = None
 
         with allow_document_quantity_update("nf.editar_documento"):
+            changed_pending_item_ids: set[int] = set()
             for item_row in documento.itens:
+                previous_quantidade = float(item_row.quantidade or 0.0)
+                previous_valor_unitario = float(item_row.valor_unitario) if item_row.valor_unitario not in (None, "") else None
+                previous_valor_total = float(item_row.valor_total) if item_row.valor_total not in (None, "") else None
+                previous_observacao = (item_row.observacao or "").strip() or None
+                previous_status = (item_row.status_processamento or "pendente").strip().lower() or "pendente"
                 quantidade = _parse_optional_float(
                     request.form.get(f"item_quantidade_{item_row.id_documento_item}"),
                     fallback=float(item_row.quantidade or 0.0),
@@ -1347,9 +1363,7 @@ def editar_documento(documento_id: int):
                     raise ValueError(f"Informe uma quantidade válida para o item {item_row.codigo_item}.")
 
                 if (
-                    bool(documento.movimenta_estoque)
-                    and (item_row.status_processamento or "").strip().lower() == "processado"
-                    and item_row.stock_movement_id is not None
+                    previous_status == "processado"
                     and abs(float(quantidade) - float(item_row.quantidade or 0.0)) > 1e-6
                 ):
                     raise ValueError(
@@ -1361,13 +1375,29 @@ def editar_documento(documento_id: int):
                 item_row.valor_total = valor_total
                 item_row.observacao = observacao_item
 
+                quantity_changed = abs(float(quantidade) - previous_quantidade) > 1e-6
+                unit_changed = _float_changed(valor_unitario, previous_valor_unitario, tolerance=0.000001)
+                total_changed = _float_changed(valor_total, previous_valor_total, tolerance=0.01)
+                note_changed = observacao_item != previous_observacao
+                if previous_status != "processado" and (quantity_changed or unit_changed or total_changed or note_changed):
+                    changed_pending_item_ids.add(item_row.id_documento_item)
+
             sync_result = _sync_document_financial_entries(documento)
             db.session.commit()
         _clear_nf_runtime_cache(documento.numero_documento)
-        process_result = finance_service.process_stock_document_entries(
-            documento.id_documento,
-            usuario_matricula=current_user.id,
-        )
+        process_item_ids: list[int] | None = None
+        if bool(documento.movimenta_estoque):
+            if not previous_document_movimenta_estoque:
+                process_item_ids = [row.id_documento_item for row in documento.itens]
+            elif changed_pending_item_ids:
+                process_item_ids = sorted(changed_pending_item_ids)
+        process_result = _empty_process_result()
+        if process_item_ids:
+            process_result = finance_service.process_stock_document_entries(
+                documento.id_documento,
+                usuario_matricula=current_user.id,
+                item_ids=process_item_ids,
+            )
 
         if sync_result["auto_confirmed"]:
             flash(
@@ -1433,6 +1463,7 @@ def adicionar_item_documento(documento_id: int):
             valor_unitario = round(float(valor_total) / float(quantidade), 2)
 
         with allow_document_quantity_update("nf.adicionar_item_documento"):
+            affected_item_ids: set[int] = set()
             existing_row = next(
                 (
                     row for row in documento.itens
@@ -1449,30 +1480,35 @@ def adicionar_item_documento(documento_id: int):
                     existing_row.valor_total = round(float(existing_row.valor_total or 0.0) + float(valor_total), 2)
                 if observacao:
                     existing_row.observacao = observacao if not existing_row.observacao else f"{existing_row.observacao} | {observacao}"
+                affected_item_ids.add(existing_row.id_documento_item)
                 flash(f"Item {codigo_item} já existia na NF e teve a quantidade somada.", "success")
             else:
-                db.session.add(
-                    DocumentoEntradaEstoqueItem(
-                        documento_id=documento.id_documento,
-                        entrada_id=None,
-                        codigo_item=codigo_item,
-                        quantidade=float(quantidade),
-                        valor_unitario=valor_unitario,
-                        valor_total=valor_total,
-                        lote=(item.get("lote") or "") if item else None,
-                        data_validade=None,
-                        observacao=observacao,
-                    )
+                new_item_row = DocumentoEntradaEstoqueItem(
+                    documento_id=documento.id_documento,
+                    entrada_id=None,
+                    codigo_item=codigo_item,
+                    quantidade=float(quantidade),
+                    valor_unitario=valor_unitario,
+                    valor_total=valor_total,
+                    lote=(item.get("lote") or "") if item else None,
+                    data_validade=None,
+                    observacao=observacao,
                 )
+                db.session.add(new_item_row)
+                db.session.flush()
+                affected_item_ids.add(new_item_row.id_documento_item)
                 flash(f"Item {codigo_item} adicionado ao documento fiscal {documento.numero_documento}.", "success")
 
             sync_result = _sync_document_financial_entries(documento)
             db.session.commit()
         _clear_nf_runtime_cache(documento.numero_documento)
-        process_result = finance_service.process_stock_document_entries(
-            documento.id_documento,
-            usuario_matricula=current_user.id,
-        )
+        process_result = _empty_process_result()
+        if bool(documento.movimenta_estoque) and affected_item_ids:
+            process_result = finance_service.process_stock_document_entries(
+                documento.id_documento,
+                usuario_matricula=current_user.id,
+                item_ids=sorted(affected_item_ids),
+            )
         if sync_result["skipped"]:
             flash(
                 f"{sync_result['skipped']} item(ns) seguem sem lançamento financeiro compatível para sincronização automática.",
