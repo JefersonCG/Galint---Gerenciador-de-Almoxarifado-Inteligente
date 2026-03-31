@@ -85,7 +85,7 @@
         position: sticky;
         top: 0.9rem;
         z-index: 30;
-        margin-bottom: 0.8rem;
+        margin-bottom: 2.3rem;
         backdrop-filter: blur(14px);
     }
 
@@ -466,15 +466,19 @@
 
     .docf-kpis {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));
-        gap: 0.75rem;
-        margin-bottom: 1.1rem;
+        grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.25rem;
     }
 
     .docf-kpi {
         position: relative;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
+        min-height: 5.25rem;
         border-radius: 18px;
-        padding: 0.85rem 0.95rem 0.9rem;
+        padding: 0.95rem 1rem 1rem;
         background: rgba(10, 18, 31, 0.84);
         border: 1px solid var(--docf-border-soft);
         box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
@@ -483,9 +487,9 @@
     .docf-kpi::before {
         content: "";
         position: absolute;
-        left: 0.95rem;
-        right: 0.95rem;
-        top: 0.65rem;
+        left: 1rem;
+        right: 1rem;
+        top: 0.72rem;
         height: 2px;
         border-radius: 999px;
         background: linear-gradient(90deg, rgba(56, 189, 248, 0.9), rgba(96, 165, 250, 0.25));
@@ -493,7 +497,7 @@
     }
 
     .docf-kpi-label {
-        margin-top: 0.2rem;
+        margin-top: 0.28rem;
         font-size: 0.73rem;
         text-transform: uppercase;
         letter-spacing: 0.08em;
@@ -502,7 +506,7 @@
     }
 
     .docf-kpi-value {
-        margin-top: 0.42rem;
+        margin-top: 0.5rem;
         color: var(--docf-text-primary);
         font-size: 1.12rem;
         font-weight: 800;
@@ -733,8 +737,103 @@
         padding: 0.52rem 0.76rem;
     }
 
+    .compact-form {
+        display: grid;
+        gap: 0.5rem;
+    }
+
+    .compact-form .row {
+        --bs-gutter-x: 0.75rem;
+        --bs-gutter-y: 0.5rem;
+    }
+
+    .compact-form .form-label {
+        margin-bottom: 4px;
+        font-size: 0.85rem;
+        font-weight: 700;
+    }
+
+    .compact-form .form-control,
+    .compact-form .form-select {
+        padding: 6px 10px;
+        font-size: 0.9rem;
+        min-height: 36px;
+        border-radius: 10px;
+        background: rgba(7, 14, 24, 0.96);
+        border-color: rgba(148, 163, 184, 0.18);
+    }
+
+    .compact-form textarea {
+        min-height: 60px;
+    }
+
+    .compact-form .docf-form-section {
+        gap: 0.5rem;
+        padding: 0.85rem 0;
+        border-top-color: rgba(148, 163, 184, 0.12);
+    }
+
+    .compact-form .docf-form-section-header {
+        gap: 0.35rem;
+        margin-bottom: 0.1rem;
+    }
+
+    .compact-form .docf-form-section-title {
+        font-size: 0.98rem;
+        letter-spacing: -0.01em;
+    }
+
+    .compact-form .docf-form-section-text {
+        display: none;
+    }
+
+    .compact-form .compact-section {
+        padding: 0.9rem;
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        border-radius: 14px;
+        background: linear-gradient(180deg, rgba(13, 22, 36, 0.92) 0%, rgba(10, 18, 31, 0.94) 100%);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+    }
+
+    .compact-form .compact-actions {
+        display: flex;
+        justify-content: flex-end;
+        padding-top: 0.2rem;
+    }
+
+    .compact-form .compact-actions .docf-btn-primary {
+        min-width: 220px;
+        min-height: 36px;
+        padding: 0.45rem 0.9rem;
+        font-size: 0.9rem;
+        box-shadow: 0 10px 18px rgba(37, 99, 235, 0.18);
+    }
+
+    .compact-form .input-group > .docf-btn-secondary {
+        min-height: 36px;
+        padding: 0.45rem 0.8rem;
+        font-size: 0.88rem;
+        border-radius: 10px;
+    }
+
+    .docf-form .form-control.form-control-sm,
+    .docf-form .form-select.form-select-sm,
+    .docf-form .input-group > .form-control.form-control-sm,
+    .docf-form .input-group > .form-select.form-select-sm {
+        min-height: 34px;
+        padding: 0.34rem 0.68rem;
+        font-size: 0.9rem;
+        border-radius: 10px;
+    }
+
     .docf-form textarea.form-control {
         min-height: 74px;
+    }
+
+    .docf-form textarea.form-control.form-control-sm {
+        min-height: 60px;
+        padding-top: 0.45rem;
+        padding-bottom: 0.45rem;
     }
 
     .docf-form .form-control::placeholder,
@@ -758,8 +857,8 @@
 
     .docf-form-section {
         display: grid;
-        gap: 0.7rem;
-        padding: 0.72rem 0;
+        gap: 1.8rem;
+        padding: 1.8rem 0;
         border-top: 1px solid rgba(148, 163, 184, 0.14);
     }
 
@@ -823,11 +922,25 @@
         --bs-gutter-y: 0.85rem;
     }
 
+    .docf-form .row.g-2 {
+        --bs-gutter-x: 1.8rem;
+        --bs-gutter-y: 1.8rem;
+    }
+
     .docf-form .input-group > .docf-btn-secondary,
     .docf-form .docf-btn-primary,
     .docf-form .docf-btn-secondary {
         min-height: 40px;
         padding: 0.52rem 0.9rem;
+    }
+
+    .docf-form .input-group > .docf-btn-secondary.docf-btn-compact,
+    .docf-form .docf-btn-primary.docf-btn-compact,
+    .docf-form .docf-btn-secondary.docf-btn-compact {
+        min-height: 34px;
+        padding: 0.34rem 0.75rem;
+        border-radius: 10px;
+        font-size: 0.88rem;
     }
 
     .docf-btn-primary,
@@ -1293,9 +1406,9 @@
                     <div class="docf-muted mt-1" id="doc-mode-text">Use este modo quando a compra já tiver número de nota e, se existir, chave de acesso.</div>
                 </div>
 
-                <form method="post" class="docf-form" id="nf-registration-form">
+                <form method="post" class="docf-form compact-form d-grid gap-2" id="nf-registration-form">
                     <input type="hidden" name="active_tab" value="registro">
-                    <div class="docf-form-section">
+                    <div class="docf-form-section compact-section">
                         <div class="docf-form-section-header">
                             <div>
                                 <h3 class="docf-form-section-title">1. Item e vínculo operacional</h3>
@@ -1353,7 +1466,7 @@
                                         <label class="form-label" for="nova_categoria">Categoria</label>
                                         <div class="docf-field-hint">Selecione uma categoria padrão igual à tela de classificação do cadastro.</div>
                                     </div>
-                                    <select class="form-select" id="nova_categoria" name="nova_categoria">
+                                    <select class="form-select form-select-sm" id="nova_categoria" name="nova_categoria">
                                         {% for option in document_category_options %}
                                         <option value="{{ option }}" {% if option == 'Material Elétrico' %}selected{% endif %}>{{ option }}</option>
                                         {% endfor %}
@@ -1366,7 +1479,7 @@
                                         <label class="form-label" for="nova_unidade">Unidade</label>
                                         <div class="docf-field-hint">Selecione a unidade padrão do item usando a mesma lista do cadastro.</div>
                                     </div>
-                                    <select class="form-select" id="nova_unidade" name="nova_unidade">
+                                    <select class="form-select form-select-sm" id="nova_unidade" name="nova_unidade">
                                         {% for option in document_unit_options %}
                                         <option value="{{ option }}" {% if option == 'Unidade' %}selected{% endif %}>{{ option }}</option>
                                         {% endfor %}
@@ -1381,67 +1494,58 @@
                         <div class="docf-form-section-header">
                             <div>
                                 <h3 class="docf-form-section-title">3. Dados do documento</h3>
-                                <p class="docf-form-section-text">Preencha somente os dados fiscais e de recebimento que sustentam a conferência. Essa parte define o rastreamento do documento nas abas operacionais.</p>
                             </div>
                         </div>
-                        <div class="row g-2">
+                        <div class="row g-2 mb-1">
                             <div class="col-md-2">
                                 <label class="form-label" for="quantidade">Quantidade</label>
-                                <input class="form-control" id="quantidade" name="quantidade" type="number" min="1" value="1"
+                                <input class="form-control form-control-sm" id="quantidade" name="quantidade" type="number" min="1" value="1"
                                     required>
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label" for="nota_fiscal" id="nota_fiscal_label">Número da NF</label>
-                                <input class="form-control" id="nota_fiscal" name="nota_fiscal" required>
+                                <input class="form-control form-control-sm" id="nota_fiscal" name="nota_fiscal" required>
                                 <div class="list-group mt-2 d-none" id="nota_fiscal_results"></div>
-                                <div class="form-text" id="nota_fiscal_help">Se essa NF já tiver sido usada no sistema, os dados da empresa serão preenchidos automaticamente.</div>
                             </div>
-                            <div class="col-md-6 position-relative">
-                                <label class="form-label" for="finance_supplier_search">Fornecedor / Loja</label>
-                                <input class="form-control" id="finance_supplier_search" autocomplete="off"
-                                    name="supplier_name" placeholder="Digite nome, fantasia ou CNPJ">
-                                <input type="hidden" id="finance_supplier_id" name="finance_supplier_id">
-                                <div class="list-group position-absolute w-100 shadow d-none" id="finance_supplier_results" style="z-index: 50;"></div>
+                            <input type="hidden" id="finance_supplier_search" name="supplier_name">
+                            <input type="hidden" id="finance_supplier_id" name="finance_supplier_id">
+                            <div class="list-group position-absolute w-100 shadow d-none" id="finance_supplier_results" style="z-index: 50;"></div>
+                            <div class="col-md-2">
+                                <label class="form-label" for="data_emissao">Emissão do documento</label>
+                                <input class="form-control form-control-sm" id="data_emissao" name="data_emissao" type="date">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label" for="data_recebimento">Data de recebimento</label>
+                                <input class="form-control form-control-sm" id="data_recebimento" name="data_recebimento" type="date">
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label" for="supplier_cnpj">CNPJ da loja</label>
                                 <div class="input-group">
-                                    <input class="form-control" id="supplier_cnpj" name="supplier_cnpj" placeholder="00.000.000/0000-00">
-                                    <button class="docf-btn-secondary" type="button" id="btn-buscar-cnpj" data-help-label="Consultar CNPJ" data-help-text="Consulta o CNPJ informado para localizar ou completar automaticamente o fornecedor.">Consultar</button>
+                                    <input class="form-control form-control-sm" id="supplier_cnpj" name="supplier_cnpj" placeholder="00.000.000/0000-00">
+                                    <button class="docf-btn-secondary docf-btn-compact" type="button" id="btn-buscar-cnpj" data-help-label="Consultar CNPJ" data-help-text="Consulta o CNPJ informado para localizar ou completar automaticamente o fornecedor.">Consultar</button>
                                 </div>
-                                <div class="form-text">Se o fornecedor não existir, o sistema tenta criar pelo CNPJ.</div>
-                            </div>
-                            <div class="col-md-3">
-                                <label class="form-label" for="data_emissao">Emissão do documento</label>
-                                <input class="form-control" id="data_emissao" name="data_emissao" type="date">
-                            </div>
-                            <div class="col-md-3">
-                                <label class="form-label" for="data_recebimento">Data de recebimento</label>
-                                <input class="form-control" id="data_recebimento" name="data_recebimento" type="date">
                             </div>
                             <div class="col-md-6" data-chave-acesso-group>
                                 <label class="form-label" for="chave_acesso">Chave de acesso</label>
-                                <input class="form-control" id="chave_acesso" name="chave_acesso" placeholder="44 dígitos da NF-e / NFC-e">
-                                <div class="form-text">A chave deixa a NF pronta no sistema. A consulta automática ficará bloqueada até configurar o certificado digital.</div>
+                                <input class="form-control form-control-sm" id="chave_acesso" name="chave_acesso" placeholder="44 dígitos da NF-e / NFC-e">
                             </div>
                         </div>
                     </div>
 
-                    <div class="docf-form-section">
+                    <div class="docf-form-section compact-section">
                         <div class="docf-form-section-header">
                             <div>
                                 <h3 class="docf-form-section-title">4. Classificação financeira</h3>
-                                <p class="docf-form-section-text">Defina como o valor será tratado no Financeiro e deixe a comprovação pronta para auditoria posterior. Essa etapa pode ser curta, mas precisa ser consistente.</p>
                             </div>
                         </div>
-                        <div class="row g-2">
+                        <div class="row g-2 mb-1">
                             <div class="col-md-6">
                                 <label class="form-label" for="preco_unitario">Valor unitário (R$)</label>
-                                <input class="form-control" id="preco_unitario" name="preco_unitario" type="number" min="0" step="0.01">
+                                <input class="form-control form-control-sm" id="preco_unitario" name="preco_unitario" type="number" min="0" step="0.01">
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label" for="finance_tipo_documento">Tipo de documento</label>
-                                <select class="form-select" id="finance_tipo_documento" name="finance_tipo_documento">
+                                <select class="form-select form-select-sm" id="finance_tipo_documento" name="finance_tipo_documento">
                                     <option value="nf">Nota fiscal</option>
                                     <option value="cupom">Cupom não fiscal</option>
                                     <option value="recibo">Recibo</option>
@@ -1450,7 +1554,7 @@
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label" for="finance_origem_valor">Origem do valor</label>
-                                <select class="form-select" id="finance_origem_valor" name="finance_origem_valor">
+                                <select class="form-select form-select-sm" id="finance_origem_valor" name="finance_origem_valor">
                                     <option value="compra_nf">Compra com NF</option>
                                     <option value="compra_cupom">Compra com cupom</option>
                                     <option value="valor_estimado">Valor estimado</option>
@@ -1459,25 +1563,25 @@
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label" for="finance_comprovacao_status">Comprovação</label>
-                                <select class="form-select" id="finance_comprovacao_status" name="finance_comprovacao_status">
+                                <select class="form-select form-select-sm" id="finance_comprovacao_status" name="finance_comprovacao_status">
                                     <option value="comprovado">Comprovado</option>
                                     <option value="parcial">Parcialmente comprovado</option>
                                     <option value="sem_comprovacao">Sem comprovação</option>
                                 </select>
                             </div>
-                            <div class="col-12">
+                            <div class="col-12 mb-1">
                                 <label class="form-label" for="finance_observacao">Observação financeira</label>
-                                <textarea class="form-control" id="finance_observacao" name="finance_observacao" rows="2"
+                                <textarea class="form-control form-control-sm" id="finance_observacao" name="finance_observacao" rows="2"
                                     placeholder="Ex.: compra emergencial, documento conferido, valor estimado..."></textarea>
                             </div>
-                            <div class="col-12">
+                            <div class="col-12 mb-1">
                                 <div class="docf-panel warning mb-0">
                                     <strong>Regra automática.</strong>
                                     <span class="d-block docf-muted">Se a emissão ou o recebimento tiver mais de 28 dias, o documento entra apenas no financeiro e não movimenta estoque. A decisão é automática e não depende de marcação manual.</span>
                                 </div>
                             </div>
-                            <div class="col-12">
-                                <button class="docf-btn-primary w-100" type="submit" data-help-label="Registrar documento fiscal" data-help-text="Salva o documento principal com item, fornecedor e classificação documental.">Registrar documento fiscal</button>
+                            <div class="col-12 compact-actions">
+                                <button class="docf-btn-primary" type="submit" data-help-label="Registrar documento fiscal" data-help-text="Salva o documento principal com item, fornecedor e classificação documental.">Registrar documento fiscal</button>
                             </div>
                         </div>
                     </div>
@@ -1610,7 +1714,7 @@
                 {% if can_manage and nota_detalhes.id_documento is defined and nota_detalhes.id_documento is not none %}
                 <section class="docf-panel info mt-3">
                     <div class="docf-kicker">Adicionar item</div>
-                    <form method="post" action="{{ url_for('nf.adicionar_item_documento', documento_id=nota_detalhes.id_documento) }}" class="docf-form" data-add-item-form>
+                    <form method="post" action="{{ url_for('nf.adicionar_item_documento', documento_id=nota_detalhes.id_documento) }}" class="docf-form d-grid gap-4" data-add-item-form>
                         <input type="hidden" name="active_tab" value="{{ active_tab }}">
                         <div class="row g-3 align-items-end">
                             <div class="col-lg-3">
@@ -1648,7 +1752,7 @@
                     <section class="docf-panel info mt-3" id="documento-editar-{{ nota_detalhes.id_documento }}">
                         <div class="docf-kicker">Edição completa</div>
                         <h4 class="mb-3">Atualizar documento e itens</h4>
-                        <form method="post" action="{{ url_for('nf.editar_documento', documento_id=nota_detalhes.id_documento) }}" class="docf-form">
+                        <form method="post" action="{{ url_for('nf.editar_documento', documento_id=nota_detalhes.id_documento) }}" class="docf-form d-grid gap-4">
                             <input type="hidden" name="active_tab" value="{{ active_tab }}">
                             <div class="row g-3">
                                 <div class="col-md-4">
@@ -1657,7 +1761,7 @@
                                 </div>
                                 <div class="col-md-4">
                                     <label class="form-label" for="nota-detalhe-tipo">Tipo</label>
-                                    <select class="form-select" id="nota-detalhe-tipo" name="tipo_documento">
+                                    <select class="form-select form-select-sm" id="nota-detalhe-tipo" name="tipo_documento">
                                         <option value="nf" {% if nota_detalhes.tipo_documento == 'nf' %}selected{% endif %}>Nota fiscal</option>
                                         <option value="cupom" {% if nota_detalhes.tipo_documento == 'cupom' %}selected{% endif %}>Cupom não fiscal</option>
                                         <option value="recibo" {% if nota_detalhes.tipo_documento == 'recibo' %}selected{% endif %}>Recibo</option>
@@ -1918,7 +2022,8 @@
     let helpHideTimer = null;
 
     const HELP_STORAGE_KEY = 'galint:nf:help-enabled';
-    let helpEnabled = window.localStorage.getItem(HELP_STORAGE_KEY) === 'true';
+    const storedHelpPreference = window.localStorage.getItem(HELP_STORAGE_KEY);
+    let helpEnabled = storedHelpPreference === null ? true : storedHelpPreference === 'true';
 
     const registrationModes = {
         nf: {
@@ -2498,6 +2603,10 @@
         }
         if (notaFiscalLabel) {
             notaFiscalLabel.textContent = mode.numeroLabel;
+        }
+        if (notaFiscalInput) {
+            notaFiscalInput.dataset.helpText = mode.numeroHelp;
+            notaFiscalInput.dataset.helpLabel = mode.numeroLabel;
         }
         if (notaFiscalHelp) {
             notaFiscalHelp.textContent = mode.numeroHelp;

@@ -809,16 +809,6 @@ class InventoryService:
         def _calc_stock_total_value(item: Item, *, preco_unitario: float | None, saldo_total: float) -> float | None:
             if preco_unitario is None or preco_unitario <= 0:
                 return None
-            if EmbalagemService.tem_embalagem(item):
-                emb = float(item.estoque_embalagens or 0.0)
-                soltas = float(item.estoque_unidades_soltas or 0.0)
-                try:
-                    unidades_por = float(item.unidades_por_embalagem or 0.0)
-                except (TypeError, ValueError):
-                    unidades_por = 0.0
-                if unidades_por > 0:
-                    return (emb * preco_unitario) + (soltas * (preco_unitario / unidades_por))
-                return emb * preco_unitario
             return float(saldo_total or 0.0) * preco_unitario
 
         for item in itens:
