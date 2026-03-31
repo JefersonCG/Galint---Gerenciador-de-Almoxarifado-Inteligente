@@ -4,6 +4,14 @@ import { Image, ScrollView, StyleSheet, Text, View } from 'react-native';
 import api from '../services/api';
 import { palette } from '../theme';
 
+function formatDisplayValue(value) {
+  const numeric = Number(value);
+  if (Number.isFinite(numeric)) {
+    return numeric.toLocaleString('pt-BR', { maximumFractionDigits: 6 });
+  }
+  return String(value ?? '-');
+}
+
 export default function NotificationDetailScreen({ route }) {
   const item = route.params?.item;
   if (!item) {
@@ -58,8 +66,8 @@ export default function NotificationDetailScreen({ route }) {
             <Text style={styles.blockTitle}>Movimento</Text>
             {visual.kind_label ? <Text style={styles.infoPrimary}>{visual.kind_label}</Text> : null}
             {visualMovement.quantidade_display ? <Text style={styles.infoSecondary}>Quantidade: {visualMovement.quantidade_display}</Text> : null}
-            {visualMovement.balance_before != null ? <Text style={styles.infoSecondary}>Saldo antes: {visualMovement.balance_before:g} {visualMovement.balance_unit || ''}</Text> : null}
-            {visualMovement.balance_after != null ? <Text style={styles.infoSecondary}>Saldo depois: {visualMovement.balance_after:g} {visualMovement.balance_unit || ''}</Text> : null}
+            {visualMovement.balance_before != null ? <Text style={styles.infoSecondary}>Saldo antes: {formatDisplayValue(visualMovement.balance_before)} {visualMovement.balance_unit || ''}</Text> : null}
+            {visualMovement.balance_after != null ? <Text style={styles.infoSecondary}>Saldo depois: {formatDisplayValue(visualMovement.balance_after)} {visualMovement.balance_unit || ''}</Text> : null}
             {visual.batch_label ? <Text style={styles.infoSecondary}>Lote: {visual.batch_label}</Text> : null}
           </View>
         ) : null}
