@@ -4,7 +4,7 @@ from __future__ import annotations
 from pathlib import Path
 import traceback
 
-from dotenv import load_dotenv
+from dotenv import dotenv_values, load_dotenv
 from flask import Flask
 from flask import jsonify
 from flask import render_template, request
@@ -50,18 +50,43 @@ def _load_dotenv_hierarchy() -> None:
     """Carrega .env sem sobrescrever variáveis já definidas.
 
     Prioridade (maior -> menor):
-    - diretório avô (workspace/root)
-    - diretório pai
+    - variáveis já exportadas no ambiente/processo
+    - .env.local da raiz do projeto
+    - raiz do projeto
+    - .env.local do diretório atual
     - diretório atual
+    - .env.local do diretório pai
+    - diretório pai
+    - .env.local do diretório avô
+    - diretório avô
 
-    Isso permite manter um único .env fora da pasta interna.
+    Isso evita herdar credenciais incorretas de diretórios acima quando o app
+    é iniciado fora da pasta do projeto e permite override por máquina.
     """
 
+    project_root = Path(__file__).resolve().parent.parent
     cwd = Path.cwd()
-    candidates = [cwd.parent.parent / ".env", cwd.parent / ".env", cwd / ".env"]
+
+    candidates = [
+        cwd.parent.parent / ".env",
+        cwd.parent.parent / ".env.local",
+        cwd.parent / ".env",
+        cwd.parent / ".env.local",
+        cwd / ".env",
+        cwd / ".env.local",
+        project_root / ".env",
+        project_root / ".env.local",
+    ]
+
+    merged_values: dict[str, str] = {}
     for p in candidates:
         if p.exists():
-            load_dotenv(p, override=False)
+            for key, value in dotenv_values(p).items():
+                if value is not None:
+                    merged_values[key] = value
+
+    for key, value in merged_values.items():
+        os.environ.setdefault(key, value)
 
     # fallback padrão do python-dotenv (procura .env automaticamente)
     load_dotenv(override=False)

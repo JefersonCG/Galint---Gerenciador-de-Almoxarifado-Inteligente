@@ -792,18 +792,6 @@
         line-height: 1.5;
     }
 
-    .docf-option-checklist {
-        display: grid;
-        gap: 0.55rem;
-        margin-top: 0.65rem;
-    }
-
-    .docf-option-checklist-grid {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.45rem;
-    }
-
     .docf-field-card {
         display: flex;
         flex-direction: column;
@@ -813,17 +801,6 @@
         border-radius: 16px;
         border: 1px solid rgba(148, 163, 184, 0.2);
         background: rgba(8, 15, 28, 0.54);
-    }
-
-    .docf-field-card .form-control[readonly] {
-        background: rgba(15, 23, 42, 0.88);
-        color: #eff6ff;
-        border-color: rgba(96, 165, 250, 0.22);
-        box-shadow: inset 0 0 0 1px rgba(96, 165, 250, 0.08);
-    }
-
-    .docf-field-card .form-control[readonly]:focus {
-        box-shadow: inset 0 0 0 1px rgba(96, 165, 250, 0.08);
     }
 
     .docf-field-hint {
@@ -841,60 +818,16 @@
         z-index: 65;
     }
 
-    .docf-check-pill {
-        position: relative;
+    .docf-form .row.g-3 {
+        --bs-gutter-x: 0.85rem;
+        --bs-gutter-y: 0.85rem;
     }
 
-    .docf-check-pill input {
-        position: absolute;
-        opacity: 0;
-        pointer-events: none;
-    }
-
-    .docf-check-pill span {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.45rem;
-        padding: 0.45rem 0.72rem;
-        border-radius: 999px;
-        border: 1px solid rgba(148, 163, 184, 0.2);
-            .docf-form .row.g-3 {
-                --bs-gutter-x: 0.85rem;
-                --bs-gutter-y: 0.85rem;
-            }
-
-            .docf-form .input-group > .docf-btn-secondary,
-            .docf-form .docf-btn-primary,
-            .docf-form .docf-btn-secondary {
-                min-height: 40px;
-                padding: 0.52rem 0.9rem;
-            }
-
-        background: rgba(255, 255, 255, 0.05);
-        color: var(--docf-text-primary);
-        font-size: 0.8rem;
-        font-weight: 700;
-        cursor: pointer;
-        transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
-    }
-
-    .docf-check-pill input:checked + span {
-        border-color: rgba(96, 165, 250, 0.48);
-        background: linear-gradient(135deg, rgba(37, 99, 235, 0.22) 0%, rgba(30, 64, 175, 0.18) 100%);
-        color: #f8fbff;
-        transform: translateY(-1px);
-        box-shadow: 0 10px 22px rgba(37, 99, 235, 0.16);
-    }
-
-    .docf-check-pill span::before {
-        content: "□";
-        font-size: 0.8rem;
-        color: rgba(191, 219, 254, 0.84);
-    }
-
-    .docf-check-pill input:checked + span::before {
-        content: "■";
-        color: #bfdbfe;
+    .docf-form .input-group > .docf-btn-secondary,
+    .docf-form .docf-btn-primary,
+    .docf-form .docf-btn-secondary {
+        min-height: 40px;
+        padding: 0.52rem 0.9rem;
     }
 
     .docf-btn-primary,
@@ -1420,15 +1353,11 @@
                                         <label class="form-label" for="nova_categoria">Categoria</label>
                                         <div class="docf-field-hint">Selecione uma categoria padrão igual à tela de classificação do cadastro.</div>
                                     </div>
-                                    <input class="form-control" id="nova_categoria" name="nova_categoria" value="Material Elétrico" readonly>
-                                    <div class="docf-option-checklist-grid">
+                                    <select class="form-select" id="nova_categoria" name="nova_categoria">
                                         {% for option in document_category_options %}
-                                        <label class="docf-check-pill">
-                                            <input type="checkbox" data-checklist-target="nova_categoria" data-checklist-group="categoria" value="{{ option }}">
-                                            <span>{{ option }}</span>
-                                        </label>
+                                        <option value="{{ option }}" {% if option == 'Material Elétrico' %}selected{% endif %}>{{ option }}</option>
                                         {% endfor %}
-                                    </div>
+                                    </select>
                                 </div>
                             </div>
                             <div class="col-md-4">
@@ -1437,24 +1366,13 @@
                                         <label class="form-label" for="nova_unidade">Unidade</label>
                                         <div class="docf-field-hint">Selecione a unidade padrão do item usando a mesma lista do cadastro.</div>
                                     </div>
-                                    <input class="form-control" id="nova_unidade" name="nova_unidade" value="Unidade" readonly>
-                                    <div class="docf-option-checklist-grid">
+                                    <select class="form-select" id="nova_unidade" name="nova_unidade">
                                         {% for option in document_unit_options %}
-                                        <label class="docf-check-pill">
-                                            <input type="checkbox" data-checklist-target="nova_unidade" data-checklist-group="unidade" value="{{ option }}">
-                                            <span>{{ option }}</span>
-                                        </label>
+                                        <option value="{{ option }}" {% if option == 'Unidade' %}selected{% endif %}>{{ option }}</option>
                                         {% endfor %}
-                                    </div>
+                                    </select>
                                 </div>
                             </div>
-                        </div>
-                        <div class="docf-option-checklist">
-                            <div>
-                                <div class="docf-kicker mb-2">Categoria e Unidades</div>
-                                <div class="docf-muted mb-2">Selecione uma opção em cada grupo para usar exatamente os mesmos padrões do campo de classificação do cadastro de item.</div>
-                            </div>
-                            <div class="docf-muted">Os valores continuam sendo enviados no formulário, mas agora a escolha é feita apenas pelo checklist.</div>
                         </div>
                     </div>
                     </div>
@@ -3002,68 +2920,6 @@
             alert('Para item novo, informe também a descrição do produto.');
             novaDescricaoInput?.focus();
         }
-    });
-
-    const checklistInputs = Array.from(document.querySelectorAll('input[data-checklist-target]'));
-
-    const syncChecklistWithField = (fieldId) => {
-        const field = document.getElementById(fieldId);
-        if (!(field instanceof HTMLInputElement)) {
-            return;
-        }
-        const fieldValue = (field.value || '').trim().toLowerCase();
-        checklistInputs.forEach((input) => {
-            if (!(input instanceof HTMLInputElement)) {
-                return;
-            }
-            if (input.dataset.checklistTarget !== fieldId) {
-                return;
-            }
-            input.checked = (input.value || '').trim().toLowerCase() === fieldValue && fieldValue.length > 0;
-        });
-    };
-
-    checklistInputs.forEach((input) => {
-        if (!(input instanceof HTMLInputElement)) {
-            return;
-        }
-        input.addEventListener('change', () => {
-            const fieldId = input.dataset.checklistTarget;
-            const group = input.dataset.checklistGroup;
-            if (!fieldId || !group) {
-                return;
-            }
-            const field = document.getElementById(fieldId);
-            if (!(field instanceof HTMLInputElement)) {
-                return;
-            }
-            if (input.checked) {
-                checklistInputs.forEach((other) => {
-                    if (!(other instanceof HTMLInputElement)) {
-                        return;
-                    }
-                    if (other === input) {
-                        return;
-                    }
-                    if (other.dataset.checklistGroup === group) {
-                        other.checked = false;
-                    }
-                });
-                field.value = input.value;
-            } else if ((field.value || '').trim().toLowerCase() === (input.value || '').trim().toLowerCase()) {
-                field.value = '';
-            }
-        });
-    });
-
-    ['nova_categoria', 'nova_unidade'].forEach((fieldId) => {
-        const field = document.getElementById(fieldId);
-        if (!(field instanceof HTMLInputElement)) {
-            return;
-        }
-        syncChecklistWithField(fieldId);
-        field.addEventListener('input', () => syncChecklistWithField(fieldId));
-        field.addEventListener('change', () => syncChecklistWithField(fieldId));
     });
 
 </script>
