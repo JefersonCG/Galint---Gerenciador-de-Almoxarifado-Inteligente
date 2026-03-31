@@ -705,9 +705,9 @@ ${parent.scripts()}
     }
 
     async function fetchItemSuggestions(query) {
-        const response = await fetch(itemSearchUrl + '?q=' + encodeURIComponent(query), {
+        const response = await window.galintFetchWithAuth(itemSearchUrl + '?q=' + encodeURIComponent(query), {
             headers: { 'Accept': 'application/json' }
-        });
+        }, 'Sua sessão expirou durante a busca de itens. Faça login novamente.');
         if (!response.ok) {
             throw new Error('Falha ao buscar itens');
         }
@@ -936,7 +936,11 @@ ${parent.scripts()}
             return;
         }
         try {
-            const response = await fetch('/movimentos/item-info/' + encodeURIComponent(rawCodigo));
+            const response = await window.galintFetchWithAuth(
+                '/movimentos/item-info/' + encodeURIComponent(rawCodigo),
+                undefined,
+                'Sua sessão expirou ao carregar o item. Faça login novamente.'
+            );
             const data = await response.json();
             if (!response.ok || !data?.found) {
                 return;
@@ -951,6 +955,9 @@ ${parent.scripts()}
             };
             renderCurrentPreview(currentPreviewItem, 'preview');
         } catch (error) {
+            if (error && error.isAuthRedirect) {
+                return;
+            }
             console.error('Erro ao carregar preview do item:', error);
         }
     }
@@ -1068,6 +1075,9 @@ ${parent.scripts()}
                 }
                 showAutocompleteCodigo(currentItens);
             } catch (error) {
+                if (error && error.isAuthRedirect) {
+                    return;
+                }
                 console.error('Erro ao buscar itens:', error);
                 if (requestId === itemSearchRequestId) {
                     currentItens = [];
@@ -1391,7 +1401,11 @@ ${parent.scripts()}
         btnAdicionar.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Buscando...';
         
         try {
-            const response = await fetch('/movimentos/item-info/' + encodeURIComponent(codigo));
+            const response = await window.galintFetchWithAuth(
+                '/movimentos/item-info/' + encodeURIComponent(codigo),
+                undefined,
+                'Sua sessão expirou ao consultar o item. Faça login novamente.'
+            );
             const data = await response.json();
             
             if (!data.descricao) {
@@ -1455,6 +1469,9 @@ ${parent.scripts()}
             inputCodigo.focus();
             
         } catch (error) {
+            if (error && error.isAuthRedirect) {
+                return;
+            }
             alert(error.message || 'Erro ao buscar item');
         } finally {
             btnAdicionar.disabled = false;
@@ -1640,13 +1657,13 @@ ${parent.scripts()}
                     }))
                 };
 
-                const response = await fetch('/movimentos/saida-multipla', {
+                const response = await window.galintFetchWithAuth('/movimentos/saida-multipla', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify(payload)
-                });
+                }, 'Sua sessão expirou antes de concluir o registro da saída. Faça login novamente.');
 
                 const result = await response.json();
                 const resultados = Array.isArray(result && result.resultados) ? result.resultados : [];
@@ -1707,6 +1724,9 @@ ${parent.scripts()}
                 alert('⚠️ Parte das saídas não foi registrada. Os itens com falha permaneceram na lista.\n' + erros);
             }
         } catch (error) {
+            if (error && error.isAuthRedirect) {
+                return;
+            }
             alert('❌ Erro ao registrar saída: ' + error.message);
         } finally {
             btnRegistrar.disabled = (items.length === 0);

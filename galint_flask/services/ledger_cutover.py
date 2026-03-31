@@ -70,6 +70,9 @@ class LedgerCutoverService:
                 ledger_balance=result.ledger_balance,
                 stock_balance=result.stock_balance,
             )
+        balance.quantity_base = float(result.stock_balance or 0.0)
+        if hasattr(balance, "read_model_ready"):
+            balance.read_model_ready = True
         db.session.commit()
         return CutoverDecision(
             product_id=result.product_id,
@@ -105,6 +108,9 @@ class LedgerCutoverService:
                 ledger_balance=result.ledger_balance,
                 stock_balance=result.stock_balance,
             )
+        balance.quantity_base = float(result.stock_balance or 0.0)
+        if hasattr(balance, "read_model_ready"):
+            balance.read_model_ready = False
         db.session.commit()
         return CutoverDecision(
             product_id=result.product_id,

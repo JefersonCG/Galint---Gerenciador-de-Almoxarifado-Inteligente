@@ -33,7 +33,9 @@ from ..models import (
     TelegramOutbox,
 )
 from .inventory_engine import InventoryEngineError, InventoryOperationResult, inventory_engine
+from .legacy_stock_normalizer import resolve_canonical_unit, resolve_packaging_quantity_and_unit, uses_packaging_legacy_normalization
 from .operation_log_service import operation_log_service
+from .price_normalization import infer_price_unit_for_item, normalize_item_price
 from .unit_conversion_engine import UnitConversionError
 from .balance_provider import balance_provider
 from ..utils.lote_generator import generate_lote
@@ -175,6 +177,73 @@ def _apply_advanced_unit_settings(item: Item, payload: object) -> None:
                 active=bool(row.get("active", True)),
             )
         )
+
+
+def _coerce_price_value(value: object) -> float | None:
+    if value in ("", None):
+        return None
+    try:
+        parsed = float(value)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return None
+    if math.isnan(parsed) or math.isinf(parsed):
+        return None
+    return parsed
+
+
+def _normalize_price_unit_value(value: object) -> str | None:
+    raw = str(value or "").strip().lower()
+    return raw or None
+
+
+def _assign_normalized_item_price(item: Item, *, raw_price: object, kind: str, price_unit: object = None) -> None:
+    if kind not in {"compra", "reposicao"}:
+        raise ValueError("Tipo de preco invalido")
+
+    raw_attr = f"preco_{kind}_unitario"
+    base_attr = f"preco_{kind}_unitario_base"
+    unit_attr = f"preco_{kind}_unidade_preco"
+    factor_attr = f"preco_{kind}_fator_base"
+
+    raw_value = _coerce_price_value(raw_price)
+    if raw_value is None:
+        setattr(item, raw_attr, None)
+        setattr(item, base_attr, None)
+        setattr(item, unit_attr, None)
+        setattr(item, factor_attr, None)
+        return
+
+    resolved_price_unit = _normalize_price_unit_value(price_unit)
+    if resolved_price_unit is None:
+        resolved_price_unit = _normalize_price_unit_value(getattr(item, unit_attr, None))
+    if resolved_price_unit is None:
+        resolved_price_unit = infer_price_unit_for_item(item)
+
+    try:
+        normalized = normalize_item_price(
+            item,
+            unit_price=raw_value,
+            price_unit=resolved_price_unit,
+        )
+    except Exception:
+        fallback_price_unit = infer_price_unit_for_item(item)
+        if fallback_price_unit != resolved_price_unit:
+            try:
+                normalized = normalize_item_price(
+                    item,
+                    unit_price=raw_value,
+                    price_unit=fallback_price_unit,
+                )
+                resolved_price_unit = fallback_price_unit
+            except Exception:
+                normalized = None
+        else:
+            normalized = None
+
+    setattr(item, raw_attr, raw_value)
+    setattr(item, base_attr, float(normalized.unit_price_base) if normalized is not None else raw_value)
+    setattr(item, unit_attr, normalized.price_unit if normalized is not None else resolved_price_unit)
+    setattr(item, factor_attr, float(normalized.factor_to_base) if normalized is not None else 1.0)
 
 
 @dataclass(slots=True)
@@ -401,6 +470,11 @@ class InventoryService:
 
     @staticmethod
     def _infer_dual_write_unit(item: Item, payload: MovimentoPayload | None = None) -> str | None:
+        if payload and payload.em_embalagens is True and uses_packaging_legacy_normalization(item):
+            canonical_unit = resolve_canonical_unit(item)
+            if canonical_unit:
+                return canonical_unit
+
         if payload and payload.em_embalagens is True:
             tipo_emb = (item.tipo_embalagem_novo or "").strip().lower()
             if tipo_emb:
@@ -424,40 +498,7 @@ class InventoryService:
     ) -> tuple[float, str] | None:
         if not payload or payload.em_embalagens is not True:
             return None
-
-        # Se o produto já possui unidades/conversões avançadas, delegamos ao motor normal.
-        has_active_units = any(unit.is_base and unit.active for unit in item.product_units)
-        has_active_conversions = any(conversion.active for conversion in item.product_unit_conversions)
-        if has_active_units or has_active_conversions:
-            return None
-
-        tipo_emb = (item.tipo_embalagem_novo or "").strip().lower()
-        unidade_item = (item.unidade or "").strip().lower()
-        unidades_por = InventoryService._as_positive_float(item.unidades_por_embalagem)
-        litros_por = InventoryService._as_positive_float(item.litros_por_embalagem)
-        grandeza_ref = InventoryService._as_positive_float(item.grandeza_referencia)
-
-        if tipo_emb in {"pacote", "caixa"} and unidades_por > 0:
-            return quantity_value * unidades_por, (unidade_item or "un")
-
-        if tipo_emb == "rolo" and unidades_por > 0:
-            return quantity_value * unidades_por, (unidade_item or "metros")
-
-        if tipo_emb in {"lata", "balde", "bombona", "litro"}:
-            if litros_por > 0:
-                return quantity_value * litros_por, (unidade_item or "l")
-            if grandeza_ref > 0:
-                return quantity_value * grandeza_ref, (unidade_item or "kg")
-            if unidades_por > 0:
-                return quantity_value * unidades_por, (unidade_item or "un")
-
-        if tipo_emb == "saco":
-            if grandeza_ref > 0:
-                return quantity_value * grandeza_ref, (unidade_item or "kg")
-            if unidades_por > 0:
-                return quantity_value * unidades_por, (unidade_item or "un")
-
-        return None
+        return resolve_packaging_quantity_and_unit(item, quantity_value)
 
     @staticmethod
     def _sync_packaging_balance_before_dual_write(
@@ -806,10 +847,10 @@ class InventoryService:
                 return None
             return f
 
-        def _calc_stock_total_value(item: Item, *, preco_unitario: float | None, saldo_total: float) -> float | None:
-            if preco_unitario is None or preco_unitario <= 0:
+        def _calc_stock_total_value(item: Item, *, preco_unitario_base: float | None, saldo_total: float) -> float | None:
+            if preco_unitario_base is None or preco_unitario_base <= 0:
                 return None
-            return float(saldo_total or 0.0) * preco_unitario
+            return float(saldo_total or 0.0) * preco_unitario_base
 
         for item in itens:
             if self._should_use_packaging_display(item):
@@ -833,9 +874,11 @@ class InventoryService:
                 atualizado = True
 
             preco_compra = _safe_float_or_none(getattr(item, "preco_compra_unitario", None))
+            preco_compra_base = _safe_float_or_none(getattr(item, "preco_compra_unitario_base", None))
             preco_reposicao = _safe_float_or_none(getattr(item, "preco_reposicao_unitario", None))
-            valor_total_compra = _calc_stock_total_value(item, preco_unitario=preco_compra, saldo_total=saldo)
-            valor_total_reposicao = _calc_stock_total_value(item, preco_unitario=preco_reposicao, saldo_total=saldo)
+            preco_reposicao_base = _safe_float_or_none(getattr(item, "preco_reposicao_unitario_base", None))
+            valor_total_compra = _calc_stock_total_value(item, preco_unitario_base=preco_compra_base, saldo_total=saldo)
+            valor_total_reposicao = _calc_stock_total_value(item, preco_unitario_base=preco_reposicao_base, saldo_total=saldo)
             
             resultado.append(
                 {
@@ -861,12 +904,28 @@ class InventoryService:
                     "unidades_por_embalagem": item.unidades_por_embalagem,
                     "grandeza_referencia": item.grandeza_referencia,
                     "litros_por_embalagem": item.litros_por_embalagem,
+                    "product_units": [
+                        {
+                            "unit_code": unit.unit_code,
+                            "unit_label": unit.unit_label,
+                            "dimension": unit.dimension,
+                            "is_base": bool(unit.is_base),
+                            "active": bool(unit.active),
+                        }
+                        for unit in sorted(item.product_units, key=lambda row: (not bool(row.is_base), (row.unit_code or ""), row.id or 0))
+                    ],
                     "preco_compra_unitario": preco_compra,
+                    "preco_compra_unitario_base": preco_compra_base,
+                    "preco_compra_unidade_preco": getattr(item, "preco_compra_unidade_preco", None),
+                    "preco_compra_fator_base": getattr(item, "preco_compra_fator_base", None),
                     "preco_compra_fonte": getattr(item, "preco_compra_fonte", None),
                     "preco_compra_documento": getattr(item, "preco_compra_documento", None),
                     "preco_compra_atualizado_em": item.preco_compra_atualizado_em.isoformat() if getattr(item, "preco_compra_atualizado_em", None) else None,
                     "preco_compra_atualizado_por": getattr(item, "preco_compra_atualizado_por", None),
                     "preco_reposicao_unitario": preco_reposicao,
+                    "preco_reposicao_unitario_base": preco_reposicao_base,
+                    "preco_reposicao_unidade_preco": getattr(item, "preco_reposicao_unidade_preco", None),
+                    "preco_reposicao_fator_base": getattr(item, "preco_reposicao_fator_base", None),
                     "preco_reposicao_fonte": getattr(item, "preco_reposicao_fonte", None),
                     "preco_reposicao_uf": getattr(item, "preco_reposicao_uf", None),
                     "preco_reposicao_query": getattr(item, "preco_reposicao_query", None),
@@ -990,6 +1049,8 @@ class InventoryService:
                     item_existente.foto_path = nova_foto
                 if "advanced_unit_settings" in payload:
                     _apply_advanced_unit_settings(item_existente, payload.get("advanced_unit_settings"))
+                    _assign_normalized_item_price(item_existente, raw_price=item_existente.preco_compra_unitario, kind="compra")
+                    _assign_normalized_item_price(item_existente, raw_price=item_existente.preco_reposicao_unitario, kind="reposicao")
                 
                 # Registrar entrada com a quantidade
                 quantidade = payload.get("quantidade") or payload.get("saldo") or 0
@@ -1093,19 +1154,8 @@ class InventoryService:
         except (TypeError, ValueError):
             estoque_unidades_soltas = 0
 
-        def _coerce_price(value: object) -> float | None:
-            if value in ("", None):
-                return None
-            try:
-                f = float(value)  # type: ignore[arg-type]
-            except (TypeError, ValueError):
-                return None
-            if math.isnan(f) or math.isinf(f):
-                return None
-            return f
-
-        preco_compra_unitario = _coerce_price(payload.get("preco_compra_unitario"))
-        preco_reposicao_unitario = _coerce_price(payload.get("preco_reposicao_unitario"))
+        preco_compra_unitario = _coerce_price_value(payload.get("preco_compra_unitario"))
+        preco_reposicao_unitario = _coerce_price_value(payload.get("preco_reposicao_unitario"))
 
         item = Item(
             codigo_item=codigo,
@@ -1160,10 +1210,34 @@ class InventoryService:
             pre_cadastro_finalizado_em=payload.get("pre_cadastro_finalizado_em"),
         )
         item.estoque_minimo = 0
+        _assign_normalized_item_price(
+            item,
+            raw_price=preco_compra_unitario,
+            kind="compra",
+            price_unit=payload.get("preco_compra_unidade_preco"),
+        )
+        _assign_normalized_item_price(
+            item,
+            raw_price=preco_reposicao_unitario,
+            kind="reposicao",
+            price_unit=payload.get("preco_reposicao_unidade_preco"),
+        )
         db.session.add(item)
         try:
             if "advanced_unit_settings" in payload:
                 _apply_advanced_unit_settings(item, payload.get("advanced_unit_settings"))
+                _assign_normalized_item_price(
+                    item,
+                    raw_price=item.preco_compra_unitario,
+                    kind="compra",
+                    price_unit=payload.get("preco_compra_unidade_preco"),
+                )
+                _assign_normalized_item_price(
+                    item,
+                    raw_price=item.preco_reposicao_unitario,
+                    kind="reposicao",
+                    price_unit=payload.get("preco_reposicao_unidade_preco"),
+                )
             db.session.commit()
             
             # Gerar código de barras após salvar
@@ -1208,17 +1282,6 @@ class InventoryService:
         if marca is not None:
             item.marca = marca
 
-        def _coerce_price(value: object) -> float | None:
-            if value in ("", None):
-                return None
-            try:
-                f = float(value)  # type: ignore[arg-type]
-            except (TypeError, ValueError):
-                return None
-            if math.isnan(f) or math.isinf(f):
-                return None
-            return f
-        
         # Novos campos
         numero_serie = payload.get("numero_serie")
         if "numero_serie" in payload:  # Sempre atualizar se estiver no payload
@@ -1364,6 +1427,7 @@ class InventoryService:
         # Financeiro
         compra_keys = {
             "preco_compra_unitario",
+            "preco_compra_unidade_preco",
             "preco_compra_fonte",
             "preco_compra_documento",
             "preco_compra_chave_acesso",
@@ -1371,8 +1435,13 @@ class InventoryService:
             "preco_compra_data_recebimento",
         }
         if any(k in payload for k in compra_keys):
-            if "preco_compra_unitario" in payload:
-                item.preco_compra_unitario = _coerce_price(payload.get("preco_compra_unitario"))
+            if "preco_compra_unitario" in payload or "preco_compra_unidade_preco" in payload:
+                _assign_normalized_item_price(
+                    item,
+                    raw_price=payload.get("preco_compra_unitario", item.preco_compra_unitario),
+                    kind="compra",
+                    price_unit=payload.get("preco_compra_unidade_preco"),
+                )
             if "preco_compra_fonte" in payload:
                 item.preco_compra_fonte = payload.get("preco_compra_fonte") or None
             if "preco_compra_documento" in payload:
@@ -1406,14 +1475,20 @@ class InventoryService:
 
         repos_keys = {
             "preco_reposicao_unitario",
+            "preco_reposicao_unidade_preco",
             "preco_reposicao_fonte",
             "preco_reposicao_uf",
             "preco_reposicao_query",
             "preco_reposicao_url",
         }
         if any(k in payload for k in repos_keys):
-            if "preco_reposicao_unitario" in payload:
-                item.preco_reposicao_unitario = _coerce_price(payload.get("preco_reposicao_unitario"))
+            if "preco_reposicao_unitario" in payload or "preco_reposicao_unidade_preco" in payload:
+                _assign_normalized_item_price(
+                    item,
+                    raw_price=payload.get("preco_reposicao_unitario", item.preco_reposicao_unitario),
+                    kind="reposicao",
+                    price_unit=payload.get("preco_reposicao_unidade_preco"),
+                )
             if "preco_reposicao_fonte" in payload:
                 item.preco_reposicao_fonte = payload.get("preco_reposicao_fonte") or None
             if "preco_reposicao_uf" in payload:
@@ -1424,6 +1499,18 @@ class InventoryService:
                 item.preco_reposicao_url = payload.get("preco_reposicao_url") or None
             item.preco_reposicao_atualizado_em = payload.get("preco_reposicao_atualizado_em") or datetime.utcnow()
             item.preco_reposicao_atualizado_por = payload.get("preco_reposicao_atualizado_por") or payload.get("ultima_edicao_por")
+
+        normalization_keys = {
+            "unidade",
+            "tipo_embalagem_novo",
+            "unidades_por_embalagem",
+            "grandeza_referencia",
+            "litros_por_embalagem",
+            "advanced_unit_settings",
+        }
+        if any(key in payload for key in normalization_keys):
+            _assign_normalized_item_price(item, raw_price=item.preco_compra_unitario, kind="compra")
+            _assign_normalized_item_price(item, raw_price=item.preco_reposicao_unitario, kind="reposicao")
 
         # Regenerar barcode se descrição mudou
         if payload.get("descricao") and item.descricao:

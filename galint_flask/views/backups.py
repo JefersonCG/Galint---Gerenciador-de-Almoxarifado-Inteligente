@@ -11,7 +11,7 @@ from sqlalchemy import text
 
 from ..extensions import db
 from ..models import Entrada, Saida
-from ..services.ledger_backfill import ledger_backfill_service
+from ..services.ledger_backfill_normalized import ledger_backfill_service
 
 
 blueprint = Blueprint("backups", __name__, url_prefix="/backups")

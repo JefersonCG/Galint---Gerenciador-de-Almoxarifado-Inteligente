@@ -316,12 +316,18 @@ class LedgerBackfillService:
             try:
                 result = ledger_reconciliation_service.reconcile_product(product_id)
             except Exception:
+                if hasattr(balance, "read_model_ready"):
+                    balance.read_model_ready = False
                 not_preserved += 1
                 continue
 
             if result.classification in {"divergencia_zero", "divergencia_explicavel"}:
+                if hasattr(balance, "read_model_ready"):
+                    balance.read_model_ready = True
                 preserved += 1
             else:
+                if hasattr(balance, "read_model_ready"):
+                    balance.read_model_ready = False
                 not_preserved += 1
 
         db.session.flush()

@@ -16,6 +16,7 @@ from ..services.config_service import ConfigService
 from ..services.finance_service import finance_service
 from ..services.inventory import MovimentoPayload, inventory_service
 from ..services.item_foto_service import ItemFotoService
+from ..services.price_normalization import infer_price_unit_for_item, normalize_item_price
 from ..services.price_suggestion_service import price_suggestion_service
 from ..services.telegram_service import TelegramService
 from ..utils.barcode_generator import generate_barcode, get_barcode_path
@@ -126,6 +127,8 @@ def _sync_finance_section_snapshot(
         atualizado_por=usuario_id,
     )
 
+    item_model = Item.query.get(codigo)
+
     latest_entry = (
         FinanceLedgerEntry.query
         .filter(FinanceLedgerEntry.codigo_item == codigo)
@@ -137,6 +140,39 @@ def _sync_finance_section_snapshot(
         unit_price = float(preco_compra_unitario) if preco_compra_unitario not in (None, "") else None
     except (TypeError, ValueError):
         unit_price = None
+
+    unit_price_base = unit_price
+    unidade_preco = None
+    fator_preco_base = None
+    if item_model is not None and unit_price is not None:
+        unidade_preco = (getattr(item_model, "preco_compra_unidade_preco", None) or "").strip().lower() or infer_price_unit_for_item(item_model)
+        try:
+            normalized = normalize_item_price(
+                item_model,
+                unit_price=unit_price,
+                price_unit=unidade_preco,
+            )
+            unit_price_base = float(normalized.unit_price_base)
+            unidade_preco = normalized.price_unit
+            fator_preco_base = float(normalized.factor_to_base)
+        except Exception:
+            fallback_unidade_preco = infer_price_unit_for_item(item_model)
+            if fallback_unidade_preco != unidade_preco:
+                try:
+                    normalized = normalize_item_price(
+                        item_model,
+                        unit_price=unit_price,
+                        price_unit=fallback_unidade_preco,
+                    )
+                    unit_price_base = float(normalized.unit_price_base)
+                    unidade_preco = normalized.price_unit
+                    fator_preco_base = float(normalized.factor_to_base)
+                except Exception:
+                    unit_price_base = unit_price
+                    fator_preco_base = 1.0
+            else:
+                unit_price_base = unit_price
+                fator_preco_base = 1.0
 
     if latest_entry is None:
         latest_entry = FinanceLedgerEntry(
@@ -154,6 +190,13 @@ def _sync_finance_section_snapshot(
     latest_entry.categoria_nome = str(categoria or latest_entry.categoria_nome or "Sem categoria")
     latest_entry.data_lancamento = datetime.utcnow()
     latest_entry.valor_unitario = unit_price
+    latest_entry.valor_unitario_base = unit_price_base
+    latest_entry.unidade_preco = unidade_preco
+    latest_entry.fator_preco_base = fator_preco_base
+    if latest_entry.unidade_quantidade in (None, "") and item_model is not None:
+        latest_entry.unidade_quantidade = (item_model.unidade or "").strip() or None
+    if latest_entry.quantidade_base in (None, ""):
+        latest_entry.quantidade_base = float(latest_entry.quantidade or 0.0)
     latest_entry.origem_valor = str(finance_payload.get("origem_valor") or "inventario_inicial")
     latest_entry.tipo_documento = finance_payload.get("tipo_documento")
     latest_entry.numero_documento = finance_payload.get("numero_documento")
@@ -164,6 +207,8 @@ def _sync_finance_section_snapshot(
     latest_entry.observacao = finance_payload.get("observacao")
     if latest_entry.quantidade and unit_price is not None:
         latest_entry.valor_total = float(latest_entry.quantidade or 0) * float(unit_price)
+    elif latest_entry.quantidade_base and unit_price_base is not None:
+        latest_entry.valor_total = float(latest_entry.quantidade_base or 0) * float(unit_price_base)
     elif not latest_entry.quantidade:
         latest_entry.valor_total = 0.0
     db.session.commit()
@@ -247,7 +292,21 @@ def _serialize_batch_price_item(item: Item) -> dict[str, object]:
         "unidade": item.unidade,
         "tipo_embalagem_novo": item.tipo_embalagem_novo,
         "unidades_por_embalagem": item.unidades_por_embalagem,
+        "product_units": [
+            {
+                "unit_code": unit.unit_code,
+                "unit_label": unit.unit_label,
+                "dimension": unit.dimension,
+                "is_base": bool(unit.is_base),
+                "active": bool(unit.active),
+            }
+            for unit in sorted(item.product_units, key=lambda row: (not bool(row.is_base), (row.unit_code or ""), row.id or 0))
+        ],
+        "preco_compra_unidade_preco": item.preco_compra_unidade_preco,
         "preco_reposicao_unitario": item.preco_reposicao_unitario,
+        "preco_reposicao_unitario_base": item.preco_reposicao_unitario_base,
+        "preco_reposicao_unidade_preco": item.preco_reposicao_unidade_preco,
+        "preco_reposicao_fator_base": item.preco_reposicao_fator_base,
         "preco_reposicao_fonte": item.preco_reposicao_fonte,
         "preco_reposicao_uf": item.preco_reposicao_uf,
         "preco_reposicao_query": item.preco_reposicao_query,
@@ -852,12 +911,14 @@ def create_item():
         "local_instalacao": form.get("local_instalacao", "").strip() or None,
         # Financeiro
         "preco_compra_unitario": (form.get("preco_compra_unitario") or "").strip() or None,
+        "preco_compra_unidade_preco": (form.get("preco_compra_unidade_preco") or "").strip().lower() or None,
         "preco_compra_fonte": (form.get("preco_compra_fonte") or "").strip() or None,
         "preco_compra_documento": (form.get("preco_compra_documento") or "").strip() or None,
         "preco_compra_chave_acesso": (form.get("preco_compra_chave_acesso") or "").strip() or None,
         "preco_compra_data_emissao": (form.get("preco_compra_data_emissao") or "").strip() or None,
         "preco_compra_data_recebimento": (form.get("preco_compra_data_recebimento") or "").strip() or None,
         "preco_reposicao_unitario": (form.get("preco_reposicao_unitario") or "").strip() or None,
+        "preco_reposicao_unidade_preco": (form.get("preco_reposicao_unidade_preco") or "").strip().lower() or None,
         "preco_reposicao_fonte": (form.get("preco_reposicao_fonte") or "").strip() or None,
         "preco_reposicao_uf": (form.get("preco_reposicao_uf") or "").strip() or None,
         "preco_reposicao_query": (form.get("preco_reposicao_query") or "").strip() or None,
@@ -1118,12 +1179,14 @@ def update_item(codigo: str):
         "local_instalacao": form.get("local_instalacao", "").strip() or None,
         "advanced_unit_settings": _parse_advanced_unit_settings(form.get("advanced_unit_settings_json")),
         "preco_compra_unitario": (form.get("preco_compra_unitario") or "").strip() or prev_item.get("preco_compra_unitario"),
+        "preco_compra_unidade_preco": (form.get("preco_compra_unidade_preco") or "").strip().lower() or prev_item.get("preco_compra_unidade_preco"),
         "preco_compra_fonte": (form.get("preco_compra_fonte") or "").strip() or prev_item.get("preco_compra_fonte"),
         "preco_compra_documento": (form.get("preco_compra_documento") or "").strip() or prev_item.get("preco_compra_documento"),
         "preco_compra_chave_acesso": (form.get("preco_compra_chave_acesso") or "").strip() or prev_item.get("preco_compra_chave_acesso"),
         "preco_compra_data_emissao": (form.get("preco_compra_data_emissao") or "").strip() or prev_item.get("preco_compra_data_emissao"),
         "preco_compra_data_recebimento": (form.get("preco_compra_data_recebimento") or "").strip() or prev_item.get("preco_compra_data_recebimento"),
         "preco_reposicao_unitario": prev_item.get("preco_reposicao_unitario"),
+        "preco_reposicao_unidade_preco": prev_item.get("preco_reposicao_unidade_preco"),
         "preco_reposicao_fonte": prev_item.get("preco_reposicao_fonte"),
         "preco_reposicao_uf": prev_item.get("preco_reposicao_uf"),
         "preco_reposicao_query": prev_item.get("preco_reposicao_query"),
@@ -1154,11 +1217,18 @@ def update_item(codigo: str):
     if registrar_compra_edicao or finance_section_edit_authorized:
         payload.update({
             "preco_compra_unitario": (form.get("preco_compra_unitario") or "").strip() or None,
+            "preco_compra_unidade_preco": (form.get("preco_compra_unidade_preco") or "").strip().lower() or None,
             "preco_compra_fonte": (form.get("preco_compra_fonte") or "").strip() or None,
             "preco_compra_documento": (form.get("preco_compra_documento") or "").strip() or None,
             "preco_compra_chave_acesso": (form.get("preco_compra_chave_acesso") or "").strip() or None,
             "preco_compra_data_emissao": (form.get("preco_compra_data_emissao") or "").strip() or None,
             "preco_compra_data_recebimento": (form.get("preco_compra_data_recebimento") or "").strip() or None,
+            "preco_reposicao_unitario": (form.get("preco_reposicao_unitario") or "").strip() or None,
+            "preco_reposicao_unidade_preco": (form.get("preco_reposicao_unidade_preco") or "").strip().lower() or None,
+            "preco_reposicao_fonte": (form.get("preco_reposicao_fonte") or "").strip() or None,
+            "preco_reposicao_uf": (form.get("preco_reposicao_uf") or "").strip() or None,
+            "preco_reposicao_query": (form.get("preco_reposicao_query") or "").strip() or None,
+            "preco_reposicao_url": (form.get("preco_reposicao_url") or "").strip() or None,
             "finance_supplier_id": finance_payload.get("supplier_id"),
             "finance_origem_valor": finance_payload.get("origem_valor"),
             "finance_tipo_documento": finance_payload.get("tipo_documento"),
@@ -1283,7 +1353,11 @@ def update_item(codigo: str):
 
         if should_notify_item_update:
             try:
-                TelegramService.notify_item_updated(updated_codigo, prev=prev_item, prev_balance=prev_balance)
+                NotificationRouterService.route_item_updated(
+                    updated_codigo,
+                    prev=prev_item,
+                    prev_balance=prev_balance,
+                )
             except Exception:
                 pass
         flash("Item atualizado com sucesso.", "success")
@@ -1424,8 +1498,40 @@ def salvar_preco_reposicao(codigo: str):
     uf = (payload.get("preco_reposicao_uf") or "").strip().upper() or None
     query = (payload.get("preco_reposicao_query") or "").strip() or None
     url = (payload.get("preco_reposicao_url") or "").strip() or None
+    unidade_preco = (payload.get("preco_reposicao_unidade_preco") or "").strip().lower() or (item.preco_reposicao_unidade_preco or "").strip().lower() or infer_price_unit_for_item(item)
+
+    preco_reposicao_base = price
+    fator_preco_base = 1.0
+    try:
+        normalized = normalize_item_price(
+            item,
+            unit_price=price,
+            price_unit=unidade_preco,
+        )
+        preco_reposicao_base = float(normalized.unit_price_base)
+        unidade_preco = normalized.price_unit
+        fator_preco_base = float(normalized.factor_to_base)
+    except Exception:
+        fallback_unidade_preco = infer_price_unit_for_item(item)
+        if fallback_unidade_preco != unidade_preco:
+            try:
+                normalized = normalize_item_price(
+                    item,
+                    unit_price=price,
+                    price_unit=fallback_unidade_preco,
+                )
+                preco_reposicao_base = float(normalized.unit_price_base)
+                unidade_preco = normalized.price_unit
+                fator_preco_base = float(normalized.factor_to_base)
+            except Exception:
+                preco_reposicao_base = price
+        else:
+            preco_reposicao_base = price
 
     item.preco_reposicao_unitario = price
+    item.preco_reposicao_unitario_base = preco_reposicao_base
+    item.preco_reposicao_unidade_preco = unidade_preco
+    item.preco_reposicao_fator_base = fator_preco_base
     item.preco_reposicao_fonte = fonte
     item.preco_reposicao_uf = uf
     item.preco_reposicao_query = query
@@ -1446,6 +1552,9 @@ def salvar_preco_reposicao(codigo: str):
         "item": {
             "codigo": item.codigo_item,
             "preco_reposicao_unitario": item.preco_reposicao_unitario,
+            "preco_reposicao_unitario_base": item.preco_reposicao_unitario_base,
+            "preco_reposicao_unidade_preco": item.preco_reposicao_unidade_preco,
+            "preco_reposicao_fator_base": item.preco_reposicao_fator_base,
             "preco_reposicao_fonte": item.preco_reposicao_fonte,
             "preco_reposicao_uf": item.preco_reposicao_uf,
             "preco_reposicao_query": item.preco_reposicao_query,

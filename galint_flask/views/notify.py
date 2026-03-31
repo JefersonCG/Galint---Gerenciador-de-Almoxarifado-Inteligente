@@ -6,17 +6,68 @@ from pathlib import Path
 
 import jwt
 from flask import Blueprint, current_app, g, jsonify, request, send_file
+from sqlalchemy import or_
 
 from ..extensions import db
-from ..models import NotificationRouterConfig, Usuario
+from ..models import Item, NotificationRouterConfig, Usuario
 from ..services.auth import create_mobile_token, get_mobile_user
 from ..services.galint_notify_service import GalintNotifyService
 from ..services.notification_router import NotificationRouterService
 from ..services.telegram_reports import TelegramReportService
 from ..services.telegram_service import TelegramService
+from ..services.unit_conversion_engine import UnitConversionError, unit_conversion_engine
 
 
 blueprint = Blueprint("notify", __name__, url_prefix="/api/notify")
+
+
+def _serialize_tool_item(item: Item) -> dict[str, object]:
+    foto_path = (item.foto_path or "").strip() or None
+    foto_url = None
+    try:
+        foto_url = (request.url_root.rstrip("/") + "/static/" + foto_path.lstrip("/")) if foto_path else None
+    except Exception:
+        foto_url = None
+
+    return {
+        "codigo_item": item.codigo_item,
+        "descricao": item.descricao,
+        "categoria": item.categoria,
+        "unidade": item.unidade,
+        "saldo": item.get_saldo_fisico_total(),
+        "saldo_display": item.get_saldo_fisico_display(),
+        "foto_path": foto_path,
+        "foto_url": foto_url,
+        "product_units": _resolve_active_units(item),
+    }
+
+
+def _resolve_active_units(item: Item) -> list[dict[str, object]]:
+    active_units = [
+        {
+            "unit_code": unit.unit_code,
+            "unit_label": unit.unit_label,
+            "is_base": bool(unit.is_base),
+        }
+        for unit in sorted(item.product_units, key=lambda row: (not bool(row.is_base), (row.unit_code or ""), row.id or 0))
+        if unit.active and (unit.unit_code or "").strip()
+    ]
+    if active_units:
+        return active_units
+    fallback_unit = ((item.unidade or "").strip() or "un")
+    return [{
+        "unit_code": fallback_unit,
+        "unit_label": fallback_unit,
+        "is_base": True,
+    }]
+
+
+def _convert_from_base(item: Item, quantity_base: float, unit_code: str) -> float:
+    conversion = unit_conversion_engine.convert_item_to_base(item, 1.0, unit_code)
+    factor = float(conversion.quantity_base or 0.0)
+    if factor <= 0:
+        raise UnitConversionError("Fator de conversão inválido")
+    return float(quantity_base) / factor
 
 
 def notify_login_required(func):
@@ -152,6 +203,96 @@ def status():
     if not getattr(g.mobile_user, "is_admin", False):
         return jsonify({"success": False, "message": "Acesso negado"}), 403
     return jsonify({"success": True, "router": NotificationRouterService.status_payload()})
+
+
+@blueprint.get("/tools/items/search")
+@notify_login_required
+def search_tool_items():
+    query = str(request.args.get("q", "")).strip()
+    limit = min(20, max(1, int(request.args.get("limit", 10) or 10)))
+    if len(query) < 2:
+        return jsonify({"success": True, "items": []})
+
+    like = f"%{query}%"
+    items = (
+        Item.query.filter(
+            or_(
+                Item.codigo_item.ilike(like),
+                Item.descricao.ilike(like),
+                Item.categoria.ilike(like),
+            )
+        )
+        .order_by(Item.descricao.asc(), Item.codigo_item.asc())
+        .limit(limit)
+        .all()
+    )
+    return jsonify({"success": True, "items": [_serialize_tool_item(item) for item in items]})
+
+
+@blueprint.post("/tools/convert")
+@notify_login_required
+def convert_tool_units():
+    data = request.get_json() or {}
+    codigo_item = str(data.get("codigo_item", "")).strip()
+    from_unit = str(data.get("from_unit", "")).strip()
+    raw_quantity = data.get("quantity")
+
+    if not codigo_item:
+        return jsonify({"success": False, "message": "codigo_item é obrigatório"}), 400
+    if not from_unit:
+        return jsonify({"success": False, "message": "from_unit é obrigatório"}), 400
+    try:
+        quantity = float(raw_quantity)
+    except (TypeError, ValueError):
+        return jsonify({"success": False, "message": "quantity inválida"}), 400
+
+    item = Item.query.get(codigo_item)
+    if item is None:
+        return jsonify({"success": False, "message": "Item não encontrado"}), 404
+
+    try:
+        base_conversion = unit_conversion_engine.convert_item_to_base(item, quantity, from_unit)
+    except UnitConversionError as exc:
+        return jsonify({"success": False, "message": str(exc)}), 400
+
+    targets = []
+    for unit in _resolve_active_units(item):
+        unit_code = str(unit.get("unit_code") or "").strip()
+        if not unit_code:
+            continue
+        try:
+            converted_value = _convert_from_base(item, float(base_conversion.quantity_base or 0.0), unit_code)
+        except UnitConversionError:
+            continue
+        targets.append(
+            {
+                "unit_code": unit_code,
+                "unit_label": unit.get("unit_label") or unit_code,
+                "is_base": bool(unit.get("is_base")),
+                "quantity": converted_value,
+                "display": f"{converted_value:g} {unit.get('unit_label') or unit_code}".strip(),
+            }
+        )
+
+    return jsonify(
+        {
+            "success": True,
+            "item": _serialize_tool_item(item),
+            "input": {
+                "quantity": quantity,
+                "from_unit": from_unit,
+                "display": f"{quantity:g} {from_unit}",
+            },
+            "base": {
+                "quantity": float(base_conversion.quantity_base or 0.0),
+                "unit": base_conversion.unit_base,
+                "display": f"{float(base_conversion.quantity_base or 0.0):g} {base_conversion.unit_base}",
+            },
+            "targets": targets,
+            "conversion_path": list(base_conversion.conversion_path or []),
+            "factor_applied": float(base_conversion.factor_applied or 1.0),
+        }
+    )
 
 
 @blueprint.post("/admin/test")

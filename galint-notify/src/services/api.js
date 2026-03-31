@@ -32,7 +32,7 @@ class NotifyApiService {
       const parsed = new URL(value);
       const protocol = parsed.protocol || 'http:';
       const hostname = parsed.hostname;
-      const port = parsed.port || (protocol === 'https:' ? '443' : '5000');
+      const port = parsed.port || '';
       return `${protocol}//${hostname}${port ? `:${port}` : ''}`;
     } catch {
       return value.replace(/\/$/, '');
@@ -47,7 +47,7 @@ class NotifyApiService {
       return `Servidor respondeu com status ${error.response.status}.`;
     }
     if (error?.message === 'Network Error') {
-      return 'Falha de rede ao acessar o servidor. Verifique IP, porta e se o Android pode acessar HTTP local.';
+      return 'Falha de rede ao acessar o servidor. Verifique a URL base informada e se o dispositivo consegue alcançar esse endereço.';
     }
     return error?.message || 'Erro de comunicação com o servidor.';
   }
@@ -77,18 +77,19 @@ class NotifyApiService {
   parseServerConfig(baseURL) {
     const normalized = this.normalizeBaseUrl(baseURL);
     if (!normalized) {
-      return { host: '', port: '5000', baseUrl: '' };
+      return { scheme: 'http', host: '', port: '', baseUrl: '' };
     }
 
     try {
       const parsed = new URL(normalized);
       return {
+        scheme: (parsed.protocol || 'http:').replace(':', ''),
         host: parsed.hostname || '',
-        port: parsed.port || (parsed.protocol === 'https:' ? '443' : '5000'),
+        port: parsed.port || '',
         baseUrl: normalized,
       };
     } catch {
-      return { host: '', port: '5000', baseUrl: normalized };
+      return { scheme: 'http', host: '', port: '', baseUrl: normalized };
     }
   }
 
@@ -102,15 +103,30 @@ class NotifyApiService {
     const storedBase = values[STORAGE_KEYS.baseUrl] || Constants.expoConfig?.extra?.defaultServerUrl || '';
     const parsed = this.parseServerConfig(storedBase);
     return {
-      host: values[STORAGE_KEYS.serverHost] || parsed.host || '192.168.1.41',
-      port: values[STORAGE_KEYS.serverPort] || parsed.port || '5000',
-      baseUrl: parsed.baseUrl || this.normalizeBaseUrl(`http://${values[STORAGE_KEYS.serverHost] || '192.168.1.41'}:${values[STORAGE_KEYS.serverPort] || '5000'}`),
+      scheme: parsed.scheme || 'http',
+      host: values[STORAGE_KEYS.serverHost] || parsed.host || '',
+      port: values[STORAGE_KEYS.serverPort] || parsed.port || '',
+      baseUrl: parsed.baseUrl || this.normalizeBaseUrl(`http://${values[STORAGE_KEYS.serverHost] || ''}${values[STORAGE_KEYS.serverPort] ? `:${values[STORAGE_KEYS.serverPort]}` : ''}`),
     };
   }
 
-  async saveServerConfig({ host, port }) {
-    const baseUrl = this.normalizeBaseUrl(`http://${(host || '').trim()}:${(port || '').trim() || '5000'}`);
-    await this.initialize(baseUrl);
+  async saveServerConfig({ baseUrl, host, port, scheme }) {
+    let resolvedBaseUrl = this.normalizeBaseUrl(baseUrl || '');
+    if (!resolvedBaseUrl) {
+      const protocol = (scheme || 'http').trim() || 'http';
+      const hostValue = (host || '').trim();
+      const portValue = (port || '').trim();
+      resolvedBaseUrl = this.normalizeBaseUrl(`${protocol}://${hostValue}${portValue ? `:${portValue}` : ''}`);
+    }
+    if (!resolvedBaseUrl) {
+      throw new Error('Informe uma URL base válida.');
+    }
+    const parsed = this.parseServerConfig(resolvedBaseUrl);
+    await AsyncStorage.multiSet([
+      [STORAGE_KEYS.serverHost, parsed.host || ''],
+      [STORAGE_KEYS.serverPort, parsed.port || ''],
+    ]);
+    await this.initialize(resolvedBaseUrl);
     return this.getServerConfig();
   }
 
@@ -120,8 +136,13 @@ class NotifyApiService {
       STORAGE_KEYS.serverPort,
       STORAGE_KEYS.baseUrl,
     ]);
-    const fallback = Constants.expoConfig?.extra?.defaultServerUrl || 'http://192.168.1.41:5000';
-    await this.initialize(fallback);
+    const fallback = this.normalizeBaseUrl(Constants.expoConfig?.extra?.defaultServerUrl || '');
+    if (fallback) {
+      await this.initialize(fallback);
+    } else {
+      this.baseURL = '';
+      this.client = null;
+    }
     return this.getServerConfig();
   }
 
@@ -180,7 +201,7 @@ class NotifyApiService {
   async testConnection(baseUrl) {
     const normalized = this.normalizeBaseUrl(baseUrl || this.baseURL);
     if (!normalized) {
-      throw new Error('Informe IP e porta do servidor.');
+      throw new Error('Informe a URL base do servidor.');
     }
 
     try {
@@ -234,6 +255,37 @@ class NotifyApiService {
       url: `${this.baseURL}/api/notify/reports/${reportId}/download?${query}`,
       token,
     };
+  }
+
+  resolveAssetUrl(assetUrl) {
+    const value = (assetUrl || '').trim();
+    if (!value) {
+      return null;
+    }
+    if (/^https?:\/\//i.test(value)) {
+      return value;
+    }
+    if (!this.baseURL) {
+      return value;
+    }
+    if (value.startsWith('/')) {
+      return `${this.baseURL}${value}`;
+    }
+    return `${this.baseURL}/static/${value.replace(/^static\//i, '')}`;
+  }
+
+  async searchToolItems(query) {
+    const response = await this.client.get('/api/notify/tools/items/search', { params: { q: query } });
+    return response.data;
+  }
+
+  async convertToolUnits({ codigoItem, quantity, fromUnit }) {
+    const response = await this.client.post('/api/notify/tools/convert', {
+      codigo_item: codigoItem,
+      quantity,
+      from_unit: fromUnit,
+    });
+    return response.data;
   }
 }
 

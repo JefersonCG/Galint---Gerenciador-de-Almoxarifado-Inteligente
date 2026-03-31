@@ -1399,7 +1399,14 @@
                             <label class="form-label" for="preco_compra_unitario">Preço de compra (R$)</label>
                             <input class="form-control" id="preco_compra_unitario" name="preco_compra_unitario" type="number" step="0.01" min="0"
                                 value="{{ form_item.preco_compra_unitario if form_item and form_item.preco_compra_unitario is not none else '' }}" {% if finance_locked %}readonly{% endif %}>
-                            <small class="form-text">Informe o preço unitário da unidade interna do item. Esse valor é usado no “investido”.</small>
+                            <small class="form-text">Informe o preço unitário na unidade selecionada ao lado. O sistema converte automaticamente para a unidade base.</small>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="preco_compra_unidade_preco">Unidade do preço</label>
+                            <select class="form-select" id="preco_compra_unidade_preco" name="preco_compra_unidade_preco"
+                                data-initial-value="{{ form_item.preco_compra_unidade_preco if form_item and form_item.preco_compra_unidade_preco else '' }}" {% if finance_locked %}disabled{% endif %}>
+                            </select>
+                            <small class="form-text">Use a unidade em que o valor foi cotado ou lançado no documento.</small>
                         </div>
                         <div class="form-group">
                             <label class="form-label" for="preco_compra_fonte">Fonte (compra)</label>
@@ -1475,7 +1482,14 @@
                             <label class="form-label" for="preco_reposicao_unitario">Preço de reposição (R$)</label>
                             <input class="form-control" id="preco_reposicao_unitario" name="preco_reposicao_unitario" type="number" step="0.01" min="0"
                                 value="{{ form_item.preco_reposicao_unitario if form_item and form_item.preco_reposicao_unitario is not none else '' }}" {% if finance_locked %}readonly{% endif %}>
-                            <small class="form-text">Informe o preço unitário da unidade interna do item. Pode ser preenchido manualmente ou via “Buscar preço…” no modal do item.</small>
+                            <small class="form-text">Informe o preço unitário na unidade selecionada ao lado. Pode ser preenchido manualmente ou via “Buscar preço…” no modal do item.</small>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="preco_reposicao_unidade_preco">Unidade do preço</label>
+                            <select class="form-select" id="preco_reposicao_unidade_preco" name="preco_reposicao_unidade_preco"
+                                data-initial-value="{{ form_item.preco_reposicao_unidade_preco if form_item and form_item.preco_reposicao_unidade_preco else '' }}" {% if finance_locked %}disabled{% endif %}>
+                            </select>
+                            <small class="form-text">Escolha a unidade da cotação de mercado ou do valor manual informado.</small>
                         </div>
                         <div class="form-group">
                             <label class="form-label" for="preco_reposicao_uf">UF</label>
@@ -2067,13 +2081,17 @@ Conversão: 1 saco = 20 quilos</div>
             </div>
             <div class="modal-body">
                 <div class="row g-3 align-items-end">
-                    <div class="col-md-8">
+                    <div class="col-md-6">
                         <label class="form-label" for="price-query">Busca</label>
                         <input class="form-control" id="price-query" placeholder="Ex.: cimento 50kg Votoran">
                     </div>
                     <div class="col-md-2">
                         <label class="form-label" for="price-uf">UF</label>
                         <input class="form-control text-uppercase" id="price-uf" maxlength="2" placeholder="SP">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label" for="price-unit">Unidade</label>
+                        <select class="form-select" id="price-unit"></select>
                     </div>
                     <div class="col-md-2 d-grid">
                         <button class="btn btn-primary" type="button" id="price-refresh-btn" onclick="window.refreshPriceSuggestionsFromForm(event)">
@@ -2410,6 +2428,9 @@ Conversão: 1 saco = 20 quilos</div>
     const advancedAddUnitButton = document.getElementById('advanced-add-unit');
     const advancedAddConversionButton = document.getElementById('advanced-add-conversion');
     const advancedApplyButton = document.getElementById('advanced-units-apply');
+    const precoCompraUnidadePrecoSelect = document.getElementById('preco_compra_unidade_preco');
+    const precoReposicaoUnidadePrecoSelect = document.getElementById('preco_reposicao_unidade_preco');
+    const priceModalUnitSelect = document.getElementById('price-unit');
     const advancedDimensionOptions = [
         { value: 'unit', label: 'Unidade' },
         { value: 'mass', label: 'Massa' },
@@ -2438,6 +2459,101 @@ Conversão: 1 saco = 20 quilos</div>
         : null;
     let shouldRestoreAdvancedUnitsModal = false;
     let advancedUnitSettings = JSON.parse(JSON.stringify(initialAdvancedUnitSettings || { dimensions: [], units: [], conversions: [] }));
+    let currentPriceItem = null;
+
+    function normalizePriceUnitCode(value) {
+        return String(value || '').trim().toLowerCase();
+    }
+
+    function resolvePriceUnitLabel(code, fallbackLabel = '') {
+        const normalizedCode = normalizePriceUnitCode(code);
+        if (!normalizedCode) {
+            return fallbackLabel || 'Unidade';
+        }
+        const preset = advancedUnitPresetCatalog.find((option) => option.code === normalizedCode);
+        if (preset?.label) {
+            return preset.label;
+        }
+        if (fallbackLabel) {
+            return fallbackLabel;
+        }
+        return normalizedCode.charAt(0).toUpperCase() + normalizedCode.slice(1);
+    }
+
+    function getCurrentPriceUnitOptions() {
+        const normalizedSettings = normalizeAdvancedUnitSettings(advancedUnitSettings);
+        const options = [];
+        const seen = new Set();
+        const addOption = (code, label, isBase = false) => {
+            const normalizedCode = normalizePriceUnitCode(code);
+            if (!normalizedCode || seen.has(normalizedCode)) {
+                return;
+            }
+            seen.add(normalizedCode);
+            options.push({
+                code: normalizedCode,
+                label: resolvePriceUnitLabel(normalizedCode, String(label || '').trim()),
+                isBase: Boolean(isBase),
+            });
+        };
+
+        normalizedSettings.units
+            .filter((row) => row?.active !== false)
+            .forEach((row) => addOption(row.unit_code, row.unit_label, row.is_base));
+
+        addOption(unidadeSelect?.value || 'unidade', unidadeSelect?.value || 'Unidade', true);
+
+        const packagingType = normalizePriceUnitCode(document.querySelector('input[name="tipo_embalagem_novo"]:checked')?.value || '');
+        const packagingQuantity = Number(unidadesPorEmbalagemInput?.value || 0);
+        if (packagingType && Number.isFinite(packagingQuantity) && packagingQuantity > 0) {
+            addOption(packagingType, resolvePriceUnitLabel(packagingType), false);
+        }
+
+        if (!options.length) {
+            addOption('unidade', 'Unidade', true);
+        }
+        return options;
+    }
+
+    function resolvePreferredPriceUnit(options, preferredCode = '') {
+        const normalizedPreferred = normalizePriceUnitCode(preferredCode);
+        if (normalizedPreferred && options.some((option) => option.code === normalizedPreferred)) {
+            return normalizedPreferred;
+        }
+
+        const packagingType = normalizePriceUnitCode(document.querySelector('input[name="tipo_embalagem_novo"]:checked')?.value || '');
+        if (packagingType && options.some((option) => option.code === packagingType)) {
+            return packagingType;
+        }
+
+        return options.find((option) => option.isBase)?.code || options[0]?.code || '';
+    }
+
+    function renderPriceUnitSelect(selectEl, preferredCode = '') {
+        if (!selectEl) {
+            return '';
+        }
+        const options = getCurrentPriceUnitOptions();
+        const currentValue = normalizePriceUnitCode(selectEl.value || selectEl.dataset.initialValue || preferredCode);
+        const selectedCode = resolvePreferredPriceUnit(options, currentValue);
+        selectEl.innerHTML = options.map((option) => `
+            <option value="${option.code}" ${option.code === selectedCode ? 'selected' : ''}>${option.label}</option>
+        `).join('');
+        selectEl.dataset.initialValue = selectedCode;
+        selectEl.value = selectedCode;
+        return selectedCode;
+    }
+
+    function refreshPriceUnitSelectors() {
+        renderPriceUnitSelect(precoCompraUnidadePrecoSelect, precoCompraUnidadePrecoSelect?.dataset.initialValue || '');
+        renderPriceUnitSelect(precoReposicaoUnidadePrecoSelect, precoReposicaoUnidadePrecoSelect?.dataset.initialValue || '');
+        if (priceModalUnitSelect && currentPriceItem) {
+            renderPriceUnitSelect(
+                priceModalUnitSelect,
+                currentPriceItem.preco_reposicao_unidade_preco || precoReposicaoUnidadePrecoSelect?.value || ''
+            );
+        }
+    }
 
     function setAdvancedUnitsPanelVisible(visible) {
         if (!advancedUnitsModalElement) {
@@ -2568,6 +2684,7 @@ Conversão: 1 saco = 20 quilos</div>
         if (advancedUnitSettingsInput) {
             advancedUnitSettingsInput.value = JSON.stringify(normalizedSettings);
         }
+        refreshPriceUnitSelectors();
     }
 
     function getAdvancedUnitPreset(row) {
@@ -2918,6 +3035,7 @@ Conversão: 1 saco = 20 quilos</div>
     if (unidadeSelect) {
         unidadeSelect.addEventListener('change', function() {
             toggleTabUnidadesDinamicas();
+            refreshPriceUnitSelectors();
             if (this.value === 'Litro') {
                 // Selecionar automaticamente o tipo de embalagem "Litro"
                 const tipoLitroRadio = document.getElementById('tipo_litro');
@@ -3080,6 +3198,7 @@ Conversão: 1 saco = 20 quilos</div>
         }
         
         atualizarPreviewEmbalagem();
+                refreshPriceUnitSelectors();
     }
 
     function atualizarPreviewEmbalagem() {
@@ -3402,6 +3521,7 @@ Conversão: 1 saco = 20 quilos</div>
     atualizarCamposEmbalagemNovo();
     maybeSuggestBombonaFromDescription();
     initializeAdvancedUnitSettings();
+    refreshPriceUnitSelectors();
 
     advancedAddUnitButton?.addEventListener('click', () => {
         const enabledDimension = advancedUnitSettings.dimensions.find((row) => row.enabled)?.dimension || 'unit';
@@ -4520,7 +4640,6 @@ if (confirmFotoUrl) {
     const precoReposicaoUfInput = document.getElementById('preco_reposicao_uf');
     const precoReposicaoUrlInput = document.getElementById('preco_reposicao_url');
     const precoReposicaoQueryInput = document.getElementById('preco_reposicao_query');
-    let currentPriceItem = null;
     let priceSuggestions = [];
     let lastPriceStats = null;
     let selectedSuggestionIndex = null;
@@ -4595,16 +4714,18 @@ if (confirmFotoUrl) {
 
         const qEl = document.getElementById('price-query');
         const ufEl = document.getElementById('price-uf');
+        const unitEl = document.getElementById('price-unit');
         const manualEl = document.getElementById('price-manual');
         const resultsEl = document.getElementById('price-results');
         const providersEl = document.getElementById('price-providers');
         const statsEl = document.getElementById('price-stats');
         const emptyEl = document.getElementById('price-empty');
 
-        if (!qEl || !ufEl || !manualEl || !resultsEl || !providersEl || !statsEl || !emptyEl) return;
+        if (!qEl || !ufEl || !unitEl || !manualEl || !resultsEl || !providersEl || !statsEl || !emptyEl) return;
 
         qEl.value = buildDefaultPriceQuery(item);
         ufEl.value = String(precoReposicaoUfInput?.value || '').trim();
+        renderPriceUnitSelect(unitEl, item?.preco_reposicao_unidade_preco || precoReposicaoUnidadePrecoSelect?.value || '');
         manualEl.value = '';
         resultsEl.innerHTML = '';
         providersEl.innerHTML = '';
@@ -4745,7 +4866,12 @@ if (confirmFotoUrl) {
                 if (!currentPriceItem) return;
                 const qEl = document.getElementById('price-query');
                 const ufEl = document.getElementById('price-uf');
+                const unitEl = document.getElementById('price-unit');
                 const manual = Number(manualEl?.value || 0);
+                const selectedPriceUnit = renderPriceUnitSelect(
+                    unitEl,
+                    unitEl?.value || currentPriceItem?.preco_reposicao_unidade_preco || precoReposicaoUnidadePrecoSelect?.value || ''
+                );
 
                 let chosen = null;
                 if (Number.isFinite(manual) && manual > 0) {
@@ -4769,6 +4895,7 @@ if (confirmFotoUrl) {
                         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
                         body: JSON.stringify({
                             preco_reposicao_unitario: chosen.price,
+                            preco_reposicao_unidade_preco: selectedPriceUnit || null,
                             preco_reposicao_fonte: chosen.source,
                             preco_reposicao_uf: (ufEl?.value || '').trim(),
                             preco_reposicao_query: (qEl?.value || '').trim(),
@@ -4781,8 +4908,12 @@ if (confirmFotoUrl) {
                     }
 
                     const updated = data.item || {};
+                    Object.assign(currentPriceItem, updated);
                     if (precoReposicaoInput && updated.preco_reposicao_unitario != null) {
                         precoReposicaoInput.value = updated.preco_reposicao_unitario;
+                    }
+                    if (precoReposicaoUnidadePrecoSelect) {
+                        renderPriceUnitSelect(precoReposicaoUnidadePrecoSelect, updated.preco_reposicao_unidade_preco || selectedPriceUnit || '');
                     }
                     if (precoReposicaoFonteInput) {
                         precoReposicaoFonteInput.value = updated.preco_reposicao_fonte || '';
@@ -4818,7 +4949,8 @@ if (confirmFotoUrl) {
             descricao: String(btnBuscarPrecoForm.dataset.precoDescricao || ''),
             marca: String(btnBuscarPrecoForm.dataset.precoMarca || ''),
             tipo_embalagem_novo: String(btnBuscarPrecoForm.dataset.precoTipo || ''),
-            unidades_por_embalagem: Number(btnBuscarPrecoForm.dataset.precoUnidades || 0) || 0
+            unidades_por_embalagem: Number(btnBuscarPrecoForm.dataset.precoUnidades || 0) || 0,
+            preco_reposicao_unidade_preco: String(precoReposicaoUnidadePrecoSelect?.value || ''),
         };
         if (!item.codigo) {
             return;

@@ -25,6 +25,28 @@ logger = logging.getLogger(__name__)
 
 class NotificationRouterService:
     @staticmethod
+    def _deliver_notify_mirror(prepared_notify_payload: dict[str, Any], config: NotificationRouterConfig) -> dict[str, Any] | None:
+        if not NotificationRouterService.notify_available(config):
+            return None
+        try:
+            return GalintNotifyService.deliver_message(**prepared_notify_payload)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Espelhamento para GalintNotify falhou: %s", exc)
+            return {"success": False, "error": str(exc)}
+
+    @staticmethod
+    def _prepare_notify_payload(notify_payload: dict[str, Any]) -> dict[str, Any]:
+        prepared = dict(notify_payload or {})
+        payload = dict(prepared.get("payload") or {})
+        visual_payload = payload.get("visual") if isinstance(payload.get("visual"), dict) else None
+        if visual_payload is not None and not isinstance(payload.get("media"), dict):
+            media_payload = operation_visual_payload_service.build_media_payload(visual_payload)
+            if media_payload:
+                payload["media"] = media_payload
+        prepared["payload"] = payload
+        return prepared
+
+    @staticmethod
     def get_config() -> NotificationRouterConfig:
         config = NotificationRouterConfig.query.first()
         if config is None:
@@ -81,6 +103,7 @@ class NotificationRouterService:
         config = NotificationRouterService.get_config()
         default_channel = (config.default_channel or "telegram").strip().lower()
         attempted: list[str] = []
+        prepared_notify_payload = NotificationRouterService._prepare_notify_payload(notify_payload)
 
         if default_channel == "notify":
             channel_order = ["notify", "telegram"]
@@ -101,7 +124,14 @@ class NotificationRouterService:
                         NotificationRouterService.record_telegram_failure(error, elapsed, config)
                         continue
                     NotificationRouterService.record_telegram_success(config)
-                    return {"success": True, "channel": "telegram", "result": result, "attempted": attempted}
+                    notify_mirror = NotificationRouterService._deliver_notify_mirror(prepared_notify_payload, config)
+                    return {
+                        "success": True,
+                        "channel": "telegram",
+                        "result": result,
+                        "attempted": attempted,
+                        "notify_mirror": notify_mirror,
+                    }
                 except Exception as exc:  # noqa: BLE001
                     elapsed = time.perf_counter() - started
                     NotificationRouterService.record_telegram_failure(str(exc), elapsed, config)
@@ -112,7 +142,7 @@ class NotificationRouterService:
                 if not NotificationRouterService.notify_available(config):
                     continue
                 attempted.append("notify")
-                result = GalintNotifyService.deliver_message(**notify_payload)
+                result = GalintNotifyService.deliver_message(**prepared_notify_payload)
                 if result.get("success"):
                     return {"success": True, "channel": "notify", "result": result, "attempted": attempted}
 
@@ -258,6 +288,45 @@ class NotificationRouterService:
         return NotificationRouterService.route_event(
             event_name="item_created",
             telegram_callable=lambda: TelegramService.notify_item_created(codigo, entrada_inicial=entrada_inicial),
+            notify_payload=payload,
+        )
+
+    @staticmethod
+    def route_item_updated(
+        codigo: str,
+        *,
+        prev: dict[str, Any] | None = None,
+        prev_balance: int | None = None,
+    ) -> dict[str, Any]:
+        item = Item.query.get(codigo)
+        recipients = NotificationRouterService._resolve_item_recipients(item)
+        visual_payload = operation_visual_payload_service.build_for_item(
+            item,
+            kind="item_updated",
+            kind_label="Item atualizado",
+            item_code=codigo,
+            source_label="atualizacao de cadastro",
+            context={
+                "observacao": "Cadastro do item atualizado no GALINT.",
+            },
+        )
+        payload = {
+            "recipient_ids": recipients,
+            "title": "Item atualizado",
+            "body": f"Item {codigo} - {item.descricao if item else 'Sem descrição'} foi atualizado no GALINT.",
+            "category": "item",
+            "message_type": "item_updated",
+            "payload": {
+                "kind": "item_updated",
+                "codigo": codigo,
+                "prev": prev or {},
+                "prevBalance": prev_balance,
+                "visual": visual_payload,
+            },
+        }
+        return NotificationRouterService.route_event(
+            event_name="item_updated",
+            telegram_callable=lambda: TelegramService.notify_item_updated(codigo, prev=prev, prev_balance=prev_balance),
             notify_payload=payload,
         )
 

@@ -571,9 +571,9 @@ ${parent.scripts()}
     }
 
     async function fetchItemSuggestions(query) {
-        const response = await fetch(itemSearchUrl + '?q=' + encodeURIComponent(query), {
+        const response = await window.galintFetchWithAuth(itemSearchUrl + '?q=' + encodeURIComponent(query), {
             headers: { 'Accept': 'application/json' }
-        });
+        }, 'Sua sessão expirou durante a busca de itens. Faça login novamente.');
         if (!response.ok) {
             throw new Error('Falha ao buscar itens');
         }
@@ -950,6 +950,9 @@ ${parent.scripts()}
                 }
                 showAutocompleteCodigo(currentItens);
             } catch (error) {
+                if (error && error.isAuthRedirect) {
+                    return;
+                }
                 console.error('Erro ao buscar itens:', error);
                 if (requestId === itemSearchRequestId) {
                     currentItens = [];
@@ -1136,7 +1139,11 @@ ${parent.scripts()}
         btnRegistrar.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Buscando...';
         
         try {
-            const response = await fetch('/movimentos/item-info/' + encodeURIComponent(codigo));
+            const response = await window.galintFetchWithAuth(
+                '/movimentos/item-info/' + encodeURIComponent(codigo),
+                undefined,
+                'Sua sessão expirou ao consultar o item. Faça login novamente.'
+            );
             const data = await response.json();
             
             if (!data.found || !data.descricao) {
@@ -1172,6 +1179,9 @@ ${parent.scripts()}
             }
             
         } catch (error) {
+            if (error && error.isAuthRedirect) {
+                return;
+            }
             alert(error.message || 'Erro ao buscar item');
         } finally {
             btnRegistrar.disabled = false;
@@ -1241,13 +1251,13 @@ ${parent.scripts()}
             // Atenção: não usar template string com ${...} aqui, pois o Mako interpreta e quebra a página.
             formData.append('observacao', 'Retirada fracionada: ' + quantidade + ' ' + String(unidadeSelecionada || '').toUpperCase());
             
-            const response = await fetch('${url_for("movements.registrar_saida")}', {
+            const response = await window.galintFetchWithAuth('${url_for("movements.registrar_saida")}', {
                 method: 'POST',
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest'
                 },
                 body: formData
-            });
+            }, 'Sua sessão expirou antes de concluir a saída fracionada. Faça login novamente.');
             
             if (response.ok) {
                 const data = await response.json();
@@ -1285,6 +1295,9 @@ ${parent.scripts()}
                 }
             }
         } catch (error) {
+            if (error && error.isAuthRedirect) {
+                return;
+            }
             alert('Erro de conexão: ' + error.message);
         } finally {
             btnConfirmarQuantidade.disabled = false;
@@ -1319,7 +1332,11 @@ ${parent.scripts()}
         const codigo = String(inputCodigo.value || '').trim();
         if (!codigo) return;
         try {
-            const response = await fetch('/movimentos/item-info/' + encodeURIComponent(codigo));
+            const response = await window.galintFetchWithAuth(
+                '/movimentos/item-info/' + encodeURIComponent(codigo),
+                undefined,
+                'Sua sessão expirou ao carregar o preview do item. Faça login novamente.'
+            );
             const data = await response.json();
             if (!response.ok || !data || !data.found) return;
             pendingItem = {
@@ -1337,6 +1354,9 @@ ${parent.scripts()}
             };
             renderCurrentPreview(pendingItem, 'preview');
         } catch (error) {
+            if (error && error.isAuthRedirect) {
+                return;
+            }
             console.error('Erro ao carregar preview fracionado:', error);
         }
     });

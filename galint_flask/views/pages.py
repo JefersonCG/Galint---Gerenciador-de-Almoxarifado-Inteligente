@@ -470,15 +470,13 @@ def _test_mobile_endpoint(url: str) -> tuple[bool, str]:
 def update_rede():
     _require_admin()
 
-    server_host = (request.form.get("server_host") or "").strip()
-    server_port = request.form.get("server_port")
+    base_url = (request.form.get("base_url") or "").strip()
     intent = (request.form.get("intent") or "save").strip().lower()
 
     try:
         settings = save_network_settings(
             current_app,
-            server_host=server_host,
-            server_port=server_port,
+            base_url=base_url,
         )
         flash("Configurações de rede salvas.", "success")
     except ValueError as exc:

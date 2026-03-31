@@ -9,7 +9,7 @@ if str(ROOT) not in sys.path:
 
 from app import create_app
 from galint_flask.models import StockBalance
-from galint_flask.services.ledger_backfill import ledger_backfill_service
+from galint_flask.services.ledger_backfill_normalized import ledger_backfill_service
 from galint_flask.services.ledger_reconciliation import ledger_reconciliation_service
 from scripts.ledger_maintenance_utils import build_report_path, persist_execution_report, resolve_exit_code
 

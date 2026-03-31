@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timezone
 import json
+import math
 from pathlib import Path
 import sqlite3
 from typing import Any
@@ -10,8 +11,9 @@ from typing import Any
 from sqlalchemy.exc import IntegrityError
 
 from ..extensions import db
-from ..models import StockBalance, StockMovement
+from ..models import Item, StockBalance, StockMovement
 from .balance_provider import balance_provider
+from .legacy_stock_normalizer import is_packaging_unit_code, resolve_packaging_factor
 from .operation_log_service import operation_log_service
 from .unit_conversion_engine import ConversionResult, UnitConversionEngine, unit_conversion_engine
 
@@ -38,6 +40,24 @@ class InventoryOperationResult:
 
 class InventoryEngine:
     """Novo núcleo transacional de estoque em paralelo ao legado."""
+
+    _UNIT_ALIASES = {
+        "unidade": "un",
+        "unidades": "un",
+        "litro": "l",
+        "litros": "l",
+        "metro": "m",
+        "metros": "m",
+        "quilo": "kg",
+        "quilos": "kg",
+        "caixas": "caixa",
+        "pacotes": "pacote",
+        "rolos": "rolo",
+        "latas": "lata",
+        "baldes": "balde",
+        "bombonas": "bombona",
+        "sacos": "saco",
+    }
 
     def __init__(self, conversion_engine: UnitConversionEngine | None = None):
         self._conversion_engine = conversion_engine or unit_conversion_engine
@@ -143,6 +163,165 @@ class InventoryEngine:
             },
         )
 
+    def sync_packaging_read_model(
+        self,
+        *,
+        product_id: str,
+        commit: bool = True,
+    ) -> bool:
+        product_id = (product_id or "").strip()
+        if not product_id:
+            raise InventoryEngineError("product_id é obrigatório")
+
+        item = db.session.get(Item, product_id)
+        if item is None:
+            raise InventoryEngineError("Produto não encontrado")
+
+        balance_snapshot = balance_provider.get_balance(product_id, item=item)
+        changed = self._sync_packaging_state_to_balance(
+            item=item,
+            quantity_base=float(balance_snapshot.quantity_base or 0.0),
+            unit_base=balance_snapshot.unit_base,
+        )
+        if changed:
+            if commit:
+                db.session.commit()
+            else:
+                db.session.flush()
+        return changed
+
+    @classmethod
+    def _normalize_unit_code(cls, value: str | None) -> str:
+        raw = (value or "").strip().lower()
+        if not raw:
+            return ""
+        return cls._UNIT_ALIASES.get(raw, raw)
+
+    @classmethod
+    def _is_packaging_input_unit(cls, item: Item, from_unit: str | None) -> bool:
+        unit_code = cls._normalize_unit_code(from_unit)
+        if not unit_code:
+            return False
+
+        packaging_units = {
+            cls._normalize_unit_code(item.tipo_embalagem_novo),
+            cls._normalize_unit_code(item.unidade),
+        }
+        packaging_units.update(
+            cls._normalize_unit_code(unit.unit_code)
+            for unit in item.product_units
+            if unit.active and unit.unit_code
+        )
+        packaging_units = {unit for unit in packaging_units if unit and is_packaging_unit_code(unit)}
+        return unit_code in packaging_units or is_packaging_unit_code(unit_code)
+
+    @classmethod
+    def _decompose_packaging_balance(
+        cls,
+        *,
+        item: Item,
+        quantity_base: float,
+        unit_base: str | None,
+    ) -> tuple[float, float]:
+        quantity_value = max(float(quantity_base or 0.0), 0.0)
+        if quantity_value <= 1e-6:
+            return 0.0, 0.0
+
+        unit_code = cls._normalize_unit_code(unit_base)
+        if unit_code and is_packaging_unit_code(unit_code):
+            return quantity_value, 0.0
+
+        factor = float(resolve_packaging_factor(item) or 0.0)
+        if factor <= 0:
+            return quantity_value, 0.0
+
+        embalagens = float(math.floor((quantity_value + 1e-9) / factor))
+        unidades_soltas = quantity_value - (embalagens * factor)
+        if abs(unidades_soltas) <= 1e-6:
+            unidades_soltas = 0.0
+        if unidades_soltas < 0 and abs(unidades_soltas) <= 1e-6:
+            unidades_soltas = 0.0
+        return embalagens, float(unidades_soltas)
+
+    @classmethod
+    def _sync_packaging_state_to_balance(
+        cls,
+        *,
+        item: Item,
+        quantity_base: float,
+        unit_base: str | None,
+    ) -> bool:
+        from .embalagem_service import EmbalagemService
+
+        if not EmbalagemService.tem_embalagem(item):
+            return False
+
+        embalagens, unidades_soltas = cls._decompose_packaging_balance(
+            item=item,
+            quantity_base=quantity_base,
+            unit_base=unit_base,
+        )
+        current_embalagens = float(item.estoque_embalagens or 0.0)
+        current_soltas = float(item.estoque_unidades_soltas or 0.0)
+        if abs(current_embalagens - embalagens) <= 1e-6 and abs(current_soltas - unidades_soltas) <= 1e-6:
+            return False
+
+        item.estoque_embalagens = embalagens
+        item.estoque_unidades_soltas = unidades_soltas
+        return True
+
+    def _sync_packaging_read_model_before_operation(
+        self,
+        *,
+        item: Item,
+        movement_type: str,
+        balance_delta_sign: int,
+        quantity_input: float,
+        from_unit: str,
+        balance_before: float,
+        unit_base: str | None,
+        metadata: dict[str, Any],
+    ) -> None:
+        from .embalagem_service import EmbalagemService
+
+        if metadata.get("mirrored_from_legacy"):
+            return
+        if not EmbalagemService.tem_embalagem(item):
+            return
+
+        self._sync_packaging_state_to_balance(
+            item=item,
+            quantity_base=balance_before,
+            unit_base=unit_base,
+        )
+
+        em_embalagens = self._is_packaging_input_unit(item, from_unit)
+        movement_type_norm = (movement_type or "").strip().lower()
+
+        if movement_type_norm in {"entrada", "devolucao"} or (
+            movement_type_norm == "ajuste" and balance_delta_sign >= 0
+        ):
+            novas_embalagens, novas_unidades_soltas = EmbalagemService.processar_entrada(
+                item,
+                float(quantity_input),
+                em_embalagens,
+            )
+        elif movement_type_norm == "saida" or (
+            movement_type_norm == "ajuste" and balance_delta_sign < 0
+        ):
+            novas_embalagens, novas_unidades_soltas, sucesso = EmbalagemService.processar_saida(
+                item,
+                float(quantity_input),
+                em_embalagens,
+            )
+            if not sucesso:
+                raise InventoryEngineError("Saldo insuficiente para concluir a operação")
+        else:
+            return
+
+        item.estoque_embalagens = novas_embalagens
+        item.estoque_unidades_soltas = novas_unidades_soltas
+
     def _execute_operation(
         self,
         *,
@@ -198,7 +377,11 @@ class InventoryEngine:
         if not product_id:
             raise InventoryEngineError("product_id é obrigatório")
 
-        conversion = self._conversion_engine.convert_to_base(product_id, quantity, from_unit)
+        item = db.session.get(Item, product_id)
+        if item is None:
+            raise InventoryEngineError("Produto não encontrado")
+
+        conversion = self._conversion_engine.convert_item_to_base(item, quantity, from_unit)
         balance_snapshot = balance_provider.get_balance(product_id)
         balance_before = float(balance_snapshot.quantity_base)
         quantity_delta = float(conversion.quantity_base) * float(balance_delta_sign)
@@ -234,6 +417,17 @@ class InventoryEngine:
             "factor_applied": conversion.factor_applied,
         }
         movement.created_at = datetime.now(timezone.utc).replace(tzinfo=None)
+
+        self._sync_packaging_read_model_before_operation(
+            item=item,
+            movement_type=movement_type,
+            balance_delta_sign=balance_delta_sign,
+            quantity_input=float(quantity),
+            from_unit=from_unit,
+            balance_before=balance_before,
+            unit_base=conversion.unit_base,
+            metadata=payload_metadata,
+        )
 
         dual_write_applied = bool(payload_metadata.get("dual_write_active", False))
         operation_log_id: int | None = None

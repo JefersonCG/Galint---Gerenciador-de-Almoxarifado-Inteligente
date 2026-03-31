@@ -7,8 +7,7 @@ import api from '../services/api';
 import { palette } from '../theme';
 
 export default function LoginScreen({ onLogin }) {
-  const [serverHost, setServerHost] = useState('192.168.1.41');
-  const [serverPort, setServerPort] = useState('5000');
+  const [serverUrl, setServerUrl] = useState('');
   const [matricula, setMatricula] = useState('');
   const [senha, setSenha] = useState('');
   const [loading, setLoading] = useState(false);
@@ -20,8 +19,7 @@ export default function LoginScreen({ onLogin }) {
 
   useEffect(() => {
     api.getServerConfig().then((config) => {
-      setServerHost(config.host);
-      setServerPort(config.port);
+      setServerUrl(config.baseUrl || '');
     }).catch(() => {});
   }, []);
 
@@ -30,12 +28,12 @@ export default function LoginScreen({ onLogin }) {
       if (!matricula.trim() || !senha.trim()) {
         throw new Error('Informe matrícula e senha para entrar.');
       }
-      if (!serverHost.trim()) {
-        throw new Error('Informe IP e porta do servidor.');
+      if (!serverUrl.trim()) {
+        throw new Error('Informe a URL base do servidor.');
       }
 
       setLoading(true);
-      await api.saveServerConfig({ host: serverHost, port: serverPort });
+      await api.saveServerConfig({ baseUrl: serverUrl });
       await onLogin({ matricula, senha });
     } catch (error) {
       Alert.alert('GalintNotify', error.message || 'Falha ao fazer login');
@@ -49,7 +47,7 @@ export default function LoginScreen({ onLogin }) {
       setTesting(true);
       setConnectionStatus('idle');
       setConnectionMessage('');
-      const result = await api.testConnection(`http://${serverHost}:${serverPort}`);
+      const result = await api.testConnection(serverUrl);
       setConnectionStatus('success');
       setConnectionMessage(`Servidor acessível em ${result.baseUrl}`);
     } catch (error) {
@@ -63,8 +61,7 @@ export default function LoginScreen({ onLogin }) {
   async function handleClearConfig() {
     try {
       const config = await api.clearServerConfig();
-      setServerHost(config.host);
-      setServerPort(config.port);
+      setServerUrl(config.baseUrl || '');
       setConnectionStatus('idle');
       setConnectionMessage('Configuração restaurada para o padrão.');
     } catch (error) {
@@ -108,11 +105,9 @@ export default function LoginScreen({ onLogin }) {
         {showConfig ? (
           <View style={styles.configCard}>
             <Text style={styles.configTitle}>Conectar com servidor</Text>
-            <Text style={styles.configHelp}>Preencha IP e porta como no GALINT Mobile. O app monta a URL automaticamente.</Text>
-            <Text style={styles.label}>IP do servidor</Text>
-            <TextInput value={serverHost} onChangeText={setServerHost} style={styles.input} autoCapitalize="none" placeholder="192.168.1.41" placeholderTextColor={palette.muted} />
-            <Text style={styles.label}>Porta</Text>
-            <TextInput value={serverPort} onChangeText={setServerPort} style={styles.input} autoCapitalize="none" keyboardType="numeric" placeholder="5000" placeholderTextColor={palette.muted} />
+            <Text style={styles.configHelp}>Use uma URL base completa. Isso permite LAN hoje e domínio/HTTPS no futuro sem trocar o app.</Text>
+            <Text style={styles.label}>URL base do servidor</Text>
+            <TextInput value={serverUrl} onChangeText={setServerUrl} style={styles.input} autoCapitalize="none" placeholder="http://10.0.0.245:5000 ou https://notify.suaempresa.com" placeholderTextColor={palette.muted} />
             <Pressable style={[styles.secondaryButton, testing && styles.secondaryButtonDisabled]} onPress={handleTestConnection} disabled={testing}>
               {testing ? <ActivityIndicator color={palette.text} /> : <Text style={styles.secondaryButtonText}>Testar conexão</Text>}
             </Pressable>

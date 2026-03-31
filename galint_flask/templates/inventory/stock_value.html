@@ -510,8 +510,11 @@
                             <div class="text-muted small">Sem comprov.: {{ brl(item.sem_comprovacao_valor_exercicio) }}</div>
                         </td>
                         <td>
-                            {% if item.preco_compra_unitario is not none %}
-                            <div>{{ brl(item.preco_compra_unitario) }}</div>
+                            {% if item.preco_compra_unitario_base is not none %}
+                            <div>{{ brl(item.preco_compra_unitario_base) }}</div>
+                            {% if item.preco_compra_unitario is not none and item.preco_compra_unitario != item.preco_compra_unitario_base %}
+                            <div class="text-muted small">Informado: {{ brl(item.preco_compra_unitario) }}{% if item.preco_compra_unidade_preco %} / {{ item.preco_compra_unidade_preco|upper }}{% endif %}</div>
+                            {% endif %}
                             <div class="text-muted small">Atual: {{ brl(item.valor_estoque_compra_total) }}</div>
                             {% else %}
                             <span class="missing">—</span>
@@ -522,8 +525,11 @@
                             <div class="text-muted small">{{ brl(item.consumo_valor_exercicio) }}</div>
                         </td>
                         <td>
-                            {% if item.preco_reposicao_unitario is not none %}
-                            <div>{{ brl(item.preco_reposicao_unitario) }}</div>
+                            {% if item.preco_reposicao_unitario_base is not none %}
+                            <div>{{ brl(item.preco_reposicao_unitario_base) }}</div>
+                            {% if item.preco_reposicao_unitario is not none and item.preco_reposicao_unitario != item.preco_reposicao_unitario_base %}
+                            <div class="text-muted small">Informado: {{ brl(item.preco_reposicao_unitario) }}{% if item.preco_reposicao_unidade_preco %} / {{ item.preco_reposicao_unidade_preco|upper }}{% endif %}</div>
+                            {% endif %}
                             <div class="text-muted small">Atual: {{ brl(item.valor_estoque_reposicao_total) }}</div>
                             {% else %}
                             <span class="missing">—</span>

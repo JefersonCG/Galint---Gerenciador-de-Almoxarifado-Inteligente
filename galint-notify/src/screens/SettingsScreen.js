@@ -7,22 +7,20 @@ import { bootstrapPush } from '../services/push';
 import { palette } from '../theme';
 
 export default function SettingsScreen({ session, onLogout, onServerSaved }) {
-  const [serverHost, setServerHost] = useState('192.168.1.41');
-  const [serverPort, setServerPort] = useState('5000');
+  const [serverUrl, setServerUrl] = useState('');
   const [testing, setTesting] = useState(false);
   const [connectionMessage, setConnectionMessage] = useState('');
   const [connectionStatus, setConnectionStatus] = useState('idle');
 
   useEffect(() => {
     api.getServerConfig().then((config) => {
-      setServerHost(config.host);
-      setServerPort(config.port);
+      setServerUrl(config.baseUrl || '');
     }).catch(() => {});
   }, [session]);
 
   async function save() {
     try {
-      await api.saveServerConfig({ host: serverHost, port: serverPort });
+      await api.saveServerConfig({ baseUrl: serverUrl });
       await onServerSaved();
       Alert.alert('GalintNotify', 'Configuração do servidor atualizada.');
     } catch (error) {
@@ -35,7 +33,7 @@ export default function SettingsScreen({ session, onLogout, onServerSaved }) {
       setTesting(true);
       setConnectionStatus('idle');
       setConnectionMessage('');
-      const result = await api.testConnection(`http://${serverHost}:${serverPort}`);
+      const result = await api.testConnection(serverUrl);
       setConnectionStatus('success');
       setConnectionMessage(`Servidor acessível em ${result.baseUrl}`);
     } catch (error) {
@@ -49,8 +47,7 @@ export default function SettingsScreen({ session, onLogout, onServerSaved }) {
   async function clearServer() {
     try {
       const config = await api.clearServerConfig();
-      setServerHost(config.host);
-      setServerPort(config.port);
+      setServerUrl(config.baseUrl || '');
       setConnectionStatus('idle');
       setConnectionMessage('Configuração restaurada para o padrão.');
       await onServerSaved();
@@ -76,10 +73,8 @@ export default function SettingsScreen({ session, onLogout, onServerSaved }) {
   return (
     <ScreenShell title="Configurações" subtitle="Gerencie URL do GALINT, sessão e registro de push do aparelho.">
       <View style={styles.card}>
-        <Text style={styles.label}>IP do servidor</Text>
-        <TextInput value={serverHost} onChangeText={setServerHost} style={styles.input} autoCapitalize="none" placeholder="192.168.1.41" placeholderTextColor={palette.muted} />
-        <Text style={styles.label}>Porta</Text>
-        <TextInput value={serverPort} onChangeText={setServerPort} style={styles.input} autoCapitalize="none" keyboardType="numeric" placeholder="5000" placeholderTextColor={palette.muted} />
+        <Text style={styles.label}>URL base do servidor</Text>
+        <TextInput value={serverUrl} onChangeText={setServerUrl} style={styles.input} autoCapitalize="none" placeholder="http://10.0.0.245:5000 ou https://notify.suaempresa.com" placeholderTextColor={palette.muted} />
         <Text style={styles.meta}>Usuário atual: {session?.user?.nome || '-'} ({session?.user?.matricula || '-'})</Text>
         <View style={styles.actions}>
           <Pressable style={styles.button} onPress={save}><Text style={styles.buttonText}>Salvar servidor</Text></Pressable>

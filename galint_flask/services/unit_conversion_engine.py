@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from math import isfinite
 
 from ..models import Item, ProductUnitConversion
+from .legacy_stock_normalizer import is_packaging_unit_code, resolve_canonical_unit, resolve_packaging_factor, uses_packaging_legacy_normalization
 
 
 class UnitConversionError(ValueError):
@@ -30,13 +31,34 @@ class UnitConversionEngine:
 
     MAX_DEPTH = 10
 
+    _UNIT_ALIASES = {
+        "unidade": "un",
+        "unidades": "un",
+        "unit": "un",
+        "units": "un",
+        "metro": "m",
+        "metros": "m",
+        "metre": "m",
+        "metres": "m",
+        "litro": "l",
+        "litros": "l",
+        "quilo": "kg",
+        "quilos": "kg",
+        "kilo": "kg",
+        "kilos": "kg",
+        "caixas": "caixa",
+        "pacotes": "pacote",
+        "rolos": "rolo",
+        "latas": "lata",
+        "baldes": "balde",
+        "bombonas": "bombona",
+        "sacos": "saco",
+    }
+
     def convert_to_base(self, product_id: str, quantity: float, from_unit: str) -> ConversionResult:
         product_id = (product_id or "").strip()
-        from_unit = (from_unit or "").strip().lower()
         if not product_id:
             raise UnitConversionError("product_id é obrigatório")
-        if not from_unit:
-            raise UnitConversionError("from_unit é obrigatório")
 
         try:
             quantity_value = float(quantity)
@@ -50,8 +72,23 @@ class UnitConversionEngine:
         if not item:
             raise UnitConversionError("Produto não encontrado")
 
+        return self.convert_item_to_base(item, quantity_value, from_unit)
+
+    def convert_item_to_base(self, item: Item, quantity: float, from_unit: str) -> ConversionResult:
+        from_unit_norm = self._normalize_unit_code(from_unit)
+        if not from_unit_norm:
+            raise UnitConversionError("from_unit é obrigatório")
+
+        try:
+            quantity_value = float(quantity)
+        except (TypeError, ValueError) as exc:
+            raise UnitConversionError("quantity inválida") from exc
+
+        if not isfinite(quantity_value):
+            raise UnitConversionError("quantity inválida")
+
         base_unit = self._get_base_unit(item)
-        if from_unit == base_unit.unit_code:
+        if from_unit_norm == base_unit.unit_code:
             return ConversionResult(
                 quantity_base=quantity_value,
                 unit_base=base_unit.unit_code,
@@ -60,8 +97,26 @@ class UnitConversionEngine:
                 metadata={"mode": "identity"},
             )
 
+        legacy_packaging = self._convert_legacy_packaging(item, quantity_value, from_unit_norm, base_unit.unit_code)
+        if legacy_packaging is not None:
+            quantity_base, factor = legacy_packaging
+            return ConversionResult(
+                quantity_base=quantity_base,
+                unit_base=base_unit.unit_code,
+                conversion_path=[
+                    {
+                        "from_unit": from_unit_norm,
+                        "to_unit": base_unit.unit_code,
+                        "factor": factor,
+                        "source": "legacy_packaging",
+                    }
+                ],
+                factor_applied=factor,
+                metadata={"mode": "legacy_packaging"},
+            )
+
         graph = self._build_graph(item.product_unit_conversions)
-        factor, path = self._find_factor(graph, from_unit, base_unit.unit_code)
+        factor, path = self._find_factor(graph, from_unit_norm, base_unit.unit_code)
         quantity_base = quantity_value * factor
         return ConversionResult(
             quantity_base=quantity_base,
@@ -69,7 +124,7 @@ class UnitConversionEngine:
             conversion_path=path,
             factor_applied=factor,
             metadata={
-                "product_id": product_id,
+                "product_id": item.codigo_item,
                 "steps": len(path),
             },
         )
@@ -77,29 +132,63 @@ class UnitConversionEngine:
     def _get_base_unit(self, item: Item) -> ResolvedBaseUnit:
         base_units = [unit for unit in item.product_units if unit.is_base and unit.active]
         if not base_units:
+            if uses_packaging_legacy_normalization(item):
+                return ResolvedBaseUnit(unit_code=self._normalize_unit_code(resolve_canonical_unit(item)), source="legacy_packaging")
             unidade_item = (item.unidade or "").strip().lower()
             if unidade_item:
-                return ResolvedBaseUnit(unit_code=unidade_item, source="legacy_item_unidade")
+                return ResolvedBaseUnit(unit_code=self._normalize_unit_code(unidade_item), source="legacy_item_unidade")
             tipo_emb = (item.tipo_embalagem_novo or "").strip().lower()
             if tipo_emb:
-                return ResolvedBaseUnit(unit_code=tipo_emb, source="legacy_tipo_embalagem")
+                return ResolvedBaseUnit(unit_code=self._normalize_unit_code(tipo_emb), source="legacy_tipo_embalagem")
             raise UnitConversionError("Produto sem unidade base configurada")
         if len(base_units) > 1:
             raise UnitConversionError("Produto com múltiplas unidades base ativas")
-        return ResolvedBaseUnit(unit_code=base_units[0].unit_code, source="product_unit")
+        return ResolvedBaseUnit(unit_code=self._normalize_unit_code(base_units[0].unit_code), source="product_unit")
 
     def _build_graph(self, conversions: list[ProductUnitConversion]) -> dict[str, list[tuple[str, float]]]:
         graph: dict[str, list[tuple[str, float]]] = {}
         for conversion in conversions:
             if not conversion.active:
                 continue
-            from_unit = (conversion.from_unit or "").strip().lower()
-            to_unit = (conversion.to_unit or "").strip().lower()
+            from_unit = self._normalize_unit_code(conversion.from_unit)
+            to_unit = self._normalize_unit_code(conversion.to_unit)
             factor = float(conversion.factor or 0)
             if not from_unit or not to_unit or factor <= 0:
                 continue
             graph.setdefault(from_unit, []).append((to_unit, factor))
         return graph
+
+    def _convert_legacy_packaging(
+        self,
+        item: Item,
+        quantity_value: float,
+        from_unit: str,
+        base_unit: str,
+    ) -> tuple[float, float] | None:
+        if not uses_packaging_legacy_normalization(item):
+            return None
+        if from_unit == base_unit:
+            return quantity_value, 1.0
+
+        factor = float(resolve_packaging_factor(item) or 0.0)
+        if factor <= 0:
+            return None
+
+        packaging_units = {
+            self._normalize_unit_code(item.tipo_embalagem_novo),
+            self._normalize_unit_code(item.unidade),
+        }
+        packaging_units.discard("")
+
+        if from_unit in packaging_units or is_packaging_unit_code(from_unit):
+            return quantity_value * factor, factor
+        return None
+
+    def _normalize_unit_code(self, value: str | None) -> str:
+        raw = (value or "").strip().lower()
+        if not raw:
+            return ""
+        return self._UNIT_ALIASES.get(raw, raw)
 
     def _find_factor(
         self,

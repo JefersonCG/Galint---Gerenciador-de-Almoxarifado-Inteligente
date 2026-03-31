@@ -16,6 +16,7 @@ from ..services.document_integrity_service import allow_document_quantity_update
 from ..services.finance_service import finance_service
 from ..services.nf_deletion_audit_sqlite import log_document_item_deletion
 from ..services.inventory import inventory_service
+from ..services.price_normalization import infer_price_unit_for_item, normalize_document_line
 
 blueprint = Blueprint("nf", __name__, url_prefix="/nf")
 
@@ -289,6 +290,65 @@ def _get_or_create_document_from_legacy_number(numero_documento: str) -> tuple[D
     return document, created, imported_items
 
 
+def _apply_document_item_normalization(
+    item_row: DocumentoEntradaEstoqueItem,
+    *,
+    quantidade: float,
+    valor_unitario: float | None,
+    valor_total: float | None,
+) -> tuple[float | None, float | None]:
+    quantity_value = float(quantidade or 0.0)
+    unit_price_value = float(valor_unitario) if valor_unitario not in (None, "") else None
+    total_value = float(valor_total) if valor_total not in (None, "") else None
+    if unit_price_value is not None:
+        total_value = round(unit_price_value * quantity_value, 2)
+    elif total_value is not None and quantity_value > 0:
+        unit_price_value = round(total_value / quantity_value, 2)
+
+    item_model = item_row.item or db.session.get(Item, item_row.codigo_item)
+    quantity_unit = (item_row.unidade_quantidade or "").strip().lower()
+    if not quantity_unit and item_model is not None:
+        quantity_unit = infer_price_unit_for_item(item_model)
+    if not quantity_unit and item_model is not None:
+        quantity_unit = (item_model.unidade or "").strip().lower()
+    quantity_unit = quantity_unit or "un"
+
+    price_unit = (item_row.unidade_preco or quantity_unit or "").strip().lower() or quantity_unit
+
+    item_row.quantidade = quantity_value
+    item_row.valor_unitario = unit_price_value
+    item_row.valor_total = total_value
+
+    if item_model is not None:
+        try:
+            normalized = normalize_document_line(
+                item_model,
+                quantity=quantity_value,
+                quantity_unit=quantity_unit,
+                unit_price=unit_price_value,
+                total_price=total_value,
+                price_unit=price_unit,
+            )
+            item_row.unidade_quantidade = normalized.quantity_unit
+            item_row.quantidade_base = float(normalized.quantity_base or 0.0)
+            item_row.valor_unitario_base = normalized.unit_price_base
+            item_row.unidade_preco = normalized.price_unit
+            item_row.fator_preco_base = float(normalized.factor_to_base or 1.0)
+            item_row.valor_total = normalized.total_value
+            if item_row.valor_unitario is None:
+                item_row.valor_unitario = normalized.unit_price_input
+            return item_row.valor_unitario, item_row.valor_total
+        except Exception:
+            pass
+
+    item_row.unidade_quantidade = quantity_unit
+    item_row.quantidade_base = quantity_value
+    item_row.valor_unitario_base = round(total_value / quantity_value, 8) if total_value is not None and quantity_value > 0 else unit_price_value
+    item_row.unidade_preco = price_unit
+    item_row.fator_preco_base = 1.0 if unit_price_value is not None else None
+    return item_row.valor_unitario, item_row.valor_total
+
+
 def _sync_document_financial_entries(documento: DocumentoEntradaEstoque) -> dict[str, int | bool]:
     updated = 0
     skipped = 0
@@ -299,13 +359,13 @@ def _sync_document_financial_entries(documento: DocumentoEntradaEstoque) -> dict
         quantidade = float(item_row.quantidade or 0.0)
         valor_unitario = float(item_row.valor_unitario) if item_row.valor_unitario not in (None, "") else None
         valor_total = float(item_row.valor_total) if item_row.valor_total not in (None, "") else None
-
-        if valor_unitario is not None:
-            valor_total = round(valor_unitario * quantidade, 2)
-            item_row.valor_total = valor_total
-        elif valor_total is not None and quantidade > 0:
-            valor_unitario = round(valor_total / quantidade, 2)
-            item_row.valor_unitario = valor_unitario
+        valor_unitario, valor_total = _apply_document_item_normalization(
+            item_row,
+            quantidade=quantidade,
+            valor_unitario=valor_unitario,
+            valor_total=valor_total,
+        )
+        quantidade = float(item_row.quantidade or 0.0)
 
         query = FinanceLedgerEntry.query.filter(FinanceLedgerEntry.codigo_item == item_row.codigo_item)
         if item_row.entrada_id is not None:
@@ -342,6 +402,11 @@ def _sync_document_financial_entries(documento: DocumentoEntradaEstoque) -> dict
                 data_recebimento_documento=documento.data_recebimento,
                 comprovacao_status="comprovado" if auto_confirmed and auto_origin else "sem_comprovacao",
                 observacao=item_row.observacao or documento.observacao,
+                unidade_quantidade=item_row.unidade_quantidade,
+                quantidade_base=item_row.quantidade_base,
+                valor_unitario_base=item_row.valor_unitario_base,
+                unidade_preco=item_row.unidade_preco,
+                fator_preco_base=item_row.fator_preco_base,
             )
             if ledger_entry is None:
                 skipped += 1
@@ -354,8 +419,13 @@ def _sync_document_financial_entries(documento: DocumentoEntradaEstoque) -> dict
         )
         ledger_entry.data_lancamento = ledger_entry.data_lancamento or datetime.utcnow()
         ledger_entry.quantidade = quantidade
+        ledger_entry.unidade_quantidade = item_row.unidade_quantidade
+        ledger_entry.quantidade_base = item_row.quantidade_base
         if valor_unitario is not None:
             ledger_entry.valor_unitario = valor_unitario
+        ledger_entry.valor_unitario_base = item_row.valor_unitario_base
+        ledger_entry.unidade_preco = item_row.unidade_preco
+        ledger_entry.fator_preco_base = item_row.fator_preco_base
         if valor_total is not None:
             ledger_entry.valor_total = valor_total
         elif valor_unitario is not None:
@@ -377,6 +447,9 @@ def _sync_document_financial_entries(documento: DocumentoEntradaEstoque) -> dict
 
         if item_row.item is not None and valor_unitario is not None:
             item_row.item.preco_compra_unitario = valor_unitario
+            item_row.item.preco_compra_unitario_base = item_row.valor_unitario_base
+            item_row.item.preco_compra_unidade_preco = item_row.unidade_preco
+            item_row.item.preco_compra_fator_base = item_row.fator_preco_base
             item_row.item.preco_compra_fonte = auto_origin or item_row.item.preco_compra_fonte or "compra_nf"
             item_row.item.preco_compra_documento = documento.numero_documento
             item_row.item.preco_compra_chave_acesso = documento.chave_acesso

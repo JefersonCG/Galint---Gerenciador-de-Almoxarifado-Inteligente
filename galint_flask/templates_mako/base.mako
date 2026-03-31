@@ -73,6 +73,64 @@
             });
         });
     </script>
+    <script>
+        window.galintRedirectToLogin = function (loginUrl, message) {
+            if (window.__galintAuthRedirecting) {
+                return;
+            }
+            window.__galintAuthRedirecting = true;
+            if (message) {
+                try {
+                    window.alert(message);
+                } catch (error) {
+                }
+            }
+            const fallbackLoginUrl = '${url_for("auth.login_form")}' + '?next=' + encodeURIComponent(window.location.pathname + window.location.search);
+            window.location.href = loginUrl || fallbackLoginUrl;
+        };
+
+        window.galintEnsureAuthenticatedResponse = async function (response, fallbackMessage) {
+            const defaultMessage = fallbackMessage || 'Sua sessão expirou. Faça login novamente.';
+            const defaultLoginUrl = '${url_for("auth.login_form")}' + '?next=' + encodeURIComponent(window.location.pathname + window.location.search);
+
+            if (response.redirected && response.url && response.url.includes('/auth/login')) {
+                window.galintRedirectToLogin(response.url, defaultMessage);
+                const redirectError = new Error(defaultMessage);
+                redirectError.isAuthRedirect = true;
+                throw redirectError;
+            }
+
+            if (response.status === 401 || response.status === 403) {
+                let loginUrl = defaultLoginUrl;
+                let message = defaultMessage;
+                const contentType = String(response.headers.get('content-type') || '').toLowerCase();
+                if (contentType.includes('application/json')) {
+                    try {
+                        const payload = await response.clone().json();
+                        if (payload && typeof payload.login_url === 'string' && payload.login_url.trim()) {
+                            loginUrl = payload.login_url;
+                        }
+                        if (payload && typeof payload.message === 'string' && payload.message.trim()) {
+                            message = payload.message;
+                        }
+                    } catch (error) {
+                    }
+                }
+                window.galintRedirectToLogin(loginUrl, message);
+                const authError = new Error(message);
+                authError.isAuthRedirect = true;
+                throw authError;
+            }
+
+            return response;
+        };
+
+        window.galintFetchWithAuth = async function (url, options, fallbackMessage) {
+            const requestOptions = Object.assign({ credentials: 'same-origin' }, options || {});
+            const response = await window.fetch(url, requestOptions);
+            return window.galintEnsureAuthenticatedResponse(response, fallbackMessage);
+        };
+    </script>
     <%block name="scripts"></%block>
 </body>
 

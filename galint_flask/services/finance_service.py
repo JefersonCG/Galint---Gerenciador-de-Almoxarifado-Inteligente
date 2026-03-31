@@ -25,6 +25,71 @@ from ..models import (
     StockBalance,
     StockMovement,
 )
+from .price_normalization import infer_price_unit_for_item, normalize_document_line
+
+
+def _normalize_financial_line(
+    item: Item | None,
+    *,
+    quantity: float,
+    valor_unitario: float | None,
+    valor_total: float | None,
+    quantity_unit: str | None = None,
+    price_unit: str | None = None,
+) -> dict[str, Any]:
+    qty = float(quantity or 0.0)
+    raw_unit = float(valor_unitario) if valor_unitario not in (None, "") else None
+    raw_total = float(valor_total) if valor_total not in (None, "") else None
+
+    resolved_quantity_unit = (quantity_unit or "").strip().lower()
+    if not resolved_quantity_unit and item is not None:
+        resolved_quantity_unit = infer_price_unit_for_item(item)
+    if not resolved_quantity_unit:
+        resolved_quantity_unit = "un"
+
+    resolved_price_unit = (price_unit or "").strip().lower() or resolved_quantity_unit
+    if raw_total is None and raw_unit is not None:
+        raw_total = round(raw_unit * qty, 2)
+
+    if item is not None:
+        try:
+            normalized = normalize_document_line(
+                item,
+                quantity=qty,
+                quantity_unit=resolved_quantity_unit,
+                unit_price=raw_unit,
+                total_price=raw_total,
+                price_unit=resolved_price_unit,
+            )
+            return {
+                "quantity": qty,
+                "quantity_unit": normalized.quantity_unit,
+                "quantity_base": float(normalized.quantity_base or 0.0),
+                "unit_price_input": normalized.unit_price_input,
+                "unit_price_base": normalized.unit_price_base,
+                "total_value": normalized.total_value,
+                "price_unit": normalized.price_unit,
+                "factor_to_base": float(normalized.factor_to_base or 1.0),
+            }
+        except Exception:
+            pass
+
+    unit_price_base = None
+    if raw_total is not None and qty > 0:
+        unit_price_base = round(raw_total / qty, 8)
+    elif raw_unit is not None:
+        unit_price_base = raw_unit
+
+    return {
+        "quantity": qty,
+        "quantity_unit": resolved_quantity_unit,
+        "quantity_base": qty,
+        "unit_price_input": raw_unit,
+        "unit_price_base": unit_price_base,
+        "total_value": raw_total,
+        "price_unit": resolved_price_unit,
+        "factor_to_base": 1.0 if raw_unit is not None else None,
+    }
 
 
 class FinanceService:
@@ -831,16 +896,30 @@ class FinanceService:
                 document.status_integracao = "aguardando_certificado"
                 document.mensagem_integracao = mensagem_integracao
 
-        qty = float(quantidade or 0)
-        unit = float(valor_unitario) if valor_unitario not in (None, "") else None
-        total = round(unit * qty, 2) if unit is not None else None
+        item_model = db.session.get(Item, codigo)
+        normalized_line = _normalize_financial_line(
+            item_model,
+            quantity=float(quantidade or 0),
+            valor_unitario=float(valor_unitario) if valor_unitario not in (None, "") else None,
+            valor_total=None,
+            quantity_unit=(infer_price_unit_for_item(item_model) if item_model is not None else None),
+            price_unit=(infer_price_unit_for_item(item_model) if item_model is not None else None),
+        )
+        qty = float(normalized_line["quantity"] or 0.0)
+        unit = normalized_line["unit_price_input"]
+        total = normalized_line["total_value"]
         linked_entry_id = None if document_only else entrada_id
         item_row = DocumentoEntradaEstoqueItem(
             documento_id=document.id_documento,
             entrada_id=linked_entry_id,
             codigo_item=codigo,
             quantidade=qty,
+            unidade_quantidade=normalized_line["quantity_unit"],
+            quantidade_base=normalized_line["quantity_base"],
             valor_unitario=unit,
+            valor_unitario_base=normalized_line["unit_price_base"],
+            unidade_preco=normalized_line["price_unit"],
+            fator_preco_base=normalized_line["factor_to_base"],
             valor_total=total,
             lote=(lote or "").strip() or None,
             data_validade=data_validade,
@@ -903,10 +982,21 @@ class FinanceService:
             return recovered
 
         if item_row.stock_movement_id is not None or item_row.entrada_id is not None:
+            repaired_packaging_read_model = False
+            if item_row.item is not None:
+                try:
+                    repaired_packaging_read_model = inventory_engine.sync_packaging_read_model(
+                        product_id=item_row.codigo_item,
+                        commit=False,
+                    )
+                except Exception:
+                    repaired_packaging_read_model = False
             if (item_row.status_processamento or "").strip().lower() != "processado":
                 item_row.status_processamento = "processado"
                 item_row.processado_em = item_row.processado_em or datetime.utcnow()
                 item_row.erro_processamento = None
+                db.session.commit()
+            elif repaired_packaging_read_model:
                 db.session.commit()
             return {
                 "success": True,
@@ -916,6 +1006,7 @@ class FinanceService:
                 "documento_item_id": item_row.id_documento_item,
                 "stock_movement_id": item_row.stock_movement_id,
                 "operation_log_id": item_row.operation_log_id,
+                "packaging_read_model_repaired": repaired_packaging_read_model,
             }
 
         if item_row.item is None:
@@ -926,7 +1017,7 @@ class FinanceService:
             raise ValueError("Quantidade documental inválida para processamento de estoque.")
 
         documento = item_row.documento
-        from_unit = (item_row.item.unidade or "Unidade").strip() or "Unidade"
+        from_unit = (item_row.unidade_quantidade or item_row.item.unidade or "Unidade").strip() or "Unidade"
         metadata = {
             "source": "documento_fiscal",
             "channel": "documento_fiscal",
@@ -1071,6 +1162,8 @@ class FinanceService:
 
     @staticmethod
     def _recover_document_item_movement(item_row: DocumentoEntradaEstoqueItem) -> dict[str, Any] | None:
+        from .inventory_engine import inventory_engine
+
         existing_movements = (
             StockMovement.query
             .filter(
@@ -1114,6 +1207,14 @@ class FinanceService:
             balance = StockBalance(product_id=item_row.codigo_item)
             db.session.add(balance)
         balance.quantity_base = float(total_quantity or 0.0)
+
+        try:
+            inventory_engine.sync_packaging_read_model(
+                product_id=item_row.codigo_item,
+                commit=False,
+            )
+        except Exception:
+            pass
 
         item_row.stock_movement_id = canonical.id
         item_row.status_processamento = "processado"
@@ -1209,17 +1310,35 @@ class FinanceService:
         data_recebimento_documento: date | None = None,
         comprovacao_status: str | None = None,
         observacao: str | None = None,
+        unidade_quantidade: str | None = None,
+        quantidade_base: float | None = None,
+        valor_unitario_base: float | None = None,
+        unidade_preco: str | None = None,
+        fator_preco_base: float | None = None,
     ) -> FinanceLedgerEntry | None:
         codigo = (codigo_item or "").strip()
         if not codigo:
             return None
-        qty = float(quantidade or 0)
-        unit = float(valor_unitario) if valor_unitario not in (None, "") else None
-        total = float(valor_total) if valor_total not in (None, "") else None
-        if total is None and unit is not None:
-            total = round(unit * qty, 2)
+        item_model = db.session.get(Item, codigo)
+        normalized_line = _normalize_financial_line(
+            item_model,
+            quantity=float(quantidade or 0),
+            valor_unitario=float(valor_unitario) if valor_unitario not in (None, "") else None,
+            valor_total=float(valor_total) if valor_total not in (None, "") else None,
+            quantity_unit=unidade_quantidade,
+            price_unit=unidade_preco,
+        )
+        qty = float(normalized_line["quantity"] or 0.0)
+        unit = normalized_line["unit_price_input"]
+        total = normalized_line["total_value"]
         if total is None:
             return None
+
+        qty_base = float(quantidade_base) if quantidade_base not in (None, "") else float(normalized_line["quantity_base"] or 0.0)
+        unit_base = float(valor_unitario_base) if valor_unitario_base not in (None, "") else normalized_line["unit_price_base"]
+        quantity_unit_value = (unidade_quantidade or normalized_line["quantity_unit"] or "").strip().lower() or None
+        price_unit_value = (unidade_preco or normalized_line["price_unit"] or "").strip().lower() or None
+        factor_value = float(fator_preco_base) if fator_preco_base not in (None, "") else normalized_line["factor_to_base"]
 
         when: datetime
         if data_lancamento is None:
@@ -1237,7 +1356,12 @@ class FinanceService:
             categoria_nome=(categoria_nome or "Sem categoria").strip() or "Sem categoria",
             data_lancamento=when,
             quantidade=qty,
+            unidade_quantidade=quantity_unit_value,
+            quantidade_base=qty_base,
             valor_unitario=unit,
+            valor_unitario_base=unit_base,
+            unidade_preco=price_unit_value,
+            fator_preco_base=factor_value,
             valor_total=round(total, 2),
             origem_valor=(origem_valor or "inventario_inicial").strip() or "inventario_inicial",
             tipo_documento=(tipo_documento or "").strip() or None,
@@ -1316,7 +1440,7 @@ class FinanceService:
             category = (entry.categoria_nome or (item.get("categoria") if item else None) or "Sem categoria").strip()
             item_totals = purchases_by_item[code]
             item_totals["investido"] += float(entry.valor_total or 0)
-            item_totals["quantidade"] += float(entry.quantidade or 0)
+            item_totals["quantidade"] += float(entry.quantidade_base if entry.quantidade_base not in (None, "") else entry.quantidade or 0)
             if entry.fornecedor:
                 item_totals["fornecedor_nome"] = entry.fornecedor.nome_exibicao()
             if item_totals["quantidade"] > 0:
@@ -1342,9 +1466,20 @@ class FinanceService:
             .all()
         )
         consumed_by_item: dict[str, float] = defaultdict(float)
-        for saida in saidas:
-            if saida.codigo_item:
-                consumed_by_item[saida.codigo_item] += float(saida.quantidade or 0)
+        movement_rows = (
+            db.session.query(
+                StockMovement.product_id,
+                func.coalesce(func.sum(func.abs(StockMovement.quantity_base)), 0.0),
+            )
+            .filter(StockMovement.movement_type == "saida")
+            .filter(StockMovement.created_at >= exercise["start_dt"])
+            .filter(StockMovement.created_at <= exercise["end_dt"])
+            .group_by(StockMovement.product_id)
+            .all()
+        )
+        for product_id, total_quantity in movement_rows:
+            if product_id:
+                consumed_by_item[str(product_id)] += float(total_quantity or 0.0)
 
         # Consumo fracionado por local (rastreabilidade): usa litros/kg registrados na saída.
         # Regra de custo: preço da embalagem (média do exercício quando disponível) / capacidade interna (L ou Kg).
@@ -1383,18 +1518,12 @@ class FinanceService:
             purchase = purchases_by_item.get(code, {})
             preco_emb = purchase.get("avg_unit")
             if preco_emb is None:
-                raw_price = item.get("preco_compra_unitario")
+                raw_price = item.get("preco_compra_unitario_base")
                 preco_emb = float(raw_price) if raw_price not in (None, "") else 0.0
             preco_emb = float(preco_emb or 0.0)
             if preco_emb <= 0:
                 fracionado_linhas_ignoradas += 1
                 continue
-
-            capacidade_emb = getattr(saida, "quantidade_total_embalagem", None)
-            try:
-                capacidade_emb_f = float(capacidade_emb) if capacidade_emb not in (None, "") else 0.0
-            except Exception:
-                capacidade_emb_f = 0.0
 
             unidade = None
             qtd_interna = 0.0
@@ -1404,29 +1533,18 @@ class FinanceService:
                     qtd_interna = float(retirada_l or 0.0)
                 except Exception:
                     qtd_interna = 0.0
-                if capacidade_emb_f <= 0:
-                    try:
-                        capacidade_emb_f = float(item.get("litros_por_embalagem") or 0.0)
-                    except Exception:
-                        capacidade_emb_f = 0.0
             elif retirada_kg not in (None, ""):
                 unidade = "Kg"
                 try:
                     qtd_interna = float(retirada_kg or 0.0)
                 except Exception:
                     qtd_interna = 0.0
-                if capacidade_emb_f <= 0:
-                    try:
-                        capacidade_emb_f = float(item.get("grandeza_referencia") or 0.0)
-                    except Exception:
-                        capacidade_emb_f = 0.0
 
-            if not unidade or qtd_interna <= 0 or capacidade_emb_f <= 0:
+            if not unidade or qtd_interna <= 0:
                 fracionado_linhas_ignoradas += 1
                 continue
 
-            custo_interno = preco_emb / capacidade_emb_f
-            valor = round(qtd_interna * custo_interno, 2)
+            valor = round(qtd_interna * preco_emb, 2)
             local_key = _norm_local(getattr(saida, "local_servico", None))
 
             row = fracionado_por_local[local_key]
@@ -1476,7 +1594,7 @@ class FinanceService:
             consumed_qty = float(consumed_by_item.get(code, 0.0) or 0.0)
             avg_unit = purchase.get("avg_unit")
             if avg_unit is None:
-                raw_price = item.get("preco_compra_unitario")
+                raw_price = item.get("preco_compra_unitario_base")
                 avg_unit = float(raw_price) if raw_price not in (None, "") else 0.0
             consumed_value = round(consumed_qty * float(avg_unit or 0.0), 2)
             total_consumido += consumed_value
@@ -1786,14 +1904,14 @@ class FinanceService:
                     item_stats["last_date"] = e.data_lancamento
 
                 try:
-                    qtd = float(e.quantidade or 0.0)
+                    qtd = float(e.quantidade_base if e.quantidade_base not in (None, "") else e.quantidade or 0.0)
                 except Exception:
                     qtd = 0.0
                 item_stats["quantidade"] += qtd
 
-                if e.valor_unitario is not None:
+                if e.valor_unitario_base is not None or e.valor_unitario is not None:
                     try:
-                        vu = float(e.valor_unitario)
+                        vu = float(e.valor_unitario_base if e.valor_unitario_base not in (None, "") else e.valor_unitario)
                     except Exception:
                         vu = None
                     if vu is not None and vu > 0:

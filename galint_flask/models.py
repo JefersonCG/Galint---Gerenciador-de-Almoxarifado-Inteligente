@@ -54,8 +54,12 @@ class Item(db.Model):
     foto_path: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     # Financeiro (valores de referência)
-    # Observação: preço é "por unidade" para itens comuns e "por embalagem" para itens com sistema de embalagens.
+    # preco_*_unitario preserva o valor bruto/original informado na origem.
+    # preco_*_unitario_base representa o valor normalizado por unidade base interna.
     preco_compra_unitario: Mapped[float | None] = mapped_column(Float, nullable=True)
+    preco_compra_unitario_base: Mapped[float | None] = mapped_column(Float, nullable=True)
+    preco_compra_unidade_preco: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    preco_compra_fator_base: Mapped[float | None] = mapped_column(Float, nullable=True)
     preco_compra_fonte: Mapped[str | None] = mapped_column(String(50), nullable=True)
     preco_compra_documento: Mapped[str | None] = mapped_column(String(120), nullable=True)
     preco_compra_chave_acesso: Mapped[str | None] = mapped_column(String(64), nullable=True)
@@ -65,6 +69,9 @@ class Item(db.Model):
     preco_compra_atualizado_por: Mapped[str | None] = mapped_column(String(100), nullable=True)
 
     preco_reposicao_unitario: Mapped[float | None] = mapped_column(Float, nullable=True)
+    preco_reposicao_unitario_base: Mapped[float | None] = mapped_column(Float, nullable=True)
+    preco_reposicao_unidade_preco: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    preco_reposicao_fator_base: Mapped[float | None] = mapped_column(Float, nullable=True)
     preco_reposicao_fonte: Mapped[str | None] = mapped_column(String(50), nullable=True)
     preco_reposicao_uf: Mapped[str | None] = mapped_column(String(2), nullable=True)
     preco_reposicao_query: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -158,6 +165,9 @@ class Item(db.Model):
             "barcode_image_path": self.barcode_image_path,
             "foto_path": self.foto_path,
             "preco_compra_unitario": self.preco_compra_unitario,
+            "preco_compra_unitario_base": self.preco_compra_unitario_base,
+            "preco_compra_unidade_preco": self.preco_compra_unidade_preco,
+            "preco_compra_fator_base": self.preco_compra_fator_base,
             "preco_compra_fonte": self.preco_compra_fonte,
             "preco_compra_documento": self.preco_compra_documento,
             "preco_compra_chave_acesso": self.preco_compra_chave_acesso,
@@ -166,6 +176,9 @@ class Item(db.Model):
             "preco_compra_atualizado_em": TimeService.isoformat_utc(self.preco_compra_atualizado_em),
             "preco_compra_atualizado_por": self.preco_compra_atualizado_por,
             "preco_reposicao_unitario": self.preco_reposicao_unitario,
+            "preco_reposicao_unitario_base": self.preco_reposicao_unitario_base,
+            "preco_reposicao_unidade_preco": self.preco_reposicao_unidade_preco,
+            "preco_reposicao_fator_base": self.preco_reposicao_fator_base,
             "preco_reposicao_fonte": self.preco_reposicao_fonte,
             "preco_reposicao_uf": self.preco_reposicao_uf,
             "preco_reposicao_query": self.preco_reposicao_query,
@@ -464,7 +477,12 @@ class DocumentoEntradaEstoqueItem(db.Model):
     entrada_id: Mapped[int | None] = mapped_column(ForeignKey("entradas.id_entrada"), nullable=True)
     codigo_item: Mapped[str] = mapped_column(ForeignKey("itens.codigo_item"), nullable=False)
     quantidade: Mapped[float] = mapped_column(Float, nullable=False, default=0)
+    unidade_quantidade: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    quantidade_base: Mapped[float | None] = mapped_column(Float, nullable=True)
     valor_unitario: Mapped[float | None] = mapped_column(Float, nullable=True)
+    valor_unitario_base: Mapped[float | None] = mapped_column(Float, nullable=True)
+    unidade_preco: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    fator_preco_base: Mapped[float | None] = mapped_column(Float, nullable=True)
     valor_total: Mapped[float | None] = mapped_column(Float, nullable=True)
     lote: Mapped[str | None] = mapped_column(String(50), nullable=True)
     data_validade: Mapped[date | None] = mapped_column(Date, nullable=True)
@@ -565,10 +583,10 @@ class StockMovement(db.Model):
     __tablename__ = "stock_movements"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    product_id: Mapped[str] = mapped_column("codigo_item", ForeignKey("itens.codigo_item", ondelete="CASCADE"), nullable=False, index=True)
-    movement_type: Mapped[str] = mapped_column("motion_type", LedgerMovementType(), nullable=False, index=True)
-    quantity_base: Mapped[float] = mapped_column("amount_base", Float, nullable=False)
-    unit_base: Mapped[str | None] = mapped_column("unit_type", String(30), nullable=True)
+    product_id: Mapped[str] = mapped_column(ForeignKey("itens.codigo_item", ondelete="CASCADE"), nullable=False, index=True)
+    movement_type: Mapped[str] = mapped_column(LedgerMovementType(), nullable=False, index=True)
+    quantity_base: Mapped[float] = mapped_column(Float, nullable=False)
+    unit_base: Mapped[str | None] = mapped_column(String(30), nullable=True)
     reference_type: Mapped[str | None] = mapped_column(String(50), nullable=True, index=True)
     reference_id: Mapped[str | None] = mapped_column(String(100), nullable=True, index=True)
     metadata_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
@@ -580,7 +598,7 @@ class StockMovement(db.Model):
 class StockBalance(db.Model):
     __tablename__ = "stock_balances"
 
-    product_id: Mapped[str] = mapped_column("codigo_item", ForeignKey("itens.codigo_item", ondelete="CASCADE"), primary_key=True)
+    product_id: Mapped[str] = mapped_column(ForeignKey("itens.codigo_item", ondelete="CASCADE"), primary_key=True)
     quantity_base: Mapped[float] = mapped_column(Float, nullable=False, default=0)
     read_model_ready: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
@@ -1786,7 +1804,12 @@ class FinanceLedgerEntry(db.Model):
     categoria_nome: Mapped[str] = mapped_column(String(120), nullable=False)
     data_lancamento: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
     quantidade: Mapped[float] = mapped_column(Float, nullable=False, default=0)
+    unidade_quantidade: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    quantidade_base: Mapped[float | None] = mapped_column(Float, nullable=True)
     valor_unitario: Mapped[float | None] = mapped_column(Float, nullable=True)
+    valor_unitario_base: Mapped[float | None] = mapped_column(Float, nullable=True)
+    unidade_preco: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    fator_preco_base: Mapped[float | None] = mapped_column(Float, nullable=True)
     valor_total: Mapped[float] = mapped_column(Float, nullable=False, default=0)
     origem_valor: Mapped[str] = mapped_column(String(40), nullable=False, default="inventario_inicial")
     tipo_documento: Mapped[str | None] = mapped_column(String(40), nullable=True)
@@ -1813,7 +1836,12 @@ class FinanceLedgerEntry(db.Model):
             "categoria_nome": self.categoria_nome,
             "data_lancamento": self.data_lancamento.isoformat() if self.data_lancamento else None,
             "quantidade": self.quantidade,
+            "unidade_quantidade": self.unidade_quantidade,
+            "quantidade_base": self.quantidade_base,
             "valor_unitario": self.valor_unitario,
+            "valor_unitario_base": self.valor_unitario_base,
+            "unidade_preco": self.unidade_preco,
+            "fator_preco_base": self.fator_preco_base,
             "valor_total": self.valor_total,
             "origem_valor": self.origem_valor,
             "tipo_documento": self.tipo_documento,

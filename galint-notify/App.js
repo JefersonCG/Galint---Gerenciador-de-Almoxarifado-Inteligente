@@ -15,6 +15,7 @@ import MessengerScreen from './src/screens/MessengerScreen';
 import NotificationDetailScreen from './src/screens/NotificationDetailScreen';
 import ReportsScreen from './src/screens/ReportsScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
+import ToolsScreen from './src/screens/ToolsScreen';
 import api from './src/services/api';
 import { palette } from './src/theme';
 import { bootstrapPush, listenForNotificationResponses } from './src/services/push';
@@ -69,6 +70,9 @@ function DrawerShell({ session, onLogout, onServerSaved, highlightMessageId, onC
       <Drawer.Screen name="Relatórios">
         {(props) => <ReportsScreen {...props} session={session} />}
       </Drawer.Screen>
+      <Drawer.Screen name="Ferramentas">
+        {(props) => <ToolsScreen {...props} session={session} />}
+      </Drawer.Screen>
       <Drawer.Screen name="Configurações">
         {(props) => <SettingsScreen {...props} session={session} onLogout={onLogout} onServerSaved={onServerSaved} />}
       </Drawer.Screen>
@@ -82,6 +86,7 @@ function ExpoGoShell({ navigation, session, onLogout, onServerSaved, highlightMe
   const menuItems = [
     { key: 'Messenger', label: 'Messenger' },
     { key: 'Relatórios', label: 'Relatórios' },
+    { key: 'Ferramentas', label: 'Ferramentas' },
     { key: 'Configurações', label: 'Configurações' },
   ];
 
@@ -96,6 +101,10 @@ function ExpoGoShell({ navigation, session, onLogout, onServerSaved, highlightMe
 
   if (activeScreen === 'Relatórios') {
     content = <ReportsScreen navigation={navigation} session={session} />;
+  }
+
+  if (activeScreen === 'Ferramentas') {
+    content = <ToolsScreen navigation={navigation} session={session} />;
   }
 
   if (activeScreen === 'Configurações') {

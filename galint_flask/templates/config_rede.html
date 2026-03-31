@@ -41,9 +41,9 @@
     </section>
 
     <section class="network-kpis">
-        <article class="network-kpi"><span class="network-kpi-label">Host</span><div class="network-kpi-value">{{ settings.server_host }}</div><div class="network-kpi-caption">Endereço usado pelo mobile.</div></article>
-        <article class="network-kpi"><span class="network-kpi-label">Porta</span><div class="network-kpi-value">{{ settings.server_port }}</div><div class="network-kpi-caption">Porta configurada para o servidor.</div></article>
-        <article class="network-kpi"><span class="network-kpi-label">Rede Galint</span><div class="network-kpi-value">{{ 'ATIVA' if token_configured and share_url else 'OFF' }}</div><div class="network-kpi-caption">Compartilhamento público do painel.</div></article>
+        <article class="network-kpi"><span class="network-kpi-label">URL base</span><div class="network-kpi-value" style="font-size:1.05rem;line-height:1.35;word-break:break-word;">{{ settings.base_url() }}</div><div class="network-kpi-caption">Pode ser IP local, hostname interno ou domínio público com HTTPS.</div></article>
+        <article class="network-kpi"><span class="network-kpi-label">Host</span><div class="network-kpi-value">{{ settings.server_host }}</div><div class="network-kpi-caption">Host atual configurado.</div></article>
+        <article class="network-kpi"><span class="network-kpi-label">Porta</span><div class="network-kpi-value">{{ settings.server_port_display }}</div><div class="network-kpi-caption">Porta explícita ou padrão do protocolo.</div></article>
     </section>
 
     <ul class="nav nav-pills network-tabs galint-folder-tabs" role="tablist">
@@ -54,18 +54,13 @@
     <div class="tab-content galint-folder-content">
         <div class="tab-pane fade show active" id="rede-mobile" role="tabpanel">
             <div class="card network-panel">
-                <div class="card-header"><strong>GALINT Mobile</strong><span class="d-block text-muted small mt-1">Fixe o IP/porta usados no app e teste a comunicação.</span></div>
+                <div class="card-header"><strong>GALINT Mobile</strong><span class="d-block text-muted small mt-1">Defina uma URL base genérica para LAN, VPN ou internet futura.</span></div>
                 <div class="card-body">
                     <form method="post" action="{{ url_for('pages.update_rede') }}">
                         <div class="mb-3">
-                            <label class="form-label">IP/Host do servidor</label>
-                            <input class="form-control" name="server_host" value="{{ settings.server_host }}" required>
-                            <div class="form-text">Use o IP do PC onde o Flask está rodando, por exemplo 10.0.0.245. Não é faixa, é endereço único.</div>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Porta</label>
-                            <input class="form-control" name="server_port" value="{{ settings.server_port }}" inputmode="numeric" required>
-                            <div class="form-text">Padrão usado pelo sistema: 5000.</div>
+                            <label class="form-label">URL base do servidor</label>
+                            <input class="form-control" name="base_url" value="{{ settings.base_url() }}" required>
+                            <div class="form-text">Exemplos: http://10.0.0.245:5000, http://galint.local:5000 ou https://notify.suaempresa.com.br</div>
                         </div>
 
                         <div class="network-soft mb-3">

@@ -802,13 +802,17 @@
             </div>
             <div class="modal-body">
                 <div class="row g-3 align-items-end">
-                    <div class="col-md-8">
+                    <div class="col-md-6">
                         <label class="form-label" for="price-query">Busca</label>
                         <input class="form-control" id="price-query" placeholder="Ex.: cimento 50kg Votoran">
                     </div>
                     <div class="col-md-2">
                         <label class="form-label" for="price-uf">UF</label>
                         <input class="form-control text-uppercase" id="price-uf" maxlength="2" placeholder="SP">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label" for="price-unit">Unidade</label>
+                        <select class="form-select" id="price-unit"></select>
                     </div>
                     <div class="col-md-2 d-grid">
                         <button class="btn btn-primary" type="button" id="price-refresh-btn">
@@ -3333,6 +3337,7 @@
 
     const priceModalElement = document.getElementById('priceSuggestionsModal');
     const priceModalInstance = priceModalElement ? new bootstrap.Modal(priceModalElement) : null;
+    const priceModalUnitSelect = document.getElementById('price-unit');
     const priceBatchModalElement = document.getElementById('priceBatchModal');
     const priceBatchModalInstance = priceBatchModalElement ? new bootstrap.Modal(priceBatchModalElement) : null;
     let currentPriceItem = null;
@@ -3341,6 +3346,90 @@
     let selectedSuggestionIndex = null;
     let currentBatchCategory = null;
     let currentBatchResults = [];
+
+    const normalizePriceUnitCode = (value) => String(value || '').trim().toLowerCase();
+
+    const resolvePriceUnitLabel = (code, fallbackLabel = '') => {
+        const normalizedCode = normalizePriceUnitCode(code);
+        if (!normalizedCode) {
+            return fallbackLabel || 'Unidade';
+        }
+        const knownLabels = {
+            unidade: 'Unidade',
+            lata: 'Lata',
+            bombona: 'Bombona',
+            litro: 'Litro',
+            quilo: 'Quilo',
+            caixa: 'Caixa',
+            pacote: 'Pacote',
+            saco: 'Saco',
+            rolo: 'Rolo',
+            balde: 'Balde',
+            par: 'Par',
+            peca: 'Peça',
+        };
+        return knownLabels[normalizedCode] || fallbackLabel || `${normalizedCode.charAt(0).toUpperCase()}${normalizedCode.slice(1)}`;
+    };
+
+    const getPriceUnitOptionsForItem = (item) => {
+        const options = [];
+        const seen = new Set();
+        const addOption = (code, label, isBase = false) => {
+            const normalizedCode = normalizePriceUnitCode(code);
+            if (!normalizedCode || seen.has(normalizedCode)) {
+                return;
+            }
+            seen.add(normalizedCode);
+            options.push({
+                code: normalizedCode,
+                label: resolvePriceUnitLabel(normalizedCode, String(label || '').trim()),
+                isBase: Boolean(isBase),
+            });
+        };
+
+        (Array.isArray(item?.product_units) ? item.product_units : [])
+            .filter((row) => row?.active !== false)
+            .forEach((row) => addOption(row.unit_code, row.unit_label, row.is_base));
+
+        addOption(item?.unidade || 'unidade', item?.unidade || 'Unidade', true);
+
+        const packagingType = normalizePriceUnitCode(item?.tipo_embalagem_novo || '');
+        const packagingQuantity = Number(item?.unidades_por_embalagem || 0);
+        if (packagingType && Number.isFinite(packagingQuantity) && packagingQuantity > 0) {
+            addOption(packagingType, resolvePriceUnitLabel(packagingType), false);
+        }
+
+        if (!options.length) {
+            addOption('unidade', 'Unidade', true);
+        }
+        return options;
+    };
+
+    const resolvePreferredPriceUnit = (item, preferredCode = '') => {
+        const options = getPriceUnitOptionsForItem(item);
+        const normalizedPreferred = normalizePriceUnitCode(preferredCode);
+        if (normalizedPreferred && options.some((option) => option.code === normalizedPreferred)) {
+            return normalizedPreferred;
+        }
+        const packagingType = normalizePriceUnitCode(item?.tipo_embalagem_novo || '');
+        if (packagingType && options.some((option) => option.code === packagingType)) {
+            return packagingType;
+        }
+        return options.find((option) => option.isBase)?.code || options[0]?.code || '';
+    };
+
+    const renderPriceUnitSelect = (item, preferredCode = '') => {
+        if (!priceModalUnitSelect) {
+            return '';
+        }
+        const options = getPriceUnitOptionsForItem(item);
+        const selectedCode = resolvePreferredPriceUnit(item, preferredCode || priceModalUnitSelect.value || '');
+        priceModalUnitSelect.innerHTML = options.map((option) => `
+            <option value="${option.code}" ${option.code === selectedCode ? 'selected' : ''}>${option.label}</option>
+        `).join('');
+        priceModalUnitSelect.value = selectedCode;
+        return selectedCode;
+    };
 
     const brlFormatter = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
     const buildStaticItemPhotoUrl = (fotoPath) => {
@@ -3888,12 +3977,13 @@
         return items[itemIndex];
     };
 
-    const persistReplacementPrice = async (item, chosen, query, uf) => {
+    const persistReplacementPrice = async (item, chosen, query, uf, priceUnit) => {
         const resp = await fetch(`/itens/${encodeURIComponent(item.codigo)}/precos/reposicao`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
             body: JSON.stringify({
                 preco_reposicao_unitario: chosen.price,
+                preco_reposicao_unidade_preco: normalizePriceUnitCode(priceUnit) || null,
                 preco_reposicao_fonte: chosen.source,
                 preco_reposicao_uf: String(uf || '').trim(),
                 preco_reposicao_query: String(query || '').trim(),
@@ -3927,16 +4017,18 @@
 
         const qEl = document.getElementById('price-query');
         const ufEl = document.getElementById('price-uf');
+        const unitEl = document.getElementById('price-unit');
         const manualEl = document.getElementById('price-manual');
         const resultsEl = document.getElementById('price-results');
         const providersEl = document.getElementById('price-providers');
         const statsEl = document.getElementById('price-stats');
         const emptyEl = document.getElementById('price-empty');
 
-        if (!qEl || !ufEl || !manualEl || !resultsEl || !providersEl || !statsEl || !emptyEl) return;
+        if (!qEl || !ufEl || !unitEl || !manualEl || !resultsEl || !providersEl || !statsEl || !emptyEl) return;
 
         qEl.value = buildDefaultPriceQuery(item);
         ufEl.value = String(item?.preco_reposicao_uf || '').trim();
+        renderPriceUnitSelect(item, item?.preco_reposicao_unidade_preco || item?.preco_compra_unidade_preco || '');
         manualEl.value = '';
         resultsEl.innerHTML = '';
         providersEl.innerHTML = '';
@@ -4134,7 +4226,8 @@
                         item,
                         { price: median, source: 'Mercado Livre (mediana lote)', url: null },
                         entry.query,
-                        document.getElementById('price-batch-uf')?.value || entry.uf || ''
+                        document.getElementById('price-batch-uf')?.value || entry.uf || '',
+                        resolvePreferredPriceUnit(item, item?.preco_reposicao_unidade_preco || item?.preco_compra_unidade_preco || '')
                     );
                     syncBatchResultSavedState(codigo, updated);
                     if (currentPriceItem && String(currentPriceItem.codigo) === String(codigo)) {
@@ -4267,7 +4360,12 @@
                 if (!currentPriceItem) return;
                 const qEl = document.getElementById('price-query');
                 const ufEl = document.getElementById('price-uf');
+                const unitEl = document.getElementById('price-unit');
                 const manual = Number(manualEl?.value || 0);
+                const selectedPriceUnit = renderPriceUnitSelect(
+                    currentPriceItem,
+                    unitEl?.value || currentPriceItem?.preco_reposicao_unidade_preco || currentPriceItem?.preco_compra_unidade_preco || ''
+                );
 
                 let chosen = null;
                 if (Number.isFinite(manual) && manual > 0) {
@@ -4293,7 +4391,8 @@
                         currentPriceItem,
                         chosen,
                         (qEl?.value || '').trim(),
-                        (ufEl?.value || '').trim()
+                        (ufEl?.value || '').trim(),
+                        selectedPriceUnit
                     );
                     syncBatchResultSavedState(currentPriceItem.codigo, updated);
                     updateFinanceUI(currentPriceItem);
