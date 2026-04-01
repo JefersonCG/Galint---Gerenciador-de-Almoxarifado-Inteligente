@@ -318,22 +318,6 @@ def _register_inactivity_middleware(app: Flask) -> None:
             if not login_at:
                 login_at = now.isoformat()
                 session['login_at'] = login_at
-
-            login_time = datetime.fromisoformat(login_at)
-            session_age_seconds = (now - login_time).total_seconds()
-            if session_age_seconds > timeout_seconds:
-                user_label = (
-                    getattr(current_user, "nome", None)
-                    or getattr(current_user, "matricula", None)
-                    or getattr(current_user, "id", None)
-                    or "usuario"
-                )
-                app.logger.info(
-                    f"Sessão expirada por tempo máximo ({session_age_seconds:.0f}s): {user_label}"
-                )
-                return _expired_session_response(
-                    'Sua sessão expirou após 1 hora. Por favor, faça login novamente.'
-                )
             
             if last_activity:
                 last_activity_time = datetime.fromisoformat(last_activity)
@@ -350,12 +334,13 @@ def _register_inactivity_middleware(app: Flask) -> None:
                         f"Sessão expirada por inatividade ({inactive_seconds:.0f}s): {user_label}"
                     )
                     return _expired_session_response(
-                        'Sua sessão expirou por inatividade. Por favor, faça login novamente.'
+                        'Sua sessão expirou após 2 horas sem interação. Por favor, faça login novamente.'
                     )
             
-            # Atualiza timestamp da última atividade
-            session['last_activity'] = now.isoformat()
-            session.permanent = True
+            # Só renova a atividade quando o frontend reporta interação real do usuário.
+            if request.endpoint == 'auth.session_activity':
+                session['last_activity'] = now.isoformat()
+                session.permanent = True
 
 
 def _register_restore_guard(app: Flask) -> None:

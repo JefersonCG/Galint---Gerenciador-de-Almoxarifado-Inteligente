@@ -22,6 +22,12 @@ class InventoryEngineError(ValueError):
     pass
 
 
+PRE_CADASTRO_PENDING_EXIT_MESSAGE = (
+    "Saída bloqueada: este item está com pré-cadastro pendente. "
+    "Finalize o pré-cadastro antes de registrar a saída."
+)
+
+
 @dataclass(slots=True)
 class InventoryOperationResult:
     product_id: str
@@ -178,10 +184,14 @@ class InventoryEngine:
             raise InventoryEngineError("Produto não encontrado")
 
         balance_snapshot = balance_provider.get_balance(product_id, item=item)
+        sync_unit_base = self._resolve_packaging_sync_unit_base(
+            product_id=product_id,
+            fallback_unit_base=balance_snapshot.unit_base,
+        )
         changed = self._sync_packaging_state_to_balance(
             item=item,
             quantity_base=float(balance_snapshot.quantity_base or 0.0),
-            unit_base=balance_snapshot.unit_base,
+            unit_base=sync_unit_base,
         )
         if changed:
             if commit:
@@ -189,6 +199,18 @@ class InventoryEngine:
             else:
                 db.session.flush()
         return changed
+
+    @staticmethod
+    def _resolve_packaging_sync_unit_base(*, product_id: str, fallback_unit_base: str | None) -> str | None:
+        latest_movement = (
+            StockMovement.query
+            .filter(StockMovement.product_id == product_id)
+            .order_by(StockMovement.created_at.desc(), StockMovement.id.desc())
+            .first()
+        )
+        if latest_movement is not None and (latest_movement.unit_base or "").strip():
+            return latest_movement.unit_base
+        return fallback_unit_base
 
     @classmethod
     def _normalize_unit_code(cls, value: str | None) -> str:
@@ -380,6 +402,10 @@ class InventoryEngine:
         item = db.session.get(Item, product_id)
         if item is None:
             raise InventoryEngineError("Produto não encontrado")
+
+        movement_type_norm = (movement_type or "").strip().lower()
+        if movement_type_norm == "saida" and bool(getattr(item, "pre_cadastro_pendente", False)):
+            raise InventoryEngineError(PRE_CADASTRO_PENDING_EXIT_MESSAGE)
 
         conversion = self._conversion_engine.convert_item_to_base(item, quantity, from_unit)
         balance_snapshot = balance_provider.get_balance(product_id)

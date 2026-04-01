@@ -1,0 +1,414 @@
+{% extends "base.html" %}
+
+{% block title %}Porta Administrativa de Estoque{% endblock %}
+
+{% block extra_css %}
+<style>
+    .admin-stock-shell {
+        background: linear-gradient(180deg, #08111f 0%, #101a2d 100%);
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        border-radius: 28px;
+        padding: 1.5rem;
+        box-shadow: 0 26px 58px rgba(2, 8, 23, 0.36);
+    }
+    .admin-stock-hero {
+        position: relative;
+        overflow: hidden;
+        border-radius: 24px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+        color: #fff7ed;
+        background: linear-gradient(135deg, #2b0b0e 0%, #7f1d1d 48%, #111827 100%);
+        box-shadow: 0 28px 64px rgba(15, 23, 42, 0.24);
+    }
+    .admin-stock-hero::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(circle at 16% 20%, rgba(251, 191, 36, 0.18), transparent 28%), radial-gradient(circle at 86% 12%, rgba(248, 113, 113, 0.24), transparent 24%);
+        pointer-events: none;
+    }
+    .admin-stock-hero > * { position: relative; z-index: 1; }
+    .admin-stock-eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.4rem 0.75rem;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        margin-bottom: 0.85rem;
+    }
+    .admin-stock-title { margin: 0; font-size: clamp(1.8rem, 3vw, 2.5rem); font-weight: 800; letter-spacing: -0.03em; }
+    .admin-stock-subtitle { margin: 0.7rem 0 0; max-width: 54rem; color: rgba(255, 237, 213, 0.82); line-height: 1.65; }
+    .admin-stock-grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.9fr); gap: 1.25rem; }
+    .admin-stock-card {
+        background: linear-gradient(160deg, rgba(15, 23, 42, 0.96), rgba(30, 41, 59, 0.92));
+        color: #e2e8f0;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        border-radius: 24px;
+        box-shadow: 0 22px 48px rgba(15, 23, 42, 0.18);
+    }
+    .admin-stock-card .card-header,
+    .admin-stock-card .card-body,
+    .admin-stock-card .card-footer {
+        background: transparent;
+        border-color: rgba(148, 163, 184, 0.12);
+        color: inherit;
+    }
+    .admin-stock-card .form-control,
+    .admin-stock-card .form-select,
+    .admin-stock-card .form-check-input,
+    .admin-stock-card textarea {
+        background: rgba(15, 23, 42, 0.84);
+        color: #f8fafc;
+        border-color: rgba(148, 163, 184, 0.22);
+    }
+    .admin-stock-card .form-control::placeholder,
+    .admin-stock-card textarea::placeholder { color: #94a3b8; }
+    .admin-stock-card .form-text,
+    .admin-stock-card .text-muted,
+    .admin-stock-card .form-label,
+    .admin-stock-card small { color: #cbd5e1 !important; }
+    .admin-stock-search {
+        position: relative;
+    }
+    .admin-stock-suggestions {
+        position: absolute;
+        inset: calc(100% + 0.4rem) 0 auto 0;
+        z-index: 20;
+        display: none;
+        max-height: 280px;
+        overflow-y: auto;
+        background: #0f172a;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        border-radius: 18px;
+        box-shadow: 0 18px 38px rgba(2, 8, 23, 0.4);
+    }
+    .admin-stock-suggestions.show { display: block; }
+    .admin-stock-suggestion {
+        padding: 0.9rem 1rem;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+        cursor: pointer;
+    }
+    .admin-stock-suggestion:last-child { border-bottom: 0; }
+    .admin-stock-suggestion:hover,
+    .admin-stock-suggestion.active { background: rgba(59, 130, 246, 0.14); }
+    .admin-stock-metrics {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.9rem;
+    }
+    .admin-stock-metric {
+        border-radius: 18px;
+        padding: 1rem;
+        background: rgba(15, 23, 42, 0.62);
+        border: 1px solid rgba(148, 163, 184, 0.14);
+    }
+    .admin-stock-metric-label {
+        display: block;
+        margin-bottom: 0.35rem;
+        font-size: 0.76rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: rgba(203, 213, 225, 0.68);
+    }
+    .admin-stock-metric-value {
+        font-size: 1.2rem;
+        font-weight: 800;
+        color: #f8fafc;
+    }
+    .admin-stock-history-item {
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        background: rgba(15, 23, 42, 0.58);
+        border-radius: 18px;
+        padding: 0.95rem 1rem;
+    }
+    @media (max-width: 1100px) {
+        .admin-stock-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 768px) {
+        .admin-stock-shell { padding: 1rem; border-radius: 22px; }
+        .admin-stock-hero { padding: 1.15rem; border-radius: 20px; }
+        .admin-stock-metrics { grid-template-columns: 1fr; }
+    }
+</style>
+{% endblock %}
+
+{% block page_header %}{% endblock %}
+
+{% block content %}
+<div class="admin-stock-shell">
+    <section class="admin-stock-hero">
+        <div class="admin-stock-eyebrow"><i class="bi bi-shield-lock"></i> Operação temporária de produção</div>
+        <h1 class="admin-stock-title">Porta Administrativa de Estoque</h1>
+        <p class="admin-stock-subtitle">Esta área força um saldo-alvo absoluto no legado, no ledger e no cache para correção operacional. Use apenas quando o fluxo padrão não resolver a inconsistência e sempre registre um motivo objetivo.</p>
+    </section>
+
+    <div class="admin-stock-grid">
+        <div class="d-flex flex-column gap-4">
+            <div class="card admin-stock-card">
+                <div class="card-header border-0 pb-0">
+                    <h5 class="mb-1">Localizar item</h5>
+                    <p class="text-muted mb-0">Pesquise por código ou descrição, carregue o item e revise a reconciliação antes de aplicar qualquer saldo.</p>
+                </div>
+                <div class="card-body">
+                    <form method="get" autocomplete="off" id="admin-stock-search-form">
+                        <div class="admin-stock-search">
+                            <label for="preview-code-input" class="form-label">Código do item</label>
+                            <input class="form-control form-control-lg" id="preview-code-input" name="codigo" value="{{ preview_code or '' }}" placeholder="Leia ou digite o código ou descrição do item" autocomplete="off" spellcheck="false">
+                            <div id="admin-balance-suggestions" class="admin-stock-suggestions"></div>
+                        </div>
+                        <div class="d-flex flex-wrap gap-2 mt-3">
+                            <button class="btn btn-outline-light" type="submit"><i class="bi bi-search me-1"></i>Carregar item</button>
+                            {% if preview %}
+                            <a class="btn btn-outline-secondary" href="{{ url_for('config.estoque_ajuste_admin') }}">Limpar</a>
+                            {% endif %}
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            {% if preview %}
+            <div class="card admin-stock-card">
+                <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-3">
+                    <div>
+                        <h5 class="mb-1">{{ preview.descricao or 'Item sem descrição' }}</h5>
+                        <div class="text-muted">Código {{ preview.codigo }}{% if preview.categoria %} • {{ preview.categoria }}{% endif %}{% if preview.unidade %} • {{ preview.unidade }}{% endif %}</div>
+                    </div>
+                    <span class="badge text-bg-{{ preview.classification_badge }} px-3 py-2">{{ preview.classification_label }}</span>
+                </div>
+                <div class="card-body d-flex flex-column gap-3">
+                    {% if preview.pre_cadastro_pendente %}
+                    <div class="alert alert-danger mb-0">Este item está com pré-cadastro pendente. A porta administrativa não libera ajuste enquanto esse fluxo não for finalizado.</div>
+                    {% endif %}
+                    {% if preview.daily_limit_exhausted %}
+                    <div class="alert alert-danger mb-0">Limite diário esgotado para este item em {{ preview.daily_reference_date.strftime('%d/%m/%Y') if preview.daily_reference_date else 'hoje' }}. Já foram feitos {{ preview.daily_adjustments_used }} de {{ preview.daily_limit }} ajustes administrativos.</div>
+                    {% elif preview.daily_adjustments_remaining == 1 %}
+                    <div class="alert alert-warning mb-0">Resta apenas 1 ajuste administrativo para este item hoje.</div>
+                    {% endif %}
+                    {% if preview.classification != 'divergencia_zero' %}
+                    <div class="alert alert-warning mb-0">O item não está totalmente alinhado entre legado, ledger e cache. O ajuste administrativo vai empurrar os três lados para o saldo-alvo informado.</div>
+                    {% endif %}
+                    <div class="admin-stock-metrics">
+                        <article class="admin-stock-metric">
+                            <span class="admin-stock-metric-label">Saldo exibido</span>
+                            <div class="admin-stock-metric-value">{{ preview.saldo_exibido|round(6) }}</div>
+                            <small>{{ preview.saldo_display }}</small>
+                        </article>
+                        <article class="admin-stock-metric">
+                            <span class="admin-stock-metric-label">Fonte de leitura</span>
+                            <div class="admin-stock-metric-value text-capitalize">{{ preview.source|replace('_', ' ') }}</div>
+                            <small>{% if preview.migrated %}Produto já lê de stock balance.{% else %}Produto ainda depende do fluxo legado para exibição.{% endif %}</small>
+                        </article>
+                        <article class="admin-stock-metric">
+                            <span class="admin-stock-metric-label">Saldo legado</span>
+                            <div class="admin-stock-metric-value">{{ preview.legacy_balance|round(6) }}</div>
+                            <small>Entradas - saídas + eventos.</small>
+                        </article>
+                        <article class="admin-stock-metric">
+                            <span class="admin-stock-metric-label">Saldo ledger</span>
+                            <div class="admin-stock-metric-value">{{ preview.ledger_balance|round(6) }}</div>
+                            <small>Somatório de stock_movements.</small>
+                        </article>
+                        <article class="admin-stock-metric">
+                            <span class="admin-stock-metric-label">Saldo cache</span>
+                            <div class="admin-stock-metric-value">{{ preview.stock_balance|round(6) }}</div>
+                            <small>Registro em stock_balances.</small>
+                        </article>
+                        <article class="admin-stock-metric">
+                            <span class="admin-stock-metric-label">Divergências</span>
+                            <div class="admin-stock-metric-value">{{ preview.divergence_legacy_vs_ledger|round(6) }}</div>
+                            <small>Legado vs ledger • cache {{ preview.divergence_ledger_vs_cache|round(6) }}</small>
+                        </article>
+                        <article class="admin-stock-metric">
+                            <span class="admin-stock-metric-label">Ajustes hoje</span>
+                            <div class="admin-stock-metric-value">{{ preview.daily_adjustments_used }} / {{ preview.daily_limit }}</div>
+                            <small>Contagem por item no dia local {{ preview.daily_reference_date.strftime('%d/%m/%Y') if preview.daily_reference_date else '-' }}.</small>
+                        </article>
+                        <article class="admin-stock-metric">
+                            <span class="admin-stock-metric-label">Quota restante</span>
+                            <div class="admin-stock-metric-value">{{ preview.daily_adjustments_remaining }}</div>
+                            <small>O quinto ajuste do dia é bloqueado no backend.</small>
+                        </article>
+                    </div>
+                    {% if preview.explicacao_saldo %}
+                    <div class="alert alert-secondary mb-0">{{ preview.explicacao_saldo }}</div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="card admin-stock-card">
+                <div class="card-header border-0 pb-0">
+                    <h5 class="mb-1">Aplicar saldo-alvo</h5>
+                    <p class="text-muted mb-0">O valor informado passa a ser o saldo final desejado. O sistema vai alinhar legado, ledger e cache para esse total.</p>
+                </div>
+                <div class="card-body">
+                    <form method="post" class="d-flex flex-column gap-3">
+                        <input type="hidden" name="codigo" value="{{ preview.codigo }}">
+                        <div>
+                            <label for="novo_saldo" class="form-label">Saldo alvo</label>
+                            <input class="form-control form-control-lg" id="novo_saldo" name="novo_saldo" type="number" step="0.000001" min="0" value="{{ '%.6f'|format(preview.saldo_exibido) }}" {% if preview.pre_cadastro_pendente or preview.daily_limit_exhausted %}disabled{% endif %} required>
+                            <div class="form-text">Valor final que deve aparecer em todo o sistema após o ajuste.</div>
+                        </div>
+                        <div>
+                            <label for="motivo" class="form-label">Motivo obrigatório</label>
+                            <textarea class="form-control" id="motivo" name="motivo" rows="4" maxlength="600" placeholder="Explique a causa da correção e o contexto operacional." {% if preview.pre_cadastro_pendente or preview.daily_limit_exhausted %}disabled{% endif %} required></textarea>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" value="on" id="confirmar_ajuste" name="confirmar_ajuste" {% if preview.pre_cadastro_pendente or preview.daily_limit_exhausted %}disabled{% endif %}>
+                            <label class="form-check-label" for="confirmar_ajuste">Confirmo que preciso forçar esse saldo-alvo na produção e que o motivo foi revisado.</label>
+                        </div>
+                        <div class="alert alert-danger mb-0">Use essa porta como exceção operacional. Cada submissão fica espelhada em SQLite para auditoria local, além do histórico normal do sistema.</div>
+                        <div class="d-flex flex-wrap gap-2">
+                            <button class="btn btn-danger" type="submit" {% if preview.pre_cadastro_pendente or preview.daily_limit_exhausted %}disabled{% endif %}><i class="bi bi-exclamation-diamond me-1"></i>Aplicar ajuste administrativo</button>
+                            <a class="btn btn-outline-light" href="{{ url_for('config.estoque_ajuste_admin', codigo=preview.codigo) }}">Atualizar leitura</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="d-flex flex-column gap-4">
+            <div class="card admin-stock-card">
+                <div class="card-header border-0 pb-0">
+                    <h5 class="mb-1">Regras desta porta</h5>
+                    <p class="text-muted mb-0">O acesso é deliberadamente estreito para reduzir risco operacional.</p>
+                </div>
+                <div class="card-body d-flex flex-column gap-3">
+                    <div class="admin-stock-history-item">
+                        <strong>1. Saldo absoluto</strong>
+                        <div class="text-muted">O formulário não aplica entrada ou saída solta. Ele recebe um saldo final desejado e alinha os registros para esse alvo.</div>
+                    </div>
+                    <div class="admin-stock-history-item">
+                        <strong>2. Rastreabilidade</strong>
+                        <div class="text-muted">Cada correção gera histórico administrativo com motivo, usuário e horário para auditoria posterior.</div>
+                    </div>
+                    <div class="admin-stock-history-item">
+                        <strong>3. Bloqueios de segurança</strong>
+                        <div class="text-muted">Itens com pré-cadastro pendente continuam protegidos. Além disso, cada item aceita no máximo 4 ajustes administrativos por dia.</div>
+                    </div>
+                    <div class="admin-stock-history-item">
+                        <strong>4. Auditoria em SQLite</strong>
+                        <div class="text-muted">Sucesso, bloqueio e erro do POST administrativo ficam gravados em um SQLite local de auditoria para conferência posterior.</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card admin-stock-card">
+                <div class="card-header border-0 pb-0">
+                    <h5 class="mb-1">Ajustes recentes</h5>
+                    <p class="text-muted mb-0">Últimos registros administrativos gravados pelo portal.</p>
+                </div>
+                <div class="card-body d-flex flex-column gap-3">
+                    {% if recent_adjustments %}
+                        {% for entry in recent_adjustments %}
+                        <article class="admin-stock-history-item">
+                            <div class="d-flex flex-wrap justify-content-between gap-2">
+                                <strong>{{ entry.descricao_item or 'Item sem descrição' }}</strong>
+                                <span class="text-muted">{{ entry.data_evento.strftime('%d/%m/%Y %H:%M') if entry.data_evento else '-' }}</span>
+                            </div>
+                            <div class="text-muted small">Código {{ entry.codigo }} • {{ entry.usuario_nome or 'Usuário' }}{% if entry.matricula %} ({{ entry.matricula }}){% endif %}</div>
+                            <div class="mt-2"><span class="badge text-bg-dark">Delta legado {{ entry.quantidade|round(6) }}</span></div>
+                            {% if entry.descricao %}
+                            <div class="mt-2 text-muted">{{ entry.descricao }}</div>
+                            {% endif %}
+                        </article>
+                        {% endfor %}
+                    {% else %}
+                    <div class="alert alert-secondary mb-0">Nenhum ajuste administrativo foi registrado ainda.</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    (function () {
+        const input = document.getElementById('preview-code-input');
+        const suggestions = document.getElementById('admin-balance-suggestions');
+        if (!input || !suggestions) {
+            return;
+        }
+
+        let timer = null;
+        let currentItems = [];
+
+        function hideSuggestions() {
+            suggestions.classList.remove('show');
+            suggestions.innerHTML = '';
+        }
+
+        function renderSuggestions(items) {
+            currentItems = Array.isArray(items) ? items : [];
+            if (!currentItems.length) {
+                hideSuggestions();
+                return;
+            }
+
+            suggestions.innerHTML = currentItems.map(function (item, index) {
+                return `
+                    <div class="admin-stock-suggestion" data-index="${index}">
+                        <div class="fw-semibold">${item.descricao || item.codigo}</div>
+                        <div class="small text-muted">Código ${item.codigo} • ${item.saldo_display || item.saldo || 0}</div>
+                    </div>
+                `;
+            }).join('');
+            suggestions.classList.add('show');
+
+            suggestions.querySelectorAll('.admin-stock-suggestion').forEach(function (element) {
+                element.addEventListener('mousedown', function (event) {
+                    event.preventDefault();
+                    const index = Number(element.dataset.index || -1);
+                    const selected = currentItems[index];
+                    if (!selected) {
+                        return;
+                    }
+                    input.value = selected.codigo || '';
+                    hideSuggestions();
+                });
+            });
+        }
+
+        async function fetchSuggestions(query) {
+            const response = await fetch(`{{ url_for('movements.buscar_item') }}?q=${encodeURIComponent(query)}`, {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                credentials: 'same-origin',
+            });
+            const data = await response.json();
+            return Array.isArray(data.items) ? data.items : [];
+        }
+
+        input.addEventListener('input', function () {
+            const query = String(input.value || '').trim();
+            if (timer) {
+                clearTimeout(timer);
+            }
+            if (query.length < 2) {
+                hideSuggestions();
+                return;
+            }
+
+            timer = setTimeout(async function () {
+                try {
+                    renderSuggestions(await fetchSuggestions(query));
+                } catch (error) {
+                    hideSuggestions();
+                }
+            }, 180);
+        });
+
+        input.addEventListener('blur', function () {
+            setTimeout(hideSuggestions, 120);
+        });
+    })();
+</script>
+{% endblock %}

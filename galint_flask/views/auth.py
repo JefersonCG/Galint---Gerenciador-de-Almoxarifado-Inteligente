@@ -1,7 +1,7 @@
 """Authentication views."""
 from __future__ import annotations
 
-from flask import Blueprint, render_template, redirect, url_for, flash, request, session
+from flask import Blueprint, render_template, redirect, url_for, flash, request, session, jsonify
 from flask_login import login_required
 
 from ..services.auth import authenticate, end_session
@@ -57,3 +57,9 @@ def logout():
     end_session()
     flash("Sessão encerrada.", "info")
     return redirect(url_for("auth.login_form"))
+
+
+@blueprint.post("/session-activity")
+@login_required
+def session_activity():
+    return jsonify({"success": True})

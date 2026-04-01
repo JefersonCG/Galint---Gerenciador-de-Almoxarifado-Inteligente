@@ -74,6 +74,25 @@
         });
     </script>
     <script>
+        window.galintNativeFetch = window.galintNativeFetch || window.fetch.bind(window);
+
+        window.galintShouldInspectFetch = function (input) {
+            const rawUrl = typeof input === 'string'
+                ? input
+                : (input && typeof input.url === 'string' ? input.url : '');
+
+            if (!rawUrl) {
+                return true;
+            }
+
+            try {
+                const resolved = new URL(rawUrl, window.location.origin);
+                return resolved.origin === window.location.origin;
+            } catch (error) {
+                return !/^https?:\/\//i.test(rawUrl);
+            }
+        };
+
         window.galintRedirectToLogin = function (loginUrl, message) {
             if (window.__galintAuthRedirecting) {
                 return;
@@ -127,10 +146,33 @@
 
         window.galintFetchWithAuth = async function (url, options, fallbackMessage) {
             const requestOptions = Object.assign({ credentials: 'same-origin' }, options || {});
-            const response = await window.fetch(url, requestOptions);
+            const response = await window.galintNativeFetch(url, requestOptions);
             return window.galintEnsureAuthenticatedResponse(response, fallbackMessage);
         };
+
+        if (!window.__galintFetchWrapped) {
+            window.__galintFetchWrapped = true;
+            window.fetch = function (input, init) {
+                const requestOptions = Object.assign({ credentials: 'same-origin' }, init || {});
+                return window.galintNativeFetch(input, requestOptions).then(function (response) {
+                    if (!window.galintShouldInspectFetch(input)) {
+                        return response;
+                    }
+                    return window.galintEnsureAuthenticatedResponse(response);
+                });
+            };
+        }
     </script>
+    % if current_user.is_authenticated:
+    <script>
+        window.galintSessionConfig = {
+            keepaliveUrl: '${url_for("auth.session_activity")}',
+            loginUrl: '${url_for("auth.login_form")}?next=' + encodeURIComponent(window.location.pathname + window.location.search),
+            throttleMs: 5 * 60 * 1000,
+        };
+    </script>
+    <script src="${url_for('static', filename='js/session-activity.js')}"></script>
+    % endif
     <%block name="scripts"></%block>
 </body>
 

@@ -27,6 +27,7 @@ from ..services.auth import (
     get_mobile_user,
 )
 from ..services.finance_service import finance_service
+from ..services.inventory_engine import PRE_CADASTRO_PENDING_EXIT_MESSAGE
 from ..services.inventory import inventory_service, MovimentoPayload
 from ..services.item_foto_service import ItemFotoService
 from ..services.telegram_reports import TelegramReportService
@@ -893,6 +894,15 @@ def retirar_multipla_mobile(current_user: Usuario):
                 resultados.append({"index": idx, "codigo": codigo, "success": False, "message": "Item não encontrado"})
                 continue
 
+            if bool(getattr(item, "pre_cadastro_pendente", False)):
+                resultados.append({
+                    "index": idx,
+                    "codigo": codigo,
+                    "success": False,
+                    "message": PRE_CADASTRO_PENDING_EXIT_MESSAGE,
+                })
+                continue
+
             try:
                 saldo_atual = float(item.get_saldo_atual() or 0)
             except Exception:
@@ -1373,6 +1383,9 @@ def retirar_mobile(current_user: Usuario):
         if not item:
             return jsonify({"success": False, "message": "Item não encontrado"}), 404
 
+        if bool(getattr(item, "pre_cadastro_pendente", False)):
+            return jsonify({"success": False, "message": PRE_CADASTRO_PENDING_EXIT_MESSAGE}), 400
+
         # Obter parâmetros de embalagens (se enviados pelo mobile)
         retirada_embalagens_raw = data.get("retirada_embalagens")
         retirada_unidades_soltas_raw = data.get("retirada_unidades_soltas")
@@ -1687,6 +1700,13 @@ def retirar_mobile(current_user: Usuario):
                 },
             },
         }), 201
+
+    except ValueError as e:
+        db.session.rollback()
+        return jsonify({
+            "success": False,
+            "message": str(e),
+        }), 400
 
     except Exception as e:
         db.session.rollback()

@@ -1046,6 +1046,14 @@ class FinanceService:
                 write_audit=True,
             )
 
+            try:
+                inventory_engine.sync_packaging_read_model(
+                    product_id=item_row.codigo_item,
+                    commit=False,
+                )
+            except Exception:
+                pass
+
             item_row.stock_movement_id = result.movement_id
             item_row.operation_log_id = result.operation_log_id
             item_row.status_processamento = "processado"

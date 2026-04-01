@@ -6,6 +6,20 @@
 {% endblock %}
 {% block content %}
 <div class="row gy-4">
+    {% if current_user.is_admin and endpoint_exists('config.estoque_ajuste_admin') %}
+    <div class="col-lg-6">
+        <a href="{{ url_for('config.estoque_ajuste_admin') }}" class="text-decoration-none">
+            <div class="card h-100" style="background: linear-gradient(160deg, #1f2937, #0f172a); border: 1px solid rgba(248, 113, 113, 0.22); color: #e5e7eb; box-shadow: 0 20px 42px rgba(15, 23, 42, 0.18);">
+                <div class="card-body">
+                    <div class="small text-uppercase mb-2" style="letter-spacing: 0.08em; color: #fca5a5;">Área controlada</div>
+                    <h5 class="card-title" style="color: #fff7ed;">Porta Administrativa de Estoque</h5>
+                    <p class="card-text" style="color: rgba(229, 231, 235, 0.78);">Forçar saldo-alvo em legado, ledger e cache com rastreabilidade, motivo obrigatório e visão de divergência antes da aplicação.</p>
+                    <span class="btn btn-outline-danger">Abrir</span>
+                </div>
+            </div>
+        </a>
+    </div>
+    {% endif %}
     {% if endpoint_exists('config.notificacoes') %}
     <div class="col-lg-6">
         <a href="{{ url_for('config.notificacoes') }}" class="text-decoration-none">

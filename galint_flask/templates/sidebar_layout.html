@@ -15,6 +15,7 @@
             {% set reparo_url = url_for('reparo.listar_reparos') if endpoint_exists('reparo.listar_reparos') else None %}
             {% set valor_estoque_url = url_for('inventory.valor_estoque') if endpoint_exists('inventory.valor_estoque') else None %}
             {% set fornecedores_url = url_for('config.fornecedores') if endpoint_exists('config.fornecedores') else None %}
+            {% set admin_stock_adjust_url = url_for('config.estoque_ajuste_admin') if endpoint_exists('config.estoque_ajuste_admin') else None %}
             {% set central_operacoes_url = url_for('operations.central_operations') if endpoint_exists('operations.central_operations') else None %}
             <a class="sidebar-link {% if p == url_for('dashboard.index') %}active{% endif %}"
                 href="{{ url_for('dashboard.index') }}">
@@ -59,7 +60,7 @@
                 </a>
                 {% endif %}
             </div>
-            {% set estoque_active = p.startswith('/itens') or p.startswith('/nf') or p.startswith('/estoque') or (fornecedores_url and p.startswith(fornecedores_url)) %}
+            {% set estoque_active = p.startswith('/itens') or p.startswith('/nf') or p.startswith('/estoque') or (fornecedores_url and p.startswith(fornecedores_url)) or (admin_stock_adjust_url and p.startswith(admin_stock_adjust_url)) %}
             <button
                 class="sidebar-link d-flex justify-content-between align-items-center border-0 bg-transparent text-start w-100 {{ 'active' if estoque_active else 'collapsed' }}"
                 type="button" data-bs-toggle="collapse" data-bs-target="#estoqueMenu"
@@ -95,6 +96,13 @@
                     href="{{ fornecedores_url }}">
                     <i class="bi bi-building-add"></i>
                     <span>Cadastrar fornecedor</span>
+                </a>
+                {% endif %}
+                {% if current_user.is_authenticated and current_user.is_admin and admin_stock_adjust_url %}
+                <a class="sidebar-link ps-4 {% if p.startswith(admin_stock_adjust_url) %}active{% endif %}"
+                    href="{{ admin_stock_adjust_url }}">
+                    <i class="bi bi-shield-lock"></i>
+                    <span>Ajuste Administrativo</span>
                 </a>
                 {% endif %}
                 {% if endpoint_exists('inventory.lojas_lab') %}

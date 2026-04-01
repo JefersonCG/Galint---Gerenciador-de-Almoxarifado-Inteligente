@@ -14,6 +14,9 @@ from .extensions import db
 from .utils.time_service import TimeService
 
 
+_BALANCE_ZERO_TOLERANCE = 1e-6
+
+
 class Item(db.Model):
     __tablename__ = "itens"
 
@@ -233,8 +236,19 @@ class Item(db.Model):
     def get_estoque_total_com_embalagens(self) -> float:
         """Calcula o estoque total considerando embalagens + unidades soltas."""
         if self.tipo_embalagem_novo and self.unidades_por_embalagem:
-            return (self.estoque_embalagens * self.unidades_por_embalagem) + self.estoque_unidades_soltas
-        return self.get_saldo_atual()
+            total = (self.estoque_embalagens * self.unidades_por_embalagem) + self.estoque_unidades_soltas
+            return self.normalize_balance_value(total)
+        return self.normalize_balance_value(self.get_saldo_atual())
+
+    @staticmethod
+    def normalize_balance_value(value: float | int | None, *, tolerance: float = _BALANCE_ZERO_TOLERANCE) -> float:
+        try:
+            parsed = float(value or 0.0)
+        except (TypeError, ValueError):
+            return 0.0
+        if abs(parsed) <= tolerance:
+            return 0.0
+        return parsed
 
     def get_unidade_interna_display(self) -> str | None:
         """Unidade interna para exibição do total (L/Kg/m/un).
@@ -265,12 +279,12 @@ class Item(db.Model):
     def get_saldo_fisico_total(self) -> float:
         """Saldo que deve ser considerado como 'físico' para todo o sistema."""
         if self.tipo_embalagem_novo and self.unidades_por_embalagem:
-            return float(self.get_estoque_total_com_embalagens() or 0.0)
-        return float(self.get_saldo_atual() or 0.0)
+            return self.normalize_balance_value(self.get_estoque_total_com_embalagens())
+        return self.normalize_balance_value(self.get_saldo_atual())
 
     def get_saldo_fisico_display(self) -> str:
         """Mescla: estoque físico detalhado + total interno (quando aplicável)."""
-        total = float(self.get_saldo_fisico_total() or 0.0)
+        total = self.normalize_balance_value(self.get_saldo_fisico_total())
         unidade_total = self.get_unidade_interna_display() or "un"
 
         try:
@@ -333,7 +347,7 @@ class Item(db.Model):
         from .services.balance_provider import balance_provider
 
         snapshot = balance_provider.get_balance(self.codigo_item, item=self)
-        return float(snapshot.quantity_base or 0.0)
+        return self.normalize_balance_value(snapshot.quantity_base)
 
     @staticmethod
     def get_saldo_total_by_codigo(codigo: str) -> float:
@@ -341,7 +355,8 @@ class Item(db.Model):
         from .services.balance_provider import balance_provider
 
         itens = db.session.query(Item).filter(Item.codigo_item == codigo).all()
-        return sum(float(balance_provider.get_balance(item.codigo_item, item=item).quantity_base or 0.0) for item in itens)
+        total = sum(float(balance_provider.get_balance(item.codigo_item, item=item).quantity_base or 0.0) for item in itens)
+        return Item.normalize_balance_value(total)
 
     @validates("grandeza_referencia", "densidade", "litros_por_embalagem", "unidades_por_embalagem", "estoque_embalagens", "estoque_unidades_soltas")
     def _coerce_float_fields(self, _key: str, value):

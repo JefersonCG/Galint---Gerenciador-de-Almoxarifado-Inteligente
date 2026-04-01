@@ -6,6 +6,8 @@ from werkzeug.utils import secure_filename
 from ..services.config_service import ConfigService
 from ..services.finance_service import finance_service
 from ..services.galint_notify_service import GalintNotifyService
+from ..services.inventory import inventory_service, ADMIN_BALANCE_ADJUSTMENT_TYPE
+from ..services.admin_stock_audit_sqlite import log_admin_stock_adjustment
 from ..services.notification_router import NotificationRouterService
 from ..services.telegram_service import TelegramService
 from ..extensions import db
@@ -13,6 +15,29 @@ from ..models import NotificationRouterConfig, TelegramConfig, TelegramUser, Usu
 
 
 bp = Blueprint("config", __name__, url_prefix="/configuracoes")
+
+
+def _parse_balance_value(value: str | None) -> float:
+    raw = str(value or "").strip().replace(",", ".")
+    if not raw:
+        raise ValueError("Informe o saldo alvo")
+    try:
+        return float(raw)
+    except ValueError as exc:
+        raise ValueError("Informe um saldo válido") from exc
+
+
+def _build_admin_adjustment_audit_context(*, codigo: str, novo_saldo: float | None, motivo: str | None) -> dict[str, object]:
+    return {
+        "codigo_item": str(codigo or "").strip() or None,
+        "target_balance": novo_saldo,
+        "reason": str(motivo or "").strip() or None,
+        "user_id": str(getattr(current_user, "matricula", "") or getattr(current_user, "id", "")).strip() or None,
+        "user_name": getattr(current_user, "nome", None),
+        "route": request.path,
+        "ip_address": request.remote_addr,
+        "user_agent": request.user_agent.string if request.user_agent else None,
+    }
 
 
 @bp.route("/empresa", methods=["GET", "POST"])
@@ -363,3 +388,78 @@ def resetar_templates():
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 400
+
+
+@bp.route("/estoque/ajuste-admin", methods=["GET", "POST"])
+@login_required
+def estoque_ajuste_admin():
+    if not current_user.is_admin:
+        flash("Acesso negado. Apenas administradores podem alterar saldos por esta porta administrativa.", "danger")
+        return redirect(url_for("dashboard.index"))
+
+    selected_code = (request.values.get("codigo") or "").strip()
+    preview = None
+
+    if request.method == "POST":
+        motivo = (request.form.get("motivo") or "").strip()
+        novo_saldo = None
+        audit_context = _build_admin_adjustment_audit_context(
+            codigo=selected_code,
+            novo_saldo=novo_saldo,
+            motivo=motivo,
+        )
+        service_called = False
+        try:
+            if request.form.get("confirmar_ajuste") != "on":
+                raise ValueError("Confirme o ajuste administrativo antes de aplicar.")
+
+            novo_saldo = _parse_balance_value(request.form.get("novo_saldo"))
+            audit_context["target_balance"] = novo_saldo
+            service_called = True
+
+            result = inventory_service.set_admin_absolute_balance(
+                codigo=selected_code,
+                novo_saldo=novo_saldo,
+                matricula=str(getattr(current_user, "matricula", "") or getattr(current_user, "id", "")),
+                motivo=motivo,
+                audit_context=audit_context,
+            )
+            flash(result.get("message") or "Ajuste administrativo aplicado.", "success" if result.get("changed") else "info")
+            return redirect(url_for("config.estoque_ajuste_admin", codigo=selected_code))
+        except ValueError as exc:
+            if not service_called:
+                log_admin_stock_adjustment(
+                    action_type=ADMIN_BALANCE_ADJUSTMENT_TYPE,
+                    action_result="validation_error",
+                    details={
+                        **audit_context,
+                        "error_message": str(exc),
+                    },
+                )
+            flash(str(exc), "danger")
+        except Exception as exc:
+            if not service_called:
+                log_admin_stock_adjustment(
+                    action_type=ADMIN_BALANCE_ADJUSTMENT_TYPE,
+                    action_result="error",
+                    details={
+                        **audit_context,
+                        "target_balance": novo_saldo,
+                        "error_message": str(exc),
+                    },
+                )
+            flash("Erro interno ao aplicar ajuste administrativo.", "danger")
+
+    if selected_code:
+        try:
+            preview = inventory_service.get_admin_balance_snapshot(selected_code)
+        except ValueError as exc:
+            if request.method == "GET":
+                flash(str(exc), "danger")
+
+    return render_template(
+        "config/estoque_admin.html",
+        preview=preview,
+        preview_code=selected_code,
+        recent_adjustments=inventory_service.list_recent_admin_balance_adjustments(limit=12),
+    )

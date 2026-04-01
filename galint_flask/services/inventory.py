@@ -26,13 +26,21 @@ from ..models import (
     MaterialInventario,
     ProductDimension,
     StockBalance,
+    StockMovement,
     ProductUnit,
     ProductUnitConversion,
     RetiradaFerramenta,
     Saida,
     TelegramOutbox,
+    Usuario,
 )
-from .inventory_engine import InventoryEngineError, InventoryOperationResult, inventory_engine
+from .inventory_engine import (
+    InventoryEngineError,
+    InventoryOperationResult,
+    PRE_CADASTRO_PENDING_EXIT_MESSAGE,
+    inventory_engine,
+)
+from .admin_stock_audit_sqlite import log_admin_stock_adjustment
 from .legacy_stock_normalizer import resolve_canonical_unit, resolve_packaging_quantity_and_unit, uses_packaging_legacy_normalization
 from .operation_log_service import operation_log_service
 from .price_normalization import infer_price_unit_for_item, normalize_item_price
@@ -40,6 +48,7 @@ from .unit_conversion_engine import UnitConversionError
 from .balance_provider import balance_provider
 from ..utils.lote_generator import generate_lote
 from ..utils.barcode_generator import generate_barcode, get_barcode_path
+from ..utils.time_service import TimeService
 
 logger = logging.getLogger(__name__)
 
@@ -268,6 +277,15 @@ class MovimentoPayload:
     tipo_custodia: str = "temporaria"
 
 
+ADMIN_BALANCE_ADJUSTMENT_TYPE = "ajuste_admin_saldo"
+ADMIN_BALANCE_ADJUSTMENT_SOURCE = "admin_balance_portal"
+ADMIN_BALANCE_DAILY_LIMIT = 4
+ADMIN_BALANCE_PENDING_PRECADASTRO_MESSAGE = (
+    "Ajuste administrativo bloqueado: este item está com pré-cadastro pendente. "
+    "Finalize o pré-cadastro antes de corrigir o saldo."
+)
+
+
 class InventoryService:
     """Facade responsável por CRUD de itens e lançamentos de estoque."""
 
@@ -307,8 +325,545 @@ class InventoryService:
             self._runtime_cache.pop(key, None)
 
     @staticmethod
+    def _balance_close(left: float, right: float, *, tolerance: float = 1e-6) -> bool:
+        return abs(float(left or 0.0) - float(right or 0.0)) <= tolerance
+
+    @staticmethod
+    def _reconciliation_label(classification: str) -> str:
+        mapping = {
+            "divergencia_zero": "Alinhado",
+            "divergencia_explicavel": "Divergência explicável",
+            "divergencia_critica": "Divergência crítica",
+        }
+        return mapping.get((classification or "").strip(), "Situação desconhecida")
+
+    @staticmethod
+    def _reconciliation_badge(classification: str) -> str:
+        mapping = {
+            "divergencia_zero": "success",
+            "divergencia_explicavel": "warning",
+            "divergencia_critica": "danger",
+        }
+        return mapping.get((classification or "").strip(), "secondary")
+
+    @staticmethod
+    def _admin_balance_day_bounds_utc(*, now_local: datetime | None = None) -> tuple[datetime, datetime, date]:
+        current_local = now_local or TimeService.now_local()
+        start_local = current_local.replace(hour=0, minute=0, second=0, microsecond=0)
+        end_local = start_local + timedelta(days=1)
+        start_utc = TimeService.to_utc(start_local).replace(tzinfo=None)
+        end_utc = TimeService.to_utc(end_local).replace(tzinfo=None)
+        return start_utc, end_utc, start_local.date()
+
+    def get_admin_balance_daily_usage(self, codigo: str) -> dict[str, Any]:
+        codigo_norm = _sanitize_codigo(codigo)
+        if not codigo_norm:
+            raise ValueError("Informe o código do item")
+
+        start_utc, end_utc, local_date = self._admin_balance_day_bounds_utc()
+        used = int(
+            db.session.query(func.count(InventarioEvento.id_evento))
+            .filter(
+                InventarioEvento.tipo == ADMIN_BALANCE_ADJUSTMENT_TYPE,
+                InventarioEvento.codigo_item == codigo_norm,
+                InventarioEvento.data_evento >= start_utc,
+                InventarioEvento.data_evento < end_utc,
+            )
+            .scalar()
+            or 0
+        )
+        remaining = max(0, ADMIN_BALANCE_DAILY_LIMIT - used)
+        return {
+            "limit": ADMIN_BALANCE_DAILY_LIMIT,
+            "used": used,
+            "remaining": remaining,
+            "exhausted": remaining <= 0,
+            "local_date": local_date,
+        }
+
+    @staticmethod
+    def _build_admin_balance_audit_details(
+        *,
+        item: Item | None,
+        codigo: str | None,
+        matricula: str | None,
+        motivo: str | None,
+        target_balance: float | None,
+        audit_context: dict[str, Any] | None = None,
+        before: dict[str, Any] | None = None,
+        after: dict[str, Any] | None = None,
+        result: dict[str, Any] | None = None,
+        error_message: str | None = None,
+    ) -> dict[str, Any]:
+        details = dict(audit_context or {})
+        if item is not None:
+            details.setdefault("codigo_item", item.codigo_item)
+            details.setdefault("descricao_item", item.descricao)
+        elif codigo:
+            details.setdefault("codigo_item", codigo)
+        if matricula:
+            details.setdefault("user_id", matricula)
+        if motivo is not None:
+            details["reason"] = motivo
+        if target_balance is not None:
+            details["target_balance"] = float(target_balance)
+        if error_message:
+            details["error_message"] = error_message
+
+        if before:
+            details["displayed_balance_before"] = before.get("saldo_exibido")
+            details["legacy_balance_before"] = before.get("legacy_balance")
+            details["ledger_balance_before"] = before.get("ledger_balance")
+            details["stock_balance_before"] = before.get("stock_balance")
+            details["daily_limit"] = before.get("daily_limit")
+            details["daily_used"] = before.get("daily_adjustments_used")
+            details["daily_remaining"] = before.get("daily_adjustments_remaining")
+
+        if after:
+            details["displayed_balance_after"] = after.get("saldo_exibido")
+            details["legacy_balance_after"] = after.get("legacy_balance")
+            details["ledger_balance_after"] = after.get("ledger_balance")
+            details["stock_balance_after"] = after.get("stock_balance")
+            details["daily_limit"] = after.get("daily_limit", details.get("daily_limit"))
+            details["daily_used"] = after.get("daily_adjustments_used", details.get("daily_used"))
+            details["daily_remaining"] = after.get("daily_adjustments_remaining", details.get("daily_remaining"))
+
+        if result:
+            details["event_id"] = result.get("event_id")
+            details["movement_id"] = result.get("movement_id")
+            details["operation_log_id"] = result.get("operation_log_id")
+            details["changed"] = bool(result.get("changed"))
+            if result.get("message"):
+                details["message"] = result.get("message")
+
+        return details
+
+    @classmethod
+    def _log_admin_balance_audit(cls, *, action_result: str, details: dict[str, Any]) -> None:
+        log_admin_stock_adjustment(
+            action_type=ADMIN_BALANCE_ADJUSTMENT_TYPE,
+            action_result=action_result,
+            details=details,
+        )
+
+    def get_admin_balance_snapshot(self, codigo: str) -> dict[str, Any]:
+        codigo_norm = _sanitize_codigo(codigo)
+        if not codigo_norm:
+            raise ValueError("Informe o código do item")
+
+        item = Item.query.get(codigo_norm)
+        if not item:
+            raise ValueError("Item não encontrado")
+
+        from .ledger_reconciliation import ledger_reconciliation_service
+
+        reconciliation = ledger_reconciliation_service.reconcile_product(codigo_norm)
+        balance_snapshot = balance_provider.get_balance(codigo_norm, item=item)
+        daily_usage = self.get_admin_balance_daily_usage(codigo_norm)
+        saldo_exibido = Item.normalize_balance_value(balance_snapshot.quantity_base)
+        saldo_fisico = Item.normalize_balance_value(item.get_saldo_fisico_total())
+        legacy_balance = Item.normalize_balance_value(reconciliation.legacy_balance)
+        ledger_balance = Item.normalize_balance_value(reconciliation.ledger_balance)
+        stock_balance = Item.normalize_balance_value(reconciliation.stock_balance)
+        divergence_legacy_vs_ledger = Item.normalize_balance_value(reconciliation.divergence_legacy_vs_ledger)
+        divergence_ledger_vs_cache = Item.normalize_balance_value(reconciliation.divergence_ledger_vs_cache)
+
+        return {
+            "codigo": item.codigo_item,
+            "descricao": item.descricao,
+            "categoria": item.categoria,
+            "unidade": item.unidade,
+            "saldo_exibido": saldo_exibido,
+            "saldo_fisico": saldo_fisico,
+            "saldo_display": item.get_saldo_fisico_display(),
+            "explicacao_saldo": item.get_explicacao_saldo(),
+            "source": balance_snapshot.source,
+            "migrated": bool(balance_snapshot.migrated),
+            "legacy_balance": legacy_balance,
+            "ledger_balance": ledger_balance,
+            "stock_balance": stock_balance,
+            "divergence_legacy_vs_ledger": divergence_legacy_vs_ledger,
+            "divergence_ledger_vs_cache": divergence_ledger_vs_cache,
+            "classification": reconciliation.classification,
+            "classification_label": self._reconciliation_label(reconciliation.classification),
+            "classification_badge": self._reconciliation_badge(reconciliation.classification),
+            "pre_cadastro_pendente": bool(getattr(item, "pre_cadastro_pendente", False)),
+            "tipo_embalagem_novo": item.tipo_embalagem_novo,
+            "unidades_por_embalagem": item.unidades_por_embalagem,
+            "foto_path": item.foto_path,
+            "daily_limit": daily_usage["limit"],
+            "daily_adjustments_used": daily_usage["used"],
+            "daily_adjustments_remaining": daily_usage["remaining"],
+            "daily_limit_exhausted": daily_usage["exhausted"],
+            "daily_reference_date": daily_usage["local_date"],
+        }
+
+    def list_recent_admin_balance_adjustments(self, limit: int = 12) -> list[dict[str, Any]]:
+        safe_limit = max(1, min(int(limit or 12), 50))
+        events = (
+            InventarioEvento.query
+            .filter(InventarioEvento.tipo == ADMIN_BALANCE_ADJUSTMENT_TYPE)
+            .order_by(InventarioEvento.data_evento.desc())
+            .limit(safe_limit)
+            .all()
+        )
+        if not events:
+            return []
+
+        item_ids = sorted({str(event.codigo_item) for event in events if event.codigo_item})
+        user_ids = sorted({str(event.matricula) for event in events if event.matricula})
+        items_by_id = {
+            item.codigo_item: item
+            for item in Item.query.filter(Item.codigo_item.in_(item_ids)).all()
+        } if item_ids else {}
+        users_by_id = {
+            user.matricula: user
+            for user in Usuario.query.filter(Usuario.matricula.in_(user_ids)).all()
+        } if user_ids else {}
+
+        results: list[dict[str, Any]] = []
+        for event in events:
+            item = items_by_id.get(str(event.codigo_item or ""))
+            user = users_by_id.get(str(event.matricula or ""))
+            results.append({
+                "id": event.id_evento,
+                "codigo": event.codigo_item,
+                "descricao_item": item.descricao if item else None,
+                "matricula": event.matricula,
+                "usuario_nome": user.nome if user else None,
+                "quantidade": float(event.quantidade or 0.0),
+                "descricao": event.descricao,
+                "data_evento": event.data_evento,
+            })
+        return results
+
+    def set_admin_absolute_balance(
+        self,
+        *,
+        codigo: str,
+        novo_saldo: float,
+        matricula: str,
+        motivo: str,
+        notify: bool = True,
+        audit_context: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        audit_context_norm = dict(audit_context or {})
+        codigo_norm = _sanitize_codigo(codigo)
+        motivo_norm = str(motivo or "").strip()
+        if not codigo_norm:
+            message = "Informe o código do item"
+            self._log_admin_balance_audit(
+                action_result="validation_error",
+                details=self._build_admin_balance_audit_details(
+                    item=None,
+                    codigo=codigo_norm or codigo,
+                    matricula=matricula,
+                    motivo=motivo_norm,
+                    target_balance=None,
+                    audit_context=audit_context_norm,
+                    error_message=message,
+                ),
+            )
+            raise ValueError(message)
+
+        try:
+            target_balance = float(novo_saldo)
+        except (TypeError, ValueError) as exc:
+            message = "Saldo inválido"
+            self._log_admin_balance_audit(
+                action_result="validation_error",
+                details=self._build_admin_balance_audit_details(
+                    item=None,
+                    codigo=codigo_norm,
+                    matricula=matricula,
+                    motivo=motivo_norm,
+                    target_balance=None,
+                    audit_context=audit_context_norm,
+                    error_message=message,
+                ),
+            )
+            raise ValueError(message) from exc
+
+        if math.isnan(target_balance) or math.isinf(target_balance):
+            message = "Saldo inválido"
+            self._log_admin_balance_audit(
+                action_result="validation_error",
+                details=self._build_admin_balance_audit_details(
+                    item=None,
+                    codigo=codigo_norm,
+                    matricula=matricula,
+                    motivo=motivo_norm,
+                    target_balance=None,
+                    audit_context=audit_context_norm,
+                    error_message=message,
+                ),
+            )
+            raise ValueError(message)
+
+        if target_balance < 0:
+            message = "Saldo não pode ser negativo"
+            self._log_admin_balance_audit(
+                action_result="validation_error",
+                details=self._build_admin_balance_audit_details(
+                    item=None,
+                    codigo=codigo_norm,
+                    matricula=matricula,
+                    motivo=motivo_norm,
+                    target_balance=target_balance,
+                    audit_context=audit_context_norm,
+                    error_message=message,
+                ),
+            )
+            raise ValueError(message)
+        if not motivo_norm:
+            message = "Informe o motivo do ajuste administrativo"
+            self._log_admin_balance_audit(
+                action_result="validation_error",
+                details=self._build_admin_balance_audit_details(
+                    item=None,
+                    codigo=codigo_norm,
+                    matricula=matricula,
+                    motivo=motivo_norm,
+                    target_balance=target_balance,
+                    audit_context=audit_context_norm,
+                    error_message=message,
+                ),
+            )
+            raise ValueError(message)
+
+        item = Item.query.get(codigo_norm)
+        if not item:
+            message = "Item não encontrado"
+            self._log_admin_balance_audit(
+                action_result="validation_error",
+                details=self._build_admin_balance_audit_details(
+                    item=None,
+                    codigo=codigo_norm,
+                    matricula=matricula,
+                    motivo=motivo_norm,
+                    target_balance=target_balance,
+                    audit_context=audit_context_norm,
+                    error_message=message,
+                ),
+            )
+            raise ValueError(message)
+        if bool(getattr(item, "pre_cadastro_pendente", False)):
+            self._log_admin_balance_audit(
+                action_result="pre_cadastro_blocked",
+                details=self._build_admin_balance_audit_details(
+                    item=item,
+                    codigo=codigo_norm,
+                    matricula=matricula,
+                    motivo=motivo_norm,
+                    target_balance=target_balance,
+                    audit_context=audit_context_norm,
+                    error_message=ADMIN_BALANCE_PENDING_PRECADASTRO_MESSAGE,
+                ),
+            )
+            raise ValueError(ADMIN_BALANCE_PENDING_PRECADASTRO_MESSAGE)
+
+        snapshot_before = self.get_admin_balance_snapshot(codigo_norm)
+        legacy_before = float(snapshot_before["legacy_balance"])
+        ledger_before = float(snapshot_before["ledger_balance"])
+        stock_before = float(snapshot_before["stock_balance"])
+        displayed_before = float(snapshot_before["saldo_exibido"])
+
+        legacy_delta = target_balance - legacy_before
+        ledger_delta = target_balance - ledger_before
+        cache_needs_sync = not self._balance_close(stock_before, target_balance)
+
+        unit_base = resolve_canonical_unit(item)
+        adjustment_description = (
+            f"Ajuste administrativo de saldo [{motivo_norm}]: "
+            f"exibido {displayed_before:g} -> {target_balance:g}; "
+            f"legado {legacy_before:g} -> {target_balance:g}; "
+            f"ledger {ledger_before:g} -> {target_balance:g}; "
+            f"cache {stock_before:g} -> {target_balance:g}"
+        )
+
+        if self._balance_close(legacy_delta, 0.0) and self._balance_close(ledger_delta, 0.0) and not cache_needs_sync:
+            result = {
+                "changed": False,
+                "message": "Saldo já estava alinhado com o valor informado.",
+                "before": snapshot_before,
+                "after": snapshot_before,
+            }
+            self._log_admin_balance_audit(
+                action_result="no_change",
+                details=self._build_admin_balance_audit_details(
+                    item=item,
+                    codigo=codigo_norm,
+                    matricula=matricula,
+                    motivo=motivo_norm,
+                    target_balance=target_balance,
+                    audit_context=audit_context_norm,
+                    before=snapshot_before,
+                    after=snapshot_before,
+                    result=result,
+                ),
+            )
+            return result
+
+        if bool(snapshot_before.get("daily_limit_exhausted")):
+            limit = int(snapshot_before.get("daily_limit") or ADMIN_BALANCE_DAILY_LIMIT)
+            used = int(snapshot_before.get("daily_adjustments_used") or 0)
+            reference_date = snapshot_before.get("daily_reference_date")
+            if hasattr(reference_date, "strftime"):
+                date_label = reference_date.strftime("%d/%m/%Y")
+            else:
+                date_label = str(reference_date or "hoje")
+            message = (
+                f"Limite diário atingido para este item em {date_label}. "
+                f"Já foram feitos {used} ajustes administrativos e o máximo é {limit} por dia."
+            )
+            self._log_admin_balance_audit(
+                action_result="daily_limit_blocked",
+                details=self._build_admin_balance_audit_details(
+                    item=item,
+                    codigo=codigo_norm,
+                    matricula=matricula,
+                    motivo=motivo_norm,
+                    target_balance=target_balance,
+                    audit_context=audit_context_norm,
+                    before=snapshot_before,
+                    error_message=message,
+                ),
+            )
+            raise ValueError(message)
+
+        event = None
+        if not self._balance_close(legacy_delta, 0.0):
+            event = InventarioEvento(
+                codigo_item=item.codigo_item,
+                matricula=matricula,
+                tipo=ADMIN_BALANCE_ADJUSTMENT_TYPE,
+                quantidade=float(legacy_delta),
+                descricao=adjustment_description,
+                data_evento=datetime.utcnow(),
+            )
+            db.session.add(event)
+
+        movement = None
+        operation_log_id: int | None = None
+        if not self._balance_close(ledger_delta, 0.0):
+            movement = StockMovement(
+                product_id=item.codigo_item,
+                movement_type="ajuste",
+                quantity_base=float(ledger_delta),
+                unit_base=unit_base,
+                reference_type="admin_balance_override",
+                reference_id=None,
+                metadata_json={
+                    "source": ADMIN_BALANCE_ADJUSTMENT_SOURCE,
+                    "user_id": str(matricula or "").strip() or None,
+                    "reason": motivo_norm,
+                    "target_balance": target_balance,
+                    "legacy_balance_before": legacy_before,
+                    "ledger_balance_before": ledger_before,
+                    "stock_balance_before": stock_before,
+                    "displayed_balance_before": displayed_before,
+                    "description": adjustment_description,
+                },
+                created_at=datetime.utcnow(),
+            )
+            db.session.add(movement)
+
+            operation_log = operation_log_service.create_success_log(
+                operation_type="ajuste",
+                product_id=item.codigo_item,
+                quantity_input=abs(float(ledger_delta)),
+                quantity_base=float(ledger_delta),
+                unit_input=unit_base,
+                user_id=matricula,
+                source=ADMIN_BALANCE_ADJUSTMENT_SOURCE,
+                payload_json={
+                    "target_balance": target_balance,
+                    "legacy_balance_before": legacy_before,
+                    "ledger_balance_before": ledger_before,
+                    "stock_balance_before": stock_before,
+                    "displayed_balance_before": displayed_before,
+                    "legacy_delta": float(legacy_delta),
+                    "ledger_delta": float(ledger_delta),
+                    "reason": motivo_norm,
+                    "description": adjustment_description,
+                },
+                created_at=movement.created_at,
+                commit=False,
+            )
+            operation_log_id = operation_log.id
+
+        balance = db.session.get(StockBalance, item.codigo_item)
+        if balance is None:
+            balance = StockBalance(product_id=item.codigo_item)
+            db.session.add(balance)
+        balance.quantity_base = target_balance
+
+        inventory_engine._sync_packaging_state_to_balance(
+            item=item,
+            quantity_base=target_balance,
+            unit_base=unit_base,
+        )
+        item.estoque_minimo = _calculate_min_stock(target_balance)
+
+        try:
+            db.session.commit()
+        except Exception as exc:
+            db.session.rollback()
+            self._log_admin_balance_audit(
+                action_result="error",
+                details=self._build_admin_balance_audit_details(
+                    item=item,
+                    codigo=codigo_norm,
+                    matricula=matricula,
+                    motivo=motivo_norm,
+                    target_balance=target_balance,
+                    audit_context=audit_context_norm,
+                    before=snapshot_before,
+                    error_message=str(exc),
+                ),
+            )
+            raise
+
+        if notify:
+            try:
+                if event is not None:
+                    from .notification_router import NotificationRouterService
+                    NotificationRouterService.route_inventory_event(event.id_evento)
+                elif operation_log_id is not None:
+                    operation_log_service.notify_telegram(operation_log_id)
+            except Exception:
+                logger.exception("Falha ao notificar ajuste administrativo de saldo")
+
+        snapshot_after = self.get_admin_balance_snapshot(codigo_norm)
+        result = {
+            "changed": True,
+            "message": "Saldo administrativo ajustado com sucesso.",
+            "before": snapshot_before,
+            "after": snapshot_after,
+            "event_id": event.id_evento if event is not None else None,
+            "operation_log_id": operation_log_id,
+            "movement_id": movement.id if movement is not None else None,
+        }
+        self._log_admin_balance_audit(
+            action_result="success",
+            details=self._build_admin_balance_audit_details(
+                item=item,
+                codigo=codigo_norm,
+                matricula=matricula,
+                motivo=motivo_norm,
+                target_balance=target_balance,
+                audit_context=audit_context_norm,
+                before=snapshot_before,
+                after=snapshot_after,
+                result=result,
+            ),
+        )
+        return result
+
+    @staticmethod
     def _build_simple_balance_display(item: Item, saldo: float) -> str:
-        return f"{float(saldo or 0.0):g} {item.unidade or 'un'}"
+        normalized_balance = Item.normalize_balance_value(saldo)
+        return f"{normalized_balance:g} {item.unidade or 'un'}"
 
     @staticmethod
     def _should_use_packaging_display(item: Item) -> bool:
@@ -322,7 +877,7 @@ class InventoryService:
             items_by_id={item.codigo_item: item for item in items if item.codigo_item},
         )
         return {
-            product_id: float(snapshot.quantity_base or 0.0)
+            product_id: Item.normalize_balance_value(snapshot.quantity_base)
             for product_id, snapshot in snapshots.items()
         }
 
@@ -2196,6 +2751,9 @@ class InventoryService:
         item = Item.query.get(payload.codigo)
         if not item:
             raise ValueError("Item não encontrado")
+
+        if not is_entrada and bool(getattr(item, "pre_cadastro_pendente", False)):
+            raise ValueError(PRE_CADASTRO_PENDING_EXIT_MESSAGE)
 
         categoria_text = (item.categoria or "").lower()
         if not is_entrada and "ferrament" in categoria_text:
