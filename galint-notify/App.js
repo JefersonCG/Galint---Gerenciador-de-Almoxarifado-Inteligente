@@ -4,7 +4,6 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
-import { createDrawerNavigator } from '@react-navigation/drawer';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import Constants from 'expo-constants';
 import { StatusBar } from 'expo-status-bar';
@@ -30,7 +29,6 @@ Notifications.setNotificationHandler({
   }),
 });
 
-const Drawer = createDrawerNavigator();
 const Stack = createNativeStackNavigator();
 
 const navTheme = {
@@ -45,43 +43,8 @@ const navTheme = {
   },
 };
 
-function DrawerShell({ session, onLogout, onServerSaved, highlightMessageId, onConsumedHighlight }) {
-  return (
-    <Drawer.Navigator
-      screenOptions={{
-        headerStyle: { backgroundColor: palette.panel },
-        headerTintColor: palette.text,
-        sceneContainerStyle: { backgroundColor: palette.bg },
-        drawerStyle: { backgroundColor: palette.panel },
-        drawerActiveTintColor: palette.primary,
-        drawerInactiveTintColor: palette.muted,
-      }}
-    >
-      <Drawer.Screen name="Messenger" options={{ title: 'Messenger' }}>
-        {(props) => (
-          <MessengerScreen
-            {...props}
-            session={session}
-            highlightMessageId={highlightMessageId}
-            onConsumedHighlight={onConsumedHighlight}
-          />
-        )}
-      </Drawer.Screen>
-      <Drawer.Screen name="Relatórios">
-        {(props) => <ReportsScreen {...props} session={session} />}
-      </Drawer.Screen>
-      <Drawer.Screen name="Ferramentas">
-        {(props) => <ToolsScreen {...props} session={session} />}
-      </Drawer.Screen>
-      <Drawer.Screen name="Configurações">
-        {(props) => <SettingsScreen {...props} session={session} onLogout={onLogout} onServerSaved={onServerSaved} />}
-      </Drawer.Screen>
-    </Drawer.Navigator>
-  );
-}
-
-function ExpoGoShell({ navigation, session, onLogout, onServerSaved, highlightMessageId, onConsumedHighlight }) {
-  const [activeScreen, setActiveScreen] = useState('Messenger');
+function AppShell({ navigation, route, session, onLogout, onServerSaved, highlightMessageId, onConsumedHighlight }) {
+  const [activeScreen, setActiveScreen] = useState(route?.params?.screen || 'Messenger');
 
   const menuItems = [
     { key: 'Messenger', label: 'Messenger' },
@@ -89,6 +52,19 @@ function ExpoGoShell({ navigation, session, onLogout, onServerSaved, highlightMe
     { key: 'Ferramentas', label: 'Ferramentas' },
     { key: 'Configurações', label: 'Configurações' },
   ];
+
+  useEffect(() => {
+    const requestedScreen = route?.params?.screen;
+    if (requestedScreen) {
+      setActiveScreen(requestedScreen);
+    }
+  }, [route?.params?.screen]);
+
+  useEffect(() => {
+    if (highlightMessageId) {
+      setActiveScreen('Messenger');
+    }
+  }, [highlightMessageId]);
 
   let content = (
     <MessengerScreen
@@ -148,10 +124,6 @@ function ExpoGoShell({ navigation, session, onLogout, onServerSaved, highlightMe
   );
 }
 
-function isExpoGo() {
-  return Constants.executionEnvironment === 'storeClient' || Constants.appOwnership === 'expo';
-}
-
 export default function App() {
   const navigationRef = useRef(null);
   const [booting, setBooting] = useState(true);
@@ -192,7 +164,6 @@ export default function App() {
     async login({ matricula, senha }) {
       const nextSession = await api.login({ matricula, senha });
       setSession(nextSession);
-      await bootstrapPush(nextSession);
     },
     async logout() {
       await api.logout();
@@ -202,13 +173,8 @@ export default function App() {
     async refreshServer() {
       const current = await api.restoreSession();
       setSession(current);
-      if (current) {
-        await bootstrapPush(current);
-      }
     },
   }), []);
-
-  const useExpoGoFallback = isExpoGo();
 
   if (booting) {
     return (
@@ -232,25 +198,14 @@ export default function App() {
           ) : (
             <Stack.Screen name="App">
               {(props) => (
-                useExpoGoFallback ? (
-                  <ExpoGoShell
-                    {...props}
-                    session={session}
-                    onLogout={actions.logout}
-                    onServerSaved={actions.refreshServer}
-                    highlightMessageId={highlightMessageId}
-                    onConsumedHighlight={() => setHighlightMessageId(null)}
-                  />
-                ) : (
-                  <DrawerShell
-                    {...props}
-                    session={session}
-                    onLogout={actions.logout}
-                    onServerSaved={actions.refreshServer}
-                    highlightMessageId={highlightMessageId}
-                    onConsumedHighlight={() => setHighlightMessageId(null)}
-                  />
-                )
+                <AppShell
+                  {...props}
+                  session={session}
+                  onLogout={actions.logout}
+                  onServerSaved={actions.refreshServer}
+                  highlightMessageId={highlightMessageId}
+                  onConsumedHighlight={() => setHighlightMessageId(null)}
+                />
               )}
             </Stack.Screen>
           )}
