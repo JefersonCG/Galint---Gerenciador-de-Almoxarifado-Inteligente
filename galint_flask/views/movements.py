@@ -12,6 +12,7 @@ from flask_login import current_user, login_required
 from ..extensions import db
 from ..models import Item, Saida, RetiradaFerramenta
 from ..services.inventory import MovimentoPayload, inventory_service
+from ..services.notification_router import NotificationRouterService
 from ..services.users import user_service
 from ..services.entrada_service import entrada_service
 from ..services.telegram_service import TelegramService
@@ -166,6 +167,10 @@ def _infer_unidade(unidade: str | None) -> str:
         return "litro"
     if re.search(r"\b(kg|quilo|quilos)\b", normalized):
         return "quilo"
+    if re.search(r"\b(m|mt|mts|metro|metros)\b", normalized):
+        return "metro"
+    if re.search(r"\b(un|und|unidade|unidades|peca|pecas|peça|peças)\b", normalized):
+        return "unidade"
     return normalized
 
 
@@ -321,6 +326,41 @@ def _infer_fractional_item(item: dict[str, Any]) -> dict[str, Any]:
         "enabled": False,
         "default_unit": "quilo",
         "source": None,
+    }
+
+
+def _resolve_return_quantity_config(item: dict[str, Any], *, fractional_info: dict[str, Any]) -> dict[str, Any]:
+    unit_code = _normalize_text(fractional_info.get("default_unit"))
+    raw_display = (item.get("unidade") or "").strip()
+
+    if unit_code not in {"litro", "quilo", "metro", "unidade"}:
+        inferred_unit = _infer_unidade(item.get("unidade"))
+        unit_code = inferred_unit if inferred_unit in {"litro", "quilo", "metro", "unidade"} else "unidade"
+
+    if unit_code == "litro":
+        unit_display = "L"
+        unit_label = "Litros"
+        allow_decimal = True
+    elif unit_code == "quilo":
+        unit_display = "kg"
+        unit_label = "Kg"
+        allow_decimal = True
+    elif unit_code == "metro":
+        unit_display = "m"
+        unit_label = "Metros"
+        allow_decimal = True
+    else:
+        unit_display = raw_display or "un"
+        unit_label = raw_display or "Unidades"
+        allow_decimal = False
+
+    return {
+        "unit_code": unit_code,
+        "unit_display": unit_display,
+        "unit_label": unit_label,
+        "allow_decimal": allow_decimal,
+        "input_step": 0.001 if allow_decimal else 1,
+        "input_min": 0.001 if allow_decimal else 1,
     }
 
 
@@ -749,11 +789,23 @@ def item_info(codigo: str):
     
     liquid_type = _detect_liquid_type(categoria=item.get("categoria"), descricao=item.get("descricao"))
     fractional_info = _infer_fractional_item(item)
+    return_quantity_config = _resolve_return_quantity_config(item, fractional_info=fractional_info)
     package_name = _infer_package_name(item)
     package_capacity = _infer_package_capacity(item, fractional_info=fractional_info)
     package_name_plural = _pluralize_package_name(package_name)
     saldo_total = _as_positive_float(item.get("saldo"))
     foto_path = item.get("foto_path")
+    categoria_norm = _normalize_text(item.get("categoria"))
+    supports_material_return = "ferrament" not in categoria_norm
+    pending_return = None
+    identificador = (request.args.get("matricula") or request.args.get("usuario") or "").strip()
+    if identificador and supports_material_return:
+        try:
+            usuario = _resolve_usuario(identificador)
+            pending_return = inventory_service.get_material_return_pending(codigo=codigo, matricula=usuario.matricula)
+        except ValueError:
+            pending_return = 0.0
+
     response = {
         "found": True,
         "codigo": codigo,
@@ -775,6 +827,14 @@ def item_info(codigo: str):
         "nome_embalagem": item_model.get_nome_embalagem() if item_model and item_model.tipo_embalagem_novo else package_name,
         "nome_embalagem_plural": item_model.get_nome_embalagem_plural() if item_model and item_model.tipo_embalagem_novo else package_name_plural,
         "capacidade_embalagem": package_capacity,
+        "devolucao_permite_decimal": bool(return_quantity_config.get("allow_decimal")),
+        "devolucao_unidade_codigo": return_quantity_config.get("unit_code"),
+        "devolucao_unidade_exibicao": return_quantity_config.get("unit_display"),
+        "devolucao_unidade_label": return_quantity_config.get("unit_label"),
+        "devolucao_step": return_quantity_config.get("input_step"),
+        "devolucao_min": return_quantity_config.get("input_min"),
+        "devolucao_pendente": pending_return,
+        "suporta_devolucao_material": supports_material_return,
         "unidade_exibicao_total": (
             "L"
             if _normalize_text(fractional_info.get("default_unit")) == "litro"
@@ -892,6 +952,43 @@ def registrar_entrada():
     except ValueError as exc:
         flash(str(exc), "danger")
     return redirect(url_for("movements.saida_fracionada_page"))  # Redirecionar para página principal
+
+
+@blueprint.post("/devolucao")
+@login_required
+def registrar_devolucao():
+    _require_admin()
+    codigo_raw = request.form.get("codigo")
+    codigo = (codigo_raw or "").strip() if codigo_raw is not None else ""
+    identificador = request.form.get("usuario") or request.form.get("matricula")
+    quantidade = _parse_quantidade(request.form.get("quantidade"))
+    obs_raw = request.form.get("observacao")
+    observacao = (obs_raw or "").strip() if obs_raw is not None else None
+
+    try:
+        usuario = _resolve_usuario(identificador)
+        evento = inventory_service.registrar_devolucao_material(
+            codigo=codigo,
+            quantidade=quantidade,
+            matricula=usuario.matricula,
+            observacao=observacao,
+            commit=True,
+        )
+        try:
+            NotificationRouterService.route_inventory_event(evento.id_evento)
+        except Exception:
+            pass
+
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.accept_mimetypes.accept_json:
+            return jsonify({"success": True, "message": "Devolução registrada com sucesso."}), 200
+
+        flash("Devolução registrada com sucesso.", "success")
+    except ValueError as exc:
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest" or request.accept_mimetypes.accept_json:
+            return jsonify({"success": False, "error": str(exc)}), 400
+        flash(str(exc), "danger")
+
+    return redirect(url_for("movements.entrada_page", codigo=codigo or None))
 
 
 

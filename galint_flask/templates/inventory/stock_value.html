@@ -21,6 +21,12 @@
 {% set total_fracionado_litros = total_fracionado_litros|default(0) %}
 {% set total_fracionado_quilos = total_fracionado_quilos|default(0) %}
 {% set fracionado_linhas_ignoradas = fracionado_linhas_ignoradas|default(0) %}
+{% set consumo_analitico = consumo_analitico|default({}) %}
+{% set consumo_analitico_resumo = consumo_analitico.get('overview', {}) if consumo_analitico else {} %}
+{% set consumo_analitico_locais = consumo_analitico.get('locations', []) if consumo_analitico else [] %}
+{% set consumo_analitico_categorias = consumo_analitico.get('categories', []) if consumo_analitico else [] %}
+{% set consumo_analitico_funcionarios = consumo_analitico.get('employees', []) if consumo_analitico else [] %}
+{% set consumo_analitico_recentes = consumo_analitico.get('recent_entries', []) if consumo_analitico else [] %}
 {% set valor_estoque_pdf_url = url_for('inventory.valor_estoque_pdf', exercicio=exercise.label) if endpoint_exists('inventory.valor_estoque_pdf') else None %}
 
 <div class="finance-shell">
@@ -313,6 +319,137 @@
         background: rgba(51, 65, 85, 0.62);
     }
 
+    .consumption-hub {
+        margin-bottom: 2rem;
+        border-radius: 26px;
+        border: 1px solid rgba(56, 189, 248, 0.18);
+        background: linear-gradient(180deg, rgba(9, 18, 31, 0.98), rgba(14, 27, 46, 0.95));
+        box-shadow: 0 20px 44px rgba(2, 6, 23, 0.34);
+        overflow: hidden;
+    }
+
+    .consumption-hub-head {
+        padding: 1.15rem 1.2rem 0.4rem;
+    }
+
+    .consumption-summary-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 0.8rem;
+        padding: 0 1.2rem 1rem;
+    }
+
+    .consumption-summary-card {
+        border-radius: 20px;
+        padding: 0.95rem 1rem;
+        background: linear-gradient(155deg, rgba(15, 23, 42, 0.95), rgba(12, 74, 110, 0.72));
+        border: 1px solid rgba(125, 211, 252, 0.14);
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+    }
+
+    .consumption-summary-label {
+        display: block;
+        font-size: 0.73rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #7dd3fc;
+        margin-bottom: 0.32rem;
+    }
+
+    .consumption-summary-value {
+        font-size: 1.3rem;
+        font-weight: 800;
+        color: #f8fafc;
+    }
+
+    .consumption-summary-caption {
+        margin-top: 0.25rem;
+        color: rgba(203, 213, 225, 0.82);
+        font-size: 0.82rem;
+    }
+
+    .consumption-panels {
+        display: grid;
+        grid-template-columns: minmax(0, 1.15fr) minmax(340px, 0.85fr);
+        gap: 1rem;
+        padding: 0 1.2rem 1.2rem;
+    }
+
+    .consumption-card {
+        border-radius: 22px;
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        background: linear-gradient(180deg, rgba(13, 22, 35, 0.96), rgba(16, 27, 43, 0.94));
+        box-shadow: 0 16px 30px rgba(2, 6, 23, 0.28);
+        overflow: hidden;
+    }
+
+    .consumption-card-head {
+        padding: 1rem 1rem 0.35rem;
+    }
+
+    .consumption-card-body {
+        padding: 0 1rem 1rem;
+    }
+
+    .consumption-mini-table thead th {
+        background: rgba(15, 23, 42, 0.88);
+        color: #93c5fd;
+        border: none;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        padding: 0.7rem 0.72rem;
+        white-space: nowrap;
+    }
+
+    .consumption-mini-table tbody td {
+        padding: 0.72rem;
+        vertical-align: top;
+        color: #e2e8f0;
+        border-color: rgba(148, 163, 184, 0.12);
+    }
+
+    .consumption-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        padding: 0.2rem 0.55rem;
+        border-radius: 999px;
+        background: rgba(34, 197, 94, 0.12);
+        border: 1px solid rgba(74, 222, 128, 0.18);
+        color: #bbf7d0;
+        font-size: 0.74rem;
+    }
+
+    .consumption-subgrid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1rem;
+        padding: 0 1.2rem 1.2rem;
+    }
+
+    .consumption-list {
+        display: grid;
+        gap: 0.8rem;
+    }
+
+    .consumption-list-item {
+        padding: 0.85rem 0.9rem;
+        border-radius: 16px;
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        background: rgba(15, 23, 42, 0.6);
+    }
+
+    .consumption-list-item strong {
+        color: #f8fafc;
+    }
+
+    .consumption-list-meta {
+        color: rgba(203, 213, 225, 0.82);
+        font-size: 0.82rem;
+        line-height: 1.45;
+    }
+
     @media (max-width: 991px) {
         .category-metrics {
             grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -325,11 +462,26 @@
         .finance-actions {
             min-width: 100%;
         }
+
+        .consumption-summary-grid,
+        .consumption-panels,
+        .consumption-subgrid {
+            grid-template-columns: 1fr;
+        }
     }
 
     @media (max-width: 640px) {
         .category-metrics {
             grid-template-columns: 1fr;
+        }
+
+        .consumption-summary-grid {
+            padding-inline: 1rem;
+        }
+
+        .consumption-panels,
+        .consumption-subgrid {
+            padding-inline: 1rem;
         }
     }
 </style>
@@ -393,12 +545,22 @@
                 Considera apenas saídas com litros/kg registrados; custo interno = preço da embalagem ÷ capacidade.
             </div>
         </div>
-        <div class="text-end small text-muted">
-            <div><strong>{{ brl(total_fracionado_valor) }}</strong></div>
-            <div>{{ total_fracionado_litros|number_br(2, True) }} L • {{ total_fracionado_quilos|number_br(2, True) }} Kg</div>
-            {% if fracionado_linhas_ignoradas %}
-            <div>{{ fracionado_linhas_ignoradas }} linha(s) ignorada(s) (sem preço/capacidade).</div>
-            {% endif %}
+        <div class="d-flex flex-wrap gap-2 align-items-start">
+            <div class="text-end small text-muted">
+                <div><strong>{{ brl(total_fracionado_valor) }}</strong></div>
+                <div>{{ total_fracionado_litros|number_br(2, True) }} L • {{ total_fracionado_quilos|number_br(2, True) }} Kg</div>
+                {% if fracionado_linhas_ignoradas %}
+                <div>{{ fracionado_linhas_ignoradas }} linha(s) ignorada(s) (sem preço/capacidade).</div>
+                {% endif %}
+            </div>
+            <div class="d-flex gap-2 flex-wrap">
+                <a class="btn btn-sm btn-outline-info" href="{{ url_for('inventory.consumption_dashboard', exercicio=exercise.label) }}">
+                    <i class="bi bi-geo-alt me-1"></i> Abrir painel
+                </a>
+                <a class="btn btn-sm btn-outline-success" href="{{ url_for('inventory.consumption_report_pdf', exercicio=exercise.label) }}">
+                    <i class="bi bi-file-earmark-pdf me-1"></i> PDF geral
+                </a>
+            </div>
         </div>
     </div>
     <div class="table-responsive">
@@ -406,6 +568,10 @@
             <thead>
                 <tr>
                     <th>Local</th>
+                    <th>Colaborador</th>
+                    <th>Cargo</th>
+                    <th>Material</th>
+                    <th>Onde usou</th>
                     <th class="text-end">Litros</th>
                     <th class="text-end">Kg</th>
                     <th class="text-end">Saídas</th>
@@ -417,6 +583,10 @@
                 {% for row in consumo_fracionado_por_local %}
                 <tr>
                     <td class="fw-semibold">{{ row.local }}</td>
+                    <td>{{ row.ultimo_colaborador_nome or 'Não informado' }}</td>
+                    <td class="text-muted">{{ row.ultimo_colaborador_cargo or 'Sem cargo' }}</td>
+                    <td>{{ row.ultimo_material_nome or '—' }}</td>
+                    <td class="text-muted">{{ row.ultimo_contexto or row.local }}</td>
                     <td class="text-end text-muted">{{ (row.total_litros or 0)|number_br(2, True) }}</td>
                     <td class="text-end text-muted">{{ (row.total_quilos or 0)|number_br(2, True) }}</td>
                     <td class="text-end text-muted">{{ row.saidas or 0 }}</td>
@@ -426,6 +596,163 @@
                 {% endfor %}
             </tbody>
         </table>
+    </div>
+</section>
+{% endif %}
+
+{% if consumo_analitico_locais or consumo_analitico_recentes %}
+<section class="consumption-hub">
+    <div class="consumption-hub-head d-flex justify-content-between align-items-start flex-wrap gap-3">
+        <div>
+            <h2 class="h4 mb-1">Painel de consumo rastreado</h2>
+            <p class="text-muted mb-0">Cruza local, colaborador, cargo, material, quantidade, valor e contexto de uso para abrir a próxima fase da análise por local.</p>
+        </div>
+        <div class="d-flex gap-2 flex-wrap">
+            <a class="btn btn-outline-info rounded-pill px-4" href="{{ url_for('inventory.consumption_dashboard', exercicio=exercise.label) }}">
+                <i class="bi bi-bar-chart-line me-1"></i> Painel completo
+            </a>
+            <a class="btn btn-outline-success rounded-pill px-4" href="{{ url_for('inventory.consumption_report_pdf', exercicio=exercise.label) }}">
+                <i class="bi bi-file-earmark-pdf me-1"></i> Relatório geral
+            </a>
+        </div>
+    </div>
+
+    <div class="consumption-summary-grid">
+        <article class="consumption-summary-card">
+            <span class="consumption-summary-label">Valor rastreado</span>
+            <div class="consumption-summary-value">{{ brl(consumo_analitico_resumo.total_valor) }}</div>
+            <div class="consumption-summary-caption">Valor consumido com base no custo de compra normalizado do exercício.</div>
+        </article>
+        <article class="consumption-summary-card">
+            <span class="consumption-summary-label">Saídas rastreadas</span>
+            <div class="consumption-summary-value">{{ consumo_analitico_resumo.saidas or 0 }}</div>
+            <div class="consumption-summary-caption">Lançamentos com item, responsável, local e quantidade consolidados.</div>
+        </article>
+        <article class="consumption-summary-card">
+            <span class="consumption-summary-label">Locais atendidos</span>
+            <div class="consumption-summary-value">{{ consumo_analitico_resumo.locais or 0 }}</div>
+            <div class="consumption-summary-caption">Frentes de uso com rastreabilidade operacional dentro do exercício.</div>
+        </article>
+        <article class="consumption-summary-card">
+            <span class="consumption-summary-label">Colaboradores</span>
+            <div class="consumption-summary-value">{{ consumo_analitico_resumo.colaboradores or 0 }}</div>
+            <div class="consumption-summary-caption">Responsáveis identificados nos consumos rastreados.</div>
+        </article>
+    </div>
+
+    <div class="consumption-panels">
+        <article class="consumption-card">
+            <div class="consumption-card-head d-flex justify-content-between align-items-start gap-2 flex-wrap">
+                <div>
+                    <h3 class="h6 mb-1">Locais com maior consumo</h3>
+                    <div class="text-muted small">Cada linha já expõe o último responsável, cargo e material usado naquele local.</div>
+                </div>
+                <span class="consumption-chip"><i class="bi bi-geo-alt"></i> Drilldown por local</span>
+            </div>
+            <div class="consumption-card-body table-responsive">
+                <table class="table consumption-mini-table mb-0">
+                    <thead>
+                        <tr>
+                            <th>Local</th>
+                            <th>Colaborador</th>
+                            <th>Material</th>
+                            <th class="text-end">Valor</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in consumo_analitico_locais[:6] %}
+                        <tr>
+                            <td>
+                                <div class="fw-semibold">{{ row.local }}</div>
+                                <div class="text-muted small">{{ row.saidas or 0 }} saída(s) • {{ row.itens or 0 }} item(ns)</div>
+                            </td>
+                            <td>
+                                <div>{{ row.ultimo_colaborador_nome or row.colaborador_destaque or 'Não informado' }}</div>
+                                <div class="text-muted small">{{ row.ultimo_colaborador_cargo or row.cargo_destaque or 'Sem cargo' }}</div>
+                            </td>
+                            <td>
+                                <div>{{ row.ultimo_material_nome or row.material_destaque or '—' }}</div>
+                                <div class="text-muted small">{{ row.ultimo_contexto or 'Sem contexto' }}</div>
+                            </td>
+                            <td class="text-end">{{ brl(row.total_valor) }}</td>
+                            <td class="text-end">
+                                <a class="btn btn-sm btn-outline-info" href="{{ url_for('inventory.consumption_by_local', local=row.local, exercicio=exercise.label) }}">Abrir</a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </article>
+
+        <article class="consumption-card">
+            <div class="consumption-card-head">
+                <h3 class="h6 mb-1">Últimos consumos rastreados</h3>
+                <div class="text-muted small">Nome, cargo, material, onde usou, quantidade e valor já aparecem na visão principal.</div>
+            </div>
+            <div class="consumption-card-body consumption-list">
+                {% for row in consumo_analitico_recentes[:6] %}
+                <div class="consumption-list-item">
+                    <div class="d-flex justify-content-between gap-2 flex-wrap">
+                        <strong>{{ row.colaborador_nome or 'Não informado' }}</strong>
+                        <span class="text-muted small">{{ row.data_saida_label or '-' }}</span>
+                    </div>
+                    <div class="consumption-list-meta">{{ row.cargo or 'Sem cargo' }} • {{ row.descricao_item }} • {{ row.local }}</div>
+                    <div class="consumption-list-meta">{{ row.quantidade_display }} • {{ brl(row.valor_total) }}</div>
+                    <div class="consumption-list-meta">{{ row.contexto_uso or row.local }}</div>
+                </div>
+                {% endfor %}
+            </div>
+        </article>
+    </div>
+
+    <div class="consumption-subgrid">
+        <article class="consumption-card">
+            <div class="consumption-card-head">
+                <h3 class="h6 mb-1">Categorias mais consumidas</h3>
+                <div class="text-muted small">Cada categoria abre sua subpágina com materiais, locais e responsáveis.</div>
+            </div>
+            <div class="consumption-card-body consumption-list">
+                {% for row in consumo_analitico_categorias[:5] %}
+                <div class="consumption-list-item">
+                    <div class="d-flex justify-content-between gap-2 flex-wrap">
+                        <strong>{{ row.categoria }}</strong>
+                        <span>{{ brl(row.total_valor) }}</span>
+                    </div>
+                    <div class="consumption-list-meta">{{ row.saidas or 0 }} saída(s) • {{ row.locais or 0 }} local(is) • {{ row.colaboradores or 0 }} colaborador(es)</div>
+                    <div class="consumption-list-meta">Destaque: {{ row.material_destaque or '—' }} • Local: {{ row.local_destaque or '—' }}</div>
+                    <div class="mt-2">
+                        <a class="btn btn-sm btn-outline-info" href="{{ url_for('inventory.consumption_by_category', categoria=row.categoria, exercicio=exercise.label) }}">Ver categoria</a>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </article>
+
+        <article class="consumption-card">
+            <div class="consumption-card-head">
+                <h3 class="h6 mb-1">Colaboradores com maior consumo</h3>
+                <div class="text-muted small">O parecer administrativo avalia rastreabilidade operacional, não produtividade isolada.</div>
+            </div>
+            <div class="consumption-card-body consumption-list">
+                {% for row in consumo_analitico_funcionarios[:5] %}
+                <div class="consumption-list-item">
+                    <div class="d-flex justify-content-between gap-2 flex-wrap">
+                        <strong>{{ row.nome or 'Não informado' }}</strong>
+                        <span>{{ brl(row.total_valor) }}</span>
+                    </div>
+                    <div class="consumption-list-meta">{{ row.cargo or 'Sem cargo' }} • {{ row.saidas or 0 }} saída(s) • {{ row.locais or 0 }} local(is)</div>
+                    <div class="consumption-list-meta">Parecer: {{ row.parecer_administrativo.label if row.parecer_administrativo else 'Sem base' }}</div>
+                    {% if row.matricula %}
+                    <div class="mt-2">
+                        <a class="btn btn-sm btn-outline-info" href="{{ url_for('inventory.consumption_by_employee', matricula=row.matricula, exercicio=exercise.label) }}">Ver colaborador</a>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </article>
     </div>
 </section>
 {% endif %}

@@ -627,6 +627,45 @@ def _build_nf_autofill_payload(numero_documento: str) -> dict[str, object] | Non
     }
 
 
+def _format_pre_registered_document_type(tipo_documento: str | None) -> str:
+    raw = (tipo_documento or "").strip().lower()
+    labels = {
+        "nf": "NF",
+        "nota_fiscal": "NF",
+        "nfe": "NF",
+        "cupom": "Cupom",
+        "cupom_fiscal": "Cupom",
+        "sem_comprovacao": "Sem comprovação",
+        "sem-comprovacao": "Sem comprovação",
+        "sem comprovacao": "Sem comprovação",
+    }
+    if raw in labels:
+        return labels[raw]
+    cleaned = (tipo_documento or "").strip()
+    return cleaned.upper() if cleaned else "Documento"
+
+
+def _serialize_pre_registered_item(item_model: Item, documento_item: DocumentoEntradaEstoqueItem) -> dict[str, object]:
+    saldo_atual = float(item_model.get_saldo_fisico_total() or 0.0)
+    valor_total = documento_item.valor_total
+    if valor_total in (None, "") and documento_item.valor_unitario not in (None, ""):
+        valor_total = round(float(documento_item.quantidade or 0.0) * float(documento_item.valor_unitario or 0.0), 2)
+    return {
+        "codigo": item_model.codigo_item,
+        "descricao": item_model.descricao,
+        "categoria": item_model.categoria,
+        "unidade": item_model.unidade,
+        "saldo": saldo_atual,
+        "saldo_display": item_model.get_saldo_fisico_display(),
+        "quantidade_documento": float(documento_item.quantidade or 0.0),
+        "valor_unitario": documento_item.valor_unitario,
+        "valor_total": valor_total,
+        "documento_item_id": documento_item.id_documento_item,
+        "edit_url": url_for("inventory.edit_item_form", codigo=item_model.codigo_item),
+        "pre_cadastro_criado_em": TimeService.isoformat_utc(item_model.pre_cadastro_criado_em),
+    }
+
+
 def _build_pre_registered_items_payload(numero_documento: str) -> dict[str, object] | None:
     numero = (numero_documento or "").strip()
     if not numero:
@@ -659,37 +698,61 @@ def _build_pre_registered_items_payload(numero_documento: str) -> dict[str, obje
         .all()
     )
 
-    items_payload = []
-    for item_model, documento_item in rows:
-        saldo_atual = float(item_model.get_saldo_fisico_total() or 0.0)
-        valor_total = documento_item.valor_total
-        if valor_total in (None, "") and documento_item.valor_unitario not in (None, ""):
-            valor_total = round(float(documento_item.quantidade or 0.0) * float(documento_item.valor_unitario or 0.0), 2)
-        items_payload.append(
-            {
-                "codigo": item_model.codigo_item,
-                "descricao": item_model.descricao,
-                "categoria": item_model.categoria,
-                "unidade": item_model.unidade,
-                "saldo": saldo_atual,
-                "saldo_display": item_model.get_saldo_fisico_display(),
-                "quantidade_documento": float(documento_item.quantidade or 0.0),
-                "valor_unitario": documento_item.valor_unitario,
-                "valor_total": valor_total,
-                "documento_item_id": documento_item.id_documento_item,
-                "edit_url": url_for("inventory.edit_item_form", codigo=item_model.codigo_item),
-                "pre_cadastro_criado_em": TimeService.isoformat_utc(item_model.pre_cadastro_criado_em),
-            }
-        )
+    items_payload = [_serialize_pre_registered_item(item_model, documento_item) for item_model, documento_item in rows]
 
     return {
         "numero_documento": documento.numero_documento,
         "tipo_documento": documento.tipo_documento,
+        "tipo_documento_label": _format_pre_registered_document_type(documento.tipo_documento),
         "data_emissao": documento.data_emissao.isoformat() if documento.data_emissao else None,
         "data_recebimento": documento.data_recebimento.isoformat() if documento.data_recebimento else None,
         "fornecedor_nome": documento.fornecedor.nome_exibicao() if documento.fornecedor else (documento.fornecedor_nome or None),
+        "items_count": len(items_payload),
         "items": items_payload,
     }
+
+
+def _build_all_pre_registered_documents_payload() -> list[dict[str, object]]:
+    rows = (
+        db.session.query(Item, DocumentoEntradaEstoqueItem, DocumentoEntradaEstoque)
+        .join(
+            DocumentoEntradaEstoqueItem,
+            Item.pre_cadastro_documento_item_id == DocumentoEntradaEstoqueItem.id_documento_item,
+        )
+        .join(
+            DocumentoEntradaEstoque,
+            DocumentoEntradaEstoqueItem.documento_id == DocumentoEntradaEstoque.id_documento,
+        )
+        .filter(Item.pre_cadastro_pendente.is_(True))
+        .order_by(
+            DocumentoEntradaEstoque.data_recebimento.desc(),
+            DocumentoEntradaEstoque.id_documento.desc(),
+            Item.descricao.asc(),
+            Item.codigo_item.asc(),
+        )
+        .all()
+    )
+
+    documents_by_id: dict[int, dict[str, object]] = {}
+    for item_model, documento_item, documento in rows:
+        payload = documents_by_id.get(documento.id_documento)
+        if payload is None:
+            payload = {
+                "numero_documento": documento.numero_documento,
+                "tipo_documento": documento.tipo_documento,
+                "tipo_documento_label": _format_pre_registered_document_type(documento.tipo_documento),
+                "data_emissao": documento.data_emissao.isoformat() if documento.data_emissao else None,
+                "data_recebimento": documento.data_recebimento.isoformat() if documento.data_recebimento else None,
+                "fornecedor_nome": documento.fornecedor.nome_exibicao() if documento.fornecedor else (documento.fornecedor_nome or None),
+                "items_count": 0,
+                "items": [],
+            }
+            documents_by_id[documento.id_documento] = payload
+
+        payload["items"].append(_serialize_pre_registered_item(item_model, documento_item))
+        payload["items_count"] = int(payload.get("items_count") or 0) + 1
+
+    return list(documents_by_id.values())
 
 
 @blueprint.get("/")
@@ -778,6 +841,8 @@ def valor_estoque():
         total_fracionado_litros=report.get("total_fracionado_litros"),
         total_fracionado_quilos=report.get("total_fracionado_quilos"),
         fracionado_linhas_ignoradas=report.get("fracionado_linhas_ignoradas"),
+        consumo_analitico=report.get("consumo_analitico") or {},
+        consumo_dashboard_url=url_for("inventory.consumption_dashboard") if request else None,
         exercise=report["exercise"],
         exercise_options=report["exercise_options"],
         uf_empresa=uf_empresa,
@@ -792,6 +857,109 @@ def valor_estoque_pdf():
     pdf_buffer = finance_service.build_stock_value_pdf(exercise_label)
     exercise = finance_service.resolve_exercise(exercise_label)
     filename = f"prestacao_contas_almoxarifado_{exercise['label'].replace('/', '_')}.pdf"
+    return send_file(pdf_buffer, mimetype="application/pdf", as_attachment=True, download_name=filename)
+
+
+@blueprint.get("/consumo")
+@login_required
+def consumption_dashboard():
+    _require_admin()
+    panel = finance_service.get_consumption_panel_report(request.args.get("exercicio"))
+    return render_template("inventory/consumption_panel.html", panel=panel)
+
+
+@blueprint.get("/consumo/local")
+@login_required
+def consumption_by_local():
+    _require_admin()
+    local_name = (request.args.get("local") or "").strip()
+    exercise_label = (request.args.get("exercicio") or "").strip() or None
+    if not local_name:
+        flash("Informe o local para abrir a subpágina de consumo.", "warning")
+        return redirect(url_for("inventory.consumption_dashboard", exercicio=exercise_label))
+
+    panel = finance_service.get_consumption_panel_report(exercise_label, local_name=local_name)
+    if not panel.get("entries"):
+        flash(f"Nenhum consumo encontrado para o local '{local_name}'.", "warning")
+        return redirect(url_for("inventory.consumption_dashboard", exercicio=exercise_label))
+    return render_template("inventory/consumption_panel.html", panel=panel)
+
+
+@blueprint.get("/consumo/categoria")
+@login_required
+def consumption_by_category():
+    _require_admin()
+    category_name = (request.args.get("categoria") or "").strip()
+    exercise_label = (request.args.get("exercicio") or "").strip() or None
+    if not category_name:
+        flash("Informe a categoria para abrir a subpágina de consumo.", "warning")
+        return redirect(url_for("inventory.consumption_dashboard", exercicio=exercise_label))
+
+    panel = finance_service.get_consumption_panel_report(exercise_label, category_name=category_name)
+    if not panel.get("entries"):
+        flash(f"Nenhum consumo encontrado para a categoria '{category_name}'.", "warning")
+        return redirect(url_for("inventory.consumption_dashboard", exercicio=exercise_label))
+    return render_template("inventory/consumption_panel.html", panel=panel)
+
+
+@blueprint.get("/consumo/funcionario/<matricula>")
+@login_required
+def consumption_by_employee(matricula: str):
+    _require_admin()
+    employee_id = (matricula or "").strip()
+    exercise_label = (request.args.get("exercicio") or "").strip() or None
+    if not employee_id:
+        flash("Informe o colaborador para abrir a subpágina de consumo.", "warning")
+        return redirect(url_for("inventory.consumption_dashboard", exercicio=exercise_label))
+
+    panel = finance_service.get_consumption_panel_report(exercise_label, employee_id=employee_id)
+    if not panel.get("entries"):
+        flash(f"Nenhum consumo encontrado para o colaborador '{employee_id}'.", "warning")
+        return redirect(url_for("inventory.consumption_dashboard", exercicio=exercise_label))
+    return render_template("inventory/consumption_panel.html", panel=panel)
+
+
+@blueprint.get("/consumo/relatorio/pdf")
+@login_required
+def consumption_report_pdf():
+    _require_admin()
+    exercise_label = (request.args.get("exercicio") or "").strip() or None
+    local_name = (request.args.get("local") or "").strip() or None
+    category_name = (request.args.get("categoria") or "").strip() or None
+    employee_id = (request.args.get("matricula") or "").strip() or None
+
+    panel = finance_service.get_consumption_panel_report(
+        exercise_label,
+        local_name=local_name,
+        category_name=category_name,
+        employee_id=employee_id,
+    )
+    if not panel.get("entries"):
+        flash("Não há dados de consumo para gerar o relatório solicitado.", "warning")
+        return redirect(url_for("inventory.consumption_dashboard", exercicio=exercise_label))
+
+    pdf_buffer = finance_service.build_consumption_panel_pdf(
+        exercise_label,
+        local_name=local_name,
+        category_name=category_name,
+        employee_id=employee_id,
+    )
+
+    scope_type = panel.get("scope_type") or "geral"
+    if scope_type == "local":
+        scope_value = panel.get("filters", {}).get("local") or "local"
+    elif scope_type == "categoria":
+        scope_value = panel.get("filters", {}).get("categoria") or "categoria"
+    elif scope_type == "funcionario":
+        scope_value = panel.get("filters", {}).get("matricula") or "funcionario"
+    else:
+        scope_value = "geral"
+
+    filename = (
+        f"relatorio_consumo_{scope_type}_"
+        f"{_sanitize_filename_component(str(scope_value))}_"
+        f"{TimeService.now_local().strftime('%Y%m%d_%H%M%S')}.pdf"
+    )
     return send_file(pdf_buffer, mimetype="application/pdf", as_attachment=True, download_name=filename)
 
 
@@ -2326,10 +2494,32 @@ def nf_autofill_api():
 def pre_registered_items_api():
     _require_admin_or_supervisor()
     numero = (request.args.get("numero") or "").strip()
-    if not numero:
-        return jsonify({"success": False, "message": "Informe o número da NF."}), 400
+    if numero:
+        payload = _build_pre_registered_items_payload(numero)
+        if not payload:
+            return jsonify({
+                "success": True,
+                "mode": "single",
+                "found": False,
+                "numero_documento": numero,
+                "documents": [],
+                "items": [],
+            })
+        return jsonify({
+            "success": True,
+            "mode": "single",
+            "found": True,
+            "documents": [payload],
+            **payload,
+        })
 
-    payload = _build_pre_registered_items_payload(numero)
-    if not payload:
-        return jsonify({"success": True, "found": False, "numero_documento": numero, "items": []})
-    return jsonify({"success": True, "found": True, **payload})
+    documents = _build_all_pre_registered_documents_payload()
+    total_items = sum(len(document.get("items") or []) for document in documents)
+    return jsonify({
+        "success": True,
+        "mode": "all",
+        "found": bool(documents),
+        "documents": documents,
+        "total_documents": len(documents),
+        "total_items": total_items,
+    })

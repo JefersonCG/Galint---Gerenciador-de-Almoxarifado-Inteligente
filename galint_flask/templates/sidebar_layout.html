@@ -14,6 +14,7 @@
             {% set tool_custody_url = url_for('tool_custody.index') if endpoint_exists('tool_custody.index') else None %}
             {% set reparo_url = url_for('reparo.listar_reparos') if endpoint_exists('reparo.listar_reparos') else None %}
             {% set valor_estoque_url = url_for('inventory.valor_estoque') if endpoint_exists('inventory.valor_estoque') else None %}
+            {% set consumo_painel_url = url_for('inventory.consumption_dashboard') if endpoint_exists('inventory.consumption_dashboard') else None %}
             {% set fornecedores_url = url_for('config.fornecedores') if endpoint_exists('config.fornecedores') else None %}
             {% set admin_stock_adjust_url = url_for('config.estoque_ajuste_admin') if endpoint_exists('config.estoque_ajuste_admin') else None %}
             {% set central_operacoes_url = url_for('operations.central_operations') if endpoint_exists('operations.central_operations') else None %}
@@ -60,7 +61,7 @@
                 </a>
                 {% endif %}
             </div>
-            {% set estoque_active = p.startswith('/itens') or p.startswith('/nf') or p.startswith('/estoque') or (fornecedores_url and p.startswith(fornecedores_url)) or (admin_stock_adjust_url and p.startswith(admin_stock_adjust_url)) %}
+            {% set estoque_active = p.startswith('/itens') or p.startswith('/nf') or p.startswith('/estoque') or (fornecedores_url and p.startswith(fornecedores_url)) or (admin_stock_adjust_url and p.startswith(admin_stock_adjust_url)) or (consumo_painel_url and p.startswith(consumo_painel_url)) %}
             <button
                 class="sidebar-link d-flex justify-content-between align-items-center border-0 bg-transparent text-start w-100 {{ 'active' if estoque_active else 'collapsed' }}"
                 type="button" data-bs-toggle="collapse" data-bs-target="#estoqueMenu"
@@ -82,6 +83,13 @@
                     href="{{ valor_estoque_url }}">
                     <i class="bi bi-cash-stack"></i>
                     <span>Financeiro</span>
+                </a>
+                {% endif %}
+                {% if consumo_painel_url %}
+                <a class="sidebar-link ps-4 {% if p.startswith(consumo_painel_url) %}active{% endif %}"
+                    href="{{ consumo_painel_url }}">
+                    <i class="bi bi-geo-alt"></i>
+                    <span>Painel de Consumo</span>
                 </a>
                 {% endif %}
                 {% if central_operacoes_url %}

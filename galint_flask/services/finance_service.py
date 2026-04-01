@@ -1393,6 +1393,382 @@ class FinanceService:
         return entry
 
     @staticmethod
+    def _normalize_consumption_local(value: str | None) -> str:
+        normalized = " ".join(str(value or "").strip().split()).upper()
+        return normalized or "SEM LOCAL"
+
+    @staticmethod
+    def _resolve_consumption_unit_price(
+        item_data: dict[str, Any] | None,
+        purchase_data: dict[str, Any] | None,
+    ) -> float:
+        if purchase_data:
+            avg_unit = purchase_data.get("avg_unit")
+            try:
+                if avg_unit not in (None, ""):
+                    return float(avg_unit)
+            except (TypeError, ValueError):
+                pass
+
+        if item_data:
+            raw_unit_price = item_data.get("preco_compra_unitario_base")
+            try:
+                if raw_unit_price not in (None, ""):
+                    return float(raw_unit_price)
+            except (TypeError, ValueError):
+                pass
+
+        return 0.0
+
+    @staticmethod
+    def _format_consumption_quantity_display(entry: dict[str, Any]) -> str:
+        litros = float(entry.get("quantidade_litros") or 0.0)
+        if litros > 0:
+            return f"{litros:g} L"
+
+        quilos = float(entry.get("quantidade_quilos") or 0.0)
+        if quilos > 0:
+            return f"{quilos:g} Kg"
+
+        quantidade_base = float(entry.get("quantidade_base") or 0.0)
+        unit_base = (entry.get("unit_base") or entry.get("unidade_item") or "un").strip() or "un"
+        return f"{quantidade_base:g} {unit_base.upper()}"
+
+    @staticmethod
+    def _resolve_employee_administrative_opinion(summary: dict[str, Any]) -> dict[str, Any]:
+        total_saidas = int(summary.get("saidas") or 0)
+        total_locais = int(summary.get("locais") or 0)
+        total_categorias = int(summary.get("categorias") or 0)
+        local_fill_rate = float(summary.get("local_fill_rate") or 0.0)
+        cargo_present = bool((summary.get("cargo") or "").strip())
+
+        if total_saidas <= 0:
+            return {
+                "score": 0,
+                "label": "Sem base",
+                "tone": "secondary",
+                "text": "Ainda não há retiradas suficientes para formar um parecer administrativo confiável.",
+            }
+
+        score = int(local_fill_rate * 60)
+        if cargo_present:
+            score += 10
+        score += min(total_locais, 4) * 5
+        score += min(total_categorias, 4) * 5
+        score += min(total_saidas, 10)
+        score = max(0, min(score, 100))
+
+        if score >= 85:
+            label = "Excelente"
+            tone = "success"
+        elif score >= 70:
+            label = "Bom"
+            tone = "primary"
+        elif score >= 50:
+            label = "Atenção"
+            tone = "warning"
+        else:
+            label = "Crítico"
+            tone = "danger"
+
+        fill_percent = round(local_fill_rate * 100)
+        if fill_percent >= 95:
+            quality_text = "registros muito bem rastreados"
+        elif fill_percent >= 80:
+            quality_text = "boa rastreabilidade operacional"
+        elif fill_percent >= 60:
+            quality_text = "rastreabilidade mediana"
+        else:
+            quality_text = "rastreamento insuficiente"
+
+        text = (
+            f"Parecer administrativo operacional: {quality_text}, com {fill_percent}% dos lançamentos "
+            f"informando o local de uso, atuação em {max(total_locais, 1)} local(is) e "
+            f"{max(total_categorias, 1)} categoria(s)."
+        )
+        return {
+            "score": score,
+            "label": label,
+            "tone": tone,
+            "text": text,
+        }
+
+    @classmethod
+    def _aggregate_consumption_entries(cls, entries: list[dict[str, Any]]) -> dict[str, Any]:
+        sorted_entries = sorted(
+            entries,
+            key=lambda row: (
+                row.get("data_saida") or datetime.min,
+                int(row.get("saida_id") or 0),
+            ),
+            reverse=True,
+        )
+
+        overview = {
+            "total_valor": 0.0,
+            "total_litros": 0.0,
+            "total_quilos": 0.0,
+            "saidas": 0,
+            "locais": 0,
+            "categorias": 0,
+            "colaboradores": 0,
+            "itens": 0,
+        }
+
+        grouped_locals: dict[str, dict[str, Any]] = defaultdict(lambda: {
+            "local": "SEM LOCAL",
+            "total_valor": 0.0,
+            "total_litros": 0.0,
+            "total_quilos": 0.0,
+            "total_quantidade_base": 0.0,
+            "saidas": 0,
+            "_items": set(),
+            "_employees": set(),
+            "_categories": set(),
+            "_material_values": defaultdict(float),
+            "_employee_values": defaultdict(float),
+            "_employee_names": {},
+            "_employee_cargos": {},
+            "_latest_entry": None,
+        })
+        grouped_categories: dict[str, dict[str, Any]] = defaultdict(lambda: {
+            "categoria": "Sem categoria",
+            "total_valor": 0.0,
+            "total_litros": 0.0,
+            "total_quilos": 0.0,
+            "total_quantidade_base": 0.0,
+            "saidas": 0,
+            "_items": set(),
+            "_employees": set(),
+            "_locations": set(),
+            "_material_values": defaultdict(float),
+            "_location_values": defaultdict(float),
+            "_latest_entry": None,
+        })
+        grouped_employees: dict[str, dict[str, Any]] = defaultdict(lambda: {
+            "matricula": None,
+            "nome": "Não informado",
+            "cargo": "Sem cargo",
+            "total_valor": 0.0,
+            "total_litros": 0.0,
+            "total_quilos": 0.0,
+            "total_quantidade_base": 0.0,
+            "saidas": 0,
+            "_items": set(),
+            "_locations": set(),
+            "_categories": set(),
+            "_material_values": defaultdict(float),
+            "_location_values": defaultdict(float),
+            "_filled_locations": 0,
+            "_latest_entry": None,
+        })
+
+        for entry in sorted_entries:
+            local_key = cls._normalize_consumption_local(entry.get("local"))
+            category_name = (entry.get("categoria") or "Sem categoria").strip() or "Sem categoria"
+            employee_key = str(entry.get("matricula") or entry.get("colaborador_nome") or "SEM_USUARIO")
+            item_code = str(entry.get("codigo_item") or "")
+            item_name = (entry.get("descricao_item") or item_code or "Item sem descrição").strip()
+            value = float(entry.get("valor_total") or 0.0)
+            litros = float(entry.get("quantidade_litros") or 0.0)
+            quilos = float(entry.get("quantidade_quilos") or 0.0)
+            quantity_base = float(entry.get("quantidade_base") or 0.0)
+            entry_dt = entry.get("data_saida") or datetime.min
+
+            overview["total_valor"] += value
+            overview["total_litros"] += litros
+            overview["total_quilos"] += quilos
+            overview["saidas"] += 1
+
+            local_bucket = grouped_locals[local_key]
+            local_bucket["local"] = local_key
+            local_bucket["total_valor"] += value
+            local_bucket["total_litros"] += litros
+            local_bucket["total_quilos"] += quilos
+            local_bucket["total_quantidade_base"] += quantity_base
+            local_bucket["saidas"] += 1
+            if item_code:
+                local_bucket["_items"].add(item_code)
+            local_bucket["_categories"].add(category_name)
+            local_bucket["_material_values"][item_name] += value
+            local_bucket["_employees"].add(employee_key)
+            local_bucket["_employee_values"][employee_key] += value
+            local_bucket["_employee_names"][employee_key] = entry.get("colaborador_nome") or "Não informado"
+            local_bucket["_employee_cargos"][employee_key] = entry.get("cargo") or "Sem cargo"
+            latest_local_entry = local_bucket.get("_latest_entry")
+            if latest_local_entry is None or entry_dt > (latest_local_entry.get("data_saida") or datetime.min):
+                local_bucket["_latest_entry"] = entry
+
+            category_bucket = grouped_categories[category_name]
+            category_bucket["categoria"] = category_name
+            category_bucket["total_valor"] += value
+            category_bucket["total_litros"] += litros
+            category_bucket["total_quilos"] += quilos
+            category_bucket["total_quantidade_base"] += quantity_base
+            category_bucket["saidas"] += 1
+            if item_code:
+                category_bucket["_items"].add(item_code)
+            category_bucket["_employees"].add(employee_key)
+            category_bucket["_locations"].add(local_key)
+            category_bucket["_material_values"][item_name] += value
+            category_bucket["_location_values"][local_key] += value
+            latest_category_entry = category_bucket.get("_latest_entry")
+            if latest_category_entry is None or entry_dt > (latest_category_entry.get("data_saida") or datetime.min):
+                category_bucket["_latest_entry"] = entry
+
+            employee_bucket = grouped_employees[employee_key]
+            employee_bucket["matricula"] = entry.get("matricula")
+            employee_bucket["nome"] = entry.get("colaborador_nome") or "Não informado"
+            employee_bucket["cargo"] = entry.get("cargo") or "Sem cargo"
+            employee_bucket["total_valor"] += value
+            employee_bucket["total_litros"] += litros
+            employee_bucket["total_quilos"] += quilos
+            employee_bucket["total_quantidade_base"] += quantity_base
+            employee_bucket["saidas"] += 1
+            if item_code:
+                employee_bucket["_items"].add(item_code)
+            employee_bucket["_locations"].add(local_key)
+            employee_bucket["_categories"].add(category_name)
+            employee_bucket["_material_values"][item_name] += value
+            employee_bucket["_location_values"][local_key] += value
+            if local_key != "SEM LOCAL":
+                employee_bucket["_filled_locations"] += 1
+            latest_employee_entry = employee_bucket.get("_latest_entry")
+            if latest_employee_entry is None or entry_dt > (latest_employee_entry.get("data_saida") or datetime.min):
+                employee_bucket["_latest_entry"] = entry
+
+        locations: list[dict[str, Any]] = []
+        for bucket in grouped_locals.values():
+            top_material_name, top_material_value = max(
+                bucket["_material_values"].items(),
+                key=lambda row: row[1],
+                default=(None, 0.0),
+            )
+            top_employee_key, top_employee_value = max(
+                bucket["_employee_values"].items(),
+                key=lambda row: row[1],
+                default=(None, 0.0),
+            )
+            latest_entry = bucket.get("_latest_entry") or {}
+            locations.append({
+                "local": bucket["local"],
+                "total_valor": round(float(bucket["total_valor"] or 0.0), 2),
+                "total_litros": round(float(bucket["total_litros"] or 0.0), 3),
+                "total_quilos": round(float(bucket["total_quilos"] or 0.0), 3),
+                "total_quantidade_base": round(float(bucket["total_quantidade_base"] or 0.0), 3),
+                "saidas": int(bucket["saidas"] or 0),
+                "itens": len(bucket["_items"]),
+                "colaboradores": len(bucket["_employees"]),
+                "categorias": len(bucket["_categories"]),
+                "material_destaque": top_material_name,
+                "material_destaque_valor": round(float(top_material_value or 0.0), 2),
+                "colaborador_destaque": bucket["_employee_names"].get(top_employee_key) if top_employee_key else None,
+                "cargo_destaque": bucket["_employee_cargos"].get(top_employee_key) if top_employee_key else None,
+                "colaborador_destaque_valor": round(float(top_employee_value or 0.0), 2),
+                "ultimo_colaborador_nome": latest_entry.get("colaborador_nome"),
+                "ultimo_colaborador_cargo": latest_entry.get("cargo"),
+                "ultimo_material_nome": latest_entry.get("descricao_item"),
+                "ultimo_lancamento": latest_entry.get("data_saida_label"),
+                "ultimo_contexto": latest_entry.get("contexto_uso") or latest_entry.get("local"),
+            })
+
+        categories: list[dict[str, Any]] = []
+        for bucket in grouped_categories.values():
+            top_material_name, top_material_value = max(
+                bucket["_material_values"].items(),
+                key=lambda row: row[1],
+                default=(None, 0.0),
+            )
+            top_location_name, top_location_value = max(
+                bucket["_location_values"].items(),
+                key=lambda row: row[1],
+                default=(None, 0.0),
+            )
+            latest_entry = bucket.get("_latest_entry") or {}
+            categories.append({
+                "categoria": bucket["categoria"],
+                "total_valor": round(float(bucket["total_valor"] or 0.0), 2),
+                "total_litros": round(float(bucket["total_litros"] or 0.0), 3),
+                "total_quilos": round(float(bucket["total_quilos"] or 0.0), 3),
+                "total_quantidade_base": round(float(bucket["total_quantidade_base"] or 0.0), 3),
+                "saidas": int(bucket["saidas"] or 0),
+                "itens": len(bucket["_items"]),
+                "colaboradores": len(bucket["_employees"]),
+                "locais": len(bucket["_locations"]),
+                "material_destaque": top_material_name,
+                "material_destaque_valor": round(float(top_material_value or 0.0), 2),
+                "local_destaque": top_location_name,
+                "local_destaque_valor": round(float(top_location_value or 0.0), 2),
+                "ultimo_colaborador_nome": latest_entry.get("colaborador_nome"),
+                "ultimo_material_nome": latest_entry.get("descricao_item"),
+                "ultimo_local": latest_entry.get("local"),
+                "ultimo_lancamento": latest_entry.get("data_saida_label"),
+            })
+
+        employees: list[dict[str, Any]] = []
+        for bucket in grouped_employees.values():
+            top_material_name, top_material_value = max(
+                bucket["_material_values"].items(),
+                key=lambda row: row[1],
+                default=(None, 0.0),
+            )
+            top_location_name, top_location_value = max(
+                bucket["_location_values"].items(),
+                key=lambda row: row[1],
+                default=(None, 0.0),
+            )
+            latest_entry = bucket.get("_latest_entry") or {}
+            local_fill_rate = (
+                float(bucket["_filled_locations"] or 0.0) / float(bucket["saidas"] or 1.0)
+                if bucket["saidas"]
+                else 0.0
+            )
+            employee_summary = {
+                "matricula": bucket["matricula"],
+                "nome": bucket["nome"],
+                "cargo": bucket["cargo"],
+                "total_valor": round(float(bucket["total_valor"] or 0.0), 2),
+                "total_litros": round(float(bucket["total_litros"] or 0.0), 3),
+                "total_quilos": round(float(bucket["total_quilos"] or 0.0), 3),
+                "total_quantidade_base": round(float(bucket["total_quantidade_base"] or 0.0), 3),
+                "saidas": int(bucket["saidas"] or 0),
+                "itens": len(bucket["_items"]),
+                "locais": len(bucket["_locations"]),
+                "categorias": len(bucket["_categories"]),
+                "material_destaque": top_material_name,
+                "material_destaque_valor": round(float(top_material_value or 0.0), 2),
+                "local_destaque": top_location_name,
+                "local_destaque_valor": round(float(top_location_value or 0.0), 2),
+                "ultimo_material_nome": latest_entry.get("descricao_item"),
+                "ultimo_local": latest_entry.get("local"),
+                "ultimo_lancamento": latest_entry.get("data_saida_label"),
+                "local_fill_rate": round(local_fill_rate, 4),
+            }
+            employee_summary["parecer_administrativo"] = cls._resolve_employee_administrative_opinion(employee_summary)
+            employees.append(employee_summary)
+
+        locations.sort(key=lambda row: (-float(row.get("total_valor") or 0.0), str(row.get("local") or "")))
+        categories.sort(key=lambda row: (-float(row.get("total_valor") or 0.0), str(row.get("categoria") or "")))
+        employees.sort(key=lambda row: (-float(row.get("total_valor") or 0.0), str(row.get("nome") or "")))
+
+        overview["total_valor"] = round(float(overview["total_valor"] or 0.0), 2)
+        overview["total_litros"] = round(float(overview["total_litros"] or 0.0), 3)
+        overview["total_quilos"] = round(float(overview["total_quilos"] or 0.0), 3)
+        overview["locais"] = len(grouped_locals)
+        overview["categorias"] = len(grouped_categories)
+        overview["colaboradores"] = len(grouped_employees)
+        overview["itens"] = len({str(row.get("codigo_item") or "") for row in sorted_entries if row.get("codigo_item")})
+
+        return {
+            "overview": overview,
+            "locations": locations,
+            "categories": categories,
+            "employees": employees,
+            "recent_entries": sorted_entries[:12],
+            "entries": sorted_entries,
+        }
+
+    @staticmethod
     def get_stock_value_report(exercise_label: str | None = None) -> dict[str, Any]:
         from .inventory import inventory_service
 
@@ -1469,6 +1845,7 @@ class FinanceService:
 
         saidas = (
             Saida.query
+            .options(joinedload(Saida.usuario), joinedload(Saida.item))
             .filter(Saida.data_saida >= exercise["start_dt"])
             .filter(Saida.data_saida <= exercise["end_dt"])
             .all()
@@ -1489,6 +1866,33 @@ class FinanceService:
             if product_id:
                 consumed_by_item[str(product_id)] += float(total_quantity or 0.0)
 
+        movement_by_saida: dict[str, dict[str, Any]] = {}
+        saida_ids = [str(saida.id_saida) for saida in saidas if getattr(saida, "id_saida", None) is not None]
+        if saida_ids:
+            saida_movements = (
+                StockMovement.query
+                .filter(StockMovement.movement_type == "saida")
+                .filter(StockMovement.reference_type == "saida")
+                .filter(StockMovement.reference_id.in_(saida_ids))
+                .order_by(StockMovement.created_at.asc(), StockMovement.id.asc())
+                .all()
+            )
+            for movement in saida_movements:
+                ref_key = str(movement.reference_id or "").strip()
+                if not ref_key:
+                    continue
+                bucket = movement_by_saida.setdefault(ref_key, {
+                    "quantity_base": 0.0,
+                    "unit_base": movement.unit_base,
+                    "latest_id": 0,
+                })
+                bucket["quantity_base"] += abs(float(movement.quantity_base or 0.0))
+                if int(movement.id or 0) >= int(bucket.get("latest_id") or 0):
+                    bucket["unit_base"] = movement.unit_base
+                    bucket["latest_id"] = int(movement.id or 0)
+            for bucket in movement_by_saida.values():
+                bucket.pop("latest_id", None)
+
         # Consumo fracionado por local (rastreabilidade): usa litros/kg registrados na saída.
         # Regra de custo: preço da embalagem (média do exercício quando disponível) / capacidade interna (L ou Kg).
         fracionado_por_local: dict[str, dict[str, Any]] = defaultdict(lambda: {
@@ -1498,6 +1902,11 @@ class FinanceService:
             "total_quilos": 0.0,
             "saidas": 0,
             "itens": set(),
+            "latest_at": None,
+            "ultimo_colaborador_nome": None,
+            "ultimo_colaborador_cargo": None,
+            "ultimo_material_nome": None,
+            "ultimo_contexto": None,
         })
         total_fracionado_valor = 0.0
         total_fracionado_litros = 0.0
@@ -1568,6 +1977,20 @@ class FinanceService:
                 total_fracionado_quilos += qtd_interna
             total_fracionado_valor += valor
 
+            latest_at = row.get("latest_at")
+            if latest_at is None or (saida.data_saida or datetime.min) > latest_at:
+                usuario = getattr(saida, "usuario", None)
+                observacao = (getattr(saida, "observacao", None) or "").strip()
+                row["latest_at"] = saida.data_saida or datetime.min
+                row["ultimo_colaborador_nome"] = (getattr(usuario, "nome", None) or "").strip() or "Não informado"
+                row["ultimo_colaborador_cargo"] = (getattr(usuario, "cargo", None) or "").strip() or "Sem cargo"
+                row["ultimo_material_nome"] = (
+                    (item.get("descricao") if isinstance(item, dict) else None)
+                    or getattr(getattr(saida, "item", None), "descricao", None)
+                    or code
+                )
+                row["ultimo_contexto"] = f"{local_key} | {observacao}" if observacao else local_key
+
         consumo_fracionado_por_local: list[dict[str, Any]] = []
         for info in fracionado_por_local.values():
             consumo_fracionado_por_local.append({
@@ -1577,8 +2000,103 @@ class FinanceService:
                 "total_quilos": round(float(info["total_quilos"] or 0.0), 3),
                 "saidas": int(info["saidas"] or 0),
                 "itens": len(info["itens"] or set()),
+                "ultimo_colaborador_nome": info.get("ultimo_colaborador_nome"),
+                "ultimo_colaborador_cargo": info.get("ultimo_colaborador_cargo"),
+                "ultimo_material_nome": info.get("ultimo_material_nome"),
+                "ultimo_contexto": info.get("ultimo_contexto"),
             })
         consumo_fracionado_por_local.sort(key=lambda r: (-float(r.get("total_valor") or 0.0), str(r.get("local") or "")))
+
+        consumo_analitico_linhas: list[dict[str, Any]] = []
+        for saida in saidas:
+            code = str(saida.codigo_item or "").strip()
+            if not code:
+                continue
+
+            item = item_map.get(code) or {}
+            purchase = purchases_by_item.get(code, {})
+            movement_info = movement_by_saida.get(str(getattr(saida, "id_saida", "") or "").strip(), {})
+
+            retirada_l_raw = getattr(saida, "quantidade_retirada_em_litros", None)
+            retirada_kg_raw = getattr(saida, "quantidade_retirada_em_quilos", None)
+            try:
+                retirada_l = float(retirada_l_raw or 0.0)
+            except (TypeError, ValueError):
+                retirada_l = 0.0
+            try:
+                retirada_kg = float(retirada_kg_raw or 0.0)
+            except (TypeError, ValueError):
+                retirada_kg = 0.0
+
+            quantidade_base = float(movement_info.get("quantity_base") or 0.0)
+            if quantidade_base <= 0:
+                if retirada_l > 0:
+                    quantidade_base = retirada_l
+                elif retirada_kg > 0:
+                    quantidade_base = retirada_kg
+                else:
+                    try:
+                        quantidade_base = abs(float(saida.quantidade or 0.0))
+                    except (TypeError, ValueError):
+                        quantidade_base = 0.0
+            if quantidade_base <= 0:
+                continue
+
+            usuario = getattr(saida, "usuario", None)
+            colaborador_nome = (getattr(usuario, "nome", None) or "").strip() or "Não informado"
+            cargo = (getattr(usuario, "cargo", None) or "").strip() or "Sem cargo"
+            local_key = FinanceService._normalize_consumption_local(getattr(saida, "local_servico", None))
+            observacao = (getattr(saida, "observacao", None) or "").strip()
+            unit_base = (
+                (movement_info.get("unit_base") or "").strip()
+                or str(item.get("unidade") or getattr(getattr(saida, "item", None), "unidade", None) or "un").strip()
+                or "un"
+            )
+            unit_price_base = FinanceService._resolve_consumption_unit_price(item, purchase)
+            valor_total = round(quantidade_base * unit_price_base, 2) if unit_price_base > 0 else 0.0
+            descricao_item = (
+                str(item.get("descricao") or "").strip()
+                or str(getattr(getattr(saida, "item", None), "descricao", "") or "").strip()
+                or code
+            )
+            categoria_nome = (
+                str(item.get("categoria") or "").strip()
+                or str(getattr(getattr(saida, "item", None), "categoria", "") or "").strip()
+                or "Sem categoria"
+            )
+            unidade_item = (
+                str(item.get("unidade") or "").strip()
+                or str(getattr(getattr(saida, "item", None), "unidade", "") or "").strip()
+                or "un"
+            )
+
+            entry = {
+                "saida_id": getattr(saida, "id_saida", None),
+                "codigo_item": code,
+                "descricao_item": descricao_item,
+                "categoria": categoria_nome,
+                "unidade_item": unidade_item,
+                "matricula": getattr(saida, "matricula", None),
+                "colaborador_nome": colaborador_nome,
+                "cargo": cargo,
+                "local": local_key,
+                "onde_usou": local_key,
+                "observacao": observacao,
+                "contexto_uso": f"{local_key} | {observacao}" if observacao else local_key,
+                "data_saida": getattr(saida, "data_saida", None),
+                "data_saida_label": saida.data_saida.strftime("%d/%m/%Y %H:%M") if getattr(saida, "data_saida", None) else "-",
+                "quantidade_base": round(float(quantidade_base or 0.0), 3),
+                "unit_base": unit_base,
+                "quantidade_litros": round(float(retirada_l or 0.0), 3),
+                "quantidade_quilos": round(float(retirada_kg or 0.0), 3),
+                "valor_total": valor_total,
+                "valor_unitario_base": round(float(unit_price_base or 0.0), 6),
+                "tipo_consumo": "fracionado" if (retirada_l > 0 or retirada_kg > 0) else "padrao",
+            }
+            entry["quantidade_display"] = FinanceService._format_consumption_quantity_display(entry)
+            consumo_analitico_linhas.append(entry)
+
+        consumo_analitico = FinanceService._aggregate_consumption_entries(consumo_analitico_linhas)
 
         categories: dict[str, dict[str, Any]] = defaultdict(lambda: {
             "categoria": "Sem categoria",
@@ -1654,8 +2172,345 @@ class FinanceService:
             "total_fracionado_litros": round(total_fracionado_litros, 3),
             "total_fracionado_quilos": round(total_fracionado_quilos, 3),
             "fracionado_linhas_ignoradas": int(fracionado_linhas_ignoradas),
+            "consumo_analitico": consumo_analitico,
         }
         return FinanceService._set_cached(cache_key, dict(report), ttl_seconds=10.0)
+
+    @classmethod
+    def get_consumption_panel_report(
+        cls,
+        exercise_label: str | None = None,
+        *,
+        local_name: str | None = None,
+        category_name: str | None = None,
+        employee_id: str | None = None,
+    ) -> dict[str, Any]:
+        base_report = cls.get_stock_value_report(exercise_label)
+        analytics = dict(base_report.get("consumo_analitico") or {})
+        all_entries = list(analytics.get("entries") or [])
+
+        normalized_local = cls._normalize_consumption_local(local_name) if local_name else None
+        normalized_category = (category_name or "").strip() or None
+        normalized_employee_id = (employee_id or "").strip() or None
+
+        filtered_entries = all_entries
+        scope_type = "geral"
+        scope_title = "Painel de Consumo por Local"
+        scope_subtitle = "Visão consolidada de valor, quantidade, local de uso e responsável pelas retiradas do exercício."
+
+        if normalized_local:
+            filtered_entries = [row for row in filtered_entries if cls._normalize_consumption_local(row.get("local")) == normalized_local]
+            scope_type = "local"
+            scope_title = f"Consumo no local {normalized_local}"
+            scope_subtitle = "Rastreamento detalhado dos materiais consumidos neste local, com valor, colaborador e contexto operacional."
+
+        if normalized_category:
+            filtered_entries = [row for row in filtered_entries if (row.get("categoria") or "").strip() == normalized_category]
+            scope_type = "categoria"
+            scope_title = f"Consumo da categoria {normalized_category}"
+            scope_subtitle = "Subpágina analítica da categoria, com materiais, locais de uso, responsáveis e valor movimentado."
+
+        if normalized_employee_id:
+            filtered_entries = [row for row in filtered_entries if str(row.get("matricula") or "").strip() == normalized_employee_id]
+            scope_type = "funcionario"
+            scope_title = f"Consumo do colaborador {normalized_employee_id}"
+            scope_subtitle = "Histórico individual de materiais consumidos, locais atendidos, valor movimentado e parecer administrativo operacional."
+
+        scoped_analytics = analytics if not (normalized_local or normalized_category or normalized_employee_id) else cls._aggregate_consumption_entries(filtered_entries)
+        current_local = None
+        current_category = None
+        current_employee = None
+
+        if normalized_local:
+            current_local = next(
+                (row for row in analytics.get("locations") or [] if row.get("local") == normalized_local),
+                None,
+            )
+            if current_local is not None:
+                scope_title = f"Consumo no local {current_local['local']}"
+
+        if normalized_category:
+            current_category = next(
+                (row for row in analytics.get("categories") or [] if (row.get("categoria") or "") == normalized_category),
+                None,
+            )
+            if current_category is not None:
+                scope_title = f"Consumo da categoria {current_category['categoria']}"
+
+        if normalized_employee_id:
+            current_employee = next(
+                (row for row in analytics.get("employees") or [] if str(row.get("matricula") or "").strip() == normalized_employee_id),
+                None,
+            )
+            if current_employee is None and (scoped_analytics.get("employees") or []):
+                current_employee = scoped_analytics["employees"][0]
+            if current_employee is not None:
+                scope_title = f"Consumo de {current_employee.get('nome') or normalized_employee_id}"
+
+        return {
+            "exercise": base_report["exercise"],
+            "exercise_options": base_report.get("exercise_options") or [],
+            "overview": scoped_analytics.get("overview") or {},
+            "locations": scoped_analytics.get("locations") or [],
+            "categories": scoped_analytics.get("categories") or [],
+            "employees": scoped_analytics.get("employees") or [],
+            "recent_entries": scoped_analytics.get("recent_entries") or [],
+            "entries": scoped_analytics.get("entries") or [],
+            "scope_type": scope_type,
+            "scope_title": scope_title,
+            "scope_subtitle": scope_subtitle,
+            "filters": {
+                "local": current_local.get("local") if current_local else normalized_local,
+                "categoria": current_category.get("categoria") if current_category else normalized_category,
+                "matricula": current_employee.get("matricula") if current_employee else normalized_employee_id,
+            },
+            "current_local": current_local,
+            "current_category": current_category,
+            "current_employee": current_employee,
+            "global_locations": analytics.get("locations") or [],
+            "global_categories": analytics.get("categories") or [],
+            "global_employees": analytics.get("employees") or [],
+        }
+
+    @classmethod
+    def build_consumption_panel_pdf(
+        cls,
+        exercise_label: str | None = None,
+        *,
+        local_name: str | None = None,
+        category_name: str | None = None,
+        employee_id: str | None = None,
+    ) -> BytesIO:
+        panel = cls.get_consumption_panel_report(
+            exercise_label,
+            local_name=local_name,
+            category_name=category_name,
+            employee_id=employee_id,
+        )
+
+        try:
+            from reportlab.lib import colors
+            from reportlab.lib.pagesizes import A4, landscape
+            from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+            from reportlab.lib.units import cm
+            from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+        except Exception as exc:
+            raise RuntimeError("ReportLab não disponível para gerar PDF") from exc
+
+        from ..utils.report_branding import get_company_header_html
+
+        def _brl(value: float | int | None) -> str:
+            return f"R$ {float(value or 0.0):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=landscape(A4),
+            leftMargin=0.7 * cm,
+            rightMargin=0.7 * cm,
+            topMargin=0.8 * cm,
+            bottomMargin=0.8 * cm,
+            title="Relatório Analítico de Consumo",
+            author="GALINT",
+        )
+        styles = getSampleStyleSheet()
+        body_style = ParagraphStyle(
+            "ConsumptionBody",
+            parent=styles["BodyText"],
+            fontSize=7.4,
+            leading=8.4,
+            spaceAfter=0,
+        )
+        note_style = ParagraphStyle(
+            "ConsumptionNote",
+            parent=styles["BodyText"],
+            fontSize=8.3,
+            leading=10,
+            textColor=colors.HexColor("#334155"),
+        )
+
+        story: list[Any] = []
+        exercise = panel["exercise"]
+        overview = panel.get("overview") or {}
+        story.append(Paragraph("RELATÓRIO ANALÍTICO DE CONSUMO", styles["Title"]))
+        story.append(Paragraph(get_company_header_html(), styles["Normal"]))
+        story.append(
+            Paragraph(
+                f"{panel['scope_title']} • Exercício {exercise['label']} • Período {exercise['start_date'].strftime('%d/%m/%Y')} a {exercise['end_date'].strftime('%d/%m/%Y')}",
+                styles["Heading3"],
+            )
+        )
+        story.append(Paragraph(panel["scope_subtitle"], note_style))
+        story.append(Spacer(1, 0.3 * cm))
+
+        kpi_rows = [[
+            "Valor total", _brl(overview.get("total_valor")),
+            "Saídas", str(int(overview.get("saidas") or 0)),
+            "Locais", str(int(overview.get("locais") or 0)),
+            "Colaboradores", str(int(overview.get("colaboradores") or 0)),
+        ], [
+            "Itens", str(int(overview.get("itens") or 0)),
+            "Categorias", str(int(overview.get("categorias") or 0)),
+            "Litros", f"{float(overview.get('total_litros') or 0.0):g}",
+            "Kg", f"{float(overview.get('total_quilos') or 0.0):g}",
+        ]]
+        kpi_table = Table(kpi_rows, colWidths=[2.3 * cm, 3.1 * cm, 2.1 * cm, 1.8 * cm, 2.1 * cm, 1.8 * cm, 2.6 * cm, 1.8 * cm])
+        kpi_table.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#0f172a")),
+            ("TEXTCOLOR", (0, 0), (-1, -1), colors.white),
+            ("FONTNAME", (0, 0), (-1, -1), "Helvetica-Bold"),
+            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+            ("BOX", (0, 0), (-1, -1), 0.4, colors.HexColor("#0f172a")),
+            ("INNERGRID", (0, 0), (-1, -1), 0.35, colors.HexColor("#1e293b")),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
+            ("TOPPADDING", (0, 0), (-1, -1), 7),
+        ]))
+        story.append(kpi_table)
+        story.append(Spacer(1, 0.35 * cm))
+
+        if panel.get("locations"):
+            story.append(Paragraph("Resumo por local", styles["Heading2"]))
+            local_rows: list[list[Any]] = [["Local", "Valor", "Saídas", "Itens", "Colaboradores", "Material destaque"]]
+            for row in panel["locations"]:
+                local_rows.append([
+                    row.get("local") or "SEM LOCAL",
+                    _brl(row.get("total_valor")),
+                    str(int(row.get("saidas") or 0)),
+                    str(int(row.get("itens") or 0)),
+                    str(int(row.get("colaboradores") or 0)),
+                    row.get("material_destaque") or "—",
+                ])
+            local_table = Table(local_rows, repeatRows=1, colWidths=[5.2 * cm, 2.4 * cm, 1.7 * cm, 1.5 * cm, 2.2 * cm, 6.0 * cm])
+            local_table.setStyle(TableStyle([
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#0f172a")),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("GRID", (0, 0), (-1, -1), 0.3, colors.HexColor("#cbd5e1")),
+                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f8fafc")]),
+                ("FONTSIZE", (0, 0), (-1, -1), 8),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ]))
+            story.append(local_table)
+            story.append(Spacer(1, 0.25 * cm))
+
+        if panel.get("categories"):
+            story.append(Paragraph("Resumo por categoria", styles["Heading2"]))
+            category_rows: list[list[Any]] = [["Categoria", "Valor", "Saídas", "Locais", "Colaboradores", "Local destaque"]]
+            for row in panel["categories"]:
+                category_rows.append([
+                    row.get("categoria") or "Sem categoria",
+                    _brl(row.get("total_valor")),
+                    str(int(row.get("saidas") or 0)),
+                    str(int(row.get("locais") or 0)),
+                    str(int(row.get("colaboradores") or 0)),
+                    row.get("local_destaque") or "—",
+                ])
+            category_table = Table(category_rows, repeatRows=1, colWidths=[5.0 * cm, 2.4 * cm, 1.7 * cm, 1.6 * cm, 2.2 * cm, 6.1 * cm])
+            category_table.setStyle(TableStyle([
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#0f172a")),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("GRID", (0, 0), (-1, -1), 0.3, colors.HexColor("#cbd5e1")),
+                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f8fafc")]),
+                ("FONTSIZE", (0, 0), (-1, -1), 8),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ]))
+            story.append(category_table)
+            story.append(Spacer(1, 0.25 * cm))
+
+        if panel.get("employees"):
+            story.append(Paragraph("Resumo por colaborador", styles["Heading2"]))
+            employee_rows: list[list[Any]] = [["Colaborador", "Cargo", "Valor", "Saídas", "Locais", "Parecer"]]
+            for row in panel["employees"]:
+                opinion = (row.get("parecer_administrativo") or {}).get("label") or "Sem base"
+                employee_rows.append([
+                    row.get("nome") or "Não informado",
+                    row.get("cargo") or "Sem cargo",
+                    _brl(row.get("total_valor")),
+                    str(int(row.get("saidas") or 0)),
+                    str(int(row.get("locais") or 0)),
+                    opinion,
+                ])
+            employee_table = Table(employee_rows, repeatRows=1, colWidths=[4.6 * cm, 3.3 * cm, 2.3 * cm, 1.7 * cm, 1.6 * cm, 5.1 * cm])
+            employee_table.setStyle(TableStyle([
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#0f172a")),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("GRID", (0, 0), (-1, -1), 0.3, colors.HexColor("#cbd5e1")),
+                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f8fafc")]),
+                ("FONTSIZE", (0, 0), (-1, -1), 8),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ]))
+            story.append(employee_table)
+            story.append(Spacer(1, 0.3 * cm))
+
+        story.append(Paragraph("Lançamentos detalhados", styles["Heading2"]))
+        detail_rows: list[list[Any]] = [[
+            "Data/Hora",
+            "Colaborador",
+            "Cargo",
+            "Material",
+            "Categoria",
+            "Local",
+            "Qtde",
+            "Valor",
+            "Contexto",
+        ]]
+        for row in panel.get("entries") or []:
+            detail_rows.append([
+                row.get("data_saida_label") or "-",
+                Paragraph(str(row.get("colaborador_nome") or "Não informado"), body_style),
+                Paragraph(str(row.get("cargo") or "Sem cargo"), body_style),
+                Paragraph(str(row.get("descricao_item") or "Item sem descrição"), body_style),
+                Paragraph(str(row.get("categoria") or "Sem categoria"), body_style),
+                Paragraph(str(row.get("local") or "SEM LOCAL"), body_style),
+                row.get("quantidade_display") or "0",
+                _brl(row.get("valor_total")),
+                Paragraph(str(row.get("contexto_uso") or row.get("local") or "SEM CONTEXTO"), body_style),
+            ])
+        details_table = Table(
+            detail_rows,
+            repeatRows=1,
+            colWidths=[2.4 * cm, 3.0 * cm, 2.5 * cm, 5.0 * cm, 2.6 * cm, 2.9 * cm, 2.1 * cm, 2.4 * cm, 5.2 * cm],
+        )
+        details_table.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#0f172a")),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("GRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#cbd5e1")),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f8fafc")]),
+            ("FONTSIZE", (0, 0), (-1, -1), 7.3),
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 3),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 3),
+            ("TOPPADDING", (0, 0), (-1, -1), 3),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+        ]))
+        story.append(details_table)
+        story.append(Spacer(1, 0.3 * cm))
+
+        current_employee = panel.get("current_employee")
+        if current_employee:
+            opinion = current_employee.get("parecer_administrativo") or {}
+            story.append(Paragraph("Parecer administrativo", styles["Heading2"]))
+            story.append(
+                Paragraph(
+                    f"<b>{current_employee.get('nome') or 'Colaborador'}</b> • Score {int(opinion.get('score') or 0)} • {opinion.get('label') or 'Sem base'}<br/>{opinion.get('text') or ''}",
+                    note_style,
+                )
+            )
+        elif panel.get("employees"):
+            story.append(Paragraph("Parecer administrativo consolidado", styles["Heading2"]))
+            story.append(
+                Paragraph(
+                    "O parecer administrativo deste relatório mede disciplina operacional e rastreabilidade de consumo, especialmente preenchimento de local de uso, cargo e distribuição dos registros. Não representa avaliação de produtividade isolada.",
+                    note_style,
+                )
+            )
+
+        doc.build(story)
+        buffer.seek(0)
+        return buffer
 
     @staticmethod
     def build_stock_value_pdf(exercise_label: str | None = None) -> BytesIO:

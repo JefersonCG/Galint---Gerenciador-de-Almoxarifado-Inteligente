@@ -386,6 +386,41 @@
         margin-top: 1rem;
     }
 
+    .pre-registered-document {
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        border-radius: 1rem;
+        background: rgba(15, 23, 42, 0.4);
+        padding: 1rem;
+    }
+
+    .pre-registered-document-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        align-items: flex-start;
+        margin-bottom: 0.9rem;
+        padding-bottom: 0.9rem;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+    }
+
+    .pre-registered-document-items {
+        display: grid;
+        gap: 0.85rem;
+    }
+
+    .pre-registered-document-count {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.35rem 0.7rem;
+        border-radius: 999px;
+        background: rgba(37, 99, 235, 0.16);
+        border: 1px solid rgba(96, 165, 250, 0.22);
+        color: #bfdbfe;
+        font-size: 0.78rem;
+        font-weight: 700;
+    }
+
     .pre-registered-card {
         border: 1px solid rgba(148, 163, 184, 0.2);
         border-radius: 1rem;
@@ -896,24 +931,24 @@
             <div class="modal-header">
                 <div>
                     <h5 class="modal-title" id="preRegisteredModalLabel">Pré-cadastrados por NF</h5>
-                    <div class="text-muted small">Informe a NF, escolha um item criado pelo documento e siga para concluir o cadastro.</div>
+                    <div class="text-muted small">Ao abrir, a lista já mostra todos os documentos pendentes. Use o filtro só se quiser restringir por número.</div>
                 </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
             </div>
             <div class="modal-body">
                 <div class="row g-3 align-items-end">
                     <div class="col-lg-8">
-                        <label class="form-label" for="pre-registered-nf-number">Número da NF</label>
-                        <input class="form-control" id="pre-registered-nf-number" placeholder="Digite o número da nota fiscal">
+                        <label class="form-label" for="pre-registered-nf-number">Filtro opcional por documento</label>
+                        <input class="form-control" id="pre-registered-nf-number" placeholder="Ex: NF 048259, cupom ou número do comprovante">
                     </div>
                     <div class="col-lg-4 d-grid">
                         <button class="btn btn-primary" type="button" id="pre-registered-search-btn">
-                            <i class="bi bi-search me-1"></i> Buscar itens pré-cadastrados
+                            <i class="bi bi-arrow-clockwise me-1"></i> Atualizar lista
                         </button>
                     </div>
                 </div>
                 <div class="pre-registered-doc-summary d-none" id="pre-registered-doc-summary"></div>
-                <div class="form-text mt-3" id="pre-registered-status">Use o número da NF para localizar somente os itens ainda pendentes de finalização.</div>
+                <div class="form-text mt-3" id="pre-registered-status">A lista carrega automaticamente ao abrir. Selecione um item pendente para finalizar o cadastro.</div>
                 <div class="pre-registered-results" id="pre-registered-results"></div>
             </div>
             <div class="modal-footer">
@@ -3466,113 +3501,144 @@
         }
     };
 
-    const renderPreRegisteredDocSummary = (payload) => {
+    const normalizePreRegisteredDocuments = (payload) => {
+        if (Array.isArray(payload?.documents)) {
+            return payload.documents;
+        }
+        if (payload?.found && Array.isArray(payload?.items)) {
+            return [payload];
+        }
+        return [];
+    };
+
+    const renderPreRegisteredDocSummary = (payload, options = {}) => {
         if (!preRegisteredDocSummary) {
             return;
         }
-        if (!payload || !payload.found) {
+        const documents = normalizePreRegisteredDocuments(payload);
+        if (!payload || !documents.length) {
             preRegisteredDocSummary.classList.add('d-none');
             preRegisteredDocSummary.innerHTML = '';
             return;
         }
-        const supplier = payload.fornecedor_nome ? escapeHtml(payload.fornecedor_nome) : 'Fornecedor não identificado';
-        const tipo = escapeHtml(String(payload.tipo_documento || 'NF').toUpperCase());
-        const dataEmissao = payload.data_emissao ? new Date(`${payload.data_emissao}T00:00:00`).toLocaleDateString('pt-BR') : '—';
-        const dataRecebimento = payload.data_recebimento ? new Date(`${payload.data_recebimento}T00:00:00`).toLocaleDateString('pt-BR') : '—';
+        const totalDocuments = Number(payload?.total_documents || documents.length || 0);
+        const totalItems = Number(payload?.total_items || documents.reduce((sum, document) => sum + ((document.items || []).length), 0));
+        const filterLabel = String(options.filter || '').trim();
         preRegisteredDocSummary.innerHTML = `
             <div class="d-flex flex-wrap justify-content-between gap-3 align-items-start">
                 <div>
-                    <div class="fw-semibold text-white">Documento ${escapeHtml(payload.numero_documento || '')}</div>
-                    <div class="small text-muted">${tipo} • ${supplier}</div>
+                    <div class="fw-semibold text-white">${totalDocuments} documento(s) com ${totalItems} item(ns) pendente(s)</div>
+                    <div class="small text-muted">NF, cupom e sem comprovação aparecem juntos para você finalizar em sequência.</div>
                 </div>
                 <div class="small text-muted">
-                    <div>Emissão: ${dataEmissao}</div>
-                    <div>Recebimento: ${dataRecebimento}</div>
+                    <div>Filtro: ${filterLabel ? escapeHtml(filterLabel) : 'todos os documentos pendentes'}</div>
+                    <div>Selecione o item que deseja concluir agora.</div>
                 </div>
             </div>
         `;
         preRegisteredDocSummary.classList.remove('d-none');
     };
 
-    const renderPreRegisteredResults = (payload) => {
+    const renderPreRegisteredResults = (payload, options = {}) => {
         if (!preRegisteredResults) {
             return;
         }
         resetPreRegisteredSelection();
         preRegisteredResults.innerHTML = '';
-        if (!payload?.found) {
-            setPreRegisteredStatus('Nenhum documento localizado com esse número.', 'danger');
+        const documents = normalizePreRegisteredDocuments(payload);
+        if (!documents.length) {
+            setPreRegisteredStatus(options.filter ? 'Nenhum documento pendente localizado com esse filtro.' : 'Nenhum item em pré-cadastro pendente no momento.', options.filter ? 'danger' : 'muted');
             renderPreRegisteredDocSummary(null);
+            preRegisteredResults.innerHTML = '<div class="text-muted small">Não há itens pendentes de finalização para exibir agora.</div>';
             return;
         }
-        renderPreRegisteredDocSummary(payload);
-        const entries = Array.isArray(payload.items) ? payload.items : [];
-        if (!entries.length) {
-            setPreRegisteredStatus('Este documento existe, mas não há itens pendentes em PRÉ CADASTRADOS para ele.', 'muted');
-            preRegisteredResults.innerHTML = '<div class="text-muted small">Todos os itens desta NF já foram finalizados ou não entraram no fluxo de pré-cadastro.</div>';
+        renderPreRegisteredDocSummary(payload, options);
+        const totalItems = documents.reduce((sum, document) => sum + ((document.items || []).length), 0);
+        if (!totalItems) {
+            setPreRegisteredStatus('O documento localizado não possui mais itens pendentes em pré-cadastro.', 'muted');
+            preRegisteredResults.innerHTML = '<div class="text-muted small">Todos os itens deste documento já foram finalizados.</div>';
             return;
         }
-        setPreRegisteredStatus(`${entries.length} item(ns) pendente(s) localizado(s). Selecione um para concluir o cadastro.`, 'success');
+        setPreRegisteredStatus(`${totalItems} item(ns) pendente(s) distribuído(s) em ${documents.length} documento(s). Selecione um para concluir o cadastro.`, 'success');
 
-        entries.forEach((entry) => {
-            const card = document.createElement('button');
-            card.type = 'button';
-            card.className = 'pre-registered-card text-start';
-            card.innerHTML = `
-                <div class="pre-registered-card-head">
+        documents.forEach((document) => {
+            const documentSection = document.createElement('section');
+            documentSection.className = 'pre-registered-document';
+            const supplier = document.fornecedor_nome ? escapeHtml(document.fornecedor_nome) : 'Fornecedor não identificado';
+            const tipo = escapeHtml(document.tipo_documento_label || document.tipo_documento || 'Documento');
+            const dataEmissao = document.data_emissao ? new Date(`${document.data_emissao}T00:00:00`).toLocaleDateString('pt-BR') : '—';
+            const dataRecebimento = document.data_recebimento ? new Date(`${document.data_recebimento}T00:00:00`).toLocaleDateString('pt-BR') : '—';
+            documentSection.innerHTML = `
+                <div class="pre-registered-document-head">
                     <div>
-                        <div class="pre-registered-card-title">${escapeHtml(entry.descricao || 'Item sem descrição')}</div>
-                        <div class="small text-muted">Código ${escapeHtml(entry.codigo || '—')} • ${escapeHtml(entry.categoria || 'Sem categoria')}</div>
+                        <div class="fw-semibold text-white">${tipo} ${escapeHtml(document.numero_documento || 'Sem número')}</div>
+                        <div class="small text-muted">${supplier}</div>
+                        <div class="small text-muted">Emissão: ${dataEmissao} • Recebimento: ${dataRecebimento}</div>
                     </div>
-                    <span class="badge text-bg-warning">Pendente</span>
+                    <span class="pre-registered-document-count">${escapeHtml(String(document.items_count || (document.items || []).length || 0))} pendente(s)</span>
                 </div>
-                <div class="pre-registered-card-meta">
-                    <div class="pre-registered-meta-box">
-                        <span class="pre-registered-meta-label">Saldo</span>
-                        <span class="pre-registered-meta-value">${escapeHtml(entry.saldo_display || String(entry.saldo ?? '0'))}</span>
-                    </div>
-                    <div class="pre-registered-meta-box">
-                        <span class="pre-registered-meta-label">Quantidade na NF</span>
-                        <span class="pre-registered-meta-value">${escapeHtml(String(entry.quantidade_documento ?? '0'))} ${escapeHtml(entry.unidade || '')}</span>
-                    </div>
-                    <div class="pre-registered-meta-box">
-                        <span class="pre-registered-meta-label">Preço unitário</span>
-                        <span class="pre-registered-meta-value">${escapeHtml(formatBrl(entry.valor_unitario))}</span>
-                    </div>
-                    <div class="pre-registered-meta-box">
-                        <span class="pre-registered-meta-label">Valor total</span>
-                        <span class="pre-registered-meta-value">${escapeHtml(formatBrl(entry.valor_total))}</span>
-                    </div>
-                </div>
+                <div class="pre-registered-document-items"></div>
             `;
-            card.addEventListener('click', () => {
-                document.querySelectorAll('.pre-registered-card').forEach((element) => element.classList.remove('is-selected'));
-                card.classList.add('is-selected');
-                preRegisteredSelection = entry;
-                if (preRegisteredFinishButton) {
-                    preRegisteredFinishButton.disabled = !entry.edit_url;
-                }
+
+            const itemsContainer = documentSection.querySelector('.pre-registered-document-items');
+            (document.items || []).forEach((entry) => {
+                const card = document.createElement('button');
+                card.type = 'button';
+                card.className = 'pre-registered-card text-start';
+                card.innerHTML = `
+                    <div class="pre-registered-card-head">
+                        <div>
+                            <div class="pre-registered-card-title">${escapeHtml(entry.descricao || 'Item sem descrição')}</div>
+                            <div class="small text-muted">Código ${escapeHtml(entry.codigo || '—')} • ${escapeHtml(entry.categoria || 'Sem categoria')}</div>
+                        </div>
+                        <span class="badge text-bg-warning">Pendente</span>
+                    </div>
+                    <div class="pre-registered-card-meta">
+                        <div class="pre-registered-meta-box">
+                            <span class="pre-registered-meta-label">Saldo</span>
+                            <span class="pre-registered-meta-value">${escapeHtml(entry.saldo_display || String(entry.saldo ?? '0'))}</span>
+                        </div>
+                        <div class="pre-registered-meta-box">
+                            <span class="pre-registered-meta-label">Quantidade no documento</span>
+                            <span class="pre-registered-meta-value">${escapeHtml(String(entry.quantidade_documento ?? '0'))} ${escapeHtml(entry.unidade || '')}</span>
+                        </div>
+                        <div class="pre-registered-meta-box">
+                            <span class="pre-registered-meta-label">Preço unitário</span>
+                            <span class="pre-registered-meta-value">${escapeHtml(formatBrl(entry.valor_unitario))}</span>
+                        </div>
+                        <div class="pre-registered-meta-box">
+                            <span class="pre-registered-meta-label">Valor total</span>
+                            <span class="pre-registered-meta-value">${escapeHtml(formatBrl(entry.valor_total))}</span>
+                        </div>
+                    </div>
+                `;
+                card.addEventListener('click', () => {
+                    document.querySelectorAll('.pre-registered-card').forEach((element) => element.classList.remove('is-selected'));
+                    card.classList.add('is-selected');
+                    preRegisteredSelection = entry;
+                    if (preRegisteredFinishButton) {
+                        preRegisteredFinishButton.disabled = !entry.edit_url;
+                    }
+                });
+                itemsContainer.appendChild(card);
             });
-            preRegisteredResults.appendChild(card);
+
+            preRegisteredResults.appendChild(documentSection);
         });
     };
 
     const searchPreRegisteredItems = async () => {
         const numero = String(preRegisteredNumberInput?.value || '').trim();
-        if (!numero) {
-            setPreRegisteredStatus('Informe o número da NF antes de buscar.', 'danger');
-            preRegisteredResults && (preRegisteredResults.innerHTML = '');
-            renderPreRegisteredDocSummary(null);
-            resetPreRegisteredSelection();
-            return;
-        }
         if (preRegisteredSearchButton) {
             preRegisteredSearchButton.disabled = true;
-            preRegisteredSearchButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Buscando...';
+            preRegisteredSearchButton.innerHTML = `<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>${numero ? 'Buscando...' : 'Atualizando...'}`;
         }
-        setPreRegisteredStatus('Consultando itens pré-cadastrados da NF...', 'muted');
+        setPreRegisteredStatus(numero ? 'Consultando os itens pendentes do documento informado...' : 'Carregando todos os documentos com itens em pré-cadastro...', 'muted');
         try {
-            const response = await fetch(`${preRegisteredApiUrl}?numero=${encodeURIComponent(numero)}`, {
+            const queryUrl = numero
+                ? `${preRegisteredApiUrl}?numero=${encodeURIComponent(numero)}`
+                : preRegisteredApiUrl;
+            const response = await fetch(queryUrl, {
                 headers: { 'Accept': 'application/json' },
                 credentials: 'same-origin'
             });
@@ -3580,7 +3646,7 @@
             if (!response.ok || payload.success === false) {
                 throw new Error(payload.message || `Erro ${response.status}`);
             }
-            renderPreRegisteredResults(payload);
+            renderPreRegisteredResults(payload, { filter: numero });
         } catch (error) {
             renderPreRegisteredDocSummary(null);
             resetPreRegisteredSelection();
@@ -3591,7 +3657,7 @@
         } finally {
             if (preRegisteredSearchButton) {
                 preRegisteredSearchButton.disabled = false;
-                preRegisteredSearchButton.innerHTML = '<i class="bi bi-search me-1"></i> Buscar itens pré-cadastrados';
+                preRegisteredSearchButton.innerHTML = '<i class="bi bi-arrow-clockwise me-1"></i> Atualizar lista';
             }
         }
     };
@@ -3611,15 +3677,19 @@
         window.location.href = preRegisteredSelection.edit_url;
     });
     preRegisteredModalElement?.addEventListener('shown.bs.modal', () => {
+        searchPreRegisteredItems();
         preRegisteredNumberInput?.focus();
     });
     preRegisteredModalElement?.addEventListener('hidden.bs.modal', () => {
         resetPreRegisteredSelection();
+        if (preRegisteredNumberInput) {
+            preRegisteredNumberInput.value = '';
+        }
         if (preRegisteredResults) {
             preRegisteredResults.innerHTML = '';
         }
         renderPreRegisteredDocSummary(null);
-        setPreRegisteredStatus('Use o número da NF para localizar somente os itens ainda pendentes de finalização.', 'muted');
+        setPreRegisteredStatus('A lista carrega automaticamente ao abrir. Selecione um item pendente para finalizar o cadastro.', 'muted');
     });
 
     const setPhotoAssistantFeedback = (message, variant = 'info') => {

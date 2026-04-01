@@ -400,12 +400,94 @@
         font-size: 0.8rem;
     }
 
+    .return-quantity-modal .modal-content {
+        border: 0;
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 28px 70px rgba(15, 23, 42, 0.28);
+    }
+
+    .return-quantity-modal .modal-header {
+        background: linear-gradient(120deg, #2563eb 0%, #3b82f6 100%);
+        color: #ffffff;
+    }
+
+    .return-quantity-modal .btn-close {
+        filter: invert(1);
+    }
+
+    .return-modal-item-layout {
+        display: grid;
+        grid-template-columns: 120px 1fr;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .return-modal-photo-wrap {
+        width: 120px;
+        height: 120px;
+        border-radius: 14px;
+        overflow: hidden;
+        background: #eff6ff;
+        border: 1px solid #dbeafe;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .return-modal-photo {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: none;
+    }
+
+    .return-modal-photo.show {
+        display: block;
+    }
+
+    .return-modal-photo-empty {
+        color: #2563eb;
+        font-size: 2rem;
+    }
+
+    .return-modal-summary {
+        border-radius: 12px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        padding: 0.9rem 1rem;
+        margin-top: 0.9rem;
+    }
+
+    .return-modal-summary-line {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        color: #0f172a;
+        font-weight: 600;
+    }
+
+    .return-modal-warning {
+        display: none;
+        margin-top: 0.75rem;
+        color: #b91c1c;
+        font-weight: 700;
+    }
+
+    .return-modal-warning.show {
+        display: block;
+    }
+
     @media (max-width: 991.98px) {
         .operation-preview {
             grid-template-columns: 1fr;
         }
 
         .operation-preview-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .return-modal-item-layout {
             grid-template-columns: 1fr;
         }
     }
@@ -447,12 +529,12 @@
                     </div>
                 </div>
                 <div class="col-md-6">
-                    <label class="form-label"><i class="bi bi-hash me-1"></i>Quantidade (inteira)</label>
-                    <input class="form-control" type="number" id="input-quantidade" name="quantidade" value="1" min="1" step="1" required>
+                    <label class="form-label"><i class="bi bi-hash me-1"></i>Quantidade da devolução</label>
+                    <input class="form-control" type="text" id="input-quantidade" name="quantidade" value="" placeholder="A quantidade será definida no modal" readonly>
                 </div>
                 <div class="col-md-6 d-flex align-items-end">
-                    <button type="button" class="btn btn-add-item w-100" id="btn-adicionar">
-                        <i class="bi bi-plus-circle me-2"></i>Adicionar Item
+                    <button type="button" class="btn btn-add-item w-100" id="btn-adicionar" disabled>
+                        <i class="bi bi-plus-circle me-2"></i>Informar quantidade e adicionar
                     </button>
                 </div>
                 <div class="col-12">
@@ -488,7 +570,7 @@
                     <tr>
                         <th style="width: 50%;">Item</th>
                         <th style="width: 20%;">Código</th>
-                        <th style="width: 15%;" class="text-center">Quantidade</th>
+                        <th style="width: 15%;" class="text-center">Quantidade devolvida</th>
                         <th style="width: 15%;" class="text-center">Ações</th>
                     </tr>
                 </thead>
@@ -522,6 +604,54 @@
     <option value="{{ item.get('codigo') }}">{{ item.get('descricao') or item.get('codigo') }}</option>
     {% endfor %}
 </datalist>
+
+<div class="modal fade" id="returnQuantityModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered return-quantity-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-calculator me-2"></i>Quantidade devolvida</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <div class="return-modal-item-layout">
+                    <div class="return-modal-photo-wrap">
+                        <img id="return-modal-photo" class="return-modal-photo" alt="Foto do item">
+                        <div id="return-modal-photo-empty" class="return-modal-photo-empty">
+                            <i class="bi bi-image"></i>
+                        </div>
+                    </div>
+                    <div>
+                        <p class="mb-2">Item: <strong id="return-modal-item-desc"></strong></p>
+                        <p class="mb-2">Unidade de retorno: <strong id="return-modal-unit-label">un</strong></p>
+                        <p class="mb-2">Pendente para devolução: <strong id="return-modal-pending-total">-</strong></p>
+                        <p class="mb-0">Saldo atual do item: <strong id="return-modal-stock-total">-</strong></p>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="form-label fw-bold" for="return-modal-quantity-input">Informe quanto voltou</label>
+                    <div class="input-group input-group-lg">
+                        <input type="number" class="form-control" id="return-modal-quantity-input" min="0.001" step="0.001" placeholder="0">
+                        <span class="input-group-text" id="return-modal-quantity-unit">un</span>
+                    </div>
+                    <small class="text-muted">Este lançamento vai entrar como devolução, nunca como nova entrada.</small>
+                </div>
+
+                <div class="return-modal-summary">
+                    <div class="return-modal-summary-line">
+                        <span>Pendente após a devolução</span>
+                        <strong id="return-modal-pending-after">-</strong>
+                    </div>
+                    <div id="return-modal-warning" class="return-modal-warning">A quantidade informada excede o pendente disponível para este funcionário.</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="btn-confirm-return-quantity">Adicionar à lista</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 <script>
 (function() {

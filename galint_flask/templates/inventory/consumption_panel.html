@@ -1,0 +1,497 @@
+{% extends "base.html" %}
+{% block title %}Painel de Consumo{% endblock %}
+
+{% macro brl(value) -%}
+    {{ (value or 0)|currency_br }}
+{%- endmacro %}
+
+{% block content %}
+{% set exercise = panel.exercise %}
+{% set overview = panel.overview|default({}) %}
+{% set current_local = panel.current_local %}
+{% set current_category = panel.current_category %}
+{% set current_employee = panel.current_employee %}
+
+{% if panel.scope_type == 'local' %}
+    {% set export_url = url_for('inventory.consumption_report_pdf', exercicio=exercise.label, local=panel.filters.local) %}
+{% elif panel.scope_type == 'categoria' %}
+    {% set export_url = url_for('inventory.consumption_report_pdf', exercicio=exercise.label, categoria=panel.filters.categoria) %}
+{% elif panel.scope_type == 'funcionario' %}
+    {% set export_url = url_for('inventory.consumption_report_pdf', exercicio=exercise.label, matricula=panel.filters.matricula) %}
+{% else %}
+    {% set export_url = url_for('inventory.consumption_report_pdf', exercicio=exercise.label) %}
+{% endif %}
+
+<style>
+    .consumo-shell {
+        background: radial-gradient(circle at top left, rgba(14, 165, 233, 0.18), transparent 22%), radial-gradient(circle at top right, rgba(34, 197, 94, 0.14), transparent 18%), linear-gradient(180deg, #07111f 0%, #0b1220 100%);
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        border-radius: 30px;
+        padding: 1.5rem;
+        color: #e2e8f0;
+        box-shadow: 0 24px 48px rgba(2, 6, 23, 0.42);
+    }
+
+    .consumo-hero {
+        position: relative;
+        overflow: hidden;
+        border-radius: 26px;
+        padding: 1.55rem;
+        margin-bottom: 1.2rem;
+        background: linear-gradient(135deg, rgba(15, 23, 42, 0.98) 0%, rgba(17, 24, 39, 0.96) 46%, rgba(8, 145, 178, 0.92) 100%);
+        border: 1px solid rgba(125, 211, 252, 0.16);
+    }
+
+    .consumo-hero::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(circle at 18% 18%, rgba(56, 189, 248, 0.18), transparent 26%), radial-gradient(circle at 82% 16%, rgba(34, 197, 94, 0.14), transparent 22%);
+        pointer-events: none;
+    }
+
+    .consumo-hero > * {
+        position: relative;
+        z-index: 1;
+    }
+
+    .consumo-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        border-radius: 999px;
+        padding: 0.36rem 0.8rem;
+        background: rgba(34, 197, 94, 0.14);
+        color: #86efac;
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        margin-bottom: 0.85rem;
+    }
+
+    .consumo-hero h1 {
+        margin: 0 0 0.45rem;
+        font-size: clamp(1.85rem, 3vw, 2.6rem);
+        font-weight: 900;
+        letter-spacing: -0.04em;
+        color: #f8fafc;
+    }
+
+    .consumo-hero p {
+        margin: 0;
+        max-width: 60rem;
+        color: rgba(226, 232, 240, 0.9);
+        line-height: 1.6;
+    }
+
+    .consumo-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: 1rem;
+    }
+
+    .consumo-soft {
+        border-radius: 18px;
+        padding: 0.85rem 0.95rem;
+        background: rgba(15, 23, 42, 0.44);
+        border: 1px solid rgba(148, 163, 184, 0.16);
+    }
+
+    .consumo-kpis {
+        display: grid;
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+        gap: 0.8rem;
+        margin-bottom: 1rem;
+    }
+
+    .consumo-kpi {
+        border-radius: 20px;
+        padding: 1rem;
+        background: linear-gradient(155deg, rgba(15, 23, 42, 0.96), rgba(12, 74, 110, 0.72));
+        border: 1px solid rgba(125, 211, 252, 0.14);
+        box-shadow: 0 16px 30px rgba(2, 6, 23, 0.26);
+    }
+
+    .consumo-kpi-label {
+        display: block;
+        font-size: 0.73rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #7dd3fc;
+        margin-bottom: 0.32rem;
+    }
+
+    .consumo-kpi-value {
+        font-size: 1.35rem;
+        font-weight: 800;
+        color: #f8fafc;
+    }
+
+    .consumo-kpi-caption {
+        margin-top: 0.25rem;
+        color: rgba(203, 213, 225, 0.82);
+        font-size: 0.82rem;
+        line-height: 1.45;
+    }
+
+    .consumo-highlights {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .consumo-highlight-card {
+        border-radius: 22px;
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        background: linear-gradient(180deg, rgba(13, 22, 35, 0.96), rgba(16, 27, 43, 0.94));
+        box-shadow: 0 16px 30px rgba(2, 6, 23, 0.28);
+        padding: 1rem 1.05rem;
+    }
+
+    .consumo-highlight-card h2 {
+        font-size: 1rem;
+        font-weight: 800;
+        color: #f8fafc;
+        margin-bottom: 0.3rem;
+    }
+
+    .consumo-highlight-meta {
+        color: rgba(203, 213, 225, 0.84);
+        font-size: 0.86rem;
+        line-height: 1.55;
+    }
+
+    .consumo-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1.35fr) minmax(330px, 0.85fr);
+        gap: 1rem;
+    }
+
+    .consumo-surface {
+        border-radius: 22px;
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        background: linear-gradient(180deg, rgba(13, 22, 35, 0.96), rgba(16, 27, 43, 0.94));
+        box-shadow: 0 16px 30px rgba(2, 6, 23, 0.28);
+        overflow: hidden;
+    }
+
+    .consumo-surface-head {
+        padding: 1rem 1rem 0.4rem;
+    }
+
+    .consumo-surface-body {
+        padding: 0 1rem 1rem;
+    }
+
+    .consumo-mini-table thead th,
+    .consumo-detail-table thead th {
+        background: rgba(15, 23, 42, 0.88);
+        color: #93c5fd;
+        border: none;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        padding: 0.72rem;
+        white-space: nowrap;
+    }
+
+    .consumo-mini-table tbody td,
+    .consumo-detail-table tbody td {
+        padding: 0.74rem;
+        vertical-align: top;
+        color: #e2e8f0;
+        border-color: rgba(148, 163, 184, 0.12);
+    }
+
+    .consumo-side-stack {
+        display: grid;
+        gap: 1rem;
+    }
+
+    .consumo-side-list {
+        display: grid;
+        gap: 0.8rem;
+    }
+
+    .consumo-side-item {
+        padding: 0.85rem 0.9rem;
+        border-radius: 16px;
+        background: rgba(15, 23, 42, 0.58);
+        border: 1px solid rgba(148, 163, 184, 0.14);
+    }
+
+    .consumo-side-item strong {
+        color: #f8fafc;
+    }
+
+    .consumo-side-meta {
+        color: rgba(203, 213, 225, 0.84);
+        font-size: 0.82rem;
+        line-height: 1.45;
+    }
+
+    .consumo-opinion {
+        border-radius: 18px;
+        padding: 0.95rem 1rem;
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        background: rgba(15, 23, 42, 0.6);
+    }
+
+    .consumo-opinion strong {
+        color: #f8fafc;
+    }
+
+    @media (max-width: 1200px) {
+        .consumo-kpis {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+    }
+
+    @media (max-width: 992px) {
+        .consumo-shell {
+            padding: 1rem;
+        }
+
+        .consumo-layout,
+        .consumo-highlights {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .consumo-kpis {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<div class="consumo-shell">
+    <section class="consumo-hero">
+        <div class="consumo-badge"><i class="bi bi-geo-alt"></i> Consumo por local</div>
+        <h1>{{ panel.scope_title }}</h1>
+        <p>{{ panel.scope_subtitle }}</p>
+        <div class="consumo-toolbar">
+            <div class="consumo-soft small text-light">
+                Exercício {{ exercise.label }} • {{ exercise.start_date.strftime('%d/%m/%Y') }} a {{ exercise.end_date.strftime('%d/%m/%Y') }}
+            </div>
+            <div class="d-flex gap-2 flex-wrap">
+                {% if panel.scope_type != 'geral' %}
+                <a class="btn btn-outline-light rounded-pill px-4" href="{{ url_for('inventory.consumption_dashboard', exercicio=exercise.label) }}">
+                    <i class="bi bi-house-door me-1"></i> Visão geral
+                </a>
+                {% endif %}
+                <a class="btn btn-outline-success rounded-pill px-4" href="{{ export_url }}">
+                    <i class="bi bi-file-earmark-pdf me-1"></i> Exportar PDF
+                </a>
+                <a class="btn btn-outline-info rounded-pill px-4" href="{{ url_for('inventory.valor_estoque', exercicio=exercise.label) }}">
+                    <i class="bi bi-cash-stack me-1"></i> Voltar ao financeiro
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <section class="consumo-kpis">
+        <article class="consumo-kpi">
+            <span class="consumo-kpi-label">Valor rastreado</span>
+            <div class="consumo-kpi-value">{{ brl(overview.total_valor) }}</div>
+            <div class="consumo-kpi-caption">Consumo valorado pelo custo de compra base do exercício.</div>
+        </article>
+        <article class="consumo-kpi">
+            <span class="consumo-kpi-label">Saídas</span>
+            <div class="consumo-kpi-value">{{ overview.saidas or 0 }}</div>
+            <div class="consumo-kpi-caption">Registros detalhados nesta visão.</div>
+        </article>
+        <article class="consumo-kpi">
+            <span class="consumo-kpi-label">Locais</span>
+            <div class="consumo-kpi-value">{{ overview.locais or 0 }}</div>
+            <div class="consumo-kpi-caption">Frentes de uso cobertas pelo filtro atual.</div>
+        </article>
+        <article class="consumo-kpi">
+            <span class="consumo-kpi-label">Colaboradores</span>
+            <div class="consumo-kpi-value">{{ overview.colaboradores or 0 }}</div>
+            <div class="consumo-kpi-caption">Responsáveis identificados na visão atual.</div>
+        </article>
+        <article class="consumo-kpi">
+            <span class="consumo-kpi-label">Categorias</span>
+            <div class="consumo-kpi-value">{{ overview.categorias or 0 }}</div>
+            <div class="consumo-kpi-caption">Famílias de materiais envolvidas.</div>
+        </article>
+        <article class="consumo-kpi">
+            <span class="consumo-kpi-label">Litros / Kg</span>
+            <div class="consumo-kpi-value">{{ (overview.total_litros or 0)|number_br(2, True) }} • {{ (overview.total_quilos or 0)|number_br(2, True) }}</div>
+            <div class="consumo-kpi-caption">Consumo fracionado acumulado dentro do recorte.</div>
+        </article>
+    </section>
+
+    {% if not panel.entries %}
+    <div class="alert alert-warning mb-4">Ainda não há consumo rastreado para este recorte. Quando novas saídas forem registradas com local de uso, esta página passa a consolidar valor, quantidade, responsável e categoria automaticamente.</div>
+    {% endif %}
+
+    {% if current_employee or current_local or current_category %}
+    <section class="consumo-highlights">
+        {% if current_employee %}
+        <article class="consumo-highlight-card">
+            <h2>{{ current_employee.nome or 'Colaborador' }}</h2>
+            <div class="consumo-highlight-meta">{{ current_employee.cargo or 'Sem cargo' }} • {{ current_employee.saidas or 0 }} saída(s) • {{ current_employee.locais or 0 }} local(is)</div>
+            <div class="consumo-highlight-meta">Material destaque: {{ current_employee.material_destaque or '—' }} • Local destaque: {{ current_employee.local_destaque or '—' }}</div>
+            {% if current_employee.parecer_administrativo %}
+            <div class="consumo-opinion mt-3">
+                <strong>{{ current_employee.parecer_administrativo.label }}</strong>
+                <div class="consumo-side-meta">Score {{ current_employee.parecer_administrativo.score }} • {{ current_employee.parecer_administrativo.text }}</div>
+            </div>
+            {% endif %}
+        </article>
+        {% endif %}
+
+        {% if current_local or current_category %}
+        <article class="consumo-highlight-card">
+            <h2>{{ current_local.local if current_local else current_category.categoria }}</h2>
+            {% if current_local %}
+            <div class="consumo-highlight-meta">{{ current_local.saidas or 0 }} saída(s) • {{ current_local.colaboradores or 0 }} colaborador(es) • {{ current_local.itens or 0 }} item(ns)</div>
+            <div class="consumo-highlight-meta">Último uso: {{ current_local.ultimo_colaborador_nome or 'Não informado' }} • {{ current_local.ultimo_material_nome or '—' }}</div>
+            {% else %}
+            <div class="consumo-highlight-meta">{{ current_category.saidas or 0 }} saída(s) • {{ current_category.locais or 0 }} local(is) • {{ current_category.colaboradores or 0 }} colaborador(es)</div>
+            <div class="consumo-highlight-meta">Local destaque: {{ current_category.local_destaque or '—' }} • Material destaque: {{ current_category.material_destaque or '—' }}</div>
+            {% endif %}
+        </article>
+        {% endif %}
+    </section>
+    {% endif %}
+
+    <div class="consumo-layout">
+        <div class="consumo-surface">
+            <div class="consumo-surface-head d-flex justify-content-between align-items-start gap-2 flex-wrap">
+                <div>
+                    <h2 class="h5 mb-1">Lançamentos detalhados</h2>
+                    <div class="text-muted small">Data, colaborador, cargo, material, categoria, local, quantidade, valor e contexto operacional.</div>
+                </div>
+                <span class="badge text-bg-dark">{{ panel.entries|length }} linha(s)</span>
+            </div>
+            <div class="consumo-surface-body table-responsive">
+                <table class="table consumo-detail-table mb-0">
+                    <thead>
+                        <tr>
+                            <th>Data/Hora</th>
+                            <th>Colaborador</th>
+                            <th>Cargo</th>
+                            <th>Material</th>
+                            <th>Categoria</th>
+                            <th>Local</th>
+                            <th>Qtde</th>
+                            <th class="text-end">Valor</th>
+                            <th>Contexto</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in panel.entries %}
+                        <tr>
+                            <td class="text-muted">{{ row.data_saida_label or '-' }}</td>
+                            <td>
+                                <div class="fw-semibold">{{ row.colaborador_nome or 'Não informado' }}</div>
+                                {% if row.matricula %}
+                                <div class="text-muted small">{{ row.matricula }}</div>
+                                {% endif %}
+                            </td>
+                            <td class="text-muted">{{ row.cargo or 'Sem cargo' }}</td>
+                            <td>{{ row.descricao_item }}</td>
+                            <td>
+                                <div>{{ row.categoria or 'Sem categoria' }}</div>
+                                {% if row.categoria %}
+                                <div class="mt-2">
+                                    <a class="btn btn-sm btn-outline-info" href="{{ url_for('inventory.consumption_by_category', categoria=row.categoria, exercicio=exercise.label) }}">Categoria</a>
+                                </div>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div>{{ row.local or 'SEM LOCAL' }}</div>
+                                <div class="mt-2">
+                                    <a class="btn btn-sm btn-outline-info" href="{{ url_for('inventory.consumption_by_local', local=row.local, exercicio=exercise.label) }}">Local</a>
+                                </div>
+                            </td>
+                            <td>{{ row.quantidade_display or '0' }}</td>
+                            <td class="text-end">{{ brl(row.valor_total) }}</td>
+                            <td class="text-muted">{{ row.contexto_uso or row.local or 'SEM CONTEXTO' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="consumo-side-stack">
+            <section class="consumo-surface">
+                <div class="consumo-surface-head">
+                    <h2 class="h6 mb-1">Locais</h2>
+                    <div class="text-muted small">Maiores valores consumidos por local dentro desta visão.</div>
+                </div>
+                <div class="consumo-surface-body consumo-side-list">
+                    {% for row in panel.locations[:6] %}
+                    <div class="consumo-side-item">
+                        <div class="d-flex justify-content-between gap-2 flex-wrap">
+                            <strong>{{ row.local }}</strong>
+                            <span>{{ brl(row.total_valor) }}</span>
+                        </div>
+                        <div class="consumo-side-meta">{{ row.saidas or 0 }} saída(s) • {{ row.colaboradores or 0 }} colaborador(es)</div>
+                        <div class="consumo-side-meta">Último responsável: {{ row.ultimo_colaborador_nome or 'Não informado' }}</div>
+                        <div class="mt-2">
+                            <a class="btn btn-sm btn-outline-info" href="{{ url_for('inventory.consumption_by_local', local=row.local, exercicio=exercise.label) }}">Abrir local</a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <section class="consumo-surface">
+                <div class="consumo-surface-head">
+                    <h2 class="h6 mb-1">Categorias</h2>
+                    <div class="text-muted small">Categorias com maior valor consumido neste recorte.</div>
+                </div>
+                <div class="consumo-surface-body consumo-side-list">
+                    {% for row in panel.categories[:6] %}
+                    <div class="consumo-side-item">
+                        <div class="d-flex justify-content-between gap-2 flex-wrap">
+                            <strong>{{ row.categoria }}</strong>
+                            <span>{{ brl(row.total_valor) }}</span>
+                        </div>
+                        <div class="consumo-side-meta">{{ row.saidas or 0 }} saída(s) • {{ row.locais or 0 }} local(is)</div>
+                        <div class="consumo-side-meta">Material destaque: {{ row.material_destaque or '—' }}</div>
+                        <div class="mt-2">
+                            <a class="btn btn-sm btn-outline-info" href="{{ url_for('inventory.consumption_by_category', categoria=row.categoria, exercicio=exercise.label) }}">Abrir categoria</a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <section class="consumo-surface">
+                <div class="consumo-surface-head">
+                    <h2 class="h6 mb-1">Colaboradores</h2>
+                    <div class="text-muted small">Parecer administrativo operacional baseado em rastreabilidade dos registros.</div>
+                </div>
+                <div class="consumo-surface-body consumo-side-list">
+                    {% for row in panel.employees[:6] %}
+                    <div class="consumo-side-item">
+                        <div class="d-flex justify-content-between gap-2 flex-wrap">
+                            <strong>{{ row.nome or 'Não informado' }}</strong>
+                            <span>{{ brl(row.total_valor) }}</span>
+                        </div>
+                        <div class="consumo-side-meta">{{ row.cargo or 'Sem cargo' }} • {{ row.saidas or 0 }} saída(s)</div>
+                        <div class="consumo-side-meta">{{ row.parecer_administrativo.label if row.parecer_administrativo else 'Sem base' }}</div>
+                        {% if row.matricula %}
+                        <div class="mt-2">
+                            <a class="btn btn-sm btn-outline-info" href="{{ url_for('inventory.consumption_by_employee', matricula=row.matricula, exercicio=exercise.label) }}">Abrir colaborador</a>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </section>
+        </div>
+    </div>
+</div>
+{% endblock %}
