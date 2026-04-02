@@ -2,10 +2,11 @@
 from __future__ import annotations
 
 import logging
+import math
 import os
 from io import BytesIO
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from statistics import NormalDist, mean, stdev
 import unicodedata
 from pathlib import Path
@@ -57,6 +58,31 @@ def _normalize_search(value: str) -> str:
         return ""
     normalized = unicodedata.normalize("NFKD", value)
     return "".join(ch for ch in normalized if not unicodedata.combining(ch))
+
+
+def _build_photo_url(photo_path: str | None) -> str | None:
+    if not photo_path:
+        return None
+    return url_for("static", filename=photo_path)
+
+
+def _parse_period_days_arg(raw_value: object, *, default: int = 0) -> int:
+    try:
+        period_days = int(str(raw_value or default).strip())
+    except (TypeError, ValueError):
+        return default
+
+    return period_days
+
+
+def _format_date_like(value: object, fmt: str = "%d/%m/%Y") -> str:
+    if value is None:
+        return ""
+    if isinstance(value, datetime):
+        return TimeService.format_local(value, fmt)
+    if isinstance(value, date):
+        return value.strftime(fmt)
+    return _safe_text(value)
 
 
 def _convert_pdf_to_jpeg(pdf_path: str, jpeg_path: str, dpi: int = 200) -> None:
@@ -459,7 +485,7 @@ def _parse_report_filename(filename: str) -> dict:
     Formatos esperados:
     - saidas_dia_<scope>_<timestamp>.pdf
     - saidas_dia_<timestamp>.pdf
-    - estoque_baixo_<timestamp>.xlsx
+    - estoque_baixo_<timestamp>.pdf
     - monthly_<scope>_<year>_<month>_<timestamp>.pdf
     """
     parts = filename.split("_")
@@ -557,7 +583,7 @@ def _get_reports_list(reports_dir: Path, filters: dict = None) -> list[dict]:
     
     # Listar apenas arquivos (não pastas)
     for item in reports_dir.iterdir():
-        if item.is_file() and item.suffix.lower() in [".pdf", ".xlsx", ".jpeg", ".jpg"]:
+        if item.is_file() and item.suffix.lower() == ".pdf":
             info = _parse_report_filename(item.name)
             
             # Adicionar tamanho do arquivo
@@ -600,11 +626,7 @@ def _get_reports_list(reports_dir: Path, filters: dict = None) -> list[dict]:
             
             if filters.get("format") and filters["format"] != "all":
                 target_format = filters["format"].lower()
-                info_format = info["format"].lower()
-                if target_format == "jpeg":
-                    if info_format not in {"jpeg", "jpg"}:
-                        continue
-                elif info_format != target_format:
+                if target_format != "pdf":
                     continue
             
             reports.append(info)
@@ -623,12 +645,16 @@ def index():
     
     reports_dir = Path(current_app.instance_path) / "reports"
     
+    requested_format = (request.args.get("format") or "").strip().lower()
+    if requested_format not in {"", "all", "pdf"}:
+        requested_format = "pdf"
+
     # Obter filtros da query string
     filters = {
         "date_from": request.args.get("date_from"),
         "date_to": request.args.get("date_to"),
         "type": request.args.get("type"),
-        "format": request.args.get("format"),
+        "format": "pdf",
     }
     
     # Remover filtros vazios
@@ -661,8 +687,6 @@ def index():
         "total": len(reports),
         "total_size_mb": round(total_size_mb, 2),
         "pdf_count": sum(1 for r in reports if r["format"] == "PDF"),
-        "xlsx_count": sum(1 for r in reports if r["format"] == "XLSX"),
-        "jpeg_count": sum(1 for r in reports if r["format"] in ["JPEG", "JPG"]),
     }
     
     # Modo de visualização (cards ou table)
@@ -857,6 +881,23 @@ def percentual_movimentos():
         std_dev = _as_float(std_dev)
         margin = 1.96 * std_dev if std_dev > 0 else 0.0
         return max(0.0, average_demand - margin), max(0.0, average_demand + margin)
+
+    def _safe_projected_date(base_dt, days, fallback="Sem previsao pratica"):
+        if base_dt is None:
+            return fallback
+
+        normalized_days = _as_float(days)
+        if not math.isfinite(normalized_days) or normalized_days < 0:
+            return fallback
+
+        max_supported_days = max(0, (datetime.max.date() - base_dt.date()).days)
+        if normalized_days > max_supported_days:
+            return fallback
+
+        try:
+            return (base_dt + timedelta(days=normalized_days)).date().isoformat()
+        except (OverflowError, ValueError):
+            return fallback
 
     tool_filter = func.coalesce(Item.categoria, "").ilike("Ferrament%")
 
@@ -1093,8 +1134,8 @@ def percentual_movimentos():
         days_to_zero = (current_stock / avg_daily) if avg_daily > 0 else None
         days_to_reorder = 0.0 if current_stock <= reorder_point else ((current_stock - reorder_point) / avg_daily if avg_daily > 0 else None)
 
-        reorder_date = (now_utc + timedelta(days=days_to_reorder)).date().isoformat() if days_to_reorder is not None else None
-        stockout_date = (now_utc + timedelta(days=days_to_zero)).date().isoformat() if days_to_zero is not None else None
+        reorder_date = _safe_projected_date(now_utc, days_to_reorder)
+        stockout_date = _safe_projected_date(now_utc, days_to_zero)
 
         material_forecasts.append(
             {
@@ -1243,20 +1284,13 @@ def download(filename: str):
     if not file_path.exists() or not file_path.is_file():
         abort(404, "Relatório não encontrado")
     
-    # Determinar mimetype
     ext = file_path.suffix.lower()
-    mimetype_map = {
-        ".pdf": "application/pdf",
-        ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        ".jpeg": "image/jpeg",
-        ".jpg": "image/jpeg",
-    }
-    
-    mimetype = mimetype_map.get(ext, "application/octet-stream")
+    if ext != ".pdf":
+        abort(404, "Somente relatórios PDF estão disponíveis.")
     
     return send_file(
         file_path,
-        mimetype=mimetype,
+        mimetype="application/pdf",
         as_attachment=True,
         download_name=filename,
     )
@@ -1309,12 +1343,14 @@ def gerar_relatorio():
     date_from_str = request.form.get("date_from", "").strip()
     date_to_str = request.form.get("date_to", "").strip()
     report_type = request.form.get("type", "saidas").strip()
-    format_type = request.form.get("format", "pdf").strip().lower()
+    requested_format = request.form.get("format", "pdf").strip().lower()
     
     # Validar formato
-    if format_type not in ["pdf", "xlsx", "jpeg"]:
-        flash("Formato inválido. Use PDF, XLSX ou JPEG.", "danger")
+    if requested_format not in ["pdf", "xlsx", "jpeg", "jpg"]:
+        flash("Formato inválido. Use PDF.", "danger")
         return redirect(url_for("reports.index"))
+    if requested_format in {"xlsx", "jpeg", "jpg"}:
+        flash("Os relatórios agora são gerados somente em PDF. O arquivo foi salvo em PDF.", "info")
     
     # Converter datas
     try:
@@ -1374,100 +1410,23 @@ def gerar_relatorio():
             
             timestamp = TimeService.now_local().strftime('%Y%m%d_%H%M%S')
             period_label = f"{date_from.strftime('%Y%m%d')}_{date_to.strftime('%Y%m%d')}"
-            
-            if format_type == "xlsx":
-                from openpyxl import Workbook
-                from openpyxl.styles import Font, PatternFill, Alignment
-                
-                wb = Workbook()
-                ws = wb.active
-                ws.title = "Saídas"
 
-                # Cabeçalho (título + empresa)
-                from ..utils.report_branding import get_company_header_lines
+            pdf_bytes = _generate_custom_report_pdf(
+                results=results,
+                date_from=date_from,
+                date_to=date_to,
+                report_type=report_type,
+                time_service=TimeService,
+            )
 
-                ws.append(["RELATÓRIO DE SAÍDAS - PERÍODO CUSTOMIZADO"])
-                for line in get_company_header_lines():
-                    ws.append([line])
-                ws.append([f"Período: {date_from.strftime('%d/%m/%Y')} a {date_to.strftime('%d/%m/%Y')}"])
-                ws.append([f"Total de registros: {len(results)}"])
-                ws.append([])
-                
-                # Estilos
-                header_fill = PatternFill(start_color="1f2937", end_color="1f2937", fill_type="solid")
-                header_font = Font(color="FFFFFF", bold=True)
-                
-                # Cabeçalhos das colunas
-                headers = ["Data", "Hora", "Funcionário", "Matrícula", "Item", "Categoria", "Qtd.", "Local"]
+            pdf_filename = f"relatorio_saidas_{period_label}_{timestamp}.pdf"
+            pdf_path = reports_dir / pdf_filename
 
-                header_row_index = ws.max_row + 1
-                ws.append(headers)
+            with open(pdf_path, "wb") as pdf_file:
+                pdf_file.write(pdf_bytes)
 
-                for cell in ws[header_row_index]:
-                    cell.fill = header_fill
-                    cell.font = header_font
-                    cell.alignment = Alignment(horizontal="center")
-                
-                # Dados
-                for row in results:
-                    # Mesclar local e observação
-                    local_info = row.local_servico or "N/D"
-                    if row.observacao and row.observacao.strip():
-                        local_info = f"{local_info} | {row.observacao[:100]}"
-                    
-                    ws.append([
-                        TimeService.format_local(row.data_saida, "%d/%m/%Y"),
-                        TimeService.format_local(row.data_saida, "%H:%M"),
-                        row.usuario_nome or "N/D",
-                        row.matricula or "N/D",
-                        row.item_descricao or "Item removido",
-                        row.item_categoria or "N/D",
-                        row.quantidade,
-                        local_info[:200],
-                    ])
-                
-                # Ajustar larguras
-                ws.column_dimensions["A"].width = 12
-                ws.column_dimensions["B"].width = 8
-                ws.column_dimensions["C"].width = 30
-                ws.column_dimensions["D"].width = 12
-                ws.column_dimensions["E"].width = 40
-                ws.column_dimensions["F"].width = 18
-                ws.column_dimensions["G"].width = 8
-                ws.column_dimensions["H"].width = 60
-                
-                filename = f"relatorio_saidas_{period_label}_{timestamp}.xlsx"
-                filepath = reports_dir / filename
-                wb.save(str(filepath))
-                
-                flash(f"Relatório gerado com sucesso: {filename}", "success")
-                return redirect(url_for("reports.index"))
-            
-            elif format_type in ["pdf", "jpeg"]:
-                # Gerar PDF
-                pdf_bytes = _generate_custom_report_pdf(
-                    results=results,
-                    date_from=date_from,
-                    date_to=date_to,
-                    report_type=report_type,
-                    time_service=TimeService
-                )
-                
-                pdf_filename = f"relatorio_saidas_{period_label}_{timestamp}.pdf"
-                pdf_path = reports_dir / pdf_filename
-                
-                with open(pdf_path, "wb") as pdf_file:
-                    pdf_file.write(pdf_bytes)
-                
-                if format_type == "jpeg":
-                    jpeg_filename = f"relatorio_saidas_{period_label}_{timestamp}.jpeg"
-                    jpeg_path = reports_dir / jpeg_filename
-                    _convert_pdf_to_jpeg(str(pdf_path), str(jpeg_path))
-                    flash(f"Relatório gerado com sucesso: {jpeg_filename}", "success")
-                else:
-                    flash(f"Relatório gerado com sucesso: {pdf_filename}", "success")
-                
-                return redirect(url_for("reports.index"))
+            flash(f"Relatório gerado com sucesso: {pdf_filename}", "success")
+            return redirect(url_for("reports.index"))
         
         else:
             flash("Tipo de relatório não implementado ainda.", "warning")
@@ -1494,7 +1453,7 @@ def by_item():
     if search_type == "usuario":
         period_days = 0  # Sempre mostrar histórico completo para usuários
     else:
-        period_days = int(request.args.get("period", "0"))
+        period_days = _parse_period_days_arg(request.args.get("period", "0"))
         if period_days not in [7, 30, 90, 180, 365, 0]:  # 0 = todo histórico
             period_days = 0
     
@@ -1749,18 +1708,160 @@ def by_item():
     )
 
 
+@bp.route("/by-item-day")
+@login_required
+def by_item_day():
+    """Página dedicada ao histórico diário agrupado por item."""
+    from datetime import timezone
+
+    from ..extensions import db
+    from ..models import Item, Saida, Usuario
+
+    search_term = (request.args.get("search") or "").strip()
+    selected_date_raw = (request.args.get("date") or "").strip()
+
+    local_now = TimeService.now_local()
+    selected_date = local_now.date()
+    if selected_date_raw:
+        try:
+            selected_date = datetime.strptime(selected_date_raw, "%Y-%m-%d").date()
+        except ValueError:
+            flash("Data inválida informada. Exibindo o dia atual.", "warning")
+
+    local_start = local_now.replace(
+        year=selected_date.year,
+        month=selected_date.month,
+        day=selected_date.day,
+        hour=0,
+        minute=0,
+        second=0,
+        microsecond=0,
+    )
+    local_end = local_start + timedelta(days=1)
+    start_utc = local_start.astimezone(timezone.utc).replace(tzinfo=None)
+    end_utc = local_end.astimezone(timezone.utc).replace(tzinfo=None)
+
+    query = (
+        db.session.query(
+            Saida.id_saida,
+            Saida.quantidade,
+            Saida.data_saida,
+            Saida.observacao,
+            Saida.local_servico,
+            Saida.tipo_custodia,
+            Saida.codigo_item,
+            Saida.matricula,
+            Item.descricao.label("item_descricao"),
+            Item.categoria.label("item_categoria"),
+            Item.marca.label("item_marca"),
+            Item.foto_path.label("item_foto_path"),
+            Usuario.nome.label("usuario_nome"),
+        )
+        .join(Item, Saida.codigo_item == Item.codigo_item, isouter=True)
+        .join(Usuario, Saida.matricula == Usuario.matricula, isouter=True)
+        .filter(
+            Saida.data_saida >= start_utc,
+            Saida.data_saida < end_utc,
+        )
+    )
+
+    if search_term:
+        like_term = f"%{search_term}%"
+        query = query.filter(
+            or_(
+                Item.descricao.ilike(like_term),
+                Item.codigo_item.ilike(like_term),
+                Usuario.nome.ilike(like_term),
+                Usuario.matricula.ilike(like_term),
+                Saida.local_servico.ilike(like_term),
+                Saida.observacao.ilike(like_term),
+            )
+        )
+
+    rows = query.order_by(Saida.data_saida.asc(), Saida.id_saida.asc()).all()
+
+    grouped_items_map: dict[str, dict] = {}
+    total_quantity = 0.0
+
+    for row in rows:
+        item_key = (row.codigo_item or "").strip() or f"sem-codigo-{row.id_saida}"
+        item_group = grouped_items_map.get(item_key)
+        if item_group is None:
+            item_group = {
+                "codigo": row.codigo_item or "N/D",
+                "codigo_curto": _format_codigo_barra(row.codigo_item),
+                "descricao": row.item_descricao or "Item removido",
+                "categoria": row.item_categoria or "Sem categoria",
+                "marca": row.item_marca or "Sem marca",
+                "foto_url": _build_photo_url(row.item_foto_path),
+                "total_quantity": 0.0,
+                "movement_count": 0,
+                "unique_users": set(),
+                "movements": [],
+            }
+            grouped_items_map[item_key] = item_group
+
+        local_info = (row.local_servico or "").strip() or "Sem local informado"
+        observacao = (row.observacao or "").strip()
+        if observacao:
+            local_info = f"{local_info} | {observacao}"
+
+        user_label = row.usuario_nome or (f"Matrícula {row.matricula}" if row.matricula else "N/D")
+        movement_quantity = float(row.quantidade or 0)
+        item_group["total_quantity"] += movement_quantity
+        item_group["movement_count"] += 1
+        if row.matricula:
+            item_group["unique_users"].add(row.matricula)
+
+        item_group["movements"].append(
+            {
+                "id": row.id_saida,
+                "quantidade": movement_quantity,
+                "data_formatada": TimeService.format_local(row.data_saida, "%d/%m/%Y"),
+                "hora_formatada": TimeService.format_local(row.data_saida, "%H:%M"),
+                "usuario_nome": user_label,
+                "usuario_matricula": row.matricula or "N/D",
+                "local_info": local_info,
+                "periodo": TimeService.get_business_day_tag(row.data_saida),
+                "tipo_custodia": row.tipo_custodia or "temporaria",
+                "tipo_custodia_label": "Permanente" if (row.tipo_custodia or "").strip().lower() == "permanente" else "Temporária",
+            }
+        )
+        total_quantity += movement_quantity
+
+    grouped_items = list(grouped_items_map.values())
+    grouped_items.sort(key=lambda item: ((item.get("descricao") or "").lower(), (item.get("codigo") or "")))
+
+    for item_group in grouped_items:
+        unique_users = item_group.pop("unique_users", set())
+        item_group["unique_user_count"] = len(unique_users)
+
+    stats = {
+        "total_items": len(grouped_items),
+        "total_movements": len(rows),
+        "total_quantity": total_quantity,
+        "items_with_photo": sum(1 for item in grouped_items if item.get("foto_url")),
+    }
+
+    return render_template(
+        "reports/by_item_day.html",
+        grouped_items=grouped_items,
+        search_term=search_term,
+        selected_date=selected_date.isoformat(),
+        selected_date_label=selected_date.strftime("%d/%m/%Y"),
+        stats=stats,
+    )
+
+
 @bp.route("/by_item_download")
 @login_required
 def by_item_download():
-    """Download do relatório por item ou funcionário em XLSX, PDF ou JPEG"""
+    """Download do relatório por item ou funcionário em PDF."""
     from flask import current_app
     from ..models import Item, Saida, Usuario, InventarioEvento
     from ..extensions import db
     from ..utils.time_service import TimeService
     from datetime import datetime, timedelta
-    import tempfile
-    from openpyxl import Workbook
-    from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
     
     search_term = request.args.get("search", "").strip()
     search_type = request.args.get("type", "item").strip().lower()
@@ -1768,8 +1869,12 @@ def by_item_download():
     if search_type == "usuario":
         period_days = 0  # Sempre histórico completo para usuários
     else:
-        period_days = int(request.args.get("period", "0"))
-    format_type = request.args.get("format", "xlsx").lower()
+        period_days = _parse_period_days_arg(request.args.get("period", "0"))
+        if period_days not in [7, 30, 90, 180, 365, 0]:
+            period_days = 0
+    requested_format = (request.args.get("format") or "pdf").strip().lower()
+    if requested_format not in {"pdf", "xlsx", "jpeg", "jpg"}:
+        abort(400, "Formato inválido. Use pdf.")
     
     if not search_term:
         abort(400, "Termo de busca não fornecido")
@@ -1925,160 +2030,6 @@ def by_item_download():
         query = query.order_by(Saida.data_saida.desc())
         saidas = query.all()
     
-    # Gerar XLSX
-    wb = Workbook()
-    ws = wb.active
-    
-    if search_type == "usuario":
-        ws.title = "Relatório por Funcionário"
-
-        # Cabeçalho (título + empresa)
-        from ..utils.report_branding import get_company_header_lines
-
-        ws["A1"] = "RELATÓRIO DE RETIRADAS E DEVOLUÇÕES POR FUNCIONÁRIO"
-        ws["A1"].font = Font(bold=True, size=14)
-
-        company_lines = get_company_header_lines()
-        row = 2
-        for line in company_lines:
-            ws[f"A{row}"] = line
-            row += 1
-        row += 1
-
-        ws[f"A{row}"] = f"Funcionário: {usuario_info['nome']}"
-        ws[f"A{row + 1}"] = f"Matrícula: {usuario_info['matricula']}"
-        ws[f"A{row + 2}"] = f"Cargo: {usuario_info['cargo']}"
-        ws[f"A{row + 4}"] = "Período: Todo histórico (inclui retiradas e devoluções)"
-        ws[f"A{row + 5}"] = f"Total de movimentações: {len(saidas)}"
-        ws[f"A{row + 6}"] = (
-            "Quantidade total movimentada: "
-            f"{sum((s.get('quantidade', 0) if isinstance(s, dict) else s.quantidade) for s in saidas)}"
-        )
-        
-        # Cabeçalhos da tabela
-        headers = ["Data", "Hora", "Item", "Código", "Quantidade", "Tipo", "Período", "Local"]
-        ws.append([""])
-        ws.append([""])
-        ws.append(headers)
-        
-    else:
-        ws.title = "Relatório por Item"
-
-        # Cabeçalho (título + empresa)
-        from ..utils.report_branding import get_company_header_lines
-
-        ws["A1"] = "RELATÓRIO DE RETIRADAS POR ITEM"
-        ws["A1"].font = Font(bold=True, size=14)
-
-        company_lines = get_company_header_lines()
-        row = 2
-        for line in company_lines:
-            ws[f"A{row}"] = line
-            row += 1
-        row += 1
-
-        ws[f"A{row}"] = f"Item: {item_info['descricao']}"
-        ws[f"A{row + 1}"] = f"Código: {item_info['codigo']}"
-        ws[f"A{row + 2}"] = f"Categoria: {item_info['categoria']}"
-        ws[f"A{row + 3}"] = f"Marca: {item_info['marca']}"
-
-        # Adicionar informações de rastreabilidade
-        current_row = row + 4
-        if hasattr(item, 'lote') and item.lote:
-            ws[f"A{current_row}"] = f"Lote: {item.lote}"
-            current_row += 1
-        if hasattr(item, 'data_entrada') and item.data_entrada:
-            ws[f"A{current_row}"] = f"Data de Entrada: {TimeService.format_local(item.data_entrada, '%d/%m/%Y')}"
-            current_row += 1
-        if hasattr(item, 'data_validade') and item.data_validade:
-            from datetime import datetime
-            dias_validade = (item.data_validade - datetime.now().date()).days
-            ws[f"A{current_row}"] = f"Validade: {item.data_validade.strftime('%d/%m/%Y')} ({dias_validade} dias)"
-            current_row += 1
-        
-        ws[f"A{current_row}"] = f"Período: {period_days} dias" if period_days > 0 else "Período: Todo histórico"
-        current_row += 1
-        ws[f"A{current_row}"] = f"Total de retiradas: {len(saidas)}"
-        current_row += 1
-        ws[f"A{current_row}"] = f"Quantidade total retirada: {sum(s.quantidade for s in saidas)}"
-        
-        # Cabeçalhos da tabela
-        headers = ["Data", "Horário", "Usuário", "Matrícula", "Quantidade", "Período", "Local"]
-        ws.append([""])
-        ws.append(headers)
-    
-    header_font = Font(bold=True, color="FFFFFF", size=11)
-    header_fill = PatternFill(start_color="0066CC", end_color="0066CC", fill_type="solid")
-    header_alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-    border = Border(
-        left=Side(style="thin"),
-        right=Side(style="thin"),
-        top=Side(style="thin"),
-        bottom=Side(style="thin"),
-    )
-    
-    header_row = ws.max_row
-    for cell in ws[header_row]:
-        cell.font = header_font
-        cell.fill = header_fill
-        cell.alignment = header_alignment
-        cell.border = border
-    
-    # Dados
-    for saida in saidas:
-        if search_type == "usuario":
-            data_saida = saida.get("data")
-            business_tag = saida.get("periodo") or TimeService.get_business_day_tag(data_saida)
-            # Mostrar apenas os 4 últimos dígitos do código de barras
-            codigo_item = saida.get("codigo_item")
-            codigo_display = codigo_item[-4:] if codigo_item and len(codigo_item) >= 4 else (codigo_item or "N/D")
-            
-            ws.append([
-                TimeService.format_local(data_saida, "%d/%m/%Y"),
-                TimeService.format_local(data_saida, "%H:%M"),
-                saida.get("item_descricao") or "Item removido",
-                codigo_display,
-                saida.get("quantidade"),
-                saida.get("tipo") or "Retirada",
-                business_tag,
-                ((f"{(saida.get('local_servico') or 'N/D')} | {(saida.get('observacao') or '').strip()}" if (saida.get('observacao') or '').strip() else (saida.get('local_servico') or 'N/D'))[:150]),
-            ])
-        else:
-            business_tag = TimeService.get_business_day_tag(saida.data_saida)
-            # Para relatório de item, também truncar o código se necessário no futuro
-            local_info = saida.local_servico or "N/D"
-            if saida.observacao and saida.observacao.strip():
-                local_info = f"{local_info} | {saida.observacao.strip()}"
-            ws.append([
-                TimeService.format_local(saida.data_saida, "%d/%m/%Y"),
-                TimeService.format_local(saida.data_saida, "%H:%M"),
-                saida.usuario_nome or (f"Matrícula {saida.saida_matricula}" if saida.saida_matricula else "N/D"),
-                saida.saida_matricula or "N/D",
-                saida.quantidade,
-                business_tag,
-                local_info[:150],
-            ])
-    
-    # Ajustar larguras das colunas
-    if search_type == "usuario":
-        ws.column_dimensions["A"].width = 12  # Data
-        ws.column_dimensions["B"].width = 10  # Hora
-        ws.column_dimensions["C"].width = 32  # Item
-        ws.column_dimensions["D"].width = 8   # Código
-        ws.column_dimensions["E"].width = 10  # Quantidade
-        ws.column_dimensions["F"].width = 12  # Tipo
-        ws.column_dimensions["G"].width = 15  # Período
-        ws.column_dimensions["H"].width = 60  # Local (local + observação)
-    else:
-        ws.column_dimensions["A"].width = 12
-        ws.column_dimensions["B"].width = 10
-        ws.column_dimensions["C"].width = 35
-        ws.column_dimensions["D"].width = 8
-        ws.column_dimensions["E"].width = 12
-        ws.column_dimensions["F"].width = 20
-        ws.column_dimensions["G"].width = 40
-    
-    # Salvar arquivo temporário
     reports_dir = Path(current_app.instance_path) / "reports"
     reports_dir.mkdir(parents=True, exist_ok=True)
     
@@ -2086,63 +2037,30 @@ def by_item_download():
     
     if search_type == "usuario":
         safe_filename = "".join(c for c in usuario_info['matricula'] if c.isalnum() or c in ('-', '_'))
-        filename = f"relatorio_funcionario_{safe_filename}_{timestamp}.xlsx"
+        pdf_bytes = _generate_usuario_report_pdf(
+            usuario=usuario_info,
+            saidas=saidas,
+            period_days=period_days,
+            time_service=TimeService,
+        )
+        pdf_filename = f"relatorio_funcionario_{safe_filename}_{timestamp}.pdf"
     else:
         safe_filename = "".join(c for c in item_info['codigo'] if c.isalnum() or c in ('-', '_'))
-        filename = f"relatorio_item_{safe_filename}_{timestamp}.xlsx"
-    
-    filepath = reports_dir / filename
-    
-    if format_type == "xlsx":
-        wb.save(str(filepath))
-        return send_file(
-            filepath,
-            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            as_attachment=True,
-            download_name=filename,
+        pdf_bytes = _generate_item_report_pdf(
+            item=item_info,
+            saidas=saidas,
+            period_days=period_days,
+            time_service=TimeService,
         )
+        pdf_filename = f"relatorio_item_{safe_filename}_{timestamp}.pdf"
 
-    if format_type in ["pdf", "jpeg", "jpg"]:
-        if search_type == "usuario":
-            pdf_bytes = _generate_usuario_report_pdf(
-                usuario=usuario_info,
-                saidas=saidas,
-                period_days=period_days,
-                time_service=TimeService,
-            )
-            pdf_filename = f"relatorio_funcionario_{safe_filename}_{timestamp}.pdf"
-        else:
-            pdf_bytes = _generate_item_report_pdf(
-                item=item_info,
-                saidas=saidas,
-                period_days=period_days,
-                time_service=TimeService,
-            )
-            pdf_filename = f"relatorio_item_{safe_filename}_{timestamp}.pdf"
-        
-        pdf_path = reports_dir / pdf_filename
-        with open(pdf_path, "wb") as pdf_file:
-            pdf_file.write(pdf_bytes)
+    pdf_path = reports_dir / pdf_filename
+    with open(pdf_path, "wb") as pdf_file:
+        pdf_file.write(pdf_bytes)
 
-        if format_type in ["jpeg", "jpg"]:
-            if search_type == "usuario":
-                jpeg_filename = f"relatorio_funcionario_{safe_filename}_{timestamp}.jpeg"
-            else:
-                jpeg_filename = f"relatorio_item_{safe_filename}_{timestamp}.jpeg"
-            jpeg_path = reports_dir / jpeg_filename
-            _convert_pdf_to_jpeg(str(pdf_path), str(jpeg_path))
-            return send_file(
-                jpeg_path,
-                mimetype="image/jpeg",
-                as_attachment=True,
-                download_name=jpeg_filename,
-            )
-
-        return send_file(
-            pdf_path,
-            mimetype="application/pdf",
-            as_attachment=True,
-            download_name=pdf_filename,
-        )
-
-    abort(400, "Formato inválido. Use xlsx, pdf ou jpeg.")
+    return send_file(
+        pdf_path,
+        mimetype="application/pdf",
+        as_attachment=True,
+        download_name=pdf_filename,
+    )

@@ -262,7 +262,7 @@ class Item(db.Model):
                 return "Kg"
             if (self.tipo_embalagem_novo or "").strip().lower() == "rolo":
                 return "m"
-            if (self.tipo_embalagem_novo or "").strip().lower() in ("caixa", "pacote", "saco"):
+            if (self.tipo_embalagem_novo or "").strip().lower() in ("caixa", "pacote", "fardo", "saco"):
                 return "un"
         except Exception:
             pass
@@ -315,6 +315,7 @@ class Item(db.Model):
             'rolo': 'rolo',
             'pacote': 'pacote',
             'caixa': 'caixa',
+            'fardo': 'fardo',
             'litro': 'litro',
             'balde': 'balde',
             'bombona': 'bombona',
@@ -329,6 +330,7 @@ class Item(db.Model):
             'rolo': 'rolos',
             'pacote': 'pacotes',
             'caixa': 'caixas',
+            'fardo': 'fardos',
             'litro': 'litros',
             'balde': 'baldes',
             'bombona': 'bombonas',

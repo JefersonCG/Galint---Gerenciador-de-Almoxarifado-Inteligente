@@ -662,7 +662,7 @@
 {% endif %}
 <div class="modal fade" id="categoryModal" tabindex="-1" aria-labelledby="categoryModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
-        <div class="modal-content">
+        <div class="modal-content galint-dark-surface">
             <div class="modal-header">
                 <h5 class="modal-title" id="categoryModalLabel">Categoria</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
@@ -673,7 +673,6 @@
             <div class="modal-footer d-flex justify-content-between">
                 <div class="d-flex flex-wrap gap-2">
                     <button class="btn btn-outline-primary" type="button" id="category-report-pdf-btn" data-category="">Relatório PDF</button>
-                    <button class="btn btn-outline-success" type="button" id="category-report-xlsx-btn" data-category="">Relatório XLSX</button>
                     {% if can_manage %}
                     <button class="btn btn-outline-info" type="button" id="category-price-batch-btn" data-category="">
                         <i class="bi bi-search me-1"></i> Buscar 10 preços
@@ -963,7 +962,7 @@
 
 <div class="modal fade" id="photoAssistantModal" tabindex="-1" aria-labelledby="photoAssistantModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-scrollable photo-assistant-dialog">
-        <div class="modal-content photo-assistant-modal">
+        <div class="modal-content photo-assistant-modal galint-dark-surface">
             <div class="modal-header">
                 <h5 class="modal-title" id="photoAssistantModalLabel">Buscar imagem do item</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
@@ -2254,10 +2253,11 @@
                         <div class="mb-3">
                             <label for="assignQuantity" class="form-label">
                                 <i class="bi bi-hash me-1"></i>
-                                Quantidade
+                                <span id="assignQuantityLabel">Quantidade em unidades</span>
                             </label>
                             <input type="number" class="form-control" id="assignQuantity" 
                                 name="quantidade" value="1" min="0.01" step="0.01">
+                            <div class="form-text" id="assignQuantityHint">A atribuição usa unidades avulsas por padrão.</div>
                         </div>
                     </div>
 
@@ -2278,7 +2278,7 @@
                                     Quantidade para atribuir
                                 </label>
                                 <input type="number" class="form-control" id="assignBatchQuantity" value="1" min="1" step="1">
-                                <div class="form-text">Cada funcionário recebe 1 unidade. Se informar 8, selecione 8 funcionários.</div>
+                                <div class="form-text" id="assignBatchQuantityHelp">Cada funcionário recebe 1 unidade. Se informar 8, selecione 8 funcionários.</div>
                             </div>
                             <div class="col-lg-8">
                                 <div class="assign-summary-grid">
@@ -2287,7 +2287,7 @@
                                         <strong><span id="selectedCount">0</span> / <span id="batchTargetCount">1</span></strong>
                                     </div>
                                     <div class="assign-summary-card">
-                                        <span class="assign-summary-label">Em estoque</span>
+                                        <span class="assign-summary-label" id="availableStockLabel">Em estoque agora</span>
                                         <strong id="availableStock">0</strong>
                                     </div>
                                     <div class="assign-summary-card">
@@ -2330,13 +2330,13 @@
                         Como deseja retirar?
                     </label>
                     <div class="form-check">
-                        <input class="form-check-input" type="radio" name="tipo_saida" id="assignTipoEmbalagem" value="embalagem" checked>
+                        <input class="form-check-input" type="radio" name="tipo_saida" id="assignTipoEmbalagem" value="embalagem">
                         <label class="form-check-label" for="assignTipoEmbalagem">
                             <strong id="assignLabelEmbalagem">Embalagem completa</strong> (fechada/lacrada)
                         </label>
                     </div>
                     <div class="form-check">
-                        <input class="form-check-input" type="radio" name="tipo_saida" id="assignTipoUnidades" value="unidades">
+                        <input class="form-check-input" type="radio" name="tipo_saida" id="assignTipoUnidades" value="unidades" checked>
                         <label class="form-check-label" for="assignTipoUnidades">
                             <strong>Unidades avulsas</strong> (sistema abre embalagem se necessário)
                         </label>
@@ -2389,6 +2389,9 @@
 
         selectedEmployees.clear();
         currentBatchTarget = 1;
+        currentItemStock = 0;
+        currentItemCode = '';
+        currentAssignItem = null;
 
         const searchInput = document.getElementById('employeeSearch');
         if (searchInput) {
@@ -2415,6 +2418,213 @@
             resetAssignModalState();
         });
     }
+
+    const assignPackagingNames = {
+        rolo: { singular: 'Rolo', plural: 'rolos', unitSingular: 'metro', unitPlural: 'metros' },
+        pacote: { singular: 'Pacote', plural: 'pacotes', unitSingular: 'unidade', unitPlural: 'unidades' },
+        caixa: { singular: 'Caixa', plural: 'caixas', unitSingular: 'unidade', unitPlural: 'unidades' },
+        fardo: { singular: 'Fardo', plural: 'fardos', unitSingular: 'unidade', unitPlural: 'unidades' },
+        saco: { singular: 'Saco', plural: 'sacos', unitSingular: 'unidade', unitPlural: 'unidades' },
+        lata: { singular: 'Lata', plural: 'latas', unitSingular: 'unidade', unitPlural: 'unidades' },
+        balde: { singular: 'Balde', plural: 'baldes', unitSingular: 'unidade', unitPlural: 'unidades' },
+        bombona: { singular: 'Bombona', plural: 'bombonas', unitSingular: 'unidade', unitPlural: 'unidades' },
+        litro: { singular: 'Litro', plural: 'litros', unitSingular: 'litro', unitPlural: 'litros' },
+        embalagem: { singular: 'Embalagem', plural: 'embalagens', unitSingular: 'unidade', unitPlural: 'unidades' },
+    };
+
+    let currentItemStock = 0;
+    let currentItemCode = '';
+    let currentAssignItem = null;
+    let selectedEmployees = new Set();
+    let currentBatchTarget = 1;
+
+    function getAssignItemData(codigo, itemData = {}) {
+        const listItem = Array.isArray(items)
+            ? items.find((entry) => String(entry.codigo) === String(codigo))
+            : null;
+        return { ...(listItem || {}), ...(itemData || {}), codigo };
+    }
+
+    function hasAssignDynamicUnits(item = {}) {
+        const unidade = String(item?.unidade || '').trim();
+        const unidadesPorEmbalagem = Number(item?.unidades_por_embalagem || 0);
+        return Boolean(
+            item?.tipo_embalagem_novo
+            || (unidade && ['Rolo', 'Pacote', 'Caixa', 'Fardo', 'Saco', 'Lata', 'Balde', 'Bombona'].includes(unidade) && unidadesPorEmbalagem > 0)
+        );
+    }
+
+    function getAssignPackagingMeta(item = {}) {
+        const rawType = String(item?.tipo_embalagem_novo || item?.unidade || '').trim().toLowerCase();
+        const meta = assignPackagingNames[rawType] || assignPackagingNames.embalagem;
+        return {
+            hasPackaging: hasAssignDynamicUnits(item),
+            packagingType: rawType || 'embalagem',
+            unitsPerPackage: Math.max(0, Number(item?.unidades_por_embalagem || 0)),
+            packagingSingular: meta.singular,
+            packagingPlural: meta.plural,
+            unitSingular: meta.unitSingular,
+            unitPlural: meta.unitPlural,
+        };
+    }
+
+    function getAssignMode() {
+        const selectedMode = document.querySelector('input[name="tipo_saida"]:checked')?.value;
+        if (selectedMode === 'embalagem' || selectedMode === 'unidades') {
+            return selectedMode;
+        }
+        return 'unidades';
+    }
+
+    function formatAssignCount(value) {
+        const numeric = Number(value);
+        if (!Number.isFinite(numeric)) {
+            return '0';
+        }
+        if (Math.abs(numeric - Math.round(numeric)) < 1e-9) {
+            return String(Math.round(numeric));
+        }
+        return numeric.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 3 });
+    }
+
+    function getAssignStockInfo(mode = getAssignMode()) {
+        const item = currentAssignItem || {};
+        const meta = getAssignPackagingMeta(item);
+        const totalUnitsRaw = Number(item?.saldo_unidades_total ?? item?.saldo ?? 0);
+        const totalUnits = Number.isFinite(totalUnitsRaw) ? Math.max(0, Math.floor(totalUnitsRaw)) : 0;
+        const rawPackages = Number(item?.saldo_embalagens);
+        const fullPackages = meta.unitsPerPackage > 0
+            ? Math.max(0, Math.floor(Number.isFinite(rawPackages) ? rawPackages : (totalUnits / meta.unitsPerPackage)))
+            : 0;
+
+        if (mode === 'embalagem' && meta.hasPackaging) {
+            return {
+                available: fullPackages,
+                totalUnits,
+                fullPackages,
+                labelSingular: meta.packagingSingular.toLowerCase(),
+                labelPlural: meta.packagingPlural.toLowerCase(),
+                display: `${formatAssignCount(fullPackages)} ${fullPackages === 1 ? meta.packagingSingular.toLowerCase() : meta.packagingPlural.toLowerCase()}`,
+                meta,
+            };
+        }
+
+        return {
+            available: totalUnits,
+            totalUnits,
+            fullPackages,
+            labelSingular: meta.unitSingular,
+            labelPlural: meta.unitPlural,
+            display: `${formatAssignCount(totalUnits)} ${totalUnits === 1 ? meta.unitSingular : meta.unitPlural}`,
+            meta,
+        };
+    }
+
+    function formatAssignQuantity(value, mode = getAssignMode()) {
+        const info = getAssignStockInfo(mode);
+        const numeric = Number(value);
+        const safeValue = Number.isFinite(numeric) ? numeric : 0;
+        const label = Math.abs(safeValue - 1) < 1e-9 ? info.labelSingular : info.labelPlural;
+        return `${formatAssignCount(safeValue)} ${label}`;
+    }
+
+    function getDefaultAssignMode(item = currentAssignItem) {
+        if (!hasAssignDynamicUnits(item)) {
+            return 'unidades';
+        }
+        return 'unidades';
+    }
+
+    function syncAssignModeUI(preferredMode = null) {
+        const tipoSaidaDiv = document.getElementById('assignTipoSaida');
+        const embalagemRadio = document.getElementById('assignTipoEmbalagem');
+        const unidadesRadio = document.getElementById('assignTipoUnidades');
+        const labelEmb = document.getElementById('assignLabelEmbalagem');
+        const helpText = document.getElementById('assignHelpText');
+        const quantityLabel = document.getElementById('assignQuantityLabel');
+        const quantityHint = document.getElementById('assignQuantityHint');
+        const batchHint = document.getElementById('assignBatchQuantityHelp');
+        const stockValue = document.getElementById('availableStock');
+        const quantityInput = document.getElementById('assignQuantity');
+        const meta = getAssignPackagingMeta(currentAssignItem || {});
+        const hasPackaging = meta.hasPackaging;
+
+        if (tipoSaidaDiv) {
+            tipoSaidaDiv.style.display = hasPackaging ? 'block' : 'none';
+        }
+
+        const resolvedMode = hasPackaging
+            ? (preferredMode || getAssignMode() || getDefaultAssignMode(currentAssignItem))
+            : 'unidades';
+
+        if (embalagemRadio) {
+            embalagemRadio.checked = hasPackaging && resolvedMode === 'embalagem';
+        }
+        if (unidadesRadio) {
+            unidadesRadio.checked = resolvedMode !== 'embalagem';
+        }
+
+        if (labelEmb) {
+            labelEmb.textContent = `${meta.packagingSingular} completa`;
+        }
+
+        const stockInfo = getAssignStockInfo(resolvedMode);
+        currentItemStock = stockInfo.available;
+
+        if (stockValue) {
+            stockValue.textContent = stockInfo.display;
+        }
+
+        if (quantityLabel) {
+            quantityLabel.textContent = hasPackaging
+                ? `Quantidade em ${resolvedMode === 'embalagem' ? meta.packagingPlural.toLowerCase() : stockInfo.labelPlural}`
+                : 'Quantidade';
+        }
+
+        if (quantityHint) {
+            if (hasPackaging && resolvedMode === 'embalagem') {
+                quantityHint.textContent = `Informe quantos ${meta.packagingPlural.toLowerCase()} completos deseja atribuir.`;
+            } else if (hasPackaging) {
+                quantityHint.textContent = `Informe a quantidade desejada em ${stockInfo.labelPlural}.`;
+            } else {
+                quantityHint.textContent = 'Informe a quantidade desejada para atribuição.';
+            }
+        }
+
+        if (batchHint) {
+            const unitLabel = resolvedMode === 'embalagem' ? meta.packagingSingular.toLowerCase() : stockInfo.labelSingular;
+            batchHint.textContent = `Cada funcionário recebe 1 ${unitLabel}. Se informar ${formatAssignCount(currentBatchTarget)}, selecione ${formatAssignCount(currentBatchTarget)} funcionários.`;
+        }
+
+        if (helpText) {
+            if (hasPackaging && resolvedMode === 'embalagem') {
+                helpText.textContent = `Cada saída usa ${meta.packagingPlural.toLowerCase()} fechados. Disponível agora: ${stockInfo.display}.`;
+            } else if (hasPackaging) {
+                const closedPackagesText = stockInfo.fullPackages > 0
+                    ? ` Há ${formatAssignQuantity(stockInfo.fullPackages, 'embalagem')} fechados disponíveis.`
+                    : '';
+                helpText.textContent = `Cada saída usa ${stockInfo.labelPlural}. O sistema abre ${meta.packagingPlural.toLowerCase()} automaticamente conforme necessário.${closedPackagesText}`;
+            } else {
+                helpText.textContent = 'Cada saída usa unidades avulsas.';
+            }
+        }
+
+        if (quantityInput) {
+            if (currentItemStock > 0) {
+                quantityInput.max = String(currentItemStock);
+                const quantityValue = Number(quantityInput.value || 0);
+                if (Number.isFinite(quantityValue) && quantityValue > currentItemStock) {
+                    quantityInput.value = String(currentItemStock);
+                }
+            } else {
+                quantityInput.removeAttribute('max');
+            }
+        }
+
+        const adjustedTarget = currentItemStock > 0 ? Math.min(currentBatchTarget, currentItemStock) : currentBatchTarget;
+        applyBatchQuantity(adjustedTarget);
+    }
+    
     
     window.openAssignModal = function(codigo, descricao, itemData = {}) {
         if (!assignModalInstance) return;
@@ -2436,9 +2646,8 @@
             }
         }
         
-        // Detectar se item tem unidades dinâmicas
-        const temUnidadesDinamicas = itemData.tipo_embalagem_novo || 
-            (itemData.unidade && ['Rolo', 'Pacote', 'Caixa'].includes(itemData.unidade) && itemData.unidades_por_embalagem);
+        currentAssignItem = getAssignItemData(codigo, itemData);
+        const temUnidadesDinamicas = hasAssignDynamicUnits(currentAssignItem);
         
         const tipoSaidaDiv = document.getElementById('assignTipoSaida');
         if (tipoSaidaDiv) {
@@ -2446,28 +2655,12 @@
                 // Mostrar seletor e adaptar labels
                 tipoSaidaDiv.style.display = 'block';
                 
-                const tipoEmb = itemData.tipo_embalagem_novo || (itemData.unidade || '').toLowerCase();
                 const labelEmb = document.getElementById('assignLabelEmbalagem');
-                const helpText = document.getElementById('assignHelpText');
-                
-                const nomes = {
-                    'rolo': { singular: 'Rolo', plural: 'rolos', unidade: 'metros' },
-                    'pacote': { singular: 'Pacote', plural: 'pacotes', unidade: 'unidades' },
-                    'caixa': { singular: 'Caixa', plural: 'caixas', unidade: 'unidades' }
-                };
-                
-                const info = nomes[tipoEmb] || { singular: 'Embalagem', plural: 'embalagens', unidade: 'unidades' };
+                const info = getAssignPackagingMeta(currentAssignItem);
                 
                 if (labelEmb) {
-                    labelEmb.textContent = `${info.singular} completa`;
+                    labelEmb.textContent = `${info.packagingSingular} completa`;
                 }
-                
-                if (helpText) {
-                    helpText.textContent = `Se escolher unidades, o sistema abrirá ${info.plural} automaticamente conforme necessário`;
-                }
-                
-                // Resetar para embalagem completa
-                document.getElementById('assignTipoEmbalagem').checked = true;
             } else {
                 // Esconder seletor para itens normais
                 tipoSaidaDiv.style.display = 'none';
@@ -2497,17 +2690,12 @@
         }
         
         // Inicializar modo múltiplo
-        initMultipleAssign(codigo, itemData);
+        initMultipleAssign(codigo, currentAssignItem);
         
         assignModalInstance.show();
     };
 
     // ===== GERENCIAMENTO DE ATRIBUIÇÃO MÚLTIPLA =====
-    let currentItemStock = 0;
-    let currentItemCode = '';
-    let selectedEmployees = new Set();
-    let currentBatchTarget = 1;
-
     function getBatchQuantityInput() {
         return document.getElementById('assignBatchQuantity');
     }
@@ -2528,6 +2716,15 @@
         const targetEl = document.getElementById('batchTargetCount');
         if (targetEl) {
             targetEl.textContent = String(currentBatchTarget);
+        }
+
+        const batchHint = document.getElementById('assignBatchQuantityHelp');
+        if (batchHint) {
+            const currentMode = getAssignMode();
+            const meta = getAssignPackagingMeta(currentAssignItem || {});
+            const stockInfo = getAssignStockInfo(currentMode);
+            const unitLabel = currentMode === 'embalagem' ? meta.packagingSingular.toLowerCase() : stockInfo.labelSingular;
+            batchHint.textContent = `Cada funcionário recebe 1 ${unitLabel}. Se informar ${formatAssignCount(currentBatchTarget)}, selecione ${formatAssignCount(currentBatchTarget)} funcionários.`;
         }
     }
 
@@ -2625,7 +2822,7 @@
                 title: 'Setor selecionado parcialmente',
                 html: `
                     <p>O setor <strong>${escapeHtml(setor)}</strong> possui mais funcionários do que o limite atual da atribuição.</p>
-                    <p class="mb-0"><small>Quantidade atual: <strong>${currentBatchTarget}</strong> unidade(s).</small></p>
+                    <p class="mb-0"><small>Quantidade atual: <strong>${formatAssignQuantity(currentBatchTarget)}</strong>.</small></p>
                 `,
                 confirmButtonColor: '#10b981'
             });
@@ -2634,24 +2831,11 @@
     
     function initMultipleAssign(codigo, itemData) {
         currentItemCode = codigo;
-        
-        // Pegar o saldo do item atual da lista de itens
-        const item = items.find(i => i.codigo === codigo);
-        currentItemStock = item ? Math.max(0, Math.floor(Number(item.saldo) || 0)) : 0;
-        
-        // Atualizar display de estoque disponível
-        const stockEl = document.getElementById('availableStock');
-        if (stockEl) {
-            stockEl.textContent = currentItemStock;
-        }
-        applyBatchQuantity(1);
+        currentAssignItem = getAssignItemData(codigo, itemData);
         
         // Resetar seleção
         selectedEmployees.clear();
-        updateSelectedCount();
-        
-        // Renderizar lista de funcionários
-        renderEmployeesList();
+        syncAssignModeUI(getDefaultAssignMode(currentAssignItem));
         
         // Resetar para aba individual
         const singleTab = document.getElementById('single-tab');
@@ -2810,6 +2994,7 @@
     function showStockWarning() {
         const limit = getSelectionLimit();
         const missingStock = Math.max(0, currentBatchTarget - currentItemStock);
+        const currentMode = getAssignMode();
         
         Swal.fire({
             icon: 'warning',
@@ -2819,9 +3004,9 @@
                 <div class="alert alert-warning mt-3">
                     <strong>Situação:</strong><br>
                     • Funcionários selecionados: <strong>${selectedEmployees.size}</strong><br>
-                    • Quantidade solicitada: <strong>${currentBatchTarget}</strong> unidade(s)<br>
-                    • Estoque disponível: <strong>${currentItemStock}</strong> unidades<br>
-                    ${missingStock > 0 ? `• <span class="text-danger">Faltam <strong>${missingStock}</strong> unidades em estoque para atender essa quantidade.</span>` : `• Limite atual de seleção: <strong>${limit}</strong> funcionário(s)`}
+                    • Quantidade solicitada: <strong>${formatAssignQuantity(currentBatchTarget, currentMode)}</strong><br>
+                    • Estoque disponível: <strong>${formatAssignQuantity(currentItemStock, currentMode)}</strong><br>
+                    ${missingStock > 0 ? `• <span class="text-danger">Faltam <strong>${formatAssignQuantity(missingStock, currentMode)}</strong> em estoque para atender essa quantidade.</span>` : `• Limite atual de seleção: <strong>${limit}</strong> funcionário(s)`}
                 </div>
                 <p class="mt-2 mb-0"><small>Ajuste a quantidade ou desmarque alguns funcionários.</small></p>
             `,
@@ -2839,12 +3024,13 @@
             const canSelectAll = filteredUsers.length <= selectionLimit;
             
             if (!canSelectAll) {
+                const currentMode = getAssignMode();
                 Swal.fire({
                     icon: 'info',
                     title: 'Não é possível selecionar todos',
                     html: `
                         <p>Existem <strong>${filteredUsers.length}</strong> funcionários visíveis,<br>
-                        mas você pode atribuir apenas <strong>${selectionLimit}</strong> unidade(s) agora.</p>
+                        mas você pode atribuir apenas <strong>${formatAssignQuantity(selectionLimit, currentMode)}</strong> agora.</p>
                         <div class="alert alert-warning mt-3">
                             <strong>Ajuste a quantidade ou refine o filtro por setor/funcionário.</strong>
                         </div>
@@ -2901,6 +3087,12 @@
             applyBatchQuantity(e.target.value);
         });
     }
+
+    document.querySelectorAll('input[name="tipo_saida"]').forEach((input) => {
+        input.addEventListener('change', () => {
+            syncAssignModeUI(input.value);
+        });
+    });
     
     // ===== SUBMIT DO FORMULÁRIO (INDIVIDUAL OU MÚLTIPLO) =====
     async function submitAssignFormInternal() {
@@ -2956,7 +3148,7 @@
                 icon: 'warning',
                 title: 'Quantidade e seleção não conferem',
                 html: `
-                    <p>Você informou <strong>${currentBatchTarget}</strong> unidade(s), mas selecionou <strong>${selectedEmployees.size}</strong> funcionário(s).</p>
+                    <p>Você informou <strong>${formatAssignQuantity(currentBatchTarget)}</strong>, mas selecionou <strong>${selectedEmployees.size}</strong> funcionário(s).</p>
                     <p class="mb-0"><small>Para atribuição em lote, a quantidade de funcionários deve ser igual à quantidade informada.</small></p>
                 `,
                 confirmButtonColor: '#10b981'
@@ -2977,7 +3169,7 @@
             icon: 'question',
             title: 'Confirmar atribuição em lote?',
             html: `
-                <p>Você está prestes a atribuir <strong>${currentBatchTarget} unidade(s)</strong> desta ferramenta.</p>
+                <p>Você está prestes a atribuir <strong>${formatAssignQuantity(currentBatchTarget)}</strong> desta ferramenta.</p>
                 <div class="alert alert-info mt-2">
                     <strong>${selectedEmployees.size}</strong> funcionário(s) selecionado(s)
                 </div>
@@ -3044,7 +3236,7 @@
         let failed = 0;
         const errors = [];
         
-        const tipo_saida = document.querySelector('input[name="tipo_saida"]:checked')?.value || 'embalagem';
+        const tipo_saida = getAssignMode();
         
         // Processar cada funcionário sequencialmente
         for (const matricula of selectedEmployees) {
@@ -3084,7 +3276,7 @@
     }
 
     async function performPermanentBatchAssignment(tipoCustodia) {
-        const tipo_saida = document.querySelector('input[name="tipo_saida"]:checked')?.value || 'embalagem';
+        const tipo_saida = getAssignMode();
         const response = await fetch(`/itens/${encodeURIComponent(currentItemCode)}/saida-lote`, {
             method: 'POST',
             headers: {
@@ -3397,6 +3589,7 @@
             quilo: 'Quilo',
             caixa: 'Caixa',
             pacote: 'Pacote',
+            fardo: 'Fardo',
             saco: 'Saco',
             rolo: 'Rolo',
             balde: 'Balde',
@@ -3561,27 +3754,27 @@
         }
         setPreRegisteredStatus(`${totalItems} item(ns) pendente(s) distribuído(s) em ${documents.length} documento(s). Selecione um para concluir o cadastro.`, 'success');
 
-        documents.forEach((document) => {
+        documents.forEach((docPayload) => {
             const documentSection = document.createElement('section');
             documentSection.className = 'pre-registered-document';
-            const supplier = document.fornecedor_nome ? escapeHtml(document.fornecedor_nome) : 'Fornecedor não identificado';
-            const tipo = escapeHtml(document.tipo_documento_label || document.tipo_documento || 'Documento');
-            const dataEmissao = document.data_emissao ? new Date(`${document.data_emissao}T00:00:00`).toLocaleDateString('pt-BR') : '—';
-            const dataRecebimento = document.data_recebimento ? new Date(`${document.data_recebimento}T00:00:00`).toLocaleDateString('pt-BR') : '—';
+            const supplier = docPayload.fornecedor_nome ? escapeHtml(docPayload.fornecedor_nome) : 'Fornecedor não identificado';
+            const tipo = escapeHtml(docPayload.tipo_documento_label || docPayload.tipo_documento || 'Documento');
+            const dataEmissao = docPayload.data_emissao ? new Date(`${docPayload.data_emissao}T00:00:00`).toLocaleDateString('pt-BR') : '—';
+            const dataRecebimento = docPayload.data_recebimento ? new Date(`${docPayload.data_recebimento}T00:00:00`).toLocaleDateString('pt-BR') : '—';
             documentSection.innerHTML = `
                 <div class="pre-registered-document-head">
                     <div>
-                        <div class="fw-semibold text-white">${tipo} ${escapeHtml(document.numero_documento || 'Sem número')}</div>
+                        <div class="fw-semibold text-white">${tipo} ${escapeHtml(docPayload.numero_documento || 'Sem número')}</div>
                         <div class="small text-muted">${supplier}</div>
                         <div class="small text-muted">Emissão: ${dataEmissao} • Recebimento: ${dataRecebimento}</div>
                     </div>
-                    <span class="pre-registered-document-count">${escapeHtml(String(document.items_count || (document.items || []).length || 0))} pendente(s)</span>
+                    <span class="pre-registered-document-count">${escapeHtml(String(docPayload.items_count || (docPayload.items || []).length || 0))} pendente(s)</span>
                 </div>
                 <div class="pre-registered-document-items"></div>
             `;
 
             const itemsContainer = documentSection.querySelector('.pre-registered-document-items');
-            (document.items || []).forEach((entry) => {
+            (docPayload.items || []).forEach((entry) => {
                 const card = document.createElement('button');
                 card.type = 'button';
                 card.className = 'pre-registered-card text-start';
@@ -3640,7 +3833,8 @@
                 : preRegisteredApiUrl;
             const response = await fetch(queryUrl, {
                 headers: { 'Accept': 'application/json' },
-                credentials: 'same-origin'
+                credentials: 'same-origin',
+                cache: 'no-store'
             });
             const payload = await response.json().catch(() => ({}));
             if (!response.ok || payload.success === false) {
@@ -5001,7 +5195,6 @@
     const modalBody = modalElement.querySelector('.modal-body');
     const modalInstance = new bootstrap.Modal(modalElement);
     const reportPdfBtn = document.getElementById('category-report-pdf-btn');
-    const reportXlsxBtn = document.getElementById('category-report-xlsx-btn');
     const categoryPriceBatchBtn = document.getElementById('category-price-batch-btn');
     const deleteCategoryBtn = document.getElementById('delete-category-btn');
     let currentCategory = null;
@@ -5021,10 +5214,6 @@
         if (reportPdfBtn) {
             reportPdfBtn.setAttribute('data-category', category);
             reportPdfBtn.style.display = 'inline-block';
-        }
-        if (reportXlsxBtn) {
-            reportXlsxBtn.setAttribute('data-category', category);
-            reportXlsxBtn.style.display = 'inline-block';
         }
         if (categoryPriceBatchBtn) {
             categoryPriceBatchBtn.setAttribute('data-category', category);
@@ -5047,16 +5236,6 @@
                 return;
             }
             window.location.href = `/itens/categoria/${encodeURIComponent(category)}/relatorio?format=pdf`;
-        });
-    }
-
-    if (reportXlsxBtn) {
-        reportXlsxBtn.addEventListener('click', () => {
-            const category = reportXlsxBtn.getAttribute('data-category');
-            if (!category) {
-                return;
-            }
-            window.location.href = `/itens/categoria/${encodeURIComponent(category)}/relatorio?format=xlsx`;
         });
     }
 

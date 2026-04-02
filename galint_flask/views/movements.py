@@ -106,7 +106,7 @@ LIQUID_PRODUCT_TYPES: list[dict[str, Any]] = [
 
 LIQUID_PRODUCT_TYPES_BY_ID = {entry["id"]: entry for entry in LIQUID_PRODUCT_TYPES}
 LIQUID_FRACTIONS: list[tuple[int, int]] = [(1, divisor) for divisor in range(2, 21)]
-FRACTIONABLE_PACKAGING_TYPES = {"lata", "rolo", "pacote", "caixa", "litro", "balde", "bombona", "saco"}
+FRACTIONABLE_PACKAGING_TYPES = {"lata", "rolo", "pacote", "caixa", "fardo", "litro", "balde", "bombona", "saco"}
 FRACTIONABLE_LIQUID_HINTS = (
     "tinta",
     "resina",
@@ -203,7 +203,7 @@ def _infer_package_name(item: dict[str, Any]) -> str:
         return tipo_embalagem
     if unidade in FRACTIONABLE_PACKAGING_TYPES:
         return unidade
-    for candidate in ("lata", "balde", "bombona", "rolo", "pacote", "caixa", "saco"):
+    for candidate in ("lata", "balde", "bombona", "rolo", "pacote", "caixa", "fardo", "saco"):
         if candidate in descricao:
             return candidate
     if "tinta" in descricao or "resina" in descricao or "verniz" in descricao:
@@ -220,6 +220,7 @@ def _pluralize_package_name(package_name: str) -> str:
         "rolo": "rolos",
         "pacote": "pacotes",
         "caixa": "caixas",
+        "fardo": "fardos",
         "saco": "sacos",
         "litro": "litros",
         "embalagem": "embalagens",
@@ -269,7 +270,7 @@ def _infer_fractional_item(item: dict[str, Any]) -> dict[str, Any]:
     if tipo_embalagem in FRACTIONABLE_PACKAGING_TYPES:
         if tipo_embalagem == "rolo":
             default_unit = "metro"
-        elif tipo_embalagem == "caixa":
+        elif tipo_embalagem in {"caixa", "fardo"}:
             default_unit = "unidade"
         elif tipo_embalagem in {"pacote", "saco"}:
             default_unit = "quilo" if grandeza_referencia > 0 else "unidade"
@@ -798,13 +799,16 @@ def item_info(codigo: str):
     categoria_norm = _normalize_text(item.get("categoria"))
     supports_material_return = "ferrament" not in categoria_norm
     pending_return = None
+    usuario_encontrado = None
     identificador = (request.args.get("matricula") or request.args.get("usuario") or "").strip()
     if identificador and supports_material_return:
         try:
             usuario = _resolve_usuario(identificador)
+            usuario_encontrado = True
             pending_return = inventory_service.get_material_return_pending(codigo=codigo, matricula=usuario.matricula)
         except ValueError:
             pending_return = 0.0
+            usuario_encontrado = False
 
     response = {
         "found": True,
@@ -834,6 +838,7 @@ def item_info(codigo: str):
         "devolucao_step": return_quantity_config.get("input_step"),
         "devolucao_min": return_quantity_config.get("input_min"),
         "devolucao_pendente": pending_return,
+        "usuario_encontrado": usuario_encontrado,
         "suporta_devolucao_material": supports_material_return,
         "unidade_exibicao_total": (
             "L"

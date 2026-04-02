@@ -198,8 +198,6 @@
     }
     
     .format-pdf { background-color: #dc3545; color: white; }
-    .format-xlsx { background-color: #28a745; color: white; }
-    .format-jpeg { background-color: #17a2b8; color: white; }
     
     .scope-badge {
         font-size: 0.7rem;
@@ -384,10 +382,10 @@
         <div class="stats-card stats-card-xlsx">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
-                    <small class="opacity-75">Planilhas XLSX</small>
-                    <h3 class="mb-0">{{ stats.xlsx_count }}</h3>
+                    <small class="opacity-75">Modo de Saída</small>
+                    <h3 class="mb-0">Somente PDF</h3>
                 </div>
-                <i class="bi bi-file-excel" style="font-size: 2rem; opacity: 0.6;"></i>
+                <i class="bi bi-shield-check" style="font-size: 2rem; opacity: 0.6;"></i>
             </div>
         </div>
     </div>
@@ -420,10 +418,16 @@
                     <i class="bi bi-table"></i> Tabela
                 </a>
             </div>
+            <a href="{{ url_for('reports.by_item_day') }}" class="btn btn-outline-info btn-sm">
+                <i class="bi bi-calendar-day"></i> Diário por Item
+            </a>
             <a href="{{ url_for('reports.by_item') }}" class="btn btn-success btn-sm">
                 <i class="bi bi-search"></i> Buscar por Item
             </a>
         </div>
+    </div>
+    <div class="text-muted small mb-3">
+        <i class="bi bi-filetype-pdf"></i> Regra ativa: os relatórios do sistema agora são gerados, listados e baixados somente em PDF.
     </div>
     <hr class="my-3" style="opacity: 0.08;">
     
@@ -447,6 +451,7 @@
     <form method="get" action="{{ url_for('reports.index') }}" id="filterForm">
         <!-- Preservar busca e view mode -->
         <input type="hidden" name="view" value="{{ view_mode }}">
+        <input type="hidden" name="format" value="pdf">
         {% if search_query %}
         <input type="hidden" name="search" value="{{ search_query }}">
         {% endif %}
@@ -487,16 +492,11 @@
             </div>
             <div class="col-md-3">
                 <label class="form-label">
-                    <i class="bi bi-file-earmark"></i> Formato
+                    <i class="bi bi-filetype-pdf"></i> Formato Ativo
                 </label>
-                <select class="form-select" name="format" id="report_format">
-                    <option value="all" {% if not filters.format or filters.format == 'all' %}selected{% endif %}>
-                        Todos os formatos
-                    </option>
-                    <option value="pdf" {% if filters.format == 'pdf' %}selected{% endif %}>PDF</option>
-                    <option value="xlsx" {% if filters.format == 'xlsx' %}selected{% endif %}>XLSX</option>
-                    <option value="jpeg" {% if filters.format == 'jpeg' %}selected{% endif %}>JPEG</option>
-                </select>
+                <div class="form-control d-flex align-items-center" style="background: rgba(15, 23, 42, 0.9); color: #f8fafc; border-color: rgba(148, 163, 184, 0.18);">
+                    PDF
+                </div>
             </div>
         </div>
         
@@ -518,7 +518,6 @@
         const dateFrom = document.getElementById('date_from').value;
         const dateTo = document.getElementById('date_to').value;
         const type = document.getElementById('report_type').value;
-        const format = document.getElementById('report_format').value;
         
         // Validar campos obrigatórios
         if (!dateFrom || !dateTo) {
@@ -528,11 +527,6 @@
         
         if (type === 'all') {
             alert('Por favor, selecione um tipo específico de relatório.');
-            return;
-        }
-        
-        if (format === 'all') {
-            alert('Por favor, selecione um formato específico.');
             return;
         }
         
@@ -546,7 +540,7 @@
             'date_from': dateFrom,
             'date_to': dateTo,
             'type': type,
-            'format': format
+            'format': 'pdf'
         };
         
         for (const [name, value] of Object.entries(fields)) {
@@ -572,15 +566,7 @@
             <div class="col-lg-4 col-md-6 col-12">
                 <div class="report-card">
                     <div class="report-icon">
-                        {% if report.format == 'PDF' %}
-                            <i class="bi bi-file-pdf-fill text-danger"></i>
-                        {% elif report.format == 'XLSX' %}
-                            <i class="bi bi-file-excel-fill text-success"></i>
-                        {% elif report.format in ['JPEG', 'JPG'] %}
-                            <i class="bi bi-file-image-fill text-info"></i>
-                        {% else %}
-                            <i class="bi bi-file-earmark-fill text-secondary"></i>
-                        {% endif %}
+                        <i class="bi bi-file-pdf-fill text-danger"></i>
                     </div>
                     
                     <div class="report-title">{{ report.type }}</div>

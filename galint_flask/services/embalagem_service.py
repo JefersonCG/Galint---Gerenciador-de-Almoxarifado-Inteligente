@@ -1,4 +1,4 @@
-"""Serviço para gerenciar lógica de embalagens (lata, rolo, pacote, caixa, litro, balde, bombona, saco)."""
+"""Serviço para gerenciar lógica de embalagens (lata, rolo, pacote, caixa, fardo, litro, balde, bombona, saco)."""
 from __future__ import annotations
 
 from typing import Dict, Tuple
@@ -8,7 +8,7 @@ from ..models import Item
 class EmbalagemService:
     """Gerencia operações de conversão e controle de embalagens."""
     
-    TIPOS_VALIDOS = ['lata', 'rolo', 'pacote', 'caixa', 'litro', 'balde', 'bombona', 'saco']
+    TIPOS_VALIDOS = ['lata', 'rolo', 'pacote', 'caixa', 'fardo', 'litro', 'balde', 'bombona', 'saco']
     
     @staticmethod
     def tem_embalagem(item: Item) -> bool:
@@ -315,17 +315,17 @@ class EmbalagemService:
                 return f"{peso_total:.1f} kg ({qtde_embalagens:.0f} {nome_emb})"
 
         if not EmbalagemService.tem_embalagem(item):
-            # Verificar se é ROLO/PACOTE/CAIXA usando campo unidade (legacy)
+            # Verificar se é ROLO/PACOTE/CAIXA/FARDO usando campo unidade (legacy)
             unidade_lower = (item.unidade or "").strip().lower()
             
-            # Se for ROLO/PACOTE/CAIXA no campo unidade e tiver unidades_por_embalagem
-            if unidade_lower in ['rolo', 'pacote', 'caixa'] and item.unidades_por_embalagem:
+            # Se for ROLO/PACOTE/CAIXA/FARDO no campo unidade e tiver unidades_por_embalagem
+            if unidade_lower in ['rolo', 'pacote', 'caixa', 'fardo'] and item.unidades_por_embalagem:
                 saldo_embalagens = item.get_saldo_atual() or 0
                 unidades_internas = item.unidades_por_embalagem
                 total_interno = saldo_embalagens * unidades_internas
                 
-                nome_singular = {'rolo': 'rolo', 'pacote': 'pacote', 'caixa': 'caixa'}.get(unidade_lower, unidade_lower)
-                nome_plural = {'rolo': 'rolos', 'pacote': 'pacotes', 'caixa': 'caixas'}.get(unidade_lower, unidade_lower + 's')
+                nome_singular = {'rolo': 'rolo', 'pacote': 'pacote', 'caixa': 'caixa', 'fardo': 'fardo'}.get(unidade_lower, unidade_lower)
+                nome_plural = {'rolo': 'rolos', 'pacote': 'pacotes', 'caixa': 'caixas', 'fardo': 'fardos'}.get(unidade_lower, unidade_lower + 's')
                 nome_emb_display = nome_singular if saldo_embalagens == 1 else nome_plural
                 
                 if unidade_lower == 'rolo':
@@ -362,8 +362,8 @@ class EmbalagemService:
                 return f"{embalagens:.0f} {nome_emb} + {soltas:g} metros"
             return f"{total_metros:g} metros ({embalagens:.0f} {nome_emb})"
         
-        # Para pacote/caixa/saco: mostrar total de unidades internas ou kg conforme configurado.
-        if item.tipo_embalagem_novo and item.tipo_embalagem_novo.lower() in ['pacote', 'caixa', 'saco']:
+        # Para pacote/caixa/fardo/saco: mostrar total de unidades internas ou kg conforme configurado.
+        if item.tipo_embalagem_novo and item.tipo_embalagem_novo.lower() in ['pacote', 'caixa', 'fardo', 'saco']:
             tipo_emb = item.tipo_embalagem_novo.lower()
             if tipo_emb in ['pacote', 'saco'] and item.grandeza_referencia and item.grandeza_referencia > 0:
                 kg_por_emb = item.grandeza_referencia or 0
@@ -556,8 +556,8 @@ class EmbalagemService:
                     return f"{embalagens_completas} {nome_emb} + {resto:g} metros"
                 return f"{total_metros:g} metros ({embalagens_completas} {nome_emb})"
             
-            # Para pacote/caixa/saco: mostrar unidades internas ou kg conforme configurado.
-            if tipo_emb in ['pacote', 'caixa', 'saco']:
+            # Para pacote/caixa/fardo/saco: mostrar unidades internas ou kg conforme configurado.
+            if tipo_emb in ['pacote', 'caixa', 'fardo', 'saco']:
                 if tipo_emb in ['pacote', 'saco'] and item.grandeza_referencia and item.grandeza_referencia > 0:
                     total_kg = quantidade_float
                     if embalagens_completas == 0:
@@ -582,15 +582,15 @@ class EmbalagemService:
                 return f"{embalagens_completas} {nome_emb} + {resto:g} unidades"
             return f"{embalagens_completas} {nome_emb}"
         
-        # Legacy: rolo/pacote/caixa no campo unidade
+        # Legacy: rolo/pacote/caixa/fardo no campo unidade
         unidade_lower = (item.unidade or "").strip().lower()
-        if unidade_lower in ['rolo', 'pacote', 'caixa'] and item.unidades_por_embalagem:
+        if unidade_lower in ['rolo', 'pacote', 'caixa', 'fardo'] and item.unidades_por_embalagem:
             # No sistema legacy, quantidade representa número de embalagens
             unidades_por = item.unidades_por_embalagem
             total_interno = quantidade * unidades_por
             
-            nome_singular = {'rolo': 'rolo', 'pacote': 'pacote', 'caixa': 'caixa'}.get(unidade_lower, unidade_lower)
-            nome_plural = {'rolo': 'rolos', 'pacote': 'pacotes', 'caixa': 'caixas'}.get(unidade_lower, unidade_lower + 's')
+            nome_singular = {'rolo': 'rolo', 'pacote': 'pacote', 'caixa': 'caixa', 'fardo': 'fardo'}.get(unidade_lower, unidade_lower)
+            nome_plural = {'rolo': 'rolos', 'pacote': 'pacotes', 'caixa': 'caixas', 'fardo': 'fardos'}.get(unidade_lower, unidade_lower + 's')
             nome_emb_display = nome_singular if quantidade == 1 else nome_plural
             
             if unidade_lower == 'rolo':
@@ -665,8 +665,8 @@ class EmbalagemService:
             else:
                 return f"ou seja, {soltas:g}m soltos de {nome_emb_singular} aberto anteriormente."
         
-        # Para caixa/pacote
-        if tipo_emb in ['caixa', 'pacote', 'saco']:
+        # Para caixa/pacote/fardo
+        if tipo_emb in ['caixa', 'pacote', 'fardo', 'saco']:
             unidades_por = float(item.unidades_por_embalagem or 0)
             if embalagens > 0 and soltas > 0:
                 return f"ou seja, cada {nome_emb_singular} contém {unidades_por:g} unidades + {soltas:g} unidades soltas de {nome_emb_singular} aberta anteriormente."

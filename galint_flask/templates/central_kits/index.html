@@ -310,6 +310,318 @@
         border-radius: 999px;
     }
 
+    .kit-assignment-trigger {
+        border-color: rgba(251, 191, 36, 0.28);
+        color: #fde68a;
+        background: rgba(120, 53, 15, 0.18);
+    }
+
+    .kit-assignment-trigger:hover {
+        background: rgba(120, 53, 15, 0.28);
+        color: #fef3c7;
+    }
+
+    .kit-assignment-modal-dialog {
+        max-width: min(1380px, 96vw);
+    }
+
+    .modal-content.kit-assignment-modal {
+        background: linear-gradient(180deg, rgba(15, 23, 42, 0.99), rgba(15, 23, 42, 0.96));
+        color: #e2e8f0;
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        border-radius: 28px;
+        overflow: hidden;
+        box-shadow: 0 26px 60px rgba(15, 23, 42, 0.4);
+    }
+
+    .modal-content.kit-assignment-modal .modal-header {
+        background: radial-gradient(circle at top right, rgba(56, 189, 248, 0.16), transparent 24%), linear-gradient(135deg, #111827 0%, #172554 58%, #1d4ed8 100%);
+        border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+        padding: 1.2rem 1.4rem;
+    }
+
+    .modal-content.kit-assignment-modal .modal-body {
+        background: linear-gradient(180deg, rgba(11, 18, 32, 0.96), rgba(8, 14, 24, 0.98));
+        color: #e2e8f0;
+    }
+
+    .modal-content.kit-assignment-modal .modal-footer {
+        background: rgba(9, 14, 22, 0.86);
+        border-top: 1px solid rgba(148, 163, 184, 0.12);
+        padding: 1rem 1.4rem 1.2rem;
+    }
+
+    .modal-content.kit-assignment-modal .form-text,
+    .modal-content.kit-assignment-modal .text-muted {
+        color: rgba(203, 213, 225, 0.76) !important;
+    }
+
+    .modal-content.kit-assignment-modal .form-control::placeholder {
+        color: rgba(148, 163, 184, 0.74);
+    }
+
+    .modal-content.kit-assignment-modal .btn-outline-light {
+        border-color: rgba(226, 232, 240, 0.22);
+        color: #e2e8f0;
+    }
+
+    .modal-content.kit-assignment-modal .btn-outline-light:hover {
+        background: rgba(226, 232, 240, 0.12);
+        color: #f8fafc;
+    }
+
+    .kit-assignment-title {
+        margin: 0;
+        font-size: 1.35rem;
+        font-weight: 800;
+        color: #f8fafc;
+    }
+
+    .kit-assignment-subtitle {
+        margin-top: 0.25rem;
+        color: rgba(226, 232, 240, 0.78);
+        font-size: 0.92rem;
+    }
+
+    .kit-assignment-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .kit-assignment-search {
+        min-width: min(100%, 360px);
+    }
+
+    .kit-assignment-search .form-label,
+    .kit-assignment-search .form-text {
+        color: rgba(203, 213, 225, 0.78);
+    }
+
+    .kit-assignment-search .form-control {
+        background: rgba(8, 12, 18, 0.56);
+        border-color: rgba(148, 163, 184, 0.18);
+        color: #f8fafc;
+    }
+
+    .kit-assignment-summary {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.6rem;
+        align-items: center;
+    }
+
+    .kit-assignment-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.45rem 0.78rem;
+        border-radius: 999px;
+        background: rgba(30, 41, 59, 0.72);
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        color: #cbd5e1;
+        font-size: 0.82rem;
+        font-weight: 700;
+    }
+
+    .kit-assignment-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 96px minmax(0, 1fr);
+        gap: 1rem;
+        align-items: stretch;
+    }
+
+    .kit-assignment-panel {
+        min-height: 520px;
+        background: rgba(8, 12, 18, 0.46);
+        border: 1px solid rgba(148, 163, 184, 0.12);
+        border-radius: 24px;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .kit-assignment-panel-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.8rem;
+        align-items: center;
+        padding: 1rem 1rem 0.85rem;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.08);
+    }
+
+    .kit-assignment-panel-head h5 {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 800;
+        color: #f8fafc;
+    }
+
+    .kit-assignment-count {
+        font-size: 0.78rem;
+        font-weight: 700;
+        color: #cbd5e1;
+        background: rgba(37, 99, 235, 0.18);
+        border: 1px solid rgba(96, 165, 250, 0.22);
+        border-radius: 999px;
+        padding: 0.32rem 0.7rem;
+    }
+
+    .kit-assignment-list {
+        padding: 0.9rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        overflow-y: auto;
+        min-height: 0;
+    }
+
+    .kit-assignment-card {
+        display: grid;
+        grid-template-columns: 72px minmax(0, 1fr);
+        gap: 0.8rem;
+        align-items: center;
+        padding: 0.8rem;
+        border-radius: 20px;
+        background: rgba(15, 23, 42, 0.82);
+        border: 1px solid rgba(148, 163, 184, 0.12);
+        cursor: pointer;
+        transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .kit-assignment-card:hover {
+        transform: translateY(-1px);
+        border-color: rgba(96, 165, 250, 0.32);
+        box-shadow: 0 14px 24px rgba(15, 23, 42, 0.18);
+    }
+
+    .kit-assignment-card.active {
+        border-color: rgba(96, 165, 250, 0.52);
+        box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.28);
+        background: rgba(17, 24, 39, 0.94);
+    }
+
+    .kit-assignment-photo,
+    .kit-assignment-photo-empty {
+        width: 72px;
+        height: 72px;
+        border-radius: 18px;
+        background: rgba(15, 23, 42, 0.92);
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+    }
+
+    .kit-assignment-photo img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .kit-assignment-photo-empty {
+        color: rgba(148, 163, 184, 0.78);
+        font-size: 1.4rem;
+    }
+
+    .kit-assignment-card-title {
+        margin: 0;
+        font-size: 0.96rem;
+        font-weight: 800;
+        color: #f8fafc;
+    }
+
+    .kit-assignment-card-meta,
+    .kit-assignment-card-submeta {
+        color: rgba(203, 213, 225, 0.72);
+        font-size: 0.78rem;
+        line-height: 1.5;
+    }
+
+    .kit-assignment-badges {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.38rem;
+        margin-top: 0.4rem;
+    }
+
+    .kit-assignment-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.32rem;
+        padding: 0.26rem 0.55rem;
+        border-radius: 999px;
+        font-size: 0.72rem;
+        font-weight: 700;
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        background: rgba(30, 41, 59, 0.68);
+        color: #cbd5e1;
+    }
+
+    .kit-assignment-badge.success {
+        background: rgba(16, 185, 129, 0.14);
+        color: #86efac;
+        border-color: rgba(52, 211, 153, 0.2);
+    }
+
+    .kit-assignment-badge.warning {
+        background: rgba(245, 158, 11, 0.16);
+        color: #fde68a;
+        border-color: rgba(251, 191, 36, 0.22);
+    }
+
+    .kit-assignment-middle {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 0.75rem;
+    }
+
+    .kit-assignment-middle .btn {
+        border-radius: 18px;
+        min-height: 54px;
+        font-weight: 800;
+        white-space: normal;
+    }
+
+    .kit-assignment-empty,
+    .kit-assignment-loading {
+        border-radius: 20px;
+        padding: 1.35rem 1rem;
+        text-align: center;
+        color: rgba(203, 213, 225, 0.72);
+        background: rgba(15, 23, 42, 0.62);
+        border: 1px dashed rgba(148, 163, 184, 0.16);
+    }
+
+    .kit-assignment-feedback {
+        margin-top: 1rem;
+        padding: 0.9rem 1rem;
+        border-radius: 18px;
+        display: none;
+        font-size: 0.88rem;
+        line-height: 1.55;
+    }
+
+    .kit-assignment-feedback.show {
+        display: block;
+    }
+
+    .kit-assignment-feedback.info {
+        background: rgba(37, 99, 235, 0.16);
+        border: 1px solid rgba(96, 165, 250, 0.22);
+        color: #bfdbfe;
+    }
+
+    .kit-assignment-feedback.error {
+        background: rgba(127, 29, 29, 0.26);
+        border: 1px solid rgba(248, 113, 113, 0.22);
+        color: #fecaca;
+    }
+
     .kits-empty {
         background: var(--kit-panel);
         color: var(--kit-text);
@@ -331,6 +643,14 @@
 
         .kit-card-top {
             flex-direction: column;
+        }
+
+        .kit-assignment-layout {
+            grid-template-columns: 1fr;
+        }
+
+        .kit-assignment-middle {
+            flex-direction: row;
         }
     }
 </style>
@@ -467,6 +787,9 @@
             </div>
 
             <div class="kit-actions">
+                <button class="btn kit-assignment-trigger btn-kit-associate" type="button" data-matricula="{{ kit.matricula }}" data-nome="{{ kit.nome }}">
+                    <i class="bi bi-ui-checks-grid me-1"></i>Escolher Ferramentas
+                </button>
                 <a class="btn btn-light" href="{{ url_for('central_kits.detail', matricula=kit.matricula) }}">
                     <i class="bi bi-box-arrow-in-right me-1"></i>Abrir bolsa
                 </a>
@@ -487,5 +810,551 @@
         <p class="mb-0 text-secondary">Ajuste os filtros ou vincule ferramentas e EPI a colaboradores para que a Central de Kits passe a consolidar a operação.</p>
     </section>
     {% endif %}
+
+    <div class="modal fade" id="kitAssignmentModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-scrollable kit-assignment-modal-dialog">
+            <div class="modal-content kit-assignment-modal">
+                <div class="modal-header">
+                    <div>
+                        <h4 class="kit-assignment-title"><i class="bi bi-ui-checks-grid me-2"></i>Escolher ferramentas do colaborador</h4>
+                        <div class="kit-assignment-subtitle" id="kit-assignment-subtitle">Carregando dados do colaborador...</div>
+                    </div>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="kit-assignment-toolbar">
+                        <div class="kit-assignment-summary" id="kit-assignment-summary"></div>
+                        <div class="kit-assignment-search">
+                            <label class="form-label" for="kit-assignment-search">Buscar no estoque</label>
+                            <input class="form-control" id="kit-assignment-search" type="text" placeholder="Ex.: furadeira, alicate, código do item">
+                            <div class="form-text">O estoque mostra ferramentas disponíveis; a coluna da direita mostra o que ficará com o colaborador.</div>
+                        </div>
+                    </div>
+
+                    <div class="kit-assignment-layout">
+                        <section class="kit-assignment-panel">
+                            <div class="kit-assignment-panel-head">
+                                <h5>Estoque disponível</h5>
+                                <span class="kit-assignment-count" id="kit-assignment-available-count">0</span>
+                            </div>
+                            <div class="kit-assignment-list" id="kit-assignment-available-list"></div>
+                        </section>
+
+                        <div class="kit-assignment-middle">
+                            <button class="btn btn-primary" type="button" id="kit-assignment-add-btn">
+                                Adicionar <i class="bi bi-arrow-right-short"></i>
+                            </button>
+                            <button class="btn btn-outline-light" type="button" id="kit-assignment-remove-btn">
+                                <i class="bi bi-arrow-left-short"></i> Remover
+                            </button>
+                        </div>
+
+                        <section class="kit-assignment-panel">
+                            <div class="kit-assignment-panel-head">
+                                <h5>Ferramentas do colaborador</h5>
+                                <span class="kit-assignment-count" id="kit-assignment-selected-count">0</span>
+                            </div>
+                            <div class="kit-assignment-list" id="kit-assignment-selected-list"></div>
+                        </section>
+                    </div>
+
+                    <div class="kit-assignment-feedback" id="kit-assignment-feedback"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-light" data-bs-dismiss="modal">Fechar</button>
+                    <button type="button" class="btn btn-warning" id="kit-assignment-save-btn">
+                        <i class="bi bi-save me-2"></i>Salvar associação
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
+
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+(function() {
+    const triggerButtons = document.querySelectorAll('.btn-kit-associate');
+    const modalEl = document.getElementById('kitAssignmentModal');
+    if (!triggerButtons.length || !modalEl) {
+        return;
+    }
+
+    const modal = new bootstrap.Modal(modalEl);
+    const subtitleEl = document.getElementById('kit-assignment-subtitle');
+    const summaryEl = document.getElementById('kit-assignment-summary');
+    const searchEl = document.getElementById('kit-assignment-search');
+    const availableListEl = document.getElementById('kit-assignment-available-list');
+    const selectedListEl = document.getElementById('kit-assignment-selected-list');
+    const availableCountEl = document.getElementById('kit-assignment-available-count');
+    const selectedCountEl = document.getElementById('kit-assignment-selected-count');
+    const feedbackEl = document.getElementById('kit-assignment-feedback');
+    const addBtn = document.getElementById('kit-assignment-add-btn');
+    const removeBtn = document.getElementById('kit-assignment-remove-btn');
+    const saveBtn = document.getElementById('kit-assignment-save-btn');
+
+    const state = {
+        matricula: null,
+        employee: null,
+        availableTools: [],
+        assignedEntries: [],
+        removedExisting: [],
+        canManage: false,
+        selectedAvailableCode: null,
+        selectedAssignedId: null,
+        searchTerm: '',
+        pendingCounter: 0,
+        isLoading: false,
+    };
+
+    function escapeHtml(value) {
+        const div = document.createElement('div');
+        div.textContent = value == null ? '' : String(value);
+        return div.innerHTML;
+    }
+
+    function formatQuantity(value) {
+        const numeric = Number(value || 0);
+        if (!Number.isFinite(numeric)) {
+            return '0';
+        }
+        if (Math.abs(numeric - Math.round(numeric)) < 1e-9) {
+            return String(Math.round(numeric));
+        }
+        return numeric.toLocaleString('pt-BR', { maximumFractionDigits: 3 });
+    }
+
+    function normalizeText(value) {
+        return String(value || '')
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase()
+            .trim();
+    }
+
+    function setFeedback(message, tone) {
+        if (!feedbackEl) {
+            return;
+        }
+        if (!message) {
+            feedbackEl.className = 'kit-assignment-feedback';
+            feedbackEl.textContent = '';
+            return;
+        }
+        feedbackEl.className = `kit-assignment-feedback show ${tone || 'info'}`;
+        feedbackEl.textContent = message;
+    }
+
+    function getPendingAdditionCount(codigo) {
+        return state.assignedEntries
+            .filter((entry) => entry.kind === 'pending' && entry.codigo === codigo)
+            .reduce((total, entry) => total + Number(entry.quantidade || 0), 0);
+    }
+
+    function getRemovedExistingCount(codigo) {
+        return state.removedExisting
+            .filter((entry) => entry.codigo === codigo)
+            .reduce((total, entry) => total + Number(entry.quantidade || 0), 0);
+    }
+
+    function getEffectiveAvailable(tool) {
+        const base = Number(tool?.saldo_disponivel || 0);
+        return Math.max(base + getRemovedExistingCount(tool?.codigo) - getPendingAdditionCount(tool?.codigo), 0);
+    }
+
+    function filteredAvailableTools() {
+        const query = normalizeText(state.searchTerm);
+        const rows = !query
+            ? state.availableTools
+            : state.availableTools.filter((tool) => {
+                const haystack = normalizeText(`${tool.codigo || ''} ${tool.descricao || ''} ${tool.marca || ''}`);
+                return haystack.includes(query);
+            });
+
+        return rows.filter((tool) => getEffectiveAvailable(tool) > 0);
+    }
+
+    function renderSummary() {
+        if (!summaryEl) {
+            return;
+        }
+        const additions = state.assignedEntries.filter((entry) => entry.kind === 'pending').reduce((total, entry) => total + Number(entry.quantidade || 0), 0);
+        const removals = state.removedExisting.reduce((total, entry) => total + Number(entry.quantidade || 0), 0);
+        const current = state.assignedEntries.filter((entry) => entry.kind === 'existing').length;
+        summaryEl.innerHTML = '' +
+            `<span class="kit-assignment-chip"><i class="bi bi-person-badge"></i>${escapeHtml(state.employee?.nome || 'Colaborador')}</span>` +
+            `<span class="kit-assignment-chip"><i class="bi bi-tools"></i>${current} ferramenta(s) atuais</span>` +
+            `<span class="kit-assignment-chip"><i class="bi bi-plus-circle"></i>${additions} inclusão(ões)</span>` +
+            `<span class="kit-assignment-chip"><i class="bi bi-dash-circle"></i>${removals} remoção(ões)</span>`;
+    }
+
+    function renderAvailableList() {
+        const rows = filteredAvailableTools();
+        if (availableCountEl) {
+            availableCountEl.textContent = `${rows.length} item(ns)`;
+        }
+
+        if (!availableListEl) {
+            return;
+        }
+
+        if (state.isLoading) {
+            availableListEl.innerHTML = '<div class="kit-assignment-loading"><div class="spinner-border spinner-border-sm me-2"></div>Carregando estoque...</div>';
+            return;
+        }
+
+        if (!rows.length) {
+            availableListEl.innerHTML = '<div class="kit-assignment-empty">Nenhuma ferramenta disponível neste filtro.</div>';
+            return;
+        }
+
+        availableListEl.innerHTML = rows.map((tool) => {
+            const effectiveAvailable = getEffectiveAvailable(tool);
+            const isActive = state.selectedAvailableCode === tool.codigo;
+            const photoMarkup = tool.foto_url
+                ? `<div class="kit-assignment-photo"><img src="${escapeHtml(tool.foto_url)}" alt="${escapeHtml(tool.descricao || tool.codigo)}"></div>`
+                : '<div class="kit-assignment-photo-empty"><i class="bi bi-image"></i></div>';
+
+            return '' +
+                `<article class="kit-assignment-card ${isActive ? 'active' : ''}" data-role="available" data-codigo="${escapeHtml(tool.codigo)}">` +
+                    `${photoMarkup}` +
+                    '<div>' +
+                        `<h6 class="kit-assignment-card-title">${escapeHtml(tool.descricao || tool.codigo)}</h6>` +
+                        `<div class="kit-assignment-card-meta">Código ${escapeHtml(tool.codigo)} • ${escapeHtml(tool.marca || 'Sem marca')}</div>` +
+                        `<div class="kit-assignment-card-submeta">${escapeHtml(tool.categoria || 'Ferramentas')}</div>` +
+                        '<div class="kit-assignment-badges">' +
+                            `<span class="kit-assignment-badge success"><i class="bi bi-box-seam"></i>${escapeHtml(formatQuantity(effectiveAvailable))} disponível(eis)</span>` +
+                        '</div>' +
+                    '</div>' +
+                '</article>';
+        }).join('');
+    }
+
+    function renderAssignedList() {
+        if (selectedCountEl) {
+            selectedCountEl.textContent = `${state.assignedEntries.length} item(ns)`;
+        }
+
+        if (!selectedListEl) {
+            return;
+        }
+
+        if (state.isLoading) {
+            selectedListEl.innerHTML = '<div class="kit-assignment-loading"><div class="spinner-border spinner-border-sm me-2"></div>Carregando ferramentas do colaborador...</div>';
+            return;
+        }
+
+        if (!state.assignedEntries.length) {
+            selectedListEl.innerHTML = '<div class="kit-assignment-empty">Nenhuma ferramenta ficará associada após esta configuração.</div>';
+            return;
+        }
+
+        selectedListEl.innerHTML = state.assignedEntries.map((entry) => {
+            const isActive = state.selectedAssignedId === entry.entry_id;
+            const photoMarkup = entry.foto_url
+                ? `<div class="kit-assignment-photo"><img src="${escapeHtml(entry.foto_url)}" alt="${escapeHtml(entry.descricao || entry.codigo)}"></div>`
+                : '<div class="kit-assignment-photo-empty"><i class="bi bi-image"></i></div>';
+            const tone = entry.kind === 'pending' ? 'warning' : 'success';
+            const label = entry.kind === 'pending' ? 'Nova no kit' : (entry.tipo_custodia_label || 'Em posse');
+
+            return '' +
+                `<article class="kit-assignment-card ${isActive ? 'active' : ''}" data-role="assigned" data-entry-id="${escapeHtml(entry.entry_id)}">` +
+                    `${photoMarkup}` +
+                    '<div>' +
+                        `<h6 class="kit-assignment-card-title">${escapeHtml(entry.descricao || entry.codigo)}</h6>` +
+                        `<div class="kit-assignment-card-meta">Código ${escapeHtml(entry.codigo)}${entry.local_servico ? ' • ' + escapeHtml(entry.local_servico) : ''}</div>` +
+                        `<div class="kit-assignment-card-submeta">${escapeHtml(entry.categoria || 'Ferramentas')}</div>` +
+                        '<div class="kit-assignment-badges">' +
+                            `<span class="kit-assignment-badge ${tone}"><i class="bi bi-tools"></i>${escapeHtml(formatQuantity(entry.quantidade))} unidade(s)</span>` +
+                            `<span class="kit-assignment-badge"><i class="bi bi-shield-check"></i>${escapeHtml(label)}</span>` +
+                        '</div>' +
+                    '</div>' +
+                '</article>';
+        }).join('');
+    }
+
+    function renderModal() {
+        if (subtitleEl) {
+            if (state.employee) {
+                subtitleEl.textContent = `${state.employee.nome} • matrícula ${state.employee.matricula} • ${state.employee.cargo || 'Sem cargo'} / ${state.employee.setor || 'Sem setor'}`;
+            } else {
+                subtitleEl.textContent = 'Carregando dados do colaborador...';
+            }
+        }
+        renderSummary();
+        renderAvailableList();
+        renderAssignedList();
+        if (addBtn) {
+            addBtn.disabled = !state.canManage || !state.selectedAvailableCode || state.isLoading;
+        }
+        if (removeBtn) {
+            removeBtn.disabled = !state.canManage || !state.selectedAssignedId || state.isLoading;
+        }
+        if (saveBtn) {
+            saveBtn.disabled = !state.canManage || state.isLoading;
+        }
+    }
+
+    async function fetchAssignmentResponse(url, options, fallbackMessage) {
+        if (typeof window.galintFetchWithAuth === 'function') {
+            return window.galintFetchWithAuth(url, options, fallbackMessage);
+        }
+        const requestOptions = Object.assign({ credentials: 'same-origin' }, options || {});
+        return window.fetch(url, requestOptions);
+    }
+
+    async function loadAssignmentData(matricula) {
+        state.isLoading = true;
+        state.matricula = matricula;
+        state.employee = null;
+        state.availableTools = [];
+        state.assignedEntries = [];
+        state.removedExisting = [];
+        state.canManage = false;
+        state.selectedAvailableCode = null;
+        state.selectedAssignedId = null;
+        state.searchTerm = '';
+        state.pendingCounter = 0;
+        if (searchEl) {
+            searchEl.value = '';
+        }
+        setFeedback('', 'info');
+        renderModal();
+
+        try {
+            const response = await fetchAssignmentResponse(`/controle-ferramentas/kits/${encodeURIComponent(matricula)}/associacao`, {
+                headers: { 'Accept': 'application/json' }
+            }, 'Sua sessão expirou ao carregar a Central de Kits. Faça login novamente.');
+
+            const contentType = String(response.headers.get('content-type') || '').toLowerCase();
+            if (!contentType.includes('application/json')) {
+                throw new Error('A Central de Kits recebeu uma resposta inválida do servidor. Recarregue a página e tente novamente.');
+            }
+
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok || payload?.success === false) {
+                throw new Error(payload?.message || 'Falha ao carregar ferramentas do colaborador.');
+            }
+            if (!payload?.employee || !Array.isArray(payload?.available_tools) || !Array.isArray(payload?.assigned_tools)) {
+                throw new Error('O modal recebeu dados incompletos do servidor.');
+            }
+
+            state.employee = payload.employee || null;
+            state.canManage = Boolean(payload.can_manage);
+            state.availableTools = (payload.available_tools || []).map((tool) => ({
+                ...tool,
+                saldo_disponivel: Number(tool.saldo_disponivel || 0),
+            }));
+            state.assignedEntries = (payload.assigned_tools || []).map((entry) => ({
+                ...entry,
+                kind: 'existing',
+                quantidade: Number(entry.quantidade || 1),
+            }));
+
+            if (!state.canManage) {
+                setFeedback('Visualização liberada. Somente administradores podem adicionar, remover ou salvar ferramentas neste modal.', 'info');
+            }
+        } catch (error) {
+            if (error?.isAuthRedirect) {
+                return;
+            }
+            setFeedback(error?.message || 'Falha ao carregar o modal da Central de Kits.', 'error');
+        } finally {
+            state.isLoading = false;
+            renderModal();
+        }
+    }
+
+    function addSelectedTool() {
+        const tool = state.availableTools.find((row) => row.codigo === state.selectedAvailableCode);
+        if (!tool) {
+            return;
+        }
+
+        const effectiveAvailable = getEffectiveAvailable(tool);
+        if (effectiveAvailable < 1) {
+            setFeedback('Não há mais saldo disponível desta ferramenta para associar.', 'error');
+            renderModal();
+            return;
+        }
+
+        const existingPending = state.assignedEntries.find((entry) => entry.kind === 'pending' && entry.codigo === tool.codigo);
+        if (existingPending) {
+            existingPending.quantidade = Number(existingPending.quantidade || 0) + 1;
+            state.selectedAssignedId = existingPending.entry_id;
+        } else {
+            state.pendingCounter += 1;
+            const entryId = `pending:${state.pendingCounter}`;
+            state.assignedEntries.push({
+                entry_id: entryId,
+                kind: 'pending',
+                saida_id: null,
+                codigo: tool.codigo,
+                descricao: tool.descricao,
+                categoria: tool.categoria,
+                marca: tool.marca,
+                quantidade: 1,
+                tipo_custodia_label: 'Pendente',
+                local_servico: 'Central de Kits',
+                foto_url: tool.foto_url,
+            });
+            state.selectedAssignedId = entryId;
+        }
+
+        state.selectedAvailableCode = tool.codigo;
+        setFeedback('', 'info');
+        renderModal();
+    }
+
+    function removeSelectedTool() {
+        const entryIndex = state.assignedEntries.findIndex((entry) => entry.entry_id === state.selectedAssignedId);
+        if (entryIndex < 0) {
+            return;
+        }
+
+        const entry = state.assignedEntries[entryIndex];
+        if (entry.kind === 'pending') {
+            const quantidadeAtual = Number(entry.quantidade || 0);
+            if (quantidadeAtual > 1) {
+                entry.quantidade = quantidadeAtual - 1;
+            } else {
+                state.assignedEntries.splice(entryIndex, 1);
+            }
+        } else {
+            state.removedExisting.push(entry);
+            state.assignedEntries.splice(entryIndex, 1);
+        }
+
+        state.selectedAssignedId = null;
+        setFeedback('', 'info');
+        renderModal();
+    }
+
+    async function saveAssignmentChanges() {
+        if (!state.matricula) {
+            return;
+        }
+
+        if (!state.canManage) {
+            setFeedback('Somente administradores podem salvar alterações na Central de Kits.', 'info');
+            return;
+        }
+
+        const additions = state.assignedEntries
+            .filter((entry) => entry.kind === 'pending')
+            .map((entry) => ({ codigo: entry.codigo, quantidade: Number(entry.quantidade || 0) }));
+
+        const removals = state.removedExisting.map((entry) => ({ saida_id: entry.saida_id }));
+
+        if (!additions.length && !removals.length) {
+            setFeedback('Nenhuma alteração pendente para salvar.', 'info');
+            return;
+        }
+
+        state.isLoading = true;
+        renderModal();
+        setFeedback('Aplicando alterações no kit...', 'info');
+
+        try {
+            const response = await window.galintFetchWithAuth(`/controle-ferramentas/kits/${encodeURIComponent(state.matricula)}/associacao`, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({ additions, removals })
+            }, 'Sua sessão expirou ao salvar a Central de Kits. Faça login novamente.');
+
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok || payload?.success === false) {
+                const appliedChanges = Number(payload?.details?.applied_changes || 0);
+                const errorList = payload?.details?.errors || [];
+                if (appliedChanges > 0) {
+                    const partialMessage = payload?.message || 'Alteracoes aplicadas parcialmente.';
+                    const warnings = errorList.length ? `\n\nAvisos: ${errorList.join(' | ')}` : '';
+                    window.alert(`${partialMessage}${warnings}`);
+                    window.location.reload();
+                    return;
+                }
+                const message = errorList.length ? errorList.join(' | ') : (payload?.message || 'Falha ao salvar alterações do kit.');
+                throw new Error(message);
+            }
+
+            window.alert(payload?.message || 'Ferramentas do colaborador atualizadas com sucesso.');
+            window.location.reload();
+        } catch (error) {
+            if (error?.isAuthRedirect) {
+                return;
+            }
+            setFeedback(error?.message || 'Falha ao salvar alterações do kit.', 'error');
+        } finally {
+            state.isLoading = false;
+            renderModal();
+        }
+    }
+
+    availableListEl?.addEventListener('click', function(event) {
+        const card = event.target.closest('[data-role="available"]');
+        if (!card) {
+            return;
+        }
+        state.selectedAvailableCode = card.getAttribute('data-codigo');
+        state.selectedAssignedId = null;
+        renderModal();
+    });
+
+    selectedListEl?.addEventListener('click', function(event) {
+        const card = event.target.closest('[data-role="assigned"]');
+        if (!card) {
+            return;
+        }
+        state.selectedAssignedId = card.getAttribute('data-entry-id');
+        state.selectedAvailableCode = null;
+        renderModal();
+    });
+
+    addBtn?.addEventListener('click', addSelectedTool);
+    removeBtn?.addEventListener('click', removeSelectedTool);
+    saveBtn?.addEventListener('click', saveAssignmentChanges);
+
+    searchEl?.addEventListener('input', function() {
+        state.searchTerm = searchEl.value || '';
+        renderModal();
+    });
+
+    triggerButtons.forEach((button) => {
+        button.addEventListener('click', async function() {
+            const matricula = button.getAttribute('data-matricula');
+            if (!matricula) {
+                return;
+            }
+            modal.show();
+            await loadAssignmentData(matricula);
+        });
+    });
+
+    modalEl.addEventListener('hidden.bs.modal', function() {
+        state.matricula = null;
+        state.employee = null;
+        state.availableTools = [];
+        state.assignedEntries = [];
+        state.removedExisting = [];
+        state.canManage = false;
+        state.selectedAvailableCode = null;
+        state.selectedAssignedId = null;
+        state.searchTerm = '';
+        state.pendingCounter = 0;
+        state.isLoading = false;
+        if (searchEl) {
+            searchEl.value = '';
+        }
+        setFeedback('', 'info');
+        renderModal();
+    });
+})();
+</script>
 {% endblock %}

@@ -361,13 +361,14 @@ def generate_tool_report():
     # Obter parâmetros
     date_from_str = request.form.get("date_from", "").strip()
     date_to_str = request.form.get("date_to", "").strip()
-    format_type = request.form.get("format", "pdf").strip().lower()
+    requested_format = request.form.get("format", "pdf").strip().lower()
     tipo_custodia_filter = request.form.get("tipo_custodia_filter", "todos").strip().lower()
     
     # Validar formato
-    if format_type not in ["pdf", "xlsx"]:
-        flash("Formato inválido. Use PDF ou XLSX.", "danger")
+    if requested_format not in ["pdf", "xlsx"]:
+        flash("Formato inválido. Use PDF.", "danger")
         return _redirect_back()
+    format_type = "pdf"
     
     # Validar filtro de custódia
     # Compat: instalações antigas usam "diaria" para empréstimo temporário.
@@ -663,7 +664,7 @@ def generate_tool_report():
                 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
             except Exception:
                 flash(
-                    "Não foi possível gerar PDF (WeasyPrint e ReportLab indisponíveis). Gere em XLSX.",
+                    "Não foi possível gerar PDF (WeasyPrint e ReportLab indisponíveis).",
                     "danger",
                 )
                 return _redirect_back()

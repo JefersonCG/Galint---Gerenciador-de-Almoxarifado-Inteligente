@@ -21,6 +21,13 @@ class BalanceProvider:
     """Centraliza leitura de saldo durante a migração para ledger."""
 
     @staticmethod
+    def _should_prefer_stock_balance_for_nf_origin(item: Item | None, balance: StockBalance | None) -> bool:
+        if item is None or balance is None:
+            return False
+        origem = (getattr(item, "pre_cadastro_origem", "") or "").strip().lower()
+        return origem == "nf"
+
+    @staticmethod
     def get_balances(product_ids: list[str], *, items_by_id: dict[str, Item] | None = None) -> dict[str, BalanceSnapshot]:
         normalized_ids = []
         seen_ids: set[str] = set()
@@ -51,6 +58,12 @@ class BalanceProvider:
                 for product_id, row in balance_rows.items()
                 if bool(getattr(row, "read_model_ready", False))
             }
+
+        migrated_ids.update(
+            product_id
+            for product_id, row in balance_rows.items()
+            if BalanceProvider._should_prefer_stock_balance_for_nf_origin(item_lookup.get(product_id), row)
+        )
 
         legacy_candidate_ids = [product_id for product_id in normalized_ids if product_id not in migrated_ids]
         legacy_history_ids: set[str] = set()
@@ -205,22 +218,21 @@ class BalanceProvider:
         if not item:
             raise ValueError("Produto não encontrado")
 
-        if BalanceProvider.is_product_migrated(product_id):
-            balance = StockBalance.query.get(product_id)
+        balance = StockBalance.query.get(product_id)
+        if BalanceProvider.is_product_migrated(product_id) or BalanceProvider._should_prefer_stock_balance_for_nf_origin(item, balance):
             quantity = float(balance.quantity_base if balance else 0.0)
             unit_base = BalanceProvider._resolve_unit_base(item)
             return BalanceSnapshot(
                 product_id=product_id,
                 quantity_base=quantity,
                 unit_base=unit_base,
-                source="stock_balance",
-                migrated=True,
+                source="stock_balance" if BalanceProvider.is_product_migrated(product_id) else "stock_balance_nf_origin",
+                migrated=BalanceProvider.is_product_migrated(product_id),
             )
 
         quantity = BalanceProvider._get_legacy_balance(product_id)
         unit_base = BalanceProvider._resolve_unit_base(item)
         if not BalanceProvider._has_legacy_history(product_id):
-            balance = StockBalance.query.get(product_id)
             if balance is not None:
                 return BalanceSnapshot(
                     product_id=product_id,

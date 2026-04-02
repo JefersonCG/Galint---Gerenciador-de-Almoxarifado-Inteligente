@@ -9,6 +9,7 @@ from sqlalchemy import and_, or_
 from ..extensions import db
 from ..models import Entrada, InventarioEvento, Item, Saida, Usuario
 from ..utils.time_service import TimeService
+from .inventory import MovimentoPayload, inventory_service
 from .tool_custody_service import ToolCustodyService
 
 
@@ -235,6 +236,25 @@ class CentralKitsService:
             "days_in_use": days_in_use,
             "is_alert": is_alert,
             "status_label": "Atenção" if is_alert else "Em posse",
+            "foto_path": item.foto_path,
+        }
+
+    @classmethod
+    def _build_available_tool_payload(cls, item: Item) -> dict[str, Any]:
+        try:
+            saldo_disponivel = cls._to_float(item.get_saldo_atual())
+        except Exception:
+            saldo_disponivel = 0.0
+
+        unidade = (item.unidade or "un").strip() or "un"
+        return {
+            "codigo": item.codigo_item,
+            "descricao": item.descricao or item.codigo_item,
+            "categoria": item.categoria or "Ferramentas",
+            "marca": item.marca or "N/D",
+            "saldo_disponivel": saldo_disponivel,
+            "saldo_disponivel_display": f"{cls._format_quantity(saldo_disponivel)} {unidade}",
+            "unidade": unidade,
             "foto_path": item.foto_path,
         }
 
@@ -480,6 +500,147 @@ class CentralKitsService:
             }
         )
         return payload
+
+    @classmethod
+    def get_assignment_modal_payload(cls, matricula: str, *, search: str = "") -> dict[str, Any] | None:
+        kit = cls.get_kit_detail(matricula)
+        if kit is None:
+            return None
+
+        search_text = cls._normalize_text(search)
+        query = db.session.query(Item).filter(Item.categoria.ilike("%ferrament%"))
+        if search_text:
+            query = query.filter(
+                or_(
+                    Item.codigo_item.ilike(f"%{search}%"),
+                    Item.descricao.ilike(f"%{search}%"),
+                    Item.marca.ilike(f"%{search}%"),
+                )
+            )
+
+        available_tools: list[dict[str, Any]] = []
+        for item in query.order_by(Item.descricao.asc()).limit(500).all():
+            payload = cls._build_available_tool_payload(item)
+            if cls._to_float(payload.get("saldo_disponivel")) <= 0:
+                continue
+            available_tools.append(payload)
+
+        assigned_tools = [
+            {
+                "entry_id": f"saida:{tool.get('saida_id')}",
+                "saida_id": tool.get("saida_id"),
+                "codigo": tool.get("codigo_item"),
+                "descricao": tool.get("descricao"),
+                "categoria": tool.get("categoria"),
+                "marca": tool.get("marca"),
+                "quantidade": cls._to_float(tool.get("quantidade")),
+                "quantidade_display": tool.get("quantidade_display") or cls._format_quantity(tool.get("quantidade")),
+                "tipo_custodia": tool.get("tipo_custodia"),
+                "tipo_custodia_label": tool.get("tipo_custodia_label"),
+                "local_servico": tool.get("local_servico"),
+                "foto_path": tool.get("foto_path"),
+                "status_label": tool.get("status_label"),
+            }
+            for tool in kit.get("tools", [])
+        ]
+
+        return {
+            "employee": {
+                "matricula": kit.get("matricula"),
+                "nome": kit.get("nome"),
+                "cargo": kit.get("cargo"),
+                "setor": kit.get("setor"),
+            },
+            "available_tools": available_tools,
+            "assigned_tools": assigned_tools,
+            "search": search,
+        }
+
+    @classmethod
+    def apply_assignment_changes(
+        cls,
+        matricula: str,
+        *,
+        additions: list[dict[str, Any]] | None = None,
+        removals: list[dict[str, Any]] | None = None,
+    ) -> dict[str, Any]:
+        kit = cls.get_kit_detail(matricula)
+        if kit is None:
+            raise ValueError("Kit não encontrado para este colaborador")
+
+        additions = additions or []
+        removals = removals or []
+
+        existing_saida_ids = {
+            int(tool.get("saida_id"))
+            for tool in kit.get("tools", [])
+            if tool.get("saida_id") is not None
+        }
+
+        removal_results: list[dict[str, Any]] = []
+        addition_results: list[dict[str, Any]] = []
+        errors: list[str] = []
+
+        for raw_row in removals:
+            try:
+                saida_id = int((raw_row or {}).get("saida_id"))
+            except (TypeError, ValueError):
+                continue
+
+            if saida_id not in existing_saida_ids:
+                errors.append(f"Ferramenta ativa {saida_id} não pertence mais a este colaborador.")
+                continue
+
+            try:
+                ToolCustodyService.register_return(saida_id, "Reorganização via Central de Kits")
+                removal_results.append({"saida_id": saida_id})
+            except ValueError as exc:
+                errors.append(str(exc))
+
+        grouped_additions: dict[str, int] = {}
+        for raw_row in additions:
+            codigo = str((raw_row or {}).get("codigo") or "").strip()
+            try:
+                quantidade = int((raw_row or {}).get("quantidade") or 0)
+            except (TypeError, ValueError):
+                quantidade = 0
+
+            if not codigo or quantidade <= 0:
+                continue
+            grouped_additions[codigo] = grouped_additions.get(codigo, 0) + quantidade
+
+        for codigo, quantidade in grouped_additions.items():
+            item = Item.query.get(codigo)
+            if item is None:
+                errors.append(f"Ferramenta {codigo} não encontrada.")
+                continue
+
+            if not cls._is_tool_item(item):
+                errors.append(f"Item {codigo} não é elegível para a Central de Kits.")
+                continue
+
+            try:
+                inventory_service.registrar_saida(
+                    MovimentoPayload(
+                        codigo=codigo,
+                        quantidade=float(quantidade),
+                        matricula=matricula,
+                        observacao="Associado via Central de Kits",
+                        local_servico="Central de Kits",
+                        tipo_custodia="permanente",
+                    ),
+                    skip_notification=True,
+                )
+                addition_results.append({"codigo": codigo, "quantidade": quantidade})
+            except ValueError as exc:
+                errors.append(str(exc))
+
+        return {
+            "removed": removal_results,
+            "added": addition_results,
+            "errors": errors,
+            "applied_changes": len(removal_results) + len(addition_results),
+        }
 
 
 central_kits_service = CentralKitsService()

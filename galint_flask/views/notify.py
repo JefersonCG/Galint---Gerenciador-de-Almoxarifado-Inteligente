@@ -172,27 +172,23 @@ def reports():
 def download_report(report_id: str):
     fmt = (request.args.get("format") or "pdf").strip().lower()
     scope = (request.args.get("scope") or "all").strip().lower()
+    if fmt not in {"pdf", "xlsx", "jpeg", "jpg"}:
+        return jsonify({"success": False, "message": "Formato inválido. Use PDF."}), 400
     if report_id == "daily":
-        if fmt == "pdf":
-            instance_path = Path(current_app.instance_path)
-            reports_dir = instance_path / "reports"
-            reports_dir.mkdir(parents=True, exist_ok=True)
-            target = reports_dir / f"notify_daily_{scope}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.pdf"
-            TelegramService.generate_saidas_dia_pdf(str(target), scope=scope)
-            return send_file(target, mimetype="application/pdf", as_attachment=True, download_name=target.name)
-        target = TelegramReportService.generate_daily_xlsx(scope=scope)
-        return send_file(target, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", as_attachment=True, download_name=Path(target).name)
+        instance_path = Path(current_app.instance_path)
+        reports_dir = instance_path / "reports"
+        reports_dir.mkdir(parents=True, exist_ok=True)
+        target = reports_dir / f"notify_daily_{scope}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.pdf"
+        TelegramService.generate_saidas_dia_pdf(str(target), scope=scope)
+        return send_file(target, mimetype="application/pdf", as_attachment=True, download_name=target.name)
 
     if report_id == "monthly":
         year = request.args.get("year", type=int)
         month = request.args.get("month", type=int)
         if not year or not month:
             return jsonify({"success": False, "message": "Ano e mês são obrigatórios"}), 400
-        if fmt == "pdf":
-            target = TelegramReportService.generate_monthly_pdf_report(year, month, scope=scope)
-            return send_file(target, mimetype="application/pdf", as_attachment=True, download_name=Path(target).name)
-        target = TelegramReportService.generate_monthly_xlsx_report(year, month, scope=scope)
-        return send_file(target, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", as_attachment=True, download_name=Path(target).name)
+        target = TelegramReportService.generate_monthly_pdf_report(year, month, scope=scope)
+        return send_file(target, mimetype="application/pdf", as_attachment=True, download_name=Path(target).name)
 
     return jsonify({"success": False, "message": "Relatório não suportado"}), 404
 

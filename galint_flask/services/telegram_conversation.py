@@ -3,7 +3,7 @@
 Implementa máquina de estados para:
 1. Seleção de período (1-6 meses)
 2. Seleção de categoria
-3. Seleção de formato (XLSX, PDF)
+3. Confirmação de saída em PDF
 4. Geração e envio de relatório
 """
 from __future__ import annotations
@@ -147,15 +147,13 @@ class TelegramConversationManager:
 
     @staticmethod
     def _send_format_menu(chat_id: str, months: int, category: Optional[str], scope: str = "all") -> None:
-        """Envia menu de seleção de formato de saída."""
+        """Envia menu de confirmação da saída em PDF."""
         safe_category = category.replace(" ", "_").replace("/", "_") if category else "all"
         
         # Construir inline keyboard manualmente
         keyboard = {
             "inline_keyboard": [
-                [{"text": "📗 XLSX (Planilha)", "callback_data": f"format_xlsx_{months}_{safe_category}"}],
                 [{"text": "📕 PDF (Documento)", "callback_data": f"format_pdf_{months}_{safe_category}"}],
-                [{"text": "📊 Ambos (XLSX + PDF)", "callback_data": f"format_both_{months}_{safe_category}"}],
                 [
                     {"text": "⬅️ Voltar", "callback_data": f"report_back_category_{months}"},
                     {"text": "❌ Cancelar", "callback_data": "report_cancel"}
@@ -172,12 +170,12 @@ class TelegramConversationManager:
         }.get(scope, "Geral")
         
         message = (
-            "📥 <b>Seleção de Formato</b>\n"
+            "📥 <b>Saída do Relatório</b>\n"
             "━━━━━━━━━━━━━━━━━━━━\n\n"
             f"<b>Período:</b> {period_text}\n"
             f"<b>Escopo:</b> {scope_label}\n"
             f"<b>Categoria:</b> {category_text}\n\n"
-            "Escolha o formato para download:" 
+            "Confirme o envio do relatório em PDF:" 
         )
         
         TelegramService.send_message(chat_id, message, reply_markup=keyboard, parse_mode="HTML")
@@ -239,7 +237,7 @@ class TelegramConversationManager:
             elif callback_data.startswith("format_"):
                 # Geração de relatório
                 parts = callback_data.split("_")
-                file_format = parts[1]  # xlsx, pdf, both
+                file_format = "pdf"
                 months = int(parts[2])
                 category_safe = "_".join(parts[3:]) if len(parts) > 3 else "all"
                 
@@ -326,30 +324,17 @@ class TelegramConversationManager:
                 "all": "Geral",
             }.get(scope, "Geral")
             scope_text = f" - {scope_label}"
-            
-            if file_format in ("xlsx", "both"):
-                try:
-                    filepath = TelegramReportService.generate_xlsx_report(months, category, scope=scope)
-                    caption = f"📗 Relatório XLSX: {period_text}{scope_text}{category_text}"
-                    TelegramService.send_document(chat_id, str(filepath), caption=caption)
-                except Exception as e:
-                    logger.error(f"Erro ao gerar XLSX: {e}")
-                    TelegramService.send_message(
-                        chat_id,
-                        f"⚠️ Erro ao gerar XLSX: {str(e)[:100]}",
-                    )
-            
-            if file_format in ("pdf", "both"):
-                try:
-                    filepath = TelegramReportService.generate_pdf_report(months, category, scope=scope)
-                    caption = f"📕 Relatório PDF: {period_text}{scope_text}{category_text}"
-                    TelegramService.send_document(chat_id, str(filepath), caption=caption)
-                except Exception as e:
-                    logger.error(f"Erro ao gerar PDF: {e}")
-                    TelegramService.send_message(
-                        chat_id,
-                        f"⚠️ Erro ao gerar PDF: {str(e)[:100]}",
-                    )
+
+            try:
+                filepath = TelegramReportService.generate_pdf_report(months, category, scope=scope)
+                caption = f"📕 Relatório PDF: {period_text}{scope_text}{category_text}"
+                TelegramService.send_document(chat_id, str(filepath), caption=caption)
+            except Exception as e:
+                logger.error(f"Erro ao gerar PDF: {e}")
+                TelegramService.send_message(
+                    chat_id,
+                    f"⚠️ Erro ao gerar PDF: {str(e)[:100]}",
+                )
             
             TelegramService.send_message(
                 chat_id,

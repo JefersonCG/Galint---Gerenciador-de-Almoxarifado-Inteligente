@@ -6,7 +6,7 @@ import csv
 import io
 from typing import Any
 
-from flask import Blueprint, Response, abort, current_app, jsonify, render_template
+from flask import Blueprint, Response, abort, current_app, jsonify, render_template, url_for
 from flask_login import current_user, login_required
 
 from ..services.inventory import inventory_service
@@ -223,6 +223,7 @@ def custody_active():
                     "source": "saida",
                     "codigo": tool.get("codigo_item"),
                     "descricao": tool.get("descricao") or "",
+                    "foto_url": url_for("static", filename=tool.get("foto_path")) if tool.get("foto_path") else None,
                     "quantidade": tool.get("quantidade") or 0,
                     "usuario": employee.get("nome") or "",
                     "matricula": matricula_short,
@@ -296,6 +297,7 @@ def custody_active():
                 "source": "retirada_ferramenta",
                 "codigo": item.codigo_item,
                 "descricao": item.descricao or "",
+                "foto_url": url_for("static", filename=item.foto_path) if item.foto_path else None,
                 "quantidade": retirada.quantidade or 0,
                 "usuario": usuario.nome or "",
                 "matricula": matricula_short,
@@ -360,17 +362,30 @@ def download_report(tipo: str):
 @login_required
 def download_low_stock_template():
     data = inventory_service.report_low_stock()
-    workbook = _build_low_stock_workbook(data)
-    buffer = io.BytesIO()
-    workbook.save(buffer)
-    buffer.seek(0)
+    headers = ["Descrição", "Marca/Fabricante", "Setor", "Qtd. Est.", "Código"]
+    rows = [
+        [
+            item.get("descricao") or "",
+            item.get("marca") or "",
+            item.get("setor") or "",
+            item.get("saldo_atual") or 0,
+            _format_codigo_barra(item.get("codigo")),
+        ]
+        for item in data
+    ]
+    buffer = _build_table_report_pdf(
+        title="Material em baixa no almoxarifado",
+        subtitle="Itens com saldo abaixo do ponto esperado",
+        headers=headers,
+        rows=rows,
+    )
     response = Response(
-        buffer.read(),
-        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        buffer,
+        mimetype="application/pdf",
     )
     response.headers[
         "Content-Disposition"
-    ] = "attachment; filename=material-em-baixa-almoxarifado.xlsx"
+    ] = "attachment; filename=material-em-baixa-almoxarifado.pdf"
     return response
 
 
@@ -523,6 +538,78 @@ def _build_event_report_workbook(
     return wb
 
 
+def _build_table_report_pdf(
+    *,
+    title: str,
+    subtitle: str,
+    headers: list[str],
+    rows: list[list[Any]],
+) -> bytes:
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import A4, landscape
+    from reportlab.lib.styles import getSampleStyleSheet
+    from reportlab.lib.units import cm
+    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=landscape(A4),
+        leftMargin=0.5 * cm,
+        rightMargin=0.5 * cm,
+        topMargin=0.5 * cm,
+        bottomMargin=0.5 * cm,
+        title=title,
+        author="GALINT",
+    )
+    styles = getSampleStyleSheet()
+    title_style = styles["Title"]
+    title_style.alignment = 1
+    title_style.fontSize = 16
+    subtitle_style = styles["Normal"]
+    subtitle_style.alignment = 1
+    body_style = styles["BodyText"]
+    body_style.fontSize = 7
+    body_style.leading = 8
+
+    story = []
+    for line in get_company_header_lines():
+        story.append(Paragraph(str(line), subtitle_style))
+    story.append(Spacer(1, 0.15 * cm))
+    story.append(Paragraph(title, title_style))
+    story.append(Paragraph(subtitle, subtitle_style))
+    story.append(Spacer(1, 0.3 * cm))
+
+    table_data: list[list[Any]] = [headers]
+    for row in rows:
+        table_data.append([
+            Paragraph(("" if value is None else str(value)).replace("\n", "<br/>"), body_style)
+            for value in row
+        ])
+
+    table = Table(table_data, repeatRows=1)
+    table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1f2937")),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("FONTSIZE", (0, 0), (-1, -1), 7),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("GRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#d1d5db")),
+                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f3f4f6")]),
+                ("LEFTPADDING", (0, 0), (-1, -1), 3),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 3),
+                ("TOPPADDING", (0, 0), (-1, -1), 2),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+            ]
+        )
+    )
+    story.append(table)
+    doc.build(story)
+    return buffer.getvalue()
+
+
 @blueprint.get("/relatorio/perdas.xlsx")
 @login_required
 def download_loss_template():
@@ -539,21 +626,17 @@ def download_loss_template():
         ]
         for registro in dados
     ]
-    workbook = _build_event_report_workbook(
+    buffer = _build_table_report_pdf(
         title="Produtos com perda",
         subtitle="Eventos de inventário registrados como perda",
         headers=headers,
         rows=rows,
-        column_widths=[20, 8, 18, 12, 20, 40],
     )
-    buffer = io.BytesIO()
-    workbook.save(buffer)
-    buffer.seek(0)
     response = Response(
-        buffer.read(),
-        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        buffer,
+        mimetype="application/pdf",
     )
-    response.headers["Content-Disposition"] = "attachment; filename=produtos-com-perda.xlsx"
+    response.headers["Content-Disposition"] = "attachment; filename=produtos-com-perda.pdf"
     return response
 
 
@@ -573,20 +656,16 @@ def download_avariados_template():
         ]
         for registro in dados
     ]
-    workbook = _build_event_report_workbook(
+    buffer = _build_table_report_pdf(
         title="Produtos avariados",
         subtitle="Eventos registrados como avaria ou dano",
         headers=headers,
         rows=rows,
-        column_widths=[20, 8, 18, 12, 20, 40],
     )
-    buffer = io.BytesIO()
-    workbook.save(buffer)
-    buffer.seek(0)
     response = Response(
-        buffer.read(),
-        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        buffer,
+        mimetype="application/pdf",
     )
-    response.headers["Content-Disposition"] = "attachment; filename=produtos-avariados.xlsx"
+    response.headers["Content-Disposition"] = "attachment; filename=produtos-avariados.pdf"
     return response
 

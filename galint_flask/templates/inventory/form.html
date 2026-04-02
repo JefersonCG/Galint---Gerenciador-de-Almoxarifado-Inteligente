@@ -1223,7 +1223,7 @@
                             {% set label_solta = 'Unidades soltas' %}
                             {% if tipo_emb == 'rolo' %}
                                 {% set label_solta = 'Metros soltos' %}
-                            {% elif tipo_emb in ['caixa', 'pacote'] %}
+                            {% elif tipo_emb in ['caixa', 'pacote', 'fardo'] %}
                                 {% set label_solta = 'Unidades soltas' %}
                             {% elif tipo_emb in ['lata', 'balde', 'bombona', 'litro'] and form_item.litros_por_embalagem %}
                                 {% set label_solta = 'Litros soltos' %}
@@ -1248,6 +1248,7 @@
                                 'Quilo',
                                 'Caixa',
                                 'Pacote',
+                                'Fardo',
                                 'Saco',
                                 'Rolo',
                                 'Balde',
@@ -1635,6 +1636,10 @@
                                 <label class="form-check-label" for="tipo_novo_caixa">Caixa</label>
                             </div>
                             <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="tipo_embalagem_novo" id="tipo_novo_fardo" value="fardo" {% if tipo_emb_novo=='fardo' %}checked{% endif %}>
+                                <label class="form-check-label" for="tipo_novo_fardo">Fardo</label>
+                            </div>
+                            <div class="form-check form-check-inline">
                                 <input class="form-check-input" type="radio" name="tipo_embalagem_novo" id="tipo_novo_litro" value="litro" {% if tipo_emb_novo=='litro' %}checked{% endif %}>
                                 <label class="form-check-label" for="tipo_novo_litro">Litro</label>
                             </div>
@@ -1664,7 +1669,7 @@
                             {% set unidade_emb_nova = 'litro' %}
                         {% elif form_item and form_item.grandeza_referencia and tipo_emb_novo in ['lata', 'balde', 'bombona', 'pacote', 'saco'] %}
                             {% set unidade_emb_nova = 'kg' %}
-                        {% elif tipo_emb_novo in ['pacote', 'caixa', 'saco'] %}
+                        {% elif tipo_emb_novo in ['pacote', 'caixa', 'fardo', 'saco'] %}
                             {% set unidade_emb_nova = 'unidade' %}
                         {% endif %}
                         <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
@@ -2445,6 +2450,7 @@ Conversão: 1 saco = 20 quilos</div>
         { code: 'quilo', label: 'Quilo', dimension: 'mass' },
         { code: 'caixa', label: 'Caixa', dimension: 'unit' },
         { code: 'pacote', label: 'Pacote', dimension: 'unit' },
+        { code: 'fardo', label: 'Fardo', dimension: 'unit' },
         { code: 'saco', label: 'Saco', dimension: 'mass' },
         { code: 'rolo', label: 'Rolo', dimension: 'length' },
         { code: 'balde', label: 'Balde', dimension: 'mass' },
@@ -2789,6 +2795,11 @@ Conversão: 1 saco = 20 quilos</div>
                 helpGrandeza.textContent = 'Ex: 100 unidades por caixa';
                 densidadeField.style.display = 'none';
                 break;
+            case 'Fardo':
+                labelGrandeza.textContent = 'Unidades por Fardo';
+                helpGrandeza.textContent = 'Ex: 12 unidades por fardo';
+                densidadeField.style.display = 'none';
+                break;
             case 'Litro':
                 // Litro: campo de litragem por embalagem é exibido separadamente
                 densidadeField.style.display = 'none';
@@ -2806,7 +2817,7 @@ Conversão: 1 saco = 20 quilos</div>
     // ==========================================
     // ABA UNIDADES DINAMICAS (EXIBIR CONDICIONAL)
     // ==========================================
-        const unidadesDinamicasPermitidas = ['Lata', 'Bombona', 'Litro', 'Balde', 'Rolo', 'Caixa', 'Pacote', 'Saco'];
+        const unidadesDinamicasPermitidas = ['Lata', 'Bombona', 'Litro', 'Balde', 'Rolo', 'Caixa', 'Pacote', 'Fardo', 'Saco'];
 
     function toggleTabUnidadesDinamicas() {
         if (!unidadeSelect || !tabUnidadesButton || !tabUnidadesPane) return;
@@ -2909,8 +2920,9 @@ Conversão: 1 saco = 20 quilos</div>
                 break;
             case 'Pacote':
             case 'Caixa':
+            case 'Fardo':
                 const unidades = quantidade * grandeza;
-                const tipo = tipoSelecionado === 'Pacote' ? 'pacotes' : 'caixas';
+                const tipo = tipoSelecionado === 'Pacote' ? 'pacotes' : (tipoSelecionado === 'Fardo' ? 'fardos' : 'caixas');
                 resultado = `<div>${quantidade} ${tipo} = ${unidades.toFixed(0)} unidades</div>`;
                 break;
         }
@@ -3089,6 +3101,7 @@ Conversão: 1 saco = 20 quilos</div>
         'rolo': 'Rolo',
         'pacote': 'Pacote',
         'caixa': 'Caixa',
+        'fardo': 'Fardo',
         'litro': 'Litro',
         'balde': 'Balde',
         'saco': 'Saco'
@@ -3100,6 +3113,7 @@ Conversão: 1 saco = 20 quilos</div>
         'rolo': '100 metros por rolo',
         'pacote': '100 unidades por pacote',
         'caixa': '500 unidades por caixa',
+        'fardo': '12 unidades por fardo',
         'litro': '20 litros por galão',
         'balde': '25 kg por balde',
         'saco': '20 kg por saco'
@@ -3109,6 +3123,7 @@ Conversão: 1 saco = 20 quilos</div>
         'rolo': 'metros',
         'pacote': 'unidades',
         'caixa': 'unidades',
+        'fardo': 'unidades',
         'litro': 'litros',
         'bombona': 'litros',
         'saco': 'unidades'
@@ -3130,6 +3145,8 @@ Conversão: 1 saco = 20 quilos</div>
             ? ['litro', 'kg']
             : tipoSelecionado === 'pacote' || tipoSelecionado === 'saco'
             ? ['unidade', 'kg']
+            : tipoSelecionado === 'fardo'
+            ? ['unidade']
             : [];
         if (unidadeSelecionada && unidadesPermitidas.includes(unidadeSelecionada)) {
             return;
@@ -3142,6 +3159,8 @@ Conversão: 1 saco = 20 quilos</div>
         } else if (tipoSelecionado === 'lata') {
             defaultId = 'unidade_emb_litro';
         } else if (tipoSelecionado === 'pacote') {
+            defaultId = 'unidade_emb_unidade';
+        } else if (tipoSelecionado === 'fardo') {
             defaultId = 'unidade_emb_unidade';
         }
         const defaultRadio = defaultId ? document.getElementById(defaultId) : null;
@@ -3162,7 +3181,7 @@ Conversão: 1 saco = 20 quilos</div>
                 unidadeEmbOpcaoLitro.style.display = (tipoSelecionado === 'lata' || tipoSelecionado === 'balde' || tipoSelecionado === 'bombona') ? 'inline-flex' : 'none';
             }
             if (unidadeEmbOpcaoUnidade) {
-                unidadeEmbOpcaoUnidade.style.display = (tipoSelecionado === 'pacote' || tipoSelecionado === 'saco') ? 'inline-flex' : (tipoSelecionado === 'caixa' ? 'inline-flex' : 'none');
+                unidadeEmbOpcaoUnidade.style.display = (tipoSelecionado === 'pacote' || tipoSelecionado === 'saco') ? 'inline-flex' : (tipoSelecionado === 'caixa' || tipoSelecionado === 'fardo' ? 'inline-flex' : 'none');
             }
             applyDefaultPackagingUnit(tipoSelecionado);
             if (helpUnidadeEmbalagem) {
@@ -3214,6 +3233,7 @@ Conversão: 1 saco = 20 quilos</div>
                 'rolo': 'rolos',
                 'pacote': 'pacotes',
                 'caixa': 'caixas',
+                'fardo': 'fardos',
                 'litro': 'litros',
                 'balde': 'baldes',
                 'saco': 'sacos'

@@ -129,6 +129,8 @@ class TelegramService:
 
         "Pacote",
 
+        "Fardo",
+
         "Saco",
 
         "Rolo",
@@ -2476,15 +2478,15 @@ class TelegramService:
 
 
 
-        if EmbalagemService and EmbalagemService.tem_embalagem(item) and tipo_emb in ("caixa", "pacote", "saco"):
+        if EmbalagemService and EmbalagemService.tem_embalagem(item) and tipo_emb in ("caixa", "pacote", "fardo", "saco"):
 
             unidades_por = item.unidades_por_embalagem or 0
 
             total_internas = (embalagens or 0) * unidades_por
 
-            nome = "Caixas" if tipo_emb == "caixa" else ("Sacos" if tipo_emb == "saco" else "Pacotes")
+            nome = "Caixas" if tipo_emb == "caixa" else ("Fardos" if tipo_emb == "fardo" else ("Sacos" if tipo_emb == "saco" else "Pacotes"))
 
-            nome_singular = "caixa" if tipo_emb == "caixa" else ("saco" if tipo_emb == "saco" else "pacote")
+            nome_singular = "caixa" if tipo_emb == "caixa" else ("fardo" if tipo_emb == "fardo" else ("saco" if tipo_emb == "saco" else "pacote"))
 
             
             # Modelo 3: Formato hierárquico detalhado
@@ -7688,7 +7690,7 @@ class TelegramService:
 
             ["📄 Saídas do Dia (PDF)"],
 
-            ["📄 Estoque Baixo (XLSX/PDF)"],
+            ["📄 Estoque Baixo (PDF)"],
 
             ["⬅️ Voltar ao Menu", "❌ Cancelar"],
 
@@ -7722,7 +7724,7 @@ class TelegramService:
 
                 "• <b>Saídas do Dia</b>: PDF com retiradas de hoje\n"
 
-                "• <b>Estoque Baixo</b>: planilha + PDF para download\n\n"
+                "• <b>Estoque Baixo</b>: PDF para download\n\n"
 
                 "<i>Dica:</i> toque em um botão abaixo."
 
@@ -7762,7 +7764,7 @@ class TelegramService:
 
             ["📦 Itens Cadastrados"],
 
-            ["🔎 Buscar Item (/estoque)", "📉 Baixar Planilha Estoque Baixo"],
+            ["🔎 Buscar Item (/estoque)", "📉 Baixar Relatório Estoque Baixo"],
 
             ["⬅️ Menu", "❌ Cancelar"],
 
@@ -7796,7 +7798,7 @@ class TelegramService:
 
                     "• <b>Buscar Item</b>: use /estoque + termo\n"
 
-                    "• <b>Estoque Baixo</b>: baixar XLSX/PDF\n"
+                    "• <b>Estoque Baixo</b>: baixar PDF\n"
 
                 ),
 
@@ -9490,7 +9492,7 @@ class TelegramService:
 
             if norm.startswith("estoque baixo"):
 
-                # Atalho do submenu para enviar XLSX+PDF
+                # Atalho do submenu para enviar PDF
 
                 if TelegramService._is_privileged_user(user):
 
@@ -9502,29 +9504,15 @@ class TelegramService:
 
                     timestamp = TimeService.now_local().strftime('%Y%m%d_%H%M%S')
 
-                    target_xlsx = str(reports_dir / f"estoque_baixo_{timestamp}.xlsx")
-
                     target_pdf = str(reports_dir / f"estoque_baixo_{timestamp}.pdf")
 
                     try:
 
-                        TelegramService.send_message(chat_id, "📊 Gerando relatórios... Aguarde.", parse_mode=None)
+                        TelegramService.send_message(chat_id, "📊 Gerando relatório em PDF... Aguarde.", parse_mode=None)
 
-                        TelegramService.generate_estoque_baixo_xlsx(target_xlsx)
+                        TelegramService.generate_estoque_baixo_pdf(target_pdf)
 
-                        TelegramService.send_document(chat_id, target_xlsx, caption="📗 Estoque Baixo (XLSX)")
-
-                        try:
-
-                            TelegramService.generate_estoque_baixo_pdf(target_pdf)
-
-                            TelegramService.send_document(chat_id, target_pdf, caption="📕 Estoque Baixo (PDF)")
-
-                        except Exception as pdf_err:
-
-                            logger.error(f"Erro ao gerar PDF: {pdf_err}")
-
-                            TelegramService.send_message(chat_id, "⚠️ PDF indisponível no momento. XLSX enviado.", parse_mode=None)
+                        TelegramService.send_document(chat_id, target_pdf, caption="📕 Estoque Baixo (PDF)")
 
                     except Exception as e:
 
@@ -9610,7 +9598,7 @@ class TelegramService:
 
                 return True
 
-            if norm in ("baixar planilha estoque baixo", "baixar planilha de baixo estoque", "estoque baixo"):
+            if norm in ("baixar planilha estoque baixo", "baixar planilha de baixo estoque", "baixar relatorio estoque baixo", "estoque baixo"):
 
                 reports_dir = Path("instance") / "reports"
 
@@ -9618,29 +9606,15 @@ class TelegramService:
 
                 timestamp = TimeService.now_local().strftime('%Y%m%d_%H%M%S')
 
-                target_xlsx = str(reports_dir / f"estoque_baixo_{timestamp}.xlsx")
-
                 target_pdf = str(reports_dir / f"estoque_baixo_{timestamp}.pdf")
 
                 try:
 
-                    TelegramService.send_message(chat_id, "📊 Gerando relatórios... Aguarde.", parse_mode=None)
+                    TelegramService.send_message(chat_id, "📊 Gerando relatório em PDF... Aguarde.", parse_mode=None)
 
-                    TelegramService.generate_estoque_baixo_xlsx(target_xlsx)
+                    TelegramService.generate_estoque_baixo_pdf(target_pdf)
 
-                    TelegramService.send_document(chat_id, target_xlsx, caption="📗 Estoque Baixo (XLSX)")
-
-                    try:
-
-                        TelegramService.generate_estoque_baixo_pdf(target_pdf)
-
-                        TelegramService.send_document(chat_id, target_pdf, caption="📕 Estoque Baixo (PDF)")
-
-                    except Exception as pdf_err:
-
-                        logger.error(f"Erro ao gerar PDF: {pdf_err}")
-
-                        TelegramService.send_message(chat_id, "⚠️ PDF indisponível no momento. XLSX enviado.", parse_mode=None)
+                    TelegramService.send_document(chat_id, target_pdf, caption="📕 Estoque Baixo (PDF)")
 
                 except Exception as e:
 
@@ -10686,7 +10660,7 @@ class TelegramService:
                         unidade_mov = 'Kg'
                     elif tipo_emb == 'rolo':
                         unidade_mov = 'm'
-                    elif tipo_emb in ('caixa', 'pacote'):
+                    elif tipo_emb in ('caixa', 'pacote', 'fardo'):
                         unidade_mov = 'un'
 
                 text += f"├─ Saldo anterior: <b>{prev_balance:g}</b> {unidade_mov}\n"
@@ -11611,7 +11585,7 @@ class TelegramService:
 
                     chat_id,
 
-                    "<b>15) Tipo de embalagem</b> (lata, balde, rolo, pacote, caixa, litro) ou /pular:",
+                    "<b>15) Tipo de embalagem</b> (lata, balde, rolo, pacote, caixa, fardo, litro) ou /pular:",
 
                     parse_mode="HTML",
 
@@ -11641,9 +11615,9 @@ class TelegramService:
 
             tipo = t_lower
 
-            if tipo not in ("lata", "balde", "bombona", "rolo", "pacote", "caixa", "litro"):
+            if tipo not in ("lata", "balde", "bombona", "rolo", "pacote", "caixa", "fardo", "litro"):
 
-                TelegramService.send_message(chat_id, "❌ Tipo inválido. Informe lata/balde/bombona/rolo/pacote/caixa/litro.", parse_mode=None)
+                TelegramService.send_message(chat_id, "❌ Tipo inválido. Informe lata/balde/bombona/rolo/pacote/caixa/fardo/litro.", parse_mode=None)
 
                 return True
 

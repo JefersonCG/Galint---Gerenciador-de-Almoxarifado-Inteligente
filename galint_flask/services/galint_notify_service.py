@@ -137,13 +137,13 @@ class GalintNotifyService:
             {
                 "id": "daily",
                 "label": "Relatório diário de saídas",
-                "formats": ["pdf", "xlsx"],
+                "formats": ["pdf"],
                 "params": {"scope": ["all", "materials", "tools"]},
             },
             {
                 "id": "monthly",
                 "label": "Relatório mensal de saídas",
-                "formats": ["pdf", "xlsx"],
+                "formats": ["pdf"],
                 "params": {
                     "scope": ["all", "materials", "tools"],
                     "year": "int",

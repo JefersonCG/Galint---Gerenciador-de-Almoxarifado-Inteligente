@@ -125,7 +125,7 @@
         <ul>
             <li><strong>O que é incluído:</strong> Todas as movimentações de ferramentas no período selecionado</li>
             <li><strong>Dados disponíveis:</strong> Quem retirou, quando, onde usou, quem devolveu, quantidades</li>
-            <li><strong>Formatos suportados:</strong> PDF (visual) e XLSX (planilha para edição)</li>
+            <li><strong>Formato suportado:</strong> PDF</li>
             <li><strong>Local de salvamento:</strong> Os arquivos são salvos em <code>instance/reports/</code></li>
         </ul>
     </div>
@@ -174,11 +174,9 @@
                     <label for="format" class="form-label">
                         <i class="bi bi-file-earmark me-1"></i>Formato do Relatório
                     </label>
-                    <select class="form-select" id="format" name="format" required>
-                        <option value="pdf">PDF - Documento formatado</option>
-                        <option value="xlsx">XLSX - Planilha Excel</option>
-                    </select>
-                    <small class="text-muted">Escolha o formato de saída</small>
+                    <input type="hidden" id="format" name="format" value="pdf">
+                    <div class="form-control">PDF - Documento formatado</div>
+                    <small class="text-muted">Saída única padronizada em PDF</small>
                 </div>
                 
                 <div class="col-md-6">
@@ -212,7 +210,6 @@
         </h6>
         <ul class="mb-0">
             <li>Use o <strong>formato PDF</strong> para visualizar ou imprimir rapidamente</li>
-            <li>Use o <strong>formato XLSX</strong> para fazer análises ou editar os dados</li>
             <li>Relatórios grandes podem demorar alguns segundos para serem gerados</li>
             <li>O relatório mostra o status de devolução de cada ferramenta</li>
         </ul>

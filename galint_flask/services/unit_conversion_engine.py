@@ -48,6 +48,7 @@ class UnitConversionEngine:
         "kilos": "kg",
         "caixas": "caixa",
         "pacotes": "pacote",
+        "fardos": "fardo",
         "rolos": "rolo",
         "latas": "lata",
         "baldes": "balde",

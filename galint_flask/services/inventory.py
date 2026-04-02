@@ -41,7 +41,13 @@ from .inventory_engine import (
     inventory_engine,
 )
 from .admin_stock_audit_sqlite import log_admin_stock_adjustment
-from .legacy_stock_normalizer import resolve_canonical_unit, resolve_packaging_quantity_and_unit, uses_packaging_legacy_normalization
+from .legacy_stock_normalizer import (
+    is_packaging_unit_code,
+    resolve_canonical_unit,
+    resolve_packaging_factor,
+    resolve_packaging_quantity_and_unit,
+    uses_packaging_legacy_normalization,
+)
 from .operation_log_service import operation_log_service
 from .price_normalization import infer_price_unit_for_item, normalize_item_price
 from .unit_conversion_engine import UnitConversionError
@@ -1255,6 +1261,20 @@ class InventoryService:
             saldos[codigo] = entradas.get(codigo, 0.0) - saidas.get(codigo, 0.0) + ajustes.get(codigo, 0.0)
         return saldos
 
+    def _sync_packaging_read_model_for_item(self, item: Item, *, commit: bool = False) -> bool:
+        from ..services.embalagem_service import EmbalagemService
+
+        if item is None or not EmbalagemService.tem_embalagem(item):
+            return False
+
+        try:
+            return inventory_engine.sync_packaging_read_model(
+                product_id=item.codigo_item,
+                commit=commit,
+            )
+        except Exception:
+            return False
+
     def search_items_for_autocomplete(self, query: str, limit: int = 20) -> list[dict[str, Any]]:
         q = (query or "").strip()
         if not q or len(q) < 1:
@@ -1276,8 +1296,11 @@ class InventoryService:
         from ..services.embalagem_service import EmbalagemService
         bulk_balances = self._resolve_balances_in_bulk(rows)
         results: list[dict[str, Any]] = []
+        updated = False
         for item in rows:
             if EmbalagemService.tem_embalagem(item):
+                if self._sync_packaging_read_model_for_item(item, commit=False):
+                    updated = True
                 try:
                     saldo = float(EmbalagemService.calcular_estoque_total(item) or 0.0)
                 except Exception:
@@ -1303,6 +1326,8 @@ class InventoryService:
                     "unidade": item.unidade,
                 }
             )
+        if updated:
+            db.session.commit()
         return self._set_cached(cache_key, [dict(item) for item in results], ttl_seconds=3.0)
 
     def _has_active_tool_withdrawal(self, codigo_item: str, matricula: str | None) -> bool:
@@ -1402,13 +1427,34 @@ class InventoryService:
                 return None
             return f
 
+        def _resolve_stock_value_quantity(item: Item, *, saldo_total: float) -> float:
+            quantity = float(saldo_total or 0.0)
+            if quantity <= 0 or not EmbalagemService.tem_embalagem(item):
+                return quantity
+
+            base_unit = next((unit for unit in item.product_units if unit.is_base and unit.active and unit.unit_code), None)
+            base_unit_code = str(getattr(base_unit, "unit_code", "") or "").strip().lower()
+            if not base_unit_code or not is_packaging_unit_code(base_unit_code):
+                return quantity
+
+            packaging_factor = float(resolve_packaging_factor(item) or 0.0)
+            if packaging_factor <= 1:
+                return quantity
+
+            embalagens = float(item.estoque_embalagens or 0.0)
+            unidades_soltas = float(item.estoque_unidades_soltas or 0.0)
+            return embalagens + (unidades_soltas / packaging_factor)
+
         def _calc_stock_total_value(item: Item, *, preco_unitario_base: float | None, saldo_total: float) -> float | None:
             if preco_unitario_base is None or preco_unitario_base <= 0:
                 return None
-            return float(saldo_total or 0.0) * preco_unitario_base
+            quantity_for_value = _resolve_stock_value_quantity(item, saldo_total=saldo_total)
+            return quantity_for_value * preco_unitario_base
 
         for item in itens:
             if self._should_use_packaging_display(item):
+                if self._sync_packaging_read_model_for_item(item, commit=False):
+                    atualizado = True
                 try:
                     saldo = float(item.get_saldo_fisico_total() or 0.0)
                 except Exception:
@@ -1505,7 +1551,9 @@ class InventoryService:
         if not item:
             return None
         from ..services.embalagem_service import EmbalagemService
+        packaging_synced = False
         if EmbalagemService.tem_embalagem(item):
+            packaging_synced = self._sync_packaging_read_model_for_item(item, commit=False)
             try:
                 saldo = float(EmbalagemService.calcular_estoque_total(item) or 0)
             except Exception:
@@ -1515,6 +1563,8 @@ class InventoryService:
         minimo = _calculate_min_stock(saldo)
         if item.estoque_minimo != minimo:
             item.estoque_minimo = minimo
+            packaging_synced = True
+        if packaging_synced:
             db.session.commit()
         dados = item.to_dict(include_balance=True)
         latest_finance_entry = (
@@ -2789,7 +2839,7 @@ class InventoryService:
                         telegram_balance_unit = "KG"
                     else:
                         telegram_balance_unit = "un"
-                elif tipo_emb in ("pacote", "caixa"):
+                elif tipo_emb in ("pacote", "caixa", "fardo"):
                     telegram_balance_unit = "un"
                 elif tipo_emb == "litro":
                     telegram_balance_unit = "L"

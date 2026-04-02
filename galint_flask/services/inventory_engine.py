@@ -58,6 +58,7 @@ class InventoryEngine:
         "quilos": "kg",
         "caixas": "caixa",
         "pacotes": "pacote",
+        "fardos": "fardo",
         "rolos": "rolo",
         "latas": "lata",
         "baldes": "balde",

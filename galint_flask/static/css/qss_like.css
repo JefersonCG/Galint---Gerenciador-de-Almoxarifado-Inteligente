@@ -205,6 +205,21 @@ html {
     overflow: auto;
 }
 
+.galint-dark-surface,
+.galint-dark-surface .modal-body,
+.galint-dark-surface .modal-header,
+.galint-dark-surface .modal-footer {
+    color: #e2e8f0;
+}
+
+.galint-dark-surface .text-muted,
+.galint-dark-surface .form-text,
+.galint-dark-surface small,
+.galint-dark-surface label,
+.galint-dark-surface .small.text-muted {
+    color: #cbd5e1 !important;
+}
+
 .page-header {
     margin-bottom: 1.25rem;
     display: flex;

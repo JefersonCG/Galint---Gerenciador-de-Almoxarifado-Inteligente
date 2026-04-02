@@ -30,7 +30,7 @@ def _uses_packaging_system(item_data: dict | None) -> bool:
     if not item_data:
         return False
     tipo = (item_data.get("tipo_embalagem_novo") or "").strip().lower()
-    if tipo not in {"lata", "rolo", "pacote", "caixa", "litro", "balde", "saco"}:
+    if tipo not in {"lata", "rolo", "pacote", "caixa", "fardo", "litro", "balde", "saco"}:
         return False
     try:
         unidades_por = float(item_data.get("unidades_por_embalagem") or 0)
@@ -110,6 +110,59 @@ def _can_edit_finance_section(codigo: str | None, *, user=None) -> bool:
     if not codigo_norm:
         return False
     return bool(_get_finance_unlocks().get(codigo_norm))
+
+
+def _clear_document_runtime_cache(document_numbers: list[str] | None = None) -> None:
+    try:
+        inventory_service.clear_runtime_cache("list_items")
+        inventory_service.clear_runtime_cache("dashboard_snapshot")
+        inventory_service.clear_runtime_cache("list_notas_fiscais:")
+        finance_service.clear_runtime_cache("list_stock_documents:")
+        if document_numbers:
+            for numero in document_numbers:
+                numero_norm = str(numero or "").strip()
+                if not numero_norm:
+                    continue
+                inventory_service.clear_runtime_cache(f"get_nota_fiscal:{numero_norm}")
+                finance_service.clear_runtime_cache(f"get_stock_document_by_number:{numero_norm}")
+        else:
+            inventory_service.clear_runtime_cache("get_nota_fiscal:")
+            finance_service.clear_runtime_cache("get_stock_document_by_number:")
+    except Exception:
+        pass
+
+
+def _json_no_store(payload: dict[str, object]):
+    response = jsonify(payload)
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
+
+
+def _load_linked_document_context(item_data: dict | None) -> dict[str, object]:
+    if not item_data:
+        return {}
+
+    raw_document_item_id = item_data.get("pre_cadastro_documento_item_id")
+    try:
+        document_item_id = int(raw_document_item_id)
+    except (TypeError, ValueError):
+        return {}
+
+    document_item = db.session.get(DocumentoEntradaEstoqueItem, document_item_id)
+    if document_item is None or document_item.documento is None:
+        return {}
+
+    documento = document_item.documento
+    return {
+        "nota_fiscal": documento.numero_documento,
+        "preco_compra_documento": documento.numero_documento,
+        "preco_compra_chave_acesso": documento.chave_acesso,
+        "preco_compra_data_emissao": documento.data_emissao.isoformat() if documento.data_emissao else None,
+        "preco_compra_data_recebimento": documento.data_recebimento.isoformat() if documento.data_recebimento else None,
+        "finance_tipo_documento": documento.tipo_documento,
+    }
 
 
 def _sync_finance_section_snapshot(
@@ -316,7 +369,12 @@ def _serialize_batch_price_item(item: Item) -> dict[str, object]:
     }
 
 
-def _extract_finance_payload(form, *, current_item: dict | None = None) -> dict[str, object]:
+def _extract_finance_payload(
+    form,
+    *,
+    current_item: dict | None = None,
+    inherit_document_metadata: bool = False,
+) -> dict[str, object]:
     def _parse_iso_date(value: str | None) -> date | None:
         raw = (value or "").strip()
         if not raw:
@@ -351,11 +409,11 @@ def _extract_finance_payload(form, *, current_item: dict | None = None) -> dict[
             comprovacao = (current_item.get("finance_comprovacao_status") or comprovacao)
         if not observacao:
             observacao = (current_item.get("finance_observacao") or None)
-        if not chave_acesso:
+        if inherit_document_metadata and not chave_acesso:
             chave_acesso = (current_item.get("preco_compra_chave_acesso") or None)
-        if data_emissao is None:
+        if inherit_document_metadata and data_emissao is None:
             data_emissao = _parse_iso_date(current_item.get("preco_compra_data_emissao"))
-        if data_recebimento is None:
+        if inherit_document_metadata and data_recebimento is None:
             data_recebimento = _parse_iso_date(current_item.get("preco_compra_data_recebimento"))
 
     if not comprovacao:
@@ -364,8 +422,8 @@ def _extract_finance_payload(form, *, current_item: dict | None = None) -> dict[
     numero_documento = (
         numero_nf
         or (form.get("preco_compra_documento") or "").strip()
-        or (current_item.get("nota_fiscal") if current_item else "")
-        or (current_item.get("preco_compra_documento") if current_item else "")
+        or ((current_item.get("nota_fiscal") if current_item else "") if inherit_document_metadata else "")
+        or ((current_item.get("preco_compra_documento") if current_item else "") if inherit_document_metadata else "")
         or None
     )
     return {
@@ -1044,14 +1102,14 @@ def create_item():
         unidades_var = val
         if unidade_embalagem_novo == "kg":
             grandeza_var = val
-    elif tipo_novo == "caixa":
+    elif tipo_novo in ["caixa", "fardo"]:
         unidades_var = float(unidades_por_emb_raw) if unidades_por_emb_raw and unidades_por_emb_raw.strip() else None
     elif tipo_novo == "litro":
         litros_var = float(unidades_por_emb_raw) if unidades_por_emb_raw and unidades_por_emb_raw.strip() else None
         unidades_var = litros_var
 
     em_embalagens = None
-    if tipo_novo in ["lata", "rolo", "pacote", "caixa", "litro", "balde", "bombona", "saco"] and unidades_var and unidades_var > 0:
+    if tipo_novo in ["lata", "rolo", "pacote", "caixa", "fardo", "litro", "balde", "bombona", "saco"] and unidades_var and unidades_var > 0:
         em_embalagens = True
     
     payload = {
@@ -1209,6 +1267,9 @@ def edit_item_form(codigo: str):
     if not item:
         flash("Item não encontrado.", "danger")
         return redirect(url_for("inventory.list_items"))
+
+    if bool(item.get("pre_cadastro_pendente")):
+        item = {**item, **_load_linked_document_context(item)}
     
     # Calcular saldo total de todos os lotes com o mesmo EAN
     saldo_total = Item.get_saldo_total_by_codigo(codigo)
@@ -1278,6 +1339,10 @@ def update_item(codigo: str):
         saldo_desejado = float(saldo_raw or 0)
     except ValueError:
         saldo_desejado = -1
+    finalize_pre_registration = (
+        bool(prev_item.get("pre_cadastro_pendente"))
+        and str(form.get("finalizar_pre_cadastro") or "").strip() in {"1", "true", "True"}
+    )
     registrar_compra_edicao = bool(form.get("registrar_compra_edicao"))
     finance_section_edit_authorized = _can_edit_finance_section(codigo) and str(form.get("finance_section_edit_enabled") or "0").strip() in {"1", "true", "True"}
 
@@ -1305,7 +1370,7 @@ def update_item(codigo: str):
         unidades_var = val
         if unidade_embalagem_novo == 'kg':
             grandeza_var = val
-    elif tipo_novo == 'caixa':
+    elif tipo_novo in ['caixa', 'fardo']:
         val = float(unidades_por_emb_raw) if unidades_por_emb_raw and unidades_por_emb_raw.strip() else None
         unidades_var = val
     elif tipo_novo == 'litro':
@@ -1370,7 +1435,7 @@ def update_item(codigo: str):
         "finance_observacao": prev_item.get("finance_observacao"),
     }
 
-    if prev_item.get("pre_cadastro_pendente") and str(form.get("finalizar_pre_cadastro") or "").strip() in {"1", "true", "True"}:
+    if finalize_pre_registration:
         payload.update(
             {
                 "pre_cadastro_pendente": False,
@@ -1497,6 +1562,13 @@ def update_item(codigo: str):
                 flash(f"Erro no upload da foto: {str(e)}", "warning")
 
         updated_codigo = inventory_service.update_item(codigo, payload)
+        process_pending_result = None
+        if finalize_pre_registration:
+            process_pending_result = finance_service.process_pending_document_items_for_item(
+                updated_codigo,
+                usuario_matricula=current_user.id,
+            )
+            _clear_document_runtime_cache(process_pending_result.get("document_numbers"))
 
         history_recorded = False
         if finance_section_edit_authorized:
@@ -1528,6 +1600,16 @@ def update_item(codigo: str):
                 )
             except Exception:
                 pass
+        if process_pending_result:
+            if process_pending_result.get("processed"):
+                flash(
+                    f"{process_pending_result['processed']} lançamento(s) documental(is) foram incorporados ao estoque após a finalização do pré-cadastro.",
+                    "info",
+                )
+            elif not process_pending_result.get("errors") and not process_pending_result.get("skipped"):
+                flash("O pré-cadastro foi finalizado, mas não havia lançamentos documentais pendentes para incorporar ao estoque.", "info")
+            if process_pending_result.get("errors"):
+                flash("O pré-cadastro foi finalizado, mas houve falhas ao incorporar parte dos lançamentos documentais ao estoque.", "warning")
         flash("Item atualizado com sucesso.", "success")
     except ValueError as exc:
         flash(str(exc), "danger")
@@ -2120,11 +2202,12 @@ def delete_inactive_items_by_category(categoria: str):
 @blueprint.get('/categoria/<categoria>/relatorio')
 @login_required
 def category_report(categoria: str):
-    """Gera relatório de itens de uma categoria em PDF ou XLSX."""
-    format_type = (request.args.get("format") or "pdf").strip().lower()
-    if format_type not in {"pdf", "xlsx"}:
-        flash("Formato inválido. Use PDF ou XLSX.", "danger")
+    """Gera relatório de itens de uma categoria em PDF."""
+    requested_format = (request.args.get("format") or "pdf").strip().lower()
+    if requested_format not in {"pdf", "xlsx"}:
+        flash("Formato inválido. Use PDF.", "danger")
         return redirect(url_for("inventory.list_items", categoria=categoria))
+    format_type = "pdf"
 
     itens = inventory_service.list_items()
     itens_categoria = [item for item in itens if item.get("categoria") == categoria]
@@ -2228,7 +2311,7 @@ def category_report(categoria: str):
         from reportlab.lib.units import cm
         from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
     except Exception:
-        flash("Não foi possível gerar PDF (dependência reportlab). Gere em XLSX.", "danger")
+        flash("Não foi possível gerar PDF (dependência reportlab).", "danger")
         return redirect(url_for("inventory.list_items", categoria=categoria))
 
     from ..utils.report_branding import get_company_header_html
@@ -2497,7 +2580,7 @@ def pre_registered_items_api():
     if numero:
         payload = _build_pre_registered_items_payload(numero)
         if not payload:
-            return jsonify({
+            return _json_no_store({
                 "success": True,
                 "mode": "single",
                 "found": False,
@@ -2505,7 +2588,7 @@ def pre_registered_items_api():
                 "documents": [],
                 "items": [],
             })
-        return jsonify({
+        return _json_no_store({
             "success": True,
             "mode": "single",
             "found": True,
@@ -2515,7 +2598,7 @@ def pre_registered_items_api():
 
     documents = _build_all_pre_registered_documents_payload()
     total_items = sum(len(document.get("items") or []) for document in documents)
-    return jsonify({
+    return _json_no_store({
         "success": True,
         "mode": "all",
         "found": bool(documents),

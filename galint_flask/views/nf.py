@@ -7,7 +7,7 @@ from typing import Any
 
 from flask import Blueprint, abort, current_app, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
-from sqlalchemy import Date, cast, func, or_
+from sqlalchemy import Date, and_, cast, func, or_
 from sqlalchemy.orm import joinedload
 
 from ..extensions import db
@@ -41,6 +41,7 @@ DEFAULT_DOCUMENT_UNIT_OPTIONS = [
     "Quilo",
     "Caixa",
     "Pacote",
+    "Fardo",
     "Saco",
     "Rolo",
     "Balde",
@@ -161,15 +162,6 @@ def _resolve_documento_movimenta_estoque(*, data_emissao: date | None, data_rece
         data_emissao=data_emissao,
         data_recebimento=data_recebimento,
     )
-
-
-def _empty_process_result() -> dict[str, int | list[str]]:
-    return {
-        "processed": 0,
-        "skipped": 0,
-        "errors": 0,
-        "messages": [],
-    }
 
 
 def _document_is_ready_for_nf_confirmation(documento: DocumentoEntradaEstoque) -> bool:
@@ -374,7 +366,13 @@ def _sync_document_financial_entries(documento: DocumentoEntradaEstoque) -> dict
             query = query.filter(
                 or_(
                     FinanceLedgerEntry.numero_documento == documento.numero_documento,
-                    FinanceLedgerEntry.comprovacao_status.in_(["sem_comprovacao", "parcial"]),
+                    and_(
+                        or_(
+                            FinanceLedgerEntry.numero_documento.is_(None),
+                            FinanceLedgerEntry.numero_documento == "",
+                        ),
+                        FinanceLedgerEntry.comprovacao_status.in_(["sem_comprovacao", "parcial"]),
+                    ),
                 )
             )
 
@@ -445,18 +443,20 @@ def _sync_document_financial_entries(documento: DocumentoEntradaEstoque) -> dict
             ledger_entry.origem_valor = auto_origin
             ledger_entry.comprovacao_status = "comprovado"
 
-        if item_row.item is not None and valor_unitario is not None:
-            item_row.item.preco_compra_unitario = valor_unitario
-            item_row.item.preco_compra_unitario_base = item_row.valor_unitario_base
-            item_row.item.preco_compra_unidade_preco = item_row.unidade_preco
-            item_row.item.preco_compra_fator_base = item_row.fator_preco_base
-            item_row.item.preco_compra_fonte = auto_origin or item_row.item.preco_compra_fonte or "compra_nf"
+        if item_row.item is not None:
+            item_row.item.nota_fiscal = documento.numero_documento
             item_row.item.preco_compra_documento = documento.numero_documento
             item_row.item.preco_compra_chave_acesso = documento.chave_acesso
             item_row.item.preco_compra_data_emissao = documento.data_emissao
             item_row.item.preco_compra_data_recebimento = documento.data_recebimento
+            item_row.item.preco_compra_fonte = auto_origin or item_row.item.preco_compra_fonte or "compra_nf"
             item_row.item.preco_compra_atualizado_em = datetime.utcnow()
             item_row.item.preco_compra_atualizado_por = current_user.id
+            if valor_unitario is not None:
+                item_row.item.preco_compra_unitario = valor_unitario
+                item_row.item.preco_compra_unitario_base = item_row.valor_unitario_base
+                item_row.item.preco_compra_unidade_preco = item_row.unidade_preco
+                item_row.item.preco_compra_fator_base = item_row.fator_preco_base
 
         updated += 1
 
@@ -530,6 +530,52 @@ def _clear_nf_runtime_cache(numero_documento: str | None = None) -> None:
             finance_service.clear_runtime_cache("get_stock_document_by_number:")
     except Exception:
         pass
+
+
+def _mark_item_for_nf_pre_registration(
+    item_model: Item | None,
+    *,
+    document_item_id: int | None = None,
+) -> bool:
+    if item_model is None:
+        return False
+
+    changed = False
+    if not bool(getattr(item_model, "pre_cadastro_pendente", False)):
+        item_model.pre_cadastro_pendente = True
+        changed = True
+
+    if (getattr(item_model, "pre_cadastro_origem", "") or "").strip().lower() != "nf":
+        item_model.pre_cadastro_origem = "nf"
+        changed = True
+
+    if document_item_id is not None and item_model.pre_cadastro_documento_item_id != document_item_id:
+        item_model.pre_cadastro_documento_item_id = document_item_id
+        changed = True
+
+    if item_model.pre_cadastro_criado_em is None:
+        item_model.pre_cadastro_criado_em = datetime.utcnow()
+        changed = True
+
+    if item_model.pre_cadastro_finalizado_em is not None:
+        item_model.pre_cadastro_finalizado_em = None
+        changed = True
+
+    return changed
+
+
+def _mark_document_items_for_nf_pre_registration(document_items: list[DocumentoEntradaEstoqueItem]) -> int:
+    changed = 0
+    for document_item in document_items:
+        if document_item is None:
+            continue
+        item_model = document_item.item or db.session.get(Item, document_item.codigo_item)
+        if _mark_item_for_nf_pre_registration(
+            item_model,
+            document_item_id=document_item.id_documento_item,
+        ):
+            changed += 1
+    return changed
 
 
 def _audit_document_item_deletion(
@@ -1186,30 +1232,18 @@ def registrar_nf():
         )
         document_item = document_result.get("document_item")
         documento = document_result.get("document")
+        if documento and documento.movimenta_estoque and document_item is not None:
+            _mark_document_items_for_nf_pre_registration([document_item])
         sync_result = _sync_document_financial_entries(documento)
-        process_result = finance_service.process_stock_document_entries(
-            documento.id_documento,
-            usuario_matricula=current_user.id,
-        )
+        db.session.commit()
         _clear_nf_runtime_cache(documento.numero_documento)
-        if item_criado_na_nf and document_item and codigo:
-            item_model = Item.query.get(codigo)
-            if item_model:
-                item_model.pre_cadastro_pendente = True
-                item_model.pre_cadastro_origem = "nf"
-                item_model.pre_cadastro_documento_item_id = document_item.id_documento_item
-                item_model.pre_cadastro_criado_em = item_model.pre_cadastro_criado_em or datetime.utcnow()
-                item_model.pre_cadastro_finalizado_em = None
-                db.session.commit()
         if not documento.movimenta_estoque:
             flash("Documento fiscal registrado apenas no financeiro. O estoque não foi movimentado por opção do lançamento.", "info")
-        elif process_result["errors"]:
-            flash("Documento registrado, mas houve falhas ao incorporar alguns itens no estoque.", "warning")
         else:
-            flash("Documento fiscal registrado e incorporado ao estoque documental.", "success")
+            flash("Documento fiscal registrado. O item só sobe ao estoque após a finalização do pré-cadastro.", "success")
         if sync_result["updated"]:
             flash(f"{sync_result['updated']} lançamento(s) financeiro(s) sincronizado(s) com o documento.", "info")
-        if item_criado_na_nf:
+        if item_criado_na_nf or (documento and documento.movimenta_estoque and document_item is not None):
             flash("O item ficou disponível em PRÉ CADASTRADOS para conclusão do cadastro na tela de Itens.", "info")
     except ValueError as exc:
         flash(str(exc), "danger")
@@ -1353,7 +1387,6 @@ def editar_documento(documento_id: int):
         return redirect(url_for("nf.nf_index"))
 
     try:
-        previous_document_movimenta_estoque = bool(getattr(documento, "movimenta_estoque", True))
         numero_documento = (request.form.get("numero_documento") or "").strip()
         tipo_documento = (request.form.get("tipo_documento") or "nf").strip() or "nf"
         supplier_raw = (request.form.get("finance_supplier_id") or "").strip()
@@ -1406,12 +1439,8 @@ def editar_documento(documento_id: int):
             documento.mensagem_integracao = None
 
         with allow_document_quantity_update("nf.editar_documento"):
-            changed_pending_item_ids: set[int] = set()
             for item_row in documento.itens:
                 previous_quantidade = float(item_row.quantidade or 0.0)
-                previous_valor_unitario = float(item_row.valor_unitario) if item_row.valor_unitario not in (None, "") else None
-                previous_valor_total = float(item_row.valor_total) if item_row.valor_total not in (None, "") else None
-                previous_observacao = (item_row.observacao or "").strip() or None
                 previous_status = (item_row.status_processamento or "pendente").strip().lower() or "pendente"
                 quantidade = _parse_optional_float(
                     request.form.get(f"item_quantidade_{item_row.id_documento_item}"),
@@ -1448,29 +1477,16 @@ def editar_documento(documento_id: int):
                 item_row.valor_total = valor_total
                 item_row.observacao = observacao_item
 
-                quantity_changed = abs(float(quantidade) - previous_quantidade) > 1e-6
-                unit_changed = _float_changed(valor_unitario, previous_valor_unitario, tolerance=0.000001)
-                total_changed = _float_changed(valor_total, previous_valor_total, tolerance=0.01)
-                note_changed = observacao_item != previous_observacao
-                if previous_status != "processado" and (quantity_changed or unit_changed or total_changed or note_changed):
-                    changed_pending_item_ids.add(item_row.id_documento_item)
+            pending_document_items = [
+                row for row in documento.itens
+                if (row.status_processamento or "pendente").strip().lower() != "processado"
+            ]
+            if bool(documento.movimenta_estoque):
+                _mark_document_items_for_nf_pre_registration(pending_document_items)
 
             sync_result = _sync_document_financial_entries(documento)
             db.session.commit()
         _clear_nf_runtime_cache(documento.numero_documento)
-        process_item_ids: list[int] | None = None
-        if bool(documento.movimenta_estoque):
-            if not previous_document_movimenta_estoque:
-                process_item_ids = [row.id_documento_item for row in documento.itens]
-            elif changed_pending_item_ids:
-                process_item_ids = sorted(changed_pending_item_ids)
-        process_result = _empty_process_result()
-        if process_item_ids:
-            process_result = finance_service.process_stock_document_entries(
-                documento.id_documento,
-                usuario_matricula=current_user.id,
-                item_ids=process_item_ids,
-            )
 
         if sync_result["auto_confirmed"]:
             flash(
@@ -1484,10 +1500,11 @@ def editar_documento(documento_id: int):
             )
         if not documento.movimenta_estoque:
             flash("Documento fiscal atualizado apenas no financeiro. O estoque permaneceu inalterado.", "info")
-        elif process_result["processed"]:
-            flash(f"{process_result['processed']} item(ns) pendente(s) foram incorporados ao estoque.", "info")
-        if process_result["errors"]:
-            flash("Nem todos os itens pendentes puderam ser incorporados ao estoque. Revise o documento para detalhes.", "warning")
+        elif pending_document_items:
+            flash(
+                f"{len(pending_document_items)} item(ns) aguardam finalização do pré-cadastro antes de entrar no estoque.",
+                "info",
+            )
         if sync_result["skipped"]:
             flash(
                 f"{sync_result['skipped']} item(ns) não tinham lançamento financeiro compatível para atualização automática.",
@@ -1537,6 +1554,7 @@ def adicionar_item_documento(documento_id: int):
 
         with allow_document_quantity_update("nf.adicionar_item_documento"):
             affected_item_ids: set[int] = set()
+            pending_document_items: list[DocumentoEntradaEstoqueItem] = []
             existing_row = next(
                 (
                     row for row in documento.itens
@@ -1554,6 +1572,7 @@ def adicionar_item_documento(documento_id: int):
                 if observacao:
                     existing_row.observacao = observacao if not existing_row.observacao else f"{existing_row.observacao} | {observacao}"
                 affected_item_ids.add(existing_row.id_documento_item)
+                pending_document_items.append(existing_row)
                 flash(f"Item {codigo_item} já existia na NF e teve a quantidade somada.", "success")
             else:
                 new_item_row = DocumentoEntradaEstoqueItem(
@@ -1570,18 +1589,15 @@ def adicionar_item_documento(documento_id: int):
                 db.session.add(new_item_row)
                 db.session.flush()
                 affected_item_ids.add(new_item_row.id_documento_item)
+                pending_document_items.append(new_item_row)
                 flash(f"Item {codigo_item} adicionado ao documento fiscal {documento.numero_documento}.", "success")
+
+            if bool(documento.movimenta_estoque):
+                _mark_document_items_for_nf_pre_registration(pending_document_items)
 
             sync_result = _sync_document_financial_entries(documento)
             db.session.commit()
         _clear_nf_runtime_cache(documento.numero_documento)
-        process_result = _empty_process_result()
-        if bool(documento.movimenta_estoque) and affected_item_ids:
-            process_result = finance_service.process_stock_document_entries(
-                documento.id_documento,
-                usuario_matricula=current_user.id,
-                item_ids=sorted(affected_item_ids),
-            )
         if sync_result["skipped"]:
             flash(
                 f"{sync_result['skipped']} item(ns) seguem sem lançamento financeiro compatível para sincronização automática.",
@@ -1589,10 +1605,8 @@ def adicionar_item_documento(documento_id: int):
             )
         if not documento.movimenta_estoque:
             flash("Item adicionado apenas no financeiro. O documento está configurado para não movimentar estoque.", "info")
-        elif process_result["processed"]:
-            flash(f"{process_result['processed']} item(ns) foram incorporados ao estoque documental.", "info")
-        if process_result["errors"]:
-            flash("Falha ao incorporar um ou mais itens adicionados ao estoque. Revise o documento fiscal.", "warning")
+        elif affected_item_ids:
+            flash("O item aguarda finalização do pré-cadastro antes de ser incorporado ao estoque.", "info")
     except ValueError as exc:
         db.session.rollback()
         flash(str(exc), "danger")

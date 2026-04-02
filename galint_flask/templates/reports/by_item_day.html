@@ -1,0 +1,523 @@
+{% extends "base.html" %}
+
+{% block title %}Relatório Diário por Item - GALINT{% endblock %}
+
+{% block extra_css %}
+<style>
+    .daily-report-shell {
+        --daily-text-primary: #f8fbff;
+        --daily-text-secondary: rgba(224, 235, 248, 0.9);
+        --daily-text-muted: rgba(176, 193, 214, 0.82);
+        --daily-border: rgba(148, 163, 184, 0.18);
+        --daily-surface: linear-gradient(180deg, rgba(11, 20, 33, 0.98), rgba(14, 25, 40, 0.96));
+        --daily-surface-soft: rgba(12, 21, 34, 0.78);
+        --daily-glow: rgba(56, 189, 248, 0.22);
+        --daily-success: rgba(34, 197, 94, 0.18);
+        background:
+            radial-gradient(circle at top left, rgba(14, 165, 233, 0.12), transparent 24%),
+            radial-gradient(circle at top right, rgba(16, 185, 129, 0.1), transparent 18%),
+            linear-gradient(180deg, #060e19 0%, #0c1523 100%);
+        border: 1px solid var(--daily-border);
+        border-radius: 30px;
+        padding: 1.5rem;
+        color: var(--daily-text-primary);
+        box-shadow: 0 24px 52px rgba(2, 6, 23, 0.42);
+    }
+
+    .daily-hero {
+        position: relative;
+        overflow: hidden;
+        border-radius: 26px;
+        padding: 1.6rem;
+        margin-bottom: 1.35rem;
+        background: linear-gradient(135deg, rgba(15, 23, 42, 0.98) 0%, rgba(12, 26, 46, 0.96) 52%, rgba(3, 105, 161, 0.9) 100%);
+        border: 1px solid rgba(125, 211, 252, 0.16);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 18px 42px rgba(2, 6, 23, 0.36);
+    }
+
+    .daily-hero::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(110deg, rgba(34, 197, 94, 0.08), transparent 38%, rgba(56, 189, 248, 0.12));
+        pointer-events: none;
+    }
+
+    .daily-hero > * {
+        position: relative;
+        z-index: 1;
+    }
+
+    .daily-badge-row {
+        display: flex;
+        gap: 0.65rem;
+        flex-wrap: wrap;
+        margin-bottom: 0.85rem;
+    }
+
+    .daily-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.42rem 0.85rem;
+        border-radius: 999px;
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.03em;
+        background: rgba(15, 23, 42, 0.4);
+        color: #d9f99d;
+        border: 1px solid rgba(217, 249, 157, 0.18);
+    }
+
+    .daily-badge.daily-badge-date {
+        color: #bfdbfe;
+        border-color: rgba(147, 197, 253, 0.2);
+    }
+
+    .daily-hero h1 {
+        font-size: clamp(1.95rem, 3.4vw, 2.8rem);
+        font-weight: 900;
+        letter-spacing: -0.04em;
+        margin-bottom: 0.4rem;
+        color: #f8fafc;
+    }
+
+    .daily-hero p {
+        margin: 0;
+        max-width: 64rem;
+        line-height: 1.6;
+        color: var(--daily-text-secondary);
+    }
+
+    .daily-filter-card,
+    .daily-stats-card,
+    .daily-item-card,
+    .daily-empty-state {
+        background: var(--daily-surface);
+        border: 1px solid var(--daily-border);
+        border-radius: 24px;
+        box-shadow: 0 16px 34px rgba(2, 6, 23, 0.28);
+    }
+
+    .daily-filter-card {
+        padding: 1rem;
+        margin-bottom: 1.25rem;
+    }
+
+    .daily-filter-card .form-label,
+    .daily-filter-card .form-text {
+        color: var(--daily-text-secondary);
+    }
+
+    .daily-filter-card .form-control {
+        background: rgba(9, 16, 28, 0.88);
+        border-color: rgba(100, 116, 139, 0.35);
+        color: #f8fafc;
+    }
+
+    .daily-filter-card .form-control:focus {
+        border-color: rgba(56, 189, 248, 0.54);
+        box-shadow: 0 0 0 0.25rem rgba(56, 189, 248, 0.16);
+    }
+
+    .daily-stats-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 0.95rem;
+        margin-bottom: 1.25rem;
+    }
+
+    .daily-stats-card {
+        padding: 1rem;
+    }
+
+    .daily-stats-card small {
+        display: block;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--daily-text-muted);
+        margin-bottom: 0.35rem;
+        font-size: 0.72rem;
+    }
+
+    .daily-stats-card strong {
+        display: block;
+        font-size: 1.7rem;
+        line-height: 1;
+        color: #f8fafc;
+    }
+
+    .daily-stats-card span {
+        display: block;
+        margin-top: 0.35rem;
+        color: var(--daily-text-secondary);
+        font-size: 0.9rem;
+    }
+
+    .daily-results-grid {
+        display: grid;
+        gap: 1rem;
+    }
+
+    .daily-item-card {
+        padding: 1.1rem;
+    }
+
+    .daily-item-summary {
+        display: grid;
+        grid-template-columns: 120px minmax(0, 1fr);
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .daily-item-photo {
+        width: 120px;
+        height: 120px;
+        border-radius: 22px;
+        overflow: hidden;
+        background: rgba(15, 23, 42, 0.94);
+        border: 1px solid rgba(125, 211, 252, 0.14);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+    }
+
+    .daily-item-photo img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .daily-item-photo-placeholder {
+        font-size: 2.1rem;
+        color: rgba(191, 219, 254, 0.7);
+    }
+
+    .daily-item-heading {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        flex-wrap: wrap;
+        margin-bottom: 0.8rem;
+    }
+
+    .daily-item-heading h3 {
+        margin: 0;
+        font-size: clamp(1.15rem, 2vw, 1.45rem);
+        color: #f8fafc;
+    }
+
+    .daily-item-subtitle {
+        margin-top: 0.2rem;
+        color: var(--daily-text-muted);
+        font-size: 0.92rem;
+    }
+
+    .daily-chip-row,
+    .daily-kpi-row {
+        display: flex;
+        gap: 0.55rem;
+        flex-wrap: wrap;
+    }
+
+    .daily-chip,
+    .daily-kpi {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.42rem 0.72rem;
+        border-radius: 999px;
+        background: rgba(15, 23, 42, 0.82);
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        color: var(--daily-text-secondary);
+        font-size: 0.82rem;
+    }
+
+    .daily-kpi {
+        background: rgba(8, 16, 28, 0.9);
+        color: #e0f2fe;
+    }
+
+    .daily-kpi strong {
+        color: #f8fafc;
+        font-size: 0.96rem;
+    }
+
+    .daily-item-table {
+        overflow: hidden;
+        border-radius: 18px;
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        background: rgba(9, 16, 28, 0.78);
+    }
+
+    .daily-item-table table {
+        margin: 0;
+    }
+
+    .daily-item-table thead th {
+        background: rgba(15, 23, 42, 0.92);
+        color: #dbeafe;
+        font-size: 0.76rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+    }
+
+    .daily-item-table tbody td {
+        color: var(--daily-text-secondary);
+        border-color: rgba(148, 163, 184, 0.08);
+        vertical-align: top;
+    }
+
+    .daily-item-table tbody tr:hover {
+        background: rgba(56, 189, 248, 0.08);
+    }
+
+    .daily-period-badge,
+    .daily-custody-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 999px;
+        padding: 0.28rem 0.58rem;
+        font-size: 0.74rem;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+
+    .daily-period-badge {
+        background: rgba(251, 191, 36, 0.16);
+        color: #fde68a;
+    }
+
+    .daily-custody-badge {
+        background: rgba(59, 130, 246, 0.16);
+        color: #bfdbfe;
+    }
+
+    .daily-custody-badge.daily-custody-badge-permanent {
+        background: var(--daily-success);
+        color: #bbf7d0;
+    }
+
+    .daily-location-text {
+        white-space: normal;
+        color: var(--daily-text-secondary);
+    }
+
+    .daily-empty-state {
+        padding: 2.6rem 1.4rem;
+        text-align: center;
+        color: var(--daily-text-secondary);
+    }
+
+    .daily-empty-state i {
+        font-size: 3rem;
+        color: rgba(191, 219, 254, 0.62);
+        margin-bottom: 0.75rem;
+    }
+
+    @media (max-width: 1199px) {
+        .daily-stats-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    @media (max-width: 767px) {
+        .daily-report-shell {
+            padding: 1rem;
+            border-radius: 24px;
+        }
+
+        .daily-hero {
+            padding: 1.25rem;
+        }
+
+        .daily-stats-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .daily-item-summary {
+            grid-template-columns: 1fr;
+        }
+
+        .daily-item-photo {
+            width: 100%;
+            max-width: 180px;
+            height: 180px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block page_header %}
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <div>
+        <h2 class="mb-1" style="color: #000 !important;">📆 Relatório Diário por Item</h2>
+        <p class="text-muted mb-0" style="color: #000 !important;">Visão agrupada das retiradas de um único dia</p>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+        <a href="{{ url_for('reports.by_item') }}" class="btn btn-outline-info">
+            <i class="bi bi-search"></i> Relatório por Item
+        </a>
+        <a href="{{ url_for('reports.index') }}" class="btn btn-outline-light">
+            <i class="bi bi-arrow-left"></i> Voltar
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="daily-report-shell">
+    <section class="daily-hero">
+        <div class="daily-badge-row">
+            <span class="daily-badge"><i class="bi bi-collection"></i> Conciliação diária</span>
+            <span class="daily-badge daily-badge-date"><i class="bi bi-calendar-event"></i> {{ selected_date_label }}</span>
+            {% if search_term %}
+            <span class="daily-badge daily-badge-date"><i class="bi bi-funnel"></i> Filtro: {{ search_term }}</span>
+            {% endif %}
+        </div>
+        <h1>Retiradas agrupadas por item</h1>
+        <p>Esta página reúne somente as saídas do dia selecionado, separadas por item, com foto e histórico linha a linha para facilitar a conferência com imagens, Telegram e ajustes físicos.</p>
+    </section>
+
+    <form method="get" action="{{ url_for('reports.by_item_day') }}" class="daily-filter-card">
+        <div class="row g-3 align-items-end">
+            <div class="col-lg-3 col-md-4">
+                <label class="form-label">
+                    <i class="bi bi-calendar-day"></i> Data
+                </label>
+                <input type="date" class="form-control" name="date" value="{{ selected_date }}" required>
+            </div>
+            <div class="col-lg-5 col-md-8">
+                <label class="form-label">
+                    <i class="bi bi-search"></i> Filtro opcional
+                </label>
+                <input
+                    type="text"
+                    class="form-control"
+                    name="search"
+                    value="{{ search_term }}"
+                    placeholder="Item, código, funcionário, local ou observação">
+                <div class="form-text">Use quando quiser reduzir a página a um item, colaborador ou detalhe específico.</div>
+            </div>
+            <div class="col-lg-4 d-flex gap-2 flex-wrap">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-search"></i> Atualizar visão
+                </button>
+                <a href="{{ url_for('reports.by_item_day', date=selected_date) }}" class="btn btn-outline-light">
+                    <i class="bi bi-x-circle"></i> Limpar filtro
+                </a>
+            </div>
+        </div>
+    </form>
+
+    <section class="daily-stats-grid">
+        <div class="daily-stats-card">
+            <small>Itens no dia</small>
+            <strong>{{ stats.total_items }}</strong>
+            <span>Itens distintos com retirada registrada</span>
+        </div>
+        <div class="daily-stats-card">
+            <small>Movimentações</small>
+            <strong>{{ stats.total_movements }}</strong>
+            <span>Lançamentos individuais localizados para a data</span>
+        </div>
+        <div class="daily-stats-card">
+            <small>Total retirado</small>
+            <strong>{{ stats.total_quantity }}</strong>
+            <span>Soma das quantidades movimentadas no dia</span>
+        </div>
+        <div class="daily-stats-card">
+            <small>Itens com foto</small>
+            <strong>{{ stats.items_with_photo }}</strong>
+            <span>Grupos que já possuem imagem cadastrada</span>
+        </div>
+    </section>
+
+    {% if grouped_items %}
+    <section class="daily-results-grid">
+        {% for item in grouped_items %}
+        <article class="daily-item-card">
+            <div class="daily-item-summary">
+                <div class="daily-item-photo">
+                    {% if item.foto_url %}
+                    <img src="{{ item.foto_url }}" alt="{{ item.descricao }}">
+                    {% else %}
+                    <div class="daily-item-photo-placeholder">
+                        <i class="bi bi-box-seam"></i>
+                    </div>
+                    {% endif %}
+                </div>
+                <div>
+                    <div class="daily-item-heading">
+                        <div>
+                            <h3>{{ item.descricao }}</h3>
+                            <div class="daily-item-subtitle">Código completo: {{ item.codigo }}</div>
+                        </div>
+                        <div class="daily-kpi-row">
+                            <span class="daily-kpi"><strong>{{ item.total_quantity }}</strong> total retirado</span>
+                            <span class="daily-kpi"><strong>{{ item.movement_count }}</strong> lançamentos</span>
+                            <span class="daily-kpi"><strong>{{ item.unique_user_count }}</strong> colaboradores</span>
+                        </div>
+                    </div>
+                    <div class="daily-chip-row">
+                        <span class="daily-chip"><i class="bi bi-upc"></i> {{ item.codigo_curto }}</span>
+                        <span class="daily-chip"><i class="bi bi-tags"></i> {{ item.categoria }}</span>
+                        <span class="daily-chip"><i class="bi bi-award"></i> {{ item.marca }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="daily-item-table table-responsive">
+                <table class="table align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th width="9%">Hora</th>
+                            <th width="22%">Colaborador</th>
+                            <th width="10%" class="text-center">Qtd.</th>
+                            <th width="12%">Custódia</th>
+                            <th width="12%">Período</th>
+                            <th width="35%">Local / Observação</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for movement in item.movements %}
+                        <tr>
+                            <td>{{ movement.hora_formatada }}</td>
+                            <td>
+                                <div>{{ movement.usuario_nome }}</div>
+                                <small class="text-muted">{{ movement.usuario_matricula }}</small>
+                            </td>
+                            <td class="text-center"><strong>{{ movement.quantidade }}</strong></td>
+                            <td>
+                                <span class="daily-custody-badge {% if movement.tipo_custodia == 'permanente' %}daily-custody-badge-permanent{% endif %}">
+                                    {{ movement.tipo_custodia_label }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if movement.periodo %}
+                                <span class="daily-period-badge">{{ movement.periodo }}</span>
+                                {% else %}
+                                <span class="daily-period-badge">Expediente</span>
+                                {% endif %}
+                            </td>
+                            <td class="daily-location-text">{{ movement.local_info }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </article>
+        {% endfor %}
+    </section>
+    {% else %}
+    <div class="daily-empty-state">
+        <i class="bi bi-moon-stars"></i>
+        <h4>Nenhuma retirada encontrada</h4>
+        <p class="mb-0">Não há saídas registradas para {{ selected_date_label }}{% if search_term %} com o filtro informado{% endif %}.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

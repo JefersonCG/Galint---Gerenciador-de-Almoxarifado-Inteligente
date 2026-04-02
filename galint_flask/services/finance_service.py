@@ -977,6 +977,8 @@ class FinanceService:
                 "operation_log_id": item_row.operation_log_id,
             }
 
+        state_repaired = FinanceService._repair_nf_origin_item_state(item_row)
+
         recovered = FinanceService._recover_document_item_movement(item_row)
         if recovered is not None:
             return recovered
@@ -996,7 +998,7 @@ class FinanceService:
                 item_row.processado_em = item_row.processado_em or datetime.utcnow()
                 item_row.erro_processamento = None
                 db.session.commit()
-            elif repaired_packaging_read_model:
+            elif repaired_packaging_read_model or state_repaired:
                 db.session.commit()
             return {
                 "success": True,
@@ -1011,6 +1013,17 @@ class FinanceService:
 
         if item_row.item is None:
             raise ValueError("O item vinculado ao documento não existe mais no estoque.")
+
+        if FinanceService._document_item_requires_pre_registration(item_row):
+            return {
+                "success": True,
+                "processed": False,
+                "skipped": True,
+                "reason": "pre_cadastro_pendente",
+                "documento_item_id": item_row.id_documento_item,
+                "stock_movement_id": item_row.stock_movement_id,
+                "operation_log_id": item_row.operation_log_id,
+            }
 
         quantidade = float(item_row.quantidade or 0.0)
         if quantidade <= 0:
@@ -1053,6 +1066,8 @@ class FinanceService:
                 )
             except Exception:
                 pass
+
+            FinanceService._repair_nf_origin_item_state(item_row)
 
             item_row.stock_movement_id = result.movement_id
             item_row.operation_log_id = result.operation_log_id
@@ -1216,6 +1231,8 @@ class FinanceService:
             db.session.add(balance)
         balance.quantity_base = float(total_quantity or 0.0)
 
+        FinanceService._repair_nf_origin_item_state(item_row)
+
         try:
             inventory_engine.sync_packaging_read_model(
                 product_id=item_row.codigo_item,
@@ -1237,6 +1254,92 @@ class FinanceService:
             "documento_item_id": item_row.id_documento_item,
             "stock_movement_id": canonical.id,
             "operation_log_id": item_row.operation_log_id,
+        }
+
+    @staticmethod
+    def _repair_nf_origin_item_state(item_row: DocumentoEntradaEstoqueItem) -> bool:
+        item_model = item_row.item or db.session.get(Item, item_row.codigo_item)
+        if item_model is None:
+            return False
+
+        origem = (getattr(item_model, "pre_cadastro_origem", "") or "").strip().lower()
+        if origem != "nf":
+            return False
+
+        changed = False
+        if item_model.pre_cadastro_documento_item_id != item_row.id_documento_item:
+            item_model.pre_cadastro_documento_item_id = item_row.id_documento_item
+            changed = True
+
+        balance = db.session.get(StockBalance, item_row.codigo_item)
+        if balance is not None and hasattr(balance, "read_model_ready") and not bool(getattr(balance, "read_model_ready", False)):
+            balance.read_model_ready = True
+            changed = True
+
+        return changed
+
+    @staticmethod
+    def _document_item_requires_pre_registration(item_row: DocumentoEntradaEstoqueItem) -> bool:
+        item_model = item_row.item or db.session.get(Item, item_row.codigo_item)
+        if item_model is None:
+            return False
+        return bool(getattr(item_model, "pre_cadastro_pendente", False))
+
+    @staticmethod
+    def process_pending_document_items_for_item(
+        codigo_item: str,
+        *,
+        usuario_matricula: str | None = None,
+    ) -> dict[str, Any]:
+        codigo = (codigo_item or "").strip()
+        if not codigo:
+            raise ValueError("Informe o código do item para processar documentos pendentes.")
+
+        rows = (
+            DocumentoEntradaEstoqueItem.query
+            .options(
+                joinedload(DocumentoEntradaEstoqueItem.item),
+                joinedload(DocumentoEntradaEstoqueItem.documento),
+            )
+            .join(DocumentoEntradaEstoque, DocumentoEntradaEstoqueItem.documento_id == DocumentoEntradaEstoque.id_documento)
+            .filter(DocumentoEntradaEstoqueItem.codigo_item == codigo)
+            .filter(DocumentoEntradaEstoque.movimenta_estoque.is_(True))
+            .filter(DocumentoEntradaEstoqueItem.stock_movement_id.is_(None))
+            .filter(DocumentoEntradaEstoqueItem.entrada_id.is_(None))
+            .filter(DocumentoEntradaEstoqueItem.status_processamento != "processado")
+            .order_by(DocumentoEntradaEstoque.data_recebimento.asc(), DocumentoEntradaEstoque.id_documento.asc(), DocumentoEntradaEstoqueItem.id_documento_item.asc())
+            .all()
+        )
+
+        processed = 0
+        skipped = 0
+        errors = 0
+        messages: list[str] = []
+        document_numbers: list[str] = []
+
+        for row in rows:
+            numero_documento = (row.documento.numero_documento if row.documento is not None else "") or ""
+            if numero_documento and numero_documento not in document_numbers:
+                document_numbers.append(numero_documento)
+            try:
+                result = FinanceService.process_stock_document_item(
+                    row.id_documento_item,
+                    usuario_matricula=usuario_matricula,
+                )
+                if result.get("processed"):
+                    processed += 1
+                else:
+                    skipped += 1
+            except Exception as exc:
+                errors += 1
+                messages.append(f"{row.codigo_item}: {str(exc)}")
+
+        return {
+            "processed": processed,
+            "skipped": skipped,
+            "errors": errors,
+            "messages": messages,
+            "document_numbers": document_numbers,
         }
 
     @staticmethod

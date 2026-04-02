@@ -1076,6 +1076,39 @@
         border-color: rgba(245, 158, 11, 0.22);
     }
 
+    .galint-custody-body {
+        display: grid;
+        grid-template-columns: 78px 1fr;
+        gap: 0.9rem;
+        align-items: start;
+        margin-bottom: 1rem;
+    }
+
+    .galint-custody-photo {
+        width: 78px;
+        height: 78px;
+        border-radius: 18px;
+        overflow: hidden;
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        background: linear-gradient(145deg, rgba(15, 23, 42, 0.82) 0%, rgba(30, 41, 59, 0.92) 100%);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .galint-custody-photo img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+    }
+
+    .galint-custody-photo-placeholder {
+        color: rgba(191, 219, 254, 0.92);
+        font-size: 1.55rem;
+    }
+
     .galint-custody-info {
         display: flex;
         flex-direction: column;
@@ -1121,6 +1154,18 @@
         border-radius: 20px;
         background: rgba(255, 255, 255, 0.06);
         border: 1px solid rgba(148, 163, 184, 0.14);
+    }
+
+    @media (max-width: 575.98px) {
+        .galint-custody-body {
+            grid-template-columns: 1fr;
+        }
+
+        .galint-custody-photo {
+            width: 100%;
+            max-width: 96px;
+            height: 96px;
+        }
     }
 
     .galint-custody-empty-icon {
@@ -1813,32 +1858,39 @@
                 } else if (visualState === 'red') {
                     statusBadge = '<span class="galint-custody-badge atrasada">⚠️ Alerta 17h+</span>';
                 }
+
+                const photoMarkup = item.foto_url
+                    ? `<img src="${item.foto_url}" alt="${(item.descricao || 'Ferramenta').replace(/"/g, '&quot;')}" loading="lazy">`
+                    : '<div class="galint-custody-photo-placeholder"><i class="bi bi-tools"></i></div>';
                 
                 wrapper.innerHTML = `
                     <div class="galint-custody-header">
                         <h3 class="galint-custody-title">${item.descricao || 'Item não identificado'}</h3>
                         ${statusBadge}
                     </div>
-                    <div class="galint-custody-info">
-                        <div class="galint-custody-field">
-                            <span class="galint-custody-field-label">Código:</span>
-                            <span class="galint-custody-field-value">${item.codigo || '-'}</span>
-                        </div>
-                        <div class="galint-custody-field">
-                            <span class="galint-custody-field-label">Quantidade:</span>
-                            <span class="galint-custody-field-value">${item.quantidade || 0} und.</span>
-                        </div>
-                        <div class="galint-custody-field">
-                            <span class="galint-custody-field-label">Usuário:</span>
-                            <span class="galint-custody-field-value">${item.usuario || '-'} (Mat. ${item.matricula || '-'})</span>
-                        </div>
-                        <div class="galint-custody-field">
-                            <span class="galint-custody-field-label">Local:</span>
-                            <span class="galint-custody-field-value">${item.local_servico || 'Não informado'}</span>
-                        </div>
-                        <div class="galint-custody-field">
-                            <span class="galint-custody-field-label">Retirada em:</span>
-                            <span class="galint-custody-field-value">${formatDate(item.data_retirada_iso)}</span>
+                    <div class="galint-custody-body">
+                        <div class="galint-custody-photo">${photoMarkup}</div>
+                        <div class="galint-custody-info">
+                            <div class="galint-custody-field">
+                                <span class="galint-custody-field-label">Código:</span>
+                                <span class="galint-custody-field-value">${item.codigo || '-'}</span>
+                            </div>
+                            <div class="galint-custody-field">
+                                <span class="galint-custody-field-label">Quantidade:</span>
+                                <span class="galint-custody-field-value">${item.quantidade || 0} und.</span>
+                            </div>
+                            <div class="galint-custody-field">
+                                <span class="galint-custody-field-label">Usuário:</span>
+                                <span class="galint-custody-field-value">${item.usuario || '-'} (Mat. ${item.matricula || '-'})</span>
+                            </div>
+                            <div class="galint-custody-field">
+                                <span class="galint-custody-field-label">Local:</span>
+                                <span class="galint-custody-field-value">${item.local_servico || 'Não informado'}</span>
+                            </div>
+                            <div class="galint-custody-field">
+                                <span class="galint-custody-field-label">Retirada em:</span>
+                                <span class="galint-custody-field-value">${formatDate(item.data_retirada_iso)}</span>
+                            </div>
                         </div>
                     </div>
                     <div class="galint-custody-actions">

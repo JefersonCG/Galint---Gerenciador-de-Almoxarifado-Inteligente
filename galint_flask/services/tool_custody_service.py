@@ -239,6 +239,7 @@ class ToolCustodyService:
                     "descricao": item.descricao,
                     "categoria": item.categoria,
                     "marca": item.marca or "N/D",
+                    "foto_path": item.foto_path,
                     "quantidade": saida.quantidade,
                     "data_saida": saida.data_saida,
                     "data_saida_formatada": TimeService.format_local(saida.data_saida, "%d/%m/%Y %H:%M"),

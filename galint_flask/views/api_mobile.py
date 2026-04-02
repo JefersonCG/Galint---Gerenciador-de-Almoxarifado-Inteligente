@@ -2030,7 +2030,7 @@ def mobile_report_daily():
     if scope not in {"all", "materials", "tools"}:
         return jsonify({"success": False, "message": "Escopo inválido"}), 400
     if fmt not in {"pdf", "xlsx", "jpeg", "jpg"}:
-        return jsonify({"success": False, "message": "Formato inválido"}), 400
+        return jsonify({"success": False, "message": "Formato inválido. Use PDF."}), 400
 
     # Usar caminho absoluto relativo à raiz do projeto
     from flask import current_app
@@ -2039,28 +2039,9 @@ def mobile_report_daily():
     reports_dir.mkdir(parents=True, exist_ok=True)
     timestamp = TimeService.now_local().strftime('%Y%m%d_%H%M%S')
 
-    # Tratar jpg como jpeg
-    if fmt == "jpg":
-        fmt = "jpeg"
-
-    if fmt == "pdf":
-        target = reports_dir / f"saidas_dia_{scope}_{timestamp}.pdf"
-        TelegramService.generate_saidas_dia_pdf(str(target), scope=scope)
-        return send_file(target, mimetype="application/pdf", as_attachment=True, download_name=target.name)
-    
-    if fmt == "jpeg":
-        # Gera PDF primeiro, depois converte para JPEG
-        pdf_target = reports_dir / f"saidas_dia_{scope}_{timestamp}.pdf"
-        TelegramService.generate_saidas_dia_pdf(str(pdf_target), scope=scope)
-        
-        # Converter PDF para JPEG
-        jpeg_target = reports_dir / f"saidas_dia_{scope}_{timestamp}.jpeg"
-        _convert_pdf_to_jpeg(str(pdf_target), str(jpeg_target))
-        
-        return send_file(jpeg_target, mimetype="image/jpeg", as_attachment=True, download_name=jpeg_target.name)
-
-    target = TelegramReportService.generate_daily_xlsx(scope=scope)
-    return send_file(target, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", as_attachment=True, download_name=Path(target).name)
+    target = reports_dir / f"saidas_dia_{scope}_{timestamp}.pdf"
+    TelegramService.generate_saidas_dia_pdf(str(target), scope=scope)
+    return send_file(target, mimetype="application/pdf", as_attachment=True, download_name=target.name)
 
 
 @blueprint.get("/reports/monthly")
@@ -2086,31 +2067,10 @@ def mobile_report_monthly():
     if scope not in {"all", "materials", "tools"}:
         return jsonify({"success": False, "message": "Escopo inválido"}), 400
     if fmt not in {"pdf", "xlsx", "jpeg", "jpg"}:
-        return jsonify({"success": False, "message": "Formato inválido"}), 400
-    
-    # Tratar jpg como jpeg
-    if fmt == "jpg":
-        fmt = "jpeg"
+        return jsonify({"success": False, "message": "Formato inválido. Use PDF."}), 400
 
-    if fmt == "pdf":
-        path = TelegramReportService.generate_monthly_pdf_report(year_int, month_int, scope=scope)
-        return send_file(path, mimetype="application/pdf", as_attachment=True, download_name=Path(path).name)
-    
-    if fmt == "jpeg":
-        # Gera PDF primeiro, depois converte para JPEG
-        pdf_path = TelegramReportService.generate_monthly_pdf_report(year_int, month_int, scope=scope)
-        
-        # Converter PDF para JPEG
-        instance_path = Path(current_app.instance_path)
-        reports_dir = instance_path / "reports"
-        timestamp = TimeService.now_local().strftime('%Y%m%d_%H%M%S')
-        jpeg_path = reports_dir / f"monthly_{scope}_{year_int}_{month_int:02d}_{timestamp}.jpeg"
-        _convert_pdf_to_jpeg(str(pdf_path), str(jpeg_path))
-        
-        return send_file(jpeg_path, mimetype="image/jpeg", as_attachment=True, download_name=jpeg_path.name)
-
-    path = TelegramReportService.generate_monthly_xlsx_report(year_int, month_int, scope=scope)
-    return send_file(path, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", as_attachment=True, download_name=Path(path).name)
+    path = TelegramReportService.generate_monthly_pdf_report(year_int, month_int, scope=scope)
+    return send_file(path, mimetype="application/pdf", as_attachment=True, download_name=Path(path).name)
 
 
 @blueprint.get("/produtos/buscar/<codigo>")
@@ -2365,13 +2325,13 @@ def excluir_item_estoque(codigo: str):
 @blueprint.get("/reports/history")
 @mobile_login_required
 def mobile_reports_history():
-    """Lista todos os relatórios disponíveis para download.
+    """Lista todos os relatórios PDF disponíveis para download.
     
     Query params:
         - date_from: data início (YYYY-MM-DD)
         - date_to: data fim (YYYY-MM-DD)
         - type: tipo de relatório (saidas, estoque, mensal, all)
-        - format: formato (pdf, xlsx, jpeg, all)
+        - format: formato (pdf, all)
     """
     current_user = g.mobile_user
     if not _is_admin_or_manager(current_user):
@@ -2390,14 +2350,14 @@ def mobile_reports_history():
         "date_from": request.args.get("date_from"),
         "date_to": request.args.get("date_to"),
         "type": request.args.get("type", "all"),
-        "format": request.args.get("format", "all"),
+        "format": "pdf",
     }
     
     reports = []
     
     # Listar arquivos
     for item in reports_dir.iterdir():
-        if item.is_file() and item.suffix.lower() in [".pdf", ".xlsx", ".jpeg", ".jpg"]:
+        if item.is_file() and item.suffix.lower() == ".pdf":
             # Extrair informações do nome do arquivo
             filename = item.name
             parts = filename.split("_")
@@ -2528,20 +2488,13 @@ def mobile_reports_download(filename: str):
     if not file_path.exists() or not file_path.is_file():
         return jsonify({"success": False, "message": "Relatório não encontrado"}), 404
     
-    # Determinar mimetype
     ext = file_path.suffix.lower()
-    mimetype_map = {
-        ".pdf": "application/pdf",
-        ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        ".jpeg": "image/jpeg",
-        ".jpg": "image/jpeg",
-    }
-    
-    mimetype = mimetype_map.get(ext, "application/octet-stream")
+    if ext != ".pdf":
+        return jsonify({"success": False, "message": "Somente relatórios PDF estão disponíveis"}), 404
     
     return send_file(
         file_path,
-        mimetype=mimetype,
+        mimetype="application/pdf",
         as_attachment=True,
         download_name=filename,
     )

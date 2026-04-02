@@ -196,6 +196,14 @@ Essa acao deve permitir:
 5. Registrar motivo da agregacao.
 6. Auditar quem executou a acao.
 
+Primeira entrega operacional implementada no indice da Central de Kits:
+
+1. Cada card de colaborador possui a acao Escolher Ferramentas.
+2. A acao abre um modal grande em formato picklist.
+3. O lado esquerdo mostra o estoque disponivel com foto, codigo, marca e saldo.
+4. O lado direito mostra as ferramentas que ficarao com o colaborador.
+5. A gravacao reaproveita as regras ja existentes de saida permanente e devolucao de custodia, evitando logica paralela.
+
 ---
 
 ## Operacao consolidada de kit

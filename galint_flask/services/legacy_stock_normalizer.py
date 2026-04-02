@@ -8,7 +8,7 @@ from typing import Any
 from ..models import Entrada, InventarioEvento, Item, Saida
 
 _PAIR_RE = re.compile(r"de\s+([0-9]+(?:\.[0-9]+)?)\s+para\s+([0-9]+(?:\.[0-9]+)?)", re.IGNORECASE)
-_PACKAGING_UNIT_CODES = {"lata", "balde", "bombona", "caixa", "pacote", "rolo", "saco", "litro"}
+_PACKAGING_UNIT_CODES = {"lata", "balde", "bombona", "caixa", "pacote", "fardo", "rolo", "saco", "litro"}
 _UNIT_HINT_RE = re.compile(
     r"UNIDADE\s*=\s*([A-ZÇÃÕÁÉÍÓÚ_ ]+)|\b(LITRO|LITROS|KG|KILO|QUILO|METRO|METROS|UNIDADE|UNIDADES)\b",
     re.IGNORECASE,
@@ -44,7 +44,7 @@ def resolve_packaging_factor(item: Item) -> float:
     litros_por = _as_positive_float(item.litros_por_embalagem)
     grandeza_ref = _as_positive_float(item.grandeza_referencia)
 
-    if tipo_emb in {"pacote", "caixa"} and unidades_por > 0:
+    if tipo_emb in {"pacote", "caixa", "fardo"} and unidades_por > 0:
         return unidades_por
 
     if tipo_emb == "rolo" and unidades_por > 0:
@@ -97,7 +97,7 @@ def resolve_canonical_unit(item: Item) -> str:
     if grandeza_ref > 0:
         return "kg"
 
-    if tipo_emb in {"pacote", "caixa", "saco"} and unidades_por > 0:
+    if tipo_emb in {"pacote", "caixa", "fardo", "saco"} and unidades_por > 0:
         return "un"
 
     mapped_unit = _normalize_simple_unit(unidade_raw)
@@ -109,7 +109,7 @@ def resolve_canonical_unit(item: Item) -> str:
 
     if tipo_emb == "rolo":
         return "m"
-    if tipo_emb in {"pacote", "caixa", "saco"}:
+    if tipo_emb in {"pacote", "caixa", "fardo", "saco"}:
         return "un"
     return "un"
 
