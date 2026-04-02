@@ -11,6 +11,7 @@
             {% set saida_fracionada_url = url_for('movements.saida_fracionada_page') if endpoint_exists('movements.saida_fracionada_page') else None %}
             {% set ferramentas_retirar_url = url_for('ferramentas.retirar_page') if endpoint_exists('ferramentas.retirar_page') else None %}
             {% set ferramentas_painel_url = url_for('ferramentas.painel') if endpoint_exists('ferramentas.painel') else None %}
+            {% set central_kits_url = url_for('central_kits.index') if endpoint_exists('central_kits.index') else None %}
             {% set tool_custody_url = url_for('tool_custody.index') if endpoint_exists('tool_custody.index') else None %}
             {% set reparo_url = url_for('reparo.listar_reparos') if endpoint_exists('reparo.listar_reparos') else None %}
             {% set valor_estoque_url = url_for('inventory.valor_estoque') if endpoint_exists('inventory.valor_estoque') else None %}
@@ -128,7 +129,7 @@
                 </a>
                 {% endif %}
             </div>
-            {% set ferramentas_active = (tool_custody_url and p.startswith(tool_custody_url)) or (reparo_url and p.startswith(reparo_url)) %}
+            {% set ferramentas_active = (central_kits_url and p.startswith(central_kits_url)) or (tool_custody_url and p.startswith(tool_custody_url)) or (reparo_url and p.startswith(reparo_url)) %}
             <button
                 class="sidebar-link d-flex justify-content-between align-items-center border-0 bg-transparent text-start w-100 {{ 'active' if ferramentas_active else 'collapsed' }}"
                 type="button" data-bs-toggle="collapse" data-bs-target="#ferramentasMenu"
@@ -140,6 +141,13 @@
                 <i class="bi bi-chevron-down small"></i>
             </button>
             <div id="ferramentasMenu" class="collapse {{ 'show' if ferramentas_active else '' }}">
+                {% if central_kits_url %}
+                <a class="sidebar-link ps-4 {{ 'active' if p.startswith(central_kits_url) else '' }}"
+                    href="{{ central_kits_url }}">
+                    <i class="bi bi-briefcase-fill"></i>
+                    <span>Central de Kits</span>
+                </a>
+                {% endif %}
                 {% if tool_custody_url %}
                 <a class="sidebar-link ps-4 {{ 'active' if p.startswith(tool_custody_url) else '' }}"
                     href="{{ tool_custody_url }}">
