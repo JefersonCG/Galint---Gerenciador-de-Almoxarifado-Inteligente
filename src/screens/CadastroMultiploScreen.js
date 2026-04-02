@@ -66,6 +66,7 @@ export default function CadastroMultiploScreen({ navigation, route }) {
         'Metro',
         'Caixa',
         'Pacote',
+        'Fardo',
         'Rolo',
         'Balde',
         'Tambor',

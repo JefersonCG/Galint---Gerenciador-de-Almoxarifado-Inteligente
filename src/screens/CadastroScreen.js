@@ -153,6 +153,7 @@ export default function CadastroScreen({ navigation, route }) {
         'Quilo',
         'Caixa',
         'Pacote',
+        'Fardo',
         'Rolo',
         'Balde',
         'Par',
@@ -209,9 +210,9 @@ export default function CadastroScreen({ navigation, route }) {
             return `${quantidade} rolos = ${metros.toFixed(2)} m = ${centimetros.toFixed(0)} cm`;
         }
 
-        if (formData.unidade === 'Pacote' || formData.unidade === 'Caixa') {
+        if (formData.unidade === 'Pacote' || formData.unidade === 'Caixa' || formData.unidade === 'Fardo') {
             const unidades = quantidade * grandeza;
-            const tipo = formData.unidade === 'Pacote' ? 'pacotes' : 'caixas';
+            const tipo = formData.unidade === 'Pacote' ? 'pacotes' : (formData.unidade === 'Fardo' ? 'fardos' : 'caixas');
             return `${quantidade} ${tipo} = ${unidades.toFixed(0)} unidades`;
         }
 
@@ -937,11 +938,11 @@ export default function CadastroScreen({ navigation, route }) {
                         )}
 
                         {/* Campos condicionais: Pacote/Caixa */}
-                        {(formData.unidade === 'Pacote' || formData.unidade === 'Caixa') && (
+                        {(formData.unidade === 'Pacote' || formData.unidade === 'Caixa' || formData.unidade === 'Fardo') && (
                             <View style={styles.conditionalFields}>
                                 <View style={styles.inputGroup}>
                                     <Text style={styles.label}>
-                                        Unidades por {formData.unidade === 'Pacote' ? 'pacote' : 'caixa'}
+                                        Unidades por {formData.unidade === 'Pacote' ? 'pacote' : (formData.unidade === 'Fardo' ? 'fardo' : 'caixa')}
                                     </Text>
                                     <TextInput
                                         style={styles.input}
@@ -953,11 +954,11 @@ export default function CadastroScreen({ navigation, route }) {
                                                 tipo_embalagem: formData.unidade
                                             });
                                         }}
-                                        placeholder={formData.unidade === 'Pacote' ? 'Ex: 50' : 'Ex: 100'}
+                                        placeholder={formData.unidade === 'Pacote' ? 'Ex: 50' : (formData.unidade === 'Fardo' ? 'Ex: 12' : 'Ex: 100')}
                                         keyboardType="number-pad"
                                     />
                                     <Text style={styles.hintText}>
-                                        Ex: {formData.unidade === 'Pacote' ? '50 unidades por pacote' : '100 unidades por caixa'}
+                                        Ex: {formData.unidade === 'Pacote' ? '50 unidades por pacote' : (formData.unidade === 'Fardo' ? '12 unidades por fardo' : '100 unidades por caixa')}
                                     </Text>
                                 </View>
                             </View>

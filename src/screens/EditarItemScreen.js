@@ -55,6 +55,7 @@ export default function EditarItemScreen({ navigation, route }) {
         'Metro',
         'Caixa',
         'Pacote',
+        'Fardo',
         'Rolo',
         'Balde',
         'Tambor',
