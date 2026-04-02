@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+
+{% block title %}Central de Kits de Ferramentas{% endblock %}
+
+{% block extra_css %}
+<style>
+    .kit-doc-page {
+        max-width: 1180px;
+        margin: 0 auto;
+    }
+
+    .kit-doc-hero {
+        position: relative;
+        overflow: hidden;
+        border-radius: 28px;
+        padding: 2.1rem 2.2rem;
+        margin-bottom: 1.4rem;
+        color: #f8fafc;
+        background: radial-gradient(circle at top right, rgba(56, 189, 248, 0.16), transparent 30%),
+                    radial-gradient(circle at bottom left, rgba(245, 158, 11, 0.14), transparent 32%),
+                    linear-gradient(135deg, #141b24 0%, #182230 55%, #1d2938 100%);
+        border: 1px solid rgba(148, 163, 184, 0.12);
+        box-shadow: 0 24px 48px rgba(15, 23, 42, 0.22);
+    }
+
+    .kit-doc-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.55rem;
+        padding: 0.36rem 0.9rem;
+        border-radius: 999px;
+        background: rgba(148, 163, 184, 0.14);
+        color: #dbe7f4;
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        margin-bottom: 0.95rem;
+    }
+
+    .kit-doc-hero h2 {
+        margin: 0 0 0.5rem;
+        font-weight: 900;
+        font-size: clamp(1.9rem, 3vw, 2.8rem);
+        letter-spacing: -0.04em;
+    }
+
+    .kit-doc-hero p {
+        margin: 0;
+        max-width: 60rem;
+        color: rgba(226, 232, 240, 0.8);
+        line-height: 1.65;
+    }
+
+    .kit-doc-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        margin-top: 1.1rem;
+    }
+
+    .kit-doc-actions .btn {
+        border-radius: 999px;
+        border-color: rgba(148, 163, 184, 0.16);
+    }
+
+    .kit-doc-summary {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 0.9rem;
+        margin-bottom: 1.2rem;
+    }
+
+    .kit-doc-stat {
+        border-radius: 20px;
+        padding: 1rem 1.05rem;
+        background: linear-gradient(180deg, rgba(23, 32, 43, 0.98), rgba(18, 26, 35, 0.96));
+        border: 1px solid rgba(148, 163, 184, 0.12);
+        box-shadow: 0 16px 28px rgba(15, 23, 42, 0.16);
+        color: #e2e8f0;
+    }
+
+    .kit-doc-stat strong {
+        display: block;
+        font-size: 1.05rem;
+        color: #f8fafc;
+        margin-bottom: 0.25rem;
+    }
+
+    .kit-doc-stat span {
+        color: rgba(203, 213, 225, 0.72);
+        font-size: 0.86rem;
+        line-height: 1.45;
+    }
+
+    .kit-doc-shell {
+        border-radius: 26px;
+        padding: 2rem;
+        background: linear-gradient(180deg, #161f29 0%, #121922 100%);
+        border: 1px solid rgba(148, 163, 184, 0.12);
+        box-shadow: 0 22px 44px rgba(15, 23, 42, 0.18);
+    }
+
+    .kit-doc-content h1,
+    .kit-doc-content h2,
+    .kit-doc-content h3 {
+        color: #f8fafc;
+        font-weight: 800;
+        margin-top: 1.55rem;
+    }
+
+    .kit-doc-content h1 { font-size: 2rem; }
+    .kit-doc-content h2 { font-size: 1.45rem; }
+    .kit-doc-content h3 { font-size: 1.08rem; }
+
+    .kit-doc-content p,
+    .kit-doc-content li {
+        color: rgba(226, 232, 240, 0.78);
+        line-height: 1.75;
+    }
+
+    .kit-doc-content strong {
+        color: #f8fafc;
+    }
+
+    .kit-doc-content a {
+        color: #7dd3fc;
+    }
+
+    .kit-doc-content hr {
+        border: 0;
+        border-top: 1px solid rgba(148, 163, 184, 0.14);
+        margin: 1.5rem 0;
+    }
+
+    .kit-doc-content code {
+        background: rgba(30, 41, 59, 0.7);
+        color: #f8fafc;
+        padding: 0.12rem 0.4rem;
+        border-radius: 6px;
+    }
+
+    .kit-doc-content .doc-list {
+        padding-left: 1.2rem;
+    }
+
+    .kit-doc-content .doc-code {
+        background: #0c1117;
+        color: #e2e8f0;
+        border: 1px solid rgba(148, 163, 184, 0.1);
+        border-radius: 18px;
+        padding: 1rem 1.1rem;
+        overflow-x: auto;
+    }
+
+    @media (max-width: 768px) {
+        .kit-doc-hero,
+        .kit-doc-shell {
+            padding: 1.3rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block page_header %}
+<div class="kit-doc-page">
+    <div class="kit-doc-hero">
+        <div class="kit-doc-badge"><i class="bi bi-briefcase"></i> Dossie operacional do modulo</div>
+        <h2>Central de Kits de Ferramentas</h2>
+        <p>Visao detalhada do modulo de bolsa-chave, composicao do kit, custodia, auditoria rigorosa, PDF patrimonial e ocorrencias de perda e quebra com evidencias.</p>
+        <div class="kit-doc-actions">
+            <a class="btn btn-light" href="{{ url_for('pages.sobre') }}">
+                <i class="bi bi-info-circle me-2"></i>Voltar para Sobre
+            </a>
+            <a class="btn btn-outline-light" href="{{ url_for('pages.documentacao') }}">
+                <i class="bi bi-book me-2"></i>Documentacao Geral
+            </a>
+        </div>
+    </div>
+    <div class="kit-doc-summary">
+        <div class="kit-doc-stat">
+            <strong>Bolsa-chave</strong>
+            <span>A bolsa Wonder passa a ser a ancora do kit e da auditoria patrimonial.</span>
+        </div>
+        <div class="kit-doc-stat">
+            <strong>Operacao em lote</strong>
+            <span>Entrega unica do kit inteiro, com composicao interna e notificacao consolidada.</span>
+        </div>
+        <div class="kit-doc-stat">
+            <strong>Ferramenta + EPI</strong>
+            <span>O conteudo da bolsa aceita ferramentas, EPI e itens extras elegiveis do estoque.</span>
+        </div>
+        <div class="kit-doc-stat">
+            <strong>Controle absoluto</strong>
+            <span>Historico, PDF, ocorrencias, valores congelados e rastro rigoroso de cada alteracao.</span>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="kit-doc-page">
+    <div class="kit-doc-shell">
+        <article class="kit-doc-content">{{ content_html | safe }}</article>
+    </div>
+</div>
+{% endblock %}

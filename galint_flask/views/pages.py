@@ -494,7 +494,12 @@ def update_rede():
 @blueprint.get("/sobre")
 @login_required
 def sobre():
-    return render_template("sobre.html")
+    kit_readme_path = Path(current_app.root_path).parent / "README_CENTRAL_KITS_FERRAMENTAS.md"
+    kit_doc_html = _markdown_file_to_html(kit_readme_path) if kit_readme_path.exists() else ""
+    return render_template(
+        "sobre.html",
+        kit_doc_html=kit_doc_html,
+    )
 
 
 @blueprint.get("/documentacao")
@@ -512,5 +517,18 @@ def documentacao_percentual_movimentos():
     content_html = _markdown_file_to_html(readme_path)
     return render_template(
         "documentacao_percentual_movimentos.html",
+        content_html=content_html,
+    )
+
+
+@blueprint.get("/documentacao/central-kits")
+@login_required
+def documentacao_central_kits():
+    readme_path = Path(current_app.root_path).parent / "README_CENTRAL_KITS_FERRAMENTAS.md"
+    if not readme_path.exists():
+        abort(404)
+    content_html = _markdown_file_to_html(readme_path)
+    return render_template(
+        "documentacao_central_kits.html",
         content_html=content_html,
     )

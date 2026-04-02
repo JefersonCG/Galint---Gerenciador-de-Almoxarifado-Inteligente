@@ -5,14 +5,36 @@
     {{ (value or 0)|currency_br }}
 {%- endmacro %}
 
-{% macro insight_card(label, title, value, caption) -%}
-<article class="consumo-kpi consumo-kpi-insight">
-    <span class="consumo-kpi-label">{{ label }}</span>
-    <div class="consumo-kpi-title">{{ title or 'Sem base suficiente' }}</div>
-    <div class="consumo-kpi-caption consumo-kpi-caption-strong">{{ value or '—' }}</div>
-    {% if caption %}
-    <div class="consumo-kpi-note">{{ caption }}</div>
-    {% endif %}
+{% macro distribution_chart_card(chart) -%}
+<article class="consumo-distribution-card">
+    <div class="consumo-distribution-head">
+        <div>
+            <span class="consumo-kpi-label">{{ chart.title }}</span>
+            <div class="consumo-distribution-total">{{ brl(chart.total_valor) }}</div>
+            <div class="consumo-distribution-subtitle">{{ chart.subtitle }}</div>
+        </div>
+        <div class="consumo-distribution-ring" style="--chart-gradient: {{ chart.gradient }};">
+            <div class="consumo-distribution-ring-center">
+                <strong>{{ (chart.primary_percent or 0)|number_br(1, True) }}%</strong>
+                <span>{{ chart.primary_label or '—' }}</span>
+            </div>
+        </div>
+    </div>
+    <div class="consumo-distribution-summary">
+        <span>Maior: {{ chart.primary_label or '—' }} • {{ brl(chart.primary_value) }}</span>
+        <span>{% if chart.secondary_label %}Menor: {{ chart.secondary_label }} • {{ brl(chart.secondary_value) }}{% else %}Sem comparativo ainda{% endif %}</span>
+    </div>
+    <div class="consumo-distribution-legend">
+        {% for item in chart.legend %}
+        <div class="consumo-distribution-legend-item">
+            <span class="consumo-distribution-swatch" style="background: {{ item.color }};"></span>
+            <div>
+                <strong>{{ item.label }}</strong>
+                <small>{{ (item.percent or 0)|number_br(1, True) }}% • {{ brl(item.value) }}</small>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
 </article>
 {%- endmacro %}
 
@@ -28,12 +50,6 @@
 {% set hide_category_column = is_local_scope or is_category_scope %}
 {% set hide_local_column = is_local_scope %}
 {% set hide_employee_columns = is_employee_scope %}
-{% set top_category = panel.categories[0] if panel.categories else None %}
-{% set bottom_category = panel.categories|last if panel.categories|length > 1 else None %}
-{% set top_location = panel.locations[0] if panel.locations else None %}
-{% set bottom_location = panel.locations|last if panel.locations|length > 1 else None %}
-{% set top_employee = panel.employees[0] if panel.employees else None %}
-{% set bottom_employee = panel.employees|last if panel.employees|length > 1 else None %}
 
 {% if panel.scope_type == 'local' %}
     {% set export_url = url_for('inventory.consumption_report_pdf', exercicio=exercise.label, local=panel.filters.local) %}
@@ -251,11 +267,131 @@
         gap: 0.8rem;
     }
 
-    .consumo-insights {
+    .consumo-distributions {
         display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 0.8rem;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 1rem;
         margin-bottom: 1rem;
+    }
+
+    .consumo-distribution-card {
+        border-radius: 22px;
+        padding: 1rem 1.05rem;
+        border: 1px solid rgba(148, 163, 184, 0.12);
+        background: linear-gradient(180deg, rgba(20, 27, 35, 0.96), rgba(17, 23, 31, 0.94));
+        box-shadow: 0 14px 28px rgba(2, 6, 23, 0.18);
+    }
+
+    .consumo-distribution-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        align-items: center;
+    }
+
+    .consumo-distribution-total {
+        color: #f8fafc;
+        font-size: 1.15rem;
+        font-weight: 800;
+        line-height: 1.25;
+    }
+
+    .consumo-distribution-subtitle {
+        margin-top: 0.35rem;
+        color: rgba(203, 213, 225, 0.68);
+        font-size: 0.8rem;
+        line-height: 1.4;
+        max-width: 15rem;
+    }
+
+    .consumo-distribution-ring {
+        position: relative;
+        flex: 0 0 118px;
+        width: 118px;
+        height: 118px;
+        border-radius: 50%;
+        background: var(--chart-gradient);
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+    }
+
+    .consumo-distribution-ring::after {
+        content: "";
+        position: absolute;
+        inset: 17px;
+        border-radius: 50%;
+        background: linear-gradient(180deg, #10171f 0%, #121a24 100%);
+        border: 1px solid rgba(148, 163, 184, 0.08);
+    }
+
+    .consumo-distribution-ring-center {
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 1.2rem;
+    }
+
+    .consumo-distribution-ring-center strong {
+        color: #f8fafc;
+        font-size: 1rem;
+        font-weight: 900;
+        line-height: 1;
+    }
+
+    .consumo-distribution-ring-center span {
+        margin-top: 0.32rem;
+        color: rgba(203, 213, 225, 0.74);
+        font-size: 0.68rem;
+        line-height: 1.2;
+        max-width: 4.6rem;
+    }
+
+    .consumo-distribution-summary {
+        display: grid;
+        gap: 0.28rem;
+        margin-top: 0.85rem;
+        color: rgba(226, 232, 240, 0.8);
+        font-size: 0.79rem;
+    }
+
+    .consumo-distribution-legend {
+        display: grid;
+        gap: 0.55rem;
+        margin-top: 0.9rem;
+    }
+
+    .consumo-distribution-legend-item {
+        display: grid;
+        grid-template-columns: 10px minmax(0, 1fr);
+        gap: 0.65rem;
+        align-items: start;
+    }
+
+    .consumo-distribution-legend-item strong {
+        display: block;
+        color: #f8fafc;
+        font-size: 0.82rem;
+        line-height: 1.25;
+    }
+
+    .consumo-distribution-legend-item small {
+        display: block;
+        margin-top: 0.14rem;
+        color: rgba(203, 213, 225, 0.68);
+        font-size: 0.75rem;
+        line-height: 1.35;
+    }
+
+    .consumo-distribution-swatch {
+        width: 10px;
+        height: 10px;
+        border-radius: 999px;
+        margin-top: 0.25rem;
+        box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.45);
     }
 
     .consumo-side-item {
@@ -263,26 +399,6 @@
         border-radius: 16px;
         background: rgba(15, 23, 42, 0.32);
         border: 1px solid rgba(148, 163, 184, 0.12);
-    }
-
-    .consumo-kpi-title {
-        color: #f8fafc;
-        font-size: 1rem;
-        font-weight: 800;
-        line-height: 1.3;
-    }
-
-    .consumo-kpi-caption-strong {
-        margin-top: 0.45rem;
-        color: #dbe7f4;
-        font-weight: 700;
-    }
-
-    .consumo-kpi-note {
-        margin-top: 0.35rem;
-        color: rgba(203, 213, 225, 0.64);
-        font-size: 0.78rem;
-        line-height: 1.4;
     }
 
     .consumo-side-item strong {
@@ -366,10 +482,6 @@
         .consumo-kpis {
             grid-template-columns: repeat(3, minmax(0, 1fr));
         }
-
-        .consumo-insights {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
     }
 
     @media (max-width: 992px) {
@@ -388,8 +500,13 @@
             grid-template-columns: 1fr;
         }
 
-        .consumo-insights {
-            grid-template-columns: 1fr;
+        .consumo-distribution-head {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .consumo-distribution-subtitle {
+            max-width: none;
         }
     }
 </style>
@@ -452,84 +569,11 @@
         </article>
     </section>
 
-    {% if panel.entries %}
-    <section class="consumo-insights">
-        {% if is_local_scope %}
-            {{ insight_card(
-                'Maior categoria',
-                top_category.categoria if top_category else 'Sem base suficiente',
-                brl(top_category.total_valor) if top_category else '—',
-                ((top_category.saidas or 0) ~ ' saída(s) • material destaque: ' ~ (top_category.material_destaque or '—')) if top_category else 'Sem categorias consolidadas neste local.'
-            ) }}
-            {{ insight_card(
-                'Menor categoria',
-                bottom_category.categoria if bottom_category else 'Sem comparativo',
-                brl(bottom_category.total_valor) if bottom_category else '—',
-                ((bottom_category.saidas or 0) ~ ' saída(s) • material destaque: ' ~ (bottom_category.material_destaque or '—')) if bottom_category else 'Há apenas uma categoria consolidada neste local.'
-            ) }}
-            {{ insight_card(
-                'Maior colaborador',
-                top_employee.nome if top_employee else 'Sem base suficiente',
-                brl(top_employee.total_valor) if top_employee else '—',
-                ((top_employee.cargo or 'Sem cargo') ~ ' • ' ~ (top_employee.saidas or 0) ~ ' saída(s)') if top_employee else 'Sem responsáveis consolidados neste local.'
-            ) }}
-            {{ insight_card(
-                'Menor colaborador',
-                bottom_employee.nome if bottom_employee else 'Sem comparativo',
-                brl(bottom_employee.total_valor) if bottom_employee else '—',
-                ((bottom_employee.cargo or 'Sem cargo') ~ ' • ' ~ (bottom_employee.saidas or 0) ~ ' saída(s)') if bottom_employee else 'Há apenas um colaborador consolidado neste local.'
-            ) }}
-        {% elif is_category_scope %}
-            {{ insight_card(
-                'Maior local',
-                top_location.local if top_location else 'Sem base suficiente',
-                brl(top_location.total_valor) if top_location else '—',
-                ((top_location.saidas or 0) ~ ' saída(s) • ' ~ (top_location.colaboradores or 0) ~ ' colaborador(es)') if top_location else 'Sem locais consolidados nesta categoria.'
-            ) }}
-            {{ insight_card(
-                'Menor local',
-                bottom_location.local if bottom_location else 'Sem comparativo',
-                brl(bottom_location.total_valor) if bottom_location else '—',
-                ((bottom_location.saidas or 0) ~ ' saída(s) • ' ~ (bottom_location.colaboradores or 0) ~ ' colaborador(es)') if bottom_location else 'Há apenas um local consolidado nesta categoria.'
-            ) }}
-            {{ insight_card(
-                'Maior colaborador',
-                top_employee.nome if top_employee else 'Sem base suficiente',
-                brl(top_employee.total_valor) if top_employee else '—',
-                ((top_employee.cargo or 'Sem cargo') ~ ' • ' ~ (top_employee.saidas or 0) ~ ' saída(s)') if top_employee else 'Sem responsáveis consolidados nesta categoria.'
-            ) }}
-            {{ insight_card(
-                'Menor colaborador',
-                bottom_employee.nome if bottom_employee else 'Sem comparativo',
-                brl(bottom_employee.total_valor) if bottom_employee else '—',
-                ((bottom_employee.cargo or 'Sem cargo') ~ ' • ' ~ (bottom_employee.saidas or 0) ~ ' saída(s)') if bottom_employee else 'Há apenas um colaborador consolidado nesta categoria.'
-            ) }}
-        {% else %}
-            {{ insight_card(
-                'Maior categoria',
-                top_category.categoria if top_category else 'Sem base suficiente',
-                brl(top_category.total_valor) if top_category else '—',
-                ((top_category.saidas or 0) ~ ' saída(s) • material destaque: ' ~ (top_category.material_destaque or '—')) if top_category else 'Sem categorias consolidadas neste recorte.'
-            ) }}
-            {{ insight_card(
-                'Menor categoria',
-                bottom_category.categoria if bottom_category else 'Sem comparativo',
-                brl(bottom_category.total_valor) if bottom_category else '—',
-                ((bottom_category.saidas or 0) ~ ' saída(s) • material destaque: ' ~ (bottom_category.material_destaque or '—')) if bottom_category else 'Há apenas uma categoria consolidada neste recorte.'
-            ) }}
-            {{ insight_card(
-                'Maior local',
-                top_location.local if top_location else 'Sem base suficiente',
-                brl(top_location.total_valor) if top_location else '—',
-                ((top_location.saidas or 0) ~ ' saída(s) • ' ~ (top_location.colaboradores or 0) ~ ' colaborador(es)') if top_location else 'Sem locais consolidados neste recorte.'
-            ) }}
-            {{ insight_card(
-                'Menor local',
-                bottom_location.local if bottom_location else 'Sem comparativo',
-                brl(bottom_location.total_valor) if bottom_location else '—',
-                ((bottom_location.saidas or 0) ~ ' saída(s) • ' ~ (bottom_location.colaboradores or 0) ~ ' colaborador(es)') if bottom_location else 'Há apenas um local consolidado neste recorte.'
-            ) }}
-        {% endif %}
+    {% if panel.distribution_charts %}
+    <section class="consumo-distributions">
+        {% for chart in panel.distribution_charts %}
+            {{ distribution_chart_card(chart) }}
+        {% endfor %}
     </section>
     {% endif %}
 

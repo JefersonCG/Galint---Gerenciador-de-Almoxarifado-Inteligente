@@ -1768,6 +1768,190 @@ class FinanceService:
             "entries": sorted_entries,
         }
 
+    @classmethod
+    def _build_consumption_distribution_chart(
+        cls,
+        rows: list[dict[str, Any]],
+        *,
+        title: str,
+        subtitle: str,
+        label_key: str,
+        fallback_label: str,
+        max_segments: int = 4,
+    ) -> dict[str, Any] | None:
+        palette = (
+            "#38bdf8",
+            "#34d399",
+            "#f59e0b",
+            "#fb7185",
+            "#a78bfa",
+            "#f97316",
+        )
+
+        ordered_rows: list[dict[str, Any]] = []
+        total_valor = 0.0
+        for row in rows or []:
+            valor = float(row.get("total_valor") or 0.0)
+            if valor <= 0:
+                continue
+            ordered_rows.append(
+                {
+                    "label": (str(row.get(label_key) or fallback_label).strip() or fallback_label),
+                    "value": round(valor, 2),
+                }
+            )
+            total_valor += valor
+
+        if total_valor <= 0 or not ordered_rows:
+            return None
+
+        visible_rows = ordered_rows[:max_segments]
+        visible_total = sum(float(row["value"] or 0.0) for row in visible_rows)
+        remainder = round(total_valor - visible_total, 2)
+        if len(ordered_rows) > max_segments and remainder > 0:
+            visible_rows.append({"label": "Outros", "value": remainder})
+
+        gradient_parts: list[str] = []
+        legend: list[dict[str, Any]] = []
+        cursor = 0.0
+        for index, row in enumerate(visible_rows):
+            percent = (float(row["value"] or 0.0) / total_valor) * 100 if total_valor else 0.0
+            next_cursor = cursor + percent
+            color = palette[index % len(palette)]
+            gradient_parts.append(f"{color} {cursor:.4f}% {next_cursor:.4f}%")
+            legend.append(
+                {
+                    "label": row["label"],
+                    "value": round(float(row["value"] or 0.0), 2),
+                    "percent": round(percent, 1),
+                    "color": color,
+                }
+            )
+            cursor = next_cursor
+
+        if cursor < 100.0:
+            gradient_parts.append(f"rgba(148, 163, 184, 0.12) {cursor:.4f}% 100.0000%")
+
+        primary = ordered_rows[0]
+        secondary = ordered_rows[-1] if len(ordered_rows) > 1 else None
+        primary_percent = round((float(primary["value"] or 0.0) / total_valor) * 100, 1) if total_valor else 0.0
+        secondary_percent = (
+            round((float(secondary["value"] or 0.0) / total_valor) * 100, 1)
+            if total_valor and secondary is not None
+            else None
+        )
+
+        return {
+            "title": title,
+            "subtitle": subtitle,
+            "total_valor": round(total_valor, 2),
+            "gradient": f"conic-gradient({', '.join(gradient_parts)})",
+            "legend": legend,
+            "primary_label": primary["label"],
+            "primary_value": round(float(primary["value"] or 0.0), 2),
+            "primary_percent": primary_percent,
+            "secondary_label": secondary["label"] if secondary is not None else None,
+            "secondary_value": round(float(secondary["value"] or 0.0), 2) if secondary is not None else None,
+            "secondary_percent": secondary_percent,
+        }
+
+    @classmethod
+    def _build_consumption_distribution_charts(
+        cls,
+        analytics: dict[str, Any],
+        *,
+        scope_type: str,
+    ) -> list[dict[str, Any]]:
+        configs: list[dict[str, Any]]
+        if scope_type == "local":
+            configs = [
+                {
+                    "title": "Categorias por valor",
+                    "subtitle": "Como o valor deste local se distribui entre as categorias.",
+                    "rows": analytics.get("categories") or [],
+                    "label_key": "categoria",
+                    "fallback_label": "Sem categoria",
+                },
+                {
+                    "title": "Colaboradores por valor",
+                    "subtitle": "Participação dos responsáveis no consumo deste local.",
+                    "rows": analytics.get("employees") or [],
+                    "label_key": "nome",
+                    "fallback_label": "Não informado",
+                },
+            ]
+        elif scope_type == "categoria":
+            configs = [
+                {
+                    "title": "Locais por valor",
+                    "subtitle": "Como esta categoria se distribui entre os locais atendidos.",
+                    "rows": analytics.get("locations") or [],
+                    "label_key": "local",
+                    "fallback_label": "Sem local",
+                },
+                {
+                    "title": "Colaboradores por valor",
+                    "subtitle": "Participação dos responsáveis dentro desta categoria.",
+                    "rows": analytics.get("employees") or [],
+                    "label_key": "nome",
+                    "fallback_label": "Não informado",
+                },
+            ]
+        elif scope_type == "funcionario":
+            configs = [
+                {
+                    "title": "Categorias por valor",
+                    "subtitle": "Onde este colaborador concentrou mais valor consumido.",
+                    "rows": analytics.get("categories") or [],
+                    "label_key": "categoria",
+                    "fallback_label": "Sem categoria",
+                },
+                {
+                    "title": "Locais por valor",
+                    "subtitle": "Distribuição do consumo deste colaborador entre os locais.",
+                    "rows": analytics.get("locations") or [],
+                    "label_key": "local",
+                    "fallback_label": "Sem local",
+                },
+            ]
+        else:
+            configs = [
+                {
+                    "title": "Categorias por valor",
+                    "subtitle": "Onde o valor consumido mais se concentra no exercício.",
+                    "rows": analytics.get("categories") or [],
+                    "label_key": "categoria",
+                    "fallback_label": "Sem categoria",
+                },
+                {
+                    "title": "Locais por valor",
+                    "subtitle": "Distribuição do valor consumido entre os locais monitorados.",
+                    "rows": analytics.get("locations") or [],
+                    "label_key": "local",
+                    "fallback_label": "Sem local",
+                },
+                {
+                    "title": "Colaboradores por valor",
+                    "subtitle": "Participação dos responsáveis no valor total consumido.",
+                    "rows": analytics.get("employees") or [],
+                    "label_key": "nome",
+                    "fallback_label": "Não informado",
+                },
+            ]
+
+        charts: list[dict[str, Any]] = []
+        for config in configs:
+            chart = cls._build_consumption_distribution_chart(
+                config["rows"],
+                title=str(config["title"]),
+                subtitle=str(config["subtitle"]),
+                label_key=str(config["label_key"]),
+                fallback_label=str(config["fallback_label"]),
+            )
+            if chart is not None:
+                charts.append(chart)
+        return charts
+
     @staticmethod
     def get_stock_value_report(exercise_label: str | None = None) -> dict[str, Any]:
         from .inventory import inventory_service
@@ -2254,6 +2438,7 @@ class FinanceService:
             "locations": scoped_analytics.get("locations") or [],
             "categories": scoped_analytics.get("categories") or [],
             "employees": scoped_analytics.get("employees") or [],
+            "distribution_charts": cls._build_consumption_distribution_charts(scoped_analytics, scope_type=scope_type),
             "recent_entries": scoped_analytics.get("recent_entries") or [],
             "entries": scoped_analytics.get("entries") or [],
             "scope_type": scope_type,
