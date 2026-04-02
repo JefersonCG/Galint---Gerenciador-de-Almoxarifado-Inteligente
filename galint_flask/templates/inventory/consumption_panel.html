@@ -5,12 +5,35 @@
     {{ (value or 0)|currency_br }}
 {%- endmacro %}
 
+{% macro insight_card(label, title, value, caption) -%}
+<article class="consumo-kpi consumo-kpi-insight">
+    <span class="consumo-kpi-label">{{ label }}</span>
+    <div class="consumo-kpi-title">{{ title or 'Sem base suficiente' }}</div>
+    <div class="consumo-kpi-caption consumo-kpi-caption-strong">{{ value or '—' }}</div>
+    {% if caption %}
+    <div class="consumo-kpi-note">{{ caption }}</div>
+    {% endif %}
+</article>
+{%- endmacro %}
+
 {% block content %}
 {% set exercise = panel.exercise %}
 {% set overview = panel.overview|default({}) %}
 {% set current_local = panel.current_local %}
 {% set current_category = panel.current_category %}
 {% set current_employee = panel.current_employee %}
+{% set is_local_scope = panel.scope_type == 'local' %}
+{% set is_category_scope = panel.scope_type == 'categoria' %}
+{% set is_employee_scope = panel.scope_type == 'funcionario' %}
+{% set hide_category_column = is_local_scope or is_category_scope %}
+{% set hide_local_column = is_local_scope %}
+{% set hide_employee_columns = is_employee_scope %}
+{% set top_category = panel.categories[0] if panel.categories else None %}
+{% set bottom_category = panel.categories|last if panel.categories|length > 1 else None %}
+{% set top_location = panel.locations[0] if panel.locations else None %}
+{% set bottom_location = panel.locations|last if panel.locations|length > 1 else None %}
+{% set top_employee = panel.employees[0] if panel.employees else None %}
+{% set bottom_employee = panel.employees|last if panel.employees|length > 1 else None %}
 
 {% if panel.scope_type == 'local' %}
     {% set export_url = url_for('inventory.consumption_report_pdf', exercicio=exercise.label, local=panel.filters.local) %}
@@ -172,6 +195,10 @@
         gap: 1rem;
     }
 
+    .consumo-layout-scoped {
+        grid-template-columns: minmax(0, 1.58fr) minmax(290px, 0.62fr);
+    }
+
     .consumo-surface {
         border-radius: 22px;
         border: 1px solid rgba(148, 163, 184, 0.12);
@@ -224,11 +251,38 @@
         gap: 0.8rem;
     }
 
+    .consumo-insights {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 0.8rem;
+        margin-bottom: 1rem;
+    }
+
     .consumo-side-item {
         padding: 0.85rem 0.9rem;
         border-radius: 16px;
         background: rgba(15, 23, 42, 0.32);
         border: 1px solid rgba(148, 163, 184, 0.12);
+    }
+
+    .consumo-kpi-title {
+        color: #f8fafc;
+        font-size: 1rem;
+        font-weight: 800;
+        line-height: 1.3;
+    }
+
+    .consumo-kpi-caption-strong {
+        margin-top: 0.45rem;
+        color: #dbe7f4;
+        font-weight: 700;
+    }
+
+    .consumo-kpi-note {
+        margin-top: 0.35rem;
+        color: rgba(203, 213, 225, 0.64);
+        font-size: 0.78rem;
+        line-height: 1.4;
     }
 
     .consumo-side-item strong {
@@ -239,6 +293,18 @@
         color: rgba(203, 213, 225, 0.7);
         font-size: 0.82rem;
         line-height: 1.45;
+    }
+
+    .consumo-cell-title {
+        color: #f8fafc;
+        font-weight: 700;
+    }
+
+    .consumo-cell-meta {
+        margin-top: 0.24rem;
+        color: rgba(203, 213, 225, 0.68);
+        font-size: 0.78rem;
+        line-height: 1.35;
     }
 
     .consumo-opinion {
@@ -300,6 +366,10 @@
         .consumo-kpis {
             grid-template-columns: repeat(3, minmax(0, 1fr));
         }
+
+        .consumo-insights {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
     }
 
     @media (max-width: 992px) {
@@ -315,6 +385,10 @@
 
     @media (max-width: 768px) {
         .consumo-kpis {
+            grid-template-columns: 1fr;
+        }
+
+        .consumo-insights {
             grid-template-columns: 1fr;
         }
     }
@@ -378,6 +452,87 @@
         </article>
     </section>
 
+    {% if panel.entries %}
+    <section class="consumo-insights">
+        {% if is_local_scope %}
+            {{ insight_card(
+                'Maior categoria',
+                top_category.categoria if top_category else 'Sem base suficiente',
+                brl(top_category.total_valor) if top_category else '—',
+                ((top_category.saidas or 0) ~ ' saída(s) • material destaque: ' ~ (top_category.material_destaque or '—')) if top_category else 'Sem categorias consolidadas neste local.'
+            ) }}
+            {{ insight_card(
+                'Menor categoria',
+                bottom_category.categoria if bottom_category else 'Sem comparativo',
+                brl(bottom_category.total_valor) if bottom_category else '—',
+                ((bottom_category.saidas or 0) ~ ' saída(s) • material destaque: ' ~ (bottom_category.material_destaque or '—')) if bottom_category else 'Há apenas uma categoria consolidada neste local.'
+            ) }}
+            {{ insight_card(
+                'Maior colaborador',
+                top_employee.nome if top_employee else 'Sem base suficiente',
+                brl(top_employee.total_valor) if top_employee else '—',
+                ((top_employee.cargo or 'Sem cargo') ~ ' • ' ~ (top_employee.saidas or 0) ~ ' saída(s)') if top_employee else 'Sem responsáveis consolidados neste local.'
+            ) }}
+            {{ insight_card(
+                'Menor colaborador',
+                bottom_employee.nome if bottom_employee else 'Sem comparativo',
+                brl(bottom_employee.total_valor) if bottom_employee else '—',
+                ((bottom_employee.cargo or 'Sem cargo') ~ ' • ' ~ (bottom_employee.saidas or 0) ~ ' saída(s)') if bottom_employee else 'Há apenas um colaborador consolidado neste local.'
+            ) }}
+        {% elif is_category_scope %}
+            {{ insight_card(
+                'Maior local',
+                top_location.local if top_location else 'Sem base suficiente',
+                brl(top_location.total_valor) if top_location else '—',
+                ((top_location.saidas or 0) ~ ' saída(s) • ' ~ (top_location.colaboradores or 0) ~ ' colaborador(es)') if top_location else 'Sem locais consolidados nesta categoria.'
+            ) }}
+            {{ insight_card(
+                'Menor local',
+                bottom_location.local if bottom_location else 'Sem comparativo',
+                brl(bottom_location.total_valor) if bottom_location else '—',
+                ((bottom_location.saidas or 0) ~ ' saída(s) • ' ~ (bottom_location.colaboradores or 0) ~ ' colaborador(es)') if bottom_location else 'Há apenas um local consolidado nesta categoria.'
+            ) }}
+            {{ insight_card(
+                'Maior colaborador',
+                top_employee.nome if top_employee else 'Sem base suficiente',
+                brl(top_employee.total_valor) if top_employee else '—',
+                ((top_employee.cargo or 'Sem cargo') ~ ' • ' ~ (top_employee.saidas or 0) ~ ' saída(s)') if top_employee else 'Sem responsáveis consolidados nesta categoria.'
+            ) }}
+            {{ insight_card(
+                'Menor colaborador',
+                bottom_employee.nome if bottom_employee else 'Sem comparativo',
+                brl(bottom_employee.total_valor) if bottom_employee else '—',
+                ((bottom_employee.cargo or 'Sem cargo') ~ ' • ' ~ (bottom_employee.saidas or 0) ~ ' saída(s)') if bottom_employee else 'Há apenas um colaborador consolidado nesta categoria.'
+            ) }}
+        {% else %}
+            {{ insight_card(
+                'Maior categoria',
+                top_category.categoria if top_category else 'Sem base suficiente',
+                brl(top_category.total_valor) if top_category else '—',
+                ((top_category.saidas or 0) ~ ' saída(s) • material destaque: ' ~ (top_category.material_destaque or '—')) if top_category else 'Sem categorias consolidadas neste recorte.'
+            ) }}
+            {{ insight_card(
+                'Menor categoria',
+                bottom_category.categoria if bottom_category else 'Sem comparativo',
+                brl(bottom_category.total_valor) if bottom_category else '—',
+                ((bottom_category.saidas or 0) ~ ' saída(s) • material destaque: ' ~ (bottom_category.material_destaque or '—')) if bottom_category else 'Há apenas uma categoria consolidada neste recorte.'
+            ) }}
+            {{ insight_card(
+                'Maior local',
+                top_location.local if top_location else 'Sem base suficiente',
+                brl(top_location.total_valor) if top_location else '—',
+                ((top_location.saidas or 0) ~ ' saída(s) • ' ~ (top_location.colaboradores or 0) ~ ' colaborador(es)') if top_location else 'Sem locais consolidados neste recorte.'
+            ) }}
+            {{ insight_card(
+                'Menor local',
+                bottom_location.local if bottom_location else 'Sem comparativo',
+                brl(bottom_location.total_valor) if bottom_location else '—',
+                ((bottom_location.saidas or 0) ~ ' saída(s) • ' ~ (bottom_location.colaboradores or 0) ~ ' colaborador(es)') if bottom_location else 'Há apenas um local consolidado neste recorte.'
+            ) }}
+        {% endif %}
+    </section>
+    {% endif %}
+
     {% if not panel.entries %}
     <div class="alert alert-warning mb-4">Ainda não há consumo rastreado para este recorte. Quando novas saídas forem registradas com local de uso, esta página passa a consolidar valor, quantidade, responsável e categoria automaticamente.</div>
     {% endif %}
@@ -413,12 +568,20 @@
     </section>
     {% endif %}
 
-    <div class="consumo-layout">
+    <div class="consumo-layout{% if panel.scope_type != 'geral' %} consumo-layout-scoped{% endif %}">
         <div class="consumo-surface">
             <div class="consumo-surface-head d-flex justify-content-between align-items-start gap-2 flex-wrap">
                 <div>
                     <h2 class="h5 mb-1">Lançamentos detalhados</h2>
+                    {% if is_local_scope %}
+                    <div class="text-muted small">Data, colaborador, cargo, material, quantidade, valor e contexto operacional deste local.</div>
+                    {% elif is_category_scope %}
+                    <div class="text-muted small">Data, colaborador, cargo, material, local, quantidade, valor e contexto operacional desta categoria.</div>
+                    {% elif is_employee_scope %}
+                    <div class="text-muted small">Data, material, categoria, local, quantidade, valor e contexto operacional deste colaborador.</div>
+                    {% else %}
                     <div class="text-muted small">Data, colaborador, cargo, material, categoria, local, quantidade, valor e contexto operacional.</div>
+                    {% endif %}
                 </div>
                 <span class="badge text-bg-dark">{{ panel.entries|length }} linha(s)</span>
             </div>
@@ -427,11 +590,17 @@
                     <thead>
                         <tr>
                             <th>Data/Hora</th>
+                            {% if not hide_employee_columns %}
                             <th>Colaborador</th>
                             <th>Cargo</th>
+                            {% endif %}
                             <th>Material</th>
+                            {% if not hide_category_column %}
                             <th>Categoria</th>
+                            {% endif %}
+                            {% if not hide_local_column %}
                             <th>Local</th>
+                            {% endif %}
                             <th>Qtde</th>
                             <th class="text-end">Valor</th>
                             <th>Contexto</th>
@@ -441,6 +610,7 @@
                         {% for row in panel.entries %}
                         <tr>
                             <td class="text-muted">{{ row.data_saida_label or '-' }}</td>
+                            {% if not hide_employee_columns %}
                             <td>
                                 <div class="fw-semibold">{{ row.colaborador_nome or 'Não informado' }}</div>
                                 {% if row.matricula %}
@@ -448,7 +618,14 @@
                                 {% endif %}
                             </td>
                             <td class="text-muted">{{ row.cargo or 'Sem cargo' }}</td>
-                            <td>{{ row.descricao_item }}</td>
+                            {% endif %}
+                            <td>
+                                <div class="consumo-cell-title">{{ row.descricao_item }}</div>
+                                {% if is_local_scope %}
+                                <div class="consumo-cell-meta">{{ row.categoria or 'Sem categoria' }}</div>
+                                {% endif %}
+                            </td>
+                            {% if not hide_category_column %}
                             <td>
                                 <div>{{ row.categoria or 'Sem categoria' }}</div>
                                 {% if row.categoria %}
@@ -457,15 +634,22 @@
                                 </div>
                                 {% endif %}
                             </td>
+                            {% endif %}
+                            {% if not hide_local_column %}
                             <td>
                                 <div>{{ row.local or 'SEM LOCAL' }}</div>
                                 <div class="mt-2">
                                     <a class="btn btn-sm btn-outline-info" href="{{ url_for('inventory.consumption_by_local', local=row.local, exercicio=exercise.label) }}">Local</a>
                                 </div>
                             </td>
+                            {% endif %}
                             <td>{{ row.quantidade_display or '0' }}</td>
                             <td class="text-end">{{ brl(row.valor_total) }}</td>
+                            {% if is_local_scope %}
+                            <td class="text-muted">{{ row.contexto_uso or 'SEM CONTEXTO ADICIONAL' }}</td>
+                            {% else %}
                             <td class="text-muted">{{ row.contexto_uso or row.local or 'SEM CONTEXTO' }}</td>
+                            {% endif %}
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -474,6 +658,7 @@
         </div>
 
         <div class="consumo-side-stack">
+            {% if not is_local_scope %}
             <section class="consumo-surface">
                 <div class="consumo-surface-head">
                     <h2 class="h6 mb-1">Locais</h2>
@@ -495,7 +680,9 @@
                     {% endfor %}
                 </div>
             </section>
+            {% endif %}
 
+            {% if not is_category_scope %}
             <section class="consumo-surface">
                 <div class="consumo-surface-head">
                     <h2 class="h6 mb-1">Categorias</h2>
@@ -517,7 +704,9 @@
                     {% endfor %}
                 </div>
             </section>
+            {% endif %}
 
+            {% if not is_employee_scope %}
             <section class="consumo-surface">
                 <div class="consumo-surface-head">
                     <h2 class="h6 mb-1">Colaboradores</h2>
@@ -541,6 +730,7 @@
                     {% endfor %}
                 </div>
             </section>
+            {% endif %}
         </div>
     </div>
 </div>
