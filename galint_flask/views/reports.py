@@ -1304,7 +1304,7 @@ def delete(filename: str):
     from flask_login import current_user
     
     # Verificar permissão de admin
-    if not hasattr(current_user, "tipo") or current_user.tipo != "admin":
+    if not bool(getattr(current_user, "is_admin", 0)):
         flash("Apenas administradores podem deletar relatórios.", "danger")
         return redirect(url_for("reports.index"))
     

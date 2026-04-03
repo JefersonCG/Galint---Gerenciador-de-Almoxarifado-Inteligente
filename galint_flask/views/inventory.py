@@ -2123,7 +2123,7 @@ def notify_item(codigo: str):
     return redirect(url_for('inventory.list_items'))
 
 
-@blueprint.post('/categoria/<categoria>/excluir')
+@blueprint.post('/categoria/<path:categoria>/excluir')
 @login_required
 def delete_category(categoria: str):
     _require_admin()
@@ -2154,7 +2154,7 @@ def delete_category(categoria: str):
     return redirect(url_for('inventory.list_items'))
 
 
-@blueprint.post('/categoria/<categoria>/excluir_inativos')
+@blueprint.post('/categoria/<path:categoria>/excluir_inativos')
 @login_required
 def delete_inactive_items_by_category(categoria: str):
     """Exclui itens "inativos" (saldo 0) de uma categoria.
@@ -2199,7 +2199,7 @@ def delete_inactive_items_by_category(categoria: str):
     return redirect(url_for('inventory.list_items', categoria=categoria))
 
 
-@blueprint.get('/categoria/<categoria>/relatorio')
+@blueprint.get('/categoria/<path:categoria>/relatorio')
 @login_required
 def category_report(categoria: str):
     """Gera relatório de itens de uma categoria em PDF."""

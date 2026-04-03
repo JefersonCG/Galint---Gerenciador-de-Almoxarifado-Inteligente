@@ -598,7 +598,7 @@
                            title="Baixar relatório">
                             <i class="bi bi-download"></i> Baixar
                         </a>
-                        {% if current_user.tipo == 'admin' %}
+                        {% if current_user.admin %}
                         <button type="button" class="btn btn-danger btn-sm" 
                                 onclick="confirmDelete('{{ report.filename }}')" 
                                 title="Deletar relatório">
@@ -672,7 +672,7 @@
                                        title="Baixar relatório">
                                         <i class="bi bi-download"></i> Baixar
                                     </a>
-                                    {% if current_user.tipo == 'admin' %}
+                                    {% if current_user.admin %}
                                     <button type="button" class="btn btn-outline-danger" 
                                             onclick="confirmDelete('{{ report.filename }}')" 
                                             title="Deletar relatório">
@@ -732,9 +732,11 @@
 </div>
 
 <!-- Modal de Confirmação de Exclusão (apenas para admins) -->
-{% if current_user.tipo == 'admin' %}
+{% if current_user.admin %}
 <form id="deleteForm" method="post" action="">
+    {% if csrf_token is defined %}
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% endif %}
 </form>
 {% endif %}
 
