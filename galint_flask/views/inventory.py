@@ -14,7 +14,13 @@ from ..extensions import db
 from ..models import DocumentoEntradaEstoque, DocumentoEntradaEstoqueItem, FinanceLedgerEntry, Item, Usuario
 from ..services.config_service import ConfigService
 from ..services.finance_service import finance_service
-from ..services.inventory import MovimentoPayload, inventory_service
+from ..services.inventory import (
+    OPERATIONAL_ACTIVITY_OPTIONS,
+    MovimentoPayload,
+    inventory_service,
+    normalize_operational_activity,
+    normalize_operational_text,
+)
 from ..services.item_foto_service import ItemFotoService
 from ..services.price_normalization import infer_price_unit_for_item, normalize_item_price
 from ..services.price_suggestion_service import price_suggestion_service
@@ -37,6 +43,21 @@ def _uses_packaging_system(item_data: dict | None) -> bool:
     except (TypeError, ValueError):
         return False
     return unidades_por > 0
+
+
+def _collect_operational_context(source) -> dict[str, str | None]:
+    getter = getattr(source, "get", None)
+    if getter is None:
+        return {
+            "atividade_operacional": None,
+            "ordem_servico": None,
+            "centro_custo": None,
+        }
+    return {
+        "atividade_operacional": normalize_operational_activity(getter("atividade_operacional")),
+        "ordem_servico": normalize_operational_text(getter("ordem_servico"), max_length=120),
+        "centro_custo": normalize_operational_text(getter("centro_custo"), max_length=120),
+    }
 
 
 @blueprint.after_request
@@ -868,6 +889,7 @@ def list_items():
         category_cards=category_cards,
         selected_category=request.args.get("categoria", "").strip(),
         users_list=users_list,
+        operational_activity_options=OPERATIONAL_ACTIVITY_OPTIONS,
     )
 
 
@@ -1620,8 +1642,6 @@ def update_item(codigo: str):
 @blueprint.get("/<codigo>/precos/reposicao/sugestoes")
 @login_required
 def sugestoes_preco_reposicao(codigo: str):
-    if not _is_admin(current_user):
-        return {"success": False, "message": "Acesso negado"}, 403
     item = Item.query.get(codigo)
     if not item:
         return {"success": False, "message": "Item nÃ£o encontrado"}, 404
@@ -1991,6 +2011,7 @@ def registrar_saida(codigo: str):
     elif tipo_saida == "unidades":
         em_embalagens = False
     # Se tipo_saida não foi enviado (item sem unidades dinâmicas), em_embalagens fica None
+    operational_context = _collect_operational_context(request.form)
     
     try:
         saida_id = inventory_service.registrar_saida(
@@ -1999,6 +2020,9 @@ def registrar_saida(codigo: str):
                 quantidade=quantidade, 
                 matricula=matricula,
                 tipo_custodia=tipo_custodia,
+                atividade_operacional=operational_context.get("atividade_operacional"),
+                ordem_servico=operational_context.get("ordem_servico"),
+                centro_custo=operational_context.get("centro_custo"),
                 em_embalagens=em_embalagens
             )
         )
@@ -2049,6 +2073,8 @@ def registrar_saida_lote(codigo: str):
     elif tipo_saida == "unidades":
         em_embalagens = False
 
+    operational_context = _collect_operational_context(payload_json or request.form)
+
     saida_ids: list[int] = []
     errors: list[str] = []
     for matricula in matriculas:
@@ -2059,6 +2085,9 @@ def registrar_saida_lote(codigo: str):
                     quantidade=quantidade,
                     matricula=matricula,
                     tipo_custodia=tipo_custodia,
+                    atividade_operacional=operational_context.get("atividade_operacional"),
+                    ordem_servico=operational_context.get("ordem_servico"),
+                    centro_custo=operational_context.get("centro_custo"),
                     em_embalagens=em_embalagens,
                 ),
                 skip_notification=True,

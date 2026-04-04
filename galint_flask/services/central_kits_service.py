@@ -30,7 +30,6 @@ class CentralKitsService:
     _EPI_KEYWORDS = (
         "epi",
         "oculos",
-        "luva",
         "bota",
         "capacete",
         "protetor auricular",
@@ -41,9 +40,38 @@ class CentralKitsService:
         "avental",
         "cinto",
     )
+    _EPI_GLOVE_HINTS = (
+        "luva de",
+        "luva anti",
+        "luva emborrach",
+        "luva latex",
+        "luva eletricista",
+        "luva prote",
+        "luva pvc",
+        "luva algod",
+        "luva nitril",
+        "luva vaqueta",
+        "luva raspa",
+    )
+    _NON_EPI_GLOVE_CONTEXTS = (
+        "material hidraul",
+        "material eletr",
+        "soldavel",
+        "solda",
+        "correr",
+        "rosca",
+    )
     _GROUP_HINTS = (
         ("Eletricistas", ("eletric", "eletro")),
         ("Manutenção Geral", ("manut", "hidraul", "bombeiro", "oficial")),
+    )
+    _ALLOWED_EMPLOYEE_HINTS = (
+        "1/2 oficial",
+        "meio oficial",
+        "oficial de manut",
+        "oficial de eletr",
+        "eletricista",
+        "bombeiro",
     )
     _FAMILY_ORDER = {
         "bolsa": 0,
@@ -105,9 +133,17 @@ class CentralKitsService:
     @classmethod
     def _is_epi_item(cls, item: Item | None) -> bool:
         text = cls._item_text(item)
+        if not text:
+            return False
         if "epi" in text or ("material" in text and " ep" in f" {text}"):
             return True
-        return any(keyword in text for keyword in cls._EPI_KEYWORDS)
+        if any(keyword in text for keyword in cls._EPI_KEYWORDS):
+            return True
+        if "luva" not in text:
+            return False
+        if any(keyword in text for keyword in cls._NON_EPI_GLOVE_CONTEXTS):
+            return False
+        return any(keyword in text for keyword in cls._EPI_GLOVE_HINTS)
 
     @classmethod
     def _is_eligible_item(cls, item: Item | None) -> bool:
@@ -152,6 +188,17 @@ class CentralKitsService:
         if any(hint in item_text for hint in ("hidraul", "bomba", "manut")):
             return "Manutenção Geral"
         return "Operacional"
+
+    @classmethod
+    def _is_allowed_employee_for_kits(cls, usuario: Usuario | None) -> bool:
+        if usuario is None:
+            return False
+
+        persona = cls._normalize_text(" ".join([usuario.cargo or "", usuario.setor or ""]))
+        if not persona:
+            return False
+
+        return any(hint in persona for hint in cls._ALLOWED_EMPLOYEE_HINTS)
 
     @classmethod
     def _find_close_event(cls, matricula: str | None, codigo_item: str | None, data_base: datetime | None) -> dict[str, Any] | None:
@@ -247,16 +294,62 @@ class CentralKitsService:
             saldo_disponivel = 0.0
 
         unidade = (item.unidade or "un").strip() or "un"
+        family = cls._resolve_family(item)
         return {
             "codigo": item.codigo_item,
             "descricao": item.descricao or item.codigo_item,
             "categoria": item.categoria or "Ferramentas",
             "marca": item.marca or "N/D",
+            "family": family,
+            "family_label": cls._FAMILY_LABELS.get(family, "Item"),
             "saldo_disponivel": saldo_disponivel,
             "saldo_disponivel_display": f"{cls._format_quantity(saldo_disponivel)} {unidade}",
             "unidade": unidade,
             "foto_path": item.foto_path,
         }
+
+    @classmethod
+    def _is_assignment_stock_item(cls, item: Item | None) -> bool:
+        return cls._is_tool_item(item) or cls._is_epi_item(item)
+
+    @classmethod
+    def _get_assignment_responsibility_tools(cls, matricula: str, kit: dict[str, Any]) -> list[dict[str, Any]]:
+        merged_rows: dict[str, dict[str, Any]] = {}
+
+        custody_payload = ToolCustodyService.get_employee_details(matricula) or {}
+        source_rows = [
+            *(kit.get("tools", []) or []),
+            *(kit.get("epis", []) or []),
+            *(kit.get("extras", []) or []),
+            *(custody_payload.get("active_tools", []) or []),
+        ]
+
+        for row in source_rows:
+            saida_id = row.get("saida_id")
+            codigo = row.get("codigo_item") or row.get("codigo") or ""
+            fallback_ref = row.get("data_saida_formatada") or row.get("local_servico") or row.get("descricao") or codigo
+            entry_key = f"saida:{saida_id}" if saida_id is not None else f"tool:{codigo}:{fallback_ref}"
+
+            merged = merged_rows.setdefault(entry_key, {})
+            for field, value in row.items():
+                if value is None:
+                    continue
+                if isinstance(value, str) and not value.strip():
+                    continue
+                if isinstance(value, (list, dict)) and not value:
+                    continue
+                merged[field] = value
+
+        responsibility_tools = list(merged_rows.values())
+        responsibility_tools.sort(
+            key=lambda row: (
+                row.get("data_saida") or datetime.min,
+                str(row.get("descricao") or ""),
+                str(row.get("codigo_item") or row.get("codigo") or ""),
+            ),
+            reverse=True,
+        )
+        return responsibility_tools
 
     @classmethod
     def _load_active_items_for_employee(cls, matricula: str) -> list[dict[str, Any]]:
@@ -404,7 +497,7 @@ class CentralKitsService:
 
     @classmethod
     def _load_candidate_users(cls) -> list[Usuario]:
-        return (
+        users = (
             db.session.query(Usuario)
             .join(Saida, Usuario.matricula == Saida.matricula)
             .join(Item, Saida.codigo_item == Item.codigo_item)
@@ -421,6 +514,7 @@ class CentralKitsService:
             .order_by(Usuario.nome.asc())
             .all()
         )
+        return [usuario for usuario in users if cls._is_allowed_employee_for_kits(usuario)]
 
     @classmethod
     def get_dashboard(cls, *, search: str = "", group_filter: str = "todos", custody_filter: str = "todos", alert_only: bool = False) -> dict[str, Any]:
@@ -479,6 +573,8 @@ class CentralKitsService:
         usuario = Usuario.query.get(matricula)
         if usuario is None:
             return None
+        if not cls._is_allowed_employee_for_kits(usuario):
+            return None
 
         active_items = cls._load_active_items_for_employee(matricula)
         occurrences = cls._load_recent_occurrences(matricula, days=90)
@@ -507,8 +603,19 @@ class CentralKitsService:
         if kit is None:
             return None
 
+        responsibility_tools = cls._get_assignment_responsibility_tools(matricula, kit)
+
         search_text = cls._normalize_text(search)
-        query = db.session.query(Item).filter(Item.categoria.ilike("%ferrament%"))
+        epi_query_hints = (*cls._EPI_KEYWORDS, *cls._EPI_GLOVE_HINTS)
+        epi_description_filters = [Item.descricao.ilike(f"%{keyword}%") for keyword in epi_query_hints if len(keyword) >= 3]
+        query = db.session.query(Item).filter(
+            or_(
+                Item.categoria.ilike("%ferrament%"),
+                Item.categoria.ilike("%epi%"),
+                and_(Item.categoria.ilike("%material%"), Item.categoria.ilike("%ep%")),
+                *epi_description_filters,
+            )
+        )
         if search_text:
             query = query.filter(
                 or_(
@@ -520,6 +627,8 @@ class CentralKitsService:
 
         available_tools: list[dict[str, Any]] = []
         for item in query.order_by(Item.descricao.asc()).limit(500).all():
+            if not cls._is_assignment_stock_item(item):
+                continue
             payload = cls._build_available_tool_payload(item)
             if cls._to_float(payload.get("saldo_disponivel")) <= 0:
                 continue
@@ -527,21 +636,23 @@ class CentralKitsService:
 
         assigned_tools = [
             {
-                "entry_id": f"saida:{tool.get('saida_id')}",
+                "entry_id": f"saida:{tool.get('saida_id')}" if tool.get("saida_id") is not None else f"tool:{tool.get('codigo_item') or tool.get('codigo')}",
                 "saida_id": tool.get("saida_id"),
-                "codigo": tool.get("codigo_item"),
+                "codigo": tool.get("codigo_item") or tool.get("codigo"),
                 "descricao": tool.get("descricao"),
                 "categoria": tool.get("categoria"),
                 "marca": tool.get("marca"),
+                "family": tool.get("family") or "ferramenta",
+                "family_label": tool.get("family_label") or "Ferramenta",
                 "quantidade": cls._to_float(tool.get("quantidade")),
                 "quantidade_display": tool.get("quantidade_display") or cls._format_quantity(tool.get("quantidade")),
                 "tipo_custodia": tool.get("tipo_custodia"),
-                "tipo_custodia_label": tool.get("tipo_custodia_label"),
+                "tipo_custodia_label": tool.get("tipo_custodia_label") or ("Permanente" if str(tool.get("tipo_custodia") or "").strip().lower() == "permanente" else "Temporária"),
                 "local_servico": tool.get("local_servico"),
                 "foto_path": tool.get("foto_path"),
-                "status_label": tool.get("status_label"),
+                "status_label": tool.get("status_label") or ("Atenção" if bool(tool.get("is_alert")) else "Em posse"),
             }
-            for tool in kit.get("tools", [])
+            for tool in responsibility_tools
         ]
 
         return {
@@ -571,9 +682,11 @@ class CentralKitsService:
         additions = additions or []
         removals = removals or []
 
-        existing_saida_ids = {
-            int(tool.get("saida_id"))
-            for tool in kit.get("tools", [])
+        responsibility_tools = cls._get_assignment_responsibility_tools(matricula, kit)
+
+        existing_tools_by_saida_id = {
+            int(tool.get("saida_id")): tool
+            for tool in responsibility_tools
             if tool.get("saida_id") is not None
         }
 
@@ -587,13 +700,27 @@ class CentralKitsService:
             except (TypeError, ValueError):
                 continue
 
-            if saida_id not in existing_saida_ids:
-                errors.append(f"Ferramenta ativa {saida_id} não pertence mais a este colaborador.")
+            tool_row = existing_tools_by_saida_id.get(saida_id)
+            if tool_row is None:
+                errors.append(f"Item ativo {saida_id} não pertence mais a este colaborador.")
                 continue
 
             try:
-                ToolCustodyService.register_return(saida_id, "Reorganização via Central de Kits")
-                removal_results.append({"saida_id": saida_id})
+                codigo_item = str(tool_row.get("codigo_item") or tool_row.get("codigo") or "").strip()
+                item = Item.query.get(codigo_item)
+                if item is None:
+                    raise ValueError(f"Item {codigo_item or saida_id} não encontrado.")
+
+                if cls._is_tool_item(item):
+                    ToolCustodyService.register_return(saida_id, "Reorganização via Central de Kits")
+                else:
+                    inventory_service.registrar_devolucao_material(
+                        codigo=item.codigo_item,
+                        quantidade=cls._to_float(tool_row.get("quantidade")) or 1.0,
+                        matricula=matricula,
+                        observacao="Reorganização via Central de Kits",
+                    )
+                removal_results.append({"saida_id": saida_id, "codigo": codigo_item})
             except ValueError as exc:
                 errors.append(str(exc))
 
@@ -612,10 +739,10 @@ class CentralKitsService:
         for codigo, quantidade in grouped_additions.items():
             item = Item.query.get(codigo)
             if item is None:
-                errors.append(f"Ferramenta {codigo} não encontrada.")
+                errors.append(f"Item {codigo} não encontrado.")
                 continue
 
-            if not cls._is_tool_item(item):
+            if not cls._is_assignment_stock_item(item):
                 errors.append(f"Item {codigo} não é elegível para a Central de Kits.")
                 continue
 

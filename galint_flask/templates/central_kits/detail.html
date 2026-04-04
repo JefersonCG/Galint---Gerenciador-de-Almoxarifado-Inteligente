@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% macro item_card(item) -%}
+{% macro item_card(item, can_manage_prices=False) -%}
 <article class="kit-item-card {% if item.is_alert %}alert{% endif %}">
     <div class="kit-item-head">
         <div class="kit-item-main">
@@ -23,7 +23,23 @@
                 <small>{{ item.codigo_item }} • {{ item.categoria }}</small>
             </div>
         </div>
-        <div class="kit-item-value">{{ item.valor_total|currency_br }}</div>
+        <div class="kit-item-side">
+            <div class="kit-item-value">{{ item.valor_total|currency_br }}</div>
+            <button
+                class="btn btn-sm kit-item-price-btn {% if item.valor_unitario > 0 %}btn-outline-light{% else %}btn-warning{% endif %}"
+                type="button"
+                data-kit-price-trigger
+                data-price-code="{{ item.codigo_item }}"
+                data-price-description="{{ item.descricao }}"
+                data-price-brand="{{ item.marca }}"
+                data-price-label="{{ item.family_label }}"
+            >
+                <i class="bi bi-search me-1"></i>Buscar preco
+            </button>
+            {% if item.valor_unitario <= 0 %}
+            <div class="kit-item-price-missing">Sem preco de referencia</div>
+            {% endif %}
+        </div>
     </div>
     <div class="kit-item-meta">
         <span><i class="bi bi-hash"></i>Qtd {{ item.quantidade_display }}</span>
@@ -318,6 +334,14 @@
         align-items: flex-start;
     }
 
+    .kit-item-side {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 0.45rem;
+        flex: 0 0 auto;
+    }
+
     .kit-item-family {
         display: inline-flex;
         align-items: center;
@@ -349,6 +373,22 @@
         font-size: 1rem;
         font-weight: 800;
         white-space: nowrap;
+    }
+
+    .kit-item-price-btn {
+        border-radius: 999px;
+        font-size: 0.74rem;
+        font-weight: 800;
+        white-space: nowrap;
+        min-width: 146px;
+        padding-inline: 0.9rem;
+    }
+
+    .kit-item-price-missing {
+        color: #fbbf24;
+        font-size: 0.74rem;
+        font-weight: 700;
+        text-align: right;
     }
 
     .kit-item-meta {
@@ -423,6 +463,125 @@
         color: var(--kit-detail-muted);
     }
 
+    .price-suggest-modal {
+        border: none;
+        border-radius: 22px;
+        overflow: hidden;
+        background: #f8fafc;
+        box-shadow: 0 24px 70px rgba(15, 23, 42, 0.35);
+    }
+
+    .price-suggest-modal .modal-header {
+        border: none;
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 65%, #334155 100%);
+        color: #e2e8f0;
+        padding: 1.25rem 1.5rem;
+    }
+
+    .price-suggest-modal .modal-title {
+        font-weight: 800;
+        letter-spacing: -0.02em;
+    }
+
+    .kit-price-subtitle {
+        margin-top: 0.28rem;
+        color: rgba(226, 232, 240, 0.8);
+        font-size: 0.9rem;
+    }
+
+    .price-suggest-modal .modal-body {
+        background: #f8fafc;
+        padding: 1.5rem;
+    }
+
+    .price-suggest-modal .modal-footer {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 0.75rem;
+        border: none;
+        background: linear-gradient(180deg, rgba(15, 23, 42, 0.96) 0%, rgba(17, 24, 39, 0.94) 100%);
+        padding: 1rem 1.5rem 1.25rem;
+    }
+
+    .price-suggest-modal .form-label {
+        font-weight: 700;
+        color: #334155;
+        margin-bottom: 0.45rem;
+    }
+
+    .price-suggest-modal .form-control,
+    .price-suggest-modal .input-group-text {
+        border-radius: 12px;
+        border: 1px solid #e2e8f0;
+    }
+
+    .kit-price-note {
+        margin-top: 1rem;
+        border-radius: 14px;
+        padding: 0.9rem 1rem;
+        background: rgba(37, 99, 235, 0.08);
+        border: 1px solid rgba(37, 99, 235, 0.14);
+        color: #334155;
+        line-height: 1.55;
+    }
+
+    .price-results {
+        display: grid;
+        gap: 0.75rem;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    }
+
+    #kit-price-empty {
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px dashed rgba(148, 163, 184, 0.18);
+        border-radius: 12px;
+        padding: 0.85rem 1rem;
+    }
+
+    .price-card {
+        border-radius: 14px;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        background: rgba(255, 255, 255, 0.92);
+        padding: 0.85rem 1rem;
+        cursor: pointer;
+        transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
+    }
+
+    .price-card:hover {
+        transform: translateY(-2px);
+        border-color: #60a5fa;
+        box-shadow: 0 12px 24px rgba(15, 23, 42, 0.12);
+    }
+
+    .price-card.selected {
+        border-color: #2563eb;
+        box-shadow: 0 12px 26px rgba(37, 99, 235, 0.25);
+    }
+
+    .price-amount {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: #0f172a;
+    }
+
+    .price-meta {
+        color: #475569;
+        font-size: 0.85rem;
+        margin-top: 0.25rem;
+    }
+
+    #kit-price-providers .badge {
+        border-radius: 999px;
+        padding: 0.35rem 0.6rem;
+        font-weight: 700;
+    }
+
+    #kit-price-stats {
+        background: rgba(255, 255, 255, 0.94);
+        border-radius: 12px;
+    }
+
     @media (max-width: 1100px) {
         .kit-content-grid,
         .kit-hero-grid {
@@ -443,6 +602,10 @@
         .kit-item-head,
         .kit-surface-head {
             flex-direction: column;
+        }
+
+        .kit-item-side {
+            align-items: flex-start;
         }
 
         .kit-item-thumb {
@@ -552,7 +715,7 @@
                 {% if kit.bags %}
                 <div class="kit-item-list mb-3">
                     {% for item in kit.bags %}
-                        {{ item_card(item) }}
+                        {{ item_card(item, can_manage_prices) }}
                     {% endfor %}
                 </div>
                 {% endif %}
@@ -568,7 +731,7 @@
                     </div>
                     <div class="kit-item-list">
                         {% for item in kit.tools %}
-                            {{ item_card(item) }}
+                            {{ item_card(item, can_manage_prices) }}
                         {% endfor %}
                     </div>
                 </div>
@@ -585,7 +748,7 @@
                     </div>
                     <div class="kit-item-list">
                         {% for item in kit.epis %}
-                            {{ item_card(item) }}
+                            {{ item_card(item, can_manage_prices) }}
                         {% endfor %}
                     </div>
                 </div>
@@ -602,7 +765,7 @@
                     </div>
                     <div class="kit-item-list">
                         {% for item in kit.extras %}
-                            {{ item_card(item) }}
+                            {{ item_card(item, can_manage_prices) }}
                         {% endfor %}
                     </div>
                 </div>
@@ -656,5 +819,410 @@
             </section>
         </div>
     </div>
+
+    <div class="modal fade" id="kitPriceSuggestionsModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content price-suggest-modal">
+                <div class="modal-header">
+                    <div>
+                        <h5 class="modal-title">Buscar preco de reposicao</h5>
+                        <div class="kit-price-subtitle" id="kit-price-item-subtitle">Referencia patrimonial rapida por API ou valor manual.</div>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3 align-items-end">
+                        <div class="col-md-8">
+                            <label class="form-label" for="kit-price-query">Busca</label>
+                            <input class="form-control" id="kit-price-query" placeholder="Ex.: protetor auricular epi 3m">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label" for="kit-price-uf">UF</label>
+                            <input class="form-control text-uppercase" id="kit-price-uf" maxlength="2" placeholder="SP">
+                        </div>
+                        <div class="col-md-2 d-grid">
+                            <button class="btn btn-primary" type="button" id="kit-price-refresh-btn">
+                                <i class="bi bi-search me-1"></i>Pesquisar
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="kit-price-note">
+                        Este atalho salva o preco de reposicao para referencia patrimonial imediata. O valor real de compra continua podendo ser ajustado depois com os dados da NF ou do cupom.
+                    </div>
+
+                    {% if not can_manage_prices %}
+                    <div class="alert alert-warning mt-3 mb-0">
+                        A consulta de preco esta liberada nesta tela. O salvamento da referencia continua restrito a administradores.
+                    </div>
+                    {% endif %}
+
+                    <div class="d-flex gap-2 flex-wrap mt-3" id="kit-price-providers"></div>
+
+                    <div class="alert alert-danger mt-3 d-none" id="kit-price-feedback" role="alert"></div>
+
+                    <div class="alert alert-light border mt-3 d-none" id="kit-price-stats"></div>
+
+                    <div class="mt-3">
+                        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+                            <strong id="kit-price-item-title">Sugestoes</strong>
+                            <div class="input-group input-group-sm" style="max-width: 320px;">
+                                <span class="input-group-text">Manual</span>
+                                <input class="form-control" id="kit-price-manual" type="number" step="0.01" min="0" placeholder="0,00">
+                            </div>
+                        </div>
+                        <div id="kit-price-results" class="price-results"></div>
+                        <div id="kit-price-empty" class="text-muted small d-none">Nenhuma sugestao encontrada para esta busca.</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline-secondary" type="button" id="kit-price-use-median">Usar mediana</button>
+                    <button class="btn btn-success" type="button" id="kit-price-save" {% if not can_manage_prices %}disabled title="Somente administradores podem salvar a referencia de preco."{% endif %}>
+                        <i class="bi bi-check2-circle me-1"></i>Salvar preco
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+(function() {
+    const triggerButtons = Array.from(document.querySelectorAll('[data-kit-price-trigger]'));
+    const modalEl = document.getElementById('kitPriceSuggestionsModal');
+    if (!triggerButtons.length || !modalEl) {
+        return;
+    }
+
+    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    const titleEl = document.getElementById('kit-price-item-title');
+    const subtitleEl = document.getElementById('kit-price-item-subtitle');
+    const queryEl = document.getElementById('kit-price-query');
+    const ufEl = document.getElementById('kit-price-uf');
+    const manualEl = document.getElementById('kit-price-manual');
+    const providersEl = document.getElementById('kit-price-providers');
+    const feedbackEl = document.getElementById('kit-price-feedback');
+    const statsEl = document.getElementById('kit-price-stats');
+    const resultsEl = document.getElementById('kit-price-results');
+    const emptyEl = document.getElementById('kit-price-empty');
+    const refreshBtn = document.getElementById('kit-price-refresh-btn');
+    const useMedianBtn = document.getElementById('kit-price-use-median');
+    const saveBtn = document.getElementById('kit-price-save');
+    const suggestUrlTemplate = '{{ url_for("inventory.sugestoes_preco_reposicao", codigo="__CODIGO__") }}';
+    const saveUrlTemplate = '{{ url_for("inventory.salvar_preco_reposicao", codigo="__CODIGO__") }}';
+    const canManagePrices = {{ 'true' if can_manage_prices else 'false' }};
+
+    let currentItem = null;
+    let priceSuggestions = [];
+    let lastPriceStats = null;
+    let selectedSuggestionIndex = null;
+
+    function escapeHtml(value) {
+        return String(value == null ? '' : value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function formatBrl(value) {
+        const num = Number(value);
+        if (!Number.isFinite(num) || num <= 0) {
+            return '—';
+        }
+        return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(num);
+    }
+
+    function setFeedback(message, level) {
+        const normalized = String(message || '').trim();
+        if (!normalized) {
+            feedbackEl.className = 'alert alert-danger mt-3 d-none';
+            feedbackEl.textContent = '';
+            return;
+        }
+        feedbackEl.className = `alert alert-${level || 'danger'} mt-3`;
+        feedbackEl.textContent = normalized;
+    }
+
+    function buildItemUrl(template, codigo) {
+        return String(template || '').replace('__CODIGO__', encodeURIComponent(String(codigo || '')));
+    }
+
+    function buildDefaultQuery(item) {
+        const description = String(item?.description || '').trim();
+        const brand = String(item?.brand || '').trim();
+        return `${description}${brand ? ` ${brand}` : ''}`.trim();
+    }
+
+    async function readJsonResponse(response) {
+        const contentType = String(response?.headers?.get('content-type') || '');
+        if (!contentType.includes('application/json')) {
+            if (response?.redirected) {
+                throw new Error('Sessao expirada ou redirecionada. Recarregue a pagina e tente novamente.');
+            }
+            const status = Number(response?.status || 0);
+            if (status === 401) {
+                throw new Error('Sessao expirada. Recarregue a pagina e faca login novamente.');
+            }
+            if (status === 403) {
+                throw new Error('Acesso negado. Voce precisa ser administrador para usar esta funcao.');
+            }
+            throw new Error('Resposta invalida do servidor.');
+        }
+        try {
+            return await response.json();
+        } catch (_) {
+            throw new Error('Resposta JSON invalida do servidor.');
+        }
+    }
+
+    async function refreshSuggestions() {
+        if (!currentItem) {
+            return;
+        }
+
+        const query = String(queryEl?.value || '').trim();
+        const uf = String(ufEl?.value || '').trim();
+        if (resultsEl) {
+            resultsEl.innerHTML = '<div class="text-muted small">Buscando sugestoes...</div>';
+        }
+        if (providersEl) {
+            providersEl.innerHTML = '';
+        }
+        statsEl?.classList.add('d-none');
+        emptyEl?.classList.add('d-none');
+        setFeedback('', 'danger');
+
+        if (refreshBtn) {
+            refreshBtn.disabled = true;
+            refreshBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Buscando';
+        }
+
+        try {
+            const response = await fetch(buildItemUrl(suggestUrlTemplate, currentItem.code) + `?q=${encodeURIComponent(query)}&uf=${encodeURIComponent(uf)}`, {
+                headers: { 'Accept': 'application/json' },
+                credentials: 'same-origin',
+            });
+            const data = await readJsonResponse(response);
+            if (!response.ok || !data?.success) {
+                throw new Error(data?.message || 'Falha ao buscar sugestoes.');
+            }
+
+            priceSuggestions = Array.isArray(data.suggestions) ? data.suggestions : [];
+            lastPriceStats = data.stats || null;
+
+            if (data.uf && ufEl && !ufEl.value.trim()) {
+                ufEl.value = data.uf;
+            }
+
+            if (providersEl) {
+                providersEl.innerHTML = (Array.isArray(data.providers) ? data.providers : []).map((provider) => {
+                    const ok = Boolean(provider.ok);
+                    const countText = typeof provider.count === 'number' ? ` (${provider.count})` : '';
+                    return `<span class="badge ${ok ? 'bg-success' : 'bg-danger'}">${escapeHtml(provider.name || 'API')}${countText}</span>`;
+                }).join('');
+            }
+
+            if (lastPriceStats && (lastPriceStats.median || lastPriceStats.count)) {
+                const median = lastPriceStats.median ? formatBrl(lastPriceStats.median) : '—';
+                const count = Number(lastPriceStats.count || 0);
+                statsEl.classList.remove('d-none');
+                statsEl.innerHTML = `<strong>Mediana:</strong> ${median} <span class="text-muted">• amostra: ${count}</span>`;
+            } else {
+                statsEl.classList.add('d-none');
+                statsEl.innerHTML = '';
+            }
+
+            if (!priceSuggestions.length) {
+                if (resultsEl) {
+                    resultsEl.innerHTML = '';
+                }
+                emptyEl?.classList.remove('d-none');
+                return;
+            }
+
+            resultsEl.innerHTML = priceSuggestions.map((suggestion, index) => {
+                const amount = formatBrl(suggestion.price);
+                const title = escapeHtml(suggestion.title || '(sem titulo)');
+                const source = escapeHtml(suggestion.source || 'Fonte');
+                const ufLabel = suggestion.uf ? ` • ${escapeHtml(suggestion.uf)}` : '';
+                const link = suggestion.url ? `<a href="${escapeHtml(suggestion.url)}" target="_blank" rel="noopener">abrir</a>` : '';
+                return '' +
+                    `<div class="price-card" data-price-index="${index}">` +
+                        '<div class="price-top">' +
+                            `<div class="price-amount">${amount}</div>` +
+                            `<div class="text-muted small">${source}${ufLabel}${link ? ` • ${link}` : ''}</div>` +
+                        '</div>' +
+                        `<div class="price-meta">${title}</div>` +
+                    '</div>';
+            }).join('');
+
+            resultsEl.querySelectorAll('[data-price-index]').forEach((card) => {
+                card.addEventListener('click', function() {
+                    resultsEl.querySelectorAll('[data-price-index]').forEach((entry) => entry.classList.remove('selected'));
+                    card.classList.add('selected');
+                    selectedSuggestionIndex = Number(card.getAttribute('data-price-index'));
+                    if (manualEl) {
+                        manualEl.value = '';
+                    }
+                });
+            });
+        } catch (error) {
+            if (resultsEl) {
+                resultsEl.innerHTML = '';
+            }
+            if (emptyEl) {
+                emptyEl.classList.remove('d-none');
+                emptyEl.textContent = `Erro: ${String(error?.message || error)}`;
+            }
+            setFeedback(error?.message || 'Falha ao buscar sugestoes.', 'danger');
+        } finally {
+            if (refreshBtn) {
+                refreshBtn.disabled = false;
+                refreshBtn.innerHTML = '<i class="bi bi-search me-1"></i>Pesquisar';
+            }
+        }
+    }
+
+    async function savePrice() {
+        if (!currentItem) {
+            return;
+        }
+
+        if (!canManagePrices) {
+            setFeedback('Somente administradores podem salvar a referencia de preco.', 'warning');
+            return;
+        }
+
+        const manualValue = Number(manualEl?.value || 0);
+        let chosen = null;
+        if (Number.isFinite(manualValue) && manualValue > 0) {
+            chosen = { price: manualValue, source: 'Manual', url: null };
+        } else if (Number.isFinite(selectedSuggestionIndex) && selectedSuggestionIndex !== null) {
+            const suggestion = priceSuggestions[selectedSuggestionIndex];
+            if (suggestion && Number(suggestion.price) > 0) {
+                chosen = {
+                    price: Number(suggestion.price),
+                    source: suggestion.source || 'Mercado Livre',
+                    url: suggestion.url || null,
+                };
+            }
+        }
+
+        if (!chosen) {
+            setFeedback('Escolha uma sugestao ou informe o valor manual.', 'warning');
+            return;
+        }
+
+        if (saveBtn) {
+            saveBtn.disabled = true;
+        }
+        setFeedback('Salvando preco de reposicao...', 'info');
+
+        try {
+            const response = await fetch(buildItemUrl(saveUrlTemplate, currentItem.code), {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                },
+                credentials: 'same-origin',
+                body: JSON.stringify({
+                    preco_reposicao_unitario: chosen.price,
+                    preco_reposicao_fonte: chosen.source,
+                    preco_reposicao_uf: String(ufEl?.value || '').trim(),
+                    preco_reposicao_query: String(queryEl?.value || '').trim(),
+                    preco_reposicao_url: chosen.url,
+                }),
+            });
+            const data = await readJsonResponse(response);
+            if (!response.ok || !data?.success) {
+                throw new Error(data?.message || 'Falha ao salvar preco de reposicao.');
+            }
+
+            setFeedback('Preco de reposicao atualizado. Recarregando a tela...', 'success');
+            window.setTimeout(function() {
+                window.location.reload();
+            }, 350);
+        } catch (error) {
+            setFeedback(error?.message || 'Falha ao salvar preco de reposicao.', 'danger');
+        } finally {
+            if (saveBtn) {
+                saveBtn.disabled = false;
+            }
+        }
+    }
+
+    triggerButtons.forEach((button) => {
+        button.addEventListener('click', async function() {
+            currentItem = {
+                code: button.getAttribute('data-price-code') || '',
+                description: button.getAttribute('data-price-description') || '',
+                brand: button.getAttribute('data-price-brand') || '',
+                familyLabel: button.getAttribute('data-price-label') || 'Item',
+            };
+            if (!currentItem.code) {
+                return;
+            }
+
+            selectedSuggestionIndex = null;
+            priceSuggestions = [];
+            lastPriceStats = null;
+            if (titleEl) {
+                titleEl.textContent = currentItem.description || currentItem.code;
+            }
+            if (subtitleEl) {
+                subtitleEl.textContent = `${currentItem.code} • ${currentItem.familyLabel} • referencia patrimonial rapida por API ou valor manual.`;
+            }
+            if (queryEl) {
+                queryEl.value = buildDefaultQuery(currentItem);
+            }
+            if (ufEl) {
+                ufEl.value = '';
+            }
+            if (manualEl) {
+                manualEl.value = '';
+            }
+            if (resultsEl) {
+                resultsEl.innerHTML = '';
+            }
+            if (providersEl) {
+                providersEl.innerHTML = '';
+            }
+            statsEl?.classList.add('d-none');
+            emptyEl?.classList.add('d-none');
+            setFeedback('', 'danger');
+            if (!canManagePrices) {
+                setFeedback('Consulta liberada. O salvamento da referencia permanece restrito a administradores.', 'warning');
+            }
+
+            modal.show();
+            await refreshSuggestions();
+        });
+    });
+
+    refreshBtn?.addEventListener('click', refreshSuggestions);
+    useMedianBtn?.addEventListener('click', function() {
+        const median = Number(lastPriceStats?.median);
+        if (!Number.isFinite(median) || median <= 0 || !manualEl) {
+            return;
+        }
+        manualEl.value = String(median.toFixed(2));
+        resultsEl?.querySelectorAll('[data-price-index]').forEach((entry) => entry.classList.remove('selected'));
+        selectedSuggestionIndex = null;
+    });
+    saveBtn?.addEventListener('click', savePrice);
+    queryEl?.addEventListener('keydown', function(event) {
+        if (event.key !== 'Enter') {
+            return;
+        }
+        event.preventDefault();
+        refreshSuggestions();
+    });
+})();
+</script>
 {% endblock %}

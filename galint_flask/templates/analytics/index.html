@@ -1,0 +1,1199 @@
+{% extends "base.html" %}
+
+{% block title %}Central Analítica{% endblock %}
+
+{% block extra_css %}
+<style>
+    .analytics-shell {
+        background: radial-gradient(circle at top left, rgba(14, 165, 233, 0.14), transparent 24%), radial-gradient(circle at top right, rgba(34, 197, 94, 0.12), transparent 24%), linear-gradient(180deg, #08111f 0%, #0d1624 100%);
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        border-radius: 30px;
+        padding: 1.4rem;
+        color: #dbe7f3;
+        box-shadow: 0 24px 52px rgba(2, 6, 23, 0.34);
+    }
+
+    .analytics-hero {
+        position: relative;
+        overflow: hidden;
+        border-radius: 26px;
+        padding: 1.5rem;
+        margin-bottom: 1.25rem;
+        background: linear-gradient(135deg, rgba(15, 23, 42, 0.98) 0%, rgba(15, 23, 42, 0.96) 40%, rgba(3, 105, 161, 0.94) 100%);
+        border: 1px solid rgba(125, 211, 252, 0.15);
+    }
+
+    .analytics-hero::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(circle at 14% 18%, rgba(56, 189, 248, 0.18), transparent 32%), radial-gradient(circle at 82% 22%, rgba(16, 185, 129, 0.16), transparent 24%);
+        pointer-events: none;
+    }
+
+    .analytics-hero > * {
+        position: relative;
+        z-index: 1;
+    }
+
+    .analytics-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        border-radius: 999px;
+        padding: 0.36rem 0.8rem;
+        font-size: 0.74rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        font-weight: 800;
+        background: rgba(255, 255, 255, 0.12);
+        color: #e0f2fe;
+        margin-bottom: 0.8rem;
+    }
+
+    .analytics-hero h1 {
+        margin: 0;
+        font-size: clamp(2rem, 3vw, 2.7rem);
+        font-weight: 900;
+        letter-spacing: -0.04em;
+        color: #f8fbff;
+    }
+
+    .analytics-hero p {
+        margin: 0.6rem 0 0;
+        max-width: 62rem;
+        line-height: 1.6;
+        color: rgba(226, 232, 240, 0.84);
+    }
+
+    .analytics-context {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        margin-top: 1rem;
+    }
+
+    .analytics-chip {
+        border-radius: 16px;
+        padding: 0.65rem 0.8rem;
+        background: rgba(15, 23, 42, 0.34);
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        min-width: 180px;
+    }
+
+    .analytics-chip-label {
+        display: block;
+        font-size: 0.73rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #93c5fd;
+    }
+
+    .analytics-chip-value {
+        margin-top: 0.22rem;
+        font-weight: 700;
+        color: #f8fafc;
+    }
+
+    .analytics-filters,
+    .analytics-surface {
+        background: linear-gradient(180deg, rgba(11, 20, 33, 0.96), rgba(15, 25, 40, 0.94));
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        border-radius: 24px;
+        box-shadow: 0 18px 34px rgba(2, 6, 23, 0.24);
+    }
+
+    .analytics-filters {
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .analytics-filters .form-control,
+    .analytics-filters .form-select {
+        background: rgba(15, 23, 42, 0.82);
+        color: #f8fafc;
+        border-color: rgba(148, 163, 184, 0.22);
+    }
+
+    .analytics-filters .form-label,
+    .analytics-filters .form-text {
+        color: #cbd5e1;
+    }
+
+    .analytics-kpis {
+        display: grid;
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+        gap: 0.8rem;
+        margin-bottom: 1rem;
+    }
+
+    .analytics-kpi {
+        border-radius: 22px;
+        padding: 1rem;
+        background: linear-gradient(155deg, rgba(15, 23, 42, 0.96), rgba(20, 32, 49, 0.94));
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        min-height: 142px;
+    }
+
+    .analytics-kpi-label {
+        display: block;
+        font-size: 0.74rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #93c5fd;
+        margin-bottom: 0.32rem;
+    }
+
+    .analytics-kpi-value {
+        font-size: 1.45rem;
+        font-weight: 900;
+        color: #f8fafc;
+        line-height: 1.08;
+    }
+
+    .analytics-kpi-caption {
+        margin-top: 0.35rem;
+        color: rgba(203, 213, 225, 0.76);
+        font-size: 0.82rem;
+        line-height: 1.45;
+    }
+
+    .analytics-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .analytics-surface {
+        padding: 1rem;
+    }
+
+    .analytics-surface h2 {
+        font-size: 1rem;
+        font-weight: 800;
+        color: #f8fafc;
+        margin-bottom: 0.25rem;
+    }
+
+    .analytics-surface p {
+        color: rgba(203, 213, 225, 0.75);
+        margin-bottom: 0.85rem;
+    }
+
+    .analytics-bars {
+        display: grid;
+        gap: 0.75rem;
+    }
+
+    .analytics-bar-row {
+        display: grid;
+        grid-template-columns: minmax(130px, 170px) minmax(0, 1fr) auto;
+        gap: 0.75rem;
+        align-items: center;
+    }
+
+    .analytics-bar-label {
+        font-weight: 700;
+        color: #e2e8f0;
+    }
+
+    .analytics-bar-track {
+        height: 10px;
+        border-radius: 999px;
+        background: rgba(148, 163, 184, 0.14);
+        overflow: hidden;
+    }
+
+    .analytics-bar-fill {
+        height: 100%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, #38bdf8, #22c55e);
+    }
+
+    .analytics-bar-value {
+        color: #cbd5e1;
+        font-size: 0.85rem;
+        white-space: nowrap;
+    }
+
+    .analytics-series-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0 0.6rem;
+    }
+
+    .analytics-series-table td {
+        vertical-align: middle;
+    }
+
+    .analytics-series-label {
+        width: 80px;
+        color: #e2e8f0;
+        font-weight: 700;
+    }
+
+    .analytics-series-pair {
+        display: grid;
+        gap: 0.35rem;
+    }
+
+    .analytics-series-pill {
+        display: grid;
+        grid-template-columns: 70px minmax(0, 1fr) auto;
+        gap: 0.55rem;
+        align-items: center;
+    }
+
+    .analytics-series-name {
+        font-size: 0.8rem;
+        color: #cbd5e1;
+    }
+
+    .analytics-series-track {
+        height: 8px;
+        border-radius: 999px;
+        background: rgba(148, 163, 184, 0.14);
+        overflow: hidden;
+    }
+
+    .analytics-series-fill-entrada {
+        height: 100%;
+        background: linear-gradient(90deg, #22c55e, #86efac);
+    }
+
+    .analytics-series-fill-saida {
+        height: 100%;
+        background: linear-gradient(90deg, #f59e0b, #fb7185);
+    }
+
+    .analytics-balance {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.75rem;
+    }
+
+    .analytics-balance-card {
+        border-radius: 18px;
+        padding: 0.9rem;
+        background: rgba(15, 23, 42, 0.52);
+        border: 1px solid rgba(148, 163, 184, 0.14);
+    }
+
+    .analytics-balance-card strong {
+        display: block;
+        font-size: 1.15rem;
+        color: #f8fafc;
+    }
+
+    .analytics-balance-card span {
+        color: #93c5fd;
+        text-transform: uppercase;
+        font-size: 0.72rem;
+        letter-spacing: 0.08em;
+    }
+
+    .analytics-type-grid,
+    .analytics-insights {
+        display: grid;
+        gap: 0.75rem;
+    }
+
+    .analytics-type-item,
+    .analytics-insight {
+        border-radius: 18px;
+        padding: 0.9rem;
+        background: rgba(15, 23, 42, 0.42);
+        border: 1px solid rgba(148, 163, 184, 0.14);
+    }
+
+    .analytics-type-item strong,
+    .analytics-insight strong {
+        color: #f8fafc;
+    }
+
+    .analytics-type-meta,
+    .analytics-insight p,
+    .analytics-table-meta {
+        color: rgba(203, 213, 225, 0.74);
+        margin: 0.3rem 0 0;
+        font-size: 0.85rem;
+        line-height: 1.5;
+    }
+
+    .analytics-table-wrap {
+        overflow-x: auto;
+    }
+
+    .analytics-table table {
+        width: 100%;
+        color: #e2e8f0;
+    }
+
+    .analytics-table thead th {
+        border-bottom-color: rgba(148, 163, 184, 0.18);
+        color: #93c5fd;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        font-size: 0.74rem;
+        white-space: nowrap;
+    }
+
+    .analytics-table tbody td {
+        border-bottom-color: rgba(148, 163, 184, 0.1);
+        vertical-align: middle;
+    }
+
+    .analytics-table tbody tr:hover {
+        background: rgba(59, 130, 246, 0.08);
+    }
+
+    .analytics-pagination {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        margin-top: 0.9rem;
+        flex-wrap: wrap;
+    }
+
+    .analytics-widget-slot {
+        margin-bottom: 1rem;
+    }
+
+    .analytics-loading,
+    .analytics-error {
+        border-radius: 24px;
+        padding: 1.2rem;
+        background: linear-gradient(180deg, rgba(11, 20, 33, 0.96), rgba(15, 25, 40, 0.94));
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        color: #cbd5e1;
+        box-shadow: 0 18px 34px rgba(2, 6, 23, 0.24);
+    }
+
+    .analytics-error {
+        border-color: rgba(248, 113, 113, 0.32);
+        color: #fecaca;
+    }
+
+    .analytics-filter-note {
+        color: rgba(203, 213, 225, 0.72);
+        font-size: 0.82rem;
+    }
+
+    .analytics-filter-presets {
+        display: flex;
+        gap: 0.55rem;
+        flex-wrap: wrap;
+        margin-top: 0.15rem;
+    }
+
+    .analytics-filter-presets .btn {
+        border-radius: 999px;
+    }
+
+    .analytics-mini-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 0.75rem;
+    }
+
+    .analytics-mini-card {
+        border-radius: 18px;
+        padding: 0.95rem;
+        background: rgba(15, 23, 42, 0.42);
+        border: 1px solid rgba(148, 163, 184, 0.14);
+    }
+
+    .analytics-mini-card strong {
+        display: block;
+        font-size: 1.1rem;
+        color: #f8fafc;
+    }
+
+    .analytics-mini-card span {
+        display: block;
+        color: #93c5fd;
+        text-transform: uppercase;
+        font-size: 0.72rem;
+        letter-spacing: 0.08em;
+        margin-bottom: 0.28rem;
+    }
+
+    .analytics-note-list {
+        display: grid;
+        gap: 0.6rem;
+    }
+
+    .analytics-note-item {
+        border-radius: 16px;
+        padding: 0.8rem 0.9rem;
+        background: rgba(15, 23, 42, 0.38);
+        border: 1px solid rgba(148, 163, 184, 0.12);
+        color: rgba(226, 232, 240, 0.84);
+    }
+
+    .analytics-pill {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        padding: 0.28rem 0.72rem;
+        background: rgba(56, 189, 248, 0.12);
+        color: #bae6fd;
+        font-size: 0.74rem;
+        font-weight: 700;
+    }
+
+    .analytics-widget-actions {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.8rem;
+        flex-wrap: wrap;
+        margin-bottom: 0.75rem;
+    }
+
+    .analytics-caption {
+        color: rgba(203, 213, 225, 0.74);
+        font-size: 0.84rem;
+        line-height: 1.5;
+    }
+
+    @media (max-width: 1400px) {
+        .analytics-kpis {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+    }
+
+    @media (max-width: 1100px) {
+        .analytics-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .analytics-bar-row {
+            grid-template-columns: 1fr;
+        }
+
+        .analytics-balance {
+            grid-template-columns: 1fr;
+        }
+
+        .analytics-mini-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .analytics-kpis {
+            grid-template-columns: 1fr;
+        }
+
+        .analytics-shell {
+            padding: 1rem;
+        }
+
+        .analytics-pagination {
+            flex-direction: column;
+            align-items: stretch;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+{% set header = analytics.header %}
+{% set filters = analytics.filters %}
+{% set context = analytics.context %}
+
+<div class="analytics-shell">
+    <section class="analytics-hero">
+        <div class="analytics-badge"><i class="bi bi-bar-chart-line"></i> Central Analítica</div>
+        <h1>{{ context.scope_title }}</h1>
+        <p>{{ context.scope_subtitle }}</p>
+        <div class="analytics-context">
+            <div class="analytics-chip">
+                <span class="analytics-chip-label">Período analisado</span>
+                <div class="analytics-chip-value">{{ header.period_label }}</div>
+            </div>
+            <div class="analytics-chip">
+                <span class="analytics-chip-label">Linhas analisadas</span>
+                <div class="analytics-chip-value" id="analytics-total-rows">Carregando...</div>
+            </div>
+            <div class="analytics-chip">
+                <span class="analytics-chip-label">Atualizado em</span>
+                <div class="analytics-chip-value" id="analytics-generated-at">{{ header.generated_at_label or '-' }}</div>
+            </div>
+        </div>
+    </section>
+
+    <form method="get" class="analytics-filters">
+        <input type="hidden" id="filtro-preset" name="preset" value="{{ filters.selected_period_preset }}">
+        <div class="row g-3 align-items-end">
+            <div class="col-12 col-lg-2">
+                <label class="form-label" for="filtro-exercicio">Exercício base</label>
+                <select class="form-select" id="filtro-exercicio" name="exercicio">
+                    {% for option in filters.exercise_options %}
+                    <option value="{{ option.label }}" {% if option.label == filters.selected_exercise %}selected{% endif %}>{{ option.label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-12 col-lg-2">
+                <label class="form-label" for="filtro-data-inicio">Data inicial</label>
+                <input class="form-control" id="filtro-data-inicio" type="date" name="data_inicio" value="{{ filters.selected_start_date }}" data-preset-lock="{{ '1' if filters.selected_period_preset else '0' }}">
+            </div>
+            <div class="col-12 col-lg-2">
+                <label class="form-label" for="filtro-data-fim">Data final</label>
+                <input class="form-control" id="filtro-data-fim" type="date" name="data_fim" value="{{ filters.selected_end_date }}" data-preset-lock="{{ '1' if filters.selected_period_preset else '0' }}">
+            </div>
+            <div class="col-12 col-lg-6">
+                <label class="form-label">Atalhos de período</label>
+                <div class="analytics-filter-presets">
+                    {% for option in filters.period_preset_options %}
+                    <button
+                        type="button"
+                        class="btn {% if option.value == filters.selected_period_preset %}btn-info{% else %}btn-outline-info{% endif %} btn-sm"
+                        data-period-preset="{{ option.value }}"
+                    >{{ option.label }}</button>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="col-12 col-lg-2">
+                <label class="form-label" for="filtro-local">Local / unidade</label>
+                <select class="form-select" id="filtro-local" name="local">
+                    <option value="">Todos</option>
+                    {% for option in filters.locations %}
+                    <option value="{{ option.local }}" {% if option.local == filters.selected_local %}selected{% endif %}>{{ option.local }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-12 col-lg-2">
+                <label class="form-label" for="filtro-categoria">Categoria</label>
+                <select class="form-select" id="filtro-categoria" name="categoria">
+                    <option value="">Todas</option>
+                    {% for option in filters.categories %}
+                    <option value="{{ option.categoria }}" {% if option.categoria == filters.selected_category %}selected{% endif %}>{{ option.categoria }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-12 col-lg-3">
+                <label class="form-label" for="filtro-funcionario">Funcionário</label>
+                <select class="form-select" id="filtro-funcionario" name="matricula">
+                    <option value="">Todos</option>
+                    {% for option in filters.employees %}
+                    <option value="{{ option.matricula }}" {% if option.matricula == filters.selected_employee %}selected{% endif %}>{{ option.nome }}{% if option.matricula %} • {{ option.matricula }}{% endif %}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-12 col-lg-3">
+                <label class="form-label" for="filtro-search">Busca livre</label>
+                <input class="form-control" id="filtro-search" name="search" value="{{ filters.search }}" placeholder="Item, código, local, colaborador, OS, centro de custo">
+            </div>
+            <div class="col-12 col-lg-3">
+                <label class="form-label" for="filtro-sort-by">Ordenar por</label>
+                <select class="form-select" id="filtro-sort-by" name="sort_by">
+                    {% for option in filters.sort_options %}
+                    <option value="{{ option.value }}" {% if option.value == filters.sort_by %}selected{% endif %}>{{ option.label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-12 col-lg-2">
+                <label class="form-label" for="filtro-sort-dir">Direção</label>
+                <select class="form-select" id="filtro-sort-dir" name="sort_dir">
+                    <option value="desc" {% if filters.sort_dir == 'desc' %}selected{% endif %}>Descendente</option>
+                    <option value="asc" {% if filters.sort_dir == 'asc' %}selected{% endif %}>Ascendente</option>
+                </select>
+            </div>
+            <div class="col-12 col-lg-2">
+                <label class="form-label" for="filtro-per-page">Linhas por página</label>
+                <select class="form-select" id="filtro-per-page" name="per_page">
+                    {% for option in filters.per_page_options %}
+                    <option value="{{ option }}" {% if option == filters.per_page %}selected{% endif %}>{{ option }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-12 d-flex flex-wrap gap-2">
+                <button type="submit" class="btn btn-primary rounded-pill px-4"><i class="bi bi-funnel me-2"></i>Aplicar filtros</button>
+                <a href="{{ url_for('analytics.index') }}" class="btn btn-outline-light rounded-pill px-4">Limpar</a>
+                <a href="{{ export_pdf_url }}" class="btn btn-outline-success rounded-pill px-4"><i class="bi bi-file-earmark-pdf me-2"></i>PDF legado</a>
+                <a href="{{ export_xlsx_url }}" class="btn btn-outline-info rounded-pill px-4"><i class="bi bi-file-earmark-excel me-2"></i>Excel</a>
+                <a href="{{ export_csv_url }}" class="btn btn-outline-light rounded-pill px-4"><i class="bi bi-filetype-csv me-2"></i>CSV</a>
+            </div>
+            <div class="col-12">
+                <div class="analytics-filter-note">
+                    Presets rápidos preenchem o intervalo analítico sem perder os filtros atuais. Se você editar as datas manualmente, o preset é descartado e o intervalo livre volta a prevalecer sobre o exercício base.
+                    {% if pdf_is_limited %}
+                    O PDF legado continua preso ao recorte tradicional por exercício, local, categoria e funcionário.
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </form>
+
+    <div id="analytics-overview-widget" class="analytics-widget-slot">
+        <div class="analytics-loading">Carregando visão executiva...</div>
+    </div>
+
+    <div id="analytics-charts-widget" class="analytics-widget-slot">
+        <div class="analytics-loading">Carregando séries, distribuição e top itens...</div>
+    </div>
+
+    <div id="analytics-maintenance-widget" class="analytics-widget-slot">
+        <div class="analytics-loading">Carregando atividade derivada e manutenção...</div>
+    </div>
+
+    <div id="analytics-table-widget" class="analytics-widget-slot">
+        <div class="analytics-loading">Carregando tabela detalhada...</div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    (function () {
+        const widgetUrls = {{ api_urls|tojson }};
+
+        function escapeHtml(value) {
+            return String(value ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function formatNumber(value, digits = 0) {
+            return new Intl.NumberFormat('pt-BR', {
+                minimumFractionDigits: digits,
+                maximumFractionDigits: digits,
+            }).format(Number(value || 0));
+        }
+
+        function formatCurrency(value) {
+            return new Intl.NumberFormat('pt-BR', {
+                style: 'currency',
+                currency: 'BRL',
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+            }).format(Number(value || 0));
+        }
+
+        function formatPercent(value) {
+            return `${formatNumber(value, 1)}%`;
+        }
+
+        function formatActivitySourceLabel(value) {
+            if (String(value || '').toLowerCase() === 'structured') {
+                return 'Estruturada';
+            }
+            return 'Heurística';
+        }
+
+        function buildOperationalReference(row) {
+            const parts = [];
+            if (row && row.ordem_servico) {
+                parts.push(`OS ${row.ordem_servico}`);
+            }
+            if (row && row.centro_custo) {
+                parts.push(`CC ${row.centro_custo}`);
+            }
+            return parts.join(' • ');
+        }
+
+        function setWidgetContent(elementId, html) {
+            const element = document.getElementById(elementId);
+            if (element) {
+                element.innerHTML = html;
+            }
+        }
+
+        function setWidgetError(elementId, message) {
+            setWidgetContent(elementId, `<div class="analytics-error">${escapeHtml(message)}</div>`);
+        }
+
+        function buildPageUrl(targetPage) {
+            const url = new URL(window.location.href);
+            url.searchParams.set('page', String(targetPage));
+            return `${url.pathname}?${url.searchParams.toString()}`;
+        }
+
+        function buildBars(rows, labelKey, valueKey, formatter) {
+            if (!rows.length) {
+                return '<div class="analytics-caption">Nenhum dado encontrado para o recorte atual.</div>';
+            }
+            const maxValue = Math.max(...rows.map((row) => Number(row[valueKey] || 0)), 0);
+            return rows.map((row) => {
+                const value = Number(row[valueKey] || 0);
+                const percent = maxValue > 0 ? ((value / maxValue) * 100) : 0;
+                return `
+                    <div class="analytics-bar-row">
+                        <div>
+                            <div class="analytics-bar-label">${escapeHtml(row[labelKey] || '-')}</div>
+                            ${row.share_percent !== undefined ? `<small class="text-muted">${formatPercent(row.share_percent)}</small>` : ''}
+                        </div>
+                        <div class="analytics-bar-track"><div class="analytics-bar-fill" style="width: ${percent}%;"></div></div>
+                        <div class="analytics-bar-value">${formatter(value, row)}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderOverview(payload) {
+            const header = payload.header || {};
+            const context = payload.context || {};
+            const kpis = payload.kpis || {};
+            const insights = payload.insights || [];
+            const tableSummary = payload.table_summary || {};
+
+            const totalRowsElement = document.getElementById('analytics-total-rows');
+            if (totalRowsElement) {
+                totalRowsElement.textContent = formatNumber(tableSummary.total_rows || 0);
+            }
+            const generatedAtElement = document.getElementById('analytics-generated-at');
+            if (generatedAtElement && header.generated_at_label) {
+                generatedAtElement.textContent = header.generated_at_label;
+            }
+
+            const insightHtml = insights.length
+                ? insights.map((insight) => `
+                    <div class="analytics-insight">
+                        <span class="analytics-kpi-label">${escapeHtml(insight.title || '')}</span>
+                        <strong>${escapeHtml(insight.value || '-')}</strong>
+                        <p>${escapeHtml(insight.caption || '')}</p>
+                    </div>
+                `).join('')
+                : '<div class="analytics-caption">Nenhum insight disponível.</div>';
+
+            return `
+                <section class="analytics-kpis">
+                    <article class="analytics-kpi">
+                        <span class="analytics-kpi-label">Movimentações</span>
+                        <div class="analytics-kpi-value">${formatNumber(kpis.movements || 0)}</div>
+                        <div class="analytics-kpi-caption">Saídas analisadas no recorte atual.</div>
+                    </article>
+                    <article class="analytics-kpi">
+                        <span class="analytics-kpi-label">Quantidade movimentada</span>
+                        <div class="analytics-kpi-value">${formatNumber(kpis.quantity || 0, 2)}</div>
+                        <div class="analytics-kpi-caption">Volume consolidado em unidade-base.</div>
+                    </article>
+                    <article class="analytics-kpi">
+                        <span class="analytics-kpi-label">Valor movimentado</span>
+                        <div class="analytics-kpi-value">${formatCurrency(kpis.value || 0)}</div>
+                        <div class="analytics-kpi-caption">Consumo financeiro estimado no período.</div>
+                    </article>
+                    <article class="analytics-kpi">
+                        <span class="analytics-kpi-label">Consumo médio</span>
+                        <div class="analytics-kpi-value">${formatCurrency(kpis.average_value || 0)}</div>
+                        <div class="analytics-kpi-caption">Ticket médio por saída • ${formatNumber(kpis.average_quantity || 0, 2)} un base.</div>
+                    </article>
+                    <article class="analytics-kpi">
+                        <span class="analytics-kpi-label">Itens em estoque</span>
+                        <div class="analytics-kpi-value">${formatNumber(kpis.stock_total || 0)}</div>
+                        <div class="analytics-kpi-caption">${formatNumber(kpis.stock_low || 0)} itens com estoque em atenção.</div>
+                    </article>
+                    <article class="analytics-kpi">
+                        <span class="analytics-kpi-label">Entradas estimadas</span>
+                        <div class="analytics-kpi-value">${formatCurrency(kpis.entry_value || 0)}</div>
+                        <div class="analytics-kpi-caption">Valor aproximado das entradas no mesmo período.</div>
+                    </article>
+                </section>
+
+                <section class="analytics-grid">
+                    <article class="analytics-surface">
+                        <h2>Insights operacionais</h2>
+                        <p>Leitura executiva orientada por regras, sem depender do antigo painel financeiro completo.</p>
+                        <div class="analytics-insights">${insightHtml}</div>
+                    </article>
+
+                    <article class="analytics-surface">
+                        <h2>Leitura do recorte</h2>
+                        <p>Contexto atual, volume filtrado e escopo ativo.</p>
+                        <div class="analytics-insights">
+                            <div class="analytics-insight">
+                                <span class="analytics-kpi-label">Escopo</span>
+                                <strong>${escapeHtml(context.scope_title || 'Central Analítica')}</strong>
+                                <p>${escapeHtml(context.scope_subtitle || '')}</p>
+                            </div>
+                            <div class="analytics-insight">
+                                <span class="analytics-kpi-label">Registros filtrados</span>
+                                <strong>${formatNumber(tableSummary.total_rows || 0)}</strong>
+                                <p>Página ${formatNumber(tableSummary.page || 1)} de ${formatNumber(tableSummary.total_pages || 1)} • período ${escapeHtml(header.period_label || '-')}.</p>
+                            </div>
+                            <div class="analytics-insight">
+                                <span class="analytics-kpi-label">Cobertura do recorte</span>
+                                <strong>${formatNumber(kpis.collaborators || 0)} colaboradores</strong>
+                                <p>${formatNumber(kpis.items || 0)} itens distintos contribuindo para a leitura analítica atual.</p>
+                            </div>
+                        </div>
+                    </article>
+                </section>
+            `;
+        }
+
+        function renderCharts(payload) {
+            const charts = payload.charts || {};
+            const topItems = payload.top_items || [];
+            const series = charts.movement_series || [];
+            const maxEntrada = Math.max(...series.map((row) => Number(row.entradas || 0)), 0);
+            const maxSaida = Math.max(...series.map((row) => Number(row.saidas || 0)), 0);
+            const seriesHtml = series.length
+                ? series.map((row) => `
+                    <tr>
+                        <td class="analytics-series-label">${escapeHtml(row.label || '-')}</td>
+                        <td>
+                            <div class="analytics-series-pair">
+                                <div class="analytics-series-pill">
+                                    <span class="analytics-series-name">Entradas</span>
+                                    <div class="analytics-series-track"><div class="analytics-series-fill-entrada" style="width: ${maxEntrada ? ((Number(row.entradas || 0) / maxEntrada) * 100) : 0}%;"></div></div>
+                                    <span class="analytics-bar-value">${formatNumber(row.entradas || 0)}</span>
+                                </div>
+                                <div class="analytics-series-pill">
+                                    <span class="analytics-series-name">Saídas</span>
+                                    <div class="analytics-series-track"><div class="analytics-series-fill-saida" style="width: ${maxSaida ? ((Number(row.saidas || 0) / maxSaida) * 100) : 0}%;"></div></div>
+                                    <span class="analytics-bar-value">${formatNumber(row.saidas || 0)}</span>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                `).join('')
+                : '<tr><td colspan="2" class="analytics-caption">Nenhum ponto de série encontrado.</td></tr>';
+
+            const typeDistributionHtml = (charts.type_distribution || []).length
+                ? (charts.type_distribution || []).map((row) => `
+                    <div class="analytics-type-item">
+                        <strong>${escapeHtml(row.label || '-')}</strong>
+                        <div class="analytics-kpi-value mt-2">${formatCurrency(row.value || 0)}</div>
+                        <p class="analytics-type-meta">${formatNumber(row.count || 0)} movimentos • ${formatPercent(row.percent || 0)} do valor do recorte.</p>
+                    </div>
+                `).join('')
+                : '<div class="analytics-caption">Sem distribuição disponível.</div>';
+
+            return `
+                <section class="analytics-grid">
+                    <article class="analytics-surface">
+                        <h2>Movimentações por período</h2>
+                        <p>Comparativo entre entradas e saídas na nova camada analítica isolada.</p>
+                        <table class="analytics-series-table"><tbody>${seriesHtml}</tbody></table>
+                    </article>
+
+                    <article class="analytics-surface">
+                        <h2>Entradas versus saídas</h2>
+                        <p>Fluxo geral do período ativo, respeitando intervalo livre, categoria e busca por item.</p>
+                        <div class="analytics-balance">
+                            <div class="analytics-balance-card">
+                                <span>Entradas</span>
+                                <strong>${formatNumber((charts.entry_exit_balance || {}).entradas_count || 0)}</strong>
+                                <small>${formatNumber((charts.entry_exit_balance || {}).entradas_qty || 0, 2)} unidades • ${formatCurrency((charts.entry_exit_balance || {}).entradas_valor || 0)}</small>
+                            </div>
+                            <div class="analytics-balance-card">
+                                <span>Saídas</span>
+                                <strong>${formatNumber((charts.entry_exit_balance || {}).saidas_count || 0)}</strong>
+                                <small>${formatNumber((charts.entry_exit_balance || {}).saidas_qty || 0, 2)} unidades • ${formatCurrency((charts.entry_exit_balance || {}).saidas_valor || 0)}</small>
+                            </div>
+                            <div class="analytics-balance-card">
+                                <span>Saldo líquido</span>
+                                <strong>${formatNumber((charts.entry_exit_balance || {}).saldo_qty || 0, 2)}</strong>
+                                <small>Entradas menos saídas no período.</small>
+                            </div>
+                        </div>
+                    </article>
+                </section>
+
+                <section class="analytics-grid">
+                    <article class="analytics-surface">
+                        <h2>Consumo por local</h2>
+                        <p>Top locais operacionais por valor movimentado.</p>
+                        <div class="analytics-bars">${buildBars(charts.locations || [], 'local', 'total_valor', (value) => formatCurrency(value))}</div>
+                    </article>
+
+                    <article class="analytics-surface">
+                        <h2>Consumo por categoria</h2>
+                        <p>Leitura direta das categorias com maior impacto financeiro.</p>
+                        <div class="analytics-bars">${buildBars(charts.categories || [], 'categoria', 'total_valor', (value) => formatCurrency(value))}</div>
+                    </article>
+                </section>
+
+                <section class="analytics-grid">
+                    <article class="analytics-surface">
+                        <h2>Distribuição por tipo</h2>
+                        <p>Separação entre saídas padrão e consumo fracionado.</p>
+                        <div class="analytics-type-grid">${typeDistributionHtml}</div>
+                    </article>
+
+                    <article class="analytics-surface">
+                        <h2>Top itens</h2>
+                        <p>Itens com maior peso no valor consumido.</p>
+                        <div class="analytics-bars">${buildBars(topItems, 'descricao_item', 'valor_total', (value) => formatCurrency(value))}</div>
+                    </article>
+                </section>
+            `;
+        }
+
+        function renderMaintenance(payload) {
+            const maintenance = payload.maintenance || {};
+            const groups = maintenance.groups || [];
+            const fronts = maintenance.fronts || [];
+            const notes = maintenance.notes || [];
+            const recentRows = maintenance.recent_rows || [];
+
+            const notesHtml = notes.length
+                ? notes.map((note) => `<div class="analytics-note-item">${escapeHtml(note)}</div>`).join('')
+                : '<div class="analytics-caption">Sem nota operacional para o recorte atual.</div>';
+
+            const recentHtml = recentRows.length
+                ? recentRows.map((row) => `
+                    <tr>
+                        <td>${escapeHtml(row.data_saida_label || '-')}</td>
+                        <td>
+                            <strong>${escapeHtml(row.atividade_label || '-')}</strong>
+                            <div class="text-muted small">${escapeHtml(row.local || 'SEM LOCAL')}</div>
+                            <div class="text-muted small">${escapeHtml(buildOperationalReference(row) || formatActivitySourceLabel(row.atividade_source))}</div>
+                        </td>
+                        <td>${escapeHtml(row.descricao_item || '-')}</td>
+                        <td class="text-end">${formatCurrency(row.valor_total || 0)}</td>
+                    </tr>
+                `).join('')
+                : '<tr><td colspan="4" class="text-center text-muted py-4">Nenhuma linha operacional disponível.</td></tr>';
+
+            return `
+                <section class="analytics-grid">
+                    <article class="analytics-surface">
+                        <div class="analytics-widget-actions">
+                            <div>
+                                <h2>Atividade operacional e manutenção</h2>
+                                <p>Quando a saída já traz atividade estruturada, a leitura usa esse dado. Onde ainda não existe, a Central Analítica cai para heurística sobre local e observação.</p>
+                            </div>
+                            <span class="analytics-pill">Leitura híbrida</span>
+                        </div>
+                        <div class="analytics-mini-grid">
+                            <div class="analytics-mini-card">
+                                <span>Cobertura total</span>
+                                <strong>${formatPercent(maintenance.coverage_percent || 0)}</strong>
+                                <div class="analytics-caption">Linhas fora da Central de Kits com atividade útil para leitura operacional.</div>
+                            </div>
+                            <div class="analytics-mini-card">
+                                <span>Estruturado</span>
+                                <strong>${formatPercent(maintenance.structured_percent || 0)}</strong>
+                                <div class="analytics-caption">Linhas já classificadas com atividade operacional salva no banco.</div>
+                            </div>
+                            <div class="analytics-mini-card">
+                                <span>Heurístico</span>
+                                <strong>${formatPercent(maintenance.heuristic_percent || 0)}</strong>
+                                <div class="analytics-caption">Linhas que ainda dependem de leitura por palavras-chave e contexto livre.</div>
+                            </div>
+                            <div class="analytics-mini-card">
+                                <span>Sem classificação</span>
+                                <strong>${formatPercent(maintenance.unclassified_percent || 0)}</strong>
+                                <div class="analytics-caption">Ainda faltam atividade, local ou contexto suficiente para fechar a leitura.</div>
+                            </div>
+                        </div>
+                        <div class="analytics-note-list mt-3">${notesHtml}</div>
+                    </article>
+
+                    <article class="analytics-surface">
+                        <h2>Grupos operacionais</h2>
+                        <p>Top grupos por valor, misturando atividade estruturada e fallback heurístico apenas onde necessário.</p>
+                        <div class="analytics-bars">${buildBars(groups, 'label', 'value', (value, row) => `${formatCurrency(value)} • ${formatNumber(row.count || 0)} mov.`)}</div>
+                    </article>
+                </section>
+
+                <section class="analytics-grid">
+                    <article class="analytics-surface">
+                        <h2>Frentes brutas mais citadas</h2>
+                        <p>Locais livres recorrentes, úteis para saneamento futuro da dimensão operacional.</p>
+                        <div class="analytics-bars">${buildBars(fronts, 'label', 'value', (value, row) => `${formatCurrency(value)} • ${formatNumber(row.count || 0)} mov.`)}</div>
+                    </article>
+
+                    <article class="analytics-surface analytics-table">
+                        <h2>Linhas recentes classificadas</h2>
+                        <p>Últimos movimentos relevantes para manutenção/atividade derivada no recorte atual.</p>
+                        <div class="analytics-table-wrap">
+                            <table class="table table-dark table-hover align-middle mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Data</th>
+                                        <th>Atividade</th>
+                                        <th>Item</th>
+                                        <th class="text-end">Valor</th>
+                                    </tr>
+                                </thead>
+                                <tbody>${recentHtml}</tbody>
+                            </table>
+                        </div>
+                    </article>
+                </section>
+            `;
+        }
+
+        function renderTable(payload) {
+            const table = payload.table || {};
+            const rows = table.rows || [];
+            const bodyHtml = rows.length
+                ? rows.map((row) => `
+                    <tr>
+                        <td>${escapeHtml(row.data_saida_label || '-')}</td>
+                        <td>
+                            <strong>${escapeHtml(row.colaborador_nome || '-')}</strong>
+                            <div class="text-muted small">${escapeHtml(row.cargo || '')}</div>
+                        </td>
+                        <td>${escapeHtml(row.descricao_item || '-')}</td>
+                        <td>${escapeHtml(row.codigo_item || '-')}</td>
+                        <td>${escapeHtml(row.categoria || '-')}</td>
+                        <td>${escapeHtml(row.local || 'SEM LOCAL')}</td>
+                        <td>
+                            <strong>${escapeHtml(row.atividade_label || '-')}</strong>
+                            <div class="text-muted small">${escapeHtml(formatActivitySourceLabel(row.atividade_source))}</div>
+                            <div class="text-muted small">${escapeHtml(buildOperationalReference(row) || 'Sem OS/CC')}</div>
+                        </td>
+                        <td class="text-end">${formatNumber(row.quantidade_base || 0, 2)} ${escapeHtml(row.unit_base || '')}</td>
+                        <td class="text-end">${formatCurrency(row.valor_total || 0)}</td>
+                        <td>${row.tipo_consumo === 'fracionado' ? 'Fracionado' : 'Padrão'}</td>
+                    </tr>
+                `).join('')
+                : '<tr><td colspan="10" class="text-center text-muted py-4">Nenhum dado encontrado para o recorte atual.</td></tr>';
+
+            const prevButton = Number(table.page || 1) > 1
+                ? `<a class="btn btn-outline-light btn-sm" href="${escapeHtml(buildPageUrl(Number(table.page || 1) - 1))}">Anterior</a>`
+                : '';
+            const nextButton = Number(table.page || 1) < Number(table.total_pages || 1)
+                ? `<a class="btn btn-outline-light btn-sm" href="${escapeHtml(buildPageUrl(Number(table.page || 1) + 1))}">Próxima</a>`
+                : '';
+
+            return `
+                <section class="analytics-surface analytics-table">
+                    <div class="analytics-widget-actions">
+                        <div>
+                            <h2>Tabela detalhada</h2>
+                            <p class="analytics-table-meta">Drill-down operacional com ordenação por ${escapeHtml(table.sort_by || 'data')} em ${escapeHtml(table.sort_dir || 'desc')}.</p>
+                        </div>
+                        <div class="analytics-pill">${formatNumber(table.total_rows || 0)} registros</div>
+                    </div>
+                    <div class="analytics-table-wrap">
+                        <table class="table table-dark table-hover align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Data</th>
+                                    <th>Colaborador</th>
+                                    <th>Item</th>
+                                    <th>Código</th>
+                                    <th>Categoria</th>
+                                    <th>Local</th>
+                                    <th>Atividade</th>
+                                    <th class="text-end">Qtd</th>
+                                    <th class="text-end">Valor</th>
+                                    <th>Tipo</th>
+                                </tr>
+                            </thead>
+                            <tbody>${bodyHtml}</tbody>
+                        </table>
+                    </div>
+
+                    <div class="analytics-pagination">
+                        <div class="analytics-table-meta">Página ${formatNumber(table.page || 1)} de ${formatNumber(table.total_pages || 1)} • ${formatNumber(table.total_rows || 0)} registros filtrados</div>
+                        <div class="d-flex gap-2 flex-wrap">${prevButton}${nextButton}</div>
+                    </div>
+                </section>
+            `;
+        }
+
+        function initPresetControls() {
+            const filterForm = document.querySelector('.analytics-filters');
+            const presetInput = document.getElementById('filtro-preset');
+            const startDateInput = document.getElementById('filtro-data-inicio');
+            const endDateInput = document.getElementById('filtro-data-fim');
+            const presetButtons = Array.from(document.querySelectorAll('[data-period-preset]'));
+
+            function syncPresetButtons() {
+                const selectedPreset = String(presetInput && presetInput.value ? presetInput.value : '').trim();
+                presetButtons.forEach((button) => {
+                    const isActive = String(button.dataset.periodPreset || '') === selectedPreset;
+                    button.classList.toggle('btn-info', isActive);
+                    button.classList.toggle('btn-outline-info', !isActive);
+                });
+            }
+
+            function unlockPresetDates() {
+                if (presetInput) {
+                    presetInput.value = '';
+                }
+                if (startDateInput) {
+                    startDateInput.dataset.presetLock = '0';
+                }
+                if (endDateInput) {
+                    endDateInput.dataset.presetLock = '0';
+                }
+                syncPresetButtons();
+            }
+
+            presetButtons.forEach((button) => {
+                button.addEventListener('click', () => {
+                    if (!presetInput || !filterForm) {
+                        return;
+                    }
+                    presetInput.value = String(button.dataset.periodPreset || '').trim();
+                    if (startDateInput) {
+                        startDateInput.value = '';
+                        startDateInput.dataset.presetLock = '1';
+                    }
+                    if (endDateInput) {
+                        endDateInput.value = '';
+                        endDateInput.dataset.presetLock = '1';
+                    }
+                    syncPresetButtons();
+                    filterForm.submit();
+                });
+            });
+
+            [startDateInput, endDateInput].forEach((input) => {
+                if (!input) {
+                    return;
+                }
+                input.addEventListener('input', unlockPresetDates);
+                input.addEventListener('change', unlockPresetDates);
+            });
+
+            if (filterForm) {
+                filterForm.addEventListener('submit', () => {
+                    if (!presetInput || !presetInput.value) {
+                        return;
+                    }
+                    const presetLocked = (startDateInput && startDateInput.dataset.presetLock === '1') || (endDateInput && endDateInput.dataset.presetLock === '1');
+                    if (presetLocked) {
+                        if (startDateInput) {
+                            startDateInput.value = '';
+                        }
+                        if (endDateInput) {
+                            endDateInput.value = '';
+                        }
+                    }
+                });
+            }
+
+            syncPresetButtons();
+        }
+
+        async function loadWidget(url, elementId, renderer) {
+            try {
+                const response = await (window.galintNativeFetch || window.fetch)(url, {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                });
+                if (!response.ok) {
+                    throw new Error(`Falha HTTP ${response.status}`);
+                }
+                const payload = await response.json();
+                setWidgetContent(elementId, renderer(payload));
+            } catch (error) {
+                setWidgetError(elementId, error && error.message ? error.message : 'Erro ao carregar widget.');
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            initPresetControls();
+            loadWidget(widgetUrls.overview, 'analytics-overview-widget', renderOverview);
+            loadWidget(widgetUrls.charts, 'analytics-charts-widget', renderCharts);
+            loadWidget(widgetUrls.maintenance, 'analytics-maintenance-widget', renderMaintenance);
+            loadWidget(widgetUrls.table, 'analytics-table-widget', renderTable);
+        });
+    })();
+</script>
+{% endblock %}

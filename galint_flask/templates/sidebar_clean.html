@@ -30,6 +30,13 @@
             <i class="bi bi-card-list me-2"></i> Cadastro de Itens
         </a>
 
+        {% if endpoint_exists('analytics.index') and current_user.is_authenticated and current_user.is_admin %}
+        <a class="nav-link text-light {% if p.startswith(url_for('analytics.index')) %}active{% endif %}"
+            href="{{ url_for('analytics.index') }}">
+            <i class="bi bi-bar-chart-line me-2"></i> Central Analítica
+        </a>
+        {% endif %}
+
         {% if current_user.is_authenticated and current_user.is_admin %}
         <a class="nav-link text-light {% if p.startswith(url_for('users.list_users')) %}active{% endif %}"
             href="{{ url_for('users.list_users') }}">

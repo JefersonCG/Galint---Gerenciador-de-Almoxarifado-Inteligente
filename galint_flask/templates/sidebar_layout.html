@@ -16,6 +16,7 @@
             {% set reparo_url = url_for('reparo.listar_reparos') if endpoint_exists('reparo.listar_reparos') else None %}
             {% set valor_estoque_url = url_for('inventory.valor_estoque') if endpoint_exists('inventory.valor_estoque') else None %}
             {% set consumo_painel_url = url_for('inventory.consumption_dashboard') if endpoint_exists('inventory.consumption_dashboard') else None %}
+            {% set analytics_url = url_for('analytics.index') if endpoint_exists('analytics.index') else None %}
             {% set fornecedores_url = url_for('config.fornecedores') if endpoint_exists('config.fornecedores') else None %}
             {% set admin_stock_adjust_url = url_for('config.estoque_ajuste_admin') if endpoint_exists('config.estoque_ajuste_admin') else None %}
             {% set central_operacoes_url = url_for('operations.central_operations') if endpoint_exists('operations.central_operations') else None %}
@@ -175,6 +176,13 @@
                 href="{{ url_for('reports.percentual_movimentos') }}">
                 <i class="bi bi-pie-chart"></i>
                 <span>Percentual Movimentos</span>
+            </a>
+            {% endif %}
+            {% if analytics_url and current_user.is_authenticated and current_user.is_admin %}
+            <a class="sidebar-link {% if p.startswith(analytics_url) %}active{% endif %}"
+                href="{{ analytics_url }}">
+                <i class="bi bi-bar-chart-line"></i>
+                <span>Central Analítica</span>
             </a>
             {% endif %}
             {% if current_user.is_authenticated and current_user.is_admin %}

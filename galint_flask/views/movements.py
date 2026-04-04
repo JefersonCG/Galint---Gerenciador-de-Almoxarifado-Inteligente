@@ -11,7 +11,14 @@ from flask_login import current_user, login_required
 
 from ..extensions import db
 from ..models import Item, Saida, RetiradaFerramenta
-from ..services.inventory import MovimentoPayload, inventory_service
+from ..services.inventory import (
+    OPERATIONAL_ACTIVITY_OPTIONS,
+    MovimentoPayload,
+    apply_operational_context,
+    inventory_service,
+    normalize_operational_activity,
+    normalize_operational_text,
+)
 from ..services.notification_router import NotificationRouterService
 from ..services.users import user_service
 from ..services.entrada_service import entrada_service
@@ -146,6 +153,28 @@ def _normalize_text(value: str | None) -> str:
         return ""
     normalized = unicodedata.normalize("NFD", value)
     return "".join(char for char in normalized if unicodedata.category(char) != "Mn")
+
+
+def _collect_operational_context(source: Any) -> dict[str, str | None]:
+    getter = getattr(source, "get", None)
+    if getter is None:
+        return {
+            "atividade_operacional": None,
+            "ordem_servico": None,
+            "centro_custo": None,
+        }
+    return {
+        "atividade_operacional": normalize_operational_activity(getter("atividade_operacional")),
+        "ordem_servico": normalize_operational_text(getter("ordem_servico"), max_length=120),
+        "centro_custo": normalize_operational_text(getter("centro_custo"), max_length=120),
+    }
+
+
+def _merge_operational_context(primary: dict[str, str | None], fallback: dict[str, str | None]) -> dict[str, str | None]:
+    return {
+        key: primary.get(key) or fallback.get(key)
+        for key in ("atividade_operacional", "ordem_servico", "centro_custo")
+    }
 
 
 def _detect_liquid_type(*, categoria: str | None, descricao: str | None) -> dict[str, Any] | None:
@@ -465,6 +494,7 @@ def registrar_saida_multipla():
         identificador = data.get("usuario")
         usuario = _resolve_usuario(identificador)
         local_servico_geral = data.get("local_servico", "")
+        operational_context_geral = _collect_operational_context(data)
         
         saidas_criadas = []
         ledger_results = []
@@ -475,6 +505,10 @@ def registrar_saida_multipla():
             codigo = (item_data.get("codigo") or "").strip()
             quantidade = _parse_quantidade(item_data.get("quantidade"))
             observacao = (item_data.get("observacao") or "").strip() or None
+            operational_context = _merge_operational_context(
+                _collect_operational_context(item_data),
+                operational_context_geral,
+            )
             em_embalagens_raw = item_data.get("em_embalagens")
             em_embalagens = None
             if em_embalagens_raw is not None:
@@ -553,6 +587,9 @@ def registrar_saida_multipla():
                         matricula=usuario.matricula,
                         observacao=str(observacao or "").upper() if observacao else None,
                         local_servico=str(local_servico_geral or "").upper() if local_servico_geral else None,
+                        atividade_operacional=operational_context.get("atividade_operacional"),
+                        ordem_servico=operational_context.get("ordem_servico"),
+                        centro_custo=operational_context.get("centro_custo"),
                         em_embalagens=em_embalagens,
                     ),
                     metadata={
@@ -568,6 +605,12 @@ def registrar_saida_multipla():
                 saida.data_saida = datetime.now(timezone.utc)
                 saida.observacao = str(observacao or "").upper() if observacao else None
                 saida.local_servico = str(local_servico_geral or "").upper() if local_servico_geral else None
+                apply_operational_context(
+                    saida,
+                    activity=operational_context.get("atividade_operacional"),
+                    order=operational_context.get("ordem_servico"),
+                    cost_center=operational_context.get("centro_custo"),
+                )
 
                 # Se tiver parâmetro de embalagem, adicionar (caso modelo suporte)
                 if em_embalagens is not None and hasattr(saida, 'em_embalagens'):
@@ -709,6 +752,7 @@ def registrar_saida():
     observacao = (obs_raw or "").strip() if obs_raw is not None else None
     local_raw = request.form.get("local_servico")
     local_servico = (local_raw or "").strip() if local_raw is not None else None
+    operational_context = _collect_operational_context(request.form)
     
     # Novo: processar sistema de embalagens
     em_embalagens_raw = request.form.get("em_embalagens")
@@ -751,6 +795,9 @@ def registrar_saida():
             "matricula": usuario.id,
             "observacao": observacao,
             "local_servico": local_servico,
+            "atividade_operacional": operational_context.get("atividade_operacional"),
+            "ordem_servico": operational_context.get("ordem_servico"),
+            "centro_custo": operational_context.get("centro_custo"),
             "em_embalagens": em_embalagens,
         }
 
@@ -897,6 +944,7 @@ def saida_fracionada_page():
         usuarios=user_service.list_users(),
         itens=[],
         can_manage=can_manage,
+        operational_activity_options=OPERATIONAL_ACTIVITY_OPTIONS,
     )
 
 

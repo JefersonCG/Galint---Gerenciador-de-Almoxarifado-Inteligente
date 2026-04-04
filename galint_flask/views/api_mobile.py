@@ -28,7 +28,13 @@ from ..services.auth import (
 )
 from ..services.finance_service import finance_service
 from ..services.inventory_engine import PRE_CADASTRO_PENDING_EXIT_MESSAGE
-from ..services.inventory import inventory_service, MovimentoPayload
+from ..services.inventory import (
+    MovimentoPayload,
+    apply_operational_context,
+    inventory_service,
+    normalize_operational_activity,
+    normalize_operational_text,
+)
 from ..services.item_foto_service import ItemFotoService
 from ..services.telegram_reports import TelegramReportService
 from ..services.telegram_service import TelegramService
@@ -300,6 +306,31 @@ def _normalize_text(value: str | None) -> str:
         return ""
     normalized = unicodedata.normalize("NFD", value)
     return "".join(char for char in normalized if unicodedata.category(char) != "Mn")
+
+
+def _collect_operational_context(source: Any) -> dict[str, str | None]:
+    getter = getattr(source, "get", None)
+    if getter is None:
+        return {
+            "atividade_operacional": None,
+            "ordem_servico": None,
+            "centro_custo": None,
+        }
+    activity = getter("atividade_operacional") or getter("atividadeOperacional")
+    order = getter("ordem_servico") or getter("ordemServico") or getter("os")
+    cost_center = getter("centro_custo") or getter("centroCusto")
+    return {
+        "atividade_operacional": normalize_operational_activity(activity),
+        "ordem_servico": normalize_operational_text(order, max_length=120),
+        "centro_custo": normalize_operational_text(cost_center, max_length=120),
+    }
+
+
+def _merge_operational_context(primary: dict[str, str | None], fallback: dict[str, str | None]) -> dict[str, str | None]:
+    return {
+        key: primary.get(key) or fallback.get(key)
+        for key in ("atividade_operacional", "ordem_servico", "centro_custo")
+    }
 
 
 def _infer_unidade(unidade: str | None) -> str:
@@ -847,6 +878,7 @@ def retirar_multipla_mobile(current_user: Usuario):
         observacao_geral = data.get("observacao", "")
         matricula_retirante_raw = data.get("matricula_retirante")
         tipo_custodia_geral = _normalize_tipo_custodia(data.get("tipo_custodia"))
+        operational_context_geral = _collect_operational_context(data)
 
         if not itens or not isinstance(itens, list):
             return jsonify({"success": False, "message": "Lista de itens é obrigatória"}), 400
@@ -876,6 +908,10 @@ def retirar_multipla_mobile(current_user: Usuario):
             quantidade = item_data.get("quantidade")
             observacao_item = item_data.get("observacao", "")
             tipo_custodia_item = _normalize_tipo_custodia(item_data.get("tipo_custodia") or tipo_custodia_geral)
+            operational_context = _merge_operational_context(
+                _collect_operational_context(item_data),
+                operational_context_geral,
+            )
 
             if not codigo:
                 resultados.append({"index": idx, "success": False, "message": "Código não informado"})
@@ -927,6 +963,12 @@ def retirar_multipla_mobile(current_user: Usuario):
             obs_final = observacao_item or observacao_geral
             saida.observacao = str(obs_final or "").upper()
             saida.local_servico = str(local_servico_geral or "").upper()
+            apply_operational_context(
+                saida,
+                activity=operational_context.get("atividade_operacional"),
+                order=operational_context.get("ordem_servico"),
+                cost_center=operational_context.get("centro_custo"),
+            )
             if hasattr(saida, "tipo_custodia"):
                 saida.tipo_custodia = tipo_custodia_item
 
@@ -940,6 +982,9 @@ def retirar_multipla_mobile(current_user: Usuario):
                     matricula=retirante_user.matricula,
                     observacao=str(obs_final or "").upper() or None,
                     local_servico=str(local_servico_geral or "").upper() or None,
+                    atividade_operacional=operational_context.get("atividade_operacional"),
+                    ordem_servico=operational_context.get("ordem_servico"),
+                    centro_custo=operational_context.get("centro_custo"),
                     tipo_custodia=tipo_custodia_item,
                 ),
                 metadata={
@@ -1358,6 +1403,7 @@ def retirar_mobile(current_user: Usuario):
         local_servico = data.get("local_servico", "")
         matricula_retirante_raw = data.get("matricula_retirante")
         tipo_custodia = _normalize_tipo_custodia(data.get("tipo_custodia"))
+        operational_context = _collect_operational_context(data)
         usa_fracao = str(data.get("modo_fracionado") or data.get("liquido_habilitado") or "").strip().lower() in (
             "1",
             "true",
@@ -1571,6 +1617,9 @@ def retirar_mobile(current_user: Usuario):
                 matricula=retirante_user.matricula,
                 observacao=str(observacao or "").upper() or None,
                 local_servico=str(local_servico or "").upper() or None,
+                atividade_operacional=operational_context.get("atividade_operacional"),
+                ordem_servico=operational_context.get("ordem_servico"),
+                centro_custo=operational_context.get("centro_custo"),
                 em_embalagens=bool(em_embalagens) if em_embalagens is not None else None,
                 modo_fracionado=bool(fracao_payload),
                 tipo_custodia=tipo_custodia,
@@ -1587,6 +1636,12 @@ def retirar_mobile(current_user: Usuario):
         saida.data_saida = datetime.utcnow()
         saida.observacao = str(observacao or "").upper()
         saida.local_servico = str(local_servico or "").upper()
+        apply_operational_context(
+            saida,
+            activity=operational_context.get("atividade_operacional"),
+            order=operational_context.get("ordem_servico"),
+            cost_center=operational_context.get("centro_custo"),
+        )
         if hasattr(saida, "tipo_custodia"):
             saida.tipo_custodia = tipo_custodia
 

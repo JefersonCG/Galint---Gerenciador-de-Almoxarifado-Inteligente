@@ -96,7 +96,8 @@
         font-size: 0.9rem;
     }
     
-    .input-card .form-control {
+    .input-card .form-control,
+    .input-card .form-select {
         border-radius: 8px;
         border: 1px solid rgba(148, 163, 184, 0.22);
         background: rgba(15, 23, 42, 0.82);
@@ -110,7 +111,8 @@
         color: #94a3b8;
     }
     
-    .input-card .form-control:focus {
+    .input-card .form-control:focus,
+    .input-card .form-select:focus {
         border-color: #3b82f6;
         box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.15);
         background: rgba(15, 23, 42, 0.92);
@@ -451,6 +453,26 @@
                 <input class="form-control" id="input-local" placeholder="Ex: Pintura do bloco 5" autocomplete="off">
             </div>
         </div>
+
+        <div class="row g-3 mt-1">
+            <div class="col-md-4">
+                <label class="form-label"><i class="bi bi-diagram-3 me-1"></i>Atividade operacional</label>
+                <select class="form-select" id="input-atividade-operacional">
+                    <option value="">Selecionar atividade</option>
+                    % for option in operational_activity_options:
+                    <option value="${option.get('key')}">${option.get('label')}</option>
+                    % endfor
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label"><i class="bi bi-file-earmark-text me-1"></i>OS / referência</label>
+                <input class="form-control" id="input-ordem-servico" placeholder="Ex: OS-2487" autocomplete="off">
+            </div>
+            <div class="col-md-4">
+                <label class="form-label"><i class="bi bi-building me-1"></i>Centro de custo</label>
+                <input class="form-control" id="input-centro-custo" placeholder="Ex: MANUTENCAO BLOCO 5" autocomplete="off">
+            </div>
+        </div>
         
         <hr class="my-3">
         
@@ -547,6 +569,9 @@
 <form method="post" action="${url_for('movements.registrar_saida')}" id="hidden-form" style="display: none;">
     <input type="hidden" name="usuario" id="hidden-usuario">
     <input type="hidden" name="local_servico" id="hidden-local">
+    <input type="hidden" name="atividade_operacional" id="hidden-atividade-operacional">
+    <input type="hidden" name="ordem_servico" id="hidden-ordem-servico">
+    <input type="hidden" name="centro_custo" id="hidden-centro-custo">
     <input type="hidden" name="codigo" id="hidden-codigo">
     <input type="hidden" name="quantidade" id="hidden-quantidade">
 </form>
@@ -583,6 +608,9 @@ ${parent.scripts()}
     
     const inputUsuario = document.getElementById('input-usuario');
     const inputLocal = document.getElementById('input-local');
+    const inputAtividadeOperacional = document.getElementById('input-atividade-operacional');
+    const inputOrdemServico = document.getElementById('input-ordem-servico');
+    const inputCentroCusto = document.getElementById('input-centro-custo');
     const inputCodigo = document.getElementById('input-codigo');
     const btnRegistrar = document.getElementById('btn-registrar');
     
@@ -632,9 +660,23 @@ ${parent.scripts()}
         }
     }
 
+    function getOperationalContext() {
+        const atividadeKey = inputAtividadeOperacional ? String(inputAtividadeOperacional.value || '').trim() : '';
+        const atividadeLabel = atividadeKey && inputAtividadeOperacional
+            ? String(inputAtividadeOperacional.options[inputAtividadeOperacional.selectedIndex]?.text || '').trim()
+            : '';
+        return {
+            atividade_operacional: atividadeKey,
+            atividade_label: atividadeLabel,
+            ordem_servico: String(inputOrdemServico && inputOrdemServico.value ? inputOrdemServico.value : '').trim(),
+            centro_custo: String(inputCentroCusto && inputCentroCusto.value ? inputCentroCusto.value : '').trim(),
+        };
+    }
+
     function buildMirrorPayload(status, item, extra) {
         const actor = String(inputUsuario.value || '').trim();
         const local = String(inputLocal.value || '').trim();
+        const operationalContext = getOperationalContext();
         const unidadeSelecionada = document.querySelector('input[name="unidade-tipo"]:checked');
         const unidade = unidadeSelecionada ? String(unidadeSelecionada.value || '').trim() : '';
         const quantidadeAtual = extra && extra.quantidade != null ? extra.quantidade : parseFloat(modalQuantidadeInput.value || '0');
@@ -653,6 +695,9 @@ ${parent.scripts()}
             },
             context: {
                 local_servico: local,
+                atividade_operacional: operationalContext.atividade_label || operationalContext.atividade_operacional,
+                ordem_servico: operationalContext.ordem_servico,
+                centro_custo: operationalContext.centro_custo,
             },
         };
 
@@ -696,6 +741,7 @@ ${parent.scripts()}
 
         const unidadeSelecionada = document.querySelector('input[name="unidade-tipo"]:checked');
         const unidade = unidadeSelecionada ? String(unidadeSelecionada.value || '').trim() : '';
+        const operationalContext = getOperationalContext();
         const quantidadeAtual = extra && extra.quantidade != null ? extra.quantidade : parseFloat(modalQuantidadeInput.value || '0');
         const quantidadeDisplay = quantidadeAtual && quantidadeAtual > 0
             ? formatDecimal(quantidadeAtual) + ' ' + (unidade === 'litro' ? 'L' : 'kg')
@@ -719,6 +765,8 @@ ${parent.scripts()}
                     '<div class="operation-preview-stat"><span class="operation-preview-stat-label">Saldo total</span><span class="operation-preview-stat-value">' + escapeHtml(saldoDisplay) + '</span></div>' +
                     '<div class="operation-preview-stat"><span class="operation-preview-stat-label">Colaborador</span><span class="operation-preview-stat-value">' + escapeHtml(String(inputUsuario.value || '').trim() || 'Nao informado') + '</span></div>' +
                     '<div class="operation-preview-stat"><span class="operation-preview-stat-label">Local</span><span class="operation-preview-stat-value">' + escapeHtml(String(inputLocal.value || '').trim() || 'Nao informado') + '</span></div>' +
+                    '<div class="operation-preview-stat"><span class="operation-preview-stat-label">Atividade</span><span class="operation-preview-stat-value">' + escapeHtml(operationalContext.atividade_label || 'Nao informada') + '</span></div>' +
+                    '<div class="operation-preview-stat"><span class="operation-preview-stat-label">OS / Centro de custo</span><span class="operation-preview-stat-value">' + escapeHtml([operationalContext.ordem_servico, operationalContext.centro_custo].filter(Boolean).join(' • ') || 'Nao informado') + '</span></div>' +
                 '</div>' +
                 '<div class="operation-preview-note">Use a balanca para informar o valor real retirado em kg ou litro.</div>' +
             '</div>';
@@ -1248,6 +1296,16 @@ ${parent.scripts()}
             formData.append('codigo', pendingItem.codigo);
             formData.append('quantidade', quantidade);
             formData.append('unidade_fracionada', unidadeSelecionada); // Adicionar unidade
+            const operationalContext = getOperationalContext();
+            if (operationalContext.atividade_operacional) {
+                formData.append('atividade_operacional', operationalContext.atividade_operacional);
+            }
+            if (operationalContext.ordem_servico) {
+                formData.append('ordem_servico', operationalContext.ordem_servico);
+            }
+            if (operationalContext.centro_custo) {
+                formData.append('centro_custo', operationalContext.centro_custo);
+            }
             // Atenção: não usar template string com ${...} aqui, pois o Mako interpreta e quebra a página.
             formData.append('observacao', 'Retirada fracionada: ' + quantidade + ' ' + String(unidadeSelecionada || '').toUpperCase());
             
@@ -1272,6 +1330,15 @@ ${parent.scripts()}
                 // Limpar campos para nova entrada
                 inputUsuario.value = '';
                 inputLocal.value = '';
+                if (inputAtividadeOperacional) {
+                    inputAtividadeOperacional.value = '';
+                }
+                if (inputOrdemServico) {
+                    inputOrdemServico.value = '';
+                }
+                if (inputCentroCusto) {
+                    inputCentroCusto.value = '';
+                }
                 inputCodigo.value = '';
                 btnRegistrar.disabled = true;
                 pendingItem = null;
@@ -1326,6 +1393,20 @@ ${parent.scripts()}
             pendingItem.local = String(inputLocal.value || '').trim();
             renderCurrentPreview(pendingItem, 'preview');
         }
+    });
+
+    [inputAtividadeOperacional, inputOrdemServico, inputCentroCusto].forEach(function(field) {
+        if (!field) return;
+        field.addEventListener('input', function() {
+            if (pendingItem) {
+                renderCurrentPreview(pendingItem, 'preview');
+            }
+        });
+        field.addEventListener('change', function() {
+            if (pendingItem) {
+                renderCurrentPreview(pendingItem, 'preview');
+            }
+        });
     });
 
     inputCodigo.addEventListener('blur', async function() {

@@ -9,6 +9,7 @@ import logging
 import math
 from time import monotonic
 from typing import Any
+from unicodedata import normalize as unicode_normalize
 
 from sqlalchemy import or_, func
 from sqlalchemy.exc import IntegrityError
@@ -59,6 +60,92 @@ from ..utils.time_service import TimeService
 logger = logging.getLogger(__name__)
 
 ADVANCED_DIMENSION_OPTIONS = ("unit", "mass", "volume", "length")
+
+OPERATIONAL_ACTIVITY_OPTIONS: tuple[dict[str, str], ...] = (
+    {"key": "piscina", "label": "Piscina e espelho d'agua"},
+    {"key": "hidraulica", "label": "Manutencao hidraulica"},
+    {"key": "eletrica", "label": "Manutencao eletrica"},
+    {"key": "pintura_acabamento", "label": "Pintura e acabamento"},
+    {"key": "jardins", "label": "Jardins e paisagismo"},
+    {"key": "areas_comuns", "label": "Areas comuns e apoio"},
+    {"key": "blocos_apartamentos", "label": "Blocos e apartamentos"},
+    {"key": "limpeza", "label": "Limpeza operacional"},
+    {"key": "uso_direto", "label": "Uso operacional direto"},
+)
+OPERATIONAL_ACTIVITY_LABELS = {
+    row["key"]: row["label"]
+    for row in OPERATIONAL_ACTIVITY_OPTIONS
+}
+
+
+def _normalize_operational_lookup(value: object) -> str:
+    normalized = " ".join(str(value or "").strip().split()).lower()
+    return unicode_normalize("NFKD", normalized).encode("ascii", "ignore").decode("ascii")
+
+
+_OPERATIONAL_ACTIVITY_ALIASES = {
+    _normalize_operational_lookup(option["key"]): option["key"]
+    for option in OPERATIONAL_ACTIVITY_OPTIONS
+}
+_OPERATIONAL_ACTIVITY_ALIASES.update(
+    {
+        _normalize_operational_lookup(option["label"]): option["key"]
+        for option in OPERATIONAL_ACTIVITY_OPTIONS
+    }
+)
+
+
+def normalize_operational_text(
+    value: object,
+    *,
+    uppercase: bool = True,
+    max_length: int | None = None,
+) -> str | None:
+    normalized = " ".join(str(value or "").strip().split())
+    if not normalized:
+        return None
+    if uppercase:
+        normalized = normalized.upper()
+    if max_length is not None:
+        normalized = normalized[:max_length]
+    return normalized
+
+
+def normalize_operational_activity(value: object) -> str | None:
+    lookup = _normalize_operational_lookup(value)
+    if not lookup:
+        return None
+    return _OPERATIONAL_ACTIVITY_ALIASES.get(lookup)
+
+
+def normalize_operational_context(
+    *,
+    activity: object = None,
+    order: object = None,
+    cost_center: object = None,
+) -> dict[str, str | None]:
+    return {
+        "atividade_operacional": normalize_operational_activity(activity),
+        "ordem_servico": normalize_operational_text(order, max_length=120),
+        "centro_custo": normalize_operational_text(cost_center, max_length=120),
+    }
+
+
+def apply_operational_context(
+    record: object,
+    *,
+    activity: object = None,
+    order: object = None,
+    cost_center: object = None,
+) -> None:
+    context = normalize_operational_context(
+        activity=activity,
+        order=order,
+        cost_center=cost_center,
+    )
+    for attr_name, value in context.items():
+        if hasattr(record, attr_name):
+            setattr(record, attr_name, value)
 
 
 def _normalize_advanced_dimension(value: object) -> str | None:
@@ -269,6 +356,9 @@ class MovimentoPayload:
     nota_fiscal: str | None = None
     observacao: str | None = None
     local_servico: str | None = None
+    atividade_operacional: str | None = None
+    ordem_servico: str | None = None
+    centro_custo: str | None = None
     modo_fracionado: bool = False
     tipo_produto: str | None = None
     densidade_aplicada: float | None = None
@@ -1030,8 +1120,27 @@ class InventoryService:
         return "temporaria"
 
     @staticmethod
-    def _infer_dual_write_unit(item: Item, payload: MovimentoPayload | None = None) -> str | None:
-        if payload and payload.em_embalagens is True and uses_packaging_legacy_normalization(item):
+    def _should_use_packaging_dual_write(
+        item: Item,
+        payload: MovimentoPayload | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> bool:
+        if not uses_packaging_legacy_normalization(item):
+            return False
+        if payload and payload.em_embalagens is True:
+            return True
+        if payload and payload.em_embalagens is False:
+            return False
+        reference_type = str((metadata or {}).get("reference_type") or "").strip().lower()
+        return reference_type == "legacy_movimento"
+
+    @staticmethod
+    def _infer_dual_write_unit(
+        item: Item,
+        payload: MovimentoPayload | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> str | None:
+        if InventoryService._should_use_packaging_dual_write(item, payload, metadata):
             canonical_unit = resolve_canonical_unit(item)
             if canonical_unit:
                 return canonical_unit
@@ -1056,8 +1165,9 @@ class InventoryService:
         item: Item,
         quantity_value: float,
         payload: MovimentoPayload | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> tuple[float, str] | None:
-        if not payload or payload.em_embalagens is not True:
+        if not InventoryService._should_use_packaging_dual_write(item, payload, metadata):
             return None
         return resolve_packaging_quantity_and_unit(item, quantity_value)
 
@@ -1115,7 +1225,7 @@ class InventoryService:
         if quantity_value == 0:
             return None
 
-        packaging_resolution = self._resolve_packaging_dual_write(item, quantity_value, payload)
+        packaging_resolution = self._resolve_packaging_dual_write(item, quantity_value, payload, metadata)
         if packaging_resolution is not None and from_unit is None:
             quantity_value, from_unit = packaging_resolution
             self._sync_packaging_balance_before_dual_write(
@@ -1124,7 +1234,7 @@ class InventoryService:
                 quantity_base=quantity_value,
             )
 
-        unit_value = (from_unit or self._infer_dual_write_unit(item, payload) or "").strip().lower()
+        unit_value = (from_unit or self._infer_dual_write_unit(item, payload, metadata) or "").strip().lower()
         if not unit_value:
             raise ValueError(f"Não foi possível inferir a unidade base para {item.codigo_item}")
 
@@ -1135,6 +1245,9 @@ class InventoryService:
                 "nota_fiscal": payload.nota_fiscal,
                 "observacao": payload.observacao,
                 "local_servico": payload.local_servico,
+                "atividade_operacional": payload.atividade_operacional,
+                "ordem_servico": payload.ordem_servico,
+                "centro_custo": payload.centro_custo,
                 "matricula": payload.matricula,
                 "em_embalagens": payload.em_embalagens,
                 "modo_fracionado": payload.modo_fracionado,
@@ -2441,6 +2554,9 @@ class InventoryService:
                     "quantidade_retirada_em_quilos": saida.quantidade_retirada_em_quilos,
                     "quantidade_restante": saida.quantidade_restante,
                     "usou_fracao": bool(saida.usou_fracao),
+                    "atividade_operacional": getattr(saida, "atividade_operacional", None),
+                    "ordem_servico": getattr(saida, "ordem_servico", None),
+                    "centro_custo": getattr(saida, "centro_custo", None),
                 }
             )
         return resultado
@@ -2475,6 +2591,9 @@ class InventoryService:
                     "quantidade_retirada_em_quilos": saida.quantidade_retirada_em_quilos,
                     "quantidade_restante": saida.quantidade_restante,
                     "usou_fracao": bool(saida.usou_fracao),
+                    "atividade_operacional": getattr(saida, "atividade_operacional", None),
+                    "ordem_servico": getattr(saida, "ordem_servico", None),
+                    "centro_custo": getattr(saida, "centro_custo", None),
                 }
             )
         return resultado
@@ -2513,6 +2632,9 @@ class InventoryService:
                     "observacao": saida.observacao,
                     "usuario": saida.usuario.nome if saida.usuario else saida.matricula,
                     "matricula": saida.matricula,
+                    "atividade_operacional": getattr(saida, "atividade_operacional", None),
+                    "ordem_servico": getattr(saida, "ordem_servico", None),
+                    "centro_custo": getattr(saida, "centro_custo", None),
                 }
             )
         return historico
@@ -2943,6 +3065,13 @@ class InventoryService:
             # Persistir local_servico se for saída
             if not is_entrada and payload.local_servico and hasattr(movimento, "local_servico"):
                 movimento.local_servico = payload.local_servico
+
+            apply_operational_context(
+                movimento,
+                activity=payload.atividade_operacional,
+                order=payload.ordem_servico,
+                cost_center=payload.centro_custo,
+            )
             
             # Persistir tipo_custodia se for saída
             if not is_entrada and hasattr(movimento, "tipo_custodia"):

@@ -431,6 +431,9 @@ class Saida(db.Model):
     quantidade_restante: Mapped[float | None] = mapped_column(Float, nullable=True)
     usou_fracao: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     local_servico: Mapped[str | None] = mapped_column(Text, nullable=True)
+    atividade_operacional: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    ordem_servico: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    centro_custo: Mapped[str | None] = mapped_column(String(120), nullable=True)
     tipo_custodia: Mapped[str] = mapped_column(String(20), nullable=False, default="temporaria")  # temporaria ou permanente
 
     item: Mapped[Item | None] = relationship("Item", back_populates="saidas")

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from . import (
+    analytics,
     admin_mobile,
     api,
     api_mobile,
@@ -32,6 +33,7 @@ from . import (
 
 BLUEPRINTS = (
     dashboard.blueprint,
+    analytics.blueprint,
     auth.blueprint,
     inventory.blueprint,
     operations.blueprint,

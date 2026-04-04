@@ -376,6 +376,16 @@
         background: rgba(15, 23, 42, 0.72);
     }
 
+    .pre-registered-modal .modal-title,
+    .pre-registered-modal .form-label {
+        color: #f8fafc;
+    }
+
+    .pre-registered-modal .text-muted,
+    .pre-registered-modal .form-text {
+        color: #cbd5e1 !important;
+    }
+
     .pre-registered-modal .btn-close {
         filter: invert(1);
     }
@@ -2323,6 +2333,35 @@
                     </div>
                 </div>
 
+                <div class="row g-3 mt-1">
+                    <div class="col-lg-4">
+                        <label for="assignOperationalActivity" class="form-label">
+                            <i class="bi bi-diagram-3 me-1"></i>
+                            Atividade operacional
+                        </label>
+                        <select class="form-select" id="assignOperationalActivity" name="atividade_operacional">
+                            <option value="">Selecionar atividade</option>
+                            {% for option in operational_activity_options %}
+                            <option value="{{ option.key }}">{{ option.label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-lg-4">
+                        <label for="assignOrderService" class="form-label">
+                            <i class="bi bi-file-earmark-text me-1"></i>
+                            OS / referência
+                        </label>
+                        <input type="text" class="form-control" id="assignOrderService" name="ordem_servico" placeholder="Ex: OS-2487">
+                    </div>
+                    <div class="col-lg-4">
+                        <label for="assignCostCenter" class="form-label">
+                            <i class="bi bi-building me-1"></i>
+                            Centro de custo
+                        </label>
+                        <input type="text" class="form-control" id="assignCostCenter" name="centro_custo" placeholder="Ex: MANUTENCAO BLOCO 5">
+                    </div>
+                </div>
+
                 <!-- Seletor de tipo de saída para Unidades Dinâmicas -->
                 <div class="mb-3" id="assignTipoSaida" style="display: none;">
                     <label class="form-label">
@@ -2680,6 +2719,12 @@
                 const suggestions = document.getElementById('assignMatricula-suggestions');
                 if(suggestions) suggestions.style.display = 'none';
             }
+            const activityInput = document.getElementById('assignOperationalActivity');
+            if (activityInput) activityInput.value = '';
+            const orderInput = document.getElementById('assignOrderService');
+            if (orderInput) orderInput.value = '';
+            const costCenterInput = document.getElementById('assignCostCenter');
+            if (costCenterInput) costCenterInput.value = '';
 
             // Resetar tipo de custódia padrão ao abrir
             const radioPerm = document.getElementById('assignCustodiaPermanente');
@@ -3237,6 +3282,9 @@
         const errors = [];
         
         const tipo_saida = getAssignMode();
+        const atividadeOperacional = (document.getElementById('assignOperationalActivity')?.value || '').trim();
+        const ordemServico = (document.getElementById('assignOrderService')?.value || '').trim();
+        const centroCusto = (document.getElementById('assignCostCenter')?.value || '').trim();
         
         // Processar cada funcionário sequencialmente
         for (const matricula of selectedEmployees) {
@@ -3246,6 +3294,15 @@
                 formData.append('quantidade', '1');
                 formData.append('tipo_custodia', tipoCustodia);
                 formData.append('tipo_saida', tipo_saida);
+                if (atividadeOperacional) {
+                    formData.append('atividade_operacional', atividadeOperacional);
+                }
+                if (ordemServico) {
+                    formData.append('ordem_servico', ordemServico);
+                }
+                if (centroCusto) {
+                    formData.append('centro_custo', centroCusto);
+                }
                 
                 const response = await fetch(`/itens/${encodeURIComponent(currentItemCode)}/saida`, {
                     method: 'POST',
@@ -3277,6 +3334,9 @@
 
     async function performPermanentBatchAssignment(tipoCustodia) {
         const tipo_saida = getAssignMode();
+        const atividadeOperacional = (document.getElementById('assignOperationalActivity')?.value || '').trim();
+        const ordemServico = (document.getElementById('assignOrderService')?.value || '').trim();
+        const centroCusto = (document.getElementById('assignCostCenter')?.value || '').trim();
         const response = await fetch(`/itens/${encodeURIComponent(currentItemCode)}/saida-lote`, {
             method: 'POST',
             headers: {
@@ -3288,7 +3348,10 @@
                 matriculas: Array.from(selectedEmployees),
                 quantidade: 1,
                 tipo_custodia: tipoCustodia,
-                tipo_saida
+                tipo_saida,
+                atividade_operacional: atividadeOperacional || null,
+                ordem_servico: ordemServico || null,
+                centro_custo: centroCusto || null,
             })
         });
 

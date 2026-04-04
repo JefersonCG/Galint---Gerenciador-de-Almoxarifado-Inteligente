@@ -10,10 +10,17 @@ blueprint = Blueprint("central_kits", __name__, url_prefix="/controle-ferramenta
 
 
 def _current_user_is_admin() -> bool:
-    try:
-        return int(getattr(current_user, "is_admin", 0) or 0) == 1
-    except (TypeError, ValueError):
+    if not getattr(current_user, "is_authenticated", False):
         return False
+
+    for candidate in (getattr(current_user, "admin", None), getattr(current_user, "is_admin", None)):
+        if candidate is None:
+            continue
+        if isinstance(candidate, str):
+            return candidate.strip() in ("1", "true", "True", "TRUE")
+        return bool(candidate)
+
+    return False
 
 
 def _build_photo_url(photo_path: str | None) -> str | None:
@@ -69,7 +76,11 @@ def detail(matricula: str):
         flash("Kit não encontrado para este colaborador.", "warning")
         return redirect(url_for("central_kits.index"))
 
-    return render_template("central_kits/detail.html", kit=kit)
+    return render_template(
+        "central_kits/detail.html",
+        kit=kit,
+        can_manage_prices=_current_user_is_admin(),
+    )
 
 
 @blueprint.get("/<matricula>/associacao")
