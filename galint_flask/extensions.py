@@ -8,7 +8,8 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from flask_migrate import Migrate
 from flask_cors import CORS
-from sqlalchemy import inspect, text
+
+from .schema_compat import ensure_runtime_schema_compatibility
 
 
 # extensions
@@ -19,90 +20,6 @@ cors = CORS()
 # login_view must point to the actual login endpoint name
 login_manager.login_view = "auth.login_form"
 login_manager.login_message = None
-
-
-def _ensure_document_item_processing_columns() -> None:
-    inspector = inspect(db.engine)
-    try:
-        columns = {column["name"] for column in inspector.get_columns("entrada_documento_itens")}
-    except Exception:
-        return
-
-    required_columns = {
-        "status_processamento",
-        "processado_em",
-        "erro_processamento",
-        "stock_movement_id",
-        "operation_log_id",
-    }
-    if required_columns.issubset(columns):
-        return
-
-    logging.getLogger(__name__).warning(
-        "Schema legado detectado em entrada_documento_itens; aplicando compatibilidade automatica"
-    )
-
-    with db.engine.begin() as connection:
-        connection.execute(
-            text(
-                """
-                ALTER TABLE entrada_documento_itens
-                ADD COLUMN IF NOT EXISTS status_processamento varchar(30) NOT NULL DEFAULT 'pendente',
-                ADD COLUMN IF NOT EXISTS processado_em timestamp NULL,
-                ADD COLUMN IF NOT EXISTS erro_processamento text NULL,
-                ADD COLUMN IF NOT EXISTS stock_movement_id integer NULL REFERENCES stock_movements(id) ON DELETE SET NULL,
-                ADD COLUMN IF NOT EXISTS operation_log_id integer NULL REFERENCES operation_logs(id) ON DELETE SET NULL
-                """
-            )
-        )
-        connection.execute(
-            text(
-                "CREATE INDEX IF NOT EXISTS ix_entrada_documento_itens_status_processamento ON entrada_documento_itens(status_processamento)"
-            )
-        )
-        connection.execute(
-            text(
-                "CREATE INDEX IF NOT EXISTS ix_entrada_documento_itens_stock_movement_id ON entrada_documento_itens(stock_movement_id)"
-            )
-        )
-        connection.execute(
-            text(
-                "CREATE INDEX IF NOT EXISTS ix_entrada_documento_itens_operation_log_id ON entrada_documento_itens(operation_log_id)"
-            )
-        )
-        connection.execute(
-            text(
-                """
-                UPDATE entrada_documento_itens
-                   SET status_processamento = 'processado',
-                       processado_em = COALESCE(processado_em, criado_em, now()),
-                       erro_processamento = NULL
-                 WHERE entrada_id IS NOT NULL
-                """
-            )
-        )
-
-
-def _ensure_stock_document_columns() -> None:
-    inspector = inspect(db.engine)
-    try:
-        columns = {column["name"] for column in inspector.get_columns("entrada_documentos")}
-    except Exception:
-        return
-
-    if "movimenta_estoque" in columns:
-        return
-
-    logging.getLogger(__name__).warning(
-        "Schema legado detectado em entrada_documentos; aplicando compatibilidade automatica"
-    )
-
-    with db.engine.begin() as connection:
-        connection.execute(
-            text(
-                "ALTER TABLE entrada_documentos ADD COLUMN IF NOT EXISTS movimenta_estoque boolean NOT NULL DEFAULT true"
-            )
-        )
 
 
 def register_extensions(app) -> None:
@@ -130,8 +47,7 @@ def register_extensions(app) -> None:
     with app.app_context():
         logging.getLogger(__name__).info("Garantindo estrutura do banco de dados")
         db.create_all()
-        _ensure_stock_document_columns()
-        _ensure_document_item_processing_columns()
+        ensure_runtime_schema_compatibility(db.engine, logging.getLogger(__name__))
 
     @login_manager.user_loader
     def _load_user(matricula: str):

@@ -26,7 +26,7 @@ def aplicar_migracao():
         )
         
         if not os.path.exists(migration_path):
-            print(f"❌ Arquivo de migração não encontrado: {migration_path}")
+            print(f"[ERRO] Arquivo de migracao nao encontrado: {migration_path}")
             return False
         
         with open(migration_path, 'r', encoding='utf-8') as f:
@@ -36,12 +36,12 @@ def aplicar_migracao():
             # Executar SQL
             db.session.execute(db.text(sql))
             db.session.commit()
-            print("✅ Migração aplicada com sucesso!")
+            print("[OK] Migracao aplicada com sucesso!")
             print("   Tabela 'equipamentos_reparo' criada.")
             return True
         except Exception as e:
             db.session.rollback()
-            print(f"❌ Erro ao aplicar migração: {e}")
+            print(f"[ERRO] Erro ao aplicar migracao: {e}")
             return False
 
 

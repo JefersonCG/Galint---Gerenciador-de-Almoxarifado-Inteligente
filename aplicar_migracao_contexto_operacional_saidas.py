@@ -25,11 +25,11 @@ def aplicar_migracao():
 
         try:
             for statement in statements:
-                print(f"📝 Executando: {statement}")
+                print(f"[EXEC] {statement}")
                 db.session.execute(db.text(statement))
 
             db.session.commit()
-            print("✅ Migração aplicada com sucesso!")
+            print("[OK] Migracao aplicada com sucesso!")
 
             result = db.session.execute(
                 db.text(
@@ -44,11 +44,11 @@ def aplicar_migracao():
             )
             rows = result.fetchall()
             for row in rows:
-                print(f"✅ Coluna disponível: {row[0]} ({row[1]})")
+                print(f"[OK] Coluna disponivel: {row[0]} ({row[1]})")
 
             return True
         except Exception as exc:
-            print(f"❌ Erro ao aplicar migração: {exc}")
+            print(f"[ERRO] Erro ao aplicar migracao: {exc}")
             db.session.rollback()
             return False
 

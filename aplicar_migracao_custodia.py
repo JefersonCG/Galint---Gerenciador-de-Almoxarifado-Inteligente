@@ -13,21 +13,21 @@ def aplicar_migracao():
     app = create_app()
     
     with app.app_context():
-        print("🔄 Iniciando migração: adicionar tipo_custodia...")
+        print("[INFO] Iniciando migracao: adicionar tipo_custodia...")
         
         try:
             # Ler arquivo SQL
             sql_file = Path(__file__).parent / "migrations" / "add_tipo_custodia_saidas.sql"
             
             if not sql_file.exists():
-                print(f"❌ Arquivo SQL não encontrado: {sql_file}")
+                print(f"[ERRO] Arquivo SQL nao encontrado: {sql_file}")
                 return False
             
             with open(sql_file, 'r', encoding='utf-8') as f:
                 sql_commands = f.read()
             
             # Executar comandos SQL
-            print("📝 Executando comandos SQL...")
+            print("[EXEC] Executando comandos SQL...")
             
             # Dividir por comandos (remover comentários)
             commands = []
@@ -42,7 +42,7 @@ def aplicar_migracao():
             db.session.execute(db.text(sql_text))
             db.session.commit()
             
-            print("✅ Migração aplicada com sucesso!")
+            print("[OK] Migracao aplicada com sucesso!")
             
             # Verificar coluna
             result = db.session.execute(db.text("""
@@ -53,19 +53,19 @@ def aplicar_migracao():
             
             row = result.fetchone()
             if row:
-                print(f"✅ Coluna criada: {row[0]} ({row[1]}) default={row[2]}")
+                print(f"[OK] Coluna criada: {row[0]} ({row[1]}) default={row[2]}")
             else:
-                print("⚠️  Coluna não encontrada após migração")
+                print("[WARN] Coluna nao encontrada apos migracao")
             
             # Contar registros
             result = db.session.execute(db.text("SELECT COUNT(*) FROM saidas"))
             count = result.scalar()
-            print(f"📊 Total de registros na tabela saidas: {count}")
+            print(f"[INFO] Total de registros na tabela saidas: {count}")
             
             return True
             
         except Exception as e:
-            print(f"❌ Erro ao aplicar migração: {e}")
+            print(f"[ERRO] Erro ao aplicar migracao: {e}")
             db.session.rollback()
             return False
 
@@ -79,7 +79,7 @@ if __name__ == "__main__":
     
     print()
     if sucesso:
-        print("✅ Processo concluído com sucesso!")
+        print("[OK] Processo concluido com sucesso!")
     else:
-        print("❌ Processo concluído com erros.")
+        print("[ERRO] Processo concluido com erros.")
         sys.exit(1)
