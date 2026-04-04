@@ -981,7 +981,8 @@ class InventoryService:
         """Retorna quanto ainda pode ser devolvido (estornado) para um material.
 
         Regra:
-        - Pendente = total_saidas(matricula,codigo) - total_devolucoes(matricula,codigo)
+        - O cálculo respeita a ordem cronológica dos movimentos para evitar que
+          devoluções antigas ou entradas legadas anteriores reduzam retiradas feitas depois.
         - total_devolucoes considera:
           1) eventos tipo 'devolucao_material' (novo padrão)
           2) entradas legadas sem NF (rota antiga do mobile), para não permitir dupla devolução.
@@ -991,36 +992,54 @@ class InventoryService:
         if not codigo_norm or not matricula_norm:
             return 0.0
 
-        total_saidas = (
-            db.session.query(func.coalesce(func.sum(Saida.quantidade), 0.0))
+        timeline: list[tuple[datetime, int, str, float, int]] = []
+
+        saidas = (
+            db.session.query(Saida.data_saida, Saida.quantidade, Saida.id_saida)
             .filter(Saida.codigo_item == codigo_norm, Saida.matricula == matricula_norm)
-            .scalar()
+            .order_by(Saida.data_saida.asc(), Saida.id_saida.asc())
+            .all()
         )
-        total_eventos = (
-            db.session.query(func.coalesce(func.sum(InventarioEvento.quantidade), 0.0))
+        for data_saida, quantidade, saida_id in saidas:
+            timeline.append((data_saida or datetime.min, 0, "saida", self._as_positive_float(quantidade), int(saida_id or 0)))
+
+        eventos = (
+            db.session.query(InventarioEvento.data_evento, InventarioEvento.quantidade, InventarioEvento.id_evento)
             .filter(
                 InventarioEvento.codigo_item == codigo_norm,
                 InventarioEvento.matricula == matricula_norm,
                 InventarioEvento.tipo == "devolucao_material",
             )
-            .scalar()
+            .order_by(InventarioEvento.data_evento.asc(), InventarioEvento.id_evento.asc())
+            .all()
         )
-        # Legado: devoluções antigas do mobile geravam Entrada com NF = NULL.
-        total_entradas_legado = (
-            db.session.query(func.coalesce(func.sum(Entrada.quantidade), 0.0))
+        for data_evento, quantidade, evento_id in eventos:
+            timeline.append((data_evento or datetime.min, 1, "devolucao_material", self._as_positive_float(quantidade), int(evento_id or 0)))
+
+        entradas_legado = (
+            db.session.query(Entrada.data_entrada, Entrada.quantidade, Entrada.id_entrada)
             .filter(
                 Entrada.codigo_item == codigo_norm,
                 Entrada.matricula == matricula_norm,
                 Entrada.nota_fiscal.is_(None),
             )
-            .scalar()
+            .order_by(Entrada.data_entrada.asc(), Entrada.id_entrada.asc())
+            .all()
         )
+        for data_entrada, quantidade, entrada_id in entradas_legado:
+            timeline.append((data_entrada or datetime.min, 2, "entrada_legado", self._as_positive_float(quantidade), int(entrada_id or 0)))
 
-        saidas_f = self._as_positive_float(total_saidas)
-        devolucoes_f = self._as_positive_float(total_eventos) + self._as_positive_float(total_entradas_legado)
-        pendente = saidas_f - devolucoes_f
-        if pendente < 0:
-            return 0.0
+        timeline.sort(key=lambda row: (row[0], row[1], row[4]))
+
+        pendente = 0.0
+        for _, _, kind, quantidade, _ in timeline:
+            if quantidade <= 0:
+                continue
+            if kind == "saida":
+                pendente += quantidade
+            else:
+                pendente = max(pendente - quantidade, 0.0)
+
         return float(pendente)
 
     def registrar_devolucao_material(

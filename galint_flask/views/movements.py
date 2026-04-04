@@ -360,11 +360,15 @@ def _infer_fractional_item(item: dict[str, Any]) -> dict[str, Any]:
 
 
 def _resolve_return_quantity_config(item: dict[str, Any], *, fractional_info: dict[str, Any]) -> dict[str, Any]:
-    unit_code = _normalize_text(fractional_info.get("default_unit"))
     raw_display = (item.get("unidade") or "").strip()
+    inferred_unit = _infer_unidade(item.get("unidade"))
+
+    if bool(fractional_info.get("enabled")):
+        unit_code = _normalize_text(fractional_info.get("default_unit"))
+    else:
+        unit_code = inferred_unit
 
     if unit_code not in {"litro", "quilo", "metro", "unidade"}:
-        inferred_unit = _infer_unidade(item.get("unidade"))
         unit_code = inferred_unit if inferred_unit in {"litro", "quilo", "metro", "unidade"} else "unidade"
 
     if unit_code == "litro":
@@ -833,7 +837,8 @@ def item_info(codigo: str):
     item = inventory_service.get_item(codigo)
     if not item:
         return jsonify({"found": False}), 404
-    item_model = db.session.get(Item, codigo)
+    canonical_code = str(item.get("codigo") or codigo).strip() or codigo
+    item_model = db.session.get(Item, canonical_code)
     
     liquid_type = _detect_liquid_type(categoria=item.get("categoria"), descricao=item.get("descricao"))
     fractional_info = _infer_fractional_item(item)
@@ -852,14 +857,14 @@ def item_info(codigo: str):
         try:
             usuario = _resolve_usuario(identificador)
             usuario_encontrado = True
-            pending_return = inventory_service.get_material_return_pending(codigo=codigo, matricula=usuario.matricula)
+            pending_return = inventory_service.get_material_return_pending(codigo=canonical_code, matricula=usuario.matricula)
         except ValueError:
             pending_return = 0.0
             usuario_encontrado = False
 
     response = {
         "found": True,
-        "codigo": codigo,
+        "codigo": canonical_code,
         "descricao": item.get("descricao"),
         "categoria": item.get("categoria"),
         "unidade": item.get("unidade"),
