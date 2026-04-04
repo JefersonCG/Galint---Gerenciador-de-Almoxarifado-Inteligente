@@ -362,30 +362,33 @@ def _infer_fractional_item(item: dict[str, Any]) -> dict[str, Any]:
 def _resolve_return_quantity_config(item: dict[str, Any], *, fractional_info: dict[str, Any]) -> dict[str, Any]:
     raw_display = (item.get("unidade") or "").strip()
     inferred_unit = _infer_unidade(item.get("unidade"))
+    fallback_unit = _normalize_text(fractional_info.get("default_unit"))
 
-    if bool(fractional_info.get("enabled")):
-        unit_code = _normalize_text(fractional_info.get("default_unit"))
-    else:
+    if inferred_unit in {"litro", "quilo", "metro", "unidade"}:
         unit_code = inferred_unit
+    elif bool(fractional_info.get("enabled")):
+        unit_code = fallback_unit
+    else:
+        unit_code = "unidade"
 
     if unit_code not in {"litro", "quilo", "metro", "unidade"}:
         unit_code = inferred_unit if inferred_unit in {"litro", "quilo", "metro", "unidade"} else "unidade"
 
     if unit_code == "litro":
-        unit_display = "L"
-        unit_label = "Litros"
+        unit_display = raw_display or "L"
+        unit_label = raw_display or "Litro"
         allow_decimal = True
     elif unit_code == "quilo":
-        unit_display = "kg"
-        unit_label = "Kg"
+        unit_display = raw_display or "kg"
+        unit_label = raw_display or "Kg"
         allow_decimal = True
     elif unit_code == "metro":
-        unit_display = "m"
-        unit_label = "Metros"
+        unit_display = raw_display or "m"
+        unit_label = raw_display or "Metro"
         allow_decimal = True
     else:
         unit_display = raw_display or "un"
-        unit_label = raw_display or "Unidades"
+        unit_label = raw_display or "Unidade"
         allow_decimal = False
 
     return {
@@ -892,15 +895,7 @@ def item_info(codigo: str):
         "devolucao_pendente": pending_return,
         "usuario_encontrado": usuario_encontrado,
         "suporta_devolucao_material": supports_material_return,
-        "unidade_exibicao_total": (
-            "L"
-            if _normalize_text(fractional_info.get("default_unit")) == "litro"
-            else "kg"
-            if _normalize_text(fractional_info.get("default_unit")) == "quilo"
-            else "m"
-            if _normalize_text(fractional_info.get("default_unit")) == "metro"
-            else "un"
-        ),
+        "unidade_exibicao_total": return_quantity_config.get("unit_display") or (item.get("unidade") or "un"),
         "foto_path": foto_path,
         "foto_url": url_for("static", filename=foto_path) if foto_path else None,
     }
