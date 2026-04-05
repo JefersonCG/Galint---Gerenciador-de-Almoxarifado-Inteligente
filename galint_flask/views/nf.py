@@ -536,16 +536,22 @@ def _mark_item_for_nf_pre_registration(
     item_model: Item | None,
     *,
     document_item_id: int | None = None,
+    force: bool = False,
 ) -> bool:
     if item_model is None:
         return False
 
+    already_pending = bool(getattr(item_model, "pre_cadastro_pendente", False))
+    origin_nf = (getattr(item_model, "pre_cadastro_origem", "") or "").strip().lower() == "nf"
+    if not force and not already_pending and not origin_nf:
+        return False
+
     changed = False
-    if not bool(getattr(item_model, "pre_cadastro_pendente", False)):
+    if not already_pending:
         item_model.pre_cadastro_pendente = True
         changed = True
 
-    if (getattr(item_model, "pre_cadastro_origem", "") or "").strip().lower() != "nf":
+    if not origin_nf:
         item_model.pre_cadastro_origem = "nf"
         changed = True
 
@@ -561,11 +567,15 @@ def _mark_item_for_nf_pre_registration(
         item_model.pre_cadastro_finalizado_em = None
         changed = True
 
-    return changed
+    return bool(getattr(item_model, "pre_cadastro_pendente", False))
 
 
-def _mark_document_items_for_nf_pre_registration(document_items: list[DocumentoEntradaEstoqueItem]) -> int:
-    changed = 0
+def _mark_document_items_for_nf_pre_registration(
+    document_items: list[DocumentoEntradaEstoqueItem],
+    *,
+    force: bool = False,
+) -> int:
+    tracked = 0
     for document_item in document_items:
         if document_item is None:
             continue
@@ -573,9 +583,10 @@ def _mark_document_items_for_nf_pre_registration(document_items: list[DocumentoE
         if _mark_item_for_nf_pre_registration(
             item_model,
             document_item_id=document_item.id_documento_item,
+            force=force,
         ):
-            changed += 1
-    return changed
+            tracked += 1
+    return tracked
 
 
 def _audit_document_item_deletion(
@@ -1232,18 +1243,24 @@ def registrar_nf():
         )
         document_item = document_result.get("document_item")
         documento = document_result.get("document")
+        pre_registration_count = 0
         if documento and documento.movimenta_estoque and document_item is not None:
-            _mark_document_items_for_nf_pre_registration([document_item])
+            pre_registration_count = _mark_document_items_for_nf_pre_registration(
+                [document_item],
+                force=item_criado_na_nf,
+            )
         sync_result = _sync_document_financial_entries(documento)
         db.session.commit()
         _clear_nf_runtime_cache(documento.numero_documento)
         if not documento.movimenta_estoque:
             flash("Documento fiscal registrado apenas no financeiro. O estoque não foi movimentado por opção do lançamento.", "info")
-        else:
+        elif pre_registration_count:
             flash("Documento fiscal registrado. O item só sobe ao estoque após a finalização do pré-cadastro.", "success")
+        else:
+            flash("Documento fiscal registrado e pronto para conferência operacional.", "success")
         if sync_result["updated"]:
             flash(f"{sync_result['updated']} lançamento(s) financeiro(s) sincronizado(s) com o documento.", "info")
-        if item_criado_na_nf or (documento and documento.movimenta_estoque and document_item is not None):
+        if item_criado_na_nf and pre_registration_count:
             flash("O item ficou disponível em PRÉ CADASTRADOS para conclusão do cadastro na tela de Itens.", "info")
     except ValueError as exc:
         flash(str(exc), "danger")
@@ -1481,8 +1498,9 @@ def editar_documento(documento_id: int):
                 row for row in documento.itens
                 if (row.status_processamento or "pendente").strip().lower() != "processado"
             ]
+            pre_registration_count = 0
             if bool(documento.movimenta_estoque):
-                _mark_document_items_for_nf_pre_registration(pending_document_items)
+                pre_registration_count = _mark_document_items_for_nf_pre_registration(pending_document_items)
 
             sync_result = _sync_document_financial_entries(documento)
             db.session.commit()
@@ -1500,9 +1518,14 @@ def editar_documento(documento_id: int):
             )
         if not documento.movimenta_estoque:
             flash("Documento fiscal atualizado apenas no financeiro. O estoque permaneceu inalterado.", "info")
+        elif pre_registration_count:
+            flash(
+                f"{pre_registration_count} item(ns) aguardam finalização do pré-cadastro antes de entrar no estoque.",
+                "info",
+            )
         elif pending_document_items:
             flash(
-                f"{len(pending_document_items)} item(ns) aguardam finalização do pré-cadastro antes de entrar no estoque.",
+                f"{len(pending_document_items)} item(ns) ficaram prontos para conferência operacional.",
                 "info",
             )
         if sync_result["skipped"]:
@@ -1592,8 +1615,9 @@ def adicionar_item_documento(documento_id: int):
                 pending_document_items.append(new_item_row)
                 flash(f"Item {codigo_item} adicionado ao documento fiscal {documento.numero_documento}.", "success")
 
+            pre_registration_count = 0
             if bool(documento.movimenta_estoque):
-                _mark_document_items_for_nf_pre_registration(pending_document_items)
+                pre_registration_count = _mark_document_items_for_nf_pre_registration(pending_document_items)
 
             sync_result = _sync_document_financial_entries(documento)
             db.session.commit()
@@ -1605,8 +1629,10 @@ def adicionar_item_documento(documento_id: int):
             )
         if not documento.movimenta_estoque:
             flash("Item adicionado apenas no financeiro. O documento está configurado para não movimentar estoque.", "info")
-        elif affected_item_ids:
+        elif pre_registration_count:
             flash("O item aguarda finalização do pré-cadastro antes de ser incorporado ao estoque.", "info")
+        elif affected_item_ids:
+            flash("O item ficou pronto para conferência operacional no documento fiscal.", "info")
     except ValueError as exc:
         db.session.rollback()
         flash(str(exc), "danger")

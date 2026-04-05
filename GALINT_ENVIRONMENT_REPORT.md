@@ -164,7 +164,6 @@ ms-python.debugpy
 ms-vscode.powershell
 dbaeumer.vscode-eslint
 esbenp.prettier-vscode
-ms-azuretools.vscode-docker
 mtxr.sqltools
 mtxr.sqltools-driver-pg
 ```

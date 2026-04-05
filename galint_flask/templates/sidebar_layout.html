@@ -9,8 +9,6 @@
             {% set saidas_fracionadas_url = url_for('movements.saidas_fracionadas_page') if endpoint_exists('movements.saidas_fracionadas_page') else None %}
             {% set saidas_hub_url = url_for('movements.saidas_hub') if endpoint_exists('movements.saidas_hub') else url_for('movements.index') %}
             {% set saida_fracionada_url = url_for('movements.saida_fracionada_page') if endpoint_exists('movements.saida_fracionada_page') else None %}
-            {% set ferramentas_retirar_url = url_for('ferramentas.retirar_page') if endpoint_exists('ferramentas.retirar_page') else None %}
-            {% set ferramentas_painel_url = url_for('ferramentas.painel') if endpoint_exists('ferramentas.painel') else None %}
             {% set central_kits_url = url_for('central_kits.index') if endpoint_exists('central_kits.index') else None %}
             {% set tool_custody_url = url_for('tool_custody.index') if endpoint_exists('tool_custody.index') else None %}
             {% set reparo_url = url_for('reparo.listar_reparos') if endpoint_exists('reparo.listar_reparos') else None %}
@@ -32,7 +30,6 @@
             p.startswith(url_for('movements.saida_page')) or
             (saida_fracionada_url and p.startswith(saida_fracionada_url)) or
             p.startswith(url_for('movements.entrada_page')) or
-            (ferramentas_retirar_url and p.startswith(ferramentas_retirar_url)) or
             (saidas_fracionadas_url and p.startswith(saidas_fracionadas_url)) %}
             <button
                 class="sidebar-link d-flex justify-content-between align-items-center border-0 bg-transparent text-start w-100 {{ 'active' if lancamentos_active else 'collapsed' }}"

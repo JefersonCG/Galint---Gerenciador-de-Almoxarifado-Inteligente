@@ -16,23 +16,30 @@
             saidas_fracionadas_url = optional_url('movements.saidas_fracionadas_page')
             saidas_hub_url = optional_url('movements.saidas_hub') or url_for('movements.index')
             saida_fracionada_url = optional_url('movements.saida_fracionada_page')
-            ferramentas_retirar_url = optional_url('ferramentas.retirar_page')
-            ferramentas_painel_url = optional_url('ferramentas.painel')
+            central_kits_url = optional_url('central_kits.index')
             tool_custody_url = optional_url('tool_custody.index')
             reparo_url = optional_url('reparo.listar_reparos')
             valor_estoque_url = optional_url('inventory.valor_estoque')
+            consumo_painel_url = optional_url('inventory.consumption_dashboard')
+            analytics_url = optional_url('analytics.index')
             fornecedores_url = optional_url('config.fornecedores')
+            admin_stock_adjust_url = optional_url('config.estoque_ajuste_admin')
             central_operacoes_url = optional_url('operations.central_operations')
+            lojas_lab_url = optional_url('inventory.lojas_lab')
             reports_index_url = optional_url('reports.index')
             percentual_movimentos_url = optional_url('reports.percentual_movimentos')
-            mobile_panel_url = '/mobile-panel' if getattr(current_user, 'is_authenticated', False) and getattr(current_user, 'is_admin', False) else None
+            users_list_url = optional_url('users.list_users')
+            mobile_panel_url = '/mobile-panel' if getattr(current_user, 'is_authenticated', False) and getattr(current_user, 'is_admin', False) and config.get('FEATURE_MOBILE_PANEL_ENABLED', False) else None
+            config_root_url = optional_url('pages.config')
             empresa_url = optional_url('config.empresa')
             relatorios_config_url = optional_url('config.relatorios')
             updates_url = optional_url('updates.index')
             rede_url = optional_url('pages.config_rede')
             telegram_url = optional_url('telegram_config.index')
+            notificacoes_url = optional_url('config.notificacoes')
             backup_url = optional_url('pages.config_backup')
             restore_backup_url = optional_url('pages.restore_backup')
+            conversionengine_url = optional_url('pages.config_conversionengine')
 
             lancamentos_active = (
                 p.startswith(saidas_hub_url)
@@ -40,24 +47,30 @@
                 or p.startswith(url_for('movements.saida_page'))
                 or (saida_fracionada_url and p.startswith(saida_fracionada_url))
                 or p.startswith(url_for('movements.entrada_page'))
-                or (ferramentas_retirar_url and p.startswith(ferramentas_retirar_url))
                 or (saidas_fracionadas_url and p.startswith(saidas_fracionadas_url))
             )
             estoque_active = (
                 p.startswith('/itens')
                 or p.startswith('/nf')
+                or p.startswith('/estoque')
                 or (central_operacoes_url and p.startswith(central_operacoes_url))
                 or (fornecedores_url and p.startswith(fornecedores_url))
+                or (admin_stock_adjust_url and p.startswith(admin_stock_adjust_url))
+                or (consumo_painel_url and p.startswith(consumo_painel_url))
             )
-            ferramentas_active = (tool_custody_url and p.startswith(tool_custody_url)) or (reparo_url and p.startswith(reparo_url)) or (ferramentas_painel_url and p.startswith(ferramentas_painel_url)) or (ferramentas_retirar_url and p.startswith(ferramentas_retirar_url))
+            ferramentas_active = (central_kits_url and p.startswith(central_kits_url)) or (tool_custody_url and p.startswith(tool_custody_url)) or (reparo_url and p.startswith(reparo_url))
             configuracoes_active = (
+                (config_root_url and p.startswith(config_root_url))
+                or
                 (empresa_url and p.startswith(empresa_url))
                 or (relatorios_config_url and p.startswith(relatorios_config_url))
                 or (updates_url and p.startswith(updates_url))
                 or (rede_url and p.startswith(rede_url))
                 or (telegram_url and p.startswith(telegram_url))
+                or (notificacoes_url and p.startswith(notificacoes_url))
                 or (backup_url and p.startswith(backup_url))
                 or (restore_backup_url and p.startswith(restore_backup_url))
+                or (conversionengine_url and p.startswith(conversionengine_url))
             )
         %>
         <nav class="sidebar-menu">
@@ -117,6 +130,13 @@
                     <span>Financeiro</span>
                 </a>
                 % endif
+                % if consumo_painel_url:
+                <a class="sidebar-link ps-4 ${'active' if p.startswith(consumo_painel_url) else ''}"
+                    href="${consumo_painel_url}">
+                    <i class="bi bi-geo-alt"></i>
+                    <span>Painel de Consumo</span>
+                </a>
+                % endif
                 % if central_operacoes_url:
                 <a class="sidebar-link ps-4 ${'active' if p.startswith(central_operacoes_url) else ''}"
                     href="${central_operacoes_url}">
@@ -131,18 +151,27 @@
                     <span>Cadastrar fornecedor</span>
                 </a>
                 % endif
-                % if optional_url('inventory.lojas_lab'):
-                <a class="sidebar-link ps-4 ${'active' if p.startswith(optional_url('inventory.lojas_lab')) else ''}"
-                    href="${optional_url('inventory.lojas_lab')}">
+                % if getattr(current_user, 'is_authenticated', False) and getattr(current_user, 'is_admin', False) and admin_stock_adjust_url:
+                <a class="sidebar-link ps-4 ${'active' if p.startswith(admin_stock_adjust_url) else ''}"
+                    href="${admin_stock_adjust_url}">
+                    <i class="bi bi-shield-lock"></i>
+                    <span>Ajuste Administrativo</span>
+                </a>
+                % endif
+                % if lojas_lab_url:
+                <a class="sidebar-link ps-4 ${'active' if p.startswith(lojas_lab_url) else ''}"
+                    href="${lojas_lab_url}">
                     <i class="bi bi-shop"></i>
                     <span>Laboratório de Lojas</span>
                 </a>
                 % endif
+                % if config.get('FEATURE_NOTAS_ENABLED', True):
                 <a class="sidebar-link ps-4 ${'active' if p.startswith(url_for('nf.nf_index')) else ''}"
                     href="${url_for('nf.nf_index')}">
                     <i class="bi bi-receipt"></i>
                     <span>Documentos Fiscais</span>
                 </a>
+                % endif
             </div>
 
             <button
@@ -156,11 +185,11 @@
                 <i class="bi bi-chevron-down small"></i>
             </button>
             <div id="ferramentasMenu" class="collapse ${'show' if ferramentas_active else ''}">
-                % if ferramentas_retirar_url:
-                <a class="sidebar-link ps-4 ${'active' if p.startswith(ferramentas_retirar_url) else ''}"
-                    href="${ferramentas_retirar_url}">
-                    <i class="bi bi-box-arrow-up-right"></i>
-                    <span>Retirar Ferramenta</span>
+                % if central_kits_url:
+                <a class="sidebar-link ps-4 ${'active' if p.startswith(central_kits_url) else ''}"
+                    href="${central_kits_url}">
+                    <i class="bi bi-briefcase-fill"></i>
+                    <span>Central de Kits</span>
                 </a>
                 % endif
                 % if tool_custody_url:
@@ -175,13 +204,6 @@
                     href="${reparo_url}">
                     <i class="bi bi-wrench-adjustable"></i>
                     <span>Em reparo...</span>
-                </a>
-                % endif
-                % if ferramentas_painel_url:
-                <a class="sidebar-link ps-4 ${'active' if p.startswith(ferramentas_painel_url) else ''}"
-                    href="${ferramentas_painel_url}">
-                    <i class="bi bi-grid"></i>
-                    <span>Painel Ferramentas</span>
                 </a>
                 % endif
             </div>
@@ -200,9 +222,16 @@
                 <span>Percentual Movimentos</span>
             </a>
             % endif
+            % if analytics_url and current_user.is_authenticated and current_user.is_admin:
+            <a class="sidebar-link ${'active' if p.startswith(analytics_url) else ''}"
+                href="${analytics_url}">
+                <i class="bi bi-bar-chart-line"></i>
+                <span>Central Analítica</span>
+            </a>
+            % endif
             % if current_user.is_authenticated and current_user.is_admin:
-                <a class="sidebar-link ${'active' if p.startswith(url_for('users.list_users')) else ''}"
-                    href="${url_for('users.list_users')}">
+                <a class="sidebar-link ${'active' if users_list_url and p.startswith(users_list_url) else ''}"
+                    href="${users_list_url}">
                     <i class="bi bi-people-fill"></i>
                     <span>Usuários</span>
                 </a>
@@ -261,11 +290,25 @@
                         <span>Telegram</span>
                     </a>
                     % endif
+                    % if notificacoes_url:
+                    <a class="sidebar-link ps-4 ${'active' if p.startswith(notificacoes_url) else ''}"
+                        href="${notificacoes_url}">
+                        <i class="bi bi-broadcast-pin"></i>
+                        <span>Notificações</span>
+                    </a>
+                    % endif
                     % if backup_url:
                     <a class="sidebar-link ps-4 ${'active' if p.startswith(backup_url) or (restore_backup_url and p.startswith(restore_backup_url)) else ''}"
                         href="${backup_url}">
                         <i class="bi bi-database"></i>
                         <span>Backup</span>
+                    </a>
+                    % endif
+                    % if conversionengine_url:
+                    <a class="sidebar-link ps-4 ${'active' if p.startswith(conversionengine_url) else ''}"
+                        href="${conversionengine_url}">
+                        <i class="bi bi-cpu"></i>
+                        <span>ConversionEngine</span>
                     </a>
                     % endif
                 </div>
