@@ -9,6 +9,7 @@ from io import BytesIO
 
 from flask import Blueprint, abort, current_app, flash, jsonify, make_response, redirect, render_template, request, send_file, session, url_for
 from flask_login import login_required, current_user
+from sqlalchemy import func
 
 from ..extensions import db
 from ..models import DocumentoEntradaEstoque, DocumentoEntradaEstoqueItem, FinanceLedgerEntry, Item, Usuario
@@ -834,6 +835,33 @@ def _build_all_pre_registered_documents_payload() -> list[dict[str, object]]:
     return list(documents_by_id.values())
 
 
+def _build_pre_registered_counters() -> dict[str, int]:
+    pending_items = int(
+        db.session.query(func.count(Item.codigo_item))
+        .filter(Item.pre_cadastro_pendente.is_(True))
+        .scalar()
+        or 0
+    )
+    pending_documents = int(
+        db.session.query(func.count(func.distinct(DocumentoEntradaEstoque.id_documento)))
+        .join(
+            DocumentoEntradaEstoqueItem,
+            DocumentoEntradaEstoqueItem.documento_id == DocumentoEntradaEstoque.id_documento,
+        )
+        .join(
+            Item,
+            Item.pre_cadastro_documento_item_id == DocumentoEntradaEstoqueItem.id_documento_item,
+        )
+        .filter(Item.pre_cadastro_pendente.is_(True))
+        .scalar()
+        or 0
+    )
+    return {
+        "documents": pending_documents,
+        "items": pending_items,
+    }
+
+
 @blueprint.get("/")
 @login_required
 def list_items():
@@ -880,12 +908,14 @@ def list_items():
                 "entries": items,
             }
         )
+    pre_registered_counts = _build_pre_registered_counters() if can_create else {"documents": 0, "items": 0}
     return render_template(
         "inventory/list.html",
         itens=itens,
         can_manage=can_manage,
         can_edit_items=can_edit_items,
         can_create=can_create,
+        pre_registered_counts=pre_registered_counts,
         category_cards=category_cards,
         selected_category=request.args.get("categoria", "").strip(),
         users_list=users_list,
@@ -1174,6 +1204,12 @@ def create_item():
         "foto_url": (form.get("foto_url") or "").strip() or None,
         "advanced_unit_settings": _parse_advanced_unit_settings(form.get("advanced_unit_settings_json")),
         "quantidade": saldo_desejado,  # Para registrar entrada quando item existe com lote diferente
+        "equivalent_item_action": (form.get("equivalent_item_action") or "").strip() or None,
+        "equivalent_item_source_code": (form.get("equivalent_item_source_code") or "").strip() or None,
+        "equivalent_item_reuse_photo": form.get("equivalent_item_reuse_photo"),
+        "equivalent_item_reuse_brand": form.get("equivalent_item_reuse_brand"),
+        "equivalent_item_reuse_category": form.get("equivalent_item_reuse_category"),
+        "equivalent_item_reuse_location": form.get("equivalent_item_reuse_location"),
     }
     finance_payload = _extract_finance_payload(form)
     payload.update({
@@ -2635,3 +2671,39 @@ def pre_registered_items_api():
         "total_documents": len(documents),
         "total_items": total_items,
     })
+
+
+@blueprint.get("/api/equivalencias")
+@login_required
+def equivalent_items_api():
+    _require_admin_or_supervisor()
+    payload = {
+        "codigo": (request.args.get("codigo") or "").strip() or None,
+        "descricao": (request.args.get("descricao") or "").strip() or None,
+        "marca": (request.args.get("marca") or "").strip() or None,
+        "categoria": (request.args.get("categoria") or "").strip() or None,
+        "unidade": (request.args.get("unidade") or "").strip() or None,
+        "tipo_embalagem_novo": (request.args.get("tipo_embalagem_novo") or "").strip() or None,
+        "unidades_por_embalagem": (request.args.get("unidades_por_embalagem") or "").strip() or None,
+    }
+    exclude_codigo = (request.args.get("exclude_codigo") or "").strip() or None
+    candidates = inventory_service.find_equivalent_item_candidates(payload, exclude_codigo=exclude_codigo)
+
+    enriched_candidates: list[dict[str, object]] = []
+    for candidate in candidates:
+        row = dict(candidate)
+        codigo = str(row.get("codigo") or "").strip()
+        if codigo:
+            row["edit_url"] = url_for("inventory.edit_item_form", codigo=codigo)
+        foto_path = str(row.get("foto_path") or "").strip()
+        if foto_path:
+            row["foto_url"] = url_for("static", filename=foto_path)
+        enriched_candidates.append(row)
+
+    return _json_no_store(
+        {
+            "success": True,
+            "total": len(enriched_candidates),
+            "candidates": enriched_candidates,
+        }
+    )

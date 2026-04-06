@@ -37,9 +37,39 @@ def _mobile_token_max_age_seconds() -> int:
         return 60 * 60 * 24 * 30
 
 
+def _mirror_panel_token_serializer() -> URLSafeTimedSerializer:
+    secret = current_app.config.get("SECRET_KEY")
+    if not secret:
+        raise RuntimeError("SECRET_KEY nao configurada; nao e possivel assinar tokens do painel")
+    return URLSafeTimedSerializer(secret_key=secret, salt="galint-mirror-panel-token")
+
+
+def _mirror_panel_token_max_age_seconds() -> int:
+    raw = os.environ.get("GALINT_MIRROR_TOKEN_MAX_AGE_SECONDS")
+    if not raw:
+        return 60 * 60 * 24
+    try:
+        value = int(raw)
+        return max(300, value)
+    except ValueError:
+        return 60 * 60 * 24
+
+
 def create_mobile_token(usuario: Usuario) -> str:
     serializer = _mobile_token_serializer()
     return serializer.dumps({"matricula": usuario.matricula})
+
+
+def create_mirror_panel_token(usuario: Usuario, *, mode: str | None = None) -> str:
+    serializer = _mirror_panel_token_serializer()
+    normalized_mode = str(mode or "").strip().lower()
+    return serializer.dumps(
+        {
+            "matricula": usuario.matricula,
+            "scope": "mirror_panel",
+            "mode": normalized_mode,
+        }
+    )
 
 
 def get_mobile_user(token: str) -> Usuario | None:
@@ -52,6 +82,27 @@ def get_mobile_user(token: str) -> Usuario | None:
     try:
         data = serializer.loads(token, max_age=_mobile_token_max_age_seconds())
     except (BadSignature, SignatureExpired):
+        return None
+
+    matricula = (data or {}).get("matricula")
+    if not matricula:
+        return None
+    return Usuario.query.get(matricula)
+
+
+def get_mirror_panel_user(token: str, *, mode: str | None = None) -> Usuario | None:
+    serializer = _mirror_panel_token_serializer()
+    try:
+        data = serializer.loads(token, max_age=_mirror_panel_token_max_age_seconds())
+    except (BadSignature, SignatureExpired):
+        return None
+
+    if (data or {}).get("scope") != "mirror_panel":
+        return None
+
+    expected_mode = str(mode or "").strip().lower()
+    token_mode = str((data or {}).get("mode") or "").strip().lower()
+    if expected_mode and token_mode != expected_mode:
         return None
 
     matricula = (data or {}).get("matricula")

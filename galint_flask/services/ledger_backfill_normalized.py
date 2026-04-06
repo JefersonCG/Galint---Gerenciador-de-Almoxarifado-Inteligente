@@ -10,6 +10,8 @@ from ..extensions import db
 from ..models import Entrada, InventarioEvento, Item, Saida, StockBalance, StockMovement, stock_balance_supports_read_model_ready
 from .legacy_stock_normalizer import build_normalized_legacy_movements, resolve_canonical_unit
 
+LEGACY_REBUILD_REFERENCE_TYPES = ("entrada", "saida", "inventario_evento", "legacy_movimento")
+
 
 @dataclass(slots=True)
 class BackfillSummary:
@@ -141,6 +143,92 @@ class LedgerBackfillService:
                     skipped_missing_product += 1
 
         balances_rebuilt = self.rebuild_balances_for_products(touched_products)
+        read_models_preserved, read_models_not_preserved = self._restore_ready_products(previously_ready_products)
+        db.session.flush()
+        return BackfillSummary(
+            processed_entries=processed_entries,
+            processed_exits=processed_exits,
+            processed_events=processed_events,
+            skipped_existing=skipped_existing,
+            skipped_missing_product=skipped_missing_product,
+            balances_rebuilt=balances_rebuilt,
+            read_models_preserved=read_models_preserved,
+            read_models_not_preserved=read_models_not_preserved,
+        )
+
+    def rebuild_products_from_legacy(
+        self,
+        product_ids: set[str] | list[str] | tuple[str, ...],
+        *,
+        clear_existing_movements: bool = True,
+    ) -> BackfillSummary:
+        normalized_product_ids = {
+            (product_id or "").strip()
+            for product_id in product_ids
+            if (product_id or "").strip()
+        }
+        if not normalized_product_ids:
+            return BackfillSummary(
+                processed_entries=0,
+                processed_exits=0,
+                processed_events=0,
+                skipped_existing=0,
+                skipped_missing_product=0,
+                balances_rebuilt=0,
+                read_models_preserved=0,
+                read_models_not_preserved=0,
+            )
+
+        processed_entries = 0
+        processed_exits = 0
+        processed_events = 0
+        skipped_existing = 0
+        skipped_missing_product = 0
+        previously_ready_products = self._get_ready_products().intersection(normalized_product_ids)
+
+        if clear_existing_movements:
+            (
+                StockMovement.query
+                .filter(StockMovement.product_id.in_(sorted(normalized_product_ids)))
+                .filter(StockMovement.reference_type.in_(LEGACY_REBUILD_REFERENCE_TYPES))
+                .delete(synchronize_session=False)
+            )
+            db.session.flush()
+
+        grouped_rows, missing_rows = self._group_legacy_rows(product_ids=normalized_product_ids)
+        skipped_missing_product += missing_rows
+
+        for product_id in sorted(grouped_rows):
+            payload = grouped_rows[product_id]
+            for movement in build_normalized_legacy_movements(
+                payload["item"],
+                entries=payload["entries"],
+                exits=payload["exits"],
+                events=payload["events"],
+            ):
+                created = self._ensure_movement(
+                    product_id=product_id,
+                    movement_type=movement.movement_type,
+                    quantity=movement.quantity_base,
+                    reference_type=movement.reference_type,
+                    reference_id=movement.reference_id,
+                    created_at=movement.created_at,
+                    metadata=movement.metadata,
+                    unit_base=movement.unit_base,
+                )
+                if created == "created":
+                    if movement.reference_type == "entrada":
+                        processed_entries += 1
+                    elif movement.reference_type == "saida":
+                        processed_exits += 1
+                    else:
+                        processed_events += 1
+                elif created == "existing":
+                    skipped_existing += 1
+                else:
+                    skipped_missing_product += 1
+
+        balances_rebuilt = self.rebuild_balances_for_products(normalized_product_ids)
         read_models_preserved, read_models_not_preserved = self._restore_ready_products(previously_ready_products)
         db.session.flush()
         return BackfillSummary(

@@ -22,3 +22,4 @@ zxing-cpp
 PyJWT==2.8.0
 pdf2image==1.17.0
 pillow==11.1.0
+PySide6==6.8.3

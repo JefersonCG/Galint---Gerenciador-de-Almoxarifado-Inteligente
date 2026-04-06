@@ -27,7 +27,7 @@
             central_operacoes_url = optional_url('operations.central_operations')
             lojas_lab_url = optional_url('inventory.lojas_lab')
             reports_index_url = optional_url('reports.index')
-            percentual_movimentos_url = optional_url('reports.percentual_movimentos')
+            analytics_url = optional_url('analytics.index')
             users_list_url = optional_url('users.list_users')
             mobile_panel_url = '/mobile-panel' if getattr(current_user, 'is_authenticated', False) and getattr(current_user, 'is_admin', False) and config.get('FEATURE_MOBILE_PANEL_ENABLED', False) else None
             config_root_url = optional_url('pages.config')
@@ -215,14 +215,7 @@
                 <span>Relatórios Gerais</span>
             </a>
             % endif
-            % if percentual_movimentos_url:
-            <a class="sidebar-link ${'active' if p.startswith(percentual_movimentos_url) else ''}"
-                href="${percentual_movimentos_url}">
-                <i class="bi bi-pie-chart"></i>
-                <span>Percentual Movimentos</span>
-            </a>
-            % endif
-            % if analytics_url and current_user.is_authenticated and current_user.is_admin:
+            % if analytics_url and current_user.is_authenticated and getattr(current_user, 'is_admin', False):
             <a class="sidebar-link ${'active' if p.startswith(analytics_url) else ''}"
                 href="${analytics_url}">
                 <i class="bi bi-bar-chart-line"></i>

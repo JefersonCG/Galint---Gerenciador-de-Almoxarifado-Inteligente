@@ -278,8 +278,13 @@ class Item(db.Model):
 
     def get_saldo_fisico_total(self) -> float:
         """Saldo que deve ser considerado como 'físico' para todo o sistema."""
-        if self.tipo_embalagem_novo and self.unidades_por_embalagem:
-            return self.normalize_balance_value(self.get_estoque_total_com_embalagens())
+        try:
+            from .services.embalagem_service import EmbalagemService
+
+            if EmbalagemService.tem_embalagem(self) or EmbalagemService.tem_rolo_legacy(self):
+                return self.normalize_balance_value(self.get_estoque_total_com_embalagens())
+        except Exception:
+            pass
         return self.normalize_balance_value(self.get_saldo_atual())
 
     def get_saldo_fisico_display(self) -> str:

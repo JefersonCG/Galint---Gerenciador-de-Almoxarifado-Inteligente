@@ -175,7 +175,7 @@
 </div>
 {% endif %}
 
-<!-- Modal de Exclusão Avançada -->
+<!-- Modal de Exclusão com Arquivo Morto -->
 <div class="modal fade" id="deleteUserModal" tabindex="-1" aria-labelledby="deleteUserModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -190,45 +190,14 @@
                         <strong>Atenção!</strong> Você está prestes a excluir o usuário <strong id="deleteUserName"></strong>.
                     </div>
 
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Escolha como deseja excluir:</label>
-                        
-                        <div class="form-check mb-3 border rounded p-3">
-                            <input class="form-check-input" type="radio" name="delete_option" id="deleteReatribuir" value="reatribuir" checked>
-                            <label class="form-check-label" for="deleteReatribuir">
-                                <strong class="text-primary">✓ Reatribuir e Excluir (Recomendado)</strong>
-                                <small class="d-block text-muted mt-1">Transfere todos os registros (saídas, entradas, eventos, retiradas de ferramentas e reparos) para outro usuário antes de excluir. <strong>Preserva o histórico completo.</strong></small>
-                            </label>
-                            
-                            <div id="reatribuirOptions" class="mt-2">
-                                <label for="usuarioDestino" class="form-label small fw-bold">Selecione o usuário de destino:</label>
-                                <select class="form-select form-select-sm" id="usuarioDestino" name="reatribuir_para" required>
-                                    <option value="">-- Selecione um usuário --</option>
-                                    {% for u in usuarios %}
-                                        <option value="{{ u.matricula }}" data-user-id="{{ u.matricula }}">{{ u.nome }} ({{ u.matricula }})</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                        </div>
-
-                        <div class="form-check mb-3 border rounded p-3">
-                            <input class="form-check-input" type="radio" name="delete_option" id="deleteForcado" value="force">
-                            <label class="form-check-label" for="deleteForcado">
-                                <strong class="text-warning">⚠️ Excluir Forçadamente</strong>
-                                <small class="d-block text-muted mt-1">Remove o usuário e desvincula apenas os registros que aceitam matrícula nula. Para retiradas de ferramentas e reparos, a reatribuição continua obrigatória. <strong>Use apenas se não puder reatribuir.</strong></small>
-                            </label>
-                        </div>
-
-                        <div class="form-check mb-2 border rounded p-3">
-                            <input class="form-check-input" type="radio" name="delete_option" id="deleteSimple" value="simple">
-                            <label class="form-check-label" for="deleteSimple">
-                                <strong class="text-muted">Exclusão Simples</strong>
-                                <small class="d-block text-muted mt-1">❌ Só funciona se o usuário <u>não tiver nenhum registro vinculado</u>. Se houver registros, mostrará erro.</small>
-                            </label>
-                        </div>
+                    <div class="border rounded p-3 bg-light">
+                        <p class="mb-2 fw-bold">O sistema vai executar automaticamente:</p>
+                        <ul class="mb-0">
+                            <li>copiar o histórico completo do colaborador para um arquivo morto SQLite;</li>
+                            <li>remover o colaborador da base ativa;</li>
+                            <li>desvincular ou limpar referências do sistema que não podem continuar apontando para esse cadastro.</li>
+                        </ul>
                     </div>
-
-                    <input type="hidden" name="force_delete" id="forceDeleteInput" value="false">
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
@@ -292,7 +261,7 @@
         });
     })();
 
-    // Sistema de exclusão avançada de usuários
+    // Exclusão com arquivamento automático em arquivo morto SQLite
     (function() {
         const deleteModal = document.getElementById('deleteUserModal');
         if (!deleteModal) return;
@@ -300,71 +269,12 @@
         const deleteModalBootstrap = new bootstrap.Modal(deleteModal);
         const deleteForm = document.getElementById('deleteUserForm');
         const deleteUserNameEl = document.getElementById('deleteUserName');
-        const forceDeleteInput = document.getElementById('forceDeleteInput');
-        const reatribuirOptions = document.getElementById('reatribuirOptions');
-        const usuarioDestino = document.getElementById('usuarioDestino');
         
-        // Função para abrir o modal
         window.openDeleteModal = function(matricula, nome) {
             deleteUserNameEl.textContent = nome;
             deleteForm.action = `/usuarios/${matricula}/excluir`;
-            
-            // Remover opção do próprio usuário da lista
-            const options = usuarioDestino.querySelectorAll('option');
-            options.forEach(opt => {
-                if (opt.getAttribute('data-user-id') === matricula) {
-                    opt.style.display = 'none';
-                    opt.disabled = true;
-                } else {
-                    opt.style.display = '';
-                    opt.disabled = false;
-                }
-            });
-            
-            // Reset form - opção "reatribuir" é padrão
-            document.getElementById('deleteReatribuir').checked = true;
-            reatribuirOptions.style.display = 'block';
-            usuarioDestino.value = '';
-            forceDeleteInput.value = 'true';
-            
             deleteModalBootstrap.show();
         };
-        
-        // Controlar exibição de opções de reatribuição
-        document.querySelectorAll('input[name="delete_option"]').forEach(radio => {
-            radio.addEventListener('change', function() {
-                if (this.value === 'reatribuir') {
-                    reatribuirOptions.style.display = 'block';
-                    usuarioDestino.setAttribute('required', 'required');
-                    forceDeleteInput.value = 'true';
-                } else {
-                    reatribuirOptions.style.display = 'none';
-                    usuarioDestino.removeAttribute('required');
-                    usuarioDestino.value = '';
-                    forceDeleteInput.value = this.value === 'force' ? 'true' : 'false';
-                }
-            });
-        });
-        
-        // Validar antes de enviar
-        deleteForm.addEventListener('submit', function(e) {
-            const selectedOption = document.querySelector('input[name="delete_option"]:checked').value;
-            
-            if (selectedOption === 'reatribuir' && !usuarioDestino.value) {
-                e.preventDefault();
-                alert('Por favor, selecione um usuário para reatribuir os registros.');
-                return;
-            }
-            
-            // Se foi reatribuir, limpar force_delete mas manter reatribuir_para
-            if (selectedOption !== 'reatribuir') {
-                // Remover campo reatribuir_para se não for reatribuir
-                const reatribuirInput = deleteForm.querySelector('[name="reatribuir_para"]');
-                if (reatribuirInput && selectedOption !== 'reatribuir') {
-                    reatribuirInput.disabled = true;
-                }
-            }
-        });
     })();
 </script>
 {% endblock %}

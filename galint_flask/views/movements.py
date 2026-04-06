@@ -6,11 +6,12 @@ import re
 from datetime import datetime, timezone
 from typing import Any
 
-from flask import Blueprint, abort, flash, jsonify, redirect, render_template, request, url_for, send_file
+from flask import Blueprint, abort, current_app, flash, jsonify, redirect, render_template, request, url_for, send_file
 from flask_login import current_user, login_required
 
 from ..extensions import db
 from ..models import Item, Saida, RetiradaFerramenta
+from ..services.auth import create_mirror_panel_token, get_mirror_panel_user
 from ..services.inventory import (
     OPERATIONAL_ACTIVITY_OPTIONS,
     MovimentoPayload,
@@ -19,7 +20,10 @@ from ..services.inventory import (
     normalize_operational_activity,
     normalize_operational_text,
 )
+from ..services.mirror_state_service import mirror_state_service
 from ..services.notification_router import NotificationRouterService
+from ..services.mirror_insights_service import mirror_insights_service
+from ..services.native_panel_launcher import launch_panel as launch_native_panel
 from ..services.users import user_service
 from ..services.entrada_service import entrada_service
 from ..services.telegram_service import TelegramService
@@ -137,6 +141,51 @@ FRACTIONABLE_WEIGHT_HINTS = (
 def _require_admin() -> None:
     if not bool(getattr(current_user, "is_admin", False)):
         abort(403)
+
+
+def _normalize_mirror_mode(value: str | None) -> str:
+    mode = (value or "").strip().lower()
+    if mode not in {"", "saida", "entrada", "ferramenta", "fracionada"}:
+        abort(404)
+    return mode
+
+
+def _is_admin_session() -> bool:
+    return bool(getattr(current_user, "is_authenticated", False)) and bool(getattr(current_user, "is_admin", False))
+
+
+def _get_mirror_token() -> str:
+    return str(request.args.get("native_token") or request.headers.get("X-Galint-Mirror-Token") or "").strip()
+
+
+def _authorize_mirror_token_user(mode: str):
+    token = _get_mirror_token()
+    if not token:
+        return None
+    usuario = get_mirror_panel_user(token, mode=mode)
+    if usuario and bool(getattr(usuario, "is_admin", False)):
+        return usuario
+    abort(403)
+
+
+def _ensure_mirror_panel_json_access(mode: str) -> None:
+    if _is_admin_session():
+        return
+    if _authorize_mirror_token_user(mode) is not None:
+        return
+    if bool(getattr(current_user, "is_authenticated", False)):
+        abort(403)
+    abort(401)
+
+
+def _ensure_mirror_panel_html_access(mode: str):
+    if _is_admin_session():
+        return None
+    if _authorize_mirror_token_user(mode) is not None:
+        return None
+    if bool(getattr(current_user, "is_authenticated", False)):
+        abort(403)
+    return redirect(url_for("auth.login_form", next=request.url))
 
 
 def _ensure_utc(dt: datetime | None) -> datetime:
@@ -924,14 +973,66 @@ def saida_page():
 
 
 @blueprint.get('/painel-espelho')
-@login_required
 def painel_espelho_page():
     """Tela dedicada para segundo monitor com o estado visual da operação."""
-    _require_admin()
-    mode = (request.args.get("mode") or "").strip().lower()
-    if mode not in {"", "saida", "entrada", "ferramenta", "fracionada"}:
-        abort(404)
+    mode = _normalize_mirror_mode(request.args.get("mode"))
+    access_response = _ensure_mirror_panel_html_access(mode)
+    if access_response is not None:
+        return access_response
     return render_template('movements/painel_espelho.html', mirror_mode=mode)
+
+
+@blueprint.get('/painel-espelho/insights')
+def painel_espelho_insights_api():
+    """Retorna os destaques operacionais rotativos do painel espelho."""
+    mode = _normalize_mirror_mode(request.args.get("mode"))
+    _ensure_mirror_panel_json_access(mode)
+    return jsonify(mirror_insights_service.build_payload(mode=mode))
+
+
+@blueprint.get('/painel-espelho/state')
+def painel_espelho_state_api():
+    """Retorna o ultimo estado visual compartilhado com o painel espelho."""
+    mode = _normalize_mirror_mode(request.args.get("mode"))
+    _ensure_mirror_panel_json_access(mode)
+    return jsonify(mirror_state_service.get_state(mode=mode))
+
+
+@blueprint.post('/painel-espelho/state')
+@login_required
+def painel_espelho_state_publish_api():
+    """Recebe o estado visual da operacao para navegadores e janela nativa."""
+    _require_admin()
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify({"success": False, "message": "Payload invalido"}), 400
+
+    mode = str(payload.get("kind") or "").strip().lower()
+    if mode not in {"saida", "entrada", "ferramenta", "fracionada"}:
+        return jsonify({"success": False, "message": "Tipo de operacao invalido"}), 400
+
+    state = mirror_state_service.publish(payload)
+    return jsonify({"success": True, "state": state})
+
+
+@blueprint.post('/painel-espelho/native-open')
+@login_required
+def painel_espelho_native_open_api():
+    """Abre o painel espelho em janela nativa na maquina local."""
+    _require_admin()
+    payload = request.get_json(silent=True)
+    request_data = payload if isinstance(payload, dict) else request.form
+    mode = _normalize_mirror_mode((request_data or {}).get("mode"))
+
+    token = create_mirror_panel_token(current_user, mode=mode)
+    panel_kwargs: dict[str, Any] = {"_external": True, "native_token": token}
+    if mode:
+        panel_kwargs["mode"] = mode
+    panel_url = url_for('movements.painel_espelho_page', **panel_kwargs)
+    title = f"{current_app.config.get('SYSTEM_NAME', 'GALINT')} - Painel do colaborador"
+    result = launch_native_panel(panel_url, title)
+    status_code = 200 if result.get("success") else 503
+    return jsonify(result), status_code
 
 
 @blueprint.get('/saida-fracionada/page')

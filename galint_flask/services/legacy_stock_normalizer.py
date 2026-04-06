@@ -4,17 +4,20 @@ from dataclasses import dataclass
 from datetime import datetime
 import re
 from typing import Any
+import unicodedata
 
 from ..models import Entrada, InventarioEvento, Item, Saida
 
 _PAIR_RE = re.compile(r"de\s+([0-9]+(?:\.[0-9]+)?)\s+para\s+([0-9]+(?:\.[0-9]+)?)", re.IGNORECASE)
 _PACKAGING_UNIT_CODES = {"lata", "balde", "bombona", "caixa", "pacote", "fardo", "rolo", "saco", "litro"}
+_TOOLKIT_PIECES_RE = re.compile(r"\b[0-9]+(?:\.[0-9]+)?\s*pecas?\b", re.IGNORECASE)
 _UNIT_HINT_RE = re.compile(
     r"UNIDADE\s*=\s*([A-ZÇÃÕÁÉÍÓÚ_ ]+)|\b(LITRO|LITROS|KG|KILO|QUILO|METRO|METROS|UNIDADE|UNIDADES)\b",
     re.IGNORECASE,
 )
 _MOVEMENT_KIND_ORDER = {"entrada": 0, "saida": 1, "evento": 2}
 _TOLERANCE = 1e-6
+_TOOLKIT_KEYWORDS = ("jogo", "kit", "conjunto")
 
 
 @dataclass(slots=True, frozen=True)
@@ -32,9 +35,40 @@ def is_packaging_unit_code(unit_code: str | None) -> bool:
     return (unit_code or "").strip().lower() in _PACKAGING_UNIT_CODES
 
 
+def _normalize_search_text(value: str | None) -> str:
+    normalized = unicodedata.normalize("NFKD", str(value or ""))
+    ascii_only = normalized.encode("ascii", "ignore").decode("ascii")
+    return " ".join(ascii_only.strip().lower().split())
+
+
+def ignore_packaging_metadata_for_stock(item: Item) -> bool:
+    packaging_markers = {
+        _normalize_search_text(getattr(item, "tipo_embalagem_novo", None)),
+        _normalize_search_text(getattr(item, "tipo_embalagem", None)),
+        _normalize_search_text(getattr(item, "unidade", None)),
+    }
+    packaging_markers.discard("")
+    if not packaging_markers.intersection({"pacote", "caixa", "fardo"}):
+        return False
+
+    categoria = _normalize_search_text(getattr(item, "categoria", None))
+    if "ferrament" not in categoria:
+        return False
+
+    descricao = _normalize_search_text(getattr(item, "descricao", None))
+    if not descricao:
+        return False
+
+    if any(keyword in descricao for keyword in _TOOLKIT_KEYWORDS):
+        return True
+    return bool(_TOOLKIT_PIECES_RE.search(descricao))
+
+
 def has_active_unit_config(item: Item) -> bool:
-    return any(unit.is_base and unit.active for unit in item.product_units) or any(
-        conversion.active for conversion in item.product_unit_conversions
+    product_units = getattr(item, "product_units", []) or []
+    product_unit_conversions = getattr(item, "product_unit_conversions", []) or []
+    return any(unit.is_base and unit.active for unit in product_units) or any(
+        conversion.active for conversion in product_unit_conversions
     )
 
 
@@ -74,11 +108,16 @@ def resolve_packaging_factor(item: Item) -> float:
 
 
 def uses_packaging_legacy_normalization(item: Item) -> bool:
-    return resolve_packaging_factor(item) > 1.0 and not has_active_unit_config(item)
+    return (
+        resolve_packaging_factor(item) > 1.0
+        and not has_active_unit_config(item)
+        and not ignore_packaging_metadata_for_stock(item)
+    )
 
 
 def resolve_canonical_unit(item: Item) -> str:
-    base_unit = next((unit for unit in item.product_units if unit.is_base and unit.active), None)
+    product_units = getattr(item, "product_units", []) or []
+    base_unit = next((unit for unit in product_units if unit.is_base and unit.active), None)
     if base_unit and base_unit.unit_code:
         return (base_unit.unit_code or "").strip().lower() or "un"
 

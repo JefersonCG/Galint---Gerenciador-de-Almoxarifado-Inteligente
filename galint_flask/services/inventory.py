@@ -4,10 +4,13 @@ from __future__ import annotations
 from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime, date, timedelta
+from difflib import SequenceMatcher
 import json
 import logging
 import math
+import re
 from time import monotonic
+from types import SimpleNamespace
 from typing import Any
 from unicodedata import normalize as unicode_normalize
 
@@ -43,6 +46,7 @@ from .inventory_engine import (
 )
 from .admin_stock_audit_sqlite import log_admin_stock_adjustment
 from .legacy_stock_normalizer import (
+    ignore_packaging_metadata_for_stock,
     is_packaging_unit_code,
     resolve_canonical_unit,
     resolve_packaging_factor,
@@ -116,6 +120,93 @@ def normalize_operational_activity(value: object) -> str | None:
     if not lookup:
         return None
     return _OPERATIONAL_ACTIVITY_ALIASES.get(lookup)
+
+
+_EQUIVALENT_ITEM_STOPWORDS = frozenset(
+    {
+        "a",
+        "as",
+        "com",
+        "da",
+        "das",
+        "de",
+        "do",
+        "dos",
+        "e",
+        "em",
+        "na",
+        "nas",
+        "no",
+        "nos",
+        "para",
+        "por",
+        "sem",
+    }
+)
+_EQUIVALENT_ITEM_PRESENTATION_TOKENS = frozenset(
+    {
+        "balde",
+        "bombona",
+        "caixa",
+        "fardo",
+        "frasco",
+        "galao",
+        "garrafa",
+        "kit",
+        "lata",
+        "pacote",
+        "refil",
+        "rolo",
+        "saco",
+        "unidade",
+    }
+)
+_EQUIVALENT_ITEM_MEASURE_RE = re.compile(
+    r"^\d+(?:[\.,]\d+)?(?:mm|cm|m|ml|l|lt|lts|litro|litros|g|gr|kg|un|und|pct|pc|cx|x)?$"
+)
+
+
+def _coerce_truthy(value: object) -> bool:
+    if isinstance(value, str):
+        return value.strip().lower() in {"1", "true", "on", "yes", "sim"}
+    return bool(value)
+
+
+def _normalize_equivalent_text(value: object) -> str:
+    normalized = _normalize_operational_lookup(value)
+    if not normalized:
+        return ""
+    normalized = normalized.replace("/", " ").replace("-", " ")
+    normalized = re.sub(r"[^a-z0-9\s]", " ", normalized)
+    return " ".join(normalized.split())
+
+
+def _extract_equivalent_tokens(value: object) -> list[str]:
+    tokens: list[str] = []
+    for token in _normalize_equivalent_text(value).split():
+        if len(token) <= 1:
+            continue
+        if token in _EQUIVALENT_ITEM_STOPWORDS:
+            continue
+        tokens.append(token)
+    return tokens
+
+
+def _strip_equivalent_presentation_tokens(value: object) -> str:
+    kept_tokens: list[str] = []
+    for token in _normalize_equivalent_text(value).split():
+        if token in _EQUIVALENT_ITEM_PRESENTATION_TOKENS:
+            continue
+        if _EQUIVALENT_ITEM_MEASURE_RE.match(token):
+            continue
+        kept_tokens.append(token)
+    return " ".join(kept_tokens)
+
+
+def _sequence_similarity(left: str, right: str) -> float:
+    if not left or not right:
+        return 0.0
+    return float(SequenceMatcher(None, left, right).ratio())
 
 
 def normalize_operational_context(
@@ -387,6 +478,70 @@ class InventoryService:
 
     def __init__(self) -> None:
         self._runtime_cache: dict[str, tuple[float, Any]] = {}
+
+    @staticmethod
+    def _should_force_toolkit_unit_semantics(
+        payload: dict[str, Any] | None,
+        *,
+        current_item: Item | None = None,
+    ) -> bool:
+        payload_data = dict(payload or {})
+        probe = SimpleNamespace(
+            categoria=payload_data.get("categoria", getattr(current_item, "categoria", None)),
+            descricao=payload_data.get("descricao", getattr(current_item, "descricao", None)),
+            unidade=payload_data.get("unidade", getattr(current_item, "unidade", None)),
+            tipo_embalagem=payload_data.get("tipo_embalagem", getattr(current_item, "tipo_embalagem", None)),
+            tipo_embalagem_novo=payload_data.get("tipo_embalagem_novo", getattr(current_item, "tipo_embalagem_novo", None)),
+            unidades_por_embalagem=payload_data.get("unidades_por_embalagem", getattr(current_item, "unidades_por_embalagem", None)),
+            grandeza_referencia=payload_data.get("grandeza_referencia", getattr(current_item, "grandeza_referencia", None)),
+            litros_por_embalagem=payload_data.get("litros_por_embalagem", getattr(current_item, "litros_por_embalagem", None)),
+            product_units=getattr(current_item, "product_units", []) or [],
+            product_unit_conversions=getattr(current_item, "product_unit_conversions", []) or [],
+        )
+        return ignore_packaging_metadata_for_stock(probe)
+
+    @staticmethod
+    def _normalize_toolkit_registration_payload(
+        payload: dict[str, Any] | None,
+        *,
+        current_item: Item | None = None,
+    ) -> dict[str, Any]:
+        normalized_payload = dict(payload or {})
+        if not InventoryService._should_force_toolkit_unit_semantics(normalized_payload, current_item=current_item):
+            return normalized_payload
+
+        normalized_payload["unidade"] = "Unidade"
+        normalized_payload["tipo_embalagem"] = None
+        normalized_payload["tipo_embalagem_novo"] = None
+        normalized_payload["unidades_por_embalagem"] = None
+        normalized_payload["grandeza_referencia"] = None
+        normalized_payload["litros_por_embalagem"] = None
+        normalized_payload["estoque_embalagens"] = 0.0
+        normalized_payload["estoque_unidades_soltas"] = 0.0
+        return normalized_payload
+
+    @staticmethod
+    def _apply_toolkit_unit_semantics(item: Item) -> bool:
+        if item is None or not InventoryService._should_force_toolkit_unit_semantics({}, current_item=item):
+            return False
+
+        changed = False
+        target_values = {
+            "unidade": "Unidade",
+            "tipo_embalagem": None,
+            "tipo_embalagem_novo": None,
+            "unidades_por_embalagem": None,
+            "grandeza_referencia": None,
+            "litros_por_embalagem": None,
+            "estoque_embalagens": 0.0,
+            "estoque_unidades_soltas": 0.0,
+        }
+        for field_name, target_value in target_values.items():
+            current_value = getattr(item, field_name)
+            if current_value != target_value:
+                setattr(item, field_name, target_value)
+                changed = True
+        return changed
 
     @staticmethod
     def _as_positive_float(value: object) -> float:
@@ -1462,6 +1617,183 @@ class InventoryService:
             db.session.commit()
         return self._set_cached(cache_key, [dict(item) for item in results], ttl_seconds=3.0)
 
+    def find_equivalent_item_candidates(
+        self,
+        payload: dict[str, Any],
+        *,
+        limit: int = 5,
+        exclude_codigo: str | None = None,
+    ) -> list[dict[str, Any]]:
+        descricao_raw = str(payload.get("descricao") or "").strip()
+        if not descricao_raw:
+            return []
+
+        descricao_norm = _normalize_equivalent_text(descricao_raw)
+        descricao_base = _strip_equivalent_presentation_tokens(descricao_raw)
+        reference_text = descricao_base or descricao_norm
+        reference_tokens = _extract_equivalent_tokens(reference_text) or _extract_equivalent_tokens(descricao_raw)
+        if len(reference_text) < 4 or not reference_tokens:
+            return []
+
+        codigo = _sanitize_codigo(payload.get("codigo") or payload.get("codigo_item"))
+        exclude_codigo_norm = _sanitize_codigo(exclude_codigo) or codigo or None
+        marca_raw = str(payload.get("marca") or "").strip()
+        categoria_raw = str(payload.get("categoria") or "").strip()
+        unidade_raw = str(payload.get("unidade") or "").strip()
+        tipo_embalagem_raw = str(payload.get("tipo_embalagem_novo") or "").strip()
+
+        search_conditions = [Item.descricao.ilike(f"%{token}%") for token in reference_tokens[:4]]
+        if marca_raw:
+            search_conditions.append(Item.marca.ilike(f"%{marca_raw}%"))
+
+        if not search_conditions:
+            return []
+
+        query = Item.query
+        if exclude_codigo_norm:
+            query = query.filter(Item.codigo_item != exclude_codigo_norm)
+
+        rows = (
+            query.filter(or_(*search_conditions))
+            .order_by(func.lower(Item.descricao).asc(), Item.codigo_item.asc())
+            .limit(max(int(limit or 5) * 12, 40))
+            .all()
+        )
+
+        if not rows:
+            return []
+
+        normalized_brand = _normalize_equivalent_text(marca_raw)
+        normalized_category = _normalize_equivalent_text(categoria_raw)
+        normalized_packaging = _normalize_equivalent_text(tipo_embalagem_raw or unidade_raw)
+        reference_token_set = set(reference_tokens)
+        candidates: list[dict[str, Any]] = []
+
+        for item in rows:
+            candidate_description = str(item.descricao or "").strip()
+            candidate_norm = _normalize_equivalent_text(candidate_description)
+            candidate_base = _strip_equivalent_presentation_tokens(candidate_description)
+            candidate_reference = candidate_base or candidate_norm
+            candidate_tokens = set(_extract_equivalent_tokens(candidate_reference) or _extract_equivalent_tokens(candidate_description))
+            if not candidate_reference or not candidate_tokens:
+                continue
+
+            desc_ratio = _sequence_similarity(descricao_norm, candidate_norm)
+            base_ratio = _sequence_similarity(reference_text, candidate_reference)
+            token_overlap = len(reference_token_set & candidate_tokens) / max(len(reference_token_set), len(candidate_tokens), 1)
+
+            candidate_brand = _normalize_equivalent_text(item.marca)
+            candidate_category = _normalize_equivalent_text(item.categoria)
+            candidate_packaging = _normalize_equivalent_text((item.tipo_embalagem_novo or item.unidade or ""))
+
+            same_brand = bool(normalized_brand and candidate_brand and normalized_brand == candidate_brand)
+            same_category = bool(normalized_category and candidate_category and normalized_category == candidate_category)
+            packaging_changed = bool(normalized_packaging and candidate_packaging and normalized_packaging != candidate_packaging)
+            presentation_changed = bool(base_ratio >= 0.82 and descricao_norm != candidate_norm)
+
+            score = (desc_ratio * 0.34) + (base_ratio * 0.38) + (token_overlap * 0.18)
+            if same_brand:
+                score += 0.06
+            if same_category:
+                score += 0.03
+            if presentation_changed:
+                score += 0.04
+            if packaging_changed:
+                score += 0.02
+
+            if score < 0.63 and base_ratio < 0.78 and not (same_brand and token_overlap >= 0.5):
+                continue
+
+            signals: list[str] = []
+            if base_ratio >= 0.9:
+                signals.append("descricao-base praticamente igual")
+            elif base_ratio >= 0.82:
+                signals.append("descricao-base muito parecida")
+            elif desc_ratio >= 0.72:
+                signals.append("descricao parecida")
+            if same_brand:
+                signals.append("mesma marca")
+            if same_category:
+                signals.append("mesma categoria")
+            if presentation_changed or packaging_changed:
+                signals.append("embalagem ou apresentacao diferente")
+            if codigo and item.codigo_item != codigo:
+                signals.append("codigo de barras diferente")
+            if item.foto_path:
+                signals.append("foto pronta para reaproveitar")
+
+            candidates.append(
+                {
+                    "codigo": item.codigo_item,
+                    "descricao": item.descricao,
+                    "marca": item.marca,
+                    "categoria": item.categoria,
+                    "localizacao": item.localizacao,
+                    "unidade": item.unidade,
+                    "tipo_embalagem_novo": item.tipo_embalagem_novo,
+                    "unidades_por_embalagem": item.unidades_por_embalagem,
+                    "foto_path": item.foto_path,
+                    "score": round(score, 4),
+                    "score_percent": max(1, min(99, int(round(score * 100)))),
+                    "same_brand": same_brand,
+                    "same_category": same_category,
+                    "presentation_changed": presentation_changed,
+                    "packaging_changed": packaging_changed,
+                    "signals": signals[:5],
+                }
+            )
+
+        candidates.sort(
+            key=lambda row: (
+                float(row.get("score") or 0),
+                1 if row.get("same_brand") else 0,
+                1 if row.get("same_category") else 0,
+                str(row.get("descricao") or "").lower(),
+            ),
+            reverse=True,
+        )
+        return candidates[: max(int(limit or 5), 1)]
+
+    def _apply_equivalent_item_reuse(self, payload: dict[str, Any], *, codigo: str) -> dict[str, Any]:
+        action = str(payload.get("equivalent_item_action") or "").strip().lower()
+        if action != "reuse_metadata":
+            return payload
+
+        source_code = _sanitize_codigo(payload.get("equivalent_item_source_code"))
+        if not source_code or source_code == codigo:
+            return payload
+
+        source_item = Item.query.get(source_code)
+        if source_item is None:
+            return payload
+
+        if _coerce_truthy(payload.get("equivalent_item_reuse_brand")) and source_item.marca:
+            payload["marca"] = source_item.marca
+        if _coerce_truthy(payload.get("equivalent_item_reuse_category")) and source_item.categoria:
+            payload["categoria"] = source_item.categoria
+        if _coerce_truthy(payload.get("equivalent_item_reuse_location")) and source_item.localizacao:
+            payload["localizacao"] = source_item.localizacao
+
+        should_reuse_photo = (
+            _coerce_truthy(payload.get("equivalent_item_reuse_photo"))
+            and not payload.get("foto_path")
+            and not payload.get("foto_url")
+            and bool(source_item.foto_path)
+        )
+        if should_reuse_photo:
+            try:
+                from .item_foto_service import ItemFotoService
+
+                payload["foto_path"] = ItemFotoService.duplicar_foto_para_item(source_item.foto_path, codigo)
+            except Exception:
+                logger.exception(
+                    "Falha ao duplicar foto de item equivalente (origem=%s, destino=%s)",
+                    source_code,
+                    codigo,
+                )
+
+        return payload
+
     def _has_active_tool_withdrawal(self, codigo_item: str, matricula: str | None) -> bool:
         """Retorna True se a matrícula já possui retirada ativa da mesma ferramenta."""
         if not codigo_item or not matricula:
@@ -1719,6 +2051,7 @@ class InventoryService:
         return dados
 
     def create_item(self, payload: dict[str, Any]) -> str:
+        payload = self._normalize_toolkit_registration_payload(payload)
         codigo = _sanitize_codigo(payload.get("codigo") or payload.get("codigo_item"))
         if not codigo:
             raise ValueError("Código do item é obrigatório")
@@ -1788,6 +2121,8 @@ class InventoryService:
                     _apply_advanced_unit_settings(item_existente, payload.get("advanced_unit_settings"))
                     _assign_normalized_item_price(item_existente, raw_price=item_existente.preco_compra_unitario, kind="compra")
                     _assign_normalized_item_price(item_existente, raw_price=item_existente.preco_reposicao_unitario, kind="reposicao")
+
+                self._apply_toolkit_unit_semantics(item_existente)
                 
                 # Registrar entrada com a quantidade
                 quantidade = payload.get("quantidade") or payload.get("saldo") or 0
@@ -1817,6 +2152,8 @@ class InventoryService:
                 db.session.commit()
                 # Prefixo especial para indicar que foi atualização (entrada já registrada)
                 return f"UPDATED:{codigo}"
+
+            payload = self._apply_equivalent_item_reuse(payload, codigo=codigo)
         
         # Processar datas de fabricação e validade
         data_fabricacao = payload.get("data_fabricacao")
@@ -1996,6 +2333,8 @@ class InventoryService:
         if not item:
             raise ValueError("Item não encontrado")
 
+        payload = self._normalize_toolkit_registration_payload(payload, current_item=item)
+
         novo_codigo = _sanitize_codigo(payload.get("codigo") or codigo)
         if not novo_codigo:
             raise ValueError("Código do item é obrigatório")
@@ -2142,6 +2481,8 @@ class InventoryService:
         # Foto do item
         if "foto_path" in payload:
             item.foto_path = payload["foto_path"]
+
+        self._apply_toolkit_unit_semantics(item)
 
         if "advanced_unit_settings" in payload:
             _apply_advanced_unit_settings(item, payload.get("advanced_unit_settings"))

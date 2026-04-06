@@ -13,11 +13,14 @@ class EmbalagemService:
     @staticmethod
     def tem_embalagem(item: Item) -> bool:
         """Verifica se o item usa sistema de embalagens."""
+        from .legacy_stock_normalizer import ignore_packaging_metadata_for_stock
+
         return (
             item.tipo_embalagem_novo is not None 
             and item.tipo_embalagem_novo in EmbalagemService.TIPOS_VALIDOS
             and item.unidades_por_embalagem is not None
             and item.unidades_por_embalagem > 0
+            and not ignore_packaging_metadata_for_stock(item)
         )
 
     @staticmethod
@@ -182,8 +185,15 @@ class EmbalagemService:
         if not EmbalagemService.tem_embalagem(item):
             return False
 
+        from .balance_provider import balance_provider
+        from .legacy_stock_normalizer import is_packaging_unit_code, resolve_packaging_factor
+
         unidades_por = float(item.unidades_por_embalagem or 0)
         if unidades_por <= 0:
+            return False
+
+        factor = float(resolve_packaging_factor(item) or unidades_por)
+        if factor <= 0:
             return False
 
         try:
@@ -194,53 +204,42 @@ class EmbalagemService:
             estoque_soltas_atual = 0.0
 
         try:
-            saldo_legacy = float(item.get_saldo_atual() or 0)
+            snapshot = balance_provider.get_balance(item.codigo_item, item=item)
+            saldo_legacy = float(snapshot.quantity_base or 0)
+            unit_base = str(snapshot.unit_base or item.unidade or "").strip().lower()
         except Exception:
             return False
 
         if saldo_legacy <= 0:
             return False
 
-        saldo_legacy_int = int(round(saldo_legacy))
-        if abs(saldo_legacy - saldo_legacy_int) > 1e-6:
-            # Saldo legado fracionário é ambíguo; não sincroniza automaticamente.
-            return False
-
         # Proteção contra valores absurdos (evita explosões em casos de unidade errada).
-        if saldo_legacy_int > 100000:
+        if saldo_legacy > 100000:
             return False
 
-        # Caso 1: já existem embalagens no sistema novo, mas o legado sugere mais.
-        # Só aumenta (nunca diminui) e só quando não há unidades soltas.
-        if estoque_emb_atual > 0:
-            if estoque_soltas_atual != 0:
+        current_total = (estoque_emb_atual * factor) + estoque_soltas_atual
+
+        if unit_base and is_packaging_unit_code(unit_base):
+            saldo_legacy_int = int(round(saldo_legacy))
+            if abs(saldo_legacy - saldo_legacy_int) > 1e-6:
                 return False
-            if saldo_legacy_int <= int(round(estoque_emb_atual)):
-                return False
-            item.estoque_embalagens = float(saldo_legacy_int)
-            item.estoque_unidades_soltas = float(estoque_soltas_atual)
+            target_embalagens = float(saldo_legacy_int)
+            target_soltas = float(estoque_soltas_atual % factor) if estoque_soltas_atual >= factor else float(estoque_soltas_atual)
+            target_total = (target_embalagens * factor) + target_soltas
+        else:
+            import math
+
+            target_total = float(saldo_legacy)
+            target_embalagens = float(math.floor((target_total + 1e-9) / factor))
+            target_soltas = float(target_total - (target_embalagens * factor))
+            if abs(target_soltas) <= 1e-6:
+                target_soltas = 0.0
+
+        if target_total <= current_total + 1e-6:
             return True
 
-        unidades_implicadas = float(saldo_legacy_int) * unidades_por
-        estoque_total_atual = (estoque_emb_atual * unidades_por) + estoque_soltas_atual
-
-        # Caso 2: estoque novo aparenta estar "não inicializado" (sem embalagens)
-        # e com poucas unidades soltas (<= 1 embalagem).
-        if estoque_total_atual > unidades_por:
-            return False
-
-        # Só sincroniza se o legado implicar mais unidades do que o estoque atual.
-        if unidades_implicadas <= estoque_total_atual:
-            return False
-
-        # Para evitar inflar estoque por ruído legado vs soltas, aplica esta regra:
-        # - se já existem unidades soltas registradas, preserva-as (normalizando para < unidades_por)
-        # - caso contrário, inicia com 0 soltas.
-        if estoque_soltas_atual >= unidades_por:
-            estoque_soltas_atual = float(estoque_soltas_atual % unidades_por)
-
-        item.estoque_embalagens = float(saldo_legacy_int)
-        item.estoque_unidades_soltas = float(estoque_soltas_atual)
+        item.estoque_embalagens = float(target_embalagens)
+        item.estoque_unidades_soltas = float(target_soltas)
         return True
     
     @staticmethod

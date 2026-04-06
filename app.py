@@ -1,64 +1,81 @@
 """WSGI entry point for the GALINT Flask application."""
+import argparse
+import os
+import sys
 from typing import Any, cast
 
 from flask import Flask
 from galint_flask import create_app
 
-app = create_app()
 
-# Fallback routes for foto por URL (evita 404 se blueprints nao carregarem)
-try:
-    from flask import jsonify, request, render_template
-    from galint_flask.models import Item
-    from galint_flask.extensions import db
-    from galint_flask.services.item_foto_service import ItemFotoService
+def _is_native_mirror_invocation(argv: list[str] | None = None) -> bool:
+    values = list(sys.argv[1:] if argv is None else argv)
+    return bool(values and values[0] == "native-mirror")
 
-    def _apply_photo_from_url():
-        payload: dict[str, Any] = request.form.to_dict(flat=True)
-        if not payload:
-            json_payload = request.get_json(silent=True)
-            if isinstance(json_payload, dict):
-                payload = cast(dict[str, Any], json_payload)
 
-        codigo = str(payload.get('codigo') or '').strip()
-        image_url = str(payload.get('image_url') or '').strip()
-        if not codigo:
-            return jsonify({'success': False, 'message': 'Codigo do item nao informado'}), 400
-        if not image_url:
-            return jsonify({'success': False, 'message': 'URL da imagem nao informada'}), 400
-        item = Item.query.get(codigo)
-        if not item:
-            return jsonify({'success': False, 'message': 'Item nao encontrado'}), 404
-        try:
-            if item.foto_path:
-                ItemFotoService.deletar_foto(item.foto_path)
-            foto_path = ItemFotoService.download_foto_from_url(image_url, codigo)
-            item.foto_path = foto_path
-            db.session.commit()
-            return jsonify({'success': True, 'message': 'Foto atualizada', 'foto_path': foto_path})
-        except ValueError as exc:
-            return jsonify({'success': False, 'message': str(exc)}), 400
-        except Exception:
-            return jsonify({'success': False, 'message': 'Falha inesperada ao atualizar foto'}), 500
+def _register_runtime_fallback_routes(app: Flask) -> None:
+    try:
+        from flask import jsonify, render_template, request
 
-    if 'foto_url_api_fallback' not in app.view_functions:
-        app.add_url_rule('/api/itens/foto/url', endpoint='foto_url_api_fallback', view_func=_apply_photo_from_url, methods=['POST'])
-    if 'foto_url_fallback' not in app.view_functions:
-        app.add_url_rule('/itens/foto/url', endpoint='foto_url_fallback', view_func=_apply_photo_from_url, methods=['POST'])
+        from galint_flask.extensions import db
+        from galint_flask.models import Item
+        from galint_flask.services.item_foto_service import ItemFotoService
 
-    def _render_dynamic_units_help_fallback():
-        return render_template('inventory/dynamic_units_help.html')
+        def _apply_photo_from_url():
+            payload = cast(dict[str, Any], request.form.to_dict())
+            if not payload:
+                json_payload = request.get_json(silent=True)
+                if isinstance(json_payload, dict):
+                    payload = cast(dict[str, Any], json_payload)
 
-    has_dynamic_units_help_route = any(rule.rule == '/itens/ajuda/unidades-dinamicas' for rule in app.url_map.iter_rules())
-    if not has_dynamic_units_help_route and 'dynamic_units_help_fallback' not in app.view_functions:
-        app.add_url_rule(
-            '/itens/ajuda/unidades-dinamicas',
-            endpoint='dynamic_units_help_fallback',
-            view_func=_render_dynamic_units_help_fallback,
-            methods=['GET'],
-        )
-except Exception:
-    pass
+            codigo = str(payload.get("codigo") or "").strip()
+            image_url = str(payload.get("image_url") or "").strip()
+            if not codigo:
+                return jsonify({"success": False, "message": "Codigo do item nao informado"}), 400
+            if not image_url:
+                return jsonify({"success": False, "message": "URL da imagem nao informada"}), 400
+            item = Item.query.get(codigo)
+            if not item:
+                return jsonify({"success": False, "message": "Item nao encontrado"}), 404
+            try:
+                if item.foto_path:
+                    ItemFotoService.deletar_foto(item.foto_path)
+                foto_path = ItemFotoService.download_foto_from_url(image_url, codigo)
+                item.foto_path = foto_path
+                db.session.commit()
+                return jsonify({"success": True, "message": "Foto atualizada", "foto_path": foto_path})
+            except ValueError as exc:
+                return jsonify({"success": False, "message": str(exc)}), 400
+            except Exception:
+                return jsonify({"success": False, "message": "Falha inesperada ao atualizar foto"}), 500
+
+        if "foto_url_api_fallback" not in app.view_functions:
+            app.add_url_rule("/api/itens/foto/url", endpoint="foto_url_api_fallback", view_func=_apply_photo_from_url, methods=["POST"])
+        if "foto_url_fallback" not in app.view_functions:
+            app.add_url_rule("/itens/foto/url", endpoint="foto_url_fallback", view_func=_apply_photo_from_url, methods=["POST"])
+
+        def _render_dynamic_units_help_fallback():
+            return render_template("inventory/dynamic_units_help.html")
+
+        has_dynamic_units_help_route = any(rule.rule == "/itens/ajuda/unidades-dinamicas" for rule in app.url_map.iter_rules())
+        if not has_dynamic_units_help_route and "dynamic_units_help_fallback" not in app.view_functions:
+            app.add_url_rule(
+                "/itens/ajuda/unidades-dinamicas",
+                endpoint="dynamic_units_help_fallback",
+                view_func=_render_dynamic_units_help_fallback,
+                methods=["GET"],
+            )
+    except Exception:
+        pass
+
+
+def _create_runtime_app() -> Flask:
+    runtime_app = create_app()
+    _register_runtime_fallback_routes(runtime_app)
+    return runtime_app
+
+
+app: Flask | None = None if _is_native_mirror_invocation() else _create_runtime_app()
 
 
 def _load_migration_funcs():
@@ -112,8 +129,19 @@ def _run_upgrade(app: Flask) -> None:
 
 
 if __name__ == "__main__":
-    import os
-    import sys
+    if _is_native_mirror_invocation():
+        parser = argparse.ArgumentParser(description="Abre o painel espelho em janela nativa")
+        parser.add_argument("command")
+        parser.add_argument("--url", required=True)
+        parser.add_argument("--title", default="GALINT - Painel do colaborador")
+        args = parser.parse_args()
+
+        from galint_flask.services.native_panel_window import run_native_panel
+
+        sys.exit(run_native_panel(url=args.url, title=args.title))
+
+    if app is None:
+        raise RuntimeError("Aplicacao Flask indisponivel para este modo de execucao")
 
     if len(sys.argv) > 1 and sys.argv[1] in ("migrate", "db-migrate"):
         # Executar migrações programaticamente e sair

@@ -68,20 +68,56 @@
     .btn-mirror-screen {
         display: inline-flex;
         align-items: center;
-        gap: 0.55rem;
+        gap: 0.78rem;
         border-radius: 999px;
-        padding: 0.75rem 1rem;
-        border: 1px solid rgba(191, 219, 254, 0.24);
-        background: rgba(255, 255, 255, 0.08);
-        color: #eff6ff;
-        font-weight: 700;
+        padding: 0.45rem 1.05rem 0.45rem 0.5rem;
+        border: none;
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.18), rgba(191, 219, 254, 0.08));
+        color: #f8fbff;
+        font-weight: 800;
+        letter-spacing: 0.01em;
         text-decoration: none;
-        box-shadow: 0 12px 26px rgba(15, 23, 42, 0.18);
+        box-shadow: 0 18px 36px rgba(15, 23, 42, 0.22);
+        backdrop-filter: blur(14px);
+        transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
     }
 
     .btn-mirror-screen:hover {
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.24), rgba(147, 197, 253, 0.14));
+        color: #ffffff;
+        transform: translateY(-1px);
+        box-shadow: 0 22px 42px rgba(15, 23, 42, 0.24);
+    }
+
+    .btn-mirror-screen:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(125, 211, 252, 0.24), 0 22px 42px rgba(15, 23, 42, 0.24);
+    }
+
+    .btn-mirror-screen-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 2.2rem;
+        height: 2.2rem;
+        border-radius: 999px;
         background: rgba(255, 255, 255, 0.14);
         color: #ffffff;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
+        flex: 0 0 auto;
+    }
+
+    .btn-mirror-screen-icon img {
+        width: 1.3rem;
+        height: 1.3rem;
+        object-fit: contain;
+        display: block;
+    }
+
+    .btn-mirror-screen-label {
+        display: inline-flex;
+        align-items: center;
+        line-height: 1;
     }
     
     .input-card {
@@ -480,8 +516,9 @@
         <h2><i class="bi bi-tools me-2"></i>Retirada de Ferramentas</h2>
         <p>Registre retiradas com o novo padrão visual dark, preservando o fluxo especial de custódia temporária.</p>
         <div class="page-header-actions">
-            <a class="btn-mirror-screen" href="${url_for('movements.painel_espelho_page', mode='ferramenta')}" target="_blank" rel="noopener">
-                <i class="bi bi-display"></i> Abrir painel do colaborador
+            <a class="btn-mirror-screen" data-mirror-screen="1" href="${url_for('movements.painel_espelho_page', mode='ferramenta')}" target="_blank" rel="noopener">
+                <span class="btn-mirror-screen-icon"><img src="${url_for('static', filename='img/galint-icon.png')}" alt="GALINT"></span>
+                <span class="btn-mirror-screen-label">Painel de Visualização</span>
             </a>
         </div>
     </div>
@@ -606,6 +643,7 @@
 
 <%block name="scripts">
 ${parent.scripts()}
+<script src="${url_for('static', filename='js/mirror-screen-launcher.js')}"></script>
 <script>
 (function() {
     const usuariosAutocompleteData = ${tojson(usuarios)|n};
@@ -702,6 +740,14 @@ ${parent.scripts()}
     });
 
     function publishMirrorState(payload) {
+        const launcher = window.GalintMirrorScreenLauncher;
+        if (launcher && typeof launcher.publishMirrorState === 'function') {
+            launcher.publishMirrorState(payload, {
+                storageKey: mirrorStorageKey,
+                channel: mirrorChannel,
+            });
+            return;
+        }
         try {
             window.localStorage.setItem(mirrorStorageKey, JSON.stringify(payload));
         } catch (error) {

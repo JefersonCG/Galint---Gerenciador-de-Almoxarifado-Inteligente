@@ -1154,6 +1154,12 @@
         {% if form_item and form_item.pre_cadastro_pendente %}
         <input type="hidden" name="finalizar_pre_cadastro" value="1">
         {% endif %}
+        <input type="hidden" name="equivalent_item_action" id="equivalent_item_action" value="{{ form_item.equivalent_item_action if form_item and form_item.equivalent_item_action else '' }}">
+        <input type="hidden" name="equivalent_item_source_code" id="equivalent_item_source_code" value="{{ form_item.equivalent_item_source_code if form_item and form_item.equivalent_item_source_code else '' }}">
+        <input type="hidden" name="equivalent_item_reuse_photo" id="equivalent_item_reuse_photo" value="{{ form_item.equivalent_item_reuse_photo if form_item and form_item.equivalent_item_reuse_photo else '0' }}">
+        <input type="hidden" name="equivalent_item_reuse_brand" id="equivalent_item_reuse_brand" value="{{ form_item.equivalent_item_reuse_brand if form_item and form_item.equivalent_item_reuse_brand else '0' }}">
+        <input type="hidden" name="equivalent_item_reuse_category" id="equivalent_item_reuse_category" value="{{ form_item.equivalent_item_reuse_category if form_item and form_item.equivalent_item_reuse_category else '0' }}">
+        <input type="hidden" name="equivalent_item_reuse_location" id="equivalent_item_reuse_location" value="{{ form_item.equivalent_item_reuse_location if form_item and form_item.equivalent_item_reuse_location else '0' }}">
         <div class="soft-depth-card">
             <!-- Tabs Navigation -->
             <div class="tabs-nav galint-folder-buttons">
@@ -1196,6 +1202,10 @@
                             </button>
                         </div>
                         <small class="form-text">Use o atalho para abrir o buscador de imagens, copiar o termo pronto e aplicar a foto por link sem sair do cadastro.</small>
+                        <div class="alert alert-warning d-none mt-3 mb-0" id="equivalent-item-banner" role="alert">
+                            <div class="fw-semibold mb-1">Material possivelmente equivalente detectado</div>
+                            <div class="small mb-0" id="equivalent-item-banner-text"></div>
+                        </div>
                     </div>
                     <div class="form-group">
                         <label class="form-label" for="marca">Marca / Fabricante</label>
@@ -2301,6 +2311,50 @@ Conversão: 1 saco = 20 quilos</div>
         </div>
     </div>
 </div>
+
+<div class="modal fade" id="equivalentItemModal" tabindex="-1" aria-labelledby="equivalentItemModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content equivalent-item-modal">
+            <div class="modal-header">
+                <div>
+                    <h5 class="modal-title" id="equivalentItemModalLabel">Possível item equivalente</h5>
+                    <div class="small text-muted">O cadastro parece muito próximo de um item já existente. Revise antes de salvar para evitar duplicidade com nome, código ou embalagem diferentes.</div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-light border mb-3" id="equivalent-item-draft-summary"></div>
+                <div class="d-grid gap-3" id="equivalent-item-candidates"></div>
+                <div class="form-text mt-3" id="equivalent-item-modal-status">Selecione o cadastro mais próximo para abrir o item existente ou reaproveitar alguns dados neste novo cadastro.</div>
+                <div class="border rounded-3 p-3 mt-3 bg-light-subtle" id="equivalent-item-reuse-options">
+                    <div class="fw-semibold mb-2">Se continuar com o novo código, o que deve ser reaproveitado do item selecionado?</div>
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" id="equivalent-item-reuse-photo-option">
+                        <label class="form-check-label" for="equivalent-item-reuse-photo-option">Duplicar a foto existente para o novo item</label>
+                    </div>
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" id="equivalent-item-reuse-brand-option">
+                        <label class="form-check-label" for="equivalent-item-reuse-brand-option">Reaproveitar marca / fabricante</label>
+                    </div>
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" id="equivalent-item-reuse-category-option">
+                        <label class="form-check-label" for="equivalent-item-reuse-category-option">Reaproveitar categoria</label>
+                    </div>
+                    <div class="form-check mb-0">
+                        <input class="form-check-input" type="checkbox" id="equivalent-item-reuse-location-option">
+                        <label class="form-check-label" for="equivalent-item-reuse-location-option">Reaproveitar localização</label>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer flex-wrap gap-2">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Voltar ao formulário</button>
+                <button type="button" class="btn btn-outline-primary" id="equivalent-item-open-existing-btn" disabled>Abrir item existente</button>
+                <button type="button" class="btn btn-outline-warning" id="equivalent-item-continue-new-btn">Cadastrar como novo mesmo assim</button>
+                <button type="button" class="btn btn-success" id="equivalent-item-reuse-btn" disabled>Reaproveitar dados e continuar novo</button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -2334,6 +2388,53 @@ Conversão: 1 saco = 20 quilos</div>
         border: none;
         background: linear-gradient(180deg, rgba(15,23,42,0.96) 0%, rgba(17,24,39,0.94) 100%);
         padding: 1rem 1.5rem 1.25rem;
+    }
+
+    .equivalent-item-modal {
+        border: none;
+        border-radius: 18px;
+        overflow: hidden;
+        box-shadow: 0 24px 70px rgba(15, 23, 42, 0.28);
+    }
+
+    .equivalent-item-card {
+        width: 100%;
+        border: 1px solid rgba(148, 163, 184, 0.3);
+        border-radius: 16px;
+        background: #ffffff;
+        padding: 1rem;
+        text-align: left;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+    }
+
+    .equivalent-item-card:hover {
+        border-color: rgba(245, 158, 11, 0.55);
+        box-shadow: 0 10px 26px rgba(15, 23, 42, 0.12);
+        transform: translateY(-1px);
+    }
+
+    .equivalent-item-card.is-selected {
+        border-color: rgba(59, 130, 246, 0.7);
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+    }
+
+    .equivalent-item-card-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        align-items: flex-start;
+    }
+
+    .equivalent-item-card-title {
+        font-weight: 700;
+        color: #0f172a;
+    }
+
+    .equivalent-item-signal-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+        margin-top: 0.75rem;
     }
 
     .price-suggest-modal .form-control,
@@ -4176,8 +4277,36 @@ Conversão: 1 saco = 20 quilos</div>
     const financeSectionUnlockUrl = {{ (url_for('inventory.unlock_finance_section', codigo=item.codigo) if item else '') | tojson }};
     let financeSectionCanEdit = {{ 'true' if finance_section_can_edit else 'false' }};
     const inventoryListUrl = {{ url_for('inventory.list_items')|tojson }};
+    const equivalentItemsApiUrl = {{ url_for('inventory.equivalent_items_api')|tojson }};
+    const equivalentItemActionInput = document.getElementById('equivalent_item_action');
+    const equivalentItemSourceCodeInput = document.getElementById('equivalent_item_source_code');
+    const equivalentItemReusePhotoInput = document.getElementById('equivalent_item_reuse_photo');
+    const equivalentItemReuseBrandInput = document.getElementById('equivalent_item_reuse_brand');
+    const equivalentItemReuseCategoryInput = document.getElementById('equivalent_item_reuse_category');
+    const equivalentItemReuseLocationInput = document.getElementById('equivalent_item_reuse_location');
+    const equivalentItemBanner = document.getElementById('equivalent-item-banner');
+    const equivalentItemBannerText = document.getElementById('equivalent-item-banner-text');
+    const equivalentItemModalElement = document.getElementById('equivalentItemModal');
+    const equivalentItemModalInstance = equivalentItemModalElement ? new bootstrap.Modal(equivalentItemModalElement) : null;
+    const equivalentItemDraftSummary = document.getElementById('equivalent-item-draft-summary');
+    const equivalentItemCandidatesContainer = document.getElementById('equivalent-item-candidates');
+    const equivalentItemModalStatus = document.getElementById('equivalent-item-modal-status');
+    const equivalentItemReusePhotoOption = document.getElementById('equivalent-item-reuse-photo-option');
+    const equivalentItemReuseBrandOption = document.getElementById('equivalent-item-reuse-brand-option');
+    const equivalentItemReuseCategoryOption = document.getElementById('equivalent-item-reuse-category-option');
+    const equivalentItemReuseLocationOption = document.getElementById('equivalent-item-reuse-location-option');
+    const equivalentItemOpenExistingButton = document.getElementById('equivalent-item-open-existing-btn');
+    const equivalentItemContinueNewButton = document.getElementById('equivalent-item-continue-new-btn');
+    const equivalentItemReuseButton = document.getElementById('equivalent-item-reuse-btn');
     let supplierGateSelection = null;
     let supplierGateResolved = !isNewItemForm;
+    let equivalentCandidates = [];
+    let equivalentCheckTimer = null;
+    let equivalentFetchToken = 0;
+    let equivalentCandidateFingerprint = '';
+    let equivalentDecisionFingerprint = '';
+    let equivalentModalSelection = null;
+    let allowEquivalentSubmit = false;
 
     const financeEditFieldIds = [
         'finance_supplier_search',
@@ -4229,6 +4358,303 @@ Conversão: 1 saco = 20 quilos</div>
             financeObservationModalInput.value = '';
         }
         financeObservationRequiredModalInstance?.show();
+        return false;
+    };
+
+    const escapeEquivalentHtml = (value) => String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+
+    const normalizeEquivalentValue = (value) => String(value ?? '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9\s]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+    const setEquivalentHiddenValue = (input, value) => {
+        if (!input) {
+            return;
+        }
+        input.value = value;
+    };
+
+    const resetEquivalentDecision = () => {
+        equivalentDecisionFingerprint = '';
+        equivalentModalSelection = null;
+        allowEquivalentSubmit = false;
+        setEquivalentHiddenValue(equivalentItemActionInput, '');
+        setEquivalentHiddenValue(equivalentItemSourceCodeInput, '');
+        setEquivalentHiddenValue(equivalentItemReusePhotoInput, '0');
+        setEquivalentHiddenValue(equivalentItemReuseBrandInput, '0');
+        setEquivalentHiddenValue(equivalentItemReuseCategoryInput, '0');
+        setEquivalentHiddenValue(equivalentItemReuseLocationInput, '0');
+        if (equivalentItemReusePhotoOption) {
+            equivalentItemReusePhotoOption.checked = false;
+        }
+        if (equivalentItemReuseBrandOption) {
+            equivalentItemReuseBrandOption.checked = false;
+        }
+        if (equivalentItemReuseCategoryOption) {
+            equivalentItemReuseCategoryOption.checked = false;
+        }
+        if (equivalentItemReuseLocationOption) {
+            equivalentItemReuseLocationOption.checked = false;
+        }
+    };
+
+    const clearEquivalentBanner = () => {
+        if (equivalentItemBanner) {
+            equivalentItemBanner.classList.add('d-none');
+        }
+        if (equivalentItemBannerText) {
+            equivalentItemBannerText.textContent = '';
+        }
+    };
+
+    const getSelectedPackagingType = () => document.querySelector('input[name="tipo_embalagem_novo"]:checked')?.value || '';
+    const getSelectedPackagingUnit = () => document.querySelector('input[name="unidade_embalagem_novo"]:checked')?.value || '';
+
+    const buildEquivalentFingerprint = () => {
+        return [
+            normalizeEquivalentValue(codigoInput?.value),
+            normalizeEquivalentValue(descricaoInput?.value),
+            normalizeEquivalentValue(marcaInput?.value),
+            normalizeEquivalentValue(categoriaSelect?.value),
+            normalizeEquivalentValue(unidadeSelect?.value),
+            normalizeEquivalentValue(getSelectedPackagingType()),
+            normalizeEquivalentValue(unidadesPorEmbalagemInput?.value),
+            normalizeEquivalentValue(getSelectedPackagingUnit()),
+        ].join('|');
+    };
+
+    const buildEquivalentRequestQuery = () => {
+        const params = new URLSearchParams();
+        const appendIfFilled = (key, value) => {
+            const normalized = String(value ?? '').trim();
+            if (normalized) {
+                params.set(key, normalized);
+            }
+        };
+        appendIfFilled('codigo', codigoInput?.value);
+        appendIfFilled('descricao', descricaoInput?.value);
+        appendIfFilled('marca', marcaInput?.value);
+        appendIfFilled('categoria', categoriaSelect?.value);
+        appendIfFilled('unidade', unidadeSelect?.value);
+        appendIfFilled('tipo_embalagem_novo', getSelectedPackagingType());
+        appendIfFilled('unidades_por_embalagem', unidadesPorEmbalagemInput?.value);
+        appendIfFilled('exclude_codigo', codigoInput?.value);
+        return params.toString();
+    };
+
+    const renderEquivalentBanner = () => {
+        if (!equivalentItemBanner || !equivalentItemBannerText || !isNewItemForm) {
+            return;
+        }
+        if (!equivalentCandidates.length) {
+            clearEquivalentBanner();
+            return;
+        }
+        const topCandidate = equivalentCandidates[0];
+        equivalentItemBannerText.textContent = `${equivalentCandidates.length} cadastro(s) parecido(s) encontrado(s). Mais forte: ${topCandidate.descricao || 'Item'} (${topCandidate.codigo || 'sem código'}) com ${topCandidate.score_percent || 0}% de aderência. Ao salvar, o sistema vai pedir confirmação.`;
+        equivalentItemBanner.classList.remove('d-none');
+    };
+
+    const syncEquivalentSelectionState = () => {
+        const selectedCandidate = equivalentCandidates.find((candidate) => candidate.codigo === equivalentModalSelection) || null;
+        const hasSelection = Boolean(selectedCandidate);
+
+        if (equivalentItemOpenExistingButton) {
+            equivalentItemOpenExistingButton.disabled = !Boolean(selectedCandidate?.edit_url);
+        }
+        if (equivalentItemReuseButton) {
+            equivalentItemReuseButton.disabled = !hasSelection;
+        }
+
+        const toggleOption = (element, enabled, checked = false) => {
+            if (!element) {
+                return;
+            }
+            element.disabled = !enabled;
+            if (!enabled) {
+                element.checked = false;
+                return;
+            }
+            element.checked = checked;
+        };
+
+        toggleOption(equivalentItemReusePhotoOption, Boolean(selectedCandidate?.foto_path), Boolean(selectedCandidate?.foto_path));
+        toggleOption(equivalentItemReuseBrandOption, Boolean(selectedCandidate?.marca), Boolean(selectedCandidate?.marca));
+        toggleOption(equivalentItemReuseCategoryOption, Boolean(selectedCandidate?.categoria), !String(categoriaSelect?.value || '').trim());
+        toggleOption(equivalentItemReuseLocationOption, Boolean(selectedCandidate?.localizacao), false);
+
+        if (equivalentItemModalStatus) {
+            equivalentItemModalStatus.textContent = hasSelection
+                ? `Selecionado: ${selectedCandidate.descricao || 'Item'} (${selectedCandidate.codigo || 'sem código'}). Use “Abrir item existente” se o código antigo deve permanecer, ou “Reaproveitar dados” para continuar com o novo código digitado.`
+                : 'Selecione um item sugerido para decidir se quer abrir o cadastro existente ou só reaproveitar alguns dados no novo item.';
+        }
+    };
+
+    const renderEquivalentModal = () => {
+        if (!equivalentItemCandidatesContainer || !equivalentItemDraftSummary) {
+            return;
+        }
+
+        const draftCode = String(codigoInput?.value || '').trim() || 'sem código';
+        const draftDescription = String(descricaoInput?.value || '').trim() || 'Item sem descrição';
+        const draftBrand = String(marcaInput?.value || '').trim();
+        equivalentItemDraftSummary.innerHTML = `
+            <div class="fw-semibold">Novo cadastro em análise</div>
+            <div class="small text-muted mt-1">Código digitado: <strong>${escapeEquivalentHtml(draftCode)}</strong></div>
+            <div class="small text-muted">Descrição: ${escapeEquivalentHtml(draftDescription)}${draftBrand ? ` • Marca: ${escapeEquivalentHtml(draftBrand)}` : ''}</div>
+        `;
+
+        if (!equivalentCandidates.length) {
+            equivalentItemCandidatesContainer.innerHTML = '<div class="text-muted small">Nenhuma equivalência provável disponível para revisão.</div>';
+            equivalentModalSelection = null;
+            syncEquivalentSelectionState();
+            return;
+        }
+
+        if (!equivalentCandidates.some((candidate) => candidate.codigo === equivalentModalSelection)) {
+            equivalentModalSelection = equivalentCandidates[0].codigo;
+        }
+
+        equivalentItemCandidatesContainer.innerHTML = equivalentCandidates.map((candidate) => {
+            const selectedClass = candidate.codigo === equivalentModalSelection ? 'is-selected' : '';
+            const signals = Array.isArray(candidate.signals) ? candidate.signals : [];
+            const signalHtml = signals.map((signal) => `<span class="badge text-bg-light border">${escapeEquivalentHtml(signal)}</span>`).join('');
+            return `
+                <button type="button" class="equivalent-item-card ${selectedClass}" data-equivalent-codigo="${escapeEquivalentHtml(candidate.codigo || '')}">
+                    <div class="equivalent-item-card-head">
+                        <div>
+                            <div class="equivalent-item-card-title">${escapeEquivalentHtml(candidate.descricao || 'Item sem descrição')}</div>
+                            <div class="small text-muted">Código ${escapeEquivalentHtml(candidate.codigo || '—')} • ${escapeEquivalentHtml(candidate.categoria || 'Sem categoria')}${candidate.marca ? ` • ${escapeEquivalentHtml(candidate.marca)}` : ''}</div>
+                        </div>
+                        <span class="badge text-bg-warning">${escapeEquivalentHtml(String(candidate.score_percent || 0))}%</span>
+                    </div>
+                    <div class="equivalent-item-signal-list">${signalHtml || '<span class="badge text-bg-light border">Sem sinais adicionais</span>'}</div>
+                </button>
+            `;
+        }).join('');
+
+        equivalentItemCandidatesContainer.querySelectorAll('[data-equivalent-codigo]').forEach((element) => {
+            element.addEventListener('click', () => {
+                equivalentModalSelection = element.getAttribute('data-equivalent-codigo') || null;
+                renderEquivalentModal();
+            });
+        });
+
+        syncEquivalentSelectionState();
+    };
+
+    const fetchEquivalentCandidates = async ({ force = false } = {}) => {
+        if (!isNewItemForm) {
+            return [];
+        }
+
+        const description = String(descricaoInput?.value || '').trim();
+        const fingerprint = buildEquivalentFingerprint();
+        if (description.length < 5 || !fingerprint) {
+            equivalentCandidates = [];
+            equivalentCandidateFingerprint = '';
+            clearEquivalentBanner();
+            return [];
+        }
+
+        if (!force && equivalentCandidateFingerprint === fingerprint) {
+            return equivalentCandidates;
+        }
+
+        const query = buildEquivalentRequestQuery();
+        if (!query) {
+            equivalentCandidates = [];
+            equivalentCandidateFingerprint = '';
+            clearEquivalentBanner();
+            return [];
+        }
+
+        const fetchToken = ++equivalentFetchToken;
+        try {
+            const response = await fetch(`${equivalentItemsApiUrl}?${query}`, {
+                headers: { 'Accept': 'application/json' },
+                credentials: 'same-origin',
+                cache: 'no-store',
+            });
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok || payload.success === false) {
+                throw new Error(payload.message || `Erro ${response.status}`);
+            }
+            if (fetchToken !== equivalentFetchToken) {
+                return equivalentCandidates;
+            }
+            equivalentCandidates = Array.isArray(payload.candidates) ? payload.candidates : [];
+            equivalentCandidateFingerprint = fingerprint;
+            renderEquivalentBanner();
+            return equivalentCandidates;
+        } catch (error) {
+            if (fetchToken === equivalentFetchToken) {
+                equivalentCandidates = [];
+                equivalentCandidateFingerprint = fingerprint;
+                clearEquivalentBanner();
+            }
+            return [];
+        }
+    };
+
+    const scheduleEquivalentItemCheck = () => {
+        if (!isNewItemForm) {
+            return;
+        }
+        window.clearTimeout(equivalentCheckTimer);
+        resetEquivalentDecision();
+        equivalentCandidates = [];
+        equivalentCandidateFingerprint = '';
+        clearEquivalentBanner();
+        equivalentCheckTimer = window.setTimeout(() => {
+            void fetchEquivalentCandidates();
+        }, 320);
+    };
+
+    const resumeItemSubmitWithEquivalentDecision = (action) => {
+        const fingerprint = buildEquivalentFingerprint();
+        equivalentDecisionFingerprint = fingerprint;
+        setEquivalentHiddenValue(equivalentItemActionInput, action);
+        setEquivalentHiddenValue(equivalentItemSourceCodeInput, equivalentModalSelection || '');
+        setEquivalentHiddenValue(equivalentItemReusePhotoInput, equivalentItemReusePhotoOption?.checked ? '1' : '0');
+        setEquivalentHiddenValue(equivalentItemReuseBrandInput, equivalentItemReuseBrandOption?.checked ? '1' : '0');
+        setEquivalentHiddenValue(equivalentItemReuseCategoryInput, equivalentItemReuseCategoryOption?.checked ? '1' : '0');
+        setEquivalentHiddenValue(equivalentItemReuseLocationInput, equivalentItemReuseLocationOption?.checked ? '1' : '0');
+        allowEquivalentSubmit = true;
+        equivalentItemModalInstance?.hide();
+        inventoryItemForm?.requestSubmit();
+    };
+
+    const maybeConfirmEquivalentItemSubmit = async () => {
+        if (!isNewItemForm) {
+            return true;
+        }
+        const description = String(descricaoInput?.value || '').trim();
+        if (description.length < 5) {
+            return true;
+        }
+        const fingerprint = buildEquivalentFingerprint();
+        const currentAction = String(equivalentItemActionInput?.value || '').trim();
+        if (equivalentDecisionFingerprint === fingerprint && (currentAction === 'no_match' || currentAction === 'reuse_metadata')) {
+            return true;
+        }
+
+        const candidates = await fetchEquivalentCandidates({ force: equivalentCandidateFingerprint !== fingerprint });
+        if (!candidates.length) {
+            return true;
+        }
+
+        renderEquivalentModal();
+        equivalentItemModalInstance?.show();
         return false;
     };
 
@@ -4325,6 +4751,43 @@ Conversão: 1 saco = 20 quilos</div>
         financeObservationRequiredModalInstance?.hide();
         inventoryItemForm?.requestSubmit();
     });
+
+    equivalentItemOpenExistingButton?.addEventListener('click', () => {
+        const selectedCandidate = equivalentCandidates.find((candidate) => candidate.codigo === equivalentModalSelection) || null;
+        if (!selectedCandidate?.edit_url) {
+            return;
+        }
+        window.location.href = selectedCandidate.edit_url;
+    });
+
+    equivalentItemContinueNewButton?.addEventListener('click', () => {
+        resumeItemSubmitWithEquivalentDecision('no_match');
+    });
+
+    equivalentItemReuseButton?.addEventListener('click', () => {
+        if (!equivalentModalSelection) {
+            return;
+        }
+        resumeItemSubmitWithEquivalentDecision('reuse_metadata');
+    });
+
+    if (isNewItemForm) {
+        [codigoInput, descricaoInput, marcaInput, categoriaSelect, unidadeSelect, unidadesPorEmbalagemInput].forEach((field) => {
+            field?.addEventListener('input', scheduleEquivalentItemCheck);
+            field?.addEventListener('blur', scheduleEquivalentItemCheck);
+        });
+        tiposEmbalagemNovo.forEach((radio) => {
+            radio.addEventListener('change', scheduleEquivalentItemCheck);
+        });
+        unidadeEmbalagemRadios.forEach((radio) => {
+            radio.addEventListener('change', scheduleEquivalentItemCheck);
+        });
+        if (String(descricaoInput?.value || '').trim().length >= 5) {
+            window.setTimeout(() => {
+                void fetchEquivalentCandidates({ force: true });
+            }, 220);
+        }
+    }
 
     const syncFinancePurchaseFieldVisibility = () => {
         if (!financePurchaseDocumentFields) {
@@ -4967,13 +5430,28 @@ Conversão: 1 saco = 20 quilos</div>
         });
     }
 
-    inventoryItemForm?.addEventListener('submit', (event) => {
+    inventoryItemForm?.addEventListener('submit', async (event) => {
         if (event.defaultPrevented) {
+            return;
+        }
+        if (allowEquivalentSubmit) {
+            allowEquivalentSubmit = false;
             return;
         }
         if (!validateFinanceObservationRequirement()) {
             event.preventDefault();
+            return;
         }
+        if (!isNewItemForm) {
+            return;
+        }
+        event.preventDefault();
+        const canSubmit = await maybeConfirmEquivalentItemSubmit();
+        if (!canSubmit) {
+            return;
+        }
+        allowEquivalentSubmit = true;
+        inventoryItemForm?.requestSubmit();
     });
 
     document.addEventListener('click', (event) => {

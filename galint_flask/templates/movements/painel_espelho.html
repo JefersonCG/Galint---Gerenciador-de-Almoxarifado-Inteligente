@@ -195,21 +195,220 @@
         }
 
         .mirror-callout {
-            display: flex;
-            align-items: center;
-            gap: 0.8rem;
-            padding: 1rem 1.1rem;
+            display: grid;
+            grid-template-rows: auto 1fr auto;
+            gap: 0.95rem;
+            padding: 1.05rem 1.1rem;
             border-radius: 22px;
             background: linear-gradient(135deg, rgba(14, 116, 144, 0.22), rgba(37, 99, 235, 0.12));
             border: 1px solid rgba(125, 211, 252, 0.18);
             color: #e0f2fe;
-            font-size: clamp(1rem, 1.5vw, 1.22rem);
-            font-weight: 700;
+            min-height: 248px;
         }
 
-        .mirror-callout i {
+        .mirror-callout[data-tone="warning"] {
+            background: linear-gradient(135deg, rgba(120, 53, 15, 0.32), rgba(180, 83, 9, 0.16));
+            border-color: rgba(251, 191, 36, 0.28);
+        }
+
+        .mirror-callout[data-tone="success"] {
+            background: linear-gradient(135deg, rgba(6, 95, 70, 0.32), rgba(5, 150, 105, 0.16));
+            border-color: rgba(52, 211, 153, 0.24);
+        }
+
+        .mirror-callout[data-tone="info"] {
+            background: linear-gradient(135deg, rgba(30, 64, 175, 0.28), rgba(14, 116, 144, 0.18));
+            border-color: rgba(96, 165, 250, 0.24);
+        }
+
+        .mirror-callout[data-tone="accent"] {
+            background: linear-gradient(135deg, rgba(91, 33, 182, 0.24), rgba(37, 99, 235, 0.18));
+            border-color: rgba(167, 139, 250, 0.24);
+        }
+
+        .mirror-callout[data-tone="neutral"] {
+            background: linear-gradient(135deg, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.82));
+            border-color: rgba(148, 163, 184, 0.18);
+        }
+
+        .mirror-live-row {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            padding-bottom: 0.85rem;
+            border-bottom: 1px solid rgba(191, 219, 254, 0.12);
+        }
+
+        .mirror-live-row i {
             font-size: 1.5rem;
             color: #7dd3fc;
+            flex: 0 0 auto;
+        }
+
+        .mirror-live-text {
+            font-size: clamp(0.98rem, 1.35vw, 1.15rem);
+            font-weight: 700;
+            line-height: 1.35;
+        }
+
+        .mirror-insight-stage {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 150px;
+            gap: 1rem;
+            align-items: stretch;
+            min-height: 140px;
+        }
+
+        .mirror-insight-stage.no-photo {
+            grid-template-columns: 1fr;
+        }
+
+        .mirror-insight-copy {
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .mirror-insight-kicker {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.45rem;
+            width: fit-content;
+            padding: 0.32rem 0.7rem;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.09);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            font-size: 0.72rem;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: rgba(224, 242, 254, 0.92);
+        }
+
+        .mirror-insight-title-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.7rem;
+        }
+
+        .mirror-insight-icon {
+            font-size: 1.35rem;
+            color: #bae6fd;
+            flex: 0 0 auto;
+            margin-top: 0.08rem;
+        }
+
+        .mirror-insight-title {
+            margin: 0;
+            font-size: clamp(1.06rem, 1.65vw, 1.42rem);
+            line-height: 1.18;
+            color: #f8fafc;
+            font-weight: 900;
+            letter-spacing: -0.02em;
+        }
+
+        .mirror-insight-text {
+            margin: 0;
+            color: rgba(224, 242, 254, 0.88);
+            font-size: clamp(0.94rem, 1.2vw, 1.04rem);
+            line-height: 1.45;
+        }
+
+        .mirror-insight-metrics {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.8rem;
+        }
+
+        .mirror-insight-metric {
+            min-width: 0;
+            padding: 0.8rem 0.9rem;
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(191, 219, 254, 0.08);
+            display: flex;
+            flex-direction: column;
+            gap: 0.22rem;
+        }
+
+        .mirror-insight-metric-label {
+            font-size: 0.74rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: rgba(191, 219, 254, 0.76);
+        }
+
+        .mirror-insight-metric-value {
+            font-size: clamp(1rem, 1.3vw, 1.16rem);
+            font-weight: 900;
+            color: #f8fafc;
+            line-height: 1.2;
+            word-break: break-word;
+        }
+
+        .mirror-insight-photo {
+            position: relative;
+            min-width: 0;
+            border-radius: 20px;
+            overflow: hidden;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(191, 219, 254, 0.1);
+            min-height: 100%;
+        }
+
+        .mirror-insight-photo img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .mirror-insight-photo.mirror-hidden {
+            display: none;
+        }
+
+        .mirror-insight-photo-badge {
+            position: absolute;
+            left: 0.75rem;
+            bottom: 0.75rem;
+            display: inline-flex;
+            align-items: center;
+            padding: 0.28rem 0.62rem;
+            border-radius: 999px;
+            background: rgba(2, 6, 23, 0.72);
+            border: 1px solid rgba(226, 232, 240, 0.12);
+            color: #f8fafc;
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            backdrop-filter: blur(8px);
+        }
+
+        .mirror-insight-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.8rem;
+            padding-top: 0.15rem;
+            border-top: 1px solid rgba(191, 219, 254, 0.08);
+            color: rgba(191, 219, 254, 0.82);
+            font-size: 0.82rem;
+        }
+
+        .mirror-insight-source {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .mirror-insight-position {
+            flex: 0 0 auto;
+            font-weight: 800;
+            letter-spacing: 0.06em;
         }
 
         .mirror-grid {
@@ -293,6 +492,14 @@
                 grid-template-columns: 1fr;
             }
 
+            .mirror-insight-stage {
+                grid-template-columns: 1fr;
+            }
+
+            .mirror-insight-metrics {
+                grid-template-columns: 1fr;
+            }
+
             .mirror-status-row {
                 justify-content: flex-start;
             }
@@ -332,7 +539,40 @@
                     <div class="mirror-subtitle" id="mirror-subtitle">Quando um item entrar em foco, a foto e o contexto operacional aparecem aqui em tempo real.</div>
                 </div>
 
-                <div class="mirror-callout" id="mirror-callout"><i class="bi bi-person-badge"></i><span>Aguardando o proximo item no monitor principal.</span></div>
+                <div class="mirror-callout" id="mirror-callout" data-tone="neutral">
+                    <div class="mirror-live-row">
+                        <i class="bi bi-broadcast" id="mirror-live-icon"></i>
+                        <span class="mirror-live-text" id="mirror-live-text">Aguardando o proximo item no monitor principal.</span>
+                    </div>
+
+                    <div class="mirror-insight-stage">
+                        <div class="mirror-insight-copy">
+                            <span class="mirror-insight-kicker" id="mirror-insight-kicker">Painel operacional</span>
+                            <div class="mirror-insight-title-row">
+                                <i class="bi bi-stars mirror-insight-icon" id="mirror-insight-icon"></i>
+                                <h2 class="mirror-insight-title" id="mirror-insight-title">Sem informativos no momento</h2>
+                            </div>
+                            <p class="mirror-insight-text" id="mirror-insight-text">Assim que houver histórico suficiente, o painel passa a girar alertas e destaques sem interromper a operação ao vivo.</p>
+                            <div class="mirror-insight-metrics">
+                                <div class="mirror-insight-metric">
+                                    <span class="mirror-insight-metric-label" id="mirror-insight-primary-label">Status</span>
+                                    <span class="mirror-insight-metric-value" id="mirror-insight-primary-value">Aguardando</span>
+                                </div>
+                                <div class="mirror-insight-metric">
+                                    <span class="mirror-insight-metric-label" id="mirror-insight-secondary-label">Rotação</span>
+                                    <span class="mirror-insight-metric-value" id="mirror-insight-secondary-value">10s</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mirror-insight-photo mirror-hidden" id="mirror-insight-photo"></div>
+                    </div>
+
+                    <div class="mirror-insight-footer">
+                        <span class="mirror-insight-source" id="mirror-insight-source">Leitura operacional local</span>
+                        <span class="mirror-insight-position" id="mirror-insight-position">0/0</span>
+                    </div>
+                </div>
 
                 <div class="mirror-grid">
                     <article class="mirror-stat">
@@ -374,6 +614,9 @@
             const mirrorMode = {{ (mirror_mode or '')|tojson }};
             const channelName = 'galint-operation-mirror-v1';
             const storageKey = 'galint.operationMirrorState.v1';
+            const pageQuery = new URLSearchParams(window.location.search || '');
+            const insightsUrl = String(window.location.pathname || '').replace(/\/$/, '') + '/insights';
+            const stateUrl = String(window.location.pathname || '').replace(/\/$/, '') + '/state';
             const statusBadge = document.getElementById('mirror-status-badge');
             const updated = document.getElementById('mirror-updated');
             const mediaFrame = document.getElementById('mirror-media-frame');
@@ -382,6 +625,20 @@
             const title = document.getElementById('mirror-title');
             const subtitle = document.getElementById('mirror-subtitle');
             const callout = document.getElementById('mirror-callout');
+            const liveIcon = document.getElementById('mirror-live-icon');
+            const liveText = document.getElementById('mirror-live-text');
+            const insightStage = document.querySelector('.mirror-insight-stage');
+            const insightKicker = document.getElementById('mirror-insight-kicker');
+            const insightIcon = document.getElementById('mirror-insight-icon');
+            const insightTitle = document.getElementById('mirror-insight-title');
+            const insightText = document.getElementById('mirror-insight-text');
+            const insightPrimaryLabel = document.getElementById('mirror-insight-primary-label');
+            const insightPrimaryValue = document.getElementById('mirror-insight-primary-value');
+            const insightSecondaryLabel = document.getElementById('mirror-insight-secondary-label');
+            const insightSecondaryValue = document.getElementById('mirror-insight-secondary-value');
+            const insightPhoto = document.getElementById('mirror-insight-photo');
+            const insightSource = document.getElementById('mirror-insight-source');
+            const insightPosition = document.getElementById('mirror-insight-position');
             const kind = document.getElementById('mirror-kind');
             const quantity = document.getElementById('mirror-quantity');
             const actor = document.getElementById('mirror-actor');
@@ -389,6 +646,23 @@
             const stock = document.getElementById('mirror-stock');
             const batch = document.getElementById('mirror-batch');
             const source = document.getElementById('mirror-source');
+            let insightItems = [];
+            let insightIndex = 0;
+            let insightRotationSeconds = 10;
+            let insightRotationTimer = null;
+
+            function buildPanelEndpointUrl(basePath) {
+                const params = new URLSearchParams();
+                const nativeToken = String(pageQuery.get('native_token') || '').trim();
+                if (mirrorMode) {
+                    params.set('mode', mirrorMode);
+                }
+                if (nativeToken) {
+                    params.set('native_token', nativeToken);
+                }
+                const queryString = params.toString();
+                return queryString ? (basePath + '?' + queryString) : basePath;
+            }
 
             function escapeHtml(text) {
                 const div = document.createElement('div');
@@ -433,6 +707,126 @@
                 return 'Atualizado ' + date.toLocaleString('pt-BR');
             }
 
+            function emptyInsight() {
+                return {
+                    tone: 'neutral',
+                    icon: 'bi-stars',
+                    kicker: 'Painel operacional',
+                    title: 'Sem informativos no momento',
+                    text: 'Assim que houver histórico suficiente, o painel passa a girar alertas e destaques sem interromper a operação ao vivo.',
+                    primary_label: 'Status',
+                    primary_value: 'Aguardando',
+                    secondary_label: 'Rotação',
+                    secondary_value: '10s',
+                    source_label: 'Leitura operacional local',
+                    photo_url: null,
+                    photo_alt: null,
+                    photo_badge: null,
+                };
+            }
+
+            function setLiveCallout(payload, meta) {
+                liveIcon.className = 'bi ' + (meta?.icon || 'bi-broadcast');
+                liveText.textContent = calloutText(payload);
+            }
+
+            function renderInsightCard(entry) {
+                const insight = entry || emptyInsight();
+                const total = insightItems.length;
+                const tone = String(insight.tone || 'neutral').toLowerCase();
+                callout.dataset.tone = tone;
+                insightKicker.textContent = insight.kicker || 'Painel operacional';
+                insightIcon.className = 'bi ' + (insight.icon || 'bi-stars') + ' mirror-insight-icon';
+                insightTitle.textContent = insight.title || 'Sem informativos no momento';
+                insightText.textContent = insight.text || 'Sem dados adicionais por enquanto.';
+                insightPrimaryLabel.textContent = insight.primary_label || 'Status';
+                insightPrimaryValue.textContent = insight.primary_value || '--';
+                insightSecondaryLabel.textContent = insight.secondary_label || 'Atualização';
+                insightSecondaryValue.textContent = insight.secondary_value || '--';
+                insightSource.textContent = insight.source_label || 'Leitura operacional local';
+                insightPosition.textContent = total ? (String(insightIndex + 1) + '/' + String(total)) : '0/0';
+
+                if (insight.photo_url) {
+                    let badge = '';
+                    if (insight.photo_badge) {
+                        badge = '<span class="mirror-insight-photo-badge">' + escapeHtml(insight.photo_badge) + '</span>';
+                    }
+                    insightStage.classList.remove('no-photo');
+                    insightPhoto.classList.remove('mirror-hidden');
+                    insightPhoto.innerHTML = '<img src="' + escapeHtml(insight.photo_url) + '" alt="' + escapeHtml(insight.photo_alt || insight.title || 'Insight operacional') + '">' + badge;
+                } else {
+                    insightStage.classList.add('no-photo');
+                    insightPhoto.classList.add('mirror-hidden');
+                    insightPhoto.innerHTML = '';
+                }
+            }
+
+            function restartInsightRotation() {
+                if (insightRotationTimer) {
+                    window.clearInterval(insightRotationTimer);
+                    insightRotationTimer = null;
+                }
+                if ((insightItems || []).length <= 1) {
+                    return;
+                }
+                const intervalMs = Math.max(Number(insightRotationSeconds || 10), 5) * 1000;
+                insightRotationTimer = window.setInterval(function () {
+                    if (!insightItems.length) {
+                        return;
+                    }
+                    insightIndex = (insightIndex + 1) % insightItems.length;
+                    renderInsightCard(insightItems[insightIndex]);
+                }, intervalMs);
+            }
+
+            async function loadInsights() {
+                try {
+                    const url = buildPanelEndpointUrl(insightsUrl);
+                    const response = await window.fetch(url, {
+                        headers: { 'Accept': 'application/json' },
+                        credentials: 'same-origin',
+                    });
+                    if (!response.ok) {
+                        throw new Error('Falha HTTP ' + response.status);
+                    }
+                    const data = await response.json();
+                    insightItems = Array.isArray(data.items) ? data.items : [];
+                    insightRotationSeconds = Math.max(Number(data.rotation_seconds || 10), 5);
+                    if (!insightItems.length) {
+                        insightIndex = 0;
+                        renderInsightCard(emptyInsight());
+                        restartInsightRotation();
+                        return;
+                    }
+                    if (insightIndex >= insightItems.length) {
+                        insightIndex = 0;
+                    }
+                    renderInsightCard(insightItems[insightIndex]);
+                    restartInsightRotation();
+                } catch (error) {
+                    console.error('Erro ao carregar informativos do painel espelho:', error);
+                    if (!insightItems.length) {
+                        renderInsightCard(emptyInsight());
+                    }
+                }
+            }
+
+            async function loadServerState() {
+                try {
+                    const response = await window.fetch(buildPanelEndpointUrl(stateUrl), {
+                        headers: { 'Accept': 'application/json' },
+                        credentials: 'same-origin',
+                    });
+                    if (!response.ok) {
+                        throw new Error('Falha HTTP ' + response.status);
+                    }
+                    const data = await response.json();
+                    renderPayload(data);
+                } catch (error) {
+                    console.error('Erro ao sincronizar estado do painel espelho:', error);
+                }
+            }
+
             function isRelevant(payload) {
                 if (!payload || typeof payload !== 'object') return false;
                 if (!mirrorMode) return true;
@@ -453,14 +847,14 @@
                 eyebrow.innerHTML = '<i class="bi bi-stars"></i> Modo colaborador';
                 title.textContent = 'Painel pronto para espelhamento';
                 subtitle.textContent = 'Quando um item entrar em foco, a foto e o contexto operacional aparecem aqui em tempo real.';
-                callout.innerHTML = '<i class="bi bi-person-badge"></i><span>' + escapeHtml(calloutText(payload)) + '</span>';
+                setLiveCallout(payload, meta);
                 kind.textContent = mirrorMode ? mirrorMode.charAt(0).toUpperCase() + mirrorMode.slice(1) : 'Aguardando';
                 quantity.textContent = '--';
                 actor.textContent = '--';
                 context.textContent = '--';
                 stock.textContent = '--';
                 batch.textContent = '--';
-                source.textContent = 'Sincronizando apenas no navegador local';
+                source.textContent = 'Sincronizando navegador principal e janela nativa';
             }
 
             function renderPayload(payload) {
@@ -487,14 +881,14 @@
                 eyebrow.innerHTML = '<i class="bi ' + kindIcon(payload.kind) + '"></i> ' + escapeHtml(payload.kind_label || payload.kind || 'Operacao');
                 title.textContent = item.descricao || item.codigo || 'Item';
                 subtitle.textContent = 'Codigo ' + (item.codigo || '--') + (item.categoria ? ' • ' + item.categoria : '');
-                callout.innerHTML = '<i class="bi ' + meta.icon + '"></i><span>' + escapeHtml(calloutText(payload)) + '</span>';
+                setLiveCallout(payload, meta);
                 kind.textContent = payload.kind_label || payload.kind || '--';
                 quantity.textContent = movement.quantidade_display || movement.quantidade || '--';
                 actor.textContent = actorInfo.nome || actorInfo.matricula || '--';
                 context.textContent = contextInfo.local_servico || contextInfo.observacao || 'Sem contexto adicional';
                 stock.textContent = item.saldo_display || item.saldo || '--';
                 batch.textContent = payload.batch_label || '--';
-                source.textContent = 'Origem: ' + (payload.source_label || 'monitor principal') + ' • sincronizacao local';
+                source.textContent = 'Origem: ' + (payload.source_label || 'monitor principal') + ' • sincronizacao compartilhada';
             }
 
             function readStorage() {
@@ -524,7 +918,12 @@
                 }
             });
 
+            renderInsightCard(emptyInsight());
+            loadInsights();
+            window.setInterval(loadInsights, 60000);
             renderPayload(readStorage());
+            loadServerState();
+            window.setInterval(loadServerState, 1500);
         })();
     </script>
 </body>

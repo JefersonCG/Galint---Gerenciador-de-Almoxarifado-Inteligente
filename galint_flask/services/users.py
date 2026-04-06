@@ -5,12 +5,14 @@ from dataclasses import dataclass
 from typing import Any
 import random
 
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.inspection import inspect as sa_inspect
 from werkzeug.security import generate_password_hash
 
 from ..extensions import db
 from ..models import Usuario
+from .user_deletion_archive_sqlite import archive_deleted_user_snapshot
 
 _LEGACY_ADMIN_DEFAULT = ("0000000000000", "Administrador", "admin")
 
@@ -113,104 +115,199 @@ class UserService:
 
         db.session.commit()
 
-    def delete_user(self, matricula: str, force_delete: bool = False, reatribuir_para: str | None = None) -> None:
+    def delete_user(self, matricula: str, *, deleted_by: str | None = None, deleted_by_name: str | None = None) -> None:
         usuario = Usuario.query.get(matricula)
         if not usuario:
             raise ValueError("Usuário não encontrado")
 
-        from ..models import Entrada, EquipamentoReparo, InventarioEvento, RetiradaFerramenta, Saida, TelegramUser
+        from ..models import (
+            ApkAuditLog,
+            ApkVersion,
+            ChatMessage,
+            Device,
+            DevicePushToken,
+            DeviceSession,
+            Entrada,
+            EquipamentoReparo,
+            FerramentaEmUso,
+            FeatureAssignment,
+            FeatureFlag,
+            FinanceLedgerEntry,
+            GalintNotifyRecipient,
+            InventarioEvento,
+            MaterialInventario,
+            OperationLog,
+            RetiradaFerramenta,
+            Saida,
+            TelegramUser,
+        )
 
-        num_saidas = db.session.query(Saida).filter_by(matricula=matricula).count()
-        num_entradas = db.session.query(Entrada).filter_by(matricula=matricula).count()
-        num_eventos = db.session.query(InventarioEvento).filter_by(matricula=matricula).count()
-        num_retiradas_ferramentas = db.session.query(RetiradaFerramenta).filter_by(matricula=matricula).count()
-        num_reparos = db.session.query(EquipamentoReparo).filter_by(matricula_responsavel=matricula).count()
+        saidas = Saida.query.filter_by(matricula=matricula).all()
+        entradas = Entrada.query.filter_by(matricula=matricula).all()
+        eventos = InventarioEvento.query.filter_by(matricula=matricula).all()
+        retiradas = RetiradaFerramenta.query.filter_by(matricula=matricula).all()
+        reparos_responsavel = EquipamentoReparo.query.filter_by(matricula_responsavel=matricula).all()
+        reparos_atualizados = EquipamentoReparo.query.filter_by(atualizado_por=matricula).all()
+        ferramentas_em_uso = FerramentaEmUso.query.filter_by(matricula=matricula).all()
+        telegram_users = TelegramUser.query.filter_by(matricula=matricula).all()
+        device_sessions = DeviceSession.query.filter_by(user_id=matricula).all()
+        device_push_tokens = DevicePushToken.query.filter_by(matricula=matricula).all()
+        notify_recipients = GalintNotifyRecipient.query.filter_by(matricula=matricula).all()
+        chat_messages = ChatMessage.query.filter_by(matricula=matricula).all()
+        material_inventario = MaterialInventario.query.filter_by(matricula=matricula).all()
+        operation_logs = OperationLog.query.filter_by(user_id=matricula).all()
+        finance_entries = FinanceLedgerEntry.query.filter_by(usuario_matricula=matricula).all()
+        devices = Device.query.filter(
+            or_(Device.current_user_id == matricula, Device.blocked_by == matricula)
+        ).all()
+        device_sessions_revoked = DeviceSession.query.filter_by(revoked_by=matricula).all()
+        apk_versions = ApkVersion.query.filter_by(created_by=matricula).all()
+        feature_flags = FeatureFlag.query.filter_by(created_by=matricula).all()
+        feature_assignments = FeatureAssignment.query.filter_by(assigned_by=matricula).all()
+        apk_audit_logs = ApkAuditLog.query.filter(
+            or_(ApkAuditLog.user_id == matricula, ApkAuditLog.admin_id == matricula)
+        ).all()
 
-        total_registros = num_saidas + num_entradas + num_eventos + num_retiradas_ferramentas + num_reparos
-
-        detalhes = []
-        if num_saidas > 0:
-            detalhes.append(f"{num_saidas} saída(s)")
-        if num_entradas > 0:
-            detalhes.append(f"{num_entradas} entrada(s)")
-        if num_eventos > 0:
-            detalhes.append(f"{num_eventos} evento(s) de inventário")
-        if num_retiradas_ferramentas > 0:
-            detalhes.append(f"{num_retiradas_ferramentas} retirada(s) de ferramenta")
-        if num_reparos > 0:
-            detalhes.append(f"{num_reparos} reparo(s) vinculados")
-
-        if total_registros > 0 and not force_delete:
-            raise ValueError(
-                f"Não é possível excluir o usuário {usuario.nome}. "
-                f"Existem {total_registros} registro(s) vinculado(s): {', '.join(detalhes)}. "
-                f"Para excluir este usuário, primeiro remova ou reatribua estes registros."
-            )
-
-        if force_delete and reatribuir_para:
-            usuario_destino = Usuario.query.get(reatribuir_para)
-            if not usuario_destino:
-                raise ValueError(f"Usuário de destino '{reatribuir_para}' não encontrado")
-
-        if force_delete and not reatribuir_para and (num_retiradas_ferramentas > 0 or num_reparos > 0):
-            bloqueios = []
-            if num_retiradas_ferramentas > 0:
-                bloqueios.append("retiradas de ferramentas")
-            if num_reparos > 0:
-                bloqueios.append("reparos")
-            raise ValueError(
-                "Exclusão forçada sem reatribuição não é permitida para usuário com "
-                + " e ".join(bloqueios)
-                + ". Selecione um usuário de destino para preservar o responsável nesses registros."
-            )
+        archive_payload = {
+            "user": self._to_dict(usuario),
+            "deleted_by": {
+                "matricula": deleted_by,
+                "nome": deleted_by_name,
+            },
+            "counts": {
+                "saidas": len(saidas),
+                "entradas": len(entradas),
+                "inventario_eventos": len(eventos),
+                "retiradas_ferramentas": len(retiradas),
+                "equipamentos_reparo_responsavel": len(reparos_responsavel),
+                "equipamentos_reparo_atualizados": len(reparos_atualizados),
+                "ferramentas_em_uso": len(ferramentas_em_uso),
+                "telegram_users": len(telegram_users),
+                "device_sessions": len(device_sessions),
+                "device_push_tokens": len(device_push_tokens),
+                "notify_recipients": len(notify_recipients),
+                "chat_messages": len(chat_messages),
+                "material_inventario": len(material_inventario),
+                "operation_logs": len(operation_logs),
+                "finance_entries": len(finance_entries),
+                "devices": len(devices),
+                "device_sessions_revoked": len(device_sessions_revoked),
+                "apk_versions": len(apk_versions),
+                "feature_flags": len(feature_flags),
+                "feature_assignments": len(feature_assignments),
+                "apk_audit_logs": len(apk_audit_logs),
+            },
+            "records": {
+                "saidas": self._serialize_rows(saidas),
+                "entradas": self._serialize_rows(entradas),
+                "inventario_eventos": self._serialize_rows(eventos),
+                "retiradas_ferramentas": self._serialize_rows(retiradas),
+                "equipamentos_reparo_responsavel": self._serialize_rows(reparos_responsavel),
+                "equipamentos_reparo_atualizados": self._serialize_rows(reparos_atualizados),
+                "ferramentas_em_uso": self._serialize_rows(ferramentas_em_uso),
+                "telegram_users": self._serialize_rows(telegram_users),
+                "device_sessions": self._serialize_rows(device_sessions),
+                "device_push_tokens": self._serialize_rows(device_push_tokens),
+                "notify_recipients": self._serialize_rows(notify_recipients),
+                "chat_messages": self._serialize_rows(chat_messages),
+                "material_inventario": self._serialize_rows(material_inventario),
+                "operation_logs": self._serialize_rows(operation_logs),
+                "finance_entries": self._serialize_rows(finance_entries),
+                "devices": self._serialize_rows(devices),
+                "device_sessions_revoked": self._serialize_rows(device_sessions_revoked),
+                "apk_versions": self._serialize_rows(apk_versions),
+                "feature_flags": self._serialize_rows(feature_flags),
+                "feature_assignments": self._serialize_rows(feature_assignments),
+                "apk_audit_logs": self._serialize_rows(apk_audit_logs),
+            },
+        }
 
         try:
-            if force_delete and reatribuir_para:
-                db.session.query(Saida).filter_by(matricula=matricula).update(
-                    {"matricula": reatribuir_para}, synchronize_session=False
-                )
-                db.session.query(Entrada).filter_by(matricula=matricula).update(
-                    {"matricula": reatribuir_para}, synchronize_session=False
-                )
-                db.session.query(InventarioEvento).filter_by(matricula=matricula).update(
-                    {"matricula": reatribuir_para}, synchronize_session=False
-                )
-                db.session.query(RetiradaFerramenta).filter_by(matricula=matricula).update(
-                    {"matricula": reatribuir_para}, synchronize_session=False
-                )
-                db.session.query(EquipamentoReparo).filter_by(matricula_responsavel=matricula).update(
-                    {"matricula_responsavel": reatribuir_para, "atualizado_por": reatribuir_para}, synchronize_session=False
-                )
-                db.session.query(EquipamentoReparo).filter_by(atualizado_por=matricula).update(
-                    {"atualizado_por": reatribuir_para}, synchronize_session=False
-                )
-                db.session.flush()
-            elif force_delete:
-                db.session.query(Saida).filter_by(matricula=matricula).update(
-                    {"matricula": None}, synchronize_session=False
-                )
-                db.session.query(Entrada).filter_by(matricula=matricula).update(
-                    {"matricula": None}, synchronize_session=False
-                )
-                db.session.query(InventarioEvento).filter_by(matricula=matricula).update(
-                    {"matricula": None}, synchronize_session=False
-                )
-                db.session.query(EquipamentoReparo).filter_by(atualizado_por=matricula).update(
-                    {"atualizado_por": None}, synchronize_session=False
-                )
-                db.session.flush()
+            archive_deleted_user_snapshot(details=archive_payload)
+        except Exception as exc:
+            raise ValueError(
+                "Não foi possível gravar o arquivo morto SQLite deste colaborador. A exclusão foi cancelada."
+            ) from exc
 
-            telegram_user = db.session.query(TelegramUser).filter_by(matricula=matricula).first()
-            if telegram_user:
+        session_ids = [session.id for session in device_sessions]
+
+        try:
+            db.session.query(Saida).filter_by(matricula=matricula).update(
+                {"matricula": None}, synchronize_session=False
+            )
+            db.session.query(Entrada).filter_by(matricula=matricula).update(
+                {"matricula": None}, synchronize_session=False
+            )
+            db.session.query(InventarioEvento).filter_by(matricula=matricula).update(
+                {"matricula": None}, synchronize_session=False
+            )
+            db.session.query(MaterialInventario).filter_by(matricula=matricula).update(
+                {"matricula": None, "responsavel_nome": None}, synchronize_session=False
+            )
+            db.session.query(OperationLog).filter_by(user_id=matricula).update(
+                {"user_id": None}, synchronize_session=False
+            )
+            db.session.query(FinanceLedgerEntry).filter_by(usuario_matricula=matricula).update(
+                {"usuario_matricula": None}, synchronize_session=False
+            )
+            db.session.query(Device).filter(Device.current_user_id == matricula).update(
+                {"current_user_id": None}, synchronize_session=False
+            )
+            db.session.query(Device).filter(Device.blocked_by == matricula).update(
+                {"blocked_by": None}, synchronize_session=False
+            )
+            db.session.query(DeviceSession).filter(DeviceSession.revoked_by == matricula).update(
+                {"revoked_by": None}, synchronize_session=False
+            )
+            db.session.query(ApkVersion).filter_by(created_by=matricula).update(
+                {"created_by": None}, synchronize_session=False
+            )
+            db.session.query(FeatureFlag).filter_by(created_by=matricula).update(
+                {"created_by": None}, synchronize_session=False
+            )
+            db.session.query(FeatureAssignment).filter_by(assigned_by=matricula).update(
+                {"assigned_by": None}, synchronize_session=False
+            )
+            db.session.query(ApkAuditLog).filter(ApkAuditLog.user_id == matricula).update(
+                {"user_id": None}, synchronize_session=False
+            )
+            db.session.query(ApkAuditLog).filter(ApkAuditLog.admin_id == matricula).update(
+                {"admin_id": None}, synchronize_session=False
+            )
+            db.session.query(EquipamentoReparo).filter_by(atualizado_por=matricula).update(
+                {"atualizado_por": None}, synchronize_session=False
+            )
+
+            if session_ids:
+                db.session.query(ApkAuditLog).filter(ApkAuditLog.session_id.in_(session_ids)).update(
+                    {"session_id": None}, synchronize_session=False
+                )
+
+            db.session.query(ChatMessage).filter_by(matricula=matricula).delete(synchronize_session=False)
+            db.session.query(RetiradaFerramenta).filter_by(matricula=matricula).delete(synchronize_session=False)
+            db.session.query(FerramentaEmUso).filter_by(matricula=matricula).delete(synchronize_session=False)
+            db.session.query(EquipamentoReparo).filter(
+                EquipamentoReparo.matricula_responsavel == matricula
+            ).delete(synchronize_session=False)
+            db.session.query(DevicePushToken).filter_by(matricula=matricula).delete(synchronize_session=False)
+            db.session.query(GalintNotifyRecipient).filter_by(matricula=matricula).delete(synchronize_session=False)
+            db.session.query(DeviceSession).filter_by(user_id=matricula).delete(synchronize_session=False)
+
+            for telegram_user in telegram_users:
                 db.session.delete(telegram_user)
 
+            db.session.flush()
             db.session.delete(usuario)
             db.session.commit()
         except IntegrityError as exc:
             db.session.rollback()
             raise ValueError(
-                "Não foi possível excluir o usuário porque ainda existem registros vinculados que exigem responsável. "
-                "Reatribua o histórico do usuário e tente novamente."
+                "Não foi possível concluir a exclusão arquivada do colaborador por causa de vínculos ainda existentes."
+            ) from exc
+        except Exception as exc:
+            db.session.rollback()
+            raise ValueError(
+                "Falha ao concluir a exclusão arquivada do colaborador. Nenhuma alteração parcial foi mantida."
             ) from exc
 
     def generate_unique_matricula(self, nome: str) -> str:
@@ -309,6 +406,28 @@ class UserService:
             "is_standard": bool(usuario.is_standard),
             "barcode_token": usuario.barcode_token,
         }
+
+    @classmethod
+    def _serialize_rows(cls, rows: list[Any]) -> list[dict[str, Any]]:
+        return [cls._serialize_model(row) for row in rows]
+
+    @staticmethod
+    def _serialize_model(instance: Any) -> dict[str, Any]:
+        payload: dict[str, Any] = {}
+        for column in sa_inspect(instance.__class__).columns:
+            payload[column.key] = UserService._serialize_value(getattr(instance, column.key))
+        return payload
+
+    @staticmethod
+    def _serialize_value(value: Any) -> Any:
+        if value is None or isinstance(value, (str, int, float, bool)):
+            return value
+        if isinstance(value, (list, dict)):
+            return value
+        isoformat = getattr(value, "isoformat", None)
+        if callable(isoformat):
+            return isoformat()
+        return str(value)
 
 
 user_service = UserService()

@@ -5,7 +5,14 @@
     <h1 class="h3 mb-0">Itens cadastrados</h1>
     <div class="d-flex gap-2 flex-wrap">
         {% if can_create %}
-        <button class="btn btn-outline-warning" type="button" data-bs-toggle="modal" data-bs-target="#preRegisteredModal">PRÉ CADASTRADOS</button>
+        <button class="btn btn-outline-warning position-relative" type="button" data-bs-toggle="modal" data-bs-target="#preRegisteredModal">
+            PRÉ CADASTRADOS
+            <span
+                class="position-absolute top-0 start-100 translate-middle badge rounded-pill text-bg-danger {% if not pre_registered_counts.documents %}d-none{% endif %}"
+                id="preRegisteredButtonBadge"
+                title="{{ pre_registered_counts.items }} item(ns) pendente(s) em {{ pre_registered_counts.documents }} documento(s)"
+            >{{ pre_registered_counts.documents }}</span>
+        </button>
         {% endif %}
         {% if can_manage and endpoint_exists('inventory.generate_all_barcodes') %}
         <form method="post" action="{{ url_for('inventory.generate_all_barcodes') }}" class="d-inline">
@@ -3618,6 +3625,7 @@
     const preRegisteredResults = document.getElementById('pre-registered-results');
     const preRegisteredDocSummary = document.getElementById('pre-registered-doc-summary');
     const preRegisteredFinishButton = document.getElementById('pre-registered-finish-btn');
+    const preRegisteredButtonBadge = document.getElementById('preRegisteredButtonBadge');
     const applyPhotoUrlEndpoint = {{ url_for('inventory.aplicar_foto_url_global') | tojson | safe }};
     const applyPhotoUploadEndpoint = {{ (url_for('inventory.aplicar_foto_upload_global') if endpoint_exists('inventory.aplicar_foto_upload_global') else '/itens/foto/upload') | tojson | safe }};
     let currentPhotoItem = null;
@@ -3757,6 +3765,19 @@
         }
     };
 
+    const updatePreRegisteredButtonBadge = (documentsCount, itemsCount = 0) => {
+        if (!preRegisteredButtonBadge) {
+            return;
+        }
+        const documents = Number(documentsCount || 0);
+        const items = Number(itemsCount || 0);
+        preRegisteredButtonBadge.textContent = String(documents);
+        preRegisteredButtonBadge.classList.toggle('d-none', documents <= 0);
+        preRegisteredButtonBadge.title = items > 0
+            ? `${items} item(ns) pendente(s) em ${documents} documento(s)`
+            : 'Nenhum documento pendente';
+    };
+
     const normalizePreRegisteredDocuments = (payload) => {
         if (Array.isArray(payload?.documents)) {
             return payload.documents;
@@ -3805,11 +3826,17 @@
         if (!documents.length) {
             setPreRegisteredStatus(options.filter ? 'Nenhum documento pendente localizado com esse filtro.' : 'Nenhum item em pré-cadastro pendente no momento.', options.filter ? 'danger' : 'muted');
             renderPreRegisteredDocSummary(null);
+            if (!options.filter) {
+                updatePreRegisteredButtonBadge(0, 0);
+            }
             preRegisteredResults.innerHTML = '<div class="text-muted small">Não há itens pendentes de finalização para exibir agora.</div>';
             return;
         }
         renderPreRegisteredDocSummary(payload, options);
         const totalItems = documents.reduce((sum, document) => sum + ((document.items || []).length), 0);
+        if (!options.filter) {
+            updatePreRegisteredButtonBadge(payload?.total_documents || documents.length, payload?.total_items || totalItems);
+        }
         if (!totalItems) {
             setPreRegisteredStatus('O documento localizado não possui mais itens pendentes em pré-cadastro.', 'muted');
             preRegisteredResults.innerHTML = '<div class="text-muted small">Todos os itens deste documento já foram finalizados.</div>';
@@ -4795,9 +4822,10 @@
         matches.slice(0, 10).forEach((item) => {
             const hasPackaging = item.tipo_embalagem_novo && item.unidades_por_embalagem;
             const embalagemNome = item.tipo_embalagem_novo || 'embalagem';
-                const saldoDisplay = hasPackaging
-                    ? (item.saldo_embalagens ?? item.saldo ?? 0)
-                    : (item.saldo_display || item.saldo || '0');
+            const saldoDisplay = String(item.saldo_display || '').trim()
+                || (hasPackaging
+                    ? `${item.saldo_embalagens ?? item.saldo ?? 0} ${embalagemNome}`
+                    : `${item.saldo || 0} ${item.unidade || 'unidades'}`);
             const button = document.createElement('button');
             button.type = 'button';
             button.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-start';
@@ -4806,7 +4834,7 @@
                         <div class="fw-semibold">${escapeHtml(item.descricao)}</div>
                         <div class="small text-muted">Código ${escapeHtml(item.codigo)} • Categoria ${escapeHtml(item.categoria || '—')}</div>
                     </div>
-                    <span class="badge bg-primary rounded-pill">Saldo ${escapeHtml(saldoDisplay)} ${escapeHtml(hasPackaging ? embalagemNome : (item.unidade || 'unidades'))}</span>
+                    <span class="badge bg-primary rounded-pill">Saldo ${escapeHtml(saldoDisplay)}</span>
                 `;
             button.addEventListener('click', () => openItemModal(item));
             resultsContainer.appendChild(button);

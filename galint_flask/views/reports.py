@@ -710,7 +710,10 @@ def index():
 @bp.route("/percentual-movimentos")
 @login_required
 def percentual_movimentos():
-    """Painel de percentualidade e ranking de movimentações do almoxarifado."""
+    """Alias legado para a Central Analítica."""
+    flash("A página Percentual Movimentos foi incorporada à Central Analítica.", "info")
+    return redirect(url_for("analytics.index"))
+
     from ..extensions import db
     from ..models import InventarioEvento, Item, Saida, Usuario
 

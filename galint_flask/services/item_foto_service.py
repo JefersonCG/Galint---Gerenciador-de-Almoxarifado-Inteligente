@@ -229,6 +229,19 @@ class ItemFotoService:
         return f"uploads/itens/{novo_filename}"
 
     @staticmethod
+    def duplicar_foto_para_item(foto_path: str, codigo_item: str) -> str:
+        """Duplica a foto existente para um novo item, gerando um arquivo independente."""
+        if not foto_path:
+            raise ValueError("Foto de origem não informada")
+
+        source_path = Path(current_app.root_path) / "static" / str(foto_path)
+        if not source_path.exists() or not source_path.is_file():
+            raise ValueError("Foto de origem não encontrada")
+
+        raw_bytes = source_path.read_bytes()
+        return ItemFotoService._process_image_bytes(raw_bytes, codigo_item)
+
+    @staticmethod
     def deletar_foto(foto_path: str) -> bool:
         """Deleta foto do item.
         
