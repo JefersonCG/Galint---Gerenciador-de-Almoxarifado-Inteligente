@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from math import isfinite
 
 from ..models import Item, ProductUnitConversion
-from .legacy_stock_normalizer import is_packaging_unit_code, resolve_canonical_unit, resolve_packaging_factor, uses_packaging_legacy_normalization
+from .legacy_stock_normalizer import ignore_packaging_metadata_for_stock, is_packaging_unit_code, resolve_canonical_unit, resolve_packaging_factor, uses_packaging_legacy_normalization
 
 
 class UnitConversionError(ValueError):
@@ -98,6 +98,24 @@ class UnitConversionEngine:
                 metadata={"mode": "identity"},
             )
 
+        graph = self._build_graph(item.product_unit_conversions)
+        if graph:
+            try:
+                factor, path = self._find_factor(graph, from_unit_norm, base_unit.unit_code)
+                quantity_base = quantity_value * factor
+                return ConversionResult(
+                    quantity_base=quantity_base,
+                    unit_base=base_unit.unit_code,
+                    conversion_path=path,
+                    factor_applied=factor,
+                    metadata={
+                        "product_id": item.codigo_item,
+                        "steps": len(path),
+                    },
+                )
+            except UnitConversionError:
+                pass
+
         legacy_packaging = self._convert_legacy_packaging(item, quantity_value, from_unit_norm, base_unit.unit_code)
         if legacy_packaging is not None:
             quantity_base, factor = legacy_packaging
@@ -116,18 +134,8 @@ class UnitConversionEngine:
                 metadata={"mode": "legacy_packaging"},
             )
 
-        graph = self._build_graph(item.product_unit_conversions)
-        factor, path = self._find_factor(graph, from_unit_norm, base_unit.unit_code)
-        quantity_base = quantity_value * factor
-        return ConversionResult(
-            quantity_base=quantity_base,
-            unit_base=base_unit.unit_code,
-            conversion_path=path,
-            factor_applied=factor,
-            metadata={
-                "product_id": item.codigo_item,
-                "steps": len(path),
-            },
+        raise UnitConversionError(
+            f"Não existe caminho de conversão válido de '{from_unit_norm}' para '{base_unit.unit_code}'"
         )
 
     def _get_base_unit(self, item: Item) -> ResolvedBaseUnit:
@@ -166,24 +174,61 @@ class UnitConversionEngine:
         from_unit: str,
         base_unit: str,
     ) -> tuple[float, float] | None:
-        if not uses_packaging_legacy_normalization(item):
+        factor = float(resolve_packaging_factor(item) or 0.0)
+        if factor <= 0 or ignore_packaging_metadata_for_stock(item):
             return None
         if from_unit == base_unit:
             return quantity_value, 1.0
-
-        factor = float(resolve_packaging_factor(item) or 0.0)
-        if factor <= 0:
-            return None
 
         packaging_units = {
             self._normalize_unit_code(item.tipo_embalagem_novo),
             self._normalize_unit_code(item.unidade),
         }
+        packaging_units.update(
+            self._normalize_unit_code(unit.unit_code)
+            for unit in (getattr(item, "product_units", None) or [])
+            if getattr(unit, "active", False) and getattr(unit, "unit_code", None)
+        )
         packaging_units.discard("")
+
+        content_unit = self._legacy_packaging_content_unit(item)
+        if content_unit and (base_unit in packaging_units or is_packaging_unit_code(base_unit)):
+            if from_unit == content_unit:
+                inverse_factor = 1.0 / factor
+                return quantity_value * inverse_factor, inverse_factor
 
         if from_unit in packaging_units or is_packaging_unit_code(from_unit):
             return quantity_value * factor, factor
         return None
+
+    def _legacy_packaging_content_unit(self, item: Item) -> str:
+        tipo_emb = self._normalize_unit_code(getattr(item, "tipo_embalagem_novo", None))
+        try:
+            unidades_por = float(getattr(item, "unidades_por_embalagem", 0) or 0)
+        except (TypeError, ValueError):
+            unidades_por = 0.0
+        try:
+            litros_por = float(getattr(item, "litros_por_embalagem", 0) or 0)
+        except (TypeError, ValueError):
+            litros_por = 0.0
+        try:
+            grandeza_ref = float(getattr(item, "grandeza_referencia", 0) or 0)
+        except (TypeError, ValueError):
+            grandeza_ref = 0.0
+
+        if litros_por > 0:
+            return "l"
+        if tipo_emb == "rolo" and unidades_por > 0:
+            return "m"
+        if grandeza_ref > 0:
+            return "kg"
+        if unidades_por > 0:
+            return "un"
+
+        canonical_unit = self._normalize_unit_code(resolve_canonical_unit(item))
+        if canonical_unit and not is_packaging_unit_code(canonical_unit):
+            return canonical_unit
+        return ""
 
     def _normalize_unit_code(self, value: str | None) -> str:
         raw = (value or "").strip().lower()

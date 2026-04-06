@@ -13,13 +13,15 @@ class EmbalagemService:
     @staticmethod
     def tem_embalagem(item: Item) -> bool:
         """Verifica se o item usa sistema de embalagens."""
-        from .legacy_stock_normalizer import ignore_packaging_metadata_for_stock
+        from .legacy_stock_normalizer import ignore_packaging_metadata_for_stock, resolve_packaging_factor
+
+        tipo_embalagem = str(item.tipo_embalagem_novo or "").strip().lower()
+        fator_embalagem = float(resolve_packaging_factor(item) or 0.0)
 
         return (
-            item.tipo_embalagem_novo is not None 
-            and item.tipo_embalagem_novo in EmbalagemService.TIPOS_VALIDOS
-            and item.unidades_por_embalagem is not None
-            and item.unidades_por_embalagem > 0
+            bool(tipo_embalagem)
+            and tipo_embalagem in EmbalagemService.TIPOS_VALIDOS
+            and fator_embalagem > 0
             and not ignore_packaging_metadata_for_stock(item)
         )
 
@@ -52,10 +54,14 @@ class EmbalagemService:
         """
         if not EmbalagemService.tem_embalagem(item):
             return (0, 0)
+
+        from .legacy_stock_normalizer import resolve_packaging_factor
         
         embalagens_atuais = float(item.estoque_embalagens or 0)
         soltas_atuais = float(item.estoque_unidades_soltas or 0)
-        unidades_por = float(item.unidades_por_embalagem or 1)
+        fator_embalagem = float(resolve_packaging_factor(item) or 0)
+        if fator_embalagem <= 0:
+            return (embalagens_atuais, soltas_atuais)
         
         if em_embalagens:
             # Entrada de embalagens fechadas
@@ -65,8 +71,8 @@ class EmbalagemService:
             soltas_atuais += float(quantidade)
             
             # Se acumular unidades suficientes, "fecha" embalagens
-            while soltas_atuais >= unidades_por:
-                soltas_atuais -= unidades_por
+            while soltas_atuais >= fator_embalagem:
+                soltas_atuais -= fator_embalagem
                 embalagens_atuais += 1.0
         
         return (embalagens_atuais, soltas_atuais)
@@ -91,10 +97,14 @@ class EmbalagemService:
         """
         if not EmbalagemService.tem_embalagem(item):
             return (0, 0, False)
+
+        from .legacy_stock_normalizer import resolve_packaging_factor
         
         embalagens_atuais = float(item.estoque_embalagens or 0)
         soltas_atuais = float(item.estoque_unidades_soltas or 0)
-        unidades_por = float(item.unidades_por_embalagem or 1)
+        fator_embalagem = float(resolve_packaging_factor(item) or 0)
+        if fator_embalagem <= 0:
+            return (embalagens_atuais, soltas_atuais, False)
         
         if em_embalagens:
             # Saída de embalagens fechadas
@@ -115,7 +125,7 @@ class EmbalagemService:
                 # Precisa abrir embalagens
                 import math
                 faltam = quantidade_unidades - soltas_atuais
-                embalagens_necessarias = math.ceil(faltam / item.unidades_por_embalagem)
+                embalagens_necessarias = math.ceil(faltam / fator_embalagem)
                 
                 if embalagens_atuais < embalagens_necessarias:
                     # Não tem estoque suficiente
@@ -123,7 +133,7 @@ class EmbalagemService:
                 
                 # Abre as embalagens necessárias
                 embalagens_atuais -= embalagens_necessarias
-                soltas_atuais += (embalagens_necessarias * item.unidades_por_embalagem)
+                soltas_atuais += (embalagens_necessarias * fator_embalagem)
                 
                 # Agora retira a quantidade
                 soltas_atuais -= quantidade_unidades
@@ -155,12 +165,14 @@ class EmbalagemService:
         """Calcula estoque total em unidades."""
         if not EmbalagemService.tem_embalagem(item):
             return item.get_saldo_atual()
+
+        from .legacy_stock_normalizer import resolve_packaging_factor
         
         embalagens = float(item.estoque_embalagens or 0)
         soltas = float(item.estoque_unidades_soltas or 0)
-        unidades_por = float(item.unidades_por_embalagem or 0)
+        fator_embalagem = float(resolve_packaging_factor(item) or 0)
         
-        return (embalagens * unidades_por) + soltas
+        return (embalagens * fator_embalagem) + soltas
 
     @staticmethod
     def tentar_sincronizar_estoque_de_legacy(item: Item) -> bool:
@@ -188,11 +200,7 @@ class EmbalagemService:
         from .balance_provider import balance_provider
         from .legacy_stock_normalizer import is_packaging_unit_code, resolve_packaging_factor
 
-        unidades_por = float(item.unidades_por_embalagem or 0)
-        if unidades_por <= 0:
-            return False
-
-        factor = float(resolve_packaging_factor(item) or unidades_por)
+        factor = float(resolve_packaging_factor(item) or 0)
         if factor <= 0:
             return False
 

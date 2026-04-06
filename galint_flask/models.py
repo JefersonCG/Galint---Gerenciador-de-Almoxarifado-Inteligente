@@ -228,16 +228,28 @@ class Item(db.Model):
             data["saldo"] = self.get_saldo_fisico_total()
             data["saldo_display"] = self.get_saldo_fisico_display()
             data["explicacao_saldo"] = self.get_explicacao_saldo()
-            if self.tipo_embalagem_novo and self.unidades_por_embalagem:
+            try:
+                from .services.embalagem_service import EmbalagemService
+
+                has_packaging_state = EmbalagemService.tem_embalagem(self)
+            except Exception:
+                has_packaging_state = bool(self.tipo_embalagem_novo and self.unidades_por_embalagem)
+            if has_packaging_state:
                 data["saldo_embalagens"] = self.estoque_embalagens
                 data["saldo_unidades_soltas"] = self.estoque_unidades_soltas
         return data
     
     def get_estoque_total_com_embalagens(self) -> float:
         """Calcula o estoque total considerando embalagens + unidades soltas."""
-        if self.tipo_embalagem_novo and self.unidades_por_embalagem:
-            total = (self.estoque_embalagens * self.unidades_por_embalagem) + self.estoque_unidades_soltas
-            return self.normalize_balance_value(total)
+        try:
+            from .services.legacy_stock_normalizer import ignore_packaging_metadata_for_stock, resolve_packaging_factor
+
+            fator_embalagem = float(resolve_packaging_factor(self) or 0)
+            if self.tipo_embalagem_novo and fator_embalagem > 0 and not ignore_packaging_metadata_for_stock(self):
+                total = (self.estoque_embalagens * fator_embalagem) + self.estoque_unidades_soltas
+                return self.normalize_balance_value(total)
+        except Exception:
+            pass
         return self.normalize_balance_value(self.get_saldo_atual())
 
     @staticmethod

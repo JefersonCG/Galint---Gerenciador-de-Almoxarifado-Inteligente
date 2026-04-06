@@ -55,7 +55,7 @@ from .legacy_stock_normalizer import (
 )
 from .operation_log_service import operation_log_service
 from .price_normalization import infer_price_unit_for_item, normalize_item_price
-from .unit_conversion_engine import UnitConversionError
+from .unit_conversion_engine import UnitConversionError, unit_conversion_engine
 from .balance_provider import balance_provider
 from ..utils.lote_generator import generate_lote
 from ..utils.barcode_generator import generate_barcode, get_barcode_path
@@ -79,6 +79,58 @@ OPERATIONAL_ACTIVITY_OPTIONS: tuple[dict[str, str], ...] = (
 OPERATIONAL_ACTIVITY_LABELS = {
     row["key"]: row["label"]
     for row in OPERATIONAL_ACTIVITY_OPTIONS
+}
+
+MATERIAL_RETURN_UNIT_ALIASES = {
+    "l": "litro",
+    "lt": "litro",
+    "lts": "litro",
+    "litro": "litro",
+    "litros": "litro",
+    "kg": "quilo",
+    "quilo": "quilo",
+    "quilos": "quilo",
+    "m": "metro",
+    "mt": "metro",
+    "mts": "metro",
+    "metro": "metro",
+    "metros": "metro",
+    "un": "unidade",
+    "und": "unidade",
+    "unid": "unidade",
+    "unidade": "unidade",
+    "unidades": "unidade",
+}
+
+MATERIAL_RETURN_UNIT_META = {
+    "litro": {
+        "unit_display": "L",
+        "unit_label": "Litro",
+        "allow_decimal": True,
+        "input_step": 0.001,
+        "input_min": 0.001,
+    },
+    "quilo": {
+        "unit_display": "kg",
+        "unit_label": "Kg",
+        "allow_decimal": True,
+        "input_step": 0.001,
+        "input_min": 0.001,
+    },
+    "metro": {
+        "unit_display": "m",
+        "unit_label": "Metro",
+        "allow_decimal": True,
+        "input_step": 0.001,
+        "input_min": 0.001,
+    },
+    "unidade": {
+        "unit_display": "un",
+        "unit_label": "Unidade",
+        "allow_decimal": False,
+        "input_step": 1,
+        "input_min": 1,
+    },
 }
 
 
@@ -1132,7 +1184,197 @@ class InventoryService:
             for product_id, snapshot in snapshots.items()
         }
 
-    def get_material_return_pending(self, *, codigo: str, matricula: str) -> float:
+    @staticmethod
+    def _normalize_material_return_unit_code(value: str | None) -> str:
+        raw = (value or "").strip().lower()
+        if not raw:
+            return ""
+        return MATERIAL_RETURN_UNIT_ALIASES.get(raw, "")
+
+    @classmethod
+    def _build_material_return_unit_meta(cls, unit_code: str) -> dict[str, Any]:
+        normalized = cls._normalize_material_return_unit_code(unit_code) or "unidade"
+        meta = MATERIAL_RETURN_UNIT_META.get(normalized, MATERIAL_RETURN_UNIT_META["unidade"])
+        return {
+            "unit_code": normalized,
+            "unit_display": str(meta["unit_display"]),
+            "unit_label": str(meta["unit_label"]),
+            "allow_decimal": bool(meta["allow_decimal"]),
+            "input_step": meta["input_step"],
+            "input_min": meta["input_min"],
+        }
+
+    def get_material_return_unit_options(self, *, item: Item | None = None, codigo: str | None = None) -> list[dict[str, Any]]:
+        item_model = item
+        if item_model is None:
+            codigo_norm = (codigo or "").strip()
+            if not codigo_norm:
+                return []
+            item_model = Item.query.get(codigo_norm)
+        if item_model is None:
+            return []
+
+        options: list[dict[str, Any]] = []
+        seen_units: set[str] = set()
+
+        def add_option(raw_unit: str | None) -> None:
+            normalized = self._normalize_material_return_unit_code(raw_unit)
+            if not normalized or normalized in seen_units:
+                return
+            seen_units.add(normalized)
+            options.append(self._build_material_return_unit_meta(normalized))
+
+        add_option(resolve_canonical_unit(item_model))
+
+        for unit in sorted(item_model.product_units, key=lambda row: (not bool(row.is_base), (row.unit_code or ""), row.id or 0)):
+            if not bool(unit.active) or not unit.unit_code or is_packaging_unit_code(unit.unit_code):
+                continue
+            add_option(unit.unit_code)
+
+        try:
+            if float(getattr(item_model, "litros_por_embalagem", 0) or 0) > 0:
+                add_option("litro")
+        except (TypeError, ValueError):
+            pass
+
+        try:
+            if float(getattr(item_model, "grandeza_referencia", 0) or 0) > 0:
+                add_option("quilo")
+        except (TypeError, ValueError):
+            pass
+
+        add_option(item_model.unidade)
+        if not options:
+            add_option("unidade")
+
+        return options
+
+    def _get_default_material_return_unit_code(self, item: Item) -> str:
+        options = self.get_material_return_unit_options(item=item)
+        if not options:
+            return "unidade"
+        return str(options[0].get("unit_code") or "unidade")
+
+    @classmethod
+    def _extract_material_return_unit_from_text(cls, text: str | None) -> str:
+        normalized = " ".join(str(text or "").strip().lower().split())
+        if not normalized:
+            return ""
+
+        explicit_marker = re.search(r"retorno_unit\s*=\s*([a-zç]+)", normalized)
+        if explicit_marker:
+            return cls._normalize_material_return_unit_code(explicit_marker.group(1))
+
+        for pattern in (
+            r"retirada fracionada:\s*[\d.,]+\s*([a-zç]+)",
+            r"devolvido:\s*[\d.,]+\s*([a-zç]+)",
+            r"unidade:\s*([a-zç]+)",
+        ):
+            match = re.search(pattern, normalized)
+            if match:
+                parsed = cls._normalize_material_return_unit_code(match.group(1))
+                if parsed:
+                    return parsed
+        return ""
+
+    def _convert_material_quantity_between_units(
+        self,
+        *,
+        item: Item,
+        quantity: float,
+        from_unit: str,
+        to_unit: str,
+    ) -> float:
+        quantity_value = self._as_positive_float(quantity)
+        if quantity_value <= 0:
+            return 0.0
+
+        from_raw = (from_unit or "").strip().lower()
+        to_raw = (to_unit or "").strip().lower()
+        from_code = self._normalize_material_return_unit_code(from_raw) or from_raw
+        to_code = self._normalize_material_return_unit_code(to_raw) or to_raw
+
+        if not from_code or not to_code:
+            return 0.0
+        if from_code == to_code:
+            return quantity_value
+
+        try:
+            quantity_base = float(unit_conversion_engine.convert_item_to_base(item, quantity_value, from_code).quantity_base)
+            target_factor = float(unit_conversion_engine.convert_item_to_base(item, 1.0, to_code).quantity_base)
+            if target_factor <= 0:
+                return 0.0
+            return quantity_base / target_factor
+        except UnitConversionError:
+            return 0.0
+
+    def _resolve_saida_pending_quantity(
+        self,
+        *,
+        item: Item,
+        saida: Saida,
+        target_unit: str,
+        default_unit: str,
+    ) -> float:
+        quantity_l = self._as_positive_float(getattr(saida, "quantidade_retirada_em_litros", None))
+        quantity_kg = self._as_positive_float(getattr(saida, "quantidade_retirada_em_quilos", None))
+
+        if target_unit == "litro" and quantity_l > 0:
+            return quantity_l
+        if target_unit == "quilo" and quantity_kg > 0:
+            return quantity_kg
+        if quantity_l > 0:
+            return self._convert_material_quantity_between_units(
+                item=item,
+                quantity=quantity_l,
+                from_unit="litro",
+                to_unit=target_unit,
+            )
+        if quantity_kg > 0:
+            return self._convert_material_quantity_between_units(
+                item=item,
+                quantity=quantity_kg,
+                from_unit="quilo",
+                to_unit=target_unit,
+            )
+
+        quantity_value = self._as_positive_float(saida.quantidade)
+        if quantity_value <= 0:
+            return 0.0
+
+        observed_unit = self._extract_material_return_unit_from_text(getattr(saida, "observacao", None))
+        if observed_unit:
+            converted = self._convert_material_quantity_between_units(
+                item=item,
+                quantity=quantity_value,
+                from_unit=observed_unit,
+                to_unit=target_unit,
+            )
+            if converted > 0:
+                return converted
+
+        packaging_unit = (getattr(item, "tipo_embalagem_novo", None) or getattr(item, "unidade", None) or "").strip().lower()
+        if packaging_unit and is_packaging_unit_code(packaging_unit):
+            converted = self._convert_material_quantity_between_units(
+                item=item,
+                quantity=quantity_value,
+                from_unit=packaging_unit,
+                to_unit=target_unit,
+            )
+            if converted > 0:
+                return converted
+
+        converted = self._convert_material_quantity_between_units(
+            item=item,
+            quantity=quantity_value,
+            from_unit=default_unit,
+            to_unit=target_unit,
+        )
+        if converted > 0:
+            return converted
+        return quantity_value if default_unit == target_unit else 0.0
+
+    def get_material_return_pending(self, *, codigo: str, matricula: str, unit_code: str | None = None) -> float:
         """Retorna quanto ainda pode ser devolvido (estornado) para um material.
 
         Regra:
@@ -1147,19 +1389,26 @@ class InventoryService:
         if not codigo_norm or not matricula_norm:
             return 0.0
 
-        timeline: list[tuple[datetime, int, str, float, int]] = []
+        item = Item.query.get(codigo_norm)
+        if item is None:
+            return 0.0
+
+        default_unit = self._get_default_material_return_unit_code(item)
+        target_unit = self._normalize_material_return_unit_code(unit_code) or default_unit
+
+        timeline: list[tuple[datetime, int, str, Any, int]] = []
 
         saidas = (
-            db.session.query(Saida.data_saida, Saida.quantidade, Saida.id_saida)
+            Saida.query
             .filter(Saida.codigo_item == codigo_norm, Saida.matricula == matricula_norm)
             .order_by(Saida.data_saida.asc(), Saida.id_saida.asc())
             .all()
         )
-        for data_saida, quantidade, saida_id in saidas:
-            timeline.append((data_saida or datetime.min, 0, "saida", self._as_positive_float(quantidade), int(saida_id or 0)))
+        for saida in saidas:
+            timeline.append((saida.data_saida or datetime.min, 0, "saida", saida, int(saida.id_saida or 0)))
 
         eventos = (
-            db.session.query(InventarioEvento.data_evento, InventarioEvento.quantidade, InventarioEvento.id_evento)
+            InventarioEvento.query
             .filter(
                 InventarioEvento.codigo_item == codigo_norm,
                 InventarioEvento.matricula == matricula_norm,
@@ -1168,11 +1417,11 @@ class InventoryService:
             .order_by(InventarioEvento.data_evento.asc(), InventarioEvento.id_evento.asc())
             .all()
         )
-        for data_evento, quantidade, evento_id in eventos:
-            timeline.append((data_evento or datetime.min, 1, "devolucao_material", self._as_positive_float(quantidade), int(evento_id or 0)))
+        for evento in eventos:
+            timeline.append((evento.data_evento or datetime.min, 1, "devolucao_material", evento, int(evento.id_evento or 0)))
 
         entradas_legado = (
-            db.session.query(Entrada.data_entrada, Entrada.quantidade, Entrada.id_entrada)
+            Entrada.query
             .filter(
                 Entrada.codigo_item == codigo_norm,
                 Entrada.matricula == matricula_norm,
@@ -1181,13 +1430,37 @@ class InventoryService:
             .order_by(Entrada.data_entrada.asc(), Entrada.id_entrada.asc())
             .all()
         )
-        for data_entrada, quantidade, entrada_id in entradas_legado:
-            timeline.append((data_entrada or datetime.min, 2, "entrada_legado", self._as_positive_float(quantidade), int(entrada_id or 0)))
+        for entrada in entradas_legado:
+            timeline.append((entrada.data_entrada or datetime.min, 2, "entrada_legado", entrada, int(entrada.id_entrada or 0)))
 
         timeline.sort(key=lambda row: (row[0], row[1], row[4]))
 
         pendente = 0.0
-        for _, _, kind, quantidade, _ in timeline:
+        for _, _, kind, row, _ in timeline:
+            quantidade = 0.0
+            if kind == "saida":
+                quantidade = self._resolve_saida_pending_quantity(
+                    item=item,
+                    saida=row,
+                    target_unit=target_unit,
+                    default_unit=default_unit,
+                )
+            elif kind == "devolucao_material":
+                source_unit = self._extract_material_return_unit_from_text(getattr(row, "descricao", None)) or default_unit
+                quantidade = self._convert_material_quantity_between_units(
+                    item=item,
+                    quantity=self._as_positive_float(getattr(row, "quantidade", 0.0)),
+                    from_unit=source_unit,
+                    to_unit=target_unit,
+                )
+            else:
+                quantidade = self._convert_material_quantity_between_units(
+                    item=item,
+                    quantity=self._as_positive_float(getattr(row, "quantidade", 0.0)),
+                    from_unit=default_unit,
+                    to_unit=target_unit,
+                )
+
             if quantidade <= 0:
                 continue
             if kind == "saida":
@@ -1195,7 +1468,7 @@ class InventoryService:
             else:
                 pendente = max(pendente - quantidade, 0.0)
 
-        return float(pendente)
+        return float(round(pendente, 3))
 
     def registrar_devolucao_material(
         self,
@@ -1203,6 +1476,7 @@ class InventoryService:
         codigo: str,
         quantidade: float,
         matricula: str,
+        from_unit: str | None = None,
         observacao: str | None = None,
         commit: bool = True,
     ) -> InventarioEvento:
@@ -1231,16 +1505,40 @@ class InventoryService:
         if "ferrament" in categoria_text:
             raise ValueError("Use a devolução de ferramentas para este item")
 
-        pendente = self.get_material_return_pending(codigo=codigo_norm, matricula=matricula_norm)
+        default_unit = self._get_default_material_return_unit_code(item)
+        selected_unit = self._normalize_material_return_unit_code(from_unit) or default_unit
+        unit_options = self.get_material_return_unit_options(item=item)
+        valid_units = {str(option.get("unit_code") or "") for option in unit_options}
+        if selected_unit not in valid_units:
+            raise ValueError("Unidade de devolução inválida para este item.")
+
+        unit_meta = self._build_material_return_unit_meta(selected_unit)
+        pendente = self.get_material_return_pending(
+            codigo=codigo_norm,
+            matricula=matricula_norm,
+            unit_code=selected_unit,
+        )
         # Tolerância mínima para float.
         if pendente <= 1e-9:
             raise ValueError("Devolução não permitida: não há retirada pendente para este material.")
         if quantidade_f > pendente + 1e-9:
-            raise ValueError(f"Devolução excede o pendente. Pendente: {pendente:g}")
+            raise ValueError(
+                f"Devolução excede o pendente. Pendente: {pendente:g} {unit_meta['unit_display']}"
+            )
+
+        quantidade_legacy = self._convert_material_quantity_between_units(
+            item=item,
+            quantity=quantidade_f,
+            from_unit=selected_unit,
+            to_unit=default_unit,
+        )
+        if quantidade_legacy <= 0:
+            raise ValueError("Não foi possível converter a unidade informada para registrar a devolução.")
 
         descricao_base = f"Devolução de Material: {item.descricao or 'Item'}"
         obs = (observacao or "").strip()
-        descricao = f"{descricao_base} | {obs}" if obs else descricao_base
+        detalhes_devolucao = f"Devolvido: {quantidade_f:g} {unit_meta['unit_display']} | retorno_unit={selected_unit}"
+        descricao = " | ".join(part for part in (descricao_base, detalhes_devolucao, obs) if part)
 
         payload = MovimentoPayload(
             codigo=item.codigo_item,
@@ -1253,9 +1551,11 @@ class InventoryService:
             item=item,
             payload=payload,
             movement_type="devolucao",
+            from_unit=selected_unit,
             metadata={
                 "reference_type": "inventario_evento",
                 "legacy_event_type": "devolucao_material",
+                "return_unit": selected_unit,
             },
         )
 
@@ -1263,7 +1563,7 @@ class InventoryService:
             codigo_item=item.codigo_item,
             matricula=matricula_norm,
             tipo="devolucao_material",
-            quantidade=float(quantidade_f),
+            quantidade=float(quantidade_legacy),
             descricao=descricao,
             data_evento=datetime.utcnow(),
         )

@@ -150,13 +150,7 @@ class FinanceService:
 
     @staticmethod
     def resolve_document_movimenta_estoque(*, data_emissao: date | None, data_recebimento: date | None) -> bool:
-        reference_date = data_recebimento or data_emissao
-        if reference_date is None:
-            return True
-        days_elapsed = (date.today() - reference_date).days
-        if days_elapsed < 0:
-            days_elapsed = 0
-        return days_elapsed <= 28
+        return True
 
     @staticmethod
     def get_config() -> FinanceConfig:
@@ -843,9 +837,13 @@ class FinanceService:
             if chave and tipo == "nf"
             else None
         )
-        movimenta_estoque_documento = FinanceService.resolve_document_movimenta_estoque(
-            data_emissao=data_emissao,
-            data_recebimento=data_recebimento,
+        movimenta_estoque_documento = (
+            bool(movimenta_estoque)
+            if movimenta_estoque is not None
+            else FinanceService.resolve_document_movimenta_estoque(
+                data_emissao=data_emissao,
+                data_recebimento=data_recebimento,
+            )
         )
 
         document_query = DocumentoEntradaEstoque.query.filter(
@@ -928,6 +926,17 @@ class FinanceService:
             processado_em=datetime.utcnow() if linked_entry_id is not None else None,
         )
         db.session.add(item_row)
+        db.session.flush()
+
+        if item_model is not None:
+            origem_pre_cadastro = (getattr(item_model, "pre_cadastro_origem", "") or "").strip().lower()
+            if (
+                bool(getattr(item_model, "pre_cadastro_pendente", False))
+                and origem_pre_cadastro == "nf"
+                and item_model.pre_cadastro_documento_item_id != item_row.id_documento_item
+            ):
+                item_model.pre_cadastro_documento_item_id = item_row.id_documento_item
+
         db.session.commit()
 
         if supplier:
@@ -1262,16 +1271,25 @@ class FinanceService:
         if item_model is None:
             return False
 
+        changed = False
+        balance = db.session.get(StockBalance, item_row.codigo_item)
+        if (
+            item_row.entrada_id is None
+            and balance is not None
+            and hasattr(balance, "read_model_ready")
+            and not bool(getattr(balance, "read_model_ready", False))
+        ):
+            balance.read_model_ready = True
+            changed = True
+
         origem = (getattr(item_model, "pre_cadastro_origem", "") or "").strip().lower()
         if origem != "nf":
-            return False
+            return changed
 
-        changed = False
         if item_model.pre_cadastro_documento_item_id != item_row.id_documento_item:
             item_model.pre_cadastro_documento_item_id = item_row.id_documento_item
             changed = True
 
-        balance = db.session.get(StockBalance, item_row.codigo_item)
         if balance is not None and hasattr(balance, "read_model_ready") and not bool(getattr(balance, "read_model_ready", False)):
             balance.read_model_ready = True
             changed = True

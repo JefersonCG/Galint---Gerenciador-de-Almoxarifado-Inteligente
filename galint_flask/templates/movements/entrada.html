@@ -803,7 +803,10 @@
                     </div>
                     <div>
                         <p class="mb-2">Item: <strong id="return-modal-item-desc"></strong></p>
-                        <p class="mb-2">Unidade de retorno: <strong id="return-modal-unit-label">un</strong></p>
+                        <div class="mb-2">
+                            <label class="form-label form-label-sm mb-1" for="return-modal-unit-select">Unidade de retorno</label>
+                            <select class="form-select form-select-sm" id="return-modal-unit-select"></select>
+                        </div>
                         <p class="mb-2">Pendente para devolução: <strong id="return-modal-pending-total">-</strong></p>
                         <p class="mb-0">Saldo atual do item: <strong id="return-modal-stock-total">-</strong></p>
                     </div>
@@ -990,7 +993,7 @@
     const returnModalPhoto = document.getElementById('return-modal-photo');
     const returnModalPhotoEmpty = document.getElementById('return-modal-photo-empty');
     const returnModalItemDesc = document.getElementById('return-modal-item-desc');
-    const returnModalUnitLabel = document.getElementById('return-modal-unit-label');
+    const returnModalUnitSelect = document.getElementById('return-modal-unit-select');
     const returnModalPendingTotal = document.getElementById('return-modal-pending-total');
     const returnModalStockTotal = document.getElementById('return-modal-stock-total');
     const returnModalQuantityInput = document.getElementById('return-modal-quantity-input');
@@ -1081,8 +1084,10 @@
         if (returnModalItemDesc) {
             returnModalItemDesc.textContent = '';
         }
-        if (returnModalUnitLabel) {
-            returnModalUnitLabel.textContent = 'un';
+        if (returnModalUnitSelect) {
+            returnModalUnitSelect.innerHTML = '<option value="unidade">Unidade</option>';
+            returnModalUnitSelect.value = 'unidade';
+            returnModalUnitSelect.disabled = true;
         }
         if (returnModalPendingTotal) {
             returnModalPendingTotal.textContent = '-';
@@ -1108,17 +1113,72 @@
         setReturnModalWarning('');
     }
 
+    function getReturnModalSelectedOption() {
+        if (!returnModalState) {
+            return null;
+        }
+        const options = Array.isArray(returnModalState.unitOptions) ? returnModalState.unitOptions : [];
+        const selectedCode = String(returnModalUnitSelect?.value || returnModalState.selectedUnitCode || '').trim();
+        return options.find((option) => String(option?.unit_code || '').trim() === selectedCode) || options[0] || null;
+    }
+
+    function setReturnModalUnitOptions(options, selectedCode) {
+        if (!returnModalUnitSelect) {
+            return;
+        }
+        const normalizedOptions = Array.isArray(options) && options.length ? options : [{
+            unit_code: 'unidade',
+            unit_display: 'un',
+            unit_label: 'Unidade',
+            input_step: 1,
+            input_min: 1,
+        }];
+        returnModalUnitSelect.innerHTML = normalizedOptions.map((option) => {
+            const unitCode = String(option?.unit_code || '').trim() || 'unidade';
+            const unitLabel = String(option?.unit_label || option?.unit_display || unitCode).trim();
+            return `<option value="${escapeHtml(unitCode)}">${escapeHtml(unitLabel)}</option>`;
+        }).join('');
+        const effectiveCode = normalizedOptions.some((option) => String(option?.unit_code || '').trim() === selectedCode)
+            ? selectedCode
+            : String(normalizedOptions[0]?.unit_code || 'unidade');
+        returnModalUnitSelect.value = effectiveCode;
+        returnModalUnitSelect.disabled = normalizedOptions.length <= 1;
+    }
+
     function updateReturnModalState() {
         if (!returnModalState) {
             return;
         }
 
-        const pending = Number(returnModalState.pending || 0);
+        const selectedOption = getReturnModalSelectedOption();
+        const selectedUnitCode = String(selectedOption?.unit_code || returnModalState.selectedUnitCode || 'unidade').trim();
+        const pendingMap = returnModalState.pendingByUnit || {};
+        const pending = Number(pendingMap[selectedUnitCode] ?? returnModalState.pending ?? 0);
         const quantidade = parseQuantityValue(returnModalQuantityInput?.value || '');
         const hasQuantidade = Number.isFinite(quantidade) && quantidade > 0;
         const pendingAfter = hasQuantidade ? Math.max(pending - quantidade, 0) : pending;
-        const unitDisplay = returnModalState.unitDisplay || 'un';
+        const unitDisplay = selectedOption?.unit_display || returnModalState.unitDisplay || 'un';
+        const step = String(selectedOption?.input_step || returnModalState.inputStep || '0.001');
+        const min = String(selectedOption?.input_min || returnModalState.inputMin || step);
         let warningMessage = '';
+
+        returnModalState.selectedUnitCode = selectedUnitCode;
+
+        if (returnModalPendingTotal) {
+            returnModalPendingTotal.textContent = `${formatQuantityValue(pending)} ${unitDisplay}`;
+        }
+        if (returnModalQuantityUnit) {
+            returnModalQuantityUnit.textContent = unitDisplay;
+        }
+        if (returnModalQuantityInput) {
+            returnModalQuantityInput.step = step;
+            returnModalQuantityInput.min = min;
+            if (pending > 0) {
+                returnModalQuantityInput.max = toInputNumberString(pending);
+            } else {
+                returnModalQuantityInput.removeAttribute('max');
+            }
+        }
 
         if (!returnModalState.supportsMaterialReturn) {
             warningMessage = 'Este item é ferramenta. Use a devolução de ferramentas para dar baixa.';
@@ -1140,7 +1200,7 @@
         }
     }
 
-    function queueReturnItem(detailData, quantidade) {
+    function queueReturnItem(detailData, quantidade, unitOption) {
         const matricula = String(inputMatricula.value || '').trim();
         if (!matricula) {
             alert('Informe uma matrícula válida antes de adicionar o item.');
@@ -1155,10 +1215,19 @@
             items.length = 0;
         }
 
+        const effectiveUnit = unitOption || getReturnModalSelectedOption() || {
+            unit_code: detailData?.devolucao_unidade_codigo || 'unidade',
+            unit_display: detailData?.devolucao_unidade_exibicao || 'un',
+            unit_label: detailData?.devolucao_unidade_label || 'Unidade',
+        };
+
         const item = {
             matricula: matricula,
             codigo: detailData.codigo || String(inputCodigo.value || '').trim(),
             quantidade: quantidade,
+            return_unit_code: effectiveUnit.unit_code,
+            return_unit_display: effectiveUnit.unit_display,
+            return_unit_label: effectiveUnit.unit_label,
             descricao: detailData.descricao || detailData.codigo || 'Item',
             categoria: detailData.categoria,
             saldo: detailData.saldo,
@@ -1196,15 +1265,28 @@
         }
 
         const detailData = await fetchItemDetails(codigo, matricula);
-        const pending = Number(detailData?.devolucao_pendente ?? 0);
-        const unitDisplay = detailData?.devolucao_unidade_exibicao || detailData?.devolucao_unidade_label || 'un';
-        const step = detailData?.devolucao_step || '0.001';
-        const min = detailData?.devolucao_min || step;
+        const unitOptions = Array.isArray(detailData?.devolucao_unidades_opcoes) && detailData.devolucao_unidades_opcoes.length
+            ? detailData.devolucao_unidades_opcoes
+            : [{
+                unit_code: detailData?.devolucao_unidade_codigo || 'unidade',
+                unit_display: detailData?.devolucao_unidade_exibicao || 'un',
+                unit_label: detailData?.devolucao_unidade_label || 'Unidade',
+                input_step: detailData?.devolucao_step || '0.001',
+                input_min: detailData?.devolucao_min || detailData?.devolucao_step || '0.001',
+            }];
+        const selectedUnitCode = String(detailData?.devolucao_unidade_codigo || unitOptions[0]?.unit_code || 'unidade').trim();
+        const pendingByUnit = detailData?.devolucao_pendente_por_unidade || {};
+        const pending = Number(pendingByUnit[selectedUnitCode] ?? detailData?.devolucao_pendente ?? 0);
 
         returnModalState = {
             data: detailData,
             pending: pending,
-            unitDisplay: unitDisplay,
+            pendingByUnit: pendingByUnit,
+            unitDisplay: unitOptions[0]?.unit_display || detailData?.devolucao_unidade_exibicao || 'un',
+            unitOptions: unitOptions,
+            selectedUnitCode: selectedUnitCode,
+            inputStep: unitOptions[0]?.input_step || detailData?.devolucao_step || '0.001',
+            inputMin: unitOptions[0]?.input_min || detailData?.devolucao_min || '0.001',
             userFound: detailData?.usuario_encontrado !== false,
             supportsMaterialReturn: Boolean(detailData?.suporta_devolucao_material),
         };
@@ -1212,30 +1294,15 @@
         if (returnModalItemDesc) {
             returnModalItemDesc.textContent = detailData?.descricao || codigo;
         }
-        if (returnModalUnitLabel) {
-            returnModalUnitLabel.textContent = unitDisplay;
-        }
-        if (returnModalPendingTotal) {
-            returnModalPendingTotal.textContent = `${formatQuantityValue(pending)} ${unitDisplay}`;
-        }
         if (returnModalStockTotal) {
             const saldoDisplay = String(detailData?.saldo_display || '').trim();
-            returnModalStockTotal.textContent = saldoDisplay || `${formatQuantityValue(detailData?.saldo || 0)} ${unitDisplay}`;
+            returnModalStockTotal.textContent = saldoDisplay || `${formatQuantityValue(detailData?.saldo || 0)} ${returnModalState.unitDisplay}`;
         }
-        if (returnModalQuantityUnit) {
-            returnModalQuantityUnit.textContent = unitDisplay;
-        }
+        setReturnModalUnitOptions(unitOptions, selectedUnitCode);
         if (returnModalQuantityInput) {
             returnModalQuantityInput.value = Number.isFinite(quantidadeDigitada) && quantidadeDigitada > 0
                 ? toInputNumberString(quantidadeDigitada)
                 : '';
-            returnModalQuantityInput.step = String(step);
-            returnModalQuantityInput.min = String(min);
-            if (pending > 0) {
-                returnModalQuantityInput.max = toInputNumberString(pending);
-            } else {
-                returnModalQuantityInput.removeAttribute('max');
-            }
         }
 
         if (detailData?.foto_url && returnModalPhoto && returnModalPhotoEmpty) {
@@ -1268,7 +1335,9 @@
         if (!Number.isFinite(quantidade) || quantidade <= 0) {
             return '1';
         }
-        return formatQuantityValue(quantidade);
+        const quantityDisplay = formatQuantityValue(quantidade);
+        const unitDisplay = String(item?.return_unit_display || item?.devolucao_unidade_exibicao || '').trim();
+        return unitDisplay ? `${quantityDisplay} ${unitDisplay}` : quantityDisplay;
     }
 
     function publishMirrorState(payload) {
@@ -1324,6 +1393,7 @@
             };
             payload.movement = {
                 quantidade: item.quantidade || 1,
+                unidade: item.return_unit_code || item.devolucao_unidade_codigo || '',
                 quantidade_display: formatPreviewQuantity(item),
             };
         }
@@ -1413,6 +1483,9 @@
                 codigo: data.codigo || rawCodigo,
                 matricula: matriculaSelecionada || String(inputMatricula.value || '').trim(),
                 quantidade: parseQuantityValue(inputQuantidade.value) || 1,
+                return_unit_code: data.devolucao_unidade_codigo || currentPreviewItem?.return_unit_code,
+                return_unit_display: data.devolucao_unidade_exibicao || currentPreviewItem?.return_unit_display,
+                return_unit_label: data.devolucao_unidade_label || currentPreviewItem?.return_unit_label,
             };
             renderCurrentPreview(currentPreviewItem, 'preview');
         } catch (error) {
@@ -1683,6 +1756,12 @@
         });
     }
 
+    if (returnModalUnitSelect) {
+        returnModalUnitSelect.addEventListener('change', function() {
+            updateReturnModalState();
+        });
+    }
+
     if (btnConfirmReturnQuantity) {
         btnConfirmReturnQuantity.addEventListener('click', function() {
             if (!returnModalState) {
@@ -1696,7 +1775,7 @@
             }
 
             inputQuantidade.value = formatQuantityValue(quantidade);
-            const added = queueReturnItem(returnModalState.data, quantidade);
+            const added = queueReturnItem(returnModalState.data, quantidade, getReturnModalSelectedOption());
             if (!added) {
                 return;
             }
@@ -1739,7 +1818,7 @@
                     '</div>' +
                 '</td>' +
                 '<td><code>' + item.codigo + '</code></td>' +
-                '<td class="text-center"><span class="badge-qty">' + formatQuantityValue(item.quantidade) + '</span></td>' +
+                '<td class="text-center"><span class="badge-qty">' + escapeHtml(formatPreviewQuantity(item)) + '</span></td>' +
                 '<td class="text-center">' +
                 '<button type="button" class="btn btn-remove-item" onclick="removeItem(' + index + ')">' +
                 '<i class="bi bi-trash"></i></button>' +
@@ -1775,6 +1854,9 @@
                 formData.append('matricula', item.matricula);
                 formData.append('codigo', item.codigo);
                 formData.append('quantidade', toInputNumberString(item.quantidade));
+                if (item.return_unit_code) {
+                    formData.append('from_unit', item.return_unit_code);
+                }
                 if (observacao) {
                     formData.append('observacao', observacao);
                 }

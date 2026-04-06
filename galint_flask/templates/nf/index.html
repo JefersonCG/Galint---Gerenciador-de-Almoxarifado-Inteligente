@@ -1576,8 +1576,8 @@
                             </div>
                             <div class="col-12 mb-1">
                                 <div class="docf-panel warning mb-0">
-                                    <strong>Regra automática.</strong>
-                                    <span class="d-block docf-muted">Se a emissão ou o recebimento tiver mais de 28 dias, o documento entra apenas no financeiro e não movimenta estoque. A decisão é automática e não depende de marcação manual.</span>
+                                    <strong>Fluxo documental.</strong>
+                                    <span class="d-block docf-muted">Documentos lançados nesta tela seguem o fluxo de estoque. Quando o item ainda depende de cadastro final, ele aparece em PRÉ CADASTRADOS para conclusão antes da incorporação.</span>
                                 </div>
                             </div>
                             <div class="col-12 compact-actions">
@@ -1799,8 +1799,8 @@
                                 <div class="docf-kicker">Itens da NF</div>
                                 <p class="docf-muted mb-3">Preencha quantidade e valor unitário dos itens. Quando a NF tiver datas, chave de acesso e valores, o sistema promove automaticamente os materiais vinculados de sem comprovação para compra com NF.</p>
                                 <div class="docf-panel warning mb-3">
-                                    <strong>Regra automática de estoque.</strong>
-                                    <span class="d-block docf-muted">Documentos com mais de 28 dias da emissão ou do recebimento permanecem só no financeiro e não entram no estoque como item agregado.</span>
+                                    <strong>Fluxo de estoque.</strong>
+                                    <span class="d-block docf-muted">Itens novos ou incompletos vinculados ao documento passam por PRÉ CADASTRADOS antes de entrar no estoque. Itens já regularizados seguem para processamento normal.</span>
                                 </div>
                                 {% for item in nota_detalhes.itens %}
                                 <div class="row g-3 align-items-end mb-3">

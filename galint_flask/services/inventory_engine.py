@@ -252,7 +252,25 @@ class InventoryEngine:
 
         unit_code = cls._normalize_unit_code(unit_base)
         if unit_code and is_packaging_unit_code(unit_code):
-            return quantity_value, 0.0
+            factor = float(resolve_packaging_factor(item) or 0.0)
+            if factor <= 0:
+                return quantity_value, 0.0
+
+            embalagens_inteiras = float(math.floor(quantity_value + 1e-9))
+            fracao_embalagem = quantity_value - embalagens_inteiras
+            if abs(fracao_embalagem) <= 1e-6:
+                fracao_embalagem = 0.0
+
+            unidades_soltas = fracao_embalagem * factor
+            unidades_soltas_round = round(unidades_soltas)
+            if abs(unidades_soltas - unidades_soltas_round) <= 1e-6:
+                unidades_soltas = float(unidades_soltas_round)
+            if unidades_soltas >= factor - 1e-6:
+                embalagens_inteiras += 1.0
+                unidades_soltas = 0.0
+            if abs(unidades_soltas) <= 1e-6:
+                unidades_soltas = 0.0
+            return embalagens_inteiras, float(unidades_soltas)
 
         factor = float(resolve_packaging_factor(item) or 0.0)
         if factor <= 0:

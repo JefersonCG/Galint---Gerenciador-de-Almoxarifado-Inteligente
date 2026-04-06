@@ -409,7 +409,6 @@ def _infer_fractional_item(item: dict[str, Any]) -> dict[str, Any]:
 
 
 def _resolve_return_quantity_config(item: dict[str, Any], *, fractional_info: dict[str, Any]) -> dict[str, Any]:
-    raw_display = (item.get("unidade") or "").strip()
     inferred_unit = _infer_unidade(item.get("unidade"))
     fallback_unit = _normalize_text(fractional_info.get("default_unit"))
 
@@ -424,20 +423,20 @@ def _resolve_return_quantity_config(item: dict[str, Any], *, fractional_info: di
         unit_code = inferred_unit if inferred_unit in {"litro", "quilo", "metro", "unidade"} else "unidade"
 
     if unit_code == "litro":
-        unit_display = raw_display or "L"
-        unit_label = raw_display or "Litro"
+        unit_display = "L"
+        unit_label = "Litro"
         allow_decimal = True
     elif unit_code == "quilo":
-        unit_display = raw_display or "kg"
-        unit_label = raw_display or "Kg"
+        unit_display = "kg"
+        unit_label = "Kg"
         allow_decimal = True
     elif unit_code == "metro":
-        unit_display = raw_display or "m"
-        unit_label = raw_display or "Metro"
+        unit_display = "m"
+        unit_label = "Metro"
         allow_decimal = True
     else:
-        unit_display = raw_display or "un"
-        unit_label = raw_display or "Unidade"
+        unit_display = "un"
+        unit_label = "Unidade"
         allow_decimal = False
 
     return {
@@ -895,6 +894,10 @@ def item_info(codigo: str):
     liquid_type = _detect_liquid_type(categoria=item.get("categoria"), descricao=item.get("descricao"))
     fractional_info = _infer_fractional_item(item)
     return_quantity_config = _resolve_return_quantity_config(item, fractional_info=fractional_info)
+    return_unit_options = inventory_service.get_material_return_unit_options(item=item_model)
+    if not return_unit_options:
+        return_unit_options = [dict(return_quantity_config)]
+    default_return_unit = str(return_unit_options[0].get("unit_code") or return_quantity_config.get("unit_code") or "unidade")
     package_name = _infer_package_name(item)
     package_capacity = _infer_package_capacity(item, fractional_info=fractional_info)
     package_name_plural = _pluralize_package_name(package_name)
@@ -903,13 +906,23 @@ def item_info(codigo: str):
     categoria_norm = _normalize_text(item.get("categoria"))
     supports_material_return = "ferrament" not in categoria_norm
     pending_return = None
+    pending_return_by_unit: dict[str, float] = {}
     usuario_encontrado = None
     identificador = (request.args.get("matricula") or request.args.get("usuario") or "").strip()
     if identificador and supports_material_return:
         try:
             usuario = _resolve_usuario(identificador)
             usuario_encontrado = True
-            pending_return = inventory_service.get_material_return_pending(codigo=canonical_code, matricula=usuario.matricula)
+            pending_return_by_unit = {
+                str(option.get("unit_code") or ""): inventory_service.get_material_return_pending(
+                    codigo=canonical_code,
+                    matricula=usuario.matricula,
+                    unit_code=str(option.get("unit_code") or ""),
+                )
+                for option in return_unit_options
+                if str(option.get("unit_code") or "")
+            }
+            pending_return = pending_return_by_unit.get(default_return_unit, 0.0)
         except ValueError:
             pending_return = 0.0
             usuario_encontrado = False
@@ -936,15 +949,17 @@ def item_info(codigo: str):
         "nome_embalagem_plural": item_model.get_nome_embalagem_plural() if item_model and item_model.tipo_embalagem_novo else package_name_plural,
         "capacidade_embalagem": package_capacity,
         "devolucao_permite_decimal": bool(return_quantity_config.get("allow_decimal")),
-        "devolucao_unidade_codigo": return_quantity_config.get("unit_code"),
-        "devolucao_unidade_exibicao": return_quantity_config.get("unit_display"),
-        "devolucao_unidade_label": return_quantity_config.get("unit_label"),
-        "devolucao_step": return_quantity_config.get("input_step"),
-        "devolucao_min": return_quantity_config.get("input_min"),
+        "devolucao_unidade_codigo": default_return_unit,
+        "devolucao_unidade_exibicao": return_unit_options[0].get("unit_display") or return_quantity_config.get("unit_display"),
+        "devolucao_unidade_label": return_unit_options[0].get("unit_label") or return_quantity_config.get("unit_label"),
+        "devolucao_step": return_unit_options[0].get("input_step") or return_quantity_config.get("input_step"),
+        "devolucao_min": return_unit_options[0].get("input_min") or return_quantity_config.get("input_min"),
         "devolucao_pendente": pending_return,
+        "devolucao_pendente_por_unidade": pending_return_by_unit,
+        "devolucao_unidades_opcoes": return_unit_options,
         "usuario_encontrado": usuario_encontrado,
         "suporta_devolucao_material": supports_material_return,
-        "unidade_exibicao_total": return_quantity_config.get("unit_display") or (item.get("unidade") or "un"),
+        "unidade_exibicao_total": return_unit_options[0].get("unit_display") or return_quantity_config.get("unit_display") or (item.get("unidade") or "un"),
         "foto_path": foto_path,
         "foto_url": url_for("static", filename=foto_path) if foto_path else None,
     }
@@ -1116,6 +1131,8 @@ def registrar_devolucao():
     codigo = (codigo_raw or "").strip() if codigo_raw is not None else ""
     identificador = request.form.get("usuario") or request.form.get("matricula")
     quantidade = _parse_quantidade(request.form.get("quantidade"))
+    from_unit_raw = request.form.get("from_unit") or request.form.get("unidade_devolucao")
+    from_unit = (from_unit_raw or "").strip() if from_unit_raw is not None else None
     obs_raw = request.form.get("observacao")
     observacao = (obs_raw or "").strip() if obs_raw is not None else None
 
@@ -1125,6 +1142,7 @@ def registrar_devolucao():
             codigo=codigo,
             quantidade=quantidade,
             matricula=usuario.matricula,
+            from_unit=from_unit,
             observacao=observacao,
             commit=True,
         )

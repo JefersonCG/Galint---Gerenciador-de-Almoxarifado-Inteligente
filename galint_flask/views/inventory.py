@@ -461,6 +461,12 @@ def _extract_finance_payload(
     }
 
 
+def _should_seed_nf_pre_registration(finance_payload: dict[str, object]) -> bool:
+    numero_documento = str(finance_payload.get("numero_documento") or "").strip()
+    origem_valor = str(finance_payload.get("origem_valor") or "").strip().lower()
+    return bool(numero_documento) and origem_valor in {"compra_nf", "compra_cupom"}
+
+
 def _validate_stock_entry_policy(
     *,
     codigo: str,
@@ -725,6 +731,52 @@ def _format_pre_registered_document_type(tipo_documento: str | None) -> str:
     return cleaned.upper() if cleaned else "Documento"
 
 
+def _repair_pending_pre_registered_links() -> int:
+    repaired = 0
+    pending_items = (
+        Item.query
+        .filter(Item.pre_cadastro_pendente.is_(True))
+        .filter(Item.pre_cadastro_documento_item_id.is_(None))
+        .all()
+    )
+
+    for item_model in pending_items:
+        origem = (getattr(item_model, "pre_cadastro_origem", "") or "").strip().lower()
+        if origem != "nf":
+            continue
+
+        candidate_numbers = {
+            str(getattr(item_model, "nota_fiscal", "") or "").strip(),
+            str(getattr(item_model, "preco_compra_documento", "") or "").strip(),
+        }
+        candidate_numbers.discard("")
+        if not candidate_numbers:
+            continue
+
+        rows = (
+            DocumentoEntradaEstoqueItem.query
+            .join(DocumentoEntradaEstoque, DocumentoEntradaEstoqueItem.documento_id == DocumentoEntradaEstoque.id_documento)
+            .filter(DocumentoEntradaEstoqueItem.codigo_item == item_model.codigo_item)
+            .filter(DocumentoEntradaEstoque.numero_documento.in_(sorted(candidate_numbers)))
+            .filter(DocumentoEntradaEstoqueItem.stock_movement_id.is_(None))
+            .filter(DocumentoEntradaEstoqueItem.entrada_id.is_(None))
+            .order_by(DocumentoEntradaEstoqueItem.id_documento_item.desc())
+            .all()
+        )
+        if len(rows) != 1:
+            continue
+
+        row = rows[0]
+        item_model.pre_cadastro_documento_item_id = row.id_documento_item
+        if row.documento is not None and not bool(getattr(row.documento, "movimenta_estoque", True)):
+            row.documento.movimenta_estoque = True
+        repaired += 1
+
+    if repaired:
+        db.session.commit()
+    return repaired
+
+
 def _serialize_pre_registered_item(item_model: Item, documento_item: DocumentoEntradaEstoqueItem) -> dict[str, object]:
     saldo_atual = float(item_model.get_saldo_fisico_total() or 0.0)
     valor_total = documento_item.valor_total
@@ -747,6 +799,8 @@ def _serialize_pre_registered_item(item_model: Item, documento_item: DocumentoEn
 
 
 def _build_pre_registered_items_payload(numero_documento: str) -> dict[str, object] | None:
+    _repair_pending_pre_registered_links()
+
     numero = (numero_documento or "").strip()
     if not numero:
         return None
@@ -793,6 +847,8 @@ def _build_pre_registered_items_payload(numero_documento: str) -> dict[str, obje
 
 
 def _build_all_pre_registered_documents_payload() -> list[dict[str, object]]:
+    _repair_pending_pre_registered_links()
+
     rows = (
         db.session.query(Item, DocumentoEntradaEstoqueItem, DocumentoEntradaEstoque)
         .join(
@@ -836,6 +892,8 @@ def _build_all_pre_registered_documents_payload() -> list[dict[str, object]]:
 
 
 def _build_pre_registered_counters() -> dict[str, int]:
+    _repair_pending_pre_registered_links()
+
     pending_items = int(
         db.session.query(func.count(Item.codigo_item))
         .filter(Item.pre_cadastro_pendente.is_(True))
@@ -1219,6 +1277,15 @@ def create_item():
         "finance_comprovacao_status": finance_payload.get("comprovacao_status"),
         "finance_observacao": finance_payload.get("observacao"),
     })
+    if _should_seed_nf_pre_registration(finance_payload):
+        payload.update(
+            {
+                "pre_cadastro_pendente": True,
+                "pre_cadastro_origem": "nf",
+                "pre_cadastro_criado_em": datetime.utcnow(),
+                "pre_cadastro_finalizado_em": None,
+            }
+        )
     if tipo_novo:
         payload["litros_por_embalagem"] = litros_var
         payload["grandeza_referencia"] = grandeza_var

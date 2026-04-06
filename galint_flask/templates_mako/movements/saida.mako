@@ -697,17 +697,7 @@
                         <i class="bi bi-upc me-2"></i><strong id="modal-qtd-unit"></strong> <span id="modal-unidade-base">unidades</span>
                         <small class="d-block text-muted" id="modal-unidade-desc">(quantidade individual)</small>
                     </button>
-                </div>
-                <div class="d-grid gap-2 mt-2" id="modal-opcoes-rolo" style="display: none;">
-                    <button type="button" class="btn btn-lg btn-outline-primary" id="btn-embalagens-rolo">
-                        <i class="bi bi-box-seam me-2"></i><strong id="modal-qtd-emb-rolo"></strong> rolo(s)
-                        <small class="d-block text-muted" id="modal-total-rolo"></small>
-                    </button>
-                    <button type="button" class="btn btn-lg btn-outline-secondary" id="btn-metros">
-                        <i class="bi bi-rulers me-2"></i><strong id="modal-qtd-metros"></strong> metros
-                        <small class="d-block text-muted">(saída em metros)</small>
-                    </button>
-                    <button type="button" class="btn btn-lg btn-outline-secondary" id="btn-centimetros">
+                    <button type="button" class="btn btn-lg btn-outline-secondary" id="btn-centimetros" style="display: none;">
                         <i class="bi bi-rulers me-2"></i><strong id="modal-qtd-centimetros"></strong> cm
                         <small class="d-block text-muted">(convertido para metros)</small>
                     </button>
@@ -780,15 +770,9 @@ ${parent.scripts()}
     const modalUnidadeBase = document.getElementById('modal-unidade-base');
     const modalUnidadeDesc = document.getElementById('modal-unidade-desc');
     const modalOpcoesPadrao = document.getElementById('modal-opcoes-padrao');
-    const modalOpcoesRolo = document.getElementById('modal-opcoes-rolo');
-    const modalQtdEmbRolo = document.getElementById('modal-qtd-emb-rolo');
-    const modalTotalRolo = document.getElementById('modal-total-rolo');
-    const modalQtdMetros = document.getElementById('modal-qtd-metros');
     const modalQtdCentimetros = document.getElementById('modal-qtd-centimetros');
     const btnEmbalagens = document.getElementById('btn-embalagens');
     const btnUnidades = document.getElementById('btn-unidades');
-    const btnEmbalagensRolo = document.getElementById('btn-embalagens-rolo');
-    const btnMetros = document.getElementById('btn-metros');
     const btnCentimetros = document.getElementById('btn-centimetros');
     const currentItemPreview = document.getElementById('current-item-preview');
     const mirrorChannelName = 'galint-operation-mirror-v1';
@@ -1226,6 +1210,14 @@ ${parent.scripts()}
         const unidade = numero === 1 ? rotulo.singular : rotulo.plural;
         return textoNumero + ' ' + unidade;
     }
+
+    function buildObservationUnitCode(item, unidadeLabel) {
+        const medida = normalizarUnidadeMedida(item);
+        if (medida === 'litro') return 'L';
+        if (medida === 'kg') return 'KG';
+        if (medida === 'metro') return 'METROS';
+        return String(unidadeLabel || 'unidade').toUpperCase();
+    }
     
     function showAutocompleteCodigo(itens) {
         if (itens.length === 0) {
@@ -1330,33 +1322,7 @@ ${parent.scripts()}
             pendingItem.quantidade = pendingItem.quantidade_input;
             pendingItem.unidade_label = unidadeBaseSafe;
             pendingItem.quantidade_exibicao = pendingItem.quantidade_input;
-            pendingItem.observacao_unit = 'UNIDADE=' + unidadeBaseSafe.toUpperCase() + ';QTD_ORIGINAL=' + pendingItem.quantidade_input;
-            adicionarItemFinal(pendingItem);
-            modalUnidade.hide();
-            pendingItem = null;
-        }
-    });
-
-    btnEmbalagensRolo.addEventListener('click', () => {
-        if (pendingItem) {
-            pendingItem.em_embalagens = true;
-            pendingItem.quantidade = pendingItem.quantidade_input;
-            pendingItem.unidade_label = pendingItem.quantidade_input === 1 ? 'rolo' : 'rolos';
-            pendingItem.quantidade_exibicao = pendingItem.quantidade_input;
-            pendingItem.observacao_unit = null;
-            adicionarItemFinal(pendingItem);
-            modalUnidade.hide();
-            pendingItem = null;
-        }
-    });
-
-    btnMetros.addEventListener('click', () => {
-        if (pendingItem) {
-            pendingItem.em_embalagens = false;
-            pendingItem.quantidade = pendingItem.quantidade_input;
-            pendingItem.unidade_label = 'metros';
-            pendingItem.quantidade_exibicao = pendingItem.quantidade_input;
-            pendingItem.observacao_unit = 'UNIDADE=METROS;QTD_ORIGINAL=' + pendingItem.quantidade_input;
+            pendingItem.observacao_unit = 'UNIDADE=' + buildObservationUnitCode(pendingItem, unidadeBaseSafe) + ';QTD_ORIGINAL=' + pendingItem.quantidade_input;
             adicionarItemFinal(pendingItem);
             modalUnidade.hide();
             pendingItem = null;
@@ -1528,29 +1494,20 @@ ${parent.scripts()}
     function mostrarModalUnidade(item) {
         const nomes = nomesEmbalagem[item.tipo_embalagem] || { singular: 'embalagem', plural: 'embalagens' };
         const totalUnidades = item.quantidade_input * item.unidades_por_embalagem;
-        const isRolo = item.tipo_embalagem === 'rolo';
         const rotuloMedida = obterRotuloMedida(item, item.quantidade_input);
+        const permiteCentimetros = item.tipo_embalagem === 'rolo' && normalizarUnidadeMedida(item) === 'metro';
         
         modalItemDesc.textContent = item.descricao;
         modalQtd.textContent = item.quantidade_input;
-
-        if (isRolo) {
-            modalOpcoesPadrao.style.display = 'none';
-            modalOpcoesRolo.style.display = 'grid';
-            modalQtdEmbRolo.textContent = item.quantidade_input;
-            modalTotalRolo.textContent = '= ' + totalUnidades.toFixed(2) + ' metros no total';
-            modalQtdMetros.textContent = item.quantidade_input;
-            modalQtdCentimetros.textContent = item.quantidade_input;
-        } else {
-            modalOpcoesPadrao.style.display = 'grid';
-            modalOpcoesRolo.style.display = 'none';
-            modalQtdEmb.textContent = item.quantidade_input;
-            modalQtdUnit.textContent = item.quantidade_input;
-            modalNomeEmbPlural.textContent = item.quantidade_input === 1 ? nomes.singular : nomes.plural;
-            modalTotalEmb.textContent = '= ' + formatarQuantidadeMedida(totalUnidades, rotuloMedida) + ' no total';
-            modalUnidadeBase.textContent = item.quantidade_input === 1 ? rotuloMedida.singular : rotuloMedida.plural;
-            modalUnidadeDesc.textContent = '(quantidade individual)';
-        }
+        modalOpcoesPadrao.style.display = 'grid';
+        modalQtdEmb.textContent = item.quantidade_input;
+        modalQtdUnit.textContent = item.quantidade_input;
+        modalNomeEmbPlural.textContent = item.quantidade_input === 1 ? nomes.singular : nomes.plural;
+        modalTotalEmb.textContent = '= ' + formatarQuantidadeMedida(totalUnidades, rotuloMedida) + ' no total';
+        modalUnidadeBase.textContent = item.quantidade_input === 1 ? rotuloMedida.singular : rotuloMedida.plural;
+        modalUnidadeDesc.textContent = permiteCentimetros ? '(saída em metros)' : '(quantidade individual)';
+        btnCentimetros.style.display = permiteCentimetros ? '' : 'none';
+        modalQtdCentimetros.textContent = item.quantidade_input;
         
         modalUnidade.show();
     }
