@@ -127,6 +127,36 @@
         margin-bottom: 0;
     }
 
+    .category-card .category-value {
+        color: #ffffff;
+        font-size: 1.18rem;
+        font-weight: 700;
+        margin-bottom: 0.2rem;
+    }
+
+    .category-card .category-meta-block + .category-meta-block {
+        margin-top: 1rem;
+    }
+
+    .category-card .category-balance-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.2rem;
+        color: rgba(255, 255, 255, 0.88);
+    }
+
+    .category-card .category-balance-list li {
+        line-height: 1.25;
+    }
+
+    .category-card .category-balance-more {
+        color: rgba(191, 219, 254, 0.88);
+        font-size: 0.82rem;
+    }
+
     .category-card .category-title {
         font-weight: 700;
         color: #ffffff;
@@ -569,9 +599,47 @@
                 </div>
                 <div class="card-body category-card-body d-flex flex-column justify-content-between h-100">
                     <div>
-                        <div class="category-meta-label">Volume da categoria</div>
-                        <p class="category-count">{{ category.total }}</p>
-                        <p class="category-subtitle">Saldo total: {{ category.saldo_total | round(2) }}</p>
+                        <div class="category-meta-block">
+                            <div class="category-meta-label">Itens na categoria</div>
+                            <p class="category-count">{{ category.total }}</p>
+                        </div>
+                        <div class="category-meta-block">
+                            <div class="category-meta-label">Saldo físico</div>
+                            {% if category.balance_summary_preview %}
+                            <ul class="category-balance-list">
+                                {% for line in category.balance_summary_preview %}
+                                <li>{{ line.display }}</li>
+                                {% endfor %}
+                            </ul>
+                            {% if category.balance_summary_hidden %}
+                            <p class="category-subtitle category-balance-more">+ {{ category.balance_summary_hidden }} unidade(s) adicional(is)</p>
+                            {% endif %}
+                            {% else %}
+                            <p class="category-subtitle">Sem saldo positivo consolidado</p>
+                            {% endif %}
+                        </div>
+                        <div class="category-meta-block">
+                            <div class="category-meta-label">Valor em estoque</div>
+                            {% if category.valor_estoque_compra_total is not none %}
+                            <p class="category-value">{{ category.valor_estoque_compra_total|currency_br }}</p>
+                            {% if category.valor_estoque_reposicao_total is not none %}
+                            <p class="category-subtitle">Reposição: {{ category.valor_estoque_reposicao_total|currency_br }}</p>
+                            {% endif %}
+                            {% if category.itens_sem_preco_compra %}
+                            <p class="category-subtitle">{{ category.itens_sem_preco_compra }} item(ns) sem preço de compra</p>
+                            {% else %}
+                            <p class="category-subtitle">Baseado no custo de compra disponível</p>
+                            {% endif %}
+                            {% elif category.valor_estoque_reposicao_total is not none %}
+                            <p class="category-value">{{ category.valor_estoque_reposicao_total|currency_br }}</p>
+                            <p class="category-subtitle">Sem custo de compra; exibindo valor de reposição</p>
+                            {% if category.itens_sem_preco_reposicao %}
+                            <p class="category-subtitle">{{ category.itens_sem_preco_reposicao }} item(ns) sem preço de reposição</p>
+                            {% endif %}
+                            {% else %}
+                            <p class="category-subtitle">Sem preço de compra disponível</p>
+                            {% endif %}
+                        </div>
                     </div>
                     <div class="category-footer small">Clique para abrir a lista de itens e editar.</div>
                 </div>

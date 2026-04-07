@@ -2528,6 +2528,7 @@ class InventoryService:
                     "ultima_edicao_por": item.ultima_edicao_por,
                     "saldo": saldo,
                     "saldo_display": saldo_display,
+                    "unidade_interna_display": item.get_unidade_interna_display(),
                     "explicacao_saldo": explicacao_saldo,
                     "saldo_unidades_total": saldo,
                     "saldo_embalagens": item.estoque_embalagens,

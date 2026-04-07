@@ -26,6 +26,7 @@ from ..services.item_foto_service import ItemFotoService
 from ..services.price_normalization import infer_price_unit_for_item, normalize_item_price
 from ..services.price_suggestion_service import price_suggestion_service
 from ..services.telegram_service import TelegramService
+from ..services.inventory_category_summary import build_category_balance_summary, build_category_value_summary
 from ..utils.barcode_generator import generate_barcode, get_barcode_path
 from ..utils.time_service import TimeService
 from .movements import LIQUID_PRODUCT_TYPES
@@ -1000,12 +1001,20 @@ def list_items():
         category_groups[category].append(item)
     category_cards: list[dict] = []
     for category, items in sorted(category_groups.items()):
-        saldo_total = sum(_safe_float(item.get("saldo")) for item in items)
+        balance_summary = build_category_balance_summary(items)
+        value_summary = build_category_value_summary(items)
         category_cards.append(
             {
                 "categoria": category,
                 "total": len(items),
-                "saldo_total": saldo_total,
+                "balance_summary": balance_summary,
+                "balance_summary_preview": balance_summary[:3],
+                "balance_summary_hidden": max(len(balance_summary) - 3, 0),
+                "valor_estoque_compra_total": value_summary["total_compra"],
+                "valor_estoque_reposicao_total": value_summary["total_reposicao"],
+                "itens_com_preco_compra": value_summary["with_compra"],
+                "itens_sem_preco_compra": value_summary["missing_compra"],
+                "itens_sem_preco_reposicao": value_summary["missing_reposicao"],
                 "entries": items,
             }
         )
