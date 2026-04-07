@@ -4889,10 +4889,8 @@
         document.getElementById('item-categoria').textContent = currentItem.categoria || '—';
         document.getElementById('item-marca').textContent = currentItem.marca || currentItem.setor || '—';
         const hasPackaging = currentItem.tipo_embalagem_novo && currentItem.unidades_por_embalagem;
-        const embalagemNome = currentItem.tipo_embalagem_novo || 'embalagem';
-        const saldoDisplay = hasPackaging
-            ? (currentItem.saldo_embalagens ?? currentItem.saldo ?? 0)
-            : (currentItem.saldo_display || currentItem.saldo || '0');
+        const saldoDisplay = String(currentItem.saldo_display || '').trim()
+            || String(currentItem.saldo || '0');
         const saldoUnidades = currentItem.saldo_unidades_total ?? currentItem.saldo;
         
         // Determinar a unidade correta para exibição
@@ -4907,9 +4905,7 @@
             unidadeExibicao = 'metros';
         }
         
-        document.getElementById('item-saldo').textContent = hasPackaging
-            ? `${saldoDisplay || 0} ${embalagemNome}`
-            : String(saldoDisplay || '0');
+        document.getElementById('item-saldo').textContent = saldoDisplay || '0';
         document.getElementById('item-unidade').textContent = currentItem.unidade || '—';
 
         updateFinanceUI(currentItem);

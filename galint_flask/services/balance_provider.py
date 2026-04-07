@@ -6,6 +6,7 @@ from sqlalchemy import func
 
 from ..extensions import db
 from ..models import Entrada, InventarioEvento, Item, Saida, StockBalance, stock_balance_supports_read_model_ready
+from .legacy_stock_normalizer import resolve_canonical_unit
 
 
 @dataclass(slots=True)
@@ -270,6 +271,10 @@ class BalanceProvider:
 
     @staticmethod
     def _resolve_unit_base(item: Item) -> str | None:
+        canonical_unit = resolve_canonical_unit(item)
+        if canonical_unit:
+            return canonical_unit
+
         base_unit = next((unit for unit in item.product_units if unit.is_base and unit.active), None)
         if base_unit:
             return base_unit.unit_code

@@ -1543,28 +1543,7 @@ def retirar_mobile(current_user: Usuario):
         
         usa_embalagens = EmbalagemService.tem_embalagem(item) and not usa_fracao
         saldo_atual = 0.0
-        if usa_embalagens:
-            # Tenta sincronizar estoque novo a partir do legado (itens antigos)
-            try:
-                EmbalagemService.tentar_sincronizar_estoque_de_legacy(item)
-            except Exception:
-                pass
-
-            try:
-                saldo_atual_unidades = float(EmbalagemService.calcular_estoque_total(item) or 0)
-            except Exception:
-                saldo_atual_unidades = 0.0
-
-            quantidade_em_unidades = float(quantidade_operacao or 0)
-            if em_embalagens:
-                quantidade_em_unidades = float(quantidade_operacao or 0) * float(item.unidades_por_embalagem or 1)
-
-            if saldo_atual_unidades < quantidade_em_unidades:
-                return jsonify({
-                    "success": False,
-                    "message": f"Saldo insuficiente. Disponível: {int(saldo_atual_unidades)} unidades",
-                }), 400
-        else:
+        if not usa_embalagens:
             # Sistema tradicional ou fração
             try:
                 saldo_atual = float(item.get_saldo_atual() or 0)
@@ -1593,19 +1572,6 @@ def retirar_mobile(current_user: Usuario):
                 }), 400
         else:
             retirante_user = current_user
-
-        # Debitar estoque de embalagens/unidades soltas (quando aplicável)
-        if usa_embalagens:
-            novas_emb, novas_soltas, sucesso = embalagem_service.processar_saida(
-                item, float(quantidade_operacao or 0), bool(em_embalagens)
-            )
-            if not sucesso:
-                return jsonify({
-                    "success": False,
-                    "message": "Saldo insuficiente para a retirada solicitada",
-                }), 400
-            item.estoque_embalagens = novas_emb
-            item.estoque_unidades_soltas = novas_soltas
 
         ledger_result = inventory_service.mirror_legacy_movement(
             product_id=item.codigo_item,

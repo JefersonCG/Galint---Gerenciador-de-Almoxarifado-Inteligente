@@ -5,6 +5,6 @@ Este tema foi consolidado em [README_ESTOQUE_UNIFICADO.md](README_ESTOQUE_UNIFIC
 Use esse arquivo como referencia canonica para:
 
 - diagnostico do problema de saldo
-- desenho alvo do ledger como fonte unica de verdade
-- papel de StockMovement, StockBalance, InventoryEngine e UnitConversionEngine
-- plano de migracao para um estoque unificado
+- fluxo atual entre legado, ledger, conversao, read model e UI
+- arquitetura alvo de estoque unificado
+- plano de simplificacao e centralizacao

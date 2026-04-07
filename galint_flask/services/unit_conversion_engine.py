@@ -152,7 +152,16 @@ class UnitConversionEngine:
             raise UnitConversionError("Produto sem unidade base configurada")
         if len(base_units) > 1:
             raise UnitConversionError("Produto com múltiplas unidades base ativas")
-        return ResolvedBaseUnit(unit_code=self._normalize_unit_code(base_units[0].unit_code), source="product_unit")
+
+        configured_base_unit = self._normalize_unit_code(base_units[0].unit_code)
+        if configured_base_unit and not is_packaging_unit_code(configured_base_unit):
+            return ResolvedBaseUnit(unit_code=configured_base_unit, source="product_unit")
+
+        canonical_unit = self._normalize_unit_code(resolve_canonical_unit(item))
+        if canonical_unit:
+            return ResolvedBaseUnit(unit_code=canonical_unit, source="canonical_unit")
+
+        return ResolvedBaseUnit(unit_code=configured_base_unit, source="product_unit_packaging")
 
     def _build_graph(self, conversions: list[ProductUnitConversion]) -> dict[str, list[tuple[str, float]]]:
         graph: dict[str, list[tuple[str, float]]] = {}

@@ -13,7 +13,7 @@ from sqlalchemy.exc import IntegrityError
 from ..extensions import db
 from ..models import Item, StockBalance, StockMovement
 from .balance_provider import balance_provider
-from .legacy_stock_normalizer import is_packaging_unit_code, resolve_packaging_factor
+from .legacy_stock_normalizer import is_packaging_unit_code, resolve_canonical_unit, resolve_packaging_factor
 from .operation_log_service import operation_log_service
 from .unit_conversion_engine import ConversionResult, UnitConversionEngine, unit_conversion_engine
 
@@ -186,7 +186,7 @@ class InventoryEngine:
 
         balance_snapshot = balance_provider.get_balance(product_id, item=item)
         sync_unit_base = self._resolve_packaging_sync_unit_base(
-            product_id=product_id,
+            item=item,
             fallback_unit_base=balance_snapshot.unit_base,
         )
         changed = self._sync_packaging_state_to_balance(
@@ -202,15 +202,10 @@ class InventoryEngine:
         return changed
 
     @staticmethod
-    def _resolve_packaging_sync_unit_base(*, product_id: str, fallback_unit_base: str | None) -> str | None:
-        latest_movement = (
-            StockMovement.query
-            .filter(StockMovement.product_id == product_id)
-            .order_by(StockMovement.created_at.desc(), StockMovement.id.desc())
-            .first()
-        )
-        if latest_movement is not None and (latest_movement.unit_base or "").strip():
-            return latest_movement.unit_base
+    def _resolve_packaging_sync_unit_base(*, item: Item, fallback_unit_base: str | None) -> str | None:
+        canonical_unit = resolve_canonical_unit(item)
+        if canonical_unit:
+            return canonical_unit
         return fallback_unit_base
 
     @classmethod
@@ -219,6 +214,22 @@ class InventoryEngine:
         if not raw:
             return ""
         return cls._UNIT_ALIASES.get(raw, raw)
+
+    @classmethod
+    def _ensure_canonical_movement_unit(cls, *, item: Item, unit_base: str) -> None:
+        resolved_unit = cls._normalize_unit_code(unit_base)
+        if not resolved_unit:
+            raise InventoryEngineError("Movimento sem unidade base canônica resolvida")
+        if is_packaging_unit_code(resolved_unit):
+            raise InventoryEngineError(
+                f"Movimento operacional com unit_base de embalagem não é permitido: {resolved_unit}"
+            )
+
+        canonical_unit = cls._normalize_unit_code(resolve_canonical_unit(item))
+        if canonical_unit and resolved_unit != canonical_unit:
+            raise InventoryEngineError(
+                f"Movimento operacional fora da unidade canônica do item: unit_base={resolved_unit}, canonical={canonical_unit}"
+            )
 
     @classmethod
     def _is_packaging_input_unit(cls, item: Item, from_unit: str | None) -> bool:
@@ -427,6 +438,7 @@ class InventoryEngine:
             raise InventoryEngineError(PRE_CADASTRO_PENDING_EXIT_MESSAGE)
 
         conversion = self._conversion_engine.convert_item_to_base(item, quantity, from_unit)
+        self._ensure_canonical_movement_unit(item=item, unit_base=conversion.unit_base)
         balance_snapshot = balance_provider.get_balance(product_id)
         balance_before = float(balance_snapshot.quantity_base)
         quantity_delta = float(conversion.quantity_base) * float(balance_delta_sign)

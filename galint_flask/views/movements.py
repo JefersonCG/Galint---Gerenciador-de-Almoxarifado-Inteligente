@@ -586,33 +586,12 @@ def registrar_saida_multipla():
                     raise ValueError("Item não encontrado")
                 
                 # Verificar saldo considerando sistema de embalagens
-                from galint_flask.services.embalagem_service import EmbalagemService, embalagem_service
+                from galint_flask.services.embalagem_service import EmbalagemService
 
                 usa_embalagens = EmbalagemService.tem_embalagem(item) and em_embalagens is not None
                 saldo_atual = 0.0
-                saldo_atual_unidades = 0.0
 
-                if usa_embalagens:
-                    # Itens antigos podem ter saldo legado, mas estoque novo zerado.
-                    try:
-                        EmbalagemService.tentar_sincronizar_estoque_de_legacy(item)
-                    except Exception:
-                        pass
-
-                    try:
-                        saldo_atual_unidades = float(EmbalagemService.calcular_estoque_total(item) or 0)
-                    except Exception:
-                        saldo_atual_unidades = 0.0
-
-                    quantidade_em_unidades = float(quantidade)
-                    if em_embalagens:
-                        quantidade_em_unidades = float(quantidade) * float(item.unidades_por_embalagem or 1)
-
-                    if saldo_atual_unidades < quantidade_em_unidades:
-                        raise ValueError(
-                            f"Saldo insuficiente. Disponível: {int(saldo_atual_unidades)} unidades"
-                        )
-                else:
+                if not usa_embalagens:
                     # Sistema tradicional (sem embalagens) OU saída sem informar em_embalagens
                     try:
                         saldo_atual = float(item.get_saldo_atual() or 0)
@@ -621,16 +600,6 @@ def registrar_saida_multipla():
 
                     if saldo_atual < quantidade:
                         raise ValueError(f"Saldo insuficiente. Disponível: {int(saldo_atual)}")
-                
-                # Debitar estoque de embalagens/unidades soltas (quando aplicável)
-                if usa_embalagens:
-                    novas_emb, novas_soltas, sucesso = embalagem_service.processar_saida(
-                        item, float(quantidade), bool(em_embalagens)
-                    )
-                    if not sucesso:
-                        raise ValueError("Saldo insuficiente para a saída solicitada")
-                    item.estoque_embalagens = novas_emb
-                    item.estoque_unidades_soltas = novas_soltas
 
                 ledger_result = inventory_service.mirror_legacy_movement(
                     product_id=item.codigo_item,

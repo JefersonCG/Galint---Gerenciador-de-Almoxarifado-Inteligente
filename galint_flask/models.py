@@ -268,24 +268,20 @@ class Item(db.Model):
         Obs: não substitui `unidade` (que é a unidade 'de entrada'), apenas define como o total deve ser interpretado.
         """
         try:
-            if (self.litros_por_embalagem or 0) > 0:
+            from .services.legacy_stock_normalizer import resolve_canonical_unit
+
+            canonical_unit = resolve_canonical_unit(self)
+            if canonical_unit == "l":
                 return "L"
-            if (self.grandeza_referencia or 0) > 0 and (self.tipo_embalagem_novo or "").strip().lower() in ("lata", "balde", "bombona", "pacote", "saco"):
+            if canonical_unit == "kg":
                 return "Kg"
-            if (self.tipo_embalagem_novo or "").strip().lower() == "rolo":
+            if canonical_unit == "m":
                 return "m"
-            if (self.tipo_embalagem_novo or "").strip().lower() in ("caixa", "pacote", "fardo", "saco"):
+            if canonical_unit == "un":
                 return "un"
         except Exception:
             pass
 
-        unidade_raw = (self.unidade or "").strip().lower()
-        if unidade_raw in ("litro", "litros", "l", "lt", "lts"):
-            return "L"
-        if unidade_raw in ("kg", "quilo", "quilos"):
-            return "Kg"
-        if unidade_raw in ("metro", "metros", "m"):
-            return "m"
         return self.unidade or None
 
     def get_saldo_fisico_total(self) -> float:

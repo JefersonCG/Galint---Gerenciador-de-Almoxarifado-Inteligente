@@ -34,6 +34,15 @@ class EmbalagemService:
             and item.grandeza_referencia is not None
             and item.grandeza_referencia > 0
         )
+
+    @staticmethod
+    def _resolve_measure(item: Item) -> tuple[float, str | None]:
+        from .legacy_stock_normalizer import infer_packaging_measure
+
+        inferred = infer_packaging_measure(item)
+        if inferred is None:
+            return 0.0, None
+        return float(inferred[0] or 0.0), inferred[1]
     
     @staticmethod
     def processar_entrada(
@@ -264,6 +273,8 @@ class EmbalagemService:
             nome_rolo = "rolo" if saldo_atual == 1 else "rolos"
             return f"{total_metros:g} metros ({saldo_atual:g} {nome_rolo})"
 
+        measure_value, measure_unit = EmbalagemService._resolve_measure(item)
+
         # Para lata/balde/bombona com volume em litros definido (Compatível com Legacy APENAS)
         # IMPORTANTE: Este bloco NÃO deve ser usado quando há estoque_unidades_soltas
         if (item.litros_por_embalagem and item.litros_por_embalagem > 0 and 
@@ -297,29 +308,32 @@ class EmbalagemService:
         
         # Para lata/balde/bombona com peso em kg definido (grandeza_referencia = kg por embalagem)
         # Compatível com Legacy e Novo Sistema
-        if (item.grandeza_referencia and item.grandeza_referencia > 0 and
+        if (measure_unit == 'kg' and measure_value > 0 and
             (item.unidade and item.unidade.lower() in ['lata', 'balde', 'bombona', 'pacote', 'saco'] or
              item.tipo_embalagem_novo and item.tipo_embalagem_novo.lower() in ['lata', 'balde', 'bombona', 'pacote', 'saco'])):
             
             # Determina a quantidade de embalagens baseada no sistema (Novo vs Legacy)
             usa_sistema_novo = EmbalagemService.tem_embalagem(item)
-            qtde_embalagens = (item.estoque_embalagens or 0) if usa_sistema_novo else (item.get_saldo_atual() or 0)
-            
-            # Calcula peso total em kg
-            peso_total = qtde_embalagens * item.grandeza_referencia
-            
-            # Determina o nome da embalagem
-            if usa_sistema_novo:
-                nome_emb = item.get_nome_embalagem_plural() if qtde_embalagens != 1 else item.get_nome_embalagem()
+            if usa_sistema_novo and (item.estoque_unidades_soltas or 0) > 0:
+                pass
             else:
-                nome_emb = (item.unidade or "embalagem") + ("s" if qtde_embalagens != 1 and not (item.unidade or "").endswith('s') else "")
-            
-            if qtde_embalagens == 0:
-                return f"0 kg"
-            elif qtde_embalagens == 1:
-                return f"{peso_total:.1f} kg (1 {item.get_nome_embalagem() if usa_sistema_novo else (item.unidade or 'embalagem')})"
-            else:
-                return f"{peso_total:.1f} kg ({qtde_embalagens:.0f} {nome_emb})"
+                qtde_embalagens = (item.estoque_embalagens or 0) if usa_sistema_novo else (item.get_saldo_atual() or 0)
+                
+                # Calcula peso total em kg
+                peso_total = qtde_embalagens * measure_value
+                
+                # Determina o nome da embalagem
+                if usa_sistema_novo:
+                    nome_emb = item.get_nome_embalagem_plural() if qtde_embalagens != 1 else item.get_nome_embalagem()
+                else:
+                    nome_emb = (item.unidade or "embalagem") + ("s" if qtde_embalagens != 1 and not (item.unidade or "").endswith('s') else "")
+                
+                if qtde_embalagens == 0:
+                    return f"0 kg"
+                elif qtde_embalagens == 1:
+                    return f"{peso_total:.1f} kg (1 {item.get_nome_embalagem() if usa_sistema_novo else (item.unidade or 'embalagem')})"
+                else:
+                    return f"{peso_total:.1f} kg ({qtde_embalagens:.0f} {nome_emb})"
 
         if not EmbalagemService.tem_embalagem(item):
             # Verificar se é ROLO/PACOTE/CAIXA/FARDO usando campo unidade (legacy)
@@ -347,7 +361,7 @@ class EmbalagemService:
                     return f"{total_interno:g} unidades ({saldo_embalagens:g} {nome_emb_display})"
             
             return f"{item.get_saldo_atual():.0f} {item.unidade or 'unidades'}"
-        
+
         embalagens = item.estoque_embalagens or 0
         soltas = item.estoque_unidades_soltas or 0
         nome_emb = item.get_nome_embalagem_plural() if embalagens != 1 else item.get_nome_embalagem()
@@ -372,8 +386,8 @@ class EmbalagemService:
         # Para pacote/caixa/fardo/saco: mostrar total de unidades internas ou kg conforme configurado.
         if item.tipo_embalagem_novo and item.tipo_embalagem_novo.lower() in ['pacote', 'caixa', 'fardo', 'saco']:
             tipo_emb = item.tipo_embalagem_novo.lower()
-            if tipo_emb in ['pacote', 'saco'] and item.grandeza_referencia and item.grandeza_referencia > 0:
-                kg_por_emb = item.grandeza_referencia or 0
+            if measure_unit == 'kg' and measure_value > 0:
+                kg_por_emb = measure_value
                 total_kg = (embalagens * kg_por_emb) + soltas
 
                 if embalagens == 0:
@@ -386,7 +400,7 @@ class EmbalagemService:
                     return f"{embalagens:.0f} {nome_emb} + {soltas:g} Kg"
                 return f"{total_kg:g} Kg ({embalagens:.0f} {nome_emb})"
 
-            unidades_por_emb = item.unidades_por_embalagem or 0
+            unidades_por_emb = measure_value if measure_unit == 'un' and measure_value > 0 else (item.unidades_por_embalagem or 0)
             total_unidades = (embalagens * unidades_por_emb) + soltas
 
             if embalagens == 0:
@@ -397,9 +411,8 @@ class EmbalagemService:
         
         # Para lata/balde/bombona/litro: mostrar litros ou kg com unidades menores quando aplicável
         if item.tipo_embalagem_novo and item.tipo_embalagem_novo.lower() in ['lata', 'balde', 'bombona', 'litro']:
-            # Se tem litros_por_embalagem, é volume (litros)
-            if item.litros_por_embalagem and item.litros_por_embalagem > 0:
-                litros_por_emb = item.litros_por_embalagem
+            if measure_unit == 'l' and measure_value > 0:
+                litros_por_emb = measure_value
                 litros_soltos = soltas
                 
                 if embalagens == 0:
@@ -416,9 +429,8 @@ class EmbalagemService:
                 volume_total = embalagens * litros_por_emb
                 return f"{volume_total:g} Litros ({embalagens:.0f} {nome_emb})"
             
-            # Se tem grandeza_referencia, é peso (kg)
-            elif item.grandeza_referencia and item.grandeza_referencia > 0:
-                kg_por_emb = item.grandeza_referencia
+            elif measure_unit == 'kg' and measure_value > 0:
+                kg_por_emb = measure_value
                 kg_soltos = soltas
                 
                 if embalagens == 0:
@@ -461,6 +473,8 @@ class EmbalagemService:
         """
         if quantidade <= 0:
             return "0"
+
+        measure_value, measure_unit = EmbalagemService._resolve_measure(item)
         
         # Rolo Legacy
         if EmbalagemService.tem_rolo_legacy(item):
@@ -505,12 +519,12 @@ class EmbalagemService:
                 return f"{volume_total:.2f} litros ({quantidade:g} {nome_emb})"
         
         # Lata/balde/bombona com peso em kg
-        if (item.grandeza_referencia and item.grandeza_referencia > 0 and
+        if (measure_unit == 'kg' and measure_value > 0 and
             (item.unidade and item.unidade.lower() in ['lata', 'balde', 'bombona', 'pacote', 'saco'] or
              item.tipo_embalagem_novo and item.tipo_embalagem_novo.lower() in ['lata', 'balde', 'bombona', 'pacote', 'saco'])):
             
             usa_sistema_novo = EmbalagemService.tem_embalagem(item)
-            kg_por_emb = item.grandeza_referencia
+            kg_por_emb = measure_value
             
             if usa_sistema_novo:
                 # Quantidade vem em UNIDADES (embalagens), precisa converter para kg
@@ -541,7 +555,7 @@ class EmbalagemService:
         # Sistema de embalagens unificado (rolos, pacotes, caixas)
         if EmbalagemService.tem_embalagem(item):
             tipo_emb = (item.tipo_embalagem_novo or "").strip().lower()
-            unidades_por = float(item.unidades_por_embalagem or 1)
+            unidades_por = float((measure_value if measure_unit == 'un' and measure_value > 0 else item.unidades_por_embalagem) or 0)
             
             # CORREÇÃO: Quantidade vem em UNIDADES TOTAIS, precisa converter para embalagens + resto
             quantidade_float = float(quantidade)
@@ -565,7 +579,7 @@ class EmbalagemService:
             
             # Para pacote/caixa/fardo/saco: mostrar unidades internas ou kg conforme configurado.
             if tipo_emb in ['pacote', 'caixa', 'fardo', 'saco']:
-                if tipo_emb in ['pacote', 'saco'] and item.grandeza_referencia and item.grandeza_referencia > 0:
+                if measure_unit == 'kg' and measure_value > 0:
                     total_kg = quantidade_float
                     if embalagens_completas == 0:
                         if total_kg < 1:
@@ -631,7 +645,7 @@ class EmbalagemService:
         """
         if not EmbalagemService.tem_embalagem(item):
             return None
-        
+
         embalagens = float(item.estoque_embalagens or 0)
         soltas = float(item.estoque_unidades_soltas or 0)
         
@@ -641,10 +655,11 @@ class EmbalagemService:
         
         nome_emb_singular = item.get_nome_embalagem()
         tipo_emb = (item.tipo_embalagem_novo or "").strip().lower()
+        measure_value, measure_unit = EmbalagemService._resolve_measure(item)
         
         # Para lata/balde/bombona com litros
-        if tipo_emb in ['lata', 'balde', 'bombona'] and item.litros_por_embalagem and item.litros_por_embalagem > 0:
-            litros_por_emb = item.litros_por_embalagem
+        if tipo_emb in ['lata', 'balde', 'bombona'] and measure_unit == 'l' and measure_value > 0:
+            litros_por_emb = measure_value
             if embalagens > 0 and soltas > 0:
                 return f"ou seja, cada {nome_emb_singular} contém {litros_por_emb:g} litros + {soltas:g} litros soltos de {nome_emb_singular} aberta anteriormente."
             elif embalagens > 0:
@@ -653,8 +668,8 @@ class EmbalagemService:
                 return f"ou seja, {soltas:g} litros soltos de {nome_emb_singular} aberta anteriormente."
         
         # Para lata/balde/bombona com kg
-        if tipo_emb in ['lata', 'balde', 'bombona', 'pacote', 'saco'] and item.grandeza_referencia and item.grandeza_referencia > 0:
-            kg_por_emb = item.grandeza_referencia
+        if tipo_emb in ['lata', 'balde', 'bombona', 'pacote', 'saco'] and measure_unit == 'kg' and measure_value > 0:
+            kg_por_emb = measure_value
             if embalagens > 0 and soltas > 0:
                 return f"ou seja, cada {nome_emb_singular} contém {kg_por_emb:g}kg + {soltas:g}kg soltos de {nome_emb_singular} aberto anteriormente."
             elif embalagens > 0:
@@ -674,7 +689,7 @@ class EmbalagemService:
         
         # Para caixa/pacote/fardo
         if tipo_emb in ['caixa', 'pacote', 'fardo', 'saco']:
-            unidades_por = float(item.unidades_por_embalagem or 0)
+            unidades_por = float((measure_value if measure_unit == 'un' and measure_value > 0 else item.unidades_por_embalagem) or 0)
             if embalagens > 0 and soltas > 0:
                 return f"ou seja, cada {nome_emb_singular} contém {unidades_por:g} unidades + {soltas:g} unidades soltas de {nome_emb_singular} aberta anteriormente."
             elif embalagens > 0:

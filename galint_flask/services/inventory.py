@@ -46,6 +46,7 @@ from .inventory_engine import (
 )
 from .admin_stock_audit_sqlite import log_admin_stock_adjustment
 from .legacy_stock_normalizer import (
+    infer_packaging_measure,
     ignore_packaging_metadata_for_stock,
     is_packaging_unit_code,
     resolve_canonical_unit,
@@ -639,6 +640,58 @@ class InventoryService:
         if math.isnan(f) or math.isinf(f):
             return 0.0
         return f
+
+    @staticmethod
+    def _hydrate_missing_packaging_metadata(
+        payload: dict[str, Any] | None,
+        *,
+        current_item: Item | None = None,
+    ) -> dict[str, Any]:
+        normalized_payload = dict(payload or {})
+        probe = SimpleNamespace(
+            descricao=normalized_payload.get("descricao", getattr(current_item, "descricao", None)),
+            categoria=normalized_payload.get("categoria", getattr(current_item, "categoria", None)),
+            marca=normalized_payload.get("marca", getattr(current_item, "marca", None)),
+            unidade=normalized_payload.get("unidade", getattr(current_item, "unidade", None)),
+            tipo_embalagem_novo=normalized_payload.get("tipo_embalagem_novo", getattr(current_item, "tipo_embalagem_novo", None)),
+            litros_por_embalagem=normalized_payload.get("litros_por_embalagem", getattr(current_item, "litros_por_embalagem", None)),
+            grandeza_referencia=normalized_payload.get("grandeza_referencia", getattr(current_item, "grandeza_referencia", None)),
+            unidades_por_embalagem=normalized_payload.get("unidades_por_embalagem", getattr(current_item, "unidades_por_embalagem", None)),
+            product_units=getattr(current_item, "product_units", []) or [],
+        )
+        inferred_measure = infer_packaging_measure(probe)
+        if inferred_measure is None:
+            return normalized_payload
+
+        inferred_value, inferred_unit = inferred_measure
+        if inferred_unit == "l" and normalized_payload.get("litros_por_embalagem") in (None, ""):
+            normalized_payload["litros_por_embalagem"] = inferred_value
+        elif inferred_unit == "kg" and normalized_payload.get("grandeza_referencia") in (None, ""):
+            normalized_payload["grandeza_referencia"] = inferred_value
+        elif inferred_unit == "m" and normalized_payload.get("grandeza_referencia") in (None, ""):
+            normalized_payload["grandeza_referencia"] = inferred_value
+        elif inferred_unit == "un" and normalized_payload.get("unidades_por_embalagem") in (None, ""):
+            normalized_payload["unidades_por_embalagem"] = inferred_value
+
+        tipo_embalagem = str(
+            normalized_payload.get("tipo_embalagem_novo", getattr(current_item, "tipo_embalagem_novo", None)) or ""
+        ).strip().lower()
+        unidade_atual = str(normalized_payload.get("unidade", getattr(current_item, "unidade", None)) or "").strip().lower()
+        if tipo_embalagem and unidade_atual in {"", "un", "und", "unidade", "unidades"}:
+            labels = {
+                "lata": "Lata",
+                "balde": "Balde",
+                "bombona": "Bombona",
+                "caixa": "Caixa",
+                "pacote": "Pacote",
+                "fardo": "Fardo",
+                "rolo": "Rolo",
+                "saco": "Saco",
+                "litro": "Litro",
+            }
+            normalized_payload["unidade"] = labels.get(tipo_embalagem, normalized_payload.get("unidade") or getattr(current_item, "unidade", None) or "Unidade")
+
+        return normalized_payload
 
     def _get_cached(self, key: str) -> Any | None:
         cached = self._runtime_cache.get(key)
@@ -1692,8 +1745,17 @@ class InventoryService:
         payload: MovimentoPayload | None = None,
         metadata: dict[str, Any] | None = None,
     ) -> bool:
-        if not uses_packaging_legacy_normalization(item):
+        packaging_factor = float(resolve_packaging_factor(item) or 0.0)
+        if packaging_factor <= 1.0 or ignore_packaging_metadata_for_stock(item):
             return False
+
+        base_unit = next((unit for unit in item.product_units if unit.is_base and unit.active), None)
+        base_unit_code = (base_unit.unit_code or "").strip().lower() if base_unit and base_unit.unit_code else ""
+        has_packaging_based_unit_config = bool(base_unit_code and is_packaging_unit_code(base_unit_code))
+
+        if not uses_packaging_legacy_normalization(item) and not has_packaging_based_unit_config:
+            return False
+
         if payload and payload.em_embalagens is True:
             return True
         if payload and payload.em_embalagens is False:
@@ -1736,6 +1798,12 @@ class InventoryService:
     ) -> tuple[float, str] | None:
         if not InventoryService._should_use_packaging_dual_write(item, payload, metadata):
             return None
+        packaging_factor = float(resolve_packaging_factor(item) or 0.0)
+        canonical_unit = resolve_canonical_unit(item)
+        if packaging_factor <= 1.0 or not canonical_unit:
+            return None
+        if payload and payload.em_embalagens is True:
+            return float(quantity_value) * packaging_factor, canonical_unit
         return resolve_packaging_quantity_and_unit(item, quantity_value)
 
     @staticmethod
@@ -1777,6 +1845,26 @@ class InventoryService:
             balance.read_model_ready = True
         db.session.flush()
 
+    @staticmethod
+    def _resolve_ledger_input_for_mirror(
+        item: Item,
+        payload: MovimentoPayload,
+        *,
+        quantity: float | None = None,
+        from_unit: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> tuple[float, str]:
+        quantity_value = float(quantity if quantity is not None else payload.quantidade)
+        packaging_resolution = InventoryService._resolve_packaging_dual_write(item, quantity_value, payload, metadata)
+        if packaging_resolution is not None and from_unit is None:
+            quantity_value, from_unit = packaging_resolution
+
+        unit_value = (from_unit or InventoryService._infer_dual_write_unit(item, payload, metadata) or "").strip().lower()
+        if not unit_value:
+            raise ValueError(f"Não foi possível inferir a unidade base para {item.codigo_item}")
+
+        return quantity_value, unit_value
+
     def _mirror_payload_to_ledger(
         self,
         *,
@@ -1792,18 +1880,23 @@ class InventoryService:
         if quantity_value == 0:
             return None
 
-        packaging_resolution = self._resolve_packaging_dual_write(item, quantity_value, payload, metadata)
-        if packaging_resolution is not None and from_unit is None:
-            quantity_value, from_unit = packaging_resolution
+        quantity_value, unit_value = self._resolve_ledger_input_for_mirror(
+            item,
+            payload,
+            quantity=quantity_value,
+            from_unit=from_unit,
+            metadata=metadata,
+        )
+
+        if bool((metadata or {}).get("legacy_state_pre_applied")):
+            quantity_base_preview = float(
+                unit_conversion_engine.convert_item_to_base(item, quantity_value, unit_value).quantity_base
+            )
             self._sync_packaging_balance_before_dual_write(
                 item,
                 movement_type=movement_type_norm,
-                quantity_base=quantity_value,
+                quantity_base=quantity_base_preview,
             )
-
-        unit_value = (from_unit or self._infer_dual_write_unit(item, payload, metadata) or "").strip().lower()
-        if not unit_value:
-            raise ValueError(f"Não foi possível inferir a unidade base para {item.codigo_item}")
 
         mirror_metadata = {
             "dual_write_active": True,
@@ -1891,6 +1984,17 @@ class InventoryService:
     def finalize_ledger_mirror(result: InventoryOperationResult | None) -> None:
         if result is None:
             return
+        try:
+            inventory_engine.sync_packaging_read_model(
+                product_id=result.product_id,
+                commit=True,
+            )
+        except Exception as exc:
+            logger.warning(
+                "Falha ao sincronizar read model de embalagem para %s apos espelhamento: %s",
+                result.product_id,
+                exc,
+            )
         inventory_engine.record_operation_audit(result)
 
     def _bulk_saldos(self, codigos: list[str] | None = None) -> dict[str, float]:
@@ -2445,6 +2549,7 @@ class InventoryService:
 
     def create_item(self, payload: dict[str, Any]) -> str:
         payload = self._normalize_toolkit_registration_payload(payload)
+        payload = self._hydrate_missing_packaging_metadata(payload)
         codigo = _sanitize_codigo(payload.get("codigo") or payload.get("codigo_item"))
         if not codigo:
             raise ValueError("Código do item é obrigatório")
@@ -2727,6 +2832,7 @@ class InventoryService:
             raise ValueError("Item não encontrado")
 
         payload = self._normalize_toolkit_registration_payload(payload, current_item=item)
+        payload = self._hydrate_missing_packaging_metadata(payload, current_item=item)
 
         novo_codigo = _sanitize_codigo(payload.get("codigo") or codigo)
         if not novo_codigo:
@@ -3689,8 +3795,8 @@ class InventoryService:
                 )
 
         # Verificar se o item usa sistema de embalagens
-        from ..services.embalagem_service import EmbalagemService, embalagem_service
-        tem_embalagem = embalagem_service.tem_embalagem(item)
+        from ..services.embalagem_service import EmbalagemService
+        tem_embalagem = EmbalagemService.tem_embalagem(item)
 
         # Contexto de saldo para notificação (evita divergências de unidades no Telegram)
         telegram_balance_before: float | None = None
@@ -3725,7 +3831,7 @@ class InventoryService:
             
             if tem_embalagem and payload.em_embalagens is not None:
                 try:
-                    telegram_balance_before = float(EmbalagemService.calcular_estoque_total(item) or 0)
+                    telegram_balance_before = float(balance_provider.get_balance(item.codigo_item, item=item).quantity_base or 0)
                 except Exception:
                     telegram_balance_before = None
             else:
@@ -3733,38 +3839,6 @@ class InventoryService:
                     telegram_balance_before = float(item.get_saldo_atual() or 0)
                 except Exception:
                     telegram_balance_before = None
-        
-        # Processar embalagens ANTES de verificar saldo ou criar movimento
-        if tem_embalagem and payload.em_embalagens is not None:
-            # Itens antigos podem ter saldo legado, mas estoque novo ainda não inicializado.
-            # Sincroniza de forma conservadora antes de processar a operação.
-            try:
-                EmbalagemService.tentar_sincronizar_estoque_de_legacy(item)
-            except Exception:
-                pass
-
-            if is_entrada:
-                # Entrada/Devolução
-                novas_emb, novas_soltas = embalagem_service.processar_entrada(
-                    item, payload.quantidade, payload.em_embalagens
-                )
-                item.estoque_embalagens = novas_emb
-                item.estoque_unidades_soltas = novas_soltas
-            else:
-                # Saída
-                novas_emb, novas_soltas, sucesso = embalagem_service.processar_saida(
-                    item, payload.quantidade, payload.em_embalagens
-                )
-                if not sucesso:
-                    raise ValueError("Saldo insuficiente para a saída solicitada")
-                item.estoque_embalagens = novas_emb
-                item.estoque_unidades_soltas = novas_soltas
-
-                # Saldo após a saída (em UNIDADES totais) para notificação
-                try:
-                    telegram_balance_after = float(EmbalagemService.calcular_estoque_total(item) or 0)
-                except Exception:
-                    telegram_balance_after = None
 
         # Validação de saldo para itens sem embalagem
         if not tem_embalagem and not is_entrada:
@@ -3841,7 +3915,7 @@ class InventoryService:
         item.estoque_minimo = _calculate_min_stock(saldo_atualizado)
         db.session.commit()
         if ledger_result is not None:
-            inventory_engine.record_operation_audit(ledger_result)
+            self.finalize_ledger_mirror(ledger_result)
             if not skip_notification:
                 operation_log_service.notify_telegram(ledger_result.operation_log_id)
         

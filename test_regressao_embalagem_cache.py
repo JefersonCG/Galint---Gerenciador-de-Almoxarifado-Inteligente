@@ -44,6 +44,18 @@ class MockPackagingItem:
         self.product_units = []
         self.product_unit_conversions = []
 
+    def get_nome_embalagem(self) -> str:
+        return self.tipo_embalagem_novo or "embalagem"
+
+    def get_nome_embalagem_plural(self) -> str:
+        nome = self.get_nome_embalagem()
+        if nome.endswith("s"):
+            return nome
+        return f"{nome}s"
+
+    def get_saldo_atual(self) -> float:
+        return (self.estoque_embalagens * float(self.unidades_por_embalagem or 0)) + float(self.estoque_unidades_soltas or 0)
+
 
 class FakeBalance:
     def __init__(self):
@@ -245,6 +257,54 @@ def test_toolkit_payload_e_normalizado_para_unidade() -> None:
     assert normalized["estoque_unidades_soltas"] == 0.0
 
 
+def test_resolve_ledger_input_para_embalagem_legada_usa_base_canonica() -> None:
+    item = MockPackagingItem(
+        codigo_item="PACOTE-100-TESTE",
+        tipo_embalagem="pacote",
+        unidades_por_embalagem=100,
+    )
+    payload = MovimentoPayload(codigo=item.codigo_item, quantidade=2.0, em_embalagens=True)
+
+    quantity_value, unit_value = InventoryService._resolve_ledger_input_for_mirror(
+        item,
+        payload,
+        metadata={"reference_type": "legacy_movimento"},
+    )
+
+    assert quantity_value == 200.0
+    assert unit_value == "un"
+
+
+def test_finalize_ledger_mirror_sincroniza_read_model_antes_da_auditoria() -> None:
+    result = SimpleNamespace(product_id="PACOTE-100-TESTE")
+
+    with patch("galint_flask.services.inventory.inventory_engine.sync_packaging_read_model") as sync_mock, patch(
+        "galint_flask.services.inventory.inventory_engine.record_operation_audit"
+    ) as audit_mock:
+        InventoryService.finalize_ledger_mirror(result)
+
+    sync_mock.assert_called_once_with(product_id="PACOTE-100-TESTE", commit=True)
+    audit_mock.assert_called_once_with(result)
+
+
+def test_formatar_estoque_nao_sincroniza_legacy_em_contexto_de_leitura() -> None:
+    item = MockPackagingItem(
+        codigo_item="CAIXA-LEITURA-TESTE",
+        tipo_embalagem="caixa",
+        unidades_por_embalagem=50,
+    )
+    item.estoque_embalagens = 2.0
+    item.estoque_unidades_soltas = 10.0
+
+    with patch(
+        "galint_flask.services.embalagem_service.EmbalagemService.tentar_sincronizar_estoque_de_legacy",
+        side_effect=AssertionError("nao deveria sincronizar em leitura"),
+    ):
+        formatted = EmbalagemService.formatar_estoque(item)
+
+    assert formatted == "2 caixas + 10 unidades"
+
+
 def main() -> int:
     test_sync_legacy_nao_transforma_unidades_em_pacotes_explodidos()
     test_sync_legacy_respeita_quando_snapshot_ja_esta_em_pacotes()
@@ -253,6 +313,9 @@ def main() -> int:
     test_ferramenta_jogo_nao_usa_normalizacao_legada_de_embalagem()
     test_dual_write_legado_de_ferramenta_jogo_nao_multiplica_quantidade()
     test_toolkit_payload_e_normalizado_para_unidade()
+    test_resolve_ledger_input_para_embalagem_legada_usa_base_canonica()
+    test_finalize_ledger_mirror_sincroniza_read_model_antes_da_auditoria()
+    test_formatar_estoque_nao_sincroniza_legacy_em_contexto_de_leitura()
     print("OK - regressao de embalagem/cache")
     return 0
 
