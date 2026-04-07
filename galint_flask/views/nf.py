@@ -49,7 +49,15 @@ DEFAULT_DOCUMENT_UNIT_OPTIONS = [
     "Peça",
 ]
 
-VALID_OPERATIONAL_TABS = {"registro", "processaveis", "pendencias", "erros", "historico"}
+VALID_OPERATIONAL_TABS = {"registro", "processaveis", "erros", "historico"}
+LEGACY_OPERATIONAL_TAB_ALIASES = {
+    "pendencias": "processaveis",
+}
+
+
+def _normalize_operational_tab(tab_value: str | None) -> str:
+    raw = (tab_value or "").strip().lower()
+    return LEGACY_OPERATIONAL_TAB_ALIASES.get(raw, raw)
 
 
 def _parse_iso_date(raw_value: str | None, *, fallback: date | None = None) -> date | None:
@@ -155,6 +163,38 @@ def _parse_form_checkbox(form_name: str, *, default: bool = False) -> bool:
     if any(value in falsy for value in normalized):
         return False
     return default
+
+
+def _validate_document_registration_fields(
+    *,
+    numero_documento: str,
+    tipo_documento: str,
+    supplier_id: int | None,
+    supplier_name: str | None,
+    supplier_cnpj: str | None,
+    data_emissao: date | None,
+    data_recebimento: date | None,
+    comprovacao_status: str | None = None,
+    observacao: str | None = None,
+) -> None:
+    missing_fields: list[str] = []
+    if not (numero_documento or "").strip():
+        missing_fields.append("número do documento")
+    if not (supplier_id or (supplier_name or "").strip() or (supplier_cnpj or "").strip()):
+        missing_fields.append("fornecedor ou CNPJ da loja")
+    if data_recebimento is None:
+        missing_fields.append("data de recebimento")
+    if (tipo_documento or "").strip().lower() == "nf" and data_emissao is None:
+        missing_fields.append("data de emissão")
+
+    comprovacao = (comprovacao_status or "").strip().lower()
+    if comprovacao in {"sem_comprovacao", "parcial"} and not (observacao or "").strip():
+        missing_fields.append("observação financeira")
+
+    if missing_fields:
+        raise ValueError(
+            "Complete o cadastro do documento antes de salvar: " + ", ".join(missing_fields) + "."
+        )
 
 
 def _resolve_documento_movimenta_estoque(*, data_emissao: date | None, data_recebimento: date | None) -> bool:
@@ -822,18 +862,20 @@ def _normalize_operational_items(documento: dict[str, Any]) -> list[dict[str, An
         status_processamento = (str(item.get("status_processamento") or "").strip().lower() or None)
         erro_processamento = (str(item.get("erro_processamento") or "").strip() or None)
         processado_em = item.get("processado_em")
+        has_stock_link = item.get("stock_movement_id") not in (None, "") or item.get("entrada_id") not in (None, "")
         has_legacy_entry = is_legacy_document and item.get("id") not in (None, "")
-        is_processed = bool(processado_em) or status_processamento == "processado" or has_legacy_entry
+        is_processed = bool(processado_em) or status_processamento == "processado" or has_legacy_entry or has_stock_link
+        effective_error = None if is_processed else erro_processamento
 
         normalized.append(
             {
                 **item,
                 "status_processamento": status_processamento or ("processado" if is_processed else "pendente"),
-                "erro_processamento": erro_processamento,
+                "erro_processamento": effective_error,
                 "processado_em": processado_em or (document_date.isoformat() if has_legacy_entry and hasattr(document_date, "isoformat") else None),
                 "quantidade_valida": _item_has_valid_quantity(item),
                 "is_processed": is_processed,
-                "has_error": bool(erro_processamento),
+                "has_error": bool(effective_error),
             }
         )
 
@@ -885,9 +927,13 @@ def _resolve_document_status(documento: dict[str, Any]) -> str:
         return "erros"
     if items and all(item.get("processado_em") for item in items):
         return "historico"
-    if _document_is_complete_for_operations(documento) and any(not item.get("is_processed") for item in items):
-        return "processaveis"
-    return "pendencias"
+    blocking_reasons = [
+        reason for reason in _document_missing_reasons(documento)
+        if reason != "aguardando conferência operacional"
+    ]
+    if blocking_reasons:
+        return "erros"
+    return "processaveis"
 
 def _document_status_meta(status_key: str) -> dict[str, str]:
     mapping = {
@@ -897,17 +943,11 @@ def _document_status_meta(status_key: str) -> dict[str, str]:
             "action_label": "Abrir / Processar",
             "empty_title": "Nenhum documento pronto para operação.",
         },
-        "pendencias": {
-            "label": "Pendente",
-            "badge_class": "warning",
-            "action_label": "Completar",
-            "empty_title": "Nenhuma pendência documental no momento.",
-        },
         "erros": {
             "label": "Erro",
             "badge_class": "danger",
             "action_label": "Corrigir",
-            "empty_title": "Nenhum documento com erro operacional.",
+            "empty_title": "Nenhum documento com erro operacional ou cadastro incompleto.",
         },
         "historico": {
             "label": "Histórico",
@@ -982,21 +1022,20 @@ def _build_operational_dashboard(*, notas: list[dict[str, Any]], nota_detalhes: 
 
     grouped: dict[str, list[dict[str, Any]]] = {
         "processaveis": [],
-        "pendencias": [],
         "erros": [],
         "historico": [],
     }
     for document in documents:
         grouped[document["status_key"]].append(document)
 
-    active_tab = (request.args.get("aba") or "").strip().lower()
-    if active_tab not in {"registro", "processaveis", "pendencias", "erros", "historico"}:
+    active_tab = _normalize_operational_tab(request.args.get("aba"))
+    if active_tab not in VALID_OPERATIONAL_TABS:
         active_tab = selected_document["status_key"] if selected_document else "registro"
 
     counts = {
         "total": len(documents),
         "processaveis": len(grouped["processaveis"]),
-        "pendencias": len(grouped["pendencias"]),
+        "pendencias": 0,
         "erros": len(grouped["erros"]),
         "historico": len(grouped["historico"]),
     }
@@ -1011,7 +1050,7 @@ def _build_operational_dashboard(*, notas: list[dict[str, Any]], nota_detalhes: 
 
 
 def _requested_operational_tab() -> str | None:
-    tab_value = (request.form.get("active_tab") or request.args.get("aba") or "").strip().lower()
+    tab_value = _normalize_operational_tab(request.form.get("active_tab") or request.args.get("aba"))
     return tab_value if tab_value in VALID_OPERATIONAL_TABS else None
 
 
@@ -1309,6 +1348,18 @@ def registrar_nf():
         if not nota:
             raise ValueError("Informe o número do documento")
 
+        _validate_document_registration_fields(
+            numero_documento=nota,
+            tipo_documento=tipo_documento,
+            supplier_id=supplier_id,
+            supplier_name=supplier_name,
+            supplier_cnpj=supplier_cnpj,
+            data_emissao=data_emissao,
+            data_recebimento=data_recebimento,
+            comprovacao_status=comprovacao_status,
+            observacao=observacao,
+        )
+
         preco_unitario = float(preco_unitario_raw) if preco_unitario_raw else None
         item = inventory_service.get_item(codigo) or {}
 
@@ -1485,7 +1536,7 @@ def converter_documento_legado():
             _redirect_to_nf_context(
                 numero_documento=document.numero_documento,
                 anchor=f"documento-editar-{document.id_documento}",
-                fallback_tab="pendencias",
+                fallback_tab="processaveis",
             )
         )
     except ValueError as exc:
@@ -1529,8 +1580,16 @@ def editar_documento(documento_id: int):
             data_recebimento=data_recebimento,
         )
 
-        if not numero_documento:
-            raise ValueError("Informe o número do documento fiscal.")
+        _validate_document_registration_fields(
+            numero_documento=numero_documento,
+            tipo_documento=tipo_documento,
+            supplier_id=supplier_id,
+            supplier_name=supplier_name,
+            supplier_cnpj=supplier_cnpj,
+            data_emissao=data_emissao,
+            data_recebimento=data_recebimento,
+            observacao=observacao,
+        )
 
         supplier = finance_service._resolve_supplier_for_document(
             supplier_id=supplier_id,
@@ -1670,7 +1729,7 @@ def editar_documento(documento_id: int):
     return redirect(
         _redirect_to_nf_context(
             numero_documento=documento.numero_documento,
-            fallback_tab="pendencias",
+            fallback_tab="processaveis",
             clear_selection=True,
         )
     )
@@ -1780,7 +1839,7 @@ def adicionar_item_documento(documento_id: int):
         _redirect_to_nf_context(
             numero_documento=documento.numero_documento,
             anchor=f"documento-editar-{documento.id_documento}",
-            fallback_tab="pendencias",
+            fallback_tab="processaveis",
         )
     )
 
@@ -1851,7 +1910,7 @@ def excluir_item_documento(documento_id: int, documento_item_id: int):
         return redirect(_redirect_to_nf_context(numero_documento=numero_documento, fallback_tab="historico"))
 
     flash(f"Item {codigo_item} removido do documento fiscal {numero_documento}.", "success")
-    return redirect(_redirect_to_nf_context(numero_documento=numero_documento, fallback_tab="pendencias"))
+    return redirect(_redirect_to_nf_context(numero_documento=numero_documento, fallback_tab="processaveis"))
 
 
 @blueprint.post("/<int:documento_id>/itens/<int:documento_item_id>/excluir-por-erro-digitacao")
@@ -1926,4 +1985,4 @@ def excluir_item_documento_por_erro_digitacao(documento_id: int, documento_item_
         f"Item {codigo_item} removido do documento fiscal {numero_documento} por erro de digitação, com estorno do estoque.",
         "success",
     )
-    return redirect(_redirect_to_nf_context(numero_documento=numero_documento, fallback_tab="pendencias"))
+    return redirect(_redirect_to_nf_context(numero_documento=numero_documento, fallback_tab="processaveis"))

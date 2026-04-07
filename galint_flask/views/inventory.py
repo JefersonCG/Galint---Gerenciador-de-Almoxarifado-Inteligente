@@ -9,7 +9,7 @@ from io import BytesIO
 
 from flask import Blueprint, abort, current_app, flash, jsonify, make_response, redirect, render_template, request, send_file, session, url_for
 from flask_login import login_required, current_user
-from sqlalchemy import func
+from sqlalchemy import and_, func, or_
 
 from ..extensions import db
 from ..models import DocumentoEntradaEstoque, DocumentoEntradaEstoqueItem, FinanceLedgerEntry, Item, Usuario
@@ -463,8 +463,13 @@ def _extract_finance_payload(
 
 def _should_seed_nf_pre_registration(finance_payload: dict[str, object]) -> bool:
     numero_documento = str(finance_payload.get("numero_documento") or "").strip()
+    tipo_documento = str(finance_payload.get("tipo_documento") or "").strip().lower()
     origem_valor = str(finance_payload.get("origem_valor") or "").strip().lower()
-    return bool(numero_documento) and origem_valor in {"compra_nf", "compra_cupom"}
+    if not numero_documento:
+        return False
+    if tipo_documento in {"nf", "cupom", "manual", "recibo"}:
+        return True
+    return origem_valor in {"compra_nf", "compra_cupom", "compra_documento", "valor_estimado"}
 
 
 def _validate_stock_entry_policy(
@@ -501,40 +506,53 @@ def _validate_stock_entry_policy(
 
 
 def _validate_document_bridge_request(finance_payload: dict[str, object]) -> None:
-    tipo_documento = (str(finance_payload.get("tipo_documento") or "")).strip().lower() or "nf"
-    if tipo_documento not in {"nf", "cupom"}:
-        return
-
     numero_documento = (str(finance_payload.get("numero_documento") or "")).strip()
+    tipo_documento = (str(finance_payload.get("tipo_documento") or "")).strip().lower()
+    supplier_id = finance_payload.get("supplier_id")
     chave_acesso = (str(finance_payload.get("chave_acesso") or "")).strip()
     data_emissao = finance_payload.get("data_emissao_documento")
-    supplier_id = finance_payload.get("supplier_id")
+    data_recebimento = finance_payload.get("data_recebimento_documento")
+    comprovacao_status = (str(finance_payload.get("comprovacao_status") or "")).strip().lower()
+    observacao = (str(finance_payload.get("observacao") or "")).strip()
 
-    informed_bridge_data = bool(numero_documento or chave_acesso or data_emissao or supplier_id)
+    informed_bridge_data = bool(
+        numero_documento
+        or tipo_documento
+        or chave_acesso
+        or data_emissao
+        or data_recebimento
+        or supplier_id
+        or observacao
+    )
     if not informed_bridge_data:
         return
 
+    missing_fields: list[str] = []
     if not numero_documento:
-        raise ValueError("Informe o número da NF/cupom para abrir o documento fiscal automaticamente.")
+        missing_fields.append("número do documento")
+    if not tipo_documento:
+        missing_fields.append("tipo documental")
+    if not supplier_id:
+        missing_fields.append("fornecedor")
+    if not isinstance(data_recebimento, date):
+        missing_fields.append("data de recebimento")
+    if tipo_documento == "nf" and not isinstance(data_emissao, date):
+        missing_fields.append("data de emissão")
+    if tipo_documento == "nf" and not chave_acesso:
+        missing_fields.append("chave de acesso")
+    if comprovacao_status in {"sem_comprovacao", "parcial"} and not observacao:
+        missing_fields.append("observação financeira")
+
+    if missing_fields:
+        raise ValueError(
+            "Para vincular automaticamente esse documento ao item, informe: "
+            + ", ".join(missing_fields)
+            + "."
+        )
 
     existing_document = finance_service.get_stock_document_by_number(numero_documento)
     if existing_document:
         return
-
-    missing_fields: list[str] = []
-    if not supplier_id:
-        missing_fields.append("fornecedor")
-    if tipo_documento == "nf" and not chave_acesso:
-        missing_fields.append("chave de acesso")
-    if not isinstance(data_emissao, date):
-        missing_fields.append("data de emissão")
-
-    if missing_fields:
-        raise ValueError(
-            "Para vincular automaticamente esse documento fiscal ao item, informe: "
-            + ", ".join(missing_fields)
-            + "."
-        )
 
 
 def _sync_item_financial_history(
@@ -733,17 +751,36 @@ def _format_pre_registered_document_type(tipo_documento: str | None) -> str:
 
 def _repair_pending_pre_registered_links() -> int:
     repaired = 0
-    pending_items = (
+    candidate_items = (
         Item.query
-        .filter(Item.pre_cadastro_pendente.is_(True))
-        .filter(Item.pre_cadastro_documento_item_id.is_(None))
+        .filter(
+            or_(
+                Item.pre_cadastro_pendente.is_(True),
+                and_(
+                    Item.pre_cadastro_origem == "nf",
+                    Item.pre_cadastro_pendente.is_(False),
+                    Item.pre_cadastro_finalizado_em.is_(None),
+                    or_(
+                        Item.pre_cadastro_criado_em.is_not(None),
+                        Item.pre_cadastro_documento_item_id.is_not(None),
+                    ),
+                ),
+            )
+        )
         .all()
     )
 
-    for item_model in pending_items:
+    for item_model in candidate_items:
         origem = (getattr(item_model, "pre_cadastro_origem", "") or "").strip().lower()
         if origem != "nf":
             continue
+
+        if (
+            not bool(getattr(item_model, "pre_cadastro_pendente", False))
+            and getattr(item_model, "pre_cadastro_finalizado_em", None) is None
+        ):
+            item_model.pre_cadastro_pendente = True
+            repaired += 1
 
         candidate_numbers = {
             str(getattr(item_model, "nota_fiscal", "") or "").strip(),
@@ -753,24 +790,30 @@ def _repair_pending_pre_registered_links() -> int:
         if not candidate_numbers:
             continue
 
-        rows = (
-            DocumentoEntradaEstoqueItem.query
-            .join(DocumentoEntradaEstoque, DocumentoEntradaEstoqueItem.documento_id == DocumentoEntradaEstoque.id_documento)
-            .filter(DocumentoEntradaEstoqueItem.codigo_item == item_model.codigo_item)
-            .filter(DocumentoEntradaEstoque.numero_documento.in_(sorted(candidate_numbers)))
-            .filter(DocumentoEntradaEstoqueItem.stock_movement_id.is_(None))
-            .filter(DocumentoEntradaEstoqueItem.entrada_id.is_(None))
-            .order_by(DocumentoEntradaEstoqueItem.id_documento_item.desc())
-            .all()
-        )
-        if len(rows) != 1:
-            continue
+        row = None
+        if item_model.pre_cadastro_documento_item_id is not None:
+            row = db.session.get(DocumentoEntradaEstoqueItem, item_model.pre_cadastro_documento_item_id)
 
-        row = rows[0]
-        item_model.pre_cadastro_documento_item_id = row.id_documento_item
+        if row is None:
+            rows = (
+                DocumentoEntradaEstoqueItem.query
+                .join(DocumentoEntradaEstoque, DocumentoEntradaEstoqueItem.documento_id == DocumentoEntradaEstoque.id_documento)
+                .filter(DocumentoEntradaEstoqueItem.codigo_item == item_model.codigo_item)
+                .filter(DocumentoEntradaEstoque.numero_documento.in_(sorted(candidate_numbers)))
+                .order_by(DocumentoEntradaEstoqueItem.id_documento_item.desc())
+                .all()
+            )
+            if len(rows) != 1:
+                continue
+            row = rows[0]
+
+        if item_model.pre_cadastro_documento_item_id != row.id_documento_item:
+            item_model.pre_cadastro_documento_item_id = row.id_documento_item
+            repaired += 1
+
         if row.documento is not None and not bool(getattr(row.documento, "movimenta_estoque", True)):
             row.documento.movimenta_estoque = True
-        repaired += 1
+            repaired += 1
 
     if repaired:
         db.session.commit()

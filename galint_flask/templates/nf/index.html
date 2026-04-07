@@ -1281,10 +1281,6 @@
             <div class="docf-kpi-value">{{ operational_dashboard.counts.processaveis }}</div>
         </div>
         <div class="docf-kpi">
-            <div class="docf-kpi-label">Pendências</div>
-            <div class="docf-kpi-value">{{ operational_dashboard.counts.pendencias }}</div>
-        </div>
-        <div class="docf-kpi">
             <div class="docf-kpi-label">Erros</div>
             <div class="docf-kpi-value">{{ operational_dashboard.counts.erros }}</div>
         </div>
@@ -1315,13 +1311,6 @@
                     <span class="docf-tab-main">Processáveis</span>
                     <span class="docf-tab-sub">Prontos para conferência</span>
                     <span class="badge">{{ operational_dashboard.counts.processaveis }}</span>
-                </a>
-            </div>
-            <div class="nav-item">
-                <a class="nav-link {% if active_tab == 'pendencias' %}active{% endif %}" href="{{ nf_tab_url('pendencias', nota_busca or None) }}">
-                    <span class="docf-tab-main">Pendências</span>
-                    <span class="docf-tab-sub">Preenchimento incompleto</span>
-                    <span class="badge">{{ operational_dashboard.counts.pendencias }}</span>
                 </a>
             </div>
             <div class="nav-item">
@@ -1376,14 +1365,14 @@
                             <span class="docf-step-index">3</span>
                             <div>
                                 <h3>Salve e acompanhe pelas abas</h3>
-                                <p>Depois do cadastro, o documento passa automaticamente para Processáveis, Pendências, Erros ou Histórico.</p>
+                                <p>Depois do cadastro, o documento segue para Processáveis, Erros ou Histórico, sem uma fila separada de pendências.</p>
                             </div>
                         </div>
                     </div>
                 </div>
 
                 <div class="docf-panel info mb-3">
-                    O cadastro permanece rastreável e a conferência operacional acontece nas abas seguintes, sem misturar histórico e triagem na mesma tela.
+                    O cadastro permanece rastreável e qualquer falta de preenchimento é avisada na gravação, sem criar uma aba paralela de pendências.
                 </div>
 
                 <div class="docf-mode-actions" id="doc-mode-actions">
@@ -1599,14 +1588,14 @@
             </section>
             {% endif %}
         </div>
-        {% elif active_tab in ['processaveis', 'pendencias', 'erros', 'historico'] %}
+        {% elif active_tab in ['processaveis', 'erros', 'historico'] %}
         <div class="docf-state-pane">
             <section class="docf-card">
                 <div class="docf-card-header">
                     <div>
                         <div class="docf-kicker">Fila operacional</div>
                         <h2 class="docf-card-title">
-                            {% if active_tab == 'processaveis' %}Documentos prontos para conferência{% elif active_tab == 'pendencias' %}Documentos com preenchimento incompleto{% elif active_tab == 'erros' %}Documentos com erro operacional{% else %}Histórico consolidado de documentos{% endif %}
+                            {% if active_tab == 'processaveis' %}Documentos prontos para conferência{% elif active_tab == 'erros' %}Documentos com erro operacional ou cadastro incompleto{% else %}Histórico consolidado de documentos{% endif %}
                         </h2>
                     </div>
                     <span class="docf-badge">{% if active_tab == 'historico' %}{{ notas|length }} documentos{% else %}{{ operational_dashboard.grouped[active_tab]|length }} documentos{% endif %}</span>
@@ -1614,10 +1603,8 @@
                 <div class="docf-panel info mb-0">
                     {% if active_tab == 'processaveis' %}
                     Aqui ficam os documentos completos e aptos para revisão e processamento.
-                    {% elif active_tab == 'pendencias' %}
-                    Aqui ficam os documentos que ainda exigem complemento de dados ou conferência básica.
                     {% elif active_tab == 'erros' %}
-                    Aqui ficam os documentos que já registraram falhas operacionais nos itens vinculados.
+                    Aqui ficam os documentos que registraram falhas operacionais ou ainda precisam de correção cadastral.
                     {% else %}
                     Aqui ficam os documentos já processados e o fechamento por período, com detalhamento histórico quando um documento é selecionado.
                     {% endif %}
@@ -1910,7 +1897,7 @@
                     <div>
                         <div class="docf-kicker">Documentos na fila</div>
                         <h2 class="docf-card-title">
-                            {% if active_tab == 'processaveis' %}Prontos para ação{% elif active_tab == 'pendencias' %}Precisam de complemento{% else %}Precisam de correção{% endif %}
+                            {% if active_tab == 'processaveis' %}Prontos para ação{% else %}Precisam de correção{% endif %}
                         </h2>
                     </div>
                     <span class="docf-badge">{{ operational_dashboard.grouped[active_tab]|length }} documentos</span>
@@ -1926,10 +1913,8 @@
                 <div class="docf-empty">
                     {% if active_tab == 'processaveis' %}
                     Nenhum documento pronto para operação.
-                    {% elif active_tab == 'pendencias' %}
-                    Nenhuma pendência documental no momento.
                     {% else %}
-                    Nenhum documento com erro operacional.
+                    Nenhum documento com erro operacional ou cadastro incompleto.
                     {% endif %}
                 </div>
                 {% endif %}

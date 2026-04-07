@@ -133,6 +133,41 @@ MATERIAL_RETURN_UNIT_META = {
     },
 }
 
+MATERIAL_RETURN_FRACTIONABLE_PACKAGING_TYPES = {
+    "lata",
+    "balde",
+    "bombona",
+    "caixa",
+    "fardo",
+    "litro",
+    "pacote",
+    "rolo",
+    "saco",
+}
+
+MATERIAL_RETURN_LIQUID_HINTS = (
+    "tinta",
+    "resina",
+    "verniz",
+    "solvente",
+    "thinner",
+    "selador",
+    "impermeabilizante",
+    "esmalte",
+)
+
+MATERIAL_RETURN_WEIGHT_HINTS = (
+    "massa",
+    "argamassa",
+    "rejunte",
+    "cloro",
+    "cimento",
+    "gesso",
+)
+
+MATERIAL_RETURN_LIQUID_MEASURE_RE = re.compile(r"\b\d+(?:[.,]\d+)?\s*(l|lt|lts|litro|litros)\b")
+MATERIAL_RETURN_WEIGHT_MEASURE_RE = re.compile(r"\b\d+(?:[.,]\d+)?\s*(kg|quilo|quilos)\b")
+
 
 def _normalize_operational_lookup(value: object) -> str:
     normalized = " ".join(str(value or "").strip().split()).lower()
@@ -1204,6 +1239,83 @@ class InventoryService:
             "input_min": meta["input_min"],
         }
 
+    @staticmethod
+    def _build_material_return_lookup_text(*values: object) -> str:
+        parts = [_normalize_operational_lookup(value) for value in values]
+        return " ".join(part for part in parts if part).strip()
+
+    @staticmethod
+    def _material_return_text_prefers_liquid_unit(text: str) -> bool:
+        return bool(
+            text
+            and MATERIAL_RETURN_LIQUID_MEASURE_RE.search(text)
+            and any(keyword in text for keyword in MATERIAL_RETURN_LIQUID_HINTS)
+        )
+
+    @staticmethod
+    def _material_return_text_prefers_weight_unit(text: str) -> bool:
+        return bool(
+            text
+            and MATERIAL_RETURN_WEIGHT_MEASURE_RE.search(text)
+            and any(keyword in text for keyword in MATERIAL_RETURN_WEIGHT_HINTS)
+        )
+
+    def _resolve_material_return_primary_unit_code(self, item: Item) -> str:
+        tipo_embalagem = _normalize_operational_lookup(getattr(item, "tipo_embalagem_novo", None))
+        unidade_item = self._normalize_material_return_unit_code(getattr(item, "unidade", None))
+        litros_por_embalagem = self._as_positive_float(getattr(item, "litros_por_embalagem", None))
+        grandeza_referencia = self._as_positive_float(getattr(item, "grandeza_referencia", None))
+        unidades_por_embalagem = self._as_positive_float(getattr(item, "unidades_por_embalagem", None))
+        lookup_text = self._build_material_return_lookup_text(
+            getattr(item, "categoria", None),
+            getattr(item, "descricao", None),
+        )
+
+        product_units = sorted(
+            getattr(item, "product_units", []) or [],
+            key=lambda row: (
+                self._normalize_material_return_unit_code(getattr(row, "unit_code", None)) == "unidade",
+                not bool(getattr(row, "is_base", False)),
+                (getattr(row, "unit_code", None) or ""),
+                getattr(row, "id", 0) or 0,
+            ),
+        )
+        for unit in product_units:
+            if not bool(getattr(unit, "active", False)):
+                continue
+            normalized = self._normalize_material_return_unit_code(getattr(unit, "unit_code", None))
+            if normalized in {"litro", "quilo", "metro"}:
+                return normalized
+
+        if litros_por_embalagem > 0 or self._material_return_text_prefers_liquid_unit(lookup_text):
+            return "litro"
+
+        if tipo_embalagem == "rolo" and unidades_por_embalagem > 0:
+            return "metro"
+
+        if grandeza_referencia > 0 or self._material_return_text_prefers_weight_unit(lookup_text):
+            return "quilo"
+
+        if tipo_embalagem in {"pacote", "caixa", "fardo", "saco"}:
+            return "unidade"
+
+        if tipo_embalagem in MATERIAL_RETURN_FRACTIONABLE_PACKAGING_TYPES and unidade_item in {"litro", "quilo", "metro"}:
+            return unidade_item
+
+        canonical_unit = self._normalize_material_return_unit_code(resolve_canonical_unit(item))
+        if canonical_unit:
+            return canonical_unit
+
+        if unidade_item:
+            return unidade_item
+
+        for unit in product_units:
+            normalized = self._normalize_material_return_unit_code(getattr(unit, "unit_code", None))
+            if normalized:
+                return normalized
+
+        return "unidade"
+
     def get_material_return_unit_options(self, *, item: Item | None = None, codigo: str | None = None) -> list[dict[str, Any]]:
         item_model = item
         if item_model is None:
@@ -1224,26 +1336,7 @@ class InventoryService:
             seen_units.add(normalized)
             options.append(self._build_material_return_unit_meta(normalized))
 
-        add_option(resolve_canonical_unit(item_model))
-
-        for unit in sorted(item_model.product_units, key=lambda row: (not bool(row.is_base), (row.unit_code or ""), row.id or 0)):
-            if not bool(unit.active) or not unit.unit_code or is_packaging_unit_code(unit.unit_code):
-                continue
-            add_option(unit.unit_code)
-
-        try:
-            if float(getattr(item_model, "litros_por_embalagem", 0) or 0) > 0:
-                add_option("litro")
-        except (TypeError, ValueError):
-            pass
-
-        try:
-            if float(getattr(item_model, "grandeza_referencia", 0) or 0) > 0:
-                add_option("quilo")
-        except (TypeError, ValueError):
-            pass
-
-        add_option(item_model.unidade)
+        add_option(self._resolve_material_return_primary_unit_code(item_model))
         if not options:
             add_option("unidade")
 
