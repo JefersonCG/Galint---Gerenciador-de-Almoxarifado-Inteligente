@@ -16,6 +16,8 @@ from flask_login import login_required
 from galint_flask.utils.time_service import TimeService
 from sqlalchemy import func, not_, or_
 
+from ..services.general_search_service import general_search_service
+
 logger = logging.getLogger(__name__)
 
 bp = Blueprint("reports", __name__, url_prefix="/relatorios")
@@ -1441,418 +1443,119 @@ def gerar_relatorio():
         return redirect(url_for("reports.index"))
 
 
+def _redirect_to_general_search(*, scope: str, query: str | None = None, period: int | None = None, selected_date: str | None = None):
+    redirect_kwargs: dict[str, object] = {
+        "open_general_search": "1",
+        "general_scope": scope,
+    }
+    normalized_query = str(query or "").strip()
+    if normalized_query:
+        redirect_kwargs["general_query"] = normalized_query
+    if period is not None:
+        redirect_kwargs["general_period"] = int(period)
+    normalized_date = str(selected_date or "").strip()
+    if normalized_date:
+        redirect_kwargs["general_date"] = normalized_date
+
+    flash("A consulta foi incorporada a Pesquisa geral da barra superior.", "info")
+    return redirect(url_for("reports.index", **redirect_kwargs))
+
+
+@bp.route("/api/pesquisa-geral/sugestoes")
+@login_required
+def general_search_suggestions_api():
+    scope = (request.args.get("scope") or "funcionario").strip().lower()
+    query = (request.args.get("q") or "").strip()
+
+    if scope == "funcionario":
+        results = general_search_service.search_employees(query)
+    elif scope == "item":
+        results = general_search_service.search_items(query)
+    else:
+        return jsonify({"success": False, "message": "Escopo de sugestao invalido."}), 400
+
+    return jsonify({
+        "success": True,
+        "scope": scope,
+        "results": results,
+    })
+
+
+@bp.route("/api/pesquisa-geral/funcionario/<matricula>")
+@login_required
+def general_search_employee_api(matricula: str):
+    try:
+        payload = general_search_service.build_employee_payload(matricula)
+    except ValueError as exc:
+        return jsonify({"success": False, "message": str(exc)}), 404
+
+    return jsonify({"success": True, **payload})
+
+
+@bp.route("/api/pesquisa-geral/item/<codigo_item>")
+@login_required
+def general_search_item_api(codigo_item: str):
+    period_days = _parse_period_days_arg(request.args.get("period", "0"))
+    if period_days not in [0, 7, 30, 90, 180, 365]:
+        period_days = 0
+
+    try:
+        payload = general_search_service.build_item_payload(codigo_item, period_days=period_days)
+    except ValueError as exc:
+        return jsonify({"success": False, "message": str(exc)}), 404
+
+    return jsonify({"success": True, **payload})
+
+
+@bp.route("/api/pesquisa-geral/diario")
+@login_required
+def general_search_daily_api():
+    raw_date = (request.args.get("date") or "").strip()
+    selected_date = TimeService.now_local().date()
+    if raw_date:
+        try:
+            selected_date = datetime.strptime(raw_date, "%Y-%m-%d").date()
+        except ValueError:
+            return jsonify({"success": False, "message": "Data invalida informada."}), 400
+
+    payload = general_search_service.build_daily_payload(
+        selected_date=selected_date,
+        search_term=(request.args.get("search") or "").strip(),
+    )
+    return jsonify({"success": True, **payload})
+
+
 @bp.route("/by-item")
 @login_required
 def by_item():
-    """Página de relatório por item específico ou por funcionário."""
-    from flask import current_app
-    from ..models import Item
-    
-    # Buscar termo e tipo de busca
-    search_term = request.args.get("search", "").strip()
-    search_type = request.args.get("type", "item").strip().lower()  # "item" ou "usuario"
-    # Por padrão, ao buscar usuário, mostrar TODO o histórico (desde a primeira retirada)
-    # Para itens, permitir filtro de período
-    if search_type == "usuario":
-        period_days = 0  # Sempre mostrar histórico completo para usuários
-    else:
-        period_days = _parse_period_days_arg(request.args.get("period", "0"))
-        if period_days not in [7, 30, 90, 180, 365, 0]:  # 0 = todo histórico
-            period_days = 0
-    
-    results = []
-    item_info = None
-    usuario_info = None
-    today_withdrawals = []
-    today_label = None
-    
-    if search_term:
-        from datetime import datetime, timedelta, timezone
-        from ..models import Saida, Usuario, InventarioEvento
-        from ..extensions import db
-        from ..utils.time_service import TimeService
-        
-        if search_type == "usuario":
-            # Buscar por funcionário (nome ou matrícula)
-            usuario = Usuario.query.filter(
-                db.or_(
-                    Usuario.nome.ilike(f"%{search_term}%"),
-                    Usuario.matricula.ilike(f"%{search_term}%")
-                )
-            ).first()
-            
-            if usuario:
-                usuario_info = {
-                    "matricula": usuario.matricula,
-                    "nome": usuario.nome,
-                    "cargo": usuario.setor if usuario.setor else (usuario.cargo if usuario.cargo else "N/D"),
-                }
+    """Alias legado da Pesquisa geral para item ou funcionario."""
+    search_type = (request.args.get("type") or "item").strip().lower()
+    search_term = (request.args.get("search") or "").strip()
+    period_days = _parse_period_days_arg(request.args.get("period", "0"))
+    if period_days not in [0, 7, 30, 90, 180, 365]:
+        period_days = 0
 
-                # Checklist: itens retirados hoje (hora local)
-                local_now = TimeService.now_local()
-                local_start = local_now.replace(hour=0, minute=0, second=0, microsecond=0)
-                local_end = local_start + timedelta(days=1)
-                start_utc = local_start.astimezone(timezone.utc).replace(tzinfo=None)
-                end_utc = local_end.astimezone(timezone.utc).replace(tzinfo=None)
-                today_label = local_start.strftime("%d/%m/%Y")
-
-                today_rows = (
-                    db.session.query(
-                        Saida.codigo_item,
-                        Item.descricao.label("item_descricao"),
-                        db.func.sum(Saida.quantidade).label("total_quantidade"),
-                    )
-                    .join(Item, Saida.codigo_item == Item.codigo_item, isouter=True)
-                    .filter(
-                        Saida.matricula == usuario.matricula,
-                        Saida.data_saida >= start_utc,
-                        Saida.data_saida < end_utc,
-                    )
-                    .group_by(Saida.codigo_item, Item.descricao)
-                    .order_by(Item.descricao.asc())
-                    .all()
-                )
-
-                for row in today_rows:
-                    today_withdrawals.append(
-                        {
-                            "codigo_item": row.codigo_item,
-                            "item_codigo": _format_codigo_barra(row.codigo_item),
-                            "item_descricao": row.item_descricao or "Item removido",
-                            "quantidade": float(row.total_quantidade or 0),
-                        }
-                    )
-                
-                # Buscar todas as saídas deste usuário
-                query = db.session.query(
-                    Saida.id_saida,
-                    Saida.quantidade,
-                    Saida.data_saida,
-                    Saida.observacao,
-                    Saida.local_servico,
-                    Saida.codigo_item,
-                    Item.descricao.label("item_descricao"),
-                    Item.categoria.label("item_categoria"),
-                    Item.marca.label("item_marca"),
-                ).join(
-                    Item, Saida.codigo_item == Item.codigo_item, isouter=True
-                ).filter(
-                    Saida.matricula == usuario.matricula
-                )
-                
-                cutoff = None
-                # Filtro de periodo removido para usuarios para garantir historico completo
-                # if period_days > 0:
-                #     cutoff = datetime.utcnow() - timedelta(days=period_days)
-                #     query = query.filter(Saida.data_saida >= cutoff)
-                
-                query = query.order_by(Saida.data_saida.desc())
-                
-                saidas = query.all()
-                movimentos = []
-                
-                for saida in saidas:
-                    business_tag = TimeService.get_business_day_tag(saida.data_saida)
-                    movimentos.append({
-                        "id": f"saida_{saida.id_saida}",
-                        "quantidade": saida.quantidade,
-                        "data": saida.data_saida,
-                        "data_formatada": TimeService.format_local(saida.data_saida, "%d/%m/%Y"),
-                        "hora_formatada": TimeService.format_local(saida.data_saida, "%H:%M"),
-                        "observacao": saida.observacao or "",
-                        "local_servico": saida.local_servico or "",
-                        "codigo_item": saida.codigo_item,
-                        "item_codigo": _format_codigo_barra(saida.codigo_item),
-                        "item_descricao": saida.item_descricao or "Item removido",
-                        "item_categoria": saida.item_categoria or "N/D",
-                        "item_marca": saida.item_marca or "N/D",
-                        "periodo": business_tag,
-                        "tipo": "Retirada",
-                    })
-
-                devolucoes_query = db.session.query(
-                    InventarioEvento.id_evento,
-                    InventarioEvento.quantidade,
-                    InventarioEvento.data_evento,
-                    InventarioEvento.descricao,
-                    InventarioEvento.codigo_item,
-                    Item.descricao.label("item_descricao"),
-                    Item.categoria.label("item_categoria"),
-                    Item.marca.label("item_marca"),
-                ).join(
-                    Item, InventarioEvento.codigo_item == Item.codigo_item, isouter=True
-                ).filter(
-                    InventarioEvento.matricula == usuario.matricula,
-                    InventarioEvento.tipo.in_(["devolucao_ferramenta", "devolucao_material"]),
-                )
-                if cutoff is not None:
-                    devolucoes_query = devolucoes_query.filter(InventarioEvento.data_evento >= cutoff)
-
-                devolucoes = devolucoes_query.all()
-                for devolucao in devolucoes:
-                    business_tag = TimeService.get_business_day_tag(devolucao.data_evento)
-                    movimentos.append({
-                        "id": f"devolucao_{devolucao.id_evento}",
-                        "quantidade": devolucao.quantidade,
-                        "data": devolucao.data_evento,
-                        "data_formatada": TimeService.format_local(devolucao.data_evento, "%d/%m/%Y"),
-                        "hora_formatada": TimeService.format_local(devolucao.data_evento, "%H:%M"),
-                        "observacao": devolucao.descricao or "",
-                        "local_servico": "",
-                        "codigo_item": devolucao.codigo_item,
-                        "item_codigo": _format_codigo_barra(devolucao.codigo_item),
-                        "item_descricao": devolucao.item_descricao or "Item removido",
-                        "item_categoria": devolucao.item_categoria or "N/D",
-                        "item_marca": devolucao.item_marca or "N/D",
-                        "periodo": business_tag,
-                        "tipo": "Devolução",
-                    })
-
-                movimentos.sort(key=lambda mov: mov["data"] or datetime.min, reverse=True)
-                results.extend(movimentos)
-        else:
-            # Buscar por item (comportamento original)
-            # Primeiro tenta busca direta
-            item = Item.query.filter(
-                db.or_(
-                    Item.descricao.ilike(f"%{search_term}%"),
-                    Item.codigo_item.ilike(f"%{search_term}%")
-                )
-            ).first()
-            
-            # Se não encontrar, tenta busca normalizada (sem acentos)
-            if not item:
-                search_normalized = _normalize_search(search_term)
-                todos_itens = Item.query.all()
-                for it in todos_itens:
-                    desc_normalized = _normalize_search(it.descricao or "")
-                    if search_normalized.lower() in desc_normalized.lower():
-                        item = it
-                        break
-                    if search_normalized.lower() in (it.codigo_item or "").lower():
-                        item = it
-                        break
-            
-            if not item:
-                flash("Item não encontrado.", "warning")
-                return render_template(
-                    "reports/by_item.html",
-                    search_term=search_term,
-                    search_type=search_type,
-                    period_days=period_days,
-                    item_info=None,
-                    usuario_info=None,
-                    results=[],
-                    total_quantidade=0,
-                )
-
-            item_info = {
-                "codigo": item.codigo_item,
-                "descricao": item.descricao,
-                "categoria": item.categoria,
-                "marca": item.marca,
-                "saldo_atual": item.get_saldo_fisico_total(),
-            }
-            
-            # Buscar todas as saídas deste item
-            query = db.session.query(
-                Saida.id_saida,
-                Saida.quantidade,
-                Saida.data_saida,
-                Saida.observacao,
-                Saida.local_servico,
-                Saida.matricula.label("saida_matricula"),
-                Usuario.nome.label("usuario_nome"),
-            ).join(
-                Usuario, Saida.matricula == Usuario.matricula, isouter=True
-            ).filter(
-                Saida.codigo_item == item.codigo_item
-            )
-            
-            # Aplicar filtro de período
-            if period_days > 0:
-                cutoff = datetime.utcnow() - timedelta(days=period_days)
-                query = query.filter(Saida.data_saida >= cutoff)
-            
-            query = query.order_by(Saida.data_saida.desc())
-            
-            saidas = query.all()
-            
-            for saida in saidas:
-                business_tag = TimeService.get_business_day_tag(saida.data_saida)
-                results.append({
-                    "id": saida.id_saida,
-                    "quantidade": saida.quantidade,
-                    "data": saida.data_saida,
-                    "data_formatada": TimeService.format_local(saida.data_saida, "%d/%m/%Y"),
-                    "hora_formatada": TimeService.format_local(saida.data_saida, "%H:%M"),
-                    "observacao": saida.observacao or "",
-                    "local_servico": saida.local_servico or "",
-                    "usuario_nome": saida.usuario_nome or (f"Matrícula {saida.saida_matricula}" if saida.saida_matricula else "N/D"),
-                    "usuario_matricula": saida.saida_matricula or "N/D",
-                    "periodo": business_tag,
-                    # Para compatibilidade quando busca por item
-                    "codigo_item": item.codigo_item,
-                    "item_descricao": item.descricao,
-                    "item_codigo": item.codigo_item,
-                })
-    
-    return render_template(
-        "reports/by_item.html",
-        search_term=search_term,
-        search_type=search_type,
-        period_days=period_days,
-        item_info=item_info,
-        usuario_info=usuario_info,
-        results=results,
-        total_quantidade=sum(r["quantidade"] for r in results),
-        today_withdrawals=today_withdrawals,
-        today_label=today_label,
-    )
+    target_scope = "funcionario" if search_type == "usuario" else "item"
+    redirect_period = None if target_scope == "funcionario" else period_days
+    return _redirect_to_general_search(scope=target_scope, query=search_term, period=redirect_period)
 
 
 @bp.route("/by-item-day")
 @login_required
 def by_item_day():
-    """Página dedicada ao histórico diário agrupado por item."""
-    from datetime import timezone
-
-    from ..extensions import db
-    from ..models import Item, Saida, Usuario
-
-    search_term = (request.args.get("search") or "").strip()
+    """Alias legado da Pesquisa geral para a visao diaria agrupada."""
     selected_date_raw = (request.args.get("date") or "").strip()
-
-    local_now = TimeService.now_local()
-    selected_date = local_now.date()
+    selected_date = TimeService.now_local().date().isoformat()
     if selected_date_raw:
         try:
-            selected_date = datetime.strptime(selected_date_raw, "%Y-%m-%d").date()
+            selected_date = datetime.strptime(selected_date_raw, "%Y-%m-%d").date().isoformat()
         except ValueError:
-            flash("Data inválida informada. Exibindo o dia atual.", "warning")
+            flash("Data invalida informada. Exibindo o dia atual.", "warning")
 
-    local_start = local_now.replace(
-        year=selected_date.year,
-        month=selected_date.month,
-        day=selected_date.day,
-        hour=0,
-        minute=0,
-        second=0,
-        microsecond=0,
-    )
-    local_end = local_start + timedelta(days=1)
-    start_utc = local_start.astimezone(timezone.utc).replace(tzinfo=None)
-    end_utc = local_end.astimezone(timezone.utc).replace(tzinfo=None)
-
-    query = (
-        db.session.query(
-            Saida.id_saida,
-            Saida.quantidade,
-            Saida.data_saida,
-            Saida.observacao,
-            Saida.local_servico,
-            Saida.tipo_custodia,
-            Saida.codigo_item,
-            Saida.matricula,
-            Item.descricao.label("item_descricao"),
-            Item.categoria.label("item_categoria"),
-            Item.marca.label("item_marca"),
-            Item.foto_path.label("item_foto_path"),
-            Usuario.nome.label("usuario_nome"),
-        )
-        .join(Item, Saida.codigo_item == Item.codigo_item, isouter=True)
-        .join(Usuario, Saida.matricula == Usuario.matricula, isouter=True)
-        .filter(
-            Saida.data_saida >= start_utc,
-            Saida.data_saida < end_utc,
-        )
-    )
-
-    if search_term:
-        like_term = f"%{search_term}%"
-        query = query.filter(
-            or_(
-                Item.descricao.ilike(like_term),
-                Item.codigo_item.ilike(like_term),
-                Usuario.nome.ilike(like_term),
-                Usuario.matricula.ilike(like_term),
-                Saida.local_servico.ilike(like_term),
-                Saida.observacao.ilike(like_term),
-            )
-        )
-
-    rows = query.order_by(Saida.data_saida.asc(), Saida.id_saida.asc()).all()
-
-    grouped_items_map: dict[str, dict] = {}
-    total_quantity = 0.0
-
-    for row in rows:
-        item_key = (row.codigo_item or "").strip() or f"sem-codigo-{row.id_saida}"
-        item_group = grouped_items_map.get(item_key)
-        if item_group is None:
-            item_group = {
-                "codigo": row.codigo_item or "N/D",
-                "codigo_curto": _format_codigo_barra(row.codigo_item),
-                "descricao": row.item_descricao or "Item removido",
-                "categoria": row.item_categoria or "Sem categoria",
-                "marca": row.item_marca or "Sem marca",
-                "foto_url": _build_photo_url(row.item_foto_path),
-                "total_quantity": 0.0,
-                "movement_count": 0,
-                "unique_users": set(),
-                "movements": [],
-            }
-            grouped_items_map[item_key] = item_group
-
-        local_info = (row.local_servico or "").strip() or "Sem local informado"
-        observacao = (row.observacao or "").strip()
-        if observacao:
-            local_info = f"{local_info} | {observacao}"
-
-        user_label = row.usuario_nome or (f"Matrícula {row.matricula}" if row.matricula else "N/D")
-        movement_quantity = float(row.quantidade or 0)
-        item_group["total_quantity"] += movement_quantity
-        item_group["movement_count"] += 1
-        if row.matricula:
-            item_group["unique_users"].add(row.matricula)
-
-        item_group["movements"].append(
-            {
-                "id": row.id_saida,
-                "quantidade": movement_quantity,
-                "data_formatada": TimeService.format_local(row.data_saida, "%d/%m/%Y"),
-                "hora_formatada": TimeService.format_local(row.data_saida, "%H:%M"),
-                "usuario_nome": user_label,
-                "usuario_matricula": row.matricula or "N/D",
-                "local_info": local_info,
-                "periodo": TimeService.get_business_day_tag(row.data_saida),
-                "tipo_custodia": row.tipo_custodia or "temporaria",
-                "tipo_custodia_label": "Permanente" if (row.tipo_custodia or "").strip().lower() == "permanente" else "Temporária",
-            }
-        )
-        total_quantity += movement_quantity
-
-    grouped_items = list(grouped_items_map.values())
-    grouped_items.sort(key=lambda item: ((item.get("descricao") or "").lower(), (item.get("codigo") or "")))
-
-    for item_group in grouped_items:
-        unique_users = item_group.pop("unique_users", set())
-        item_group["unique_user_count"] = len(unique_users)
-
-    stats = {
-        "total_items": len(grouped_items),
-        "total_movements": len(rows),
-        "total_quantity": total_quantity,
-        "items_with_photo": sum(1 for item in grouped_items if item.get("foto_url")),
-    }
-
-    return render_template(
-        "reports/by_item_day.html",
-        grouped_items=grouped_items,
-        search_term=search_term,
-        selected_date=selected_date.isoformat(),
-        selected_date_label=selected_date.strftime("%d/%m/%Y"),
-        stats=stats,
+    return _redirect_to_general_search(
+        scope="diario",
+        query=(request.args.get("search") or "").strip(),
+        selected_date=selected_date,
     )
 
 
