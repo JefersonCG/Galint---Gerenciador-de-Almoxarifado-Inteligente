@@ -11,12 +11,14 @@ os.environ.setdefault("FLASK_ENV", "development")
 os.environ.setdefault("GALINT_TELEGRAM_POLLING", "false")
 os.environ.setdefault("GALINT_DISABLE_BACKGROUND_SERVICES", "true")
 
+from check_stock_unit_integrity import _physical_read_model_target
 from galint_flask.services.balance_provider import BalanceSnapshot
 from galint_flask.services.embalagem_service import EmbalagemService
 from galint_flask.services.inventory import InventoryService, MovimentoPayload
 from galint_flask.services.ledger_cutover import LedgerCutoverService
 from galint_flask.services.ledger_reconciliation import ReconciliationResult
 from galint_flask.services.legacy_stock_normalizer import resolve_packaging_quantity_and_unit, uses_packaging_legacy_normalization
+from galint_flask.views.nf import _item_matches_seeded_nf_pre_registration
 
 
 class MockPackagingItem:
@@ -305,6 +307,64 @@ def test_formatar_estoque_nao_sincroniza_legacy_em_contexto_de_leitura() -> None
     assert formatted == "2 caixas + 10 unidades"
 
 
+def test_hydrate_missing_packaging_metadata_promove_unidade_de_embalagem() -> None:
+    normalized = InventoryService._hydrate_missing_packaging_metadata(
+        {
+            "descricao": "KLYO LIMPA INOX 5L",
+            "unidade": "Bombona",
+        }
+    )
+
+    assert normalized["tipo_embalagem_novo"] == "bombona"
+    assert normalized["litros_por_embalagem"] == 5.0
+    assert normalized["unidade"] == "Bombona"
+
+
+def test_hydrate_missing_packaging_metadata_corrige_unidade_numerica() -> None:
+    normalized = InventoryService._hydrate_missing_packaging_metadata(
+        {
+            "descricao": "TINTA PISO PRETO FOSCO 18L",
+            "unidade": "1",
+        }
+    )
+
+    assert normalized["tipo_embalagem_novo"] == "lata"
+    assert normalized["litros_por_embalagem"] == 18.0
+    assert normalized["unidade"] == "Lata"
+
+
+def test_seed_nf_aceita_numero_do_documento_sem_nota_gravada_no_item() -> None:
+    item = SimpleNamespace(
+        codigo_item="NF-012901-TESTE",
+        nota_fiscal="",
+        preco_compra_documento="",
+        get_saldo_fisico_total=lambda: 0.0,
+    )
+
+    scalar_values = [0, 0]
+
+    class QueryStub:
+        def __init__(self, value: int):
+            self._value = value
+
+        def filter(self, *_args, **_kwargs):
+            return self
+
+        def scalar(self):
+            return self._value
+
+    def fake_query(*_args, **_kwargs):
+        return QueryStub(scalar_values.pop(0))
+
+    with patch("galint_flask.views.nf.db", SimpleNamespace(session=SimpleNamespace(query=fake_query))):
+        assert _item_matches_seeded_nf_pre_registration(item, document_number="012901") is True
+
+
+def test_physical_read_model_target_clampa_saldo_negativo() -> None:
+    assert _physical_read_model_target(-107478.0) == 0.0
+    assert _physical_read_model_target(280.0) == 280.0
+
+
 def main() -> int:
     test_sync_legacy_nao_transforma_unidades_em_pacotes_explodidos()
     test_sync_legacy_respeita_quando_snapshot_ja_esta_em_pacotes()
@@ -316,6 +376,10 @@ def main() -> int:
     test_resolve_ledger_input_para_embalagem_legada_usa_base_canonica()
     test_finalize_ledger_mirror_sincroniza_read_model_antes_da_auditoria()
     test_formatar_estoque_nao_sincroniza_legacy_em_contexto_de_leitura()
+    test_hydrate_missing_packaging_metadata_promove_unidade_de_embalagem()
+    test_hydrate_missing_packaging_metadata_corrige_unidade_numerica()
+    test_seed_nf_aceita_numero_do_documento_sem_nota_gravada_no_item()
+    test_physical_read_model_target_clampa_saldo_negativo()
     print("OK - regressao de embalagem/cache")
     return 0
 

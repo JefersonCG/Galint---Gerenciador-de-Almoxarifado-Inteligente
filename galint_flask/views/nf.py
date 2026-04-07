@@ -626,6 +626,8 @@ def _item_matches_seeded_nf_pre_registration(
         str(getattr(item_model, "nota_fiscal", "") or "").strip(),
         str(getattr(item_model, "preco_compra_documento", "") or "").strip(),
     }
+    if numero:
+        candidate_numbers.add(numero)
     candidate_numbers.discard("")
     if numero not in candidate_numbers:
         return False

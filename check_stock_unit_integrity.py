@@ -84,6 +84,10 @@ def _safe_float(value: object) -> float | None:
         return None
 
 
+def _physical_read_model_target(quantity_base: float | None) -> float:
+    return max(float(quantity_base or 0.0), 0.0)
+
+
 def _format_issue(issue: Issue) -> str:
     return f"[{issue.severity}] {issue.code} | {issue.description} | {issue.check} | {issue.detail}"
 
@@ -306,14 +310,18 @@ def _audit_item(item: Item, *, strict_movements: bool) -> list[Issue]:
         )
 
     recomposed_total = (actual_embalagens * packaging_factor) + actual_unidades_soltas
-    if abs(recomposed_total - movement_sum) > DISPLAY_TOLERANCE:
+    physical_target = _physical_read_model_target(movement_sum)
+    if abs(recomposed_total - physical_target) > DISPLAY_TOLERANCE:
         issues.append(
             Issue(
                 severity="error",
                 code=item.codigo_item,
                 description=item.descricao or "",
                 check="physical_total_vs_ledger",
-                detail=f"total físico recombinado={recomposed_total:g} diverge de stock_movements={movement_sum:g}",
+                detail=(
+                    f"total físico recombinado={recomposed_total:g} diverge de alvo físico={physical_target:g} "
+                    f"(stock_movements={movement_sum:g})"
+                ),
             )
         )
 

@@ -648,6 +648,61 @@ class InventoryService:
         current_item: Item | None = None,
     ) -> dict[str, Any]:
         normalized_payload = dict(payload or {})
+
+        def _normalize_packaging_type(value: object) -> str | None:
+            raw = str(value or "").strip().lower()
+            aliases = {
+                "lata": "lata",
+                "latas": "lata",
+                "balde": "balde",
+                "baldes": "balde",
+                "bombona": "bombona",
+                "bombonas": "bombona",
+                "caixa": "caixa",
+                "caixas": "caixa",
+                "pacote": "pacote",
+                "pacotes": "pacote",
+                "fardo": "fardo",
+                "fardos": "fardo",
+                "rolo": "rolo",
+                "rolos": "rolo",
+                "saco": "saco",
+                "sacos": "saco",
+                "litro": "litro",
+                "litros": "litro",
+            }
+            normalized = aliases.get(raw)
+            if normalized and is_packaging_unit_code(normalized):
+                return normalized
+            return None
+
+        def _infer_packaging_type_from_measure(*, inferred_unit: str, descricao: object, categoria: object) -> str | None:
+            text = " ".join(
+                part.strip().lower()
+                for part in (str(descricao or ""), str(categoria or ""))
+                if str(part or "").strip()
+            )
+            if inferred_unit == "m":
+                return "rolo"
+            if inferred_unit == "l":
+                return "lata"
+            if inferred_unit == "kg":
+                if any(keyword in text for keyword in ("textura", "graffiato", "grafiato", "massa", "cloro")):
+                    return "balde"
+                if any(keyword in text for keyword in ("argamassa", "rejunte", "cimento", "gesso")):
+                    return "saco"
+            return None
+
+        inferred_packaging_type = _normalize_packaging_type(
+            normalized_payload.get("tipo_embalagem_novo", getattr(current_item, "tipo_embalagem_novo", None))
+        )
+        if inferred_packaging_type is None:
+            inferred_packaging_type = _normalize_packaging_type(
+                normalized_payload.get("unidade", getattr(current_item, "unidade", None))
+            )
+            if inferred_packaging_type is not None and normalized_payload.get("tipo_embalagem_novo") in (None, ""):
+                normalized_payload["tipo_embalagem_novo"] = inferred_packaging_type
+
         probe = SimpleNamespace(
             descricao=normalized_payload.get("descricao", getattr(current_item, "descricao", None)),
             categoria=normalized_payload.get("categoria", getattr(current_item, "categoria", None)),
@@ -664,6 +719,15 @@ class InventoryService:
             return normalized_payload
 
         inferred_value, inferred_unit = inferred_measure
+        if inferred_packaging_type is None:
+            inferred_packaging_type = _infer_packaging_type_from_measure(
+                inferred_unit=inferred_unit,
+                descricao=probe.descricao,
+                categoria=probe.categoria,
+            )
+            if inferred_packaging_type is not None and normalized_payload.get("tipo_embalagem_novo") in (None, ""):
+                normalized_payload["tipo_embalagem_novo"] = inferred_packaging_type
+
         if inferred_unit == "l" and normalized_payload.get("litros_por_embalagem") in (None, ""):
             normalized_payload["litros_por_embalagem"] = inferred_value
         elif inferred_unit == "kg" and normalized_payload.get("grandeza_referencia") in (None, ""):
@@ -677,7 +741,14 @@ class InventoryService:
             normalized_payload.get("tipo_embalagem_novo", getattr(current_item, "tipo_embalagem_novo", None)) or ""
         ).strip().lower()
         unidade_atual = str(normalized_payload.get("unidade", getattr(current_item, "unidade", None)) or "").strip().lower()
-        if tipo_embalagem and unidade_atual in {"", "un", "und", "unidade", "unidades"}:
+        unidade_numerica = False
+        if unidade_atual:
+            try:
+                float(unidade_atual.replace(",", "."))
+                unidade_numerica = True
+            except ValueError:
+                unidade_numerica = False
+        if tipo_embalagem and (unidade_atual in {"", "un", "und", "unidade", "unidades"} or unidade_numerica):
             labels = {
                 "lata": "Lata",
                 "balde": "Balde",
