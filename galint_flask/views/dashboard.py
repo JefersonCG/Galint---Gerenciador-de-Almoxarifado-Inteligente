@@ -21,6 +21,36 @@ from openpyxl.utils import get_column_letter
 
 blueprint = Blueprint("dashboard", __name__)
 
+_DASHBOARD_MONTH_NAMES = (
+    "Janeiro",
+    "Fevereiro",
+    "Março",
+    "Abril",
+    "Maio",
+    "Junho",
+    "Julho",
+    "Agosto",
+    "Setembro",
+    "Outubro",
+    "Novembro",
+    "Dezembro",
+)
+
+_DASHBOARD_MONTH_ICONS = (
+    "❄️",
+    "🎭",
+    "☘️",
+    "🌷",
+    "🌸",
+    "☀️",
+    "🏖️",
+    "🏝️",
+    "🍂",
+    "🎃",
+    "🦃",
+    "🎄",
+)
+
 
 def _format_codigo_barra(value: object) -> str:
     if value is None:
@@ -37,6 +67,17 @@ def _format_brl(value: object) -> str:
     except (TypeError, ValueError):
         amount = 0.0
     return f"R$ {amount:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+
+def _build_dashboard_now_context() -> dict[str, str]:
+    now_local = TimeService.now_local()
+    month_index = now_local.month - 1
+    return {
+        "dashboard_now_iso": now_local.isoformat(),
+        "dashboard_clock_display": now_local.strftime("%H:%M:%S"),
+        "dashboard_month_name": _DASHBOARD_MONTH_NAMES[month_index],
+        "dashboard_month_icon": _DASHBOARD_MONTH_ICONS[month_index],
+    }
 
 
 def _build_quick_panel_snapshots(competencia: str) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
@@ -85,6 +126,7 @@ def _dashboard_context(
     resumo = snapshot["resumo"]
     total_quantity = snapshot["total_quantity"]
     competencia = date.today().strftime("%m-%Y")
+    dashboard_now = _build_dashboard_now_context()
     total_entradas_registradas = db.session.query(Entrada.id_entrada).count()
     can_view_finance = not shared_view
     
@@ -131,6 +173,7 @@ def _dashboard_context(
         "header_subtitle": header_subtitle or "Resumo Mensal do Estoque",
         "tag_label": tag_label or "Painel de Controle do Almoxarifado",
         "live_feed_enabled": bool(current_app.config.get("FEATURE_LIVE_FEED_ENABLED", False)),
+        **dashboard_now,
     }
 
 

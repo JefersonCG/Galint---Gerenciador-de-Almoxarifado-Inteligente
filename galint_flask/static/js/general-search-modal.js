@@ -34,6 +34,17 @@
         return '<span class="general-search-custody-badge ' + badgeClass + '">' + escapeHtml(value || 'Temporaria') + '</span>';
     }
 
+    function getLocalDateInputValue(referenceDate) {
+        const source = referenceDate instanceof Date ? new Date(referenceDate.getTime()) : new Date();
+        if (Number.isNaN(source.getTime())) {
+            return '';
+        }
+        const year = String(source.getFullYear());
+        const month = String(source.getMonth() + 1).padStart(2, '0');
+        const day = String(source.getDate()).padStart(2, '0');
+        return year + '-' + month + '-' + day;
+    }
+
     async function fetchJson(url, fallbackMessage) {
         const response = window.galintFetchWithAuth
             ? await window.galintFetchWithAuth(url, { headers: { Accept: 'application/json' } }, fallbackMessage)
@@ -69,11 +80,15 @@
         }).join('');
     }
 
-    document.addEventListener('DOMContentLoaded', function () {
+    function initializeGeneralSearchModal() {
         const modalEl = document.getElementById('modalPesquisaGeral');
         if (!modalEl || !window.bootstrap) {
             return;
         }
+        if (modalEl.dataset.generalSearchInitialized === '1') {
+            return;
+        }
+        modalEl.dataset.generalSearchInitialized = '1';
 
         const modal = new bootstrap.Modal(modalEl);
         const scopeButtons = Array.from(modalEl.querySelectorAll('[data-general-search-scope]'));
@@ -211,7 +226,7 @@
             dateColumn.classList.toggle('d-none', !meta.showDate);
             periodColumn.classList.toggle('d-none', !meta.showPeriod);
             if (!meta.showDate) {
-                searchDate.value = searchDate.value || new Date().toISOString().slice(0, 10);
+                searchDate.value = searchDate.value || getLocalDateInputValue();
             }
             if (!meta.showPeriod) {
                 searchPeriod.value = '0';
@@ -572,7 +587,7 @@
             try {
                 if (state.scope === 'diario') {
                     const url = new URL(dailyUrl, window.location.origin);
-                    const selectedDate = String(searchDate.value || '').trim() || new Date().toISOString().slice(0, 10);
+                    const selectedDate = String(searchDate.value || '').trim() || getLocalDateInputValue();
                     url.searchParams.set('date', selectedDate);
                     const filterQuery = String(searchInput.value || '').trim();
                     if (filterQuery) {
@@ -612,7 +627,7 @@
         function resetForm() {
             searchInput.value = '';
             searchPeriod.value = '0';
-            searchDate.value = new Date().toISOString().slice(0, 10);
+            searchDate.value = getLocalDateInputValue();
             state.selectedSuggestion = null;
             hideSuggestions();
             setMessage('', 'info');
@@ -623,7 +638,7 @@
             const data = options || {};
             applyScope(data.scope || 'funcionario');
             searchInput.value = data.query || '';
-            searchDate.value = data.date || new Date().toISOString().slice(0, 10);
+            searchDate.value = data.date || getLocalDateInputValue();
             searchPeriod.value = data.period || '0';
             state.selectedSuggestion = null;
             modal.show();
@@ -708,5 +723,11 @@
             const nextUrl = window.location.pathname + (cleanedQuery ? ('?' + cleanedQuery) : '') + window.location.hash;
             window.history.replaceState({}, document.title, nextUrl);
         }
-    });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initializeGeneralSearchModal);
+    } else {
+        initializeGeneralSearchModal();
+    }
 })();

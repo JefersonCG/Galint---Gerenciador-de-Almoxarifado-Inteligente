@@ -6,7 +6,7 @@ import math
 import os
 from io import BytesIO
 from collections import defaultdict
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from statistics import NormalDist, mean, stdev
 import unicodedata
 from pathlib import Path
@@ -154,8 +154,7 @@ def _generate_item_report_pdf(*, item, saidas, period_days: int, time_service) -
     story.append(Paragraph(get_company_header_html(), subtitle_style))
     story.append(Spacer(1, 0.2 * cm))
     
-    from datetime import datetime
-    gerado_em = datetime.now().strftime('%d/%m/%Y %H:%M')
+    gerado_em = TimeService.now_local().strftime('%d/%m/%Y %H:%M')
     story.append(Paragraph(f"Gerado em: {gerado_em}", styles["Normal"]))
 
     period_label = "Todo histórico" if period_days <= 0 else f"Últimos {period_days} dias"
@@ -182,7 +181,7 @@ def _generate_item_report_pdf(*, item, saidas, period_days: int, time_service) -
         )
     item_data_validade = _get_item_value(item, "data_validade")
     if item_data_validade and hasattr(item_data_validade, "strftime"):
-        dias_validade = (item_data_validade - datetime.now().date()).days
+        dias_validade = (item_data_validade - TimeService.now_local().date()).days
         status_validade = "✓" if dias_validade > 30 else "⚠️"
         story.append(
             Paragraph(
@@ -306,8 +305,7 @@ def _generate_custom_report_pdf(*, results, date_from, date_to, report_type, tim
     story.append(Paragraph(f"Total de registros: {len(results)}", styles["Normal"]))
     
     # Adicionar timestamp
-    from datetime import datetime
-    story.append(Paragraph(f"Gerado em: {datetime.now().strftime('%d/%m/%Y %H:%M')}", styles["Normal"]))
+    story.append(Paragraph(f"Gerado em: {TimeService.now_local().strftime('%d/%m/%Y %H:%M')}", styles["Normal"]))
     story.append(Spacer(1, 0.4 * cm))
 
     header = ["Data", "Hora", "Funcionário", "Item", "Categoria", "Qtd.", "Local"]
@@ -402,8 +400,7 @@ def _generate_usuario_report_pdf(*, usuario, saidas, period_days: int, time_serv
     story.append(Paragraph(get_company_header_html(), subtitle_style))
     story.append(Spacer(1, 0.2 * cm))
     
-    from datetime import datetime
-    gerado_em = datetime.now().strftime('%d/%m/%Y %H:%M')
+    gerado_em = TimeService.now_local().strftime('%d/%m/%Y %H:%M')
     story.append(Paragraph(f"Gerado em: {gerado_em}", styles["Normal"]))
 
     period_label = "Todo histórico" if period_days <= 0 else f"Últimos {period_days} dias"
@@ -599,9 +596,11 @@ def _get_reports_list(reports_dir: Path, filters: dict = None) -> list[dict]:
             # Se não conseguiu extrair data do nome, usar data de modificação
             if not info["date"]:
                 try:
-                    info["date"] = datetime.fromtimestamp(item.stat().st_mtime)
+                    info["date"] = TimeService.to_local(
+                        datetime.fromtimestamp(item.stat().st_mtime, tz=timezone.utc)
+                    ).replace(tzinfo=None)
                 except Exception:
-                    info["date"] = datetime.now()
+                    info["date"] = TimeService.now_local().replace(tzinfo=None)
             
             # Aplicar filtros
             if filters.get("date_from"):

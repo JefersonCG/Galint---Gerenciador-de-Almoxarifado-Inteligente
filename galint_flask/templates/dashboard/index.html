@@ -86,11 +86,11 @@
         </div>
     </div>
     <div class="galint-header-actions">
-        <div id="dashboard-month" class="galint-month-indicator">
-            <span id="dashboard-month-icon" class="galint-month-icon">🎯</span>
-            <strong id="dashboard-month-name">Dezembro</strong>
+        <div id="dashboard-month" class="galint-month-indicator" data-server-now="{{ dashboard_now_iso }}">
+            <span id="dashboard-month-icon" class="galint-month-icon">{{ dashboard_month_icon }}</span>
+            <strong id="dashboard-month-name">{{ dashboard_month_name }}</strong>
         </div>
-        <div id="dashboard-clock" class="galint-clock">00:00:00</div>
+        <div id="dashboard-clock" class="galint-clock" data-server-now="{{ dashboard_now_iso }}">{{ dashboard_clock_display }}</div>
     </div>
 </div>
 {% endblock %}
@@ -2011,17 +2011,28 @@
 
         function two(n) { return String(n).padStart(2, '0'); }
 
+        const monthContainerEl = document.getElementById('dashboard-month');
+        const clockEl = document.getElementById('dashboard-clock');
+        const monthNameEl = document.getElementById('dashboard-month-name');
+        const monthIconEl = document.getElementById('dashboard-month-icon');
+
+        let serverOffsetMs = 0;
+        const serverNowIso = (clockEl && clockEl.dataset.serverNow) || (monthContainerEl && monthContainerEl.dataset.serverNow) || '';
+        if (serverNowIso) {
+            const parsedServerNow = new Date(serverNowIso);
+            if (!Number.isNaN(parsedServerNow.getTime())) {
+                serverOffsetMs = parsedServerNow.getTime() - Date.now();
+            }
+        }
+
         function updateClockAndMonth() {
-            const now = new Date();
+            const now = new Date(Date.now() + serverOffsetMs);
             const h = two(now.getHours());
             const m = two(now.getMinutes());
             const s = two(now.getSeconds());
-            const clockEl = document.getElementById('dashboard-clock');
             if (clockEl) clockEl.textContent = `${h}:${m}:${s}`;
 
             const monthIdx = now.getMonth();
-            const monthNameEl = document.getElementById('dashboard-month-name');
-            const monthIconEl = document.getElementById('dashboard-month-icon');
             if (monthNameEl) monthNameEl.textContent = monthNames[monthIdx] || '';
             if (monthIconEl) monthIconEl.textContent = monthIcons[monthIdx] || '';
         }
