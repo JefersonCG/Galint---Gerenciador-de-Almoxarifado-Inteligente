@@ -1313,13 +1313,33 @@ def registrar_nf():
         data_recebimento=data_recebimento,
     )
 
+    documento = None
+    document_item = None
+    item_criado_na_nf = False
+
     try:
         stock_process_result = None
         if not codigo and novo_codigo:
             codigo = novo_codigo
 
+        if quantidade <= 0:
+            raise ValueError("Informe uma quantidade válida")
+        if not nota:
+            raise ValueError("Informe o número do documento")
+
+        _validate_document_registration_fields(
+            numero_documento=nota,
+            tipo_documento=tipo_documento,
+            supplier_id=supplier_id,
+            supplier_name=supplier_name,
+            supplier_cnpj=supplier_cnpj,
+            data_emissao=data_emissao,
+            data_recebimento=data_recebimento,
+            comprovacao_status=comprovacao_status,
+            observacao=observacao,
+        )
+
         item_existente = inventory_service.get_item(codigo) if codigo else None
-        item_criado_na_nf = False
         if not item_existente:
             if not codigo:
                 raise ValueError("Selecione um item existente ou informe o código do novo item")
@@ -1342,23 +1362,6 @@ def registrar_nf():
                 }
             )
             item_criado_na_nf = True
-
-        if quantidade <= 0:
-            raise ValueError("Informe uma quantidade válida")
-        if not nota:
-            raise ValueError("Informe o número do documento")
-
-        _validate_document_registration_fields(
-            numero_documento=nota,
-            tipo_documento=tipo_documento,
-            supplier_id=supplier_id,
-            supplier_name=supplier_name,
-            supplier_cnpj=supplier_cnpj,
-            data_emissao=data_emissao,
-            data_recebimento=data_recebimento,
-            comprovacao_status=comprovacao_status,
-            observacao=observacao,
-        )
 
         preco_unitario = float(preco_unitario_raw) if preco_unitario_raw else None
         item = inventory_service.get_item(codigo) or {}
@@ -1414,7 +1417,26 @@ def registrar_nf():
             flash("O item ficou disponível em PRÉ CADASTRADOS para conclusão do cadastro na tela de Itens.", "info")
         _flash_document_stock_processing_errors(stock_process_result)
     except ValueError as exc:
+        if item_criado_na_nf and document_item is None and codigo:
+            try:
+                inventory_service.delete_item(codigo)
+            except Exception:
+                current_app.logger.exception(
+                    "Falha ao limpar item órfão criado via NF após erro de validação.",
+                    extra={"codigo_item": codigo, "numero_documento": nota or None},
+                )
         flash(str(exc), "danger")
+    except Exception:
+        if item_criado_na_nf and document_item is None and codigo:
+            try:
+                db.session.rollback()
+                inventory_service.delete_item(codigo)
+            except Exception:
+                current_app.logger.exception(
+                    "Falha ao limpar item órfão criado via NF após erro inesperado.",
+                    extra={"codigo_item": codigo, "numero_documento": nota or None},
+                )
+        raise
     numero_redirect = None
     try:
         numero_redirect = documento.numero_documento if documento else None
