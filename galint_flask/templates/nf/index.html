@@ -1566,7 +1566,7 @@
                             <div class="col-12 mb-1">
                                 <div class="docf-panel warning mb-0">
                                     <strong>Fluxo documental.</strong>
-                                    <span class="d-block docf-muted">Documentos lançados nesta tela seguem o fluxo de estoque. Quando o item ainda depende de cadastro final, ele aparece em PRÉ CADASTRADOS para conclusão antes da incorporação.</span>
+                                    <span class="d-block docf-muted">Se a NF estiver configurada para movimentar estoque, toda linha lançada manualmente nesta tela sobe primeiro para PRÉ CADASTRADOS, mesmo quando o código já existe. Só depois da finalização ela entra no estoque. Se o documento ficar apenas no financeiro, não há pré-cadastro nem movimentação.</span>
                                 </div>
                             </div>
                             <div class="col-12 compact-actions">
@@ -1731,6 +1731,12 @@
                             <div class="col-12 d-flex justify-content-end">
                                 <button class="docf-btn-secondary" type="submit" data-help-label="Adicionar item" data-help-text="Inclui um item adicional nesta NF. Se ele já existir, a quantidade será somada.">Adicionar item</button>
                             </div>
+                            <div class="col-12">
+                                <div class="docf-panel warning mb-0">
+                                    <strong>Regra desta edição.</strong>
+                                    <span class="d-block docf-muted">Item incluído ou ajustado manualmente aqui volta para PRÉ CADASTRADOS antes da incorporação ao estoque, inclusive quando o código já existe. Se o documento não movimentar estoque, a linha permanece só no financeiro.</span>
+                                </div>
+                            </div>
                         </div>
                     </form>
                 </section>
@@ -1787,7 +1793,7 @@
                                 <p class="docf-muted mb-3">Preencha quantidade e valor unitário dos itens. Quando a NF tiver datas, chave de acesso e valores, o sistema promove automaticamente os materiais vinculados de sem comprovação para compra com NF.</p>
                                 <div class="docf-panel warning mb-3">
                                     <strong>Fluxo de estoque.</strong>
-                                    <span class="d-block docf-muted">Itens novos ou incompletos vinculados ao documento passam por PRÉ CADASTRADOS antes de entrar no estoque. Itens já regularizados seguem para processamento normal.</span>
+                                    <span class="d-block docf-muted">Ao adicionar ou ajustar itens manualmente nesta tela com movimentação de estoque ativa, a linha vai para PRÉ CADASTRADOS antes da incorporação, inclusive para códigos já existentes. Linhas já processadas seguem como histórico operacional, e documentos sem movimentação ficam apenas no financeiro.</span>
                                 </div>
                                 {% for item in nota_detalhes.itens %}
                                 <div class="row g-3 align-items-end mb-3">

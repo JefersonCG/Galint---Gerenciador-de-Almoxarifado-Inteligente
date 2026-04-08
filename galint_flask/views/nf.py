@@ -722,6 +722,39 @@ def _mark_document_items_for_nf_pre_registration(
     return tracked
 
 
+def _mark_manual_nf_document_items_for_pre_registration(
+    document_items: list[DocumentoEntradaEstoqueItem],
+    *,
+    forced_item_ids: set[int] | None = None,
+) -> int:
+    pending_items = [document_item for document_item in document_items if document_item is not None]
+    if not pending_items:
+        return 0
+
+    normalized_forced_ids = {
+        int(item_id)
+        for item_id in (forced_item_ids or set())
+        if item_id is not None
+    }
+    if not normalized_forced_ids:
+        return _mark_document_items_for_nf_pre_registration(pending_items, force=True)
+
+    forced_items: list[DocumentoEntradaEstoqueItem] = []
+    regular_items: list[DocumentoEntradaEstoqueItem] = []
+    for document_item in pending_items:
+        if document_item.id_documento_item in normalized_forced_ids:
+            forced_items.append(document_item)
+        else:
+            regular_items.append(document_item)
+
+    tracked = 0
+    if forced_items:
+        tracked += _mark_document_items_for_nf_pre_registration(forced_items, force=True)
+    if regular_items:
+        tracked += _mark_document_items_for_nf_pre_registration(regular_items)
+    return tracked
+
+
 def _audit_document_item_deletion(
     *,
     item_snapshot: dict[str, Any],
@@ -1393,9 +1426,8 @@ def registrar_nf():
         documento = document_result.get("document")
         pre_registration_count = 0
         if documento and documento.movimenta_estoque and document_item is not None:
-            pre_registration_count = _mark_document_items_for_nf_pre_registration(
+            pre_registration_count = _mark_manual_nf_document_items_for_pre_registration(
                 [document_item],
-                force=item_criado_na_nf,
             )
         sync_result = _sync_document_financial_entries(documento)
         db.session.commit()
@@ -1408,7 +1440,7 @@ def registrar_nf():
             flash("Documento fiscal registrado apenas no financeiro. O estoque não foi movimentado por opção do lançamento.", "info")
         else:
             if pre_registration_count:
-                flash("Documento fiscal registrado. O item só sobe ao estoque após a finalização do pré-cadastro.", "success")
+                flash("Documento fiscal registrado. Como a linha foi lançada manualmente nesta NF, o item vai para PRÉ CADASTRADOS antes de entrar no estoque.", "success")
             if stock_process_result and stock_process_result.get("processed"):
                 flash("Documento fiscal registrado e item incorporado ao estoque.", "success")
             elif not pre_registration_count and not (stock_process_result and stock_process_result.get("errors")):
@@ -1698,7 +1730,16 @@ def editar_documento(documento_id: int):
             process_item_ids: list[int] | None = None
             pre_registration_count = 0
             if bool(documento.movimenta_estoque):
-                pre_registration_count = _mark_document_items_for_nf_pre_registration(pending_document_items)
+                forced_pre_registration_ids: set[int] | None = None
+                if not previous_movimenta_estoque:
+                    forced_pre_registration_ids = {row.id_documento_item for row in pending_document_items}
+                elif affected_pending_item_ids:
+                    forced_pre_registration_ids = set(affected_pending_item_ids)
+
+                pre_registration_count = _mark_manual_nf_document_items_for_pre_registration(
+                    pending_document_items,
+                    forced_item_ids=forced_pre_registration_ids,
+                )
                 if not previous_movimenta_estoque:
                     process_item_ids = [row.id_documento_item for row in pending_document_items]
                 elif affected_pending_item_ids:
@@ -1727,7 +1768,7 @@ def editar_documento(documento_id: int):
         else:
             if pre_registration_count:
                 flash(
-                    f"{pre_registration_count} item(ns) aguardam finalização do pré-cadastro antes de entrar no estoque.",
+                    f"{pre_registration_count} item(ns) lançados ou ajustados manualmente nesta NF aguardam finalização do pré-cadastro antes de entrar no estoque.",
                     "info",
                 )
             if stock_process_result and stock_process_result.get("processed"):
@@ -1831,7 +1872,7 @@ def adicionar_item_documento(documento_id: int):
 
             pre_registration_count = 0
             if bool(documento.movimenta_estoque):
-                pre_registration_count = _mark_document_items_for_nf_pre_registration(pending_document_items)
+                pre_registration_count = _mark_manual_nf_document_items_for_pre_registration(pending_document_items)
 
             sync_result = _sync_document_financial_entries(documento)
             db.session.commit()
@@ -1849,7 +1890,7 @@ def adicionar_item_documento(documento_id: int):
             flash("Item adicionado apenas no financeiro. O documento está configurado para não movimentar estoque.", "info")
         else:
             if pre_registration_count:
-                flash("O item aguarda finalização do pré-cadastro antes de ser incorporado ao estoque.", "info")
+                flash("O item lançado manualmente nesta NF aguarda finalização do pré-cadastro antes de ser incorporado ao estoque.", "info")
             if stock_process_result and stock_process_result.get("processed"):
                 flash("O item foi incorporado ao estoque a partir do documento fiscal.", "success")
             elif affected_item_ids and not pre_registration_count and not (stock_process_result and stock_process_result.get("errors")):

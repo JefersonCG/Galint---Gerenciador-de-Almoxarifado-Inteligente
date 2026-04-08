@@ -18,7 +18,7 @@ from galint_flask.services.inventory import InventoryService, MovimentoPayload
 from galint_flask.services.ledger_cutover import LedgerCutoverService
 from galint_flask.services.ledger_reconciliation import ReconciliationResult
 from galint_flask.services.legacy_stock_normalizer import resolve_packaging_quantity_and_unit, uses_packaging_legacy_normalization
-from galint_flask.views.nf import _item_matches_seeded_nf_pre_registration
+from galint_flask.views.nf import _item_matches_seeded_nf_pre_registration, _mark_manual_nf_document_items_for_pre_registration
 
 
 class MockPackagingItem:
@@ -360,6 +360,42 @@ def test_seed_nf_aceita_numero_do_documento_sem_nota_gravada_no_item() -> None:
         assert _item_matches_seeded_nf_pre_registration(item, document_number="012901") is True
 
 
+def test_manual_nf_forca_pre_cadastro_para_itens_existentes() -> None:
+    rows = [
+        SimpleNamespace(id_documento_item=10),
+        SimpleNamespace(id_documento_item=11),
+    ]
+    calls: list[tuple[list[int], bool]] = []
+
+    def fake_mark(document_items, *, force=False):
+        calls.append(([row.id_documento_item for row in document_items], force))
+        return len(document_items)
+
+    with patch("galint_flask.views.nf._mark_document_items_for_nf_pre_registration", side_effect=fake_mark):
+        tracked = _mark_manual_nf_document_items_for_pre_registration(rows)
+
+    assert tracked == 2
+    assert calls == [([10, 11], True)]
+
+
+def test_manual_nf_forca_apenas_linhas_editadas_e_mantem_regra_antiga_no_resto() -> None:
+    rows = [
+        SimpleNamespace(id_documento_item=10),
+        SimpleNamespace(id_documento_item=11),
+    ]
+    calls: list[tuple[list[int], bool]] = []
+
+    def fake_mark(document_items, *, force=False):
+        calls.append(([row.id_documento_item for row in document_items], force))
+        return len(document_items)
+
+    with patch("galint_flask.views.nf._mark_document_items_for_nf_pre_registration", side_effect=fake_mark):
+        tracked = _mark_manual_nf_document_items_for_pre_registration(rows, forced_item_ids={11})
+
+    assert tracked == 2
+    assert calls == [([11], True), ([10], False)]
+
+
 def test_physical_read_model_target_clampa_saldo_negativo() -> None:
     assert _physical_read_model_target(-107478.0) == 0.0
     assert _physical_read_model_target(280.0) == 280.0
@@ -379,6 +415,8 @@ def main() -> int:
     test_hydrate_missing_packaging_metadata_promove_unidade_de_embalagem()
     test_hydrate_missing_packaging_metadata_corrige_unidade_numerica()
     test_seed_nf_aceita_numero_do_documento_sem_nota_gravada_no_item()
+    test_manual_nf_forca_pre_cadastro_para_itens_existentes()
+    test_manual_nf_forca_apenas_linhas_editadas_e_mantem_regra_antiga_no_resto()
     test_physical_read_model_target_clampa_saldo_negativo()
     print("OK - regressao de embalagem/cache")
     return 0
