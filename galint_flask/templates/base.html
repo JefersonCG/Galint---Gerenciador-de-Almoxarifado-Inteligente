@@ -11,7 +11,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/qss_like.css') }}">
     {% if general_search_available %}
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/general-search-modal.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/general-search-modal.css', v='20260407c') }}">
     {% endif %}
     {% block extra_css %}{% endblock %}
 </head>
@@ -236,7 +236,7 @@
     </script>
 
     {% if general_search_available %}
-    <script src="{{ url_for('static', filename='js/general-search-modal.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/general-search-modal.js', v='20260407c') }}"></script>
     {% endif %}
 
 

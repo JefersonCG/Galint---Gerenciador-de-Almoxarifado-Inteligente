@@ -80,6 +80,44 @@
         }).join('');
     }
 
+    function buildTableWrapper(headMarkup, bodyMarkup) {
+        return ''
+            + '<div class="general-search-table-wrap">'
+            + '<table class="table general-search-table">'
+            + '<thead>' + headMarkup + '</thead>'
+            + '<tbody>' + bodyMarkup + '</tbody>'
+            + '</table>'
+            + '</div>';
+    }
+
+    function buildExpandableSection(title, description, badgeText, content, isOpen, extraClass) {
+        return ''
+            + '<details class="general-search-expandable' + (extraClass ? ' ' + extraClass : '') + '"' + (isOpen ? ' open' : '') + '>'
+            + '<summary class="general-search-expandable-summary">'
+            + '<div class="general-search-expandable-copy">'
+            + '<h4>' + escapeHtml(title || '') + '</h4>'
+            + (description ? '<p>' + escapeHtml(description) + '</p>' : '')
+            + '</div>'
+            + '<div class="general-search-expandable-meta">'
+            + (badgeText ? '<span class="general-search-expandable-badge">' + escapeHtml(badgeText) + '</span>' : '')
+            + '<span class="general-search-expandable-icon" aria-hidden="true"><i class="bi bi-chevron-down"></i></span>'
+            + '</div>'
+            + '</summary>'
+            + '<div class="general-search-expandable-body">' + (content || '') + '</div>'
+            + '</details>';
+    }
+
+    function buildPhotoPanel(photoUrl, altText, extraClass) {
+        const normalizedUrl = String(photoUrl || '').trim();
+        if (!normalizedUrl) {
+            return '';
+        }
+        return ''
+            + '<figure class="general-search-photo-panel' + (extraClass ? ' ' + extraClass : '') + '">'
+            + '<img src="' + escapeHtml(normalizedUrl) + '" alt="' + escapeHtml(altText || 'Item') + '" loading="lazy">'
+            + '</figure>';
+    }
+
     function initializeGeneralSearchModal() {
         const modalEl = document.getElementById('modalPesquisaGeral');
         if (!modalEl || !window.bootstrap) {
@@ -395,10 +433,27 @@
                 }).join('')
                 : '<tr><td colspan="3" class="text-center py-4">Nenhuma retirada localizada hoje.</td></tr>';
 
+            const checklistTable = buildTableWrapper(
+                '<tr><th>Item</th><th>Codigo</th><th class="text-center">Qtd.</th></tr>',
+                checklistRows
+            );
+            const timelineTable = buildTableWrapper(
+                '<tr><th>Data</th><th>Hora</th><th>Tipo</th><th>Item</th><th class="text-center">Qtd.</th><th>Periodo</th><th>Contexto</th></tr>',
+                timelineRows
+            );
+            const materialsTable = buildTableWrapper(
+                '<tr><th>Data</th><th>Hora</th><th>Item</th><th class="text-center">Qtd.</th><th>Local</th><th>Observacao</th></tr>',
+                materialRows
+            );
+            const toolsTable = buildTableWrapper(
+                '<tr><th>Data</th><th>Hora</th><th>Ferramenta</th><th class="text-center">Qtd.</th><th>Local</th><th>Status</th></tr>',
+                toolRows
+            );
+
             resultsEl.innerHTML = ''
                 + '<div class="general-search-result-stack">'
-                + '<section class="general-search-surface general-search-employee-hero">'
-                + '<div class="general-search-employee-identity">'
+                + '<section class="general-search-employee-hero">'
+                + '<div class="general-search-surface general-search-hero-pane general-search-employee-identity">'
                 + '<span class="general-search-kicker"><i class="bi bi-person-badge"></i> Colaborador em foco</span>'
                 + '<h3>' + escapeHtml(employee.name || 'Funcionario') + '</h3>'
                 + '<div class="general-search-meta-row">'
@@ -408,7 +463,7 @@
                 + '</div>'
                 + '<p class="mt-3 general-search-inline-note">A consulta combina historico de retiradas, devolucoes identificadas, checklist do dia e pendencias de ferramentas em uma unica leitura operacional.</p>'
                 + '</div>'
-                + '<div class="general-search-surface">'
+                + '<aside class="general-search-surface general-search-quick-pane">'
                 + '<div class="general-search-surface-title">'
                 + '<div><h4>Acao rapida</h4><p>Baixe o relatorio historico completo ou siga a linha do tempo abaixo.</p></div>'
                 + (payload.download_url ? '<a class="btn btn-outline-info general-search-download-link" href="' + escapeHtml(payload.download_url) + '" target="_blank" rel="noopener"><i class="bi bi-filetype-pdf"></i> Baixar PDF</a>' : '')
@@ -418,26 +473,13 @@
                 + '<span class="general-search-chip"><i class="bi bi-tools"></i> Ferramentas: ' + escapeHtml(formatNumber(summary.tools_count, 0)) + '</span>'
                 + '<span class="general-search-chip"><i class="bi bi-arrow-counterclockwise"></i> Devolucoes: ' + escapeHtml(formatNumber(summary.returns_count, 0)) + '</span>'
                 + '</div>'
-                + '</div>'
+                + '</aside>'
                 + '</section>'
-
-                + '<section class="general-search-surface">'
-                + '<div class="general-search-surface-title"><div><h4>Checklist do dia</h4><p>Itens retirados hoje para conferencias rapidas.</p></div></div>'
-                + '<div class="general-search-table-wrap">'
-                + '<table class="table general-search-table"><thead><tr><th>Item</th><th>Codigo</th><th class="text-center">Qtd.</th></tr></thead><tbody>' + checklistRows + '</tbody></table>'
-                + '</div>'
-                + '</section>'
-
-                + '<section class="general-search-surface">'
-                + '<div class="general-search-surface-title"><div><h4>Linha do tempo consolidada</h4><p>Retiradas e devolucoes em ordem cronologica para leitura completa.</p></div></div>'
-                + '<div class="general-search-table-wrap">'
-                + '<table class="table general-search-table"><thead><tr><th>Data</th><th>Hora</th><th>Tipo</th><th>Item</th><th class="text-center">Qtd.</th><th>Periodo</th><th>Contexto</th></tr></thead><tbody>' + timelineRows + '</tbody></table>'
-                + '</div>'
-                + '</section>'
-
+                + buildExpandableSection('Checklist do dia', 'Itens retirados hoje para conferencias rapidas.', formatNumber(summary.today_count, 0) + ' itens', checklistTable, false, 'general-search-surface')
+                + buildExpandableSection('Linha do tempo consolidada', 'Retiradas e devolucoes em ordem cronologica para leitura completa.', formatNumber(summary.timeline_count, 0) + ' eventos', timelineTable, true, 'general-search-surface')
                 + '<div class="general-search-grid-two">'
-                + '<section class="general-search-surface"><div class="general-search-surface-title"><div><h4>Materiais</h4><p>Historico detalhado de retiradas de materiais.</p></div></div><div class="general-search-table-wrap"><table class="table general-search-table"><thead><tr><th>Data</th><th>Hora</th><th>Item</th><th class="text-center">Qtd.</th><th>Local</th><th>Observacao</th></tr></thead><tbody>' + materialRows + '</tbody></table></div></section>'
-                + '<section class="general-search-surface"><div class="general-search-surface-title"><div><h4>Ferramentas</h4><p>Status atual das retiradas de ferramentas.</p></div></div><div class="general-search-table-wrap"><table class="table general-search-table"><thead><tr><th>Data</th><th>Hora</th><th>Ferramenta</th><th class="text-center">Qtd.</th><th>Local</th><th>Status</th></tr></thead><tbody>' + toolRows + '</tbody></table></div></section>'
+                + buildExpandableSection('Materiais', 'Historico detalhado de retiradas de materiais.', formatNumber(summary.materials_count, 0) + ' itens', materialsTable, false, 'general-search-surface')
+                + buildExpandableSection('Ferramentas', 'Status atual das retiradas de ferramentas.', formatNumber(summary.tools_count, 0) + ' itens', toolsTable, false, 'general-search-surface')
                 + '</div>'
                 + '</div>';
         }
@@ -478,14 +520,20 @@
                 }).join('')
                 : '<tr><td colspan="4" class="text-center py-4">Nenhum resumo diario encontrado.</td></tr>';
 
-            const photoPanel = item.photo_url
-                ? '<div class="general-search-photo-panel"><img src="' + escapeHtml(item.photo_url) + '" alt="' + escapeHtml(item.descricao || 'Item') + '"></div>'
-                : '<div class="general-search-photo-panel"><div class="general-search-photo-placeholder"><i class="bi bi-box-seam"></i><span>Item sem foto cadastrada</span></div></div>';
+            const photoPanel = buildPhotoPanel(item.photo_url, item.descricao || 'Item', 'is-compact');
+            const movementTable = buildTableWrapper(
+                '<tr><th>Data</th><th>Hora</th><th>Colaborador</th><th class="text-center">Qtd.</th><th>Periodo</th><th>Local / Observacao</th></tr>',
+                movementRows
+            );
+            const dailyTable = buildTableWrapper(
+                '<tr><th>Data</th><th class="text-center">Mov.</th><th class="text-center">Total</th><th class="text-center">Colab.</th></tr>',
+                dailyRows
+            );
 
             resultsEl.innerHTML = ''
                 + '<div class="general-search-result-stack">'
-                + '<section class="general-search-surface general-search-item-hero">'
-                + '<div class="general-search-item-identity">'
+                + '<section class="general-search-item-hero' + (photoPanel ? ' has-photo' : '') + '">'
+                + '<div class="general-search-surface general-search-hero-pane general-search-item-identity">'
                 + '<span class="general-search-kicker"><i class="bi bi-box-seam"></i> Item em foco</span>'
                 + '<h3>' + escapeHtml(item.descricao || 'Item') + '</h3>'
                 + '<div class="general-search-chip-row">'
@@ -497,18 +545,10 @@
                 + '<p class="mt-3 general-search-inline-note">A leitura do item concentra retirada por colaborador, periodo operacional e resumo diario do giro encontrado.</p>'
                 + (payload.download_url ? '<a class="btn btn-outline-info general-search-download-link mt-3" href="' + escapeHtml(payload.download_url) + '" target="_blank" rel="noopener"><i class="bi bi-filetype-pdf"></i> Baixar PDF do item</a>' : '')
                 + '</div>'
-                + photoPanel
+                + (photoPanel ? '<aside class="general-search-surface general-search-photo-aside">' + photoPanel + '</aside>' : '')
                 + '</section>'
-
-                + '<section class="general-search-surface">'
-                + '<div class="general-search-surface-title"><div><h4>Movimentacoes do item</h4><p>Historico detalhado por colaborador e contexto operacional.</p></div></div>'
-                + '<div class="general-search-table-wrap"><table class="table general-search-table"><thead><tr><th>Data</th><th>Hora</th><th>Colaborador</th><th class="text-center">Qtd.</th><th>Periodo</th><th>Local / Observacao</th></tr></thead><tbody>' + movementRows + '</tbody></table></div>'
-                + '</section>'
-
-                + '<section class="general-search-surface">'
-                + '<div class="general-search-surface-title"><div><h4>Resumo diario do item</h4><p>Datas em que o item apareceu nas retiradas do periodo filtrado.</p></div></div>'
-                + '<div class="general-search-table-wrap"><table class="table general-search-table"><thead><tr><th>Data</th><th class="text-center">Mov.</th><th class="text-center">Total</th><th class="text-center">Colab.</th></tr></thead><tbody>' + dailyRows + '</tbody></table></div>'
-                + '</section>'
+                + buildExpandableSection('Movimentacoes do item', 'Historico detalhado por colaborador e contexto operacional.', formatNumber(summary.movement_count, 0) + ' mov.', movementTable, true, 'general-search-surface')
+                + buildExpandableSection('Resumo diario do item', 'Datas em que o item apareceu nas retiradas do periodo filtrado.', formatNumber(summary.days_count, 0) + ' dias', dailyTable, false, 'general-search-surface')
                 + '</div>';
         }
 
@@ -535,9 +575,7 @@
             resultsEl.innerHTML = ''
                 + '<div class="general-search-result-stack">'
                 + items.map((item) => {
-                    const photoPanel = item.foto_url
-                        ? '<div class="general-search-photo-panel"><img src="' + escapeHtml(item.foto_url) + '" alt="' + escapeHtml(item.descricao || 'Item') + '"></div>'
-                        : '<div class="general-search-photo-panel"><div class="general-search-photo-placeholder"><i class="bi bi-box-seam"></i><span>Sem foto cadastrada</span></div></div>';
+                    const photoPanel = buildPhotoPanel(item.foto_url, item.descricao || 'Item', 'is-thumb');
 
                     const movementRows = Array.isArray(item.movements) && item.movements.length
                         ? item.movements.map((row) => {
@@ -553,10 +591,15 @@
                         }).join('')
                         : '<tr><td colspan="6" class="text-center py-4">Nenhuma retirada encontrada para o item.</td></tr>';
 
+                    const movementTable = buildTableWrapper(
+                        '<tr><th>Hora</th><th>Colaborador</th><th class="text-center">Qtd.</th><th>Custodia</th><th>Periodo</th><th>Local / Observacao</th></tr>',
+                        movementRows
+                    );
+
                     return ''
                         + '<article class="general-search-item-card">'
-                        + '<div class="general-search-item-heading">'
-                        + '<div>'
+                        + '<div class="general-search-item-summary' + (photoPanel ? ' has-photo' : '') + '">'
+                        + '<div class="general-search-item-summary-copy">'
                         + '<h4>' + escapeHtml(item.descricao || 'Item') + '</h4>'
                         + '<p>Codigo completo: ' + escapeHtml(item.codigo || 'N/D') + '</p>'
                         + '<div class="general-search-chip-row">'
@@ -565,16 +608,16 @@
                         + '<span class="general-search-chip"><i class="bi bi-award"></i> ' + escapeHtml(item.marca || 'Sem marca') + '</span>'
                         + '</div>'
                         + '</div>'
+                        + '<div class="general-search-item-summary-side">'
+                        + photoPanel
                         + '<div class="general-search-kpi-stack">'
                         + '<span class="general-search-kpi-chip">Total: ' + escapeHtml(formatNumber(item.total_quantity, 3)) + '</span>'
                         + '<span class="general-search-kpi-chip">Mov.: ' + escapeHtml(formatNumber(item.movement_count, 0)) + '</span>'
                         + '<span class="general-search-kpi-chip">Colab.: ' + escapeHtml(formatNumber(item.unique_user_count, 0)) + '</span>'
                         + '</div>'
                         + '</div>'
-                        + '<div class="general-search-grid-two">'
-                        + photoPanel
-                        + '<div class="general-search-table-wrap"><table class="table general-search-table"><thead><tr><th>Hora</th><th>Colaborador</th><th class="text-center">Qtd.</th><th>Custodia</th><th>Periodo</th><th>Local / Observacao</th></tr></thead><tbody>' + movementRows + '</tbody></table></div>'
                         + '</div>'
+                        + buildExpandableSection('Saidas do item', 'Detalhe das retiradas do dia para este item.', formatNumber(item.movement_count, 0) + ' mov.', movementTable, false, 'general-search-surface is-nested')
                         + '</article>';
                 }).join('')
                 + '</div>';
