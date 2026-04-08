@@ -3,6 +3,7 @@
 {% block body_attributes %}data-script-root="{{ request.script_root }}"{% endblock %}
 {% set form_item = item if item else form_data %}
 {% set saldo_total_ean = saldo_total_ean if saldo_total_ean is defined else None %}
+{% set unidade_total_ean = form_item.unidade_interna_display if form_item and form_item.unidade_interna_display else (form_item.unidade if form_item and form_item.unidade else 'un') %}
 {% block title %}{% if item %}Editar{% else %}Novo{% endif %} Item{% endblock %}
 
 {% block extra_css %}
@@ -1384,30 +1385,29 @@
 
                             {% set tem_embalagem = form_item and form_item.tipo_embalagem_novo and form_item.unidades_por_embalagem %}
                             {% set saldo_base_valor = saldo_base if saldo_base is not none else 0 %}
+                            {% set tipo_emb = (form_item.tipo_embalagem_novo or '')|lower if form_item else '' %}
+                            {% set nome_embalagem = tipo_emb if tipo_emb else 'embalagem' %}
+                            {% set unidades_soltas = (form_item.estoque_unidades_soltas or 0) if form_item else 0 %}
+                            {% set label_solta = 'Unidades soltas' %}
+                            {% if tipo_emb == 'rolo' %}
+                                {% set label_solta = 'Metros soltos' %}
+                            {% elif tipo_emb in ['lata', 'balde', 'bombona', 'litro'] and form_item and form_item.litros_por_embalagem %}
+                                {% set label_solta = 'Litros soltos' %}
+                            {% elif tipo_emb in ['lata', 'balde', 'bombona'] and form_item and form_item.grandeza_referencia %}
+                                {% set label_solta = 'Kg soltos' %}
+                            {% endif %}
                             <label class="form-label" for="saldo_atual">
-                                {% if tem_embalagem %}Saldo em embalagens{% else %}Saldo em estoque{% endif %}
+                                {% if tem_embalagem %}Embalagens fechadas em estoque{% else %}Saldo em estoque{% endif %}
                             </label>
                             <input class="form-control" id="saldo_atual" name="saldo_atual" type="number" min="0" step="0.01"
                                 value="{{ saldo_base_valor }}" readonly>
                             <small class="form-text">
-                                Saldo bloqueado para edição manual. Entradas devem ser registradas em <strong>Documentos Fiscais</strong>{% if tem_embalagem %} e este campo representa <strong>embalagens</strong>{% endif %}.
+                                Saldo bloqueado para edição manual. Entradas devem ser registradas em <strong>Documentos Fiscais</strong>{% if tem_embalagem %}. Aqui fica a quantidade de <strong>{{ nome_embalagem }}s fechadas</strong>; o conteúdo de cada {{ nome_embalagem }} é configurado na aba <strong>Unidades</strong>{% endif %}.
                             </small>
                         </div>
 
                         {% if tem_embalagem %}
                         <div class="form-group">
-                            {% set tipo_emb = (form_item.tipo_embalagem_novo or '')|lower %}
-                            {% set unidades_soltas = (form_item.estoque_unidades_soltas or 0) %}
-                            {% set label_solta = 'Unidades soltas' %}
-                            {% if tipo_emb == 'rolo' %}
-                                {% set label_solta = 'Metros soltos' %}
-                            {% elif tipo_emb in ['caixa', 'pacote', 'fardo'] %}
-                                {% set label_solta = 'Unidades soltas' %}
-                            {% elif tipo_emb in ['lata', 'balde', 'bombona', 'litro'] and form_item.litros_por_embalagem %}
-                                {% set label_solta = 'Litros soltos' %}
-                            {% elif tipo_emb in ['lata', 'balde', 'bombona'] and form_item.grandeza_referencia %}
-                                {% set label_solta = 'Kg soltos' %}
-                            {% endif %}
                             <label class="form-label" for="saldo_unidades_soltas">{{ label_solta }}</label>
                             <input class="form-control" id="saldo_unidades_soltas" name="saldo_unidades_soltas" type="number" min="0" step="0.01"
                                 value="{{ unidades_soltas }}" readonly>
@@ -1440,6 +1440,12 @@
                         </div>
                     </div>
 
+                    {% if tem_embalagem %}
+                    <div class="alert alert-info" style="margin-top: 0.75rem;">
+                        <strong>Como este cadastro funciona:</strong> cada {{ nome_embalagem }} contém <strong>{{ form_item.unidades_por_embalagem }}</strong> {{ unidade_total_ean }}. O campo acima mostra as {{ nome_embalagem }}s fechadas em estoque; a parte já aberta aparece separadamente como <strong>{{ label_solta|lower }}</strong>.
+                    </div>
+                    {% endif %}
+
                     <div class="alert alert-info">
                         💡 O estoque mínimo é calculado automaticamente em 5% do saldo atual e alimenta os alertas do dashboard.
                     </div>
@@ -1447,16 +1453,17 @@
                     {% if saldo_total_ean is not none and saldo_total_ean > 0 %}
                     <!-- Card de Saldo Total por EAN -->
                     <div class="conversion-preview" style="display: block; background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); border-left-color: var(--success-green);">
-                        <strong style="color: var(--success-green); font-size: 1rem;">📦 Saldo Total em Estoque (mesmo EAN)</strong>
+                        <strong style="color: var(--success-green); font-size: 1rem;">📦 Saldo Total Interno (mesmo EAN)</strong>
                         <div style="font-size: 1.5rem; font-weight: 700; color: var(--gray-900); margin-top: 0.5rem;">
-                            {{ saldo_total_ean }} {{ form_item.unidade if form_item and form_item.unidade else 'unidades' }}
+                            {{ saldo_total_ean }} {{ unidade_total_ean }}
                         </div>
                         <small style="color: var(--gray-700); font-size: 0.85rem; display: block; margin-top: 0.25rem;">
                             {% if item %}
-                            Soma de todos os lotes com o código <strong>{{ form_item.codigo }}</strong>
+                            Total convertido para a unidade interna do item. Soma de todos os lotes com o código <strong>{{ form_item.codigo }}</strong>.
                             {% else %}
-                            ⚠️ Já existem lotes deste produto no sistema. Esta é uma <strong>Nova Entrada</strong>.
+                            ⚠️ Já existem lotes deste produto no sistema. Este valor representa o total interno somado entre eles.
                             {% endif %}
+                            {% if tem_embalagem %} Não representa quantidade de {{ nome_embalagem }}s.{% endif %}
                         </small>
                     </div>
                     {% endif %}
@@ -1794,7 +1801,7 @@
                         <label class="form-label">Tipo de Embalagem</label>
                         {% set tipo_emb_novo = form_item.tipo_embalagem_novo if form_item and form_item.tipo_embalagem_novo else '' %}
                         <p class="form-text" style="margin-bottom: 0.75rem; font-size: 0.9rem;">
-                            Para conversões automáticas de unidades
+                            Aqui você define o tipo da embalagem e quanto cabe dentro de 1 embalagem. A quantidade de caixas, pacotes ou fardos em estoque é controlada automaticamente no saldo.
                         </p>
                         <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
                             <div class="form-check form-check-inline">
@@ -1841,7 +1848,7 @@
                     </div>
 
                     <div id="unidade-embalagem-field" style="display: none; margin-top: 0.75rem;">
-                        <label class="form-label">Unidade da embalagem</label>
+                        <label class="form-label">Unidade do conteúdo da embalagem</label>
                         {% set unidade_emb_nova = 'unidade' %}
                         {% if form_item and form_item.litros_por_embalagem %}
                             {% set unidade_emb_nova = 'litro' %}
@@ -1867,13 +1874,13 @@
                                 <label class="form-check-label" for="unidade_emb_kg">Kg</label>
                             </div>
                         </div>
-                        <small class="form-text" id="help-unidade-embalagem">Escolha se a embalagem será preenchida em litros, unidades ou kg.</small>
+                        <small class="form-text" id="help-unidade-embalagem">Escolha a unidade que existe dentro da embalagem: litros, unidades ou kg.</small>
                     </div>
 
                     <!-- Campo condicional: Unidades por Embalagem -->
                     <div id="unidades-embalagem-field" style="display: {% if tipo_emb_novo %}block{% else %}none{% endif %};">
                         <div class="form-group">
-                            <label class="form-label" for="unidades_por_embalagem">Unidades por <span id="nome-embalagem">Embalagem</span></label>
+                            <label class="form-label" for="unidades_por_embalagem">Conteúdo de 1 <span id="nome-embalagem">Embalagem</span></label>
                             {% set val_inicial = form_item.unidades_por_embalagem if form_item and form_item.unidades_por_embalagem else '' %}
                             {% if form_item and form_item.litros_por_embalagem %}
                                 {% set val_inicial = form_item.litros_por_embalagem %}
@@ -1883,7 +1890,7 @@
                             <input class="form-control" id="unidades_por_embalagem" name="unidades_por_embalagem" type="number" step="0.01" min="0"
                                 value="{{ val_inicial }}"
                                 placeholder="Ex: 100 unidades por caixa">
-                            <small class="form-text" id="help-unidades-embalagem">Ex: 100 unidades por caixa</small>
+                            <small class="form-text" id="help-unidades-embalagem">Informe quanto vem dentro de 1 embalagem. Ex: 100 unidades por caixa</small>
                         </div>
 
                         <!-- Preview de Conversão -->
@@ -3455,13 +3462,13 @@ Conversão: 1 saco = 20 quilos</div>
             applyDefaultPackagingUnit(tipoSelecionado);
             if (helpUnidadeEmbalagem) {
                 if (tipoSelecionado === 'pacote' || tipoSelecionado === 'saco') {
-                    helpUnidadeEmbalagem.textContent = 'Escolha se a embalagem será preenchida em unidades ou kg.';
+                    helpUnidadeEmbalagem.textContent = 'Escolha a unidade do conteúdo interno: unidades ou kg.';
                 } else {
-                    helpUnidadeEmbalagem.textContent = 'Escolha se a embalagem será preenchida em litros ou kg.';
+                    helpUnidadeEmbalagem.textContent = 'Escolha a unidade do conteúdo interno: litros ou kg.';
                 }
             }
         } else if (helpUnidadeEmbalagem) {
-            helpUnidadeEmbalagem.textContent = 'Escolha se a embalagem será preenchida em litros, unidades ou kg.';
+            helpUnidadeEmbalagem.textContent = 'Escolha a unidade que existe dentro da embalagem: litros, unidades ou kg.';
         }
 
         if (tipoSelecionado && tipoSelecionado !== '') {
@@ -3478,7 +3485,7 @@ Conversão: 1 saco = 20 quilos</div>
             }
             
             nomeEmbalagemSpan.textContent = nome;
-            helpUnidadesEmbalagem.textContent = 'Ex: ' + exemplo;
+            helpUnidadesEmbalagem.textContent = 'Informe quanto vem dentro de 1 embalagem. Ex: ' + exemplo;
             unidadesPorEmbalagemInput.placeholder = exemplo;
         } else {
             unidadesEmbalagemField.style.display = 'none';
@@ -3515,10 +3522,10 @@ Conversão: 1 saco = 20 quilos</div>
             const saldoFormatado = Number.isFinite(saldoAtual) ? saldoAtual.toLocaleString('pt-BR', { maximumFractionDigits: 2 }) : saldoAtual;
             
             if (saldoAtual > 0) {
-                previewTexto.innerHTML = `1 ${nomeEmb} = <strong>${unidadesFormatadas}</strong> ${unidadeBase}<br>`
-                    + `<strong>${saldoFormatado}</strong> ${nomeEmbSaldo} = <strong>${totalFormatado}</strong> ${unidadeBase}`;
+                previewTexto.innerHTML = `1 ${nomeEmb} contém <strong>${unidadesFormatadas}</strong> ${unidadeBase}<br>`
+                    + `<strong>${saldoFormatado}</strong> ${nomeEmbSaldo} em estoque = <strong>${totalFormatado}</strong> ${unidadeBase}`;
             } else {
-                previewTexto.innerHTML = `1 ${nomeEmb} = <strong>${unidadesFormatadas}</strong> ${unidadeBase}`;
+                previewTexto.innerHTML = `1 ${nomeEmb} contém <strong>${unidadesFormatadas}</strong> ${unidadeBase}`;
             }
             previewEmbalagem.style.display = 'block';
         } else {
