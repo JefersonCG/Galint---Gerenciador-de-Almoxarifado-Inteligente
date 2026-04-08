@@ -118,6 +118,36 @@
             + '</figure>';
     }
 
+    function setResultsMode(modalEl, enabled) {
+        modalEl.classList.toggle('is-results-mode', Boolean(enabled));
+    }
+
+    function wireExpandableAccordions(root) {
+        if (!root) {
+            return;
+        }
+        root.querySelectorAll('.general-search-expandable').forEach((detailsEl) => {
+            if (detailsEl.dataset.accordionBound === '1') {
+                return;
+            }
+            detailsEl.dataset.accordionBound = '1';
+            detailsEl.addEventListener('toggle', function () {
+                if (!detailsEl.open) {
+                    return;
+                }
+                const parent = detailsEl.parentElement;
+                if (!parent) {
+                    return;
+                }
+                parent.querySelectorAll(':scope > .general-search-expandable[open]').forEach((sibling) => {
+                    if (sibling !== detailsEl) {
+                        sibling.open = false;
+                    }
+                });
+            });
+        });
+    }
+
     function initializeGeneralSearchModal() {
         const modalEl = document.getElementById('modalPesquisaGeral');
         if (!modalEl || !window.bootstrap) {
@@ -216,6 +246,7 @@
         }
 
         function resetResults() {
+            setResultsMode(modalEl, false);
             statsEl.innerHTML = '';
             statsEl.classList.add('d-none');
             resultsEl.innerHTML = '';
@@ -226,6 +257,7 @@
         }
 
         function setLoading() {
+            setResultsMode(modalEl, false);
             hideSuggestions();
             if (emptyStateEl) {
                 emptyStateEl.classList.add('d-none');
@@ -372,6 +404,7 @@
         function renderEmployee(payload) {
             const employee = payload.employee || {};
             const summary = payload.summary || {};
+            setResultsMode(modalEl, true);
             renderSummary([
                 { label: 'Linha do tempo', value: formatNumber(summary.timeline_count, 0), help: 'Eventos consolidados entre retiradas e devolucoes.' },
                 { label: 'Total retirado', value: formatNumber(summary.total_withdrawn_quantity, 3), help: 'Soma das quantidades retiradas pelo colaborador.' },
@@ -482,11 +515,13 @@
                 + buildExpandableSection('Ferramentas', 'Status atual das retiradas de ferramentas.', formatNumber(summary.tools_count, 0) + ' itens', toolsTable, false, 'general-search-surface')
                 + '</div>'
                 + '</div>';
+            wireExpandableAccordions(resultsEl);
         }
 
         function renderItem(payload) {
             const item = payload.item || {};
             const summary = payload.summary || {};
+            setResultsMode(modalEl, true);
             renderSummary([
                 { label: 'Movimentacoes', value: formatNumber(summary.movement_count, 0), help: 'Retiradas localizadas para o periodo selecionado.' },
                 { label: 'Total retirado', value: formatNumber(summary.total_quantity, 3), help: 'Soma das quantidades movimentadas no periodo.' },
@@ -550,6 +585,7 @@
                 + buildExpandableSection('Movimentacoes do item', 'Historico detalhado por colaborador e contexto operacional.', formatNumber(summary.movement_count, 0) + ' mov.', movementTable, true, 'general-search-surface')
                 + buildExpandableSection('Resumo diario do item', 'Datas em que o item apareceu nas retiradas do periodo filtrado.', formatNumber(summary.days_count, 0) + ' dias', dailyTable, false, 'general-search-surface')
                 + '</div>';
+            wireExpandableAccordions(resultsEl);
         }
 
         function renderDaily(payload) {
@@ -563,6 +599,7 @@
 
             const items = Array.isArray(payload.grouped_items) ? payload.grouped_items : [];
             if (!items.length) {
+                setResultsMode(modalEl, false);
                 resultsEl.innerHTML = ''
                     + '<div class="general-search-empty-state">'
                     + '<i class="bi bi-moon-stars"></i>'
@@ -571,6 +608,8 @@
                     + '</div>';
                 return;
             }
+
+            setResultsMode(modalEl, true);
 
             resultsEl.innerHTML = ''
                 + '<div class="general-search-result-stack">'
@@ -621,6 +660,7 @@
                         + '</article>';
                 }).join('')
                 + '</div>';
+                    wireExpandableAccordions(resultsEl);
         }
 
         async function runSearch() {
