@@ -1,81 +1,358 @@
 {% extends "base.html" %}
 {% block title %}Usuários{% endblock %}
 {% block content %}
-<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-    <h1 class="h3 mb-0">Usuários</h1>
-    <div class="d-flex gap-2">
-        <a class="btn btn-success" href="{{ url_for('users.new_user_form') }}">Novo usuário</a>
-    </div>
-</div>
-{# Cards por cargo #}
-{% if setor_cards %}
+{% set total_admins = usuarios | selectattr('is_admin') | list | length %}
+{% set total_standard = usuarios | selectattr('is_standard') | list | length %}
+{% set accent_palette = ['#22d3ee', '#34d399', '#f59e0b', '#fb7185', '#a78bfa', '#38bdf8'] %}
 <style>
-    .user-role-card {
-        border-radius: 12px;
-        border: 1px solid rgba(17, 25, 40, 0.35);
-        box-shadow: 0 16px 40px rgba(15, 23, 42, 0.18);
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
-        cursor: pointer;
-        background: #0f172a;
+    .users-shell {
+        display: grid;
+        gap: 1.5rem;
+    }
+
+    .users-hero {
+        position: relative;
+        overflow: hidden;
+        border-radius: 30px;
+        padding: 1.8rem;
+        background: linear-gradient(135deg, #07121f 0%, #0f1f38 45%, #16345a 100%);
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        box-shadow: 0 28px 70px rgba(15, 23, 42, 0.18);
         color: #e2e8f0;
     }
 
-    .user-role-card:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 20px 45px rgba(15, 23, 42, 0.28);
+    .users-hero::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+            radial-gradient(circle at 12% 18%, rgba(34, 211, 238, 0.2), transparent 24%),
+            radial-gradient(circle at 84% 18%, rgba(52, 211, 153, 0.16), transparent 22%),
+            radial-gradient(circle at 60% 100%, rgba(245, 158, 11, 0.12), transparent 34%);
+        pointer-events: none;
     }
 
-    .user-role-card .display-6 {
-        font-size: 2rem;
-        font-weight: 600;
-        color: #ffffff;
+    .users-hero > * {
+        position: relative;
+        z-index: 1;
     }
 
-    .user-role-card .user-pill {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.25rem;
-        padding: 0.25rem 0.65rem;
-        border-radius: 999px;
-        background: rgba(59, 130, 246, 0.22);
-        color: #93c5fd;
-        font-size: 0.75rem;
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-    }
-
-    .user-role-card .user-list {
-        list-style: none;
-        padding-left: 0;
-        margin-bottom: 0;
-        display: grid;
-        gap: 0.35rem;
-    }
-
-    .user-role-card .user-list li {
+    .users-hero-top {
         display: flex;
         justify-content: space-between;
-        align-items: center;
-        gap: 0.75rem;
-        font-size: 0.95rem;
-        color: #cbd5f5;
+        align-items: flex-start;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
     }
 
-    .user-role-card .user-list li .badge {
+    .users-kicker {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        margin-bottom: 0.65rem;
+        padding: 0.45rem 0.8rem;
+        border-radius: 999px;
+        background: rgba(15, 23, 42, 0.45);
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        color: #7dd3fc;
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .users-title {
+        margin: 0 0 0.4rem;
+        color: #ffffff;
+        font-size: 1.8rem;
+        font-weight: 900;
+        letter-spacing: -0.04em;
+    }
+
+    .users-subtitle {
+        margin: 0;
+        max-width: 46rem;
+        color: rgba(226, 232, 240, 0.72);
+        line-height: 1.65;
+    }
+
+    .users-action-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.55rem;
+        min-height: 46px;
+        padding: 0.8rem 1.1rem;
+        border-radius: 16px;
+        border: 1px solid rgba(52, 211, 153, 0.2);
+        background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%);
+        color: #f8fafc;
+        font-weight: 800;
+        text-decoration: none;
+        box-shadow: 0 18px 30px rgba(22, 163, 74, 0.22);
+    }
+
+    .users-action-btn:hover {
+        color: #ffffff;
+        transform: translateY(-1px);
+    }
+
+    .users-stat-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 1rem;
+    }
+
+    .users-stat-card {
+        padding: 1rem 1.1rem;
+        border-radius: 22px;
+        background: rgba(15, 23, 42, 0.42);
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        backdrop-filter: blur(12px);
+    }
+
+    .users-stat-label {
+        margin-bottom: 0.45rem;
+        color: rgba(148, 163, 184, 0.9);
+        font-size: 0.74rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .users-stat-value {
+        color: #ffffff;
+        font-size: 1.45rem;
+        font-weight: 900;
+        line-height: 1;
+        letter-spacing: -0.05em;
+    }
+
+    .users-stat-note {
+        margin-top: 0.35rem;
+        color: rgba(226, 232, 240, 0.68);
+        font-size: 0.82rem;
+    }
+
+    .users-panel {
+        position: relative;
+        overflow: hidden;
+        border-radius: 28px;
+        padding: 1.6rem;
+        background: linear-gradient(180deg, #0b1729 0%, #0f172a 100%);
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        box-shadow: 0 24px 50px rgba(15, 23, 42, 0.14);
+    }
+
+    .users-panel::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+            radial-gradient(circle at 12% 18%, rgba(34, 211, 238, 0.08), transparent 24%),
+            radial-gradient(circle at 88% 22%, rgba(52, 211, 153, 0.06), transparent 20%);
+        pointer-events: none;
+    }
+
+    .users-panel > * {
+        position: relative;
+        z-index: 1;
+    }
+
+    .users-panel-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+        margin-bottom: 1.2rem;
+    }
+
+    .users-panel-title {
+        margin: 0 0 0.35rem;
+        color: #f8fafc;
+        font-size: 1.2rem;
+        font-weight: 800;
+    }
+
+    .users-panel-subtitle {
+        margin: 0;
+        color: rgba(226, 232, 240, 0.68);
+        line-height: 1.6;
+    }
+
+    .users-sector-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1rem;
+    }
+
+    .users-sector-card {
+        --sector-accent: #22d3ee;
+        position: relative;
+        overflow: hidden;
+        border-radius: 24px;
+        padding: 1.15rem;
+        cursor: pointer;
+        background: linear-gradient(150deg, rgba(15, 23, 42, 0.96) 0%, rgba(17, 24, 39, 0.92) 100%);
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        box-shadow: 0 18px 36px rgba(2, 6, 23, 0.28);
+        transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+        color: #e2e8f0;
+    }
+
+    .users-sector-card::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+            radial-gradient(circle at 16% 16%, rgba(255, 255, 255, 0.08), transparent 26%),
+            linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 30%);
+        pointer-events: none;
+    }
+
+    .users-sector-card::after {
+        content: "";
+        position: absolute;
+        left: 1rem;
+        right: 1rem;
+        bottom: 1rem;
+        height: 4px;
+        border-radius: 999px;
+        background: linear-gradient(90deg, var(--sector-accent), rgba(255, 255, 255, 0.15));
+        opacity: 0.8;
+    }
+
+    .users-sector-card:hover {
+        transform: translateY(-4px);
+        border-color: rgba(255, 255, 255, 0.18);
+        box-shadow: 0 24px 48px rgba(2, 6, 23, 0.36);
+    }
+
+    .users-sector-card:focus-visible {
+        outline: 0;
+        box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.22), 0 24px 48px rgba(2, 6, 23, 0.36);
+    }
+
+    .users-sector-card .card-body {
+        pointer-events: none;
+    }
+
+    .users-sector-card .card-body * {
+        pointer-events: none;
+    }
+
+    .users-sector-top {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 0.8rem;
+        margin-bottom: 1rem;
+    }
+
+    .users-sector-name {
+        margin: 0;
+        color: #ffffff;
+        font-size: 1.05rem;
+        font-weight: 800;
+        line-height: 1.3;
+        overflow-wrap: anywhere;
+    }
+
+    .users-pill {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 32px;
+        padding: 0.25rem 0.7rem;
+        border-radius: 999px;
+        background: rgba(15, 23, 42, 0.58);
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        color: rgba(226, 232, 240, 0.84);
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
         white-space: nowrap;
     }
 
-    .user-role-card .card-body {
-        pointer-events: none;
+    .users-sector-number {
+        color: #ffffff;
+        font-size: 2.2rem;
+        font-weight: 900;
+        letter-spacing: -0.06em;
+        line-height: 1;
+        margin-bottom: 0.35rem;
     }
 
-    .user-role-card .card-body * {
-        pointer-events: none;
+    .users-sector-meta {
+        display: grid;
+        gap: 0.5rem;
+        margin-top: 1rem;
     }
 
-    .user-role-card:focus-visible {
-        outline: 3px solid rgba(59, 130, 246, 0.45);
-        outline-offset: 2px;
+    .users-sector-meta-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.8rem;
+        padding: 0.8rem 0.9rem;
+        border-radius: 16px;
+        background: rgba(15, 23, 42, 0.42);
+        border: 1px solid rgba(148, 163, 184, 0.12);
+        color: rgba(226, 232, 240, 0.76);
+        font-size: 0.88rem;
+    }
+
+    .users-sector-meta-row strong {
+        color: #ffffff;
+        font-weight: 800;
+    }
+
+    .users-sector-footer {
+        margin-top: 1rem;
+        color: rgba(148, 163, 184, 0.9);
+        font-size: 0.82rem;
+        font-weight: 700;
+    }
+
+    .users-modal-surface {
+        background: linear-gradient(180deg, #0b1729 0%, #0f172a 100%);
+        color: #e2e8f0;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+    }
+
+    .users-modal-surface .modal-header,
+    .users-modal-surface .modal-footer {
+        border-color: rgba(148, 163, 184, 0.14);
+    }
+
+    .users-modal-surface .btn-close {
+        filter: invert(1);
+    }
+
+    .users-warning-box {
+        border-radius: 18px;
+        background: rgba(245, 158, 11, 0.14);
+        border: 1px solid rgba(245, 158, 11, 0.18);
+        color: #fde68a;
+    }
+
+    .users-archive-box {
+        border-radius: 20px;
+        padding: 1rem;
+        background: rgba(15, 23, 42, 0.5);
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        color: rgba(226, 232, 240, 0.8);
+    }
+
+    .users-archive-box ul {
+        padding-left: 1.2rem;
+        margin-bottom: 0;
+    }
+
+    .sector-modal-list {
+        display: grid;
+        gap: 0.8rem;
     }
 
     .sector-modal-list .list-group-item {
@@ -83,66 +360,132 @@
         justify-content: space-between;
         align-items: flex-start;
         gap: 1rem;
-        background: #0f172a;
+        padding: 1rem;
+        border-radius: 18px;
+        background: rgba(15, 23, 42, 0.54);
+        border: 1px solid rgba(148, 163, 184, 0.14);
         color: #e2e8f0;
-        border-color: rgba(148, 163, 184, 0.2);
     }
 
-    .sector-modal-list .list-group-item .user-meta {
+    .sector-modal-list .user-meta {
         flex: 1;
     }
 
-    .sector-modal-list .list-group-item .btn-group {
+    .sector-modal-list .btn-group {
         white-space: nowrap;
         display: flex;
-        gap: 0.25rem;
+        gap: 0.35rem;
+        flex-wrap: wrap;
+        justify-content: flex-end;
     }
 
-    .sector-modal-list .list-group-item .btn-group form {
+    .sector-modal-list .btn-group form {
         margin: 0;
         display: inline;
     }
 
-    @media (max-width: 767.98px) {
-        .user-role-card .display-6 {
-            font-size: 1.5rem;
+    @media (max-width: 991.98px) {
+        .users-stat-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
         }
-        
+
+        .users-hero-top,
+        .users-panel-head {
+            flex-direction: column;
+        }
+    }
+
+    @media (max-width: 767.98px) {
+        .users-stat-grid,
+        .users-sector-grid {
+            grid-template-columns: 1fr;
+        }
+
         .sector-modal-list .list-group-item {
             flex-direction: column;
             align-items: stretch;
         }
-        
-        .sector-modal-list .list-group-item .btn-group {
-            width: 100%;
-            margin-top: 0.5rem;
+
+        .sector-modal-list .btn-group {
+            justify-content: stretch;
+        }
+
+        .sector-modal-list .btn-group .btn {
+            flex: 1 1 auto;
         }
     }
 </style>
-<div class="section-panel mb-4">
-    <h3>Distribuição por setor</h3>
-    <p class="text-muted">Equipe agrupada por departamento com total de colaboradores e perfis.</p>
-    <div class="row g-3">
-        {% for card in setor_cards %}
-        <div class="col-xl-3 col-lg-4 col-md-6">
-            <div class="card h-100 user-role-card sector-card" role="button" tabindex="0" data-sector="{{ card.setor }}"
-                data-sector-template="sector-template-{{ loop.index }}">
-                <div class="card-body d-flex flex-column">
-                    <div class="d-flex justify-content-between align-items-start mb-2">
-                        <h5 class="card-title mb-0 text-truncate text-light" title="{{ card.setor }}">{{ card.setor }}
-                        </h5>
-                        <span class="user-pill">{{ card.total }} colaborador{% if card.total != 1 %}es{% endif %}</span>
-                    </div>
-                    <p class="display-6 mb-1">{{ card.total }}</p>
-                    <p class="mb-0" style="color: rgba(226, 232, 240, 0.8);">
-                        {{ card.admins }} admin{% if card.admins != 1 %}s{% endif %}
-                        • {{ card.standards }} padrão{% if card.standards != 1 %}es{% endif %}
-                    </p>
-                    <p class="small mt-3 mb-0" style="color: rgba(148, 163, 184, 0.85);">Clique para visualizar todos os
-                        usuários do setor.</p>
-                </div>
+
+<div class="users-shell">
+    <section class="users-hero">
+        <div class="users-hero-top">
+            <div>
+                <div class="users-kicker">Painel de acessos</div>
+                <h1 class="users-title">Usuários</h1>
+                <p class="users-subtitle">Gestão visual da equipe com leitura rápida de setores, perfis administrativos e distribuição operacional. O objetivo aqui é manter a cara do GALINT, mas com mais profundidade e contraste.</p>
+            </div>
+            <a class="users-action-btn" href="{{ url_for('users.new_user_form') }}">
+                <i class="bi bi-person-plus-fill"></i>
+                <span>Novo usuário</span>
+            </a>
+        </div>
+        <div class="users-stat-grid">
+            <div class="users-stat-card">
+                <div class="users-stat-label">Colaboradores</div>
+                <div class="users-stat-value">{{ usuarios|length }}</div>
+                <div class="users-stat-note">Cadastros ativos na base</div>
+            </div>
+            <div class="users-stat-card">
+                <div class="users-stat-label">Setores</div>
+                <div class="users-stat-value">{{ setor_cards|length }}</div>
+                <div class="users-stat-note">Blocos organizados por operação</div>
+            </div>
+            <div class="users-stat-card">
+                <div class="users-stat-label">Administradores</div>
+                <div class="users-stat-value">{{ total_admins }}</div>
+                <div class="users-stat-note">Perfis com poder de gestão</div>
+            </div>
+            <div class="users-stat-card">
+                <div class="users-stat-label">Usuários padrão</div>
+                <div class="users-stat-value">{{ total_standard }}</div>
+                <div class="users-stat-note">Operação diária habilitada</div>
             </div>
         </div>
+    </section>
+
+    {% if setor_cards %}
+    <section class="users-panel">
+        <div class="users-panel-head">
+            <div>
+                <h2 class="users-panel-title">Distribuição por setor</h2>
+                <p class="users-panel-subtitle">Cada card abre o quadro completo do setor com histórico e edição. O layout agora prioriza leitura em ambiente escuro e separação visual mais clara.</p>
+            </div>
+            <div class="users-pill">{{ setor_cards|length }} setores mapeados</div>
+        </div>
+        <div class="users-sector-grid">
+        {% for card in setor_cards %}
+        {% set accent = accent_palette[loop.index0 % (accent_palette|length)] %}
+            <div class="users-sector-card sector-card" role="button" tabindex="0" data-sector="{{ card.setor }}"
+                data-sector-template="sector-template-{{ loop.index }}" style="--sector-accent: {{ accent }};">
+                <div class="card-body d-flex flex-column">
+                    <div class="users-sector-top">
+                        <h3 class="users-sector-name" title="{{ card.setor }}">{{ card.setor }}</h3>
+                        <span class="users-pill">{{ card.total }} colaborador{% if card.total != 1 %}es{% endif %}</span>
+                    </div>
+                    <div class="users-sector-number">{{ card.total }}</div>
+                    <div class="users-sector-meta">
+                        <div class="users-sector-meta-row">
+                            <span>Administradores</span>
+                            <strong>{{ card.admins }}</strong>
+                        </div>
+                        <div class="users-sector-meta-row">
+                            <span>Usuários padrão</span>
+                            <strong>{{ card.standards }}</strong>
+                        </div>
+                    </div>
+                    <div class="users-sector-footer">Clique para abrir a equipe completa deste setor.</div>
+                </div>
+            </div>
         <template id="sector-template-{{ loop.index }}">
             <p class="text-muted small">{{ card.total }} colaborador{% if card.total != 1 %}es{% endif %} neste setor.
             </p>
@@ -171,26 +514,27 @@
             </div>
         </template>
         {% endfor %}
-    </div>
+        </div>
+    </section>
+    {% endif %}
 </div>
-{% endif %}
 
 <!-- Modal de Exclusão com Arquivo Morto -->
 <div class="modal fade" id="deleteUserModal" tabindex="-1" aria-labelledby="deleteUserModalLabel" aria-hidden="true">
     <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header bg-danger text-white">
+        <div class="modal-content users-modal-surface">
+            <div class="modal-header">
                 <h5 class="modal-title" id="deleteUserModalLabel">Excluir Usuário</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
             </div>
             <form id="deleteUserForm" method="post" action="">
                 <div class="modal-body">
-                    <div class="alert alert-warning">
+                    <div class="alert users-warning-box mb-3">
                         <i class="bi bi-exclamation-triangle-fill me-2"></i>
                         <strong>Atenção!</strong> Você está prestes a excluir o usuário <strong id="deleteUserName"></strong>.
                     </div>
 
-                    <div class="border rounded p-3 bg-light">
+                    <div class="users-archive-box">
                         <p class="mb-2 fw-bold">O sistema vai executar automaticamente:</p>
                         <ul class="mb-0">
                             <li>copiar o histórico completo do colaborador para um arquivo morto SQLite;</li>
@@ -210,7 +554,7 @@
 
 <div class="modal fade" id="sectorModal" tabindex="-1" aria-labelledby="sectorModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
-        <div class="modal-content">
+        <div class="modal-content users-modal-surface">
             <div class="modal-header">
                 <h5 class="modal-title" id="sectorModalLabel">Setor</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>

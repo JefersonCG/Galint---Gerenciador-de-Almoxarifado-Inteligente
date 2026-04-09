@@ -58,6 +58,7 @@ from .operation_log_service import operation_log_service
 from .price_normalization import infer_price_unit_for_item, normalize_item_price
 from .unit_conversion_engine import UnitConversionError, unit_conversion_engine
 from .balance_provider import balance_provider
+from .category_catalog import category_catalog_service
 from ..utils.lote_generator import generate_lote
 from ..utils.barcode_generator import generate_barcode, get_barcode_path
 from ..utils.time_service import TimeService
@@ -81,6 +82,343 @@ OPERATIONAL_ACTIVITY_LABELS = {
     row["key"]: row["label"]
     for row in OPERATIONAL_ACTIVITY_OPTIONS
 }
+
+
+def _normalize_dashboard_lookup(value: object) -> str:
+    normalized = " ".join(str(value or "").strip().split()).lower()
+    normalized = unicode_normalize("NFKD", normalized).encode("ascii", "ignore").decode("ascii")
+    return re.sub(r"[^a-z0-9]+", " ", normalized).strip()
+
+
+_DASHBOARD_CATEGORY_DEFINITIONS: tuple[dict[str, Any], ...] = (
+    {
+        "key": "material-eletrico",
+        "label": "Material Elétrico",
+        "route": "Material Elétrico",
+        "aliases": (
+            "material elétrico",
+            "material eletrico",
+            "materiais elétricos",
+            "materiais eletricos",
+        ),
+    },
+    {
+        "key": "material-hidraulico",
+        "label": "Material Hidráulico",
+        "route": "Material Hidráulico",
+        "aliases": (
+            "material hidráulico",
+            "material hidraulico",
+            "materiais hidráulicos",
+            "materiais hidraulicos",
+        ),
+    },
+    {
+        "key": "materiais-limpeza",
+        "label": "Materiais de Limpeza",
+        "route": "Materiais de Limpeza",
+        "aliases": (
+            "materiais de limpeza",
+            "material de limpeza",
+            "limpeza",
+        ),
+    },
+    {
+        "key": "mat-pintura-drywall",
+        "label": "Mat. Pintura e Drywall",
+        "route": "Mat. Pintura e Drywall",
+        "aliases": (
+            "mat. pintura e drywall",
+            "mat pintura e drywall",
+            "material pintura",
+            "material pintura e drywall",
+            "material de pintura drywall",
+            "material de pintura/drywall",
+            "material pintura/drywall",
+            "material pintura e drywal",
+            "material pintura",
+            "material de pintura",
+            "drywall",
+        ),
+    },
+    {
+        "key": "ferramentas",
+        "label": "Ferramentas",
+        "route": "Ferramentas",
+        "aliases": (
+            "ferramenta",
+            "ferramentas",
+        ),
+    },
+    {
+        "key": "equipamento",
+        "label": "Equipamentos",
+        "route": "Equipamento",
+        "aliases": (
+            "equipamento",
+            "equipamentos",
+            "equipamentos maquinas",
+            "equipamentos/maquinas",
+            "equipamentos/máquinas",
+        ),
+    },
+    {
+        "key": "material-construcao",
+        "label": "Material Construção",
+        "route": "Material Construção",
+        "aliases": (
+            "material construção",
+            "material construcao",
+            "material de construção",
+            "material de construcao",
+            "construcao civil",
+        ),
+    },
+    {
+        "key": "material-ep",
+        "label": "Material de EP",
+        "route": "Material de EP",
+        "aliases": (
+            "material de ep",
+            "material de e.p.",
+            "epi",
+            "epis",
+            "equipamento de protecao",
+            "equipamento de proteção",
+        ),
+    },
+    {
+        "key": "material-piscina",
+        "label": "Material Piscina",
+        "route": "Material Piscina",
+        "aliases": (
+            "material piscina",
+            "materiais piscina",
+            "materiais de piscina",
+            "material de piscina",
+            "piscina",
+        ),
+    },
+    {
+        "key": "material-uso-geral",
+        "label": "Material/Uso geral",
+        "route": "Material/Uso geral",
+        "aliases": (
+            "material/uso geral",
+            "material uso geral",
+            "uso geral",
+        ),
+    },
+    {
+        "key": "sem-categoria",
+        "label": "Sem categoria",
+        "route": "Sem categoria",
+        "aliases": (
+            "sem categoria",
+        ),
+    },
+)
+
+_DASHBOARD_CATEGORY_ORDER = {
+    row["key"]: index
+    for index, row in enumerate(_DASHBOARD_CATEGORY_DEFINITIONS)
+}
+
+_DASHBOARD_CATEGORY_LOOKUP: dict[str, dict[str, Any]] = {}
+for _dashboard_category in _DASHBOARD_CATEGORY_DEFINITIONS:
+    for _dashboard_alias in _dashboard_category["aliases"]:
+        _DASHBOARD_CATEGORY_LOOKUP[_normalize_dashboard_lookup(_dashboard_alias)] = _dashboard_category
+    _DASHBOARD_CATEGORY_LOOKUP.setdefault(
+        _normalize_dashboard_lookup(_dashboard_category["label"]),
+        _dashboard_category,
+    )
+    _DASHBOARD_CATEGORY_LOOKUP.setdefault(
+        _normalize_dashboard_lookup(_dashboard_category["route"]),
+        _dashboard_category,
+    )
+
+_DASHBOARD_UNIT_DEFINITIONS: tuple[dict[str, str], ...] = (
+    {"key": "unidade", "label": "Unidade", "short_label": "un"},
+    {"key": "litro", "label": "Litro", "short_label": "L"},
+    {"key": "kg", "label": "Kg", "short_label": "kg"},
+    {"key": "metro", "label": "Metro", "short_label": "m"},
+)
+
+_DASHBOARD_UNIT_ORDER = {
+    row["key"]: index
+    for index, row in enumerate(_DASHBOARD_UNIT_DEFINITIONS)
+}
+
+_DASHBOARD_UNIT_LOOKUP = {
+    "un": "unidade",
+    "und": "unidade",
+    "unid": "unidade",
+    "unidade": "unidade",
+    "unidades": "unidade",
+    "l": "litro",
+    "lt": "litro",
+    "lts": "litro",
+    "litro": "litro",
+    "litros": "litro",
+    "kg": "kg",
+    "quilo": "kg",
+    "quilos": "kg",
+    "m": "metro",
+    "mt": "metro",
+    "mts": "metro",
+    "metro": "metro",
+    "metros": "metro",
+}
+
+
+def _resolve_dashboard_category_meta(value: object) -> dict[str, str]:
+    raw_value = " ".join(str(value or "").strip().split()) or "Sem categoria"
+    normalized = _normalize_dashboard_lookup(raw_value)
+    category_meta = _DASHBOARD_CATEGORY_LOOKUP.get(normalized)
+    if category_meta is not None:
+        return {
+            "key": str(category_meta["key"]),
+            "label": str(category_meta["label"]),
+            "route": str(category_meta["route"]),
+        }
+    fallback_key = re.sub(r"[^a-z0-9]+", "-", normalized).strip("-") or "sem-categoria"
+    return {
+        "key": fallback_key,
+        "label": raw_value,
+        "route": raw_value,
+    }
+
+
+def _resolve_dashboard_unit_key(value: object) -> str:
+    normalized = _normalize_dashboard_lookup(value)
+    if not normalized:
+        return "unidade"
+    return _DASHBOARD_UNIT_LOOKUP.get(normalized, "unidade")
+
+
+def _round_dashboard_balance(unit_key: str, value: float) -> float:
+    if unit_key == "unidade":
+        return float(round(value))
+    return round(value, 1)
+
+
+def _new_dashboard_unit_map() -> dict[str, dict[str, Any]]:
+    return {
+        row["key"]: {
+            "key": row["key"],
+            "label": row["label"],
+            "short_label": row["short_label"],
+            "count": 0,
+            "saldo_total": 0.0,
+        }
+        for row in _DASHBOARD_UNIT_DEFINITIONS
+    }
+
+
+def _accumulate_dashboard_category_summary(
+    categorias: dict[str, dict[str, Any]],
+    *,
+    categoria_value: object,
+    unidade_value: object,
+    saldo_categoria: float,
+) -> None:
+    category_meta = _resolve_dashboard_category_meta(categoria_value)
+    raw_category = " ".join(str(categoria_value or "").strip().split()) or category_meta["route"]
+    category_key = category_meta["key"]
+    category_summary = categorias.setdefault(
+        category_key,
+        {
+            "category_key": category_key,
+            "categoria": category_meta["label"],
+            "route_categoria": raw_category,
+            "source_categories": set(),
+            "total_itens": 0,
+            "saldo_total": 0.0,
+            "_order": _DASHBOARD_CATEGORY_ORDER.get(category_key, 999),
+            "_unit_map": _new_dashboard_unit_map(),
+        },
+    )
+    category_summary["source_categories"].add(raw_category)
+    if raw_category == category_meta["route"] or category_summary.get("route_categoria") == category_meta["label"]:
+        category_summary["route_categoria"] = raw_category
+
+    unit_key = _resolve_dashboard_unit_key(unidade_value)
+    rounded_balance = _round_dashboard_balance(unit_key, float(saldo_categoria or 0.0))
+
+    category_summary["total_itens"] += 1
+    category_summary["saldo_total"] += rounded_balance
+
+    unit_summary = category_summary["_unit_map"][unit_key]
+    unit_summary["count"] += 1
+    unit_summary["saldo_total"] += rounded_balance
+
+
+def _finalize_dashboard_category_summary(categorias: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
+    summaries: list[dict[str, Any]] = []
+    fallback_order_base = len(_DASHBOARD_CATEGORY_ORDER)
+    for fallback_index, summary in enumerate(categorias.values()):
+        total_itens = int(summary.get("total_itens") or 0)
+        unit_breakdown: list[dict[str, Any]] = []
+        for unit_meta in _DASHBOARD_UNIT_DEFINITIONS:
+            unit_summary = summary["_unit_map"][unit_meta["key"]]
+            if int(unit_summary.get("count") or 0) <= 0:
+                continue
+            unit_breakdown.append(
+                {
+                    "key": unit_meta["key"],
+                    "label": unit_meta["label"],
+                    "short_label": unit_meta["short_label"],
+                    "count": int(unit_summary.get("count") or 0),
+                    "saldo_total": _round_dashboard_balance(
+                        unit_meta["key"],
+                        float(unit_summary.get("saldo_total") or 0.0),
+                    ),
+                    "share_pct": round(
+                        (float(unit_summary.get("count") or 0) / float(total_itens)) * 100,
+                        1,
+                    ) if total_itens else 0.0,
+                }
+            )
+        unit_breakdown.sort(
+            key=lambda entry: (
+                _DASHBOARD_UNIT_ORDER.get(str(entry.get("key")), 999),
+                -int(entry.get("count") or 0),
+            )
+        )
+        dominant_unit = max(
+            unit_breakdown,
+            key=lambda entry: (int(entry.get("count") or 0), float(entry.get("saldo_total") or 0.0)),
+            default=None,
+        )
+        summaries.append(
+            {
+                "category_key": summary["category_key"],
+                "categoria": summary["categoria"],
+                "route_categoria": summary.get("route_categoria") or summary["categoria"],
+                "source_categories": sorted(str(value) for value in summary.get("source_categories") or []),
+                "total_itens": total_itens,
+                "saldo_total": round(float(summary.get("saldo_total") or 0.0), 1),
+                "unit_breakdown": unit_breakdown,
+                "unit_mix_label": " • ".join(
+                    f"{entry['count']} {entry['short_label']}"
+                    for entry in unit_breakdown
+                ),
+                "dominant_unit": dominant_unit.get("label") if dominant_unit else None,
+                "dominant_unit_key": dominant_unit.get("key") if dominant_unit else None,
+                "has_data": total_itens > 0,
+                "_order": summary.get("_order", fallback_order_base + fallback_index),
+            }
+        )
+    summaries.sort(
+        key=lambda entry: (
+            int(entry.get("_order") or fallback_order_base),
+            -int(entry.get("total_itens") or 0),
+            str(entry.get("categoria") or "").lower(),
+        )
+    )
+    for summary in summaries:
+        summary.pop("_order", None)
+    return summaries
 
 MATERIAL_RETURN_UNIT_ALIASES = {
     "l": "litro",
@@ -2622,6 +2960,7 @@ class InventoryService:
     def create_item(self, payload: dict[str, Any]) -> str:
         payload = self._normalize_toolkit_registration_payload(payload)
         payload = self._hydrate_missing_packaging_metadata(payload)
+        payload["categoria"] = category_catalog_service.resolve_name(payload.get("categoria"))
         codigo = _sanitize_codigo(payload.get("codigo") or payload.get("codigo_item"))
         if not codigo:
             raise ValueError("Código do item é obrigatório")
@@ -2905,6 +3244,10 @@ class InventoryService:
 
         payload = self._normalize_toolkit_registration_payload(payload, current_item=item)
         payload = self._hydrate_missing_packaging_metadata(payload, current_item=item)
+        payload["categoria"] = category_catalog_service.resolve_name(
+            payload.get("categoria"),
+            fallback=item.categoria or "Material Elétrico",
+        )
 
         novo_codigo = _sanitize_codigo(payload.get("codigo") or codigo)
         if not novo_codigo:
@@ -3297,13 +3640,6 @@ class InventoryService:
 
         from ..services.embalagem_service import EmbalagemService
 
-        def _normalize_unidade(value: str | None) -> str:
-            return (value or "").strip().lower()
-
-        def _is_unit(unidade: str | None) -> bool:
-            u = _normalize_unidade(unidade)
-            return u in ("un", "und", "unid", "unidade", "unidades")
-
         itens = Item.query.order_by(Item.setor, Item.descricao).all()
         resumo: list[dict[str, Any]] = []
         categorias: dict[str, dict[str, Any]] = {}
@@ -3345,31 +3681,20 @@ class InventoryService:
             saldo_categoria = float(item.estoque_embalagens or 0) if tem_embalagem else saldo_fisico
             total_quantity += float(item.estoque_embalagens or 0) if tem_embalagem else saldo_fisico
 
-            categoria = item.categoria or "Sem categoria"
-            categoria_resumo = categorias.setdefault(
-                categoria,
-                {
-                    "categoria": categoria,
-                    "total_itens": 0,
-                    "saldo_total": 0.0,
-                },
+            _accumulate_dashboard_category_summary(
+                categorias,
+                categoria_value=item.categoria,
+                unidade_value=item.unidade,
+                saldo_categoria=saldo_categoria,
             )
-            categoria_resumo["total_itens"] += 1
-            if _is_unit(item.unidade):
-                categoria_resumo["saldo_total"] += round(saldo_categoria)
-            else:
-                categoria_resumo["saldo_total"] += round(saldo_categoria, 1)
 
         if atualizado:
             db.session.commit()
 
-        for categoria_resumo in categorias.values():
-            categoria_resumo["saldo_total"] = round(categoria_resumo["saldo_total"], 1)
-
         snapshot = {
             "resumo": resumo,
             "total_quantity": int(round(total_quantity)),
-            "category_summary": list(categorias.values()),
+            "category_summary": _finalize_dashboard_category_summary(categorias),
         }
         return self._set_cached("dashboard_snapshot", dict(snapshot), ttl_seconds=5.0)
 
@@ -3662,41 +3987,21 @@ class InventoryService:
     def category_summary(self) -> list[dict[str, Any]]:
         from ..services.embalagem_service import EmbalagemService
 
-        def _normalize_unidade(value: str | None) -> str:
-            return (value or "").strip().lower()
-
-        def _is_unit(unidade: str | None) -> bool:
-            u = _normalize_unidade(unidade)
-            return u in ("un", "und", "unid", "unidade", "unidades")
-
         categorias: dict[str, dict[str, Any]] = {}
         for item in Item.query.order_by(Item.categoria, Item.descricao).all():
-            categoria = item.categoria or "Sem categoria"
-            resumo = categorias.setdefault(
-                categoria,
-                {
-                    "categoria": categoria,
-                    "total_itens": 0,
-                    "saldo_total": 0.0,
-                },
-            )
-            resumo["total_itens"] += 1
             if EmbalagemService.tem_embalagem(item):
                 saldo = float(item.estoque_embalagens or 0)
             else:
                 saldo = float(item.get_saldo_atual() or 0)
-            
-            # Se for unidade, soma como inteiro; senão, soma normalmente mas arredonda
-            if _is_unit(item.unidade):
-                resumo["saldo_total"] += round(saldo)
-            else:
-                resumo["saldo_total"] += round(saldo, 1)
-        
-        # Arredondar todos os totais para eliminar problemas de float
-        for resumo in categorias.values():
-            resumo["saldo_total"] = round(resumo["saldo_total"], 1)
-        
-        return list(categorias.values())
+
+            _accumulate_dashboard_category_summary(
+                categorias,
+                categoria_value=item.categoria,
+                unidade_value=item.unidade,
+                saldo_categoria=saldo,
+            )
+
+        return _finalize_dashboard_category_summary(categorias)
 
     def adjust_item_balance(
         self,

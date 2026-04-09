@@ -1317,7 +1317,7 @@
                         <div class="form-group">
                             <label class="form-label" for="categoria">Categoria</label>
                             <select class="form-select" id="categoria" name="categoria" required>
-                                {% set categoria = form_item.categoria if form_item else 'Material Elétrico' %}
+                                {% set categoria = form_item.categoria if form_item else (category_options[0] if category_options else 'Material Elétrico') %}
                                 {% if categoria == 'Material Pintura' %}
                                 {% set categoria = 'Mat. Pintura e Drywall' %}
                                 {% elif categoria == 'Material de Pintura/Drywall' %}
@@ -1325,18 +1325,7 @@
                                 {% elif categoria == 'Mat. Pintura E Drywall' %}
                                 {% set categoria = 'Mat. Pintura e Drywall' %}
                                 {% endif %}
-                                {% for choice in [
-                                'Material Elétrico',
-                                'Material Hidráulico',
-                                'Material Piscina',
-                                'Mat. Pintura e Drywall',
-                                'Materiais de Limpeza',
-                                'Material Construção',
-                                'Ferramentas',
-                                'Equipamento',
-                                'Material de EP',
-                                'Material/Uso geral'
-                                ] %}
+                                {% for choice in category_options %}
                                 <option value="{{ choice }}" {% if categoria==choice %}selected{% endif %}>{{ choice }}</option>
                                 {% endfor %}
                             </select>

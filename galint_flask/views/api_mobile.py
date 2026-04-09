@@ -26,6 +26,7 @@ from ..services.auth import (
     create_mobile_token,
     get_mobile_user,
 )
+from ..services.category_catalog import category_catalog_service
 from ..services.finance_service import finance_service
 from ..services.inventory_engine import PRE_CADASTRO_PENDING_EXIT_MESSAGE
 from ..services.inventory import (
@@ -2139,15 +2140,7 @@ def cadastrar_produto():
 @mobile_login_required
 def listar_categorias():
     """Lista categorias disponíveis."""
-    categorias = [
-        "Material Elétrico",
-        "Hidraulica",
-        "Ferramentas",
-        "EPI",
-        "Materiais de Limpeza",
-        "Escritorio",
-        "Outros",
-    ]
+    categorias = category_catalog_service.list_form_choices()
     return jsonify({"categorias": categorias}), 200
 
 

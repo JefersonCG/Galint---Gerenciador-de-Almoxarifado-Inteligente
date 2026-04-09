@@ -19,6 +19,9 @@
             <button class="btn btn-outline-primary" type="submit">Gerar códigos de barras</button>
         </form>
         {% endif %}
+        {% if can_manage %}
+        <a class="btn btn-outline-info" href="{{ url_for('inventory.category_admin') }}">Categorias</a>
+        {% endif %}
         {% if can_create %}
         <a class="btn btn-success" href="{{ url_for('inventory.new_item_form') }}">Novo item</a>
         {% endif %}

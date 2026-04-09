@@ -17,6 +17,40 @@ from .utils.time_service import TimeService
 _BALANCE_ZERO_TOLERANCE = 1e-6
 
 
+class InventoryCategory(db.Model):
+    __tablename__ = "inventory_categories"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    nome: Mapped[str] = mapped_column(String(120), nullable=False, unique=True, index=True)
+    descricao: Mapped[str | None] = mapped_column(Text, nullable=True)
+    ordem: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    ativa: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, index=True)
+    sistema: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    criada_por: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    atualizada_por: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    criado_em: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    atualizado_em: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+    )
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "id": self.id,
+            "nome": self.nome,
+            "descricao": self.descricao,
+            "ordem": self.ordem,
+            "ativa": bool(self.ativa),
+            "sistema": bool(self.sistema),
+            "criada_por": self.criada_por,
+            "atualizada_por": self.atualizada_por,
+            "criado_em": self.criado_em.isoformat() if self.criado_em else None,
+            "atualizado_em": self.atualizado_em.isoformat() if self.atualizado_em else None,
+        }
+
+
 class Item(db.Model):
     __tablename__ = "itens"
 

@@ -12,6 +12,7 @@ from sqlalchemy.orm import joinedload
 
 from ..extensions import db
 from ..models import CompraPeriodoFechamento, DocumentoEntradaEstoque, DocumentoEntradaEstoqueItem, Entrada, FinanceLedgerEntry, Item, TelegramOutbox
+from ..services.category_catalog import DEFAULT_INVENTORY_CATEGORY_NAME, category_catalog_service
 from ..services.document_integrity_service import allow_document_quantity_update
 from ..services.finance_service import finance_service
 from ..services.nf_deletion_audit_sqlite import log_document_item_deletion
@@ -19,19 +20,6 @@ from ..services.inventory import inventory_service
 from ..services.price_normalization import infer_price_unit_for_item, normalize_document_line
 
 blueprint = Blueprint("nf", __name__, url_prefix="/nf")
-
-DEFAULT_DOCUMENT_CATEGORY_OPTIONS = [
-    "Material Elétrico",
-    "Material Hidráulico",
-    "Material Piscina",
-    "Mat. Pintura e Drywall",
-    "Materiais de Limpeza",
-    "Material Construção",
-    "Ferramentas",
-    "Equipamento",
-    "Material de EP",
-    "Material/Uso geral",
-]
 
 DEFAULT_DOCUMENT_UNIT_OPTIONS = [
     "Unidade",
@@ -852,14 +840,10 @@ def _query_period_documents(
 
 
 def _build_document_category_options() -> list[str]:
-    seen: set[str] = set()
-    options: list[str] = []
-    for value in DEFAULT_DOCUMENT_CATEGORY_OPTIONS:
-        normalized = (value or "").strip()
-        if normalized and normalized not in seen:
-            seen.add(normalized)
-            options.append(normalized)
-    return options
+    try:
+        return category_catalog_service.list_form_choices()
+    except Exception:
+        return [DEFAULT_INVENTORY_CATEGORY_NAME]
 
 
 def _build_document_unit_options() -> list[str]:
@@ -1311,7 +1295,11 @@ def registrar_nf():
     codigo = request.form.get("codigo", "").strip()
     novo_codigo = request.form.get("novo_codigo", "").strip()
     nova_descricao = request.form.get("nova_descricao", "").strip()
-    nova_categoria = request.form.get("nova_categoria", "").strip() or "Material Elétrico"
+    nova_categoria = category_catalog_service.resolve_name(
+        request.form.get("nova_categoria", "").strip(),
+        fallback=DEFAULT_INVENTORY_CATEGORY_NAME,
+        actor=getattr(current_user, "nome", None) or getattr(current_user, "id", None),
+    )
     nova_unidade = request.form.get("nova_unidade", "").strip() or "Unidade"
     nota = request.form.get("nota_fiscal", "").strip()
     supplier_raw = (request.form.get("finance_supplier_id") or "").strip()

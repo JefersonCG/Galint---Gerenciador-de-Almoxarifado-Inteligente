@@ -13,6 +13,10 @@ from sqlalchemy import and_, func, or_
 
 from ..extensions import db
 from ..models import DocumentoEntradaEstoque, DocumentoEntradaEstoqueItem, FinanceLedgerEntry, Item, Usuario
+from ..services.category_catalog import (
+    DEFAULT_INVENTORY_CATEGORY_NAME,
+    category_catalog_service,
+)
 from ..services.config_service import ConfigService
 from ..services.finance_service import finance_service
 from ..services.inventory import (
@@ -186,6 +190,58 @@ def _load_linked_document_context(item_data: dict | None) -> dict[str, object]:
         "preco_compra_data_recebimento": documento.data_recebimento.isoformat() if documento.data_recebimento else None,
         "finance_tipo_documento": documento.tipo_documento,
     }
+
+
+def _current_actor_name() -> str | None:
+    return (
+        getattr(current_user, "nome", None)
+        or getattr(current_user, "matricula", None)
+        or getattr(current_user, "id", None)
+    )
+
+
+def _inventory_category_options(selected_name: str | None = None) -> list[str]:
+    try:
+        return category_catalog_service.list_form_choices(selected_name=selected_name)
+    except Exception:
+        fallback = (selected_name or "").strip() or DEFAULT_INVENTORY_CATEGORY_NAME
+        return [fallback]
+
+
+def _build_category_admin_rows() -> list[dict[str, object]]:
+    stats: dict[str, dict[str, float | int]] = defaultdict(lambda: {"total": 0, "saldo_total": 0.0})
+    for item in inventory_service.list_items():
+        category_name = str(item.get("categoria") or "Sem categoria").strip() or "Sem categoria"
+        stats[category_name]["total"] = int(stats[category_name]["total"] or 0) + 1
+        try:
+            stats[category_name]["saldo_total"] = float(stats[category_name]["saldo_total"] or 0.0) + float(item.get("saldo") or 0.0)
+        except (TypeError, ValueError):
+            pass
+
+    rows: list[dict[str, object]] = []
+    for category in category_catalog_service.list_categories(include_inactive=True):
+        row_stats = stats.get(category.nome, {"total": 0, "saldo_total": 0.0})
+        rows.append(
+            {
+                "id": category.id,
+                "nome": category.nome,
+                "descricao": category.descricao,
+                "ordem": int(category.ordem or 0),
+                "ativa": bool(category.ativa),
+                "sistema": bool(category.sistema),
+                "criada_por": category.criada_por,
+                "atualizada_por": category.atualizada_por,
+                "total_itens": int(row_stats.get("total") or 0),
+                "saldo_total": round(float(row_stats.get("saldo_total") or 0.0), 1),
+            }
+        )
+    return rows
+
+
+def _reset_inventory_category_cache() -> None:
+    inventory_service.clear_runtime_cache()
+
+
 
 
 def _sync_finance_section_snapshot(
@@ -1199,12 +1255,101 @@ def lojas_lab():
     )
 
 
+@blueprint.get("/categorias")
+@login_required
+def category_admin():
+    _require_admin()
+    category_rows = _build_category_admin_rows()
+    summary = {
+        "total": len(category_rows),
+        "ativas": sum(1 for row in category_rows if row["ativa"]),
+        "sistema": sum(1 for row in category_rows if row["sistema"]),
+        "customizadas": sum(1 for row in category_rows if not row["sistema"]),
+    }
+    return render_template(
+        "inventory/categories.html",
+        category_rows=category_rows,
+        summary=summary,
+    )
+
+
+@blueprint.post("/categorias")
+@login_required
+def create_category_record():
+    _require_admin()
+    try:
+        category_catalog_service.create_category(
+            nome=request.form.get("nome"),
+            descricao=request.form.get("descricao"),
+            ordem=request.form.get("ordem"),
+            ativa=bool(request.form.get("ativa")),
+            actor=_current_actor_name(),
+        )
+        _reset_inventory_category_cache()
+        flash("Categoria criada com sucesso.", "success")
+    except ValueError as exc:
+        db.session.rollback()
+        flash(str(exc), "danger")
+    except Exception as exc:
+        db.session.rollback()
+        flash(f"Erro ao criar categoria: {exc}", "danger")
+    return redirect(url_for("inventory.category_admin"))
+
+
+@blueprint.post("/categorias/<int:category_id>")
+@login_required
+def update_category_record(category_id: int):
+    _require_admin()
+    try:
+        category_catalog_service.update_category(
+            category_id,
+            nome=request.form.get("nome"),
+            descricao=request.form.get("descricao"),
+            ordem=request.form.get("ordem"),
+            ativa=bool(request.form.get("ativa")),
+            actor=_current_actor_name(),
+        )
+        _reset_inventory_category_cache()
+        flash("Categoria atualizada com sucesso.", "success")
+    except ValueError as exc:
+        db.session.rollback()
+        flash(str(exc), "danger")
+    except Exception as exc:
+        db.session.rollback()
+        flash(f"Erro ao atualizar categoria: {exc}", "danger")
+    return redirect(url_for("inventory.category_admin"))
+
+
+@blueprint.post("/categorias/<int:category_id>/excluir")
+@login_required
+def delete_category_record(category_id: int):
+    _require_admin()
+    try:
+        category_catalog_service.delete_category(category_id)
+        _reset_inventory_category_cache()
+        flash("Categoria removida do catálogo.", "success")
+    except ValueError as exc:
+        db.session.rollback()
+        flash(str(exc), "danger")
+    except Exception as exc:
+        db.session.rollback()
+        flash(f"Erro ao excluir categoria: {exc}", "danger")
+    return redirect(url_for("inventory.category_admin"))
+
+
 @blueprint.get("/novo")
 @login_required
 def new_item_form():
     _require_admin_or_supervisor()
     codigo_prefill = request.args.get("codigo", "").strip()
-    form_data = {"codigo": codigo_prefill} if codigo_prefill else None
+    categoria_prefill = request.args.get("categoria", "").strip()
+    form_data = None
+    if codigo_prefill or categoria_prefill:
+        form_data = {}
+        if codigo_prefill:
+            form_data["codigo"] = codigo_prefill
+        if categoria_prefill:
+            form_data["categoria"] = categoria_prefill
     
     # Se o código já existe, calcular saldo total para mostrar no form
     saldo_total_ean = None
@@ -1222,6 +1367,7 @@ def new_item_form():
         saldo_total_ean=saldo_total_ean,
         liquid_types=LIQUID_PRODUCT_TYPES,
         preferred_supplier=None,
+        category_options=_inventory_category_options(),
         all_suppliers=finance_service.list_suppliers(limit=300),
     )
 
@@ -1431,6 +1577,7 @@ def create_item():
             saldo_total_ean=saldo_total_ean,
             liquid_types=LIQUID_PRODUCT_TYPES,
             preferred_supplier=finance_service.get_supplier(finance_payload.get("supplier_id")).to_dict() if finance_payload.get("supplier_id") else None,
+            category_options=_inventory_category_options(selected_name=str(payload.get("categoria") or "")),
             all_suppliers=finance_service.list_suppliers(limit=300),
         ), 400
     return redirect(url_for("inventory.list_items"))
@@ -1463,6 +1610,7 @@ def edit_item_form(codigo: str):
         saldo_total_ean=saldo_total,
         liquid_types=LIQUID_PRODUCT_TYPES,
         preferred_supplier=finance_service.get_item_supplier_preference(codigo),
+        category_options=_inventory_category_options(selected_name=str(item.get("categoria") or "")),
         all_suppliers=finance_service.list_suppliers(limit=300),
         finance_section_can_edit=_can_edit_finance_section(codigo),
     )

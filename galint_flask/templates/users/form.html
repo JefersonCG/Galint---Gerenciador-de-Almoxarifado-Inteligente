@@ -1,38 +1,389 @@
 {% extends "base.html" %}
 {% block title %}Usuário{% endblock %}
 {% block content %}
-<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-    <div>
-        <p class="text-muted mb-1">Cadastro de usuários</p>
-        <h1 class="h3 mb-0">{% if usuario %}{{ usuario.matricula }}{% else %}Novo usuário{% endif %}</h1>
-    </div>
-    <a class="btn btn-outline-secondary" href="{{ url_for('users.list_users') }}">Voltar</a>
-</div>
+<style>
+    .users-form-shell {
+        display: grid;
+        gap: 1.5rem;
+    }
 
-<form method="post"
-    action="{{ url_for('users.create_user') if not usuario else url_for('users.update_user', matricula=usuario.matricula) }}">
-    <div class="row g-4">
-        <div class="col-lg-7">
-            <div class="card h-100">
-                <div class="card-body">
-                    <h5 class="card-title">Dados do usuário</h5>
+    .users-form-hero {
+        position: relative;
+        overflow: hidden;
+        border-radius: 30px;
+        padding: 1.7rem;
+        background: linear-gradient(135deg, #07121f 0%, #0f1f38 42%, #183b61 100%);
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        box-shadow: 0 28px 70px rgba(15, 23, 42, 0.18);
+        color: #e2e8f0;
+    }
+
+    .users-form-hero::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+            radial-gradient(circle at 12% 16%, rgba(34, 211, 238, 0.18), transparent 24%),
+            radial-gradient(circle at 84% 18%, rgba(59, 130, 246, 0.18), transparent 22%),
+            radial-gradient(circle at 52% 100%, rgba(52, 211, 153, 0.1), transparent 34%);
+        pointer-events: none;
+    }
+
+    .users-form-hero > * {
+        position: relative;
+        z-index: 1;
+    }
+
+    .users-form-hero-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+
+    .users-form-kicker {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        margin-bottom: 0.65rem;
+        padding: 0.45rem 0.8rem;
+        border-radius: 999px;
+        background: rgba(15, 23, 42, 0.42);
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        color: #7dd3fc;
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .users-form-title {
+        margin: 0 0 0.4rem;
+        color: #ffffff;
+        font-size: 1.8rem;
+        font-weight: 900;
+        letter-spacing: -0.04em;
+    }
+
+    .users-form-subtitle {
+        margin: 0;
+        max-width: 44rem;
+        color: rgba(226, 232, 240, 0.74);
+        line-height: 1.65;
+    }
+
+    .users-form-back {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.55rem;
+        min-height: 44px;
+        padding: 0.75rem 1rem;
+        border-radius: 16px;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        background: rgba(15, 23, 42, 0.4);
+        color: #e2e8f0;
+        text-decoration: none;
+        font-weight: 800;
+    }
+
+    .users-form-back:hover {
+        color: #ffffff;
+        transform: translateY(-1px);
+    }
+
+    .users-form-panel {
+        position: relative;
+        overflow: hidden;
+        border-radius: 28px;
+        padding: 1.5rem;
+        background: linear-gradient(180deg, #0b1729 0%, #0f172a 100%);
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        box-shadow: 0 24px 50px rgba(15, 23, 42, 0.14);
+        color: #e2e8f0;
+        height: 100%;
+    }
+
+    .users-form-panel::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+            radial-gradient(circle at 12% 18%, rgba(34, 211, 238, 0.08), transparent 24%),
+            radial-gradient(circle at 88% 22%, rgba(52, 211, 153, 0.06), transparent 20%);
+        pointer-events: none;
+    }
+
+    .users-form-panel > * {
+        position: relative;
+        z-index: 1;
+    }
+
+    .users-form-panel-title {
+        margin: 0 0 0.35rem;
+        color: #ffffff;
+        font-size: 1.18rem;
+        font-weight: 800;
+    }
+
+    .users-form-panel-subtitle {
+        margin: 0 0 1.2rem;
+        color: rgba(226, 232, 240, 0.7);
+        line-height: 1.6;
+    }
+
+    .users-form-shell .form-label {
+        color: #cbd5e1;
+        font-weight: 700;
+        margin-bottom: 0.45rem;
+    }
+
+    .users-form-shell .form-control,
+    .users-form-shell .form-select {
+        min-height: 48px;
+        border-radius: 16px;
+        background: rgba(15, 23, 42, 0.54);
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        color: #f8fafc;
+        box-shadow: none;
+    }
+
+    .users-form-shell .form-control::placeholder {
+        color: #94a3b8;
+    }
+
+    .users-form-shell .form-control:focus,
+    .users-form-shell .form-select:focus {
+        border-color: rgba(34, 211, 238, 0.52);
+        box-shadow: 0 0 0 0.2rem rgba(34, 211, 238, 0.12);
+        background: rgba(15, 23, 42, 0.72);
+        color: #ffffff;
+    }
+
+    .users-form-shell .form-text,
+    .users-form-shell .text-muted {
+        color: rgba(148, 163, 184, 0.9) !important;
+    }
+
+    .users-form-shell .form-check {
+        min-height: 100%;
+        padding: 1rem 1rem 1rem 2.2rem;
+        border-radius: 18px;
+        background: rgba(15, 23, 42, 0.46);
+        border: 1px solid rgba(148, 163, 184, 0.14);
+    }
+
+    .users-form-shell .form-check-input {
+        margin-top: 0.2rem;
+        background-color: rgba(15, 23, 42, 0.72);
+        border-color: rgba(148, 163, 184, 0.28);
+    }
+
+    .users-form-shell .form-check-input:checked {
+        background-color: #22d3ee;
+        border-color: #22d3ee;
+    }
+
+    .users-form-shell .form-check-label {
+        color: #e2e8f0;
+        font-weight: 700;
+    }
+
+    .users-inline-action {
+        min-width: 130px;
+        border-radius: 16px;
+        font-weight: 800;
+    }
+
+    .users-primary-btn {
+        min-height: 46px;
+        padding: 0.8rem 1rem;
+        border-radius: 16px;
+        border: 1px solid rgba(34, 211, 238, 0.18);
+        background: linear-gradient(135deg, #0284c7 0%, #22d3ee 100%);
+        color: #ffffff;
+        font-weight: 800;
+        box-shadow: 0 18px 30px rgba(2, 132, 199, 0.22);
+    }
+
+    .users-secondary-btn {
+        min-height: 46px;
+        padding: 0.8rem 1rem;
+        border-radius: 16px;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        background: rgba(15, 23, 42, 0.42);
+        color: #e2e8f0;
+        font-weight: 800;
+    }
+
+    .users-badge-shell {
+        border-radius: 24px;
+        padding: 1rem;
+        background: rgba(15, 23, 42, 0.44);
+        border: 1px solid rgba(148, 163, 184, 0.14);
+    }
+
+    .users-badge-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .users-badge-chip {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 32px;
+        padding: 0.3rem 0.7rem;
+        border-radius: 999px;
+        background: rgba(15, 23, 42, 0.56);
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        color: rgba(226, 232, 240, 0.84);
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+    }
+
+    .users-form-shell .nav-tabs {
+        border-bottom-color: rgba(148, 163, 184, 0.14);
+    }
+
+    .users-form-shell .nav-tabs .nav-link {
+        border: 0;
+        border-radius: 14px 14px 0 0;
+        color: rgba(226, 232, 240, 0.72);
+        font-weight: 800;
+        background: transparent;
+    }
+
+    .users-form-shell .nav-tabs .nav-link.active {
+        color: #ffffff;
+        background: rgba(15, 23, 42, 0.58);
+        border-bottom: 2px solid #22d3ee;
+    }
+
+    .users-badge-preview {
+        display: flex;
+        justify-content: center;
+        padding: 1rem;
+        border-radius: 22px;
+        background: rgba(15, 23, 42, 0.52);
+        border: 1px solid rgba(148, 163, 184, 0.14);
+    }
+
+    .users-badge-preview img {
+        max-width: 100%;
+        height: auto;
+    }
+
+    .users-badge-actions {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.85rem;
+        flex-wrap: wrap;
+    }
+
+    .users-form-shell .btn-group .btn,
+    .users-form-shell .btn-outline-primary,
+    .users-form-shell .btn-outline-secondary {
+        border-radius: 14px;
+    }
+
+    .users-info-alert {
+        border-radius: 18px;
+        background: rgba(34, 211, 238, 0.12);
+        border: 1px solid rgba(34, 211, 238, 0.18);
+        color: #bae6fd;
+    }
+
+    .users-placeholder-card {
+        display: grid;
+        gap: 0.8rem;
+        place-items: start;
+        padding: 1.2rem;
+        border-radius: 22px;
+        background: rgba(15, 23, 42, 0.44);
+        border: 1px dashed rgba(148, 163, 184, 0.18);
+        color: rgba(226, 232, 240, 0.74);
+    }
+
+    .users-placeholder-icon {
+        width: 56px;
+        height: 56px;
+        border-radius: 18px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        background: rgba(15, 23, 42, 0.62);
+        border: 1px solid rgba(148, 163, 184, 0.14);
+    }
+
+    @media (max-width: 991.98px) {
+        .users-form-hero-top {
+            flex-direction: column;
+        }
+    }
+
+    @media (max-width: 575.98px) {
+        .users-badge-top,
+        .users-badge-actions,
+        .users-form-hero-top {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .users-inline-action {
+            width: 100%;
+        }
+    }
+</style>
+
+<div class="users-form-shell">
+    <section class="users-form-hero">
+        <div class="users-form-hero-top">
+            <div>
+                <div class="users-form-kicker">Cadastro de usuários</div>
+                <h1 class="users-form-title">{% if usuario %}{{ usuario.matricula }}{% else %}Novo usuário{% endif %}</h1>
+                <p class="users-form-subtitle">Tela redesenhada para leitura limpa em dark mode, mantendo o fluxo atual de criação, edição e emissão do crachá com QR Code ou código de barras.</p>
+            </div>
+            <a class="users-form-back" href="{{ url_for('users.list_users') }}">
+                <i class="bi bi-arrow-left"></i>
+                <span>Voltar</span>
+            </a>
+        </div>
+    </section>
+
+    <form method="post"
+        action="{{ url_for('users.create_user') if not usuario else url_for('users.update_user', matricula=usuario.matricula) }}">
+        <div class="row g-4">
+            <div class="col-lg-7">
+                <div class="users-form-panel">
+                    <h2 class="users-form-panel-title">Dados do usuário</h2>
+                    <p class="users-form-panel-subtitle">Matrícula, identificação operacional, setor e perfis de acesso ficam no mesmo bloco para reduzir ruído visual.</p>
+
                     <div class="mb-3">
                         <label class="form-label" for="matricula-field">Matrícula</label>
-                        <div class="d-flex gap-2">
+                        <div class="d-flex gap-2 flex-wrap">
                             <input id="matricula-field" class="form-control" name="matricula"
                                 value="{{ usuario.matricula if usuario else matricula_sugerida }}" autocomplete="off">
                             {% if not usuario %}
-                            <button id="refresh-matricula" type="button" class="btn btn-outline-secondary">Gerar
-                                outro</button>
+                            <button id="refresh-matricula" type="button" class="btn btn-outline-secondary users-inline-action">Gerar outro</button>
                             {% endif %}
                         </div>
-                        <div class="form-text">Esta matrícula é o conteúdo do QR Code do crachá.</div>
+                        <div class="form-text">Esta matrícula alimenta o QR Code e o código de barras do crachá.</div>
                     </div>
+
                     <div class="mb-3">
                         <label class="form-label" for="nome-field">Nome</label>
                         <input id="nome-field" class="form-control" name="nome"
                             value="{{ usuario.nome if usuario else '' }}" required>
                     </div>
+
                     <div class="mb-3">
                         <label class="form-label" for="setor-field">Setor</label>
                         <select id="setor-field" class="form-select" name="setor" required>
@@ -61,111 +412,118 @@
                             {% endfor %}
                         </select>
                     </div>
+
                     <div class="mb-3">
                         <label class="form-label" for="senha-field">Senha</label>
                         <input id="senha-field" class="form-control" name="senha" type="password"
                             autocomplete="new-password">
-                        <div class="form-text">Preencha apenas se quiser definir/alterar a senha.</div>
+                        <div class="form-text">Preencha apenas se quiser definir ou alterar a senha.</div>
                     </div>
 
                     <div class="row g-3">
                         <div class="col-md-6">
                             <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="is-admin" name="is_admin" {% if
-                                    usuario and usuario.is_admin %}checked{% endif %}>
+                                <input class="form-check-input" type="checkbox" id="is-admin" name="is_admin" {% if usuario and usuario.is_admin %}checked{% endif %}>
                                 <label class="form-check-label" for="is-admin">Administrador</label>
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="is-standard" name="is_standard" {%
-                                    if usuario and usuario.is_standard %}checked{% endif %}>
+                                <input class="form-check-input" type="checkbox" id="is-standard" name="is_standard" {% if usuario and usuario.is_standard %}checked{% endif %}>
                                 <label class="form-check-label" for="is-standard">Usuário padrão</label>
                             </div>
                         </div>
                     </div>
 
-                    <div class="mt-4 d-flex gap-2">
-                        <button class="btn btn-primary" type="submit">Salvar</button>
-                        <a class="btn btn-secondary" href="{{ url_for('users.list_users') }}">Cancelar</a>
+                    <div class="mt-4 d-flex gap-2 flex-wrap">
+                        <button class="btn users-primary-btn" type="submit">Salvar</button>
+                        <a class="btn users-secondary-btn" href="{{ url_for('users.list_users') }}">Cancelar</a>
                     </div>
                 </div>
             </div>
-        </div>
 
-        <div class="col-lg-5">
-            <div class="card h-100">
-                <div class="card-body">
-                    <h5 class="card-title">Crachá</h5>
+            <div class="col-lg-5">
+                <div class="users-form-panel">
+                    <div class="users-badge-top">
+                        <div>
+                            <h2 class="users-form-panel-title mb-1">Crachá</h2>
+                            <p class="users-form-panel-subtitle mb-0">Saída visual pronta para impressão com QR Code e barras.</p>
+                        </div>
+                        <div class="users-badge-chip">{% if usuario %}Ativo{% else %}Pendente{% endif %}</div>
+                    </div>
+
                     {% if usuario %}
-                    <p class="text-muted mb-3">Imprima o QR Code e/ou o código de barras e cole no crachá do
-                        colaborador.</p>
+                    <div class="users-badge-shell">
+                        <ul class="nav nav-tabs galint-folder-tabs" id="badgeTabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="qr-tab" data-bs-toggle="tab" data-bs-target="#qr-pane"
+                                    type="button" role="tab" aria-controls="qr-pane" aria-selected="true">QR Code</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="barcode-tab" data-bs-toggle="tab"
+                                    data-bs-target="#barcode-pane" type="button" role="tab" aria-controls="barcode-pane"
+                                    aria-selected="false">Código de barras</button>
+                            </li>
+                        </ul>
 
-                    <ul class="nav nav-tabs galint-folder-tabs" id="badgeTabs" role="tablist">
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link active" id="qr-tab" data-bs-toggle="tab" data-bs-target="#qr-pane"
-                                type="button" role="tab" aria-controls="qr-pane" aria-selected="true">QR Code</button>
-                        </li>
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link" id="barcode-tab" data-bs-toggle="tab"
-                                data-bs-target="#barcode-pane" type="button" role="tab" aria-controls="barcode-pane"
-                                aria-selected="false">Código de barras</button>
-                        </li>
-                    </ul>
-
-                    <div class="tab-content galint-folder-content" id="badgeTabsContent">
-                        <div class="tab-pane fade show active" id="qr-pane" role="tabpanel" aria-labelledby="qr-tab">
-                            <div class="d-flex justify-content-center">
-                                <img src="{{ url_for('users.user_qrcode_png', matricula=usuario.matricula) }}"
-                                    alt="QR Code da matrícula {{ usuario.matricula }}"
-                                    class="img-fluid border rounded p-2 bg-white"
-                                    style="max-width: 320px; image-rendering: pixelated;" />
-                            </div>
-                            <div class="mt-3 d-flex justify-content-between align-items-center gap-2 flex-wrap">
-                                <div class="small text-muted">Matrícula: <strong class="text-body">{{ usuario.matricula
-                                        }}</strong></div>
-                                <div class="btn-group" role="group" aria-label="Download do QR Code">
-                                    <a class="btn btn-outline-primary btn-sm" target="_blank" rel="noopener"
-                                        href="{{ url_for('users.user_qrcode_png', matricula=usuario.matricula) }}">Baixar
-                                        PNG</a>
-                                    <a class="btn btn-outline-secondary btn-sm" target="_blank" rel="noopener"
-                                        href="{{ url_for('users.user_qrcode_svg', matricula=usuario.matricula) }}">SVG</a>
+                        <div class="tab-content galint-folder-content" id="badgeTabsContent">
+                            <div class="tab-pane fade show active" id="qr-pane" role="tabpanel" aria-labelledby="qr-tab">
+                                <div class="users-badge-preview">
+                                    <img src="{{ url_for('users.user_qrcode_png', matricula=usuario.matricula) }}"
+                                        alt="QR Code da matrícula {{ usuario.matricula }}"
+                                        class="img-fluid bg-white rounded p-2"
+                                        style="max-width: 320px; image-rendering: pixelated;" />
+                                </div>
+                                <div class="users-badge-actions mt-3">
+                                    <div class="small text-muted">Matrícula: <strong class="text-white">{{ usuario.matricula }}</strong></div>
+                                    <div class="btn-group" role="group" aria-label="Download do QR Code">
+                                        <a class="btn btn-outline-primary btn-sm" target="_blank" rel="noopener"
+                                            href="{{ url_for('users.user_qrcode_png', matricula=usuario.matricula) }}">Baixar PNG</a>
+                                        <a class="btn btn-outline-secondary btn-sm" target="_blank" rel="noopener"
+                                            href="{{ url_for('users.user_qrcode_svg', matricula=usuario.matricula) }}">SVG</a>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
 
-                        <div class="tab-pane fade" id="barcode-pane" role="tabpanel" aria-labelledby="barcode-tab">
-                            <div class="d-flex justify-content-center">
-                                <img src="/usuarios/{{ usuario.matricula }}/barcode.png?v=2"
-                                    alt="Código de barras da matrícula {{ usuario.matricula }}"
-                                    class="img-fluid border rounded p-2 bg-white"
-                                    style="max-width: 520px; width: 100%; height: auto; image-rendering: auto;" />
-                            </div>
-                            <div class="mt-3 d-flex justify-content-between align-items-center gap-2 flex-wrap">
-                                <div class="small text-muted">Matrícula: <strong class="text-body">{{ usuario.matricula
-                                        }}</strong></div>
-                                <div class="btn-group" role="group" aria-label="Download do código de barras">
-                                    <a class="btn btn-outline-primary btn-sm" target="_blank" rel="noopener"
-                                        href="/usuarios/{{ usuario.matricula }}/barcode.png?v=2">Baixar PNG</a>
-                                    <a class="btn btn-outline-secondary btn-sm" target="_blank" rel="noopener"
-                                        href="/usuarios/{{ usuario.matricula }}/barcode.svg?v=2">SVG</a>
+                            <div class="tab-pane fade" id="barcode-pane" role="tabpanel" aria-labelledby="barcode-tab">
+                                <div class="users-badge-preview">
+                                    <img src="/usuarios/{{ usuario.matricula }}/barcode.png?v=2"
+                                        alt="Código de barras da matrícula {{ usuario.matricula }}"
+                                        class="img-fluid bg-white rounded p-2"
+                                        style="max-width: 520px; width: 100%; height: auto; image-rendering: auto;" />
+                                </div>
+                                <div class="users-badge-actions mt-3">
+                                    <div class="small text-muted">Matrícula: <strong class="text-white">{{ usuario.matricula }}</strong></div>
+                                    <div class="btn-group" role="group" aria-label="Download do código de barras">
+                                        <a class="btn btn-outline-primary btn-sm" target="_blank" rel="noopener"
+                                            href="/usuarios/{{ usuario.matricula }}/barcode.png?v=2">Baixar PNG</a>
+                                        <a class="btn btn-outline-secondary btn-sm" target="_blank" rel="noopener"
+                                            href="/usuarios/{{ usuario.matricula }}/barcode.svg?v=2">SVG</a>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <div class="alert alert-info mt-3 mb-0" role="alert">
-                        No lançamento de saída/devolução, o leitor deve preencher o campo de usuário com a matrícula
-                        lida do QR Code.
+                    <div class="alert users-info-alert mt-3 mb-0" role="alert">
+                        No lançamento de saída ou devolução, o leitor deve preencher o campo do usuário com a matrícula lida do crachá.
                     </div>
                     {% else %}
-                    <p class="text-muted mb-0">O QR Code fica disponível após salvar o usuário.</p>
+                    <div class="users-placeholder-card">
+                        <div class="users-placeholder-icon">
+                            <i class="bi bi-person-vcard"></i>
+                        </div>
+                        <div>
+                            <h3 class="h5 text-white mb-2">Crachá liberado após salvar</h3>
+                            <p class="mb-0">Assim que o cadastro for salvo, o QR Code e o código de barras ficam disponíveis neste painel para impressão.</p>
+                        </div>
+                    </div>
                     {% endif %}
                 </div>
             </div>
         </div>
-    </div>
-</form>
+    </form>
+</div>
 {% endblock %}
 {% block scripts %}
 {% if not usuario %}

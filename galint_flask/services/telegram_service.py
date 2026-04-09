@@ -57,6 +57,7 @@ from ..models import (
     Usuario,
 
 )
+from .category_catalog import category_catalog_service
 from .operation_visual_payload import operation_visual_payload_service
 
 import threading
@@ -11393,7 +11394,12 @@ class TelegramService:
 
             TelegramService._item_create_update(chat_id, "item_create:categoria", {"marca": marca})
 
-            options = "\n".join([f"{i+1}. {c}" for i, c in enumerate(TelegramService.ITEM_CATEGORIES)])
+            try:
+                category_choices = category_catalog_service.list_form_choices()
+            except Exception:
+                category_choices = TelegramService.ITEM_CATEGORIES
+
+            options = "\n".join([f"{i+1}. {c}" for i, c in enumerate(category_choices)])
 
             TelegramService.send_message(
 
@@ -11411,7 +11417,12 @@ class TelegramService:
 
         if state == "categoria":
 
-            categoria = choose_from_list(t, TelegramService.ITEM_CATEGORIES)
+            try:
+                category_choices = category_catalog_service.list_form_choices()
+            except Exception:
+                category_choices = TelegramService.ITEM_CATEGORIES
+
+            categoria = choose_from_list(t, category_choices)
 
             if not categoria:
 
