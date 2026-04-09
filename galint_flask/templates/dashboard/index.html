@@ -463,26 +463,63 @@
         font-size: 0.875rem;
         color: rgba(226, 232, 240, 0.72);
         margin: 0;
+        max-width: 46rem;
     }
 
     .galint-categories-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-        gap: 1.5rem;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 1.75rem;
     }
 
     .galint-category-card {
-        display: flex;
-        flex-direction: column;
-        align-items: stretch;
-        gap: 0.75rem;
-        padding: 1.25rem;
-        background: rgba(255, 255, 255, 0.07);
+        --category-accent: #38bdf8;
+        --category-progress: 0;
+        position: relative;
+        isolation: isolate;
+        aspect-ratio: 1 / 1;
+        min-height: 240px;
+        padding: 1.15rem;
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+        align-items: center;
+        justify-items: center;
+        gap: 0.9rem;
+        text-align: center;
+        background:
+            radial-gradient(circle at 50% 18%, rgba(255, 255, 255, 0.08), transparent 28%),
+            linear-gradient(180deg, rgba(15, 23, 42, 0.96) 0%, rgba(2, 6, 23, 0.94) 100%);
         border: 1px solid rgba(226, 232, 240, 0.12);
-        border-radius: 22px;
-        box-shadow: 0 18px 36px rgba(15, 23, 42, 0.18);
-        backdrop-filter: blur(10px);
-        transition: all 0.2s ease;
+        border-radius: 999px;
+        box-shadow: 0 24px 54px rgba(15, 23, 42, 0.28);
+        transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+        overflow: hidden;
+    }
+
+    .galint-category-card::before {
+        content: "";
+        position: absolute;
+        inset: 14px;
+        border-radius: 50%;
+        background: conic-gradient(
+            from -90deg,
+            var(--category-accent) 0turn calc(var(--category-progress) * 1turn),
+            rgba(100, 116, 139, 0.2) calc(var(--category-progress) * 1turn) 1turn
+        );
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+        z-index: 0;
+    }
+
+    .galint-category-card::after {
+        content: "";
+        position: absolute;
+        inset: 42px;
+        border-radius: 50%;
+        background:
+            radial-gradient(circle at 34% 26%, rgba(30, 41, 59, 0.95), rgba(2, 6, 23, 0.98) 72%);
+        border: 1px solid rgba(226, 232, 240, 0.08);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        z-index: 0;
     }
 
     .galint-category-card-link {
@@ -497,152 +534,194 @@
     }
 
     .galint-category-card:hover {
-        background: rgba(255, 255, 255, 0.1);
         transform: translateY(-4px);
-        border-color: rgba(96, 165, 250, 0.42);
-        box-shadow: 0 28px 44px rgba(15, 23, 42, 0.24);
+        border-color: rgba(255, 255, 255, 0.18);
+        box-shadow: 0 30px 64px rgba(15, 23, 42, 0.34);
+    }
+
+    .galint-category-card > * {
+        position: relative;
+        z-index: 1;
     }
 
     .galint-category-top {
         display: flex;
-        align-items: flex-start;
-        gap: 0.75rem;
-        min-width: 0;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+        gap: 0.5rem;
+        padding-inline: 0.2rem;
     }
 
     .galint-category-icon {
-        width: 48px;
-        height: 48px;
-        border-radius: 10px;
+        width: 44px;
+        height: 44px;
+        border-radius: 14px;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 1.5rem;
+        font-size: 1.35rem;
         flex-shrink: 0;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
     }
 
-    /* Padroniza o estilo do ícone (emoji) para ficar igual ao mockup,
-       independente do pack de emojis do sistema operacional. */
-    .galint-category-icon img.emoji {
-        width: 26px;
-        height: 26px;
-        display: block;
+    .galint-category-share {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 30px;
+        padding: 0.3rem 0.7rem;
+        border-radius: 999px;
+        background: rgba(2, 6, 23, 0.58);
+        border: 1px solid rgba(226, 232, 240, 0.1);
+        color: rgba(226, 232, 240, 0.82);
+        font-size: 0.67rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        white-space: nowrap;
     }
 
-    .galint-category-meta {
-        flex: 1;
-        min-width: 0;
-        padding-top: 0.1rem;
+    .galint-category-center {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.2rem;
+        max-width: 8rem;
     }
 
     .galint-category-name {
-        font-size: calc(0.875rem + 8px);
+        font-size: 0.98rem;
         font-weight: 700;
         color: #ffffff;
-        margin-bottom: 0.25rem;
-        text-transform: capitalize;
+        line-height: 1.28;
+        overflow-wrap: anywhere;
     }
 
     .galint-category-value {
         display: flex;
-        align-items: baseline;
-        gap: 0.35rem;
-        color: #ffffff;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.15rem;
         margin: 0;
+        color: #ffffff;
     }
 
     .galint-category-number {
-        font-size: calc(1.5rem + 4px);
-        font-weight: 700;
-        line-height: 1.1;
+        font-size: 2.45rem;
+        font-weight: 800;
+        line-height: 1;
+        letter-spacing: -0.06em;
     }
 
     .galint-category-unit {
-        font-size: 0.95rem;
-        font-weight: 400;
-        color: rgba(226, 232, 240, 0.72);
-        letter-spacing: 0.01em;
+        font-size: 0.72rem;
+        font-weight: 700;
+        color: rgba(226, 232, 240, 0.66);
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
     }
 
     .galint-category-description {
-        font-size: 0.8rem;
-        font-weight: 400;
-        color: rgba(226, 232, 240, 0.68);
+        font-size: 0.82rem;
+        font-weight: 500;
+        color: rgba(226, 232, 240, 0.74);
         margin: 0;
     }
 
-    .galint-progress-bar {
-        width: 100%;
-        height: 6px;
-        background: rgba(15, 23, 42, 0.4);
-        border-radius: 3px;
-        overflow: hidden;
+    .galint-category-balance {
+        font-size: 0.78rem;
+        color: rgba(226, 232, 240, 0.62);
+        margin: 0;
     }
 
-    .galint-progress-fill {
-        height: 100%;
-        border-radius: 3px;
-        transition: width 0.6s ease;
+    @media (max-width: 768px) {
+        .galint-categories {
+            padding: 1.4rem;
+        }
+
+        .galint-categories-grid {
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.15rem;
+        }
+
+        .galint-category-card {
+            min-height: 210px;
+            padding: 1rem;
+        }
+
+        .galint-category-card::after {
+            inset: 36px;
+        }
+
+        .galint-category-number {
+            font-size: 2.1rem;
+        }
+
+        .galint-category-name {
+            font-size: 0.9rem;
+        }
     }
 </style>
 
 <div class="galint-categories">
     <div class="galint-section-header">
         <h2 class="galint-section-title">Distribuição por categoria</h2>
-        <p class="galint-section-subtitle">Saldo consolidado dos itens por categoria</p>
+        <p class="galint-section-subtitle">KPIs em pizza por categoria. O anel mostra a participação no catálogo e o centro mostra a quantidade de itens cadastrados em cada grupo.</p>
     </div>
     <div class="galint-categories-grid">
-        {% set max_saldo = category_summary | map(attribute='saldo_total') | max %}
+        {% set total_category_items = category_summary | sum(attribute='total_itens') %}
         {% set category_icons = {
-        'ferramentas': {'icon': '🛠️', 'color': '#3b82f6'},
+        'ferramentas': {'icon': '🛠️', 'color': '#38bdf8'},
 
-        'material construção': {'icon': '🧱', 'color': '#6366f1'},
-        'material construcao': {'icon': '🧱', 'color': '#6366f1'},
-        'material de pintura/drywall': {'icon': '🖌️', 'color': '#6366f1'},
-        'material de pintura/drywal': {'icon': '🖌️', 'color': '#6366f1'},
-        'material pintura/drywall': {'icon': '🖌️', 'color': '#6366f1'},
-        'mat. pintura e drywall': {'icon': '🖌️', 'color': '#6366f1'},
-        'materiais de limpeza': {'icon': '🧽', 'color': '#6366f1'},
-        'material descartável': {'icon': '🧽', 'color': '#6366f1'},
-        'material descartavel': {'icon': '🧽', 'color': '#6366f1'},
-        'material elétrico': {'icon': '🔌', 'color': '#6366f1'},
-        'material eletrico': {'icon': '🔌', 'color': '#6366f1'},
-        'material piscina': {'icon': '🛟', 'color': '#6366f1'},
+        'material construção': {'icon': '🧱', 'color': '#fb7185'},
+        'material construcao': {'icon': '🧱', 'color': '#fb7185'},
+        'material de pintura/drywall': {'icon': '🖌️', 'color': '#f59e0b'},
+        'material de pintura/drywal': {'icon': '🖌️', 'color': '#f59e0b'},
+        'material pintura/drywall': {'icon': '🖌️', 'color': '#f59e0b'},
+        'mat. pintura e drywall': {'icon': '🖌️', 'color': '#f59e0b'},
+        'materiais de limpeza': {'icon': '🧽', 'color': '#34d399'},
+        'material descartável': {'icon': '🧽', 'color': '#34d399'},
+        'material descartavel': {'icon': '🧽', 'color': '#34d399'},
+        'material elétrico': {'icon': '🔌', 'color': '#22d3ee'},
+        'material eletrico': {'icon': '🔌', 'color': '#22d3ee'},
+        'material piscina': {'icon': '🛟', 'color': '#60a5fa'},
 
-        'material de ep': {'icon': '⛑️', 'color': '#eab308'},
-        'material de e.p.': {'icon': '⛑️', 'color': '#eab308'},
+        'material de ep': {'icon': '⛑️', 'color': '#fde047'},
+        'material de e.p.': {'icon': '⛑️', 'color': '#fde047'},
 
-        'material hidraulico': {'icon': '💧', 'color': '#0ea5e9'},
-        'material hidráulico': {'icon': '💧', 'color': '#0ea5e9'},
+        'material hidraulico': {'icon': '💧', 'color': '#38bdf8'},
+        'material hidráulico': {'icon': '💧', 'color': '#38bdf8'},
 
-        'material/uso geral': {'icon': '💼', 'color': '#eab308'},
-        'material/uso geral ': {'icon': '💼', 'color': '#eab308'},
-        'material uso geral': {'icon': '💼', 'color': '#eab308'}
+        'material/uso geral': {'icon': '💼', 'color': '#a3e635'},
+        'material/uso geral ': {'icon': '💼', 'color': '#a3e635'},
+        'material uso geral': {'icon': '💼', 'color': '#a3e635'}
         } %}
-        {% for categoria in category_summary %}
+        {% for categoria in category_summary | sort(attribute='total_itens', reverse=True) %}
         {% set cat_key = categoria.categoria.lower() %}
-        {% set cat_info = category_icons.get(cat_key, {'icon': '📦', 'color': '#6366f1'}) %}
-        {% set progress_percent = (categoria.saldo_total / max_saldo * 100) if max_saldo > 0 else 0 %}
+        {% set cat_info = category_icons.get(cat_key, {'icon': '📦', 'color': '#f97316'}) %}
+        {% set progress_percent = (categoria.total_itens / total_category_items * 100) if total_category_items > 0 else 0 %}
         <a class="galint-category-card galint-category-card-link"
-            href="{{ url_for('inventory.list_items', categoria=categoria.categoria) }}">
+            href="{{ url_for('inventory.list_items', categoria=categoria.categoria) }}"
+            aria-label="Abrir categoria {{ categoria.categoria }} com {{ categoria.total_itens }} itens cadastrados e saldo total de {{ categoria.saldo_total|number_br }} unidades"
+            style="--category-accent: {{ cat_info.color }}; --category-progress: {{ (progress_percent / 100) }};">
             <div class="galint-category-top">
-                <div class="galint-category-icon" style="background: {{ cat_info.color }}20;">
+                <div class="galint-category-icon" style="background: {{ cat_info.color }}22;">
                     {{ cat_info.icon }}
                 </div>
-                <div class="galint-category-meta">
-                    <div class="galint-category-name">{{ categoria.categoria }}</div>
-                    <div class="galint-category-description">{{ categoria.total_itens }} item{% if categoria.total_itens
-                        !=
-                        1 %}s{% endif %} cadastrado{% if categoria.total_itens != 1 %}s{% endif %}</div>
+                <span class="galint-category-share">{{ progress_percent|round(1)|number_br }}%</span>
+            </div>
+            <div class="galint-category-center">
+                <div class="galint-category-value">
+                    <span class="galint-category-number">{{ categoria.total_itens|number_br }}</span>
+                    <span class="galint-category-unit">itens</span>
                 </div>
             </div>
-            <div class="galint-category-value">
-                <span class="galint-category-number">{{ categoria.saldo_total|number_br }}</span>
-                <span class="galint-category-unit">unid.</span>
-            </div>
-            <div class="galint-progress-bar">
-                <div class="galint-progress-fill"
-                    style="width: {{ progress_percent }}%; background: {{ cat_info.color }};"></div>
+            <div class="galint-category-center">
+                <div class="galint-category-name">{{ categoria.categoria }}</div>
+                <p class="galint-category-description">{{ categoria.total_itens }} item{% if categoria.total_itens != 1 %}s{% endif %} nesta categoria</p>
+                <p class="galint-category-balance">Saldo: {{ categoria.saldo_total|number_br }} unid.</p>
             </div>
         </a>
         {% endfor %}
