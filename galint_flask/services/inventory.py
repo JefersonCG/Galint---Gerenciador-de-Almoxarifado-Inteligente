@@ -83,6 +83,71 @@ OPERATIONAL_ACTIVITY_LABELS = {
     for row in OPERATIONAL_ACTIVITY_OPTIONS
 }
 
+BASE_ITEM_UNIT_OPTIONS: tuple[str, ...] = ("Unidade", "Metro", "Quilo", "Litro")
+_BASE_ITEM_UNIT_LABEL_BY_CODE = {
+    "un": "Unidade",
+    "m": "Metro",
+    "kg": "Quilo",
+    "l": "Litro",
+}
+_BASE_ITEM_UNIT_ALIASES = {
+    "un": "Unidade",
+    "und": "Unidade",
+    "unidade": "Unidade",
+    "unidades": "Unidade",
+    "m": "Metro",
+    "metro": "Metro",
+    "metros": "Metro",
+    "kg": "Quilo",
+    "quilo": "Quilo",
+    "quilos": "Quilo",
+    "kilo": "Quilo",
+    "kilos": "Quilo",
+    "l": "Litro",
+    "lt": "Litro",
+    "lts": "Litro",
+    "litro": "Litro",
+    "litros": "Litro",
+}
+
+
+def normalize_base_item_unit(value: object, *, fallback: str | None = None) -> str | None:
+    raw = str(value or "").strip().lower()
+    if not raw:
+        return fallback
+    return _BASE_ITEM_UNIT_ALIASES.get(raw, fallback)
+
+
+def ensure_base_item_unit(value: object, *, fallback: str = "Unidade") -> str:
+    raw = str(value or "").strip()
+    if not raw:
+        return fallback
+    normalized = normalize_base_item_unit(raw)
+    if normalized:
+        return normalized
+    raise ValueError("Unidade base invalida. Use apenas Unidade, Metro, Quilo ou Litro.")
+
+
+def resolve_item_base_unit_label(item_like: Any, *, fallback: str = "Unidade") -> str:
+    if item_like is None:
+        return fallback
+
+    if isinstance(item_like, dict):
+        normalized = normalize_base_item_unit(item_like.get("unidade"))
+        if normalized:
+            return normalized
+        probe = SimpleNamespace(**item_like)
+    else:
+        normalized = normalize_base_item_unit(getattr(item_like, "unidade", None))
+        if normalized:
+            return normalized
+        probe = item_like
+
+    canonical_unit = _BASE_ITEM_UNIT_LABEL_BY_CODE.get((resolve_canonical_unit(probe) or "").strip().lower())
+    if canonical_unit:
+        return canonical_unit
+    return fallback
+
 
 def _normalize_dashboard_lookup(value: object) -> str:
     normalized = " ".join(str(value or "").strip().split()).lower()
@@ -1086,19 +1151,15 @@ class InventoryService:
                 unidade_numerica = True
             except ValueError:
                 unidade_numerica = False
+        unidade_base_fallback = resolve_item_base_unit_label(current_item, fallback="Unidade") if current_item is not None else "Unidade"
         if tipo_embalagem and (unidade_atual in {"", "un", "und", "unidade", "unidades"} or unidade_numerica):
-            labels = {
-                "lata": "Lata",
-                "balde": "Balde",
-                "bombona": "Bombona",
-                "caixa": "Caixa",
-                "pacote": "Pacote",
-                "fardo": "Fardo",
-                "rolo": "Rolo",
-                "saco": "Saco",
-                "litro": "Litro",
-            }
-            normalized_payload["unidade"] = labels.get(tipo_embalagem, normalized_payload.get("unidade") or getattr(current_item, "unidade", None) or "Unidade")
+            inferred_base_label = _BASE_ITEM_UNIT_LABEL_BY_CODE.get((inferred_unit or "").strip().lower())
+            normalized_payload["unidade"] = inferred_base_label or unidade_base_fallback
+        else:
+            normalized_payload["unidade"] = ensure_base_item_unit(
+                normalized_payload.get("unidade"),
+                fallback=unidade_base_fallback,
+            )
 
         return normalized_payload
 

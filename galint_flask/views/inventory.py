@@ -20,11 +20,13 @@ from ..services.category_catalog import (
 from ..services.config_service import ConfigService
 from ..services.finance_service import finance_service
 from ..services.inventory import (
+    BASE_ITEM_UNIT_OPTIONS,
     OPERATIONAL_ACTIVITY_OPTIONS,
     MovimentoPayload,
     inventory_service,
     normalize_operational_activity,
     normalize_operational_text,
+    resolve_item_base_unit_label,
 )
 from ..services.item_foto_service import ItemFotoService
 from ..services.price_normalization import infer_price_unit_for_item, normalize_item_price
@@ -1363,6 +1365,8 @@ def new_item_form():
         "inventory/form.html",
         item=None,
         form_data=form_data,
+        base_unit_options=BASE_ITEM_UNIT_OPTIONS,
+        selected_base_unit=resolve_item_base_unit_label(form_data, fallback="Unidade") if form_data else "Unidade",
         saldo_desejado=0,
         saldo_total_ean=saldo_total_ean,
         liquid_types=LIQUID_PRODUCT_TYPES,
@@ -1573,6 +1577,8 @@ def create_item():
             "inventory/form.html",
             item=None,
             form_data=payload,
+            base_unit_options=BASE_ITEM_UNIT_OPTIONS,
+            selected_base_unit=resolve_item_base_unit_label(payload, fallback="Unidade"),
             saldo_desejado=quantidade_context,
             saldo_total_ean=saldo_total_ean,
             liquid_types=LIQUID_PRODUCT_TYPES,
@@ -1606,6 +1612,8 @@ def edit_item_form(codigo: str):
         "inventory/form.html",
         item=item,
         form_data=None,
+        base_unit_options=BASE_ITEM_UNIT_OPTIONS,
+        selected_base_unit=resolve_item_base_unit_label(item, fallback="Unidade"),
         saldo_desejado=saldo_display,
         saldo_total_ean=saldo_total,
         liquid_types=LIQUID_PRODUCT_TYPES,

@@ -1465,8 +1465,8 @@
                             <div class="col-md-4">
                                 <div class="docf-field-card">
                                     <div>
-                                        <label class="form-label" for="nova_unidade">Unidade</label>
-                                        <div class="docf-field-hint">Selecione a unidade padrão do item usando a mesma lista do cadastro.</div>
+                                        <label class="form-label" for="nova_unidade">Unidade base</label>
+                                        <div class="docf-field-hint">Selecione a unidade canônica do item. Embalagem é configurada depois na edição do cadastro.</div>
                                     </div>
                                     <select class="form-select form-select-sm" id="nova_unidade" name="nova_unidade">
                                         {% for option in document_unit_options %}
@@ -1511,7 +1511,7 @@
                                 <label class="form-label" for="supplier_cnpj">CNPJ da loja</label>
                                 <div class="input-group">
                                     <input class="form-control form-control-sm" id="supplier_cnpj" name="supplier_cnpj" placeholder="00.000.000/0000-00">
-                                    <button class="docf-btn-secondary docf-btn-compact" type="button" id="btn-buscar-cnpj" data-help-label="Consultar CNPJ" data-help-text="Consulta o CNPJ informado para localizar ou completar automaticamente o fornecedor.">Consultar</button>
+                                    <button class="docf-btn-secondary docf-btn-compact" type="button" id="btn-buscar-cnpj" data-cnpj-lookup-button data-help-label="Consultar CNPJ" data-help-text="Consulta o CNPJ informado para localizar ou completar automaticamente o fornecedor.">Consultar</button>
                                 </div>
                             </div>
                             <div class="col-md-6" data-chave-acesso-group>
@@ -2559,18 +2559,44 @@
         return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5, 8)}/${digits.slice(8, 12)}-${digits.slice(12)}`;
     };
 
-    const syncChaveAcessoVisibility = (selectElement) => {
-        if (!selectElement) return;
-        const form = selectElement.closest('form');
+    const syncDocumentFieldAvailability = (form, documentTypeValue) => {
         if (!form) return;
+        const documentType = String(documentTypeValue || '').trim().toLowerCase() || 'nf';
+        const isNf = documentType === 'nf';
+        const isManual = documentType === 'manual';
         const chaveGroup = form.querySelector('[data-chave-acesso-group]');
-        const chaveInput = chaveGroup?.querySelector('input[name="chave_acesso"]');
-        const isNf = (selectElement.value || '').trim().toLowerCase() === 'nf';
+        const chaveInput = chaveGroup?.querySelector('input[name="chave_acesso"]') || form.querySelector('input[name="chave_acesso"]');
+        const supplierCnpjField = form.querySelector('input[name="supplier_cnpj"]');
+        const supplierLookupButton = form.querySelector('[data-cnpj-lookup-button]');
+        const supplierNameField = form.querySelector('input[name="supplier_name"], input[name="finance_supplier_search"]');
+        const supplierIdField = form.querySelector('input[name="finance_supplier_id"]');
+
         if (chaveGroup) {
             chaveGroup.classList.toggle('d-none', !isNf);
         }
-        if (!isNf && chaveInput) {
-            chaveInput.value = '';
+        if (chaveInput) {
+            chaveInput.disabled = !isNf;
+            if (!isNf) {
+                chaveInput.value = '';
+            }
+        }
+        if (supplierCnpjField) {
+            supplierCnpjField.disabled = isManual;
+            if (isManual) {
+                supplierCnpjField.value = '';
+                delete supplierCnpjField.dataset.lastLookupDigits;
+            }
+        }
+        if (supplierLookupButton) {
+            supplierLookupButton.disabled = isManual;
+        }
+        if (isManual) {
+            if (supplierNameField) {
+                supplierNameField.value = '';
+            }
+            if (supplierIdField) {
+                supplierIdField.value = '';
+            }
         }
     };
 
@@ -2578,7 +2604,7 @@
         const mode = registrationModes[modeName] || registrationModes.nf;
         if (tipoDocumentoInput) {
             tipoDocumentoInput.value = mode.tipo;
-            syncChaveAcessoVisibility(tipoDocumentoInput);
+            syncDocumentFieldAvailability(nfForm, mode.tipo);
         }
         if (origemValorInput) {
             origemValorInput.value = mode.origem;
@@ -2608,8 +2634,14 @@
     };
 
     document.querySelectorAll('select[name="finance_tipo_documento"], select[name="tipo_documento"]').forEach((selectElement) => {
-        syncChaveAcessoVisibility(selectElement);
-        selectElement.addEventListener('change', () => syncChaveAcessoVisibility(selectElement));
+        const form = selectElement.closest('form');
+        syncDocumentFieldAvailability(form, selectElement.value);
+        selectElement.addEventListener('change', () => {
+            syncDocumentFieldAvailability(form, selectElement.value);
+            if (selectElement === tipoDocumentoInput) {
+                applyRegistrationMode(selectElement.value === 'cupom' ? 'cupom' : (selectElement.value === 'manual' ? 'manual' : 'nf'));
+            }
+        });
     });
 
     helpToggleButton?.addEventListener('click', () => {
@@ -2743,13 +2775,15 @@
     const applyDocumentSuggestion = (doc) => {
         if (!doc) return;
         if (notaFiscalInput && doc.numero_documento) notaFiscalInput.value = doc.numero_documento;
-        if (supplierInput && doc.fornecedor_nome) supplierInput.value = doc.fornecedor_nome;
-        if (supplierIdInput) supplierIdInput.value = doc.fornecedor_id || '';
-        if (supplierCnpjInput && doc.cnpj_emitente) supplierCnpjInput.value = doc.cnpj_emitente;
-        if (tipoDocumentoInput && doc.tipo_documento) tipoDocumentoInput.value = doc.tipo_documento;
+        if (tipoDocumentoInput && doc.tipo_documento) {
+            applyRegistrationMode(doc.tipo_documento === 'cupom' ? 'cupom' : (doc.tipo_documento === 'manual' ? 'manual' : 'nf'));
+        }
+        if (supplierInput && doc.fornecedor_nome && !supplierInput.disabled) supplierInput.value = doc.fornecedor_nome;
+        if (supplierIdInput && !(String(tipoDocumentoInput?.value || '').trim().toLowerCase() === 'manual')) supplierIdInput.value = doc.fornecedor_id || '';
+        if (supplierCnpjInput && doc.cnpj_emitente && !supplierCnpjInput.disabled) supplierCnpjInput.value = doc.cnpj_emitente;
         if (emissionDateInput && doc.data_emissao) emissionDateInput.value = doc.data_emissao;
         if (receiptDateInput && doc.data_recebimento) receiptDateInput.value = doc.data_recebimento;
-        if (chaveAcessoInput && doc.chave_acesso) chaveAcessoInput.value = doc.chave_acesso;
+        if (chaveAcessoInput && doc.chave_acesso && !chaveAcessoInput.disabled) chaveAcessoInput.value = doc.chave_acesso;
         hideNotaResults();
     };
 
@@ -2927,7 +2961,7 @@
 
     lookupCnpjButton?.addEventListener('click', async () => {
         const registrationForm = lookupCnpjButton.closest('form');
-        if (!registrationForm || !supplierCnpjInput) return;
+        if (!registrationForm || !supplierCnpjInput || supplierCnpjInput.disabled) return;
         const digits = (supplierCnpjInput.value || '').replace(/\D/g, '');
         if (digits.length !== 14) {
             alert('Informe um CNPJ com 14 dígitos.');
@@ -2945,6 +2979,9 @@
 
     document.querySelectorAll('input[name="supplier_cnpj"]').forEach((cnpjField) => {
         cnpjField.addEventListener('input', () => {
+            if (cnpjField.disabled) {
+                return;
+            }
             const formatted = formatCnpjInputValue(cnpjField.value);
             if (formatted !== cnpjField.value) {
                 cnpjField.value = formatted;
@@ -2969,10 +3006,16 @@
             cnpjField.dataset.lookupTimer = String(timerId);
         });
         cnpjField.addEventListener('blur', () => {
+            if (cnpjField.disabled) {
+                return;
+            }
             const form = cnpjField.closest('form');
             lookupSupplierByCnpjForForm(form, { showErrors: false });
         });
         cnpjField.addEventListener('change', () => {
+            if (cnpjField.disabled) {
+                return;
+            }
             const form = cnpjField.closest('form');
             lookupSupplierByCnpjForForm(form, { showErrors: false });
         });

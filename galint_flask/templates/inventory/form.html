@@ -1404,29 +1404,18 @@
                         </div>
                         {% endif %}
                         <div class="form-group">
-                            <label class="form-label" for="unidade">Unidade de medida</label>
+                            <label class="form-label" for="unidade">Unidade base do item</label>
                             <select class="form-select" id="unidade" name="unidade" required>
-                                {% set unidade_atual = form_item.unidade if form_item and form_item.unidade else 'Unidade' %}
-                                {% for choice in [
-                                'Unidade',
-                                'Lata',
-                                'Bombona',
-                                'Litro',
-                                'Quilo',
-                                'Metro',
-                                'Caixa',
-                                'Pacote',
-                                'Fardo',
-                                'Saco',
-                                'Rolo',
-                                'Balde',
-                                'Par',
-                                'Peça'
-                                ] %}
+                                {% set unit_options = base_unit_options if base_unit_options is defined else ['Unidade', 'Metro', 'Quilo', 'Litro'] %}
+                                {% set unidade_atual = selected_base_unit if selected_base_unit is defined and selected_base_unit else 'Unidade' %}
+                                {% for choice in unit_options %}
                                 <option value="{{ choice }}" {% if unidade_atual==choice %}selected{% endif %}>{{ choice }}</option>
                                 {% endfor %}
                             </select>
-                            <small class="form-text">Como você contabiliza este item</small>
+                            <small class="form-text">Essa é a unidade canônica usada pelo ledger e pelo saldo físico do item.</small>
+                            {% if form_item and form_item.unidade and form_item.unidade != unidade_atual %}
+                            <small class="form-text text-warning">Valor legado detectado: {{ form_item.unidade }}. O formulário agora opera com a unidade base {{ unidade_atual }}.</small>
+                            {% endif %}
                         </div>
                     </div>
 
@@ -1791,7 +1780,7 @@
                         <label class="form-label">Tipo de Embalagem</label>
                         {% set tipo_emb_novo = form_item.tipo_embalagem_novo if form_item and form_item.tipo_embalagem_novo else '' %}
                         <p class="form-text" style="margin-bottom: 0.75rem; font-size: 0.9rem;">
-                            Aqui você define o tipo da embalagem e quanto cabe dentro de 1 embalagem. A quantidade de caixas, pacotes ou fardos em estoque é controlada automaticamente no saldo.
+                            Aqui você define somente a embalagem operacional e quanto cabe dentro de 1 embalagem. O saldo e o ledger continuam trabalhando pela unidade base do item.
                         </p>
                         <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
                             <div class="form-check form-check-inline">
@@ -3307,40 +3296,13 @@ Conversão: 1 saco = 20 quilos</div>
     }
 
     // ==========================================
-    // SELEÇÃO AUTOMÁTICA DE TIPO LITRO
+    // REAÇÃO À TROCA DA UNIDADE BASE
     // ==========================================
-    // Quando unidade de medida for "Litro", sugerir tipo de embalagem "Litro"
     if (unidadeSelect) {
         unidadeSelect.addEventListener('change', function() {
             toggleTabUnidadesDinamicas();
             refreshPriceUnitSelectors();
-            if (this.value === 'Litro') {
-                // Selecionar automaticamente o tipo de embalagem "Litro"
-                const tipoLitroRadio = document.getElementById('tipo_litro');
-                if (tipoLitroRadio && !document.querySelector('input[name="tipo_embalagem"]:checked')?.value) {
-                    tipoLitroRadio.checked = true;
-                    atualizarCamposEmbalagem();
-                    
-                    // Mostrar alerta amigável
-                    const tabUnidades = document.querySelector('[data-tab="unidades"]');
-                    if (tabUnidades) {
-                        tabUnidades.click(); // Ir para aba de Unidades Dinâmicas
-                    }
-                }
-            }
         });
-        
-        // Inicializar: se já estiver em Litro e não houver tipo selecionado
-        if (unidadeSelect.value === 'Litro') {
-            const tipoAtual = document.querySelector('input[name="tipo_embalagem"]:checked')?.value;
-            if (!tipoAtual) {
-                const tipoLitroRadio = document.getElementById('tipo_litro');
-                if (tipoLitroRadio) {
-                    tipoLitroRadio.checked = true;
-                    atualizarCamposEmbalagem();
-                }
-            }
-        }
     }
 
     // ==========================================

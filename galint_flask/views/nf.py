@@ -16,27 +16,12 @@ from ..services.category_catalog import DEFAULT_INVENTORY_CATEGORY_NAME, categor
 from ..services.document_integrity_service import allow_document_quantity_update
 from ..services.finance_service import finance_service
 from ..services.nf_deletion_audit_sqlite import log_document_item_deletion
-from ..services.inventory import inventory_service
+from ..services.inventory import BASE_ITEM_UNIT_OPTIONS, ensure_base_item_unit, inventory_service, normalize_base_item_unit
 from ..services.price_normalization import infer_price_unit_for_item, normalize_document_line
 
 blueprint = Blueprint("nf", __name__, url_prefix="/nf")
 
-DEFAULT_DOCUMENT_UNIT_OPTIONS = [
-    "Unidade",
-    "Lata",
-    "Bombona",
-    "Litro",
-    "Quilo",
-    "Metro",
-    "Caixa",
-    "Pacote",
-    "Fardo",
-    "Saco",
-    "Rolo",
-    "Balde",
-    "Par",
-    "Peça",
-]
+DEFAULT_DOCUMENT_UNIT_OPTIONS = list(BASE_ITEM_UNIT_OPTIONS)
 
 VALID_OPERATIONAL_TABS = {"registro", "processaveis", "erros", "historico"}
 LEGACY_OPERATIONAL_TAB_ALIASES = {
@@ -167,13 +152,14 @@ def _validate_document_registration_fields(
     observacao: str | None = None,
 ) -> None:
     missing_fields: list[str] = []
+    tipo_documento_normalizado = (tipo_documento or "").strip().lower()
     if not (numero_documento or "").strip():
         missing_fields.append("número do documento")
-    if not (supplier_id or (supplier_name or "").strip() or (supplier_cnpj or "").strip()):
+    if tipo_documento_normalizado != "manual" and not (supplier_id or (supplier_name or "").strip() or (supplier_cnpj or "").strip()):
         missing_fields.append("fornecedor ou CNPJ da loja")
     if data_recebimento is None:
         missing_fields.append("data de recebimento")
-    if (tipo_documento or "").strip().lower() == "nf" and data_emissao is None:
+    if tipo_documento_normalizado == "nf" and data_emissao is None:
         missing_fields.append("data de emissão")
 
     comprovacao = (comprovacao_status or "").strip().lower()
@@ -1301,7 +1287,7 @@ def registrar_nf():
         fallback=DEFAULT_INVENTORY_CATEGORY_NAME,
         actor=getattr(current_user, "nome", None) or getattr(current_user, "id", None),
     )
-    nova_unidade = request.form.get("nova_unidade", "").strip() or "Unidade"
+    nova_unidade = normalize_base_item_unit(request.form.get("nova_unidade", "").strip(), fallback="Unidade")
     nota = request.form.get("nota_fiscal", "").strip()
     supplier_raw = (request.form.get("finance_supplier_id") or "").strip()
     supplier_id = int(supplier_raw) if supplier_raw.isdigit() else None
@@ -1315,6 +1301,10 @@ def registrar_nf():
     chave_acesso = (request.form.get("chave_acesso") or "").strip() or None
     if tipo_documento != "nf":
         chave_acesso = None
+    if tipo_documento == "manual":
+        supplier_id = None
+        supplier_name = None
+        supplier_cnpj = None
     data_emissao_raw = (request.form.get("data_emissao") or "").strip()
     data_recebimento_raw = (request.form.get("data_recebimento") or "").strip()
     quantidade_raw = request.form.get("quantidade", "0")
@@ -1343,6 +1333,7 @@ def registrar_nf():
 
     try:
         stock_process_result = None
+        nova_unidade = ensure_base_item_unit(nova_unidade, fallback="Unidade")
         if not codigo and novo_codigo:
             codigo = novo_codigo
 
@@ -1618,6 +1609,10 @@ def editar_documento(documento_id: int):
         chave_acesso = (request.form.get("chave_acesso") or "").strip() or None
         if tipo_documento != "nf":
             chave_acesso = None
+        if tipo_documento == "manual":
+            supplier_id = None
+            supplier_name = None
+            supplier_cnpj = None
         observacao = (request.form.get("finance_observacao") or "").strip() or None
 
         movimenta_estoque = _resolve_documento_movimenta_estoque(
