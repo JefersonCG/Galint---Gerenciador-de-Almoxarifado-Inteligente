@@ -27,6 +27,7 @@ DEFAULT_DOCUMENT_UNIT_OPTIONS = [
     "Bombona",
     "Litro",
     "Quilo",
+    "Metro",
     "Caixa",
     "Pacote",
     "Fardo",
