@@ -36,6 +36,9 @@ class UnitConversionEngine:
         "unidades": "un",
         "unit": "un",
         "units": "un",
+        "cm": "cm",
+        "centimetro": "cm",
+        "centimetros": "cm",
         "metro": "m",
         "metros": "m",
         "metre": "m",
@@ -116,6 +119,24 @@ class UnitConversionEngine:
             except UnitConversionError:
                 pass
 
+        metric_subunit = self._convert_metric_subunit(quantity_value, from_unit_norm, base_unit.unit_code)
+        if metric_subunit is not None:
+            quantity_base, factor = metric_subunit
+            return ConversionResult(
+                quantity_base=quantity_base,
+                unit_base=base_unit.unit_code,
+                conversion_path=[
+                    {
+                        "from_unit": from_unit_norm,
+                        "to_unit": base_unit.unit_code,
+                        "factor": factor,
+                        "source": "metric_subunit",
+                    }
+                ],
+                factor_applied=factor,
+                metadata={"mode": "metric_subunit"},
+            )
+
         legacy_packaging = self._convert_legacy_packaging(item, quantity_value, from_unit_norm, base_unit.unit_code)
         if legacy_packaging is not None:
             quantity_base, factor = legacy_packaging
@@ -141,8 +162,11 @@ class UnitConversionEngine:
     def _get_base_unit(self, item: Item) -> ResolvedBaseUnit:
         base_units = [unit for unit in item.product_units if unit.is_base and unit.active]
         if not base_units:
+            canonical_unit = self._normalize_unit_code(resolve_canonical_unit(item))
+            if canonical_unit and not is_packaging_unit_code(canonical_unit):
+                return ResolvedBaseUnit(unit_code=canonical_unit, source="canonical_unit")
             if uses_packaging_legacy_normalization(item):
-                return ResolvedBaseUnit(unit_code=self._normalize_unit_code(resolve_canonical_unit(item)), source="legacy_packaging")
+                return ResolvedBaseUnit(unit_code=canonical_unit, source="legacy_packaging")
             unidade_item = (item.unidade or "").strip().lower()
             if unidade_item:
                 return ResolvedBaseUnit(unit_code=self._normalize_unit_code(unidade_item), source="legacy_item_unidade")
@@ -238,6 +262,17 @@ class UnitConversionEngine:
         if canonical_unit and not is_packaging_unit_code(canonical_unit):
             return canonical_unit
         return ""
+
+    def _convert_metric_subunit(
+        self,
+        quantity_value: float,
+        from_unit: str,
+        base_unit: str,
+    ) -> tuple[float, float] | None:
+        if base_unit == "m" and from_unit == "cm":
+            factor = 0.01
+            return quantity_value * factor, factor
+        return None
 
     def _normalize_unit_code(self, value: str | None) -> str:
         raw = (value or "").strip().lower()

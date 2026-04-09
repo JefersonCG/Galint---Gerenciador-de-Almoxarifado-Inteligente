@@ -570,12 +570,20 @@
                     <label class="form-label fw-bold">Escolha a unidade:</label>
                     <div class="btn-group w-100" role="group">
                         <input type="radio" class="btn-check" name="unidade-tipo" id="unidade-kg" value="kg" checked>
-                        <label class="btn btn-outline-primary" for="unidade-kg">
+                        <label class="btn btn-outline-primary" for="unidade-kg" id="label-unidade-kg">
                             <i class="bi bi-box me-1"></i>KG
                         </label>
                         <input type="radio" class="btn-check" name="unidade-tipo" id="unidade-litro" value="litro">
-                        <label class="btn btn-outline-primary" for="unidade-litro">
+                        <label class="btn btn-outline-primary" for="unidade-litro" id="label-unidade-litro">
                             <i class="bi bi-droplet me-1"></i>LITRO
+                        </label>
+                        <input type="radio" class="btn-check" name="unidade-tipo" id="unidade-metro" value="metro">
+                        <label class="btn btn-outline-primary" for="unidade-metro" id="label-unidade-metro" style="display: none;">
+                            <i class="bi bi-rulers me-1"></i>METRO
+                        </label>
+                        <input type="radio" class="btn-check" name="unidade-tipo" id="unidade-centimetro" value="cm">
+                        <label class="btn btn-outline-primary" for="unidade-centimetro" id="label-unidade-centimetro" style="display: none;">
+                            <i class="bi bi-rulers me-1"></i>CM
                         </label>
                     </div>
                 </div>
@@ -675,7 +683,48 @@ ${parent.scripts()}
     // Radio buttons de unidade
     const radioKg = document.getElementById('unidade-kg');
     const radioLitro = document.getElementById('unidade-litro');
+    const radioMetro = document.getElementById('unidade-metro');
+    const radioCentimetro = document.getElementById('unidade-centimetro');
+    const labelUnidadeKg = document.getElementById('label-unidade-kg');
+    const labelUnidadeLitro = document.getElementById('label-unidade-litro');
+    const labelUnidadeMetro = document.getElementById('label-unidade-metro');
+    const labelUnidadeCentimetro = document.getElementById('label-unidade-centimetro');
     const hintUnidade = document.getElementById('hint-unidade');
+
+    function getSelectedUnitBadge(unitCode) {
+        if (unitCode === 'litro') return 'L';
+        if (unitCode === 'kg') return 'kg';
+        if (unitCode === 'metro') return 'm';
+        if (unitCode === 'cm') return 'cm';
+        return 'un';
+    }
+
+    function configureFractionUnitOptions(defaultUnit) {
+        const linearMode = defaultUnit === 'metro';
+
+        labelUnidadeKg.style.display = linearMode ? 'none' : '';
+        labelUnidadeLitro.style.display = linearMode ? 'none' : '';
+        labelUnidadeMetro.style.display = linearMode ? '' : 'none';
+        labelUnidadeCentimetro.style.display = linearMode ? '' : 'none';
+
+        radioKg.disabled = linearMode;
+        radioLitro.disabled = linearMode;
+        radioMetro.disabled = !linearMode;
+        radioCentimetro.disabled = !linearMode;
+
+        if (linearMode) {
+            radioMetro.checked = true;
+            radioCentimetro.checked = false;
+            radioKg.checked = false;
+            radioLitro.checked = false;
+            return;
+        }
+
+        radioKg.checked = defaultUnit !== 'litro';
+        radioLitro.checked = defaultUnit === 'litro';
+        radioMetro.checked = false;
+        radioCentimetro.checked = false;
+    }
 
     function escapeHtml(text) {
         const div = document.createElement('div');
@@ -727,7 +776,7 @@ ${parent.scripts()}
         const unidade = unidadeSelecionada ? String(unidadeSelecionada.value || '').trim() : '';
         const quantidadeAtual = extra && extra.quantidade != null ? extra.quantidade : parseFloat(modalQuantidadeInput.value || '0');
         const quantidadeDisplay = quantidadeAtual && quantidadeAtual > 0
-            ? formatDecimal(quantidadeAtual) + ' ' + (unidade === 'litro' ? 'L' : 'kg')
+            ? formatDecimal(quantidadeAtual) + ' ' + getSelectedUnitBadge(unidade)
             : '--';
         const payload = {
             kind: 'fracionada',
@@ -790,7 +839,7 @@ ${parent.scripts()}
         const operationalContext = getOperationalContext();
         const quantidadeAtual = extra && extra.quantidade != null ? extra.quantidade : parseFloat(modalQuantidadeInput.value || '0');
         const quantidadeDisplay = quantidadeAtual && quantidadeAtual > 0
-            ? formatDecimal(quantidadeAtual) + ' ' + (unidade === 'litro' ? 'L' : 'kg')
+            ? formatDecimal(quantidadeAtual) + ' ' + getSelectedUnitBadge(unidade)
             : 'Aguardando pesagem';
         const saldoDisplay = formatDecimal(item.totalBase || 0) + ' ' + String(item.displayUnit || 'L');
         const fotoHtml = item.fotoUrl || item.foto_url
@@ -814,7 +863,7 @@ ${parent.scripts()}
                     '<div class="operation-preview-stat"><span class="operation-preview-stat-label">Atividade</span><span class="operation-preview-stat-value">' + escapeHtml(operationalContext.atividade_label || 'Nao informada') + '</span></div>' +
                     '<div class="operation-preview-stat"><span class="operation-preview-stat-label">OS / Centro de custo</span><span class="operation-preview-stat-value">' + escapeHtml([operationalContext.ordem_servico, operationalContext.centro_custo].filter(Boolean).join(' • ') || 'Nao informado') + '</span></div>' +
                 '</div>' +
-                '<div class="operation-preview-note">Use a balanca para informar o valor real retirado em kg ou litro.</div>' +
+                '<div class="operation-preview-note">Use a balanca para informar o valor real retirado na unidade operacional exibida.</div>' +
             '</div>';
         if (shouldPublish) {
             publishMirrorState(buildMirrorPayload(previewStatus, item, extra));
@@ -824,8 +873,16 @@ ${parent.scripts()}
     // Atualizar display da unidade selecionada
     function atualizarUnidadeModal() {
         const unidadeSelecionada = document.querySelector('input[name="unidade-tipo"]:checked').value;
-        modalQuantidadeUnidade.textContent = unidadeSelecionada === 'kg' ? 'kg' : 'L';
-        hintUnidade.textContent = unidadeSelecionada === 'kg' ? 'ou LITRO' : 'ou KG';
+        modalQuantidadeUnidade.textContent = getSelectedUnitBadge(unidadeSelecionada);
+        if (unidadeSelecionada === 'kg') {
+            hintUnidade.textContent = 'ou LITRO';
+        } else if (unidadeSelecionada === 'litro') {
+            hintUnidade.textContent = 'ou KG';
+        } else if (unidadeSelecionada === 'metro') {
+            hintUnidade.textContent = 'ou CM';
+        } else {
+            hintUnidade.textContent = 'ou METRO';
+        }
         atualizarResumoRetirada();
         if (pendingItem) {
             renderCurrentPreview(pendingItem, 'preview');
@@ -925,6 +982,8 @@ ${parent.scripts()}
     
     radioKg.addEventListener('change', atualizarUnidadeModal);
     radioLitro.addEventListener('change', atualizarUnidadeModal);
+    radioMetro.addEventListener('change', atualizarUnidadeModal);
+    radioCentimetro.addEventListener('change', atualizarUnidadeModal);
     
     const dropdownUsuario = document.getElementById('autocomplete-dropdown-usuario');
     const dropdownCodigo = document.getElementById('autocomplete-dropdown-codigo');
@@ -1295,8 +1354,7 @@ ${parent.scripts()}
         exibirFotoItem(item.fotoUrl);
         
         const defaultUnit = String(item.defaultFractionUnit || '').toLowerCase();
-        radioKg.checked = defaultUnit !== 'litro';
-        radioLitro.checked = defaultUnit === 'litro';
+        configureFractionUnitOptions(defaultUnit);
         atualizarUnidadeModal();
         atualizarResumoRetirada();
         

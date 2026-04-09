@@ -2183,6 +2183,11 @@ class InventoryService:
             if canonical_unit:
                 return canonical_unit
 
+        if payload and payload.em_embalagens is False:
+            canonical_unit = resolve_canonical_unit(item)
+            if canonical_unit:
+                return canonical_unit
+
         if payload and payload.em_embalagens is True:
             tipo_emb = (item.tipo_embalagem_novo or "").strip().lower()
             if tipo_emb:
@@ -2214,6 +2219,30 @@ class InventoryService:
         if payload and payload.em_embalagens is True:
             return float(quantity_value) * packaging_factor, canonical_unit
         return resolve_packaging_quantity_and_unit(item, quantity_value)
+
+    @staticmethod
+    def _resolve_fractional_dual_write(
+        item: Item,
+        quantity_value: float,
+        payload: MovimentoPayload | None = None,
+    ) -> tuple[float, str] | None:
+        if not payload or not payload.modo_fracionado:
+            return None
+
+        retirada_litros = InventoryService._as_positive_float(payload.quantidade_retirada_em_litros)
+        if retirada_litros > 0:
+            return retirada_litros, "l"
+
+        retirada_quilos = InventoryService._as_positive_float(payload.quantidade_retirada_em_quilos)
+        if retirada_quilos > 0:
+            return retirada_quilos, "kg"
+
+        if payload.em_embalagens is False:
+            canonical_unit = resolve_canonical_unit(item)
+            if canonical_unit:
+                return float(quantity_value), canonical_unit
+
+        return None
 
     @staticmethod
     def _sync_packaging_balance_before_dual_write(
@@ -2264,6 +2293,10 @@ class InventoryService:
         metadata: dict[str, Any] | None = None,
     ) -> tuple[float, str]:
         quantity_value = float(quantity if quantity is not None else payload.quantidade)
+        fractional_resolution = InventoryService._resolve_fractional_dual_write(item, quantity_value, payload)
+        if fractional_resolution is not None and from_unit is None:
+            quantity_value, from_unit = fractional_resolution
+
         packaging_resolution = InventoryService._resolve_packaging_dual_write(item, quantity_value, payload, metadata)
         if packaging_resolution is not None and from_unit is None:
             quantity_value, from_unit = packaging_resolution

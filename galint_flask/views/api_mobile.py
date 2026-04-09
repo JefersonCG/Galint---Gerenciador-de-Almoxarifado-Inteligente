@@ -36,6 +36,8 @@ from ..services.inventory import (
     normalize_operational_activity,
     normalize_operational_text,
 )
+from ..services.legacy_stock_normalizer import resolve_canonical_unit
+from ..services.unit_conversion_engine import UnitConversionError, unit_conversion_engine
 from ..services.item_foto_service import ItemFotoService
 from ..services.telegram_reports import TelegramReportService
 from ..services.telegram_service import TelegramService
@@ -343,6 +345,66 @@ def _infer_unidade(unidade: str | None) -> str:
     if re.search(r"\b(kg|quilo|quilos)\b", normalized):
         return "quilo"
     return normalized
+
+
+def _normalize_saida_unit_request(value: str | None) -> str:
+    normalized = _normalize_text(value)
+    if not normalized:
+        return ""
+    if re.search(r"\b(cm|centimetro|centimetros)\b", normalized):
+        return "cm"
+    if re.search(r"\b(m|mt|mts|metro|metros)\b", normalized):
+        return "m"
+    return ""
+
+
+def _parse_saida_quantity_value(
+    item: Item,
+    quantity_raw: Any,
+    *,
+    requested_unit: str | None = None,
+) -> tuple[float, str]:
+    requested_unit_code = _normalize_saida_unit_request(requested_unit)
+    canonical_unit = (resolve_canonical_unit(item) or "").strip().lower()
+
+    if requested_unit_code in {"cm", "m"}:
+        try:
+            quantity_value = float(quantity_raw)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("Quantidade inválida") from exc
+        if quantity_value <= 0:
+            raise ValueError("Quantidade inválida")
+        try:
+            quantity_base = float(unit_conversion_engine.convert_item_to_base(item, quantity_value, requested_unit_code).quantity_base)
+        except UnitConversionError as exc:
+            raise ValueError(str(exc)) from exc
+        return quantity_base, requested_unit_code
+
+    if canonical_unit == "m":
+        try:
+            quantity_value = float(quantity_raw)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("Quantidade inválida") from exc
+        if quantity_value <= 0:
+            raise ValueError("Quantidade inválida")
+        return quantity_value, "m"
+
+    try:
+        quantity_int = int(quantity_raw)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("Quantidade inválida") from exc
+    if quantity_int <= 0:
+        raise ValueError("Quantidade inválida")
+    return float(quantity_int), ""
+
+
+def _append_linear_withdrawal_note(observacao: str | None, *, quantity_base: float, requested_unit: str, original_quantity: float) -> str:
+    note = f"Retirada fracionada: {quantity_base:g} M"
+    if requested_unit == "cm":
+        note = f"{note} | quantidade original informada: {original_quantity:g} CM"
+    if observacao:
+        return f"{observacao} | {note}"
+    return note
 
 
 def _is_developer(user) -> bool:
@@ -918,17 +980,22 @@ def retirar_multipla_mobile(current_user: Usuario):
                 resultados.append({"index": idx, "success": False, "message": "Código não informado"})
                 continue
 
-            try:
-                quantidade_int = int(quantidade)
-                if quantidade_int <= 0:
-                    raise ValueError()
-            except (ValueError, TypeError):
-                resultados.append({"index": idx, "codigo": codigo, "success": False, "message": "Quantidade inválida"})
-                continue
-
             item = Item.query.filter((Item.codigo_item == str(codigo).strip())).first()
             if not item:
                 resultados.append({"index": idx, "codigo": codigo, "success": False, "message": "Item não encontrado"})
+                continue
+
+            requested_unit = _normalize_saida_unit_request(
+                item_data.get("unidade_saida") or item_data.get("unidade_fracionada") or item_data.get("unidade_medida")
+            )
+            try:
+                quantidade_operacao, requested_unit = _parse_saida_quantity_value(
+                    item,
+                    quantidade,
+                    requested_unit=requested_unit,
+                )
+            except ValueError:
+                resultados.append({"index": idx, "codigo": codigo, "success": False, "message": "Quantidade inválida"})
                 continue
 
             if bool(getattr(item, "pre_cadastro_pendente", False)):
@@ -945,23 +1012,31 @@ def retirar_multipla_mobile(current_user: Usuario):
             except Exception:
                 saldo_atual = 0.0
 
-            if saldo_atual < quantidade_int:
+            if saldo_atual < quantidade_operacao:
                 resultados.append({
                     "index": idx,
                     "codigo": codigo,
                     "success": False,
-                    "message": f"Saldo insuficiente. Disponível: {int(saldo_atual)}"
+                    "message": f"Saldo insuficiente. Disponível: {int(saldo_atual) if float(saldo_atual).is_integer() else saldo_atual}"
                 })
                 continue
+
+            obs_final = observacao_item or observacao_geral
+            if requested_unit in {"cm", "m"}:
+                obs_final = _append_linear_withdrawal_note(
+                    obs_final,
+                    quantity_base=float(quantidade_operacao),
+                    requested_unit=requested_unit,
+                    original_quantity=float(quantidade),
+                )
 
             # Criar saída
             saida = Saida()
             saida.codigo_item = item.codigo_item
-            saida.quantidade = quantidade_int
+            saida.quantidade = quantidade_operacao
             saida.matricula = retirante_user.matricula
             saida.data_saida = datetime.utcnow()
-            
-            obs_final = observacao_item or observacao_geral
+
             saida.observacao = str(obs_final or "").upper()
             saida.local_servico = str(local_servico_geral or "").upper()
             apply_operational_context(
@@ -976,16 +1051,17 @@ def retirar_multipla_mobile(current_user: Usuario):
             ledger_result = inventory_service.mirror_legacy_movement(
                 product_id=item.codigo_item,
                 movement_type="saida",
-                quantity=float(quantidade_int),
+                quantity=float(quantidade_operacao),
                 payload=MovimentoPayload(
                     codigo=item.codigo_item,
-                    quantidade=float(quantidade_int),
+                    quantidade=float(quantidade_operacao),
                     matricula=retirante_user.matricula,
                     observacao=str(obs_final or "").upper() or None,
                     local_servico=str(local_servico_geral or "").upper() or None,
                     atividade_operacional=operational_context.get("atividade_operacional"),
                     ordem_servico=operational_context.get("ordem_servico"),
                     centro_custo=operational_context.get("centro_custo"),
+                    em_embalagens=False if requested_unit in {"cm", "m"} else None,
                     tipo_custodia=tipo_custodia_item,
                 ),
                 metadata={
@@ -1009,7 +1085,7 @@ def retirar_multipla_mobile(current_user: Usuario):
                     
                     saldo_disponivel_ferramenta = saldo_atual - quantidade_em_uso
                     
-                    if saldo_disponivel_ferramenta < quantidade_int:
+                    if saldo_disponivel_ferramenta < quantidade_operacao:
                         resultados.append({
                             "index": idx,
                             "codigo": codigo,
@@ -1403,6 +1479,9 @@ def retirar_mobile(current_user: Usuario):
         observacao = data.get("observacao", "")
         local_servico = data.get("local_servico", "")
         matricula_retirante_raw = data.get("matricula_retirante")
+        requested_unit = _normalize_saida_unit_request(
+            data.get("unidade_saida") or data.get("unidade_fracionada") or data.get("unidade_medida")
+        )
         tipo_custodia = _normalize_tipo_custodia(data.get("tipo_custodia"))
         operational_context = _collect_operational_context(data)
         usa_fracao = str(data.get("modo_fracionado") or data.get("liquido_habilitado") or "").strip().lower() in (
@@ -1414,14 +1493,7 @@ def retirar_mobile(current_user: Usuario):
         if not codigo:
             return jsonify({"success": False, "message": "Código do item é obrigatório"}), 400
 
-        quantidade_int = None
-        if not usa_fracao:
-            try:
-                quantidade_int = int(quantidade)
-                if quantidade_int <= 0:
-                    raise ValueError()
-            except (ValueError, TypeError):
-                return jsonify({"success": False, "message": "Quantidade inválida"}), 400
+        quantidade_resolvida = None
 
         item = Item.query.filter(
             (Item.codigo_item == str(codigo).strip())
@@ -1433,11 +1505,28 @@ def retirar_mobile(current_user: Usuario):
         if bool(getattr(item, "pre_cadastro_pendente", False)):
             return jsonify({"success": False, "message": PRE_CADASTRO_PENDING_EXIT_MESSAGE}), 400
 
+        if not usa_fracao:
+            try:
+                quantidade_resolvida, requested_unit = _parse_saida_quantity_value(
+                    item,
+                    quantidade,
+                    requested_unit=requested_unit,
+                )
+            except ValueError:
+                return jsonify({"success": False, "message": "Quantidade inválida"}), 400
+            if requested_unit in {"cm", "m"}:
+                observacao = _append_linear_withdrawal_note(
+                    observacao,
+                    quantity_base=float(quantidade_resolvida),
+                    requested_unit=requested_unit,
+                    original_quantity=float(quantidade),
+                )
+
         # Obter parâmetros de embalagens (se enviados pelo mobile)
         retirada_embalagens_raw = data.get("retirada_embalagens")
         retirada_unidades_soltas_raw = data.get("retirada_unidades_soltas")
         
-        quantidade_operacao = float(quantidade_int or 0)
+        quantidade_operacao = float(quantidade_resolvida or 0)
         fracao_payload: dict[str, Any] = {}
         if usa_fracao:
             tipo_id = data.get("liquido_tipo_produto") or data.get("tipo_produto_id")
@@ -1587,6 +1676,13 @@ def retirar_mobile(current_user: Usuario):
                 atividade_operacional=operational_context.get("atividade_operacional"),
                 ordem_servico=operational_context.get("ordem_servico"),
                 centro_custo=operational_context.get("centro_custo"),
+                tipo_produto=fracao_payload.get("tipo_produto") if fracao_payload else None,
+                fracao_numerador=fracao_payload.get("fracao_numerador") if fracao_payload else None,
+                fracao_denominador=fracao_payload.get("fracao_denominador") if fracao_payload else None,
+                quantidade_total_embalagem=fracao_payload.get("quantidade_total_embalagem") if fracao_payload else None,
+                quantidade_retirada_em_litros=fracao_payload.get("quantidade_retirada_em_litros") if fracao_payload else None,
+                quantidade_retirada_em_quilos=fracao_payload.get("quantidade_retirada_em_quilos") if fracao_payload else None,
+                quantidade_restante=fracao_payload.get("quantidade_restante") if fracao_payload else None,
                 em_embalagens=bool(em_embalagens) if em_embalagens is not None else None,
                 modo_fracionado=bool(fracao_payload),
                 tipo_custodia=tipo_custodia,

@@ -20,6 +20,7 @@ from ..services.inventory import (
     normalize_operational_activity,
     normalize_operational_text,
 )
+from ..services.unit_conversion_engine import UnitConversionError, unit_conversion_engine
 from ..services.mirror_state_service import mirror_state_service
 from ..services.notification_router import NotificationRouterService
 from ..services.mirror_insights_service import mirror_insights_service
@@ -249,6 +250,21 @@ def _infer_unidade(unidade: str | None) -> str:
         return "metro"
     if re.search(r"\b(un|und|unidade|unidades|peca|pecas|peça|peças)\b", normalized):
         return "unidade"
+    return normalized
+
+
+def _normalize_saida_unit_code(value: str | None) -> str:
+    normalized = _normalize_text(value)
+    if not normalized:
+        return ""
+    if re.search(r"\b(cm|centimetro|centimetros)\b", normalized):
+        return "cm"
+    if re.search(r"\b(m|mt|mts|metro|metros)\b", normalized):
+        return "metro"
+    if re.search(r"\b(litro|litros|lt|lts)\b", normalized):
+        return "litro"
+    if re.search(r"\b(kg|quilo|quilos)\b", normalized):
+        return "kg"
     return normalized
 
 
@@ -785,13 +801,14 @@ def registrar_saida():
         em_embalagens = em_embalagens_raw == "1"
     
     # Novo: processar unidade fracionada (kg ou litro)
-    unidade_fracionada = request.form.get("unidade_fracionada")
+    unidade_fracionada = _normalize_saida_unit_code(request.form.get("unidade_fracionada"))
 
     try:
         usuario = _resolve_usuario(identificador)
         item_info = inventory_service.get_item(codigo)
         if not item_info:
             raise ValueError("Item não encontrado")
+        item_model = db.session.get(Item, codigo)
 
         # Obter categoria para uso posterior (notificações e alertas)
         categoria = (item_info.get("categoria") or "").strip().lower()
@@ -812,6 +829,23 @@ def registrar_saida():
                 em_embalagens = False  # Indicar que é em unidades base (litros, não latas)
                 if not observacao:
                     observacao = f"Retirada fracionada: {quantidade} L"
+            elif unidade_fracionada in {'metro', 'cm'}:
+                if item_model is None:
+                    raise ValueError("Item não encontrado")
+                from_unit = 'cm' if unidade_fracionada == 'cm' else 'm'
+                try:
+                    conversion = unit_conversion_engine.convert_item_to_base(item_model, quantidade, from_unit)
+                except UnitConversionError as exc:
+                    raise ValueError(str(exc)) from exc
+                quantidade_convertida = float(conversion.quantity_base or 0.0)
+                em_embalagens = False
+                if unidade_fracionada == 'cm':
+                    observacao = (
+                        f"Retirada fracionada: {quantidade_convertida:g} M | "
+                        f"quantidade original informada: {quantidade:g} CM"
+                    )
+                elif not observacao or str(observacao).strip().lower().startswith('retirada fracionada:'):
+                    observacao = f"Retirada fracionada: {quantidade_convertida:g} M"
 
         payload_kwargs: dict[str, Any] = {
             "codigo": codigo,
