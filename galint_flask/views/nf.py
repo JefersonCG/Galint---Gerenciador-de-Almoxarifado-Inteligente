@@ -172,6 +172,51 @@ def _validate_document_registration_fields(
         )
 
 
+def _normalize_requested_document_type(raw_value: str | None, *, fallback: str = "nf") -> str:
+    normalized = (raw_value or "").strip().lower()
+    if normalized in {"nf", "cupom", "recibo", "manual"}:
+        return normalized
+    return fallback
+
+
+def _resolve_registration_document_type(
+    *,
+    ui_mode: str | None,
+    raw_document_type: str | None,
+    origem_valor: str | None,
+    comprovacao_status: str | None,
+    supplier_id: int | None,
+    supplier_name: str | None,
+    supplier_cnpj: str | None,
+    chave_acesso: str | None,
+    data_emissao_raw: str | None,
+) -> str:
+    ui_mode_normalized = _normalize_requested_document_type(ui_mode, fallback="")
+    if ui_mode_normalized:
+        return ui_mode_normalized
+
+    tipo_documento = _normalize_requested_document_type(raw_document_type, fallback="nf")
+    if tipo_documento != "nf":
+        return tipo_documento
+
+    origem_normalizada = (origem_valor or "").strip().lower()
+    comprovacao_normalizada = (comprovacao_status or "").strip().lower()
+    has_supplier = bool(supplier_id or (supplier_name or "").strip() or (supplier_cnpj or "").strip())
+    has_emission_date = bool((data_emissao_raw or "").strip())
+    has_access_key = bool((chave_acesso or "").strip())
+
+    if (
+        origem_normalizada == "valor_estimado"
+        and comprovacao_normalizada == "sem_comprovacao"
+        and not has_supplier
+        and not has_emission_date
+        and not has_access_key
+    ):
+        return "manual"
+
+    return tipo_documento
+
+
 def _resolve_documento_movimenta_estoque(*, data_emissao: date | None, data_recebimento: date | None) -> bool:
     return finance_service.resolve_document_movimenta_estoque(
         data_emissao=data_emissao,
@@ -1294,18 +1339,28 @@ def registrar_nf():
     supplier_name = (request.form.get("supplier_name") or request.form.get("finance_supplier_search") or "").strip() or None
     supplier_cnpj = (request.form.get("supplier_cnpj") or "").strip() or None
     origem_valor = (request.form.get("finance_origem_valor") or "compra_nf").strip() or "compra_nf"
-    tipo_documento = (request.form.get("finance_tipo_documento") or "nf").strip() or "nf"
     comprovacao_status = (request.form.get("finance_comprovacao_status") or "comprovado").strip() or "comprovado"
     preco_unitario_raw = (request.form.get("preco_unitario") or "").strip()
     observacao = (request.form.get("finance_observacao") or "").strip() or None
     chave_acesso = (request.form.get("chave_acesso") or "").strip() or None
+    data_emissao_raw = (request.form.get("data_emissao") or "").strip()
+    tipo_documento = _resolve_registration_document_type(
+        ui_mode=request.form.get("doc_mode"),
+        raw_document_type=request.form.get("finance_tipo_documento"),
+        origem_valor=origem_valor,
+        comprovacao_status=comprovacao_status,
+        supplier_id=supplier_id,
+        supplier_name=supplier_name,
+        supplier_cnpj=supplier_cnpj,
+        chave_acesso=chave_acesso,
+        data_emissao_raw=data_emissao_raw,
+    )
     if tipo_documento != "nf":
         chave_acesso = None
     if tipo_documento == "manual":
         supplier_id = None
         supplier_name = None
         supplier_cnpj = None
-    data_emissao_raw = (request.form.get("data_emissao") or "").strip()
     data_recebimento_raw = (request.form.get("data_recebimento") or "").strip()
     quantidade_raw = request.form.get("quantidade", "0")
     try:

@@ -521,13 +521,21 @@
     }
 
     .docf-mode-btn {
+        display: block;
         border: 1px solid var(--docf-border-soft);
         background: rgba(12, 21, 34, 0.72);
         color: var(--docf-text-primary);
         border-radius: 14px;
         padding: 0.78rem 0.9rem;
         text-align: left;
+        cursor: pointer;
         transition: border-color 0.18s ease, transform 0.18s ease, background 0.18s ease;
+    }
+
+    .docf-mode-btn input[type="radio"] {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
     }
 
     .docf-mode-btn strong {
@@ -1376,18 +1384,21 @@
                 </div>
 
                 <div class="docf-mode-actions" id="doc-mode-actions">
-                    <button class="docf-mode-btn is-active" type="button" data-doc-mode="nf" data-help-label="Modo lançar com NF" data-help-text="Use para documentos com nota fiscal, mantendo o registro fiscal completo.">
+                    <label class="docf-mode-btn is-active" data-doc-mode="nf" data-help-label="Modo lançar com NF" data-help-text="Use para documentos com nota fiscal, mantendo o registro fiscal completo.">
+                        <input type="radio" name="doc_mode" value="nf" checked>
                         <strong>Lançar com NF</strong>
                         <span>Documento completo com chave opcional e rastreabilidade forte.</span>
-                    </button>
-                    <button class="docf-mode-btn" type="button" data-doc-mode="cupom" data-help-label="Modo lançar com cupom" data-help-text="Use para compra com cupom ou comprovante simples, sem exigir chave de acesso.">
+                    </label>
+                    <label class="docf-mode-btn" data-doc-mode="cupom" data-help-label="Modo lançar com cupom" data-help-text="Use para compra com cupom ou comprovante simples, sem exigir chave de acesso.">
+                        <input type="radio" name="doc_mode" value="cupom">
                         <strong>Lançar com cupom</strong>
                         <span>Controle rápido de balcão com número do cupom, CNPJ e datas.</span>
-                    </button>
-                    <button class="docf-mode-btn" type="button" data-doc-mode="manual" data-help-label="Modo lançar sem NF" data-help-text="Use quando ainda não existe comprovante formal e você precisa manter a compra documentada.">
+                    </label>
+                    <label class="docf-mode-btn" data-doc-mode="manual" data-help-label="Modo lançar sem NF" data-help-text="Use quando ainda não existe comprovante formal e você precisa manter a compra documentada.">
+                        <input type="radio" name="doc_mode" value="manual">
                         <strong>Lançar sem NF</strong>
                         <span>Pendência documental controlada até regularização.</span>
-                    </button>
+                    </label>
                 </div>
 
                 <div class="docf-panel mb-3" id="doc-mode-summary">
@@ -1469,7 +1480,7 @@
                                         <div class="docf-field-hint">Selecione a unidade canônica do item. Embalagem é configurada depois na edição do cadastro.</div>
                                     </div>
                                     <select class="form-select form-select-sm" id="nova_unidade" name="nova_unidade">
-                                        {% for option in document_unit_options %}
+                                        {% for option in ('Unidade', 'Metro', 'Quilo', 'Litro') %}
                                         <option value="{{ option }}" {% if option == 'Unidade' %}selected{% endif %}>{{ option }}</option>
                                         {% endfor %}
                                     </select>
@@ -1993,6 +2004,7 @@
     const notaFiscalLabel = document.getElementById('nota_fiscal_label');
     const notaFiscalHelp = document.getElementById('nota_fiscal_help');
     const nfForm = document.getElementById('nf-registration-form');
+    const docModeInputs = Array.from(document.querySelectorAll('input[name="doc_mode"]'));
     const helpToggleButton = document.getElementById('docf-help-toggle');
     const helpToast = document.getElementById('docf-help-toast');
     const helpToastTitle = document.getElementById('docf-help-toast-title');
@@ -2016,11 +2028,32 @@
     const storedHelpPreference = window.localStorage.getItem(HELP_STORAGE_KEY);
     let helpEnabled = storedHelpPreference === null ? true : storedHelpPreference === 'true';
 
+    const normalizeDocumentTypeValue = (rawValue) => {
+        const normalized = String(rawValue || '').trim().toLowerCase();
+        if (normalized === 'cupom' || normalized === 'manual' || normalized === 'recibo') {
+            return normalized;
+        }
+        return 'nf';
+    };
+
+    const setCheckedDocModeInput = (modeValue) => {
+        const normalizedModeValue = normalizeDocumentTypeValue(modeValue);
+        docModeInputs.forEach((input) => {
+            input.checked = input.value === normalizedModeValue;
+        });
+    };
+
+    const getCheckedDocModeInputValue = () => {
+        const checkedInput = docModeInputs.find((input) => input.checked);
+        return checkedInput?.value || 'nf';
+    };
+
     const registrationModes = {
         nf: {
             tipo: 'nf',
             origem: 'compra_nf',
             comprovacao: 'comprovado',
+            buttonMode: 'nf',
             title: 'Compra com NF ativa',
             text: 'Use este modo quando a compra já tiver número de nota e, se existir, chave de acesso.',
             numeroLabel: 'Número da NF',
@@ -2030,15 +2063,27 @@
             tipo: 'cupom',
             origem: 'compra_cupom',
             comprovacao: 'parcial',
+            buttonMode: 'cupom',
             title: 'Compra com cupom de balcão',
             text: 'Controle por CNPJ da loja, data e valores até o fechamento do período. Não exige chave de acesso.',
             numeroLabel: 'Número do cupom / controle',
             numeroHelp: 'Informe o identificador do cupom, número interno ou referência que permita rastrear a compra.'
         },
+        recibo: {
+            tipo: 'recibo',
+            origem: 'compra_cupom',
+            comprovacao: 'parcial',
+            buttonMode: 'cupom',
+            title: 'Compra com recibo simples',
+            text: 'Use quando houver recibo ou comprovante simples do fornecedor, sem chave de acesso fiscal.',
+            numeroLabel: 'Número do recibo / controle',
+            numeroHelp: 'Informe o número do recibo ou outra referência que permita rastrear a compra.'
+        },
         manual: {
             tipo: 'manual',
             origem: 'valor_estimado',
             comprovacao: 'sem_comprovacao',
+            buttonMode: 'manual',
             title: 'Compra sem NF formal',
             text: 'Use somente para não perder rastreabilidade. O documento entra como pendência documental do período.',
             numeroLabel: 'Número do controle interno',
@@ -2601,11 +2646,13 @@
     };
 
     const applyRegistrationMode = (modeName) => {
-        const mode = registrationModes[modeName] || registrationModes.nf;
+        const normalizedModeName = normalizeDocumentTypeValue(modeName);
+        const mode = registrationModes[normalizedModeName] || registrationModes.nf;
         if (tipoDocumentoInput) {
             tipoDocumentoInput.value = mode.tipo;
             syncDocumentFieldAvailability(nfForm, mode.tipo);
         }
+        setCheckedDocModeInput(mode.tipo);
         if (origemValorInput) {
             origemValorInput.value = mode.origem;
         }
@@ -2629,7 +2676,7 @@
             notaFiscalHelp.textContent = mode.numeroHelp;
         }
         modeButtons.forEach((button) => {
-            button.classList.toggle('is-active', button.dataset.docMode === modeName);
+            button.classList.toggle('is-active', button.dataset.docMode === mode.buttonMode);
         });
     };
 
@@ -2639,7 +2686,7 @@
         selectElement.addEventListener('change', () => {
             syncDocumentFieldAvailability(form, selectElement.value);
             if (selectElement === tipoDocumentoInput) {
-                applyRegistrationMode(selectElement.value === 'cupom' ? 'cupom' : (selectElement.value === 'manual' ? 'manual' : 'nf'));
+                applyRegistrationMode(selectElement.value);
             }
         });
     });
@@ -2656,7 +2703,14 @@
             applyRegistrationMode(button.dataset.docMode || 'nf');
         });
     });
-    applyRegistrationMode(tipoDocumentoInput?.value === 'cupom' ? 'cupom' : (tipoDocumentoInput?.value === 'manual' ? 'manual' : 'nf'));
+    docModeInputs.forEach((input) => {
+        input.addEventListener('change', () => {
+            if (input.checked) {
+                applyRegistrationMode(input.value || 'nf');
+            }
+        });
+    });
+    applyRegistrationMode(getCheckedDocModeInputValue() || tipoDocumentoInput?.value || 'nf');
 
     deleteModal?.addEventListener('show.bs.modal', (event) => {
         const trigger = event.relatedTarget;
@@ -2772,22 +2826,27 @@
         bindAddItemAutocomplete(form);
     });
 
-    const applyDocumentSuggestion = (doc) => {
+    const applyDocumentSuggestion = (doc, options = {}) => {
         if (!doc) return;
+        const source = String(options.source || 'passive').trim().toLowerCase();
+        const currentDocumentType = normalizeDocumentTypeValue(tipoDocumentoInput?.value || 'nf');
+        const suggestedDocumentType = normalizeDocumentTypeValue(doc.tipo_documento || 'nf');
+        const shouldApplySuggestedType = source === 'explicit';
+        const effectiveDocumentType = shouldApplySuggestedType ? suggestedDocumentType : currentDocumentType;
         if (notaFiscalInput && doc.numero_documento) notaFiscalInput.value = doc.numero_documento;
-        if (tipoDocumentoInput && doc.tipo_documento) {
-            applyRegistrationMode(doc.tipo_documento === 'cupom' ? 'cupom' : (doc.tipo_documento === 'manual' ? 'manual' : 'nf'));
+        if (tipoDocumentoInput && shouldApplySuggestedType && doc.tipo_documento) {
+            applyRegistrationMode(doc.tipo_documento);
         }
-        if (supplierInput && doc.fornecedor_nome && !supplierInput.disabled) supplierInput.value = doc.fornecedor_nome;
-        if (supplierIdInput && !(String(tipoDocumentoInput?.value || '').trim().toLowerCase() === 'manual')) supplierIdInput.value = doc.fornecedor_id || '';
-        if (supplierCnpjInput && doc.cnpj_emitente && !supplierCnpjInput.disabled) supplierCnpjInput.value = doc.cnpj_emitente;
-        if (emissionDateInput && doc.data_emissao) emissionDateInput.value = doc.data_emissao;
+        if (supplierInput && doc.fornecedor_nome && effectiveDocumentType !== 'manual' && !supplierInput.disabled) supplierInput.value = doc.fornecedor_nome;
+        if (supplierIdInput && effectiveDocumentType !== 'manual') supplierIdInput.value = doc.fornecedor_id || '';
+        if (supplierCnpjInput && doc.cnpj_emitente && effectiveDocumentType !== 'manual' && !supplierCnpjInput.disabled) supplierCnpjInput.value = doc.cnpj_emitente;
+        if (emissionDateInput && doc.data_emissao && effectiveDocumentType !== 'manual') emissionDateInput.value = doc.data_emissao;
         if (receiptDateInput && doc.data_recebimento) receiptDateInput.value = doc.data_recebimento;
-        if (chaveAcessoInput && doc.chave_acesso && !chaveAcessoInput.disabled) chaveAcessoInput.value = doc.chave_acesso;
+        if (chaveAcessoInput && doc.chave_acesso && effectiveDocumentType === 'nf' && !chaveAcessoInput.disabled) chaveAcessoInput.value = doc.chave_acesso;
         hideNotaResults();
     };
 
-    const lookupDocumentDetailsForForm = async (form, numeroDocumento) => {
+    const lookupDocumentDetailsForForm = async (form, numeroDocumento, options = {}) => {
         if (!form || !numeroDocumento) return null;
         const digits = String(numeroDocumento).trim();
         if (digits.length < 2) return null;
@@ -2803,7 +2862,7 @@
             if (!data.success || !data.document) {
                 return null;
             }
-            applyDocumentSuggestion(data.document);
+            applyDocumentSuggestion(data.document, options);
             return data.document;
         } catch (_) {
             return null;
@@ -2827,7 +2886,7 @@
         notaFiscalResults.querySelectorAll('[data-index]').forEach((button) => {
             button.addEventListener('click', () => {
                 const index = Number(button.dataset.index || '-1');
-                applyDocumentSuggestion(notaSuggestions[index] || null);
+                applyDocumentSuggestion(notaSuggestions[index] || null, { source: 'explicit' });
             });
         });
     };
@@ -2893,18 +2952,18 @@
             } catch (_) {
                 hideNotaResults();
             }
-            await lookupDocumentDetailsForForm(nfForm, q);
+            await lookupDocumentDetailsForForm(nfForm, q, { source: 'passive' });
         }, 220);
     });
 
     notaFiscalInput?.addEventListener('blur', () => {
         const q = notaFiscalInput.value.trim();
-        lookupDocumentDetailsForForm(nfForm, q);
+        lookupDocumentDetailsForForm(nfForm, q, { source: 'passive' });
     });
 
     notaFiscalInput?.addEventListener('change', () => {
         const q = notaFiscalInput.value.trim();
-        lookupDocumentDetailsForForm(nfForm, q);
+        lookupDocumentDetailsForForm(nfForm, q, { source: 'passive' });
     });
 
     document.addEventListener('click', (event) => {
