@@ -98,8 +98,8 @@
 
     .category-admin-grid {
         display: grid;
-        grid-template-columns: minmax(320px, 380px) minmax(0, 1fr);
-        gap: 1.5rem;
+        grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
+        gap: 1.25rem;
         align-items: start;
     }
 
@@ -107,11 +107,16 @@
         position: relative;
         overflow: hidden;
         border-radius: 28px;
-        padding: 1.5rem;
+        padding: 1.25rem;
         background: linear-gradient(180deg, #0b1729 0%, #0f172a 100%);
         border: 1px solid rgba(148, 163, 184, 0.16);
         box-shadow: 0 24px 50px rgba(15, 23, 42, 0.14);
         color: #e2e8f0;
+    }
+
+    .category-admin-panel.is-create {
+        position: sticky;
+        top: 1rem;
     }
 
     .category-admin-panel::before {
@@ -162,7 +167,7 @@
         box-shadow: none;
     }
 
-    .category-admin-panel textarea {
+    .category-admin-create-form textarea {
         min-height: 110px;
     }
 
@@ -174,7 +179,7 @@
         color: #ffffff;
     }
 
-    .category-admin-panel .form-check {
+    .category-admin-create-form .form-check {
         min-height: 100%;
         padding: 1rem 1rem 1rem 2.2rem;
         border-radius: 18px;
@@ -221,35 +226,97 @@
 
     .category-admin-list {
         display: grid;
-        gap: 1rem;
+        gap: 0.85rem;
     }
 
     .category-entry-card {
-        padding: 1.1rem;
         border-radius: 24px;
         background: rgba(15, 23, 42, 0.44);
         border: 1px solid rgba(148, 163, 184, 0.14);
+        overflow: hidden;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
     }
 
-    .category-entry-head {
+    .category-entry-card[open] {
+        border-color: rgba(34, 211, 238, 0.24);
+        box-shadow: 0 18px 36px rgba(8, 47, 73, 0.22);
+        background: rgba(15, 23, 42, 0.56);
+    }
+
+    .category-entry-summary {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 1rem;
+        align-items: center;
+        padding: 1rem 1.05rem;
+        cursor: pointer;
+        list-style: none;
+    }
+
+    .category-entry-summary::-webkit-details-marker {
+        display: none;
+    }
+
+    .category-entry-summary::marker {
+        content: "";
+    }
+
+    .category-entry-summary:hover {
+        background: rgba(15, 23, 42, 0.18);
+    }
+
+    .category-entry-summary-main {
+        min-width: 0;
+        display: grid;
+        gap: 0.65rem;
+    }
+
+    .category-entry-title-row {
         display: flex;
         justify-content: space-between;
         align-items: flex-start;
-        gap: 1rem;
-        margin-bottom: 1rem;
+        gap: 0.85rem;
+        flex-wrap: wrap;
     }
 
     .category-entry-title {
-        margin: 0 0 0.35rem;
+        margin: 0 0 0.2rem;
         color: #ffffff;
-        font-size: 1.04rem;
+        font-size: 1.02rem;
         font-weight: 800;
+    }
+
+    .category-entry-order-badge {
+        display: inline-flex;
+        align-items: center;
+        min-height: 30px;
+        padding: 0.25rem 0.65rem;
+        border-radius: 999px;
+        background: rgba(15, 23, 42, 0.5);
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        color: rgba(148, 163, 184, 0.92);
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        white-space: nowrap;
     }
 
     .category-entry-meta {
         display: flex;
         gap: 0.45rem;
         flex-wrap: wrap;
+    }
+
+    .category-entry-preview {
+        margin: 0;
+        color: rgba(226, 232, 240, 0.72);
+        font-size: 0.9rem;
+        line-height: 1.55;
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+        overflow: hidden;
     }
 
     .category-entry-chip {
@@ -289,8 +356,8 @@
     }
 
     .category-entry-stat {
-        padding: 0.8rem 0.9rem;
-        border-radius: 18px;
+        padding: 0.72rem 0.85rem;
+        border-radius: 16px;
         background: rgba(15, 23, 42, 0.5);
         border: 1px solid rgba(148, 163, 184, 0.14);
     }
@@ -310,30 +377,101 @@
         font-weight: 800;
     }
 
-    .category-entry-grid {
+    .category-entry-summary-side {
+        display: grid;
+        gap: 0.65rem;
+        justify-items: end;
+    }
+
+    .category-entry-expand {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        color: #7dd3fc;
+        font-size: 0.74rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .category-entry-expand::after {
+        content: "+";
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 1.2rem;
+        height: 1.2rem;
+        border-radius: 999px;
+        background: rgba(34, 211, 238, 0.12);
+        border: 1px solid rgba(34, 211, 238, 0.24);
+        font-size: 0.95rem;
+        line-height: 1;
+    }
+
+    .category-entry-card[open] .category-entry-expand::after {
+        content: "−";
+    }
+
+    .category-entry-body {
+        display: grid;
+        gap: 0.9rem;
+        padding: 1rem 1.05rem 1.05rem;
+        border-top: 1px solid rgba(148, 163, 184, 0.12);
+    }
+
+    .category-entry-fields {
         display: grid;
         grid-template-columns: minmax(0, 1.2fr) 120px;
         gap: 0.9rem;
-        margin-bottom: 1rem;
+        align-items: start;
     }
 
-    .category-entry-actions {
+    .category-entry-body .form-control {
+        min-height: 44px;
+        border-radius: 14px;
+    }
+
+    .category-entry-body textarea.form-control {
+        min-height: 84px;
+        resize: vertical;
+    }
+
+    .category-entry-footer {
         display: flex;
-        justify-content: space-between;
         align-items: center;
         gap: 0.75rem;
         flex-wrap: wrap;
     }
 
-    .category-entry-actions-left,
-    .category-entry-actions-right {
+    .category-entry-switch {
+        display: flex;
+        align-items: center;
+        margin: 0;
+        min-height: auto;
+        padding: 0 0 0 1.9rem;
+        background: transparent;
+        border: 0;
+    }
+
+    .category-entry-switch .form-check-input {
+        margin-top: 0;
+    }
+
+    .category-entry-switch .form-check-label {
+        color: #cbd5e1;
+        font-weight: 700;
+    }
+
+    .category-entry-actions {
         display: flex;
         gap: 0.6rem;
         flex-wrap: wrap;
+        margin-left: auto;
     }
 
     .category-entry-note {
         margin: 0;
+        width: 100%;
         color: rgba(148, 163, 184, 0.9);
         font-size: 0.82rem;
         line-height: 1.55;
@@ -352,6 +490,10 @@
             grid-template-columns: 1fr;
         }
 
+        .category-admin-panel.is-create {
+            position: static;
+        }
+
         .category-admin-stats {
             grid-template-columns: repeat(2, minmax(0, 1fr));
         }
@@ -359,15 +501,35 @@
 
     @media (max-width: 767.98px) {
         .category-admin-stats,
-        .category-entry-grid,
+        .category-entry-fields,
         .category-entry-stats {
             grid-template-columns: 1fr;
         }
 
-        .category-entry-head,
+        .category-entry-summary,
+        .category-entry-title-row,
+        .category-entry-footer,
         .category-entry-actions {
             flex-direction: column;
             align-items: flex-start;
+        }
+
+        .category-entry-summary {
+            grid-template-columns: 1fr;
+        }
+
+        .category-entry-summary-side {
+            width: 100%;
+            justify-items: stretch;
+        }
+
+        .category-entry-actions {
+            margin-left: 0;
+            width: 100%;
+        }
+
+        .category-entry-actions .btn {
+            width: 100%;
         }
     }
 </style>
@@ -398,10 +560,10 @@
     </section>
 
     <div class="category-admin-grid">
-        <section class="category-admin-panel">
+        <section class="category-admin-panel is-create">
             <h2 class="category-admin-panel-title">Nova categoria</h2>
             <p class="category-admin-panel-subtitle">Cadastre categorias novas sem editar template na mão. Elas entram no select do estoque, na tela de documentos e na API mobile.</p>
-            <form method="post" action="{{ url_for('inventory.create_category_record') }}" class="d-grid gap-3">
+            <form method="post" action="{{ url_for('inventory.create_category_record') }}" class="d-grid gap-3 category-admin-create-form">
                 <div>
                     <label class="form-label" for="category-name">Nome</label>
                     <input class="form-control" id="category-name" name="nome" maxlength="120" required>
@@ -426,7 +588,7 @@
             <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-3">
                 <div>
                     <h2 class="category-admin-panel-title">Categorias cadastradas</h2>
-                    <p class="category-admin-panel-subtitle mb-0">Edite descrição, ordem e status. Categorias-base não podem ser renomeadas nem removidas para preservar os agrupamentos já usados no sistema.</p>
+                    <p class="category-admin-panel-subtitle mb-0">Clique no card para expandir e editar. Categorias-base não podem ser renomeadas nem removidas para preservar dashboard, automações e histórico.</p>
                 </div>
                 <a class="btn category-admin-secondary" href="{{ url_for('inventory.list_items') }}">Voltar ao estoque</a>
             </div>
@@ -434,81 +596,99 @@
             {% if category_rows %}
             <div class="category-admin-list">
                 {% for row in category_rows %}
-                <form method="post" action="{{ url_for('inventory.update_category_record', category_id=row.id) }}" class="category-entry-card">
-                    <div class="category-entry-head">
-                        <div>
-                            <h3 class="category-entry-title">{{ row.nome }}</h3>
-                            <div class="category-entry-meta">
-                                <span class="category-entry-chip{% if row.sistema %} is-system{% endif %}">{{ 'Base do sistema' if row.sistema else 'Customizada' }}</span>
-                                <span class="category-entry-chip{% if not row.ativa %} is-inactive{% endif %}">{{ 'Ativa' if row.ativa else 'Inativa' }}</span>
+                <details class="category-entry-card">
+                    <summary class="category-entry-summary">
+                        <div class="category-entry-summary-main">
+                            <div class="category-entry-title-row">
+                                <div>
+                                    <h3 class="category-entry-title">{{ row.nome }}</h3>
+                                    <div class="category-entry-meta">
+                                        <span class="category-entry-chip{% if row.sistema %} is-system{% endif %}">{{ 'Base do sistema' if row.sistema else 'Customizada' }}</span>
+                                        <span class="category-entry-chip{% if not row.ativa %} is-inactive{% endif %}">{{ 'Ativa' if row.ativa else 'Inativa' }}</span>
+                                    </div>
+                                </div>
+                                <span class="category-entry-order-badge">Ordem {{ row.ordem }}</span>
+                            </div>
+                            <p class="category-entry-preview">
+                                {% if row.descricao %}
+                                {{ row.descricao }}
+                                {% elif row.sistema %}
+                                Categoria protegida porque participa do dashboard e das automações do sistema.
+                                {% elif row.total_itens %}
+                                Categoria com {{ row.total_itens }} item(ns) associado(s). Abra para editar descrição, ordem e disponibilidade.
+                                {% else %}
+                                Card pronto para edição rápida de descrição, ordem e disponibilidade nos cadastros.
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div class="category-entry-summary-side">
+                            <div class="category-entry-stats">
+                                <div class="category-entry-stat">
+                                    <div class="category-entry-stat-label">Itens</div>
+                                    <div class="category-entry-stat-value">{{ row.total_itens }}</div>
+                                </div>
+                                <div class="category-entry-stat">
+                                    <div class="category-entry-stat-label">Saldo</div>
+                                    <div class="category-entry-stat-value">{{ row.saldo_total|number_br(1, True) }}</div>
+                                </div>
+                            </div>
+                            <span class="category-entry-expand">Expandir edição</span>
+                        </div>
+                    </summary>
+
+                    <form method="post" action="{{ url_for('inventory.update_category_record', category_id=row.id) }}" class="category-entry-body">
+                        <div class="category-entry-fields">
+                            <div>
+                                <label class="form-label">Nome</label>
+                                <input class="form-control" name="nome" value="{{ row.nome }}" maxlength="120" {% if row.sistema %}readonly{% endif %} required>
+                            </div>
+                            <div>
+                                <label class="form-label">Ordem</label>
+                                <input class="form-control" name="ordem" type="number" step="1" min="0" value="{{ row.ordem }}">
                             </div>
                         </div>
-                        <div class="category-entry-stats">
-                            <div class="category-entry-stat">
-                                <div class="category-entry-stat-label">Itens</div>
-                                <div class="category-entry-stat-value">{{ row.total_itens }}</div>
-                            </div>
-                            <div class="category-entry-stat">
-                                <div class="category-entry-stat-label">Saldo</div>
-                                <div class="category-entry-stat-value">{{ row.saldo_total|number_br(1, True) }}</div>
-                            </div>
-                        </div>
-                    </div>
 
-                    <div class="category-entry-grid">
                         <div>
-                            <label class="form-label">Nome</label>
-                            <input class="form-control" name="nome" value="{{ row.nome }}" maxlength="120" {% if row.sistema %}readonly{% endif %} required>
+                            <label class="form-label">Descrição</label>
+                            <textarea class="form-control" name="descricao" maxlength="500">{{ row.descricao or '' }}</textarea>
                         </div>
-                        <div>
-                            <label class="form-label">Ordem</label>
-                            <input class="form-control" name="ordem" type="number" step="1" min="0" value="{{ row.ordem }}">
-                        </div>
-                    </div>
 
-                    <div class="mb-3">
-                        <label class="form-label">Descrição</label>
-                        <textarea class="form-control" name="descricao" maxlength="500">{{ row.descricao or '' }}</textarea>
-                    </div>
-
-                    {% if row.sistema %}
-                    <input type="hidden" name="ativa" value="1">
-                    {% endif %}
-
-                    <div class="form-check mb-3">
-                        <input class="form-check-input" type="checkbox" id="category-active-{{ row.id }}" name="ativa" value="1" {% if row.ativa %}checked{% endif %} {% if row.sistema %}disabled{% endif %}>
-                        <label class="form-check-label" for="category-active-{{ row.id }}">Disponível para novos cadastros</label>
-                    </div>
-
-                    <div class="category-entry-actions">
-                        <div class="category-entry-actions-left">
-                            {% if row.total_itens %}
-                            <a class="btn category-admin-secondary" href="{{ url_for('inventory.list_items', categoria=row.nome) }}">Abrir itens</a>
-                            {% else %}
-                            <a class="btn category-admin-secondary" href="{{ url_for('inventory.new_item_form', categoria=row.nome) }}">Novo item nesta categoria</a>
-                            {% endif %}
-                        </div>
-                        <div class="category-entry-actions-right">
-                            <button class="btn category-admin-primary" type="submit">Salvar</button>
-                            {% if not row.sistema %}
-                            <button class="btn category-admin-secondary" type="submit"
-                                formaction="{{ url_for('inventory.delete_category_record', category_id=row.id) }}"
-                                formmethod="post"
-                                onclick="return confirm('Excluir a categoria {{ row.nome }} do catálogo? Itens vinculados impedem a exclusão.');">Excluir</button>
-                            {% endif %}
-                        </div>
-                    </div>
-
-                    <p class="category-entry-note mt-3 mb-0">
                         {% if row.sistema %}
-                        Categoria protegida porque já participa do dashboard e de automações do sistema.
-                        {% elif row.total_itens %}
-                        Esta categoria já possui {{ row.total_itens }} item(ns) associado(s); renomear atualiza os itens e o histórico financeiro espelhado.
-                        {% else %}
-                        Categoria pronta para uso. Se quiser preenchê-la agora, abra o cadastro de novo item já com o tipo pré-selecionado.
+                        <input type="hidden" name="ativa" value="1">
                         {% endif %}
-                    </p>
-                </form>
+
+                        <div class="category-entry-footer">
+                            <div class="form-check category-entry-switch">
+                                <input class="form-check-input" type="checkbox" id="category-active-{{ row.id }}" name="ativa" value="1" {% if row.ativa %}checked{% endif %} {% if row.sistema %}disabled{% endif %}>
+                                <label class="form-check-label" for="category-active-{{ row.id }}">Disponível para novos cadastros</label>
+                            </div>
+                            <div class="category-entry-actions">
+                                {% if row.total_itens %}
+                                <a class="btn category-admin-secondary" href="{{ url_for('inventory.list_items', categoria=row.nome) }}">Abrir itens</a>
+                                {% else %}
+                                <a class="btn category-admin-secondary" href="{{ url_for('inventory.new_item_form', categoria=row.nome) }}">Novo item</a>
+                                {% endif %}
+                                <button class="btn category-admin-primary" type="submit">Salvar</button>
+                                {% if not row.sistema %}
+                                <button class="btn category-admin-secondary" type="submit"
+                                    formaction="{{ url_for('inventory.delete_category_record', category_id=row.id) }}"
+                                    formmethod="post"
+                                    onclick="return confirm('Excluir a categoria {{ row.nome }} do catálogo? Itens vinculados impedem a exclusão.');">Excluir</button>
+                                {% endif %}
+                            </div>
+
+                            <p class="category-entry-note">
+                                {% if row.sistema %}
+                                Categoria protegida porque já participa do dashboard e de automações do sistema.
+                                {% elif row.total_itens %}
+                                Esta categoria já possui {{ row.total_itens }} item(ns) associado(s); renomear atualiza os itens e o histórico financeiro espelhado.
+                                {% else %}
+                                Categoria pronta para uso. Se quiser preenchê-la agora, abra o cadastro de novo item já com o tipo pré-selecionado.
+                                {% endif %}
+                            </p>
+                        </div>
+                    </form>
+                </details>
                 {% endfor %}
             </div>
             {% else %}
