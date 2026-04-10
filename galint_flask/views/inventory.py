@@ -377,6 +377,19 @@ def _parse_advanced_unit_settings(raw_value: str | None) -> dict:
     return parsed if isinstance(parsed, dict) else {}
 
 
+def _validate_packaging_type_value(tipo_novo: str | None, unidades_var: float | None) -> None:
+    tipo_normalizado = (tipo_novo or "").strip().lower()
+    try:
+        quantidade_por_embalagem = float(unidades_var or 0)
+    except (TypeError, ValueError):
+        quantidade_por_embalagem = 0.0
+
+    if tipo_normalizado == "litro" and quantidade_por_embalagem > 1.0:
+        raise ValueError(
+            "Tipo de embalagem invalido para este conteudo. Para recipientes acima de 1 litro, use Lata, Balde ou Bombona em vez de Litro."
+        )
+
+
 def _sanitize_filename_component(value: str) -> str:
     value = (value or "").strip()
     if not value:
@@ -1460,6 +1473,8 @@ def create_item():
         litros_var = float(unidades_por_emb_raw) if unidades_por_emb_raw and unidades_por_emb_raw.strip() else None
         unidades_var = litros_var
 
+    _validate_packaging_type_value(tipo_novo, unidades_var)
+
     em_embalagens = None
     if tipo_novo in ["lata", "rolo", "pacote", "caixa", "fardo", "litro", "balde", "bombona", "saco"] and unidades_var and unidades_var > 0:
         em_embalagens = True
@@ -1750,6 +1765,8 @@ def update_item(codigo: str):
         val = float(unidades_por_emb_raw) if unidades_por_emb_raw and unidades_por_emb_raw.strip() else None
         litros_var = val
         unidades_var = val
+
+    _validate_packaging_type_value(tipo_novo, unidades_var)
     
     # Se tipo_novo for None (Nenhum), limpa tudo
     
@@ -1935,6 +1952,21 @@ def update_item(codigo: str):
                 flash(f"Erro no upload da foto: {str(e)}", "warning")
 
         updated_codigo = inventory_service.update_item(codigo, payload)
+        if abs(float(target_internal_balance) - float(previous_internal_balance)) > 1e-6:
+            inventory_service.set_admin_absolute_balance(
+                codigo=updated_codigo,
+                novo_saldo=float(target_internal_balance),
+                matricula=current_user.id,
+                motivo="reclassificacao_embalagem",
+                notify=False,
+                audit_context={
+                    "source": "inventory.update_item",
+                    "previous_internal_balance": float(previous_internal_balance),
+                    "target_internal_balance": float(target_internal_balance),
+                    "tipo_embalagem_anterior": previous_tipo_embalagem,
+                    "tipo_embalagem_novo": effective_tipo_embalagem,
+                },
+            )
         process_pending_result = None
         if finalize_pre_registration:
             process_pending_result = finance_service.process_pending_document_items_for_item(

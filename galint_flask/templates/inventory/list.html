@@ -4417,26 +4417,46 @@
         }
     };
 
-    const getPriceUnitLabel = (item) => {
-        const tipoEmb = String(item?.tipo_embalagem_novo || '').trim();
-        if (tipoEmb) return tipoEmb;
-        return String(item?.unidade_interna_display || item?.unidade || 'un').trim() || 'un';
+    const getStoredPriceUnitCode = (item, kind = 'compra') => {
+        const rawValue = kind === 'reposicao'
+            ? item?.preco_reposicao_unidade_preco
+            : item?.preco_compra_unidade_preco;
+        return normalizePriceUnitCode(rawValue);
     };
 
-    const calcStockValue = (item, unitPrice) => {
+    const getPriceUnitLabel = (item, kind = 'compra') => {
+        const storedCode = getStoredPriceUnitCode(item, kind);
+        if (storedCode) {
+            return resolvePriceUnitLabel(storedCode);
+        }
+        const fallbackCode = String(item?.unidade_interna_display || item?.unidade || 'unidade').trim();
+        return resolvePriceUnitLabel(fallbackCode, fallbackCode || 'Unidade');
+    };
+
+    const calcStockValue = (item, unitPrice, kind = 'compra') => {
+        const unitPriceBase = Number(kind === 'reposicao'
+            ? (item?.preco_reposicao_unitario_base ?? item?.preco_reposicao_unitario)
+            : (item?.preco_compra_unitario_base ?? item?.preco_compra_unitario));
+        const saldoTotal = Number(item?.saldo_unidades_total ?? item?.saldo ?? 0);
+
+        if (Number.isFinite(unitPriceBase) && unitPriceBase > 0 && Number.isFinite(saldoTotal)) {
+            return saldoTotal * unitPriceBase;
+        }
+
         const price = Number(unitPrice);
         if (!Number.isFinite(price) || price <= 0) return null;
 
         const unidadesPor = Number(item?.unidades_por_embalagem ?? 0);
         const emb = Number(item?.saldo_embalagens ?? 0);
         const soltas = Number(item?.saldo_unidades_soltas ?? 0);
-        const hasPackaging = !!(item?.tipo_embalagem_novo && Number.isFinite(unidadesPor) && unidadesPor > 0);
+        const packagingType = normalizePriceUnitCode(item?.tipo_embalagem_novo || '');
+        const storedPriceUnit = getStoredPriceUnitCode(item, kind);
+        const hasPackaging = !!(packagingType && Number.isFinite(unidadesPor) && unidadesPor > 0);
 
-        if (hasPackaging) {
+        if (hasPackaging && storedPriceUnit && storedPriceUnit === packagingType) {
             return (emb * price) + (soltas * (price / unidadesPor));
         }
 
-        const saldoTotal = Number(item?.saldo_unidades_total ?? item?.saldo ?? 0);
         if (!Number.isFinite(saldoTotal)) return null;
         return saldoTotal * price;
     };
@@ -4451,15 +4471,16 @@
 
         if (!compraEl || !reposEl || !totalCompraEl || !totalReposEl || !metaEl) return;
 
-        const unitLabel = getPriceUnitLabel(item);
+        const unitLabelCompra = getPriceUnitLabel(item, 'compra').toLowerCase();
+        const unitLabelRepos = getPriceUnitLabel(item, 'reposicao').toLowerCase();
         const precoCompra = item?.preco_compra_unitario ?? null;
         const precoRepos = item?.preco_reposicao_unitario ?? null;
 
-        compraEl.textContent = `${formatBrl(precoCompra)} / ${unitLabel}`;
-        reposEl.textContent = `${formatBrl(precoRepos)} / ${unitLabel}`;
+        compraEl.textContent = `${formatBrl(precoCompra)} / ${unitLabelCompra}`;
+        reposEl.textContent = `${formatBrl(precoRepos)} / ${unitLabelRepos}`;
 
-        const totalCompra = calcStockValue(item, precoCompra);
-        const totalRepos = calcStockValue(item, precoRepos);
+        const totalCompra = calcStockValue(item, precoCompra, 'compra');
+        const totalRepos = calcStockValue(item, precoRepos, 'reposicao');
         totalCompraEl.textContent = formatBrl(totalCompra);
         totalReposEl.textContent = formatBrl(totalRepos);
 
