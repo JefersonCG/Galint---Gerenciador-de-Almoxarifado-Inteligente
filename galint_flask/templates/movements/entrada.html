@@ -636,6 +636,80 @@
         color: #bfdbfe;
     }
 
+    .return-last-withdrawer-card {
+        background: rgba(15, 23, 42, 0.78);
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        border-radius: 14px;
+        padding: 1rem 1.1rem;
+        color: #e2e8f0;
+    }
+
+    .return-last-withdrawer-card.is-empty {
+        opacity: 0.86;
+    }
+
+    .return-last-withdrawer-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        margin-bottom: 0.85rem;
+    }
+
+    .return-last-withdrawer-title {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        font-weight: 700;
+        color: #f8fafc;
+    }
+
+    .return-last-withdrawer-status {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.3rem 0.7rem;
+        border-radius: 999px;
+        background: rgba(59, 130, 246, 0.16);
+        color: #bfdbfe;
+        font-size: 0.82rem;
+        font-weight: 700;
+    }
+
+    .return-last-withdrawer-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.75rem;
+    }
+
+    .return-last-withdrawer-stat {
+        background: rgba(15, 23, 42, 0.62);
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        border-radius: 12px;
+        padding: 0.8rem 0.9rem;
+    }
+
+    .return-last-withdrawer-stat span {
+        display: block;
+        color: #94a3b8;
+        font-size: 0.76rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 0.2rem;
+    }
+
+    .return-last-withdrawer-stat strong {
+        color: #f8fafc;
+        font-size: 0.95rem;
+        font-weight: 700;
+    }
+
+    .return-last-withdrawer-note {
+        margin-top: 0.85rem;
+        color: #94a3b8;
+        font-size: 0.88rem;
+    }
+
     .return-page-shell .btn-add-item:disabled,
     .return-page-shell .btn-add-item[disabled] {
         background: #475569;
@@ -680,6 +754,10 @@
             grid-template-columns: 1fr;
         }
 
+        .return-last-withdrawer-grid {
+            grid-template-columns: 1fr;
+        }
+
         .return-modal-item-layout {
             grid-template-columns: 1fr;
         }
@@ -702,20 +780,50 @@
     
     <div class="alert-info-custom">
         <i class="bi bi-info-circle me-2"></i>
-        <strong>Dica:</strong> Você pode adicionar múltiplos itens de uma vez e registrar tudo junto.
+        <strong>Dica:</strong> Leia o item, confira quem foi o último a retirar e informe apenas quem está devolvendo agora.
     </div>
     
     <div class="input-card" id="form-devolucao" autocomplete="off">
         <div class="row g-3">
             <div class="col-md-6 position-relative">
-                <label class="form-label"><i class="bi bi-person-badge me-1"></i>Crachá/Matrícula</label>
-                <input class="form-control" id="input-matricula" name="matricula" placeholder="Leia ou digite o crachá ou nome" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" autofocus>
+                <label class="form-label"><i class="bi bi-person-badge me-1"></i>Quem está devolvendo</label>
+                <input class="form-control" id="input-matricula" name="devolvido_por" placeholder="Leia ou digite o crachá ou nome de quem está devolvendo" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" autofocus>
                 <div id="autocomplete-matricula-dropdown" class="autocomplete-dropdown"></div>
             </div>
             <div class="col-md-6 position-relative">
                 <label class="form-label"><i class="bi bi-upc-scan me-1"></i>Código do Item</label>
                 <input class="form-control" id="input-codigo" name="codigo" placeholder="Leia ou digite o código do item" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
                 <div id="autocomplete-dropdown" class="autocomplete-dropdown"></div>
+            </div>
+        </div>
+
+        <div class="row g-3 mt-1">
+            <div class="col-12">
+                <div class="return-last-withdrawer-card is-empty" id="last-withdrawer-card">
+                    <div class="return-last-withdrawer-head">
+                        <span class="return-last-withdrawer-title"><i class="bi bi-clock-history"></i>Última retirada pendente</span>
+                        <span class="return-last-withdrawer-status" id="last-withdrawer-status">Aguardando leitura do item</span>
+                    </div>
+                    <div class="return-last-withdrawer-grid">
+                        <div class="return-last-withdrawer-stat">
+                            <span>Retirado por</span>
+                            <strong id="last-withdrawer-label">Leia um item para identificar</strong>
+                        </div>
+                        <div class="return-last-withdrawer-stat">
+                            <span>Última saída</span>
+                            <strong id="last-withdrawer-when">-</strong>
+                        </div>
+                        <div class="return-last-withdrawer-stat">
+                            <span>Local</span>
+                            <strong id="last-withdrawer-location">-</strong>
+                        </div>
+                        <div class="return-last-withdrawer-stat">
+                            <span>Pendente</span>
+                            <strong id="last-withdrawer-pending">-</strong>
+                        </div>
+                    </div>
+                    <div class="return-last-withdrawer-note">A devolução será abatida da última retirada ainda pendente deste item.</div>
+                </div>
             </div>
         </div>
 
@@ -803,6 +911,8 @@
                     </div>
                     <div>
                         <p class="mb-2">Item: <strong id="return-modal-item-desc"></strong></p>
+                        <p class="mb-2">Último retirante pendente: <strong id="return-modal-withdrawer-label">-</strong></p>
+                        <p class="mb-2">Última saída: <strong id="return-modal-withdrawer-when">-</strong></p>
                         <div class="mb-2">
                             <label class="form-label form-label-sm mb-1" for="return-modal-unit-select">Unidade de retorno</label>
                             <select class="form-select form-select-sm" id="return-modal-unit-select"></select>
@@ -826,7 +936,7 @@
                         <span>Pendente após a devolução</span>
                         <strong id="return-modal-pending-after">-</strong>
                     </div>
-                    <div id="return-modal-warning" class="return-modal-warning">A quantidade informada excede o pendente disponível para este funcionário.</div>
+                    <div id="return-modal-warning" class="return-modal-warning">A quantidade informada excede o pendente disponível para esta retirada.</div>
                 </div>
             </div>
             <div class="modal-footer">
@@ -984,6 +1094,12 @@
     const dropdownMatricula = document.getElementById('autocomplete-matricula-dropdown');
     const dropdown = document.getElementById('autocomplete-dropdown');
     const currentItemPreview = document.getElementById('current-item-preview');
+    const lastWithdrawerCard = document.getElementById('last-withdrawer-card');
+    const lastWithdrawerStatus = document.getElementById('last-withdrawer-status');
+    const lastWithdrawerLabel = document.getElementById('last-withdrawer-label');
+    const lastWithdrawerWhen = document.getElementById('last-withdrawer-when');
+    const lastWithdrawerLocation = document.getElementById('last-withdrawer-location');
+    const lastWithdrawerPending = document.getElementById('last-withdrawer-pending');
     const mirrorChannelName = 'galint-operation-mirror-v1';
     const mirrorStorageKey = 'galint.operationMirrorState.v1';
     const mirrorChannel = typeof window.BroadcastChannel !== 'undefined' ? new BroadcastChannel(mirrorChannelName) : null;
@@ -993,6 +1109,8 @@
     const returnModalPhoto = document.getElementById('return-modal-photo');
     const returnModalPhotoEmpty = document.getElementById('return-modal-photo-empty');
     const returnModalItemDesc = document.getElementById('return-modal-item-desc');
+    const returnModalWithdrawerLabel = document.getElementById('return-modal-withdrawer-label');
+    const returnModalWithdrawerWhen = document.getElementById('return-modal-withdrawer-when');
     const returnModalUnitSelect = document.getElementById('return-modal-unit-select');
     const returnModalPendingTotal = document.getElementById('return-modal-pending-total');
     const returnModalStockTotal = document.getElementById('return-modal-stock-total');
@@ -1035,6 +1153,64 @@
             return String(Math.round(numeric));
         }
         return String(Number(numeric.toFixed(3)));
+    }
+
+    function formatActorLabel(nome, matricula) {
+        const nomeText = String(nome || '').trim();
+        const matriculaText = String(matricula || '').trim();
+        if (nomeText && matriculaText) {
+            return `${nomeText} (Mat. ${matriculaText})`;
+        }
+        if (nomeText) {
+            return nomeText;
+        }
+        if (matriculaText) {
+            return `Matrícula ${matriculaText}`;
+        }
+        return 'Não informado';
+    }
+
+    function getSelectedReturner() {
+        const funcionario = syncSelectedFuncionario();
+        const matricula = String(matriculaSelecionada || inputMatricula.value || '').trim();
+        const label = funcionario
+            ? formatActorLabel(funcionario?.nome, funcionario?.matricula)
+            : (/^\d+$/.test(matricula) ? formatActorLabel(null, matricula) : (matricula || 'Não informado'));
+        return {
+            matricula: matricula,
+            nome: funcionario?.nome || null,
+            label: label,
+        };
+    }
+
+    function renderLastWithdrawerCard(detailData) {
+        const withdrawer = detailData?.retirada_pendente || null;
+        const hasWithdrawer = Boolean(withdrawer?.matricula);
+        const defaultUnit = detailData?.devolucao_unidade_codigo || 'unidade';
+        const pendingByUnit = withdrawer?.pendente_por_unidade || detailData?.devolucao_pendente_por_unidade || {};
+        const pending = Number(pendingByUnit[defaultUnit] ?? withdrawer?.pendente ?? 0);
+        const unitOptions = Array.isArray(detailData?.devolucao_unidades_opcoes) ? detailData.devolucao_unidades_opcoes : [];
+        const defaultOption = unitOptions.find((option) => String(option?.unit_code || '') === String(defaultUnit)) || unitOptions[0] || null;
+        const unitDisplay = defaultOption?.unit_display || detailData?.devolucao_unidade_exibicao || 'un';
+
+        if (lastWithdrawerCard) {
+            lastWithdrawerCard.classList.toggle('is-empty', !hasWithdrawer);
+        }
+        if (lastWithdrawerStatus) {
+            lastWithdrawerStatus.textContent = hasWithdrawer ? 'Retirada identificada' : 'Sem retirada pendente';
+        }
+        if (lastWithdrawerLabel) {
+            lastWithdrawerLabel.textContent = hasWithdrawer ? (withdrawer.label || formatActorLabel(withdrawer.nome, withdrawer.matricula)) : 'Nenhum retirante pendente encontrado';
+        }
+        if (lastWithdrawerWhen) {
+            lastWithdrawerWhen.textContent = hasWithdrawer ? (withdrawer.ultima_saida_label || '-') : '-';
+        }
+        if (lastWithdrawerLocation) {
+            lastWithdrawerLocation.textContent = hasWithdrawer ? (withdrawer.local_servico || 'Não informado') : '-';
+        }
+        if (lastWithdrawerPending) {
+            lastWithdrawerPending.textContent = hasWithdrawer ? `${formatQuantityValue(pending)} ${unitDisplay}` : '-';
+        }
     }
 
     function setAddButtonState() {
@@ -1083,6 +1259,12 @@
         }
         if (returnModalItemDesc) {
             returnModalItemDesc.textContent = '';
+        }
+        if (returnModalWithdrawerLabel) {
+            returnModalWithdrawerLabel.textContent = '-';
+        }
+        if (returnModalWithdrawerWhen) {
+            returnModalWithdrawerWhen.textContent = '-';
         }
         if (returnModalUnitSelect) {
             returnModalUnitSelect.innerHTML = '<option value="unidade">Unidade</option>';
@@ -1182,10 +1364,10 @@
 
         if (!returnModalState.supportsMaterialReturn) {
             warningMessage = 'Este item é ferramenta. Use a devolução de ferramentas para dar baixa.';
-        } else if (returnModalState.userFound === false) {
-            warningMessage = 'Matrícula não encontrada. Selecione um funcionário válido antes de continuar.';
+        } else if (!returnModalState.hasPendingWithdrawer) {
+            warningMessage = 'Não existe retirada pendente deste material para devolução.';
         } else if (pending <= 0) {
-            warningMessage = 'Não existe retirada pendente deste material para este funcionário.';
+            warningMessage = 'Não existe retirada pendente deste material para devolução.';
         } else if (hasQuantidade && quantidade > pending + 1e-9) {
             warningMessage = `A quantidade informada excede o pendente disponível (${formatQuantityValue(pending)} ${unitDisplay}).`;
         }
@@ -1201,15 +1383,22 @@
     }
 
     function queueReturnItem(detailData, quantidade, unitOption) {
-        const matricula = String(inputMatricula.value || '').trim();
-        if (!matricula) {
+        const returner = getSelectedReturner();
+        if (!returner.matricula) {
             alert('Informe uma matrícula válida antes de adicionar o item.');
             inputMatricula.focus();
             return false;
         }
 
-        if (items.length > 0 && items[0].matricula !== matricula) {
-            if (!confirm('Já existem itens de outro funcionário. Deseja limpar a lista e começar nova devolução?')) {
+        const withdrawer = detailData?.retirada_pendente || null;
+        if (!withdrawer?.matricula) {
+            alert('Este item não possui retirada pendente para devolução no momento.');
+            inputCodigo.focus();
+            return false;
+        }
+
+        if (items.length > 0 && items[0].returner_matricula !== returner.matricula) {
+            if (!confirm('Já existem itens de outro devolvedor. Deseja limpar a lista e começar uma nova devolução?')) {
                 return false;
             }
             items.length = 0;
@@ -1222,7 +1411,12 @@
         };
 
         const item = {
-            matricula: matricula,
+            returner_matricula: returner.matricula,
+            returner_nome: returner.nome,
+            returner_label: returner.label,
+            retirada_matricula: String(withdrawer.matricula || '').trim(),
+            retirada_nome: withdrawer.nome || null,
+            retirada_label: withdrawer.label || formatActorLabel(withdrawer.nome, withdrawer.matricula),
             codigo: detailData.codigo || String(inputCodigo.value || '').trim(),
             quantidade: quantidade,
             return_unit_code: effectiveUnit.unit_code,
@@ -1234,6 +1428,8 @@
             saldo: detailData.saldo,
             saldo_display: detailData.saldo_display,
             foto_url: detailData.foto_url,
+            retirada_ultima_saida_label: withdrawer.ultima_saida_label || '',
+            retirada_local_servico: withdrawer.local_servico || '',
         };
 
         items.push(item);
@@ -1249,13 +1445,12 @@
     }
 
     async function openReturnQuantityModal() {
-        syncSelectedFuncionario();
-        const matricula = String(matriculaSelecionada || inputMatricula.value || '').trim();
+        const returner = getSelectedReturner();
         const codigoDigitado = String(inputCodigo.value || '').trim();
         const quantidadeDigitada = parseQuantityValue(inputQuantidade.value || '');
 
-        if (!matricula || !codigoDigitado) {
-            alert('Preencha matrícula e código do item para informar a quantidade da devolução.');
+        if (!returner.matricula || !codigoDigitado) {
+            alert('Preencha quem está devolvendo e o código do item para informar a quantidade da devolução.');
             return;
         }
 
@@ -1265,7 +1460,7 @@
             setAddButtonState();
         }
 
-        const detailData = await fetchItemDetails(codigo, matricula);
+        const detailData = await fetchItemDetails(codigo);
         const unitOptions = Array.isArray(detailData?.devolucao_unidades_opcoes) && detailData.devolucao_unidades_opcoes.length
             ? detailData.devolucao_unidades_opcoes
             : [{
@@ -1276,8 +1471,9 @@
                 input_min: detailData?.devolucao_min || detailData?.devolucao_step || '0.001',
             }];
         const selectedUnitCode = String(detailData?.devolucao_unidade_codigo || unitOptions[0]?.unit_code || 'unidade').trim();
-        const pendingByUnit = detailData?.devolucao_pendente_por_unidade || {};
-        const pending = Number(pendingByUnit[selectedUnitCode] ?? detailData?.devolucao_pendente ?? 0);
+        const withdrawer = detailData?.retirada_pendente || null;
+        const pendingByUnit = withdrawer?.pendente_por_unidade || detailData?.devolucao_pendente_por_unidade || {};
+        const pending = Number(pendingByUnit[selectedUnitCode] ?? withdrawer?.pendente ?? detailData?.devolucao_pendente ?? 0);
 
         returnModalState = {
             data: detailData,
@@ -1288,12 +1484,19 @@
             selectedUnitCode: selectedUnitCode,
             inputStep: unitOptions[0]?.input_step || detailData?.devolucao_step || '0.001',
             inputMin: unitOptions[0]?.input_min || detailData?.devolucao_min || '0.001',
-            userFound: detailData?.usuario_encontrado !== false,
+            hasPendingWithdrawer: Boolean(withdrawer?.matricula),
+            withdrawer: withdrawer,
             supportsMaterialReturn: Boolean(detailData?.suporta_devolucao_material),
         };
 
         if (returnModalItemDesc) {
             returnModalItemDesc.textContent = detailData?.descricao || codigo;
+        }
+        if (returnModalWithdrawerLabel) {
+            returnModalWithdrawerLabel.textContent = withdrawer?.label || 'Nenhum retirante pendente encontrado';
+        }
+        if (returnModalWithdrawerWhen) {
+            returnModalWithdrawerWhen.textContent = withdrawer?.ultima_saida_label || '-';
         }
         if (returnModalStockTotal) {
             const saldoDisplay = String(detailData?.saldo_display || '').trim();
@@ -1365,7 +1568,8 @@
     }
 
     function buildMirrorPayload(status, item, extra) {
-        const matricula = String((item && item.matricula) || matriculaSelecionada || inputMatricula.value || '').trim();
+        const returner = getSelectedReturner();
+        const actorMatricula = String((item && item.returner_matricula) || returner.matricula || '').trim();
         const observacao = String(inputObservacao.value || '').trim();
         const payload = {
             kind: 'entrada',
@@ -1375,11 +1579,12 @@
             source_label: 'registro de devolucao',
             batch_label: ((extra && extra.itemCount) || items.length || 0) + ' item(ns) na devolucao',
             actor: {
-                matricula: matricula,
-                nome: matricula,
+                matricula: actorMatricula,
+                nome: (item && item.returner_nome) || returner.nome || actorMatricula,
             },
             context: {
                 observacao: observacao,
+                retirado_por: item?.retirada_label || null,
             },
         };
 
@@ -1426,7 +1631,8 @@
         const fotoHtml = item.foto_url
             ? '<img src="' + escapeHtml(item.foto_url) + '" alt="' + escapeHtml(item.descricao || item.codigo || 'Item') + '">'
             : '<div class="operation-preview-placeholder"><i class="bi bi-image"></i><div>Sem foto do item</div></div>';
-        const matricula = String(item.matricula || matriculaSelecionada || inputMatricula.value || '').trim() || 'Nao informado';
+        const withdrawer = String(item.retirada_label || '').trim() || 'Nao informado';
+        const returner = String(item.returner_label || getSelectedReturner().label || '').trim() || 'Nao informado';
         const observacao = String(inputObservacao.value || '').trim() || 'Sem observacao';
         const saldo = String(item.saldo_display || item.saldo || '').trim() || 'Nao informado';
 
@@ -1442,25 +1648,18 @@
                 '<div class="operation-preview-grid">' +
                     '<div class="operation-preview-stat"><span class="operation-preview-stat-label">Quantidade</span><span class="operation-preview-stat-value">' + escapeHtml(formatPreviewQuantity(item)) + '</span></div>' +
                     '<div class="operation-preview-stat"><span class="operation-preview-stat-label">Saldo atual</span><span class="operation-preview-stat-value">' + escapeHtml(saldo) + '</span></div>' +
-                    '<div class="operation-preview-stat"><span class="operation-preview-stat-label">Colaborador</span><span class="operation-preview-stat-value">' + escapeHtml(matricula) + '</span></div>' +
-                    '<div class="operation-preview-stat"><span class="operation-preview-stat-label">Observacao</span><span class="operation-preview-stat-value">' + escapeHtml(observacao) + '</span></div>' +
+                    '<div class="operation-preview-stat"><span class="operation-preview-stat-label">Último retirante</span><span class="operation-preview-stat-value">' + escapeHtml(withdrawer) + '</span></div>' +
+                    '<div class="operation-preview-stat"><span class="operation-preview-stat-label">Devolvido por</span><span class="operation-preview-stat-value">' + escapeHtml(returner) + '</span></div>' +
                 '</div>' +
-                '<div class="operation-preview-note">Este painel sera a base do futuro modo de segunda tela para o colaborador.</div>' +
+                '<div class="operation-preview-note">Observacao: ' + escapeHtml(observacao) + '</div>' +
             '</div>';
         if (shouldPublish) {
             publishMirrorState(buildMirrorPayload(previewStatus, item));
         }
     }
 
-    async function fetchItemDetails(codigo, identificador) {
-        const params = new URLSearchParams();
-        const rawIdentificador = String(identificador || '').trim();
-        if (rawIdentificador) {
-            params.set('matricula', rawIdentificador);
-        }
-
-        const suffix = params.toString() ? `?${params.toString()}` : '';
-        const response = await window.galintFetchWithAuth(`/movimentos/item-info/${encodeURIComponent(codigo)}${suffix}`, {
+    async function fetchItemDetails(codigo) {
+        const response = await window.galintFetchWithAuth(`/movimentos/item-info/${encodeURIComponent(codigo)}`, {
             headers: { 'Accept': 'application/json' }
         }, 'Sua sessão expirou ao consultar o item. Faça login novamente.');
         const data = await response.json().catch(() => ({}));
@@ -1478,23 +1677,31 @@
             return;
         }
         try {
-            const data = await fetchItemDetails(rawCodigo, matriculaSelecionada || String(inputMatricula.value || '').trim());
+            const data = await fetchItemDetails(rawCodigo);
+            const returner = getSelectedReturner();
             currentPreviewItem = {
                 ...currentPreviewItem,
                 ...data,
                 codigo: data.codigo || rawCodigo,
-                matricula: matriculaSelecionada || String(inputMatricula.value || '').trim(),
+                returner_matricula: returner.matricula,
+                returner_nome: returner.nome,
+                returner_label: returner.label,
+                retirada_matricula: data?.retirada_pendente?.matricula || '',
+                retirada_nome: data?.retirada_pendente?.nome || null,
+                retirada_label: data?.retirada_pendente?.label || 'Nao identificado',
                 quantidade: parseQuantityValue(inputQuantidade.value) || 1,
                 return_unit_code: data.devolucao_unidade_codigo || currentPreviewItem?.return_unit_code,
                 return_unit_display: data.devolucao_unidade_exibicao || currentPreviewItem?.return_unit_display,
                 return_unit_label: data.devolucao_unidade_label || currentPreviewItem?.return_unit_label,
             };
+            renderLastWithdrawerCard(data);
             renderCurrentPreview(currentPreviewItem, 'preview');
         } catch (error) {
             if (error?.isAuthRedirect) {
                 return;
             }
             console.error('Erro ao carregar preview da devolucao:', error);
+            renderLastWithdrawerCard(null);
         }
     }
     
@@ -1504,6 +1711,13 @@
         matriculaSelecionada = query || null;
         inputQuantidade.value = '';
         setAddButtonState();
+        if (currentPreviewItem) {
+            const returner = getSelectedReturner();
+            currentPreviewItem.returner_matricula = returner.matricula;
+            currentPreviewItem.returner_nome = returner.nome;
+            currentPreviewItem.returner_label = returner.label;
+            renderCurrentPreview(currentPreviewItem, 'preview');
+        }
         clearTimeout(debounceTimerMatricula);
         
         if (query.length < 1) {
@@ -1558,6 +1772,12 @@
         inputQuantidade.value = '';
         dropdownMatricula.classList.remove('show');
         setAddButtonState();
+        if (currentPreviewItem) {
+            currentPreviewItem.returner_matricula = func.matricula;
+            currentPreviewItem.returner_nome = func.nome || null;
+            currentPreviewItem.returner_label = formatActorLabel(func.nome, func.matricula);
+            renderCurrentPreview(currentPreviewItem, 'preview');
+        }
         inputCodigo.focus();
     }
     
@@ -1817,7 +2037,11 @@
                         (item.foto_url
                             ? '<img class="item-thumb" src="' + escapeHtml(item.foto_url) + '" alt="' + escapeHtml(item.descricao || item.codigo) + '">'
                             : '<span class="item-thumb-placeholder"><i class="bi bi-image"></i></span>') +
-                        '<div><strong>' + escapeHtml(item.descricao) + '</strong><span class="item-desc-meta">' + escapeHtml(item.categoria || 'Sem categoria') + (item.marca ? ' • ' + escapeHtml(item.marca) : '') + '</span></div>' +
+                        '<div><strong>' + escapeHtml(item.descricao) + '</strong>' +
+                            '<span class="item-desc-meta">' + escapeHtml(item.categoria || 'Sem categoria') + (item.marca ? ' • ' + escapeHtml(item.marca) : '') + '</span>' +
+                            '<span class="item-desc-meta">Último retirante: ' + escapeHtml(item.retirada_label || 'Não informado') + '</span>' +
+                            '<span class="item-desc-meta">Devolvido por: ' + escapeHtml(item.returner_label || 'Não informado') + '</span>' +
+                        '</div>' +
                     '</div>' +
                 '</td>' +
                 '<td><code>' + item.codigo + '</code></td>' +
@@ -1854,7 +2078,10 @@
             const completedCount = items.length;
             const promises = items.map(async item => {
                 const formData = new FormData();
-                formData.append('matricula', item.matricula);
+                formData.append('devolvido_por', item.returner_matricula);
+                if (item.retirada_matricula) {
+                    formData.append('retirada_matricula', item.retirada_matricula);
+                }
                 formData.append('codigo', item.codigo);
                 formData.append('quantidade', toInputNumberString(item.quantidade));
                 if (item.return_unit_code) {
@@ -1898,6 +2125,7 @@
                 inputQuantidade.value = '';
                 inputObservacao.value = '';
                 matriculaSelecionada = null;
+                renderLastWithdrawerCard(null);
                 setAddButtonState();
                 inputMatricula.focus();
             } else {
@@ -1930,6 +2158,8 @@
         setAddButtonState();
         if (codigo) {
             loadPreviewForCode(codigo);
+        } else {
+            renderLastWithdrawerCard(null);
         }
     });
 

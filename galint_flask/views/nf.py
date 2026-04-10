@@ -26,6 +26,17 @@ from ..services.price_normalization import (
 blueprint = Blueprint("nf", __name__, url_prefix="/nf")
 
 DEFAULT_DOCUMENT_UNIT_OPTIONS = list(BASE_ITEM_UNIT_OPTIONS)
+NF_NEW_ITEM_PACKAGING_OPTIONS: tuple[str, ...] = (
+    "rolo",
+    "lata",
+    "balde",
+    "bombona",
+    "caixa",
+    "pacote",
+    "fardo",
+    "saco",
+    "litro",
+)
 
 VALID_OPERATIONAL_TABS = {"registro", "processaveis", "erros", "historico"}
 LEGACY_OPERATIONAL_TAB_ALIASES = {
@@ -60,6 +71,47 @@ def _parse_optional_float(raw_value: str | None, *, fallback: float | None = Non
 
 def _has_explicit_form_value(raw_value: str | None) -> bool:
     return bool((raw_value or "").strip())
+
+
+def _normalize_nf_new_item_packaging_type(raw_value: str | None) -> str | None:
+    normalized = (raw_value or "").strip().lower()
+    if not normalized:
+        return None
+    if normalized in NF_NEW_ITEM_PACKAGING_OPTIONS:
+        return normalized
+    raise ValueError("Tipo de embalagem documental inválido para o novo item da NF.")
+
+
+def _build_nf_new_item_packaging_payload(
+    *,
+    base_unit: str,
+    packaging_type: str | None,
+    content_per_package: float | None,
+) -> dict[str, Any]:
+    if not packaging_type:
+        return {}
+
+    if content_per_package is None or float(content_per_package) <= 0:
+        raise ValueError(
+            "Informe o conteúdo por embalagem do item novo para que a quantidade da NF não seja interpretada como unidade base."
+        )
+
+    content_value = float(content_per_package)
+    if packaging_type == "litro" and content_value > 1.0:
+        raise ValueError(
+            "Para recipientes acima de 1 litro, use Lata, Balde ou Bombona como unidade da compra/NF."
+        )
+
+    normalized_base_unit = ensure_base_item_unit(base_unit, fallback="Unidade")
+    payload: dict[str, Any] = {
+        "tipo_embalagem_novo": packaging_type,
+        "unidades_por_embalagem": content_value,
+    }
+    if normalized_base_unit == "Litro":
+        payload["litros_por_embalagem"] = content_value
+    elif normalized_base_unit in {"Metro", "Quilo"}:
+        payload["grandeza_referencia"] = content_value
+    return payload
 
 
 def _derive_item_total(*, quantidade: float, valor_unitario: float | None) -> float | None:
@@ -1360,6 +1412,8 @@ def registrar_nf():
         actor=getattr(current_user, "nome", None) or getattr(current_user, "id", None),
     )
     nova_unidade = normalize_base_item_unit(request.form.get("nova_unidade", "").strip(), fallback="Unidade")
+    nova_unidade_documental = _normalize_nf_new_item_packaging_type(request.form.get("nova_unidade_documental"))
+    novo_conteudo_embalagem = _parse_optional_float(request.form.get("novo_conteudo_embalagem"), fallback=None)
     nota = request.form.get("nota_fiscal", "").strip()
     supplier_raw = (request.form.get("finance_supplier_id") or "").strip()
     supplier_id = int(supplier_raw) if supplier_raw.isdigit() else None
@@ -1442,22 +1496,28 @@ def registrar_nf():
                 raise ValueError("Selecione um item existente ou informe o código do novo item")
             if not nova_descricao:
                 raise ValueError("Informe a descrição para cadastrar o novo item da nota")
-            inventory_service.create_item(
-                {
-                    "codigo": codigo,
-                    "descricao": nova_descricao,
-                    "categoria": nova_categoria,
-                    "unidade": nova_unidade,
-                    "nota_fiscal": nota or None,
-                    "marca": nova_marca,
-                    "localizacao": None,
-                    "quantidade": 0,
-                    "pre_cadastro_pendente": True,
-                    "pre_cadastro_origem": "nf",
-                    "pre_cadastro_criado_em": datetime.utcnow(),
-                    "pre_cadastro_finalizado_em": None,
-                }
+            create_payload = {
+                "codigo": codigo,
+                "descricao": nova_descricao,
+                "categoria": nova_categoria,
+                "unidade": nova_unidade,
+                "nota_fiscal": nota or None,
+                "marca": nova_marca,
+                "localizacao": None,
+                "quantidade": 0,
+                "pre_cadastro_pendente": True,
+                "pre_cadastro_origem": "nf",
+                "pre_cadastro_criado_em": datetime.utcnow(),
+                "pre_cadastro_finalizado_em": None,
+            }
+            create_payload.update(
+                _build_nf_new_item_packaging_payload(
+                    base_unit=nova_unidade,
+                    packaging_type=nova_unidade_documental,
+                    content_per_package=novo_conteudo_embalagem,
+                )
             )
+            inventory_service.create_item(create_payload)
             item_criado_na_nf = True
 
         preco_unitario = float(preco_unitario_raw) if preco_unitario_raw else None

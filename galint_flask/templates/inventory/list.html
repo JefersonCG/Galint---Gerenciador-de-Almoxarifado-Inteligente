@@ -4135,7 +4135,8 @@
                         </div>
                         <div class="pre-registered-meta-box">
                             <span class="pre-registered-meta-label">Quantidade no documento</span>
-                            <span class="pre-registered-meta-value">${escapeHtml(String(entry.quantidade_documento ?? '0'))} ${escapeHtml(entry.unidade || '')}</span>
+                            <span class="pre-registered-meta-value">${escapeHtml(entry.quantidade_documento_display || String(entry.quantidade_documento ?? '0'))}</span>
+                            ${entry.conversao_display ? `<div class="small text-muted mt-1">${escapeHtml(entry.conversao_display)}</div>` : ''}
                         </div>
                         <div class="pre-registered-meta-box">
                             <span class="pre-registered-meta-label">Preço unitário</span>

@@ -49,6 +49,7 @@ _PACKAGING_UNIT_LABELS = {
     "bombona": ("bombona", "bombonas"),
     "saco": ("saco", "sacos"),
 }
+_LEGACY_CONVERSION_DOCUMENT_OBSERVATION = "Convertido automaticamente do histórico legado de entradas."
 
 
 def _format_compact_number(value: object) -> str | None:
@@ -301,6 +302,121 @@ class FinanceService:
     @staticmethod
     def _as_text(value: Any) -> str:
         return str(value or "").strip()
+
+    @staticmethod
+    def _is_legacy_conversion_placeholder(document: DocumentoEntradaEstoque | None) -> bool:
+        if document is None:
+            return False
+        if (document.tipo_documento or "").strip().lower() != "manual":
+            return False
+        if (document.status_integracao or "").strip().lower() != "manual":
+            return False
+        if (document.observacao or "").strip() != _LEGACY_CONVERSION_DOCUMENT_OBSERVATION:
+            return False
+        if document.fornecedor_id is not None:
+            return False
+        if (document.fornecedor_nome or "").strip():
+            return False
+        if (document.cnpj_emitente or "").strip():
+            return False
+        if (document.chave_acesso or "").strip():
+            return False
+        return True
+
+    @staticmethod
+    def _stock_document_priority(document: DocumentoEntradaEstoque) -> tuple[int, datetime, int]:
+        score = 0
+        tipo = (document.tipo_documento or "").strip().lower()
+        if tipo == "nf":
+            score += 100
+        if not FinanceService._is_legacy_conversion_placeholder(document):
+            score += 50
+        if document.fornecedor_id is not None or (document.fornecedor_nome or "").strip():
+            score += 10
+        if (document.cnpj_emitente or "").strip():
+            score += 5
+        if (document.chave_acesso or "").strip():
+            score += 5
+        return (score, document.criado_em or datetime.min, int(document.id_documento or 0))
+
+    @staticmethod
+    def _select_canonical_documents(documents: list[DocumentoEntradaEstoque]) -> list[DocumentoEntradaEstoque]:
+        documents_by_number: dict[str, DocumentoEntradaEstoque] = {}
+        documents_without_number: list[DocumentoEntradaEstoque] = []
+        for document in documents:
+            numero = (document.numero_documento or "").strip()
+            if not numero:
+                documents_without_number.append(document)
+                continue
+            current = documents_by_number.get(numero)
+            if current is None or FinanceService._stock_document_priority(document) > FinanceService._stock_document_priority(current):
+                documents_by_number[numero] = document
+
+        ordered = list(documents_by_number.values()) + documents_without_number
+        ordered.sort(
+            key=lambda row: (row.criado_em or datetime.min, int(row.id_documento or 0)),
+            reverse=True,
+        )
+        return ordered
+
+    @staticmethod
+    def _find_legacy_placeholder_document(numero_documento: str) -> DocumentoEntradaEstoque | None:
+        numero = (numero_documento or "").strip()
+        if not numero:
+            return None
+        rows = (
+            DocumentoEntradaEstoque.query
+            .filter(DocumentoEntradaEstoque.numero_documento == numero)
+            .order_by(DocumentoEntradaEstoque.criado_em.desc(), DocumentoEntradaEstoque.id_documento.desc())
+            .all()
+        )
+        for row in rows:
+            if FinanceService._is_legacy_conversion_placeholder(row):
+                return row
+        return None
+
+    @staticmethod
+    def _find_reusable_legacy_document_item(
+        document: DocumentoEntradaEstoque | None,
+        *,
+        codigo_item: str,
+        quantidade: float,
+        unidade_quantidade: str | None,
+        valor_unitario: float | None,
+        valor_total: float | None,
+    ) -> DocumentoEntradaEstoqueItem | None:
+        if document is None:
+            return None
+
+        def _same_number(left: object, right: object) -> bool:
+            if left in (None, "") or right in (None, ""):
+                return False
+            try:
+                return abs(float(left) - float(right)) <= 1e-6
+            except (TypeError, ValueError):
+                return False
+
+        unidade_norm = (unidade_quantidade or "").strip().lower() or None
+        for row in document.itens:
+            if row.codigo_item != codigo_item:
+                continue
+            if row.entrada_id is None:
+                continue
+            if row.stock_movement_id is not None or row.operation_log_id is not None:
+                continue
+            if not _same_number(row.quantidade, quantidade):
+                continue
+
+            row_unit = (row.unidade_quantidade or "").strip().lower() or None
+            if row_unit and unidade_norm and row_unit != unidade_norm:
+                continue
+            if valor_unitario is not None and row.valor_unitario not in (None, "") and not _same_number(row.valor_unitario, valor_unitario):
+                continue
+            if valor_total is not None and row.valor_total not in (None, "") and not _same_number(row.valor_total, valor_total):
+                continue
+            return row
+
+        return None
 
     @staticmethod
     def resolve_document_movimenta_estoque(*, data_emissao: date | None, data_recebimento: date | None) -> bool:
@@ -771,6 +887,7 @@ class FinanceService:
             .limit(limit)
             .all()
         )
+        rows = FinanceService._select_canonical_documents(rows)
         payload = [FinanceService._serialize_stock_document(row) for row in rows]
         return FinanceService._set_cached(cache_key, [dict(row) for row in payload], ttl_seconds=8.0)
 
@@ -784,7 +901,7 @@ class FinanceService:
         if cached is not None:
             return dict(cached)
 
-        row = (
+        rows = (
             DocumentoEntradaEstoque.query
             .options(
                 joinedload(DocumentoEntradaEstoque.fornecedor),
@@ -792,8 +909,10 @@ class FinanceService:
             )
             .filter(DocumentoEntradaEstoque.numero_documento == numero)
             .order_by(DocumentoEntradaEstoque.criado_em.desc(), DocumentoEntradaEstoque.id_documento.desc())
-            .first()
+            .all()
         )
+        row = FinanceService._select_canonical_documents(rows)[:1]
+        row = row[0] if row else None
         if not row:
             return None
         payload = FinanceService._serialize_stock_document(row)
@@ -813,6 +932,7 @@ class FinanceService:
             .limit(limit)
             .all()
         )
+        rows = FinanceService._select_canonical_documents(rows)[:limit]
         return [
             {
                 "id_documento": row.id_documento,
@@ -1011,6 +1131,13 @@ class FinanceService:
             document_query = document_query.filter(DocumentoEntradaEstoque.fornecedor_id == supplier.id)
 
         document = document_query.order_by(DocumentoEntradaEstoque.id_documento.desc()).first()
+        reused_legacy_placeholder = False
+        if document is None and tipo == "nf":
+            legacy_placeholder = FinanceService._find_legacy_placeholder_document(numero)
+            if legacy_placeholder is not None:
+                document = legacy_placeholder
+                reused_legacy_placeholder = True
+
         if not document:
             document = DocumentoEntradaEstoque(
                 fornecedor_id=supplier.id if supplier else None,
@@ -1030,6 +1157,10 @@ class FinanceService:
             db.session.add(document)
             db.session.flush()
         else:
+            if reused_legacy_placeholder:
+                document.tipo_documento = tipo
+                document.status_integracao = status_integracao
+                document.mensagem_integracao = mensagem_integracao
             document.movimenta_estoque = movimenta_estoque_documento
             if supplier and not document.fornecedor_id:
                 document.fornecedor_id = supplier.id
@@ -1063,26 +1194,59 @@ class FinanceService:
         unit = normalized_line["unit_price_input"]
         total = normalized_line["total_value"]
         linked_entry_id = None if document_only else entrada_id
-        item_row = DocumentoEntradaEstoqueItem(
-            documento_id=document.id_documento,
-            entrada_id=linked_entry_id,
-            codigo_item=codigo,
-            quantidade=qty,
-            unidade_quantidade=normalized_line["quantity_unit"],
-            quantidade_base=normalized_line["quantity_base"],
-            valor_unitario=unit,
-            valor_unitario_base=normalized_line["unit_price_base"],
-            unidade_preco=normalized_line["price_unit"],
-            fator_preco_base=normalized_line["factor_to_base"],
-            valor_total=total,
-            lote=(lote or "").strip() or None,
-            data_validade=data_validade,
-            observacao=(observacao or "").strip() or None,
-            status_processamento="processado" if linked_entry_id is not None else "pendente",
-            processado_em=datetime.utcnow() if linked_entry_id is not None else None,
-        )
-        db.session.add(item_row)
-        db.session.flush()
+        item_row = None
+        if reused_legacy_placeholder:
+            item_row = FinanceService._find_reusable_legacy_document_item(
+                document,
+                codigo_item=codigo,
+                quantidade=qty,
+                unidade_quantidade=normalized_line["quantity_unit"],
+                valor_unitario=unit,
+                valor_total=total,
+            )
+
+        if item_row is None:
+            item_row = DocumentoEntradaEstoqueItem(
+                documento_id=document.id_documento,
+                entrada_id=linked_entry_id,
+                codigo_item=codigo,
+                quantidade=qty,
+                unidade_quantidade=normalized_line["quantity_unit"],
+                quantidade_base=normalized_line["quantity_base"],
+                valor_unitario=unit,
+                valor_unitario_base=normalized_line["unit_price_base"],
+                unidade_preco=normalized_line["price_unit"],
+                fator_preco_base=normalized_line["factor_to_base"],
+                valor_total=total,
+                lote=(lote or "").strip() or None,
+                data_validade=data_validade,
+                observacao=(observacao or "").strip() or None,
+                status_processamento="processado" if linked_entry_id is not None else "pendente",
+                processado_em=datetime.utcnow() if linked_entry_id is not None else None,
+            )
+            db.session.add(item_row)
+            db.session.flush()
+        else:
+            item_row.codigo_item = codigo
+            item_row.quantidade = qty
+            item_row.unidade_quantidade = normalized_line["quantity_unit"]
+            item_row.quantidade_base = normalized_line["quantity_base"]
+            item_row.valor_unitario = unit
+            item_row.valor_unitario_base = normalized_line["unit_price_base"]
+            item_row.unidade_preco = normalized_line["price_unit"]
+            item_row.fator_preco_base = normalized_line["factor_to_base"]
+            item_row.valor_total = total
+            item_row.lote = (lote or "").strip() or None
+            item_row.data_validade = data_validade
+            item_row.observacao = (observacao or "").strip() or None
+            if linked_entry_id is not None and item_row.entrada_id is None:
+                item_row.entrada_id = linked_entry_id
+            if item_row.entrada_id is not None:
+                item_row.status_processamento = "processado"
+                item_row.processado_em = item_row.processado_em or datetime.utcnow()
+            else:
+                item_row.status_processamento = "pendente"
+                item_row.processado_em = None
 
         if item_model is not None:
             origem_pre_cadastro = (getattr(item_model, "pre_cadastro_origem", "") or "").strip().lower()

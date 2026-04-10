@@ -59,6 +59,7 @@ from .price_normalization import infer_price_unit_for_item, normalize_item_price
 from .unit_conversion_engine import UnitConversionError, unit_conversion_engine
 from .balance_provider import balance_provider
 from .category_catalog import category_catalog_service
+from .material_return_metadata import format_material_return_actor_label
 from ..utils.lote_generator import generate_lote
 from ..utils.barcode_generator import generate_barcode, get_barcode_path
 from ..utils.time_service import TimeService
@@ -2005,69 +2006,69 @@ class InventoryService:
             return converted
         return quantity_value if default_unit == target_unit else 0.0
 
-    def get_material_return_pending(self, *, codigo: str, matricula: str, unit_code: str | None = None) -> float:
-        """Retorna quanto ainda pode ser devolvido (estornado) para um material.
-
-        Regra:
-        - O cálculo respeita a ordem cronológica dos movimentos para evitar que
-          devoluções antigas ou entradas legadas anteriores reduzam retiradas feitas depois.
-        - total_devolucoes considera:
-          1) eventos tipo 'devolucao_material' (novo padrão)
-          2) entradas legadas sem NF (rota antiga do mobile), para não permitir dupla devolução.
-        """
-        codigo_norm = (codigo or "").strip()
-        matricula_norm = (matricula or "").strip()
-        if not codigo_norm or not matricula_norm:
-            return 0.0
-
-        item = Item.query.get(codigo_norm)
-        if item is None:
-            return 0.0
-
-        default_unit = self._get_default_material_return_unit_code(item)
-        target_unit = self._normalize_material_return_unit_code(unit_code) or default_unit
-
+    def _build_material_return_timeline(
+        self,
+        *,
+        codigo: str,
+        matricula: str,
+        end_datetime: datetime | None = None,
+    ) -> list[tuple[datetime, int, str, Any, int]]:
         timeline: list[tuple[datetime, int, str, Any, int]] = []
 
-        saidas = (
+        saidas_query = (
             Saida.query
-            .filter(Saida.codigo_item == codigo_norm, Saida.matricula == matricula_norm)
+            .filter(Saida.codigo_item == codigo, Saida.matricula == matricula)
             .order_by(Saida.data_saida.asc(), Saida.id_saida.asc())
-            .all()
         )
-        for saida in saidas:
+        if end_datetime is not None:
+            saidas_query = saidas_query.filter(Saida.data_saida <= end_datetime)
+        for saida in saidas_query.all():
             timeline.append((saida.data_saida or datetime.min, 0, "saida", saida, int(saida.id_saida or 0)))
 
-        eventos = (
+        eventos_query = (
             InventarioEvento.query
             .filter(
-                InventarioEvento.codigo_item == codigo_norm,
-                InventarioEvento.matricula == matricula_norm,
+                InventarioEvento.codigo_item == codigo,
+                InventarioEvento.matricula == matricula,
                 InventarioEvento.tipo == "devolucao_material",
             )
             .order_by(InventarioEvento.data_evento.asc(), InventarioEvento.id_evento.asc())
-            .all()
         )
-        for evento in eventos:
+        if end_datetime is not None:
+            eventos_query = eventos_query.filter(InventarioEvento.data_evento <= end_datetime)
+        for evento in eventos_query.all():
             timeline.append((evento.data_evento or datetime.min, 1, "devolucao_material", evento, int(evento.id_evento or 0)))
 
-        entradas_legado = (
+        entradas_query = (
             Entrada.query
             .filter(
-                Entrada.codigo_item == codigo_norm,
-                Entrada.matricula == matricula_norm,
+                Entrada.codigo_item == codigo,
+                Entrada.matricula == matricula,
                 Entrada.nota_fiscal.is_(None),
             )
             .order_by(Entrada.data_entrada.asc(), Entrada.id_entrada.asc())
-            .all()
         )
-        for entrada in entradas_legado:
+        if end_datetime is not None:
+            entradas_query = entradas_query.filter(Entrada.data_entrada <= end_datetime)
+        for entrada in entradas_query.all():
             timeline.append((entrada.data_entrada or datetime.min, 2, "entrada_legado", entrada, int(entrada.id_entrada or 0)))
 
         timeline.sort(key=lambda row: (row[0], row[1], row[4]))
+        return timeline
 
-        pendente = 0.0
-        for _, _, kind, row, _ in timeline:
+    def _calculate_material_return_pending_from_timeline(
+        self,
+        *,
+        item: Item,
+        timeline: list[tuple[datetime, int, str, Any, int]],
+        target_unit: str,
+        default_unit: str,
+        window_start: datetime | None = None,
+    ) -> float:
+        pending_before_window = 0.0
+        pending_in_window = 0.0
+
+        for event_datetime, _order_index, kind, row, _reference_id in timeline:
             quantidade = 0.0
             if kind == "saida":
                 quantidade = self._resolve_saida_pending_quantity(
@@ -2094,19 +2095,284 @@ class InventoryService:
 
             if quantidade <= 0:
                 continue
-            if kind == "saida":
-                pendente += quantidade
-            else:
-                pendente = max(pendente - quantidade, 0.0)
 
-        return float(round(pendente, 3))
+            within_window = window_start is None or event_datetime >= window_start
+            if kind == "saida":
+                if within_window:
+                    pending_in_window += quantidade
+                else:
+                    pending_before_window += quantidade
+                continue
+
+            remaining = quantidade
+            if pending_before_window > 0:
+                abatido_historico = min(pending_before_window, remaining)
+                pending_before_window -= abatido_historico
+                remaining -= abatido_historico
+
+            if remaining > 0:
+                pending_in_window = max(pending_in_window - remaining, 0.0)
+
+        total_pending = pending_in_window if window_start is not None else (pending_before_window + pending_in_window)
+        return float(round(total_pending, 3))
+
+    def get_material_return_pending(self, *, codigo: str, matricula: str, unit_code: str | None = None) -> float:
+        """Retorna quanto ainda pode ser devolvido (estornado) para um material.
+
+        Regra:
+        - O cálculo respeita a ordem cronológica dos movimentos para evitar que
+          devoluções antigas ou entradas legadas anteriores reduzam retiradas feitas depois.
+        - total_devolucoes considera:
+          1) eventos tipo 'devolucao_material' (novo padrão)
+          2) entradas legadas sem NF (rota antiga do mobile), para não permitir dupla devolução.
+        """
+        codigo_norm = (codigo or "").strip()
+        matricula_norm = (matricula or "").strip()
+        if not codigo_norm or not matricula_norm:
+            return 0.0
+
+        item = Item.query.get(codigo_norm)
+        if item is None:
+            return 0.0
+
+        default_unit = self._get_default_material_return_unit_code(item)
+        target_unit = self._normalize_material_return_unit_code(unit_code) or default_unit
+
+        timeline = self._build_material_return_timeline(
+            codigo=codigo_norm,
+            matricula=matricula_norm,
+        )
+        return self._calculate_material_return_pending_from_timeline(
+            item=item,
+            timeline=timeline,
+            target_unit=target_unit,
+            default_unit=default_unit,
+            window_start=None,
+        )
+
+    def get_material_return_pending_in_window(
+        self,
+        *,
+        codigo: str,
+        matricula: str,
+        start_datetime: datetime,
+        end_datetime: datetime,
+        unit_code: str | None = None,
+    ) -> float:
+        codigo_norm = (codigo or "").strip()
+        matricula_norm = (matricula or "").strip()
+        if not codigo_norm or not matricula_norm:
+            return 0.0
+        if start_datetime is None or end_datetime is None or start_datetime > end_datetime:
+            return 0.0
+
+        item = Item.query.get(codigo_norm)
+        if item is None:
+            return 0.0
+
+        default_unit = self._get_default_material_return_unit_code(item)
+        target_unit = self._normalize_material_return_unit_code(unit_code) or default_unit
+        timeline = self._build_material_return_timeline(
+            codigo=codigo_norm,
+            matricula=matricula_norm,
+            end_datetime=end_datetime,
+        )
+        return self._calculate_material_return_pending_from_timeline(
+            item=item,
+            timeline=timeline,
+            target_unit=target_unit,
+            default_unit=default_unit,
+            window_start=start_datetime,
+        )
+
+    def get_latest_material_return_holder(
+        self,
+        *,
+        codigo: str,
+        unit_code: str | None = None,
+        start_datetime: datetime | None = None,
+        end_datetime: datetime | None = None,
+    ) -> dict[str, Any] | None:
+        codigo_norm = (codigo or "").strip()
+        if not codigo_norm:
+            return None
+        if start_datetime is not None and end_datetime is not None and start_datetime > end_datetime:
+            return None
+
+        item = Item.query.get(codigo_norm)
+        if item is None:
+            return None
+
+        default_unit = self._get_default_material_return_unit_code(item)
+        target_unit = self._normalize_material_return_unit_code(unit_code) or default_unit
+        query = Saida.query.filter(Saida.codigo_item == codigo_norm)
+        if start_datetime is not None:
+            query = query.filter(Saida.data_saida >= start_datetime)
+        if end_datetime is not None:
+            query = query.filter(Saida.data_saida <= end_datetime)
+
+        seen_users: set[str] = set()
+        for saida in query.order_by(Saida.data_saida.desc(), Saida.id_saida.desc()).all():
+            retirada_matricula = str(saida.matricula or "").strip()
+            if not retirada_matricula or retirada_matricula in seen_users:
+                continue
+            seen_users.add(retirada_matricula)
+
+            if start_datetime is not None and end_datetime is not None:
+                pendente = self.get_material_return_pending_in_window(
+                    codigo=codigo_norm,
+                    matricula=retirada_matricula,
+                    start_datetime=start_datetime,
+                    end_datetime=end_datetime,
+                    unit_code=target_unit,
+                )
+            else:
+                pendente = self.get_material_return_pending(
+                    codigo=codigo_norm,
+                    matricula=retirada_matricula,
+                    unit_code=target_unit,
+                )
+            if pendente <= 1e-9:
+                continue
+
+            usuario = saida.usuario or Usuario.query.get(retirada_matricula)
+            nome_usuario = getattr(usuario, "nome", None) or None
+            return {
+                "matricula": retirada_matricula,
+                "nome": nome_usuario,
+                "label": format_material_return_actor_label(nome=nome_usuario, matricula=retirada_matricula),
+                "pendente": float(round(pendente, 3)),
+                "ultima_saida_em": saida.data_saida,
+                "ultima_saida_label": TimeService.format_local(saida.data_saida),
+                "local_servico": (saida.local_servico or "").strip() or None,
+                "atividade_operacional": getattr(saida, "atividade_operacional", None),
+                "saida_id": getattr(saida, "id_saida", None),
+            }
+
+        return None
+
+    def list_express_material_return_candidates(
+        self,
+        *,
+        matricula: str,
+        start_datetime: datetime,
+        end_datetime: datetime,
+        limit: int = 80,
+    ) -> list[dict[str, Any]]:
+        matricula_norm = (matricula or "").strip()
+        if not matricula_norm or start_datetime is None or end_datetime is None or start_datetime > end_datetime:
+            return []
+
+        registros = (
+            Saida.query
+            .filter(
+                Saida.matricula == matricula_norm,
+                Saida.data_saida >= start_datetime,
+                Saida.data_saida <= end_datetime,
+            )
+            .order_by(Saida.data_saida.desc(), Saida.id_saida.desc())
+            .all()
+        )
+
+        agrupados: dict[str, dict[str, Any]] = {}
+        for saida in registros:
+            codigo_item = (saida.codigo_item or "").strip()
+            if not codigo_item:
+                continue
+
+            item_model = saida.item or Item.query.get(codigo_item)
+            if item_model is None:
+                continue
+
+            categoria_norm = str(item_model.categoria or "").strip().lower()
+            if "ferrament" in categoria_norm:
+                continue
+
+            default_unit = self._get_default_material_return_unit_code(item_model)
+            quantidade_retirada = self._resolve_saida_pending_quantity(
+                item=item_model,
+                saida=saida,
+                target_unit=default_unit,
+                default_unit=default_unit,
+            )
+            if quantidade_retirada <= 0:
+                continue
+
+            bucket = agrupados.get(codigo_item)
+            if bucket is None:
+                bucket = {
+                    "codigo": codigo_item,
+                    "descricao": item_model.descricao or codigo_item,
+                    "categoria": item_model.categoria,
+                    "marca": item_model.marca,
+                    "local_servico": saida.local_servico,
+                    "atividade_operacional": getattr(saida, "atividade_operacional", None),
+                    "unidade_codigo": default_unit,
+                    "unidade_meta": self._build_material_return_unit_meta(default_unit),
+                    "unidades_opcoes": self.get_material_return_unit_options(item=item_model),
+                    "retirado_hoje": 0.0,
+                    "ultima_saida_em": saida.data_saida,
+                }
+                agrupados[codigo_item] = bucket
+
+            bucket["retirado_hoje"] = float(bucket.get("retirado_hoje") or 0.0) + quantidade_retirada
+            ultima_saida_em = bucket.get("ultima_saida_em")
+            if not ultima_saida_em or (saida.data_saida and saida.data_saida > ultima_saida_em):
+                bucket["ultima_saida_em"] = saida.data_saida
+                bucket["local_servico"] = saida.local_servico
+                bucket["atividade_operacional"] = getattr(saida, "atividade_operacional", None)
+
+        candidatos: list[dict[str, Any]] = []
+        for codigo_item, bucket in agrupados.items():
+            unidade_codigo = str(bucket.get("unidade_codigo") or "unidade")
+            pendente_hoje = self.get_material_return_pending_in_window(
+                codigo=codigo_item,
+                matricula=matricula_norm,
+                start_datetime=start_datetime,
+                end_datetime=end_datetime,
+                unit_code=unidade_codigo,
+            )
+            if pendente_hoje <= 1e-9:
+                continue
+
+            unidade_meta = dict(bucket.get("unidade_meta") or self._build_material_return_unit_meta(unidade_codigo))
+            retirado_hoje = float(bucket.get("retirado_hoje") or 0.0)
+            ultima_saida_em = bucket.get("ultima_saida_em")
+            candidatos.append(
+                {
+                    "codigo": codigo_item,
+                    "descricao": bucket.get("descricao"),
+                    "categoria": bucket.get("categoria"),
+                    "marca": bucket.get("marca"),
+                    "local_servico": bucket.get("local_servico"),
+                    "atividade_operacional": bucket.get("atividade_operacional"),
+                    "retirado_hoje": float(round(retirado_hoje, 3)),
+                    "retirado_hoje_display": f"{round(retirado_hoje, 3):g} {unidade_meta.get('unit_display')}",
+                    "pendente_hoje": float(round(pendente_hoje, 3)),
+                    "pendente_hoje_display": f"{round(pendente_hoje, 3):g} {unidade_meta.get('unit_display')}",
+                    "devolucao_unidade_codigo": unidade_codigo,
+                    "devolucao_unidade_exibicao": unidade_meta.get("unit_display"),
+                    "devolucao_unidade_label": unidade_meta.get("unit_label"),
+                    "devolucao_unidades_opcoes": bucket.get("unidades_opcoes") or [unidade_meta],
+                    "ultima_saida_em": TimeService.isoformat_utc(ultima_saida_em),
+                    "ultima_saida_label": TimeService.format_local(ultima_saida_em),
+                }
+            )
+
+        candidatos.sort(
+            key=lambda row: (row.get("ultima_saida_em") or "", row.get("descricao") or "", row.get("codigo") or ""),
+            reverse=True,
+        )
+        return candidatos[:limit]
 
     def registrar_devolucao_material(
         self,
         *,
         codigo: str,
         quantidade: float,
-        matricula: str,
+        matricula: str | None = None,
+        retirada_matricula: str | None = None,
+        devolvido_por_matricula: str | None = None,
         from_unit: str | None = None,
         observacao: str | None = None,
         commit: bool = True,
@@ -2116,13 +2382,14 @@ class InventoryService:
         Importante:
         - Não cria Entrada (evita devolução virar 'adição' duplicada).
         - Bloqueia devolução acima do pendente por funcionário/item.
+        - Permite separar o colaborador que retirou do colaborador que está devolvendo.
         """
         codigo_norm = (codigo or "").strip()
-        matricula_norm = (matricula or "").strip()
+        matricula_legado = (matricula or "").strip()
+        retirada_matricula_norm = (retirada_matricula or matricula_legado).strip()
+        devolvido_por_matricula_norm = (devolvido_por_matricula or matricula_legado).strip()
         if not codigo_norm:
             raise ValueError("Código do item é obrigatório")
-        if not matricula_norm:
-            raise ValueError("Matrícula é obrigatória")
 
         quantidade_f = self._as_positive_float(quantidade)
         if quantidade_f <= 0:
@@ -2143,10 +2410,22 @@ class InventoryService:
         if selected_unit not in valid_units:
             raise ValueError("Unidade de devolução inválida para este item.")
 
+        if not retirada_matricula_norm:
+            retirada_info = self.get_latest_material_return_holder(
+                codigo=codigo_norm,
+                unit_code=selected_unit,
+            )
+            if not retirada_info:
+                raise ValueError("Devolução não permitida: não há retirada pendente para este material.")
+            retirada_matricula_norm = str(retirada_info.get("matricula") or "").strip()
+
+        if not devolvido_por_matricula_norm:
+            raise ValueError("Informe quem está devolvendo o material.")
+
         unit_meta = self._build_material_return_unit_meta(selected_unit)
         pendente = self.get_material_return_pending(
             codigo=codigo_norm,
-            matricula=matricula_norm,
+            matricula=retirada_matricula_norm,
             unit_code=selected_unit,
         )
         # Tolerância mínima para float.
@@ -2166,15 +2445,36 @@ class InventoryService:
         if quantidade_legacy <= 0:
             raise ValueError("Não foi possível converter a unidade informada para registrar a devolução.")
 
+        retirante_usuario = Usuario.query.get(retirada_matricula_norm)
+        devolvedor_usuario = Usuario.query.get(devolvido_por_matricula_norm)
+        retirante_label = format_material_return_actor_label(
+            nome=getattr(retirante_usuario, "nome", None),
+            matricula=retirada_matricula_norm,
+        )
+        devolvedor_label = format_material_return_actor_label(
+            nome=getattr(devolvedor_usuario, "nome", None),
+            matricula=devolvido_por_matricula_norm,
+        )
+
         descricao_base = f"Devolução de Material: {item.descricao or 'Item'}"
         obs = (observacao or "").strip()
         detalhes_devolucao = f"Devolvido: {quantidade_f:g} {unit_meta['unit_display']} | retorno_unit={selected_unit}"
-        descricao = " | ".join(part for part in (descricao_base, detalhes_devolucao, obs) if part)
+        descricao = " | ".join(
+            part
+            for part in (
+                descricao_base,
+                detalhes_devolucao,
+                f"Retirado por: {retirante_label}" if retirante_label else None,
+                f"Devolvido por: {devolvedor_label}" if devolvedor_label else None,
+                obs,
+            )
+            if part
+        )
 
         payload = MovimentoPayload(
             codigo=item.codigo_item,
             quantidade=float(quantidade_f),
-            matricula=matricula_norm,
+            matricula=devolvido_por_matricula_norm,
             observacao=obs or None,
             is_devolucao=True,
         )
@@ -2187,12 +2487,14 @@ class InventoryService:
                 "reference_type": "inventario_evento",
                 "legacy_event_type": "devolucao_material",
                 "return_unit": selected_unit,
+                "withdrawer_matricula": retirada_matricula_norm,
+                "returner_matricula": devolvido_por_matricula_norm,
             },
         )
 
         evento = InventarioEvento(
             codigo_item=item.codigo_item,
-            matricula=matricula_norm,
+            matricula=retirada_matricula_norm,
             tipo="devolucao_material",
             quantidade=float(quantidade_legacy),
             descricao=descricao,
@@ -2937,6 +3239,40 @@ class InventoryService:
             quantity_for_value = _resolve_stock_value_quantity(item, saldo_total=saldo_total)
             return quantity_for_value * preco_unitario_base
 
+        def _is_seeded_nf_pre_registration(item: Item, *, saldo_total: float) -> bool:
+            if not bool(getattr(item, "pre_cadastro_pendente", False)):
+                return False
+
+            origem_pre_cadastro = (getattr(item, "pre_cadastro_origem", "") or "").strip().lower()
+            if origem_pre_cadastro != "nf":
+                return False
+
+            if abs(float(saldo_total or 0.0)) > 1e-6:
+                return False
+
+            legacy_entries = int(
+                db.session.query(func.count(Entrada.id_entrada))
+                .filter(Entrada.codigo_item == item.codigo_item)
+                .scalar()
+                or 0
+            )
+            if legacy_entries > 0:
+                return False
+
+            processed_document_rows = int(
+                db.session.query(func.count(DocumentoEntradaEstoqueItem.id_documento_item))
+                .filter(
+                    DocumentoEntradaEstoqueItem.codigo_item == item.codigo_item,
+                    DocumentoEntradaEstoqueItem.status_processamento == "processado",
+                )
+                .scalar()
+                or 0
+            )
+            if processed_document_rows > 0:
+                return False
+
+            return True
+
         for item in itens:
             if self._should_use_packaging_display(item):
                 if self._sync_packaging_read_model_for_item(item, commit=False):
@@ -2955,6 +3291,10 @@ class InventoryService:
                 saldo = float(bulk_balances.get(item.codigo_item, 0.0))
                 saldo_display = self._build_simple_balance_display(item, saldo)
                 explicacao_saldo = None
+
+            if _is_seeded_nf_pre_registration(item, saldo_total=saldo):
+                continue
+
             minimo = _calculate_min_stock(saldo)
             if item.estoque_minimo != minimo:
                 item.estoque_minimo = minimo

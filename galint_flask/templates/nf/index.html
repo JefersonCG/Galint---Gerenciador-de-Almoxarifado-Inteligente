@@ -993,6 +993,89 @@
         transform: translateY(-1px);
     }
 
+    .docf-live-calc {
+        display: grid;
+        gap: 0.42rem;
+        padding: 0.82rem 0.95rem;
+        border-radius: 16px;
+        background: linear-gradient(180deg, rgba(8, 16, 28, 0.92) 0%, rgba(11, 22, 35, 0.94) 100%);
+        border: 1px solid rgba(96, 165, 250, 0.18);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+    }
+
+    .docf-live-calc-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.65rem;
+        flex-wrap: wrap;
+    }
+
+    .docf-live-calc-label {
+        font-size: 0.72rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--docf-text-soft);
+    }
+
+    .docf-live-calc-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.28rem 0.68rem;
+        border-radius: 999px;
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        color: #f8fbff;
+        background: rgba(148, 163, 184, 0.12);
+    }
+
+    .docf-live-calc-badge.is-muted {
+        background: rgba(148, 163, 184, 0.12);
+        border-color: rgba(148, 163, 184, 0.18);
+        color: #dbe7f6;
+    }
+
+    .docf-live-calc-badge.is-live {
+        background: rgba(59, 130, 246, 0.18);
+        border-color: rgba(96, 165, 250, 0.28);
+        color: #dbeafe;
+    }
+
+    .docf-live-calc-badge.is-ok {
+        background: rgba(34, 197, 94, 0.18);
+        border-color: rgba(74, 222, 128, 0.28);
+        color: #bbf7d0;
+    }
+
+    .docf-live-calc-badge.is-warn {
+        background: rgba(245, 158, 11, 0.18);
+        border-color: rgba(251, 191, 36, 0.28);
+        color: #fde68a;
+    }
+
+    .docf-live-calc-formula {
+        color: var(--docf-text-primary);
+        font-size: 0.98rem;
+        font-weight: 800;
+        letter-spacing: -0.01em;
+        line-height: 1.35;
+    }
+
+    .docf-live-calc-meta {
+        color: var(--docf-text-muted);
+        font-size: 0.82rem;
+        line-height: 1.45;
+    }
+
+    .docf-live-calc-main {
+        min-height: 100%;
+    }
+
     .docf-detail-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -1485,14 +1568,45 @@
                             <div class="col-md-4">
                                 <div class="docf-field-card">
                                     <div>
-                                        <label class="form-label" for="nova_unidade">Unidade base</label>
-                                        <div class="docf-field-hint">Selecione a unidade canônica do item. Embalagem é configurada depois na edição do cadastro.</div>
+                                        <label class="form-label" for="nova_unidade">Unidade interna / base</label>
+                                        <div class="docf-field-hint">Essa é a unidade canônica do estoque e da saída fracionada. Ex.: Metro significa que o item sai em metros, não que a NF foi comprada em metros.</div>
                                     </div>
                                     <select class="form-select form-select-sm" id="nova_unidade" name="nova_unidade">
                                         {% for option in ('Unidade', 'Metro', 'Quilo', 'Litro') %}
                                         <option value="{{ option }}" {% if option == 'Unidade' %}selected{% endif %}>{{ option }}</option>
                                         {% endfor %}
                                     </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row g-2 mt-1">
+                            <div class="col-md-4">
+                                <div class="docf-field-card">
+                                    <div>
+                                        <label class="form-label" for="nova_unidade_documental">Unidade da compra / NF</label>
+                                        <div class="docf-field-hint">Preencha quando a quantidade do documento vier em rolo, lata, balde, bombona, caixa, pacote ou fardo. Se deixar em branco, a quantidade será lida na unidade interna.</div>
+                                    </div>
+                                    <select class="form-select form-select-sm" id="nova_unidade_documental" name="nova_unidade_documental">
+                                        <option value="">Sem embalagem documental</option>
+                                        <option value="rolo">Rolo</option>
+                                        <option value="lata">Lata</option>
+                                        <option value="balde">Balde</option>
+                                        <option value="bombona">Bombona</option>
+                                        <option value="caixa">Caixa</option>
+                                        <option value="pacote">Pacote</option>
+                                        <option value="fardo">Fardo</option>
+                                        <option value="saco">Saco</option>
+                                        <option value="litro">Litro</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="docf-field-card">
+                                    <div>
+                                        <label class="form-label" for="novo_conteudo_embalagem">Conteúdo por embalagem</label>
+                                        <div class="docf-field-hint">Informe o conteúdo de cada embalagem usando a unidade interna. Ex.: unidade interna Metro + unidade da compra Rolo + conteúdo 50 = quantidade 4 significa 4 rolos de 50m.</div>
+                                    </div>
+                                    <input class="form-control form-control-sm" id="novo_conteudo_embalagem" name="novo_conteudo_embalagem" type="number" min="0.01" step="0.01" placeholder="Ex.: 50, 3.6, 20">
                                 </div>
                             </div>
                         </div>
@@ -1508,9 +1622,9 @@
                         <div class="row g-2 mb-1">
                             <div class="col-md-2">
                                 <label class="form-label" for="quantidade">Quantidade</label>
-                                <input class="form-control form-control-sm" id="quantidade" name="quantidade" type="number" min="1" value="1"
+                                <input class="form-control form-control-sm" id="quantidade" name="quantidade" type="number" min="0.01" step="0.01" value="1"
                                     required>
-                                <div class="form-text">Para item com embalagem cadastrada, a quantidade desta NF é lida como quantidade de embalagens da compra.</div>
+                                <div class="form-text">Essa é a quantidade na NF. Se houver unidade da compra / NF informada acima, o sistema lê esse número como quantidade de embalagens; sem isso, lê na unidade interna.</div>
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label" for="nota_fiscal" id="nota_fiscal_label">Número da NF</label>
@@ -1552,6 +1666,16 @@
                             <div class="col-md-6">
                                 <label class="form-label" for="preco_unitario">Valor unitário (R$)</label>
                                 <input class="form-control form-control-sm" id="preco_unitario" name="preco_unitario" type="number" min="0" step="0.01">
+                            </div>
+                            <div class="col-12">
+                                <div class="docf-live-calc docf-live-calc-main" id="nf-main-live-calc">
+                                    <div class="docf-live-calc-head">
+                                        <span class="docf-live-calc-label">Conferência da multiplicação</span>
+                                        <span class="docf-live-calc-badge is-muted" data-calc-badge>Aguardando</span>
+                                    </div>
+                                    <div class="docf-live-calc-formula" data-calc-formula>Preencha quantidade e valor unitário para ver a conta em tempo real.</div>
+                                    <div class="docf-live-calc-meta" data-calc-meta>O total calculado aparece aqui para você bater rapidamente com a nota antes de salvar.</div>
+                                </div>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label" for="finance_tipo_documento">Tipo de documento</label>
@@ -1724,7 +1848,7 @@
                     <div class="docf-kicker">Adicionar item</div>
                     <form method="post" action="{{ url_for('nf.adicionar_item_documento', documento_id=nota_detalhes.id_documento) }}" class="docf-form d-grid gap-4" data-add-item-form>
                         <input type="hidden" name="active_tab" value="{{ active_tab }}">
-                        <div class="row g-3 align-items-end">
+                        <div class="row g-3 align-items-end docf-item-line">
                             <div class="col-lg-3">
                                 <label class="form-label" for="nota-detalhe-add-busca-{{ nota_detalhes.id_documento }}">Item</label>
                                 <div class="position-relative">
@@ -1748,6 +1872,16 @@
                             <div class="col-lg-3">
                                 <label class="form-label" for="nota-detalhe-add-obs-{{ nota_detalhes.id_documento }}">Observação</label>
                                 <input class="form-control" id="nota-detalhe-add-obs-{{ nota_detalhes.id_documento }}" name="observacao" placeholder="Opcional">
+                            </div>
+                            <div class="col-12">
+                                <div class="docf-live-calc" data-calc-preview>
+                                    <div class="docf-live-calc-head">
+                                        <span class="docf-live-calc-label">Conferência do item</span>
+                                        <span class="docf-live-calc-badge is-muted" data-calc-badge>Aguardando</span>
+                                    </div>
+                                    <div class="docf-live-calc-formula" data-calc-formula>Digite quantidade e valor unitário para conferir a multiplicação.</div>
+                                    <div class="docf-live-calc-meta" data-calc-meta>O total do item será preenchido automaticamente enquanto você digita.</div>
+                                </div>
                             </div>
                             <div class="col-12 d-flex justify-content-end">
                                 <button class="docf-btn-secondary" type="submit" data-help-label="Adicionar item" data-help-text="Inclui um item adicional nesta NF. Se ele já existir, a quantidade será somada.">Adicionar item</button>
@@ -1818,7 +1952,7 @@
                                     <span class="d-block docf-muted">Ao adicionar ou ajustar itens manualmente nesta tela com movimentação de estoque ativa, a linha vai para PRÉ CADASTRADOS antes da incorporação, inclusive para códigos já existentes. Linhas já processadas seguem como histórico operacional, e documentos sem movimentação ficam apenas no financeiro.</span>
                                 </div>
                                 {% for item in nota_detalhes.itens %}
-                                <div class="row g-3 align-items-end mb-3">
+                                <div class="row g-3 align-items-end mb-3 docf-item-line">
                                     <div class="col-lg-3">
                                         <label class="form-label">Item</label>
                                         <input class="form-control" value="{{ item.codigo }} — {{ item.descricao }}" readonly>
@@ -1851,6 +1985,16 @@
                                     <div class="col-lg-3">
                                         <label class="form-label" for="nota-detalhe-obs-{{ item.id }}">Observação do item</label>
                                         <input class="form-control" id="nota-detalhe-obs-{{ item.id }}" name="item_observacao_{{ item.id }}" value="{{ item.observacao|default('', true) }}">
+                                    </div>
+                                    <div class="col-12">
+                                        <div class="docf-live-calc" data-calc-preview>
+                                            <div class="docf-live-calc-head">
+                                                <span class="docf-live-calc-label">Conferência desta linha</span>
+                                                <span class="docf-live-calc-badge is-muted" data-calc-badge>Aguardando</span>
+                                            </div>
+                                            <div class="docf-live-calc-formula" data-calc-formula>Preencha a quantidade e o valor unitário para validar a conta desta linha.</div>
+                                            <div class="docf-live-calc-meta" data-calc-meta>Se o total digitado divergir da multiplicação, o sistema destaca aqui para revisão.</div>
+                                        </div>
                                     </div>
                                 </div>
                                 {% endfor %}
@@ -2127,8 +2271,10 @@
         nova_descricao: 'Descrição do item novo. Use um nome claro para facilitar futuras buscas e auditorias.',
         nova_categoria: 'Categoria inicial do item novo. Ajuda na organização e nos filtros do estoque.',
         nova_marca: 'Marca ou fabricante do item novo. Esse dado já será exibido nas listas e buscas do sistema.',
-        nova_unidade: 'Unidade base do item novo, como unidade, litro, quilo ou metro.',
-        quantidade: 'Quantidade comprada do item principal no lançamento documental.',
+        nova_unidade: 'Unidade interna do estoque para o item novo. Ela define a unidade canônica e a saída fracionada, como metro, litro, quilo ou unidade.',
+        nova_unidade_documental: 'Unidade em que a compra veio na NF. Use quando a quantidade do documento estiver em rolos, latas, baldes, bombonas, caixas, pacotes, fardos ou sacos.',
+        novo_conteudo_embalagem: 'Conteúdo de cada embalagem usando a unidade interna. Ex.: rolo de 50 metros, lata de 3,6 litros, saco de 20 kg.',
+        quantidade: 'Quantidade comprada no documento. Sem unidade documental, será lida na unidade interna; com unidade documental, será lida em embalagens.',
         nota_fiscal: 'Número da NF, cupom ou controle interno. Se já existir no sistema, alguns dados serão sugeridos automaticamente.',
         finance_supplier_search: 'Nome da loja ou fornecedor. Pode ser digitado manualmente ou preenchido por autocomplete.',
         supplier_cnpj: 'CNPJ do emitente. O sistema tenta localizar ou completar o fornecedor automaticamente a partir dele.',
@@ -2470,6 +2616,128 @@
         return value.toFixed(2);
     };
 
+    const currencyFormatter = new Intl.NumberFormat('pt-BR', {
+        style: 'currency',
+        currency: 'BRL'
+    });
+
+    const quantityFormatter = new Intl.NumberFormat('pt-BR', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 3
+    });
+
+    const formatCurrencyPreview = (value) => {
+        if (!Number.isFinite(value)) return 'R$ --';
+        return currencyFormatter.format(value);
+    };
+
+    const formatQuantityPreview = (value) => {
+        if (!Number.isFinite(value)) return '--';
+        return quantityFormatter.format(value);
+    };
+
+    const setCalculationPreviewState = (previewEl, state) => {
+        if (!previewEl || !state) return;
+        const badge = previewEl.querySelector('[data-calc-badge]');
+        const formula = previewEl.querySelector('[data-calc-formula]');
+        const meta = previewEl.querySelector('[data-calc-meta]');
+        if (badge) {
+            badge.textContent = state.badgeText || 'Aguardando';
+            badge.className = `docf-live-calc-badge ${state.badgeTone || 'is-muted'}`;
+        }
+        if (formula) {
+            formula.textContent = state.formulaText || 'Preencha os campos para calcular.';
+        }
+        if (meta) {
+            meta.textContent = state.metaText || '';
+        }
+    };
+
+    const renderLineCalculationPreview = (previewEl, quantityField, unitField, totalField) => {
+        if (!previewEl) return;
+        const quantity = parseDecimalInput(quantityField?.value);
+        const unitValue = parseDecimalInput(unitField?.value);
+        const totalValue = parseDecimalInput(totalField?.value);
+
+        if (quantity === null || unitValue === null) {
+            setCalculationPreviewState(previewEl, {
+                badgeText: 'Aguardando',
+                badgeTone: 'is-muted',
+                formulaText: 'Digite quantidade e valor unitário para conferir a multiplicação.',
+                metaText: 'Assim que os dois campos estiverem preenchidos, o total calculado aparece aqui.',
+            });
+            return;
+        }
+
+        const calculatedTotal = Number((quantity * unitValue).toFixed(2));
+        const formulaText = `${formatQuantityPreview(quantity)} × ${formatCurrencyPreview(unitValue)} = ${formatCurrencyPreview(calculatedTotal)}`;
+
+        if (totalValue === null) {
+            setCalculationPreviewState(previewEl, {
+                badgeText: 'Ao vivo',
+                badgeTone: 'is-live',
+                formulaText,
+                metaText: 'O campo de valor total será preenchido automaticamente com essa multiplicação.',
+            });
+            return;
+        }
+
+        const difference = Math.abs(totalValue - calculatedTotal);
+        if (difference <= 0.01) {
+            setCalculationPreviewState(previewEl, {
+                badgeText: 'Bateu',
+                badgeTone: 'is-ok',
+                formulaText,
+                metaText: `Total digitado confere com a multiplicação: ${formatCurrencyPreview(totalValue)}.`,
+            });
+            return;
+        }
+
+        setCalculationPreviewState(previewEl, {
+            badgeText: 'Revisar',
+            badgeTone: 'is-warn',
+            formulaText,
+            metaText: `Total digitado: ${formatCurrencyPreview(totalValue)} • diferença: ${formatCurrencyPreview(difference)}.`,
+        });
+    };
+
+    const syncMainRegistrationTotalPreview = () => {
+        const previewEl = document.getElementById('nf-main-live-calc');
+        if (!nfForm || !previewEl || previewEl.dataset.calcBound === 'true') return;
+        const quantityField = nfForm.querySelector('#quantidade');
+        const unitField = nfForm.querySelector('#preco_unitario');
+        if (!quantityField || !unitField) return;
+
+        const updatePreview = () => {
+            const quantity = parseDecimalInput(quantityField.value);
+            const unitValue = parseDecimalInput(unitField.value);
+            if (quantity === null || unitValue === null) {
+                setCalculationPreviewState(previewEl, {
+                    badgeText: 'Aguardando',
+                    badgeTone: 'is-muted',
+                    formulaText: 'Preencha quantidade e valor unitário para ver a conta em tempo real.',
+                    metaText: 'O total calculado aparece aqui para você bater rapidamente com a nota antes de salvar.',
+                });
+                return;
+            }
+
+            const calculatedTotal = Number((quantity * unitValue).toFixed(2));
+            setCalculationPreviewState(previewEl, {
+                badgeText: 'Ao vivo',
+                badgeTone: 'is-live',
+                formulaText: `${formatQuantityPreview(quantity)} × ${formatCurrencyPreview(unitValue)} = ${formatCurrencyPreview(calculatedTotal)}`,
+                metaText: `Total calculado deste lançamento: ${formatCurrencyPreview(calculatedTotal)}.`,
+            });
+        };
+
+        previewEl.dataset.calcBound = 'true';
+        quantityField.addEventListener('input', updatePreview);
+        quantityField.addEventListener('change', updatePreview);
+        unitField.addEventListener('input', updatePreview);
+        unitField.addEventListener('change', updatePreview);
+        updatePreview();
+    };
+
     const syncItemRowTotals = (form) => {
         if (!form) return;
         form.querySelectorAll('input[name^="item_quantidade_"]').forEach((quantityField) => {
@@ -2480,6 +2748,12 @@
                 return;
             }
 
+            const previewEl = quantityField.closest('.docf-item-line')?.querySelector('[data-calc-preview]') || null;
+
+            const refreshPreview = () => {
+                renderLineCalculationPreview(previewEl, quantityField, unitField, totalField);
+            };
+
             const updateTotal = () => {
                 const quantity = parseDecimalInput(quantityField.value);
                 const unitValue = parseDecimalInput(unitField.value);
@@ -2487,21 +2761,27 @@
                     if (!unitField.value.trim()) {
                         totalField.value = '';
                     }
+                    refreshPreview();
                     return;
                 }
                 totalField.value = formatDecimalInput(quantity * unitValue);
+                refreshPreview();
             };
 
             if (quantityField.dataset.totalSyncBound === 'true') {
+                refreshPreview();
                 return;
             }
 
             quantityField.dataset.totalSyncBound = 'true';
             unitField.dataset.totalSyncBound = 'true';
+            totalField.dataset.totalSyncBound = 'true';
             quantityField.addEventListener('input', updateTotal);
             quantityField.addEventListener('change', updateTotal);
             unitField.addEventListener('input', updateTotal);
             unitField.addEventListener('change', updateTotal);
+            totalField.addEventListener('input', refreshPreview);
+            totalField.addEventListener('change', refreshPreview);
             updateTotal();
         });
     };
@@ -2511,7 +2791,12 @@
         const quantityField = form.querySelector('input[name="quantidade"]');
         const unitField = form.querySelector('input[name="valor_unitario"]');
         const totalField = form.querySelector('input[name="valor_total"]');
+        const previewEl = form.querySelector('[data-calc-preview]');
         if (!quantityField || !unitField || !totalField) return;
+
+        const refreshPreview = () => {
+            renderLineCalculationPreview(previewEl, quantityField, unitField, totalField);
+        };
 
         const updateTotal = () => {
             const quantity = parseDecimalInput(quantityField.value);
@@ -2520,9 +2805,11 @@
                 if (!unitField.value.trim()) {
                     totalField.value = '';
                 }
+                refreshPreview();
                 return;
             }
             totalField.value = formatDecimalInput(quantity * unitValue);
+            refreshPreview();
         };
 
         form.dataset.addItemSyncBound = 'true';
@@ -2530,6 +2817,8 @@
         quantityField.addEventListener('change', updateTotal);
         unitField.addEventListener('input', updateTotal);
         unitField.addEventListener('change', updateTotal);
+        totalField.addEventListener('input', refreshPreview);
+        totalField.addEventListener('change', refreshPreview);
         updateTotal();
     };
 
@@ -2846,6 +3135,8 @@
     document.querySelectorAll('.docf-form').forEach((form) => {
         syncItemRowTotals(form);
     });
+
+    syncMainRegistrationTotalPreview();
 
     document.querySelectorAll('[data-add-item-form]').forEach((form) => {
         syncAddItemFormTotals(form);

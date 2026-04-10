@@ -29,6 +29,7 @@ from ..services.users import user_service
 from ..services.entrada_service import entrada_service
 from ..services.telegram_service import TelegramService
 from ..mako_renderer import render_mako_template
+from ..utils.time_service import TimeService
 
 blueprint = Blueprint("movements", __name__, url_prefix="/movimentos")
 
@@ -137,6 +138,7 @@ FRACTIONABLE_WEIGHT_HINTS = (
     "cimento",
     "gesso",
 )
+EXPRESS_RETURN_CUTOFF_HOUR = 17
 
 
 def _require_admin() -> None:
@@ -506,6 +508,51 @@ def _parse_quantidade(raw: str | None) -> int:
     except (TypeError, ValueError):
         quantidade = 0.0
     return quantidade
+
+
+def _resolve_devolucao_operadores(source: Any) -> tuple[str | None, Any]:
+    getter = getattr(source, "get", None)
+    if getter is None:
+        raise ValueError("Fonte inválida para leitura da devolução")
+
+    identificador_devolucao = (
+        getter("devolvido_por")
+        or getter("devolvedor")
+        or getter("devolvido_por_matricula")
+        or ""
+    ).strip()
+    identificador_legado = (getter("usuario") or getter("matricula") or "").strip()
+    retirada_matricula = (getter("retirada_matricula") or getter("matricula_retirada") or "").strip() or None
+
+    if identificador_devolucao:
+        return retirada_matricula, _resolve_usuario(identificador_devolucao)
+
+    if identificador_legado:
+        usuario = _resolve_usuario(identificador_legado)
+        return retirada_matricula or usuario.matricula, usuario
+
+    raise ValueError("Informe quem está devolvendo.")
+
+
+def _build_express_return_window(*, cutoff_hour: int = EXPRESS_RETURN_CUTOFF_HOUR) -> dict[str, Any]:
+    now_local = TimeService.now_local()
+    start_local = now_local.replace(hour=0, minute=0, second=0, microsecond=0)
+    cutoff_local = now_local.replace(hour=cutoff_hour, minute=0, second=0, microsecond=0)
+    window_open = now_local < cutoff_local
+    effective_end_local = now_local if window_open else cutoff_local
+    start_utc = TimeService.to_utc(start_local).replace(tzinfo=None)
+    end_utc = TimeService.to_utc(effective_end_local).replace(tzinfo=None)
+    return {
+        "window_open": window_open,
+        "now_local": now_local,
+        "start_local": start_local,
+        "cutoff_local": cutoff_local,
+        "effective_end_local": effective_end_local,
+        "start_utc": start_utc,
+        "end_utc": end_utc,
+        "cutoff_label": cutoff_local.strftime("%H:%M"),
+        "today_label": now_local.strftime("%d/%m/%Y"),
+    }
 
 
 @blueprint.get("/")
@@ -912,6 +959,8 @@ def item_info(codigo: str):
     pending_return_by_unit: dict[str, float] = {}
     usuario_encontrado = None
     identificador = (request.args.get("matricula") or request.args.get("usuario") or "").strip()
+    retirada_pendente = None
+    retirada_pendente_por_unidade: dict[str, float] = {}
     if identificador and supports_material_return:
         try:
             usuario = _resolve_usuario(identificador)
@@ -929,6 +978,25 @@ def item_info(codigo: str):
         except ValueError:
             pending_return = 0.0
             usuario_encontrado = False
+
+    if supports_material_return:
+        retirada_pendente = inventory_service.get_latest_material_return_holder(
+            codigo=canonical_code,
+            unit_code=default_return_unit,
+        )
+        if retirada_pendente:
+            retirada_pendente_por_unidade = {
+                str(option.get("unit_code") or ""): inventory_service.get_material_return_pending(
+                    codigo=canonical_code,
+                    matricula=str(retirada_pendente.get("matricula") or ""),
+                    unit_code=str(option.get("unit_code") or ""),
+                )
+                for option in return_unit_options
+                if str(option.get("unit_code") or "")
+            }
+            if not identificador:
+                pending_return_by_unit = dict(retirada_pendente_por_unidade)
+                pending_return = pending_return_by_unit.get(default_return_unit, 0.0)
 
     response = {
         "found": True,
@@ -960,6 +1028,17 @@ def item_info(codigo: str):
         "devolucao_min": return_unit_options[0].get("input_min") or return_quantity_config.get("input_min"),
         "devolucao_pendente": pending_return,
         "devolucao_pendente_por_unidade": pending_return_by_unit,
+        "retirada_pendente": {
+            "matricula": retirada_pendente.get("matricula"),
+            "nome": retirada_pendente.get("nome"),
+            "label": retirada_pendente.get("label"),
+            "ultima_saida_em": TimeService.isoformat_utc(retirada_pendente.get("ultima_saida_em")),
+            "ultima_saida_label": retirada_pendente.get("ultima_saida_label"),
+            "local_servico": retirada_pendente.get("local_servico"),
+            "atividade_operacional": retirada_pendente.get("atividade_operacional"),
+            "pendente_por_unidade": retirada_pendente_por_unidade,
+            "pendente": retirada_pendente_por_unidade.get(default_return_unit, retirada_pendente.get("pendente")),
+        } if retirada_pendente else None,
         "devolucao_unidades_opcoes": return_unit_options,
         "usuario_encontrado": usuario_encontrado,
         "suporta_devolucao_material": supports_material_return,
@@ -1091,6 +1170,139 @@ def entrada_page():
     )
 
 
+@blueprint.get('/api/devolucao-expressa')
+@login_required
+def devolucao_expressa_payload():
+    _require_admin()
+    identificador = (request.args.get("usuario") or request.args.get("matricula") or "").strip()
+    window = _build_express_return_window()
+    payload: dict[str, Any] = {
+        "success": True,
+        "window_open": bool(window["window_open"]),
+        "window_cutoff_label": window["cutoff_label"],
+        "today_label": window["today_label"],
+        "items": [],
+        "items_count": 0,
+        "usuario": None,
+        "message": None,
+    }
+
+    if not identificador:
+        payload["message"] = "Informe o colaborador para carregar as retiradas elegíveis para devolução expressa."
+        return jsonify(payload)
+
+    try:
+        usuario = _resolve_usuario(identificador)
+    except ValueError as exc:
+        return jsonify({"success": False, "error": str(exc)}), 400
+
+    payload["usuario"] = {
+        "nome": getattr(usuario, "nome", None) or f"Matrícula {usuario.matricula}",
+        "matricula": usuario.matricula,
+    }
+
+    if not window["window_open"]:
+        payload["message"] = f"A janela da devolução expressa encerrou às {window['cutoff_label']}."
+        return jsonify(payload)
+
+    items = inventory_service.list_express_material_return_candidates(
+        matricula=usuario.matricula,
+        start_datetime=window["start_utc"],
+        end_datetime=window["end_utc"],
+    )
+    payload["items"] = items
+    payload["items_count"] = len(items)
+    if not items:
+        payload["message"] = "Nenhum material retirado hoje ficou elegível para devolução expressa neste colaborador."
+    return jsonify(payload)
+
+
+@blueprint.post('/api/devolucao-expressa')
+@login_required
+def registrar_devolucao_expressa():
+    _require_admin()
+    data = request.get_json(silent=True)
+    source = data if isinstance(data, dict) else request.form
+
+    identificador = (source.get("usuario") or source.get("matricula") or "").strip()
+    codigo = (source.get("codigo") or "").strip()
+    observacao = (source.get("observacao") or "").strip() or "Devolução expressa via tela de saída"
+    from_unit = (source.get("from_unit") or source.get("unidade_devolucao") or "").strip() or None
+    quantidade = _parse_quantidade(source.get("quantidade"))
+
+    if not identificador:
+        return jsonify({"success": False, "error": "Informe o colaborador da devolução expressa."}), 400
+    if not codigo:
+        return jsonify({"success": False, "error": "Informe o item que será devolvido."}), 400
+
+    window = _build_express_return_window()
+    if not window["window_open"]:
+        return jsonify({"success": False, "error": f"A janela da devolução expressa encerrou às {window['cutoff_label']}."}), 400
+
+    try:
+        retirada_matricula, devolvedor = _resolve_devolucao_operadores(source)
+        usuario = _resolve_usuario(identificador)
+        unit_options = inventory_service.get_material_return_unit_options(codigo=codigo)
+        selected_unit = from_unit or str(unit_options[0].get("unit_code") or "unidade") if unit_options else (from_unit or "unidade")
+        unit_meta = next(
+            (option for option in unit_options if str(option.get("unit_code") or "") == selected_unit),
+            unit_options[0] if unit_options else {"unit_code": selected_unit, "unit_display": selected_unit, "unit_label": selected_unit.title()},
+        )
+        pendente_express = inventory_service.get_material_return_pending_in_window(
+            codigo=codigo,
+            matricula=usuario.matricula,
+            start_datetime=window["start_utc"],
+            end_datetime=window["end_utc"],
+            unit_code=selected_unit,
+        )
+        if pendente_express <= 1e-9:
+            raise ValueError("Este item não está mais elegível para devolução expressa hoje.")
+
+        quantidade_final = float(quantidade or 0.0)
+        if quantidade_final <= 0:
+            quantidade_final = pendente_express
+        if quantidade_final > pendente_express + 1e-9:
+            raise ValueError(
+                f"A devolução expressa excede o pendente de hoje. Limite: {pendente_express:g} {unit_meta.get('unit_display')}."
+            )
+
+        evento = inventory_service.registrar_devolucao_material(
+            codigo=codigo,
+            quantidade=quantidade_final,
+            matricula=usuario.matricula,
+            retirada_matricula=retirada_matricula or usuario.matricula,
+            devolvido_por_matricula=devolvedor.matricula,
+            from_unit=selected_unit,
+            observacao=observacao,
+            commit=True,
+        )
+        try:
+            NotificationRouterService.route_inventory_event(evento.id_evento)
+        except Exception:
+            pass
+
+        pendente_restante = inventory_service.get_material_return_pending_in_window(
+            codigo=codigo,
+            matricula=usuario.matricula,
+            start_datetime=window["start_utc"],
+            end_datetime=window["end_utc"],
+            unit_code=selected_unit,
+        )
+        return jsonify(
+            {
+                "success": True,
+                "message": "Devolução expressa registrada com sucesso.",
+                "codigo": codigo,
+                "matricula": usuario.matricula,
+                "quantidade_registrada": round(float(quantidade_final), 3),
+                "unidade": unit_meta.get("unit_display"),
+                "pendente_restante": round(float(pendente_restante), 3),
+            }
+        )
+    except ValueError as exc:
+        return jsonify({"success": False, "error": str(exc)}), 400
+
+
 @blueprint.post("/entrada")
 @login_required
 def registrar_entrada():
@@ -1133,7 +1345,6 @@ def registrar_devolucao():
     _require_admin()
     codigo_raw = request.form.get("codigo")
     codigo = (codigo_raw or "").strip() if codigo_raw is not None else ""
-    identificador = request.form.get("usuario") or request.form.get("matricula")
     quantidade = _parse_quantidade(request.form.get("quantidade"))
     from_unit_raw = request.form.get("from_unit") or request.form.get("unidade_devolucao")
     from_unit = (from_unit_raw or "").strip() if from_unit_raw is not None else None
@@ -1141,11 +1352,13 @@ def registrar_devolucao():
     observacao = (obs_raw or "").strip() if obs_raw is not None else None
 
     try:
-        usuario = _resolve_usuario(identificador)
+        retirada_matricula, devolvedor = _resolve_devolucao_operadores(request.form)
         evento = inventory_service.registrar_devolucao_material(
             codigo=codigo,
             quantidade=quantidade,
-            matricula=usuario.matricula,
+            matricula=retirada_matricula or devolvedor.matricula,
+            retirada_matricula=retirada_matricula,
+            devolvido_por_matricula=devolvedor.matricula,
             from_unit=from_unit,
             observacao=observacao,
             commit=True,

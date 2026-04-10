@@ -18,7 +18,7 @@ from ..services.category_catalog import (
     category_catalog_service,
 )
 from ..services.config_service import ConfigService
-from ..services.finance_service import finance_service
+from ..services.finance_service import _build_document_item_display_metadata, finance_service
 from ..services.inventory import (
     BASE_ITEM_UNIT_OPTIONS,
     OPERATIONAL_ACTIVITY_OPTIONS,
@@ -899,6 +899,7 @@ def _serialize_pre_registered_item(item_model: Item, documento_item: DocumentoEn
     valor_total = documento_item.valor_total
     if valor_total in (None, "") and documento_item.valor_unitario not in (None, ""):
         valor_total = round(float(documento_item.quantidade or 0.0) * float(documento_item.valor_unitario or 0.0), 2)
+    display_metadata = _build_document_item_display_metadata(documento_item)
     return {
         "codigo": item_model.codigo_item,
         "descricao": item_model.descricao,
@@ -908,6 +909,9 @@ def _serialize_pre_registered_item(item_model: Item, documento_item: DocumentoEn
         "saldo": saldo_atual,
         "saldo_display": item_model.get_saldo_fisico_display(),
         "quantidade_documento": float(documento_item.quantidade or 0.0),
+        "quantidade_documento_display": display_metadata.get("quantidade_documento_display"),
+        "quantidade_base_display": display_metadata.get("quantidade_base_display"),
+        "conversao_display": display_metadata.get("conversao_display"),
         "valor_unitario": documento_item.valor_unitario,
         "valor_total": valor_total,
         "documento_item_id": documento_item.id_documento_item,

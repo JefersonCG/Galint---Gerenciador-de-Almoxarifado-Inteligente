@@ -646,10 +646,16 @@
             const stock = document.getElementById('mirror-stock');
             const batch = document.getElementById('mirror-batch');
             const source = document.getElementById('mirror-source');
+            const emptyMediaHtml = '' +
+                '<div class="mirror-placeholder">' +
+                    '<i class="bi bi-display"></i>' +
+                    '<div><strong>Aguardando operacao</strong><div>Abra a tela de saida ou devolucao no monitor principal e selecione um item.</div></div>' +
+                '</div>';
             let insightItems = [];
             let insightIndex = 0;
             let insightRotationSeconds = 10;
             let insightRotationTimer = null;
+            let lastRenderedPayloadKey = null;
 
             function buildPanelEndpointUrl(basePath) {
                 const params = new URLSearchParams();
@@ -705,6 +711,33 @@
                 const date = new Date(value);
                 if (Number.isNaN(date.getTime())) return 'Atualizacao sem horario valido';
                 return 'Atualizado ' + date.toLocaleString('pt-BR');
+            }
+
+            function buildPayloadRenderKey(payload) {
+                if (!payload || typeof payload !== 'object') {
+                    return JSON.stringify({ empty: true, mode: mirrorMode || '' });
+                }
+                const item = payload.item || {};
+                const actorInfo = payload.actor || {};
+                const contextInfo = payload.context || {};
+                const movement = payload.movement || {};
+                return JSON.stringify({
+                    kind: payload.kind || '',
+                    kind_label: payload.kind_label || '',
+                    status: payload.status || 'idle',
+                    source_label: payload.source_label || '',
+                    batch_label: payload.batch_label || '',
+                    item_codigo: item.codigo || '',
+                    item_descricao: item.descricao || '',
+                    item_categoria: item.categoria || '',
+                    item_marca: item.marca || '',
+                    item_foto_url: item.foto_url || '',
+                    item_saldo: item.saldo_display || item.saldo || '',
+                    actor_nome: actorInfo.nome || actorInfo.matricula || '',
+                    context_local: contextInfo.local_servico || '',
+                    context_observacao: contextInfo.observacao || '',
+                    quantity: movement.quantidade_display || movement.quantidade || '',
+                });
             }
 
             function emptyInsight() {
@@ -834,15 +867,16 @@
             }
 
             function renderEmpty(payload) {
+                const renderKey = buildPayloadRenderKey(payload);
+                if (renderKey === lastRenderedPayloadKey) {
+                    updated.textContent = formatTimestamp(payload?.generated_at);
+                    return;
+                }
                 const meta = statusMeta(payload?.status);
                 statusBadge.className = 'mirror-badge ' + meta.className;
                 statusBadge.innerHTML = '<i class="bi ' + meta.icon + '"></i> ' + meta.label;
                 updated.textContent = formatTimestamp(payload?.generated_at);
-                mediaFrame.innerHTML = '' +
-                    '<div class="mirror-placeholder">' +
-                        '<i class="bi bi-display"></i>' +
-                        '<div><strong>Aguardando operacao</strong><div>Abra a tela de saida ou devolucao no monitor principal e selecione um item.</div></div>' +
-                    '</div>';
+                mediaFrame.innerHTML = emptyMediaHtml;
                 content.classList.add('mirror-empty');
                 eyebrow.innerHTML = '<i class="bi bi-stars"></i> Modo colaborador';
                 title.textContent = 'Painel pronto para espelhamento';
@@ -855,12 +889,19 @@
                 stock.textContent = '--';
                 batch.textContent = '--';
                 source.textContent = 'Sincronizando navegador principal e janela nativa';
+                lastRenderedPayloadKey = renderKey;
             }
 
             function renderPayload(payload) {
                 if (!isRelevant(payload)) return;
                 if (!payload || payload.status === 'idle' || !payload.item) {
                     renderEmpty(payload);
+                    return;
+                }
+
+                const renderKey = buildPayloadRenderKey(payload);
+                if (renderKey === lastRenderedPayloadKey) {
+                    updated.textContent = formatTimestamp(payload.generated_at);
                     return;
                 }
 
@@ -889,6 +930,7 @@
                 stock.textContent = item.saldo_display || item.saldo || '--';
                 batch.textContent = payload.batch_label || '--';
                 source.textContent = 'Origem: ' + (payload.source_label || 'monitor principal') + ' • sincronizacao compartilhada';
+                lastRenderedPayloadKey = renderKey;
             }
 
             function readStorage() {

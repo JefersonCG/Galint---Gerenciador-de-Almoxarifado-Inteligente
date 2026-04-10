@@ -6,6 +6,7 @@ from typing import Any
 from flask import current_app, has_request_context, url_for
 
 from ..models import InventarioEvento, Item, Saida, Usuario
+from .material_return_metadata import extract_material_return_metadata, format_material_return_actor_label
 from .network_settings import load_network_settings
 
 
@@ -59,10 +60,33 @@ class OperationVisualPayloadService:
     @staticmethod
     def build_for_inventory_event(event: InventarioEvento) -> dict[str, Any]:
         item = OperationVisualPayloadService._get_item(event.codigo_item)
-        actor = OperationVisualPayloadService._get_user(event.matricula)
         kind = OperationVisualPayloadService._kind_for_inventory(event, item)
         unit = item.unidade if item else None
         photo = OperationVisualPayloadService._photo_payload(item)
+        event_type = (event.tipo or "").strip().lower()
+        return_metadata = extract_material_return_metadata(event.descricao) if event_type == "devolucao_material" else None
+
+        actor_matricula = event.matricula
+        withdrawer_label = None
+        returner_label = None
+        if return_metadata:
+            withdrawer_matricula = return_metadata["withdrawer"].get("matricula") or event.matricula
+            returner_matricula = return_metadata["returner"].get("matricula") or None
+            withdrawer_user = OperationVisualPayloadService._get_user(withdrawer_matricula)
+            actor_matricula = returner_matricula or event.matricula
+            actor = OperationVisualPayloadService._get_user(actor_matricula)
+            withdrawer_label = return_metadata["withdrawer"].get("raw") or format_material_return_actor_label(
+                nome=getattr(withdrawer_user, "nome", None),
+                matricula=withdrawer_matricula,
+            )
+            returner_label = return_metadata["returner"].get("raw") or format_material_return_actor_label(
+                nome=getattr(actor, "nome", None),
+                matricula=actor_matricula,
+            )
+            clean_description = return_metadata.get("clean_description") or (event.descricao or "").strip() or None
+        else:
+            actor = OperationVisualPayloadService._get_user(event.matricula)
+            clean_description = (event.descricao or "").strip() or None
 
         return {
             "kind": kind,
@@ -81,10 +105,12 @@ class OperationVisualPayloadService:
                 "quantidade_display": OperationVisualPayloadService._format_balance(event.quantidade, unit),
                 "tipo": event.tipo,
             },
-            "actor": OperationVisualPayloadService._actor_payload(actor, event.matricula),
+            "actor": OperationVisualPayloadService._actor_payload(actor, actor_matricula),
             "context": {
                 "local_servico": None,
-                "observacao": (event.descricao or "").strip() or None,
+                "observacao": clean_description,
+                "retirado_por": withdrawer_label,
+                "devolvido_por": returner_label,
             },
             "batch_label": OperationVisualPayloadService._event_badge(event),
             "source_label": "evento de inventario",

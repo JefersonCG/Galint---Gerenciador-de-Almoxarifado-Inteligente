@@ -569,6 +569,196 @@
         color: #0d6efd;
         font-family: monospace;
     }
+
+    .btn-express-return {
+        cursor: pointer;
+    }
+
+    .express-return-modal .modal-content {
+        background: linear-gradient(145deg, #0f172a 0%, #1e293b 100%);
+        color: #e2e8f0;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        border-radius: 24px;
+        box-shadow: 0 22px 48px rgba(15, 23, 42, 0.24);
+    }
+
+    .express-return-modal .modal-header {
+        background: linear-gradient(120deg, #2563eb 0%, #3b82f6 100%);
+        color: #ffffff;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 24px 24px 0 0;
+    }
+
+    .express-return-modal .modal-footer {
+        border-top: 1px solid rgba(148, 163, 184, 0.16);
+    }
+
+    .express-return-toolbar {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 0.75rem;
+        align-items: end;
+    }
+
+    .express-return-window-note {
+        margin-top: 0.9rem;
+        color: #93c5fd;
+        font-size: 0.88rem;
+    }
+
+    .express-return-status {
+        margin-top: 1rem;
+        border-radius: 16px;
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        background: rgba(15, 23, 42, 0.7);
+        color: #e2e8f0;
+    }
+
+    .express-return-list {
+        display: grid;
+        gap: 0.75rem;
+        margin-top: 1rem;
+        max-height: 280px;
+        overflow-y: auto;
+        padding-right: 0.15rem;
+    }
+
+    .express-return-empty {
+        border-radius: 18px;
+        border: 1px dashed rgba(148, 163, 184, 0.28);
+        padding: 1rem;
+        color: #cbd5e1;
+        text-align: center;
+        background: rgba(15, 23, 42, 0.45);
+    }
+
+    .express-return-item {
+        width: 100%;
+        text-align: left;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.04);
+        color: #e2e8f0;
+        padding: 0.95rem 1rem;
+        transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+    }
+
+    .express-return-item:hover {
+        transform: translateY(-1px);
+        border-color: rgba(96, 165, 250, 0.48);
+        background: rgba(59, 130, 246, 0.1);
+    }
+
+    .express-return-item.is-active {
+        border-color: rgba(96, 165, 250, 0.78);
+        background: rgba(59, 130, 246, 0.18);
+        box-shadow: inset 0 0 0 1px rgba(191, 219, 254, 0.12);
+    }
+
+    .express-return-item-title {
+        font-weight: 700;
+        color: #f8fafc;
+    }
+
+    .express-return-item-meta {
+        margin-top: 0.35rem;
+        font-size: 0.85rem;
+        color: #cbd5e1;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.85rem;
+    }
+
+    .express-return-item-code {
+        color: #93c5fd;
+        font-family: monospace;
+    }
+
+    .express-return-detail {
+        margin-top: 1rem;
+        border-radius: 18px;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        background: rgba(255, 255, 255, 0.04);
+        padding: 1rem;
+    }
+
+    .express-return-detail.is-empty {
+        color: #cbd5e1;
+    }
+
+    .express-return-detail-title {
+        font-size: 1.05rem;
+        font-weight: 800;
+        color: #f8fafc;
+        margin-bottom: 0.2rem;
+    }
+
+    .express-return-detail-subtitle {
+        color: #93c5fd;
+        font-size: 0.88rem;
+        margin-bottom: 1rem;
+    }
+
+    .express-return-kpis {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+    }
+
+    .express-return-kpi {
+        border-radius: 14px;
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        background: rgba(15, 23, 42, 0.55);
+        padding: 0.8rem 0.9rem;
+    }
+
+    .express-return-kpi-label {
+        display: block;
+        font-size: 0.76rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: #94a3b8;
+        margin-bottom: 0.25rem;
+    }
+
+    .express-return-kpi-value {
+        font-size: 1rem;
+        font-weight: 800;
+        color: #f8fafc;
+    }
+
+    .express-return-detail .form-label {
+        color: #e2e8f0;
+        font-weight: 600;
+    }
+
+    .express-return-detail .form-control {
+        border-radius: 10px;
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        background: rgba(15, 23, 42, 0.82);
+        color: #f8fafc;
+    }
+
+    .express-return-detail .form-control[readonly] {
+        opacity: 1;
+    }
+
+    .express-return-hint {
+        margin-top: 0.45rem;
+        color: #cbd5e1;
+        font-size: 0.84rem;
+    }
+
+    @media (max-width: 767.98px) {
+        .express-return-toolbar {
+            grid-template-columns: 1fr;
+        }
+
+        .express-return-kpis {
+            grid-template-columns: 1fr;
+        }
+    }
 </style>
 </%block>
 
@@ -583,6 +773,10 @@
                 <span class="btn-mirror-screen-icon"><img src="${url_for('static', filename='img/galint-icon.png')}" alt="GALINT"></span>
                 <span class="btn-mirror-screen-label">Painel de Visualização</span>
             </a>
+            <button class="btn-mirror-screen btn-express-return" type="button" id="btn-open-express-return">
+                <span class="btn-mirror-screen-icon"><i class="bi bi-arrow-return-left"></i></span>
+                <span class="btn-mirror-screen-label">Devolução Expressa</span>
+            </button>
         </div>
     </div>
     
@@ -707,6 +901,41 @@
     </div>
 </div>
 
+<div class="modal fade" id="modalDevolucaoExpressa" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg express-return-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-arrow-return-left me-2"></i>Devolução Expressa</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <div class="express-return-toolbar">
+                    <div>
+                        <label class="form-label" for="express-return-user-input">Colaborador</label>
+                        <input class="form-control" id="express-return-user-input" placeholder="Leia o crachá ou digite nome/matrícula" autocomplete="off">
+                    </div>
+                    <button class="btn btn-add-item" type="button" id="btn-load-express-return">
+                        <i class="bi bi-search me-2"></i>Carregar saídas do dia
+                    </button>
+                </div>
+                <div class="express-return-window-note" id="express-return-window-note">A devolução expressa mostra só retiradas do dia e some automaticamente às 17:00.</div>
+                <div class="alert alert-secondary express-return-status" id="express-return-status" role="status">Informe o colaborador para carregar os itens disponíveis para devolução expressa.</div>
+                <div class="express-return-list" id="express-return-list">
+                    <div class="express-return-empty">Nenhum item carregado ainda.</div>
+                </div>
+                <div class="express-return-detail is-empty" id="express-return-detail">
+                    <strong>Nenhum item selecionado.</strong>
+                    <div class="express-return-hint">Depois de carregar as saídas do colaborador, escolha um item para devolver rapidamente.</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                <button type="button" class="btn btn-register" id="btn-submit-express-return" disabled>Fazer devolução</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <form method="post" action="${url_for('movements.registrar_saida')}" id="hidden-form" style="display: none;">
     <input type="hidden" name="liquido_habilitado" value="0">
 </form>
@@ -778,6 +1007,17 @@ ${parent.scripts()}
     const mirrorChannelName = 'galint-operation-mirror-v1';
     const mirrorStorageKey = 'galint.operationMirrorState.v1';
     const mirrorChannel = typeof window.BroadcastChannel !== 'undefined' ? new BroadcastChannel(mirrorChannelName) : null;
+    const btnOpenExpressReturn = document.getElementById('btn-open-express-return');
+    const modalDevolucaoExpressaEl = document.getElementById('modalDevolucaoExpressa');
+    const modalDevolucaoExpressa = modalDevolucaoExpressaEl ? new bootstrap.Modal(modalDevolucaoExpressaEl) : null;
+    const expressReturnUserInput = document.getElementById('express-return-user-input');
+    const btnLoadExpressReturn = document.getElementById('btn-load-express-return');
+    const expressReturnStatus = document.getElementById('express-return-status');
+    const expressReturnList = document.getElementById('express-return-list');
+    const expressReturnDetail = document.getElementById('express-return-detail');
+    const btnSubmitExpressReturn = document.getElementById('btn-submit-express-return');
+    let expressReturnPayload = null;
+    let expressReturnSelectedItem = null;
     
     const nomesEmbalagem = {
         'lata': { singular: 'lata', plural: 'latas' },
@@ -1218,6 +1458,267 @@ ${parent.scripts()}
         if (medida === 'kg') return 'KG';
         if (medida === 'metro') return 'METROS';
         return String(unidadeLabel || 'unidade').toUpperCase();
+    }
+
+    function setExpressReturnStatus(message, tone) {
+        if (!expressReturnStatus) return;
+        expressReturnStatus.textContent = message || 'Sem informações no momento.';
+        expressReturnStatus.className = 'alert express-return-status';
+        if (tone === 'success') {
+            expressReturnStatus.classList.add('alert-success');
+        } else if (tone === 'danger') {
+            expressReturnStatus.classList.add('alert-danger');
+        } else if (tone === 'warning') {
+            expressReturnStatus.classList.add('alert-warning');
+        } else {
+            expressReturnStatus.classList.add('alert-secondary');
+        }
+    }
+
+    function resetExpressReturnSelection() {
+        expressReturnSelectedItem = null;
+        if (btnSubmitExpressReturn) {
+            btnSubmitExpressReturn.disabled = true;
+        }
+    }
+
+    function resetExpressReturnState(options) {
+        const preserveUser = Boolean(options && options.preserveUser);
+        expressReturnPayload = null;
+        resetExpressReturnSelection();
+        if (expressReturnList) {
+            expressReturnList.innerHTML = '<div class="express-return-empty">Nenhum item carregado ainda.</div>';
+        }
+        if (expressReturnDetail) {
+            expressReturnDetail.className = 'express-return-detail is-empty';
+            expressReturnDetail.innerHTML = '<strong>Nenhum item selecionado.</strong><div class="express-return-hint">Depois de carregar as saídas do colaborador, escolha um item para devolver rapidamente.</div>';
+        }
+        if (!preserveUser && expressReturnUserInput) {
+            expressReturnUserInput.value = '';
+        }
+        setExpressReturnStatus('Informe o colaborador para carregar os itens disponíveis para devolução expressa.', 'info');
+    }
+
+    function renderExpressReturnList() {
+        if (!expressReturnList) return;
+        const itemsExpress = Array.isArray(expressReturnPayload && expressReturnPayload.items) ? expressReturnPayload.items : [];
+        if (!itemsExpress.length) {
+            expressReturnList.innerHTML = '<div class="express-return-empty">Nenhum material elegível para devolução expressa foi encontrado para este colaborador.</div>';
+            return;
+        }
+
+        expressReturnList.innerHTML = itemsExpress.map(function(item, index) {
+            const activeClass = expressReturnSelectedItem && expressReturnSelectedItem.codigo === item.codigo ? ' is-active' : '';
+            const localServico = String(item.local_servico || '').trim();
+            const atividade = String(item.atividade_operacional || '').trim();
+            const localTexto = localServico ? ' | Local: ' + escapeHtml(localServico) : '';
+            const atividadeTexto = atividade ? ' | Atividade: ' + escapeHtml(atividade) : '';
+            return '' +
+                '<button type="button" class="express-return-item' + activeClass + '" data-index="' + index + '">' +
+                    '<div class="express-return-item-title">' + escapeHtml(item.descricao || item.codigo || 'Item') + '</div>' +
+                    '<div class="express-return-item-meta">' +
+                        '<span class="express-return-item-code">Código: ' + escapeHtml(item.codigo || '') + '</span>' +
+                        '<span>Retirado hoje: ' + escapeHtml(item.retirado_hoje_display || '') + '</span>' +
+                        '<span>Pendente: ' + escapeHtml(item.pendente_hoje_display || '') + '</span>' +
+                    '</div>' +
+                    '<div class="express-return-item-meta">' +
+                        '<span>Última saída: ' + escapeHtml(item.ultima_saida_label || 'N/D') + '</span>' +
+                        (localTexto ? '<span>' + localTexto.slice(3) + '</span>' : '') +
+                        (atividadeTexto ? '<span>' + atividadeTexto.slice(3) + '</span>' : '') +
+                    '</div>' +
+                '</button>';
+        }).join('');
+
+        expressReturnList.querySelectorAll('.express-return-item').forEach(function(buttonEl) {
+            buttonEl.addEventListener('click', function() {
+                const index = parseInt(buttonEl.getAttribute('data-index') || '-1', 10);
+                if (!Number.isFinite(index) || index < 0 || !itemsExpress[index]) {
+                    return;
+                }
+                expressReturnSelectedItem = itemsExpress[index];
+                renderExpressReturnList();
+                renderExpressReturnDetail();
+            });
+        });
+    }
+
+    function renderExpressReturnDetail() {
+        if (!expressReturnDetail) return;
+        if (!expressReturnSelectedItem) {
+            expressReturnDetail.className = 'express-return-detail is-empty';
+            expressReturnDetail.innerHTML = '<strong>Nenhum item selecionado.</strong><div class="express-return-hint">Escolha um item da lista acima para liberar o botão de devolução.</div>';
+            if (btnSubmitExpressReturn) {
+                btnSubmitExpressReturn.disabled = true;
+            }
+            return;
+        }
+
+        const unitOptions = Array.isArray(expressReturnSelectedItem.devolucao_unidades_opcoes)
+            ? expressReturnSelectedItem.devolucao_unidades_opcoes
+            : [];
+        const selectedUnitOption = unitOptions.find(function(option) {
+            return String(option && option.unit_code || '') === String(expressReturnSelectedItem.devolucao_unidade_codigo || '');
+        }) || unitOptions[0] || {};
+        const quantityStep = String(selectedUnitOption.input_step || expressReturnSelectedItem.devolucao_step || '0.001');
+        const quantityMin = String(selectedUnitOption.input_min || expressReturnSelectedItem.devolucao_min || quantityStep);
+
+        expressReturnDetail.className = 'express-return-detail';
+        expressReturnDetail.innerHTML = '' +
+            '<div class="express-return-detail-title">' + escapeHtml(expressReturnSelectedItem.descricao || expressReturnSelectedItem.codigo || 'Item') + '</div>' +
+            '<div class="express-return-detail-subtitle">Código ' + escapeHtml(expressReturnSelectedItem.codigo || '') + (expressReturnSelectedItem.categoria ? ' • ' + escapeHtml(expressReturnSelectedItem.categoria) : '') + (expressReturnSelectedItem.marca ? ' • ' + escapeHtml(expressReturnSelectedItem.marca) : '') + '</div>' +
+            '<div class="express-return-kpis">' +
+                '<div class="express-return-kpi"><span class="express-return-kpi-label">Retirado hoje</span><span class="express-return-kpi-value">' + escapeHtml(expressReturnSelectedItem.retirado_hoje_display || '-') + '</span></div>' +
+                '<div class="express-return-kpi"><span class="express-return-kpi-label">Pendente agora</span><span class="express-return-kpi-value">' + escapeHtml(expressReturnSelectedItem.pendente_hoje_display || '-') + '</span></div>' +
+            '</div>' +
+            '<div class="row g-3">' +
+                '<div class="col-md-6">' +
+                    '<label class="form-label" for="express-return-quantity">Quantidade a devolver</label>' +
+                    '<input class="form-control" type="number" id="express-return-quantity" min="' + escapeHtml(quantityMin) + '" step="' + escapeHtml(quantityStep) + '" value="' + escapeHtml(String(expressReturnSelectedItem.pendente_hoje || '')) + '">' +
+                '</div>' +
+                '<div class="col-md-6">' +
+                    '<label class="form-label" for="express-return-unit">Unidade</label>' +
+                    '<input class="form-control" id="express-return-unit" readonly value="' + escapeHtml(expressReturnSelectedItem.devolucao_unidade_exibicao || expressReturnSelectedItem.devolucao_unidade_codigo || '') + '">' +
+                '</div>' +
+                '<div class="col-12">' +
+                    '<label class="form-label" for="express-return-observation">Observação</label>' +
+                    '<input class="form-control" id="express-return-observation" value="Devolução expressa via tela de saída" maxlength="200">' +
+                    '<div class="express-return-hint">Se não alterar a quantidade, a devolução vai usar automaticamente todo o pendente mostrado acima.</div>' +
+                '</div>' +
+            '</div>';
+
+        if (btnSubmitExpressReturn) {
+            btnSubmitExpressReturn.disabled = false;
+        }
+    }
+
+    async function loadExpressReturnItems() {
+        if (!expressReturnUserInput) return;
+        const identificador = String(expressReturnUserInput.value || '').trim();
+        if (!identificador) {
+            setExpressReturnStatus('Informe o colaborador para carregar as saídas do dia.', 'warning');
+            expressReturnUserInput.focus();
+            return;
+        }
+
+        if (btnLoadExpressReturn) {
+            btnLoadExpressReturn.disabled = true;
+            btnLoadExpressReturn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Carregando...';
+        }
+        resetExpressReturnSelection();
+        if (expressReturnList) {
+            expressReturnList.innerHTML = '<div class="express-return-empty">Carregando retiradas do dia...</div>';
+        }
+
+        try {
+            const response = await window.galintFetchWithAuth(
+                '/movimentos/api/devolucao-expressa?usuario=' + encodeURIComponent(identificador),
+                { headers: { 'Accept': 'application/json' } },
+                'Sua sessão expirou durante a carga da devolução expressa. Faça login novamente.'
+            );
+            const data = await response.json().catch(function() { return {}; });
+            if (!response.ok || !data || data.success === false) {
+                throw new Error((data && (data.error || data.message)) || 'Não foi possível carregar a devolução expressa.');
+            }
+
+            expressReturnPayload = data;
+            if (data.usuario && data.usuario.matricula) {
+                expressReturnUserInput.value = String(data.usuario.nome || '') + ' — ' + String(data.usuario.matricula || '');
+            }
+
+            renderExpressReturnList();
+            if (Array.isArray(data.items) && data.items.length === 1) {
+                expressReturnSelectedItem = data.items[0];
+            } else {
+                expressReturnSelectedItem = null;
+            }
+            renderExpressReturnList();
+            renderExpressReturnDetail();
+
+            if (data.window_open === false) {
+                setExpressReturnStatus(data.message || 'A janela da devolução expressa encerrou às 17:00.', 'warning');
+            } else if (Array.isArray(data.items) && data.items.length > 0) {
+                setExpressReturnStatus('Selecione um item para concluir a devolução expressa.', 'success');
+            } else {
+                setExpressReturnStatus(data.message || 'Nenhum material elegível foi encontrado para esse colaborador hoje.', 'info');
+            }
+        } catch (error) {
+            if (error && error.isAuthRedirect) {
+                return;
+            }
+            expressReturnPayload = null;
+            if (expressReturnList) {
+                expressReturnList.innerHTML = '<div class="express-return-empty">Não foi possível carregar os itens deste colaborador.</div>';
+            }
+            renderExpressReturnDetail();
+            setExpressReturnStatus(error.message || 'Falha ao carregar a devolução expressa.', 'danger');
+        } finally {
+            if (btnLoadExpressReturn) {
+                btnLoadExpressReturn.disabled = false;
+                btnLoadExpressReturn.innerHTML = '<i class="bi bi-search me-2"></i>Carregar saídas do dia';
+            }
+        }
+    }
+
+    async function submitExpressReturn() {
+        if (!expressReturnSelectedItem || !expressReturnUserInput) {
+            setExpressReturnStatus('Selecione um item antes de registrar a devolução expressa.', 'warning');
+            return;
+        }
+
+        const quantityField = document.getElementById('express-return-quantity');
+        const observationField = document.getElementById('express-return-observation');
+        const quantidade = quantityField ? Number(quantityField.value || 0) : 0;
+        const observacao = observationField ? String(observationField.value || '').trim() : '';
+        if (!Number.isFinite(quantidade) || quantidade <= 0) {
+            setExpressReturnStatus('Informe uma quantidade válida para registrar a devolução expressa.', 'warning');
+            if (quantityField) {
+                quantityField.focus();
+            }
+            return;
+        }
+
+        if (btnSubmitExpressReturn) {
+            btnSubmitExpressReturn.disabled = true;
+            btnSubmitExpressReturn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Devolvendo...';
+        }
+
+        try {
+            const response = await window.galintFetchWithAuth(
+                '/movimentos/api/devolucao-expressa',
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        usuario: expressReturnPayload && expressReturnPayload.usuario ? expressReturnPayload.usuario.matricula : expressReturnUserInput.value,
+                        codigo: expressReturnSelectedItem.codigo,
+                        quantidade: quantidade,
+                        from_unit: expressReturnSelectedItem.devolucao_unidade_codigo,
+                        observacao: observacao || 'Devolução expressa via tela de saída'
+                    })
+                },
+                'Sua sessão expirou antes de concluir a devolução expressa. Faça login novamente.'
+            );
+            const data = await response.json().catch(function() { return {}; });
+            if (!response.ok || !data || data.success === false) {
+                throw new Error((data && (data.error || data.message)) || 'Falha ao registrar a devolução expressa.');
+            }
+
+            setExpressReturnStatus(data.message || 'Devolução expressa registrada com sucesso.', 'success');
+            await loadExpressReturnItems();
+        } catch (error) {
+            if (error && error.isAuthRedirect) {
+                return;
+            }
+            setExpressReturnStatus(error.message || 'Falha ao registrar a devolução expressa.', 'danger');
+        } finally {
+            if (btnSubmitExpressReturn) {
+                btnSubmitExpressReturn.disabled = !expressReturnSelectedItem;
+                btnSubmitExpressReturn.textContent = 'Fazer devolução';
+            }
+        }
     }
     
     function showAutocompleteCodigo(itens) {
@@ -1748,6 +2249,29 @@ ${parent.scripts()}
     }
     
     renderCurrentPreview(null, 'idle');
+
+    btnOpenExpressReturn?.addEventListener('click', function() {
+        if (!modalDevolucaoExpressa) {
+            return;
+        }
+        if (expressReturnUserInput) {
+            expressReturnUserInput.value = String(inputUsuario.value || '').trim();
+        }
+        resetExpressReturnState({ preserveUser: true });
+        modalDevolucaoExpressa.show();
+        if (expressReturnUserInput) {
+            expressReturnUserInput.focus();
+        }
+    });
+
+    btnLoadExpressReturn?.addEventListener('click', loadExpressReturnItems);
+    expressReturnUserInput?.addEventListener('keydown', function(event) {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            loadExpressReturnItems();
+        }
+    });
+    btnSubmitExpressReturn?.addEventListener('click', submitExpressReturn);
 
     // Foco inicial
     inputUsuario.focus();

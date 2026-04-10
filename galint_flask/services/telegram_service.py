@@ -58,6 +58,7 @@ from ..models import (
 
 )
 from .category_catalog import category_catalog_service
+from .material_return_metadata import extract_material_return_metadata, format_material_return_actor_label
 from .operation_visual_payload import operation_visual_payload_service
 
 import threading
@@ -5257,12 +5258,9 @@ class TelegramService:
         data_devolucao_fmt = TimeService.format_local(data_devolucao)
 
         descricao_evento = getattr(evento, "descricao", "") or ""
-        devolvido_por = ""
-        if "por" in descricao_evento:
-            try:
-                devolvido_por = descricao_evento.split("por")[-1].split(":")[0].strip()
-            except Exception:
-                pass
+        metadata = extract_material_return_metadata(descricao_evento)
+        retirada_matricula_meta = metadata["withdrawer"].get("matricula") or getattr(evento, "matricula", None)
+        devolvido_por = metadata["returner"].get("raw") or ""
 
         retirado_por = None
         retirado_matricula = None
@@ -5275,6 +5273,7 @@ class TelegramService:
                 ultima_saida = (
                     Saida.query
                     .filter(Saida.codigo_item == codigo)
+                    .filter(Saida.matricula == retirada_matricula_meta)
                     .order_by(Saida.data_saida.desc())
                     .first()
                 )
@@ -5299,6 +5298,13 @@ class TelegramService:
                         tempo_posse_str = ", ".join(partes)
             except Exception:
                 pass
+
+        if not retirado_por:
+            retirado_por = metadata["withdrawer"].get("nome")
+        if not retirado_matricula:
+            retirado_matricula = metadata["withdrawer"].get("matricula") or retirada_matricula_meta
+        if not devolvido_por:
+            devolvido_por = format_material_return_actor_label(matricula=getattr(evento, "matricula", None)) or ""
 
         categoria_titulo = categoria.upper() if isinstance(categoria, str) else "MATERIAL"
         if "FERRAMENTA" in categoria_titulo:
