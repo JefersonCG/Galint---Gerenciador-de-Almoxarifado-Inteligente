@@ -96,6 +96,38 @@
         letter-spacing: -0.05em;
     }
 
+    .scope-report-modal {
+        background: #ffffff;
+        color: #111827;
+    }
+
+    .scope-report-modal .modal-header,
+    .scope-report-modal .modal-footer {
+        border-color: rgba(15, 23, 42, 0.12);
+    }
+
+    .scope-report-modal .modal-title,
+    .scope-report-modal .form-label,
+    .scope-report-modal .form-select,
+    .scope-report-modal .form-select option {
+        color: #111827 !important;
+    }
+
+    .scope-report-modal .modal-body,
+    .scope-report-modal .modal-body p,
+    .scope-report-modal .text-muted {
+        color: #4b5563 !important;
+    }
+
+    .scope-report-modal .form-select {
+        background-color: #ffffff;
+        border-color: rgba(15, 23, 42, 0.18);
+    }
+
+    .scope-report-modal .btn-close {
+        filter: none;
+    }
+
     .category-admin-grid {
         display: grid;
         grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
@@ -557,6 +589,23 @@
                 <div class="category-admin-stat-value">{{ summary.customizadas }}</div>
             </div>
         </div>
+        
+        {% if current_user.is_admin %}
+        <div style="margin-top: 1.5rem;">
+            <button type="button"
+               class="btn btn-sm d-inline-flex align-items-center gap-2 px-3 py-2 rounded-pill"
+               data-bs-toggle="modal"
+               data-bs-target="#scopeReportModal"
+               style="background: rgba(34, 211, 238, 0.12); border: 1px solid rgba(34, 211, 238, 0.3); color: #22d3ee; font-weight: 700; font-size: 0.85rem; transition: all 0.2s;"
+               onmouseover="this.style.background='rgba(34, 211, 238, 0.2)'; this.style.borderColor='rgba(34, 211, 238, 0.5)'; this.style.color='#67e8f9';"
+               onmouseout="this.style.background='rgba(34, 211, 238, 0.12)'; this.style.borderColor='rgba(34, 211, 238, 0.3)'; this.style.color='#22d3ee';">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                    <path d="M14 14V4.5L9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2zM9.5 3A1.5 1.5 0 0 0 11 4.5h2V9H3V2a1 1 0 0 1 1-1h5.5v2zM3 12v-2h2v2H3zm0 1h2v2H4a1 1 0 0 1-1-1v-1zm3 2v-2h3v2H6zm4 0v-2h3v1a1 1 0 0 1-1 1h-2zm3-3h-3v-2h3v2zm-7 0v-2h3v2H6z"/>
+                </svg>
+                <span>XLS Relatório de Escopo</span>
+            </button>
+        </div>
+        {% endif %}
     </section>
 
     <div class="category-admin-grid">
@@ -695,6 +744,34 @@
             <div class="category-empty">Nenhuma categoria disponível no catálogo.</div>
             {% endif %}
         </section>
+    </div>
+</div>
+<div class="modal fade" id="scopeReportModal" tabindex="-1" aria-labelledby="scopeReportModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content scope-report-modal">
+            <form method="get" action="/itens/categorias/relatorio-escopo">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="scopeReportModalLabel">Relatório de Escopo</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted">Escolha o escopo do relatório. Você pode gerar um XLS geral ou filtrar por uma categoria específica.</p>
+                    <div>
+                        <label class="form-label" for="scope-report-category-admin">Categoria</label>
+                        <select class="form-select" id="scope-report-category-admin" name="categoria">
+                            <option value="">Geral</option>
+                            {% for row in category_rows %}
+                            <option value="{{ row.nome }}">{{ row.nome }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn category-admin-secondary" type="button" data-bs-dismiss="modal">Cancelar</button>
+                    <button class="btn category-admin-primary" type="submit">Gerar XLS</button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
 {% endblock %}

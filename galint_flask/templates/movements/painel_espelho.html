@@ -880,7 +880,7 @@
                 content.classList.remove('mirror-empty');
                 eyebrow.innerHTML = '<i class="bi ' + kindIcon(payload.kind) + '"></i> ' + escapeHtml(payload.kind_label || payload.kind || 'Operacao');
                 title.textContent = item.descricao || item.codigo || 'Item';
-                subtitle.textContent = 'Codigo ' + (item.codigo || '--') + (item.categoria ? ' • ' + item.categoria : '');
+                subtitle.textContent = 'Codigo ' + (item.codigo || '--') + (item.categoria ? ' • ' + item.categoria : '') + (item.marca ? ' • ' + item.marca : '');
                 setLiveCallout(payload, meta);
                 kind.textContent = payload.kind_label || payload.kind || '--';
                 quantity.textContent = movement.quantidade_display || movement.quantidade || '--';

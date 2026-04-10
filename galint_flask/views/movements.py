@@ -935,6 +935,7 @@ def item_info(codigo: str):
         "codigo": canonical_code,
         "descricao": item.get("descricao"),
         "categoria": item.get("categoria"),
+        "marca": item.get("marca"),
         "unidade": item.get("unidade"),
         "saldo": item.get("saldo"),
         "saldo_display": item.get("saldo_display"),

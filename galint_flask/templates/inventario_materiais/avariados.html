@@ -205,7 +205,7 @@
             button.innerHTML = `
                 <div>
                     <div class="fw-semibold">${item.descricao || 'Produto sem descrição'}</div>
-                    <div class="text-muted small">Código ${item.codigo || '—'} • ${item.categoria || 'Sem categoria'}</div>
+                    <div class="text-muted small">Código ${item.codigo || '—'} • ${item.categoria || 'Sem categoria'}${item.marca ? ` • ${item.marca}` : ''}</div>
                 </div>
                 <span class="badge bg-primary rounded-pill">Saldo ${saldoDisplay}</span>
             `;
@@ -224,7 +224,7 @@
             return;
         }
         const saldoTexto = item.saldo_display || `${item.saldo ?? '0'} unidades`;
-        const snippet = `Produto: ${item.descricao || 'Sem descrição'}\nCódigo: ${item.codigo || '—'}\nCategoria: ${item.categoria || '—'}\nSaldo: ${saldoTexto}\n\n`;
+        const snippet = `Produto: ${item.descricao || 'Sem descrição'}\nCódigo: ${item.codigo || '—'}\nCategoria: ${item.categoria || '—'}\nMarca: ${item.marca || '—'}\nSaldo: ${saldoTexto}\n\n`;
         editor.insertText(editor.getLength(), snippet, { 'bold': false });
         editor.setSelection(editor.getLength(), 0);
     };

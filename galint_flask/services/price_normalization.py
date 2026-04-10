@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from math import isfinite
 
 from ..models import Item
-from .legacy_stock_normalizer import resolve_canonical_unit, uses_packaging_legacy_normalization
+from .legacy_stock_normalizer import ignore_packaging_metadata_for_stock, resolve_canonical_unit, resolve_packaging_factor
 from .unit_conversion_engine import ConversionResult, UnitConversionError, unit_conversion_engine
 
 _ROUND_PRICE = 8
@@ -52,12 +52,63 @@ def _resolve_unit(value: str | None, *, fallback: str) -> str:
     return normalized or fallback
 
 
-def infer_price_unit_for_item(item: Item) -> str:
-    if uses_packaging_legacy_normalization(item):
-        packaging_unit = (item.tipo_embalagem_novo or "").strip().lower()
-        if packaging_unit:
-            return packaging_unit
+def _normalize_unit_key(value: str | None) -> str:
+    normalized = unit_conversion_engine._normalize_unit_code(value)
+    if normalized:
+        return normalized
+    return _resolve_unit(value, fallback="")
+
+
+def _infer_packaging_document_unit(item: Item) -> str | None:
+    packaging_unit = (item.tipo_embalagem_novo or "").strip().lower()
+    packaging_factor = float(resolve_packaging_factor(item) or 0.0)
+    if packaging_unit and packaging_factor > 0 and not ignore_packaging_metadata_for_stock(item):
+        return packaging_unit
+    return None
+
+
+def infer_document_quantity_unit_for_item(item: Item) -> str:
+    packaging_unit = _infer_packaging_document_unit(item)
+    if packaging_unit:
+        return packaging_unit
     return _resolve_unit(item.unidade, fallback=resolve_canonical_unit(item))
+
+
+def infer_price_unit_for_item(item: Item) -> str:
+    return infer_document_quantity_unit_for_item(item)
+
+
+def should_autofix_packaged_document_unit(
+    item: Item,
+    *,
+    current_unit: str | None,
+    quantity: float | None,
+    quantity_base: float | None,
+) -> bool:
+    packaging_unit = _infer_packaging_document_unit(item)
+    if not packaging_unit:
+        return False
+
+    packaging_key = _normalize_unit_key(packaging_unit)
+    canonical_key = _normalize_unit_key(resolve_canonical_unit(item))
+    current_key = _normalize_unit_key(current_unit)
+    packaging_factor = float(resolve_packaging_factor(item) or 0.0)
+
+    if not packaging_key or not canonical_key or not current_key:
+        return False
+    if current_key != canonical_key or current_key == packaging_key:
+        return False
+    if packaging_factor <= 1.0 or ignore_packaging_metadata_for_stock(item):
+        return False
+
+    quantity_value = _coerce_positive_or_zero(quantity)
+    if quantity_value is None or quantity_value <= 0:
+        return False
+
+    quantity_base_value = _coerce_positive_or_zero(quantity_base)
+    if quantity_base_value is None:
+        return True
+    return abs(float(quantity_base_value) - float(quantity_value)) <= 1e-6
 
 
 def normalize_quantity_for_item(
@@ -68,7 +119,7 @@ def normalize_quantity_for_item(
 ) -> ConversionResult:
     if not item or not item.codigo_item:
         raise UnitConversionError("Produto não encontrado para normalização de quantidade")
-    quantity_unit = _resolve_unit(from_unit, fallback=resolve_canonical_unit(item))
+    quantity_unit = _resolve_unit(from_unit, fallback=infer_document_quantity_unit_for_item(item))
     return unit_conversion_engine.convert_item_to_base(item, quantity, quantity_unit)
 
 
@@ -87,7 +138,7 @@ def normalize_document_line(
         quantity=quantity_value,
         from_unit=quantity_unit,
     )
-    resolved_quantity_unit = _resolve_unit(quantity_unit, fallback=(item.unidade or resolve_canonical_unit(item) or "un"))
+    resolved_quantity_unit = _resolve_unit(quantity_unit, fallback=infer_document_quantity_unit_for_item(item))
     resolved_price_unit = _resolve_unit(price_unit, fallback=resolved_quantity_unit)
     price_conversion = normalize_quantity_for_item(
         item,

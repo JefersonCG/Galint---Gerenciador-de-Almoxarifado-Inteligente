@@ -1372,18 +1372,21 @@
                             {% set saldo_base = form_item.saldo %}
                             {% endif %}
 
-                            {% set tem_embalagem = form_item and form_item.tipo_embalagem_novo and form_item.unidades_por_embalagem %}
+                            {% set tem_embalagem = form_item and form_item.tipo_embalagem_novo and (form_item.unidades_por_embalagem or form_item.grandeza_referencia or form_item.litros_por_embalagem) %}
                             {% set saldo_base_valor = saldo_base if saldo_base is not none else 0 %}
                             {% set tipo_emb = (form_item.tipo_embalagem_novo or '')|lower if form_item else '' %}
                             {% set nome_embalagem = tipo_emb if tipo_emb else 'embalagem' %}
                             {% set unidades_soltas = (form_item.estoque_unidades_soltas or 0) if form_item else 0 %}
+                            {% set conteudo_embalagem = form_item.unidades_por_embalagem if form_item and form_item.unidades_por_embalagem is not none else None %}
                             {% set label_solta = 'Unidades soltas' %}
                             {% if tipo_emb == 'rolo' %}
                                 {% set label_solta = 'Metros soltos' %}
                             {% elif tipo_emb in ['lata', 'balde', 'bombona', 'litro'] and form_item and form_item.litros_por_embalagem %}
                                 {% set label_solta = 'Litros soltos' %}
-                            {% elif tipo_emb in ['lata', 'balde', 'bombona'] and form_item and form_item.grandeza_referencia %}
+                                {% set conteudo_embalagem = form_item.litros_por_embalagem %}
+                            {% elif tipo_emb in ['lata', 'balde', 'bombona', 'pacote', 'saco'] and form_item and form_item.grandeza_referencia %}
                                 {% set label_solta = 'Kg soltos' %}
+                                {% set conteudo_embalagem = form_item.grandeza_referencia %}
                             {% endif %}
                             <label class="form-label" for="saldo_atual">
                                 {% if tem_embalagem %}Embalagens fechadas em estoque{% else %}Saldo em estoque{% endif %}
@@ -1421,7 +1424,7 @@
 
                     {% if tem_embalagem %}
                     <div class="alert alert-info" style="margin-top: 0.75rem;">
-                        <strong>Como este cadastro funciona:</strong> cada {{ nome_embalagem }} contém <strong>{{ form_item.unidades_por_embalagem }}</strong> {{ unidade_total_ean }}. O campo acima mostra as {{ nome_embalagem }}s fechadas em estoque; a parte já aberta aparece separadamente como <strong>{{ label_solta|lower }}</strong>.
+                        <strong>Como este cadastro funciona:</strong> cada {{ nome_embalagem }} contém <strong>{{ conteudo_embalagem }}</strong> {{ unidade_total_ean }}. O campo acima mostra as {{ nome_embalagem }}s fechadas em estoque; a parte já aberta aparece separadamente como <strong>{{ label_solta|lower }}</strong>.
                     </div>
                     {% endif %}
 
@@ -3070,19 +3073,12 @@ Conversão: 1 saco = 20 quilos</div>
     }
 
     // ==========================================
-    // ABA UNIDADES DINAMICAS (EXIBIR CONDICIONAL)
+    // ABA UNIDADES DINAMICAS (SEMPRE VISIVEL)
     // ==========================================
-        const unidadesDinamicasPermitidas = ['Lata', 'Bombona', 'Litro', 'Balde', 'Rolo', 'Caixa', 'Pacote', 'Fardo', 'Saco'];
-
     function toggleTabUnidadesDinamicas() {
-        if (!unidadeSelect || !tabUnidadesButton || !tabUnidadesPane) return;
-        const deveMostrar = unidadesDinamicasPermitidas.includes(unidadeSelect.value);
-        tabUnidadesButton.style.display = deveMostrar ? '' : 'none';
-        tabUnidadesPane.style.display = deveMostrar ? '' : 'none';
-
-        if (!deveMostrar && tabUnidadesButton.classList.contains('active') && tabClassificacaoButton) {
-            tabClassificacaoButton.click();
-        }
+        if (!tabUnidadesButton || !tabUnidadesPane) return;
+        tabUnidadesButton.style.display = '';
+        tabUnidadesPane.style.display = '';
     }
 
     function syncGrandezaLata() {

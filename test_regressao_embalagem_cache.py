@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import sys
+from datetime import datetime
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -14,11 +15,15 @@ os.environ.setdefault("GALINT_DISABLE_BACKGROUND_SERVICES", "true")
 from check_stock_unit_integrity import _physical_read_model_target
 from galint_flask.services.balance_provider import BalanceSnapshot
 from galint_flask.services.embalagem_service import EmbalagemService
+from galint_flask.services.finance_service import FinanceService
 from galint_flask.services.inventory import InventoryService, MovimentoPayload
+from galint_flask.services.inventory import resolve_item_base_unit_label
 from galint_flask.services.ledger_cutover import LedgerCutoverService
 from galint_flask.services.ledger_reconciliation import ReconciliationResult
 from galint_flask.services.legacy_stock_normalizer import resolve_packaging_quantity_and_unit, uses_packaging_legacy_normalization
-from galint_flask.views.nf import _item_matches_seeded_nf_pre_registration, _mark_manual_nf_document_items_for_pre_registration
+from galint_flask.services.price_normalization import infer_document_quantity_unit_for_item, infer_price_unit_for_item
+from galint_flask.views.inventory import _uses_packaging_system
+from galint_flask.views.nf import _apply_document_item_normalization, _item_matches_seeded_nf_pre_registration, _mark_manual_nf_document_items_for_pre_registration
 
 
 class MockPackagingItem:
@@ -307,6 +312,176 @@ def test_formatar_estoque_nao_sincroniza_legacy_em_contexto_de_leitura() -> None
     assert formatted == "2 caixas + 10 unidades"
 
 
+def test_rolo_migrado_nao_reaplica_formula_legada_na_exibicao() -> None:
+    item = MockPackagingItem(
+        codigo_item="ROLO-MIGRADO-TESTE",
+        tipo_embalagem="rolo",
+        unidades_por_embalagem=100,
+        unidade="Metro",
+    )
+    item.tipo_embalagem = "Rolo"
+    item.grandeza_referencia = 100.0
+    item.estoque_embalagens = 1.0
+    item.estoque_unidades_soltas = 0.0
+
+    assert EmbalagemService.tem_embalagem(item) is True
+    assert EmbalagemService.tem_rolo_legacy(item) is False
+    assert EmbalagemService.formatar_estoque(item) == "100 metros (1 rolo)"
+
+
+def test_infer_price_unit_da_nf_prefere_embalagem_documental_do_rolo() -> None:
+    item = MockPackagingItem(
+        codigo_item="ROLO-NF-TESTE",
+        tipo_embalagem="rolo",
+        unidades_por_embalagem=100,
+        unidade="Metro",
+    )
+
+    assert infer_document_quantity_unit_for_item(item) == "rolo"
+    assert infer_price_unit_for_item(item) == "rolo"
+
+
+def test_apply_document_item_normalization_corrige_linha_pendente_de_rolo_para_embalagem() -> None:
+    item = MockPackagingItem(
+        codigo_item="ROLO-NF-PENDENTE-TESTE",
+        tipo_embalagem="rolo",
+        unidades_por_embalagem=100,
+        unidade="Metro",
+    )
+    row = SimpleNamespace(
+        item=item,
+        codigo_item=item.codigo_item,
+        unidade_quantidade="m",
+        quantidade_base=3.0,
+        unidade_preco="m",
+        valor_unitario=None,
+        valor_total=None,
+        valor_unitario_base=None,
+        fator_preco_base=None,
+        status_processamento="pendente",
+        stock_movement_id=None,
+        entrada_id=None,
+    )
+
+    valor_unitario, valor_total = _apply_document_item_normalization(
+        row,
+        quantidade=3.0,
+        valor_unitario=100.0,
+        valor_total=None,
+    )
+
+    assert row.unidade_quantidade == "rolo"
+    assert row.quantidade_base == 300.0
+    assert row.unidade_preco == "rolo"
+    assert row.valor_unitario_base == 1.0
+    assert valor_unitario == 100.0
+    assert valor_total == 300.0
+
+
+def test_serialize_stock_document_mostra_conversao_documental_do_rolo() -> None:
+    item = MockPackagingItem(
+        codigo_item="ROLO-NF-VISUAL-TESTE",
+        tipo_embalagem="rolo",
+        unidades_por_embalagem=100,
+        unidade="Metro",
+    )
+    row = SimpleNamespace(
+        id_documento_item=1,
+        entrada_id=None,
+        stock_movement_id=None,
+        operation_log_id=None,
+        codigo_item=item.codigo_item,
+        item=item,
+        quantidade=3.0,
+        quantidade_base=3.0,
+        valor_unitario=100.0,
+        valor_total=300.0,
+        lote=None,
+        data_validade=None,
+        observacao=None,
+        status_processamento="pendente",
+        processado_em=None,
+        erro_processamento=None,
+        unidade_quantidade="m",
+        unidade_preco="m",
+    )
+    document = SimpleNamespace(
+        id_documento=99,
+        numero_documento="NF-ROLO-TESTE",
+        tipo_documento="nf",
+        criado_em=datetime(2026, 4, 9, 12, 0, 0),
+        data_emissao=None,
+        data_recebimento=None,
+        movimenta_estoque=True,
+        chave_acesso=None,
+        fornecedor_id=None,
+        fornecedor=None,
+        nome_emitente=lambda: None,
+        cnpj_emitente=None,
+        observacao=None,
+        status_integracao="manual",
+        mensagem_integracao=None,
+        criado_por="admin",
+        itens=[row],
+    )
+
+    payload = FinanceService._serialize_stock_document(document)
+    line = payload["itens"][0]
+
+    assert line["usa_embalagem_documental"] is True
+    assert line["autocorrecao_documental_preview"] is True
+    assert line["quantidade_documento_display"] == "3 rolos"
+    assert line["conteudo_por_embalagem_display"] == "100 metros"
+    assert line["quantidade_base_display"] == "300 metros"
+    assert line["conversao_display"] == "3 rolos de 100 metros = 300 metros"
+
+
+def test_resolve_item_base_unit_label_prefere_unidade_canonica_do_rolo() -> None:
+    item_like = {
+        "unidade": "Unidade",
+        "tipo_embalagem_novo": "rolo",
+        "unidades_por_embalagem": 100,
+    }
+
+    assert resolve_item_base_unit_label(item_like, fallback="Unidade") == "Metro"
+
+
+def test_resolve_item_base_unit_label_prefere_unidade_canonica_da_bombona() -> None:
+    item_like = {
+        "unidade": "Unidade",
+        "tipo_embalagem_novo": "bombona",
+        "litros_por_embalagem": 5,
+        "unidades_por_embalagem": 5,
+    }
+
+    assert resolve_item_base_unit_label(item_like, fallback="Unidade") == "Litro"
+
+
+def test_resolve_item_base_unit_label_aceita_product_units_como_dict_no_pre_cadastro() -> None:
+    item_like = {
+        "unidade": "Unidade",
+        "tipo_embalagem_novo": "rolo",
+        "unidades_por_embalagem": 25,
+        "product_units": [
+            {
+                "unit_code": "m",
+                "is_base": True,
+                "active": True,
+            }
+        ],
+    }
+
+    assert resolve_item_base_unit_label(item_like, fallback="Unidade") == "Metro"
+
+
+def test_uses_packaging_system_reconhece_bombona_por_litros() -> None:
+    assert _uses_packaging_system({"tipo_embalagem_novo": "bombona", "litros_por_embalagem": 5}) is True
+
+
+def test_uses_packaging_system_reconhece_saco_por_grandeza() -> None:
+    assert _uses_packaging_system({"tipo_embalagem_novo": "saco", "grandeza_referencia": 20}) is True
+
+
 def test_hydrate_missing_packaging_metadata_promove_unidade_de_embalagem() -> None:
     normalized = InventoryService._hydrate_missing_packaging_metadata(
         {
@@ -317,7 +492,7 @@ def test_hydrate_missing_packaging_metadata_promove_unidade_de_embalagem() -> No
 
     assert normalized["tipo_embalagem_novo"] == "bombona"
     assert normalized["litros_por_embalagem"] == 5.0
-    assert normalized["unidade"] == "Bombona"
+    assert normalized["unidade"] == "Litro"
 
 
 def test_hydrate_missing_packaging_metadata_corrige_unidade_numerica() -> None:
@@ -330,7 +505,7 @@ def test_hydrate_missing_packaging_metadata_corrige_unidade_numerica() -> None:
 
     assert normalized["tipo_embalagem_novo"] == "lata"
     assert normalized["litros_por_embalagem"] == 18.0
-    assert normalized["unidade"] == "Lata"
+    assert normalized["unidade"] == "Litro"
 
 
 def test_seed_nf_aceita_numero_do_documento_sem_nota_gravada_no_item() -> None:
@@ -412,6 +587,15 @@ def main() -> int:
     test_resolve_ledger_input_para_embalagem_legada_usa_base_canonica()
     test_finalize_ledger_mirror_sincroniza_read_model_antes_da_auditoria()
     test_formatar_estoque_nao_sincroniza_legacy_em_contexto_de_leitura()
+    test_rolo_migrado_nao_reaplica_formula_legada_na_exibicao()
+    test_infer_price_unit_da_nf_prefere_embalagem_documental_do_rolo()
+    test_apply_document_item_normalization_corrige_linha_pendente_de_rolo_para_embalagem()
+    test_serialize_stock_document_mostra_conversao_documental_do_rolo()
+    test_resolve_item_base_unit_label_prefere_unidade_canonica_do_rolo()
+    test_resolve_item_base_unit_label_prefere_unidade_canonica_da_bombona()
+    test_resolve_item_base_unit_label_aceita_product_units_como_dict_no_pre_cadastro()
+    test_uses_packaging_system_reconhece_bombona_por_litros()
+    test_uses_packaging_system_reconhece_saco_por_grandeza()
     test_hydrate_missing_packaging_metadata_promove_unidade_de_embalagem()
     test_hydrate_missing_packaging_metadata_corrige_unidade_numerica()
     test_seed_nf_aceita_numero_do_documento_sem_nota_gravada_no_item()

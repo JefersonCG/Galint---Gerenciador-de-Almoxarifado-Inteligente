@@ -44,13 +44,15 @@ def _uses_packaging_system(item_data: dict | None) -> bool:
     if not item_data:
         return False
     tipo = (item_data.get("tipo_embalagem_novo") or "").strip().lower()
-    if tipo not in {"lata", "rolo", "pacote", "caixa", "fardo", "litro", "balde", "saco"}:
+    if tipo not in {"lata", "rolo", "pacote", "caixa", "fardo", "litro", "balde", "bombona", "saco"}:
         return False
-    try:
-        unidades_por = float(item_data.get("unidades_por_embalagem") or 0)
-    except (TypeError, ValueError):
-        return False
-    return unidades_por > 0
+    for key in ("unidades_por_embalagem", "litros_por_embalagem", "grandeza_referencia"):
+        try:
+            if float(item_data.get(key) or 0) > 0:
+                return True
+        except (TypeError, ValueError):
+            continue
+    return False
 
 
 def _collect_operational_context(source) -> dict[str, str | None]:
@@ -888,6 +890,7 @@ def _serialize_pre_registered_item(item_model: Item, documento_item: DocumentoEn
         "codigo": item_model.codigo_item,
         "descricao": item_model.descricao,
         "categoria": item_model.categoria,
+        "marca": item_model.marca,
         "unidade": item_model.unidade,
         "saldo": saldo_atual,
         "saldo_display": item_model.get_saldo_fisico_display(),
@@ -1337,6 +1340,38 @@ def delete_category_record(category_id: int):
         db.session.rollback()
         flash(f"Erro ao excluir categoria: {exc}", "danger")
     return redirect(url_for("inventory.category_admin"))
+
+
+@blueprint.get("/categorias/relatorio-escopo")
+@login_required
+def download_scope_report():
+    """Gera e baixa o Relatório de Escopo executivo (apenas admin)."""
+    _require_admin()
+
+    category_name = (request.args.get("categoria") or "").strip() or None
+    redirect_target = request.referrer or url_for("inventory.list_items")
+
+    try:
+        from ..services.scope_report_service import ScopeReportService
+        from ..utils.time_service import TimeService
+
+        # Gerar relatório
+        buffer = ScopeReportService.generate_executive_scope_report(category_name=category_name)
+
+        # Timestamp para nome do arquivo
+        timestamp = TimeService.now_local().strftime("%Y%m%d_%H%M%S")
+        scope_name = _sanitize_filename_component(category_name or "geral")
+        filename = f"relatorio_escopo_{scope_name}_{timestamp}.xlsx"
+
+        return send_file(
+            buffer,
+            as_attachment=True,
+            download_name=filename,
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+    except Exception as exc:
+        flash(f"Erro ao gerar Relatório de Escopo: {exc}", "danger")
+        return redirect(redirect_target)
 
 
 @blueprint.get("/novo")

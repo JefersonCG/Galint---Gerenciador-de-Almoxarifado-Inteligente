@@ -895,6 +895,7 @@ ${parent.scripts()}
                 codigo: item.codigo || '',
                 descricao: item.descricao || item.codigo || '',
                 categoria: item.categoria || '',
+                marca: item.marca || '',
                 foto_url: item.foto_url || '',
                 saldo: item.saldo,
                 saldo_display: item.saldo_display || '',
@@ -943,7 +944,7 @@ ${parent.scripts()}
                 '<span class="operation-preview-eyebrow"><i class="bi bi-box-arrow-right"></i> Em preparacao</span>' +
                 '<div>' +
                     '<h3 class="operation-preview-title">' + escapeHtml(item.descricao || item.codigo || 'Item') + '</h3>' +
-                    '<div class="operation-preview-subtitle">Codigo ' + escapeHtml(item.codigo || '—') + (item.categoria ? ' • ' + escapeHtml(item.categoria) : '') + '</div>' +
+                    '<div class="operation-preview-subtitle">Codigo ' + escapeHtml(item.codigo || '—') + (item.categoria ? ' • ' + escapeHtml(item.categoria) : '') + (item.marca ? ' • ' + escapeHtml(item.marca) : '') + '</div>' +
                 '</div>' +
                 '<div class="operation-preview-grid">' +
                     '<div class="operation-preview-stat"><span class="operation-preview-stat-label">Quantidade</span><span class="operation-preview-stat-value">' + escapeHtml(quantidade) + '</span></div>' +
@@ -1232,7 +1233,8 @@ ${parent.scripts()}
                 '<div class=\"autocomplete-item-details\">' +
                 '<span class=\"autocomplete-item-code\">Código: ' + item.codigo + '</span>' +
                 (saldoFormatado ? ' | Saldo: ' + saldoFormatado : '') +
-                (item.categoria ? ' | Categoria: ' + item.categoria : '') + '</div>' +
+                (item.categoria ? ' | Categoria: ' + item.categoria : '') +
+                (item.marca ? ' | Marca: ' + item.marca : '') + '</div>' +
                 '</div>';
         }).join('');
         
@@ -1443,6 +1445,7 @@ ${parent.scripts()}
                     nome_embalagem_plural: data.nome_embalagem_plural,
                     unidade: data.unidade,
                     categoria: data.categoria,
+                    marca: data.marca,
                     fracao_unidade_padrao: data.fracao_unidade_padrao,
                     unidade_exibicao_total: data.unidade_exibicao_total,
                     grandeza_referencia: data.grandeza_referencia,
@@ -1467,6 +1470,7 @@ ${parent.scripts()}
                     local: local,
                     em_embalagens: null,
                     categoria: data.categoria,
+                    marca: data.marca,
                     saldo: data.saldo,
                     saldo_display: data.saldo_display,
                     foto_url: data.foto_url
@@ -1581,7 +1585,7 @@ ${parent.scripts()}
                                 ? '<img class="item-thumb" src="' + escapeHtml(item.foto_url) + '" alt="' + escapeHtml(item.descricao || item.codigo) + '">'
                                 : '<span class="item-thumb-placeholder"><i class="bi bi-image"></i></span>') +
                             '<div><strong>' + escapeHtml(item.descricao) + '</strong>' +
-                            '<span class="item-desc-meta">' + escapeHtml(item.categoria || 'Sem categoria') + '</span></div>' +
+                            '<span class="item-desc-meta">' + escapeHtml(item.categoria || 'Sem categoria') + (item.marca ? ' • ' + escapeHtml(item.marca) : '') + '</span></div>' +
                         '</div>' +
                     '</td>' +
                     '<td class="text-center"><span class="badge-qty">' + (item.quantidade_exibicao || item.quantidade) + (item.unidade_label ? ' ' + item.unidade_label : '') + '</span></td>' +

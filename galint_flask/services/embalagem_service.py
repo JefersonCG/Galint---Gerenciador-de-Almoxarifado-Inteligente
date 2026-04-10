@@ -28,6 +28,14 @@ class EmbalagemService:
     @staticmethod
     def tem_rolo_legacy(item: Item) -> bool:
         """Verifica se o item usa rolo no sistema antigo (metros por rolo)."""
+        tipo_embalagem_novo = str(getattr(item, "tipo_embalagem_novo", None) or "").strip().lower()
+        unidades_por_embalagem = float(getattr(item, "unidades_por_embalagem", 0) or 0)
+
+        # Quando o item ja foi migrado para o sistema novo de embalagens,
+        # o metadado legado nao pode voltar a dirigir a exibicao.
+        if tipo_embalagem_novo == "rolo" and unidades_por_embalagem > 0:
+            return False
+
         return (
             item.tipo_embalagem is not None
             and str(item.tipo_embalagem).strip().lower() == "rolo"

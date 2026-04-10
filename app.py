@@ -8,9 +8,12 @@ from flask import Flask
 from galint_flask import create_app
 
 
-def _is_native_mirror_invocation(argv: list[str] | None = None) -> bool:
+def _native_gui_command(argv: list[str] | None = None) -> str | None:
     values = list(sys.argv[1:] if argv is None else argv)
-    return bool(values and values[0] == "native-mirror")
+    if not values:
+        return None
+    command = values[0]
+    return command if command in {"native-mirror", "native-window"} else None
 
 
 def _register_runtime_fallback_routes(app: Flask) -> None:
@@ -75,7 +78,7 @@ def _create_runtime_app() -> Flask:
     return runtime_app
 
 
-app: Flask | None = None if _is_native_mirror_invocation() else _create_runtime_app()
+app: Flask | None = None if _native_gui_command() else _create_runtime_app()
 
 
 def _load_migration_funcs():
@@ -129,7 +132,9 @@ def _run_upgrade(app: Flask) -> None:
 
 
 if __name__ == "__main__":
-    if _is_native_mirror_invocation():
+    native_gui_command = _native_gui_command()
+
+    if native_gui_command == "native-mirror":
         parser = argparse.ArgumentParser(description="Abre o painel espelho em janela nativa")
         parser.add_argument("command")
         parser.add_argument("--url", required=True)
@@ -139,6 +144,18 @@ if __name__ == "__main__":
         from galint_flask.services.native_panel_window import run_native_panel
 
         sys.exit(run_native_panel(url=args.url, title=args.title))
+
+    if native_gui_command == "native-window":
+        parser = argparse.ArgumentParser(description="Abre uma janela operacional nativa do GALINT")
+        parser.add_argument("command")
+        parser.add_argument("--url", required=True)
+        parser.add_argument("--title", default="GALINT")
+        parser.add_argument("--slot", type=int, default=2)
+        args = parser.parse_args()
+
+        from galint_flask.services.native_workspace_window import run_native_workspace_window
+
+        sys.exit(run_native_workspace_window(url=args.url, title=args.title, slot=args.slot))
 
     if app is None:
         raise RuntimeError("Aplicacao Flask indisponivel para este modo de execucao")

@@ -1230,6 +1230,7 @@
             return_unit_label: effectiveUnit.unit_label,
             descricao: detailData.descricao || detailData.codigo || 'Item',
             categoria: detailData.categoria,
+            marca: detailData.marca,
             saldo: detailData.saldo,
             saldo_display: detailData.saldo_display,
             foto_url: detailData.foto_url,
@@ -1387,6 +1388,7 @@
                 codigo: item.codigo || '',
                 descricao: item.descricao || item.codigo || '',
                 categoria: item.categoria || '',
+                marca: item.marca || '',
                 foto_url: item.foto_url || '',
                 saldo: item.saldo,
                 saldo_display: item.saldo_display || '',
@@ -1435,7 +1437,7 @@
                 '<span class="operation-preview-eyebrow"><i class="bi bi-arrow-return-left"></i> Em devolucao</span>' +
                 '<div>' +
                     '<h3 class="operation-preview-title">' + escapeHtml(item.descricao || item.codigo || 'Item') + '</h3>' +
-                    '<div class="operation-preview-subtitle">Codigo ' + escapeHtml(item.codigo || '—') + (item.categoria ? ' • ' + escapeHtml(item.categoria) : '') + '</div>' +
+                    '<div class="operation-preview-subtitle">Codigo ' + escapeHtml(item.codigo || '—') + (item.categoria ? ' • ' + escapeHtml(item.categoria) : '') + (item.marca ? ' • ' + escapeHtml(item.marca) : '') + '</div>' +
                 '</div>' +
                 '<div class="operation-preview-grid">' +
                     '<div class="operation-preview-stat"><span class="operation-preview-stat-label">Quantidade</span><span class="operation-preview-stat-value">' + escapeHtml(formatPreviewQuantity(item)) + '</span></div>' +
@@ -1654,7 +1656,8 @@
                 '<div class="autocomplete-item-details">' +
                 '<span class="autocomplete-item-code">Código: ' + item.codigo + '</span>' +
                 (saldoDisplay !== undefined ? ' | Saldo: ' + saldoDisplay : '') +
-                (item.categoria ? ' | Categoria: ' + item.categoria : '') + '</div>' +
+                (item.categoria ? ' | Categoria: ' + item.categoria : '') +
+                (item.marca ? ' | Marca: ' + item.marca : '') + '</div>' +
                 '</div>';
         }).join('');
         
@@ -1814,7 +1817,7 @@
                         (item.foto_url
                             ? '<img class="item-thumb" src="' + escapeHtml(item.foto_url) + '" alt="' + escapeHtml(item.descricao || item.codigo) + '">'
                             : '<span class="item-thumb-placeholder"><i class="bi bi-image"></i></span>') +
-                        '<div><strong>' + escapeHtml(item.descricao) + '</strong><span class="item-desc-meta">' + escapeHtml(item.categoria || 'Sem categoria') + '</span></div>' +
+                        '<div><strong>' + escapeHtml(item.descricao) + '</strong><span class="item-desc-meta">' + escapeHtml(item.categoria || 'Sem categoria') + (item.marca ? ' • ' + escapeHtml(item.marca) : '') + '</span></div>' +
                     '</div>' +
                 '</td>' +
                 '<td><code>' + item.codigo + '</code></td>' +

@@ -4,6 +4,7 @@ API endpoints para recursos diversos do sistema GALINT.
 from flask import Blueprint, jsonify, request
 from ..models import Item
 from ..extensions import db
+from ..services.legacy_stock_normalizer import resolve_canonical_unit, resolve_packaging_factor
 
 api_bp = Blueprint('api', __name__, url_prefix='/api')
 
@@ -59,36 +60,42 @@ def calcular_estoque():
     item = Item.query.get(codigo_item)
     if not item:
         return jsonify({'error': 'Item não encontrado'}), 404
+
+    try:
+        quantidade_valor = float(quantidade or 0)
+    except (TypeError, ValueError):
+        return jsonify({'error': 'quantidade inválida'}), 400
+
+    canonical_unit = (resolve_canonical_unit(item) or '').strip().lower()
+    packaging_factor = float(resolve_packaging_factor(item) or 0.0)
+    unidade_base = item.get_unidade_interna_display() or item.unidade
+    tipo_embalagem = item.tipo_embalagem_novo or item.tipo_embalagem
+    conversion_labels = {
+        'un': 'unidades',
+        'm': 'metros',
+        'kg': 'quilos',
+        'l': 'litros',
+    }
+    quantidade_base = quantidade_valor
+    if packaging_factor > 0 and canonical_unit:
+        quantidade_base = quantidade_valor * packaging_factor
     
     resultado = {
         'codigo_item': codigo_item,
         'descricao': item.descricao,
-        'unidade_base': item.unidade,
-        'quantidade_base': quantidade,
-        'tipo_embalagem': item.tipo_embalagem,
+        'unidade_base': unidade_base,
+        'quantidade_informada': quantidade_valor,
+        'quantidade_base': quantidade_base,
+        'tipo_embalagem': tipo_embalagem,
         'conversoes': {}
     }
-    
-    # Conversões por tipo de embalagem (sem Kg↔L por densidade)
-    if item.tipo_embalagem == 'Lata':
-        # Lata: Unidade → Kg e/ou Litros (se configurado)
-        if item.grandeza_referencia:
-            resultado['conversoes']['quilos'] = quantidade * (item.grandeza_referencia or 0)
-        if item.litros_por_embalagem:
-            resultado['conversoes']['litros'] = quantidade * (item.litros_por_embalagem or 0)
-        
-    elif item.tipo_embalagem == 'Rolo' and item.grandeza_referencia:
-        # Rolo: Unidade ↔ M ↔ Cm
-        resultado['conversoes']['metros'] = quantidade * item.grandeza_referencia
-        resultado['conversoes']['centimetros'] = resultado['conversoes']['metros'] * 100
-        
-    elif item.tipo_embalagem == 'Pacote' and item.grandeza_referencia:
-        # Pacote: Caixa → Pacotes → Unidades
-        resultado['conversoes']['unidades'] = quantidade * item.grandeza_referencia
-        
-    elif item.tipo_embalagem == 'Caixa' and item.grandeza_referencia:
-        # Caixa: Caixa → Unidades
-        resultado['conversoes']['unidades'] = quantidade * item.grandeza_referencia
+
+    if canonical_unit and packaging_factor > 0:
+        label = conversion_labels.get(canonical_unit, canonical_unit)
+        resultado['conversoes'][label] = quantidade_base
+        resultado['conversoes']['conteudo_por_embalagem'] = packaging_factor
+        if canonical_unit == 'm':
+            resultado['conversoes']['centimetros'] = quantidade_base * 100
     
     return jsonify(resultado)
 

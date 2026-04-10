@@ -133,19 +133,29 @@ def resolve_item_base_unit_label(item_like: Any, *, fallback: str = "Unidade") -
         return fallback
 
     if isinstance(item_like, dict):
-        normalized = normalize_base_item_unit(item_like.get("unidade"))
-        if normalized:
-            return normalized
-        probe = SimpleNamespace(**item_like)
+        d = dict(item_like)
+        if isinstance(d.get("product_units"), list):
+            d["product_units"] = [
+                SimpleNamespace(**u) if isinstance(u, dict) else u
+                for u in d["product_units"]
+            ]
+        probe = SimpleNamespace(**d)
     else:
-        normalized = normalize_base_item_unit(getattr(item_like, "unidade", None))
-        if normalized:
-            return normalized
         probe = item_like
 
     canonical_unit = _BASE_ITEM_UNIT_LABEL_BY_CODE.get((resolve_canonical_unit(probe) or "").strip().lower())
     if canonical_unit:
         return canonical_unit
+
+    if isinstance(item_like, dict):
+        normalized = normalize_base_item_unit(item_like.get("unidade"))
+        if normalized:
+            return normalized
+    else:
+        normalized = normalize_base_item_unit(getattr(item_like, "unidade", None))
+        if normalized:
+            return normalized
+
     return fallback
 
 
@@ -1152,7 +1162,11 @@ class InventoryService:
             except ValueError:
                 unidade_numerica = False
         unidade_base_fallback = resolve_item_base_unit_label(current_item, fallback="Unidade") if current_item is not None else "Unidade"
-        if tipo_embalagem and (unidade_atual in {"", "un", "und", "unidade", "unidades"} or unidade_numerica):
+        if tipo_embalagem and (
+            unidade_atual in {"", "un", "und", "unidade", "unidades"}
+            or unidade_numerica
+            or is_packaging_unit_code(unidade_atual)
+        ):
             inferred_base_label = _BASE_ITEM_UNIT_LABEL_BY_CODE.get((inferred_unit or "").strip().lower())
             normalized_payload["unidade"] = inferred_base_label or unidade_base_fallback
         else:
@@ -1333,6 +1347,7 @@ class InventoryService:
             "codigo": item.codigo_item,
             "descricao": item.descricao,
             "categoria": item.categoria,
+            "marca": item.marca,
             "unidade": item.unidade,
             "saldo_exibido": saldo_exibido,
             "saldo_fisico": saldo_fisico,
@@ -2574,7 +2589,13 @@ class InventoryService:
 
         like = f"%{q}%"
         rows = (
-            Item.query.filter(or_(Item.codigo_item.ilike(like), Item.descricao.ilike(like)))
+            Item.query.filter(
+                or_(
+                    Item.codigo_item.ilike(like),
+                    Item.descricao.ilike(like),
+                    Item.marca.ilike(like),
+                )
+            )
             .order_by(Item.descricao)
             .limit(limit)
             .all()
@@ -2601,6 +2622,7 @@ class InventoryService:
                     "codigo": item.codigo_item,
                     "descricao": item.descricao,
                     "categoria": item.categoria,
+                    "marca": item.marca,
                     "saldo": saldo,
                     "saldo_display": saldo_display,
                     "tipo_embalagem_novo": item.tipo_embalagem_novo,

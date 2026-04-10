@@ -14,16 +14,8 @@
             >{{ pre_registered_counts.documents }}</span>
         </button>
         {% endif %}
-        {% if can_manage and endpoint_exists('inventory.generate_all_barcodes') %}
-        <form method="post" action="{{ url_for('inventory.generate_all_barcodes') }}" class="d-inline">
-            <button class="btn btn-outline-primary" type="submit">Gerar códigos de barras</button>
-        </form>
-        {% endif %}
         {% if can_manage %}
         <a class="btn btn-outline-info" href="{{ url_for('inventory.category_admin') }}">Categorias</a>
-        {% endif %}
-        {% if can_create %}
-        <a class="btn btn-success" href="{{ url_for('inventory.new_item_form') }}">Novo item</a>
         {% endif %}
     </div>
 </div>
@@ -32,14 +24,14 @@
     <div class="d-flex justify-content-between flex-wrap gap-2 align-items-end mb-2">
         <div>
             <h3 class="h5 mb-1">Busca rápida</h3>
-            <p class="text-muted small mb-0">Digite o nome ou escaneie o código de barras e pressione Enter para abrir o
+            <p class="text-muted small mb-0">Digite o nome, a marca ou escaneie o código de barras e pressione Enter para abrir o
                 item.</p>
         </div>
         <button class="btn btn-outline-light btn-sm" type="button" id="inventory-search-clear"
             aria-label="Limpar busca">Limpar</button>
     </div>
     <div class="input-group input-group-lg">
-        <input class="form-control" type="search" id="inventory-search" placeholder="Buscar por descrição ou código"
+        <input class="form-control" type="search" id="inventory-search" placeholder="Buscar por descrição, marca ou código"
             autocomplete="off" spellcheck="false">
         <span class="input-group-text" id="inventory-search-badge">0 resultado</span>
     </div>
@@ -440,7 +432,31 @@
         border: 1px solid rgba(148, 163, 184, 0.16);
         border-radius: 1rem;
         background: rgba(15, 23, 42, 0.4);
+        overflow: hidden;
+    }
+
+    .pre-registered-document.is-expanded {
+        border-color: rgba(96, 165, 250, 0.26);
+        background: rgba(15, 23, 42, 0.52);
+    }
+
+    .pre-registered-document-toggle {
+        width: 100%;
+        border: 0;
+        background: transparent;
+        color: inherit;
+        text-align: left;
         padding: 1rem;
+        transition: background 0.18s ease;
+    }
+
+    .pre-registered-document-toggle:hover {
+        background: rgba(255, 255, 255, 0.03);
+    }
+
+    .pre-registered-document-toggle:focus-visible {
+        outline: 2px solid rgba(96, 165, 250, 0.55);
+        outline-offset: -2px;
     }
 
     .pre-registered-document-head {
@@ -448,9 +464,33 @@
         justify-content: space-between;
         gap: 1rem;
         align-items: flex-start;
-        margin-bottom: 0.9rem;
-        padding-bottom: 0.9rem;
-        border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+    }
+
+    .pre-registered-document-head-main {
+        min-width: 0;
+    }
+
+    .pre-registered-document-head-side {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.75rem;
+        flex-shrink: 0;
+    }
+
+    .pre-registered-document-chevron {
+        color: #94a3b8;
+        font-size: 1rem;
+        transition: transform 0.2s ease, color 0.2s ease;
+    }
+
+    .pre-registered-document.is-expanded .pre-registered-document-chevron {
+        transform: rotate(180deg);
+        color: #e2e8f0;
+    }
+
+    .pre-registered-document-body {
+        padding: 0 1rem 1rem;
+        border-top: 1px solid rgba(148, 163, 184, 0.12);
     }
 
     .pre-registered-document-items {
@@ -543,6 +583,15 @@
     }
 
     @media (max-width: 991.98px) {
+        .pre-registered-document-head {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .pre-registered-document-head-side {
+            justify-content: space-between;
+        }
+
         .pre-registered-card-meta {
             grid-template-columns: repeat(2, minmax(0, 1fr));
         }
@@ -584,10 +633,55 @@
             justify-content: center;
         }
     }
+
+    .scope-report-modal {
+        background: #ffffff;
+        color: #111827;
+    }
+
+    .scope-report-modal .modal-header,
+    .scope-report-modal .modal-footer {
+        border-color: rgba(15, 23, 42, 0.12);
+    }
+
+    .scope-report-modal .modal-title,
+    .scope-report-modal .form-label,
+    .scope-report-modal .form-select,
+    .scope-report-modal .form-select option {
+        color: #111827 !important;
+    }
+
+    .scope-report-modal .modal-body,
+    .scope-report-modal .modal-body p,
+    .scope-report-modal .text-muted {
+        color: #4b5563 !important;
+    }
+
+    .scope-report-modal .form-select {
+        background-color: #ffffff;
+        border-color: rgba(15, 23, 42, 0.18);
+    }
+
+    .scope-report-modal .btn-close {
+        filter: none;
+    }
 </style>
 <div class="section-panel mb-5">
-    <h3>Estoque por categoria</h3>
-    <p class="text-muted">Clique em cada card para editar os itens cadastrados nesta categoria.</p>
+    <div class="d-flex justify-content-between align-items-start gap-2 flex-wrap mb-2">
+        <div>
+            <h3 class="mb-1">Estoque por categoria</h3>
+            <p class="text-muted mb-0">Clique em cada card para editar os itens cadastrados nesta categoria.</p>
+        </div>
+        {% if can_manage %}
+        <button class="btn btn-success d-inline-flex align-items-center gap-2" type="button" data-bs-toggle="modal" data-bs-target="#scopeReportModal">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5zM9.5 3A1.5 1.5 0 0 0 11 4.5h2V14a1 1 0 0 1-1 1h-1v-2.5a.5.5 0 0 0-.5-.5h-5a.5.5 0 0 0-.5.5V15H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5.5z"/>
+                <path d="M4.5 7.5A.5.5 0 0 1 5 7h1.018l.982 1.566L7.982 7H9a.5.5 0 0 1 .416.777L7.591 10.5l1.825 2.723A.5.5 0 0 1 9 14H7.982L7 12.434 6.018 14H5a.5.5 0 0 1-.416-.777L6.409 10.5 4.584 7.777A.5.5 0 0 1 4.5 7.5"/>
+            </svg>
+            <span>XLS Relatório de Escopo</span>
+        </button>
+        {% endif %}
+    </div>
     <div class="row g-3">
         {% for category in category_cards %}
         <div class="col-xl-3 col-lg-4 col-md-6">
@@ -748,6 +842,34 @@
     </div>
 </div>
 {% endif %}
+<div class="modal fade" id="scopeReportModal" tabindex="-1" aria-labelledby="scopeReportModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content scope-report-modal">
+            <form method="get" action="/itens/categorias/relatorio-escopo">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="scopeReportModalLabel">Relatório de Escopo</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted">Escolha se deseja gerar o relatório geral do estoque ou focado em uma categoria específica.</p>
+                    <div>
+                        <label class="form-label" for="scope-report-category">Categoria</label>
+                        <select class="form-select" id="scope-report-category" name="categoria">
+                            <option value="">Geral</option>
+                            {% for category in category_cards %}
+                            <option value="{{ category.categoria }}">{{ category.categoria }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Cancelar</button>
+                    <button class="btn btn-success" type="submit">Gerar XLS</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 <div class="modal fade" id="categoryModal" tabindex="-1" aria-labelledby="categoryModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content galint-dark-surface">
@@ -2537,17 +2659,32 @@
     }
 
     const assignPackagingNames = {
-        rolo: { singular: 'Rolo', plural: 'rolos', unitSingular: 'metro', unitPlural: 'metros' },
-        pacote: { singular: 'Pacote', plural: 'pacotes', unitSingular: 'unidade', unitPlural: 'unidades' },
-        caixa: { singular: 'Caixa', plural: 'caixas', unitSingular: 'unidade', unitPlural: 'unidades' },
-        fardo: { singular: 'Fardo', plural: 'fardos', unitSingular: 'unidade', unitPlural: 'unidades' },
-        saco: { singular: 'Saco', plural: 'sacos', unitSingular: 'unidade', unitPlural: 'unidades' },
-        lata: { singular: 'Lata', plural: 'latas', unitSingular: 'unidade', unitPlural: 'unidades' },
-        balde: { singular: 'Balde', plural: 'baldes', unitSingular: 'unidade', unitPlural: 'unidades' },
-        bombona: { singular: 'Bombona', plural: 'bombonas', unitSingular: 'unidade', unitPlural: 'unidades' },
-        litro: { singular: 'Litro', plural: 'litros', unitSingular: 'litro', unitPlural: 'litros' },
-        embalagem: { singular: 'Embalagem', plural: 'embalagens', unitSingular: 'unidade', unitPlural: 'unidades' },
+        rolo: { singular: 'Rolo', plural: 'rolos' },
+        pacote: { singular: 'Pacote', plural: 'pacotes' },
+        caixa: { singular: 'Caixa', plural: 'caixas' },
+        fardo: { singular: 'Fardo', plural: 'fardos' },
+        saco: { singular: 'Saco', plural: 'sacos' },
+        lata: { singular: 'Lata', plural: 'latas' },
+        balde: { singular: 'Balde', plural: 'baldes' },
+        bombona: { singular: 'Bombona', plural: 'bombonas' },
+        litro: { singular: 'Litro', plural: 'litros' },
+        embalagem: { singular: 'Embalagem', plural: 'embalagens' },
     };
+
+    function resolveCanonicalUnitMeta(item = {}) {
+        const rawDisplay = String(item?.unidade_interna_display || item?.unidade || '').trim();
+        const rawUnit = rawDisplay.toLowerCase();
+        if (['m', 'metro', 'metros'].includes(rawUnit)) {
+            return { singular: 'metro', plural: 'metros', display: rawDisplay || 'Metro' };
+        }
+        if (['kg', 'quilo', 'quilos'].includes(rawUnit)) {
+            return { singular: 'kg', plural: 'kg', display: rawDisplay || 'Quilo' };
+        }
+        if (['l', 'litro', 'litros'].includes(rawUnit)) {
+            return { singular: 'litro', plural: 'litros', display: rawDisplay || 'Litro' };
+        }
+        return { singular: 'unidade', plural: 'unidades', display: rawDisplay || 'Unidade' };
+    }
 
     let currentItemStock = 0;
     let currentItemCode = '';
@@ -2574,14 +2711,15 @@
     function getAssignPackagingMeta(item = {}) {
         const rawType = String(item?.tipo_embalagem_novo || item?.unidade || '').trim().toLowerCase();
         const meta = assignPackagingNames[rawType] || assignPackagingNames.embalagem;
+        const unitMeta = resolveCanonicalUnitMeta(item);
         return {
             hasPackaging: hasAssignDynamicUnits(item),
             packagingType: rawType || 'embalagem',
             unitsPerPackage: Math.max(0, Number(item?.unidades_por_embalagem || 0)),
             packagingSingular: meta.singular,
             packagingPlural: meta.plural,
-            unitSingular: meta.unitSingular,
-            unitPlural: meta.unitPlural,
+            unitSingular: unitMeta.singular,
+            unitPlural: unitMeta.plural,
         };
     }
 
@@ -3761,7 +3899,7 @@
             .filter((row) => row?.active !== false)
             .forEach((row) => addOption(row.unit_code, row.unit_label, row.is_base));
 
-        addOption(item?.unidade || 'unidade', item?.unidade || 'Unidade', true);
+        addOption(item?.unidade_interna_display || item?.unidade || 'unidade', item?.unidade_interna_display || item?.unidade || 'Unidade', true);
 
         const packagingType = normalizePriceUnitCode(item?.tipo_embalagem_novo || '');
         const packagingQuantity = Number(item?.unidades_por_embalagem || 0);
@@ -3913,28 +4051,49 @@
             preRegisteredResults.innerHTML = '<div class="text-muted small">Todos os itens deste documento já foram finalizados.</div>';
             return;
         }
-        setPreRegisteredStatus(`${totalItems} item(ns) pendente(s) distribuído(s) em ${documents.length} documento(s). Selecione um para concluir o cadastro.`, 'success');
+        setPreRegisteredStatus(`${totalItems} item(ns) pendente(s) distribuído(s) em ${documents.length} documento(s). Expanda um documento para escolher o item que deseja concluir.`, 'success');
 
-        documents.forEach((docPayload) => {
+        documents.forEach((docPayload, documentIndex) => {
             const documentSection = document.createElement('section');
             documentSection.className = 'pre-registered-document';
             const supplier = docPayload.fornecedor_nome ? escapeHtml(docPayload.fornecedor_nome) : 'Fornecedor não identificado';
             const tipo = escapeHtml(docPayload.tipo_documento_label || docPayload.tipo_documento || 'Documento');
             const dataEmissao = docPayload.data_emissao ? new Date(`${docPayload.data_emissao}T00:00:00`).toLocaleDateString('pt-BR') : '—';
             const dataRecebimento = docPayload.data_recebimento ? new Date(`${docPayload.data_recebimento}T00:00:00`).toLocaleDateString('pt-BR') : '—';
+            const itemsContainerId = `pre-registered-document-items-${documentIndex}`;
+            const shouldStartExpanded = documents.length === 1 || Boolean(options.filter);
             documentSection.innerHTML = `
-                <div class="pre-registered-document-head">
-                    <div>
-                        <div class="fw-semibold text-white">${tipo} ${escapeHtml(docPayload.numero_documento || 'Sem número')}</div>
-                        <div class="small text-muted">${supplier}</div>
-                        <div class="small text-muted">Emissão: ${dataEmissao} • Recebimento: ${dataRecebimento}</div>
+                <button type="button" class="pre-registered-document-toggle" aria-expanded="${shouldStartExpanded ? 'true' : 'false'}" aria-controls="${itemsContainerId}">
+                    <div class="pre-registered-document-head">
+                        <div class="pre-registered-document-head-main">
+                            <div class="fw-semibold text-white">${tipo} ${escapeHtml(docPayload.numero_documento || 'Sem número')}</div>
+                            <div class="small text-muted">${supplier}</div>
+                            <div class="small text-muted">Emissão: ${dataEmissao} • Recebimento: ${dataRecebimento}</div>
+                        </div>
+                        <div class="pre-registered-document-head-side">
+                            <span class="pre-registered-document-count">${escapeHtml(String(docPayload.items_count || (docPayload.items || []).length || 0))} pendente(s)</span>
+                            <i class="bi bi-chevron-down pre-registered-document-chevron" aria-hidden="true"></i>
+                        </div>
                     </div>
-                    <span class="pre-registered-document-count">${escapeHtml(String(docPayload.items_count || (docPayload.items || []).length || 0))} pendente(s)</span>
+                </button>
+                <div class="pre-registered-document-body" id="${itemsContainerId}" ${shouldStartExpanded ? '' : 'hidden'}>
+                    <div class="pre-registered-document-items"></div>
                 </div>
-                <div class="pre-registered-document-items"></div>
             `;
 
+            documentSection.classList.toggle('is-expanded', shouldStartExpanded);
+            const documentToggle = documentSection.querySelector('.pre-registered-document-toggle');
+            const documentBody = documentSection.querySelector('.pre-registered-document-body');
             const itemsContainer = documentSection.querySelector('.pre-registered-document-items');
+            documentToggle?.addEventListener('click', () => {
+                const isExpanded = documentToggle.getAttribute('aria-expanded') === 'true';
+                documentToggle.setAttribute('aria-expanded', isExpanded ? 'false' : 'true');
+                documentSection.classList.toggle('is-expanded', !isExpanded);
+                if (documentBody) {
+                    documentBody.hidden = isExpanded;
+                }
+            });
+
             (docPayload.items || []).forEach((entry) => {
                 const card = document.createElement('button');
                 card.type = 'button';
@@ -3943,7 +4102,7 @@
                     <div class="pre-registered-card-head">
                         <div>
                             <div class="pre-registered-card-title">${escapeHtml(entry.descricao || 'Item sem descrição')}</div>
-                            <div class="small text-muted">Código ${escapeHtml(entry.codigo || '—')} • ${escapeHtml(entry.categoria || 'Sem categoria')}</div>
+                            <div class="small text-muted">Código ${escapeHtml(entry.codigo || '—')} • ${escapeHtml(entry.categoria || 'Sem categoria')}${entry.marca ? ` • ${escapeHtml(entry.marca)}` : ''}</div>
                         </div>
                         <span class="badge text-bg-warning">Pendente</span>
                     </div>
@@ -4239,7 +4398,7 @@
     const getPriceUnitLabel = (item) => {
         const tipoEmb = String(item?.tipo_embalagem_novo || '').trim();
         if (tipoEmb) return tipoEmb;
-        return String(item?.unidade || 'un').trim() || 'un';
+        return String(item?.unidade_interna_display || item?.unidade || 'un').trim() || 'un';
     };
 
     const calcStockValue = (item, unitPrice) => {
@@ -4596,7 +4755,7 @@
                     <div class="price-batch-head">
                         <div>
                             <p class="price-batch-title">${escapeHtml(item.descricao || 'Item')}</p>
-                            <div class="price-batch-code">Código ${escapeHtml(item.codigo || '—')} • ${escapeHtml(item.categoria || 'Sem categoria')}</div>
+                            <div class="price-batch-code">Código ${escapeHtml(item.codigo || '—')} • ${escapeHtml(item.categoria || 'Sem categoria')}${item.marca ? ` • ${escapeHtml(item.marca)}` : ''}</div>
                         </div>
                         <div class="price-batch-summary">
                             <div class="price-batch-median">${Number.isFinite(median) && median > 0 ? formatBrl(median) : '—'}</div>
@@ -4903,7 +5062,7 @@
             button.innerHTML = `
                     <div class="me-3">
                         <div class="fw-semibold">${escapeHtml(item.descricao)}</div>
-                        <div class="small text-muted">Código ${escapeHtml(item.codigo)} • Categoria ${escapeHtml(item.categoria || '—')}</div>
+                        <div class="small text-muted">Código ${escapeHtml(item.codigo)} • Categoria ${escapeHtml(item.categoria || '—')}${item.marca ? ` • ${escapeHtml(item.marca)}` : ''}</div>
                     </div>
                     <span class="badge bg-primary rounded-pill">Saldo ${escapeHtml(saldoDisplay)}</span>
                 `;
@@ -4920,7 +5079,8 @@
         return items.filter((item) => {
             const description = normalize(item.descricao);
             const codigo = normalize(item.codigo);
-            return description.includes(normalized) || codigo.includes(normalized);
+            const marca = normalize(item.marca);
+            return description.includes(normalized) || codigo.includes(normalized) || marca.includes(normalized);
         });
     };
 
@@ -4960,24 +5120,17 @@
         document.getElementById('item-categoria').textContent = currentItem.categoria || '—';
         document.getElementById('item-marca').textContent = currentItem.marca || currentItem.setor || '—';
         const hasPackaging = currentItem.tipo_embalagem_novo && currentItem.unidades_por_embalagem;
+        const embalagemNome = currentItem.tipo_embalagem_novo || 'embalagem';
         const saldoDisplay = String(currentItem.saldo_display || '').trim()
             || String(currentItem.saldo || '0');
         const saldoUnidades = currentItem.saldo_unidades_total ?? currentItem.saldo;
         
         // Determinar a unidade correta para exibição
-        let unidadeExibicao = 'unidades';
-        if (currentItem.grandeza_referencia && currentItem.grandeza_referencia > 0 && 
-            (currentItem.tipo_embalagem_novo === 'balde' || currentItem.tipo_embalagem_novo === 'lata' || 
-             currentItem.unidade === 'Balde' || currentItem.unidade === 'Lata')) {
-            unidadeExibicao = 'kg';
-        } else if (currentItem.litros_por_embalagem && currentItem.litros_por_embalagem > 0) {
-            unidadeExibicao = 'litros';
-        } else if (currentItem.tipo_embalagem_novo === 'rolo' || currentItem.unidade === 'Rolo') {
-            unidadeExibicao = 'metros';
-        }
+        const unitMeta = resolveCanonicalUnitMeta(currentItem);
+        const unidadeExibicao = unitMeta.plural;
         
         document.getElementById('item-saldo').textContent = saldoDisplay || '0';
-        document.getElementById('item-unidade').textContent = currentItem.unidade || '—';
+        document.getElementById('item-unidade').textContent = unitMeta.display || '—';
 
         updateFinanceUI(currentItem);
         
@@ -5007,7 +5160,7 @@
         
         // Popular aba Estoque
         document.getElementById('stock-saldo').textContent = hasPackaging
-            ? `${saldoDisplay || 0} ${embalagemNome} (${saldoUnidades || 0} ${unidadeExibicao})`
+            ? (saldoDisplay || `${currentItem.saldo_embalagens ?? 0} ${embalagemNome} (${saldoUnidades || 0} ${unidadeExibicao})`)
             : String(currentItem.saldo_display || `${currentItem.saldo || 0} ${currentItem.unidade || 'unidades'}`);
         const stockExplicacao = document.getElementById('stock-explicacao');
         if (currentItem.explicacao_saldo) {

@@ -801,6 +801,7 @@ ${parent.scripts()}
                 codigo: item.codigo || '',
                 descricao: item.descricao || item.codigo || '',
                 categoria: item.categoria || '',
+                marca: item.marca || '',
                 foto_url: item.fotoUrl || item.foto_url || '',
                 saldo: item.totalBase,
                 saldo_display: formatDecimal(item.totalBase || 0) + ' ' + String(item.displayUnit || 'L'),
@@ -853,7 +854,7 @@ ${parent.scripts()}
                 '<span class="operation-preview-eyebrow"><i class="bi bi-droplet-half"></i> Retirada pesada</span>' +
                 '<div>' +
                     '<h3 class="operation-preview-title">' + escapeHtml(item.descricao || item.codigo || 'Item') + '</h3>' +
-                    '<div class="operation-preview-subtitle">Codigo ' + escapeHtml(item.codigo || '—') + '</div>' +
+                    '<div class="operation-preview-subtitle">Codigo ' + escapeHtml(item.codigo || '—') + (item.categoria ? ' • ' + escapeHtml(item.categoria) : '') + (item.marca ? ' • ' + escapeHtml(item.marca) : '') + '</div>' +
                 '</div>' +
                 '<div class="operation-preview-grid">' +
                     '<div class="operation-preview-stat"><span class="operation-preview-stat-label">Quantidade</span><span class="operation-preview-stat-value">' + escapeHtml(quantidadeDisplay) + '</span></div>' +
@@ -1173,7 +1174,8 @@ ${parent.scripts()}
                 '<div class=\"autocomplete-item-details\">' +
                 '<span class=\"autocomplete-item-code\">Código: ' + item.codigo + '</span>' +
                 (saldoFormatado ? ' | Saldo: ' + saldoFormatado : '') +
-                (item.categoria ? ' | Categoria: ' + item.categoria : '') + '</div>' +
+                (item.categoria ? ' | Categoria: ' + item.categoria : '') +
+                (item.marca ? ' | Marca: ' + item.marca : '') + '</div>' +
                 '</div>';
         }).join('');
         
@@ -1197,6 +1199,7 @@ ${parent.scripts()}
             codigo: item.codigo,
             descricao: item.descricao || item.codigo,
             categoria: item.categoria,
+            marca: item.marca,
             saldo: item.saldo,
             saldo_display: item.saldo_display,
             foto_url: item.foto_url,
@@ -1309,6 +1312,7 @@ ${parent.scripts()}
                     codigo: codigo,
                     descricao: data.descricao,
                     categoria: data.categoria,
+                    marca: data.marca,
                     unidade: data.nome_embalagem || data.unidade || 'un',
                     usuario: usuario,
                     local: local,
@@ -1529,6 +1533,7 @@ ${parent.scripts()}
                 codigo: data.codigo || codigo,
                 descricao: data.descricao || codigo,
                 categoria: data.categoria,
+                marca: data.marca,
                 totalBase: Number(data.saldo_total_fracionado || data.saldo || 0),
                 displayUnit: String(data.unidade_exibicao_total || 'L'),
                 packageCapacity: Number(data.capacidade_embalagem || 0),

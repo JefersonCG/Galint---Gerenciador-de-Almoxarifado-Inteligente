@@ -1460,7 +1460,7 @@
                                     </div>
                                 </div>
                             </div>
-                            <div class="col-md-8">
+                            <div class="col-md-5">
                                 <div class="docf-field-card">
                                     <div>
                                         <label class="form-label" for="nova_categoria">Categoria</label>
@@ -1471,6 +1471,15 @@
                                         <option value="{{ option }}" {% if option == 'Material Elétrico' %}selected{% endif %}>{{ option }}</option>
                                         {% endfor %}
                                     </select>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="docf-field-card">
+                                    <div>
+                                        <label class="form-label" for="nova_marca">Marca</label>
+                                        <div class="docf-field-hint">Preencha a marca/fabricante para o pré-cadastro já nascer completo.</div>
+                                    </div>
+                                    <input class="form-control form-control-sm" id="nova_marca" name="nova_marca" placeholder="Ex.: Corfio, Cobrecon">
                                 </div>
                             </div>
                             <div class="col-md-4">
@@ -1501,10 +1510,11 @@
                                 <label class="form-label" for="quantidade">Quantidade</label>
                                 <input class="form-control form-control-sm" id="quantidade" name="quantidade" type="number" min="1" value="1"
                                     required>
+                                <div class="form-text">Para item com embalagem cadastrada, a quantidade desta NF é lida como quantidade de embalagens da compra.</div>
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label" for="nota_fiscal" id="nota_fiscal_label">Número da NF</label>
-                                <input class="form-control form-control-sm" id="nota_fiscal" name="nota_fiscal" required>
+                                <input class="form-control form-control-sm" id="nota_fiscal" name="nota_fiscal" value="{{ nota_detalhes.numero_documento|default(nota_busca, true) if active_tab == 'registro' and (nota_detalhes or nota_busca) else '' }}" required>
                                 <div class="list-group mt-2 d-none" id="nota_fiscal_results"></div>
                             </div>
                             <input type="hidden" id="finance_supplier_search" name="supplier_name">
@@ -1746,6 +1756,7 @@
                                 <div class="docf-panel warning mb-0">
                                     <strong>Regra desta edição.</strong>
                                     <span class="d-block docf-muted">Item incluído ou ajustado manualmente aqui volta para PRÉ CADASTRADOS antes da incorporação ao estoque, inclusive quando o código já existe. Se o documento não movimentar estoque, a linha permanece só no financeiro.</span>
+                                    <span class="d-block docf-muted mt-2">Para item embalado, a quantidade desta NF é interpretada em embalagens. Ex.: 3 rolos de 100 metros = 300 metros.</span>
                                 </div>
                             </div>
                         </div>
@@ -1819,6 +1830,15 @@
                                     <div class="col-md-2">
                                         <label class="form-label" for="nota-detalhe-quantidade-{{ item.id }}">Quantidade</label>
                                         <input class="form-control" id="nota-detalhe-quantidade-{{ item.id }}" name="item_quantidade_{{ item.id }}" type="number" min="0.01" step="0.01" value="{{ item.quantidade|default(0, true) }}" {% if nota_detalhes.movimenta_estoque|default(True, true) and item.status_processamento == 'processado' and item.stock_movement_id is not none %}readonly{% else %}required{% endif %}>
+                                        {% if item.conversao_display or item.quantidade_documento_display %}
+                                        <small class="form-text text-muted">
+                                            {% if item.conversao_display %}
+                                            {{ item.conversao_display }}
+                                            {% else %}
+                                            {{ item.quantidade_documento_display }}
+                                            {% endif %}
+                                        </small>
+                                        {% endif %}
                                     </div>
                                     <div class="col-md-2">
                                         <label class="form-label" for="nota-detalhe-unitario-{{ item.id }}">Valor unitário</label>
@@ -1862,7 +1882,12 @@
                                     {{ item.descricao }}
                                     <div class="small text-muted">{{ item.status_processamento|default('pendente', true)|replace('_', ' ')|title }}</div>
                                 </td>
-                                <td>{{ item.quantidade|number_br(2, True) }}</td>
+                                <td>
+                                    {{ item.quantidade_documento_display or (item.quantidade|number_br(2, True)) }}
+                                    {% if item.quantidade_base_display and item.quantidade_base_display != item.quantidade_documento_display %}
+                                    <div class="small text-muted">Base: {{ item.quantidade_base_display }}</div>
+                                    {% endif %}
+                                </td>
                                 <td>{% if item.valor_unitario is defined and item.valor_unitario is not none %}{{ item.valor_unitario|currency_br }}{% else %}-{% endif %}</td>
                                 <td>{% if item.valor_total is defined and item.valor_total is not none %}{{ item.valor_total|currency_br }}{% else %}-{% endif %}</td>
                                 {% if can_manage and nota_detalhes.id_documento is defined and nota_detalhes.id_documento is not none and item.id is defined and item.id is not none %}
@@ -2101,6 +2126,7 @@
         novo_codigo: 'Preencha quando o item ainda não existir no estoque e você precisar cadastrá-lo antes de registrar o documento.',
         nova_descricao: 'Descrição do item novo. Use um nome claro para facilitar futuras buscas e auditorias.',
         nova_categoria: 'Categoria inicial do item novo. Ajuda na organização e nos filtros do estoque.',
+        nova_marca: 'Marca ou fabricante do item novo. Esse dado já será exibido nas listas e buscas do sistema.',
         nova_unidade: 'Unidade base do item novo, como unidade, litro, quilo ou metro.',
         quantidade: 'Quantidade comprada do item principal no lançamento documental.',
         nota_fiscal: 'Número da NF, cupom ou controle interno. Se já existir no sistema, alguns dados serão sugeridos automaticamente.',
@@ -2282,7 +2308,7 @@
         itemResults.innerHTML = items.map((item, index) => `
             <button type="button" class="list-group-item list-group-item-action" data-index="${index}">
                 <div class="fw-semibold">${item.descricao || item.codigo}</div>
-                <div class="small text-muted">Código: ${item.codigo}${item.categoria ? ` • ${item.categoria}` : ''}${(item.saldo_display || item.saldo) !== undefined ? ` • Saldo: ${item.saldo_display || item.saldo}` : ''}</div>
+                <div class="small text-muted">Código: ${item.codigo}${item.categoria ? ` • ${item.categoria}` : ''}${item.marca ? ` • ${item.marca}` : ''}${(item.saldo_display || item.saldo) !== undefined ? ` • Saldo: ${item.saldo_display || item.saldo}` : ''}</div>
             </button>
         `).join('');
         itemResults.classList.remove('d-none');
@@ -2310,7 +2336,7 @@
         newItemDescriptionResults.innerHTML = items.map((item, index) => `
             <button type="button" class="list-group-item list-group-item-action" data-new-item-index="${index}">
                 <div class="fw-semibold">${item.descricao || item.codigo || 'Item'}</div>
-                <div class="small text-muted">Código: ${item.codigo || '—'}${item.categoria ? ` • ${item.categoria}` : ''}${item.unidade ? ` • ${item.unidade}` : ''}</div>
+                <div class="small text-muted">Código: ${item.codigo || '—'}${item.categoria ? ` • ${item.categoria}` : ''}${item.marca ? ` • ${item.marca}` : ''}${item.unidade ? ` • ${item.unidade}` : ''}</div>
             </button>
         `).join('');
         newItemDescriptionResults.classList.remove('d-none');
@@ -2535,7 +2561,7 @@
         resultsContainer.innerHTML = items.map((item, index) => `
             <button type="button" class="list-group-item list-group-item-action" data-index="${index}">
                 <div class="fw-semibold">${item.descricao || item.codigo}</div>
-                <div class="small text-muted">Código: ${item.codigo}${item.categoria ? ` • ${item.categoria}` : ''}${(item.saldo_display || item.saldo) !== undefined ? ` • Saldo: ${item.saldo_display || item.saldo}` : ''}</div>
+                <div class="small text-muted">Código: ${item.codigo}${item.categoria ? ` • ${item.categoria}` : ''}${item.marca ? ` • ${item.marca}` : ''}${(item.saldo_display || item.saldo) !== undefined ? ` • Saldo: ${item.saldo_display || item.saldo}` : ''}</div>
             </button>
         `).join('');
         resultsContainer.classList.remove('d-none');
@@ -2868,6 +2894,11 @@
             return null;
         }
     };
+
+    const registrationDocumentSeed = {{ (nota_detalhes.numero_documento|default(nota_busca, true) if active_tab == 'registro' and (nota_detalhes or nota_busca) else '') | tojson | safe }};
+    if (registrationDocumentSeed && nfForm) {
+        void lookupDocumentDetailsForForm(nfForm, registrationDocumentSeed, { source: 'explicit' });
+    }
 
     const renderNotaResults = (items) => {
         if (!notaFiscalResults) return;

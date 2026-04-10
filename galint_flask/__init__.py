@@ -154,6 +154,9 @@ def create_app(config_name: str | None = None) -> Flask:
     # Guardas de execução antes de tocar em autenticação/DB
     _register_restore_guard(app)
 
+    # Permite autenticar janelas nativas auxiliares via token assinado local.
+    _register_workspace_window_token_auth(app)
+
     # Middleware de monitoramento de inatividade
     _register_inactivity_middleware(app)
 
@@ -382,6 +385,39 @@ def _register_restore_guard(app: Flask) -> None:
             503,
             {"Retry-After": "15"},
         )
+
+
+def _register_workspace_window_token_auth(app: Flask) -> None:
+    """Autentica a primeira carga das janelas nativas de trabalho via token assinado."""
+    from datetime import datetime
+
+    from flask import session
+    from flask_login import current_user, login_user
+
+    from .services.auth import get_workspace_window_user
+
+    @app.before_request
+    def authenticate_workspace_window_request():
+        token = str(request.args.get("workspace_token") or request.headers.get("X-Galint-Workspace-Token") or "").strip()
+        if not token:
+            return None
+
+        usuario = get_workspace_window_user(token)
+        if usuario is None:
+            return None
+
+        current_user_id = current_user.get_id() if getattr(current_user, "is_authenticated", False) else None
+        if current_user_id != usuario.matricula:
+            login_user(usuario, remember=False, force=True)
+
+        session["galint_is_admin"] = bool(getattr(usuario, "is_admin", 0))
+        session["galint_user_id"] = str(getattr(usuario, "matricula", ""))
+
+        now = datetime.utcnow().isoformat()
+        session.setdefault("login_at", now)
+        session.setdefault("last_activity", now)
+        session.permanent = True
+        return None
 
 
 def _request_expects_json() -> bool:

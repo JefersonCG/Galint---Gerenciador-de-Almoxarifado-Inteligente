@@ -131,7 +131,7 @@ class BalanceProvider:
         snapshots: dict[str, BalanceSnapshot] = {}
         for product_id in normalized_ids:
             item = item_lookup.get(product_id)
-            unit_base = ((item.unidade or "").strip() if item else "") or None
+            unit_base = BalanceProvider._resolve_unit_base(item) if item else None
 
             if product_id in migrated_ids:
                 balance = balance_rows.get(product_id)

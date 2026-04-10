@@ -17,7 +17,11 @@ from ..services.document_integrity_service import allow_document_quantity_update
 from ..services.finance_service import finance_service
 from ..services.nf_deletion_audit_sqlite import log_document_item_deletion
 from ..services.inventory import BASE_ITEM_UNIT_OPTIONS, ensure_base_item_unit, inventory_service, normalize_base_item_unit
-from ..services.price_normalization import infer_price_unit_for_item, normalize_document_line
+from ..services.price_normalization import (
+    infer_document_quantity_unit_for_item,
+    normalize_document_line,
+    should_autofix_packaged_document_unit,
+)
 
 blueprint = Blueprint("nf", __name__, url_prefix="/nf")
 
@@ -358,14 +362,36 @@ def _apply_document_item_normalization(
         unit_price_value = round(total_value / quantity_value, 2)
 
     item_model = item_row.item or db.session.get(Item, item_row.codigo_item)
-    quantity_unit = (item_row.unidade_quantidade or "").strip().lower()
-    if not quantity_unit and item_model is not None:
-        quantity_unit = infer_price_unit_for_item(item_model)
+    stored_quantity_unit = (item_row.unidade_quantidade or "").strip().lower()
+    quantity_unit = stored_quantity_unit
+    status_processamento = (item_row.status_processamento or "pendente").strip().lower() or "pendente"
+    should_refresh_document_unit = False
+    if item_model is not None:
+        should_refresh_document_unit = not quantity_unit
+        if (
+            not should_refresh_document_unit
+            and status_processamento != "processado"
+            and item_row.stock_movement_id is None
+            and item_row.entrada_id is None
+            and should_autofix_packaged_document_unit(
+                item_model,
+                current_unit=quantity_unit,
+                quantity=quantity_value,
+                quantity_base=item_row.quantidade_base,
+            )
+        ):
+            should_refresh_document_unit = True
+        if should_refresh_document_unit:
+            quantity_unit = infer_document_quantity_unit_for_item(item_model)
     if not quantity_unit and item_model is not None:
         quantity_unit = (item_model.unidade or "").strip().lower()
     quantity_unit = quantity_unit or "un"
 
-    price_unit = (item_row.unidade_preco or quantity_unit or "").strip().lower() or quantity_unit
+    stored_price_unit = (item_row.unidade_preco or "").strip().lower()
+    if should_refresh_document_unit and (not stored_price_unit or stored_price_unit == stored_quantity_unit):
+        price_unit = quantity_unit
+    else:
+        price_unit = stored_price_unit or quantity_unit
 
     item_row.quantidade = quantity_value
     item_row.valor_unitario = unit_price_value
@@ -1327,6 +1353,7 @@ def registrar_nf():
     codigo = request.form.get("codigo", "").strip()
     novo_codigo = request.form.get("novo_codigo", "").strip()
     nova_descricao = request.form.get("nova_descricao", "").strip()
+    nova_marca = (request.form.get("nova_marca") or "").strip() or None
     nova_categoria = category_catalog_service.resolve_name(
         request.form.get("nova_categoria", "").strip(),
         fallback=DEFAULT_INVENTORY_CATEGORY_NAME,
@@ -1422,7 +1449,7 @@ def registrar_nf():
                     "categoria": nova_categoria,
                     "unidade": nova_unidade,
                     "nota_fiscal": nota or None,
-                    "marca": None,
+                    "marca": nova_marca,
                     "localizacao": None,
                     "quantidade": 0,
                     "pre_cadastro_pendente": True,

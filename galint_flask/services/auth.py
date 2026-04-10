@@ -55,6 +55,24 @@ def _mirror_panel_token_max_age_seconds() -> int:
         return 60 * 60 * 24
 
 
+def _workspace_window_token_serializer() -> URLSafeTimedSerializer:
+    secret = current_app.config.get("SECRET_KEY")
+    if not secret:
+        raise RuntimeError("SECRET_KEY nao configurada; nao e possivel assinar tokens de janela")
+    return URLSafeTimedSerializer(secret_key=secret, salt="galint-workspace-window-token")
+
+
+def _workspace_window_token_max_age_seconds() -> int:
+    raw = os.environ.get("GALINT_WORKSPACE_WINDOW_TOKEN_MAX_AGE_SECONDS")
+    if not raw:
+        return 60 * 60 * 2
+    try:
+        value = int(raw)
+        return max(300, value)
+    except ValueError:
+        return 60 * 60 * 2
+
+
 def create_mobile_token(usuario: Usuario) -> str:
     serializer = _mobile_token_serializer()
     return serializer.dumps({"matricula": usuario.matricula})
@@ -68,6 +86,16 @@ def create_mirror_panel_token(usuario: Usuario, *, mode: str | None = None) -> s
             "matricula": usuario.matricula,
             "scope": "mirror_panel",
             "mode": normalized_mode,
+        }
+    )
+
+
+def create_workspace_window_token(usuario: Usuario) -> str:
+    serializer = _workspace_window_token_serializer()
+    return serializer.dumps(
+        {
+            "matricula": usuario.matricula,
+            "scope": "workspace_window",
         }
     )
 
@@ -103,6 +131,22 @@ def get_mirror_panel_user(token: str, *, mode: str | None = None) -> Usuario | N
     expected_mode = str(mode or "").strip().lower()
     token_mode = str((data or {}).get("mode") or "").strip().lower()
     if expected_mode and token_mode != expected_mode:
+        return None
+
+    matricula = (data or {}).get("matricula")
+    if not matricula:
+        return None
+    return Usuario.query.get(matricula)
+
+
+def get_workspace_window_user(token: str) -> Usuario | None:
+    serializer = _workspace_window_token_serializer()
+    try:
+        data = serializer.loads(token, max_age=_workspace_window_token_max_age_seconds())
+    except (BadSignature, SignatureExpired):
+        return None
+
+    if (data or {}).get("scope") != "workspace_window":
         return None
 
     matricula = (data or {}).get("matricula")

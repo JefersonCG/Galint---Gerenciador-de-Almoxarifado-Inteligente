@@ -4,6 +4,7 @@ from __future__ import annotations
 import html
 import re
 from pathlib import Path
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -12,8 +13,10 @@ from flask_login import current_user, login_required
 from werkzeug.exceptions import abort
 
 from ..services.backup import BackupService
+from ..services.auth import create_workspace_window_token
 from ..services.backup_restore_jobs import get_job_state, start_restore_job
 from ..services.conversion_engine import ConversionEngineService, get_conversion_job_state, start_conversion_job
+from ..services.native_workspace_launcher import launch_workspace_window
 from ..services.network_settings import load_network_settings, save_network_settings
 
 
@@ -136,6 +139,56 @@ def _require_admin_session_json() -> tuple[str | None, tuple[object, int] | None
     if not bool(session.get("galint_is_admin")):
         return None, (jsonify({"ok": False, "error": "Acesso negado. Apenas administradores."}), 403)
     return str(user_id), None
+
+
+def _normalize_workspace_slot(raw_value: object) -> int:
+    try:
+        value = int(raw_value or 2)
+    except (TypeError, ValueError):
+        value = 2
+    return value if value in (2, 3) else 2
+
+
+def _build_workspace_window_url(path: str, token: str) -> str:
+    raw_path = str(path or "").strip() or url_for("dashboard.index")
+    split = urlsplit(raw_path)
+
+    if split.scheme or split.netloc:
+        if split.scheme not in {"http", "https"}:
+            raise ValueError("A janela auxiliar aceita apenas URLs HTTP locais do GALINT.")
+        if split.netloc != request.host:
+            raise ValueError("A janela auxiliar so pode abrir paginas do proprio GALINT.")
+        normalized_path = split.path or "/"
+        query_pairs = parse_qsl(split.query, keep_blank_values=True)
+    else:
+        normalized = raw_path if raw_path.startswith("/") else f"/{raw_path.lstrip('/')}"
+        normalized_split = urlsplit(normalized)
+        normalized_path = normalized_split.path or "/"
+        query_pairs = parse_qsl(normalized_split.query, keep_blank_values=True)
+
+    query_pairs = [(key, value) for key, value in query_pairs if key not in {"workspace_token", "workspace_window"}]
+    query_pairs.append(("workspace_window", "1"))
+    query_pairs.append(("workspace_token", token))
+    return urlunsplit((request.scheme, request.host, normalized_path, urlencode(query_pairs, doseq=True), ""))
+
+
+@blueprint.post("/workspace/native-open")
+@login_required
+def workspace_native_open_api():
+    payload = request.get_json(silent=True)
+    request_data = payload if isinstance(payload, dict) else request.form
+
+    try:
+        token = create_workspace_window_token(current_user)
+        target_url = _build_workspace_window_url(str((request_data or {}).get("path") or ""), token)
+    except ValueError as exc:
+        return jsonify({"success": False, "message": str(exc)}), 400
+
+    title = str((request_data or {}).get("title") or "").strip() or current_app.config.get("SYSTEM_NAME", "GALINT")
+    slot = _normalize_workspace_slot((request_data or {}).get("slot"))
+    result = launch_workspace_window(target_url, title[:120], slot=slot)
+    status_code = 200 if result.get("success") else 503
+    return jsonify(result), status_code
 
 
 @blueprint.get("/configuracoes")

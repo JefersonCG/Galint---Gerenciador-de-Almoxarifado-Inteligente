@@ -178,7 +178,7 @@
                 <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-3">
                     <div>
                         <h5 class="mb-1">{{ preview.descricao or 'Item sem descrição' }}</h5>
-                        <div class="text-muted">Código {{ preview.codigo }}{% if preview.categoria %} • {{ preview.categoria }}{% endif %}{% if preview.unidade %} • {{ preview.unidade }}{% endif %}</div>
+                        <div class="text-muted">Código {{ preview.codigo }}{% if preview.categoria %} • {{ preview.categoria }}{% endif %}{% if preview.marca %} • {{ preview.marca }}{% endif %}{% if preview.unidade %} • {{ preview.unidade }}{% endif %}</div>
                     </div>
                     <span class="badge text-bg-{{ preview.classification_badge }} px-3 py-2">{{ preview.classification_label }}</span>
                 </div>
@@ -358,7 +358,7 @@
                 return `
                     <div class="admin-stock-suggestion" data-index="${index}">
                         <div class="fw-semibold">${item.descricao || item.codigo}</div>
-                        <div class="small text-muted">Código ${item.codigo} • ${item.saldo_display || item.saldo || 0}</div>
+                        <div class="small text-muted">Código ${item.codigo}${item.categoria ? ` • ${item.categoria}` : ''}${item.marca ? ` • ${item.marca}` : ''} • ${item.saldo_display || item.saldo || 0}</div>
                     </div>
                 `;
             }).join('');

@@ -788,6 +788,7 @@ ${parent.scripts()}
                 codigo: item.codigo || '',
                 descricao: item.descricao || item.codigo || '',
                 categoria: item.categoria || '',
+                marca: item.marca || '',
                 foto_url: item.foto_url || '',
                 saldo: item.saldo,
                 saldo_display: item.saldo_display || '',
@@ -836,7 +837,7 @@ ${parent.scripts()}
                 '<span class="operation-preview-eyebrow"><i class="bi bi-tools"></i> Custodia diaria</span>' +
                 '<div>' +
                     '<h3 class="operation-preview-title">' + escapeHtml(item.descricao || item.codigo || 'Ferramenta') + '</h3>' +
-                    '<div class="operation-preview-subtitle">Codigo ' + escapeHtml(item.codigo || '—') + (item.categoria ? ' • ' + escapeHtml(item.categoria) : '') + '</div>' +
+                    '<div class="operation-preview-subtitle">Codigo ' + escapeHtml(item.codigo || '—') + (item.categoria ? ' • ' + escapeHtml(item.categoria) : '') + (item.marca ? ' • ' + escapeHtml(item.marca) : '') + '</div>' +
                 '</div>' +
                 '<div class="operation-preview-grid">' +
                     '<div class="operation-preview-stat"><span class="operation-preview-stat-label">Quantidade</span><span class="operation-preview-stat-value">' + escapeHtml(String(item.quantidade || 1)) + '</span></div>' +
@@ -993,6 +994,7 @@ ${parent.scripts()}
                 '  <span class="autocomplete-item-code">Código: ' + escapeHtml(item.codigo) + '</span>' +
                 '  | Saldo: ' + escapeHtml(String(saldoDisplay ?? '0')) +
                 (item.categoria ? ' | ' + escapeHtml(item.categoria) : '') +
+                (item.marca ? ' | Marca: ' + escapeHtml(item.marca) : '') +
                 '</div>';
             
             div.addEventListener('click', function() {
@@ -1013,6 +1015,7 @@ ${parent.scripts()}
             codigo: item.codigo,
             descricao: item.descricao || item.codigo,
             categoria: item.categoria,
+            marca: item.marca,
             saldo: item.saldo,
             saldo_display: item.saldo_display,
             foto_url: item.foto_url,
@@ -1051,7 +1054,7 @@ ${parent.scripts()}
                             (item.foto_url
                                 ? '<img class="item-thumb" src="' + escapeHtml(item.foto_url) + '" alt="' + escapeHtml(item.descricao || item.codigo) + '">'
                                 : '<span class="item-thumb-placeholder"><i class="bi bi-image"></i></span>') +
-                            '<div><strong>' + escapeHtml(item.descricao || '-') + '</strong><span class="item-desc-meta">' + escapeHtml(item.categoria || 'Sem categoria') + '</span></div>' +
+                            '<div><strong>' + escapeHtml(item.descricao || '-') + '</strong><span class="item-desc-meta">' + escapeHtml(item.categoria || 'Sem categoria') + (item.marca ? ' • ' + escapeHtml(item.marca) : '') + '</span></div>' +
                         '</div>' +
                     '</td>' +
                     '<td class="text-center"><span class="badge-qty">' + item.quantidade + '</span></td>' +
@@ -1175,6 +1178,7 @@ ${parent.scripts()}
                 descricao: itemInfo && itemInfo.descricao ? itemInfo.descricao : codigo,
                 quantidade: quantidade,
                 categoria: itemInfo ? itemInfo.categoria : '',
+                marca: itemInfo ? itemInfo.marca : '',
                 saldo: itemInfo ? itemInfo.saldo : null,
                 saldo_display: itemInfo ? itemInfo.saldo_display : '',
                 foto_url: itemInfo ? itemInfo.foto_url : null,
@@ -1305,6 +1309,7 @@ ${parent.scripts()}
                     descricao: item.descricao,
                     quantidade: item.quantidade,
                     categoria: item.categoria,
+                    marca: item.marca,
                     saldo: item.saldo,
                     saldo_display: item.saldo_display,
                     foto_url: item.foto_url,

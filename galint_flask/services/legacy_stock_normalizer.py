@@ -37,6 +37,12 @@ class NormalizedLegacyMovement:
     metadata: dict[str, Any]
 
 
+def _read_field(source: Any, field_name: str, default: Any = None) -> Any:
+    if isinstance(source, dict):
+        return source.get(field_name, default)
+    return getattr(source, field_name, default)
+
+
 def is_packaging_unit_code(unit_code: str | None) -> bool:
     return (unit_code or "").strip().lower() in _PACKAGING_UNIT_CODES
 
@@ -137,10 +143,17 @@ def infer_packaging_measure(item: Item) -> tuple[float, str] | None:
     if grandeza_ref > 0:
         return grandeza_ref, _resolve_grandeza_reference_unit(item=item, package_type=tipo_emb, lookup_text=lookup_text)
 
-    product_units = getattr(item, "product_units", []) or []
-    base_unit = next((unit for unit in product_units if getattr(unit, "is_base", False) and getattr(unit, "active", False)), None)
-    if base_unit and getattr(base_unit, "unit_code", None):
-        normalized = _normalize_simple_unit(getattr(base_unit, "unit_code", None))
+    product_units = _read_field(item, "product_units", []) or []
+    base_unit = next(
+        (
+            unit
+            for unit in product_units
+            if _read_field(unit, "is_base", False) and _read_field(unit, "active", False)
+        ),
+        None,
+    )
+    if base_unit and _read_field(base_unit, "unit_code", None):
+        normalized = _normalize_simple_unit(_read_field(base_unit, "unit_code", None))
         if normalized:
             factor = _as_positive_float(getattr(item, "unidades_por_embalagem", None))
             return ((factor or 1.0), normalized)
@@ -199,18 +212,21 @@ def ignore_packaging_metadata_for_stock(item: Item) -> bool:
 
 
 def has_active_unit_config(item: Item) -> bool:
-    product_units = getattr(item, "product_units", []) or []
-    product_unit_conversions = getattr(item, "product_unit_conversions", []) or []
-    return any(unit.is_base and unit.active for unit in product_units) or any(
-        conversion.active for conversion in product_unit_conversions
+    product_units = _read_field(item, "product_units", []) or []
+    product_unit_conversions = _read_field(item, "product_unit_conversions", []) or []
+    return any(
+        _read_field(unit, "is_base", False) and _read_field(unit, "active", False)
+        for unit in product_units
+    ) or any(
+        _read_field(conversion, "active", False) for conversion in product_unit_conversions
     )
 
 
 def resolve_packaging_factor(item: Item) -> float:
-    tipo_emb = (item.tipo_embalagem_novo or "").strip().lower()
-    unidades_por = _as_positive_float(item.unidades_por_embalagem)
-    litros_por = _as_positive_float(item.litros_por_embalagem)
-    grandeza_ref = _as_positive_float(item.grandeza_referencia)
+    tipo_emb = (_read_field(item, "tipo_embalagem_novo", None) or "").strip().lower()
+    unidades_por = _as_positive_float(_read_field(item, "unidades_por_embalagem", None))
+    litros_por = _as_positive_float(_read_field(item, "litros_por_embalagem", None))
+    grandeza_ref = _as_positive_float(_read_field(item, "grandeza_referencia", None))
 
     if tipo_emb in {"pacote", "caixa", "fardo"} and unidades_por > 0:
         return unidades_por
@@ -253,13 +269,20 @@ def uses_packaging_legacy_normalization(item: Item) -> bool:
 
 
 def resolve_canonical_unit(item: Item) -> str:
-    product_units = getattr(item, "product_units", []) or []
-    base_unit = next((unit for unit in product_units if unit.is_base and unit.active), None)
-    if base_unit and base_unit.unit_code:
-        normalized = _normalize_simple_unit(base_unit.unit_code)
+    product_units = _read_field(item, "product_units", []) or []
+    base_unit = next(
+        (
+            unit
+            for unit in product_units
+            if _read_field(unit, "is_base", False) and _read_field(unit, "active", False)
+        ),
+        None,
+    )
+    if base_unit and _read_field(base_unit, "unit_code", None):
+        normalized = _normalize_simple_unit(_read_field(base_unit, "unit_code", None))
         if normalized:
             return normalized
-        unit_code_raw = (base_unit.unit_code or "").strip().lower()
+        unit_code_raw = (_read_field(base_unit, "unit_code", None) or "").strip().lower()
         if unit_code_raw and not is_packaging_unit_code(unit_code_raw):
             return unit_code_raw
 
@@ -267,11 +290,11 @@ def resolve_canonical_unit(item: Item) -> str:
     if inferred_measure is not None:
         return inferred_measure[1]
 
-    tipo_emb = (item.tipo_embalagem_novo or "").strip().lower()
-    unidade_raw = (item.unidade or "").strip().lower()
-    litros_por = _as_positive_float(item.litros_por_embalagem)
-    grandeza_ref = _as_positive_float(item.grandeza_referencia)
-    unidades_por = _as_positive_float(item.unidades_por_embalagem)
+    tipo_emb = (_read_field(item, "tipo_embalagem_novo", None) or "").strip().lower()
+    unidade_raw = (_read_field(item, "unidade", None) or "").strip().lower()
+    litros_por = _as_positive_float(_read_field(item, "litros_por_embalagem", None))
+    grandeza_ref = _as_positive_float(_read_field(item, "grandeza_referencia", None))
+    unidades_por = _as_positive_float(_read_field(item, "unidades_por_embalagem", None))
 
     if litros_por > 0:
         return "l"

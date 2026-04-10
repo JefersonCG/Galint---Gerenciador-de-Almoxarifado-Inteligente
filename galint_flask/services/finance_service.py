@@ -25,7 +25,161 @@ from ..models import (
     StockBalance,
     StockMovement,
 )
-from .price_normalization import infer_price_unit_for_item, normalize_document_line
+from .legacy_stock_normalizer import ignore_packaging_metadata_for_stock, resolve_canonical_unit, resolve_packaging_factor
+from .price_normalization import (
+    infer_document_quantity_unit_for_item,
+    normalize_document_line,
+    should_autofix_packaged_document_unit,
+)
+
+_DOCUMENT_UNIT_LABELS = {
+    "m": ("metro", "metros"),
+    "kg": ("kg", "kg"),
+    "l": ("litro", "litros"),
+    "un": ("unidade", "unidades"),
+}
+_PACKAGING_UNIT_LABELS = {
+    "lata": ("lata", "latas"),
+    "rolo": ("rolo", "rolos"),
+    "pacote": ("pacote", "pacotes"),
+    "caixa": ("caixa", "caixas"),
+    "fardo": ("fardo", "fardos"),
+    "litro": ("litro", "litros"),
+    "balde": ("balde", "baldes"),
+    "bombona": ("bombona", "bombonas"),
+    "saco": ("saco", "sacos"),
+}
+
+
+def _format_compact_number(value: object) -> str | None:
+    if value in (None, ""):
+        return None
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    if abs(number - round(number)) <= 1e-6:
+        return str(int(round(number)))
+    return f"{number:.6f}".rstrip("0").rstrip(".").replace(".", ",")
+
+
+def _resolve_display_unit_label(item: Item | None, unit_code: str | None, quantity: float | None) -> str | None:
+    normalized = (unit_code or "").strip().lower()
+    if not normalized:
+        return None
+
+    amount = float(quantity or 0.0)
+    singular_plural = _PACKAGING_UNIT_LABELS.get(normalized)
+    if singular_plural is None:
+        singular_plural = _DOCUMENT_UNIT_LABELS.get(normalized, (normalized, normalized))
+
+    singular, plural = singular_plural
+    return singular if abs(amount - 1.0) <= 1e-6 else plural
+
+
+def _format_quantity_text(value: object, unit_label: str | None) -> str | None:
+    number = _format_compact_number(value)
+    if not number:
+        return None
+    if unit_label:
+        return f"{number} {unit_label}"
+    return number
+
+
+def _build_document_item_display_metadata(row: DocumentoEntradaEstoqueItem) -> dict[str, Any]:
+    item_model = row.item
+    quantity_value = float(row.quantidade or 0.0)
+    stored_quantity_unit = (row.unidade_quantidade or "").strip().lower() or None
+    stored_price_unit = (row.unidade_preco or stored_quantity_unit or "").strip().lower() or None
+
+    try:
+        quantity_base_value = float(row.quantidade_base) if row.quantidade_base not in (None, "") else None
+    except (TypeError, ValueError):
+        quantity_base_value = None
+
+    effective_quantity_unit = stored_quantity_unit
+    effective_price_unit = stored_price_unit
+    base_unit = None
+    packaging_unit = None
+    packaging_factor = 0.0
+    auto_fixed_preview = False
+    uses_packaging_documental = False
+
+    if item_model is not None:
+        packaging_unit = (item_model.tipo_embalagem_novo or "").strip().lower() or None
+        packaging_factor = float(resolve_packaging_factor(item_model) or 0.0)
+        has_packaging = bool(packaging_unit and packaging_factor > 0 and not ignore_packaging_metadata_for_stock(item_model))
+        can_autofix = (
+            has_packaging
+            and (row.status_processamento or "pendente").strip().lower() != "processado"
+            and row.stock_movement_id is None
+            and row.entrada_id is None
+        )
+        if not effective_quantity_unit:
+            effective_quantity_unit = infer_document_quantity_unit_for_item(item_model)
+            auto_fixed_preview = bool(has_packaging)
+        elif can_autofix and should_autofix_packaged_document_unit(
+            item_model,
+            current_unit=effective_quantity_unit,
+            quantity=quantity_value,
+            quantity_base=quantity_base_value,
+        ):
+            effective_quantity_unit = infer_document_quantity_unit_for_item(item_model)
+            auto_fixed_preview = True
+
+        if auto_fixed_preview and (not stored_price_unit or stored_price_unit == stored_quantity_unit):
+            effective_price_unit = effective_quantity_unit
+        effective_price_unit = effective_price_unit or effective_quantity_unit
+        try:
+            normalized = normalize_document_line(
+                item_model,
+                quantity=quantity_value,
+                quantity_unit=effective_quantity_unit,
+                unit_price=float(row.valor_unitario) if row.valor_unitario not in (None, "") else None,
+                total_price=float(row.valor_total) if row.valor_total not in (None, "") else None,
+                price_unit=effective_price_unit,
+            )
+            effective_quantity_unit = normalized.quantity_unit or effective_quantity_unit
+            effective_price_unit = normalized.price_unit or effective_price_unit
+            quantity_base_value = float(normalized.quantity_base or 0.0)
+            base_unit = (normalized.unit_base or resolve_canonical_unit(item_model) or "").strip().lower() or None
+        except Exception:
+            base_unit = (resolve_canonical_unit(item_model) or "").strip().lower() or None
+    else:
+        base_unit = stored_quantity_unit
+
+    document_unit_label = _resolve_display_unit_label(item_model, effective_quantity_unit, quantity_value)
+    base_unit_label = _resolve_display_unit_label(item_model, base_unit, quantity_base_value)
+    content_unit_label = _resolve_display_unit_label(item_model, base_unit, packaging_factor)
+
+    quantity_display = _format_quantity_text(quantity_value, document_unit_label)
+    quantity_base_display = _format_quantity_text(quantity_base_value, base_unit_label)
+    content_display = _format_quantity_text(packaging_factor, content_unit_label)
+
+    if item_model is not None and packaging_unit and packaging_factor > 0 and not ignore_packaging_metadata_for_stock(item_model):
+        uses_packaging_documental = effective_quantity_unit == packaging_unit
+
+    conversion_display = None
+    if uses_packaging_documental and quantity_display and content_display and quantity_base_display:
+        conversion_display = f"{quantity_display} de {content_display} = {quantity_base_display}"
+
+    return {
+        "unidade_quantidade": row.unidade_quantidade,
+        "unidade_quantidade_efetiva": effective_quantity_unit,
+        "unidade_preco": row.unidade_preco,
+        "unidade_preco_efetiva": effective_price_unit,
+        "quantidade_base": row.quantidade_base,
+        "quantidade_base_efetiva": round(float(quantity_base_value or 0.0), 6) if quantity_base_value is not None else None,
+        "unidade_base_efetiva": base_unit,
+        "tipo_embalagem_documental": packaging_unit,
+        "conteudo_por_embalagem": round(float(packaging_factor or 0.0), 6) if packaging_factor > 0 else None,
+        "usa_embalagem_documental": uses_packaging_documental,
+        "autocorrecao_documental_preview": auto_fixed_preview,
+        "quantidade_documento_display": quantity_display,
+        "quantidade_base_display": quantity_base_display,
+        "conteudo_por_embalagem_display": content_display,
+        "conversao_display": conversion_display,
+    }
 
 
 def _normalize_financial_line(
@@ -43,7 +197,7 @@ def _normalize_financial_line(
 
     resolved_quantity_unit = (quantity_unit or "").strip().lower()
     if not resolved_quantity_unit and item is not None:
-        resolved_quantity_unit = infer_price_unit_for_item(item)
+        resolved_quantity_unit = infer_document_quantity_unit_for_item(item)
     if not resolved_quantity_unit:
         resolved_quantity_unit = "un"
 
@@ -570,6 +724,7 @@ class FinanceService:
                     "status_processamento": row.status_processamento,
                     "processado_em": row.processado_em.isoformat() if row.processado_em else None,
                     "erro_processamento": row.erro_processamento,
+                    **_build_document_item_display_metadata(row),
                 }
             )
 
@@ -895,13 +1050,14 @@ class FinanceService:
                 document.mensagem_integracao = mensagem_integracao
 
         item_model = db.session.get(Item, codigo)
+        default_document_unit = infer_document_quantity_unit_for_item(item_model) if item_model is not None else None
         normalized_line = _normalize_financial_line(
             item_model,
             quantity=float(quantidade or 0),
             valor_unitario=float(valor_unitario) if valor_unitario not in (None, "") else None,
             valor_total=None,
-            quantity_unit=(infer_price_unit_for_item(item_model) if item_model is not None else None),
-            price_unit=(infer_price_unit_for_item(item_model) if item_model is not None else None),
+            quantity_unit=default_document_unit,
+            price_unit=default_document_unit,
         )
         qty = float(normalized_line["quantity"] or 0.0)
         unit = normalized_line["unit_price_input"]
@@ -1039,6 +1195,40 @@ class FinanceService:
             raise ValueError("Quantidade documental inválida para processamento de estoque.")
 
         documento = item_row.documento
+        stored_quantity_unit = (item_row.unidade_quantidade or "").strip().lower()
+        should_refresh_document_unit = False
+        if not stored_quantity_unit:
+            should_refresh_document_unit = True
+        elif should_autofix_packaged_document_unit(
+            item_row.item,
+            current_unit=stored_quantity_unit,
+            quantity=quantidade,
+            quantity_base=item_row.quantidade_base,
+        ):
+            should_refresh_document_unit = True
+
+        if should_refresh_document_unit:
+            inferred_quantity_unit = infer_document_quantity_unit_for_item(item_row.item)
+            inferred_price_unit = (item_row.unidade_preco or "").strip().lower()
+            if not inferred_price_unit or inferred_price_unit == stored_quantity_unit:
+                inferred_price_unit = inferred_quantity_unit
+            normalized_line = _normalize_financial_line(
+                item_row.item,
+                quantity=quantidade,
+                valor_unitario=float(item_row.valor_unitario) if item_row.valor_unitario not in (None, "") else None,
+                valor_total=float(item_row.valor_total) if item_row.valor_total not in (None, "") else None,
+                quantity_unit=inferred_quantity_unit,
+                price_unit=inferred_price_unit,
+            )
+            item_row.unidade_quantidade = normalized_line["quantity_unit"]
+            item_row.quantidade_base = normalized_line["quantity_base"]
+            item_row.valor_unitario_base = normalized_line["unit_price_base"]
+            item_row.unidade_preco = normalized_line["price_unit"]
+            item_row.fator_preco_base = normalized_line["factor_to_base"]
+            item_row.valor_total = normalized_line["total_value"]
+            if item_row.valor_unitario is None:
+                item_row.valor_unitario = normalized_line["unit_price_input"]
+
         from_unit = (item_row.unidade_quantidade or item_row.item.unidade or "Unidade").strip() or "Unidade"
         metadata = {
             "source": "documento_fiscal",
