@@ -845,7 +845,7 @@
 <div class="modal fade" id="scopeReportModal" tabindex="-1" aria-labelledby="scopeReportModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content scope-report-modal">
-            <form method="get" action="/itens/categorias/relatorio-escopo">
+            <form method="get" action="/itens/categorias/relatorio-escopo" id="scope-report-form-list">
                 <div class="modal-header">
                     <h5 class="modal-title" id="scopeReportModalLabel">Relatório de Escopo</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
@@ -853,8 +853,8 @@
                 <div class="modal-body">
                     <p class="text-muted">Escolha se deseja gerar o relatório geral do estoque ou focado em uma categoria específica.</p>
                     <div>
-                        <label class="form-label" for="scope-report-category">Categoria</label>
-                        <select class="form-select" id="scope-report-category" name="categoria">
+                        <label class="form-label" for="scope-report-category-list">Categoria</label>
+                        <select class="form-select" id="scope-report-category-list" name="categoria">
                             <option value="">Geral</option>
                             {% for category in category_cards %}
                             <option value="{{ category.categoria }}">{{ category.categoria }}</option>
@@ -870,6 +870,28 @@
         </div>
     </div>
 </div>
+<script>
+(() => {
+    const scopeReportForm = document.getElementById('scope-report-form-list');
+    const scopeReportSelect = document.getElementById('scope-report-category-list');
+    if (!scopeReportForm || !scopeReportSelect) {
+        return;
+    }
+
+    scopeReportForm.addEventListener('submit', (event) => {
+        event.preventDefault();
+        const url = new URL(scopeReportForm.action, window.location.origin);
+        const selectedCategory = (scopeReportSelect.value || '').trim();
+
+        url.searchParams.delete('categoria');
+        if (selectedCategory) {
+            url.searchParams.set('categoria', selectedCategory);
+        }
+
+        window.location.assign(url.toString());
+    });
+})();
+</script>
 <div class="modal fade" id="categoryModal" tabindex="-1" aria-labelledby="categoryModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content galint-dark-surface">

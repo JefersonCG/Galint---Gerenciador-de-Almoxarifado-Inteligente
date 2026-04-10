@@ -1363,12 +1363,17 @@ def download_scope_report():
         scope_name = _sanitize_filename_component(category_name or "geral")
         filename = f"relatorio_escopo_{scope_name}_{timestamp}.xlsx"
 
-        return send_file(
+        response = send_file(
             buffer,
             as_attachment=True,
             download_name=filename,
             mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         )
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+        response.headers["X-GALINT-Report-Scope"] = category_name or "Geral"
+        return response
     except Exception as exc:
         flash(f"Erro ao gerar Relatório de Escopo: {exc}", "danger")
         return redirect(redirect_target)

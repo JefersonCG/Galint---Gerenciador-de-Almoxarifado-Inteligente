@@ -749,7 +749,7 @@
 <div class="modal fade" id="scopeReportModal" tabindex="-1" aria-labelledby="scopeReportModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content scope-report-modal">
-            <form method="get" action="/itens/categorias/relatorio-escopo">
+            <form method="get" action="/itens/categorias/relatorio-escopo" id="scope-report-form-admin">
                 <div class="modal-header">
                     <h5 class="modal-title" id="scopeReportModalLabel">Relatório de Escopo</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
@@ -774,4 +774,26 @@
         </div>
     </div>
 </div>
+<script>
+(() => {
+    const scopeReportForm = document.getElementById('scope-report-form-admin');
+    const scopeReportSelect = document.getElementById('scope-report-category-admin');
+    if (!scopeReportForm || !scopeReportSelect) {
+        return;
+    }
+
+    scopeReportForm.addEventListener('submit', (event) => {
+        event.preventDefault();
+        const url = new URL(scopeReportForm.action, window.location.origin);
+        const selectedCategory = (scopeReportSelect.value || '').trim();
+
+        url.searchParams.delete('categoria');
+        if (selectedCategory) {
+            url.searchParams.set('categoria', selectedCategory);
+        }
+
+        window.location.assign(url.toString());
+    });
+})();
+</script>
 {% endblock %}
