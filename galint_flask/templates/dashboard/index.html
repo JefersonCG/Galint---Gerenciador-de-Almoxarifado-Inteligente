@@ -1726,7 +1726,7 @@
 <div class="galint-section-panel galint-section-panel-dark">
     <div class="galint-section-header">
         <h2 class="galint-section-title">Ferramentas em Custódia</h2>
-        <p class="galint-section-subtitle">Ferramentas retiradas aguardando devolução - Atualização em tempo real</p>
+        <p class="galint-section-subtitle">Ferramentas agrupadas por colaborador, com permanência em dias e baixa sem sair do painel</p>
     </div>
     {% if shared_view %}
     <p class="text-muted mb-0">Feed disponível apenas para usuários autenticados.</p>
@@ -1736,6 +1736,33 @@
     </div>
     {% endif %}
 </div>
+
+{% if not shared_view %}
+<div class="modal fade" id="dashboard-custody-modal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content galint-custody-modal-content">
+            <div class="modal-header border-0">
+                <div>
+                    <div class="galint-custody-modal-eyebrow">Custódia agrupada</div>
+                    <h5 class="modal-title text-white mb-1" id="dashboard-custody-modal-title">Ferramentas em custódia</h5>
+                    <p class="mb-0 text-muted" id="dashboard-custody-modal-subtitle">Carregando detalhes do colaborador...</p>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body pt-0">
+                <div id="dashboard-custody-modal-summary" class="galint-custody-modal-summary"></div>
+                <p class="galint-custody-modal-hint" id="dashboard-custody-modal-hint">Passe o mouse sobre a ferramenta que deseja devolver. Ela fica selecionada para a baixa.</p>
+                <div id="dashboard-custody-modal-tools" class="galint-custody-modal-tools"></div>
+            </div>
+            <div class="modal-footer border-0">
+                <div id="dashboard-custody-modal-selected" class="galint-custody-modal-selected">Selecione uma ferramenta para dar baixa.</div>
+                <button type="button" class="galint-custody-btn galint-custody-btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                <button type="button" id="dashboard-custody-modal-return" class="galint-custody-btn galint-custody-btn-primary" disabled>Dar baixa</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
 
 <style>
     .galint-section-panel-dark {
@@ -1804,6 +1831,15 @@
         box-shadow: 0 28px 52px rgba(15, 23, 42, 0.28);
         border-color: rgba(96, 165, 250, 0.34);
         transform: translateY(-4px);
+    }
+
+    .galint-custody-card.is-clickable {
+        cursor: pointer;
+    }
+
+    .galint-custody-card.is-clickable:focus-visible {
+        outline: 2px solid rgba(96, 165, 250, 0.95);
+        outline-offset: 2px;
     }
 
     .galint-custody-card.atrasada {
@@ -1957,6 +1993,49 @@
         backdrop-filter: blur(8px);
     }
 
+    .galint-custody-employee {
+        font-size: 1.04rem;
+        font-weight: 700;
+        color: #f8fafc;
+        margin: 0;
+    }
+
+    .galint-custody-subtext {
+        margin-top: 0.2rem;
+        font-size: 0.82rem;
+        color: rgba(191, 219, 254, 0.82);
+    }
+
+    .galint-custody-preview-list {
+        display: grid;
+        gap: 0.5rem;
+    }
+
+    .galint-custody-preview-item {
+        padding: 0.7rem 0.8rem;
+        border-radius: 14px;
+        background: rgba(15, 23, 42, 0.42);
+        border: 1px solid rgba(148, 163, 184, 0.16);
+    }
+
+    .galint-custody-preview-item strong {
+        display: block;
+        color: #f8fafc;
+        font-size: 0.9rem;
+        margin-bottom: 0.15rem;
+    }
+
+    .galint-custody-preview-item span {
+        color: rgba(226, 232, 240, 0.76);
+        font-size: 0.8rem;
+    }
+
+    .galint-custody-preview-more {
+        margin-top: 0.4rem;
+        color: rgba(148, 163, 184, 0.86);
+        font-size: 0.8rem;
+    }
+
     .galint-custody-field {
         display: flex;
         align-items: center;
@@ -2009,6 +2088,135 @@
         opacity: 0.7;
     }
 
+    .galint-custody-modal-content {
+        background: linear-gradient(160deg, #0f172a 0%, #16253b 55%, #1f3251 100%);
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        border-radius: 24px;
+        color: #e2e8f0;
+        box-shadow: 0 34px 78px rgba(15, 23, 42, 0.36);
+    }
+
+    .galint-custody-modal-eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.35rem 0.7rem;
+        margin-bottom: 0.55rem;
+        border-radius: 999px;
+        background: rgba(59, 130, 246, 0.14);
+        border: 1px solid rgba(96, 165, 250, 0.24);
+        color: #dbeafe;
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+    }
+
+    .galint-custody-modal-summary {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.6rem;
+        margin-bottom: 1rem;
+    }
+
+    .galint-custody-modal-hint {
+        margin: 0 0 0.9rem;
+        color: rgba(191, 219, 254, 0.82);
+        font-size: 0.84rem;
+    }
+
+    .galint-custody-summary-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.7rem 0.9rem;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        color: #f8fafc;
+        font-size: 0.84rem;
+        font-weight: 600;
+    }
+
+    .galint-custody-summary-chip.alert {
+        background: rgba(127, 29, 29, 0.32);
+        border-color: rgba(248, 113, 113, 0.34);
+        color: #fecaca;
+    }
+
+    .galint-custody-modal-tools {
+        display: grid;
+        gap: 0.85rem;
+    }
+
+    .galint-custody-modal-tool {
+        padding: 1rem;
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        cursor: pointer;
+        transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .galint-custody-modal-tool.alert {
+        border-color: rgba(248, 113, 113, 0.34);
+        background: rgba(127, 29, 29, 0.18);
+    }
+
+    .galint-custody-modal-tool:hover {
+        transform: translateY(-2px);
+        border-color: rgba(96, 165, 250, 0.38);
+        box-shadow: 0 14px 28px rgba(15, 23, 42, 0.24);
+    }
+
+    .galint-custody-modal-tool.is-selected {
+        border-color: rgba(96, 165, 250, 0.56);
+        background: rgba(30, 64, 175, 0.18);
+        box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.34), 0 18px 32px rgba(15, 23, 42, 0.24);
+    }
+
+    .galint-custody-modal-tool-top {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        align-items: start;
+        margin-bottom: 0.75rem;
+    }
+
+    .galint-custody-modal-tool-name {
+        font-size: 1rem;
+        font-weight: 700;
+        color: #ffffff;
+        margin-bottom: 0.15rem;
+    }
+
+    .galint-custody-modal-tool-code {
+        font-size: 0.82rem;
+        color: rgba(191, 219, 254, 0.84);
+    }
+
+    .galint-custody-modal-tool-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .galint-custody-modal-tool-note {
+        margin: 0 0 0.8rem;
+        color: rgba(226, 232, 240, 0.78);
+        font-size: 0.88rem;
+    }
+
+    .galint-custody-modal-selected {
+        flex: 1;
+        min-width: 220px;
+        color: rgba(226, 232, 240, 0.84);
+        font-size: 0.86rem;
+        padding-right: 0.75rem;
+    }
+
     .galint-custody-btn {
         flex: 1;
         padding: 0.5rem 1rem;
@@ -2055,6 +2263,22 @@
         font-size: 3rem;
         margin-bottom: 1rem;
         opacity: 0.5;
+    }
+
+    @media (max-width: 767.98px) {
+        .galint-custody-modal-tool-top,
+        #dashboard-custody-modal .modal-footer {
+            flex-direction: column;
+        }
+
+        .galint-custody-modal-content .galint-custody-btn {
+            width: 100%;
+        }
+
+        .galint-custody-modal-selected {
+            width: 100%;
+            padding-right: 0;
+        }
     }
 </style>
 
@@ -2649,31 +2873,26 @@
         if (!custodyContainer) {
             return;
         }
-        
+
         const formatter = new Intl.DateTimeFormat('pt-BR', {
             dateStyle: 'short',
             timeStyle: 'short'
         });
         const endpoint = "{{ url_for('dashboard.custody_active') }}";
+        const modalElement = document.getElementById('dashboard-custody-modal');
+        const modalTitle = document.getElementById('dashboard-custody-modal-title');
+        const modalSubtitle = document.getElementById('dashboard-custody-modal-subtitle');
+        const modalSummary = document.getElementById('dashboard-custody-modal-summary');
+        const modalTools = document.getElementById('dashboard-custody-modal-tools');
+        const modalSelected = document.getElementById('dashboard-custody-modal-selected');
+        const modalReturnButton = document.getElementById('dashboard-custody-modal-return');
+        const custodyModal = (modalElement && typeof bootstrap !== 'undefined')
+            ? bootstrap.Modal.getOrCreateInstance(modalElement)
+            : null;
 
-        function getCurrentAlertState() {
-            const now = new Date();
-            const totalMinutes = (now.getHours() * 60) + now.getMinutes();
-            if (totalMinutes >= (17 * 60)) {
-                return 'red';
-            }
-            if (totalMinutes >= ((16 * 60) + 40)) {
-                return 'yellow';
-            }
-            return 'normal';
-        }
-
-        function getCustodyVisualState(item) {
-            if (item.atrasada) {
-                return 'late';
-            }
-            return getCurrentAlertState();
-        }
+        let currentGroups = [];
+        let activeGroupKey = null;
+        let activeToolKey = null;
 
         function formatDate(isoValue) {
             if (!isoValue) {
@@ -2687,8 +2906,211 @@
             }
         }
 
-        function render(items) {
-            if (!items || !items.length) {
+        function escapeHtml(value) {
+            const div = document.createElement('div');
+            div.textContent = value == null ? '' : String(value);
+            return div.innerHTML;
+        }
+
+        function formatDays(value) {
+            const days = Number(value) || 0;
+            return `${days} dia${days === 1 ? '' : 's'}`;
+        }
+
+        function formatLocations(values) {
+            const uniqueValues = [...new Set((values || []).filter(Boolean))];
+            if (!uniqueValues.length) {
+                return 'Não informado';
+            }
+            if (uniqueValues.length <= 2) {
+                return uniqueValues.join(' • ');
+            }
+            return `${uniqueValues.slice(0, 2).join(' • ')} +${uniqueValues.length - 2}`;
+        }
+
+        function getGroupVisualState(group) {
+            if ((group?.overdueCount || 0) > 0) {
+                return 'late';
+            }
+            if ((group?.maxDays || 0) >= 15) {
+                return 'attention';
+            }
+            return 'normal';
+        }
+
+        function getItemKey(item) {
+            return `${item?.source || 'saida'}:${item?.id || '0'}`;
+        }
+
+        function groupByEmployee(items) {
+            const groups = new Map();
+
+            (items || []).forEach((item) => {
+                const key = String(item.matricula_full || item.matricula || item.usuario || item.codigo || 'sem-matricula');
+                const daysInUse = Number(item.dias_em_uso) || 0;
+
+                if (!groups.has(key)) {
+                    groups.set(key, {
+                        key,
+                        usuario: item.usuario || 'Funcionário não identificado',
+                        matricula: item.matricula || '-',
+                        matricula_full: item.matricula_full || item.matricula || '',
+                        items: [],
+                        overdueCount: 0,
+                        maxDays: 0,
+                        photoUrl: item.foto_url || null,
+                        locations: [],
+                    });
+                }
+
+                const group = groups.get(key);
+                group.items.push(item);
+                group.maxDays = Math.max(group.maxDays, daysInUse);
+                if (item.atrasada) {
+                    group.overdueCount += 1;
+                }
+                if (!group.photoUrl && item.foto_url) {
+                    group.photoUrl = item.foto_url;
+                }
+                if (item.local_servico) {
+                    group.locations.push(item.local_servico);
+                }
+            });
+
+            return [...groups.values()]
+                .map((group) => ({
+                    ...group,
+                    totalTools: group.items.length,
+                    locations: [...new Set(group.locations)],
+                    previewTools: [...group.items]
+                        .sort((left, right) => (Number(right.dias_em_uso) || 0) - (Number(left.dias_em_uso) || 0))
+                        .slice(0, 3),
+                }))
+                .sort((left, right) => {
+                    if (right.overdueCount !== left.overdueCount) {
+                        return right.overdueCount - left.overdueCount;
+                    }
+                    if (right.maxDays !== left.maxDays) {
+                        return right.maxDays - left.maxDays;
+                    }
+                    return (left.usuario || '').localeCompare(right.usuario || '', 'pt-BR');
+                });
+        }
+
+        function setSelectedModalTool(group, itemKey) {
+            if (!group || !modalTools || !modalSelected || !modalReturnButton) {
+                return;
+            }
+
+            const fallbackItem = group.items[0] || null;
+            const selectedItem = group.items.find((item) => getItemKey(item) === itemKey) || fallbackItem;
+
+            if (!selectedItem) {
+                activeToolKey = null;
+                modalSelected.textContent = 'Selecione uma ferramenta para dar baixa.';
+                modalReturnButton.disabled = true;
+                modalReturnButton.textContent = 'Dar baixa';
+                return;
+            }
+
+            activeToolKey = getItemKey(selectedItem);
+            modalTools.querySelectorAll('.galint-custody-modal-tool').forEach((card) => {
+                card.classList.toggle('is-selected', card.getAttribute('data-tool-key') === activeToolKey);
+            });
+
+            modalSelected.textContent = `Selecionada: ${selectedItem.descricao || 'Ferramenta'} • ${formatDays(selectedItem.dias_em_uso)} • Código ${selectedItem.codigo || '-'}`;
+            modalReturnButton.disabled = false;
+            modalReturnButton.textContent = 'Dar baixa';
+            modalReturnButton.setAttribute('data-id', selectedItem.id || '');
+            modalReturnButton.setAttribute('data-source', selectedItem.source || 'saida');
+            modalReturnButton.setAttribute('data-codigo', selectedItem.codigo || '');
+            modalReturnButton.setAttribute('data-desc', selectedItem.descricao || '');
+            modalReturnButton.setAttribute('data-matricula', selectedItem.matricula_full || selectedItem.matricula || '');
+            modalReturnButton.setAttribute('data-group-key', group.key || '');
+        }
+
+        function renderGroupModal(group) {
+            if (!group || !modalTools || !modalSummary || !modalTitle || !modalSubtitle) {
+                return;
+            }
+
+            modalTitle.textContent = group.usuario;
+            modalSubtitle.textContent = `Matrícula ${group.matricula || '-'} • ${group.totalTools} ferramenta(s) ativa(s) em custódia diária`;
+
+            modalSummary.innerHTML = `
+                <span class="galint-custody-summary-chip"><i class="bi bi-tools"></i> ${group.totalTools} ferramenta(s)</span>
+                <span class="galint-custody-summary-chip"><i class="bi bi-hourglass-split"></i> Maior permanência: ${formatDays(group.maxDays)}</span>
+                <span class="galint-custody-summary-chip ${group.overdueCount ? 'alert' : ''}"><i class="bi bi-exclamation-triangle"></i> ${group.overdueCount ? `${group.overdueCount} pendência(s) acima do prazo` : 'Sem pendências acima do prazo'}</span>
+                <span class="galint-custody-summary-chip"><i class="bi bi-geo-alt"></i> ${escapeHtml(formatLocations(group.locations))}</span>
+            `;
+
+            const orderedItems = [...group.items].sort((left, right) => (Number(right.dias_em_uso) || 0) - (Number(left.dias_em_uso) || 0));
+            const selectedKey = orderedItems.some((item) => getItemKey(item) === activeToolKey)
+                ? activeToolKey
+                : (orderedItems[0] ? getItemKey(orderedItems[0]) : null);
+
+            modalTools.innerHTML = orderedItems.map((item) => `
+                <article class="galint-custody-modal-tool ${item.atrasada ? 'alert' : ''} ${getItemKey(item) === selectedKey ? 'is-selected' : ''}"
+                    data-tool-key="${escapeHtml(getItemKey(item))}">
+                    <div class="galint-custody-modal-tool-top">
+                        <div>
+                            <div class="galint-custody-modal-tool-name">${escapeHtml(item.descricao || 'Item não identificado')}</div>
+                            <div class="galint-custody-modal-tool-code">Código ${escapeHtml(item.codigo || '-')}</div>
+                        </div>
+                        <span class="galint-custody-badge ${item.atrasada ? 'atrasada' : ''}">${item.atrasada ? `Atrasada há ${formatDays(item.dias_em_uso)}` : `${formatDays(item.dias_em_uso)} em posse`}</span>
+                    </div>
+                    <div class="galint-custody-modal-tool-meta">
+                        <span class="galint-custody-badge"><i class="bi bi-hash"></i> Qtd ${escapeHtml(item.quantidade || 0)}</span>
+                        <span class="galint-custody-badge"><i class="bi bi-calendar-event"></i> ${escapeHtml(formatDate(item.data_retirada_iso))}</span>
+                        <span class="galint-custody-badge"><i class="bi bi-geo-alt"></i> ${escapeHtml(item.local_servico || 'Não informado')}</span>
+                    </div>
+                    ${item.observacao ? `<p class="galint-custody-modal-tool-note">${escapeHtml(item.observacao)}</p>` : ''}
+                </article>
+            `).join('');
+
+            modalTools.querySelectorAll('.galint-custody-modal-tool').forEach((card) => {
+                const itemKey = card.getAttribute('data-tool-key');
+                if (!itemKey) {
+                    return;
+                }
+
+                card.addEventListener('mouseenter', () => setSelectedModalTool(group, itemKey));
+                card.addEventListener('click', () => setSelectedModalTool(group, itemKey));
+            });
+
+            setSelectedModalTool(group, selectedKey);
+        }
+
+        function openGroupModal(groupKey) {
+            const group = currentGroups.find((entry) => entry.key === groupKey);
+            if (!group || !custodyModal) {
+                return;
+            }
+
+            activeGroupKey = groupKey;
+            renderGroupModal(group);
+            custodyModal.show();
+        }
+
+        function refreshModal() {
+            if (!activeGroupKey) {
+                return;
+            }
+
+            const group = currentGroups.find((entry) => entry.key === activeGroupKey);
+            if (!group) {
+                activeGroupKey = null;
+                if (custodyModal) {
+                    custodyModal.hide();
+                }
+                return;
+            }
+
+            renderGroupModal(group);
+        }
+
+        function render(groups) {
+            if (!groups || !groups.length) {
                 custodyContainer.innerHTML = `
                     <div class="galint-custody-empty">
                         <div class="galint-custody-empty-icon">✅</div>
@@ -2699,70 +3121,93 @@
             }
             
             const fragment = document.createDocumentFragment();
-            items.forEach((item) => {
+            groups.forEach((group) => {
                 const wrapper = document.createElement('div');
-                wrapper.className = 'galint-custody-card';
-                const visualState = getCustodyVisualState(item);
+                wrapper.className = 'galint-custody-card is-clickable';
+                wrapper.tabIndex = 0;
+                wrapper.setAttribute('role', 'button');
+                wrapper.setAttribute('aria-label', `Abrir baixa de ${group.usuario}`);
+                const visualState = getGroupVisualState(group);
 
                 if (visualState === 'late') {
                     wrapper.classList.add('atrasada');
                     wrapper.classList.add('pulse-alert-red');
-                } else if (visualState === 'yellow') {
+                } else if (visualState === 'attention') {
                     wrapper.classList.add('alert-yellow');
                     wrapper.classList.add('pulse-alert-yellow');
-                } else if (visualState === 'red') {
-                    wrapper.classList.add('alert-red');
-                    wrapper.classList.add('pulse-alert-red');
                 }
 
-                let statusBadge = `<span class="galint-custody-badge">${item.dias_em_uso} dia${item.dias_em_uso !== 1 ? 's' : ''}</span>`;
+                const photoMarkup = group.photoUrl
+                    ? `<img src="${group.photoUrl}" alt="${escapeHtml(group.usuario)}" loading="lazy">`
+                    : '<div class="galint-custody-photo-placeholder"><i class="bi bi-person-workspace"></i></div>';
+
+                let statusBadge = `<span class="galint-custody-badge">${group.totalTools} ferramenta(s)</span>`;
                 if (visualState === 'late') {
-                    statusBadge = '<span class="galint-custody-badge atrasada">⚠️ Atrasada</span>';
-                } else if (visualState === 'yellow') {
-                    statusBadge = '<span class="galint-custody-badge atencao">⚠️ Atenção 16h40+</span>';
-                } else if (visualState === 'red') {
-                    statusBadge = '<span class="galint-custody-badge atrasada">⚠️ Alerta 17h+</span>';
+                    statusBadge = `<span class="galint-custody-badge atrasada">${group.overdueCount} pendência(s)</span>`;
+                } else if (visualState === 'attention') {
+                    statusBadge = `<span class="galint-custody-badge atencao">Maior permanência ${formatDays(group.maxDays)}</span>`;
                 }
 
-                const photoMarkup = item.foto_url
-                    ? `<img src="${item.foto_url}" alt="${(item.descricao || 'Ferramenta').replace(/"/g, '&quot;')}" loading="lazy">`
-                    : '<div class="galint-custody-photo-placeholder"><i class="bi bi-tools"></i></div>';
-                
                 wrapper.innerHTML = `
                     <div class="galint-custody-header">
-                        <h3 class="galint-custody-title">${item.descricao || 'Item não identificado'}</h3>
+                        <div>
+                            <h3 class="galint-custody-employee">${escapeHtml(group.usuario)}</h3>
+                            <div class="galint-custody-subtext">Matrícula ${escapeHtml(group.matricula || '-')}</div>
+                        </div>
                         ${statusBadge}
                     </div>
                     <div class="galint-custody-body">
                         <div class="galint-custody-photo">${photoMarkup}</div>
                         <div class="galint-custody-info">
                             <div class="galint-custody-field">
-                                <span class="galint-custody-field-label">Código:</span>
-                                <span class="galint-custody-field-value">${item.codigo || '-'}</span>
+                                <span class="galint-custody-field-label">Maior prazo:</span>
+                                <span class="galint-custody-field-value">${formatDays(group.maxDays)}</span>
                             </div>
                             <div class="galint-custody-field">
-                                <span class="galint-custody-field-label">Quantidade:</span>
-                                <span class="galint-custody-field-value">${item.quantidade || 0} und.</span>
+                                <span class="galint-custody-field-label">Pendências:</span>
+                                <span class="galint-custody-field-value">${group.overdueCount ? `${group.overdueCount} acima do prazo` : 'Sem atraso acima do prazo'}</span>
                             </div>
                             <div class="galint-custody-field">
-                                <span class="galint-custody-field-label">Usuário:</span>
-                                <span class="galint-custody-field-value">${item.usuario || '-'} (Mat. ${item.matricula || '-'})</span>
-                            </div>
-                            <div class="galint-custody-field">
-                                <span class="galint-custody-field-label">Local:</span>
-                                <span class="galint-custody-field-value">${item.local_servico || 'Não informado'}</span>
-                            </div>
-                            <div class="galint-custody-field">
-                                <span class="galint-custody-field-label">Retirada em:</span>
-                                <span class="galint-custody-field-value">${formatDate(item.data_retirada_iso)}</span>
+                                <span class="galint-custody-field-label">Locais:</span>
+                                <span class="galint-custody-field-value">${escapeHtml(formatLocations(group.locations))}</span>
                             </div>
                         </div>
                     </div>
+                    <div class="galint-custody-preview-list">
+                        ${group.previewTools.map((item) => `
+                            <div class="galint-custody-preview-item">
+                                <strong>${escapeHtml(item.descricao || 'Item não identificado')}</strong>
+                                <span>${formatDays(item.dias_em_uso)} • ${escapeHtml(item.codigo || '-')} • ${escapeHtml(item.local_servico || 'Não informado')}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                    ${group.totalTools > group.previewTools.length ? `<div class="galint-custody-preview-more">+ ${group.totalTools - group.previewTools.length} ferramenta(s) disponíveis no detalhe do modal</div>` : ''}
                     <div class="galint-custody-actions">
-                        <a href="/controle-ferramentas/funcionario/${item.matricula_full || item.matricula}" class="galint-custody-btn galint-custody-btn-secondary">Ver funcionário</a>
-                        <button data-id="${item.id}" data-source="${item.source || 'saida'}" data-codigo="${item.codigo || ''}" data-desc="${(item.descricao || '').replace(/"/g, '&quot;')}" data-matricula="${item.matricula_full || item.matricula || ''}" onclick="devolverFerramenta(this)" class="galint-custody-btn galint-custody-btn-primary">Dar baixa</button>
+                        <a href="/controle-ferramentas/funcionario/${encodeURIComponent(group.matricula_full || group.matricula || '')}" class="galint-custody-btn galint-custody-btn-secondary">Ver ficha</a>
+                        <button type="button" data-group-key="${escapeHtml(group.key)}" class="galint-custody-btn galint-custody-btn-primary js-open-custody-group">Dar baixa</button>
                     </div>
                 `;
+
+                wrapper.addEventListener('click', (event) => {
+                    if (event.target.closest('a,button')) {
+                        return;
+                    }
+                    openGroupModal(group.key);
+                });
+
+                wrapper.addEventListener('keydown', (event) => {
+                    if (event.key !== 'Enter' && event.key !== ' ') {
+                        return;
+                    }
+                    event.preventDefault();
+                    openGroupModal(group.key);
+                });
+
+                const openButton = wrapper.querySelector('.js-open-custody-group');
+                if (openButton) {
+                    openButton.addEventListener('click', () => openGroupModal(group.key));
+                }
+
                 fragment.appendChild(wrapper);
             });
             
@@ -2783,7 +3228,9 @@
                     throw new Error(`Erro ${response.status}`);
                 }
                 const payload = await response.json();
-                render(payload.items || []);
+                currentGroups = groupByEmployee(payload.items || []);
+                render(currentGroups);
+                refreshModal();
             } catch (error) {
                 console.error('Falha ao atualizar o feed de custódia:', error);
                 custodyContainer.innerHTML = '<p class="text-danger mb-0">Erro ao carregar ferramentas em custódia. Tente novamente em instantes.</p>';
@@ -2796,14 +3243,20 @@
             const source = (buttonEl?.getAttribute('data-source') || 'saida').toLowerCase();
             const matricula = buttonEl?.getAttribute('data-matricula');
             const codigoItem = buttonEl?.getAttribute('data-codigo');
+            const groupKey = buttonEl?.getAttribute('data-group-key') || activeGroupKey;
 
             if (!retiradaId) {
                 window.alert('Não foi possível identificar a retirada para dar baixa.');
                 return;
             }
 
+            if (groupKey) {
+                activeGroupKey = groupKey;
+            }
+
             if (buttonEl) {
                 buttonEl.disabled = true;
+                buttonEl.dataset.originalLabel = buttonEl.dataset.originalLabel || buttonEl.textContent;
                 buttonEl.textContent = 'Baixando...';
             }
 
@@ -2840,24 +3293,39 @@
                     throw new Error(result.message || 'Erro ao registrar devolução');
                 }
 
-                // Remove o card imediatamente
-                const card = buttonEl ? buttonEl.closest('.galint-custody-card') : null;
-                if (card) {
-                    card.remove();
-                }
-
-                // Recarrega para garantir consistência
                 await load();
             } catch (error) {
                 console.error('Falha ao registrar devolução:', error);
                 window.alert(`Falha ao dar baixa: ${error?.message || 'erro desconhecido'}`);
             } finally {
-                if (buttonEl) {
+                if (buttonEl && document.body.contains(buttonEl)) {
                     buttonEl.disabled = false;
-                    buttonEl.textContent = 'Dar baixa';
+                    buttonEl.textContent = buttonEl.dataset.originalLabel || 'Dar baixa';
                 }
             }
         };
+
+        if (modalReturnButton) {
+            modalReturnButton.addEventListener('click', () => {
+                if (!modalReturnButton.disabled) {
+                    window.devolverFerramenta(modalReturnButton);
+                }
+            });
+        }
+
+        if (modalElement) {
+            modalElement.addEventListener('hidden.bs.modal', () => {
+                activeGroupKey = null;
+                activeToolKey = null;
+                if (modalSelected) {
+                    modalSelected.textContent = 'Selecione uma ferramenta para dar baixa.';
+                }
+                if (modalReturnButton) {
+                    modalReturnButton.disabled = true;
+                    modalReturnButton.textContent = 'Dar baixa';
+                }
+            });
+        }
 
         load();
         setInterval(() => load(), 30000); // Atualiza a cada 30 segundos

@@ -224,6 +224,63 @@ def repair_tool(saida_id: int):
     return redirect(url_for("tool_custody.index"))
 
 
+@bp.route("/funcionario/<matricula>/adicionar-ferramenta", methods=["POST"])
+@login_required
+def add_tool_to_employee(matricula: str):
+    """Adiciona uma ferramenta diretamente à custódia do funcionário."""
+    try:
+        codigo_item = (request.form.get("codigo_item") or request.form.get("codigo") or "").strip()
+        quantidade = int((request.form.get("quantidade") or "1").strip())
+        tipo_custodia = (request.form.get("tipo_custodia") or "temporaria").strip()
+        local_servico = (request.form.get("local_servico") or "").strip() or None
+        observacao = (request.form.get("observacao") or "").strip() or None
+
+        saida_id = tool_custody_service.add_tool_to_employee(
+            matricula=matricula,
+            codigo_item=codigo_item,
+            quantidade=quantidade,
+            tipo_custodia=tipo_custodia,
+            local_servico=local_servico,
+            observacao=observacao,
+        )
+
+        tipo_label = "permanente" if str(tipo_custodia or "").strip().lower() == "permanente" else "diária"
+        flash(f"Ferramenta adicionada à custódia {tipo_label}. Saída #{saida_id} registrada com sucesso!", "success")
+    except ValueError as e:
+        flash(str(e), "danger")
+    except SQLAlchemyError as e:
+        flash(f"Erro ao adicionar ferramenta à custódia: {str(e)}", "danger")
+
+    return redirect(url_for("tool_custody.employee_detail", matricula=matricula))
+
+
+@bp.route("/transferir/<int:saida_id>", methods=["POST"])
+@login_required
+def transfer_tool(saida_id: int):
+    """Transfere a custódia de uma ferramenta para outro funcionário."""
+    matricula_origem = (request.form.get("matricula") or "").strip()
+    try:
+        nova_matricula = (request.form.get("nova_matricula") or "").strip()
+        local_servico = (request.form.get("local_servico") or "").strip() or None
+        observacao = (request.form.get("observacao") or "").strip() or None
+
+        novo_saida_id = tool_custody_service.transfer_tool(
+            saida_id=saida_id,
+            nova_matricula=nova_matricula,
+            local_servico=local_servico,
+            observacao=observacao,
+        )
+        flash(f"Custódia transferida com sucesso! Nova saída #{novo_saida_id} registrada.", "success")
+    except ValueError as e:
+        flash(str(e), "danger")
+    except SQLAlchemyError as e:
+        flash(f"Erro ao transferir ferramenta: {str(e)}", "danger")
+
+    if matricula_origem:
+        return redirect(url_for("tool_custody.employee_detail", matricula=matricula_origem))
+    return redirect(url_for("tool_custody.index"))
+
+
 @bp.route("/api/stats")
 @login_required
 def api_stats():
@@ -797,6 +854,36 @@ def search_employees():
         "cargo": u.cargo or "N/D",
         "setor": u.setor or "N/D"
     } for u in usuarios])
+
+
+@bp.route("/api/ferramentas/buscar")
+@login_required
+def search_tools():
+    """Busca ferramentas por código, descrição ou marca (API)."""
+    from ..services.inventory import inventory_service
+
+    query = request.args.get("q", "").strip()
+    if not query or len(query) < 1:
+        return jsonify([])
+
+    resultados = inventory_service.search_items_for_autocomplete(query, limit=20)
+    ferramentas = [
+        item for item in resultados
+        if "ferrament" in str(item.get("categoria") or "").lower()
+    ]
+
+    return jsonify([
+        {
+            "codigo": item.get("codigo") or "",
+            "descricao": item.get("descricao") or "",
+            "categoria": item.get("categoria") or "N/D",
+            "marca": item.get("marca") or "N/D",
+            "saldo": item.get("saldo") or 0,
+            "saldo_display": item.get("saldo_display") or "0",
+            "unidade": item.get("unidade") or "un.",
+        }
+        for item in ferramentas
+    ])
 
 
 @bp.route("/api/funcionario/<matricula>/historico")

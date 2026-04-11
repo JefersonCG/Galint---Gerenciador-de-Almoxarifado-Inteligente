@@ -1,7 +1,7 @@
 """Serviço para controle de custódia de ferramentas."""
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -108,6 +108,17 @@ class ToolCustodyService:
         ):
             return "permanente"
         return "temporaria"
+
+    @staticmethod
+    def _normalize_custody_type(value: str | None) -> str:
+        raw = (value or "").strip().lower()
+        if raw in {"diaria", "diária", "daily", "d"}:
+            return "temporaria"
+        if raw in {"perm", "p"}:
+            return "permanente"
+        if raw not in {"temporaria", "permanente"}:
+            return "temporaria"
+        return raw
 
     @staticmethod
     def get_all_employees_with_tools() -> list[dict[str, Any]]:
@@ -251,6 +262,197 @@ class ToolCustodyService:
                 })
         
         return active_tools
+
+    @staticmethod
+    def _get_active_tool_saida(saida_id: int) -> tuple[Saida, Item]:
+        """Localiza uma saída de ferramenta ainda ativa na custódia."""
+        row = (
+            db.session.query(Saida, Item)
+            .join(Item, Saida.codigo_item == Item.codigo_item)
+            .filter(Saida.id_saida == saida_id)
+            .first()
+        )
+
+        if not row:
+            raise ValueError("Saída não encontrada")
+
+        saida, item = row
+        if "ferrament" not in str(item.categoria or "").lower():
+            raise ValueError("Saída não é ferramenta")
+
+        devolucao = (
+            db.session.query(InventarioEvento.id_evento)
+            .filter(
+                InventarioEvento.matricula == saida.matricula,
+                InventarioEvento.codigo_item == saida.codigo_item,
+                InventarioEvento.tipo.in_([
+                    "devolucao_ferramenta",
+                    "devolucao_material",
+                    "quebra_ferramenta",
+                    "reparo_ferramenta",
+                ]),
+                InventarioEvento.data_evento >= saida.data_saida,
+            )
+            .first()
+        )
+
+        entrada_legado = (
+            db.session.query(Entrada.id_entrada)
+            .filter(
+                Entrada.codigo_item == saida.codigo_item,
+                Entrada.matricula == saida.matricula,
+                Entrada.nota_fiscal.is_(None),
+                Entrada.data_entrada >= saida.data_saida,
+            )
+            .first()
+        )
+
+        retirada_fechada = (
+            db.session.query(RetiradaFerramenta.id)
+            .filter(
+                RetiradaFerramenta.codigo_item == saida.codigo_item,
+                RetiradaFerramenta.matricula == saida.matricula,
+                RetiradaFerramenta.status.in_(["devolvida", "para_reparo"]),
+                RetiradaFerramenta.data_retirada >= saida.data_saida,
+            )
+            .first()
+        )
+
+        if devolucao or entrada_legado or retirada_fechada:
+            raise ValueError("Ferramenta já não está ativa em custódia")
+
+        return saida, item
+
+    @staticmethod
+    def add_tool_to_employee(
+        *,
+        matricula: str,
+        codigo_item: str,
+        quantidade: int = 1,
+        tipo_custodia: str = "temporaria",
+        local_servico: str | None = None,
+        observacao: str | None = None,
+    ) -> int:
+        """Adiciona uma ferramenta diretamente à custódia de um funcionário."""
+        codigo_norm = (codigo_item or "").strip()
+        matricula_norm = (matricula or "").strip()
+        tipo_norm = ToolCustodyService._normalize_custody_type(tipo_custodia)
+
+        if not matricula_norm:
+            raise ValueError("Funcionário não informado")
+        if not codigo_norm:
+            raise ValueError("Ferramenta não informada")
+
+        usuario = Usuario.query.get(matricula_norm)
+        if not usuario:
+            raise ValueError("Funcionário não encontrado")
+
+        item = Item.query.get(codigo_norm)
+        if not item:
+            raise ValueError("Ferramenta não encontrada")
+        if "ferrament" not in str(item.categoria or "").lower():
+            raise ValueError("O item selecionado não é uma ferramenta")
+
+        try:
+            quantidade_int = int(quantidade)
+        except (TypeError, ValueError):
+            raise ValueError("Quantidade inválida")
+
+        if quantidade_int < 1:
+            raise ValueError("Quantidade deve ser maior que zero")
+
+        observacao_norm = (observacao or "").strip() or None
+        local_norm = (local_servico or "").strip() or None
+
+        saida_id = inventory_service.registrar_saida(
+            MovimentoPayload(
+                codigo=codigo_norm,
+                quantidade=float(quantidade_int),
+                matricula=matricula_norm,
+                observacao=observacao_norm,
+                local_servico=local_norm,
+                tipo_custodia=tipo_norm,
+            )
+        )
+
+        if tipo_norm != "permanente":
+            retirada = RetiradaFerramenta(
+                codigo_item=codigo_norm,
+                matricula=matricula_norm,
+                quantidade=quantidade_int,
+                local_servico=local_norm,
+                observacao=observacao_norm,
+                data_prevista_devolucao=date.today(),
+                status="em_uso",
+            )
+            db.session.add(retirada)
+            db.session.commit()
+
+        return int(saida_id)
+
+    @staticmethod
+    def transfer_tool(
+        *,
+        saida_id: int,
+        nova_matricula: str,
+        local_servico: str | None = None,
+        observacao: str | None = None,
+    ) -> int:
+        """Transfere a custódia de uma ferramenta para outro funcionário."""
+        saida, item = ToolCustodyService._get_active_tool_saida(saida_id)
+
+        nova_matricula_norm = (nova_matricula or "").strip()
+        if not nova_matricula_norm:
+            raise ValueError("Informe o funcionário de destino")
+        if str(saida.matricula or "").strip() == nova_matricula_norm:
+            raise ValueError("Selecione um funcionário diferente do atual")
+
+        usuario_atual = Usuario.query.get(saida.matricula)
+        usuario_destino = Usuario.query.get(nova_matricula_norm)
+        if not usuario_destino:
+            raise ValueError("Funcionário de destino não encontrado")
+
+        try:
+            quantidade_float = float(saida.quantidade or 0)
+        except (TypeError, ValueError):
+            quantidade_float = 0.0
+
+        if quantidade_float <= 0:
+            raise ValueError("Quantidade inválida para transferência")
+        if not quantidade_float.is_integer():
+            raise ValueError("Transferência disponível apenas para quantidades inteiras de ferramentas")
+
+        quantidade_int = int(quantidade_float)
+        days_in_use = max(0, int((datetime.utcnow() - saida.data_saida).days)) if saida.data_saida else 0
+        tipo_custodia = ToolCustodyService._infer_tipo_custodia(saida, days_in_use)
+
+        local_final = (local_servico or saida.local_servico or "").strip() or None
+        observacao_norm = (observacao or "").strip()
+
+        origem_label = usuario_atual.nome if usuario_atual else str(saida.matricula or "N/D")
+        destino_label = usuario_destino.nome or nova_matricula_norm
+
+        observacao_saida_parts = [f"Transferência de custódia para {destino_label} ({nova_matricula_norm})"]
+        if observacao_norm:
+            observacao_saida_parts.append(observacao_norm)
+
+        observacao_destino_parts = []
+        if str(saida.observacao or "").strip():
+            observacao_destino_parts.append(str(saida.observacao).strip())
+        observacao_destino_parts.append(f"Transferida de {origem_label} ({saida.matricula})")
+        if observacao_norm:
+            observacao_destino_parts.append(observacao_norm)
+
+        ToolCustodyService.register_return(saida_id, " | ".join(observacao_saida_parts))
+
+        return ToolCustodyService.add_tool_to_employee(
+            matricula=nova_matricula_norm,
+            codigo_item=item.codigo_item,
+            quantidade=quantidade_int,
+            tipo_custodia=tipo_custodia,
+            local_servico=local_final,
+            observacao=" | ".join(part for part in observacao_destino_parts if part),
+        )
 
     @staticmethod
     def get_employee_details(matricula: str) -> dict[str, Any] | None:

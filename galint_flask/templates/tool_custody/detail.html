@@ -319,6 +319,19 @@
         white-space: nowrap;
     }
 
+    .surface-header-actions {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 10px;
+        align-items: center;
+    }
+
+    .surface-header-actions .btn {
+        border-radius: 999px;
+        padding-inline: 1rem;
+    }
+
     .tool-list {
         display: grid;
         gap: 14px;
@@ -382,6 +395,62 @@
     .tool-actions .btn {
         border-radius: 12px;
         padding-inline: 0.9rem;
+    }
+
+    .modal-callout {
+        border: 1px solid rgba(148, 163, 184, 0.28);
+        border-radius: 18px;
+        padding: 14px 16px;
+        background: rgba(255, 255, 255, 0.06);
+        color: #e2e8f0;
+    }
+
+    .modal-callout strong {
+        color: #ffffff;
+        display: block;
+        margin-bottom: 0.15rem;
+    }
+
+    .modal-callout small {
+        color: #9fb0c6;
+        display: block;
+    }
+
+    .search-field-shell {
+        position: relative;
+    }
+
+    .lookup-preview {
+        display: none;
+        margin-top: 0.85rem;
+    }
+
+    .lookup-preview.show {
+        display: block;
+    }
+
+    .lookup-preview .modal-callout {
+        background: rgba(77, 163, 255, 0.12);
+        border-color: rgba(96, 165, 250, 0.28);
+    }
+
+    .autocomplete-item-title {
+        font-size: 0.92rem;
+        font-weight: 700;
+        color: #ffffff;
+    }
+
+    .autocomplete-item-details {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-top: 0.2rem;
+        color: #cbd5e1;
+        font-size: 0.78rem;
+    }
+
+    .autocomplete-item-code {
+        color: #93c5fd;
     }
 
     .timeline-card {
@@ -537,6 +606,14 @@
             width: 100%;
         }
 
+        .surface-header-actions {
+            justify-content: stretch;
+        }
+
+        .surface-header-actions > * {
+            width: 100%;
+        }
+
         .surface-header,
         .tool-topline {
             flex-direction: column;
@@ -666,7 +743,12 @@
                         <h3 class="surface-title"><i class="bi bi-shield-check me-2 text-info"></i>Custódia permanente</h3>
                         <p class="surface-subtitle">Itens de responsabilidade recorrente do funcionário, sem rotina de devolução diária.</p>
                     </div>
-                    <div class="surface-count">{{ employee.kpis.permanent_count }} item(ns)</div>
+                    <div class="surface-header-actions">
+                        <button type="button" class="btn btn-outline-info btn-sm" onclick="showAddToolModal('permanente')">
+                            <i class="bi bi-plus-circle"></i> Adicionar ferramenta
+                        </button>
+                        <div class="surface-count">{{ employee.kpis.permanent_count }} item(ns)</div>
+                    </div>
                 </div>
 
                 {% if employee.tools_permanente %}
@@ -692,6 +774,12 @@
                         {% endif %}
 
                         <div class="tool-actions mt-3">
+                            <button class="btn btn-success btn-sm" onclick='showRemoveCustodyModal({{ tool.saida_id }}, {{ tool.descricao|tojson }}, {{ tool.codigo_item|tojson }}, {{ employee.matricula|tojson }})'>
+                                <i class="bi bi-box-arrow-in-down"></i> Remover custódia
+                            </button>
+                            <button class="btn btn-primary btn-sm" onclick='showTransferModal({{ tool.saida_id }}, {{ tool.descricao|tojson }}, {{ tool.codigo_item|tojson }}, {{ employee.matricula|tojson }}, {{ employee.nome|tojson }}, "permanente", {{ tool.local_servico|tojson }}, {{ tool.quantidade|tojson }})'>
+                                <i class="bi bi-arrow-left-right"></i> Transferir
+                            </button>
                             <button class="btn btn-warning btn-sm" onclick='showDamageModal({{ tool.saida_id }}, {{ tool.descricao|tojson }}, {{ tool.codigo_item|tojson }}, {{ employee.matricula|tojson }})'>
                                 <i class="bi bi-x-circle"></i> Quebrada
                             </button>
@@ -721,7 +809,12 @@
                         <h3 class="surface-title"><i class="bi bi-clock-history me-2 text-warning"></i>Custódia diária</h3>
                         <p class="surface-subtitle">Ferramentas de uso pontual que exigem acompanhamento de permanência e devolução.</p>
                     </div>
-                    <div class="surface-count">{{ employee.kpis.temporary_count }} item(ns)</div>
+                    <div class="surface-header-actions">
+                        <button type="button" class="btn btn-outline-warning btn-sm" onclick="showAddToolModal('temporaria')">
+                            <i class="bi bi-plus-circle"></i> Adicionar ferramenta
+                        </button>
+                        <div class="surface-count">{{ employee.kpis.temporary_count }} item(ns)</div>
+                    </div>
                 </div>
 
                 {% if employee.tools_temporaria %}
@@ -753,7 +846,10 @@
 
                         <div class="tool-actions mt-3">
                             <button class="btn btn-success btn-sm" onclick='showReturnModal({{ tool.saida_id }}, {{ tool.descricao|tojson }}, {{ tool.codigo_item|tojson }}, {{ employee.matricula|tojson }})'>
-                                <i class="bi bi-arrow-return-left"></i> Devolver
+                                <i class="bi bi-arrow-return-left"></i> Dar baixa
+                            </button>
+                            <button class="btn btn-primary btn-sm" onclick='showTransferModal({{ tool.saida_id }}, {{ tool.descricao|tojson }}, {{ tool.codigo_item|tojson }}, {{ employee.matricula|tojson }}, {{ employee.nome|tojson }}, "temporaria", {{ tool.local_servico|tojson }}, {{ tool.quantidade|tojson }})'>
+                                <i class="bi bi-arrow-left-right"></i> Transferir
                             </button>
                             <button class="btn btn-warning btn-sm" onclick='showDamageModal({{ tool.saida_id }}, {{ tool.descricao|tojson }}, {{ tool.codigo_item|tojson }}, {{ employee.matricula|tojson }})'>
                                 <i class="bi bi-x-circle"></i> Quebrada
@@ -761,7 +857,7 @@
                             <button class="btn btn-info btn-sm" onclick='showRepairModal({{ tool.saida_id }}, {{ tool.descricao|tojson }}, {{ tool.codigo_item|tojson }}, {{ employee.matricula|tojson }})'>
                                 <i class="bi bi-wrench"></i> Reparo
                             </button>
-                            <button class="btn btn-primary btn-sm" onclick='showCustodyModal({{ tool.saida_id }}, {{ tool.descricao|tojson }}, {{ tool.codigo_item|tojson }}, {{ employee.matricula|tojson }}, "permanente")'>
+                            <button class="btn btn-secondary btn-sm" onclick='showCustodyModal({{ tool.saida_id }}, {{ tool.descricao|tojson }}, {{ tool.codigo_item|tojson }}, {{ employee.matricula|tojson }}, "permanente")'>
                                 <i class="bi bi-shield-check"></i> P/ permanente
                             </button>
                             <button class="btn btn-danger btn-sm" onclick='showAlertModal({{ tool.saida_id }}, {{ tool.descricao|tojson }}, {{ tool.codigo_item|tojson }}, {{ employee.matricula|tojson }}, {{ employee.nome|tojson }})'>
@@ -823,7 +919,7 @@
     <div class="modal-dialog">
         <div class="modal-content bg-dark">
             <div class="modal-header">
-                <h5 class="modal-title text-white">
+                <h5 class="modal-title text-white" id="returnModalTitle">
                     <i class="bi bi-arrow-return-left"></i> Devolver Ferramenta
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
@@ -831,7 +927,7 @@
             <form method="POST" id="returnForm">
                 <div class="modal-body">
                     <input type="hidden" name="matricula" value="{{ employee.matricula }}">
-                    <p class="text-white">
+                    <p class="text-white" id="returnModalMessage">
                         Confirma a devolução da ferramenta <strong id="returnToolName"></strong>?
                     </p>
                     <div class="mt-3" id="returnBarcodeSection" style="display: none;">
@@ -851,7 +947,7 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-success">
+                    <button type="submit" class="btn btn-success" id="returnConfirmButton">
                         <i class="bi bi-check-circle"></i> Confirmar Devolução
                     </button>
                 </div>
@@ -1154,6 +1250,115 @@
         </div>
     </div>
 </div>
+
+<!-- Modal de Adição de Ferramenta -->
+<div class="modal fade" id="addToolModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content bg-dark">
+            <div class="modal-header border-0" style="background: linear-gradient(135deg, #0f766e 0%, #1d4ed8 100%);">
+                <div>
+                    <h5 class="modal-title text-white mb-1" id="addToolModalTitle">
+                        <i class="bi bi-plus-circle"></i> Adicionar Ferramenta
+                    </h5>
+                    <p class="mb-0 text-white-50 small" id="addToolModalSubtitle">Nova atribuição diretamente na custódia do funcionário.</p>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" id="addToolForm" action="{{ url_for('tool_custody.add_tool_to_employee', matricula=employee.matricula) }}">
+                <div class="modal-body">
+                    <input type="hidden" name="tipo_custodia" id="addToolType" value="temporaria">
+                    <input type="hidden" name="codigo_item" id="addToolCode" value="">
+
+                    <div class="mb-3 search-field-shell">
+                        <label class="form-label text-white">Ferramenta</label>
+                        <input type="text" class="form-control" id="addToolCodeInput" placeholder="Digite código, descrição ou marca" autocomplete="off" required>
+                        <div class="autocomplete-dropdown" id="addToolResults"></div>
+                        <div class="lookup-preview" id="addToolPreview"></div>
+                    </div>
+
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label text-white">Quantidade</label>
+                            <input type="number" class="form-control" name="quantidade" id="addToolQuantity" min="1" step="1" value="1" required>
+                        </div>
+                        <div class="col-md-8">
+                            <label class="form-label text-white">Local / serviço</label>
+                            <input type="text" class="form-control" name="local_servico" id="addToolLocation" placeholder="Ex.: Hall subsolo, manutenção externa...">
+                        </div>
+                    </div>
+
+                    <div class="mt-3">
+                        <label class="form-label text-white">Observação</label>
+                        <textarea class="form-control" name="observacao" id="addToolObservation" rows="3" placeholder="Ex.: atribuição inicial, novo responsável, kit do colaborador..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-plus-circle"></i> Confirmar atribuição
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Transferência -->
+<div class="modal fade" id="transferModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content bg-dark">
+            <div class="modal-header border-0" style="background: linear-gradient(135deg, #1d4ed8 0%, #1e293b 100%);">
+                <div>
+                    <h5 class="modal-title text-white mb-1" id="transferModalTitle">
+                        <i class="bi bi-arrow-left-right"></i> Transferir Ferramenta
+                    </h5>
+                    <p class="mb-0 text-white-50 small" id="transferModalSubtitle">A ferramenta sai da custódia atual e entra automaticamente para o novo responsável.</p>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" id="transferForm">
+                <div class="modal-body">
+                    <input type="hidden" name="matricula" value="{{ employee.matricula }}">
+                    <input type="hidden" name="nova_matricula" id="transferTargetMatricula" value="">
+
+                    <div class="modal-callout mb-3">
+                        <strong id="transferToolName">Ferramenta</strong>
+                        <small id="transferToolMeta">Código - Custódia atual</small>
+                    </div>
+
+                    <div class="mb-3 search-field-shell">
+                        <label class="form-label text-white">Novo responsável</label>
+                        <input type="text" class="form-control" id="transferEmployeeSearch" placeholder="Digite nome ou matrícula do funcionário" autocomplete="off" required>
+                        <div class="autocomplete-dropdown" id="transferEmployeeResults"></div>
+                        <div class="lookup-preview" id="transferEmployeePreview"></div>
+                    </div>
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label text-white">Local / serviço</label>
+                            <input type="text" class="form-control" name="local_servico" id="transferLocation" placeholder="Mantido da custódia atual, se não alterar">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label text-white">Tipo atual</label>
+                            <input type="text" class="form-control" id="transferCustodyKind" readonly>
+                        </div>
+                    </div>
+
+                    <div class="mt-3">
+                        <label class="form-label text-white">Observação da transferência</label>
+                        <textarea class="form-control" name="observacao" id="transferObservation" rows="3" placeholder="Ex.: troca de responsável, desligamento, remanejamento interno..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-arrow-left-right"></i> Confirmar transferência
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -1277,6 +1482,235 @@
         }
     })();
 
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text == null ? '' : String(text);
+        return div.innerHTML;
+    }
+
+    (function() {
+        const input = document.getElementById('addToolCodeInput');
+        const hiddenCode = document.getElementById('addToolCode');
+        const results = document.getElementById('addToolResults');
+        const preview = document.getElementById('addToolPreview');
+        const form = document.getElementById('addToolForm');
+        const modalEl = document.getElementById('addToolModal');
+        let debounceTimer = null;
+        let selectedItem = null;
+
+        if (!input || !hiddenCode || !results || !preview || !form || !modalEl) {
+            return;
+        }
+
+        function clearSelection(keepInput) {
+            selectedItem = null;
+            hiddenCode.value = '';
+            preview.classList.remove('show');
+            preview.innerHTML = '';
+            if (!keepInput) {
+                input.value = '';
+            }
+        }
+
+        function hideResults() {
+            results.classList.remove('show');
+            results.innerHTML = '';
+        }
+
+        function renderPreview(item) {
+            if (!item) {
+                preview.classList.remove('show');
+                preview.innerHTML = '';
+                return;
+            }
+
+            preview.innerHTML = `
+                <div class="modal-callout">
+                    <strong>${escapeHtml(item.descricao || item.codigo || 'Ferramenta')}</strong>
+                    <small>Código ${escapeHtml(item.codigo || '-')} • ${escapeHtml(item.categoria || 'Ferramenta')} • ${escapeHtml(item.marca || 'N/D')}</small>
+                    <small>Saldo atual: ${escapeHtml(item.saldo_display || String(item.saldo || 0))}</small>
+                </div>
+            `;
+            preview.classList.add('show');
+        }
+
+        function selectItem(item) {
+            selectedItem = item;
+            hiddenCode.value = item.codigo || '';
+            input.value = item.descricao ? `${item.descricao} (${item.codigo || '-'})` : (item.codigo || '');
+            renderPreview(item);
+            hideResults();
+        }
+
+        input.addEventListener('input', function() {
+            const query = this.value.trim();
+            clearTimeout(debounceTimer);
+
+            hiddenCode.value = '';
+            preview.classList.remove('show');
+            preview.innerHTML = '';
+
+            if (query.length < 1) {
+                hideResults();
+                return;
+            }
+
+            debounceTimer = setTimeout(() => {
+                fetch(`/controle-ferramentas/api/ferramentas/buscar?q=${encodeURIComponent(query)}`)
+                    .then((response) => response.json())
+                    .then((data) => {
+                        if (!Array.isArray(data) || data.length === 0) {
+                            results.innerHTML = '<div class="autocomplete-item">Nenhuma ferramenta encontrada.</div>';
+                            results.classList.add('show');
+                            return;
+                        }
+
+                        results.innerHTML = '';
+                        data.forEach((item) => {
+                            const option = document.createElement('div');
+                            option.className = 'autocomplete-item';
+                            option.innerHTML = `
+                                <div class="autocomplete-item-title">${escapeHtml(item.descricao || item.codigo || 'Ferramenta')}</div>
+                                <div class="autocomplete-item-details">
+                                    <span class="autocomplete-item-code">Código: ${escapeHtml(item.codigo || '-')}</span>
+                                    <span>${escapeHtml(item.marca || 'N/D')}</span>
+                                    <span>Saldo: ${escapeHtml(item.saldo_display || String(item.saldo || 0))}</span>
+                                </div>
+                            `;
+                            option.addEventListener('click', () => selectItem(item));
+                            results.appendChild(option);
+                        });
+                        results.classList.add('show');
+                    })
+                    .catch(() => {
+                        results.innerHTML = '<div class="autocomplete-item">Erro ao buscar ferramentas.</div>';
+                        results.classList.add('show');
+                    });
+            }, 220);
+        });
+
+        form.addEventListener('submit', function() {
+            if (!hiddenCode.value.trim()) {
+                const rawValue = input.value.trim();
+                const match = rawValue.match(/\(([^()]+)\)\s*$/);
+                hiddenCode.value = match ? match[1].trim() : rawValue;
+            }
+        });
+
+        document.addEventListener('click', function(event) {
+            if (!results.contains(event.target) && event.target !== input) {
+                hideResults();
+            }
+        });
+
+        modalEl.addEventListener('show.bs.modal', function() {
+            const selectedType = document.getElementById('addToolType').value;
+            form.reset();
+            document.getElementById('addToolType').value = selectedType;
+            clearSelection(false);
+            hideResults();
+        });
+    })();
+
+    (function() {
+        const input = document.getElementById('transferEmployeeSearch');
+        const hiddenMatricula = document.getElementById('transferTargetMatricula');
+        const results = document.getElementById('transferEmployeeResults');
+        const preview = document.getElementById('transferEmployeePreview');
+        const form = document.getElementById('transferForm');
+        let debounceTimer = null;
+
+        if (!input || !hiddenMatricula || !results || !preview || !form) {
+            return;
+        }
+
+        function hideResults() {
+            results.classList.remove('show');
+            results.innerHTML = '';
+        }
+
+        function renderPreview(employee) {
+            if (!employee) {
+                preview.classList.remove('show');
+                preview.innerHTML = '';
+                return;
+            }
+
+            preview.innerHTML = `
+                <div class="modal-callout">
+                    <strong>${escapeHtml(employee.nome || 'Funcionário')}</strong>
+                    <small>Matrícula ${escapeHtml(employee.matricula || '-')} • ${escapeHtml(employee.cargo || employee.setor || 'N/D')}</small>
+                </div>
+            `;
+            preview.classList.add('show');
+        }
+
+        function selectEmployee(employee) {
+            hiddenMatricula.value = employee.matricula || '';
+            input.value = employee.nome ? `${employee.nome} (${employee.matricula || '-'})` : (employee.matricula || '');
+            renderPreview(employee);
+            hideResults();
+        }
+
+        input.addEventListener('input', function() {
+            const query = this.value.trim();
+            clearTimeout(debounceTimer);
+            hiddenMatricula.value = '';
+            renderPreview(null);
+
+            if (query.length < 1) {
+                hideResults();
+                return;
+            }
+
+            debounceTimer = setTimeout(() => {
+                fetch(`/controle-ferramentas/api/funcionarios/buscar?q=${encodeURIComponent(query)}`)
+                    .then((response) => response.json())
+                    .then((data) => {
+                        if (!Array.isArray(data) || data.length === 0) {
+                            results.innerHTML = '<div class="autocomplete-item">Nenhum funcionário encontrado.</div>';
+                            results.classList.add('show');
+                            return;
+                        }
+
+                        results.innerHTML = '';
+                        data.forEach((employee) => {
+                            const option = document.createElement('div');
+                            option.className = 'autocomplete-item';
+                            option.innerHTML = `
+                                <div class="autocomplete-item-title">${escapeHtml(employee.nome || 'Funcionário')}</div>
+                                <div class="autocomplete-item-details">
+                                    <span class="autocomplete-item-code">Matrícula: ${escapeHtml(employee.matricula || '-')}</span>
+                                    <span>${escapeHtml(employee.cargo || employee.setor || 'N/D')}</span>
+                                </div>
+                            `;
+                            option.addEventListener('click', () => selectEmployee(employee));
+                            results.appendChild(option);
+                        });
+                        results.classList.add('show');
+                    })
+                    .catch(() => {
+                        results.innerHTML = '<div class="autocomplete-item">Erro ao buscar funcionários.</div>';
+                        results.classList.add('show');
+                    });
+            }, 220);
+        });
+
+        form.addEventListener('submit', function() {
+            if (!hiddenMatricula.value.trim()) {
+                const rawValue = input.value.trim();
+                const match = rawValue.match(/\(([^()]+)\)\s*$/);
+                hiddenMatricula.value = match ? match[1].trim() : rawValue;
+            }
+        });
+
+        document.addEventListener('click', function(event) {
+            if (!results.contains(event.target) && event.target !== input) {
+                hideResults();
+            }
+        });
+    })();
+
     (function () {
         const alertForm = document.getElementById('alertForm');
         const alertModalEl = document.getElementById('alertModal');
@@ -1300,7 +1734,11 @@
     })();
 
     function showReturnModal(saidaId, toolName, toolCode, matricula) {
+        document.getElementById('returnModalTitle').innerHTML = '<i class="bi bi-arrow-return-left"></i> Dar baixa da ferramenta';
+        document.getElementById('returnModalMessage').innerHTML = `Confirma a devolução da ferramenta <strong id="returnToolName"></strong>?`;
         document.getElementById('returnToolName').textContent = toolName;
+        document.getElementById('returnObservacao').placeholder = 'Adicione observações sobre o estado da ferramenta...';
+        document.getElementById('returnConfirmButton').innerHTML = '<i class="bi bi-check-circle"></i> Confirmar baixa';
         const section = document.getElementById('returnBarcodeSection');
         const svg = document.getElementById('returnBarcodeSvg');
         if (section && svg) {
@@ -1309,7 +1747,26 @@
             svg.setAttribute('data-galint-barcode-value', raw);
             window.GalintBarcode?.render(section);
         }
-        document.getElementById('returnForm').action = 
+        document.getElementById('returnForm').action =
+            "{{ url_for('tool_custody.return_tool', saida_id=0) }}".replace('0', saidaId);
+        new bootstrap.Modal(document.getElementById('returnModal')).show();
+    }
+
+    function showRemoveCustodyModal(saidaId, toolName, toolCode, matricula) {
+        document.getElementById('returnModalTitle').innerHTML = '<i class="bi bi-box-arrow-in-down"></i> Remover custódia permanente';
+        document.getElementById('returnModalMessage').innerHTML = `Confirma remover a custódia da ferramenta <strong id="returnToolName"></strong> e liberá-la novamente no estoque?`;
+        document.getElementById('returnToolName').textContent = toolName;
+        document.getElementById('returnObservacao').placeholder = 'Ex.: desligamento do colaborador, troca de responsável...';
+        document.getElementById('returnConfirmButton').innerHTML = '<i class="bi bi-box-arrow-in-down"></i> Liberar no estoque';
+        const section = document.getElementById('returnBarcodeSection');
+        const svg = document.getElementById('returnBarcodeSvg');
+        if (section && svg) {
+            const raw = String(toolCode || '').trim();
+            section.style.display = raw ? 'block' : 'none';
+            svg.setAttribute('data-galint-barcode-value', raw);
+            window.GalintBarcode?.render(section);
+        }
+        document.getElementById('returnForm').action =
             "{{ url_for('tool_custody.return_tool', saida_id=0) }}".replace('0', saidaId);
         new bootstrap.Modal(document.getElementById('returnModal')).show();
     }
@@ -1375,6 +1832,38 @@
         document.getElementById('custodyForm').action = 
             "{{ url_for('tool_custody.toggle_custody_type', saida_id=0) }}".replace('0', saidaId);
         new bootstrap.Modal(document.getElementById('custodyModal')).show();
+    }
+
+    function showAddToolModal(tipoCustodia) {
+        document.getElementById('addToolType').value = tipoCustodia;
+        document.getElementById('addToolModalTitle').innerHTML = tipoCustodia === 'permanente'
+            ? '<i class="bi bi-plus-circle"></i> Adicionar na Custódia Permanente'
+            : '<i class="bi bi-plus-circle"></i> Adicionar na Custódia Diária';
+        document.getElementById('addToolModalSubtitle').textContent = tipoCustodia === 'permanente'
+            ? 'A ferramenta será atribuída como responsabilidade fixa deste funcionário.'
+            : 'A ferramenta será adicionada como empréstimo ativo para este funcionário.';
+        new bootstrap.Modal(document.getElementById('addToolModal')).show();
+    }
+
+    function showTransferModal(saidaId, toolName, toolCode, matricula, employeeName, tipoCustodia, localServico, quantidade) {
+        document.getElementById('transferModalTitle').innerHTML = tipoCustodia === 'permanente'
+            ? '<i class="bi bi-arrow-left-right"></i> Transferir Custódia Permanente'
+            : '<i class="bi bi-arrow-left-right"></i> Transferir Custódia Diária';
+        document.getElementById('transferModalSubtitle').textContent = tipoCustodia === 'permanente'
+            ? 'A ferramenta será liberada da custódia atual e atribuída automaticamente ao novo responsável.'
+            : 'A ferramenta dará baixa da custódia atual e entrará automaticamente para o novo responsável.';
+        document.getElementById('transferToolName').textContent = toolName;
+        document.getElementById('transferToolMeta').textContent = `Código ${toolCode || '-'} • ${tipoCustodia === 'permanente' ? 'Custódia permanente' : 'Custódia diária'} • Quantidade ${quantidade || 1}`;
+        document.getElementById('transferLocation').value = localServico || '';
+        document.getElementById('transferCustodyKind').value = tipoCustodia === 'permanente' ? 'Custódia permanente' : 'Custódia diária';
+        document.getElementById('transferEmployeeSearch').value = '';
+        document.getElementById('transferTargetMatricula').value = '';
+        document.getElementById('transferEmployeePreview').classList.remove('show');
+        document.getElementById('transferEmployeePreview').innerHTML = '';
+        document.getElementById('transferObservation').value = '';
+        document.getElementById('transferForm').action =
+            "{{ url_for('tool_custody.transfer_tool', saida_id=0) }}".replace('0', saidaId);
+        new bootstrap.Modal(document.getElementById('transferModal')).show();
     }
     
     function showAlertModal(saidaId, toolName, toolCode, matricula, employeeName) {
