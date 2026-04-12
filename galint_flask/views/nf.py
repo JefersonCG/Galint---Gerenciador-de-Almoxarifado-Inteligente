@@ -37,6 +37,13 @@ NF_NEW_ITEM_PACKAGING_OPTIONS: tuple[str, ...] = (
     "saco",
     "litro",
 )
+NF_NEW_ITEM_DIRECT_DOCUMENT_UNIT_OPTIONS: tuple[str, ...] = (
+    "par",
+)
+NF_NEW_ITEM_DOCUMENT_UNIT_OPTIONS: tuple[str, ...] = (
+    *NF_NEW_ITEM_PACKAGING_OPTIONS,
+    *NF_NEW_ITEM_DIRECT_DOCUMENT_UNIT_OPTIONS,
+)
 
 VALID_OPERATIONAL_TABS = {"registro", "processaveis", "erros", "historico"}
 LEGACY_OPERATIONAL_TAB_ALIASES = {
@@ -77,9 +84,9 @@ def _normalize_nf_new_item_packaging_type(raw_value: str | None) -> str | None:
     normalized = (raw_value or "").strip().lower()
     if not normalized:
         return None
-    if normalized in NF_NEW_ITEM_PACKAGING_OPTIONS:
+    if normalized in NF_NEW_ITEM_DOCUMENT_UNIT_OPTIONS:
         return normalized
-    raise ValueError("Tipo de embalagem documental inválido para o novo item da NF.")
+    raise ValueError("Unidade da compra/NF inválida para o novo item.")
 
 
 def _build_nf_new_item_packaging_payload(
@@ -90,6 +97,14 @@ def _build_nf_new_item_packaging_payload(
 ) -> dict[str, Any]:
     if not packaging_type:
         return {}
+
+    normalized_base_unit = ensure_base_item_unit(base_unit, fallback="Unidade")
+    if packaging_type == "par":
+        if normalized_base_unit == "Par":
+            return {}
+        raise ValueError(
+            "Quando a compra/NF vier em Par, use também Par como unidade interna/base do item novo."
+        )
 
     if content_per_package is None or float(content_per_package) <= 0:
         raise ValueError(
@@ -102,7 +117,6 @@ def _build_nf_new_item_packaging_payload(
             "Para recipientes acima de 1 litro, use Lata, Balde ou Bombona como unidade da compra/NF."
         )
 
-    normalized_base_unit = ensure_base_item_unit(base_unit, fallback="Unidade")
     payload: dict[str, Any] = {
         "tipo_embalagem_novo": packaging_type,
         "unidades_por_embalagem": content_value,

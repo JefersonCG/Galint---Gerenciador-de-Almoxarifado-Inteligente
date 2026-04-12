@@ -194,6 +194,86 @@
         opacity: 0;
     }
 
+    .docf-choice-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.22rem 0.58rem;
+        margin-top: 0.18rem;
+        padding: 0.04rem 0;
+    }
+
+    .docf-choice-grid--unit {
+        gap: 0.18rem 0.5rem;
+    }
+
+    .docf-choice-grid--packaging,
+    .docf-choice-grid--finance {
+        gap: 0.2rem 0.44rem;
+    }
+
+    .docf-switch-option {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.34rem;
+        min-height: 24px;
+        padding: 0.08rem 0.16rem 0.08rem 0;
+        border: none;
+        background: transparent;
+        color: #cbd5e1;
+        font-size: 0.71rem;
+        font-weight: 700;
+        line-height: 1.1;
+        cursor: pointer;
+        user-select: none;
+        transition: var(--transition);
+        white-space: nowrap;
+    }
+
+    .docf-switch-option:hover,
+    .docf-switch-option:focus-visible {
+        color: #ffffff;
+        outline: none;
+    }
+
+    .docf-switch-toggle {
+        position: relative;
+        flex: 0 0 auto;
+        width: 22px;
+        height: 12px;
+        border-radius: 999px;
+        border: 1px solid rgba(148, 163, 184, 0.26);
+        background: rgba(71, 85, 105, 0.88);
+        transition: var(--transition);
+    }
+
+    .docf-switch-toggle::after {
+        content: "";
+        position: absolute;
+        top: 1px;
+        left: 1px;
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: #ffffff;
+        transition: var(--transition);
+        box-shadow: 0 1px 3px rgba(15, 23, 42, 0.24);
+    }
+
+    .docf-switch-option.is-selected {
+        color: #ffffff;
+    }
+
+    .docf-switch-option.is-selected .docf-switch-toggle {
+        border-color: rgba(125, 211, 252, 0.58);
+        background: rgba(56, 189, 248, 0.95);
+        box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.14);
+    }
+
+    .docf-switch-option.is-selected .docf-switch-toggle::after {
+        transform: translateX(10px);
+    }
+
     .docf-state-pane {
         display: grid;
         gap: 0.9rem;
@@ -902,19 +982,168 @@
     .docf-field-card {
         display: flex;
         flex-direction: column;
-        gap: 0.55rem;
+        gap: 0.4rem;
         min-height: 100%;
-        padding: 0.72rem;
-        border-radius: 16px;
+        padding: 0.66rem 0.72rem;
+        border-radius: 14px;
         border: 1px solid rgba(148, 163, 184, 0.2);
         background: rgba(8, 15, 28, 0.54);
     }
 
     .docf-field-hint {
-        margin: -0.15rem 0 0;
+        display: none;
+    }
+
+    .docf-label-row {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.42rem;
+        margin-bottom: 0.28rem;
+    }
+
+    .docf-label-row .form-label {
+        margin-bottom: 0;
+    }
+
+    .docf-help-icon {
+        width: 20px;
+        height: 20px;
+        border: 1px solid rgba(148, 163, 184, 0.24);
+        border-radius: 999px;
+        background: rgba(15, 23, 42, 0.86);
+        color: #cfe7ff;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        font-size: 0.72rem;
+        font-weight: 800;
+        line-height: 1;
+        cursor: pointer;
+        transition: var(--transition);
+    }
+
+    .docf-help-icon:hover,
+    .docf-help-icon:focus-visible {
+        border-color: rgba(125, 211, 252, 0.44);
+        background: rgba(14, 116, 144, 0.86);
+        color: #ffffff;
+        box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.16);
+        outline: none;
+    }
+
+    .docf-hidden-native-select {
+        display: none !important;
+    }
+
+    .docf-item-create-hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
+        gap: 0.95rem;
+        margin-bottom: 1rem;
+    }
+
+    .docf-item-create-callout,
+    .docf-item-flow-card {
+        border-radius: 20px;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        padding: 0.88rem 0.95rem;
+        background: rgba(8, 15, 28, 0.58);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+    }
+
+    .docf-item-create-callout {
+        background:
+            radial-gradient(circle at top right, rgba(14, 165, 233, 0.16), transparent 34%),
+            linear-gradient(135deg, rgba(9, 18, 31, 0.92), rgba(14, 116, 144, 0.34));
+    }
+
+    .docf-item-create-title {
+        margin: 0.2rem 0 0;
+        color: var(--docf-text-primary);
+        font-size: 1.06rem;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+    }
+
+    .docf-item-create-text {
+        margin: 0.45rem 0 0;
+        color: var(--docf-text-secondary);
+        font-size: 0.84rem;
+        line-height: 1.55;
+    }
+
+    .docf-rule-stack {
+        display: grid;
+        gap: 0.55rem;
+        margin-top: 0.9rem;
+    }
+
+    .docf-rule-pill {
+        padding: 0.62rem 0.8rem;
+        border-radius: 14px;
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        background: rgba(11, 20, 32, 0.64);
+        color: var(--docf-text-secondary);
+        font-size: 0.8rem;
+        line-height: 1.45;
+    }
+
+    .docf-item-flow-card {
+        display: grid;
+        gap: 0.75rem;
+        align-content: start;
+    }
+
+    .docf-item-flow-kicker {
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: #7dd3fc;
+    }
+
+    .docf-item-flow-title {
+        color: var(--docf-text-primary);
+        font-size: 1rem;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+    }
+
+    .docf-item-flow-line {
+        color: var(--docf-text-secondary);
+        font-size: 0.83rem;
+        line-height: 1.55;
+    }
+
+    .docf-item-flow-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+    }
+
+    .docf-flow-tag {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.38rem 0.72rem;
+        border-radius: 999px;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        background: rgba(15, 23, 42, 0.68);
+        color: var(--docf-text-primary);
         font-size: 0.75rem;
-        color: var(--docf-text-muted);
-        line-height: 1.4;
+        font-weight: 700;
+        line-height: 1;
+    }
+
+    .docf-inline-note {
+        padding: 0.62rem 0.78rem;
+        border-radius: 12px;
+        border: 1px solid rgba(125, 211, 252, 0.2);
+        background: rgba(8, 15, 28, 0.48);
+        color: var(--docf-text-secondary);
+        font-size: 0.8rem;
+        line-height: 1.45;
     }
 
     .docf-inline-results {
@@ -926,13 +1155,24 @@
     }
 
     .docf-form .row.g-3 {
-        --bs-gutter-x: 0.85rem;
-        --bs-gutter-y: 0.85rem;
+        --bs-gutter-x: 0.75rem;
+        --bs-gutter-y: 0.75rem;
     }
 
     .docf-form .row.g-2 {
-        --bs-gutter-x: 1.8rem;
-        --bs-gutter-y: 1.8rem;
+        --bs-gutter-x: 0.85rem;
+        --bs-gutter-y: 0.9rem;
+    }
+
+    .docf-tight-grid {
+        --bs-gutter-x: 0.72rem !important;
+        --bs-gutter-y: 0.72rem !important;
+    }
+
+    @media (max-width: 992px) {
+        .docf-item-create-hero {
+            grid-template-columns: 1fr;
+        }
     }
 
     .docf-form .input-group > .docf-btn-secondary,
@@ -1507,7 +1747,6 @@
                                 <input type="hidden" id="codigo" name="codigo" value="{{ codigo_prefill }}" required>
                                 <div class="list-group position-absolute w-100 shadow d-none" id="item_results" style="z-index: 60;"></div>
                             </div>
-                            <div class="form-text">Digite parte do código ou da descrição para localizar o item.</div>
                         </div>
                     </div>
 
@@ -1519,36 +1758,47 @@
                             </div>
                         </div>
                         <div class="docf-panel mb-0">
-                        <div class="docf-kicker">Item novo</div>
-                        <p class="mb-3 docf-muted">Se o produto desta NF ainda não existir no estoque, preencha os campos abaixo para criar o item antes de registrar o documento.</p>
-                        <div class="row g-2 align-items-stretch">
+                        <div class="docf-item-create-hero">
+                            <div class="docf-item-create-callout">
+                                <div class="docf-kicker">Item novo</div>
+                                <h4 class="docf-item-create-title">Crie o cadastro só quando a busca acima não encontrar o material.</h4>
+                                <p class="docf-item-create-text">A regra prática fica mais direta: descrição clara, unidade interna correta e, se a NF vier em embalagem, informar também a unidade documental e o conteúdo por embalagem.</p>
+                                <div class="docf-rule-stack">
+                                    <div class="docf-rule-pill">1. Código e descrição servem para evitar duplicidade logo na entrada.</div>
+                                    <div class="docf-rule-pill">2. Unidade interna é a base do ledger, do saldo e da saída fracionada.</div>
+                                    <div class="docf-rule-pill">3. Unidade da compra representa a embalagem da NF; o conteúdo fecha a conversão.</div>
+                                </div>
+                            </div>
+                            <div class="docf-item-flow-card" id="docf-new-item-summary">
+                                <div class="docf-item-flow-kicker">Resumo do pré-cadastro</div>
+                                <div class="docf-item-flow-title" id="docf-new-item-summary-title">Aguardando dados do item novo</div>
+                                <div class="docf-item-flow-line" id="docf-new-item-summary-line">Preencha descrição e unidade base para confirmar visualmente como o item será criado antes de salvar o documento.</div>
+                                <div class="docf-item-flow-tags">
+                                    <span class="docf-flow-tag" id="docf-new-item-base-chip">Base: Unidade</span>
+                                    <span class="docf-flow-tag" id="docf-new-item-doc-chip">NF sem embalagem</span>
+                                    <span class="docf-flow-tag" id="docf-new-item-content-chip">Conteúdo pendente</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row g-2 docf-tight-grid align-items-stretch">
                             <div class="col-md-3">
                                 <div class="docf-field-card">
-                                    <div>
-                                        <label class="form-label" for="novo_codigo">Código do novo item</label>
-                                        <div class="docf-field-hint">Use código de barras ou código interno quando o item ainda não existir.</div>
-                                    </div>
+                                    <label class="form-label" for="novo_codigo">Código do novo item</label>
                                     <input class="form-control" id="novo_codigo" name="novo_codigo" placeholder="Código de barras ou código interno">
                                 </div>
                             </div>
-                            <div class="col-md-9">
+                            <div class="col-md-5">
                                 <div class="docf-field-card">
-                                    <div>
-                                        <label class="form-label" for="nova_descricao">Descrição do novo item</label>
-                                        <div class="docf-field-hint">Digite o nome e escolha uma sugestão parecida para evitar cadastro duplicado.</div>
-                                    </div>
+                                    <label class="form-label" for="nova_descricao">Descrição do novo item</label>
                                     <div class="position-relative">
                                         <input class="form-control" id="nova_descricao" name="nova_descricao" autocomplete="off" placeholder="Descrição completa do produto">
                                         <div class="list-group shadow d-none docf-inline-results" id="new_item_description_results"></div>
                                     </div>
                                 </div>
                             </div>
-                            <div class="col-md-5">
+                            <div class="col-md-2">
                                 <div class="docf-field-card">
-                                    <div>
-                                        <label class="form-label" for="nova_categoria">Categoria</label>
-                                        <div class="docf-field-hint">Selecione uma categoria padrão igual à tela de classificação do cadastro.</div>
-                                    </div>
+                                    <label class="form-label" for="nova_categoria">Categoria</label>
                                     <select class="form-select form-select-sm" id="nova_categoria" name="nova_categoria">
                                         {% for option in document_category_options %}
                                         <option value="{{ option }}" {% if option == 'Material Elétrico' %}selected{% endif %}>{{ option }}</option>
@@ -1556,38 +1806,38 @@
                                     </select>
                                 </div>
                             </div>
-                            <div class="col-md-3">
+                            <div class="col-md-2">
                                 <div class="docf-field-card">
-                                    <div>
-                                        <label class="form-label" for="nova_marca">Marca</label>
-                                        <div class="docf-field-hint">Preencha a marca/fabricante para o pré-cadastro já nascer completo.</div>
-                                    </div>
+                                    <label class="form-label" for="nova_marca">Marca</label>
                                     <input class="form-control form-control-sm" id="nova_marca" name="nova_marca" placeholder="Ex.: Corfio, Cobrecon">
                                 </div>
                             </div>
-                            <div class="col-md-4">
+                        </div>
+                        <div class="row g-2 docf-tight-grid mt-1 align-items-stretch">
+                            <div class="col-md-3">
                                 <div class="docf-field-card">
-                                    <div>
-                                        <label class="form-label" for="nova_unidade">Unidade interna / base</label>
-                                        <div class="docf-field-hint">Essa é a unidade canônica do estoque e da saída fracionada. Ex.: Metro significa que o item sai em metros, não que a NF foi comprada em metros.</div>
-                                    </div>
-                                    <select class="form-select form-select-sm" id="nova_unidade" name="nova_unidade">
-                                        {% for option in ('Unidade', 'Metro', 'Quilo', 'Litro') %}
+                                    <label class="form-label" for="nova_unidade">Unidade interna / base</label>
+                                    <select class="form-select form-select-sm docf-hidden-native-select" id="nova_unidade" name="nova_unidade">
+                                        {% for option in document_unit_options %}
                                         <option value="{{ option }}" {% if option == 'Unidade' %}selected{% endif %}>{{ option }}</option>
                                         {% endfor %}
                                     </select>
+                                    <div class="docf-choice-grid docf-choice-grid--unit" data-visual-select="nova_unidade">
+                                        {% for option in document_unit_options %}
+                                        <label class="docf-switch-option {% if option == 'Unidade' %}is-selected{% endif %}" data-select-value="{{ option }}" aria-pressed="{{ 'true' if option == 'Unidade' else 'false' }}" role="button" tabindex="0">
+                                            <span class="docf-switch-toggle" aria-hidden="true"></span>
+                                            <span>{{ option }}</span>
+                                        </label>
+                                        {% endfor %}
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                        <div class="row g-2 mt-1">
-                            <div class="col-md-4">
+                            <div class="col-md-5">
                                 <div class="docf-field-card">
-                                    <div>
-                                        <label class="form-label" for="nova_unidade_documental">Unidade da compra / NF</label>
-                                        <div class="docf-field-hint">Preencha quando a quantidade do documento vier em rolo, lata, balde, bombona, caixa, pacote ou fardo. Se deixar em branco, a quantidade será lida na unidade interna.</div>
-                                    </div>
-                                    <select class="form-select form-select-sm" id="nova_unidade_documental" name="nova_unidade_documental">
+                                    <label class="form-label" for="nova_unidade_documental">Unidade da compra / NF</label>
+                                    <select class="form-select form-select-sm docf-hidden-native-select" id="nova_unidade_documental" name="nova_unidade_documental">
                                         <option value="">Sem embalagem documental</option>
+                                        <option value="par">Par</option>
                                         <option value="rolo">Rolo</option>
                                         <option value="lata">Lata</option>
                                         <option value="balde">Balde</option>
@@ -1596,16 +1846,26 @@
                                         <option value="pacote">Pacote</option>
                                         <option value="fardo">Fardo</option>
                                         <option value="saco">Saco</option>
-                                        <option value="litro">Litro</option>
+                                        <option value="litro">Litro (legado)</option>
                                     </select>
+                                    <div class="docf-choice-grid docf-choice-grid--packaging" data-visual-select="nova_unidade_documental">
+                                        <label class="docf-switch-option is-selected" data-select-value="" aria-pressed="true" role="button" tabindex="0"><span class="docf-switch-toggle" aria-hidden="true"></span><span>Sem embalagem</span></label>
+                                        <label class="docf-switch-option" data-select-value="par" aria-pressed="false" role="button" tabindex="0"><span class="docf-switch-toggle" aria-hidden="true"></span><span>Par</span></label>
+                                        <label class="docf-switch-option" data-select-value="rolo" aria-pressed="false" role="button" tabindex="0"><span class="docf-switch-toggle" aria-hidden="true"></span><span>Rolo</span></label>
+                                        <label class="docf-switch-option" data-select-value="lata" aria-pressed="false" role="button" tabindex="0"><span class="docf-switch-toggle" aria-hidden="true"></span><span>Lata</span></label>
+                                        <label class="docf-switch-option" data-select-value="balde" aria-pressed="false" role="button" tabindex="0"><span class="docf-switch-toggle" aria-hidden="true"></span><span>Balde</span></label>
+                                        <label class="docf-switch-option" data-select-value="bombona" aria-pressed="false" role="button" tabindex="0"><span class="docf-switch-toggle" aria-hidden="true"></span><span>Bombona</span></label>
+                                        <label class="docf-switch-option" data-select-value="caixa" aria-pressed="false" role="button" tabindex="0"><span class="docf-switch-toggle" aria-hidden="true"></span><span>Caixa</span></label>
+                                        <label class="docf-switch-option" data-select-value="pacote" aria-pressed="false" role="button" tabindex="0"><span class="docf-switch-toggle" aria-hidden="true"></span><span>Pacote</span></label>
+                                        <label class="docf-switch-option" data-select-value="fardo" aria-pressed="false" role="button" tabindex="0"><span class="docf-switch-toggle" aria-hidden="true"></span><span>Fardo</span></label>
+                                        <label class="docf-switch-option" data-select-value="saco" aria-pressed="false" role="button" tabindex="0"><span class="docf-switch-toggle" aria-hidden="true"></span><span>Saco</span></label>
+                                        <label class="docf-switch-option" data-select-value="litro" aria-pressed="false" role="button" tabindex="0"><span class="docf-switch-toggle" aria-hidden="true"></span><span>Litro legado</span></label>
+                                    </div>
                                 </div>
                             </div>
                             <div class="col-md-4">
                                 <div class="docf-field-card">
-                                    <div>
-                                        <label class="form-label" for="novo_conteudo_embalagem">Conteúdo por embalagem</label>
-                                        <div class="docf-field-hint">Informe o conteúdo de cada embalagem usando a unidade interna. Ex.: unidade interna Metro + unidade da compra Rolo + conteúdo 50 = quantidade 4 significa 4 rolos de 50m.</div>
-                                    </div>
+                                    <label class="form-label" for="novo_conteudo_embalagem">Conteúdo por embalagem</label>
                                     <input class="form-control form-control-sm" id="novo_conteudo_embalagem" name="novo_conteudo_embalagem" type="number" min="0.01" step="0.01" placeholder="Ex.: 50, 3.6, 20">
                                 </div>
                             </div>
@@ -1619,12 +1879,11 @@
                                 <h3 class="docf-form-section-title">3. Dados do documento</h3>
                             </div>
                         </div>
-                        <div class="row g-2 mb-1">
+                        <div class="row g-2 docf-tight-grid mb-1 align-items-end">
                             <div class="col-md-2">
                                 <label class="form-label" for="quantidade">Quantidade</label>
                                 <input class="form-control form-control-sm" id="quantidade" name="quantidade" type="number" min="0.01" step="0.01" value="1"
                                     required>
-                                <div class="form-text">Essa é a quantidade na NF. Se houver unidade da compra / NF informada acima, o sistema lê esse número como quantidade de embalagens; sem isso, lê na unidade interna.</div>
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label" for="nota_fiscal" id="nota_fiscal_label">Número da NF</label>
@@ -1634,22 +1893,22 @@
                             <input type="hidden" id="finance_supplier_search" name="supplier_name">
                             <input type="hidden" id="finance_supplier_id" name="finance_supplier_id">
                             <div class="list-group position-absolute w-100 shadow d-none" id="finance_supplier_results" style="z-index: 50;"></div>
-                            <div class="col-md-2">
+                            <div class="col-md-3">
                                 <label class="form-label" for="data_emissao">Emissão do documento</label>
                                 <input class="form-control form-control-sm" id="data_emissao" name="data_emissao" type="date">
                             </div>
-                            <div class="col-md-2">
+                            <div class="col-md-3">
                                 <label class="form-label" for="data_recebimento">Data de recebimento</label>
                                 <input class="form-control form-control-sm" id="data_recebimento" name="data_recebimento" type="date">
                             </div>
-                            <div class="col-md-6">
+                            <div class="col-md-5">
                                 <label class="form-label" for="supplier_cnpj">CNPJ da loja</label>
                                 <div class="input-group">
                                     <input class="form-control form-control-sm" id="supplier_cnpj" name="supplier_cnpj" placeholder="00.000.000/0000-00">
                                     <button class="docf-btn-secondary docf-btn-compact" type="button" id="btn-buscar-cnpj" data-cnpj-lookup-button data-help-label="Consultar CNPJ" data-help-text="Consulta o CNPJ informado para localizar ou completar automaticamente o fornecedor.">Consultar</button>
                                 </div>
                             </div>
-                            <div class="col-md-6" data-chave-acesso-group>
+                            <div class="col-md-7" data-chave-acesso-group>
                                 <label class="form-label" for="chave_acesso">Chave de acesso</label>
                                 <input class="form-control form-control-sm" id="chave_acesso" name="chave_acesso" placeholder="44 dígitos da NF-e / NFC-e">
                             </div>
@@ -1662,7 +1921,7 @@
                                 <h3 class="docf-form-section-title">4. Classificação financeira</h3>
                             </div>
                         </div>
-                        <div class="row g-2 mb-1">
+                        <div class="row g-2 docf-tight-grid mb-1">
                             <div class="col-md-6">
                                 <label class="form-label" for="preco_unitario">Valor unitário (R$)</label>
                                 <input class="form-control form-control-sm" id="preco_unitario" name="preco_unitario" type="number" min="0" step="0.01">
@@ -1677,31 +1936,48 @@
                                     <div class="docf-live-calc-meta" data-calc-meta>O total calculado aparece aqui para você bater rapidamente com a nota antes de salvar.</div>
                                 </div>
                             </div>
-                            <div class="col-md-6">
+                            <div class="col-md-4">
                                 <label class="form-label" for="finance_tipo_documento">Tipo de documento</label>
-                                <select class="form-select form-select-sm" id="finance_tipo_documento" name="finance_tipo_documento">
+                                <select class="form-select form-select-sm docf-hidden-native-select" id="finance_tipo_documento" name="finance_tipo_documento">
                                     <option value="nf">Nota fiscal</option>
                                     <option value="cupom">Cupom não fiscal</option>
                                     <option value="recibo">Recibo</option>
                                     <option value="manual">Manual</option>
                                 </select>
+                                <div class="docf-choice-grid docf-choice-grid--finance" data-visual-select="finance_tipo_documento">
+                                    <label class="docf-switch-option is-selected" data-select-value="nf" aria-pressed="true" role="button" tabindex="0"><span class="docf-switch-toggle" aria-hidden="true"></span><span>NF</span></label>
+                                    <label class="docf-switch-option" data-select-value="cupom" aria-pressed="false" role="button" tabindex="0"><span class="docf-switch-toggle" aria-hidden="true"></span><span>Cupom</span></label>
+                                    <label class="docf-switch-option" data-select-value="recibo" aria-pressed="false" role="button" tabindex="0"><span class="docf-switch-toggle" aria-hidden="true"></span><span>Recibo</span></label>
+                                    <label class="docf-switch-option" data-select-value="manual" aria-pressed="false" role="button" tabindex="0"><span class="docf-switch-toggle" aria-hidden="true"></span><span>Manual</span></label>
+                                </div>
                             </div>
-                            <div class="col-md-6">
+                            <div class="col-md-4">
                                 <label class="form-label" for="finance_origem_valor">Origem do valor</label>
-                                <select class="form-select form-select-sm" id="finance_origem_valor" name="finance_origem_valor">
+                                <select class="form-select form-select-sm docf-hidden-native-select" id="finance_origem_valor" name="finance_origem_valor">
                                     <option value="compra_nf">Compra com NF</option>
                                     <option value="compra_cupom">Compra com cupom</option>
                                     <option value="valor_estimado">Valor estimado</option>
                                     <option value="inventario_inicial">Inventário inicial</option>
                                 </select>
+                                <div class="docf-choice-grid docf-choice-grid--finance" data-visual-select="finance_origem_valor">
+                                    <label class="docf-switch-option is-selected" data-select-value="compra_nf" aria-pressed="true" role="button" tabindex="0"><span class="docf-switch-toggle" aria-hidden="true"></span><span>Compra NF</span></label>
+                                    <label class="docf-switch-option" data-select-value="compra_cupom" aria-pressed="false" role="button" tabindex="0"><span class="docf-switch-toggle" aria-hidden="true"></span><span>Cupom</span></label>
+                                    <label class="docf-switch-option" data-select-value="valor_estimado" aria-pressed="false" role="button" tabindex="0"><span class="docf-switch-toggle" aria-hidden="true"></span><span>Estimado</span></label>
+                                    <label class="docf-switch-option" data-select-value="inventario_inicial" aria-pressed="false" role="button" tabindex="0"><span class="docf-switch-toggle" aria-hidden="true"></span><span>Inventário</span></label>
+                                </div>
                             </div>
-                            <div class="col-md-6">
+                            <div class="col-md-4">
                                 <label class="form-label" for="finance_comprovacao_status">Comprovação</label>
-                                <select class="form-select form-select-sm" id="finance_comprovacao_status" name="finance_comprovacao_status">
+                                <select class="form-select form-select-sm docf-hidden-native-select" id="finance_comprovacao_status" name="finance_comprovacao_status">
                                     <option value="comprovado">Comprovado</option>
                                     <option value="parcial">Parcialmente comprovado</option>
                                     <option value="sem_comprovacao">Sem comprovação</option>
                                 </select>
+                                <div class="docf-choice-grid docf-choice-grid--finance" data-visual-select="finance_comprovacao_status">
+                                    <label class="docf-switch-option is-selected" data-select-value="comprovado" aria-pressed="true" role="button" tabindex="0"><span class="docf-switch-toggle" aria-hidden="true"></span><span>Comprovado</span></label>
+                                    <label class="docf-switch-option" data-select-value="parcial" aria-pressed="false" role="button" tabindex="0"><span class="docf-switch-toggle" aria-hidden="true"></span><span>Parcial</span></label>
+                                    <label class="docf-switch-option" data-select-value="sem_comprovacao" aria-pressed="false" role="button" tabindex="0"><span class="docf-switch-toggle" aria-hidden="true"></span><span>Sem comp.</span></label>
+                                </div>
                             </div>
                             <div class="col-12 mb-1">
                                 <label class="form-label" for="finance_observacao">Observação financeira</label>
@@ -1709,9 +1985,8 @@
                                     placeholder="Ex.: compra emergencial, documento conferido, valor estimado..."></textarea>
                             </div>
                             <div class="col-12 mb-1">
-                                <div class="docf-panel warning mb-0">
-                                    <strong>Fluxo documental.</strong>
-                                    <span class="d-block docf-muted">Se a NF estiver configurada para movimentar estoque, toda linha lançada manualmente nesta tela sobe primeiro para PRÉ CADASTRADOS, mesmo quando o código já existe. Só depois da finalização ela entra no estoque. Se o documento ficar apenas no financeiro, não há pré-cadastro nem movimentação.</span>
+                                <div class="docf-inline-note">
+                                    Com estoque ativo, item novo entra primeiro em <strong>PRÉ CADASTRADOS</strong>. Se o documento ficar só no financeiro, não há movimentação nem pré-cadastro.
                                 </div>
                             </div>
                             <div class="col-12 compact-actions">
@@ -2154,6 +2429,14 @@
     const novoCodigoInput = document.getElementById('novo_codigo');
     const novaDescricaoInput = document.getElementById('nova_descricao');
     const newItemDescriptionResults = document.getElementById('new_item_description_results');
+    const novaUnidadeInput = document.getElementById('nova_unidade');
+    const novaUnidadeDocumentalInput = document.getElementById('nova_unidade_documental');
+    const novoConteudoEmbalagemInput = document.getElementById('novo_conteudo_embalagem');
+    const newItemSummaryTitle = document.getElementById('docf-new-item-summary-title');
+    const newItemSummaryLine = document.getElementById('docf-new-item-summary-line');
+    const newItemBaseChip = document.getElementById('docf-new-item-base-chip');
+    const newItemDocChip = document.getElementById('docf-new-item-doc-chip');
+    const newItemContentChip = document.getElementById('docf-new-item-content-chip');
     const supplierInput = document.getElementById('finance_supplier_search');
     const supplierIdInput = document.getElementById('finance_supplier_id');
     const supplierResults = document.getElementById('finance_supplier_results');
@@ -2192,6 +2475,178 @@
     let notaSuggestions = [];
     let newItemDescriptionSuggestions = [];
     let helpHideTimer = null;
+
+    function formatNewItemNumber(value) {
+        const numeric = Number(value);
+        if (!Number.isFinite(numeric)) {
+            return '';
+        }
+        return numeric.toLocaleString('pt-BR', { maximumFractionDigits: 2 });
+    }
+
+    function toTitleCaseUnit(value) {
+        const normalized = String(value || '').trim();
+        if (!normalized) {
+            return '';
+        }
+        return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+    }
+
+    function updateNewItemSummary() {
+        if (!newItemSummaryTitle || !newItemSummaryLine) {
+            return;
+        }
+
+        const codigo = String(novoCodigoInput?.value || '').trim();
+        const descricao = String(novaDescricaoInput?.value || '').trim();
+        const baseUnit = String(novaUnidadeInput?.value || 'Unidade').trim() || 'Unidade';
+        const docUnit = String(novaUnidadeDocumentalInput?.value || '').trim();
+        const docUnitKey = docUnit.toLowerCase();
+        const contentValue = Number(novoConteudoEmbalagemInput?.value || 0);
+        const docUnitLabel = toTitleCaseUnit(docUnit);
+
+        if (newItemBaseChip) {
+            newItemBaseChip.textContent = `Base: ${baseUnit}`;
+        }
+
+        if (!codigo && !descricao && !docUnit && (!Number.isFinite(contentValue) || contentValue <= 0)) {
+            if (newItemDocChip) {
+                newItemDocChip.textContent = 'NF sem embalagem';
+            }
+            if (newItemContentChip) {
+                newItemContentChip.textContent = 'Conteúdo pendente';
+            }
+            newItemSummaryTitle.textContent = 'Aguardando dados do item novo';
+            newItemSummaryLine.textContent = 'Use esta área só quando a busca não encontrar o material. Com a unidade base definida, o fluxo de conversão documental fica visível aqui.';
+            return;
+        }
+
+        newItemSummaryTitle.textContent = descricao || codigo || 'Novo item em preparação';
+
+        if (!docUnit) {
+            if (newItemDocChip) {
+                newItemDocChip.textContent = 'NF sem embalagem';
+            }
+            if (newItemContentChip) {
+                newItemContentChip.textContent = 'Sem conversão';
+            }
+            newItemSummaryLine.textContent = `Sem unidade documental, a quantidade da NF será lida diretamente em ${baseUnit}. Preencha unidade da compra apenas quando a nota vier em par, rolo, lata, balde, bombona, caixa, pacote, fardo ou saco.`;
+            return;
+        }
+
+        if (docUnitKey === 'par' && baseUnit === 'Par') {
+            if (newItemDocChip) {
+                newItemDocChip.textContent = 'NF em Par';
+            }
+            if (newItemContentChip) {
+                newItemContentChip.textContent = 'Sem conversão';
+            }
+            newItemSummaryLine.textContent = 'A quantidade da NF será lida diretamente em Par, igual à unidade interna/base do item novo.';
+            return;
+        }
+
+        if (docUnitKey === 'par' && baseUnit !== 'Par') {
+            if (newItemDocChip) {
+                newItemDocChip.textContent = 'NF em Par';
+            }
+            if (newItemContentChip) {
+                newItemContentChip.textContent = 'Ajuste a base';
+            }
+            newItemSummaryLine.textContent = 'Quando a compra/NF vier em Par, use também Par como unidade interna/base do item novo.';
+            return;
+        }
+
+        if (newItemDocChip) {
+            newItemDocChip.textContent = `NF em ${docUnitLabel}`;
+        }
+
+        if (Number.isFinite(contentValue) && contentValue > 0) {
+            const formattedContent = formatNewItemNumber(contentValue);
+            if (newItemContentChip) {
+                newItemContentChip.textContent = `${formattedContent} ${baseUnit} por ${docUnit}`;
+            }
+            newItemSummaryLine.textContent = `O documento será lançado em ${docUnitLabel}. Cada ${docUnit} será convertida em ${formattedContent} ${baseUnit}, mantendo o saldo e o ledger na unidade interna do item.`;
+            return;
+        }
+
+        if (newItemContentChip) {
+            newItemContentChip.textContent = 'Conteúdo pendente';
+        }
+        newItemSummaryLine.textContent = `A unidade documental foi definida como ${docUnitLabel}. Falta informar o conteúdo de cada ${docUnit} para completar a conversão para ${baseUnit}.`;
+    }
+
+    function syncVisualSelectGroup(selectElement) {
+        if (!(selectElement instanceof HTMLSelectElement)) {
+            return;
+        }
+
+        const group = document.querySelector(`[data-visual-select="${selectElement.id}"]`);
+        if (!(group instanceof HTMLElement)) {
+            return;
+        }
+
+        group.querySelectorAll('[data-select-value]').forEach((button) => {
+            if (!(button instanceof HTMLElement)) {
+                return;
+            }
+            const value = button.getAttribute('data-select-value') || '';
+            const isSelected = String(selectElement.value || '') === value;
+            button.classList.toggle('is-selected', isSelected);
+            button.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
+        });
+    }
+
+    function syncAllVisualSelectGroups() {
+        document.querySelectorAll('[data-visual-select]').forEach((group) => {
+            const selectId = group.getAttribute('data-visual-select');
+            const selectElement = selectId ? document.getElementById(selectId) : null;
+            if (selectElement instanceof HTMLSelectElement) {
+                syncVisualSelectGroup(selectElement);
+            }
+        });
+    }
+
+    function initializeVisualSelectGroups() {
+        document.querySelectorAll('[data-visual-select]').forEach((group) => {
+            const selectId = group.getAttribute('data-visual-select');
+            const selectElement = selectId ? document.getElementById(selectId) : null;
+            if (!(selectElement instanceof HTMLSelectElement)) {
+                return;
+            }
+
+            group.querySelectorAll('[data-select-value]').forEach((button) => {
+                if (!(button instanceof HTMLElement) || button.dataset.visualSelectBound === '1') {
+                    return;
+                }
+                button.dataset.visualSelectBound = '1';
+                button.addEventListener('click', () => {
+                    const value = button.getAttribute('data-select-value') || '';
+                    if (String(selectElement.value || '') !== value) {
+                        selectElement.value = value;
+                        selectElement.dispatchEvent(new Event('change', { bubbles: true }));
+                        selectElement.dispatchEvent(new Event('input', { bubbles: true }));
+                    }
+                    syncVisualSelectGroup(selectElement);
+                });
+            });
+
+            if (selectElement.dataset.visualSelectBound !== '1') {
+                selectElement.dataset.visualSelectBound = '1';
+                selectElement.addEventListener('change', () => syncVisualSelectGroup(selectElement));
+            }
+
+            syncVisualSelectGroup(selectElement);
+        });
+    }
+
+    [novoCodigoInput, novaDescricaoInput, novaUnidadeInput, novaUnidadeDocumentalInput, novoConteudoEmbalagemInput].forEach((element) => {
+        if (element) {
+            element.addEventListener('input', updateNewItemSummary);
+            element.addEventListener('change', updateNewItemSummary);
+        }
+    });
+
+    updateNewItemSummary();
 
     const HELP_STORAGE_KEY = 'galint:nf:help-enabled';
     const storedHelpPreference = window.localStorage.getItem(HELP_STORAGE_KEY);
@@ -2271,9 +2726,9 @@
         nova_descricao: 'Descrição do item novo. Use um nome claro para facilitar futuras buscas e auditorias.',
         nova_categoria: 'Categoria inicial do item novo. Ajuda na organização e nos filtros do estoque.',
         nova_marca: 'Marca ou fabricante do item novo. Esse dado já será exibido nas listas e buscas do sistema.',
-        nova_unidade: 'Unidade interna do estoque para o item novo. Ela define a unidade canônica e a saída fracionada, como metro, litro, quilo ou unidade.',
-        nova_unidade_documental: 'Unidade em que a compra veio na NF. Use quando a quantidade do documento estiver em rolos, latas, baldes, bombonas, caixas, pacotes, fardos ou sacos.',
-        novo_conteudo_embalagem: 'Conteúdo de cada embalagem usando a unidade interna. Ex.: rolo de 50 metros, lata de 3,6 litros, saco de 20 kg.',
+        nova_unidade: 'Unidade interna do estoque para o item novo. Ela define a unidade canonica e a saida fracionada, incluindo Par para itens vendidos em pares.',
+        nova_unidade_documental: 'Unidade em que a compra veio na NF. Pode ser Par quando a unidade interna/base do item tambem for Par. Para embalagem, use rolo, lata, balde, bombona, caixa, pacote, fardo ou saco. Litro ficou restrito a compatibilidade legada de frascos antigos de 500ml, 900ml e 1L.',
+        novo_conteudo_embalagem: 'Conteudo de cada embalagem usando a unidade interna. Ex.: rolo de 50 metros, lata de 3,6 litros, saco de 20 kg ou caixa com 12 pares. Quando a NF vier diretamente em Par e a base ja for Par, este campo nao e necessario.',
         quantidade: 'Quantidade comprada no documento. Sem unidade documental, será lida na unidade interna; com unidade documental, será lida em embalagens.',
         nota_fiscal: 'Número da NF, cupom ou controle interno. Se já existir no sistema, alguns dados serão sugeridos automaticamente.',
         finance_supplier_search: 'Nome da loja ou fornecedor. Pode ser digitado manualmente ou preenchido por autocomplete.',
@@ -2390,8 +2845,9 @@
 
     const hideNewItemDescriptionResults = () => newItemDescriptionResults?.classList.add('d-none');
 
-    const showHelpToast = (element) => {
-        if (!helpEnabled || !helpToast || !(element instanceof HTMLElement)) return;
+    const showHelpToast = (element, options = {}) => {
+        const force = options.force === true;
+        if ((!helpEnabled && !force) || !helpToast || !(element instanceof HTMLElement)) return;
         const helpText = resolveHelpText(element);
         if (!helpText) return;
         if (helpHideTimer) {
@@ -2406,6 +2862,33 @@
         }
         helpToast.classList.add('is-visible');
         helpToast.setAttribute('aria-hidden', 'false');
+    };
+
+    const injectInlineHelpIcons = () => {
+        document.querySelectorAll('label.form-label[for]').forEach((label) => {
+            if (!(label instanceof HTMLLabelElement)) return;
+            if (label.closest('.docf-label-row')) return;
+            const fieldId = label.getAttribute('for');
+            if (!fieldId) return;
+            const field = document.getElementById(fieldId);
+            if (!(field instanceof HTMLElement)) return;
+            const helpText = resolveHelpText(field);
+            if (!helpText) return;
+
+            const row = document.createElement('span');
+            row.className = 'docf-label-row';
+            label.parentNode?.insertBefore(row, label);
+            row.appendChild(label);
+
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'docf-help-icon';
+            button.textContent = '?';
+            button.setAttribute('aria-label', `Ajuda sobre ${getFieldLabel(field)}`);
+            button.dataset.helpLabel = getFieldLabel(field);
+            button.dataset.helpText = helpText;
+            row.appendChild(button);
+        });
     };
 
     const scheduleHelpToastHide = () => {
@@ -2974,6 +3457,7 @@
         if (comprovacaoInput) {
             comprovacaoInput.value = mode.comprovacao;
         }
+        syncAllVisualSelectGroups();
         if (docModeTitle) {
             docModeTitle.textContent = mode.title;
         }
@@ -3012,6 +3496,8 @@
         updateHelpToggleState();
     });
     updateHelpToggleState();
+    injectInlineHelpIcons();
+    initializeVisualSelectGroups();
 
     modeButtons.forEach((button) => {
         button.addEventListener('click', () => {
@@ -3317,15 +3803,33 @@
     });
 
     document.addEventListener('mouseover', (event) => {
+        const helpIcon = event.target instanceof Element ? event.target.closest('.docf-help-icon') : null;
+        if (helpIcon) {
+            showHelpToast(helpIcon, { force: true });
+            return;
+        }
         const target = event.target instanceof Element ? event.target.closest('input:not([type="hidden"]), select, textarea, button.docf-btn-primary, button.docf-btn-secondary, a.docf-btn-secondary, .docf-mode-btn') : null;
         if (!target) return;
         showHelpToast(target);
     });
 
     document.addEventListener('mouseout', (event) => {
+        const helpIcon = event.target instanceof Element ? event.target.closest('.docf-help-icon') : null;
+        if (helpIcon) {
+            scheduleHelpToastHide();
+            return;
+        }
         const target = event.target instanceof Element ? event.target.closest('input:not([type="hidden"]), select, textarea, button.docf-btn-primary, button.docf-btn-secondary, a.docf-btn-secondary, .docf-mode-btn') : null;
         if (!target) return;
         scheduleHelpToastHide();
+    });
+
+    document.addEventListener('click', (event) => {
+        const helpIcon = event.target instanceof Element ? event.target.closest('.docf-help-icon') : null;
+        if (!helpIcon) return;
+        event.preventDefault();
+        event.stopPropagation();
+        showHelpToast(helpIcon, { force: true });
     });
 
     document.addEventListener('focusin', (event) => {

@@ -84,9 +84,10 @@ OPERATIONAL_ACTIVITY_LABELS = {
     for row in OPERATIONAL_ACTIVITY_OPTIONS
 }
 
-BASE_ITEM_UNIT_OPTIONS: tuple[str, ...] = ("Unidade", "Metro", "Quilo", "Litro")
+BASE_ITEM_UNIT_OPTIONS: tuple[str, ...] = ("Unidade", "Par", "Metro", "Quilo", "Litro")
 _BASE_ITEM_UNIT_LABEL_BY_CODE = {
     "un": "Unidade",
+    "par": "Par",
     "m": "Metro",
     "kg": "Quilo",
     "l": "Litro",
@@ -96,6 +97,8 @@ _BASE_ITEM_UNIT_ALIASES = {
     "und": "Unidade",
     "unidade": "Unidade",
     "unidades": "Unidade",
+    "par": "Par",
+    "pares": "Par",
     "m": "Metro",
     "metro": "Metro",
     "metros": "Metro",
@@ -126,7 +129,7 @@ def ensure_base_item_unit(value: object, *, fallback: str = "Unidade") -> str:
     normalized = normalize_base_item_unit(raw)
     if normalized:
         return normalized
-    raise ValueError("Unidade base invalida. Use apenas Unidade, Metro, Quilo ou Litro.")
+    raise ValueError("Unidade base invalida. Use apenas Unidade, Par, Metro, Quilo ou Litro.")
 
 
 def resolve_item_base_unit_label(item_like: Any, *, fallback: str = "Unidade") -> str:
@@ -941,6 +944,85 @@ def _assign_normalized_item_price(item: Item, *, raw_price: object, kind: str, p
     setattr(item, factor_attr, float(normalized.factor_to_base) if normalized is not None else 1.0)
 
 
+def _price_field_matches(current: object, expected: float | None, *, tolerance: float = 1e-8) -> bool:
+    current_value = _coerce_price_value(current)
+    if expected is None:
+        return current_value is None
+    if current_value is None:
+        return False
+    return abs(float(current_value) - float(expected)) <= tolerance
+
+
+def _price_unit_matches(current: object, expected: str | None) -> bool:
+    return _normalize_price_unit_value(current) == _normalize_price_unit_value(expected)
+
+
+def _reconcile_normalized_item_price(item: Item, *, kind: str) -> bool:
+    if kind not in {"compra", "reposicao"}:
+        raise ValueError("Tipo de preco invalido")
+
+    raw_attr = f"preco_{kind}_unitario"
+    base_attr = f"preco_{kind}_unitario_base"
+    unit_attr = f"preco_{kind}_unidade_preco"
+    factor_attr = f"preco_{kind}_fator_base"
+
+    raw_value = _coerce_price_value(getattr(item, raw_attr, None))
+    if raw_value is None:
+        changed = False
+        for attr_name in (base_attr, unit_attr, factor_attr):
+            if getattr(item, attr_name, None) is not None:
+                setattr(item, attr_name, None)
+                changed = True
+        return changed
+
+    stored_unit = _normalize_price_unit_value(getattr(item, unit_attr, None))
+    normalized = None
+    tried_units: set[str | None] = set()
+    for candidate_unit in (stored_unit, infer_price_unit_for_item(item)):
+        if candidate_unit in tried_units:
+            continue
+        tried_units.add(candidate_unit)
+        try:
+            normalized = normalize_item_price(
+                item,
+                unit_price=raw_value,
+                price_unit=candidate_unit,
+            )
+            break
+        except Exception:
+            continue
+
+    if normalized is None:
+        return False
+
+    expected_base = float(normalized.unit_price_base)
+    expected_unit = normalized.price_unit
+    expected_factor = float(normalized.factor_to_base)
+    changed = False
+
+    if not _price_field_matches(getattr(item, base_attr, None), expected_base):
+        setattr(item, base_attr, expected_base)
+        changed = True
+
+    if not _price_unit_matches(getattr(item, unit_attr, None), expected_unit):
+        setattr(item, unit_attr, expected_unit)
+        changed = True
+
+    if not _price_field_matches(getattr(item, factor_attr, None), expected_factor):
+        setattr(item, factor_attr, expected_factor)
+        changed = True
+
+    return changed
+
+
+def _reconcile_normalized_item_prices(item: Item) -> bool:
+    changed = False
+    for kind in ("compra", "reposicao"):
+        if _reconcile_normalized_item_price(item, kind=kind):
+            changed = True
+    return changed
+
+
 @dataclass(slots=True)
 class MovimentoPayload:
     codigo: str
@@ -1062,6 +1144,65 @@ class InventoryService:
         current_item: Item | None = None,
     ) -> dict[str, Any]:
         normalized_payload = dict(payload or {})
+        piece_like_keywords = (
+            "aspirador",
+            "caixa passagem",
+            "caixa sif",
+            "desempenadeira",
+            "disjuntor",
+            "dobradica",
+            "espatula",
+            "escova",
+            "grampo",
+            "iluminacao de emergencia",
+            "interruptor",
+            "jogo",
+            "kit",
+            "lampada",
+            "led",
+            "luminaria",
+            "modulo",
+            "mola aerea",
+            "nivel",
+            "painel",
+            "parafuso",
+            "peneira",
+            "placa",
+            "rabixo",
+            "ralo",
+            "refletor",
+            "respirador",
+            "tampa",
+            "tampo",
+            "temporizador",
+            "tomada",
+        )
+        liquid_keywords = (
+            "acetinado",
+            "aditivo",
+            "esmalte",
+            "fosco",
+            "impermeabilizante",
+            "resina",
+            "selador",
+            "solvente",
+            "thinner",
+            "tinta",
+            "toque",
+            "vedalit",
+            "verniz",
+        )
+        weight_keywords = (
+            "argamassa",
+            "cloro",
+            "cimento",
+            "ecopoxi",
+            "gesso",
+            "manta",
+            "massa",
+            "quartzo",
+            "rejunte",
+        )
 
         def _normalize_packaging_type(value: object) -> str | None:
             raw = str(value or "").strip().lower()
@@ -1090,6 +1231,43 @@ class InventoryService:
                 return normalized
             return None
 
+        def _normalize_legacy_lookup_text(*parts: object) -> str:
+            joined = " ".join(str(part or "").strip().lower() for part in parts if str(part or "").strip())
+            normalized = unicode_normalize("NFKD", joined).encode("ascii", "ignore").decode("ascii")
+            return re.sub(r"[^a-z0-9]+", " ", normalized).strip()
+
+        def _parse_positive_numeric_legacy(value: object) -> float:
+            raw = str(value or "").strip().replace(",", ".")
+            if not raw:
+                return 0.0
+            try:
+                parsed = float(raw)
+            except (TypeError, ValueError):
+                return 0.0
+            if math.isnan(parsed) or math.isinf(parsed) or parsed <= 0:
+                return 0.0
+            return parsed
+
+        def _infer_unit_only_from_numeric_legacy(*, descricao: object, categoria: object) -> str | None:
+            lookup_text = _normalize_legacy_lookup_text(descricao, categoria)
+            if not lookup_text:
+                return None
+            if "material de ep" in lookup_text and "luva" in lookup_text:
+                return "Par"
+            if any(keyword in lookup_text for keyword in piece_like_keywords):
+                return "Unidade"
+            return None
+
+        def _infer_measure_from_numeric_legacy(*, legacy_value: float, descricao: object, categoria: object) -> tuple[float, str] | None:
+            if legacy_value <= 0:
+                return None
+            lookup_text = _normalize_legacy_lookup_text(descricao, categoria)
+            if any(keyword in lookup_text for keyword in liquid_keywords):
+                return legacy_value, "l"
+            if any(keyword in lookup_text for keyword in weight_keywords):
+                return legacy_value, "kg"
+            return None
+
         def _infer_packaging_type_from_measure(*, inferred_unit: str, descricao: object, categoria: object) -> str | None:
             text = " ".join(
                 part.strip().lower()
@@ -1101,9 +1279,9 @@ class InventoryService:
             if inferred_unit == "l":
                 return "lata"
             if inferred_unit == "kg":
-                if any(keyword in text for keyword in ("textura", "graffiato", "grafiato", "massa", "cloro")):
+                if any(keyword in text for keyword in ("textura", "graffiato", "grafiato", "massa", "cloro", "manta")):
                     return "balde"
-                if any(keyword in text for keyword in ("argamassa", "rejunte", "cimento", "gesso")):
+                if any(keyword in text for keyword in ("argamassa", "rejunte", "rejuntamento", "cimento", "gesso", "quartzo")):
                     return "saco"
             return None
 
@@ -1128,8 +1306,32 @@ class InventoryService:
             unidades_por_embalagem=normalized_payload.get("unidades_por_embalagem", getattr(current_item, "unidades_por_embalagem", None)),
             product_units=getattr(current_item, "product_units", []) or [],
         )
+        unidade_atual = str(normalized_payload.get("unidade", getattr(current_item, "unidade", None)) or "").strip().lower()
+        unidade_numerica = False
+        if unidade_atual:
+            try:
+                float(unidade_atual.replace(",", "."))
+                unidade_numerica = True
+            except ValueError:
+                unidade_numerica = False
+        legacy_numeric_value = _parse_positive_numeric_legacy(unidade_atual) if unidade_numerica else 0.0
         inferred_measure = infer_packaging_measure(probe)
+        if inferred_measure is None and unidade_numerica:
+            inferred_measure = _infer_measure_from_numeric_legacy(
+                legacy_value=legacy_numeric_value,
+                descricao=probe.descricao,
+                categoria=probe.categoria,
+            )
         if inferred_measure is None:
+            if unidade_numerica:
+                inferred_unit_only = _infer_unit_only_from_numeric_legacy(
+                    descricao=probe.descricao,
+                    categoria=probe.categoria,
+                )
+                if inferred_unit_only and normalized_payload.get("unidade") in (None, ""):
+                    normalized_payload["unidade"] = inferred_unit_only
+                elif inferred_unit_only and current_item is not None and normalized_payload.get("unidade", getattr(current_item, "unidade", None)) == getattr(current_item, "unidade", None):
+                    normalized_payload["unidade"] = inferred_unit_only
             return normalized_payload
 
         inferred_value, inferred_unit = inferred_measure
@@ -1154,22 +1356,16 @@ class InventoryService:
         tipo_embalagem = str(
             normalized_payload.get("tipo_embalagem_novo", getattr(current_item, "tipo_embalagem_novo", None)) or ""
         ).strip().lower()
-        unidade_atual = str(normalized_payload.get("unidade", getattr(current_item, "unidade", None)) or "").strip().lower()
-        unidade_numerica = False
-        if unidade_atual:
-            try:
-                float(unidade_atual.replace(",", "."))
-                unidade_numerica = True
-            except ValueError:
-                unidade_numerica = False
         unidade_base_fallback = resolve_item_base_unit_label(current_item, fallback="Unidade") if current_item is not None else "Unidade"
+        inferred_base_label = _BASE_ITEM_UNIT_LABEL_BY_CODE.get((inferred_unit or "").strip().lower())
         if tipo_embalagem and (
             unidade_atual in {"", "un", "und", "unidade", "unidades"}
             or unidade_numerica
             or is_packaging_unit_code(unidade_atual)
         ):
-            inferred_base_label = _BASE_ITEM_UNIT_LABEL_BY_CODE.get((inferred_unit or "").strip().lower())
             normalized_payload["unidade"] = inferred_base_label or unidade_base_fallback
+        elif unidade_numerica and inferred_base_label:
+            normalized_payload["unidade"] = inferred_base_label
         else:
             normalized_payload["unidade"] = ensure_base_item_unit(
                 normalized_payload.get("unidade"),
@@ -2251,6 +2447,107 @@ class InventoryService:
 
         return None
 
+    @staticmethod
+    def _normalize_express_material_return_scope(scope: str | None) -> str:
+        raw = (scope or "").strip().lower()
+        if raw in {"fracionada", "fracionado", "fractional"}:
+            return "fracionada"
+        if raw in {"padrao", "saida", "comum", "material", "materiais", "regular", "normal"}:
+            return "padrao"
+        return "todos"
+
+    @classmethod
+    def _matches_express_material_return_scope(cls, saida: Saida, scope: str | None) -> bool:
+        normalized_scope = cls._normalize_express_material_return_scope(scope)
+        uses_fraction = bool(getattr(saida, "usou_fracao", False))
+        if normalized_scope == "fracionada":
+            return uses_fraction
+        if normalized_scope == "padrao":
+            return not uses_fraction
+        return True
+
+    def list_express_material_return_collaborators(
+        self,
+        *,
+        start_datetime: datetime,
+        end_datetime: datetime,
+        scope: str = "todos",
+        limit: int = 60,
+    ) -> list[dict[str, Any]]:
+        scope_norm = self._normalize_express_material_return_scope(scope)
+        if start_datetime is None or end_datetime is None or start_datetime > end_datetime:
+            return []
+
+        registros = (
+            Saida.query
+            .filter(
+                Saida.data_saida >= start_datetime,
+                Saida.data_saida <= end_datetime,
+            )
+            .order_by(Saida.data_saida.desc(), Saida.id_saida.desc())
+            .all()
+        )
+
+        latest_by_matricula: dict[str, dict[str, Any]] = {}
+        for saida in registros:
+            matricula_norm = str(saida.matricula or "").strip()
+            if not matricula_norm or matricula_norm in latest_by_matricula:
+                continue
+            if not self._matches_express_material_return_scope(saida, scope_norm):
+                continue
+
+            item_model = saida.item or Item.query.get(saida.codigo_item)
+            if item_model is None:
+                continue
+
+            categoria_norm = str(item_model.categoria or "").strip().lower()
+            if "ferrament" in categoria_norm:
+                continue
+
+            latest_by_matricula[matricula_norm] = {
+                "usuario": saida.usuario or Usuario.query.get(matricula_norm),
+                "ultima_saida_em": saida.data_saida,
+                "local_servico": (saida.local_servico or "").strip() or None,
+                "atividade_operacional": getattr(saida, "atividade_operacional", None),
+            }
+
+        collaborators: list[dict[str, Any]] = []
+        for matricula_norm, info in latest_by_matricula.items():
+            items = self.list_express_material_return_candidates(
+                matricula=matricula_norm,
+                start_datetime=start_datetime,
+                end_datetime=end_datetime,
+                limit=80,
+                scope=scope_norm,
+            )
+            if not items:
+                continue
+
+            usuario = info.get("usuario")
+            nome_usuario = getattr(usuario, "nome", None) or None
+            preview_items = [
+                str(item.get("descricao") or item.get("codigo") or "").strip()
+                for item in items[:2]
+                if str(item.get("descricao") or item.get("codigo") or "").strip()
+            ]
+
+            collaborators.append(
+                {
+                    "matricula": matricula_norm,
+                    "nome": nome_usuario,
+                    "label": format_material_return_actor_label(nome=nome_usuario, matricula=matricula_norm),
+                    "total_items": len(items),
+                    "preview_items": preview_items,
+                    "ultima_saida_label": TimeService.format_local(info.get("ultima_saida_em")) if info.get("ultima_saida_em") else None,
+                    "local_servico": info.get("local_servico"),
+                    "atividade_operacional": info.get("atividade_operacional"),
+                }
+            )
+            if len(collaborators) >= max(1, int(limit or 0)):
+                break
+
+        return collaborators
+
     def list_express_material_return_candidates(
         self,
         *,
@@ -2258,8 +2555,10 @@ class InventoryService:
         start_datetime: datetime,
         end_datetime: datetime,
         limit: int = 80,
+        scope: str = "todos",
     ) -> list[dict[str, Any]]:
         matricula_norm = (matricula or "").strip()
+        scope_norm = self._normalize_express_material_return_scope(scope)
         if not matricula_norm or start_datetime is None or end_datetime is None or start_datetime > end_datetime:
             return []
 
@@ -2278,6 +2577,8 @@ class InventoryService:
         for saida in registros:
             codigo_item = (saida.codigo_item or "").strip()
             if not codigo_item:
+                continue
+            if not self._matches_express_material_return_scope(saida, scope_norm):
                 continue
 
             item_model = saida.item or Item.query.get(codigo_item)
@@ -2312,6 +2613,7 @@ class InventoryService:
                     "unidades_opcoes": self.get_material_return_unit_options(item=item_model),
                     "retirado_hoje": 0.0,
                     "ultima_saida_em": saida.data_saida,
+                    "modo_fracionado": bool(getattr(saida, "usou_fracao", False)),
                 }
                 agrupados[codigo_item] = bucket
 
@@ -2321,6 +2623,7 @@ class InventoryService:
                 bucket["ultima_saida_em"] = saida.data_saida
                 bucket["local_servico"] = saida.local_servico
                 bucket["atividade_operacional"] = getattr(saida, "atividade_operacional", None)
+                bucket["modo_fracionado"] = bool(getattr(saida, "usou_fracao", False))
 
         candidatos: list[dict[str, Any]] = []
         for codigo_item, bucket in agrupados.items():
@@ -2354,6 +2657,7 @@ class InventoryService:
                     "devolucao_unidade_exibicao": unidade_meta.get("unit_display"),
                     "devolucao_unidade_label": unidade_meta.get("unit_label"),
                     "devolucao_unidades_opcoes": bucket.get("unidades_opcoes") or [unidade_meta],
+                    "modo_fracionado": bool(bucket.get("modo_fracionado")),
                     "ultima_saida_em": TimeService.isoformat_utc(ultima_saida_em),
                     "ultima_saida_label": TimeService.format_local(ultima_saida_em),
                 }
@@ -3300,6 +3604,9 @@ class InventoryService:
                 item.estoque_minimo = minimo
                 atualizado = True
 
+            if _reconcile_normalized_item_prices(item):
+                atualizado = True
+
             preco_compra = _safe_float_or_none(getattr(item, "preco_compra_unitario", None))
             preco_compra_base = _safe_float_or_none(getattr(item, "preco_compra_unitario_base", None))
             preco_reposicao = _safe_float_or_none(getattr(item, "preco_reposicao_unitario", None))
@@ -3390,6 +3697,8 @@ class InventoryService:
         minimo = _calculate_min_stock(saldo)
         if item.estoque_minimo != minimo:
             item.estoque_minimo = minimo
+            packaging_synced = True
+        if _reconcile_normalized_item_prices(item):
             packaging_synced = True
         if packaging_synced:
             db.session.commit()

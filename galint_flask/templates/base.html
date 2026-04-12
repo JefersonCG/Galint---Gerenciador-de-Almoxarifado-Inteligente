@@ -123,6 +123,136 @@
                 grid-template-columns: 1fr;
             }
         }
+
+        .galint-flash-toast-stack {
+            position: fixed;
+            right: 1rem;
+            bottom: 1rem;
+            z-index: 1090;
+            width: min(360px, calc(100vw - 1.5rem));
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            pointer-events: none;
+        }
+
+        .galint-flash-toast-stack .toast {
+            width: 100%;
+        }
+
+        .galint-flash-toast {
+            pointer-events: auto;
+            border: 1px solid rgba(148, 163, 184, 0.22);
+            border-radius: 1rem;
+            overflow: hidden;
+            background: linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(30, 41, 59, 0.94));
+            color: #e2e8f0;
+            box-shadow: 0 20px 45px rgba(15, 23, 42, 0.28);
+            backdrop-filter: blur(14px);
+        }
+
+        .galint-flash-toast .toast-header {
+            padding: 0.8rem 1rem 0.65rem;
+            background: transparent;
+            color: #f8fafc;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+        }
+
+        .galint-flash-toast .toast-body {
+            padding: 0.85rem 1rem 1rem;
+            color: rgba(226, 232, 240, 0.96);
+            line-height: 1.45;
+            font-size: 0.92rem;
+        }
+
+        .galint-flash-toast .btn-close {
+            filter: invert(1) grayscale(1) brightness(200%);
+            opacity: 0.82;
+        }
+
+        .galint-flash-toast .btn-close:hover {
+            opacity: 1;
+        }
+
+        .galint-flash-toast-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 1.9rem;
+            height: 1.9rem;
+            border-radius: 999px;
+            margin-right: 0.65rem;
+            font-size: 0.95rem;
+            flex-shrink: 0;
+        }
+
+        .galint-flash-toast-label {
+            font-weight: 700;
+            letter-spacing: 0.01em;
+        }
+
+        .galint-flash-toast-time {
+            font-size: 0.74rem;
+            color: rgba(191, 219, 254, 0.7);
+            margin-right: 0.5rem;
+        }
+
+        .galint-flash-toast.toast-success {
+            border-color: rgba(74, 222, 128, 0.3);
+            background: linear-gradient(180deg, rgba(6, 78, 59, 0.98), rgba(20, 83, 45, 0.95));
+        }
+
+        .galint-flash-toast.toast-success .galint-flash-toast-icon {
+            background: rgba(74, 222, 128, 0.16);
+            color: #86efac;
+        }
+
+        .galint-flash-toast.toast-info,
+        .galint-flash-toast.toast-message,
+        .galint-flash-toast.toast-primary,
+        .galint-flash-toast.toast-secondary {
+            border-color: rgba(125, 211, 252, 0.3);
+            background: linear-gradient(180deg, rgba(7, 89, 133, 0.98), rgba(15, 118, 110, 0.94));
+        }
+
+        .galint-flash-toast.toast-info .galint-flash-toast-icon,
+        .galint-flash-toast.toast-message .galint-flash-toast-icon,
+        .galint-flash-toast.toast-primary .galint-flash-toast-icon,
+        .galint-flash-toast.toast-secondary .galint-flash-toast-icon {
+            background: rgba(125, 211, 252, 0.16);
+            color: #bae6fd;
+        }
+
+        .galint-flash-toast.toast-warning {
+            border-color: rgba(251, 191, 36, 0.34);
+            background: linear-gradient(180deg, rgba(120, 53, 15, 0.98), rgba(146, 64, 14, 0.95));
+        }
+
+        .galint-flash-toast.toast-warning .galint-flash-toast-icon {
+            background: rgba(251, 191, 36, 0.18);
+            color: #fde68a;
+        }
+
+        .galint-flash-toast.toast-danger,
+        .galint-flash-toast.toast-error {
+            border-color: rgba(248, 113, 113, 0.34);
+            background: linear-gradient(180deg, rgba(127, 29, 29, 0.98), rgba(153, 27, 27, 0.95));
+        }
+
+        .galint-flash-toast.toast-danger .galint-flash-toast-icon,
+        .galint-flash-toast.toast-error .galint-flash-toast-icon {
+            background: rgba(248, 113, 113, 0.16);
+            color: #fecaca;
+        }
+
+        @media (max-width: 575.98px) {
+            .galint-flash-toast-stack {
+                right: 0.75rem;
+                left: 0.75rem;
+                bottom: 0.75rem;
+                width: auto;
+            }
+        }
     </style>
     {% block extra_css %}{% endblock %}
 </head>
@@ -174,16 +304,51 @@
             <div class="page-header">
                 {% block page_header %}{% endblock %}
             </div>
-            {% with flashes = get_flashed_messages(with_categories=True) %}
-            {% if flashes %}
-            {% for category, message in flashes %}
-            <div class="alert alert-{{ category }} mb-3">{{ message }}</div>
-            {% endfor %}
-            {% endif %}
-            {% endwith %}
             {% block content %}{% endblock %}
         </section>
     </div>
+
+    {% with flashes = get_flashed_messages(with_categories=True) %}
+    {% if flashes %}
+    <div class="toast-container galint-flash-toast-stack" id="galintFlashToastStack" aria-live="polite" aria-atomic="true">
+        {% for category, message in flashes %}
+        {% set tone = (category or 'info')|lower %}
+        {% set tone = 'danger' if tone == 'error' else tone %}
+        {% set title = 'Aviso do sistema' %}
+        {% set icon = 'bi-info-circle-fill' %}
+        {% set delay = 7000 %}
+        {% if tone == 'success' %}
+            {% set title = 'Sucesso' %}
+            {% set icon = 'bi-check-circle-fill' %}
+            {% set delay = 5500 %}
+        {% elif tone == 'warning' %}
+            {% set title = 'Atenção' %}
+            {% set icon = 'bi-exclamation-triangle-fill' %}
+            {% set delay = 9000 %}
+        {% elif tone == 'danger' %}
+            {% set title = 'Erro' %}
+            {% set icon = 'bi-x-octagon-fill' %}
+            {% set delay = 10000 %}
+        {% elif tone in ['primary', 'secondary', 'message', 'info'] %}
+            {% set title = 'Informação' %}
+            {% set icon = 'bi-info-circle-fill' %}
+            {% set delay = 7000 %}
+        {% endif %}
+        <div class="toast galint-flash-toast toast-{{ tone }} js-galint-flash-toast" role="alert" aria-live="assertive" aria-atomic="true" data-bs-autohide="true" data-bs-delay="{{ delay }}">
+            <div class="toast-header">
+                <span class="galint-flash-toast-icon">
+                    <i class="bi {{ icon }}"></i>
+                </span>
+                <strong class="me-auto galint-flash-toast-label">{{ title }}</strong>
+                <span class="galint-flash-toast-time">agora</span>
+                <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Fechar"></button>
+            </div>
+            <div class="toast-body">{{ message }}</div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% endwith %}
 
     {% if general_search_available %}
     {% include 'partials/general_search_modal.html' %}
@@ -553,6 +718,28 @@
     {% if general_search_available %}
     <script src="{{ url_for('static', filename='js/general-search-modal.js', v='20260407d') }}"></script>
     {% endif %}
+
+    <script>
+        (function () {
+            if (!window.bootstrap) {
+                return;
+            }
+
+            const flashToasts = document.querySelectorAll('.js-galint-flash-toast');
+            if (!flashToasts.length) {
+                return;
+            }
+
+            flashToasts.forEach((toastEl, index) => {
+                const delay = Number(toastEl.getAttribute('data-bs-delay') || 7000);
+                const toast = bootstrap.Toast.getOrCreateInstance(toastEl, {
+                    autohide: true,
+                    delay,
+                });
+                window.setTimeout(() => toast.show(), index * 140);
+            });
+        })();
+    </script>
 
     {% block scripts %}{% endblock %}
 

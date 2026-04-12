@@ -2,6 +2,8 @@
 {% block title %}Resumo Mensal{% endblock %}
 {% block extra_css %}
 <style>
+    @import url("{{ url_for('static', filename='css/category-visual-system.css') }}");
+
     .galint-header {
         display: flex;
         justify-content: space-between;
@@ -1158,7 +1160,7 @@
 </style>
 
 {% set total_category_items = category_summary | sum(attribute='total_itens') %}
-{% set category_catalog = [
+{% set category_catalog = category_visual_catalog|default([
     {'key': 'material-eletrico', 'label': 'Material Elétrico', 'route': 'Material Elétrico', 'icon': '⚡', 'color': '#22d3ee', 'soft': 'rgba(34, 211, 238, 0.22)'},
     {'key': 'material-hidraulico', 'label': 'Material Hidráulico', 'route': 'Material Hidráulico', 'icon': '💧', 'color': '#38bdf8', 'soft': 'rgba(56, 189, 248, 0.22)'},
     {'key': 'materiais-limpeza', 'label': 'Materiais de Limpeza', 'route': 'Materiais de Limpeza', 'icon': '🧽', 'color': '#34d399', 'soft': 'rgba(52, 211, 153, 0.22)'},
@@ -1169,7 +1171,7 @@
     {'key': 'material-ep', 'label': 'Material de EP', 'route': 'Material de EP', 'icon': '⛑️', 'color': '#fde047', 'soft': 'rgba(253, 224, 71, 0.2)'},
     {'key': 'material-piscina', 'label': 'Material Piscina', 'route': 'Material Piscina', 'icon': '🛟', 'color': '#2dd4bf', 'soft': 'rgba(45, 212, 191, 0.22)'},
     {'key': 'material-uso-geral', 'label': 'Material/Uso geral', 'route': 'Material/Uso geral', 'icon': '💼', 'color': '#a3e635', 'soft': 'rgba(163, 230, 53, 0.2)'}
-] %}
+]) %}
 {% set category_groups = [
     {'id': 'infra', 'title': 'Infraestrutura e acabamento', 'note': 'Elétrica, hidráulica, limpeza e pintura agora entram no mesmo bloco compacto.', 'categories': ['material-eletrico', 'material-hidraulico', 'materiais-limpeza', 'mat-pintura-drywall']},
     {'id': 'operacao', 'title': 'Operação e proteção', 'note': 'Ferramentas, equipamentos, construção e EP em uma rodada de quatro KPIs.', 'categories': ['ferramentas', 'equipamento', 'material-construcao', 'material-ep']},
@@ -1206,6 +1208,12 @@
             </div>
         </div>
     </div>
+    {% set legend_items = category_catalog %}
+    {% set legend_kicker = 'Padrao oficial' %}
+    {% set legend_title = 'Cores oficiais das categorias' %}
+    {% set legend_note = 'O mesmo mapa visual alimenta o dashboard, o financeiro do estoque e os filtros de classificacao do item.' %}
+    {% set legend_badge = 'Cards, filtros e KPIs' %}
+    {% include 'partials/category_visual_legend.html' %}
     <div class="galint-category-stage">
         {% for group in category_groups %}
         {% set group_max = namespace(value=0) %}
@@ -1737,33 +1745,6 @@
     {% endif %}
 </div>
 
-{% if not shared_view %}
-<div class="modal fade" id="dashboard-custody-modal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-xl modal-dialog-scrollable">
-        <div class="modal-content galint-custody-modal-content">
-            <div class="modal-header border-0">
-                <div>
-                    <div class="galint-custody-modal-eyebrow">Custódia agrupada</div>
-                    <h5 class="modal-title text-white mb-1" id="dashboard-custody-modal-title">Ferramentas em custódia</h5>
-                    <p class="mb-0 text-muted" id="dashboard-custody-modal-subtitle">Carregando detalhes do colaborador...</p>
-                </div>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
-            </div>
-            <div class="modal-body pt-0">
-                <div id="dashboard-custody-modal-summary" class="galint-custody-modal-summary"></div>
-                <p class="galint-custody-modal-hint" id="dashboard-custody-modal-hint">Passe o mouse sobre a ferramenta que deseja devolver. Ela fica selecionada para a baixa.</p>
-                <div id="dashboard-custody-modal-tools" class="galint-custody-modal-tools"></div>
-            </div>
-            <div class="modal-footer border-0">
-                <div id="dashboard-custody-modal-selected" class="galint-custody-modal-selected">Selecione uma ferramenta para dar baixa.</div>
-                <button type="button" class="galint-custody-btn galint-custody-btn-secondary" data-bs-dismiss="modal">Fechar</button>
-                <button type="button" id="dashboard-custody-modal-return" class="galint-custody-btn galint-custody-btn-primary" disabled>Dar baixa</button>
-            </div>
-        </div>
-    </div>
-</div>
-{% endif %}
-
 <style>
     .galint-section-panel-dark {
         background: linear-gradient(135deg, #0f172a 0%, #1e293b 68%, #334155 100%);
@@ -2009,13 +1990,91 @@
     .galint-custody-preview-list {
         display: grid;
         gap: 0.5rem;
+        max-height: 320px;
+        overflow-y: auto;
+        padding-right: 0.35rem;
+        margin-bottom: 0.9rem;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(251, 113, 133, 0.42) rgba(15, 23, 42, 0.24);
+        scrollbar-gutter: stable;
+    }
+
+    .galint-custody-preview-list::-webkit-scrollbar {
+        width: 14px;
+    }
+
+    .galint-custody-preview-list::-webkit-scrollbar-track {
+        margin-block: 0.25rem;
+        border-radius: 999px;
+        background: linear-gradient(180deg, rgba(69, 10, 10, 0.2) 0%, rgba(15, 23, 42, 0.18) 50%, rgba(69, 10, 10, 0.26) 100%);
+        border: 1px solid rgba(251, 113, 133, 0.12);
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+    }
+
+    .galint-custody-preview-list::-webkit-scrollbar-thumb {
+        border-radius: 999px;
+        background: linear-gradient(180deg, rgba(251, 113, 133, 0.46) 0%, rgba(190, 24, 93, 0.28) 100%);
+        border: 2px solid rgba(15, 23, 42, 0.18);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14);
+    }
+
+    .galint-custody-preview-list::-webkit-scrollbar-thumb:hover {
+        background: linear-gradient(180deg, rgba(251, 113, 133, 0.58) 0%, rgba(225, 29, 72, 0.38) 100%);
+    }
+
+    .galint-custody-preview-list::-webkit-scrollbar-button:single-button {
+        display: block;
+        height: 14px;
+        border-radius: 999px;
+        background-color: rgba(15, 23, 42, 0.28);
+        border: 1px solid rgba(251, 113, 133, 0.14);
+        background-repeat: no-repeat;
+        background-position: center;
+        background-size: 8px 8px;
+    }
+
+    .galint-custody-preview-list::-webkit-scrollbar-button:single-button:hover {
+        background-color: rgba(59, 7, 20, 0.34);
+    }
+
+    .galint-custody-preview-list::-webkit-scrollbar-button:single-button:vertical:decrement {
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M1 7l4-4 4 4' fill='none' stroke='%23f8fafc' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    }
+
+    .galint-custody-preview-list::-webkit-scrollbar-button:single-button:vertical:increment {
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M1 3l4 4 4-4' fill='none' stroke='%23f8fafc' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
     }
 
     .galint-custody-preview-item {
+        width: 100%;
         padding: 0.7rem 0.8rem;
         border-radius: 14px;
         background: rgba(15, 23, 42, 0.42);
         border: 1px solid rgba(148, 163, 184, 0.16);
+        text-align: left;
+        display: flex;
+        flex-direction: column;
+        gap: 0.2rem;
+        cursor: pointer;
+        transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .galint-custody-preview-item:hover {
+        transform: translateY(-1px);
+        border-color: rgba(96, 165, 250, 0.34);
+        background: rgba(30, 41, 59, 0.82);
+        box-shadow: 0 12px 24px rgba(15, 23, 42, 0.16);
+    }
+
+    .galint-custody-preview-item.is-selected {
+        border-color: rgba(96, 165, 250, 0.56);
+        background: rgba(30, 64, 175, 0.16);
+        box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.34), 0 16px 28px rgba(15, 23, 42, 0.18);
+    }
+
+    .galint-custody-preview-item:focus-visible {
+        outline: 2px solid rgba(125, 211, 252, 0.9);
+        outline-offset: 2px;
     }
 
     .galint-custody-preview-item strong {
@@ -2026,14 +2085,37 @@
     }
 
     .galint-custody-preview-item span {
+        display: block;
         color: rgba(226, 232, 240, 0.76);
         font-size: 0.8rem;
+    }
+
+    .galint-custody-preview-meta {
+        color: rgba(191, 219, 254, 0.76);
+        font-size: 0.76rem;
+    }
+
+    .galint-custody-preview-note {
+        color: rgba(148, 163, 184, 0.94);
+        font-size: 0.76rem;
+        line-height: 1.4;
     }
 
     .galint-custody-preview-more {
         margin-top: 0.4rem;
         color: rgba(148, 163, 184, 0.86);
         font-size: 0.8rem;
+    }
+
+    .galint-custody-selected {
+        margin-top: 0.25rem;
+        margin-bottom: 0.9rem;
+        padding: 0.75rem 0.9rem;
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        color: rgba(226, 232, 240, 0.86);
+        font-size: 0.84rem;
     }
 
     .galint-custody-field {
@@ -2252,6 +2334,12 @@
         color: #f8fafc;
     }
 
+    .galint-custody-btn:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+        box-shadow: none;
+    }
+
     .galint-custody-empty {
         text-align: center;
         padding: 3rem 1rem;
@@ -2266,12 +2354,11 @@
     }
 
     @media (max-width: 767.98px) {
-        .galint-custody-modal-tool-top,
-        #dashboard-custody-modal .modal-footer {
+        .galint-custody-actions {
             flex-direction: column;
         }
 
-        .galint-custody-modal-content .galint-custody-btn {
+        .galint-custody-actions .galint-custody-btn {
             width: 100%;
         }
 
@@ -2879,20 +2966,9 @@
             timeStyle: 'short'
         });
         const endpoint = "{{ url_for('dashboard.custody_active') }}";
-        const modalElement = document.getElementById('dashboard-custody-modal');
-        const modalTitle = document.getElementById('dashboard-custody-modal-title');
-        const modalSubtitle = document.getElementById('dashboard-custody-modal-subtitle');
-        const modalSummary = document.getElementById('dashboard-custody-modal-summary');
-        const modalTools = document.getElementById('dashboard-custody-modal-tools');
-        const modalSelected = document.getElementById('dashboard-custody-modal-selected');
-        const modalReturnButton = document.getElementById('dashboard-custody-modal-return');
-        const custodyModal = (modalElement && typeof bootstrap !== 'undefined')
-            ? bootstrap.Modal.getOrCreateInstance(modalElement)
-            : null;
 
         let currentGroups = [];
-        let activeGroupKey = null;
-        let activeToolKey = null;
+        const selectedToolsByGroup = new Map();
 
         function formatDate(isoValue) {
             if (!isoValue) {
@@ -2997,120 +3073,57 @@
                 });
         }
 
-        function setSelectedModalTool(group, itemKey) {
-            if (!group || !modalTools || !modalSelected || !modalReturnButton) {
+        function applyGroupSelection(group, wrapper, itemKey) {
+            if (!group || !wrapper) {
                 return;
             }
 
-            const fallbackItem = group.items[0] || null;
-            const selectedItem = group.items.find((item) => getItemKey(item) === itemKey) || fallbackItem;
+            const selectedLabel = wrapper.querySelector('.js-custody-selected');
+            const returnButton = wrapper.querySelector('.js-custody-return');
+            const toolButtons = wrapper.querySelectorAll('.js-custody-tool');
+            const selectedItem = group.items.find((item) => getItemKey(item) === itemKey) || null;
 
             if (!selectedItem) {
-                activeToolKey = null;
-                modalSelected.textContent = 'Selecione uma ferramenta para dar baixa.';
-                modalReturnButton.disabled = true;
-                modalReturnButton.textContent = 'Dar baixa';
-                return;
-            }
-
-            activeToolKey = getItemKey(selectedItem);
-            modalTools.querySelectorAll('.galint-custody-modal-tool').forEach((card) => {
-                card.classList.toggle('is-selected', card.getAttribute('data-tool-key') === activeToolKey);
-            });
-
-            modalSelected.textContent = `Selecionada: ${selectedItem.descricao || 'Ferramenta'} • ${formatDays(selectedItem.dias_em_uso)} • Código ${selectedItem.codigo || '-'}`;
-            modalReturnButton.disabled = false;
-            modalReturnButton.textContent = 'Dar baixa';
-            modalReturnButton.setAttribute('data-id', selectedItem.id || '');
-            modalReturnButton.setAttribute('data-source', selectedItem.source || 'saida');
-            modalReturnButton.setAttribute('data-codigo', selectedItem.codigo || '');
-            modalReturnButton.setAttribute('data-desc', selectedItem.descricao || '');
-            modalReturnButton.setAttribute('data-matricula', selectedItem.matricula_full || selectedItem.matricula || '');
-            modalReturnButton.setAttribute('data-group-key', group.key || '');
-        }
-
-        function renderGroupModal(group) {
-            if (!group || !modalTools || !modalSummary || !modalTitle || !modalSubtitle) {
-                return;
-            }
-
-            modalTitle.textContent = group.usuario;
-            modalSubtitle.textContent = `Matrícula ${group.matricula || '-'} • ${group.totalTools} ferramenta(s) ativa(s) em custódia diária`;
-
-            modalSummary.innerHTML = `
-                <span class="galint-custody-summary-chip"><i class="bi bi-tools"></i> ${group.totalTools} ferramenta(s)</span>
-                <span class="galint-custody-summary-chip"><i class="bi bi-hourglass-split"></i> Maior permanência: ${formatDays(group.maxDays)}</span>
-                <span class="galint-custody-summary-chip ${group.overdueCount ? 'alert' : ''}"><i class="bi bi-exclamation-triangle"></i> ${group.overdueCount ? `${group.overdueCount} pendência(s) acima do prazo` : 'Sem pendências acima do prazo'}</span>
-                <span class="galint-custody-summary-chip"><i class="bi bi-geo-alt"></i> ${escapeHtml(formatLocations(group.locations))}</span>
-            `;
-
-            const orderedItems = [...group.items].sort((left, right) => (Number(right.dias_em_uso) || 0) - (Number(left.dias_em_uso) || 0));
-            const selectedKey = orderedItems.some((item) => getItemKey(item) === activeToolKey)
-                ? activeToolKey
-                : (orderedItems[0] ? getItemKey(orderedItems[0]) : null);
-
-            modalTools.innerHTML = orderedItems.map((item) => `
-                <article class="galint-custody-modal-tool ${item.atrasada ? 'alert' : ''} ${getItemKey(item) === selectedKey ? 'is-selected' : ''}"
-                    data-tool-key="${escapeHtml(getItemKey(item))}">
-                    <div class="galint-custody-modal-tool-top">
-                        <div>
-                            <div class="galint-custody-modal-tool-name">${escapeHtml(item.descricao || 'Item não identificado')}</div>
-                            <div class="galint-custody-modal-tool-code">Código ${escapeHtml(item.codigo || '-')}</div>
-                        </div>
-                        <span class="galint-custody-badge ${item.atrasada ? 'atrasada' : ''}">${item.atrasada ? `Atrasada há ${formatDays(item.dias_em_uso)}` : `${formatDays(item.dias_em_uso)} em posse`}</span>
-                    </div>
-                    <div class="galint-custody-modal-tool-meta">
-                        <span class="galint-custody-badge"><i class="bi bi-hash"></i> Qtd ${escapeHtml(item.quantidade || 0)}</span>
-                        <span class="galint-custody-badge"><i class="bi bi-calendar-event"></i> ${escapeHtml(formatDate(item.data_retirada_iso))}</span>
-                        <span class="galint-custody-badge"><i class="bi bi-geo-alt"></i> ${escapeHtml(item.local_servico || 'Não informado')}</span>
-                    </div>
-                    ${item.observacao ? `<p class="galint-custody-modal-tool-note">${escapeHtml(item.observacao)}</p>` : ''}
-                </article>
-            `).join('');
-
-            modalTools.querySelectorAll('.galint-custody-modal-tool').forEach((card) => {
-                const itemKey = card.getAttribute('data-tool-key');
-                if (!itemKey) {
-                    return;
+                selectedToolsByGroup.delete(group.key);
+                toolButtons.forEach((button) => button.classList.remove('is-selected'));
+                if (selectedLabel) {
+                    selectedLabel.textContent = 'Selecione uma ferramenta abaixo para dar baixa.';
                 }
-
-                card.addEventListener('mouseenter', () => setSelectedModalTool(group, itemKey));
-                card.addEventListener('click', () => setSelectedModalTool(group, itemKey));
-            });
-
-            setSelectedModalTool(group, selectedKey);
-        }
-
-        function openGroupModal(groupKey) {
-            const group = currentGroups.find((entry) => entry.key === groupKey);
-            if (!group || !custodyModal) {
-                return;
-            }
-
-            activeGroupKey = groupKey;
-            renderGroupModal(group);
-            custodyModal.show();
-        }
-
-        function refreshModal() {
-            if (!activeGroupKey) {
-                return;
-            }
-
-            const group = currentGroups.find((entry) => entry.key === activeGroupKey);
-            if (!group) {
-                activeGroupKey = null;
-                if (custodyModal) {
-                    custodyModal.hide();
+                if (returnButton) {
+                    returnButton.disabled = true;
+                    returnButton.textContent = 'Dar baixa';
+                    returnButton.setAttribute('data-group-key', group.key || '');
+                    ['data-id', 'data-source', 'data-codigo', 'data-desc', 'data-matricula'].forEach((attr) => {
+                        returnButton.removeAttribute(attr);
+                    });
                 }
                 return;
             }
 
-            renderGroupModal(group);
+            const selectedKey = getItemKey(selectedItem);
+            selectedToolsByGroup.set(group.key, selectedKey);
+            toolButtons.forEach((button) => {
+                button.classList.toggle('is-selected', button.getAttribute('data-tool-key') === selectedKey);
+            });
+
+            if (selectedLabel) {
+                selectedLabel.textContent = `Selecionada: ${selectedItem.descricao || 'Ferramenta'} • ${formatDays(selectedItem.dias_em_uso)} • Código ${selectedItem.codigo || '-'}`;
+            }
+            if (returnButton) {
+                returnButton.disabled = false;
+                returnButton.textContent = 'Dar baixa';
+                returnButton.setAttribute('data-id', selectedItem.id || '');
+                returnButton.setAttribute('data-source', selectedItem.source || 'saida');
+                returnButton.setAttribute('data-codigo', selectedItem.codigo || '');
+                returnButton.setAttribute('data-desc', selectedItem.descricao || '');
+                returnButton.setAttribute('data-matricula', selectedItem.matricula_full || selectedItem.matricula || '');
+                returnButton.setAttribute('data-group-key', group.key || '');
+            }
         }
 
         function render(groups) {
             if (!groups || !groups.length) {
+                selectedToolsByGroup.clear();
                 custodyContainer.innerHTML = `
                     <div class="galint-custody-empty">
                         <div class="galint-custody-empty-icon">✅</div>
@@ -3123,10 +3136,7 @@
             const fragment = document.createDocumentFragment();
             groups.forEach((group) => {
                 const wrapper = document.createElement('div');
-                wrapper.className = 'galint-custody-card is-clickable';
-                wrapper.tabIndex = 0;
-                wrapper.setAttribute('role', 'button');
-                wrapper.setAttribute('aria-label', `Abrir baixa de ${group.usuario}`);
+                wrapper.className = 'galint-custody-card';
                 const visualState = getGroupVisualState(group);
 
                 if (visualState === 'late') {
@@ -3140,6 +3150,13 @@
                 const photoMarkup = group.photoUrl
                     ? `<img src="${group.photoUrl}" alt="${escapeHtml(group.usuario)}" loading="lazy">`
                     : '<div class="galint-custody-photo-placeholder"><i class="bi bi-person-workspace"></i></div>';
+
+                const orderedItems = [...group.items].sort((left, right) => (Number(right.dias_em_uso) || 0) - (Number(left.dias_em_uso) || 0));
+                const persistedSelectedKey = selectedToolsByGroup.get(group.key);
+                const selectedKey = orderedItems.some((item) => getItemKey(item) === persistedSelectedKey)
+                    ? persistedSelectedKey
+                    : '';
+                const selectedItem = orderedItems.find((item) => getItemKey(item) === selectedKey) || null;
 
                 let statusBadge = `<span class="galint-custody-badge">${group.totalTools} ferramenta(s)</span>`;
                 if (visualState === 'late') {
@@ -3174,39 +3191,40 @@
                         </div>
                     </div>
                     <div class="galint-custody-preview-list">
-                        ${group.previewTools.map((item) => `
-                            <div class="galint-custody-preview-item">
+                        ${orderedItems.map((item) => `
+                            <button type="button" class="galint-custody-preview-item js-custody-tool ${getItemKey(item) === selectedKey ? 'is-selected' : ''}" data-tool-key="${escapeHtml(getItemKey(item))}">
                                 <strong>${escapeHtml(item.descricao || 'Item não identificado')}</strong>
                                 <span>${formatDays(item.dias_em_uso)} • ${escapeHtml(item.codigo || '-')} • ${escapeHtml(item.local_servico || 'Não informado')}</span>
-                            </div>
+                                <span class="galint-custody-preview-meta">Qtd ${escapeHtml(item.quantidade || 0)} • ${escapeHtml(formatDate(item.data_retirada_iso))}</span>
+                                ${item.observacao ? `<small class="galint-custody-preview-note">${escapeHtml(item.observacao)}</small>` : ''}
+                            </button>
                         `).join('')}
                     </div>
-                    ${group.totalTools > group.previewTools.length ? `<div class="galint-custody-preview-more">+ ${group.totalTools - group.previewTools.length} ferramenta(s) disponíveis no detalhe do modal</div>` : ''}
+                    <div class="galint-custody-selected js-custody-selected">${selectedItem
+                        ? `Selecionada: ${escapeHtml(selectedItem.descricao || 'Ferramenta')} • ${escapeHtml(formatDays(selectedItem.dias_em_uso))} • Código ${escapeHtml(selectedItem.codigo || '-')}`
+                        : 'Selecione uma ferramenta abaixo para dar baixa.'}</div>
                     <div class="galint-custody-actions">
                         <a href="/controle-ferramentas/funcionario/${encodeURIComponent(group.matricula_full || group.matricula || '')}" class="galint-custody-btn galint-custody-btn-secondary">Ver ficha</a>
-                        <button type="button" data-group-key="${escapeHtml(group.key)}" class="galint-custody-btn galint-custody-btn-primary js-open-custody-group">Dar baixa</button>
+                        <button type="button" data-group-key="${escapeHtml(group.key)}" class="galint-custody-btn galint-custody-btn-primary js-custody-return" ${selectedItem ? '' : 'disabled'}>Dar baixa</button>
                     </div>
                 `;
 
-                wrapper.addEventListener('click', (event) => {
-                    if (event.target.closest('a,button')) {
-                        return;
-                    }
-                    openGroupModal(group.key);
+                wrapper.querySelectorAll('.js-custody-tool').forEach((toolButton) => {
+                    toolButton.addEventListener('click', () => {
+                        applyGroupSelection(group, wrapper, toolButton.getAttribute('data-tool-key') || '');
+                    });
                 });
 
-                wrapper.addEventListener('keydown', (event) => {
-                    if (event.key !== 'Enter' && event.key !== ' ') {
-                        return;
-                    }
-                    event.preventDefault();
-                    openGroupModal(group.key);
-                });
-
-                const openButton = wrapper.querySelector('.js-open-custody-group');
-                if (openButton) {
-                    openButton.addEventListener('click', () => openGroupModal(group.key));
+                const returnButton = wrapper.querySelector('.js-custody-return');
+                if (returnButton) {
+                    returnButton.addEventListener('click', () => {
+                        if (!returnButton.disabled) {
+                            window.devolverFerramenta(returnButton);
+                        }
+                    });
                 }
+
+                applyGroupSelection(group, wrapper, selectedKey);
 
                 fragment.appendChild(wrapper);
             });
@@ -3230,7 +3248,6 @@
                 const payload = await response.json();
                 currentGroups = groupByEmployee(payload.items || []);
                 render(currentGroups);
-                refreshModal();
             } catch (error) {
                 console.error('Falha ao atualizar o feed de custódia:', error);
                 custodyContainer.innerHTML = '<p class="text-danger mb-0">Erro ao carregar ferramentas em custódia. Tente novamente em instantes.</p>';
@@ -3243,15 +3260,11 @@
             const source = (buttonEl?.getAttribute('data-source') || 'saida').toLowerCase();
             const matricula = buttonEl?.getAttribute('data-matricula');
             const codigoItem = buttonEl?.getAttribute('data-codigo');
-            const groupKey = buttonEl?.getAttribute('data-group-key') || activeGroupKey;
+                const groupKey = buttonEl?.getAttribute('data-group-key') || '';
 
             if (!retiradaId) {
                 window.alert('Não foi possível identificar a retirada para dar baixa.');
                 return;
-            }
-
-            if (groupKey) {
-                activeGroupKey = groupKey;
             }
 
             if (buttonEl) {
@@ -3293,6 +3306,9 @@
                     throw new Error(result.message || 'Erro ao registrar devolução');
                 }
 
+                if (groupKey) {
+                    selectedToolsByGroup.delete(groupKey);
+                }
                 await load();
             } catch (error) {
                 console.error('Falha ao registrar devolução:', error);
@@ -3304,28 +3320,6 @@
                 }
             }
         };
-
-        if (modalReturnButton) {
-            modalReturnButton.addEventListener('click', () => {
-                if (!modalReturnButton.disabled) {
-                    window.devolverFerramenta(modalReturnButton);
-                }
-            });
-        }
-
-        if (modalElement) {
-            modalElement.addEventListener('hidden.bs.modal', () => {
-                activeGroupKey = null;
-                activeToolKey = null;
-                if (modalSelected) {
-                    modalSelected.textContent = 'Selecione uma ferramenta para dar baixa.';
-                }
-                if (modalReturnButton) {
-                    modalReturnButton.disabled = true;
-                    modalReturnButton.textContent = 'Dar baixa';
-                }
-            });
-        }
 
         load();
         setInterval(() => load(), 30000); // Atualiza a cada 30 segundos

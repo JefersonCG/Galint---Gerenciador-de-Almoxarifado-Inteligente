@@ -4,10 +4,13 @@
 {% set form_item = item if item else form_data %}
 {% set saldo_total_ean = saldo_total_ean if saldo_total_ean is defined else None %}
 {% set unidade_total_ean = form_item.unidade_interna_display if form_item and form_item.unidade_interna_display else (form_item.unidade if form_item and form_item.unidade else 'un') %}
+{% set category_visual_catalog = category_visual_catalog|default([]) %}
 {% block title %}{% if item %}Editar{% else %}Novo{% endif %} Item{% endblock %}
 
 {% block extra_css %}
 <style>
+    @import url("{{ url_for('static', filename='css/category-visual-system.css') }}");
+
     /* ============================================
        SOFT DEPTH DESIGN SYSTEM COM TABS
        ============================================ */
@@ -57,72 +60,195 @@
     }
 
     .photo-assistant-dialog {
-        max-width: min(680px, 92vw);
+        max-width: min(620px, calc(100vw - 1rem));
     }
 
     .photo-assistant-modal {
-        background: linear-gradient(180deg, #0f172a 0%, #111827 100%);
+        background: linear-gradient(180deg, #0b1220 0%, #111b2e 100%);
         color: #e5eefc;
-        border: 1px solid rgba(148, 163, 184, 0.18);
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        border-radius: 18px;
+        overflow: hidden;
+        box-shadow: 0 24px 60px rgba(2, 6, 23, 0.45);
     }
 
-    .photo-assistant-modal .modal-header,
+    .photo-assistant-modal .modal-header {
+        padding: 0.95rem 1.1rem;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+        background:
+            radial-gradient(circle at top right, rgba(56, 189, 248, 0.15), transparent 34%),
+            linear-gradient(135deg, #162033 0%, #0b1220 100%);
+    }
+
     .photo-assistant-modal .modal-footer {
-        border-color: rgba(148, 163, 184, 0.18);
-        padding: 0.8rem 1rem;
+        padding: 0.9rem 1.1rem;
+        border-top: 1px solid rgba(148, 163, 184, 0.12);
+        background: linear-gradient(180deg, rgba(8, 15, 28, 0.92) 0%, rgba(12, 18, 31, 0.96) 100%);
+    }
+
+    .photo-assistant-modal .modal-title {
+        font-size: 1.08rem;
+        font-weight: 800;
+        color: #ffffff;
+        letter-spacing: 0.01em;
     }
 
     .photo-assistant-modal .modal-body {
-        padding: 0.9rem 1rem 1rem;
+        padding: 1rem;
+        background:
+            radial-gradient(circle at top right, rgba(56, 189, 248, 0.08), transparent 28%),
+            linear-gradient(180deg, rgba(11, 18, 32, 0.98) 0%, rgba(15, 23, 42, 0.98) 100%);
     }
 
     .photo-assistant-modal .btn-close {
-        filter: invert(1);
+        filter: brightness(0) invert(1);
+        opacity: 0.92;
+    }
+
+    .photo-assistant-modal .form-label {
+        font-size: 0.82rem;
+        font-weight: 700;
+        color: #e5eefc;
+        margin-bottom: 0.35rem;
     }
 
     .photo-assistant-modal .form-control {
-        background: rgba(15, 23, 42, 0.75);
-        border-color: rgba(148, 163, 184, 0.22);
+        min-height: 42px;
+        background: rgba(15, 23, 42, 0.82);
+        border-color: rgba(148, 163, 184, 0.18);
+        border-radius: 12px;
         color: #f8fafc;
+        box-shadow: none;
+    }
+
+    .photo-assistant-modal .form-control:focus {
+        background: rgba(15, 23, 42, 0.92);
+        border-color: rgba(96, 165, 250, 0.46);
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.16);
+        color: #ffffff;
     }
 
     .photo-assistant-modal .form-control::placeholder {
-        color: #94a3b8;
+        color: #8fa3bc;
     }
 
     .photo-assistant-modal .form-text,
     .photo-assistant-modal .text-muted {
-        color: #94a3b8 !important;
+        color: #9fb2c9 !important;
+    }
+
+    .photo-assistant-modal .btn {
+        border-radius: 12px;
+        font-weight: 700;
+    }
+
+    .photo-assistant-modal .btn-primary {
+        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+        border: none;
+        color: #ffffff;
+        box-shadow: 0 10px 24px rgba(37, 99, 235, 0.24);
+    }
+
+    .photo-assistant-modal .btn-primary:hover,
+    .photo-assistant-modal .btn-primary:focus-visible {
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        color: #ffffff;
+        transform: translateY(-1px);
+    }
+
+    .photo-assistant-modal .btn-secondary,
+    .photo-assistant-modal .btn-outline-secondary {
+        background: rgba(148, 163, 184, 0.08);
+        border-color: rgba(148, 163, 184, 0.22);
+        color: #e5eefc;
+    }
+
+    .photo-assistant-modal .btn-secondary:hover,
+    .photo-assistant-modal .btn-secondary:focus-visible,
+    .photo-assistant-modal .btn-outline-secondary:hover,
+    .photo-assistant-modal .btn-outline-secondary:focus-visible {
+        background: rgba(148, 163, 184, 0.14);
+        border-color: rgba(148, 163, 184, 0.34);
+        color: #ffffff;
+    }
+
+    .photo-assistant-modal .btn-outline-primary {
+        background: rgba(37, 99, 235, 0.14);
+        border-color: rgba(96, 165, 250, 0.34);
+        color: #eaf2ff;
+    }
+
+    .photo-assistant-modal .btn-outline-primary:hover,
+    .photo-assistant-modal .btn-outline-primary:focus-visible {
+        background: rgba(37, 99, 235, 0.24);
+        border-color: rgba(96, 165, 250, 0.5);
+        color: #ffffff;
+    }
+
+    .photo-assistant-modal .btn-outline-info {
+        background: rgba(8, 145, 178, 0.14);
+        border-color: rgba(103, 232, 249, 0.26);
+        color: #dff9ff;
+    }
+
+    .photo-assistant-modal .btn-outline-info:hover,
+    .photo-assistant-modal .btn-outline-info:focus-visible {
+        background: rgba(8, 145, 178, 0.24);
+        border-color: rgba(103, 232, 249, 0.44);
+        color: #ffffff;
+    }
+
+    .photo-assistant-shell {
+        display: flex;
+        flex-direction: column;
+        gap: 0.85rem;
     }
 
     .photo-assistant-hero {
         display: flex;
+        align-items: center;
         justify-content: space-between;
-        align-items: flex-start;
-        gap: 1rem;
-        padding: 0.8rem 0.9rem;
-        border-radius: 14px;
-        background: rgba(15, 23, 42, 0.7);
+        gap: 0.95rem;
+        padding: 0.95rem 1rem;
+        border-radius: 16px;
+        background: linear-gradient(180deg, rgba(17, 24, 39, 0.9) 0%, rgba(15, 23, 42, 0.96) 100%);
         border: 1px solid rgba(96, 165, 250, 0.18);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+    }
+
+    .photo-assistant-copy {
+        min-width: 0;
     }
 
     .photo-assistant-kicker {
-        font-size: 0.72rem;
+        font-size: 0.71rem;
         text-transform: uppercase;
         letter-spacing: 0.08em;
         color: #38bdf8;
-        margin-bottom: 0.25rem;
-        font-weight: 700;
+        margin-bottom: 0.22rem;
+        font-weight: 800;
+    }
+
+    .photo-assistant-title {
+        font-size: 0.96rem;
+        font-weight: 800;
+        color: #f8fbff;
+        line-height: 1.25;
+    }
+
+    .photo-assistant-subtitle {
+        max-width: 42ch;
+        color: #c9d8ea !important;
     }
 
     .photo-assistant-preview {
-        width: 82px;
-        min-width: 82px;
-        height: 82px;
-        border-radius: 12px;
+        width: 74px;
+        min-width: 74px;
+        height: 74px;
+        border-radius: 16px;
         overflow: hidden;
-        background: rgba(30, 41, 59, 0.9);
-        border: 1px dashed rgba(148, 163, 184, 0.32);
+        background: linear-gradient(180deg, rgba(30, 41, 59, 0.95) 0%, rgba(15, 23, 42, 0.98) 100%);
+        border: 1px dashed rgba(148, 163, 184, 0.26);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -131,8 +257,9 @@
 
     .photo-assistant-preview::after {
         content: 'Sem foto';
-        color: #94a3b8;
+        color: #93a7bf;
         font-size: 0.72rem;
+        font-weight: 600;
     }
 
     .photo-assistant-preview.has-image::after {
@@ -150,26 +277,139 @@
         display: block;
     }
 
+    .photo-assistant-section {
+        padding: 0.9rem;
+        border-radius: 16px;
+        background: linear-gradient(180deg, rgba(18, 27, 42, 0.92) 0%, rgba(12, 19, 33, 0.96) 100%);
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+    }
+
+    .photo-assistant-section-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 0.75rem;
+        margin-bottom: 0.65rem;
+    }
+
+    .photo-assistant-section-title {
+        font-size: 0.74rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #7dd3fc;
+    }
+
+    .photo-assistant-inline-hint {
+        font-size: 0.76rem;
+        color: #9fb2c9;
+        text-align: right;
+    }
+
+    .photo-assistant-query-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 0.75rem;
+        align-items: end;
+    }
+
+    .photo-assistant-field {
+        min-width: 0;
+    }
+
+    .photo-assistant-copy-btn {
+        min-width: 148px;
+        min-height: 42px;
+        padding-inline: 0.9rem;
+        white-space: nowrap;
+    }
+
+    .photo-assistant-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.6rem;
+        margin-top: 0.75rem;
+    }
+
+    .photo-assistant-actions .btn {
+        flex: 1 1 180px;
+        min-height: 42px;
+    }
+
     .photo-remote-preview {
-        padding: 0.75rem 0.85rem;
-        border-radius: 12px;
-        background: rgba(15, 23, 42, 0.55);
-        border: 1px solid rgba(148, 163, 184, 0.18);
+        padding: 0.75rem 0.8rem;
+        border-radius: 14px;
+        background: rgba(8, 15, 28, 0.62);
+        border: 1px solid rgba(96, 165, 250, 0.16);
     }
 
     .photo-remote-preview-label {
-        color: #cbd5e1;
-        font-size: 0.76rem;
-        margin-bottom: 0.45rem;
-        font-weight: 600;
+        color: #d5e4f5;
+        font-size: 0.75rem;
+        margin-bottom: 0.4rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
     }
 
     .photo-remote-preview img {
         width: 100%;
-        max-height: 180px;
+        max-height: 170px;
         object-fit: contain;
         border-radius: 10px;
-        background: rgba(15, 23, 42, 0.8);
+        background: rgba(15, 23, 42, 0.84);
+    }
+
+    .photo-assistant-modal .alert {
+        margin-bottom: 0;
+        border-radius: 14px;
+    }
+
+    @media (max-width: 767.98px) {
+        .photo-assistant-dialog {
+            max-width: calc(100vw - 0.75rem);
+            margin: 0.4rem auto;
+        }
+
+        .photo-assistant-modal .modal-body,
+        .photo-assistant-modal .modal-header,
+        .photo-assistant-modal .modal-footer {
+            padding-left: 0.9rem;
+            padding-right: 0.9rem;
+        }
+
+        .photo-assistant-hero {
+            align-items: flex-start;
+        }
+
+        .photo-assistant-query-row {
+            grid-template-columns: 1fr;
+        }
+
+        .photo-assistant-copy-btn,
+        .photo-assistant-actions .btn {
+            width: 100%;
+        }
+
+        .photo-assistant-section-head {
+            flex-direction: column;
+            margin-bottom: 0.55rem;
+        }
+
+        .photo-assistant-inline-hint {
+            text-align: left;
+        }
+
+        .photo-assistant-modal .modal-footer {
+            flex-direction: column-reverse;
+            gap: 0.6rem;
+            align-items: stretch;
+        }
+
+        .photo-assistant-modal .modal-footer .btn {
+            width: 100%;
+        }
     }
 
     /* Tabs Navigation */
@@ -392,6 +632,160 @@
     #advancedUnitsModal .form-label,
     #advancedUnitsModal .form-check-label {
         color: #eff6ff !important;
+    }
+
+    .inventory-help-row {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.42rem;
+        margin-bottom: 0.28rem;
+    }
+
+    .inventory-help-row .form-label {
+        margin-bottom: 0;
+    }
+
+    .inventory-help-icon {
+        width: 20px;
+        height: 20px;
+        border: 1px solid rgba(148, 163, 184, 0.24);
+        border-radius: 999px;
+        background: rgba(15, 23, 42, 0.86);
+        color: #cfe7ff;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        font-size: 0.72rem;
+        font-weight: 800;
+        line-height: 1;
+        cursor: pointer;
+        transition: var(--transition);
+    }
+
+    .inventory-help-icon:hover,
+    .inventory-help-icon:focus-visible {
+        border-color: rgba(125, 211, 252, 0.44);
+        background: rgba(14, 116, 144, 0.86);
+        color: #ffffff;
+        box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.16);
+        outline: none;
+    }
+
+    .inventory-hidden-native-select {
+        display: none !important;
+    }
+
+    .inventory-choice-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.22rem 0.58rem;
+        margin-top: 0.08rem;
+    }
+
+    .inventory-category-select {
+        display: grid;
+        gap: 0.78rem;
+    }
+
+    .inventory-category-select .category-visual-select-grid {
+        gap: 0.52rem;
+    }
+
+    .inventory-category-select .category-visual-select-option {
+        flex: 0 0 auto;
+    }
+
+    .inventory-category-select .category-visual-chip {
+        min-height: 38px;
+        padding: 0.48rem 0.8rem;
+    }
+
+    .inventory-category-summary {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.55rem;
+        color: rgba(226, 232, 240, 0.84);
+        font-size: 0.82rem;
+        line-height: 1.5;
+    }
+
+    .inventory-category-summary .category-visual-chip {
+        min-height: 30px;
+        padding: 0.32rem 0.62rem;
+        font-size: 0.74rem;
+    }
+
+    .inventory-category-legend {
+        margin-top: 0.95rem;
+    }
+
+    .inventory-switch-option {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.34rem;
+        min-height: 24px;
+        padding: 0.08rem 0.16rem 0.08rem 0;
+        border: none;
+        background: transparent;
+        color: #cbd5e1;
+        font-size: 0.71rem;
+        font-weight: 700;
+        line-height: 1.1;
+        transition: var(--transition);
+        cursor: pointer;
+        user-select: none;
+        white-space: nowrap;
+    }
+
+    .inventory-switch-option:hover,
+    .inventory-switch-option:focus-visible {
+        color: #ffffff;
+        outline: none;
+    }
+
+    .inventory-switch-toggle {
+        position: relative;
+        flex: 0 0 auto;
+        width: 22px;
+        height: 12px;
+        border-radius: 999px;
+        border: 1px solid rgba(148, 163, 184, 0.26);
+        background: rgba(71, 85, 105, 0.88);
+        transition: var(--transition);
+    }
+
+    .inventory-switch-toggle::after {
+        content: "";
+        position: absolute;
+        top: 1px;
+        left: 1px;
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: #ffffff;
+        transition: var(--transition);
+        box-shadow: 0 1px 3px rgba(15, 23, 42, 0.24);
+    }
+
+    .inventory-switch-option.is-selected {
+        color: #ffffff;
+    }
+
+    .inventory-switch-option.is-selected .inventory-switch-toggle {
+        border-color: rgba(125, 211, 252, 0.58);
+        background: rgba(56, 189, 248, 0.95);
+        box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.14);
+    }
+
+    .inventory-switch-option.is-selected .inventory-switch-toggle::after {
+        transform: translateX(10px);
+    }
+
+    .field-help-hidden {
+        display: none !important;
     }
 
     .dynamic-units-help-link {
@@ -761,6 +1155,257 @@
         border: 1px solid rgba(125, 211, 252, 0.3);
     }
 
+    .inventory-ops-overview {
+        display: grid;
+        grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
+        gap: 1rem;
+        align-items: start;
+    }
+
+    .inventory-ops-card,
+    .packaging-studio-panel {
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        border-radius: 22px;
+        background: linear-gradient(180deg, rgba(15, 23, 42, 0.82), rgba(15, 23, 42, 0.68));
+        box-shadow: 0 18px 34px rgba(2, 8, 23, 0.2);
+        padding: 1rem;
+    }
+
+    .inventory-ops-card.is-highlight,
+    .packaging-studio-hero {
+        background:
+            radial-gradient(circle at top right, rgba(59, 130, 246, 0.18), transparent 30%),
+            linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(14, 116, 144, 0.44));
+        border-color: rgba(125, 211, 252, 0.24);
+    }
+
+    .inventory-ops-card-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 0.9rem;
+    }
+
+    .inventory-ops-eyebrow {
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: #7dd3fc;
+        margin-bottom: 0.35rem;
+    }
+
+    .inventory-ops-badge,
+    .inventory-ops-chip {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.38rem 0.72rem;
+        border-radius: 999px;
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        background: rgba(15, 23, 42, 0.62);
+        color: #eff6ff;
+        font-size: 0.76rem;
+        font-weight: 700;
+        line-height: 1;
+    }
+
+    .inventory-ops-inline-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 0.9rem;
+    }
+
+    .inventory-ops-inline-grid .form-group,
+    .packaging-studio-panel .form-group {
+        margin-bottom: 0;
+    }
+
+    .inventory-ops-caption {
+        margin-top: 0.9rem;
+        color: #cbd5e1;
+        font-size: 0.84rem;
+        line-height: 1.6;
+    }
+
+    .inventory-ops-chip-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+    }
+
+    .inventory-ops-flow {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.75rem;
+        margin-top: 1rem;
+    }
+
+    .inventory-ops-step {
+        padding: 0.9rem 1rem;
+        border-radius: 18px;
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        background: rgba(15, 23, 42, 0.54);
+        color: #dbeafe;
+        font-size: 0.84rem;
+        line-height: 1.55;
+    }
+
+    .inventory-ops-step strong {
+        display: block;
+        margin-bottom: 0.32rem;
+        font-size: 0.88rem;
+        color: #f8fafc;
+    }
+
+    .inventory-ops-note {
+        margin-top: 1rem;
+        padding: 0.9rem 1rem;
+        border-radius: 18px;
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        background: rgba(15, 23, 42, 0.62);
+        color: #dbeafe;
+        font-size: 0.84rem;
+        line-height: 1.6;
+    }
+
+    .inventory-ops-note.is-warning {
+        border-color: rgba(250, 204, 21, 0.28);
+        background: linear-gradient(135deg, rgba(120, 53, 15, 0.34), rgba(15, 23, 42, 0.78));
+        color: #fef3c7;
+    }
+
+    .packaging-studio {
+        display: grid;
+        gap: 1rem;
+    }
+
+    .packaging-studio-hero {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 1.1rem;
+        border-radius: 24px;
+    }
+
+    .packaging-studio-hero-copy {
+        max-width: 42rem;
+    }
+
+    .packaging-studio-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.15fr) minmax(300px, 0.85fr);
+        gap: 1rem;
+        align-items: start;
+    }
+
+    .packaging-radio-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.55rem;
+    }
+
+    .packaging-radio-card {
+        position: relative;
+        margin: 0;
+    }
+
+    .packaging-radio-card .form-check-input {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+        margin: 0;
+    }
+
+    .packaging-radio-card .form-check-label {
+        min-width: 108px;
+        padding: 0.72rem 0.9rem;
+        border-radius: 16px;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        background: rgba(15, 23, 42, 0.62);
+        color: #dbeafe;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        font-size: 0.84rem;
+        font-weight: 700;
+        line-height: 1.25;
+        transition: var(--transition);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    }
+
+    .packaging-radio-card .form-check-input:checked + .form-check-label {
+        border-color: rgba(125, 211, 252, 0.44);
+        background: linear-gradient(135deg, rgba(37, 99, 235, 0.4), rgba(14, 165, 233, 0.34));
+        color: #ffffff;
+        transform: translateY(-1px);
+        box-shadow: 0 14px 26px rgba(37, 99, 235, 0.16);
+    }
+
+    .packaging-radio-card .form-check-input:focus + .form-check-label {
+        box-shadow: 0 0 0 4px rgba(147, 197, 253, 0.2);
+    }
+
+    .packaging-radio-grid--compact .form-check-label {
+        min-width: 92px;
+        padding: 0.62rem 0.78rem;
+    }
+
+    .packaging-studio-summary {
+        display: grid;
+        gap: 1rem;
+    }
+
+    .packaging-live-title {
+        font-size: 1.05rem;
+        font-weight: 800;
+        color: #f8fafc;
+        letter-spacing: -0.02em;
+    }
+
+    .packaging-live-line {
+        margin-top: 0.45rem;
+        color: #dbeafe;
+        font-size: 0.86rem;
+        line-height: 1.6;
+    }
+
+    .packaging-advanced-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    #preview-embalagem {
+        border-radius: 18px;
+        border: 1px solid rgba(125, 211, 252, 0.28);
+        background: linear-gradient(135deg, rgba(8, 47, 73, 0.88), rgba(30, 64, 175, 0.44));
+        color: #eff6ff;
+        margin-top: 1rem !important;
+    }
+
+    #advanced-unit-summary {
+        padding: 0.95rem 1rem;
+        border-radius: 18px;
+    }
+
+    @media (max-width: 992px) {
+        .inventory-ops-overview,
+        .inventory-ops-flow,
+        .packaging-studio-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .packaging-studio-hero {
+            flex-direction: column;
+        }
+    }
+
     /* Campos Condicionais com Destaque Dinâmico */
     .conditional-fields {
         background: #f8fafc;
@@ -1108,6 +1753,282 @@
         flex-wrap: wrap;
     }
 
+    .modal-content.galint-bs-modal {
+        --galint-modal-accent-rgb: 59, 130, 246;
+        --galint-modal-text: #e5eefc;
+        --galint-modal-muted: #9fb2c9;
+        --galint-modal-border: rgba(148, 163, 184, 0.16);
+        --bs-body-color: var(--galint-modal-text);
+        --bs-secondary-color: var(--galint-modal-muted);
+        --bs-border-color: var(--galint-modal-border);
+        --bs-border-color-translucent: rgba(148, 163, 184, 0.12);
+        --bs-btn-font-weight: 700;
+        background:
+            radial-gradient(circle at top right, rgba(var(--galint-modal-accent-rgb), 0.18), transparent 34%),
+            linear-gradient(180deg, #0b1220 0%, #111b2e 100%);
+        color: var(--galint-modal-text);
+        border: 1px solid var(--galint-modal-border);
+        border-radius: 20px;
+        box-shadow: 0 28px 72px rgba(2, 6, 23, 0.48);
+        overflow: hidden;
+    }
+
+    .modal-content.galint-bs-modal.galint-bs-modal--emerald {
+        --galint-modal-accent-rgb: 16, 185, 129;
+    }
+
+    .modal-content.galint-bs-modal.galint-bs-modal--amber {
+        --galint-modal-accent-rgb: 245, 158, 11;
+    }
+
+    .modal-content.galint-bs-modal .modal-header {
+        padding: 1.05rem 1.25rem;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+        background:
+            radial-gradient(circle at top right, rgba(var(--galint-modal-accent-rgb), 0.18), transparent 34%),
+            linear-gradient(135deg, #162033 0%, #0b1220 100%);
+    }
+
+    .modal-content.galint-bs-modal .modal-title {
+        font-size: 1.08rem;
+        font-weight: 800;
+        color: #ffffff;
+        letter-spacing: 0.01em;
+    }
+
+    .modal-content.galint-bs-modal .modal-header .small,
+    .modal-content.galint-bs-modal .modal-header .text-white-50,
+    .modal-content.galint-bs-modal .modal-header .text-muted {
+        color: rgba(229, 238, 252, 0.74) !important;
+    }
+
+    .modal-content.galint-bs-modal .modal-body {
+        padding: 1.1rem 1.2rem 1.2rem;
+        background: transparent;
+    }
+
+    .modal-content.galint-bs-modal .modal-footer {
+        padding: 0.95rem 1.2rem;
+        gap: 0.65rem;
+        border-top: 1px solid rgba(148, 163, 184, 0.12);
+        background: linear-gradient(180deg, rgba(8, 15, 28, 0.88) 0%, rgba(12, 18, 31, 0.94) 100%);
+    }
+
+    .modal-content.galint-bs-modal .btn-close {
+        filter: brightness(0) invert(1);
+        opacity: 0.92;
+    }
+
+    .modal-content.galint-bs-modal :is(.form-control, .form-select, .input-group-text, textarea) {
+        background: rgba(8, 15, 28, 0.76);
+        border-color: rgba(148, 163, 184, 0.18);
+        color: #f8fafc;
+        border-radius: 14px;
+        box-shadow: none;
+    }
+
+    .modal-content.galint-bs-modal :is(.form-control, .form-select, textarea):focus {
+        background: rgba(8, 15, 28, 0.9);
+        border-color: rgba(var(--galint-modal-accent-rgb), 0.52);
+        box-shadow: 0 0 0 3px rgba(var(--galint-modal-accent-rgb), 0.16);
+        color: #ffffff;
+    }
+
+    .modal-content.galint-bs-modal :is(.form-control, textarea)::placeholder {
+        color: #8fa3bc;
+    }
+
+    .modal-content.galint-bs-modal :is(.form-text, .text-muted) {
+        color: var(--galint-modal-muted) !important;
+    }
+
+    .modal-content.galint-bs-modal .form-label,
+    .modal-content.galint-bs-modal strong,
+    .modal-content.galint-bs-modal .fw-semibold {
+        color: #f8fbff;
+    }
+
+    .modal-content.galint-bs-modal .btn {
+        border-radius: 12px;
+    }
+
+    .modal-content.galint-bs-modal .btn-primary,
+    .modal-content.galint-bs-modal .btn-info {
+        --bs-btn-bg: rgb(var(--galint-modal-accent-rgb));
+        --bs-btn-border-color: rgb(var(--galint-modal-accent-rgb));
+        --bs-btn-hover-bg: rgba(var(--galint-modal-accent-rgb), 0.9);
+        --bs-btn-hover-border-color: rgba(var(--galint-modal-accent-rgb), 0.9);
+        --bs-btn-active-bg: rgba(var(--galint-modal-accent-rgb), 0.82);
+        --bs-btn-active-border-color: rgba(var(--galint-modal-accent-rgb), 0.82);
+        --bs-btn-color: #ffffff;
+        --bs-btn-hover-color: #ffffff;
+        --bs-btn-active-color: #ffffff;
+        box-shadow: 0 10px 24px rgba(var(--galint-modal-accent-rgb), 0.22);
+    }
+
+    .modal-content.galint-bs-modal .btn-secondary,
+    .modal-content.galint-bs-modal .btn-outline-secondary {
+        --bs-btn-bg: rgba(148, 163, 184, 0.08);
+        --bs-btn-border-color: rgba(148, 163, 184, 0.2);
+        --bs-btn-color: #e5eefc;
+        --bs-btn-hover-bg: rgba(148, 163, 184, 0.16);
+        --bs-btn-hover-border-color: rgba(148, 163, 184, 0.3);
+        --bs-btn-hover-color: #ffffff;
+        --bs-btn-active-bg: rgba(148, 163, 184, 0.18);
+        --bs-btn-active-border-color: rgba(148, 163, 184, 0.34);
+        --bs-btn-active-color: #ffffff;
+    }
+
+    .modal-content.galint-bs-modal .btn-outline-primary {
+        --bs-btn-color: #dbeafe;
+        --bs-btn-border-color: rgba(var(--galint-modal-accent-rgb), 0.34);
+        --bs-btn-hover-bg: rgba(var(--galint-modal-accent-rgb), 0.18);
+        --bs-btn-hover-border-color: rgba(var(--galint-modal-accent-rgb), 0.5);
+        --bs-btn-hover-color: #ffffff;
+        --bs-btn-active-bg: rgba(var(--galint-modal-accent-rgb), 0.22);
+        --bs-btn-active-border-color: rgba(var(--galint-modal-accent-rgb), 0.54);
+        --bs-btn-active-color: #ffffff;
+    }
+
+    .modal-content.galint-bs-modal .btn-outline-warning {
+        --bs-btn-color: #fde68a;
+        --bs-btn-border-color: rgba(245, 158, 11, 0.36);
+        --bs-btn-hover-bg: rgba(245, 158, 11, 0.16);
+        --bs-btn-hover-border-color: rgba(245, 158, 11, 0.52);
+        --bs-btn-hover-color: #ffffff;
+        --bs-btn-active-bg: rgba(245, 158, 11, 0.2);
+        --bs-btn-active-border-color: rgba(245, 158, 11, 0.56);
+        --bs-btn-active-color: #ffffff;
+    }
+
+    .modal-content.galint-bs-modal .btn-success {
+        --bs-btn-bg: #16a34a;
+        --bs-btn-border-color: #16a34a;
+        --bs-btn-hover-bg: #22c55e;
+        --bs-btn-hover-border-color: #22c55e;
+        --bs-btn-active-bg: #15803d;
+        --bs-btn-active-border-color: #15803d;
+        box-shadow: 0 10px 24px rgba(34, 197, 94, 0.18);
+    }
+
+    .modal-content.galint-bs-modal .btn-light {
+        --bs-btn-bg: rgba(255, 255, 255, 0.08);
+        --bs-btn-border-color: rgba(255, 255, 255, 0.08);
+        --bs-btn-color: #f8fbff;
+        --bs-btn-hover-bg: rgba(255, 255, 255, 0.16);
+        --bs-btn-hover-border-color: rgba(255, 255, 255, 0.16);
+        --bs-btn-hover-color: #ffffff;
+    }
+
+    .modal-content.galint-bs-modal .alert-light,
+    .modal-content.galint-bs-modal .alert.border,
+    .modal-content.galint-bs-modal .alert-danger {
+        background: rgba(255, 255, 255, 0.05);
+        border-color: rgba(148, 163, 184, 0.16) !important;
+        color: #e5eefc;
+    }
+
+    .galint-modal-panel {
+        padding: 1rem;
+        border-radius: 16px;
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        background: linear-gradient(180deg, rgba(18, 27, 42, 0.92) 0%, rgba(12, 19, 33, 0.96) 100%);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+    }
+
+    .galint-modal-panel--subtle {
+        background: rgba(255, 255, 255, 0.04);
+    }
+
+    .galint-modal-note {
+        padding: 0.9rem 1rem;
+        border-radius: 16px;
+        border: 1px solid rgba(96, 165, 250, 0.22);
+        background: rgba(59, 130, 246, 0.1);
+        color: #dbeafe;
+    }
+
+    .galint-modal-note--amber {
+        border-color: rgba(245, 158, 11, 0.22);
+        background: rgba(245, 158, 11, 0.1);
+        color: #fde68a;
+    }
+
+    .finance-guard-modal .modal-body {
+        padding: 1rem 1.15rem 1.15rem;
+    }
+
+    .finance-guard-modal textarea.form-control {
+        min-height: 120px;
+    }
+
+    .supplier-gate-modal .modal-title {
+        color: #ffffff;
+        font-weight: 800;
+    }
+
+    .supplier-gate-modal .text-primary {
+        color: #7dd3fc !important;
+    }
+
+    .supplier-gate-tip .btn-light {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .equivalent-item-modal .modal-body {
+        padding: 1.05rem 1.15rem 1.2rem;
+    }
+
+    .equivalent-item-modal .equivalent-item-card {
+        background: linear-gradient(180deg, rgba(18, 27, 42, 0.94) 0%, rgba(12, 19, 33, 0.98) 100%);
+        border-color: var(--equivalent-soft, rgba(148, 163, 184, 0.18));
+        box-shadow: 0 16px 28px rgba(2, 6, 23, 0.18);
+    }
+
+    .equivalent-item-modal .equivalent-item-card:hover {
+        border-color: var(--equivalent-accent, rgba(245, 158, 11, 0.46));
+        box-shadow: 0 18px 30px rgba(2, 6, 23, 0.2), 0 0 0 1px var(--equivalent-soft, rgba(245, 158, 11, 0.14));
+    }
+
+    .equivalent-item-modal .equivalent-item-card.is-selected {
+        border-color: var(--equivalent-accent, rgba(59, 130, 246, 0.62));
+        box-shadow: 0 0 0 3px var(--equivalent-soft, rgba(59, 130, 246, 0.18));
+    }
+
+    .equivalent-item-modal .equivalent-item-card-title,
+    .equivalent-item-modal .equivalent-item-modal-status {
+        color: #ffffff;
+    }
+
+    .equivalent-item-modal .equivalent-item-code,
+    .equivalent-item-modal .equivalent-item-brand {
+        color: #bfd0e5;
+    }
+
+    .equivalent-item-modal .equivalent-item-category-chip {
+        background: linear-gradient(180deg, var(--equivalent-soft, rgba(148, 163, 184, 0.22)), rgba(15, 23, 42, 0.28));
+        color: #f8fafc;
+    }
+
+    .equivalent-item-modal .equivalent-item-category-icon {
+        background: rgba(15, 23, 42, 0.34);
+    }
+
+    .equivalent-item-modal .form-check-label {
+        color: #dbe6f5;
+    }
+
+    .equivalent-item-modal .form-check-input {
+        background-color: rgba(8, 15, 28, 0.76);
+        border-color: rgba(148, 163, 184, 0.3);
+    }
+
+    .equivalent-item-modal .form-check-input:checked {
+        background-color: #2563eb;
+        border-color: #2563eb;
+    }
+
     @media (max-width: 768px) {
         .form-row {
             grid-template-columns: 1fr;
@@ -1155,6 +2076,8 @@
         {% if form_item and form_item.pre_cadastro_pendente %}
         <input type="hidden" name="finalizar_pre_cadastro" value="1">
         {% endif %}
+        <input type="hidden" name="return_to" value="{{ return_to if return_to is defined else '' }}">
+        <input type="hidden" name="pre_registered_document_number" value="{{ pre_registered_document_number if pre_registered_document_number is defined else '' }}">
         <input type="hidden" name="equivalent_item_action" id="equivalent_item_action" value="{{ form_item.equivalent_item_action if form_item and form_item.equivalent_item_action else '' }}">
         <input type="hidden" name="equivalent_item_source_code" id="equivalent_item_source_code" value="{{ form_item.equivalent_item_source_code if form_item and form_item.equivalent_item_source_code else '' }}">
         <input type="hidden" name="equivalent_item_reuse_photo" id="equivalent_item_reuse_photo" value="{{ form_item.equivalent_item_reuse_photo if form_item and form_item.equivalent_item_reuse_photo else '0' }}">
@@ -1245,66 +2168,62 @@
                                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
                                 </div>
                                 <div class="modal-body">
-                                    <div class="photo-assistant-hero">
-                                        <div>
-                                            <div class="photo-assistant-kicker">Atalho rápido</div>
-                                            <h6 class="mb-1" id="foto-assistente-item-nome">{{ form_item.descricao if form_item else 'Item' }}</h6>
-                                            <p class="text-muted mb-0">Abra um buscador externo, escolha a imagem e aplique o link direto sem sair desta tela.</p>
+                                    <div class="photo-assistant-shell">
+                                        <div class="photo-assistant-hero">
+                                            <div class="photo-assistant-copy">
+                                                <div class="photo-assistant-kicker">Buscador rapido</div>
+                                                <h6 class="photo-assistant-title mb-1" id="foto-assistente-item-nome">{{ form_item.descricao if form_item else 'Item' }}</h6>
+                                                <p class="photo-assistant-subtitle mb-0">Pesquise fora, copie o link direto e volte. Quando o navegador permitir, ele entra sozinho no campo.</p>
+                                            </div>
+                                            <div class="photo-assistant-preview" id="foto-assistente-preview-box">
+                                                <img id="foto-assistente-preview" alt="Previa da foto atual do item">
+                                            </div>
                                         </div>
-                                        <div class="photo-assistant-preview" id="foto-assistente-preview-box">
-                                            <img id="foto-assistente-preview" alt="Prévia da foto atual do item">
-                                            <div class="text-muted small text-center px-2 d-none" id="foto-assistente-preview-placeholder">Sem foto atual</div>
+
+                                        <div class="photo-assistant-section">
+                                            <div class="photo-assistant-section-head">
+                                                <div class="photo-assistant-section-title">Busca externa</div>
+                                                <span class="photo-assistant-inline-hint">Ajuste o termo e abra o buscador</span>
+                                            </div>
+                                            <div class="photo-assistant-query-row">
+                                                <div class="photo-assistant-field">
+                                                    <label class="form-label" for="foto-search-query">Termo de busca</label>
+                                                    <input class="form-control" id="foto-search-query" placeholder="Ex.: pincel 3 atlas">
+                                                </div>
+                                                <button class="btn btn-outline-secondary photo-assistant-copy-btn" type="button" id="foto-copy-query-btn">
+                                                    <i class="bi bi-clipboard me-1"></i>Copiar termo
+                                                </button>
+                                            </div>
+                                            <div class="photo-assistant-actions">
+                                                <button class="btn btn-outline-primary" type="button" id="foto-search-google-btn">
+                                                    <i class="bi bi-google me-1"></i>Abrir Google Imagens
+                                                </button>
+                                                <button class="btn btn-outline-info" type="button" id="foto-search-bing-btn">
+                                                    <i class="bi bi-search me-1"></i>Abrir Bing Images
+                                                </button>
+                                            </div>
                                         </div>
-                                    </div>
 
-                                    <hr>
-
-                                    <div class="row g-3">
-                                        <div class="col-md-8">
-                                            <label class="form-label" for="foto-search-query">Termo de busca</label>
-                                            <input class="form-control" id="foto-search-query" placeholder="Ex.: pincel 3 atlas">
-                                            <div class="form-text">Você pode ajustar o termo antes de abrir o buscador externo.</div>
+                                        <div class="photo-assistant-section">
+                                            <div class="photo-assistant-section-head">
+                                                <div class="photo-assistant-section-title">Link direto</div>
+                                                <span class="photo-assistant-inline-hint">Copiou a URL? ela cai aqui sozinha.</span>
+                                            </div>
+                                            <label class="form-label visually-hidden" for="input-foto-url">Cole o link direto da imagem</label>
+                                            <input class="form-control" id="input-foto-url" placeholder="https://site.com/imagem.jpg">
                                         </div>
-                                        <div class="col-md-4 d-flex align-items-end">
-                                            <button class="btn btn-outline-secondary w-100" type="button" id="foto-copy-query-btn">
-                                                <i class="bi bi-clipboard me-1"></i>Copiar termo
-                                            </button>
+
+                                        <div class="photo-remote-preview d-none" id="foto-remote-preview-wrap">
+                                            <div class="photo-remote-preview-label">Previa selecionada</div>
+                                            <img id="foto-remote-preview" alt="Previa da imagem selecionada">
                                         </div>
+
+                                        <div class="alert mb-0 d-none" id="alert-foto-url"></div>
                                     </div>
-
-                                    <div class="d-flex flex-wrap gap-2 mt-3">
-                                        <button class="btn btn-outline-primary" type="button" id="foto-search-google-btn">
-                                            <i class="bi bi-google me-1"></i>Abrir Google Imagens
-                                        </button>
-                                        <button class="btn btn-outline-info" type="button" id="foto-search-bing-btn">
-                                            <i class="bi bi-search me-1"></i>Abrir Bing Images
-                                        </button>
-                                    </div>
-
-                                    <hr>
-
-                                    <label class="form-label" for="input-foto-url">Cole o link direto da imagem</label>
-                                    <input class="form-control" id="input-foto-url" placeholder="https://site.com/imagem.jpg">
-                                    <div class="d-flex flex-wrap gap-2 mt-2">
-                                        <button class="btn btn-outline-light btn-sm" type="button" id="foto-preview-url-btn">
-                                            <i class="bi bi-eye me-1"></i>Ver prévia da URL
-                                        </button>
-                                        <button class="btn btn-outline-warning btn-sm d-none" type="button" id="foto-paste-suggestion-btn">
-                                            <i class="bi bi-clipboard-check me-1"></i>Usar link copiado
-                                        </button>
-                                    </div>
-                                    <small class="form-text">A imagem será baixada, redimensionada e comprimida automaticamente. Quando o navegador permitir, o campo sugere o último link de imagem copiado.</small>
-
-                                    <div class="photo-remote-preview mt-3 d-none" id="foto-remote-preview-wrap">
-                                        <div class="photo-remote-preview-label">Prévia da URL informada</div>
-                                        <img id="foto-remote-preview" alt="Prévia da URL da imagem">
-                                    </div>
-
-                                    <div class="alert mt-3 mb-0 d-none" id="alert-foto-url"></div>
                                 </div>
                                 <div class="modal-footer">
-                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                                    <button type="button" class="btn btn-primary" id="confirm-foto-url">Aplicar foto</button>
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                                    <button type="button" class="btn btn-primary" id="confirm-foto-url">Aplicar imagem</button>
                                 </div>
                             </div>
                         </div>
@@ -1316,25 +2235,53 @@
                     <div class="form-row">
                         <div class="form-group">
                             <label class="form-label" for="categoria">Categoria</label>
-                            <select class="form-select" id="categoria" name="categoria" required>
-                                {% set categoria = form_item.categoria if form_item else (category_options[0] if category_options else 'Material Elétrico') %}
-                                {% if categoria == 'Material Pintura' %}
-                                {% set categoria = 'Mat. Pintura e Drywall' %}
-                                {% elif categoria == 'Material de Pintura/Drywall' %}
-                                {% set categoria = 'Mat. Pintura e Drywall' %}
-                                {% elif categoria == 'Mat. Pintura E Drywall' %}
-                                {% set categoria = 'Mat. Pintura e Drywall' %}
-                                {% endif %}
-                                {% for choice in category_options %}
-                                <option value="{{ choice }}" {% if categoria==choice %}selected{% endif %}>{{ choice }}</option>
-                                {% endfor %}
-                            </select>
+                            {% set categoria = form_item.categoria if form_item else (category_options[0] if category_options else 'Material Elétrico') %}
+                            {% if categoria == 'Material Pintura' %}
+                            {% set categoria = 'Mat. Pintura e Drywall' %}
+                            {% elif categoria == 'Material de Pintura/Drywall' %}
+                            {% set categoria = 'Mat. Pintura e Drywall' %}
+                            {% elif categoria == 'Mat. Pintura E Drywall' %}
+                            {% set categoria = 'Mat. Pintura e Drywall' %}
+                            {% endif %}
+                            <div class="inventory-category-select">
+                                <select class="form-select inventory-hidden-native-select" id="categoria" name="categoria" required>
+                                    {% for choice in category_options %}
+                                    <option value="{{ choice }}" {% if categoria==choice %}selected{% endif %}>{{ choice }}</option>
+                                    {% endfor %}
+                                </select>
+                                <div class="category-visual-select-grid" data-visual-select="categoria">
+                                    {% for choice in category_options %}
+                                    {% set visual = (category_visual_catalog|selectattr('label', 'equalto', choice)|list|first) or (category_visual_catalog|selectattr('route', 'equalto', choice)|list|first) %}
+                                    <button type="button"
+                                        class="category-visual-select-option {% if categoria==choice %}is-selected{% endif %}"
+                                        data-select-value="{{ choice }}"
+                                        aria-pressed="{{ 'true' if categoria==choice else 'false' }}"
+                                        style="--category-accent: {{ visual.color if visual else '#94a3b8' }}; --category-soft: {{ visual.soft if visual else 'rgba(148, 163, 184, 0.18)' }};">
+                                        <span class="category-visual-chip" style="--category-accent: {{ visual.color if visual else '#94a3b8' }}; --category-soft: {{ visual.soft if visual else 'rgba(148, 163, 184, 0.18)' }};">
+                                            <span class="category-visual-chip-icon">{{ visual.icon if visual else '📦' }}</span>
+                                            <span class="category-visual-chip-label">{{ choice }}</span>
+                                        </span>
+                                    </button>
+                                    {% endfor %}
+                                </div>
+                                <div class="inventory-category-summary" id="category-visual-note"></div>
+                            </div>
                         </div>
                         <div class="form-group">
                             <label class="form-label" for="localizacao">Localização</label>
                             <input class="form-control" id="localizacao" name="localizacao"
                                 value="{{ form_item.localizacao if form_item else '' }}">
                         </div>
+                    </div>
+
+                    <div class="inventory-category-legend">
+                        {% set legend_items = category_visual_catalog %}
+                        {% set legend_kicker = 'Paleta oficial' %}
+                        {% set legend_title = 'Categorias que governam o estoque' %}
+                        {% set legend_note = 'A cor escolhida aqui reaparece nos cards, filtros e KPIs financeiros do sistema.' %}
+                        {% set legend_badge = 'Padrao unico' %}
+                        {% set legend_compact = true %}
+                        {% include 'partials/category_visual_legend.html' %}
                     </div>
 
                     <!-- Campos condicionais: Ferramentas -->
@@ -1363,73 +2310,124 @@
                         </div>
                     </div>
 
-                    <div class="form-row" style="margin-top: 1rem;">
-                        <div class="form-group">
-                            {% set saldo_base = 0 %}
-                            {% if saldo_desejado is not none %}
-                            {% set saldo_base = saldo_desejado %}
-                            {% elif form_item and form_item.saldo is not none %}
-                            {% set saldo_base = form_item.saldo %}
-                            {% endif %}
+                    {% set saldo_base = 0 %}
+                    {% if saldo_desejado is not none %}
+                    {% set saldo_base = saldo_desejado %}
+                    {% elif form_item and form_item.saldo is not none %}
+                    {% set saldo_base = form_item.saldo %}
+                    {% endif %}
 
-                            {% set tem_embalagem = form_item and form_item.tipo_embalagem_novo and (form_item.unidades_por_embalagem or form_item.grandeza_referencia or form_item.litros_por_embalagem) %}
-                            {% set saldo_base_valor = saldo_base if saldo_base is not none else 0 %}
-                            {% set tipo_emb = (form_item.tipo_embalagem_novo or '')|lower if form_item else '' %}
-                            {% set nome_embalagem = tipo_emb if tipo_emb else 'embalagem' %}
-                            {% set unidades_soltas = (form_item.estoque_unidades_soltas or 0) if form_item else 0 %}
-                            {% set conteudo_embalagem = form_item.unidades_por_embalagem if form_item and form_item.unidades_por_embalagem is not none else None %}
-                            {% set label_solta = 'Unidades soltas' %}
-                            {% if tipo_emb == 'rolo' %}
-                                {% set label_solta = 'Metros soltos' %}
-                            {% elif tipo_emb in ['lata', 'balde', 'bombona', 'litro'] and form_item and form_item.litros_por_embalagem %}
-                                {% set label_solta = 'Litros soltos' %}
-                                {% set conteudo_embalagem = form_item.litros_por_embalagem %}
-                            {% elif tipo_emb in ['lata', 'balde', 'bombona', 'pacote', 'saco'] and form_item and form_item.grandeza_referencia %}
-                                {% set label_solta = 'Kg soltos' %}
-                                {% set conteudo_embalagem = form_item.grandeza_referencia %}
-                            {% endif %}
-                            <label class="form-label" for="saldo_atual">
-                                {% if tem_embalagem %}Embalagens fechadas em estoque{% else %}Saldo em estoque{% endif %}
-                            </label>
-                            <input class="form-control" id="saldo_atual" name="saldo_atual" type="number" min="0" step="0.01"
-                                value="{{ saldo_base_valor }}" readonly>
-                            <small class="form-text">
-                                Saldo bloqueado para edição manual. Entradas devem ser registradas em <strong>Documentos Fiscais</strong>{% if tem_embalagem %}. Aqui fica a quantidade de <strong>{{ nome_embalagem }}s fechadas</strong>; o conteúdo de cada {{ nome_embalagem }} é configurado na aba <strong>Unidades</strong>{% endif %}.
-                            </small>
-                        </div>
+                    {% set tem_embalagem = form_item and form_item.tipo_embalagem_novo and (form_item.unidades_por_embalagem or form_item.grandeza_referencia or form_item.litros_por_embalagem) %}
+                    {% set saldo_base_valor = saldo_base if saldo_base is not none else 0 %}
+                    {% set tipo_emb = (form_item.tipo_embalagem_novo or '')|lower if form_item else '' %}
+                    {% set nome_embalagem = tipo_emb if tipo_emb else 'embalagem' %}
+                    {% set unidades_soltas = (form_item.estoque_unidades_soltas or 0) if form_item else 0 %}
+                    {% set conteudo_embalagem = form_item.unidades_por_embalagem if form_item and form_item.unidades_por_embalagem is not none else None %}
+                    {% set label_solta = 'Unidades soltas' %}
+                    {% set unit_options = base_unit_options if base_unit_options is defined else ['Unidade', 'Par', 'Metro', 'Quilo', 'Litro'] %}
+                    {% set unidade_atual = selected_base_unit if selected_base_unit is defined and selected_base_unit else 'Unidade' %}
+                    {% if tipo_emb == 'rolo' %}
+                        {% set label_solta = 'Metros soltos' %}
+                    {% elif tipo_emb in ['lata', 'balde', 'bombona', 'litro'] and form_item and form_item.litros_por_embalagem %}
+                        {% set label_solta = 'Litros soltos' %}
+                        {% set conteudo_embalagem = form_item.litros_por_embalagem %}
+                    {% elif tipo_emb in ['lata', 'balde', 'bombona', 'pacote', 'saco'] and form_item and form_item.grandeza_referencia %}
+                        {% set label_solta = 'Kg soltos' %}
+                        {% set conteudo_embalagem = form_item.grandeza_referencia %}
+                    {% endif %}
 
-                        {% if tem_embalagem %}
-                        <div class="form-group">
-                            <label class="form-label" for="saldo_unidades_soltas">{{ label_solta }}</label>
-                            <input class="form-control" id="saldo_unidades_soltas" name="saldo_unidades_soltas" type="number" min="0" step="0.01"
-                                value="{{ unidades_soltas }}" readonly>
-                            <small class="form-text">Parte aberta/solta do estoque, controlada automaticamente pelo fluxo documental.</small>
-                        </div>
-                        {% endif %}
-                        <div class="form-group">
-                            <label class="form-label" for="unidade">Unidade base do item</label>
-                            <select class="form-select" id="unidade" name="unidade" required>
-                                {% set unit_options = base_unit_options if base_unit_options is defined else ['Unidade', 'Metro', 'Quilo', 'Litro'] %}
-                                {% set unidade_atual = selected_base_unit if selected_base_unit is defined and selected_base_unit else 'Unidade' %}
-                                {% for choice in unit_options %}
-                                <option value="{{ choice }}" {% if unidade_atual==choice %}selected{% endif %}>{{ choice }}</option>
-                                {% endfor %}
-                            </select>
-                            <small class="form-text">Essa é a unidade canônica usada pelo ledger e pelo saldo físico do item.</small>
-                            {% if form_item and form_item.unidade and form_item.unidade != unidade_atual %}
-                            <small class="form-text text-warning">Valor legado detectado: {{ form_item.unidade }}. O formulário agora opera com a unidade base {{ unidade_atual }}.</small>
-                            {% endif %}
-                        </div>
+                    <div class="inventory-ops-overview" style="margin-top: 1rem;">
+                        <section class="inventory-ops-card is-highlight">
+                            <div class="inventory-ops-card-header">
+                                <div>
+                                    <div class="inventory-ops-eyebrow">Leitura operacional</div>
+                                    <h3 class="section-title" style="margin-bottom: 0;">📦 Saldo do item</h3>
+                                </div>
+                                {% if tem_embalagem %}
+                                <span class="inventory-ops-badge">{{ nome_embalagem|capitalize }}</span>
+                                {% endif %}
+                            </div>
+                            <div class="inventory-ops-inline-grid">
+                                <div class="form-group">
+                                    <label class="form-label" for="saldo_atual">
+                                        {% if tem_embalagem %}Embalagens fechadas em estoque{% else %}Saldo em estoque{% endif %}
+                                    </label>
+                                    <input class="form-control" id="saldo_atual" name="saldo_atual" type="number" min="0" step="0.01"
+                                        value="{{ saldo_base_valor }}" readonly>
+                                </div>
+
+                                {% if tem_embalagem %}
+                                <div class="form-group">
+                                    <label class="form-label" for="saldo_unidades_soltas">{{ label_solta }}</label>
+                                    <input class="form-control" id="saldo_unidades_soltas" name="saldo_unidades_soltas" type="number" min="0" step="0.01"
+                                        value="{{ unidades_soltas }}" readonly>
+                                </div>
+                                {% endif %}
+                            </div>
+                            <div class="inventory-ops-caption">
+                                Saldo bloqueado para edição manual. As entradas devem ser registradas em <strong>Documentos Fiscais</strong>{% if tem_embalagem %}, onde a compra entra em <strong>{{ nome_embalagem }}</strong> e a conversão para a unidade interna é aplicada automaticamente{% endif %}.
+                            </div>
+                        </section>
+
+                        <section class="inventory-ops-card">
+                            <div class="inventory-ops-card-header">
+                                <div>
+                                    <div class="inventory-ops-eyebrow">Ledger e saldo</div>
+                                    <h3 class="section-title" style="margin-bottom: 0;">🧭 Unidade base</h3>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <span class="inventory-help-row">
+                                    <label class="form-label" for="unidade">Unidade base do item</label>
+                                    <button type="button" class="inventory-help-icon" data-galint-help-tooltip data-bs-toggle="tooltip" title="Unidade canônica do ledger e do saldo físico. Use Par para itens como luvas e botas." aria-label="Ajuda sobre a unidade base do item">?</button>
+                                </span>
+                                <select class="form-select inventory-hidden-native-select" id="unidade" name="unidade" required>
+                                    {% for choice in unit_options %}
+                                    <option value="{{ choice }}" {% if unidade_atual==choice %}selected{% endif %}>{{ choice }}</option>
+                                    {% endfor %}
+                                </select>
+                                <div class="inventory-choice-grid" data-visual-select="unidade">
+                                    {% for choice in unit_options %}
+                                    <label class="inventory-switch-option {% if unidade_atual==choice %}is-selected{% endif %}" data-select-value="{{ choice }}" aria-pressed="{{ 'true' if unidade_atual==choice else 'false' }}" role="button" tabindex="0">
+                                        <span class="inventory-switch-toggle" aria-hidden="true"></span>
+                                        <span>{{ choice }}</span>
+                                    </label>
+                                    {% endfor %}
+                                </div>
+                                <small class="form-text field-help-hidden">Unidade canônica do ledger e do saldo físico. Use Par para itens como luvas e botas.</small>
+                                {% if form_item and form_item.unidade and form_item.unidade != unidade_atual %}
+                                <small class="form-text text-warning">Valor legado detectado: {{ form_item.unidade }}. O formulário agora opera com a unidade base {{ unidade_atual }}.</small>
+                                {% endif %}
+                            </div>
+                            <div class="inventory-ops-chip-row">
+                                <span class="inventory-ops-chip">Ledger em {{ unidade_atual }}</span>
+                                {% if tem_embalagem %}
+                                <span class="inventory-ops-chip">Compra em {{ nome_embalagem }}</span>
+                                {% endif %}
+                                <span class="inventory-ops-chip">Fracionamento controlado</span>
+                            </div>
+                        </section>
                     </div>
 
                     {% if tem_embalagem %}
-                    <div class="alert alert-info" style="margin-top: 0.75rem;">
-                        <strong>Como este cadastro funciona:</strong> cada {{ nome_embalagem }} contém <strong>{{ conteudo_embalagem }}</strong> {{ unidade_total_ean }}. O campo acima mostra as {{ nome_embalagem }}s fechadas em estoque; a parte já aberta aparece separadamente como <strong>{{ label_solta|lower }}</strong>.
+                    <div class="inventory-ops-flow">
+                        <div class="inventory-ops-step">
+                            <strong>Compra documental</strong>
+                            A quantidade do documento entra em {{ nome_embalagem }} e não altera manualmente este formulário.
+                        </div>
+                        <div class="inventory-ops-step">
+                            <strong>Conversão automática</strong>
+                            Cada {{ nome_embalagem }} equivale a <strong>{{ conteudo_embalagem }}</strong> {{ unidade_total_ean }}.
+                        </div>
+                        <div class="inventory-ops-step">
+                            <strong>Leitura do saldo</strong>
+                            O sistema separa o estoque fechado da parte aberta exibida como <strong>{{ label_solta|lower }}</strong>.
+                        </div>
                     </div>
                     {% endif %}
 
-                    <div class="alert alert-info">
-                        💡 O estoque mínimo é calculado automaticamente em 5% do saldo atual e alimenta os alertas do dashboard.
+                    <div class="inventory-ops-note">
+                        <strong>Reposição mínima.</strong> O estoque mínimo continua automático em 5% do saldo atual e segue alimentando os alertas do dashboard.
                     </div>
 
                     {% if saldo_total_ean is not none and saldo_total_ean > 0 %}
@@ -1778,126 +2776,176 @@
             <!-- Tab 5: Unidades Dinâmicas -->
                 <div class="tab-pane" id="tab-unidades">
                     <input type="hidden" id="advanced_unit_settings_json" name="advanced_unit_settings_json">
-                    <!-- Sistema de Embalagens -->
-                    <div class="form-group">
-                        <label class="form-label">Tipo de Embalagem</label>
-                        {% set tipo_emb_novo = form_item.tipo_embalagem_novo if form_item and form_item.tipo_embalagem_novo else '' %}
-                        <p class="form-text" style="margin-bottom: 0.75rem; font-size: 0.9rem;">
-                            Aqui você define somente a embalagem operacional e quanto cabe dentro de 1 embalagem. O saldo e o ledger continuam trabalhando pela unidade base do item.
-                        </p>
-                        <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
-                            <div class="form-check form-check-inline">
-                                <input class="form-check-input" type="radio" name="tipo_embalagem_novo" id="tipo_novo_lata" value="lata" {% if tipo_emb_novo=='lata' %}checked{% endif %}>
-                                <label class="form-check-label" for="tipo_novo_lata">Lata</label>
-                            </div>
-                            <div class="form-check form-check-inline">
-                                <input class="form-check-input" type="radio" name="tipo_embalagem_novo" id="tipo_novo_rolo" value="rolo" {% if tipo_emb_novo=='rolo' %}checked{% endif %}>
-                                <label class="form-check-label" for="tipo_novo_rolo">Rolo</label>
-                            </div>
-                            <div class="form-check form-check-inline">
-                                <input class="form-check-input" type="radio" name="tipo_embalagem_novo" id="tipo_novo_pacote" value="pacote" {% if tipo_emb_novo=='pacote' %}checked{% endif %}>
-                                <label class="form-check-label" for="tipo_novo_pacote">Pacote</label>
-                            </div>
-                            <div class="form-check form-check-inline">
-                                <input class="form-check-input" type="radio" name="tipo_embalagem_novo" id="tipo_novo_caixa" value="caixa" {% if tipo_emb_novo=='caixa' %}checked{% endif %}>
-                                <label class="form-check-label" for="tipo_novo_caixa">Caixa</label>
-                            </div>
-                            <div class="form-check form-check-inline">
-                                <input class="form-check-input" type="radio" name="tipo_embalagem_novo" id="tipo_novo_fardo" value="fardo" {% if tipo_emb_novo=='fardo' %}checked{% endif %}>
-                                <label class="form-check-label" for="tipo_novo_fardo">Fardo</label>
-                            </div>
-                            <div class="form-check form-check-inline">
-                                <input class="form-check-input" type="radio" name="tipo_embalagem_novo" id="tipo_novo_litro" value="litro" {% if tipo_emb_novo=='litro' %}checked{% endif %}>
-                                <label class="form-check-label" for="tipo_novo_litro">Litro</label>
-                            </div>
-                            <div class="form-check form-check-inline">
-                                <input class="form-check-input" type="radio" name="tipo_embalagem_novo" id="tipo_novo_balde" value="balde" {% if tipo_emb_novo=='balde' %}checked{% endif %}>
-                                <label class="form-check-label" for="tipo_novo_balde">Balde</label>
-                            </div>
-                            <div class="form-check form-check-inline">
-                                <input class="form-check-input" type="radio" name="tipo_embalagem_novo" id="tipo_novo_bombona" value="bombona" {% if tipo_emb_novo=='bombona' %}checked{% endif %}>
-                                <label class="form-check-label" for="tipo_novo_bombona">Bombona</label>
-                            </div>
-                            <div class="form-check form-check-inline">
-                                <input class="form-check-input" type="radio" name="tipo_embalagem_novo" id="tipo_novo_saco" value="saco" {% if tipo_emb_novo=='saco' %}checked{% endif %}>
-                                <label class="form-check-label" for="tipo_novo_saco">Saco</label>
-                            </div>
-                            <div class="form-check form-check-inline">
-                                <input class="form-check-input" type="radio" name="tipo_embalagem_novo" id="tipo_novo_nenhum" value="" {% if not tipo_emb_novo %}checked{% endif %}>
-                                <label class="form-check-label" for="tipo_novo_nenhum">Nenhum</label>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div id="unidade-embalagem-field" style="display: none; margin-top: 0.75rem;">
-                        <label class="form-label">Unidade do conteúdo da embalagem</label>
+                    {% set tipo_emb_novo = form_item.tipo_embalagem_novo if form_item and form_item.tipo_embalagem_novo else '' %}
+                    {% set unidade_base_exibicao = selected_base_unit if selected_base_unit is defined and selected_base_unit else 'Unidade' %}
+                    {% set unidade_emb_nova = 'unidade' %}
+                    {% if form_item and form_item.litros_por_embalagem %}
+                        {% set unidade_emb_nova = 'litro' %}
+                    {% elif form_item and form_item.grandeza_referencia and tipo_emb_novo in ['lata', 'balde', 'bombona', 'pacote', 'saco'] %}
+                        {% set unidade_emb_nova = 'kg' %}
+                    {% elif tipo_emb_novo in ['pacote', 'caixa', 'fardo', 'saco'] %}
                         {% set unidade_emb_nova = 'unidade' %}
-                        {% if form_item and form_item.litros_por_embalagem %}
-                            {% set unidade_emb_nova = 'litro' %}
-                        {% elif form_item and form_item.grandeza_referencia and tipo_emb_novo in ['lata', 'balde', 'bombona', 'pacote', 'saco'] %}
-                            {% set unidade_emb_nova = 'kg' %}
-                        {% elif tipo_emb_novo in ['pacote', 'caixa', 'fardo', 'saco'] %}
-                            {% set unidade_emb_nova = 'unidade' %}
-                        {% endif %}
-                        <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
-                            <div class="form-check form-check-inline" id="unidade-emb-opcao-litro">
-                                <input class="form-check-input" type="radio" name="unidade_embalagem_novo" id="unidade_emb_litro" value="litro" 
-                                {% if unidade_emb_nova == 'litro' %}checked{% endif %}>
-                                <label class="form-check-label" for="unidade_emb_litro">Litros</label>
-                            </div>
-                            <div class="form-check form-check-inline" id="unidade-emb-opcao-unidade">
-                                <input class="form-check-input" type="radio" name="unidade_embalagem_novo" id="unidade_emb_unidade" value="unidade"
-                                {% if unidade_emb_nova == 'unidade' %}checked{% endif %}>
-                                <label class="form-check-label" for="unidade_emb_unidade">Unidades</label>
-                            </div>
-                            <div class="form-check form-check-inline">
-                                <input class="form-check-input" type="radio" name="unidade_embalagem_novo" id="unidade_emb_kg" value="kg"
-                                {% if unidade_emb_nova == 'kg' %}checked{% endif %}>
-                                <label class="form-check-label" for="unidade_emb_kg">Kg</label>
-                            </div>
-                        </div>
-                        <small class="form-text" id="help-unidade-embalagem">Escolha a unidade que existe dentro da embalagem: litros, unidades ou kg.</small>
-                    </div>
+                    {% endif %}
+                    {% set val_inicial = form_item.unidades_por_embalagem if form_item and form_item.unidades_por_embalagem else '' %}
+                    {% if form_item and form_item.litros_por_embalagem %}
+                        {% set val_inicial = form_item.litros_por_embalagem %}
+                    {% elif form_item and form_item.grandeza_referencia and tipo_emb_novo in ['lata', 'balde', 'bombona', 'pacote', 'saco'] %}
+                        {% set val_inicial = form_item.grandeza_referencia %}
+                    {% endif %}
 
-                    <!-- Campo condicional: Unidades por Embalagem -->
-                    <div id="unidades-embalagem-field" style="display: {% if tipo_emb_novo %}block{% else %}none{% endif %};">
-                        <div class="form-group">
-                            <label class="form-label" for="unidades_por_embalagem">Conteúdo de 1 <span id="nome-embalagem">Embalagem</span></label>
-                            {% set val_inicial = form_item.unidades_por_embalagem if form_item and form_item.unidades_por_embalagem else '' %}
-                            {% if form_item and form_item.litros_por_embalagem %}
-                                {% set val_inicial = form_item.litros_por_embalagem %}
-                            {% elif form_item and form_item.grandeza_referencia and tipo_emb_novo in ['lata', 'balde', 'bombona', 'pacote', 'saco'] %}
-                                {% set val_inicial = form_item.grandeza_referencia %}
-                            {% endif %}
-                            <input class="form-control" id="unidades_por_embalagem" name="unidades_por_embalagem" type="number" step="0.01" min="0"
-                                value="{{ val_inicial }}"
-                                placeholder="Ex: 100 unidades por caixa">
-                            <small class="form-text" id="help-unidades-embalagem">Informe quanto vem dentro de 1 embalagem. Ex: 100 unidades por caixa</small>
-                        </div>
-
-                        <!-- Preview de Conversão -->
-                        <div class="alert alert-info" id="preview-embalagem" style="display: none; margin-top: 1rem;">
-                            <strong>Preview de Conversão:</strong>
-                            <div id="preview-texto"></div>
-                        </div>
-                    </div>
-
-                    <div class="form-group" style="margin-top: 1.5rem;">
-                        <div style="display: flex; justify-content: space-between; gap: 1rem; align-items: center; flex-wrap: wrap;">
-                            <div>
-                                <label class="form-label" style="margin-bottom: 0.2rem;">Grandezas e conversões avançadas</label>
-                                <small class="form-text">Cadastre outras grandezas do item e defina conversões entre as unidades disponíveis.</small>
+                    <div class="packaging-studio">
+                        <section class="packaging-studio-hero">
+                            <div class="packaging-studio-hero-copy">
+                                <div class="inventory-ops-eyebrow">Modo operacional</div>
+                                <h3 class="section-title" style="margin-bottom: 0.35rem;">📦 Embalagem e conversões</h3>
+                                <p class="form-text" style="margin: 0;">
+                                    Defina como o item entra no documento e como essa leitura é convertida para o estoque. O ledger e o saldo interno continuam em <strong>{{ unidade_base_exibicao }}</strong>.
+                                </p>
                             </div>
-                            <button type="button" class="btn btn-secondary" id="advanced-units-open-button">Abrir configurações</button>
+                            <div class="inventory-ops-chip-row">
+                                <span class="inventory-ops-chip" id="packaging-base-chip">Base: {{ unidade_base_exibicao }}</span>
+                                <span class="inventory-ops-chip" id="packaging-mode-chip">{% if tipo_emb_novo %}Compra em {{ tipo_emb_novo|capitalize }}{% else %}Sem embalagem{% endif %}</span>
+                                <span class="inventory-ops-chip" id="packaging-content-chip">{% if val_inicial %}Conteúdo definido{% else %}Conteúdo pendente{% endif %}</span>
+                            </div>
+                        </section>
+
+                        <div class="packaging-studio-grid">
+                            <section class="packaging-studio-panel">
+                                <span class="inventory-help-row">
+                                    <label class="form-label">Tipo de Embalagem</label>
+                                    <button type="button" class="inventory-help-icon" data-galint-help-tooltip data-bs-toggle="tooltip" title="Escolha só a embalagem operacional da compra. Use Nenhum quando a NF já vier na mesma unidade interna do item." aria-label="Ajuda sobre tipo de embalagem">?</button>
+                                </span>
+                                <p class="form-text field-help-hidden" style="margin-bottom: 0.9rem;">
+                                    Escolha só a embalagem operacional da compra. Use <strong>Nenhum</strong> quando a NF já vier na mesma unidade interna do item.
+                                </p>
+                                <div class="packaging-radio-grid">
+                                    <div class="form-check packaging-radio-card">
+                                        <input class="form-check-input" type="radio" name="tipo_embalagem_novo" id="tipo_novo_lata" value="lata" {% if tipo_emb_novo=='lata' %}checked{% endif %}>
+                                        <label class="form-check-label" for="tipo_novo_lata">Lata</label>
+                                    </div>
+                                    <div class="form-check packaging-radio-card">
+                                        <input class="form-check-input" type="radio" name="tipo_embalagem_novo" id="tipo_novo_rolo" value="rolo" {% if tipo_emb_novo=='rolo' %}checked{% endif %}>
+                                        <label class="form-check-label" for="tipo_novo_rolo">Rolo</label>
+                                    </div>
+                                    <div class="form-check packaging-radio-card">
+                                        <input class="form-check-input" type="radio" name="tipo_embalagem_novo" id="tipo_novo_pacote" value="pacote" {% if tipo_emb_novo=='pacote' %}checked{% endif %}>
+                                        <label class="form-check-label" for="tipo_novo_pacote">Pacote</label>
+                                    </div>
+                                    <div class="form-check packaging-radio-card">
+                                        <input class="form-check-input" type="radio" name="tipo_embalagem_novo" id="tipo_novo_caixa" value="caixa" {% if tipo_emb_novo=='caixa' %}checked{% endif %}>
+                                        <label class="form-check-label" for="tipo_novo_caixa">Caixa</label>
+                                    </div>
+                                    <div class="form-check packaging-radio-card">
+                                        <input class="form-check-input" type="radio" name="tipo_embalagem_novo" id="tipo_novo_fardo" value="fardo" {% if tipo_emb_novo=='fardo' %}checked{% endif %}>
+                                        <label class="form-check-label" for="tipo_novo_fardo">Fardo</label>
+                                    </div>
+                                    {% if tipo_emb_novo == 'litro' %}
+                                    <div class="form-check packaging-radio-card">
+                                        <input class="form-check-input" type="radio" name="tipo_embalagem_novo" id="tipo_novo_litro" value="litro" {% if tipo_emb_novo=='litro' %}checked{% endif %}>
+                                        <label class="form-check-label" for="tipo_novo_litro">Litro legado</label>
+                                    </div>
+                                    {% endif %}
+                                    <div class="form-check packaging-radio-card">
+                                        <input class="form-check-input" type="radio" name="tipo_embalagem_novo" id="tipo_novo_balde" value="balde" {% if tipo_emb_novo=='balde' %}checked{% endif %}>
+                                        <label class="form-check-label" for="tipo_novo_balde">Balde</label>
+                                    </div>
+                                    <div class="form-check packaging-radio-card">
+                                        <input class="form-check-input" type="radio" name="tipo_embalagem_novo" id="tipo_novo_bombona" value="bombona" {% if tipo_emb_novo=='bombona' %}checked{% endif %}>
+                                        <label class="form-check-label" for="tipo_novo_bombona">Bombona</label>
+                                    </div>
+                                    <div class="form-check packaging-radio-card">
+                                        <input class="form-check-input" type="radio" name="tipo_embalagem_novo" id="tipo_novo_saco" value="saco" {% if tipo_emb_novo=='saco' %}checked{% endif %}>
+                                        <label class="form-check-label" for="tipo_novo_saco">Saco</label>
+                                    </div>
+                                    <div class="form-check packaging-radio-card">
+                                        <input class="form-check-input" type="radio" name="tipo_embalagem_novo" id="tipo_novo_nenhum" value="" {% if not tipo_emb_novo %}checked{% endif %}>
+                                        <label class="form-check-label" for="tipo_novo_nenhum">Nenhum</label>
+                                    </div>
+                                </div>
+                                {% if tipo_emb_novo == 'litro' %}
+                                <div class="inventory-ops-note is-warning" style="margin-top: 0.9rem;">
+                                    Cadastro legado em litro mantido por compatibilidade. Para novos recipientes, prefira Lata, Balde ou Bombona; deixe Litro só para frascos antigos de 500ml, 900ml e 1L.
+                                </div>
+                                {% endif %}
+                            </section>
+
+                            <section class="packaging-studio-panel packaging-studio-summary">
+                                <div>
+                                    <div class="inventory-ops-eyebrow">Resumo vivo</div>
+                                    <div class="packaging-live-title" id="packaging-live-title">
+                                        {% if tipo_emb_novo %}{{ tipo_emb_novo|capitalize }} convertida para {{ unidade_base_exibicao }}{% else %}Sem embalagem operacional{% endif %}
+                                    </div>
+                                    <div class="packaging-live-line" id="packaging-live-line">
+                                        {% if tipo_emb_novo and val_inicial %}
+                                        Cada {{ tipo_emb_novo }} registrada no documento será convertida para a unidade base do item.
+                                        {% else %}
+                                        Escolha a embalagem documental e informe o conteúdo para completar a regra de conversão automática.
+                                        {% endif %}
+                                    </div>
+                                </div>
+
+                                <div id="unidade-embalagem-field" style="display: none; margin-top: 0;">
+                                    <span class="inventory-help-row">
+                                        <label class="form-label">Unidade do conteúdo da embalagem</label>
+                                        <button type="button" class="inventory-help-icon" data-galint-help-tooltip data-bs-toggle="tooltip" title="Escolha a unidade que existe dentro da embalagem: litros, unidades ou kg, conforme o tipo de recipiente." aria-label="Ajuda sobre unidade do conteúdo da embalagem">?</button>
+                                    </span>
+                                    <div class="packaging-radio-grid packaging-radio-grid--compact">
+                                        <div class="form-check packaging-radio-card" id="unidade-emb-opcao-litro">
+                                            <input class="form-check-input" type="radio" name="unidade_embalagem_novo" id="unidade_emb_litro" value="litro" {% if unidade_emb_nova == 'litro' %}checked{% endif %}>
+                                            <label class="form-check-label" for="unidade_emb_litro">Litros</label>
+                                        </div>
+                                        <div class="form-check packaging-radio-card" id="unidade-emb-opcao-unidade">
+                                            <input class="form-check-input" type="radio" name="unidade_embalagem_novo" id="unidade_emb_unidade" value="unidade" {% if unidade_emb_nova == 'unidade' %}checked{% endif %}>
+                                            <label class="form-check-label" for="unidade_emb_unidade" id="unidade-emb-label-unidade">Unidades</label>
+                                        </div>
+                                        <div class="form-check packaging-radio-card">
+                                            <input class="form-check-input" type="radio" name="unidade_embalagem_novo" id="unidade_emb_kg" value="kg" {% if unidade_emb_nova == 'kg' %}checked{% endif %}>
+                                            <label class="form-check-label" for="unidade_emb_kg">Kg</label>
+                                        </div>
+                                    </div>
+                                    <small class="form-text field-help-hidden" id="help-unidade-embalagem">Escolha a unidade que existe dentro da embalagem: litros, unidades ou kg.</small>
+                                </div>
+
+                                <div id="unidades-embalagem-field" style="display: {% if tipo_emb_novo %}block{% else %}none{% endif %};">
+                                    <div class="form-group">
+                                        <span class="inventory-help-row">
+                                            <label class="form-label" for="unidades_por_embalagem">Conteúdo de 1 <span id="nome-embalagem">Embalagem</span></label>
+                                            <button type="button" class="inventory-help-icon" data-galint-help-tooltip data-bs-toggle="tooltip" title="Informe quanto vem dentro de 1 embalagem usando a unidade interna do item. Exemplo: caixa com 100 unidades ou rolo com 50 metros." aria-label="Ajuda sobre conteúdo por embalagem">?</button>
+                                        </span>
+                                        <input class="form-control" id="unidades_por_embalagem" name="unidades_por_embalagem" type="number" step="0.01" min="0"
+                                            value="{{ val_inicial }}"
+                                            placeholder="Ex: 100 unidades por caixa">
+                                        <small class="form-text field-help-hidden" id="help-unidades-embalagem">Informe quanto vem dentro de 1 embalagem. Ex: 100 unidades por caixa</small>
+                                    </div>
+
+                                    <div class="alert alert-info" id="preview-embalagem" style="display: none; margin-top: 1rem;">
+                                        <strong>Preview de conversão</strong>
+                                        <div id="preview-texto"></div>
+                                    </div>
+                                </div>
+                            </section>
                         </div>
-                        <div class="advanced-link-row">
-                            <button type="button" class="dynamic-units-help-link" id="advanced-units-help-open-inline">
-                                <i class="bi bi-question-circle"></i> Como usar o configurador de unidades dinâmicas
-                            </button>
-                        </div>
-                        <div id="advanced-unit-summary" class="alert alert-info" style="margin-top: 0.75rem; display: block;">
-                            Nenhuma configuração avançada definida.
-                        </div>
+
+                        <section class="packaging-studio-panel">
+                            <div class="packaging-advanced-header">
+                                <div>
+                                    <span class="inventory-help-row">
+                                        <label class="form-label" style="margin-bottom: 0.2rem;">Grandezas e conversões avançadas</label>
+                                        <button type="button" class="inventory-help-icon" data-galint-help-tooltip data-bs-toggle="tooltip" title="Cadastre unidades extras como Par, Caixa ou Lata e relacione cada uma com a base do item sem mexer no ledger principal." aria-label="Ajuda sobre grandezas e conversões avançadas">?</button>
+                                    </span>
+                                    <small class="form-text field-help-hidden">Cadastre unidades extras como Par, Caixa ou Lata e relacione cada uma com a base do item.</small>
+                                </div>
+                                <button type="button" class="btn btn-secondary" id="advanced-units-open-button">Abrir configurações</button>
+                            </div>
+                            <div class="advanced-link-row">
+                                <button type="button" class="dynamic-units-help-link" id="advanced-units-help-open-inline">
+                                    <i class="bi bi-question-circle"></i> Como usar o configurador de unidades dinâmicas
+                                </button>
+                            </div>
+                            <div id="advanced-unit-summary" class="alert alert-info" style="margin-top: 0.75rem; display: block;">
+                                Nenhuma configuração avançada definida.
+                            </div>
+                        </section>
                     </div>
                 </div>
             </div>
@@ -1978,6 +3026,7 @@
                                     <div class="du-help-example">
                                         <strong>Exemplos</strong>
                                         <div class="du-help-code">Unidade   → codigo: unidade
+Par       → codigo: par
 Litro     → codigo: litro
 Caixa     → codigo: caixa
 Peça      → codigo: peca</div>
@@ -1987,7 +3036,7 @@ Peça      → codigo: peca</div>
                                     <p>Nome também é preenchido automaticamente a partir da unidade escolhida. Ele é o rótulo legível na tela.</p>
 
                                     <h4>4. Base</h4>
-                                    <p>A unidade base é a referência principal do item. Se o item é controlado por peça, normalmente a base é Unidade. Se é controlado por litro, a base costuma ser Litro.</p>
+                                    <p>A unidade base e a referencia principal do item. Use Unidade para pecas soltas, Par para luvas e botas, Litro para consumo volumetrico e assim por diante.</p>
 
                                     <div class="du-help-callout">
                                         <strong>Regra prática:</strong> marque como base a unidade em que você quer enxergar o estoque e fazer as conversões principais.
@@ -2030,6 +3079,12 @@ Resultado: 1 caixa = 12 unidades</div>
 Base: unidade
 Unidade adicional: caixa
 Conversão: 1 caixa = 100 unidades</div>
+
+                                    <h4>Luva em par</h4>
+                                    <div class="du-help-code">Grandeza: Unidade
+Base: par
+Unidade adicional: caixa
+Conversão: 1 caixa = 12 pares</div>
 
                                     <h4>Tinta em lata</h4>
                                     <div class="du-help-code">Grandeza: Volume
@@ -2140,7 +3195,7 @@ Conversão: 1 saco = 20 quilos</div>
 <div class="modal fade" id="supplierGateModal" tabindex="-1" aria-labelledby="supplierGateModalLabel"
     aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
     <div class="modal-dialog modal-dialog-centered modal-lg">
-        <div class="modal-content supplier-gate-modal">
+        <div class="modal-content supplier-gate-modal galint-bs-modal galint-bs-modal--sky">
             <div class="modal-header">
                 <div>
                     <div class="text-uppercase small fw-semibold text-primary" style="letter-spacing: 0.1em;">Etapa inicial</div>
@@ -2192,19 +3247,21 @@ Conversão: 1 saco = 20 quilos</div>
 <div class="modal fade" id="financeObservationRequiredModal" tabindex="-1"
     aria-labelledby="financeObservationRequiredModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
+        <div class="modal-content galint-bs-modal galint-bs-modal--amber finance-guard-modal">
             <div class="modal-header">
                 <h5 class="modal-title" id="financeObservationRequiredModalLabel">Observação financeira obrigatória</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
             </div>
             <div class="modal-body">
-                <p class="mb-2">Para cadastros de itens sem comprovação fiscal, o campo <strong>Observação financeira</strong> precisa ser preenchido antes de salvar.</p>
-                <p class="text-muted">Informe a justificativa da origem do valor, por exemplo: compra emergencial, saldo anterior sem comprovante ou valor estimado.</p>
-                <div class="form-group mb-0">
-                    <label class="form-label" for="finance_observacao_modal">Observação financeira</label>
-                    <textarea class="form-control" id="finance_observacao_modal" rows="3"
-                        placeholder="Ex.: compra emergencial, saldo anterior sem comprovante, valor estimado pela diretoria"></textarea>
-                    <small class="form-text">Esse texto será salvo automaticamente no cadastro do item.</small>
+                <div class="galint-modal-note galint-modal-note--amber mb-3">Para cadastros de itens sem comprovação fiscal, o campo <strong>Observação financeira</strong> precisa ser preenchido antes de salvar.</div>
+                <div class="galint-modal-panel">
+                    <p class="text-muted small mb-3">Informe a justificativa da origem do valor, por exemplo: compra emergencial, saldo anterior sem comprovante ou valor estimado.</p>
+                    <div class="form-group mb-0">
+                        <label class="form-label" for="finance_observacao_modal">Observação financeira</label>
+                        <textarea class="form-control" id="finance_observacao_modal" rows="3"
+                            placeholder="Ex.: compra emergencial, saldo anterior sem comprovante, valor estimado pela diretoria"></textarea>
+                        <small class="form-text">Esse texto será salvo automaticamente no cadastro do item.</small>
+                    </div>
                 </div>
             </div>
             <div class="modal-footer">
@@ -2218,22 +3275,24 @@ Conversão: 1 saco = 20 quilos</div>
 <div class="modal fade" id="financeSectionUnlockModal" tabindex="-1"
     aria-labelledby="financeSectionUnlockModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
+        <div class="modal-content galint-bs-modal galint-bs-modal--sky finance-guard-modal">
             <div class="modal-header">
                 <h5 class="modal-title" id="financeSectionUnlockModalLabel">Liberar edição financeira</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
             </div>
             <div class="modal-body">
-                <p class="mb-3">Informe as credenciais de um administrador para liberar a seção <strong>Origem da compra</strong> deste item.</p>
-                <div class="form-group">
-                    <label class="form-label" for="finance_admin_matricula">Matrícula do administrador</label>
-                    <input class="form-control" id="finance_admin_matricula" autocomplete="username" placeholder="Ex.: 1234567890">
+                <div class="galint-modal-note mb-3">Informe as credenciais de um administrador para liberar a seção <strong>Origem da compra</strong> deste item.</div>
+                <div class="galint-modal-panel">
+                    <div class="form-group">
+                        <label class="form-label" for="finance_admin_matricula">Matrícula do administrador</label>
+                        <input class="form-control" id="finance_admin_matricula" autocomplete="username" placeholder="Ex.: 1234567890">
+                    </div>
+                    <div class="form-group mb-0">
+                        <label class="form-label" for="finance_admin_password">Senha do administrador</label>
+                        <input class="form-control" id="finance_admin_password" type="password" autocomplete="current-password" placeholder="Digite a senha do administrador">
+                    </div>
+                    <div class="alert alert-danger mt-3 mb-0" id="finance-section-unlock-feedback" style="display: none;"></div>
                 </div>
-                <div class="form-group mb-0">
-                    <label class="form-label" for="finance_admin_password">Senha do administrador</label>
-                    <input class="form-control" id="finance_admin_password" type="password" autocomplete="current-password" placeholder="Digite a senha do administrador">
-                </div>
-                <div class="alert alert-danger mt-3 mb-0" id="finance-section-unlock-feedback" style="display: none;"></div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
@@ -2246,7 +3305,7 @@ Conversão: 1 saco = 20 quilos</div>
 <div class="modal fade" id="priceSuggestionsModal" tabindex="-1" aria-labelledby="priceSuggestionsModalLabel"
     aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
-        <div class="modal-content price-suggest-modal">
+        <div class="modal-content price-suggest-modal galint-bs-modal galint-bs-modal--sky">
             <div class="modal-header">
                 <h5 class="modal-title" id="priceSuggestionsModalLabel">Buscar preco de reposicao</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
@@ -2303,7 +3362,7 @@ Conversão: 1 saco = 20 quilos</div>
 
 <div class="modal fade" id="equivalentItemModal" tabindex="-1" aria-labelledby="equivalentItemModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
-        <div class="modal-content equivalent-item-modal">
+        <div class="modal-content equivalent-item-modal galint-bs-modal galint-bs-modal--amber">
             <div class="modal-header">
                 <div>
                     <h5 class="modal-title" id="equivalentItemModalLabel">Possível item equivalente</h5>
@@ -2312,10 +3371,10 @@ Conversão: 1 saco = 20 quilos</div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
             </div>
             <div class="modal-body">
-                <div class="alert alert-light border mb-3" id="equivalent-item-draft-summary"></div>
+                <div class="galint-modal-note galint-modal-note--amber mb-3" id="equivalent-item-draft-summary"></div>
                 <div class="d-grid gap-3" id="equivalent-item-candidates"></div>
                 <div class="form-text mt-3" id="equivalent-item-modal-status">Selecione o cadastro mais próximo para abrir o item existente ou reaproveitar alguns dados neste novo cadastro.</div>
-                <div class="border rounded-3 p-3 mt-3 bg-light-subtle" id="equivalent-item-reuse-options">
+                <div class="galint-modal-panel galint-modal-panel--subtle mt-3" id="equivalent-item-reuse-options">
                     <div class="fw-semibold mb-2">Se continuar com o novo código, o que deve ser reaproveitado do item selecionado?</div>
                     <div class="form-check mb-2">
                         <input class="form-check-input" type="checkbox" id="equivalent-item-reuse-photo-option">
@@ -2388,23 +3447,25 @@ Conversão: 1 saco = 20 quilos</div>
 
     .equivalent-item-card {
         width: 100%;
-        border: 1px solid rgba(148, 163, 184, 0.3);
+        --equivalent-accent: #f59e0b;
+        --equivalent-soft: rgba(245, 158, 11, 0.18);
+        border: 1px solid var(--equivalent-soft);
         border-radius: 16px;
-        background: #ffffff;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.98));
         padding: 1rem;
         text-align: left;
         transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
     }
 
     .equivalent-item-card:hover {
-        border-color: rgba(245, 158, 11, 0.55);
-        box-shadow: 0 10px 26px rgba(15, 23, 42, 0.12);
+        border-color: var(--equivalent-accent);
+        box-shadow: 0 10px 26px rgba(15, 23, 42, 0.12), 0 0 0 1px var(--equivalent-soft);
         transform: translateY(-1px);
     }
 
     .equivalent-item-card.is-selected {
-        border-color: rgba(59, 130, 246, 0.7);
-        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+        border-color: var(--equivalent-accent);
+        box-shadow: 0 0 0 3px var(--equivalent-soft);
     }
 
     .equivalent-item-card-head {
@@ -2417,6 +3478,62 @@ Conversão: 1 saco = 20 quilos</div>
     .equivalent-item-card-title {
         font-weight: 700;
         color: #0f172a;
+    }
+
+    .equivalent-item-card-meta {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.42rem 0.58rem;
+        margin-top: 0.38rem;
+    }
+
+    .equivalent-item-code,
+    .equivalent-item-brand {
+        color: #64748b;
+        font-size: 0.8rem;
+    }
+
+    .equivalent-item-category-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.38rem;
+        min-height: 28px;
+        padding: 0.28rem 0.62rem;
+        border-radius: 999px;
+        border: 1px solid var(--equivalent-soft);
+        background: linear-gradient(180deg, var(--equivalent-soft), rgba(255, 255, 255, 0.68));
+        color: #0f172a;
+        font-size: 0.76rem;
+        font-weight: 700;
+        line-height: 1;
+    }
+
+    .equivalent-item-category-icon {
+        width: 18px;
+        height: 18px;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(15, 23, 42, 0.14);
+        font-size: 0.78rem;
+    }
+
+    .equivalent-item-score {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 54px;
+        min-height: 30px;
+        padding: 0.3rem 0.68rem;
+        border-radius: 999px;
+        background: var(--equivalent-accent);
+        color: #ffffff;
+        font-size: 0.78rem;
+        font-weight: 800;
+        line-height: 1;
+        box-shadow: 0 10px 22px rgba(15, 23, 42, 0.12);
     }
 
     .equivalent-item-signal-list {
@@ -2635,10 +3752,12 @@ Conversão: 1 saco = 20 quilos</div>
             toggleFerramentasFields();
             toggleEquipamentoTab();
             toggleSerieModeloFields();
+            renderCategoryVisualNote();
             toggleRastreabilidadeReadonly(); // Verifica se deve desbloquear campos
         });
         toggleFerramentasFields();
         toggleEquipamentoTab();
+        renderCategoryVisualNote();
         toggleRastreabilidadeReadonly(); // Inicializar estado
     }
     if (habilitarCheckbox && serieModeloFields) {
@@ -2793,12 +3912,28 @@ Conversão: 1 saco = 20 quilos</div>
         return options.find((option) => option.isBase)?.code || options[0]?.code || '';
     }
 
+    function getPriceUnitSeedValue(selectEl, preferredCode = '') {
+        if (!selectEl) {
+            return normalizePriceUnitCode(preferredCode);
+        }
+
+        if (typeof selectEl.dataset.serverValue === 'undefined') {
+            selectEl.dataset.serverValue = normalizePriceUnitCode(selectEl.dataset.initialValue || '');
+        }
+
+        if (selectEl.dataset.userSelected === '1') {
+            return normalizePriceUnitCode(selectEl.value || selectEl.dataset.serverValue || preferredCode);
+        }
+
+        return normalizePriceUnitCode(preferredCode || selectEl.dataset.serverValue || '');
+    }
+
     function renderPriceUnitSelect(selectEl, preferredCode = '') {
         if (!selectEl) {
             return '';
         }
         const options = getCurrentPriceUnitOptions();
-        const currentValue = normalizePriceUnitCode(selectEl.value || selectEl.dataset.initialValue || preferredCode);
+        const currentValue = getPriceUnitSeedValue(selectEl, preferredCode);
         const selectedCode = resolvePreferredPriceUnit(options, currentValue);
         selectEl.innerHTML = options.map((option) => `
             <option value="${option.code}" ${option.code === selectedCode ? 'selected' : ''}>${option.label}</option>
@@ -2809,8 +3944,8 @@ Conversão: 1 saco = 20 quilos</div>
     }
 
     function refreshPriceUnitSelectors() {
-        renderPriceUnitSelect(precoCompraUnidadePrecoSelect, precoCompraUnidadePrecoSelect?.dataset.initialValue || '');
-        renderPriceUnitSelect(precoReposicaoUnidadePrecoSelect, precoReposicaoUnidadePrecoSelect?.dataset.initialValue || '');
+        renderPriceUnitSelect(precoCompraUnidadePrecoSelect, precoCompraUnidadePrecoSelect?.dataset.serverValue || '');
+        renderPriceUnitSelect(precoReposicaoUnidadePrecoSelect, precoReposicaoUnidadePrecoSelect?.dataset.serverValue || '');
         if (priceModalUnitSelect && currentPriceItem) {
             renderPriceUnitSelect(
                 priceModalUnitSelect,
@@ -2818,6 +3953,17 @@ Conversão: 1 saco = 20 quilos</div>
             );
         }
     }
+
+    [precoCompraUnidadePrecoSelect, precoReposicaoUnidadePrecoSelect].forEach((selectEl) => {
+        if (!selectEl) {
+            return;
+        }
+        selectEl.dataset.serverValue = normalizePriceUnitCode(selectEl.dataset.initialValue || '');
+        selectEl.addEventListener('change', () => {
+            selectEl.dataset.userSelected = '1';
+            selectEl.dataset.initialValue = normalizePriceUnitCode(selectEl.value || '');
+        });
+    });
 
     function setAdvancedUnitsPanelVisible(visible) {
         if (!advancedUnitsModalElement) {
@@ -3316,8 +4462,167 @@ Conversão: 1 saco = 20 quilos</div>
     const helpUnidadeEmbalagem = document.getElementById('help-unidade-embalagem');
     const unidadeEmbOpcaoLitro = document.getElementById('unidade-emb-opcao-litro');
     const unidadeEmbOpcaoUnidade = document.getElementById('unidade-emb-opcao-unidade');
+    const unidadeEmbLabelUnidade = document.getElementById('unidade-emb-label-unidade');
+    const packagingLiveTitle = document.getElementById('packaging-live-title');
+    const packagingLiveLine = document.getElementById('packaging-live-line');
+    const packagingBaseChip = document.getElementById('packaging-base-chip');
+    const packagingModeChip = document.getElementById('packaging-mode-chip');
+    const packagingContentChip = document.getElementById('packaging-content-chip');
     const descricaoInput = document.getElementById('descricao');
     const isEditMode = {{ 'true' if item else 'false' }};
+    const categoryVisualNote = document.getElementById('category-visual-note');
+    const rawCategoryVisualCatalog = {{ category_visual_catalog|tojson }};
+    const categoryVisualCatalog = Array.isArray(rawCategoryVisualCatalog) ? rawCategoryVisualCatalog : [];
+    const defaultCategoryVisual = {
+        label: 'Sem categoria',
+        route: 'Sem categoria',
+        icon: '📁',
+        color: '#94a3b8',
+        soft: 'rgba(148, 163, 184, 0.18)',
+        soft_strong: 'rgba(148, 163, 184, 0.28)',
+        descricao: 'Categoria oficial usada para manter cards, filtros e KPIs sincronizados.',
+    };
+    const categoryVisualAliases = new Map([
+        ['material pintura', 'mat. pintura e drywall'],
+        ['material de pintura/drywall', 'mat. pintura e drywall'],
+        ['mat. pintura e drywall', 'mat. pintura e drywall'],
+    ]);
+    const categoryVisualMap = new Map();
+
+    function normalizeCategoryVisualName(value) {
+        return String(value || '').trim().replace(/\s+/g, ' ').toLowerCase();
+    }
+
+    categoryVisualCatalog.forEach((entry) => {
+        const normalizedLabel = normalizeCategoryVisualName(entry?.label);
+        const normalizedRoute = normalizeCategoryVisualName(entry?.route);
+        if (normalizedLabel && !categoryVisualMap.has(normalizedLabel)) {
+            categoryVisualMap.set(normalizedLabel, entry);
+        }
+        if (normalizedRoute && !categoryVisualMap.has(normalizedRoute)) {
+            categoryVisualMap.set(normalizedRoute, entry);
+        }
+    });
+
+    function getCategoryVisual(value) {
+        const label = String(value || '').trim().replace(/\s+/g, ' ');
+        if (!label) {
+            return defaultCategoryVisual;
+        }
+
+        const normalizedLabel = normalizeCategoryVisualName(label);
+        const resolvedLabel = categoryVisualAliases.get(normalizedLabel) || normalizedLabel;
+        const matched = categoryVisualMap.get(resolvedLabel) || categoryVisualMap.get(normalizedLabel);
+        if (matched) {
+            return matched;
+        }
+
+        return {
+            ...defaultCategoryVisual,
+            label,
+            route: label,
+        };
+    }
+
+    function buildCategoryVisualChip(visual) {
+        const resolvedVisual = visual || defaultCategoryVisual;
+        const chip = document.createElement('span');
+        chip.className = 'category-visual-chip';
+        chip.style.setProperty('--category-accent', resolvedVisual.color || defaultCategoryVisual.color);
+        chip.style.setProperty('--category-soft', resolvedVisual.soft || defaultCategoryVisual.soft);
+
+        const icon = document.createElement('span');
+        icon.className = 'category-visual-chip-icon';
+        icon.textContent = resolvedVisual.icon || defaultCategoryVisual.icon;
+
+        const label = document.createElement('span');
+        label.className = 'category-visual-chip-label';
+        label.textContent = resolvedVisual.label || defaultCategoryVisual.label;
+
+        chip.append(icon, label);
+        return chip;
+    }
+
+    function renderCategoryVisualNote() {
+        if (!(categoryVisualNote instanceof HTMLElement)) {
+            return;
+        }
+
+        const visual = getCategoryVisual(categoriaSelect?.value);
+        const description = String(visual?.descricao || defaultCategoryVisual.descricao).trim();
+
+        categoryVisualNote.innerHTML = '';
+        categoryVisualNote.append(buildCategoryVisualChip(visual));
+
+        const copy = document.createElement('span');
+        copy.textContent = description;
+        categoryVisualNote.append(copy);
+    }
+
+    if (window.bootstrap?.Tooltip) {
+        document.querySelectorAll('[data-galint-help-tooltip]').forEach((element) => {
+            new window.bootstrap.Tooltip(element, {
+                trigger: 'hover focus click',
+                container: 'body',
+            });
+        });
+    }
+
+    function syncInventoryVisualSelect(selectElement) {
+        if (!(selectElement instanceof HTMLSelectElement)) {
+            return;
+        }
+
+        const group = document.querySelector(`[data-visual-select="${selectElement.id}"]`);
+        if (!(group instanceof HTMLElement)) {
+            return;
+        }
+
+        group.querySelectorAll('[data-select-value]').forEach((button) => {
+            if (!(button instanceof HTMLElement)) {
+                return;
+            }
+            const value = button.getAttribute('data-select-value') || '';
+            const isSelected = String(selectElement.value || '') === value;
+            button.classList.toggle('is-selected', isSelected);
+            button.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
+        });
+    }
+
+    function initializeInventoryVisualSelects() {
+        document.querySelectorAll('[data-visual-select]').forEach((group) => {
+            const selectId = group.getAttribute('data-visual-select');
+            const selectElement = selectId ? document.getElementById(selectId) : null;
+            if (!(selectElement instanceof HTMLSelectElement)) {
+                return;
+            }
+
+            group.querySelectorAll('[data-select-value]').forEach((button) => {
+                if (!(button instanceof HTMLElement) || button.dataset.visualSelectBound === '1') {
+                    return;
+                }
+                button.dataset.visualSelectBound = '1';
+                button.addEventListener('click', () => {
+                    const value = button.getAttribute('data-select-value') || '';
+                    if (String(selectElement.value || '') !== value) {
+                        selectElement.value = value;
+                        selectElement.dispatchEvent(new Event('change', { bubbles: true }));
+                        selectElement.dispatchEvent(new Event('input', { bubbles: true }));
+                    }
+                    syncInventoryVisualSelect(selectElement);
+                });
+            });
+
+            if (selectElement.dataset.visualSelectBound !== '1') {
+                selectElement.dataset.visualSelectBound = '1';
+                selectElement.addEventListener('change', () => syncInventoryVisualSelect(selectElement));
+            }
+
+            syncInventoryVisualSelect(selectElement);
+        });
+    }
+
+    initializeInventoryVisualSelects();
     
     const nomesEmbalagem = {
         'lata': 'Lata',
@@ -3361,6 +4666,85 @@ Conversão: 1 saco = 20 quilos</div>
             return 'litros';
         }
         return unidadeBaseEmbalagem[tipoSelecionado] || 'unidades';
+    }
+
+    function getPackagingBaseDisplayLabel() {
+        const baseLabel = String(unidadeSelect?.value || 'Unidade').trim();
+        if (baseLabel === 'Par') return 'pares';
+        if (baseLabel === 'Metro') return 'metros';
+        if (baseLabel === 'Litro') return 'litros';
+        if (baseLabel === 'Quilo') return 'kg';
+        return 'unidades';
+    }
+
+    function getDisplayUnitForPackaging(tipoSelecionado) {
+        const unidadeBase = getUnidadeBaseEmbalagem(tipoSelecionado);
+        if (unidadeBase === 'unidades') {
+            return getPackagingBaseDisplayLabel();
+        }
+        return unidadeBase;
+    }
+
+    function formatPackagingNumber(value) {
+        const numeric = Number(value);
+        if (!Number.isFinite(numeric)) {
+            return '';
+        }
+        return numeric.toLocaleString('pt-BR', { maximumFractionDigits: 2 });
+    }
+
+    function renderPackagingOperationalSummary() {
+        if (!packagingLiveTitle || !packagingLiveLine) {
+            return;
+        }
+
+        const tipoSelecionado = document.querySelector('input[name="tipo_embalagem_novo"]:checked')?.value || '';
+        const baseLabel = String(unidadeSelect?.value || 'Unidade').trim() || 'Unidade';
+        const unidades = Number(unidadesPorEmbalagemInput?.value || 0);
+
+        if (packagingBaseChip) {
+            packagingBaseChip.textContent = `Base: ${baseLabel}`;
+        }
+
+        if (unidadeEmbLabelUnidade) {
+            unidadeEmbLabelUnidade.textContent = getPackagingBaseDisplayLabel().charAt(0).toUpperCase() + getPackagingBaseDisplayLabel().slice(1);
+        }
+
+        if (!tipoSelecionado) {
+            if (packagingModeChip) {
+                packagingModeChip.textContent = 'Sem embalagem';
+            }
+            if (packagingContentChip) {
+                packagingContentChip.textContent = 'Sem conversão';
+            }
+            packagingLiveTitle.textContent = 'Sem embalagem operacional';
+            packagingLiveLine.textContent = `Entradas e saldo seguem diretamente em ${baseLabel}. Use embalagem só quando a NF vier em rolo, lata, balde, bombona, caixa, pacote, fardo ou saco.`;
+            return;
+        }
+
+        const nome = nomesEmbalagem[tipoSelecionado] || 'Embalagem';
+        const nomeLower = nome.toLowerCase();
+        const unidadeConteudo = getDisplayUnitForPackaging(tipoSelecionado);
+
+        if (packagingModeChip) {
+            packagingModeChip.textContent = `Compra em ${nome}`;
+        }
+
+        if (Number.isFinite(unidades) && unidades > 0) {
+            const unidadesFormatadas = formatPackagingNumber(unidades);
+            if (packagingContentChip) {
+                packagingContentChip.textContent = `${unidadesFormatadas} ${unidadeConteudo} por ${nomeLower}`;
+            }
+            packagingLiveTitle.textContent = `${nome} convertida para ${baseLabel}`;
+            packagingLiveLine.textContent = `Cada ${nomeLower} lançada no documento será convertida em ${unidadesFormatadas} ${unidadeConteudo}. O ledger e o saldo físico continuam em ${baseLabel}.`;
+            return;
+        }
+
+        if (packagingContentChip) {
+            packagingContentChip.textContent = 'Conteúdo pendente';
+        }
+        packagingLiveTitle.textContent = `${nome} selecionada`;
+        packagingLiveLine.textContent = `Defina a unidade do conteúdo e informe quanto cabe em 1 ${nomeLower} para completar a conversão automática para ${baseLabel}.`;
     }
 
     function applyDefaultPackagingUnit(tipoSelecionado) {
@@ -3410,7 +4794,7 @@ Conversão: 1 saco = 20 quilos</div>
             applyDefaultPackagingUnit(tipoSelecionado);
             if (helpUnidadeEmbalagem) {
                 if (tipoSelecionado === 'pacote' || tipoSelecionado === 'saco') {
-                    helpUnidadeEmbalagem.textContent = 'Escolha a unidade do conteúdo interno: unidades ou kg.';
+                    helpUnidadeEmbalagem.textContent = `Escolha a unidade do conteúdo interno: ${getPackagingBaseDisplayLabel()} ou kg.`;
                 } else {
                     helpUnidadeEmbalagem.textContent = 'Escolha a unidade do conteúdo interno: litros ou kg.';
                 }
@@ -3423,7 +4807,7 @@ Conversão: 1 saco = 20 quilos</div>
             unidadesEmbalagemField.style.display = 'block';
             const nome = nomesEmbalagem[tipoSelecionado] || 'Embalagem';
             let exemplo = exemplosEmbalagem[tipoSelecionado] || 'Quantidade por embalagem';
-            const unidadeBase = getUnidadeBaseEmbalagem(tipoSelecionado);
+            const unidadeBase = getDisplayUnitForPackaging(tipoSelecionado);
 
             if (tipoSelecionado === 'lata' || tipoSelecionado === 'balde' || tipoSelecionado === 'bombona' || tipoSelecionado === 'pacote' || tipoSelecionado === 'saco') {
                 exemplo = `18 ${unidadeBase} por ${nome.toLowerCase()}`;
@@ -3441,7 +4825,8 @@ Conversão: 1 saco = 20 quilos</div>
         }
         
         atualizarPreviewEmbalagem();
-                refreshPriceUnitSelectors();
+        renderPackagingOperationalSummary();
+        refreshPriceUnitSelectors();
     }
 
     function atualizarPreviewEmbalagem() {
@@ -3462,7 +4847,7 @@ Conversão: 1 saco = 20 quilos</div>
                 'balde': 'baldes',
                 'saco': 'sacos'
             }[tipoSelecionado] || 'embalagens';
-            const unidadeBase = getUnidadeBaseEmbalagem(tipoSelecionado);
+            const unidadeBase = getDisplayUnitForPackaging(tipoSelecionado);
             const total = saldoAtual > 0 ? (saldoAtual * unidades) : 0;
             const nomeEmbSaldo = saldoAtual === 1 ? nomeEmb : nomeEmbPlural;
             const totalFormatado = Number.isFinite(total) ? total.toLocaleString('pt-BR', { maximumFractionDigits: 2 }) : '0';
@@ -3479,6 +4864,8 @@ Conversão: 1 saco = 20 quilos</div>
         } else {
             previewEmbalagem.style.display = 'none';
         }
+
+        renderPackagingOperationalSummary();
     }
 
     function normalizeBombonaSuggestionText(value) {
@@ -3872,17 +5259,15 @@ Conversão: 1 saco = 20 quilos</div>
     const fotoSearchGoogleBtn = document.getElementById('foto-search-google-btn');
     const fotoSearchBingBtn = document.getElementById('foto-search-bing-btn');
     const fotoCopyQueryBtn = document.getElementById('foto-copy-query-btn');
-    const fotoPreviewUrlBtn = document.getElementById('foto-preview-url-btn');
-    const fotoPasteSuggestionBtn = document.getElementById('foto-paste-suggestion-btn');
     const fotoRemotePreviewWrap = document.getElementById('foto-remote-preview-wrap');
     const fotoRemotePreview = document.getElementById('foto-remote-preview');
     const fotoAssistenteItemNome = document.getElementById('foto-assistente-item-nome');
     const fotoAssistentePreviewBox = document.getElementById('foto-assistente-preview-box');
     const fotoAssistentePreview = document.getElementById('foto-assistente-preview');
-    const fotoAssistentePreviewPlaceholder = document.getElementById('foto-assistente-preview-placeholder');
     const isExistingItem = {{ 'true' if item else 'false' }};
     const currentItemPhotoPath = {{ (form_item.foto_path if form_item and form_item.foto_path else '')|tojson }};
-    let clipboardSuggestedFotoUrl = '';
+    let fotoClipboardMonitorId = null;
+    let lastAutoFilledFotoUrl = '';
 
     const cleanupPhotoModalBackdrops = () => {
         const visibleModals = document.querySelectorAll('.modal.show').length;
@@ -3937,19 +5322,17 @@ Conversão: 1 saco = 20 quilos</div>
     };
 
     const setFotoAssistentePreview = (fotoPath) => {
-        if (!fotoAssistentePreview || !fotoAssistentePreviewBox || !fotoAssistentePreviewPlaceholder) {
+        if (!fotoAssistentePreview || !fotoAssistentePreviewBox) {
             return;
         }
         const src = buildStaticItemPhotoUrl(fotoPath);
         if (!src) {
             fotoAssistentePreviewBox.classList.remove('has-image');
             fotoAssistentePreview.removeAttribute('src');
-            fotoAssistentePreviewPlaceholder.classList.add('d-none');
             return;
         }
         fotoAssistentePreview.src = src;
         fotoAssistentePreviewBox.classList.add('has-image');
-        fotoAssistentePreviewPlaceholder.classList.add('d-none');
     };
 
     const resetFotoRemotePreview = () => {
@@ -3977,30 +5360,66 @@ Conversão: 1 saco = 20 quilos</div>
         return /\.(png|jpe?g|webp|gif|bmp|svg)(\?.*)?$/i.test(raw) || /image|img|photo|cdn/i.test(raw);
     };
 
-    const updateFotoClipboardSuggestionButton = () => {
-        if (!fotoPasteSuggestionBtn) {
+    const syncFotoApplyButton = () => {
+        if (!confirmFotoUrl) {
             return;
         }
-        if (clipboardSuggestedFotoUrl) {
-            fotoPasteSuggestionBtn.classList.remove('d-none');
-            fotoPasteSuggestionBtn.title = clipboardSuggestedFotoUrl;
-            return;
-        }
-        fotoPasteSuggestionBtn.classList.add('d-none');
-        fotoPasteSuggestionBtn.removeAttribute('title');
+        const hasUrl = isLikelyImageUrl(String(inputFotoUrl?.value || '').trim());
+        const hasCodigo = Boolean(String(codigoInput?.value || '').trim());
+        confirmFotoUrl.disabled = !(hasUrl && hasCodigo);
     };
 
-    const inspectClipboardForImageUrl = async () => {
-        if (!navigator.clipboard?.readText || !window.isSecureContext) {
-            return;
+    const applyDetectedFotoUrl = (value, announce = false) => {
+        const normalized = String(value || '').trim();
+        if (!isLikelyImageUrl(normalized) || !inputFotoUrl) {
+            return false;
+        }
+        const previousValue = String(inputFotoUrl.value || '').trim();
+        const changed = previousValue !== normalized;
+        inputFotoUrl.value = normalized;
+        lastAutoFilledFotoUrl = normalized;
+        showFotoRemotePreview(normalized);
+        syncFotoApplyButton();
+        if (announce && changed) {
+            setFotoUrlFeedback('Link copiado detectado e inserido automaticamente.', 'success');
+        }
+        return changed;
+    };
+
+    const inspectClipboardForImageUrl = async (announce = false) => {
+        if (!navigator.clipboard?.readText || !window.isSecureContext || !modalFotoUrlEl?.classList.contains('show')) {
+            return false;
         }
         try {
             const text = String(await navigator.clipboard.readText() || '').trim();
-            clipboardSuggestedFotoUrl = isLikelyImageUrl(text) ? text : '';
-            updateFotoClipboardSuggestionButton();
+            if (!isLikelyImageUrl(text)) {
+                return false;
+            }
+            return applyDetectedFotoUrl(text, announce);
         } catch (_) {
-            // Navegador pode bloquear leitura sem gesto do usuário.
+            return false;
         }
+    };
+
+    const stopFotoClipboardMonitor = () => {
+        if (fotoClipboardMonitorId) {
+            window.clearInterval(fotoClipboardMonitorId);
+            fotoClipboardMonitorId = null;
+        }
+        window.removeEventListener('focus', handleFotoModalWindowFocus);
+    };
+
+    function handleFotoModalWindowFocus() {
+        inspectClipboardForImageUrl(true);
+    }
+
+    const startFotoClipboardMonitor = () => {
+        stopFotoClipboardMonitor();
+        inspectClipboardForImageUrl(false);
+        window.addEventListener('focus', handleFotoModalWindowFocus);
+        fotoClipboardMonitorId = window.setInterval(() => {
+            inspectClipboardForImageUrl(false);
+        }, 1400);
     };
 
     const buildFotoSearchQuery = () => {
@@ -4020,6 +5439,7 @@ Conversão: 1 saco = 20 quilos</div>
         const url = provider === 'bing'
             ? `https://www.bing.com/images/search?q=${encodeURIComponent(query)}`
             : `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(query)}`;
+        startFotoClipboardMonitor();
         window.open(url, '_blank', 'noopener');
     };
 
@@ -4039,17 +5459,27 @@ Conversão: 1 saco = 20 quilos</div>
             if (fotoSearchQueryInput) {
                 fotoSearchQueryInput.value = buildFotoSearchQuery();
             }
-            clipboardSuggestedFotoUrl = '';
-            updateFotoClipboardSuggestionButton();
+            lastAutoFilledFotoUrl = '';
             resetFotoRemotePreview();
             setFotoAssistentePreview(currentItemPhotoPath);
             if (isLikelyImageUrl(String(fotoUrlInput?.value || '').trim())) {
                 showFotoRemotePreview(String(fotoUrlInput?.value || '').trim());
             }
             setFotoUrlFeedback('');
+            syncFotoApplyButton();
         });
-        modalFotoUrlEl.addEventListener('shown.bs.modal', cleanupPhotoModalBackdrops);
-        modalFotoUrlEl.addEventListener('hidden.bs.modal', cleanupPhotoModalBackdrops);
+        modalFotoUrlEl.addEventListener('shown.bs.modal', () => {
+            cleanupPhotoModalBackdrops();
+            syncFotoApplyButton();
+            startFotoClipboardMonitor();
+        });
+        modalFotoUrlEl.addEventListener('hidden.bs.modal', () => {
+            cleanupPhotoModalBackdrops();
+            stopFotoClipboardMonitor();
+            lastAutoFilledFotoUrl = '';
+            resetFotoRemotePreview();
+            syncFotoApplyButton();
+        });
     }
 
     if (btnFotoUrl && modalFotoUrl) {
@@ -4085,50 +5515,32 @@ Conversão: 1 saco = 20 quilos</div>
         });
     }
 
-    if (fotoPasteSuggestionBtn) {
-        fotoPasteSuggestionBtn.addEventListener('click', () => {
-            if (!clipboardSuggestedFotoUrl || !inputFotoUrl) {
-                return;
-            }
-            inputFotoUrl.value = clipboardSuggestedFotoUrl;
-            showFotoRemotePreview(clipboardSuggestedFotoUrl);
-            setFotoUrlFeedback('Link copiado sugerido e aplicado ao campo.', 'success');
-        });
-    }
-
     if (inputFotoUrl) {
-        const handleClipboardSuggestion = () => inspectClipboardForImageUrl();
-        inputFotoUrl.addEventListener('focus', handleClipboardSuggestion);
-        inputFotoUrl.addEventListener('mouseenter', handleClipboardSuggestion);
         inputFotoUrl.addEventListener('paste', () => {
             window.setTimeout(() => {
                 const pasted = String(inputFotoUrl.value || '').trim();
                 if (isLikelyImageUrl(pasted)) {
+                    lastAutoFilledFotoUrl = pasted;
                     showFotoRemotePreview(pasted);
-                    setFotoUrlFeedback('Prévia carregada com o link colado.', 'info');
+                    syncFotoApplyButton();
                 }
             }, 0);
         });
         inputFotoUrl.addEventListener('input', () => {
             const raw = String(inputFotoUrl.value || '').trim();
             if (isLikelyImageUrl(raw)) {
+                lastAutoFilledFotoUrl = raw;
                 showFotoRemotePreview(raw);
+                syncFotoApplyButton();
                 return;
             }
             resetFotoRemotePreview();
+            syncFotoApplyButton();
         });
     }
 
-    if (fotoPreviewUrlBtn) {
-        fotoPreviewUrlBtn.addEventListener('click', () => {
-            const raw = String(inputFotoUrl?.value || '').trim();
-            if (!isLikelyImageUrl(raw)) {
-                setFotoUrlFeedback('Informe um link direto de imagem válido para gerar a prévia.', 'warning');
-                return;
-            }
-            showFotoRemotePreview(raw);
-            setFotoUrlFeedback('Prévia carregada. Se estiver correta, já pode aplicar.', 'info');
-        });
+    if (codigoInput) {
+        codigoInput.addEventListener('input', syncFotoApplyButton);
     }
 
     if (confirmFotoUrl) {
@@ -4176,8 +5588,8 @@ Conversão: 1 saco = 20 quilos</div>
             } catch (err) {
                 setFotoUrlFeedback(err?.message || 'Falha ao aplicar a foto.', 'danger');
             } finally {
-                confirmFotoUrl.disabled = false;
-                confirmFotoUrl.textContent = 'Aplicar foto';
+                confirmFotoUrl.textContent = 'Aplicar imagem';
+                syncFotoApplyButton();
             }
         });
     }
@@ -4483,14 +5895,24 @@ Conversão: 1 saco = 20 quilos</div>
             const selectedClass = candidate.codigo === equivalentModalSelection ? 'is-selected' : '';
             const signals = Array.isArray(candidate.signals) ? candidate.signals : [];
             const signalHtml = signals.map((signal) => `<span class="badge text-bg-light border">${escapeEquivalentHtml(signal)}</span>`).join('');
+            const visual = getCategoryVisual(candidate.categoria);
+            const accentColor = escapeEquivalentHtml(visual.color || defaultCategoryVisual.color);
+            const accentSoft = escapeEquivalentHtml(visual.soft_strong || visual.soft || defaultCategoryVisual.soft);
             return `
-                <button type="button" class="equivalent-item-card ${selectedClass}" data-equivalent-codigo="${escapeEquivalentHtml(candidate.codigo || '')}">
+                <button type="button" class="equivalent-item-card ${selectedClass}" data-equivalent-codigo="${escapeEquivalentHtml(candidate.codigo || '')}" style="--equivalent-accent: ${accentColor}; --equivalent-soft: ${accentSoft};">
                     <div class="equivalent-item-card-head">
                         <div>
                             <div class="equivalent-item-card-title">${escapeEquivalentHtml(candidate.descricao || 'Item sem descrição')}</div>
-                            <div class="small text-muted">Código ${escapeEquivalentHtml(candidate.codigo || '—')} • ${escapeEquivalentHtml(candidate.categoria || 'Sem categoria')}${candidate.marca ? ` • ${escapeEquivalentHtml(candidate.marca)}` : ''}</div>
+                            <div class="equivalent-item-card-meta">
+                                <span class="equivalent-item-code">Código ${escapeEquivalentHtml(candidate.codigo || '—')}</span>
+                                <span class="equivalent-item-category-chip">
+                                    <span class="equivalent-item-category-icon">${escapeEquivalentHtml(visual.icon || defaultCategoryVisual.icon)}</span>
+                                    <span>${escapeEquivalentHtml(visual.label || candidate.categoria || 'Sem categoria')}</span>
+                                </span>
+                                ${candidate.marca ? `<span class="equivalent-item-brand">Marca: ${escapeEquivalentHtml(candidate.marca)}</span>` : ''}
+                            </div>
                         </div>
-                        <span class="badge text-bg-warning">${escapeEquivalentHtml(String(candidate.score_percent || 0))}%</span>
+                        <span class="equivalent-item-score">${escapeEquivalentHtml(String(candidate.score_percent || 0))}%</span>
                     </div>
                     <div class="equivalent-item-signal-list">${signalHtml || '<span class="badge text-bg-light border">Sem sinais adicionais</span>'}</div>
                 </button>
@@ -5716,6 +7138,8 @@ Conversão: 1 saco = 20 quilos</div>
                         precoReposicaoInput.value = updated.preco_reposicao_unitario;
                     }
                     if (precoReposicaoUnidadePrecoSelect) {
+                        precoReposicaoUnidadePrecoSelect.dataset.serverValue = normalizePriceUnitCode(updated.preco_reposicao_unidade_preco || selectedPriceUnit || '');
+                        precoReposicaoUnidadePrecoSelect.dataset.userSelected = '';
                         renderPriceUnitSelect(precoReposicaoUnidadePrecoSelect, updated.preco_reposicao_unidade_preco || selectedPriceUnit || '');
                     }
                     if (precoReposicaoFonteInput) {

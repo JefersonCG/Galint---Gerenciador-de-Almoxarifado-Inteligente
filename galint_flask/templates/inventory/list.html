@@ -394,6 +394,174 @@
         margin: 0;
     }
 
+    .modal-content.galint-bs-modal {
+        --galint-modal-accent-rgb: 59, 130, 246;
+        --galint-modal-text: #e5eefc;
+        --galint-modal-muted: #9fb2c9;
+        --galint-modal-border: rgba(148, 163, 184, 0.16);
+        --bs-body-color: var(--galint-modal-text);
+        --bs-secondary-color: var(--galint-modal-muted);
+        --bs-border-color: var(--galint-modal-border);
+        --bs-border-color-translucent: rgba(148, 163, 184, 0.12);
+        --bs-btn-font-weight: 700;
+        background:
+            radial-gradient(circle at top right, rgba(var(--galint-modal-accent-rgb), 0.18), transparent 34%),
+            linear-gradient(180deg, #0b1220 0%, #111b2e 100%);
+        color: var(--galint-modal-text);
+        border: 1px solid var(--galint-modal-border);
+        border-radius: 20px;
+        box-shadow: 0 28px 72px rgba(2, 6, 23, 0.48);
+        overflow: hidden;
+    }
+
+    .modal-content.galint-bs-modal.galint-bs-modal--emerald {
+        --galint-modal-accent-rgb: 16, 185, 129;
+    }
+
+    .modal-content.galint-bs-modal.galint-bs-modal--amber {
+        --galint-modal-accent-rgb: 245, 158, 11;
+    }
+
+    .modal-content.galint-bs-modal .modal-header {
+        padding: 1.05rem 1.25rem;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+        background:
+            radial-gradient(circle at top right, rgba(var(--galint-modal-accent-rgb), 0.18), transparent 34%),
+            linear-gradient(135deg, #162033 0%, #0b1220 100%);
+    }
+
+    .modal-content.galint-bs-modal .modal-title {
+        font-size: 1.08rem;
+        font-weight: 800;
+        color: #ffffff;
+        letter-spacing: 0.01em;
+    }
+
+    .modal-content.galint-bs-modal .modal-header .small,
+    .modal-content.galint-bs-modal .modal-header .text-white-50,
+    .modal-content.galint-bs-modal .modal-header .text-muted {
+        color: rgba(229, 238, 252, 0.74) !important;
+    }
+
+    .modal-content.galint-bs-modal .modal-body {
+        padding: 1.15rem 1.25rem 1.2rem;
+        background: transparent;
+    }
+
+    .modal-content.galint-bs-modal .modal-footer {
+        padding: 0.95rem 1.25rem;
+        gap: 0.65rem;
+        border-top: 1px solid rgba(148, 163, 184, 0.12);
+        background: linear-gradient(180deg, rgba(8, 15, 28, 0.88) 0%, rgba(12, 18, 31, 0.94) 100%);
+    }
+
+    .modal-content.galint-bs-modal .btn-close {
+        filter: brightness(0) invert(1);
+        opacity: 0.92;
+    }
+
+    .modal-content.galint-bs-modal :is(.form-control, .form-select, .input-group-text, textarea) {
+        background: rgba(8, 15, 28, 0.76);
+        border-color: rgba(148, 163, 184, 0.18);
+        color: #f8fafc;
+        border-radius: 14px;
+        box-shadow: none;
+    }
+
+    .modal-content.galint-bs-modal :is(.form-control, .form-select, textarea):focus {
+        background: rgba(8, 15, 28, 0.9);
+        border-color: rgba(var(--galint-modal-accent-rgb), 0.52);
+        box-shadow: 0 0 0 3px rgba(var(--galint-modal-accent-rgb), 0.16);
+        color: #ffffff;
+    }
+
+    .modal-content.galint-bs-modal :is(.form-control, textarea)::placeholder {
+        color: #8fa3bc;
+    }
+
+    .modal-content.galint-bs-modal :is(.form-text, .text-muted) {
+        color: var(--galint-modal-muted) !important;
+    }
+
+    .modal-content.galint-bs-modal .form-label,
+    .modal-content.galint-bs-modal strong,
+    .modal-content.galint-bs-modal .fw-semibold {
+        color: #f8fbff;
+    }
+
+    .modal-content.galint-bs-modal .btn {
+        border-radius: 12px;
+    }
+
+    .modal-content.galint-bs-modal .btn-primary,
+    .modal-content.galint-bs-modal .btn-info {
+        --bs-btn-bg: rgb(var(--galint-modal-accent-rgb));
+        --bs-btn-border-color: rgb(var(--galint-modal-accent-rgb));
+        --bs-btn-hover-bg: rgba(var(--galint-modal-accent-rgb), 0.9);
+        --bs-btn-hover-border-color: rgba(var(--galint-modal-accent-rgb), 0.9);
+        --bs-btn-active-bg: rgba(var(--galint-modal-accent-rgb), 0.82);
+        --bs-btn-active-border-color: rgba(var(--galint-modal-accent-rgb), 0.82);
+        --bs-btn-color: #ffffff;
+        --bs-btn-hover-color: #ffffff;
+        --bs-btn-active-color: #ffffff;
+        box-shadow: 0 10px 24px rgba(var(--galint-modal-accent-rgb), 0.22);
+    }
+
+    .modal-content.galint-bs-modal .btn-secondary,
+    .modal-content.galint-bs-modal .btn-outline-secondary {
+        --bs-btn-bg: rgba(148, 163, 184, 0.08);
+        --bs-btn-border-color: rgba(148, 163, 184, 0.2);
+        --bs-btn-color: #e5eefc;
+        --bs-btn-hover-bg: rgba(148, 163, 184, 0.16);
+        --bs-btn-hover-border-color: rgba(148, 163, 184, 0.3);
+        --bs-btn-hover-color: #ffffff;
+        --bs-btn-active-bg: rgba(148, 163, 184, 0.18);
+        --bs-btn-active-border-color: rgba(148, 163, 184, 0.34);
+        --bs-btn-active-color: #ffffff;
+    }
+
+    .modal-content.galint-bs-modal .btn-outline-primary,
+    .modal-content.galint-bs-modal .btn-outline-info {
+        --bs-btn-color: #dbeafe;
+        --bs-btn-border-color: rgba(var(--galint-modal-accent-rgb), 0.34);
+        --bs-btn-hover-bg: rgba(var(--galint-modal-accent-rgb), 0.18);
+        --bs-btn-hover-border-color: rgba(var(--galint-modal-accent-rgb), 0.5);
+        --bs-btn-hover-color: #ffffff;
+        --bs-btn-active-bg: rgba(var(--galint-modal-accent-rgb), 0.22);
+        --bs-btn-active-border-color: rgba(var(--galint-modal-accent-rgb), 0.54);
+        --bs-btn-active-color: #ffffff;
+    }
+
+    .modal-content.galint-bs-modal .btn-success {
+        --bs-btn-bg: #16a34a;
+        --bs-btn-border-color: #16a34a;
+        --bs-btn-hover-bg: #22c55e;
+        --bs-btn-hover-border-color: #22c55e;
+        --bs-btn-active-bg: #15803d;
+        --bs-btn-active-border-color: #15803d;
+        box-shadow: 0 10px 24px rgba(34, 197, 94, 0.18);
+    }
+
+    .modal-content.galint-bs-modal .btn-danger {
+        --bs-btn-bg: #dc2626;
+        --bs-btn-border-color: #dc2626;
+        --bs-btn-hover-bg: #ef4444;
+        --bs-btn-hover-border-color: #ef4444;
+        --bs-btn-active-bg: #b91c1c;
+        --bs-btn-active-border-color: #b91c1c;
+        --bs-btn-color: #ffffff;
+        --bs-btn-hover-color: #ffffff;
+        --bs-btn-active-color: #ffffff;
+        box-shadow: 0 10px 24px rgba(239, 68, 68, 0.18);
+    }
+
+    .modal-content.galint-bs-modal .alert-light,
+    .modal-content.galint-bs-modal .alert.border {
+        background: rgba(255, 255, 255, 0.05);
+        border-color: rgba(148, 163, 184, 0.16) !important;
+        color: #e5eefc;
+    }
+
     .pre-registered-modal .modal-content {
         background: linear-gradient(180deg, rgba(15,23,42,0.98) 0%, rgba(17,24,39,0.98) 100%);
         color: #e2e8f0;
@@ -530,6 +698,31 @@
         border-color: rgba(16, 185, 129, 0.8);
         box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.16);
         background: rgba(16, 185, 129, 0.08);
+    }
+
+    #categoryModal .modal-dialog {
+        max-width: min(1280px, 96vw);
+    }
+
+    #categoryModal .modal-header {
+        align-items: center;
+    }
+
+    #categoryModal .modal-body {
+        padding: 1rem 1.15rem 1.15rem;
+        background:
+            radial-gradient(circle at top right, rgba(56, 189, 248, 0.08), transparent 24%),
+            linear-gradient(180deg, rgba(11, 18, 32, 0.98) 0%, rgba(15, 23, 42, 0.98) 100%);
+    }
+
+    #categoryModal .modal-footer {
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    #categoryModal .modal-footer > .d-flex {
+        flex: 1 1 auto;
     }
 
     .pre-registered-card-head {
@@ -894,7 +1087,7 @@
 </script>
 <div class="modal fade" id="categoryModal" tabindex="-1" aria-labelledby="categoryModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
-        <div class="modal-content galint-dark-surface">
+        <div class="modal-content galint-dark-surface galint-bs-modal galint-bs-modal--sky category-overview-modal">
             <div class="modal-header">
                 <h5 class="modal-title" id="categoryModalLabel">Categoria</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
@@ -1061,7 +1254,7 @@
 <div class="modal fade" id="priceSuggestionsModal" tabindex="-1" aria-labelledby="priceSuggestionsModalLabel"
     aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
-        <div class="modal-content price-suggest-modal">
+        <div class="modal-content price-suggest-modal galint-bs-modal galint-bs-modal--sky">
             <div class="modal-header">
                 <h5 class="modal-title" id="priceSuggestionsModalLabel">Buscar preço de reposição</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
@@ -1116,41 +1309,32 @@
 
 <div class="modal fade" id="priceBatchModal" tabindex="-1" aria-labelledby="priceBatchModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-scrollable">
-        <div class="modal-content">
+        <div class="modal-content galint-bs-modal galint-bs-modal--emerald">
             <div class="modal-header">
                 <div>
                     <h5 class="modal-title" id="priceBatchModalLabel">Pesquisa em lote por categoria</h5>
-                    <div class="small text-white-50">Consulta até 10 itens da categoria usando a integração atual do Mercado Livre.</div>
+                    <div class="small text-white-50">Ao abrir, o GALINT pesquisa automaticamente até 10 itens pendentes de preço nesta categoria.</div>
                 </div>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
             </div>
             <div class="modal-body">
-                <div class="row g-3 align-items-end">
-                    <div class="col-lg-6">
-                        <label class="form-label" for="price-batch-category">Categoria</label>
-                        <input class="form-control" id="price-batch-category" readonly>
-                    </div>
-                    <div class="col-sm-3 col-lg-2">
-                        <label class="form-label" for="price-batch-limit">Itens</label>
-                        <input class="form-control" id="price-batch-limit" type="number" min="1" max="10" value="10">
-                    </div>
-                    <div class="col-sm-3 col-lg-2">
-                        <label class="form-label" for="price-batch-uf">UF</label>
-                        <input class="form-control text-uppercase" id="price-batch-uf" maxlength="2" placeholder="SP">
-                    </div>
-                    <div class="col-lg-2 d-grid">
-                        <button class="btn btn-info" type="button" id="price-batch-refresh-btn">
-                            <i class="bi bi-search me-1"></i> Pesquisar
-                        </button>
+                <div class="price-batch-intro">
+                    <div class="price-batch-intro-chip" id="price-batch-category-chip">Categoria</div>
+                    <div class="price-batch-intro-copy">
+                        <strong>Fila automática de preços pendentes</strong>
+                        <span id="price-batch-intro-note">Selecione os valores desejados e aplique de uma vez. Os itens salvos saem da fila e novos pendentes ocupam o lugar.</span>
                     </div>
                 </div>
 
                 <div class="alert alert-light border mt-3 d-none" id="price-batch-summary"></div>
                 <div class="mt-3 price-batch-results" id="price-batch-results"></div>
-                <div id="price-batch-empty" class="text-muted small d-none">Nenhum item pesquisado ainda.</div>
+                <div id="price-batch-empty" class="text-muted small d-none">Nenhum item pendente encontrado para esta categoria.</div>
             </div>
             <div class="modal-footer">
                 <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Fechar</button>
+                <button class="btn btn-success" type="button" id="price-batch-apply-btn" disabled>
+                    <i class="bi bi-check2-circle me-1"></i> Aplicar selecionados
+                </button>
             </div>
         </div>
     </div>
@@ -1158,7 +1342,7 @@
 
 <div class="modal fade" id="preRegisteredModal" tabindex="-1" aria-labelledby="preRegisteredModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-scrollable pre-registered-modal">
-        <div class="modal-content">
+        <div class="modal-content galint-bs-modal galint-bs-modal--sky">
             <div class="modal-header">
                 <div>
                     <h5 class="modal-title" id="preRegisteredModalLabel">Pré-cadastrados por NF</h5>
@@ -1200,72 +1384,67 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
             </div>
             <div class="modal-body">
-                <div class="photo-assistant-hero">
-                    <div>
-                        <div class="photo-assistant-kicker">Atalho rápido</div>
-                        <h6 class="mb-1" id="photo-assistant-item-name">Item</h6>
-                        <p class="text-muted mb-0">Abra um buscador de imagens e aplique o link direto sem precisar entrar em editar item.</p>
+                <div class="photo-assistant-shell">
+                    <div class="photo-assistant-hero">
+                        <div class="photo-assistant-copy">
+                            <div class="photo-assistant-kicker">Buscador rapido</div>
+                            <h6 class="photo-assistant-title mb-1" id="photo-assistant-item-name">Item</h6>
+                            <p class="photo-assistant-subtitle mb-0">Pesquise fora, copie o link direto e volte. Quando o navegador permitir, ele entra sozinho no campo.</p>
+                        </div>
+                        <div class="photo-assistant-preview" id="photo-assistant-preview-box">
+                            <img id="photo-assistant-preview" alt="Previa da imagem do item">
+                        </div>
                     </div>
-                    <div class="photo-assistant-preview" id="photo-assistant-preview-box">
-                        <img id="photo-assistant-preview" alt="Prévia da imagem do item">
+
+                    <div class="photo-assistant-section">
+                        <div class="photo-assistant-section-head">
+                            <div class="photo-assistant-section-title">Busca externa</div>
+                            <span class="photo-assistant-inline-hint">Ajuste o termo e abra o buscador</span>
+                        </div>
+                        <div class="photo-assistant-query-row">
+                            <div class="photo-assistant-field">
+                                <label class="form-label" for="photo-search-query">Termo de busca</label>
+                                <input class="form-control" id="photo-search-query" placeholder="Ex.: alcool 70 1l pring medical">
+                            </div>
+                            <button class="btn btn-outline-secondary photo-assistant-copy-btn" type="button" id="photo-copy-query-btn">
+                                <i class="bi bi-clipboard me-1"></i>Copiar termo
+                            </button>
+                        </div>
+                        <div class="photo-assistant-actions">
+                            <button class="btn btn-outline-primary" type="button" id="photo-search-google-btn">
+                                <i class="bi bi-google me-1"></i>Abrir Google Imagens
+                            </button>
+                            <button class="btn btn-outline-info" type="button" id="photo-search-bing-btn">
+                                <i class="bi bi-search me-1"></i>Abrir Bing Images
+                            </button>
+                        </div>
                     </div>
-                </div>
 
-                <div class="row g-3 mt-1">
-                    <div class="col-md-8">
-                        <label class="form-label" for="photo-search-query">Termo de busca</label>
-                        <input class="form-control" id="photo-search-query" placeholder="Ex.: álcool 70 1l pring medical">
-                        <div class="form-text">Você pode ajustar o termo antes de abrir o buscador externo.</div>
+                    <div class="photo-assistant-section">
+                        <div class="photo-assistant-section-head">
+                            <div class="photo-assistant-section-title">Link direto</div>
+                            <span class="photo-assistant-inline-hint">Copiou a URL? ela cai aqui sozinha.</span>
+                        </div>
+                        <label class="form-label visually-hidden" for="photo-url-input">Cole o link direto da imagem</label>
+                        <input class="form-control" id="photo-url-input" placeholder="https://site.com/imagem.jpg">
                     </div>
-                    <div class="col-md-4 d-flex align-items-end">
-                        <button class="btn btn-outline-secondary w-100" type="button" id="photo-copy-query-btn">
-                            <i class="bi bi-clipboard me-1"></i>Copiar termo
-                        </button>
+
+                    <div class="photo-remote-preview d-none" id="photo-remote-preview-wrap">
+                        <div class="photo-remote-preview-label">Previa selecionada</div>
+                        <img id="photo-remote-preview" alt="Previa da imagem selecionada">
                     </div>
+
+                    <div class="photo-assistant-section">
+                        <div class="photo-assistant-section-head">
+                            <div class="photo-assistant-section-title">Arquivo direto</div>
+                            <span class="photo-assistant-inline-hint">Se houver arquivo, ele sera priorizado</span>
+                        </div>
+                        <label class="form-label visually-hidden" for="photo-file-input">Ou envie um arquivo direto</label>
+                        <input class="form-control" id="photo-file-input" type="file" accept="image/*">
+                    </div>
+
+                    <div class="alert d-none mb-0" id="photo-assistant-feedback" role="alert"></div>
                 </div>
-
-                <div class="d-flex flex-wrap gap-2 mt-3">
-                    <button class="btn btn-outline-primary" type="button" id="photo-search-google-btn">
-                        <i class="bi bi-google me-1"></i>Abrir Google Imagens
-                    </button>
-                    <button class="btn btn-outline-info" type="button" id="photo-search-bing-btn">
-                        <i class="bi bi-search me-1"></i>Abrir Bing Images
-                    </button>
-                </div>
-
-                <hr>
-
-                <label class="form-label" for="photo-url-input">Cole o link direto da imagem</label>
-                <input class="form-control" id="photo-url-input" placeholder="https://site.com/imagem.jpg">
-                <div class="d-flex flex-wrap gap-2 mt-2">
-                    <button class="btn btn-outline-light btn-sm" type="button" id="photo-preview-url-btn">
-                        <i class="bi bi-eye me-1"></i>Ver prévia da URL
-                    </button>
-                    <button class="btn btn-outline-warning btn-sm d-none" type="button" id="photo-paste-suggestion-btn">
-                        <i class="bi bi-clipboard-check me-1"></i>Usar link copiado
-                    </button>
-                </div>
-                <div class="form-text">O GALINT baixa, redimensiona e comprime a imagem automaticamente. Quando o navegador permitir, o campo sugere o último link de imagem copiado.</div>
-
-                <div class="photo-remote-preview mt-3 d-none" id="photo-remote-preview-wrap">
-                    <div class="photo-remote-preview-label">Prévia da URL informada</div>
-                    <img id="photo-remote-preview" alt="Prévia da URL da imagem">
-                </div>
-
-                <hr>
-
-                <label class="form-label" for="photo-file-input">Ou envie um arquivo direto</label>
-                <input class="form-control" id="photo-file-input" type="file" accept="image/*">
-                <div class="d-flex flex-wrap gap-2 mt-2">
-                    <button class="btn btn-outline-success btn-sm" type="button" id="photo-upload-btn">
-                        <i class="bi bi-upload me-1"></i>Enviar arquivo agora
-                    </button>
-                    <button class="btn btn-outline-secondary btn-sm" type="button" id="photo-preview-file-btn">
-                        <i class="bi bi-image me-1"></i>Ver prévia do arquivo
-                    </button>
-                </div>
-
-                <div class="alert d-none mt-3 mb-0" id="photo-assistant-feedback" role="alert"></div>
             </div>
             <div class="modal-footer d-flex justify-content-between">
                 <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Fechar</button>
@@ -1702,30 +1881,37 @@
 
     /* ===== MODAL DE ITEM MODERNO ===== */
     #inventoryItemModal .galint-item-modal {
-        border: none;
-        border-radius: 12px;
-        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+        background: linear-gradient(180deg, #0b1220 0%, #111b2e 100%);
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        border-radius: 18px;
+        box-shadow: 0 28px 70px rgba(2, 6, 23, 0.6);
         overflow: hidden;
     }
 
     #inventoryItemModal .modal-header {
-        background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+        background:
+            radial-gradient(circle at top right, rgba(56, 189, 248, 0.15), transparent 30%),
+            linear-gradient(135deg, #172033 0%, #0b1220 100%);
         border: none;
-        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid rgba(125, 211, 252, 0.14);
+        padding: 1.3rem 1.5rem;
         color: #ffffff;
     }
 
     #inventoryItemModal .modal-title {
-        font-size: 1.25rem;
-        font-weight: 600;
+        font-size: 1.35rem;
+        font-weight: 800;
         color: #ffffff;
         text-transform: uppercase;
-        letter-spacing: 0.5px;
+        letter-spacing: 0.04em;
+        text-shadow: 0 1px 0 rgba(15, 23, 42, 0.4);
     }
 
     #inventoryItemModal .btn-close {
         filter: brightness(0) invert(1);
-        opacity: 0.8;
+        opacity: 0.92;
+        border-radius: 999px;
+        box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
     }
 
     #inventoryItemModal .btn-close:hover {
@@ -1735,40 +1921,44 @@
     /* Sistema de Abas */
     .galint-modal-tabs {
         display: flex;
-        background: linear-gradient(180deg, rgba(15,23,42,0.98) 0%, rgba(30,41,59,0.94) 100%);
-        border-bottom: 1px solid rgba(148, 163, 184, 0.18);
-        padding: 0;
+        gap: 0.28rem;
+        background: linear-gradient(180deg, rgba(9, 15, 27, 0.98) 0%, rgba(17, 24, 39, 0.96) 100%);
+        border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+        padding: 0.42rem 0.5rem 0;
         margin: 0;
         overflow-x: auto;
     }
 
     .galint-tab-btn {
-        flex: 1;
-        background: linear-gradient(180deg, rgba(71, 85, 105, 0.26) 0%, rgba(51, 65, 85, 0.16) 100%);
-        border: none;
-        border-bottom: 3px solid transparent;
-        padding: 1rem 1.5rem;
+        flex: 0 0 auto;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.09) 0%, rgba(148, 163, 184, 0.04) 100%);
+        border: 1px solid transparent;
+        border-bottom: none;
+        border-radius: 14px 14px 0 0;
+        padding: 0.92rem 1.25rem 0.84rem;
         font-size: 0.925rem;
         font-weight: 700;
-        color: #dbe7f5;
+        color: #e5eefc;
         cursor: pointer;
         transition: all 0.2s ease;
         white-space: nowrap;
         min-width: max-content;
-        text-shadow: 0 1px 0 rgba(15, 23, 42, 0.45);
-        box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.04);
+        text-shadow: 0 1px 0 rgba(15, 23, 42, 0.5);
+        opacity: 0.82;
     }
 
     .galint-tab-btn:hover {
-        background: linear-gradient(180deg, rgba(59, 130, 246, 0.24) 0%, rgba(37, 99, 235, 0.16) 100%);
+        background: linear-gradient(180deg, rgba(59, 130, 246, 0.22) 0%, rgba(37, 99, 235, 0.1) 100%);
         color: #f8fbff;
+        opacity: 1;
     }
 
     .galint-tab-btn.active {
         color: #ffffff;
-        border-bottom-color: #7dd3fc;
-        background: linear-gradient(180deg, rgba(59, 130, 246, 0.34) 0%, rgba(29, 78, 216, 0.2) 100%);
-        box-shadow: inset 0 -1px 0 rgba(125, 211, 252, 0.24), 0 10px 20px rgba(15, 23, 42, 0.18);
+        border-color: rgba(125, 211, 252, 0.28);
+        background: linear-gradient(180deg, rgba(59, 130, 246, 0.34) 0%, rgba(29, 78, 216, 0.16) 100%);
+        box-shadow: inset 0 1px 0 rgba(191, 219, 254, 0.1), 0 10px 20px rgba(15, 23, 42, 0.18);
+        opacity: 1;
     }
 
     .galint-tab-btn i {
@@ -1788,11 +1978,12 @@
 
     /* Financeiro no modal do item */
     .galint-finance-box {
-        background: linear-gradient(135deg, rgba(59, 130, 246, 0.08), rgba(16, 185, 129, 0.06));
-        border: 1px solid rgba(148, 163, 184, 0.35);
-        border-radius: 12px;
-        padding: 0.85rem 0.95rem;
+        background: linear-gradient(135deg, rgba(14, 116, 144, 0.18), rgba(37, 99, 235, 0.12));
+        border: 1px solid rgba(125, 211, 252, 0.16);
+        border-radius: 16px;
+        padding: 0.95rem 1rem;
         color: #edf4ff;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
     }
 
     .galint-finance-row {
@@ -1800,7 +1991,12 @@
         align-items: baseline;
         justify-content: space-between;
         gap: 0.75rem;
-        padding: 0.15rem 0;
+        padding: 0.3rem 0;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.08);
+    }
+
+    .galint-finance-row:last-child {
+        border-bottom: none;
     }
 
     .galint-finance-box strong,
@@ -1808,11 +2004,39 @@
         color: #f8fbff;
     }
 
+    .galint-finance-box .d-flex > strong {
+        color: #ffffff !important;
+        font-size: 1rem;
+        font-weight: 800;
+    }
+
+    .galint-finance-row span:first-child {
+        color: #d5e4f5 !important;
+    }
+
+    .galint-finance-row span:last-child {
+        color: #ffffff;
+    }
+
     #inventoryItemModal .text-muted,
     .galint-finance-box .text-muted,
     .galint-stock-info .text-muted,
     .galint-history-info .text-muted {
-        color: #c7d6ea !important;
+        color: #d1ddee !important;
+    }
+
+    #btn-buscar-preco-reposicao {
+        border-color: rgba(125, 211, 252, 0.36);
+        color: #eff6ff;
+        background: rgba(8, 15, 28, 0.28);
+    }
+
+    #btn-buscar-preco-reposicao:hover,
+    #btn-buscar-preco-reposicao:focus-visible {
+        border-color: rgba(125, 211, 252, 0.6);
+        background: rgba(14, 116, 144, 0.26);
+        color: #ffffff;
+        box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.14);
     }
 
     /* Modal de sugestões de preço */
@@ -1909,11 +2133,62 @@
         gap: 0.85rem;
     }
 
+    .price-batch-intro {
+        display: flex;
+        align-items: center;
+        gap: 0.85rem;
+        padding: 0.95rem 1rem;
+        border-radius: 16px;
+        border: 1px solid rgba(74, 222, 128, 0.16);
+        background: linear-gradient(135deg, rgba(21, 128, 61, 0.16), rgba(37, 99, 235, 0.12));
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+    }
+
+    .price-batch-intro-chip {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 150px;
+        padding: 0.45rem 0.8rem;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        color: #f8fbff;
+        font-size: 0.82rem;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+    }
+
+    .price-batch-intro-copy {
+        display: flex;
+        flex-direction: column;
+        gap: 0.2rem;
+        min-width: 0;
+    }
+
+    .price-batch-intro-copy strong {
+        color: #f8fbff;
+        font-size: 0.96rem;
+    }
+
+    .price-batch-intro-copy span {
+        color: #cbd5e1;
+        font-size: 0.82rem;
+    }
+
     .price-batch-card {
         background: rgba(255,255,255,0.06);
         border: 1px solid rgba(148, 163, 184, 0.18);
-        border-radius: 12px;
+        border-radius: 16px;
         padding: 0.95rem 1rem;
+        box-shadow: 0 16px 30px rgba(2, 6, 23, 0.16);
+        transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
+    }
+
+    .price-batch-card.is-ready {
+        border-color: rgba(34, 197, 94, 0.42);
+        box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.14), 0 16px 30px rgba(2, 6, 23, 0.16);
     }
 
     .price-batch-card.is-error {
@@ -1959,38 +2234,170 @@
 
     .price-batch-suggestions {
         display: grid;
-        gap: 0.4rem;
-        margin-top: 0.5rem;
+        gap: 0.55rem;
+        margin-top: 0.7rem;
+    }
+
+    .price-batch-picker-head {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 0.75rem;
+        margin-top: 0.8rem;
+    }
+
+    .price-batch-picker-head strong {
+        color: #f8fbff;
+        font-size: 0.9rem;
+    }
+
+    .price-batch-picker-head span {
+        color: #9fb2c9;
+        font-size: 0.78rem;
     }
 
     .price-batch-suggestion {
         display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.3rem;
+        width: 100%;
+        text-align: left;
+        font-size: 0.78rem;
+        color: #cbd5e1;
+        background: rgba(15, 23, 42, 0.34);
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        border-radius: 12px;
+        padding: 0.7rem 0.8rem;
+        transition: border-color 0.16s ease, background 0.16s ease, transform 0.16s ease, box-shadow 0.16s ease;
+    }
+
+    .price-batch-suggestion:hover {
+        transform: translateY(-1px);
+        border-color: rgba(96, 165, 250, 0.42);
+        background: rgba(30, 41, 59, 0.55);
+    }
+
+    .price-batch-suggestion.is-selected {
+        border-color: rgba(34, 197, 94, 0.46);
+        background: linear-gradient(135deg, rgba(22, 163, 74, 0.16), rgba(37, 99, 235, 0.1));
+        box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.14);
+    }
+
+    .price-batch-suggestion.is-recommended {
+        border-color: rgba(125, 211, 252, 0.24);
+    }
+
+    .price-batch-suggestion-top {
+        display: flex;
         align-items: center;
         justify-content: space-between;
         gap: 0.75rem;
-        font-size: 0.78rem;
-        color: #cbd5e1;
-        background: rgba(15, 23, 42, 0.3);
-        border-radius: 8px;
-        padding: 0.45rem 0.6rem;
+    }
+
+    .price-batch-suggestion-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        padding: 0.28rem 0.55rem;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.08);
+        color: #dbeafe;
+        font-size: 0.68rem;
+        font-weight: 800;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+    }
+
+    .price-batch-suggestion-price {
+        color: #f8fbff;
+        font-size: 0.98rem;
+        font-weight: 800;
+        white-space: nowrap;
+    }
+
+    .price-batch-suggestion-title {
+        color: #e5eefc;
+        font-size: 0.82rem;
+        line-height: 1.35;
+    }
+
+    .price-batch-suggestion-meta {
+        color: #9fb2c9;
+        font-size: 0.74rem;
     }
 
     .price-batch-actions {
         display: flex;
         flex-wrap: wrap;
-        justify-content: flex-end;
+        justify-content: space-between;
+        align-items: center;
         gap: 0.5rem;
-        margin-top: 0.75rem;
+        margin-top: 0.9rem;
     }
 
     .price-batch-status {
         font-size: 0.78rem;
         color: #94a3b8;
-        margin-top: 0.45rem;
+        margin-top: 0.6rem;
     }
 
     .price-batch-status.is-saved {
         color: #86efac;
+    }
+
+    .price-batch-status.is-selected {
+        color: #bbf7d0;
+        font-weight: 700;
+    }
+
+    #price-batch-empty {
+        padding: 1rem 1.05rem;
+        border-radius: 14px;
+        border: 1px dashed rgba(148, 163, 184, 0.18);
+        background: rgba(255, 255, 255, 0.04);
+    }
+
+    #priceBatchModal .modal-footer {
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    #price-batch-apply-btn:disabled {
+        opacity: 0.65;
+        box-shadow: none;
+    }
+
+    @media (max-width: 767.98px) {
+        .price-batch-intro {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .price-batch-intro-chip {
+            min-width: 0;
+        }
+
+        .price-batch-head,
+        .price-batch-picker-head,
+        .price-batch-actions,
+        #priceBatchModal .modal-footer,
+        #categoryModal .modal-footer {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .price-batch-summary {
+            text-align: left;
+            min-width: 0;
+        }
+
+        .price-batch-actions .btn,
+        #priceBatchModal .modal-footer .btn,
+        #categoryModal .modal-footer .btn {
+            width: 100%;
+        }
     }
 
     @keyframes fadeIn {
@@ -2005,34 +2412,48 @@
     }
 
     #inventoryItemModal .modal-body {
-        padding: 1.5rem;
-        background: linear-gradient(180deg, rgba(15,23,42,0.96) 0%, rgba(17,24,39,0.94) 100%);
+        padding: 1.35rem;
+        background:
+            radial-gradient(circle at top right, rgba(56, 189, 248, 0.12), transparent 26%),
+            linear-gradient(180deg, rgba(15, 23, 42, 0.98) 0%, rgba(11, 18, 32, 0.98) 100%);
         min-height: 300px;
     }
 
     /* Aba Informações */
     .galint-info-card {
-        background: rgba(255,255,255,0.06);
+        background: linear-gradient(180deg, rgba(34, 43, 62, 0.9) 0%, rgba(25, 34, 52, 0.96) 100%);
         padding: 1.25rem;
-        border-radius: 8px;
-        border: 1px solid rgba(148,163,184,0.18);
+        border-radius: 16px;
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03), 0 18px 34px rgba(2, 6, 23, 0.18);
     }
 
     .galint-info-card p {
         font-size: 0.95rem;
-        color: #e2e8f0;
+        color: #dce7f7;
     }
 
     .galint-info-card strong {
         color: #f8fafc;
-        font-weight: 600;
+        font-weight: 700;
+    }
+
+    .galint-info-card p span:not(.badge) {
+        color: #ffffff;
+    }
+
+    #inventoryItemModal #item-saldo {
+        background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%) !important;
+        color: #ffffff;
+        font-weight: 800;
+        box-shadow: 0 8px 18px rgba(34, 197, 94, 0.2);
     }
 
     /* Container de Imagem Grande */
     .galint-image-container {
-        background: linear-gradient(135deg, rgba(15,23,42,0.96) 0%, rgba(30,41,59,0.96) 100%);
-        border: 2px solid rgba(148,163,184,0.18);
-        border-radius: 12px;
+        background: linear-gradient(135deg, rgba(10, 18, 32, 0.98) 0%, rgba(23, 34, 53, 0.96) 100%);
+        border: 1px solid rgba(125, 211, 252, 0.14);
+        border-radius: 18px;
         padding: 1.5rem;
         display: flex;
         align-items: center;
@@ -2040,6 +2461,7 @@
         min-height: 400px;
         position: relative;
         overflow: hidden;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03), 0 22px 42px rgba(2, 6, 23, 0.2);
     }
 
     .galint-image-container::before {
@@ -2058,32 +2480,32 @@
         max-width: 100%;
         max-height: 400px;
         object-fit: contain;
-        border-radius: 8px;
-        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+        border-radius: 12px;
+        box-shadow: 0 18px 34px rgba(2, 6, 23, 0.28);
         position: relative;
         z-index: 1;
     }
 
     .galint-image-container.no-image {
-        background: rgba(255,255,255,0.04);
+        background: linear-gradient(180deg, rgba(20, 28, 43, 0.9), rgba(13, 19, 33, 0.96));
         border-style: dashed;
     }
 
     .galint-image-container.no-image::after {
         content: 'Sem imagem disponível';
-        color: #cbd5e1;
+        color: #e2e8f0;
         font-size: 1rem;
-        font-weight: 500;
+        font-weight: 600;
         position: relative;
         z-index: 1;
     }
 
     /* Código de Barras Pequeno */
     .galint-barcode-container-small {
-        background: rgba(255,255,255,0.06);
+        background: linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%);
         padding: 0.75rem;
-        border-radius: 6px;
-        border: 1px solid rgba(148,163,184,0.18);
+        border-radius: 10px;
+        border: 1px solid rgba(148, 163, 184, 0.28);
         display: inline-block;
         max-width: 100%;
     }
@@ -2097,12 +2519,13 @@
 
     /* Código de Barras Grande */
     .galint-barcode-container {
-        background: rgba(255,255,255,0.06);
+        background: linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%);
         padding: 2rem;
-        border-radius: 8px;
-        border: 2px solid rgba(148,163,184,0.18);
+        border-radius: 14px;
+        border: 1px solid rgba(148, 163, 184, 0.28);
         display: inline-block;
         max-width: 100%;
+        box-shadow: 0 18px 34px rgba(2, 6, 23, 0.16);
     }
 
     .galint-barcode-container img {
@@ -2114,53 +2537,63 @@
 
     /* Aba Estoque */
     .galint-stock-info {
-        padding: 1rem;
+        padding: 1.1rem;
+        background: linear-gradient(180deg, rgba(34, 43, 62, 0.9) 0%, rgba(25, 34, 52, 0.96) 100%);
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        border-radius: 16px;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03), 0 18px 34px rgba(2, 6, 23, 0.18);
         color: #edf4ff;
     }
 
     .galint-stock-info h6,
     .galint-history-info h6 {
         color: #f3f8ff;
+        font-size: 1rem;
+        font-weight: 800;
     }
 
     .galint-history-info {
-        padding: 1rem;
-        color: #0f172a;
+        padding: 1.1rem;
+        background: linear-gradient(180deg, rgba(34, 43, 62, 0.9) 0%, rgba(25, 34, 52, 0.96) 100%);
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        border-radius: 16px;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03), 0 18px 34px rgba(2, 6, 23, 0.18);
+        color: #e5eefc;
     }
 
     .galint-history-info .table-responsive {
-        background: #f8fafc;
-        border: 1px solid rgba(148, 163, 184, 0.24);
-        border-radius: 10px;
-        padding: 0.35rem;
+        background: rgba(8, 15, 28, 0.5);
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        border-radius: 14px;
+        padding: 0.45rem;
     }
 
     .galint-history-info .table {
         margin-bottom: 0;
-        color: #0f172a;
-        --bs-table-color: #0f172a;
-        --bs-table-bg: #f8fafc;
-        --bs-table-border-color: rgba(148, 163, 184, 0.28);
-        --bs-table-striped-color: #0f172a;
-        --bs-table-striped-bg: rgba(226, 232, 240, 0.72);
-        --bs-table-hover-color: #020617;
-        --bs-table-hover-bg: rgba(191, 219, 254, 0.45);
+        color: #e5eefc;
+        --bs-table-color: #e5eefc;
+        --bs-table-bg: transparent;
+        --bs-table-border-color: rgba(148, 163, 184, 0.12);
+        --bs-table-striped-color: #f8fbff;
+        --bs-table-striped-bg: rgba(255, 255, 255, 0.03);
+        --bs-table-hover-color: #ffffff;
+        --bs-table-hover-bg: rgba(59, 130, 246, 0.1);
     }
 
     .galint-history-info thead th {
-        color: #0f172a;
-        background: rgba(226, 232, 240, 0.95);
-        border-bottom-color: rgba(148, 163, 184, 0.35);
-        font-weight: 700;
+        color: #ffffff;
+        background: rgba(30, 41, 59, 0.9);
+        border-bottom-color: rgba(148, 163, 184, 0.2);
+        font-weight: 800;
     }
 
     .galint-history-info tbody td {
-        color: #0f172a;
+        color: #dce7f7;
         background: transparent;
     }
 
     .galint-history-info .text-muted {
-        color: #475569 !important;
+        color: #c7d6ea !important;
     }
 
     .stock-bar-container {
@@ -2170,23 +2603,30 @@
     .stock-bar {
         width: 100%;
         height: 24px;
-        background: #e2e8f0;
+        background: rgba(8, 15, 28, 0.72);
+        border: 1px solid rgba(148, 163, 184, 0.16);
         border-radius: 12px;
         overflow: hidden;
         position: relative;
+        box-shadow: inset 0 2px 6px rgba(2, 6, 23, 0.3);
     }
 
     .stock-bar-fill {
         height: 100%;
-        background: linear-gradient(90deg, #10b981 0%, #059669 100%);
+        background: linear-gradient(90deg, #22c55e 0%, #16a34a 100%);
         transition: width 0.5s ease;
         border-radius: 12px;
     }
 
+    #stock-saldo {
+        color: #86efac !important;
+        font-weight: 800;
+    }
+
     /* Footer do Modal */
     .galint-modal-footer {
-        background: linear-gradient(180deg, rgba(15,23,42,0.98) 0%, rgba(17,24,39,0.96) 100%);
-        border-top: 1px solid rgba(148, 163, 184, 0.18);
+        background: linear-gradient(180deg, rgba(9, 15, 27, 0.98) 0%, rgba(12, 18, 31, 0.98) 100%);
+        border-top: 1px solid rgba(148, 163, 184, 0.12);
         padding: 1rem 1.5rem;
         display: flex;
         justify-content: space-between;
@@ -2197,15 +2637,15 @@
 
     .galint-modal-footer .btn {
         font-size: 0.9rem;
-        font-weight: 600;
-        padding: 0.6rem 1.25rem;
-        border-radius: 6px;
+        font-weight: 700;
+        padding: 0.65rem 1.25rem;
+        border-radius: 12px;
         transition: all 0.2s;
     }
 
     .galint-modal-footer .btn-secondary {
-        background: rgba(148, 163, 184, 0.14);
-        border: 1px solid rgba(148, 163, 184, 0.24);
+        background: rgba(148, 163, 184, 0.12);
+        border: 1px solid rgba(148, 163, 184, 0.22);
         color: #e2e8f0;
     }
 
@@ -2249,6 +2689,49 @@
         box-shadow: 0 4px 12px rgba(245, 158, 11, 0.35);
     }
 
+    .galint-modal-footer .btn-outline-info {
+        background: rgba(8, 15, 28, 0.32);
+        border-color: rgba(125, 211, 252, 0.32);
+        color: #d8f3ff;
+    }
+
+    .galint-modal-footer .btn-outline-info:hover,
+    .galint-modal-footer .btn-outline-info:focus-visible {
+        background: rgba(14, 116, 144, 0.24);
+        border-color: rgba(125, 211, 252, 0.56);
+        color: #ffffff;
+        transform: translateY(-1px);
+    }
+
+    .galint-modal-footer .btn-danger {
+        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        border: none;
+        color: #ffffff;
+        box-shadow: 0 2px 8px rgba(239, 68, 68, 0.24);
+    }
+
+    .galint-modal-footer .btn-danger:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(239, 68, 68, 0.32);
+    }
+
+    #priceSuggestionsModal .modal-footer,
+    #priceBatchModal .modal-footer {
+        background: linear-gradient(180deg, rgba(9, 15, 27, 0.98) 0%, rgba(12, 18, 31, 0.98) 100%);
+        border-top: 1px solid rgba(148, 163, 184, 0.12);
+    }
+
+    #priceSuggestionsModal .btn-close,
+    #priceBatchModal .btn-close {
+        filter: brightness(0) invert(1);
+        opacity: 0.92;
+    }
+
+    #priceSuggestionsModal .text-muted,
+    #priceBatchModal .text-muted {
+        color: #d1ddee !important;
+    }
+
     /* Responsividade */
     @media (max-width: 768px) {
         .galint-tab-btn {
@@ -2274,72 +2757,192 @@
     }
 
     .photo-assistant-dialog {
-        max-width: min(680px, 92vw);
+        max-width: min(620px, calc(100vw - 1rem));
     }
 
     .photo-assistant-modal {
-        background: linear-gradient(180deg, #0f172a 0%, #111827 100%);
+        background: linear-gradient(180deg, #0b1220 0%, #111b2e 100%);
         color: #e5eefc;
-        border: 1px solid rgba(148, 163, 184, 0.18);
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        border-radius: 18px;
+        overflow: hidden;
+        box-shadow: 0 24px 60px rgba(2, 6, 23, 0.45);
     }
 
-    .photo-assistant-modal .modal-header,
+    .photo-assistant-modal .modal-header {
+        padding: 0.95rem 1.1rem;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+        background:
+            radial-gradient(circle at top right, rgba(56, 189, 248, 0.15), transparent 34%),
+            linear-gradient(135deg, #162033 0%, #0b1220 100%);
+    }
+
     .photo-assistant-modal .modal-footer {
-        border-color: rgba(148, 163, 184, 0.18);
-        padding: 0.8rem 1rem;
+        padding: 0.9rem 1.1rem;
+        border-top: 1px solid rgba(148, 163, 184, 0.12);
+        background: linear-gradient(180deg, rgba(8, 15, 28, 0.92) 0%, rgba(12, 18, 31, 0.96) 100%);
+    }
+
+    .photo-assistant-modal .modal-title {
+        font-size: 1.08rem;
+        font-weight: 800;
+        color: #ffffff;
+        letter-spacing: 0.01em;
     }
 
     .photo-assistant-modal .modal-body {
-        padding: 0.9rem 1rem 1rem;
+        padding: 1rem;
+        background:
+            radial-gradient(circle at top right, rgba(56, 189, 248, 0.08), transparent 28%),
+            linear-gradient(180deg, rgba(11, 18, 32, 0.98) 0%, rgba(15, 23, 42, 0.98) 100%);
     }
 
     .photo-assistant-modal .btn-close {
-        filter: invert(1);
+        filter: brightness(0) invert(1);
+        opacity: 0.92;
+    }
+
+    .photo-assistant-modal .form-label {
+        font-size: 0.82rem;
+        font-weight: 700;
+        color: #e5eefc;
+        margin-bottom: 0.35rem;
     }
 
     .photo-assistant-modal .form-control {
-        background: rgba(15, 23, 42, 0.75);
-        border-color: rgba(148, 163, 184, 0.22);
+        min-height: 42px;
+        background: rgba(15, 23, 42, 0.82);
+        border-color: rgba(148, 163, 184, 0.18);
+        border-radius: 12px;
         color: #f8fafc;
+        box-shadow: none;
+    }
+
+    .photo-assistant-modal .form-control:focus {
+        background: rgba(15, 23, 42, 0.92);
+        border-color: rgba(96, 165, 250, 0.46);
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.16);
+        color: #ffffff;
     }
 
     .photo-assistant-modal .form-control::placeholder {
-        color: #94a3b8;
+        color: #8fa3bc;
     }
 
     .photo-assistant-modal .form-text,
     .photo-assistant-modal .text-muted {
-        color: #94a3b8 !important;
+        color: #9fb2c9 !important;
+    }
+
+    .photo-assistant-modal .btn {
+        border-radius: 12px;
+        font-weight: 700;
+    }
+
+    .photo-assistant-modal .btn-primary {
+        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+        border: none;
+        color: #ffffff;
+        box-shadow: 0 10px 24px rgba(37, 99, 235, 0.24);
+    }
+
+    .photo-assistant-modal .btn-primary:hover,
+    .photo-assistant-modal .btn-primary:focus-visible {
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        color: #ffffff;
+        transform: translateY(-1px);
+    }
+
+    .photo-assistant-modal .btn-outline-secondary {
+        background: rgba(148, 163, 184, 0.08);
+        border-color: rgba(148, 163, 184, 0.22);
+        color: #e5eefc;
+    }
+
+    .photo-assistant-modal .btn-outline-secondary:hover,
+    .photo-assistant-modal .btn-outline-secondary:focus-visible {
+        background: rgba(148, 163, 184, 0.14);
+        border-color: rgba(148, 163, 184, 0.34);
+        color: #ffffff;
+    }
+
+    .photo-assistant-modal .btn-outline-primary {
+        background: rgba(37, 99, 235, 0.14);
+        border-color: rgba(96, 165, 250, 0.34);
+        color: #eaf2ff;
+    }
+
+    .photo-assistant-modal .btn-outline-primary:hover,
+    .photo-assistant-modal .btn-outline-primary:focus-visible {
+        background: rgba(37, 99, 235, 0.24);
+        border-color: rgba(96, 165, 250, 0.5);
+        color: #ffffff;
+    }
+
+    .photo-assistant-modal .btn-outline-info {
+        background: rgba(8, 145, 178, 0.14);
+        border-color: rgba(103, 232, 249, 0.26);
+        color: #dff9ff;
+    }
+
+    .photo-assistant-modal .btn-outline-info:hover,
+    .photo-assistant-modal .btn-outline-info:focus-visible {
+        background: rgba(8, 145, 178, 0.24);
+        border-color: rgba(103, 232, 249, 0.44);
+        color: #ffffff;
+    }
+
+    .photo-assistant-shell {
+        display: flex;
+        flex-direction: column;
+        gap: 0.85rem;
     }
 
     .photo-assistant-hero {
         display: flex;
+        align-items: center;
         justify-content: space-between;
-        align-items: flex-start;
-        gap: 1rem;
-        padding: 0.8rem 0.9rem;
-        border-radius: 14px;
-        background: rgba(15, 23, 42, 0.7);
+        gap: 0.95rem;
+        padding: 0.95rem 1rem;
+        border-radius: 16px;
+        background: linear-gradient(180deg, rgba(17, 24, 39, 0.9) 0%, rgba(15, 23, 42, 0.96) 100%);
         border: 1px solid rgba(96, 165, 250, 0.18);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+    }
+
+    .photo-assistant-copy {
+        min-width: 0;
     }
 
     .photo-assistant-kicker {
-        font-size: 0.72rem;
+        font-size: 0.71rem;
         text-transform: uppercase;
         letter-spacing: 0.08em;
         color: #38bdf8;
-        margin-bottom: 0.25rem;
-        font-weight: 700;
+        margin-bottom: 0.22rem;
+        font-weight: 800;
+    }
+
+    .photo-assistant-title {
+        font-size: 0.96rem;
+        font-weight: 800;
+        color: #f8fbff;
+        line-height: 1.25;
+    }
+
+    .photo-assistant-subtitle {
+        max-width: 42ch;
+        color: #c9d8ea !important;
     }
 
     .photo-assistant-preview {
-        width: 82px;
-        min-width: 82px;
-        height: 82px;
-        border-radius: 12px;
+        width: 74px;
+        min-width: 74px;
+        height: 74px;
+        border-radius: 16px;
         overflow: hidden;
-        background: rgba(30, 41, 59, 0.9);
-        border: 1px dashed rgba(148, 163, 184, 0.32);
+        background: linear-gradient(180deg, rgba(30, 41, 59, 0.95) 0%, rgba(15, 23, 42, 0.98) 100%);
+        border: 1px dashed rgba(148, 163, 184, 0.26);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -2348,8 +2951,9 @@
 
     .photo-assistant-preview::after {
         content: 'Sem foto';
-        color: #94a3b8;
+        color: #93a7bf;
         font-size: 0.72rem;
+        font-weight: 600;
     }
 
     .photo-assistant-preview.has-image::after {
@@ -2367,32 +2971,145 @@
         display: block;
     }
 
+    .photo-assistant-section {
+        padding: 0.9rem;
+        border-radius: 16px;
+        background: linear-gradient(180deg, rgba(18, 27, 42, 0.92) 0%, rgba(12, 19, 33, 0.96) 100%);
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+    }
+
+    .photo-assistant-section-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 0.75rem;
+        margin-bottom: 0.65rem;
+    }
+
+    .photo-assistant-section-title {
+        font-size: 0.74rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #7dd3fc;
+    }
+
+    .photo-assistant-inline-hint {
+        font-size: 0.76rem;
+        color: #9fb2c9;
+        text-align: right;
+    }
+
+    .photo-assistant-query-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 0.75rem;
+        align-items: end;
+    }
+
+    .photo-assistant-field {
+        min-width: 0;
+    }
+
+    .photo-assistant-copy-btn {
+        min-width: 148px;
+        min-height: 42px;
+        padding-inline: 0.9rem;
+        white-space: nowrap;
+    }
+
+    .photo-assistant-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.6rem;
+        margin-top: 0.75rem;
+    }
+
+    .photo-assistant-actions .btn {
+        flex: 1 1 180px;
+        min-height: 42px;
+    }
+
     .photo-remote-preview {
-        padding: 0.75rem 0.85rem;
-        border-radius: 12px;
-        background: rgba(15, 23, 42, 0.55);
-        border: 1px solid rgba(148, 163, 184, 0.18);
+        padding: 0.75rem 0.8rem;
+        border-radius: 14px;
+        background: rgba(8, 15, 28, 0.62);
+        border: 1px solid rgba(96, 165, 250, 0.16);
     }
 
     .photo-remote-preview-label {
-        color: #cbd5e1;
-        font-size: 0.76rem;
-        margin-bottom: 0.45rem;
-        font-weight: 600;
+        color: #d5e4f5;
+        font-size: 0.75rem;
+        margin-bottom: 0.4rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
     }
 
     .photo-remote-preview img {
         width: 100%;
-        max-height: 180px;
+        max-height: 170px;
         object-fit: contain;
         border-radius: 10px;
-        background: rgba(15, 23, 42, 0.8);
+        background: rgba(15, 23, 42, 0.84);
+    }
+
+    .photo-assistant-modal .alert {
+        margin-bottom: 0;
+        border-radius: 14px;
+    }
+
+    @media (max-width: 767.98px) {
+        .photo-assistant-dialog {
+            max-width: calc(100vw - 0.75rem);
+            margin: 0.4rem auto;
+        }
+
+        .photo-assistant-modal .modal-body,
+        .photo-assistant-modal .modal-header,
+        .photo-assistant-modal .modal-footer {
+            padding-left: 0.9rem;
+            padding-right: 0.9rem;
+        }
+
+        .photo-assistant-hero {
+            align-items: flex-start;
+        }
+
+        .photo-assistant-query-row {
+            grid-template-columns: 1fr;
+        }
+
+        .photo-assistant-copy-btn,
+        .photo-assistant-actions .btn {
+            width: 100%;
+        }
+
+        .photo-assistant-section-head {
+            flex-direction: column;
+            margin-bottom: 0.55rem;
+        }
+
+        .photo-assistant-inline-hint {
+            text-align: left;
+        }
+
+        .photo-assistant-modal .modal-footer {
+            flex-direction: column-reverse;
+            gap: 0.6rem;
+            align-items: stretch;
+        }
+
+        .photo-assistant-modal .modal-footer .btn {
+            width: 100%;
+        }
     }
 </style>
 
 <div class="modal fade" id="assignModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-xl">
-        <form class="modal-content" method="POST" id="assignForm">
+        <form class="modal-content galint-bs-modal galint-bs-modal--emerald" method="POST" id="assignForm">
             <div class="modal-header">
                 <h5 class="modal-title">
                     <i class="bi bi-person-check-fill me-2"></i>
@@ -3834,13 +4551,9 @@
     const photoAssistantName = document.getElementById('photo-assistant-item-name');
     const photoSearchQuery = document.getElementById('photo-search-query');
     const photoUrlInput = document.getElementById('photo-url-input');
-    const photoPreviewUrlBtn = document.getElementById('photo-preview-url-btn');
-    const photoPasteSuggestionBtn = document.getElementById('photo-paste-suggestion-btn');
     const photoRemotePreviewWrap = document.getElementById('photo-remote-preview-wrap');
     const photoRemotePreview = document.getElementById('photo-remote-preview');
     const photoFileInput = document.getElementById('photo-file-input');
-    const photoUploadButton = document.getElementById('photo-upload-btn');
-    const photoPreviewFileBtn = document.getElementById('photo-preview-file-btn');
     const photoApplyButton = document.getElementById('photo-apply-btn');
     const photoFeedback = document.getElementById('photo-assistant-feedback');
     const photoPreviewBox = document.getElementById('photo-assistant-preview-box');
@@ -3860,8 +4573,9 @@
     const applyPhotoUrlEndpoint = {{ url_for('inventory.aplicar_foto_url_global') | tojson | safe }};
     const applyPhotoUploadEndpoint = {{ (url_for('inventory.aplicar_foto_upload_global') if endpoint_exists('inventory.aplicar_foto_upload_global') else '/itens/foto/upload') | tojson | safe }};
     let currentPhotoItem = null;
-    let clipboardSuggestedUrl = '';
     let photoPreviewObjectUrl = null;
+    let photoAssistantClipboardMonitorId = null;
+    let lastAutoFilledPhotoUrl = '';
     let preRegisteredSelection = null;
 
     const priceModalElement = document.getElementById('priceSuggestionsModal');
@@ -3869,12 +4583,18 @@
     const priceModalUnitSelect = document.getElementById('price-unit');
     const priceBatchModalElement = document.getElementById('priceBatchModal');
     const priceBatchModalInstance = priceBatchModalElement ? new bootstrap.Modal(priceBatchModalElement) : null;
+    const priceBatchApplyBtn = document.getElementById('price-batch-apply-btn');
+    const priceBatchCategoryChip = document.getElementById('price-batch-category-chip');
+    const priceBatchIntroNote = document.getElementById('price-batch-intro-note');
     let currentPriceItem = null;
     let priceSuggestions = [];
     let lastPriceStats = null;
     let selectedSuggestionIndex = null;
     let currentBatchCategory = null;
     let currentBatchResults = [];
+    let currentBatchSelections = new Map();
+    let currentBatchSummary = {};
+    let currentBatchNotice = { message: '', tone: 'info' };
 
     const normalizePriceUnitCode = (value) => String(value || '').trim().toLowerCase();
 
@@ -4285,30 +5005,80 @@
         return /\.(png|jpe?g|webp|gif|bmp|svg)(\?.*)?$/i.test(raw) || /image|img|photo|cdn/i.test(raw);
     };
 
-    const updateClipboardSuggestionButton = () => {
-        if (!photoPasteSuggestionBtn) {
-            return;
+    const clearPhotoPreviewObjectUrl = () => {
+        if (photoPreviewObjectUrl) {
+            URL.revokeObjectURL(photoPreviewObjectUrl);
+            photoPreviewObjectUrl = null;
         }
-        if (clipboardSuggestedUrl) {
-            photoPasteSuggestionBtn.classList.remove('d-none');
-            photoPasteSuggestionBtn.title = clipboardSuggestedUrl;
-            return;
-        }
-        photoPasteSuggestionBtn.classList.add('d-none');
-        photoPasteSuggestionBtn.removeAttribute('title');
     };
 
-    const inspectClipboardForImageUrl = async () => {
-        if (!navigator.clipboard?.readText || !window.isSecureContext) {
+    const syncPhotoApplyButton = () => {
+        if (!photoApplyButton) {
             return;
+        }
+        const hasFile = Boolean(photoFileInput?.files?.[0]);
+        const hasUrl = isLikelyImageUrl(String(photoUrlInput?.value || '').trim());
+        photoApplyButton.disabled = !(currentPhotoItem?.codigo && (hasFile || hasUrl));
+        photoApplyButton.innerHTML = hasFile
+            ? '<i class="bi bi-upload me-1"></i>Aplicar arquivo no item'
+            : '<i class="bi bi-download me-1"></i>Aplicar imagem no item';
+    };
+
+    const applyDetectedPhotoUrl = (value, announce = false) => {
+        const normalized = String(value || '').trim();
+        if (!isLikelyImageUrl(normalized) || !photoUrlInput) {
+            return false;
+        }
+        const previousValue = String(photoUrlInput.value || '').trim();
+        const changed = previousValue !== normalized;
+        photoUrlInput.value = normalized;
+        lastAutoFilledPhotoUrl = normalized;
+        if (photoFileInput?.value) {
+            photoFileInput.value = '';
+            clearPhotoPreviewObjectUrl();
+        }
+        showRemotePreview(normalized);
+        syncPhotoApplyButton();
+        if (announce && changed) {
+            setPhotoAssistantFeedback('Link copiado detectado e inserido automaticamente.', 'success');
+        }
+        return changed;
+    };
+
+    const inspectClipboardForImageUrl = async (announce = false) => {
+        if (!navigator.clipboard?.readText || !window.isSecureContext || !photoAssistantElement?.classList.contains('show')) {
+            return false;
         }
         try {
             const text = String(await navigator.clipboard.readText() || '').trim();
-            clipboardSuggestedUrl = isLikelyImageUrl(text) ? text : '';
-            updateClipboardSuggestionButton();
+            if (!isLikelyImageUrl(text)) {
+                return false;
+            }
+            return applyDetectedPhotoUrl(text, announce);
         } catch (_) {
-            // Navegador pode bloquear leitura sem gesto do usuário; mantemos fallback silencioso.
+            return false;
         }
+    };
+
+    const stopPhotoAssistantClipboardMonitor = () => {
+        if (photoAssistantClipboardMonitorId) {
+            window.clearInterval(photoAssistantClipboardMonitorId);
+            photoAssistantClipboardMonitorId = null;
+        }
+        window.removeEventListener('focus', handlePhotoAssistantWindowFocus);
+    };
+
+    function handlePhotoAssistantWindowFocus() {
+        inspectClipboardForImageUrl(true);
+    }
+
+    const startPhotoAssistantClipboardMonitor = () => {
+        stopPhotoAssistantClipboardMonitor();
+        inspectClipboardForImageUrl(false);
+        window.addEventListener('focus', handlePhotoAssistantWindowFocus);
+        photoAssistantClipboardMonitorId = window.setInterval(() => {
+            inspectClipboardForImageUrl(false);
+        }, 1400);
     };
 
     const updateItemPhotoInDom = (item) => {
@@ -4368,8 +5138,30 @@
         const url = provider === 'bing'
             ? `https://www.bing.com/images/search?q=${encodeURIComponent(query)}`
             : `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(query)}`;
+        startPhotoAssistantClipboardMonitor();
         window.open(url, '_blank', 'noopener');
     };
+
+    if (photoAssistantElement) {
+        photoAssistantElement.addEventListener('shown.bs.modal', () => {
+            syncPhotoApplyButton();
+            startPhotoAssistantClipboardMonitor();
+        });
+        photoAssistantElement.addEventListener('hidden.bs.modal', () => {
+            stopPhotoAssistantClipboardMonitor();
+            clearPhotoPreviewObjectUrl();
+            lastAutoFilledPhotoUrl = '';
+            setPhotoAssistantFeedback('');
+            resetRemotePreview();
+            if (photoUrlInput) {
+                photoUrlInput.value = '';
+            }
+            if (photoFileInput) {
+                photoFileInput.value = '';
+            }
+            syncPhotoApplyButton();
+        });
+    }
 
     window.openPhotoAssistantModal = (item) => {
         if (!photoAssistantInstance || !item) {
@@ -4388,11 +5180,12 @@
         if (photoFileInput) {
             photoFileInput.value = '';
         }
-        clipboardSuggestedUrl = '';
-        updateClipboardSuggestionButton();
+        clearPhotoPreviewObjectUrl();
+        lastAutoFilledPhotoUrl = '';
         resetRemotePreview();
         setPhotoAssistantFeedback('');
         setPhotoAssistantPreview(currentPhotoItem.foto_path);
+        syncPhotoApplyButton();
         photoAssistantInstance.show();
     };
 
@@ -4636,6 +5429,181 @@
         target.item = { ...target.item, ...updated };
     };
 
+    const PRICE_BATCH_DEFAULT_LIMIT = 10;
+
+    const setBatchIntro = (category, note = '') => {
+        if (priceBatchCategoryChip) {
+            priceBatchCategoryChip.textContent = category || 'Categoria';
+        }
+        if (priceBatchIntroNote) {
+            priceBatchIntroNote.textContent = note || 'Selecione os valores desejados e aplique de uma vez. Os itens salvos saem da fila e novos pendentes ocupam o lugar.';
+        }
+    };
+
+    const buildBatchCandidates = (entry) => {
+        const stats = entry?.stats || {};
+        const suggestions = Array.isArray(entry?.suggestions) ? entry.suggestions : [];
+        const candidates = [];
+        const median = Number(stats.median);
+        const sampleCount = Number(stats.count || 0);
+
+        if (Number.isFinite(median) && median > 0) {
+            candidates.push({
+                key: 'median',
+                price: median,
+                source: 'Mercado Livre (mediana lote)',
+                url: null,
+                badge: 'Mediana',
+                title: sampleCount > 0 ? `Amostra validada com ${sampleCount} oferta(s)` : 'Mediana recomendada',
+                meta: sampleCount > 0 ? `Recomendado pela mediana da amostra ${sampleCount}` : 'Valor recomendado',
+            });
+        }
+
+        suggestions.slice(0, 3).forEach((suggestion, index) => {
+            const price = Number(suggestion?.price);
+            if (!Number.isFinite(price) || price <= 0) {
+                return;
+            }
+            const source = String(suggestion?.source || 'Mercado Livre').trim() || 'Mercado Livre';
+            const ufText = String(suggestion?.uf || '').trim();
+            candidates.push({
+                key: `suggestion-${index}`,
+                price,
+                source,
+                url: suggestion?.url || null,
+                badge: `Oferta ${index + 1}`,
+                title: String(suggestion?.title || '(sem título)').trim() || '(sem título)',
+                meta: `${source}${ufText ? ` • ${ufText}` : ''}`,
+            });
+        });
+
+        return candidates;
+    };
+
+    const getSelectedBatchCandidate = (entry) => {
+        const codigo = String(entry?.item?.codigo || '').trim();
+        if (!codigo) {
+            return null;
+        }
+        const selectedKey = String(currentBatchSelections.get(codigo) || '');
+        return buildBatchCandidates(entry).find((candidate) => candidate.key === selectedKey) || null;
+    };
+
+    const updateBatchApplyButton = () => {
+        if (!priceBatchApplyBtn) {
+            return;
+        }
+        const selectedCount = currentBatchResults.reduce((count, entry) => count + (getSelectedBatchCandidate(entry) ? 1 : 0), 0);
+        priceBatchApplyBtn.disabled = selectedCount <= 0;
+        priceBatchApplyBtn.innerHTML = selectedCount > 0
+            ? `<i class="bi bi-check2-circle me-1"></i> Aplicar ${selectedCount} ${selectedCount === 1 ? 'valor selecionado' : 'valores selecionados'}`
+            : '<i class="bi bi-check2-circle me-1"></i> Aplicar selecionados';
+    };
+
+    const renderBatchSummary = (category, summary = {}) => {
+        const summaryEl = document.getElementById('price-batch-summary');
+        if (!summaryEl) {
+            return;
+        }
+        const pendingTotal = Number(summary.pending_total || 0);
+        const shown = Number(summary.shown || currentBatchResults.length || 0);
+        const withResults = Number(summary.with_results || 0);
+        const failed = Number(summary.failed || 0);
+        const hasMore = Boolean(summary.has_more);
+        const noteToneClass = currentBatchNotice.tone === 'success'
+            ? 'text-success'
+            : currentBatchNotice.tone === 'danger'
+                ? 'text-danger'
+                : currentBatchNotice.tone === 'warning'
+                    ? 'text-warning'
+                    : 'text-muted';
+        summaryEl.classList.remove('d-none');
+        summaryEl.innerHTML = `
+            <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+                <div>
+                    <strong>${escapeHtml(category || currentBatchCategory || 'Categoria')}</strong>
+                    <span class="text-muted">• pendentes ${Number.isFinite(pendingTotal) ? pendingTotal : 0}</span>
+                    <span class="text-muted">• exibindo ${Number.isFinite(shown) ? shown : 0} de ${PRICE_BATCH_DEFAULT_LIMIT}</span>
+                    <span class="text-muted">• com resultado ${Number.isFinite(withResults) ? withResults : 0}</span>
+                    ${failed > 0 ? `<span class="text-muted">• falhas ${failed}</span>` : ''}
+                </div>
+                <div class="small text-muted">${hasMore ? 'A fila continua automaticamente após aplicar.' : 'Esses são os últimos pendentes desta categoria.'}</div>
+            </div>
+            ${currentBatchNotice.message ? `<div class="small mt-2 ${noteToneClass}">${escapeHtml(currentBatchNotice.message)}</div>` : ''}
+        `;
+    };
+
+    const applySelectedBatchPrices = async () => {
+        if (!priceBatchApplyBtn) {
+            return;
+        }
+        const selectedEntries = currentBatchResults
+            .map((entry) => ({ entry, candidate: getSelectedBatchCandidate(entry) }))
+            .filter((row) => row.candidate && row.entry?.item?.codigo);
+
+        if (!selectedEntries.length) {
+            updateBatchApplyButton();
+            return;
+        }
+
+        const originalHtml = priceBatchApplyBtn.innerHTML;
+        priceBatchApplyBtn.disabled = true;
+        priceBatchApplyBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Aplicando...';
+
+        let appliedCount = 0;
+        const failures = [];
+
+        for (const { entry, candidate } of selectedEntries) {
+            const item = entry.item || {};
+            try {
+                const updated = await persistReplacementPrice(
+                    item,
+                    {
+                        price: candidate.price,
+                        source: candidate.source,
+                        url: candidate.url,
+                    },
+                    entry.query,
+                    entry.uf || '',
+                    resolvePreferredPriceUnit(item, item?.preco_reposicao_unidade_preco || item?.preco_compra_unidade_preco || '')
+                );
+                appliedCount += 1;
+                syncBatchResultSavedState(item.codigo, updated);
+                if (currentPriceItem && String(currentPriceItem.codigo) === String(item.codigo)) {
+                    Object.assign(currentPriceItem, updated);
+                    updateFinanceUI(currentPriceItem);
+                }
+            } catch (err) {
+                failures.push(`${item.descricao || item.codigo || 'Item'}: ${String(err?.message || err)}`);
+            }
+        }
+
+        currentBatchSelections = new Map();
+        currentBatchNotice = appliedCount > 0
+            ? {
+                message: failures.length
+                    ? `Aplicados ${appliedCount} valor(es). ${failures.length} item(ns) precisaram ficar para revisão.`
+                    : `Aplicados ${appliedCount} valor(es). A fila foi atualizada com os próximos pendentes.`,
+                tone: failures.length ? 'warning' : 'success',
+            }
+            : {
+                message: failures[0] || 'Nenhum valor foi aplicado nesta rodada.',
+                tone: 'danger',
+            };
+
+        try {
+            if (appliedCount > 0) {
+                await refreshBatchPriceSuggestions();
+            } else {
+                renderBatchSummary(currentBatchCategory, currentBatchSummary);
+                updateBatchApplyButton();
+            }
+        } finally {
+            priceBatchApplyBtn.innerHTML = originalHtml;
+            updateBatchApplyButton();
+        }
+    };
+
     const openPriceModal = async (item) => {
         if (!priceModalInstance) return;
         currentPriceItem = item;
@@ -4765,7 +5733,7 @@
         if (!currentBatchResults.length) {
             resultsEl.innerHTML = '';
             emptyEl.classList.remove('d-none');
-            summaryEl.classList.add('d-none');
+            updateBatchApplyButton();
             return;
         }
 
@@ -4776,26 +5744,31 @@
             const providers = Array.isArray(entry.providers) ? entry.providers : [];
             const median = Number(stats.median);
             const count = Number(stats.count || 0);
-            const isSaved = !!item.preco_reposicao_unitario;
-            const updatedAt = item.preco_reposicao_atualizado_em ? new Date(item.preco_reposicao_atualizado_em) : null;
-            const updatedLabel = updatedAt && !Number.isNaN(updatedAt.getTime())
-                ? updatedAt.toLocaleDateString('pt-BR')
-                : '';
-            const suggestions = (Array.isArray(entry.suggestions) ? entry.suggestions : []).slice(0, 3);
+            const candidates = buildBatchCandidates(entry);
+            const selectedCandidate = getSelectedBatchCandidate(entry);
             const providerBadges = providers.map((provider) => {
                 const ok = !!provider.ok;
                 return `<span class="badge ${ok ? 'bg-success' : 'bg-danger'}">${escapeHtml(provider.name || 'API')}</span>`;
             }).join(' ');
-            const suggestionHtml = suggestions.length
-                ? suggestions.map((suggestion) => `
-                    <div class="price-batch-suggestion">
-                        <span>${escapeHtml(suggestion.title || '(sem título)')}</span>
-                        <strong>${formatBrl(suggestion.price)}</strong>
-                    </div>
+            const candidateHtml = candidates.length
+                ? candidates.map((candidate) => `
+                    <button
+                        class="price-batch-suggestion ${candidate.key === 'median' ? 'is-recommended' : ''} ${selectedCandidate?.key === candidate.key ? 'is-selected' : ''}"
+                        type="button"
+                        data-batch-select-item="${escapeHtml(item.codigo || '')}"
+                        data-batch-candidate-key="${escapeHtml(candidate.key)}"
+                    >
+                        <span class="price-batch-suggestion-top">
+                            <span class="price-batch-suggestion-badge">${escapeHtml(candidate.badge)}</span>
+                            <strong class="price-batch-suggestion-price">${formatBrl(candidate.price)}</strong>
+                        </span>
+                        <span class="price-batch-suggestion-title">${escapeHtml(candidate.title)}</span>
+                        <span class="price-batch-suggestion-meta">${escapeHtml(candidate.meta)}</span>
+                    </button>
                 `).join('')
                 : '<div class="text-muted small">Nenhuma oferta útil encontrada para este item.</div>';
             return `
-                <div class="price-batch-card ${entry.success ? '' : 'is-error'}" data-batch-item="${escapeHtml(item.codigo || '')}">
+                <div class="price-batch-card ${entry.success ? '' : 'is-error'} ${selectedCandidate ? 'is-ready' : ''}" data-batch-item="${escapeHtml(item.codigo || '')}">
                     <div class="price-batch-head">
                         <div>
                             <p class="price-batch-title">${escapeHtml(item.descricao || 'Item')}</p>
@@ -4808,18 +5781,21 @@
                     </div>
                     <div class="price-batch-query">Busca: ${escapeHtml(entry.query || '')}</div>
                     <div class="d-flex flex-wrap gap-2">${providerBadges}</div>
-                    <div class="price-batch-suggestions">${suggestionHtml}</div>
+                    <div class="price-batch-picker-head">
+                        <strong>Valor para aplicar</strong>
+                        <span>${selectedCandidate ? 'Selecionado para aplicar' : 'Selecione uma sugestão ou a mediana'}</span>
+                    </div>
+                    <div class="price-batch-suggestions">${candidateHtml}</div>
                     ${entry.error ? `<div class="text-danger small mt-2">${escapeHtml(entry.error)}</div>` : ''}
                     <div class="price-batch-actions">
+                        <div class="price-batch-status ${selectedCandidate ? 'is-selected' : ''}">
+                            ${selectedCandidate
+                                ? `Pronto para aplicar: ${formatBrl(selectedCandidate.price)} • ${escapeHtml(selectedCandidate.source)}`
+                                : 'Escolha um valor para este item seguir na aplicação em lote.'}
+                        </div>
                         <button class="btn btn-outline-light btn-sm" type="button" data-batch-open-item="${escapeHtml(item.codigo || '')}">
                             <i class="bi bi-box-arrow-up-right me-1"></i> Abrir item
                         </button>
-                        <button class="btn btn-success btn-sm" type="button" data-batch-save-median="${escapeHtml(item.codigo || '')}" ${Number.isFinite(median) && median > 0 ? '' : 'disabled'}>
-                            <i class="bi bi-check2-circle me-1"></i> Usar mediana
-                        </button>
-                    </div>
-                    <div class="price-batch-status ${isSaved ? 'is-saved' : ''}">
-                        ${isSaved ? `Preço atual ${formatBrl(item.preco_reposicao_unitario)}${updatedLabel ? ` • salvo em ${escapeHtml(updatedLabel)}` : ''}` : 'Preço de reposição ainda não salvo para este item.'}
                     </div>
                 </div>
             `;
@@ -4835,77 +5811,50 @@
             });
         });
 
-        resultsEl.querySelectorAll('[data-batch-save-median]').forEach((button) => {
-            button.addEventListener('click', async () => {
-                const codigo = button.getAttribute('data-batch-save-median');
-                const entry = currentBatchResults.find((row) => String(row?.item?.codigo) === String(codigo));
-                const item = entry?.item;
-                const median = Number(entry?.stats?.median);
-                if (!item || !Number.isFinite(median) || median <= 0) {
+        resultsEl.querySelectorAll('[data-batch-select-item]').forEach((button) => {
+            button.addEventListener('click', () => {
+                const codigo = String(button.getAttribute('data-batch-select-item') || '').trim();
+                const candidateKey = String(button.getAttribute('data-batch-candidate-key') || '').trim();
+                if (!codigo || !candidateKey) {
                     return;
                 }
-
-                const originalHtml = button.innerHTML;
-                button.disabled = true;
-                button.innerHTML = '<span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span> Salvando';
-
-                try {
-                    const updated = await persistReplacementPrice(
-                        item,
-                        { price: median, source: 'Mercado Livre (mediana lote)', url: null },
-                        entry.query,
-                        document.getElementById('price-batch-uf')?.value || entry.uf || '',
-                        resolvePreferredPriceUnit(item, item?.preco_reposicao_unidade_preco || item?.preco_compra_unidade_preco || '')
-                    );
-                    syncBatchResultSavedState(codigo, updated);
-                    if (currentPriceItem && String(currentPriceItem.codigo) === String(codigo)) {
-                        Object.assign(currentPriceItem, updated);
-                        updateFinanceUI(currentPriceItem);
-                    }
-                    renderBatchResults();
-                } catch (err) {
-                    if (window.Swal) {
-                        await Swal.fire('Erro', String(err?.message || err), 'error');
-                    } else {
-                        alert(String(err?.message || err));
-                    }
-                    button.disabled = false;
-                    button.innerHTML = originalHtml;
+                if (currentBatchSelections.get(codigo) === candidateKey) {
+                    currentBatchSelections.delete(codigo);
+                } else {
+                    currentBatchSelections.set(codigo, candidateKey);
                 }
+                renderBatchResults();
             });
         });
+
+        updateBatchApplyButton();
     };
 
     const refreshBatchPriceSuggestions = async () => {
-        const categoryEl = document.getElementById('price-batch-category');
-        const ufEl = document.getElementById('price-batch-uf');
-        const limitEl = document.getElementById('price-batch-limit');
         const resultsEl = document.getElementById('price-batch-results');
         const emptyEl = document.getElementById('price-batch-empty');
         const summaryEl = document.getElementById('price-batch-summary');
-        if (!categoryEl || !ufEl || !limitEl || !resultsEl || !emptyEl || !summaryEl) {
+        if (!resultsEl || !emptyEl || !summaryEl) {
             return;
         }
 
-        const category = String(currentBatchCategory || categoryEl.value || '').trim();
+        const category = String(currentBatchCategory || '').trim();
         if (!category) {
             resultsEl.innerHTML = '';
             summaryEl.classList.add('d-none');
             emptyEl.classList.remove('d-none');
-            emptyEl.textContent = 'Selecione uma categoria antes de pesquisar.';
+            emptyEl.textContent = 'Nenhuma categoria foi informada para a fila automática.';
+            updateBatchApplyButton();
             return;
         }
-        currentBatchCategory = category;
-        categoryEl.value = category;
 
-        const itemLimit = Math.max(1, Math.min(Number(limitEl.value || 10), 10));
-        limitEl.value = String(itemLimit);
-        resultsEl.innerHTML = '<div class="text-muted small">Buscando sugestões para a categoria…</div>';
+        setBatchIntro(category, 'Buscando automaticamente até 10 itens sem preço salvo nesta categoria.');
+        resultsEl.innerHTML = '<div class="text-muted small">Buscando fila automática de preços…</div>';
         emptyEl.classList.add('d-none');
         summaryEl.classList.add('d-none');
 
         try {
-            const url = `/itens/categoria/${encodeURIComponent(category)}/precos/reposicao/lote?item_limit=${encodeURIComponent(itemLimit)}&uf=${encodeURIComponent((ufEl.value || '').trim())}`;
+            const url = `/itens/categoria/${encodeURIComponent(category)}/precos/reposicao/lote?item_limit=${encodeURIComponent(PRICE_BATCH_DEFAULT_LIMIT)}`;
             const response = await fetch(url, { headers: { 'Accept': 'application/json' } });
             const data = await readJsonResponse(response);
             if (!response.ok || !data?.success) {
@@ -4913,24 +5862,43 @@
             }
 
             currentBatchResults = Array.isArray(data.items) ? data.items : [];
-            if (data.uf && !ufEl.value.trim()) {
-                ufEl.value = data.uf;
+            currentBatchSummary = data.summary || {};
+
+            const visibleCodes = new Set(currentBatchResults.map((entry) => String(entry?.item?.codigo || '')));
+            currentBatchSelections = new Map(
+                Array.from(currentBatchSelections.entries()).filter(([codigo]) => visibleCodes.has(String(codigo || '')))
+            );
+
+            renderBatchSummary(data.categoria || category, currentBatchSummary);
+
+            const pendingTotal = Number(currentBatchSummary.pending_total || 0);
+            setBatchIntro(
+                data.categoria || category,
+                pendingTotal > 0
+                    ? 'Selecione os valores desejados e aplique de uma vez. Os itens salvos saem da fila e novos pendentes ocupam o lugar.'
+                    : 'Todos os itens desta categoria já possuem preço de reposição salvo.'
+            );
+
+            if (!currentBatchResults.length) {
+                resultsEl.innerHTML = '';
+                emptyEl.classList.remove('d-none');
+                emptyEl.textContent = pendingTotal <= 0
+                    ? 'Todos os itens desta categoria já têm preço de reposição salvo.'
+                    : 'Não foi possível montar a fila com itens elegíveis nesta categoria.';
+                updateBatchApplyButton();
+                return;
             }
 
-            const summary = data.summary || {};
-            summaryEl.classList.remove('d-none');
-            summaryEl.innerHTML = `
-                <strong>${escapeHtml(data.categoria || category)}</strong> •
-                consultados ${Number(summary.completed || 0)} de ${Number(summary.requested || 0)} itens •
-                ${Number(summary.with_results || 0)} com resultados •
-                ${Number(summary.failed || 0)} falhas
-            `;
             renderBatchResults();
         } catch (err) {
             currentBatchResults = [];
+            currentBatchSummary = {};
             resultsEl.innerHTML = '';
             emptyEl.classList.remove('d-none');
             emptyEl.textContent = `Erro: ${String(err?.message || err)}`;
+            currentBatchNotice = { message: String(err?.message || err), tone: 'danger' };
+            renderBatchSummary(category, {});
+            updateBatchApplyButton();
         }
     };
 
@@ -4940,15 +5908,16 @@
         }
         currentBatchCategory = category;
         currentBatchResults = [];
-        const categoryEl = document.getElementById('price-batch-category');
+        currentBatchSelections = new Map();
+        currentBatchSummary = {};
+        currentBatchNotice = { message: '', tone: 'info' };
+
         const summaryEl = document.getElementById('price-batch-summary');
         const resultsEl = document.getElementById('price-batch-results');
         const emptyEl = document.getElementById('price-batch-empty');
-        if (categoryEl) {
-            categoryEl.value = category;
-        }
         if (summaryEl) {
             summaryEl.classList.add('d-none');
+            summaryEl.innerHTML = '';
         }
         if (resultsEl) {
             resultsEl.innerHTML = '';
@@ -4956,6 +5925,9 @@
         if (emptyEl) {
             emptyEl.classList.add('d-none');
         }
+
+        setBatchIntro(category, 'Buscando automaticamente até 10 itens sem preço salvo nesta categoria.');
+        updateBatchApplyButton();
         priceBatchModalInstance.show();
         await refreshBatchPriceSuggestions();
     };
@@ -4964,7 +5936,6 @@
         const refreshBtn = document.getElementById('price-refresh-btn');
         const useMedianBtn = document.getElementById('price-use-median');
         const saveBtn = document.getElementById('price-save');
-        const batchRefreshBtn = document.getElementById('price-batch-refresh-btn');
         const manualEl = document.getElementById('price-manual');
 
         if (refreshBtn) {
@@ -5035,17 +6006,30 @@
             });
         }
 
-        if (batchRefreshBtn) {
-            batchRefreshBtn.addEventListener('click', refreshBatchPriceSuggestions);
+        if (priceBatchApplyBtn) {
+            priceBatchApplyBtn.addEventListener('click', applySelectedBatchPrices);
         }
 
         if (priceBatchModalElement) {
-            priceBatchModalElement.addEventListener('click', (event) => {
-                const target = event.target instanceof Element ? event.target.closest('#price-batch-refresh-btn') : null;
-                if (!target) {
-                    return;
+            priceBatchModalElement.addEventListener('hidden.bs.modal', () => {
+                currentBatchSelections = new Map();
+                currentBatchSummary = {};
+                currentBatchNotice = { message: '', tone: 'info' };
+                const resultsEl = document.getElementById('price-batch-results');
+                const emptyEl = document.getElementById('price-batch-empty');
+                const summaryEl = document.getElementById('price-batch-summary');
+                if (resultsEl) {
+                    resultsEl.innerHTML = '';
                 }
-                refreshBatchPriceSuggestions();
+                if (emptyEl) {
+                    emptyEl.classList.add('d-none');
+                }
+                if (summaryEl) {
+                    summaryEl.classList.add('d-none');
+                    summaryEl.innerHTML = '';
+                }
+                setBatchIntro('', 'Selecione os valores desejados e aplique de uma vez. Os itens salvos saem da fila e novos pendentes ocupam o lugar.');
+                updateBatchApplyButton();
             });
         }
     };
@@ -5320,121 +6304,62 @@
         });
     }
 
-    if (photoPasteSuggestionBtn) {
-        photoPasteSuggestionBtn.addEventListener('click', () => {
-            if (!clipboardSuggestedUrl || !photoUrlInput) {
-                return;
-            }
-            photoUrlInput.value = clipboardSuggestedUrl;
-            showRemotePreview(clipboardSuggestedUrl);
-            setPhotoAssistantFeedback('Link copiado sugerido e aplicado ao campo.', 'success');
-        });
-    }
-
     if (photoUrlInput) {
-        const handleClipboardSuggestion = () => inspectClipboardForImageUrl();
-        photoUrlInput.addEventListener('focus', handleClipboardSuggestion);
-        photoUrlInput.addEventListener('mouseenter', handleClipboardSuggestion);
         photoUrlInput.addEventListener('paste', () => {
             window.setTimeout(() => {
                 const pasted = String(photoUrlInput.value || '').trim();
                 if (isLikelyImageUrl(pasted)) {
+                    if (photoFileInput?.value) {
+                        photoFileInput.value = '';
+                        clearPhotoPreviewObjectUrl();
+                    }
+                    lastAutoFilledPhotoUrl = pasted;
                     showRemotePreview(pasted);
-                    setPhotoAssistantFeedback('Prévia carregada com o link colado.', 'info');
+                    syncPhotoApplyButton();
                 }
             }, 0);
         });
         photoUrlInput.addEventListener('input', () => {
             const raw = String(photoUrlInput.value || '').trim();
             if (isLikelyImageUrl(raw)) {
+                if (photoFileInput?.value) {
+                    photoFileInput.value = '';
+                    clearPhotoPreviewObjectUrl();
+                }
+                lastAutoFilledPhotoUrl = raw;
                 showRemotePreview(raw);
+                syncPhotoApplyButton();
                 return;
             }
-            resetRemotePreview();
+            if (!photoFileInput?.files?.length) {
+                resetRemotePreview();
+            }
+            syncPhotoApplyButton();
         });
     }
 
-    if (photoPreviewUrlBtn) {
-        photoPreviewUrlBtn.addEventListener('click', () => {
-            const raw = String(photoUrlInput?.value || '').trim();
-            if (!isLikelyImageUrl(raw)) {
-                setPhotoAssistantFeedback('Informe um link direto de imagem válido para gerar a prévia.', 'warning');
-                return;
-            }
-            showRemotePreview(raw);
-            setPhotoAssistantFeedback('Prévia carregada. Se estiver correta, já pode aplicar.', 'info');
-        });
-    }
-
-    if (photoPreviewFileBtn) {
-        photoPreviewFileBtn.addEventListener('click', () => {
-            const file = photoFileInput?.files?.[0];
+    if (photoFileInput) {
+        photoFileInput.addEventListener('change', () => {
+            clearPhotoPreviewObjectUrl();
+            const file = photoFileInput.files?.[0];
             if (!file) {
-                setPhotoAssistantFeedback('Selecione um arquivo de imagem antes de visualizar a prévia.', 'warning');
+                const currentUrl = String(photoUrlInput?.value || '').trim();
+                if (isLikelyImageUrl(currentUrl)) {
+                    showRemotePreview(currentUrl);
+                } else {
+                    resetRemotePreview();
+                }
+                syncPhotoApplyButton();
                 return;
             }
-            resetRemotePreview();
+
+            if (photoUrlInput) {
+                photoUrlInput.value = '';
+            }
+            lastAutoFilledPhotoUrl = '';
             photoPreviewObjectUrl = URL.createObjectURL(file);
             showRemotePreview(photoPreviewObjectUrl);
-            setPhotoAssistantFeedback('Prévia do arquivo carregada.', 'info');
-        });
-    }
-
-    if (photoUploadButton) {
-        photoUploadButton.addEventListener('click', async () => {
-            if (!currentPhotoItem?.codigo) {
-                setPhotoAssistantFeedback('Nenhum item selecionado para enviar a imagem.', 'warning');
-                return;
-            }
-            const file = photoFileInput?.files?.[0];
-            if (!file) {
-                setPhotoAssistantFeedback('Selecione um arquivo de imagem antes de enviar.', 'warning');
-                return;
-            }
-
-            const originalHtml = photoUploadButton.innerHTML;
-            photoUploadButton.disabled = true;
-            photoUploadButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Enviando...';
-            setPhotoAssistantFeedback('Enviando arquivo e atualizando item...', 'info');
-
-            try {
-                const formData = new FormData();
-                formData.append('codigo', currentPhotoItem.codigo);
-                formData.append('foto', file);
-
-                const response = await fetch(applyPhotoUploadEndpoint, {
-                    method: 'POST',
-                    body: formData,
-                    headers: { 'Accept': 'application/json' },
-                });
-                const data = await readJsonResponse(response);
-                if (!response.ok || !data?.success) {
-                    throw new Error(data?.message || 'Falha ao enviar imagem');
-                }
-
-                const updatedItem = applyPhotoToItemState(currentPhotoItem.codigo, data.foto_path || '');
-                if (updatedItem && itemModalElement?.classList.contains('show')) {
-                    const imageContainer = document.getElementById('item-image-large');
-                    const imageSrc = document.getElementById('item-image-src');
-                    if (imageContainer && imageSrc && updatedItem.foto_path) {
-                        imageContainer.classList.remove('no-image');
-                        imageSrc.src = buildStaticItemPhotoUrl(updatedItem.foto_path);
-                        imageSrc.alt = `Imagem de ${updatedItem.descricao}`;
-                        imageSrc.style.display = 'block';
-                    }
-                }
-
-                if (photoFileInput) {
-                    photoFileInput.value = '';
-                }
-                resetRemotePreview();
-                setPhotoAssistantFeedback('Arquivo enviado e aplicado com sucesso.', 'success');
-            } catch (error) {
-                setPhotoAssistantFeedback(String(error?.message || error), 'danger');
-            } finally {
-                photoUploadButton.disabled = false;
-                photoUploadButton.innerHTML = originalHtml;
-            }
+            syncPhotoApplyButton();
         });
     }
 
@@ -5444,35 +6369,54 @@
                 setPhotoAssistantFeedback('Nenhum item selecionado para aplicar a imagem.', 'warning');
                 return;
             }
+            const file = photoFileInput?.files?.[0];
             const imageUrl = String(photoUrlInput?.value || '').trim();
-            if (!imageUrl) {
+            if (!file && !imageUrl) {
                 setPhotoAssistantFeedback('Cole o link direto da imagem antes de aplicar.', 'warning');
                 return;
             }
 
             const originalHtml = photoApplyButton.innerHTML;
             photoApplyButton.disabled = true;
-            photoApplyButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Aplicando...';
-            setPhotoAssistantFeedback('Baixando e aplicando imagem no item...', 'info');
+            photoApplyButton.innerHTML = file
+                ? '<span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Enviando...'
+                : '<span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Aplicando...';
+            setPhotoAssistantFeedback(file ? 'Enviando arquivo e atualizando item...' : 'Baixando e aplicando imagem no item...', 'info');
 
             try {
-                const response = await fetch(applyPhotoUrlEndpoint, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        codigo: currentPhotoItem.codigo,
-                        image_url: imageUrl,
-                    }),
-                });
-                const data = await readJsonResponse(response);
-                if (!response.ok || !data?.success) {
-                    throw new Error(data?.message || 'Falha ao aplicar imagem');
+                let data = null;
+                if (file) {
+                    const formData = new FormData();
+                    formData.append('codigo', currentPhotoItem.codigo);
+                    formData.append('foto', file);
+                    const response = await fetch(applyPhotoUploadEndpoint, {
+                        method: 'POST',
+                        body: formData,
+                        headers: { 'Accept': 'application/json' },
+                    });
+                    data = await readJsonResponse(response);
+                    if (!response.ok || !data?.success) {
+                        throw new Error(data?.message || 'Falha ao enviar imagem');
+                    }
+                } else {
+                    const response = await fetch(applyPhotoUrlEndpoint, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            codigo: currentPhotoItem.codigo,
+                            image_url: imageUrl,
+                        }),
+                    });
+                    data = await readJsonResponse(response);
+                    if (!response.ok || !data?.success) {
+                        throw new Error(data?.message || 'Falha ao aplicar imagem');
+                    }
                 }
 
-                const updatedItem = applyPhotoToItemState(currentPhotoItem.codigo, data.foto_path || '');
+                const updatedItem = applyPhotoToItemState(currentPhotoItem.codigo, data?.foto_path || '');
                 if (updatedItem && itemModalElement?.classList.contains('show')) {
                     const imageContainer = document.getElementById('item-image-large');
                     const imageSrc = document.getElementById('item-image-src');
@@ -5487,12 +6431,19 @@
                 if (photoUrlInput) {
                     photoUrlInput.value = '';
                 }
-                setPhotoAssistantFeedback('Imagem aplicada com sucesso.', 'success');
+                if (photoFileInput) {
+                    photoFileInput.value = '';
+                }
+                clearPhotoPreviewObjectUrl();
+                lastAutoFilledPhotoUrl = '';
+                resetRemotePreview();
+                syncPhotoApplyButton();
+                setPhotoAssistantFeedback(file ? 'Arquivo aplicado com sucesso.' : 'Imagem aplicada com sucesso.', 'success');
             } catch (error) {
                 setPhotoAssistantFeedback(String(error?.message || error), 'danger');
             } finally {
-                photoApplyButton.disabled = false;
                 photoApplyButton.innerHTML = originalHtml;
+                syncPhotoApplyButton();
             }
         });
     }
@@ -5650,4 +6601,60 @@
     }
     }) ();
 </script>
+{% if request.args.get('open_pre_registered') %}
+<script>
+(() => {
+    const documentNumber = {{ (request.args.get('pre_registered_document_number') or '') | tojson | safe }};
+
+    const clearReturnParams = () => {
+        const url = new URL(window.location.href);
+        let changed = false;
+        ['open_pre_registered', 'pre_registered_document_number'].forEach((key) => {
+            if (!url.searchParams.has(key)) {
+                return;
+            }
+            url.searchParams.delete(key);
+            changed = true;
+        });
+        if (!changed) {
+            return;
+        }
+        const query = url.searchParams.toString();
+        const nextUrl = `${url.pathname}${query ? `?${query}` : ''}${url.hash || ''}`;
+        window.history.replaceState({}, document.title, nextUrl);
+    };
+
+    const openPreRegisteredFlow = () => {
+        const modalElement = document.getElementById('preRegisteredModal');
+        const numberInput = document.getElementById('pre-registered-nf-number');
+        const searchButton = document.getElementById('pre-registered-search-btn');
+        if (!modalElement || !window.bootstrap) {
+            return;
+        }
+        if (numberInput && documentNumber) {
+            numberInput.value = documentNumber;
+        }
+        const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
+        modal.show();
+        window.setTimeout(() => {
+            if (numberInput && documentNumber) {
+                numberInput.value = documentNumber;
+                numberInput.focus();
+            }
+            searchButton?.click();
+            clearReturnParams();
+        }, 220);
+    };
+
+    if (document.readyState === 'complete') {
+        window.setTimeout(openPreRegisteredFlow, 120);
+        return;
+    }
+
+    window.addEventListener('load', () => {
+        window.setTimeout(openPreRegisteredFlow, 120);
+    }, { once: true });
+})();
+</script>
+{% endif %}
 {% endblock %}

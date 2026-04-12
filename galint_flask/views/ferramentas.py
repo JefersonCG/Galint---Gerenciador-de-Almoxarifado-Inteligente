@@ -8,6 +8,7 @@ from sqlalchemy import or_
 from ..mako_renderer import render_mako_template
 from ..services.ferramentas import ferramentas_service
 from ..services.inventory import inventory_service
+from ..services.tool_custody_service import tool_custody_service
 from ..services.users import user_service
 from ..models import RetiradaFerramenta
 from ..extensions import db
@@ -334,3 +335,97 @@ def buscar_funcionario():
     ]
     
     return jsonify({"funcionarios": resultados})
+
+
+@blueprint.get("/api/devolucao-expressa/colaboradores")
+def devolucao_expressa_colaboradores_api():
+    if not bool(getattr(current_user, "is_authenticated", False)):
+        return jsonify({"success": False, "message": "Sessão expirada. Faça login novamente."}), 401
+    if not bool(getattr(current_user, "is_admin", False)):
+        return jsonify({"success": False, "message": "Acesso negado."}), 403
+
+    employees = tool_custody_service.get_all_employees_with_tools()
+    collaborators = []
+    for employee in employees:
+        tools = list(employee.get("tools") or [])
+        preview_items = [
+            str(tool.get("descricao") or tool.get("codigo_item") or "").strip()
+            for tool in tools[:2]
+            if str(tool.get("descricao") or tool.get("codigo_item") or "").strip()
+        ]
+        collaborators.append(
+            {
+                "matricula": employee.get("matricula"),
+                "nome": employee.get("nome"),
+                "label": f"{employee.get('nome') or employee.get('matricula')} — {employee.get('matricula')}",
+                "total_items": int(employee.get("total_ferramentas") or len(tools)),
+                "preview_items": preview_items,
+                "latest_label": (
+                    f"{int(employee.get('total_temporaria') or 0)} diária(s) • "
+                    f"{int(employee.get('total_permanente') or 0)} permanente(s)"
+                ),
+            }
+        )
+
+    return jsonify(
+        {
+            "success": True,
+            "collaborators": collaborators,
+            "collaborators_count": len(collaborators),
+            "message": None if collaborators else "Nenhum colaborador com ferramenta em aberto foi encontrado.",
+        }
+    )
+
+
+@blueprint.get("/api/devolucao-expressa")
+def devolucao_expressa_itens_api():
+    if not bool(getattr(current_user, "is_authenticated", False)):
+        return jsonify({"success": False, "message": "Sessão expirada. Faça login novamente."}), 401
+    if not bool(getattr(current_user, "is_admin", False)):
+        return jsonify({"success": False, "message": "Acesso negado."}), 403
+
+    matricula = (request.args.get("matricula") or request.args.get("usuario") or "").strip()
+    payload = {
+        "success": True,
+        "items": [],
+        "items_count": 0,
+        "usuario": None,
+        "message": None,
+    }
+
+    if not matricula:
+        payload["message"] = "Selecione um colaborador para carregar as ferramentas em aberto."
+        return jsonify(payload)
+
+    employee = tool_custody_service.get_employee_details(matricula)
+    if not employee:
+        return jsonify({"success": False, "message": "Colaborador não encontrado."}), 404
+
+    active_tools = list(employee.get("active_tools") or [])
+    payload["usuario"] = {
+        "nome": employee.get("nome") or matricula,
+        "matricula": employee.get("matricula") or matricula,
+    }
+    payload["items"] = [
+        {
+            "saida_id": tool.get("saida_id"),
+            "codigo": tool.get("codigo_item"),
+            "descricao": tool.get("descricao"),
+            "categoria": tool.get("categoria"),
+            "marca": tool.get("marca"),
+            "quantidade": tool.get("quantidade"),
+            "data_saida_label": tool.get("data_saida_formatada"),
+            "local_servico": tool.get("local_servico"),
+            "observacao": tool.get("observacao"),
+            "days_in_use": tool.get("days_in_use"),
+            "tipo_custodia": tool.get("tipo_custodia"),
+            "is_alert": bool(tool.get("is_alert")),
+        }
+        for tool in active_tools
+        if tool.get("saida_id")
+    ]
+    payload["items_count"] = len(payload["items"])
+    if not payload["items"]:
+        payload["message"] = "Nenhuma ferramenta em aberto foi encontrada para este colaborador."
+
+    return jsonify(payload)

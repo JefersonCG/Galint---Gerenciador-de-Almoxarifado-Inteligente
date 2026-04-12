@@ -894,12 +894,24 @@ def _repair_pending_pre_registered_links() -> int:
     return repaired
 
 
-def _serialize_pre_registered_item(item_model: Item, documento_item: DocumentoEntradaEstoqueItem) -> dict[str, object]:
+def _serialize_pre_registered_item(
+    item_model: Item,
+    documento_item: DocumentoEntradaEstoqueItem,
+    *,
+    numero_documento: str | None = None,
+) -> dict[str, object]:
     saldo_atual = float(item_model.get_saldo_fisico_total() or 0.0)
     valor_total = documento_item.valor_total
     if valor_total in (None, "") and documento_item.valor_unitario not in (None, ""):
         valor_total = round(float(documento_item.quantidade or 0.0) * float(documento_item.valor_unitario or 0.0), 2)
     display_metadata = _build_document_item_display_metadata(documento_item)
+    edit_url_kwargs: dict[str, object] = {
+        "codigo": item_model.codigo_item,
+        "return_to": "pre_registered",
+    }
+    numero_documento_norm = str(numero_documento or "").strip()
+    if numero_documento_norm:
+        edit_url_kwargs["pre_registered_document_number"] = numero_documento_norm
     return {
         "codigo": item_model.codigo_item,
         "descricao": item_model.descricao,
@@ -915,7 +927,7 @@ def _serialize_pre_registered_item(item_model: Item, documento_item: DocumentoEn
         "valor_unitario": documento_item.valor_unitario,
         "valor_total": valor_total,
         "documento_item_id": documento_item.id_documento_item,
-        "edit_url": url_for("inventory.edit_item_form", codigo=item_model.codigo_item),
+        "edit_url": url_for("inventory.edit_item_form", **edit_url_kwargs),
         "pre_cadastro_criado_em": TimeService.isoformat_utc(item_model.pre_cadastro_criado_em),
     }
 
@@ -954,7 +966,10 @@ def _build_pre_registered_items_payload(numero_documento: str) -> dict[str, obje
         .all()
     )
 
-    items_payload = [_serialize_pre_registered_item(item_model, documento_item) for item_model, documento_item in rows]
+    items_payload = [
+        _serialize_pre_registered_item(item_model, documento_item, numero_documento=documento.numero_documento)
+        for item_model, documento_item in rows
+    ]
 
     return {
         "numero_documento": documento.numero_documento,
@@ -1007,7 +1022,9 @@ def _build_all_pre_registered_documents_payload() -> list[dict[str, object]]:
             }
             documents_by_id[documento.id_documento] = payload
 
-        payload["items"].append(_serialize_pre_registered_item(item_model, documento_item))
+        payload["items"].append(
+            _serialize_pre_registered_item(item_model, documento_item, numero_documento=documento.numero_documento)
+        )
         payload["items_count"] = int(payload.get("items_count") or 0) + 1
 
     return list(documents_by_id.values())
@@ -1127,6 +1144,8 @@ def valor_estoque():
         "inventory/stock_value.html",
         itens=report["items"],
         category_cards=report["category_cards"],
+        finance_category_kpis=report.get("category_kpis") or [],
+        category_visual_catalog=report.get("category_visual_catalog") or [],
         total_compra=report["total_compra"],
         total_reposicao=report["total_reposicao"],
         missing_compra=report["missing_compra"],
@@ -1429,6 +1448,7 @@ def new_item_form():
         liquid_types=LIQUID_PRODUCT_TYPES,
         preferred_supplier=None,
         category_options=_inventory_category_options(),
+        category_visual_catalog=category_catalog_service.list_visual_catalog(include_inactive=True),
         all_suppliers=finance_service.list_suppliers(limit=300),
     )
 
@@ -1643,6 +1663,7 @@ def create_item():
             liquid_types=LIQUID_PRODUCT_TYPES,
             preferred_supplier=finance_service.get_supplier(finance_payload.get("supplier_id")).to_dict() if finance_payload.get("supplier_id") else None,
             category_options=_inventory_category_options(selected_name=str(payload.get("categoria") or "")),
+            category_visual_catalog=category_catalog_service.list_visual_catalog(include_inactive=True),
             all_suppliers=finance_service.list_suppliers(limit=300),
         ), 400
     return redirect(url_for("inventory.list_items"))
@@ -1656,6 +1677,11 @@ def edit_item_form(codigo: str):
     if not item:
         flash("Item não encontrado.", "danger")
         return redirect(url_for("inventory.list_items"))
+
+    return_to = str(request.args.get("return_to") or "").strip().lower()
+    if return_to != "pre_registered":
+        return_to = ""
+    pre_registered_document_number = str(request.args.get("pre_registered_document_number") or "").strip()
 
     if bool(item.get("pre_cadastro_pendente")):
         item = {**item, **_load_linked_document_context(item)}
@@ -1678,8 +1704,11 @@ def edit_item_form(codigo: str):
         liquid_types=LIQUID_PRODUCT_TYPES,
         preferred_supplier=finance_service.get_item_supplier_preference(codigo),
         category_options=_inventory_category_options(selected_name=str(item.get("categoria") or "")),
+        category_visual_catalog=category_catalog_service.list_visual_catalog(include_inactive=True),
         all_suppliers=finance_service.list_suppliers(limit=300),
         finance_section_can_edit=_can_edit_finance_section(codigo),
+        return_to=return_to,
+        pre_registered_document_number=pre_registered_document_number,
     )
 
 
@@ -1722,6 +1751,13 @@ def update_item(codigo: str):
     if not prev_item:
         flash("Item não encontrado.", "danger")
         return redirect(url_for("inventory.list_items"))
+
+    return_to = str(form.get("return_to") or request.args.get("return_to") or "").strip().lower()
+    if return_to != "pre_registered":
+        return_to = ""
+    pre_registered_document_number = str(
+        form.get("pre_registered_document_number") or request.args.get("pre_registered_document_number") or ""
+    ).strip()
 
     saldo_raw = form.get("saldo_atual", "0").strip()
     saldo_unidades_soltas_raw = (form.get("saldo_unidades_soltas") or "").strip()
@@ -2022,7 +2058,18 @@ def update_item(codigo: str):
         flash("Item atualizado com sucesso.", "success")
     except ValueError as exc:
         flash(str(exc), "danger")
-        return redirect(url_for("inventory.edit_item_form", codigo=codigo))
+        redirect_kwargs: dict[str, object] = {"codigo": codigo}
+        if return_to == "pre_registered":
+            redirect_kwargs["return_to"] = return_to
+            if pre_registered_document_number:
+                redirect_kwargs["pre_registered_document_number"] = pre_registered_document_number
+        return redirect(url_for("inventory.edit_item_form", **redirect_kwargs))
+
+    if return_to == "pre_registered":
+        redirect_kwargs = {"open_pre_registered": "1"}
+        if pre_registered_document_number:
+            redirect_kwargs["pre_registered_document_number"] = pre_registered_document_number
+        return redirect(url_for("inventory.list_items", **redirect_kwargs))
     return redirect(url_for("inventory.list_items"))
 
 
@@ -2067,9 +2114,20 @@ def sugestoes_preco_reposicao_lote(categoria: str):
 
     uf = _resolve_replacement_price_uf(request.args.get("uf"))
 
-    items = (
+    pending_query = (
         Item.query
         .filter(Item.categoria == categoria_norm)
+        .filter(
+            or_(
+                Item.preco_reposicao_unitario.is_(None),
+                Item.preco_reposicao_unitario <= 0,
+            )
+        )
+    )
+
+    pending_total = pending_query.count()
+    items = (
+        pending_query
         .order_by(Item.descricao.asc(), Item.codigo_item.asc())
         .limit(item_limit)
         .all()
@@ -2084,19 +2142,31 @@ def sugestoes_preco_reposicao_lote(categoria: str):
         item_map[item.codigo_item] = item
         requests_payload.append({"item_id": item.codigo_item, "query": query})
 
-    try:
-        batch_data = price_suggestion_service.get_replacement_suggestions_batch(
-            requests_payload=requests_payload,
-            uf=uf or None,
-            suggestion_limit=suggestion_limit,
-            max_workers=min(4, max(len(requests_payload), 1)),
-        )
-    except Exception:
-        current_app.logger.exception(
-            "Erro ao buscar sugestoes em lote por categoria (categoria=%s)",
-            categoria_norm,
-        )
-        return {"success": False, "message": "Erro interno ao buscar sugestões em lote"}, 500
+    if requests_payload:
+        try:
+            batch_data = price_suggestion_service.get_replacement_suggestions_batch(
+                requests_payload=requests_payload,
+                uf=uf or None,
+                suggestion_limit=suggestion_limit,
+                max_workers=min(4, max(len(requests_payload), 1)),
+            )
+        except Exception:
+            current_app.logger.exception(
+                "Erro ao buscar sugestoes em lote por categoria (categoria=%s)",
+                categoria_norm,
+            )
+            return {"success": False, "message": "Erro interno ao buscar sugestões em lote"}, 500
+    else:
+        batch_data = {
+            "uf": uf or None,
+            "items": [],
+            "summary": {
+                "requested": 0,
+                "completed": 0,
+                "failed": 0,
+                "with_results": 0,
+            },
+        }
 
     payload_items: list[dict[str, object]] = []
     for row in batch_data.get("items") or []:
@@ -2124,11 +2194,17 @@ def sugestoes_preco_reposicao_lote(categoria: str):
         "limit": item_limit,
         "suggestion_limit": suggestion_limit,
         "items": payload_items,
-        "summary": batch_data.get("summary") or {
-            "requested": len(requests_payload),
-            "completed": len(payload_items),
-            "failed": 0,
-            "with_results": 0,
+        "summary": {
+            **(batch_data.get("summary") or {
+                "requested": len(requests_payload),
+                "completed": len(payload_items),
+                "failed": 0,
+                "with_results": 0,
+            }),
+            "pending_total": pending_total,
+            "shown": len(payload_items),
+            "item_limit": item_limit,
+            "has_more": pending_total > len(payload_items),
         },
     }
 

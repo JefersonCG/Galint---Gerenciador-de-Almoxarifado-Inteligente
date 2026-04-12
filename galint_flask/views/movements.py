@@ -1170,14 +1170,49 @@ def entrada_page():
     )
 
 
+@blueprint.get('/api/devolucao-expressa/colaboradores')
+@login_required
+def devolucao_expressa_collaborators_payload():
+    _require_admin()
+    scope = (request.args.get("scope") or "").strip() or "todos"
+    window = _build_express_return_window()
+    payload: dict[str, Any] = {
+        "success": True,
+        "scope": scope,
+        "window_open": bool(window["window_open"]),
+        "window_cutoff_label": window["cutoff_label"],
+        "today_label": window["today_label"],
+        "collaborators": [],
+        "collaborators_count": 0,
+        "message": None,
+    }
+
+    if not window["window_open"]:
+        payload["message"] = f"A janela da devolução expressa encerrou às {window['cutoff_label']}."
+        return jsonify(payload)
+
+    collaborators = inventory_service.list_express_material_return_collaborators(
+        start_datetime=window["start_utc"],
+        end_datetime=window["end_utc"],
+        scope=scope,
+    )
+    payload["collaborators"] = collaborators
+    payload["collaborators_count"] = len(collaborators)
+    if not collaborators:
+        payload["message"] = "Nenhum colaborador com retirada elegível foi encontrado para devolução expressa hoje."
+    return jsonify(payload)
+
+
 @blueprint.get('/api/devolucao-expressa')
 @login_required
 def devolucao_expressa_payload():
     _require_admin()
     identificador = (request.args.get("usuario") or request.args.get("matricula") or "").strip()
+    scope = (request.args.get("scope") or "").strip() or "todos"
     window = _build_express_return_window()
     payload: dict[str, Any] = {
         "success": True,
+        "scope": scope,
         "window_open": bool(window["window_open"]),
         "window_cutoff_label": window["cutoff_label"],
         "today_label": window["today_label"],
@@ -1209,6 +1244,7 @@ def devolucao_expressa_payload():
         matricula=usuario.matricula,
         start_datetime=window["start_utc"],
         end_datetime=window["end_utc"],
+        scope=scope,
     )
     payload["items"] = items
     payload["items_count"] = len(items)

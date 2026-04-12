@@ -22,6 +22,8 @@
 {% set total_fracionado_quilos = total_fracionado_quilos|default(0) %}
 {% set fracionado_linhas_ignoradas = fracionado_linhas_ignoradas|default(0) %}
 {% set consumo_analitico = consumo_analitico|default({}) %}
+{% set finance_category_kpis = finance_category_kpis|default([]) %}
+{% set category_visual_catalog = category_visual_catalog|default([]) %}
 {% set consumo_analitico_resumo = consumo_analitico.get('overview', {}) if consumo_analitico else {} %}
 {% set consumo_analitico_locais = consumo_analitico.get('locations', []) if consumo_analitico else [] %}
 {% set consumo_analitico_categorias = consumo_analitico.get('categories', []) if consumo_analitico else [] %}
@@ -91,6 +93,8 @@
     </section>
 
 <style>
+    @import url("{{ url_for('static', filename='css/category-visual-system.css') }}");
+
     .finance-shell {
         --finance-text-primary: #f4f7fb;
         --finance-text-secondary: rgba(225, 233, 244, 0.9);
@@ -383,6 +387,197 @@
         margin: 0;
     }
 
+    .finance-pizza-grid {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 0.8rem;
+    }
+
+    .finance-pizza-kpi {
+        --category-accent: #94a3b8;
+        --category-soft: rgba(148, 163, 184, 0.18);
+        --kpi-ring: conic-gradient(from -90deg, rgba(51, 65, 85, 0.76) 0% 100%);
+        position: relative;
+        overflow: hidden;
+        border-radius: 16px;
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        background:
+            radial-gradient(circle at top left, var(--category-soft), transparent 26%),
+            linear-gradient(180deg, rgba(15, 21, 33, 0.98), rgba(17, 26, 40, 0.96));
+        padding: 0.95rem;
+        min-height: 240px;
+    }
+
+    .finance-pizza-kpi::before {
+        content: "";
+        position: absolute;
+        inset: 0 0 auto;
+        height: 2px;
+        background: linear-gradient(90deg, var(--category-accent), transparent 80%);
+    }
+
+    .finance-pizza-kpi-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 0.8rem;
+        margin-bottom: 0.7rem;
+    }
+
+    .finance-pizza-value {
+        font-size: clamp(1.02rem, 1.5vw, 1.28rem);
+        font-weight: 800;
+        letter-spacing: -0.03em;
+        color: var(--finance-text-primary);
+        line-height: 1.15;
+    }
+
+    .finance-pizza-ring {
+        width: 84px;
+        min-width: 84px;
+        aspect-ratio: 1;
+        border-radius: 50%;
+        padding: 7px;
+        background: var(--kpi-ring);
+        box-shadow: 0 18px 26px rgba(2, 6, 23, 0.24);
+    }
+
+    .finance-pizza-core {
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        text-align: center;
+        background: linear-gradient(180deg, rgba(10, 16, 24, 0.98), rgba(14, 22, 34, 0.96));
+        border: 1px solid rgba(148, 163, 184, 0.12);
+        color: var(--finance-text-primary);
+    }
+
+    .finance-pizza-core strong {
+        display: block;
+        font-size: 1rem;
+        font-weight: 900;
+        line-height: 1;
+    }
+
+    .finance-pizza-core span {
+        display: block;
+        margin-top: 0.14rem;
+        color: var(--finance-text-muted);
+        font-size: 0.58rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .finance-pizza-note {
+        margin: 0;
+        color: var(--finance-text-muted);
+        font-size: 0.78rem;
+        line-height: 1.45;
+    }
+
+    .finance-pizza-highlight {
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+        margin-top: 0.7rem;
+        padding: 0.45rem 0.55rem;
+        border-radius: 12px;
+        background: var(--category-soft);
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        color: var(--finance-text-secondary);
+        font-size: 0.74rem;
+    }
+
+    .finance-pizza-highlight strong {
+        color: #f8fafc;
+    }
+
+    .finance-pizza-highlight-dot,
+    .finance-pizza-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        flex-shrink: 0;
+        background: var(--category-accent);
+    }
+
+    .finance-pizza-legend {
+        display: grid;
+        gap: 0.38rem;
+        margin-top: 0.8rem;
+    }
+
+    .finance-pizza-legend-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.55rem;
+        padding-top: 0.36rem;
+        border-top: 1px solid rgba(148, 163, 184, 0.1);
+    }
+
+    .finance-pizza-legend-row.is-aggregate {
+        border-top-style: dashed;
+    }
+
+    .finance-pizza-legend-label {
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+        color: var(--finance-text-secondary);
+        font-size: 0.75rem;
+    }
+
+    .finance-pizza-legend-label span:last-child {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .finance-pizza-legend-values {
+        display: grid;
+        justify-items: end;
+        gap: 0.05rem;
+        white-space: nowrap;
+    }
+
+    .finance-pizza-legend-values strong {
+        color: #f8fafc;
+        font-size: 0.74rem;
+    }
+
+    .finance-pizza-legend-values span {
+        color: var(--finance-text-muted);
+        font-size: 0.68rem;
+    }
+
+    .finance-pizza-legend-note {
+        margin: 0.55rem 0 0;
+        color: var(--finance-text-muted);
+        font-size: 0.72rem;
+        line-height: 1.45;
+    }
+
+    .finance-pizza-legend-tag {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 20px;
+        padding: 0.12rem 0.42rem;
+        border-radius: 999px;
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        background: rgba(100, 116, 139, 0.16);
+        color: #e2e8f0;
+        font-size: 0.64rem;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+    }
+
     .value-table {
         background: linear-gradient(180deg, rgba(12, 19, 30, 0.98), rgba(16, 24, 37, 0.96));
         border-radius: 16px;
@@ -429,15 +624,78 @@
     }
 
     .category-card {
+        --category-accent: #60a5fa;
+        --category-soft: rgba(96, 165, 250, 0.18);
+        --category-soft-strong: rgba(96, 165, 250, 0.3);
+        position: relative;
         border-radius: 18px;
         overflow: hidden;
+        background:
+            radial-gradient(circle at top left, var(--category-soft), transparent 26%),
+            linear-gradient(180deg, rgba(12, 19, 30, 0.98), rgba(16, 24, 37, 0.96));
+        border: 1px solid rgba(148, 163, 184, 0.16);
+    }
+
+    .category-card::before {
+        content: "";
+        position: absolute;
+        inset: 0 0 auto;
+        height: 2px;
+        background: linear-gradient(90deg, var(--category-accent), transparent 82%);
+        z-index: 1;
     }
 
     .category-head {
         padding: 0.95rem 1rem;
-        background: linear-gradient(180deg, rgba(15, 21, 33, 0.98), rgba(18, 26, 39, 0.95));
+        background:
+            radial-gradient(circle at top right, var(--category-soft), transparent 28%),
+            linear-gradient(180deg, rgba(15, 21, 33, 0.98), rgba(18, 26, 39, 0.95));
         border-bottom: 1px solid rgba(148, 163, 184, 0.14);
         color: #f8fafc;
+    }
+
+    .category-head-identity {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.75rem;
+        min-width: 0;
+    }
+
+    .category-icon {
+        width: 38px;
+        height: 38px;
+        border-radius: 14px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--category-soft);
+        border: 1px solid var(--category-soft-strong);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+        font-size: 1.2rem;
+        flex-shrink: 0;
+    }
+
+    .category-title-row {
+        display: flex;
+        align-items: center;
+        gap: 0.55rem;
+        flex-wrap: wrap;
+    }
+
+    .category-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.32rem;
+        min-height: 24px;
+        padding: 0.16rem 0.52rem;
+        border-radius: 999px;
+        background: var(--category-soft);
+        border: 1px solid var(--category-soft-strong);
+        color: #f8fafc;
+        font-size: 0.66rem;
+        font-weight: 800;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
     }
 
     .category-head-main {
@@ -459,7 +717,7 @@
         font-size: 0.68rem;
         text-transform: uppercase;
         letter-spacing: 0.08em;
-        color: #7dd3fc;
+        color: var(--category-accent);
         margin-bottom: 0.2rem;
     }
 
@@ -481,16 +739,17 @@
 
     .category-metric {
         background: rgba(12, 19, 30, 0.8);
-        border: 1px solid var(--finance-border-soft);
+        border: 1px solid var(--category-soft-strong);
         border-radius: 12px;
         padding: 0.62rem 0.72rem;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
     }
 
     .category-metric .label {
         font-size: 0.68rem;
         text-transform: uppercase;
         letter-spacing: 0.06em;
-        color: #7dd3fc;
+        color: var(--category-accent);
         margin-bottom: 0.18rem;
     }
 
@@ -651,6 +910,32 @@
         background: rgba(15, 23, 42, 0.6);
     }
 
+    .consumption-list-item.category-accented {
+        background:
+            radial-gradient(circle at top left, var(--category-soft), transparent 26%),
+            rgba(15, 23, 42, 0.6);
+        border-color: var(--category-soft-strong);
+    }
+
+    .consumption-category-heading {
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+        min-width: 0;
+    }
+
+    .consumption-category-icon {
+        width: 28px;
+        height: 28px;
+        border-radius: 10px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--category-soft);
+        border: 1px solid var(--category-soft-strong);
+        flex-shrink: 0;
+    }
+
     .consumption-list-item strong {
         color: #f8fafc;
     }
@@ -677,7 +962,8 @@
         }
 
         .finance-context-grid,
-        .finance-kpi-grid {
+        .finance-kpi-grid,
+        .finance-pizza-grid {
             grid-template-columns: repeat(2, minmax(0, 1fr));
             width: 100%;
         }
@@ -701,8 +987,14 @@
         }
 
         .finance-context-grid,
-        .finance-kpi-grid {
+        .finance-kpi-grid,
+        .finance-pizza-grid {
             grid-template-columns: 1fr;
+        }
+
+        .finance-pizza-kpi-top,
+        .category-head-identity {
+            flex-direction: column;
         }
 
         .consumption-summary-grid {
@@ -761,6 +1053,82 @@
         </div>
     </div>
 </section>
+
+{% if finance_category_kpis %}
+<section class="finance-section mb-4">
+    <div class="finance-section-head">
+        <div>
+            <div class="finance-section-kicker">ERP por categoria</div>
+            <h2 class="finance-section-title">KPIs pizza com cores padrão das categorias</h2>
+            <p class="finance-section-note">Cada KPI é fatiado pelas categorias do estoque e respeita a mesma cor padrão usada nos cards e nos demais indicadores do sistema.</p>
+        </div>
+        <button class="finance-section-toggle" type="button"
+            data-bs-toggle="collapse" data-bs-target="#finance-category-pizza-panel"
+            aria-expanded="true" aria-controls="finance-category-pizza-panel"
+            data-finance-toggle data-toggle-expand-label="Expandir" data-toggle-collapse-label="Recolher">
+            <span data-toggle-label>Recolher</span>
+            <i class="bi bi-chevron-up" data-toggle-icon></i>
+        </button>
+    </div>
+    <div class="collapse show finance-collapse" id="finance-category-pizza-panel" data-finance-collapsible>
+        {% set legend_items = category_visual_catalog %}
+        {% set legend_kicker = 'Padrao oficial' %}
+        {% set legend_title = 'Cores oficiais das categorias' %}
+        {% set legend_note = 'A mesma paleta governa estas pizzas, os cards financeiros e a classificacao do item.' %}
+        {% set legend_badge = 'Leitura ERP' %}
+        {% set legend_compact = true %}
+        {% include 'partials/category_visual_legend.html' %}
+        <div class="finance-pizza-grid">
+            {% for kpi in finance_category_kpis %}
+            <article class="finance-pizza-kpi"
+                style="--category-accent: {{ kpi.accent_color }}; --category-soft: {{ kpi.accent_soft }}; --kpi-ring: {{ kpi.ring_gradient }};">
+                <div class="finance-pizza-kpi-top">
+                    <div>
+                        <div class="finance-kpi-label">{{ kpi.title }}</div>
+                        <div class="finance-pizza-value">{{ brl(kpi.value) }}</div>
+                    </div>
+                    <div class="finance-pizza-ring" aria-hidden="true">
+                        <div class="finance-pizza-core">
+                            <div>
+                                <strong>{{ kpi.segments_count }}</strong>
+                                <span>cats</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <p class="finance-pizza-note">{{ kpi.note }}</p>
+                {% if kpi.legend_note %}
+                <p class="finance-pizza-legend-note">{{ kpi.legend_note }}</p>
+                {% endif %}
+                {% if kpi.top_category %}
+                <div class="finance-pizza-highlight">
+                    <span class="finance-pizza-highlight-dot"></span>
+                    <span><strong>{{ kpi.top_category }}</strong> lidera com {{ kpi.top_share_pct|number_br(1, True) }}%.</span>
+                </div>
+                {% endif %}
+                <div class="finance-pizza-legend">
+                    {% for segment in kpi.segments %}
+                    <div class="finance-pizza-legend-row{% if segment.is_aggregate %} is-aggregate{% endif %}">
+                        <div class="finance-pizza-legend-label">
+                            <span class="finance-pizza-dot" style="background: {{ segment.color }};"></span>
+                            <span>{{ segment.categoria }}</span>
+                            {% if segment.hidden_categories_count %}
+                            <span class="finance-pizza-legend-tag">{{ segment.hidden_categories_count }} agrupadas</span>
+                            {% endif %}
+                        </div>
+                        <div class="finance-pizza-legend-values">
+                            <strong>{{ brl(segment.value) }}</strong>
+                            <span>{{ segment.share_pct|round(1)|number_br }}%</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </article>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+{% endif %}
 
 {% if consumo_fracionado_por_local %}
 <section class="finance-section mb-4">
@@ -975,9 +1343,12 @@
             </div>
             <div class="consumption-card-body consumption-list">
                 {% for row in consumo_analitico_categorias[:5] %}
-                <div class="consumption-list-item">
+                <div class="consumption-list-item category-accented" style="--category-accent: {{ row.color }}; --category-soft: {{ row.soft }}; --category-soft-strong: {{ row.soft_strong }};">
                     <div class="d-flex justify-content-between gap-2 flex-wrap">
-                        <strong>{{ row.categoria }}</strong>
+                        <div class="consumption-category-heading">
+                            <span class="consumption-category-icon">{{ row.icon }}</span>
+                            <strong>{{ row.categoria }}</strong>
+                        </div>
                         <span>{{ brl(row.total_valor) }}</span>
                     </div>
                     <div class="consumption-list-meta">{{ row.saidas or 0 }} saída(s) • {{ row.locais or 0 }} local(is) • {{ row.colaboradores or 0 }} colaborador(es)</div>
@@ -1033,13 +1404,19 @@
 <div class="d-grid gap-3">
     {% for card in category_cards %}
     {% set cat_id = 'cat_' ~ loop.index %}
-    <section class="category-card">
+    <section class="category-card" style="--category-accent: {{ card.color }}; --category-soft: {{ card.soft }}; --category-soft-strong: {{ card.soft_strong }};">
         <div class="category-head">
             <div class="category-head-main">
-                <div>
-                    <div class="category-eyebrow">Categoria</div>
-                    <h2 class="h5 mb-1">{{ card.categoria }}</h2>
-                    <div class="text-muted small">{{ card['items']|length }} item(ns) nesta categoria</div>
+                <div class="category-head-identity">
+                    <div class="category-icon">{{ card.icon }}</div>
+                    <div>
+                        <div class="category-eyebrow">Categoria</div>
+                        <div class="category-title-row">
+                            <h2 class="h5 mb-0">{{ card.categoria }}</h2>
+                            <span class="category-chip">{{ card['items']|length }} item(ns)</span>
+                        </div>
+                        <div class="text-muted small">Carteira financeira e consumo rastreado usando a mesma cor padrão desta categoria.</div>
+                    </div>
                 </div>
                 <div class="category-head-side small text-muted">
                     {% if card.top_item_nome %}

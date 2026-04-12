@@ -4,6 +4,8 @@
 
 <%block name="extra_css">
 <style>
+    @import url('${url_for("static", filename="css/express-return-modal.css")}');
+
     .saida-container {
         max-width: 900px;
         margin: 0 auto;
@@ -470,6 +472,10 @@
                 <span class="btn-mirror-screen-icon"><img src="${url_for('static', filename='img/galint-icon.png')}" alt="GALINT"></span>
                 <span class="btn-mirror-screen-label">Painel de Visualização</span>
             </a>
+            <button class="btn-mirror-screen btn-express-return" type="button" id="btn-open-express-return">
+                <span class="btn-mirror-screen-icon"><i class="bi bi-arrow-return-left"></i></span>
+                <span class="btn-mirror-screen-label">Devolução Expressa</span>
+            </button>
         </div>
     </div>
 
@@ -611,6 +617,41 @@
     </div>
 </div>
 
+<div class="modal fade" id="modalDevolucaoExpressa" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg express-return-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-arrow-return-left me-2"></i>Devolução Expressa</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <div class="express-return-window-note">A devolução expressa mostra só retiradas fracionadas do dia e some automaticamente às 17:00.</div>
+                <div class="alert alert-secondary express-return-status" data-express-return-role="status" role="status">Abra o painel para carregar os colaboradores com devolução pendente.</div>
+                <section class="express-return-section">
+                    <div class="express-return-section-title"><i class="bi bi-people"></i>Colaboradores com saídas fracionadas pendentes</div>
+                    <div class="express-return-collaborators" data-express-return-role="collaborators">
+                        <div class="express-return-empty">Abra o painel para carregar os colaboradores.</div>
+                    </div>
+                </section>
+                <section class="express-return-section">
+                    <div class="express-return-section-title"><i class="bi bi-droplet-half"></i>Itens do colaborador selecionado</div>
+                    <div class="express-return-list" data-express-return-role="items">
+                        <div class="express-return-empty">Selecione um colaborador acima.</div>
+                    </div>
+                </section>
+                <div class="express-return-detail is-empty" data-express-return-role="detail">
+                    <strong>Nenhum item selecionado.</strong>
+                    <div class="express-return-hint">Escolha um item da lista abaixo para liberar a devolução.</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                <button type="button" class="btn btn-register" data-express-return-role="submit" disabled>Fazer devolução</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <form method="post" action="${url_for('movements.registrar_saida')}" id="hidden-form" style="display: none;">
     <input type="hidden" name="usuario" id="hidden-usuario">
     <input type="hidden" name="local_servico" id="hidden-local">
@@ -626,6 +667,7 @@
 <%block name="scripts">
 ${parent.scripts()}
 <script src="${url_for('static', filename='js/mirror-screen-launcher.js')}"></script>
+<script src="${url_for('static', filename='js/express-return-modal.js')}"></script>
 <script>
 (function() {
     let pendingItem = null;
@@ -1553,6 +1595,129 @@ ${parent.scripts()}
 
     renderCurrentPreview(null, 'idle');
     
+    if (window.GalintExpressReturnModal) {
+        window.GalintExpressReturnModal.init({
+            openButtonId: 'btn-open-express-return',
+            modalId: 'modalDevolucaoExpressa',
+            authMessageLoad: 'Sua sessão expirou durante a carga da devolução expressa. Faça login novamente.',
+            authMessageSubmit: 'Sua sessão expirou antes de concluir a devolução expressa. Faça login novamente.',
+            getInitialCollaboratorIdentifier: function() {
+                if (inputUsuario.dataset && inputUsuario.dataset.matricula) {
+                    return String(inputUsuario.dataset.matricula || '').trim();
+                }
+                var rawIdentifier = String(inputUsuario.value || '').trim();
+                if (!rawIdentifier) {
+                    return '';
+                }
+                if (rawIdentifier.indexOf('—') > -1) {
+                    return rawIdentifier.split('—').pop().trim();
+                }
+                return rawIdentifier;
+            },
+            buildCollaboratorsUrl: function() {
+                return window.GalintExpressReturnModal.buildUrl('${url_for("movements.devolucao_expressa_collaborators_payload")}', {
+                    scope: 'fracionada'
+                });
+            },
+            buildItemsUrl: function(collaborator) {
+                return window.GalintExpressReturnModal.buildUrl('${url_for("movements.devolucao_expressa_payload")}', {
+                    scope: 'fracionada',
+                    usuario: collaborator && collaborator.matricula ? collaborator.matricula : ''
+                });
+            },
+            renderItemButtonContent: function(item) {
+                var localTexto = String(item.local_servico || '').trim();
+                var atividadeTexto = String(item.atividade_operacional || '').trim();
+                return '' +
+                    '<div class="express-return-item-title">' + escapeHtml(item.descricao || item.codigo || 'Item') + '</div>' +
+                    '<div class="express-return-item-meta">' +
+                        '<span class="express-return-item-code">Código: ' + escapeHtml(item.codigo || '') + '</span>' +
+                        '<span>Retirado hoje: ' + escapeHtml(item.retirado_hoje_display || '-') + '</span>' +
+                        '<span>Pendente: ' + escapeHtml(item.pendente_hoje_display || '-') + '</span>' +
+                    '</div>' +
+                    '<div class="express-return-item-meta">' +
+                        '<span>Última saída: ' + escapeHtml(item.ultima_saida_label || 'N/D') + '</span>' +
+                        (localTexto ? '<span>Local: ' + escapeHtml(localTexto) + '</span>' : '') +
+                        (atividadeTexto ? '<span>Atividade: ' + escapeHtml(atividadeTexto) + '</span>' : '') +
+                    '</div>';
+            },
+            renderDetail: function(context) {
+                var item = context.item;
+                var unitOptions = Array.isArray(item.devolucao_unidades_opcoes) ? item.devolucao_unidades_opcoes : [];
+                var selectedUnitOption = unitOptions.find(function(option) {
+                    return String(option && option.unit_code || '') === String(item.devolucao_unidade_codigo || '');
+                }) || unitOptions[0] || {};
+                var quantityStep = String(selectedUnitOption.input_step || '0.001');
+                var quantityMin = String(selectedUnitOption.input_min || quantityStep);
+                return '' +
+                    '<div class="express-return-detail-title">' + escapeHtml(item.descricao || item.codigo || 'Item') + '</div>' +
+                    '<div class="express-return-detail-subtitle">Código ' + escapeHtml(item.codigo || '') + (item.categoria ? ' • ' + escapeHtml(item.categoria) : '') + (item.marca ? ' • ' + escapeHtml(item.marca) : '') + '</div>' +
+                    '<div class="express-return-kpis">' +
+                        '<div class="express-return-kpi"><span class="express-return-kpi-label">Retirado hoje</span><span class="express-return-kpi-value">' + escapeHtml(item.retirado_hoje_display || '-') + '</span></div>' +
+                        '<div class="express-return-kpi"><span class="express-return-kpi-label">Pendente agora</span><span class="express-return-kpi-value">' + escapeHtml(item.pendente_hoje_display || '-') + '</span></div>' +
+                    '</div>' +
+                    '<div class="row g-3">' +
+                        '<div class="col-md-6">' +
+                            '<label class="form-label" for="express-return-quantity">Quantidade a devolver</label>' +
+                            '<input class="form-control" type="number" id="express-return-quantity" min="' + escapeHtml(quantityMin) + '" step="' + escapeHtml(quantityStep) + '" value="' + escapeHtml(String(item.pendente_hoje || '')) + '">' +
+                        '</div>' +
+                        '<div class="col-md-6">' +
+                            '<label class="form-label" for="express-return-unit">Unidade</label>' +
+                            '<input class="form-control" id="express-return-unit" readonly value="' + escapeHtml(item.devolucao_unidade_exibicao || item.devolucao_unidade_codigo || '') + '">' +
+                        '</div>' +
+                        '<div class="col-12">' +
+                            '<label class="form-label" for="express-return-observation">Observação</label>' +
+                            '<input class="form-control" id="express-return-observation" value="Devolução expressa via tela fracionada" maxlength="200">' +
+                            '<div class="express-return-hint">Se não alterar a quantidade, a devolução vai usar automaticamente todo o pendente mostrado acima.</div>' +
+                        '</div>' +
+                    '</div>';
+            },
+            buildSubmitRequest: function(context) {
+                var quantityField = context.modalEl.querySelector('#express-return-quantity');
+                var observationField = context.modalEl.querySelector('#express-return-observation');
+                var quantidade = quantityField ? Number(quantityField.value || 0) : 0;
+                var observacao = observationField ? String(observationField.value || '').trim() : '';
+                if (!Number.isFinite(quantidade) || quantidade <= 0) {
+                    throw new Error('Informe uma quantidade válida para registrar a devolução expressa.');
+                }
+                return {
+                    url: '${url_for("movements.registrar_devolucao_expressa")}',
+                    options: {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            usuario: context.collaborator && context.collaborator.matricula ? context.collaborator.matricula : '',
+                            codigo: context.item && context.item.codigo ? context.item.codigo : '',
+                            quantidade: quantidade,
+                            from_unit: context.item && context.item.devolucao_unidade_codigo ? context.item.devolucao_unidade_codigo : '',
+                            observacao: observacao || 'Devolução expressa via tela fracionada'
+                        })
+                    }
+                };
+            },
+            messages: {
+                initialStatus: 'Abra o painel para carregar os colaboradores com devolução pendente.',
+                loadingCollaborators: 'Carregando colaboradores com saídas fracionadas pendentes...',
+                loadingItems: 'Carregando itens do colaborador...',
+                selectCollaborator: 'Escolha o colaborador para carregar os itens fracionados pendentes.',
+                selectCollaboratorFirst: 'Selecione um colaborador acima.',
+                selectItem: 'Escolha o item para concluir a devolução expressa.',
+                readyToSubmit: 'Revise os dados e confirme a devolução.',
+                noCollaborators: 'Nenhum colaborador com saída fracionada pendente foi encontrado hoje.',
+                noItems: 'Nenhum item fracionado elegível foi encontrado para este colaborador.',
+                emptyDetailTitle: 'Nenhum item selecionado.',
+                emptyDetailHint: 'Escolha um item da lista abaixo para liberar a devolução.',
+                submitButton: 'Fazer devolução',
+                submitBusy: 'Devolvendo...',
+                submitSuccess: 'Devolução expressa registrada com sucesso.',
+                submitError: 'Falha ao registrar a devolução expressa.'
+            }
+        });
+    }
+
     // Foco inicial
     inputUsuario.focus();
 })();

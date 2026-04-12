@@ -13,6 +13,8 @@
 
 <%block name="extra_css">
 <style>
+    @import url('${url_for("static", filename="css/express-return-modal.css")}');
+
     .tool-shell {
         background: linear-gradient(180deg, #eef2f7 0%, #f8fafc 100%);
         border: 1px solid rgba(148, 163, 184, 0.18);
@@ -290,6 +292,47 @@
         color: #ffffff;
     }
 
+    .quantity-control {
+        display: flex;
+        align-items: stretch;
+        gap: 0.65rem;
+    }
+
+    .quantity-step-btn {
+        width: 3.25rem;
+        border: 1px solid rgba(148, 163, 184, 0.24);
+        border-radius: 16px;
+        background: rgba(15, 23, 42, 0.7);
+        color: #e2e8f0;
+        font-size: 1rem;
+        font-weight: 700;
+        transition: all 0.2s ease;
+        flex: 0 0 auto;
+    }
+
+    .quantity-step-btn:hover {
+        background: rgba(37, 99, 235, 0.22);
+        border-color: rgba(96, 165, 250, 0.55);
+        color: #ffffff;
+    }
+
+    .quantity-step-btn:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.22);
+    }
+
+    .quantity-input {
+        text-align: center;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+    }
+
+    .quantity-hint {
+        margin-top: 0.45rem;
+        color: rgba(226, 232, 240, 0.72);
+        font-size: 0.78rem;
+    }
+
     .btn-remove-item {
         background: #dc3545;
         border: none;
@@ -520,6 +563,10 @@
                 <span class="btn-mirror-screen-icon"><img src="${url_for('static', filename='img/galint-icon.png')}" alt="GALINT"></span>
                 <span class="btn-mirror-screen-label">Painel de Visualização</span>
             </a>
+            <button class="btn-mirror-screen btn-express-return" type="button" id="btn-open-express-return">
+                <span class="btn-mirror-screen-icon"><i class="bi bi-arrow-return-left"></i></span>
+                <span class="btn-mirror-screen-label">Devolução Expressa</span>
+            </button>
         </div>
     </div>
     
@@ -547,7 +594,16 @@
                 </div>
                 <div class="col-md-6">
                     <label class="form-label"><i class="bi bi-hash me-1"></i>Quantidade</label>
-                    <input class="form-control" type="number" id="input-quantidade" name="quantidade" value="1" min="1" step="1" required>
+                    <div class="quantity-control">
+                        <button class="quantity-step-btn" type="button" id="btn-quantidade-minus" aria-label="Diminuir quantidade">
+                            <i class="bi bi-dash-lg"></i>
+                        </button>
+                        <input class="form-control quantity-input" type="number" id="input-quantidade" name="quantidade" value="1" min="1" step="1" inputmode="numeric" pattern="[0-9]*" required>
+                        <button class="quantity-step-btn" type="button" id="btn-quantidade-plus" aria-label="Aumentar quantidade">
+                            <i class="bi bi-plus-lg"></i>
+                        </button>
+                    </div>
+                    <div class="quantity-hint">Use os botões ou digite a quantidade inteira desejada.</div>
                 </div>
                 <div class="col-md-6">
                     <label class="form-label"><i class="bi bi-geo-alt me-1"></i>Local do Serviço</label>
@@ -639,11 +695,47 @@
     </div>
 </div>
 
+<div class="modal fade" id="modalDevolucaoExpressa" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg express-return-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-arrow-return-left me-2"></i>Devolução Expressa</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <div class="express-return-window-note">A devolução expressa mostra ferramentas em aberto do colaborador selecionado.</div>
+                <div class="alert alert-secondary express-return-status" data-express-return-role="status" role="status">Abra o painel para carregar os colaboradores com ferramentas em aberto.</div>
+                <section class="express-return-section">
+                    <div class="express-return-section-title"><i class="bi bi-people"></i>Colaboradores com ferramentas em aberto</div>
+                    <div class="express-return-collaborators" data-express-return-role="collaborators">
+                        <div class="express-return-empty">Abra o painel para carregar os colaboradores.</div>
+                    </div>
+                </section>
+                <section class="express-return-section">
+                    <div class="express-return-section-title"><i class="bi bi-tools"></i>Ferramentas do colaborador selecionado</div>
+                    <div class="express-return-list" data-express-return-role="items">
+                        <div class="express-return-empty">Selecione um colaborador acima.</div>
+                    </div>
+                </section>
+                <div class="express-return-detail is-empty" data-express-return-role="detail">
+                    <strong>Nenhum item selecionado.</strong>
+                    <div class="express-return-hint">Escolha uma ferramenta da lista abaixo para liberar a devolução.</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                <button type="button" class="btn btn-submit" data-express-return-role="submit" disabled>Fazer devolução</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 </%block>
 
 <%block name="scripts">
 ${parent.scripts()}
 <script src="${url_for('static', filename='js/mirror-screen-launcher.js')}"></script>
+<script src="${url_for('static', filename='js/express-return-modal.js')}"></script>
 <script>
 (function() {
     const usuariosAutocompleteData = ${tojson(usuarios)|n};
@@ -671,6 +763,8 @@ ${parent.scripts()}
     const inputMatricula = document.getElementById('input-matricula');
     const inputCodigo = document.getElementById('input-codigo');
     const inputQuantidade = document.getElementById('input-quantidade');
+    const btnQuantidadeMinus = document.getElementById('btn-quantidade-minus');
+    const btnQuantidadePlus = document.getElementById('btn-quantidade-plus');
     const inputLocal = document.getElementById('input-local');
     const inputObservacao = document.querySelector('textarea[name="observacao"]');
     const dropdown = document.getElementById('autocomplete-dropdown');
@@ -727,16 +821,41 @@ ${parent.scripts()}
         });
     }
     
-    // Força quantidade inteira
-    inputQuantidade.addEventListener('input', function() {
-        this.value = this.value.replace(/[^\\d]/g, '');
-        if (this.value === '' || parseInt(this.value) < 1) {
-            this.value = '1';
-        }
+    function getSanitizedQuantity(value) {
+        const digits = String(value || '').replace(/[^\d]/g, '');
+        const parsed = parseInt(digits, 10);
+        return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
+    }
+
+    function syncQuantityValue(value) {
+        const quantidade = getSanitizedQuantity(value);
+        inputQuantidade.value = String(quantidade);
         if (currentPreviewItem) {
-            currentPreviewItem.quantidade = parseInt(this.value, 10) || 1;
+            currentPreviewItem.quantidade = quantidade;
             renderCurrentPreview(currentPreviewItem, 'preview');
         }
+        return quantidade;
+    }
+
+    // Força quantidade inteira e permite ajustar por botões próprios.
+    inputQuantidade.addEventListener('input', function() {
+        syncQuantityValue(this.value);
+    });
+
+    inputQuantidade.addEventListener('blur', function() {
+        syncQuantityValue(this.value);
+    });
+
+    btnQuantidadeMinus?.addEventListener('click', function() {
+        const quantidadeAtual = getSanitizedQuantity(inputQuantidade.value);
+        syncQuantityValue(Math.max(1, quantidadeAtual - 1));
+        inputQuantidade.focus();
+    });
+
+    btnQuantidadePlus?.addEventListener('click', function() {
+        const quantidadeAtual = getSanitizedQuantity(inputQuantidade.value);
+        syncQuantityValue(quantidadeAtual + 1);
+        inputQuantidade.focus();
     });
 
     function publishMirrorState(payload) {
@@ -1022,7 +1141,7 @@ ${parent.scripts()}
             matricula: String(inputMatricula.value || '').trim(),
             local: String(inputLocal.value || '').trim(),
             observacao: String(inputObservacao && inputObservacao.value ? inputObservacao.value : '').trim(),
-            quantidade: parseInt(inputQuantidade.value, 10) || 1,
+            quantidade: getSanitizedQuantity(inputQuantidade.value),
         };
         renderCurrentPreview(currentPreviewItem, 'preview');
         inputQuantidade.focus();
@@ -1131,7 +1250,7 @@ ${parent.scripts()}
     btnAdicionar.addEventListener('click', async function() {
         const matricula = (inputMatricula.value || '').trim();
         const codigo = (inputCodigo.value || '').trim();
-        const quantidade = parseInt(inputQuantidade.value) || 1;
+        const quantidade = getSanitizedQuantity(inputQuantidade.value);
 
         if (!matricula) {
             alert('Informe a matrícula do funcionário');
@@ -1435,7 +1554,7 @@ ${parent.scripts()}
         currentPreviewItem = {
             ...currentPreviewItem,
             ...itemInfo,
-            quantidade: parseInt(inputQuantidade.value, 10) || 1,
+            quantidade: getSanitizedQuantity(inputQuantidade.value),
             matricula: String(inputMatricula.value || '').trim(),
             local: String(inputLocal.value || '').trim(),
             observacao: String(inputObservacao.value || '').trim(),
@@ -1445,6 +1564,107 @@ ${parent.scripts()}
     });
 
     renderCurrentPreview(null, 'idle');
+
+    if (window.GalintExpressReturnModal) {
+        window.GalintExpressReturnModal.init({
+            openButtonId: 'btn-open-express-return',
+            modalId: 'modalDevolucaoExpressa',
+            authMessageLoad: 'Sua sessão expirou durante a carga da devolução expressa. Faça login novamente.',
+            authMessageSubmit: 'Sua sessão expirou antes de concluir a devolução expressa. Faça login novamente.',
+            getInitialCollaboratorIdentifier: function() {
+                return String(inputMatricula.value || '').trim();
+            },
+            buildCollaboratorsUrl: function() {
+                return '${url_for("ferramentas.devolucao_expressa_colaboradores_api")}';
+            },
+            buildItemsUrl: function(collaborator) {
+                return window.GalintExpressReturnModal.buildUrl('${url_for("ferramentas.devolucao_expressa_itens_api")}', {
+                    matricula: collaborator && collaborator.matricula ? collaborator.matricula : ''
+                });
+            },
+            getItemIdentity: function(item) {
+                return item && item.saida_id ? item.saida_id : (item && item.codigo ? item.codigo : '');
+            },
+            renderItemButtonContent: function(item) {
+                var localTexto = String(item.local_servico || '').trim();
+                var custodyLabel = String(item.tipo_custodia || '').trim();
+                var custodyText = custodyLabel === 'permanente' ? 'Custódia permanente' : 'Custódia diária';
+                return '' +
+                    '<div class="express-return-item-title">' + escapeHtml(item.descricao || item.codigo || 'Ferramenta') + '</div>' +
+                    '<div class="express-return-item-meta">' +
+                        '<span class="express-return-item-code">Código: ' + escapeHtml(item.codigo || '') + '</span>' +
+                        '<span>' + escapeHtml(custodyText) + '</span>' +
+                        '<span>' + escapeHtml(String(item.days_in_use || 0)) + ' dia(s)</span>' +
+                    '</div>' +
+                    '<div class="express-return-item-meta">' +
+                        '<span>Retirada: ' + escapeHtml(item.data_saida_label || 'N/D') + '</span>' +
+                        (localTexto ? '<span>Local: ' + escapeHtml(localTexto) + '</span>' : '') +
+                        (item.is_alert ? '<span class="text-warning">Acima do prazo</span>' : '') +
+                    '</div>';
+            },
+            renderDetail: function(context) {
+                var item = context.item;
+                var collaborator = context.collaborator;
+                var custodyLabel = String(item.tipo_custodia || '').trim();
+                var custodyText = custodyLabel === 'permanente' ? 'Permanente' : 'Diária';
+                return '' +
+                    '<div class="express-return-detail-title">' + escapeHtml(item.descricao || item.codigo || 'Ferramenta') + '</div>' +
+                    '<div class="express-return-detail-subtitle">Código ' + escapeHtml(item.codigo || '') + (item.marca ? ' • ' + escapeHtml(item.marca) : '') + '</div>' +
+                    '<div class="express-return-kpis">' +
+                        '<div class="express-return-kpi"><span class="express-return-kpi-label">Colaborador</span><span class="express-return-kpi-value">' + escapeHtml((collaborator && collaborator.nome) || (collaborator && collaborator.matricula) || '-') + '</span></div>' +
+                        '<div class="express-return-kpi"><span class="express-return-kpi-label">Custódia</span><span class="express-return-kpi-value">' + escapeHtml(custodyText) + '</span></div>' +
+                        '<div class="express-return-kpi"><span class="express-return-kpi-label">Retirada</span><span class="express-return-kpi-value">' + escapeHtml(item.data_saida_label || '-') + '</span></div>' +
+                        '<div class="express-return-kpi"><span class="express-return-kpi-label">Local</span><span class="express-return-kpi-value">' + escapeHtml(item.local_servico || 'Não informado') + '</span></div>' +
+                    '</div>' +
+                    '<div class="row g-3">' +
+                        '<div class="col-12">' +
+                            '<label class="form-label" for="express-return-observation">Observação</label>' +
+                            '<input class="form-control" id="express-return-observation" value="Devolução expressa via tela de retirada de ferramentas" maxlength="200">' +
+                            '<div class="express-return-hint">A devolução vai registrar a baixa diretamente na custódia desta ferramenta.</div>' +
+                        '</div>' +
+                    '</div>';
+            },
+            buildSubmitRequest: function(context) {
+                if (!context.item || !context.item.saida_id) {
+                    throw new Error('Não foi possível identificar a retirada da ferramenta.');
+                }
+                var observationField = context.modalEl.querySelector('#express-return-observation');
+                var observacao = observationField ? String(observationField.value || '').trim() : '';
+                var payload = new URLSearchParams();
+                payload.append('observacao', observacao || 'Devolução expressa via tela de retirada de ferramentas');
+                payload.append('matricula', context.collaborator && context.collaborator.matricula ? context.collaborator.matricula : '');
+                payload.append('codigo_item', context.item && context.item.codigo ? context.item.codigo : '');
+                return {
+                    url: '/controle-ferramentas/devolucao/' + encodeURIComponent(String(context.item.saida_id)) + '/api',
+                    options: {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+                            'Accept': 'application/json'
+                        },
+                        body: payload.toString()
+                    }
+                };
+            },
+            messages: {
+                initialStatus: 'Abra o painel para carregar os colaboradores com ferramentas em aberto.',
+                loadingCollaborators: 'Carregando colaboradores com ferramentas em aberto...',
+                loadingItems: 'Carregando ferramentas do colaborador...',
+                selectCollaborator: 'Escolha o colaborador para carregar as ferramentas em aberto.',
+                selectCollaboratorFirst: 'Selecione um colaborador acima.',
+                selectItem: 'Escolha a ferramenta para concluir a devolução expressa.',
+                readyToSubmit: 'Revise os dados e confirme a devolução.',
+                noCollaborators: 'Nenhum colaborador com ferramenta em aberto foi encontrado.',
+                noItems: 'Nenhuma ferramenta em aberto foi encontrada para este colaborador.',
+                emptyDetailTitle: 'Nenhuma ferramenta selecionada.',
+                emptyDetailHint: 'Escolha uma ferramenta da lista abaixo para liberar a devolução.',
+                submitButton: 'Fazer devolução',
+                submitBusy: 'Devolvendo...',
+                submitSuccess: 'Devolução expressa registrada com sucesso.',
+                submitError: 'Falha ao registrar a devolução expressa.'
+            }
+        });
+    }
     
     function setActive(items) {
         items.forEach((item, index) => {

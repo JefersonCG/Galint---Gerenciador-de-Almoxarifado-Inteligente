@@ -12,18 +12,53 @@ _PAIR_RE = re.compile(r"de\s+([0-9]+(?:\.[0-9]+)?)\s+para\s+([0-9]+(?:\.[0-9]+)?
 _PACKAGING_UNIT_CODES = {"lata", "balde", "bombona", "caixa", "pacote", "fardo", "rolo", "saco", "litro"}
 _TOOLKIT_PIECES_RE = re.compile(r"\b[0-9]+(?:\.[0-9]+)?\s*pecas?\b", re.IGNORECASE)
 _UNIT_HINT_RE = re.compile(
-    r"UNIDADE\s*=\s*([A-ZÇÃÕÁÉÍÓÚ_ ]+)|\b(LITRO|LITROS|KG|KILO|QUILO|METRO|METROS|UNIDADE|UNIDADES)\b",
+    r"UNIDADE\s*=\s*([A-ZÇÃÕÁÉÍÓÚ_ ]+)|\b(LITRO|LITROS|KG|KILO|QUILO|METRO|METROS|UNIDADE|UNIDADES|PAR|PARES)\b",
     re.IGNORECASE,
 )
 _TEXT_MEASURE_RE = re.compile(
-    r"\b([0-9]+(?:[.,][0-9]+)?)\s*(l|lt|lts|litro|litros|kg|quilo|quilos|kilo|kilos|m|mt|mts|metro|metros)\b",
+    r"\b([0-9]+(?:[.,][0-9]+)?)\s*(ml|mililitro|mililitros|l|lt|lts|litro|litros|g|gr|grama|gramas|kg|quilo|quilos|kilo|kilos|m|mt|mts|metro|metros)\b",
+    re.IGNORECASE,
+)
+_ROLL_DIMENSION_HEAD_RE = re.compile(
+    r"\b([0-9]+(?:[.,][0-9]+)?)\s*[x×]\s*[0-9]+(?:[.,][0-9]+)?\s*mm\b",
+    re.IGNORECASE,
+)
+_ROLL_DIMENSION_TAIL_RE = re.compile(
+    r"[x×]\s*([0-9]+(?:[.,][0-9]+)?)\s*(m|mt|mts|metro|metros)\b",
     re.IGNORECASE,
 )
 _MOVEMENT_KIND_ORDER = {"entrada": 0, "saida": 1, "evento": 2}
 _TOLERANCE = 1e-6
 _TOOLKIT_KEYWORDS = ("jogo", "kit", "conjunto")
-_LIQUID_KEYWORDS = ("tinta", "resina", "verniz", "solvente", "thinner", "selador", "impermeabilizante", "esmalte")
-_WEIGHT_KEYWORDS = ("massa", "argamassa", "rejunte", "cimento", "gesso", "cloro")
+_SINGLE_PIECE_PACKAGED_KEYWORDS = ("lampada", "luminaria", "painel", "refletor", "iluminacao")
+_LIQUID_KEYWORDS = (
+    "tinta",
+    "resina",
+    "verniz",
+    "solvente",
+    "thinner",
+    "selador",
+    "impermeabilizante",
+    "esmalte",
+    "alcool",
+    "algicida",
+    "clarificante",
+    "desinfetante",
+    "creolina",
+    "limpa",
+    "facilitador",
+    "ferrugem",
+    "endurecedor",
+    "aditivo",
+    "acetinado",
+    "cola",
+    "fosco",
+    "seda",
+    "toque",
+    "vedalit",
+    "oleosidade",
+)
+_WEIGHT_KEYWORDS = ("massa", "argamassa", "rejunte", "rejuntamento", "cimento", "gesso", "cloro", "manta", "quartzo", "ecopoxi")
 
 
 @dataclass(slots=True, frozen=True)
@@ -69,6 +104,26 @@ def _build_packaging_lookup_text(item: Item) -> str:
 def _extract_measure_from_text(text: str) -> tuple[float, str] | None:
     if not text:
         return None
+    roll_dimension_head_match = _ROLL_DIMENSION_HEAD_RE.search(text)
+    if roll_dimension_head_match:
+        raw_value = (roll_dimension_head_match.group(1) or "").replace(",", ".")
+        try:
+            value = float(raw_value)
+        except (TypeError, ValueError):
+            value = 0.0
+        if value > 0:
+            return value, "m"
+
+    roll_dimension_match = _ROLL_DIMENSION_TAIL_RE.search(text)
+    if roll_dimension_match:
+        raw_value = (roll_dimension_match.group(1) or "").replace(",", ".")
+        try:
+            value = float(raw_value)
+        except (TypeError, ValueError):
+            value = 0.0
+        if value > 0:
+            return value, "m"
+
     match = _TEXT_MEASURE_RE.search(text)
     if not match:
         return None
@@ -79,7 +134,12 @@ def _extract_measure_from_text(text: str) -> tuple[float, str] | None:
         return None
     if value <= 0:
         return None
-    unit = _normalize_simple_unit(match.group(2))
+    raw_unit = str(match.group(2) or "").strip().lower()
+    if raw_unit in {"ml", "mililitro", "mililitros"}:
+        return value / 1000.0, "l"
+    if raw_unit in {"g", "gr", "grama", "gramas"}:
+        return value / 1000.0, "kg"
+    unit = _normalize_simple_unit(raw_unit)
     if not unit:
         return None
     return value, unit
@@ -103,6 +163,18 @@ def _accept_text_measure(*, unit: str, package_type: str, lookup_text: str) -> b
     if unit == "m":
         return package_type == "rolo"
     return False
+
+
+def _accept_untyped_text_measure(*, unit: str, lookup_text: str) -> bool:
+    if unit == "l":
+        return _text_prefers_liquid_measure(lookup_text)
+    if unit == "kg":
+        return _text_prefers_weight_measure(lookup_text)
+    return False
+
+
+def _looks_like_single_piece_packaged_item(text: str) -> bool:
+    return bool(text and any(keyword in text for keyword in _SINGLE_PIECE_PACKAGED_KEYWORDS))
 
 
 def _resolve_grandeza_reference_unit(*, item: Item, package_type: str, lookup_text: str) -> str:
@@ -159,8 +231,11 @@ def infer_packaging_measure(item: Item) -> tuple[float, str] | None:
             return ((factor or 1.0), normalized)
 
     parsed_measure = _extract_measure_from_text(lookup_text)
-    if parsed_measure is not None and _accept_text_measure(unit=parsed_measure[1], package_type=tipo_emb, lookup_text=lookup_text):
-        return parsed_measure
+    if parsed_measure is not None:
+        if _accept_text_measure(unit=parsed_measure[1], package_type=tipo_emb, lookup_text=lookup_text):
+            return parsed_measure
+        if not tipo_emb and _accept_untyped_text_measure(unit=parsed_measure[1], lookup_text=lookup_text):
+            return parsed_measure
 
     unidades_por = _as_positive_float(getattr(item, "unidades_por_embalagem", None))
     mapped_unit = _normalize_simple_unit(unidade_raw)
@@ -170,6 +245,9 @@ def infer_packaging_measure(item: Item) -> tuple[float, str] | None:
 
     if tipo_emb == "rolo" and unidades_por > 0:
         return unidades_por, "m"
+
+    if tipo_emb in {"caixa", "pacote"} and _looks_like_single_piece_packaged_item(lookup_text):
+        return 1.0, "un"
 
     if unidades_por > 0:
         if mapped_unit and mapped_unit != "un":
@@ -186,6 +264,27 @@ def infer_packaging_measure(item: Item) -> tuple[float, str] | None:
         return 1.0, mapped_unit
 
     return None
+
+
+def is_legacy_liter_packaging_compatible(item: Item) -> bool:
+    tipo_emb = (getattr(item, "tipo_embalagem_novo", None) or "").strip().lower()
+    if tipo_emb != "litro":
+        return False
+
+    factor = float(resolve_packaging_factor(item) or 0.0)
+    if factor <= 0 or factor > (1.0 + _TOLERANCE):
+        return False
+
+    canonical_unit = _normalize_simple_unit(resolve_canonical_unit(item))
+    if canonical_unit != "l":
+        return False
+
+    lookup_text = _build_packaging_lookup_text(item)
+    parsed_measure = _extract_measure_from_text(lookup_text)
+    if parsed_measure is not None:
+        return parsed_measure[1] == "l"
+
+    return _text_prefers_liquid_measure(lookup_text)
 
 
 def ignore_packaging_metadata_for_stock(item: Item) -> bool:
@@ -450,7 +549,7 @@ def _normalize_exit_quantity(item: Item, exit_row: Saida) -> float:
     hint_match = _UNIT_HINT_RE.search(observacao)
     if hint_match:
         hint = (hint_match.group(1) or hint_match.group(2) or "").strip().lower()
-        if any(token in hint for token in ("litro", "litr", "quilo", "kilo", "kg", "metro", "unidade")):
+        if any(token in hint for token in ("litro", "litr", "quilo", "kilo", "kg", "metro", "unidade", "par")):
             return raw_quantity
 
     factor = resolve_packaging_factor(item)
@@ -493,6 +592,8 @@ def _normalize_simple_unit(unit_raw: str | None) -> str | None:
     value = (unit_raw or "").strip().lower()
     if not value:
         return None
+    if value in {"par", "pares"}:
+        return "par"
     if value in {"l", "lt", "lts", "litro", "litros"}:
         return "l"
     if value in {"kg", "quilo", "quilos", "kilo", "kilos"}:

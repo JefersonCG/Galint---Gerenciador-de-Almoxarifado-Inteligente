@@ -17,13 +17,14 @@ from galint_flask.services.balance_provider import BalanceSnapshot
 from galint_flask.services.embalagem_service import EmbalagemService
 from galint_flask.services.finance_service import FinanceService
 from galint_flask.services.inventory import InventoryService, MovimentoPayload
-from galint_flask.services.inventory import resolve_item_base_unit_label
+from galint_flask.services.inventory import _reconcile_normalized_item_prices, ensure_base_item_unit, resolve_item_base_unit_label
 from galint_flask.services.ledger_cutover import LedgerCutoverService
 from galint_flask.services.ledger_reconciliation import ReconciliationResult
-from galint_flask.services.legacy_stock_normalizer import resolve_packaging_quantity_and_unit, uses_packaging_legacy_normalization
+from galint_flask.services.legacy_stock_normalizer import infer_packaging_measure, is_legacy_liter_packaging_compatible, resolve_packaging_factor, resolve_packaging_quantity_and_unit, uses_packaging_legacy_normalization
 from galint_flask.services.price_normalization import infer_document_quantity_unit_for_item, infer_price_unit_for_item
 from galint_flask.views.inventory import _uses_packaging_system
-from galint_flask.views.nf import _apply_document_item_normalization, _item_matches_seeded_nf_pre_registration, _mark_manual_nf_document_items_for_pre_registration
+from galint_flask.views.nf import _apply_document_item_normalization, _build_nf_new_item_packaging_payload, _item_matches_seeded_nf_pre_registration, _mark_manual_nf_document_items_for_pre_registration, _normalize_nf_new_item_packaging_type
+from auditar_realinhamento_unidades_operacionais import _classify_item
 
 
 class MockPackagingItem:
@@ -341,6 +342,153 @@ def test_infer_price_unit_da_nf_prefere_embalagem_documental_do_rolo() -> None:
     assert infer_price_unit_for_item(item) == "rolo"
 
 
+def test_infer_packaging_measure_detecta_comprimento_em_rotulo_dimensional_de_rolo() -> None:
+    item = MockPackagingItem(
+        codigo_item="ROLO-DIMENSIONAL-TESTE",
+        tipo_embalagem="rolo",
+        unidades_por_embalagem=0,
+        unidade="Rolo",
+        descricao="FITA CREPE MASK 48mmX50M",
+    )
+
+    assert infer_packaging_measure(item) == (50.0, "m")
+    assert resolve_packaging_factor(item) == 50.0
+
+
+def test_infer_packaging_measure_detecta_comprimento_em_rolo_com_largura_em_mm() -> None:
+    item = MockPackagingItem(
+        codigo_item="ROLO-DIMENSIONAL-90X48-TESTE",
+        tipo_embalagem="rolo",
+        unidades_por_embalagem=0,
+        unidade="Rolo",
+        descricao="FITA AUTOADESIVA DRYWALL 90X48mm",
+    )
+
+    assert infer_packaging_measure(item) == (90.0, "m")
+    assert resolve_packaging_factor(item) == 90.0
+
+
+def test_infer_packaging_measure_converte_gramas_para_quilo_em_pacote() -> None:
+    item = MockPackagingItem(
+        codigo_item="PACOTE-GRAMAS-TESTE",
+        tipo_embalagem="pacote",
+        unidades_por_embalagem=0,
+        unidade="Pacote",
+        descricao="MASSA F12 MOGNO 200G",
+    )
+
+    assert infer_packaging_measure(item) == (0.2, "kg")
+    assert resolve_packaging_factor(item) == 0.2
+
+
+def test_hydrate_missing_packaging_metadata_corrige_tinta_acetinada_numerica_legada() -> None:
+    normalized = InventoryService._hydrate_missing_packaging_metadata(
+        {
+            "descricao": "TOQUE SEDA ACETINADO CROMO 18L",
+            "unidade": "1",
+        }
+    )
+
+    assert normalized["tipo_embalagem_novo"] == "lata"
+    assert normalized["litros_por_embalagem"] == 18.0
+    assert normalized["unidade"] == "Litro"
+
+
+def test_hydrate_missing_packaging_metadata_corrige_manta_acrilica_kg_numerica_legada() -> None:
+    normalized = InventoryService._hydrate_missing_packaging_metadata(
+        {
+            "descricao": "MANTA ACRILICA FLEXIVEL 12KG",
+            "unidade": "1",
+        }
+    )
+
+    assert normalized["tipo_embalagem_novo"] == "balde"
+    assert normalized["grandeza_referencia"] == 12.0
+    assert normalized["unidade"] == "Quilo"
+
+
+def test_legacy_liter_packaging_compatible_aceita_frasco_liquido_legado() -> None:
+    item = MockPackagingItem(
+        codigo_item="LEGADO-LITRO-500ML",
+        tipo_embalagem="litro",
+        unidades_por_embalagem=0.5,
+        unidade="Litro",
+        descricao="DESINFETANTE DE USO GERAL 500ML",
+    )
+    item.litros_por_embalagem = 0.5
+
+    assert is_legacy_liter_packaging_compatible(item) is True
+
+
+def test_legacy_liter_packaging_compatible_rejeita_item_com_medida_em_gramas() -> None:
+    item = MockPackagingItem(
+        codigo_item="LEGADO-LITRO-850G",
+        tipo_embalagem="litro",
+        unidades_por_embalagem=1,
+        unidade="Litro",
+        descricao="ADESIVO PLASTICO P/GRANDES DIAMETROS 850G",
+    )
+    item.litros_por_embalagem = 1.0
+
+    assert is_legacy_liter_packaging_compatible(item) is False
+
+
+def test_reconcile_normalized_item_prices_corrige_preco_base_legado_de_pacote() -> None:
+    item = MockPackagingItem(
+        codigo_item="PACOTE-PRECO-LEGADO",
+        tipo_embalagem="pacote",
+        unidades_por_embalagem=1000,
+        unidade="Pacote",
+    )
+    item.product_units = [
+        SimpleNamespace(unit_code="pacote", unit_label="Pacote", is_base=False, active=True),
+        SimpleNamespace(unit_code="un", unit_label="Unidade", is_base=True, active=True),
+    ]
+    item.product_unit_conversions = [
+        SimpleNamespace(from_unit="pacote", to_unit="un", factor=1000.0, active=True),
+    ]
+    item.preco_compra_unitario = 130.0
+    item.preco_compra_unitario_base = 130.0
+    item.preco_compra_unidade_preco = "pacote"
+    item.preco_compra_fator_base = 1.0
+    item.preco_reposicao_unitario = None
+    item.preco_reposicao_unitario_base = None
+    item.preco_reposicao_unidade_preco = None
+    item.preco_reposicao_fator_base = None
+
+    changed = _reconcile_normalized_item_prices(item)
+
+    assert changed is True
+    assert item.preco_compra_unitario == 130.0
+    assert item.preco_compra_unidade_preco == "pacote"
+    assert item.preco_compra_unitario_base == 0.13
+    assert item.preco_compra_fator_base == 1000.0
+
+
+def test_reconcile_normalized_item_prices_infere_unidade_embalagem_quando_ausente() -> None:
+    item = MockPackagingItem(
+        codigo_item="CAIXA-PRECO-INFERIDO",
+        tipo_embalagem="caixa",
+        unidades_por_embalagem=24,
+        unidade="Caixa",
+    )
+    item.preco_compra_unitario = None
+    item.preco_compra_unitario_base = None
+    item.preco_compra_unidade_preco = None
+    item.preco_compra_fator_base = None
+    item.preco_reposicao_unitario = 96.3
+    item.preco_reposicao_unitario_base = None
+    item.preco_reposicao_unidade_preco = None
+    item.preco_reposicao_fator_base = None
+
+    changed = _reconcile_normalized_item_prices(item)
+
+    assert changed is True
+    assert item.preco_reposicao_unidade_preco == "caixa"
+    assert item.preco_reposicao_fator_base == 24.0
+    assert item.preco_reposicao_unitario_base == 4.0125
+
+
 def test_apply_document_item_normalization_corrige_linha_pendente_de_rolo_para_embalagem() -> None:
     item = MockPackagingItem(
         codigo_item="ROLO-NF-PENDENTE-TESTE",
@@ -474,6 +622,61 @@ def test_resolve_item_base_unit_label_aceita_product_units_como_dict_no_pre_cada
     assert resolve_item_base_unit_label(item_like, fallback="Unidade") == "Metro"
 
 
+def test_ensure_base_item_unit_aceita_par() -> None:
+    assert ensure_base_item_unit("pares") == "Par"
+
+
+def test_resolve_item_base_unit_label_aceita_par_como_base_legitima() -> None:
+    item_like = SimpleNamespace(
+        unidade="Par",
+        tipo_embalagem_novo=None,
+        litros_por_embalagem=None,
+        grandeza_referencia=None,
+        unidades_por_embalagem=None,
+        product_units=[],
+    )
+
+    assert resolve_item_base_unit_label(item_like, fallback="Unidade") == "Par"
+
+
+def test_nf_document_unit_aceita_par_quando_base_tambem_e_par() -> None:
+    assert _normalize_nf_new_item_packaging_type("par") == "par"
+    assert _build_nf_new_item_packaging_payload(
+        base_unit="Par",
+        packaging_type="par",
+        content_per_package=None,
+    ) == {}
+
+
+def test_nf_document_unit_par_exige_base_par() -> None:
+    try:
+        _build_nf_new_item_packaging_payload(
+            base_unit="Unidade",
+            packaging_type="par",
+            content_per_package=None,
+        )
+    except ValueError as exc:
+        assert "compra/NF vier em Par" in str(exc)
+    else:
+        raise AssertionError("Esperava ValueError quando Par for usado sem base Par")
+
+
+def test_infer_packaging_measure_preserva_item_em_par_sem_embalagem() -> None:
+    item_like = SimpleNamespace(
+        unidade="Par",
+        tipo_embalagem_novo=None,
+        litros_por_embalagem=None,
+        grandeza_referencia=None,
+        unidades_por_embalagem=None,
+        descricao="Luva nitrilica",
+        categoria="Material de EP",
+        marca=None,
+        product_units=[],
+    )
+
+    assert infer_packaging_measure(item_like) == (1.0, "par")
+
+
 def test_uses_packaging_system_reconhece_bombona_por_litros() -> None:
     assert _uses_packaging_system({"tipo_embalagem_novo": "bombona", "litros_por_embalagem": 5}) is True
 
@@ -506,6 +709,54 @@ def test_hydrate_missing_packaging_metadata_corrige_unidade_numerica() -> None:
     assert normalized["tipo_embalagem_novo"] == "lata"
     assert normalized["litros_por_embalagem"] == 18.0
     assert normalized["unidade"] == "Litro"
+
+
+def test_hydrate_missing_packaging_metadata_converte_item_eletrico_numerico_para_unidade() -> None:
+    normalized = InventoryService._hydrate_missing_packaging_metadata(
+        {
+            "descricao": "LAMPADA LED SPOT PAR20 5.5W 6500K LUZ FRIA",
+            "categoria": "Material Elétrico",
+            "unidade": "0",
+        }
+    )
+
+    assert normalized["unidade"] == "Unidade"
+    assert normalized.get("tipo_embalagem_novo") in (None, "")
+
+
+def test_hydrate_missing_packaging_metadata_converte_luva_epi_numerica_para_par() -> None:
+    normalized = InventoryService._hydrate_missing_packaging_metadata(
+        {
+            "descricao": "LUVA DE PROTEÇÃO EM ALGODÃO",
+            "categoria": "Material de EP",
+            "unidade": "0",
+        }
+    )
+
+    assert normalized["unidade"] == "Par"
+    assert normalized.get("tipo_embalagem_novo") in (None, "")
+
+
+def test_auditoria_marca_item_numerico_avulso_como_safe_apply() -> None:
+    item = SimpleNamespace(
+        codigo_item="AUDIT-LEGACY-UN",
+        descricao="LAMPADA LED SPOT PAR20 5.5W 6500K LUZ FRIA",
+        categoria="Material Elétrico",
+        marca=None,
+        unidade="0",
+        tipo_embalagem_novo=None,
+        tipo_embalagem=None,
+        litros_por_embalagem=None,
+        grandeza_referencia=None,
+        unidades_por_embalagem=None,
+        product_units=[],
+    )
+
+    result = _classify_item(item, document_index={})
+
+    assert result.status == "safe_apply"
+    assert result.proposed_unit == "Unidade"
+    assert result.proposed_packaging is None
 
 
 def test_seed_nf_aceita_numero_do_documento_sem_nota_gravada_no_item() -> None:
@@ -589,11 +840,24 @@ def main() -> int:
     test_formatar_estoque_nao_sincroniza_legacy_em_contexto_de_leitura()
     test_rolo_migrado_nao_reaplica_formula_legada_na_exibicao()
     test_infer_price_unit_da_nf_prefere_embalagem_documental_do_rolo()
+    test_infer_packaging_measure_detecta_comprimento_em_rotulo_dimensional_de_rolo()
+    test_infer_packaging_measure_converte_gramas_para_quilo_em_pacote()
+    test_hydrate_missing_packaging_metadata_corrige_tinta_acetinada_numerica_legada()
+    test_hydrate_missing_packaging_metadata_corrige_manta_acrilica_kg_numerica_legada()
+    test_legacy_liter_packaging_compatible_aceita_frasco_liquido_legado()
+    test_legacy_liter_packaging_compatible_rejeita_item_com_medida_em_gramas()
+    test_reconcile_normalized_item_prices_corrige_preco_base_legado_de_pacote()
+    test_reconcile_normalized_item_prices_infere_unidade_embalagem_quando_ausente()
     test_apply_document_item_normalization_corrige_linha_pendente_de_rolo_para_embalagem()
     test_serialize_stock_document_mostra_conversao_documental_do_rolo()
     test_resolve_item_base_unit_label_prefere_unidade_canonica_do_rolo()
     test_resolve_item_base_unit_label_prefere_unidade_canonica_da_bombona()
     test_resolve_item_base_unit_label_aceita_product_units_como_dict_no_pre_cadastro()
+    test_ensure_base_item_unit_aceita_par()
+    test_resolve_item_base_unit_label_aceita_par_como_base_legitima()
+    test_nf_document_unit_aceita_par_quando_base_tambem_e_par()
+    test_nf_document_unit_par_exige_base_par()
+    test_infer_packaging_measure_preserva_item_em_par_sem_embalagem()
     test_uses_packaging_system_reconhece_bombona_por_litros()
     test_uses_packaging_system_reconhece_saco_por_grandeza()
     test_hydrate_missing_packaging_metadata_promove_unidade_de_embalagem()

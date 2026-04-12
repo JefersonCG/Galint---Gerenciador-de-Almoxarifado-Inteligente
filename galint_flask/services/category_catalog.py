@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import re
 from typing import Any
+import unicodedata
 
 from sqlalchemy import func
 
@@ -11,32 +13,154 @@ from ..models import FinanceLedgerEntry, InventoryCategory, Item
 
 @dataclass(frozen=True)
 class DefaultInventoryCategory:
+    key: str
     nome: str
     descricao: str
     ordem: int
+    icon: str
+    color: str
 
 
 DEFAULT_INVENTORY_CATEGORIES: tuple[DefaultInventoryCategory, ...] = (
-    DefaultInventoryCategory("Material Elétrico", "Infraestrutura elétrica e componentes de energia.", 10),
-    DefaultInventoryCategory("Material Hidráulico", "Tubulações, conexões e manutenção hidráulica.", 20),
-    DefaultInventoryCategory("Material Piscina", "Tratamento, manutenção e operação de piscina.", 30),
-    DefaultInventoryCategory("Mat. Pintura e Drywall", "Tintas, massas, drywall e acabamento.", 40),
-    DefaultInventoryCategory("Materiais de Limpeza", "Produtos e insumos de limpeza operacional.", 50),
-    DefaultInventoryCategory("Material Construção", "Materiais estruturais e de obra civil.", 60),
-    DefaultInventoryCategory("Ferramentas", "Ferramentas de uso manual e apoio técnico.", 70),
-    DefaultInventoryCategory("Equipamento", "Equipamentos permanentes e itens eletrificados.", 80),
-    DefaultInventoryCategory("Material de EP", "Equipamentos e materiais de proteção individual.", 90),
-    DefaultInventoryCategory("Material/Uso geral", "Itens transversais de uso geral e apoio operacional.", 100),
+    DefaultInventoryCategory("material-eletrico", "Material Elétrico", "Infraestrutura elétrica e componentes de energia.", 10, "⚡", "#22d3ee"),
+    DefaultInventoryCategory("material-hidraulico", "Material Hidráulico", "Tubulações, conexões e manutenção hidráulica.", 20, "💧", "#38bdf8"),
+    DefaultInventoryCategory("material-piscina", "Material Piscina", "Tratamento, manutenção e operação de piscina.", 30, "🛟", "#2dd4bf"),
+    DefaultInventoryCategory("mat-pintura-drywall", "Mat. Pintura e Drywall", "Tintas, massas, drywall e acabamento.", 40, "🖌️", "#f59e0b"),
+    DefaultInventoryCategory("materiais-limpeza", "Materiais de Limpeza", "Produtos e insumos de limpeza operacional.", 50, "🧽", "#34d399"),
+    DefaultInventoryCategory("material-construcao", "Material Construção", "Materiais estruturais e de obra civil.", 60, "🧱", "#fb7185"),
+    DefaultInventoryCategory("ferramentas", "Ferramentas", "Ferramentas de uso manual e apoio técnico.", 70, "🛠️", "#60a5fa"),
+    DefaultInventoryCategory("equipamento", "Equipamento", "Equipamentos permanentes e itens eletrificados.", 80, "⚙️", "#c084fc"),
+    DefaultInventoryCategory("material-ep", "Material de EP", "Equipamentos e materiais de proteção individual.", 90, "⛑️", "#fde047"),
+    DefaultInventoryCategory("material-uso-geral", "Material/Uso geral", "Itens transversais de uso geral e apoio operacional.", 100, "💼", "#a3e635"),
 )
 
 DEFAULT_INVENTORY_CATEGORY_NAME = DEFAULT_INVENTORY_CATEGORIES[0].nome
+
+_FALLBACK_CATEGORY_VISUALS: tuple[dict[str, str], ...] = (
+    {"icon": "📦", "color": "#22d3ee"},
+    {"icon": "🧪", "color": "#34d399"},
+    {"icon": "🏷️", "color": "#f59e0b"},
+    {"icon": "🧰", "color": "#60a5fa"},
+    {"icon": "📘", "color": "#a78bfa"},
+    {"icon": "🪜", "color": "#fb7185"},
+)
+
+_SEM_CATEGORIA_VISUAL = {
+    "key": "sem-categoria",
+    "label": "Sem categoria",
+    "route": "Sem categoria",
+    "icon": "📁",
+    "color": "#94a3b8",
+}
+
+
+def _slugify_category_key(value: object) -> str:
+    text = normalize_inventory_category_name(value)
+    if not text:
+        return "sem-categoria"
+    ascii_text = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode("ascii")
+    return re.sub(r"[^a-z0-9]+", "-", ascii_text.casefold()).strip("-") or "sem-categoria"
+
+
+def _hex_to_rgba(color: str, alpha: float) -> str:
+    hex_color = str(color or "").strip().lstrip("#")
+    if len(hex_color) == 3:
+        hex_color = "".join(ch * 2 for ch in hex_color)
+    if len(hex_color) != 6:
+        return f"rgba(148, 163, 184, {alpha:.2f})"
+    red = int(hex_color[0:2], 16)
+    green = int(hex_color[2:4], 16)
+    blue = int(hex_color[4:6], 16)
+    return f"rgba({red}, {green}, {blue}, {alpha:.2f})"
 
 
 def normalize_inventory_category_name(value: object) -> str:
     return " ".join(str(value or "").strip().split())
 
 
+_DEFAULT_CATEGORY_VISUALS_BY_NAME = {
+    normalize_inventory_category_name(row.nome).casefold(): row
+    for row in DEFAULT_INVENTORY_CATEGORIES
+}
+_DEFAULT_CATEGORY_VISUALS_BY_KEY = {
+    row.key: row
+    for row in DEFAULT_INVENTORY_CATEGORIES
+}
+
+
 class CategoryCatalogService:
+    @staticmethod
+    def _resolve_fallback_visual(value: object, *, fallback_index: int = 0) -> dict[str, str]:
+        key = _slugify_category_key(value)
+        seed = sum((index + 1) * ord(char) for index, char in enumerate(key)) + int(fallback_index or 0)
+        palette = _FALLBACK_CATEGORY_VISUALS[seed % len(_FALLBACK_CATEGORY_VISUALS)]
+        label = normalize_inventory_category_name(value) or "Sem categoria"
+        return {
+            "key": key,
+            "label": label,
+            "route": label,
+            "icon": palette["icon"],
+            "color": palette["color"],
+            "soft": _hex_to_rgba(palette["color"], 0.22),
+            "soft_strong": _hex_to_rgba(palette["color"], 0.34),
+        }
+
+    def get_visual(self, value: object, *, fallback_index: int = 0) -> dict[str, str]:
+        label = normalize_inventory_category_name(value)
+        if not label or label.casefold() == "sem categoria":
+            color = _SEM_CATEGORIA_VISUAL["color"]
+            return {
+                **_SEM_CATEGORIA_VISUAL,
+                "soft": _hex_to_rgba(color, 0.18),
+                "soft_strong": _hex_to_rgba(color, 0.28),
+            }
+
+        default_visual = _DEFAULT_CATEGORY_VISUALS_BY_NAME.get(label.casefold())
+        if default_visual is not None:
+            return {
+                "key": default_visual.key,
+                "label": default_visual.nome,
+                "route": default_visual.nome,
+                "icon": default_visual.icon,
+                "color": default_visual.color,
+                "soft": _hex_to_rgba(default_visual.color, 0.22),
+                "soft_strong": _hex_to_rgba(default_visual.color, 0.34),
+            }
+
+        return self._resolve_fallback_visual(label, fallback_index=fallback_index)
+
+    def list_visual_catalog(self, *, include_inactive: bool = False) -> list[dict[str, Any]]:
+        categories = self.list_categories(include_inactive=include_inactive)
+        visuals: list[dict[str, Any]] = []
+        seen: set[str] = set()
+
+        for index, category in enumerate(categories):
+            visual = self.get_visual(category.nome, fallback_index=index)
+            if visual["key"] in seen:
+                continue
+            seen.add(visual["key"])
+            visuals.append(
+                {
+                    **visual,
+                    "descricao": category.descricao,
+                    "ordem": int(category.ordem or 0),
+                    "ativa": bool(category.ativa),
+                    "sistema": bool(category.sistema),
+                }
+            )
+
+        if _SEM_CATEGORIA_VISUAL["key"] not in seen:
+            visuals.append({
+                **self.get_visual("Sem categoria"),
+                "descricao": "Itens ainda sem classificação definida.",
+                "ordem": 9990,
+                "ativa": True,
+                "sistema": True,
+            })
+
+        visuals.sort(key=lambda row: (int(row.get("ordem") or 0), str(row.get("label") or "").casefold()))
+        return visuals
+
     def ensure_seeded(self) -> None:
         existing_rows = InventoryCategory.query.order_by(InventoryCategory.ordem.asc(), InventoryCategory.id.asc()).all()
         existing_map = {

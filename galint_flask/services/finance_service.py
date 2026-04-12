@@ -25,6 +25,7 @@ from ..models import (
     StockBalance,
     StockMovement,
 )
+from .category_catalog import category_catalog_service
 from .legacy_stock_normalizer import ignore_packaging_metadata_for_stock, resolve_canonical_unit, resolve_packaging_factor
 from .price_normalization import (
     infer_document_quantity_unit_for_item,
@@ -37,6 +38,7 @@ _DOCUMENT_UNIT_LABELS = {
     "kg": ("kg", "kg"),
     "l": ("litro", "litros"),
     "un": ("unidade", "unidades"),
+    "par": ("par", "pares"),
 }
 _PACKAGING_UNIT_LABELS = {
     "lata": ("lata", "latas"),
@@ -417,6 +419,148 @@ class FinanceService:
             return row
 
         return None
+
+    @staticmethod
+    def _build_category_conic_gradient(segments: list[dict[str, Any]]) -> str:
+        if not segments:
+            return "conic-gradient(from -90deg, rgba(51, 65, 85, 0.76) 0% 100%)"
+
+        parts: list[str] = []
+        start = 0.0
+        for segment in segments:
+            share_pct = max(0.0, float(segment.get("share_pct") or 0.0))
+            if share_pct <= 0:
+                continue
+            end = min(100.0, start + share_pct)
+            parts.append(f"{segment.get('color') or '#94a3b8'} {start:.2f}% {end:.2f}%")
+            start = end
+
+        if start < 100.0:
+            parts.append(f"rgba(51, 65, 85, 0.76) {start:.2f}% 100%")
+
+        return "conic-gradient(from -90deg, " + ", ".join(parts) + ")"
+
+    @staticmethod
+    def _compact_finance_kpi_segments(
+        segments: list[dict[str, Any]],
+        *,
+        visible_limit: int = 4,
+    ) -> tuple[list[dict[str, Any]], int]:
+        if len(segments) <= visible_limit:
+            return [dict(segment) for segment in segments], 0
+
+        visible_segments = [dict(segment) for segment in segments[:visible_limit]]
+        hidden_segments = segments[visible_limit:]
+        hidden_value = round(sum(float(segment.get("value") or 0.0) for segment in hidden_segments), 2)
+        hidden_share = sum(float(segment.get("share_pct") or 0.0) for segment in hidden_segments)
+
+        if hidden_value > 0 or hidden_share > 0:
+            visible_segments.append(
+                {
+                    "categoria": "Outras categorias",
+                    "value": hidden_value,
+                    "share_pct": hidden_share,
+                    "color": "#64748b",
+                    "soft": "rgba(100, 116, 139, 0.18)",
+                    "soft_strong": "rgba(100, 116, 139, 0.28)",
+                    "icon": "+",
+                    "is_aggregate": True,
+                    "hidden_categories_count": len(hidden_segments),
+                }
+            )
+
+        return visible_segments, len(hidden_segments)
+
+    @staticmethod
+    def _build_finance_category_kpis(category_cards: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        definitions = (
+            {
+                "key": "estoque-compra",
+                "title": "Estoque por compra",
+                "value_key": "total_atual_compra",
+                "note": "Saldo atual no custo de compra repartido pelas categorias do estoque.",
+            },
+            {
+                "key": "estoque-reposicao",
+                "title": "Estoque por reposição",
+                "value_key": "total_atual_reposicao",
+                "note": "Saldo atual no custo de reposição usando a mesma paleta das categorias.",
+            },
+            {
+                "key": "investido-exercicio",
+                "title": "Investido no exercício",
+                "value_key": "total_investido",
+                "note": "Entradas financeiras do exercício distribuídas por categoria.",
+            },
+            {
+                "key": "consumido-exercicio",
+                "title": "Consumido no exercício",
+                "value_key": "total_consumido",
+                "note": "Consumo estimado do exercício quebrado pelas categorias de itens.",
+            },
+            {
+                "key": "sem-comprovacao",
+                "title": "Sem comprovação",
+                "value_key": "total_sem_comprovacao",
+                "note": "Pendência fiscal distribuída pelas mesmas cores padrão das categorias.",
+            },
+        )
+
+        kpis: list[dict[str, Any]] = []
+        for definition in definitions:
+            segments: list[dict[str, Any]] = []
+            total_value = 0.0
+            for index, card in enumerate(category_cards):
+                value = round(float(card.get(definition["value_key"]) or 0.0), 2)
+                if value <= 0:
+                    continue
+                visual = card.get("visual") or category_catalog_service.get_visual(card.get("categoria"), fallback_index=index)
+                total_value += value
+                segments.append(
+                    {
+                        "categoria": card.get("categoria") or "Sem categoria",
+                        "value": value,
+                        "color": visual.get("color"),
+                        "soft": visual.get("soft"),
+                        "soft_strong": visual.get("soft_strong"),
+                        "icon": visual.get("icon"),
+                    }
+                )
+
+            segments.sort(key=lambda row: (-float(row.get("value") or 0.0), str(row.get("categoria") or "").casefold()))
+            if total_value > 0:
+                for segment in segments:
+                    segment["share_pct"] = (float(segment.get("value") or 0.0) / total_value) * 100.0
+            else:
+                for segment in segments:
+                    segment["share_pct"] = 0.0
+
+            top_segment = segments[0] if segments else None
+            visible_segments, hidden_segments_count = FinanceService._compact_finance_kpi_segments(segments)
+            kpis.append(
+                {
+                    "key": definition["key"],
+                    "title": definition["title"],
+                    "value": round(total_value, 2),
+                    "note": definition["note"],
+                    "segments": visible_segments,
+                    "segments_count": len(segments),
+                    "visible_segments_count": len(visible_segments),
+                    "hidden_segments_count": hidden_segments_count,
+                    "legend_note": (
+                        f"Top 4 categorias visíveis e {hidden_segments_count} agrupada(s) em Outras categorias."
+                        if hidden_segments_count
+                        else ""
+                    ),
+                    "top_category": top_segment.get("categoria") if top_segment else None,
+                    "top_share_pct": round(float(top_segment.get("share_pct") or 0.0), 1) if top_segment else 0.0,
+                    "accent_color": top_segment.get("color") if top_segment else "#94a3b8",
+                    "accent_soft": top_segment.get("soft") if top_segment else "rgba(148, 163, 184, 0.18)",
+                    "ring_gradient": FinanceService._build_category_conic_gradient(visible_segments),
+                }
+            )
+
+        return kpis
 
     @staticmethod
     def resolve_document_movimenta_estoque(*, data_emissao: date | None, data_recebimento: date | None) -> bool:
@@ -2756,6 +2900,14 @@ class FinanceService:
             consumo_analitico_linhas.append(entry)
 
         consumo_analitico = FinanceService._aggregate_consumption_entries(consumo_analitico_linhas)
+        for index, row in enumerate(consumo_analitico.get("categories") or []):
+            visual = category_catalog_service.get_visual(row.get("categoria"), fallback_index=index)
+            row["visual"] = visual
+            row["category_key"] = visual["key"]
+            row["color"] = visual["color"]
+            row["soft"] = visual["soft"]
+            row["soft_strong"] = visual["soft_strong"]
+            row["icon"] = visual["icon"]
 
         categories: dict[str, dict[str, Any]] = defaultdict(lambda: {
             "categoria": "Sem categoria",
@@ -2810,15 +2962,40 @@ class FinanceService:
                 card["top_fornecedor_nome"] = top_name
                 card["top_fornecedor_total"] = round(float(top_total or 0.0), 2)
 
-        category_cards = sorted(categories.values(), key=lambda card: card["categoria"].lower())
+        visual_catalog = category_catalog_service.list_visual_catalog(include_inactive=True)
+        visual_order = {
+            str(row.get("key") or ""): index
+            for index, row in enumerate(visual_catalog)
+        }
+
+        category_cards = list(categories.values())
+        for index, card in enumerate(category_cards):
+            visual = category_catalog_service.get_visual(card.get("categoria"), fallback_index=index)
+            card["visual"] = visual
+            card["category_key"] = visual["key"]
+            card["color"] = visual["color"]
+            card["soft"] = visual["soft"]
+            card["soft_strong"] = visual["soft_strong"]
+            card["icon"] = visual["icon"]
+
+        category_cards.sort(
+            key=lambda card: (
+                visual_order.get(str(card.get("category_key") or ""), 999),
+                str(card.get("categoria") or "").casefold(),
+            )
+        )
         for card in category_cards:
             card["items"].sort(key=lambda item: (str(item.get("descricao") or "").lower(), str(item.get("codigo") or "")))
+
+        category_kpis = FinanceService._build_finance_category_kpis(category_cards)
 
         report = {
             "exercise": exercise,
             "exercise_options": FinanceService.get_available_exercises(),
             "items": items,
             "category_cards": category_cards,
+            "category_kpis": category_kpis,
+            "category_visual_catalog": visual_catalog,
             "total_compra": round(total_compra_atual, 2),
             "total_reposicao": round(total_reposicao_atual, 2),
             "missing_compra": missing_compra,

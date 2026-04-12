@@ -9,6 +9,7 @@ from typing import Any
 from flask import Blueprint, Response, abort, current_app, jsonify, render_template, url_for
 from flask_login import current_user, login_required
 
+from ..services.category_catalog import category_catalog_service
 from ..services.inventory import inventory_service
 from ..services.finance_service import finance_service
 from ..extensions import db
@@ -172,6 +173,7 @@ def _dashboard_context(
         "header_title": header_title or f"Resumo Mensal de Estoque - {competencia}",
         "header_subtitle": header_subtitle or "Resumo Mensal do Estoque",
         "tag_label": tag_label or "Painel de Controle do Almoxarifado",
+        "category_visual_catalog": category_catalog_service.list_visual_catalog(include_inactive=True),
         "live_feed_enabled": bool(current_app.config.get("FEATURE_LIVE_FEED_ENABLED", False)),
         **dashboard_now,
     }

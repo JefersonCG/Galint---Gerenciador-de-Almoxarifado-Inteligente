@@ -1,0 +1,31 @@
+{% set legend_items = legend_items|default(category_visual_catalog|default([])) %}
+{% set legend_kicker = legend_kicker|default('Padrao visual') %}
+{% set legend_title = legend_title|default('Cores oficiais das categorias') %}
+{% set legend_note = legend_note|default('A mesma paleta alimenta cards, filtros e KPIs do sistema.') %}
+{% set legend_badge = legend_badge|default('Uso compartilhado') %}
+{% set legend_compact = legend_compact|default(false) %}
+
+{% if legend_items %}
+<section class="category-visual-legend-shell{% if legend_compact %} is-compact{% endif %}">
+    <div class="category-visual-legend-head">
+        <div>
+            <div class="category-visual-legend-kicker">{{ legend_kicker }}</div>
+            <h3 class="category-visual-legend-title">{{ legend_title }}</h3>
+            {% if legend_note %}
+            <p class="category-visual-legend-note">{{ legend_note }}</p>
+            {% endif %}
+        </div>
+        {% if legend_badge %}
+        <span class="category-visual-legend-badge">{{ legend_badge }}</span>
+        {% endif %}
+    </div>
+    <div class="category-visual-legend-grid">
+        {% for visual in legend_items %}
+        <span class="category-visual-chip" style="--category-accent: {{ visual.color }}; --category-soft: {{ visual.soft }};">
+            <span class="category-visual-chip-icon">{{ visual.icon }}</span>
+            <span class="category-visual-chip-label">{{ visual.label }}</span>
+        </span>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
