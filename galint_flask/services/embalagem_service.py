@@ -51,6 +51,17 @@ class EmbalagemService:
         if inferred is None:
             return 0.0, None
         return float(inferred[0] or 0.0), inferred[1]
+
+    @staticmethod
+    def _resolve_packaging_display_factor(item: Item, measure_value: float, measure_unit: str | None) -> float:
+        from .legacy_stock_normalizer import resolve_packaging_factor
+
+        factor = float(resolve_packaging_factor(item) or 0.0)
+        if factor > 0:
+            return factor
+        if measure_value > 0 and measure_unit:
+            return float(measure_value)
+        return float(getattr(item, "unidades_por_embalagem", 0) or 0.0)
     
     @staticmethod
     def processar_entrada(
@@ -376,7 +387,7 @@ class EmbalagemService:
         
         # Para rolos: mostrar saldo total em metros
         if item.tipo_embalagem_novo and item.tipo_embalagem_novo.lower() == 'rolo':
-            metros_por_rolo = item.unidades_por_embalagem or 0
+            metros_por_rolo = EmbalagemService._resolve_packaging_display_factor(item, measure_value, measure_unit)
             total_metros = (embalagens * metros_por_rolo) + soltas
 
             if embalagens == 0:
@@ -563,7 +574,7 @@ class EmbalagemService:
         # Sistema de embalagens unificado (rolos, pacotes, caixas)
         if EmbalagemService.tem_embalagem(item):
             tipo_emb = (item.tipo_embalagem_novo or "").strip().lower()
-            unidades_por = float((measure_value if measure_unit == 'un' and measure_value > 0 else item.unidades_por_embalagem) or 0)
+            unidades_por = EmbalagemService._resolve_packaging_display_factor(item, measure_value, measure_unit)
             
             # CORREÇÃO: Quantidade vem em UNIDADES TOTAIS, precisa converter para embalagens + resto
             quantidade_float = float(quantidade)
@@ -687,7 +698,7 @@ class EmbalagemService:
         
         # Para rolo
         if tipo_emb == 'rolo':
-            metros_por = float(item.unidades_por_embalagem or 0)
+            metros_por = EmbalagemService._resolve_packaging_display_factor(item, measure_value, measure_unit)
             if embalagens > 0 and soltas > 0:
                 return f"ou seja, cada {nome_emb_singular} contém {metros_por:g}m + {soltas:g}m soltos de {nome_emb_singular} aberto anteriormente."
             elif embalagens > 0:

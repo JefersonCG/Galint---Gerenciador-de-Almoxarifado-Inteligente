@@ -177,6 +177,116 @@ class ToolCustodyService:
         return employees
 
     @staticmethod
+    def get_daily_custody_feed_items() -> list[dict[str, Any]]:
+        """Retorna itens de custódia diária ativos para painéis operacionais."""
+        employees = ToolCustodyService.get_all_employees_with_tools()
+        itens: list[dict[str, Any]] = []
+
+        for employee in employees:
+            matricula_full = employee.get("matricula") or ""
+            matricula_short = (
+                matricula_full[-5:] if isinstance(matricula_full, str) and len(matricula_full) >= 5 else matricula_full
+            )
+
+            for tool in employee.get("tools", []):
+                if tool.get("tipo_custodia") == "permanente":
+                    continue
+
+                data_saida = tool.get("data_saida")
+                dias_em_uso = int(tool.get("days_in_use") or 0)
+
+                itens.append(
+                    {
+                        "id": tool.get("saida_id"),
+                        "source": "saida",
+                        "codigo": tool.get("codigo_item"),
+                        "descricao": tool.get("descricao") or "",
+                        "observacao": tool.get("observacao") or "",
+                        "foto_path": tool.get("foto_path") or None,
+                        "quantidade": tool.get("quantidade") or 0,
+                        "usuario": employee.get("nome") or "",
+                        "matricula": matricula_short,
+                        "matricula_full": matricula_full,
+                        "local_servico": tool.get("local_servico") or "Não informado",
+                        "data_retirada_iso": TimeService.isoformat_utc(data_saida),
+                        "dias_em_uso": dias_em_uso,
+                        "atrasada": bool(tool.get("is_alert", False)),
+                        "data_prevista_devolucao": None,
+                    }
+                )
+
+        pares_ja_no_feed = {
+            (str(i.get("matricula_full") or ""), str(i.get("codigo") or ""))
+            for i in itens
+            if i.get("matricula_full") and i.get("codigo")
+        }
+
+        retiradas_abertas = (
+            db.session.query(RetiradaFerramenta, Item, Usuario)
+            .join(Item, RetiradaFerramenta.codigo_item == Item.codigo_item)
+            .join(Usuario, RetiradaFerramenta.matricula == Usuario.matricula)
+            .filter(
+                RetiradaFerramenta.status.in_(["em_uso", "atrasada"]),
+                func.lower(Item.categoria).contains("ferrament"),
+            )
+            .order_by(RetiradaFerramenta.data_retirada.desc())
+            .limit(200)
+            .all()
+        )
+
+        for retirada, item, usuario in retiradas_abertas:
+            matricula_full = usuario.matricula or ""
+            matricula_short = (
+                matricula_full[-5:]
+                if isinstance(matricula_full, str) and len(matricula_full) >= 5
+                else matricula_full
+            )
+            key = (str(matricula_full), str(item.codigo_item))
+            if key in pares_ja_no_feed:
+                continue
+
+            try:
+                dias_em_uso = int((datetime.utcnow() - retirada.data_retirada).days)
+            except Exception:
+                dias_em_uso = 0
+
+            if ToolCustodyService.is_permanent_custody(
+                tipo_custodia_raw=None,
+                local_servico=getattr(retirada, "local_servico", None),
+                observacao=getattr(retirada, "observacao", None),
+                days_in_use=dias_em_uso,
+            ):
+                continue
+
+            data_prevista = getattr(retirada, "data_prevista_devolucao", None)
+            if data_prevista is not None:
+                atrasada = date.today() > data_prevista
+            else:
+                atrasada = dias_em_uso > 30
+
+            itens.append(
+                {
+                    "id": retirada.id,
+                    "source": "retirada_ferramenta",
+                    "codigo": item.codigo_item,
+                    "descricao": item.descricao or "",
+                    "observacao": getattr(retirada, "observacao", "") or "",
+                    "foto_path": item.foto_path or None,
+                    "quantidade": retirada.quantidade or 0,
+                    "usuario": usuario.nome or "",
+                    "matricula": matricula_short,
+                    "matricula_full": matricula_full,
+                    "local_servico": getattr(retirada, "local_servico", None) or "Não informado",
+                    "data_retirada_iso": TimeService.isoformat_utc(getattr(retirada, "data_retirada", None)),
+                    "dias_em_uso": dias_em_uso,
+                    "atrasada": bool(atrasada),
+                    "data_prevista_devolucao": TimeService.isoformat_utc(datetime.combine(data_prevista, datetime.min.time())) if data_prevista is not None else None,
+                }
+            )
+
+        return itens
+
+    @staticmethod
     def _get_active_tools_for_employee(matricula: str) -> list[dict[str, Any]]:
         """Retorna ferramentas ativas (sem devolução) de um funcionário."""
         # Buscar todas as saídas de ferramentas

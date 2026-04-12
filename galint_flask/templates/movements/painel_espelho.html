@@ -479,6 +479,424 @@
             border-color: rgba(148, 163, 184, 0.18);
         }
 
+        .mirror-hidden {
+            display: none !important;
+        }
+
+        .mirror-layout.is-hidden {
+            display: none;
+        }
+
+        .mirror-custody-stage {
+            display: grid;
+            gap: 1rem;
+            min-height: 0;
+        }
+
+        .mirror-custody-stage-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 1rem;
+            padding: 1.1rem 1.2rem;
+            border-radius: 24px;
+            background: var(--mirror-panel);
+            border: 1px solid var(--mirror-panel-border);
+            box-shadow: 0 22px 48px rgba(2, 6, 23, 0.24);
+        }
+
+        .mirror-custody-stage-title {
+            margin: 0;
+            font-size: clamp(1.3rem, 2vw, 1.8rem);
+            font-weight: 900;
+            letter-spacing: -0.03em;
+        }
+
+        .mirror-custody-stage-copy {
+            margin: 0.35rem 0 0;
+            color: var(--mirror-muted);
+            font-size: 0.98rem;
+            line-height: 1.45;
+        }
+
+        .mirror-custody-stage-meta {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.55rem 0.9rem;
+            border-radius: 999px;
+            border: 1px solid rgba(96, 165, 250, 0.18);
+            background: rgba(37, 99, 235, 0.12);
+            color: #dbeafe;
+            font-size: 0.82rem;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .mirror-custody-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+            gap: 1rem;
+            min-height: 0;
+        }
+
+        .mirror-custody-card {
+            position: relative;
+            overflow: hidden;
+            border-radius: 26px;
+            padding: 1rem;
+            background: linear-gradient(145deg, rgba(8, 20, 38, 0.96) 0%, rgba(15, 23, 42, 0.96) 52%, rgba(30, 41, 59, 0.92) 100%);
+            border: 1px solid rgba(148, 163, 184, 0.16);
+            box-shadow: 0 24px 48px rgba(2, 6, 23, 0.24);
+        }
+
+        .mirror-custody-card::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background:
+                radial-gradient(circle at 12% 14%, rgba(96, 165, 250, 0.16), transparent 24%),
+                radial-gradient(circle at 84% 18%, rgba(125, 211, 252, 0.08), transparent 20%),
+                linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 62%);
+            pointer-events: none;
+        }
+
+        .mirror-custody-card.alert {
+            border-color: rgba(248, 113, 113, 0.24);
+        }
+
+        .mirror-custody-card > * {
+            position: relative;
+            z-index: 1;
+        }
+
+        .mirror-custody-card-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 0.8rem;
+            margin-bottom: 0.85rem;
+        }
+
+        .mirror-custody-card-kicker {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.32rem 0.68rem;
+            border-radius: 999px;
+            border: 1px solid rgba(148, 163, 184, 0.16);
+            background: rgba(255, 255, 255, 0.06);
+            color: rgba(191, 219, 254, 0.82);
+            font-size: 0.7rem;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .mirror-custody-card-name {
+            margin: 0.35rem 0 0;
+            font-size: 1.08rem;
+            font-weight: 900;
+            line-height: 1.18;
+            letter-spacing: -0.02em;
+            overflow-wrap: anywhere;
+        }
+
+        .mirror-custody-card-subtitle {
+            margin-top: 0.25rem;
+            color: rgba(226, 232, 240, 0.68);
+            font-size: 0.82rem;
+            line-height: 1.4;
+        }
+
+        .mirror-custody-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.42rem 0.74rem;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(148, 163, 184, 0.16);
+            color: rgba(226, 232, 240, 0.88);
+            font-size: 0.74rem;
+            font-weight: 800;
+            white-space: nowrap;
+        }
+
+        .mirror-custody-badge.alert {
+            background: rgba(127, 29, 29, 0.22);
+            border-color: rgba(248, 113, 113, 0.24);
+            color: #fecaca;
+        }
+
+        .mirror-custody-hero {
+            display: grid;
+            grid-template-columns: minmax(0, 1.12fr) minmax(200px, 0.88fr);
+            gap: 0.85rem;
+            margin-bottom: 0.9rem;
+        }
+
+        .mirror-custody-gallery {
+            position: relative;
+            min-height: 236px;
+            border-radius: 22px;
+            overflow: hidden;
+            border: 1px solid rgba(148, 163, 184, 0.16);
+            background: linear-gradient(145deg, rgba(15, 23, 42, 0.9), rgba(30, 41, 59, 0.98));
+        }
+
+        .mirror-custody-gallery-slide {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            transition: opacity 0.32s ease;
+        }
+
+        .mirror-custody-gallery-slide.is-visible {
+            opacity: 1;
+        }
+
+        .mirror-custody-gallery-slide img,
+        .mirror-custody-gallery-placeholder {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .mirror-custody-gallery-slide img {
+            object-fit: cover;
+        }
+
+        .mirror-custody-gallery-placeholder {
+            display: grid;
+            place-items: center;
+            gap: 0.45rem;
+            color: rgba(191, 219, 254, 0.84);
+            background:
+                radial-gradient(circle at 50% 18%, rgba(96, 165, 250, 0.18), transparent 24%),
+                linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(30, 41, 59, 0.98));
+        }
+
+        .mirror-custody-gallery-placeholder i {
+            font-size: 2rem;
+        }
+
+        .mirror-custody-gallery-placeholder span {
+            font-size: 0.82rem;
+            color: rgba(226, 232, 240, 0.68);
+        }
+
+        .mirror-custody-gallery-overlay {
+            position: absolute;
+            inset: auto 0 0 0;
+            padding: 0.95rem;
+            background: linear-gradient(180deg, rgba(15, 23, 42, 0) 0%, rgba(15, 23, 42, 0.8) 48%, rgba(15, 23, 42, 0.96) 100%);
+            display: grid;
+            gap: 0.28rem;
+        }
+
+        .mirror-custody-gallery-index {
+            display: inline-flex;
+            align-items: center;
+            width: fit-content;
+            padding: 0.24rem 0.58rem;
+            border-radius: 999px;
+            background: rgba(2, 6, 23, 0.72);
+            border: 1px solid rgba(226, 232, 240, 0.12);
+            color: #dbeafe;
+            font-size: 0.68rem;
+            font-weight: 800;
+        }
+
+        .mirror-custody-gallery-title {
+            font-size: 0.98rem;
+            font-weight: 900;
+            line-height: 1.22;
+            color: #ffffff;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            overflow-wrap: anywhere;
+        }
+
+        .mirror-custody-gallery-meta {
+            font-size: 0.78rem;
+            color: rgba(226, 232, 240, 0.82);
+        }
+
+        .mirror-custody-gallery-dots {
+            position: absolute;
+            right: 0.8rem;
+            bottom: 0.85rem;
+            display: flex;
+            gap: 0.35rem;
+        }
+
+        .mirror-custody-gallery-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 999px;
+            background: rgba(226, 232, 240, 0.34);
+        }
+
+        .mirror-custody-gallery-dot.is-active {
+            background: #93c5fd;
+        }
+
+        .mirror-custody-stats {
+            display: grid;
+            gap: 0.7rem;
+            align-content: start;
+        }
+
+        .mirror-custody-stat-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.7rem;
+        }
+
+        .mirror-custody-stat {
+            padding: 0.82rem 0.88rem;
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(148, 163, 184, 0.14);
+            display: grid;
+            gap: 0.2rem;
+        }
+
+        .mirror-custody-stat.wide {
+            grid-column: 1 / -1;
+        }
+
+        .mirror-custody-stat.alert {
+            border-color: rgba(248, 113, 113, 0.18);
+            background: rgba(127, 29, 29, 0.18);
+        }
+
+        .mirror-custody-stat-label {
+            font-size: 0.7rem;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: rgba(148, 163, 184, 0.82);
+        }
+
+        .mirror-custody-stat-value {
+            font-size: 1.08rem;
+            font-weight: 900;
+            line-height: 1.14;
+            color: #f8fafc;
+            overflow-wrap: anywhere;
+        }
+
+        .mirror-custody-stat-note {
+            font-size: 0.76rem;
+            color: rgba(226, 232, 240, 0.64);
+            line-height: 1.35;
+        }
+
+        .mirror-custody-locations {
+            padding: 0.82rem 0.9rem;
+            border-radius: 18px;
+            background: rgba(15, 23, 42, 0.42);
+            border: 1px solid rgba(148, 163, 184, 0.14);
+            color: rgba(226, 232, 240, 0.82);
+            font-size: 0.82rem;
+            line-height: 1.45;
+        }
+
+        .mirror-custody-locations strong {
+            display: block;
+            margin-bottom: 0.2rem;
+            color: #ffffff;
+        }
+
+        .mirror-custody-tools {
+            display: grid;
+            gap: 0.55rem;
+        }
+
+        .mirror-custody-tool {
+            padding: 0.8rem 0.9rem;
+            border-radius: 18px;
+            background: rgba(15, 23, 42, 0.42);
+            border: 1px solid rgba(148, 163, 184, 0.14);
+            display: grid;
+            gap: 0.28rem;
+        }
+
+        .mirror-custody-tool-top {
+            display: flex;
+            justify-content: space-between;
+            gap: 0.7rem;
+            align-items: flex-start;
+        }
+
+        .mirror-custody-tool-title {
+            font-size: 0.92rem;
+            font-weight: 800;
+            line-height: 1.28;
+            color: #ffffff;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            overflow-wrap: anywhere;
+        }
+
+        .mirror-custody-tool-days {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.25rem 0.56rem;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(148, 163, 184, 0.14);
+            color: rgba(226, 232, 240, 0.84);
+            font-size: 0.72rem;
+            font-weight: 800;
+            white-space: nowrap;
+        }
+
+        .mirror-custody-tool-days.alert {
+            background: rgba(127, 29, 29, 0.22);
+            border-color: rgba(248, 113, 113, 0.18);
+            color: #fecaca;
+        }
+
+        .mirror-custody-tool-meta {
+            font-size: 0.77rem;
+            color: rgba(226, 232, 240, 0.72);
+            line-height: 1.4;
+            overflow-wrap: anywhere;
+        }
+
+        .mirror-custody-more {
+            padding: 0.72rem 0.85rem;
+            border-radius: 16px;
+            border: 1px dashed rgba(148, 163, 184, 0.16);
+            color: rgba(191, 219, 254, 0.78);
+            font-size: 0.8rem;
+            text-align: center;
+        }
+
+        .mirror-custody-empty {
+            padding: 2.6rem 1rem;
+            border-radius: 24px;
+            background: var(--mirror-panel);
+            border: 1px solid var(--mirror-panel-border);
+            color: var(--mirror-muted);
+            text-align: center;
+        }
+
+        .mirror-custody-empty i {
+            display: block;
+            font-size: 2.8rem;
+            margin-bottom: 0.8rem;
+            color: var(--mirror-accent);
+        }
+
         @media (max-width: 991.98px) {
             .mirror-shell {
                 padding: 1rem;
@@ -502,6 +920,16 @@
 
             .mirror-status-row {
                 justify-content: flex-start;
+            }
+
+            .mirror-custody-stage-head,
+            .mirror-custody-hero {
+                grid-template-columns: 1fr;
+            }
+
+            .mirror-custody-stat-grid,
+            .mirror-custody-grid {
+                grid-template-columns: 1fr;
             }
         }
     </style>
@@ -607,6 +1035,22 @@
                 </div>
             </section>
         </main>
+
+        <section class="mirror-custody-stage mirror-hidden" id="mirror-custody-stage">
+            <div class="mirror-custody-stage-head">
+                <div>
+                    <h2 class="mirror-custody-stage-title">Custódia diária em destaque</h2>
+                    <p class="mirror-custody-stage-copy" id="mirror-custody-stage-copy">Sem novas saídas há pelo menos 2 minutos. A tela fica em leitura rápida de custódia até a operação voltar.</p>
+                </div>
+                <div class="mirror-custody-stage-meta" id="mirror-custody-stage-meta"><i class="bi bi-clock-history"></i> Aguardando dados</div>
+            </div>
+            <div class="mirror-custody-grid" id="mirror-custody-feed">
+                <div class="mirror-custody-empty">
+                    <i class="bi bi-hourglass-split"></i>
+                    Carregando cards de custódia diária...
+                </div>
+            </div>
+        </section>
     </div>
 
     <script>
@@ -646,16 +1090,24 @@
             const stock = document.getElementById('mirror-stock');
             const batch = document.getElementById('mirror-batch');
             const source = document.getElementById('mirror-source');
+            const layout = document.querySelector('.mirror-layout');
+            const custodyStage = document.getElementById('mirror-custody-stage');
+            const custodyFeed = document.getElementById('mirror-custody-feed');
+            const custodyStageCopy = document.getElementById('mirror-custody-stage-copy');
+            const custodyStageMeta = document.getElementById('mirror-custody-stage-meta');
             const emptyMediaHtml = '' +
                 '<div class="mirror-placeholder">' +
                     '<i class="bi bi-display"></i>' +
                     '<div><strong>Aguardando operacao</strong><div>Abra a tela de saida ou devolucao no monitor principal e selecione um item.</div></div>' +
                 '</div>';
+            const custodyIdleThresholdMs = 120000;
             let insightItems = [];
             let insightIndex = 0;
             let insightRotationSeconds = 10;
             let insightRotationTimer = null;
             let lastRenderedPayloadKey = null;
+            let lastCustodyFetchAt = 0;
+            const custodySlideTimers = new Map();
 
             function buildPanelEndpointUrl(basePath) {
                 const params = new URLSearchParams();
@@ -676,6 +1128,49 @@
                 return div.innerHTML;
             }
 
+            function formatCount(value, singular, plural) {
+                const total = Number(value) || 0;
+                return `${total} ${total === 1 ? singular : plural}`;
+            }
+
+            function formatDays(value) {
+                return formatCount(value, 'dia', 'dias');
+            }
+
+            function formatShortDate(value) {
+                if (!value) return 'Data indisponível';
+                const parsed = new Date(value);
+                if (Number.isNaN(parsed.getTime())) return String(value);
+                return parsed.toLocaleString('pt-BR', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            }
+
+            function formatLocations(values) {
+                const uniqueValues = [...new Set((values || []).filter(Boolean))];
+                if (!uniqueValues.length) {
+                    return 'Não informado';
+                }
+                if (uniqueValues.length <= 2) {
+                    return uniqueValues.join(' • ');
+                }
+                return `${uniqueValues.slice(0, 2).join(' • ')} +${uniqueValues.length - 2}`;
+            }
+
+            function getToolKey(item) {
+                return `${item?.source || 'saida'}:${item?.id || '0'}`;
+            }
+
+            function clearCustodySlideTimers() {
+                custodySlideTimers.forEach((timerId) => {
+                    window.clearInterval(timerId);
+                });
+                custodySlideTimers.clear();
+            }
+
             function statusMeta(status) {
                 if (status === 'completed') return { label: 'registrado', icon: 'bi-check2-circle', className: 'status-completed' };
                 if (status === 'queued') return { label: 'na fila', icon: 'bi-hourglass-split', className: 'status-queued' };
@@ -691,6 +1186,9 @@
             }
 
             function calloutText(payload) {
+                if (payload?.operator_active) {
+                    return 'Operador preparando a próxima saída no monitor principal.';
+                }
                 if (!payload || payload.status === 'idle' || !payload.item) {
                     return 'Aguardando o proximo item no monitor principal.';
                 }
@@ -725,6 +1223,7 @@
                     kind: payload.kind || '',
                     kind_label: payload.kind_label || '',
                     status: payload.status || 'idle',
+                    operator_active: Boolean(payload.operator_active),
                     source_label: payload.source_label || '',
                     batch_label: payload.batch_label || '',
                     item_codigo: item.codigo || '',
@@ -738,6 +1237,266 @@
                     context_observacao: contextInfo.observacao || '',
                     quantity: movement.quantidade_display || movement.quantidade || '',
                 });
+            }
+
+            function getPayloadAgeMs(payload) {
+                const generatedAt = Date.parse(payload?.generated_at || '');
+                if (!Number.isFinite(generatedAt)) {
+                    return 0;
+                }
+                return Math.max(0, Date.now() - generatedAt);
+            }
+
+            function shouldShowCustodyStage(payload) {
+                if (mirrorMode !== 'saida') {
+                    return false;
+                }
+                const status = String(payload?.status || 'idle').trim().toLowerCase();
+                if (status === 'preview' || status === 'queued') {
+                    return false;
+                }
+                return getPayloadAgeMs(payload) >= custodyIdleThresholdMs;
+            }
+
+            function groupCustodyItems(items) {
+                const groups = new Map();
+
+                (items || []).forEach((item) => {
+                    const key = String(item.matricula_full || item.matricula || item.usuario || item.codigo || 'sem-matricula');
+                    const daysInUse = Number(item.dias_em_uso) || 0;
+
+                    if (!groups.has(key)) {
+                        groups.set(key, {
+                            key,
+                            usuario: item.usuario || 'Funcionário não identificado',
+                            items: [],
+                            overdueCount: 0,
+                            maxDays: 0,
+                            locations: [],
+                        });
+                    }
+
+                    const group = groups.get(key);
+                    group.items.push(item);
+                    group.maxDays = Math.max(group.maxDays, daysInUse);
+                    if (item.atrasada) {
+                        group.overdueCount += 1;
+                    }
+                    if (item.local_servico) {
+                        group.locations.push(item.local_servico);
+                    }
+                });
+
+                return [...groups.values()]
+                    .map((group) => {
+                        const orderedItems = [...group.items].sort((left, right) => (Number(right.dias_em_uso) || 0) - (Number(left.dias_em_uso) || 0));
+                        return {
+                            ...group,
+                            totalTools: orderedItems.length,
+                            orderedItems,
+                            visibleItems: orderedItems.slice(0, 4),
+                            locations: [...new Set(group.locations)],
+                        };
+                    })
+                    .sort((left, right) => {
+                        if (right.overdueCount !== left.overdueCount) {
+                            return right.overdueCount - left.overdueCount;
+                        }
+                        if (right.maxDays !== left.maxDays) {
+                            return right.maxDays - left.maxDays;
+                        }
+                        return String(left.usuario || '').localeCompare(String(right.usuario || ''), 'pt-BR');
+                    });
+            }
+
+            function renderCustodyCards(groups) {
+                if (!custodyFeed) {
+                    return;
+                }
+
+                clearCustodySlideTimers();
+
+                if (!groups.length) {
+                    custodyFeed.innerHTML = '' +
+                        '<div class="mirror-custody-empty">' +
+                            '<i class="bi bi-shield-check"></i>' +
+                            'Nenhuma custódia diária ativa no momento.' +
+                        '</div>';
+                    return;
+                }
+
+                const fragment = document.createDocumentFragment();
+
+                groups.forEach((group, groupIndex) => {
+                    const card = document.createElement('article');
+                    card.className = 'mirror-custody-card' + (group.overdueCount ? ' alert' : '');
+
+                    const badgeMarkup = group.overdueCount
+                        ? `<span class="mirror-custody-badge alert"><i class="bi bi-exclamation-circle"></i>${formatCount(group.overdueCount, 'pendência', 'pendências')}</span>`
+                        : `<span class="mirror-custody-badge"><i class="bi bi-tools"></i>${formatCount(group.totalTools, 'ferramenta', 'ferramentas')}</span>`;
+
+                    card.innerHTML = `
+                        <div class="mirror-custody-card-head">
+                            <div>
+                                <span class="mirror-custody-card-kicker"><i class="bi bi-shield-check"></i> Custódia diária</span>
+                                <h3 class="mirror-custody-card-name">${escapeHtml(group.usuario)}</h3>
+                                <div class="mirror-custody-card-subtitle">${formatCount(group.totalTools, 'item', 'itens')} em posse para leitura rápida</div>
+                            </div>
+                            ${badgeMarkup}
+                        </div>
+                        <div class="mirror-custody-hero">
+                            <div class="mirror-custody-gallery">
+                                ${group.orderedItems.map((item, index) => `
+                                    <div class="mirror-custody-gallery-slide js-mirror-custody-slide ${index === 0 ? 'is-visible' : ''}" data-tool-key="${escapeHtml(getToolKey(item))}">
+                                        ${item.foto_url
+                                            ? `<img src="${escapeHtml(item.foto_url)}" alt="${escapeHtml(item.descricao || 'Ferramenta')}" loading="lazy">`
+                                            : `<div class="mirror-custody-gallery-placeholder"><i class="bi bi-image"></i><span>Sem foto desta ferramenta</span></div>`}
+                                        <div class="mirror-custody-gallery-overlay">
+                                            <span class="mirror-custody-gallery-index">${index + 1}/${group.orderedItems.length}</span>
+                                            <div class="mirror-custody-gallery-title">${escapeHtml(item.descricao || 'Ferramenta não identificada')}</div>
+                                            <div class="mirror-custody-gallery-meta">${escapeHtml(formatDays(item.dias_em_uso))} • Qtd ${escapeHtml(item.quantidade || 0)}</div>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                                ${group.orderedItems.length > 1 ? `
+                                    <div class="mirror-custody-gallery-dots">
+                                        ${group.orderedItems.map((item, index) => `<span class="mirror-custody-gallery-dot ${index === 0 ? 'is-active' : ''}" data-tool-key="${escapeHtml(getToolKey(item))}"></span>`).join('')}
+                                    </div>
+                                ` : ''}
+                            </div>
+                            <div class="mirror-custody-stats">
+                                <div class="mirror-custody-stat-grid">
+                                    <div class="mirror-custody-stat">
+                                        <span class="mirror-custody-stat-label">Ferramentas</span>
+                                        <strong class="mirror-custody-stat-value">${group.totalTools}</strong>
+                                        <span class="mirror-custody-stat-note">itens em posse</span>
+                                    </div>
+                                    <div class="mirror-custody-stat">
+                                        <span class="mirror-custody-stat-label">Maior prazo</span>
+                                        <strong class="mirror-custody-stat-value">${escapeHtml(formatDays(group.maxDays))}</strong>
+                                        <span class="mirror-custody-stat-note">mais antiga em aberto</span>
+                                    </div>
+                                    <div class="mirror-custody-stat wide ${group.overdueCount ? 'alert' : ''}">
+                                        <span class="mirror-custody-stat-label">Pendências</span>
+                                        <strong class="mirror-custody-stat-value">${group.overdueCount ? `${group.overdueCount} acima do prazo` : 'Sem pendências'}</strong>
+                                        <span class="mirror-custody-stat-note">somente custódias diárias vencidas entram em alerta</span>
+                                    </div>
+                                </div>
+                                <div class="mirror-custody-locations">
+                                    <strong>Locais ativos</strong>
+                                    ${escapeHtml(formatLocations(group.locations))}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mirror-custody-tools">
+                            ${group.visibleItems.map((item) => `
+                                <div class="mirror-custody-tool">
+                                    <div class="mirror-custody-tool-top">
+                                        <div class="mirror-custody-tool-title">${escapeHtml(item.descricao || 'Ferramenta não identificada')}</div>
+                                        <span class="mirror-custody-tool-days ${item.atrasada ? 'alert' : ''}">${escapeHtml(formatDays(item.dias_em_uso))}</span>
+                                    </div>
+                                    <div class="mirror-custody-tool-meta">${escapeHtml(item.local_servico || 'Local não informado')}</div>
+                                    <div class="mirror-custody-tool-meta">Qtd ${escapeHtml(item.quantidade || 0)} • ${escapeHtml(formatShortDate(item.data_retirada_iso))}</div>
+                                </div>
+                            `).join('')}
+                            ${group.orderedItems.length > group.visibleItems.length
+                                ? `<div class="mirror-custody-more">+${group.orderedItems.length - group.visibleItems.length} ferramenta(s) no mesmo card</div>`
+                                : ''}
+                        </div>
+                    `;
+
+                    if (group.orderedItems.length > 1) {
+                        const slides = card.querySelectorAll('.js-mirror-custody-slide');
+                        const dots = card.querySelectorAll('.mirror-custody-gallery-dot');
+                        let currentIndex = 0;
+
+                        const applySlide = (nextIndex) => {
+                            currentIndex = (nextIndex + slides.length) % slides.length;
+                            slides.forEach((slide, index) => {
+                                slide.classList.toggle('is-visible', index === currentIndex);
+                            });
+                            dots.forEach((dot, index) => {
+                                dot.classList.toggle('is-active', index === currentIndex);
+                            });
+                        };
+
+                        const timerId = window.setInterval(() => {
+                            applySlide(currentIndex + 1);
+                        }, 4500 + (groupIndex * 180));
+                        custodySlideTimers.set(group.key, timerId);
+                    }
+
+                    fragment.appendChild(card);
+                });
+
+                custodyFeed.innerHTML = '';
+                custodyFeed.appendChild(fragment);
+            }
+
+            async function loadCustodyFeed(force) {
+                if (!custodyStage || custodyStage.classList.contains('mirror-hidden')) {
+                    return;
+                }
+
+                const now = Date.now();
+                if (!force && now - lastCustodyFetchAt < 25000) {
+                    return;
+                }
+                lastCustodyFetchAt = now;
+
+                try {
+                    const response = await window.fetch(buildPanelEndpointUrl(String(window.location.pathname || '').replace(/\/$/, '') + '/custody-active'), {
+                        headers: { 'Accept': 'application/json' },
+                        credentials: 'same-origin',
+                    });
+                    if (!response.ok) {
+                        throw new Error('Falha HTTP ' + response.status);
+                    }
+                    const data = await response.json();
+                    const groups = groupCustodyItems(data.items || []);
+                    renderCustodyCards(groups);
+                    if (custodyStageMeta) {
+                        custodyStageMeta.innerHTML = '<i class="bi bi-people"></i> ' + formatCount(groups.length, 'colaborador', 'colaboradores') + ' com custódia diária';
+                    }
+                } catch (error) {
+                    console.error('Erro ao carregar os cards de custódia para o painel espelho:', error);
+                    if (custodyFeed) {
+                        custodyFeed.innerHTML = '' +
+                            '<div class="mirror-custody-empty">' +
+                                '<i class="bi bi-exclamation-triangle"></i>' +
+                                'Não foi possível carregar a custódia diária agora.' +
+                            '</div>';
+                    }
+                    if (custodyStageMeta) {
+                        custodyStageMeta.innerHTML = '<i class="bi bi-exclamation-triangle"></i> Falha ao carregar os cards';
+                    }
+                }
+            }
+
+            function toggleCustodyStage(payload) {
+                const shouldShow = shouldShowCustodyStage(payload);
+                if (!custodyStage || !layout) {
+                    return shouldShow;
+                }
+
+                layout.classList.toggle('is-hidden', shouldShow);
+                custodyStage.classList.toggle('mirror-hidden', !shouldShow);
+
+                if (!shouldShow) {
+                    clearCustodySlideTimers();
+                    return false;
+                }
+
+                const idleMinutes = Math.max(2, Math.floor(getPayloadAgeMs(payload) / 60000));
+                if (custodyStageCopy) {
+                    custodyStageCopy.textContent = `Sem novas saídas há ${idleMinutes} minuto(s). A tela volta automaticamente ao visualizador do colaborador assim que a operação retomar.`;
+                }
+                statusBadge.className = 'mirror-badge status-preview';
+                statusBadge.innerHTML = '<i class="bi bi-grid-1x2"></i> custódia diária';
+                updated.textContent = `Sem novas saídas há ${idleMinutes} minuto(s)`;
+                source.textContent = 'Painel espelho em modo automático de custódia diária';
+                void loadCustodyFeed();
+                return true;
             }
 
             function emptyInsight() {
@@ -867,6 +1626,10 @@
             }
 
             function renderEmpty(payload) {
+                if (toggleCustodyStage(payload)) {
+                    return;
+                }
+
                 const renderKey = buildPayloadRenderKey(payload);
                 if (renderKey === lastRenderedPayloadKey) {
                     updated.textContent = formatTimestamp(payload?.generated_at);
@@ -879,16 +1642,20 @@
                 mediaFrame.innerHTML = emptyMediaHtml;
                 content.classList.add('mirror-empty');
                 eyebrow.innerHTML = '<i class="bi bi-stars"></i> Modo colaborador';
-                title.textContent = 'Painel pronto para espelhamento';
-                subtitle.textContent = 'Quando um item entrar em foco, a foto e o contexto operacional aparecem aqui em tempo real.';
+                title.textContent = payload?.operator_active ? 'Preparando próxima saída' : 'Painel pronto para espelhamento';
+                subtitle.textContent = payload?.operator_active
+                    ? 'A operação voltou ao monitor principal. Assim que um item entrar em foco, a leitura do colaborador reaparece aqui.'
+                    : 'Quando um item entrar em foco, a foto e o contexto operacional aparecem aqui em tempo real.';
                 setLiveCallout(payload, meta);
                 kind.textContent = mirrorMode ? mirrorMode.charAt(0).toUpperCase() + mirrorMode.slice(1) : 'Aguardando';
                 quantity.textContent = '--';
-                actor.textContent = '--';
-                context.textContent = '--';
+                actor.textContent = (payload?.actor && (payload.actor.nome || payload.actor.matricula)) || '--';
+                context.textContent = (payload?.context && (payload.context.local_servico || payload.context.observacao)) || '--';
                 stock.textContent = '--';
                 batch.textContent = '--';
-                source.textContent = 'Sincronizando navegador principal e janela nativa';
+                source.textContent = payload?.operator_active
+                    ? 'Monitor principal em preparação de saída'
+                    : 'Sincronizando navegador principal e janela nativa';
                 lastRenderedPayloadKey = renderKey;
             }
 
@@ -896,6 +1663,10 @@
                 if (!isRelevant(payload)) return;
                 if (!payload || payload.status === 'idle' || !payload.item) {
                     renderEmpty(payload);
+                    return;
+                }
+
+                if (toggleCustodyStage(payload)) {
                     return;
                 }
 
@@ -966,6 +1737,11 @@
             renderPayload(readStorage());
             loadServerState();
             window.setInterval(loadServerState, 1500);
+            window.setInterval(function () {
+                if (custodyStage && !custodyStage.classList.contains('mirror-hidden')) {
+                    void loadCustodyFeed(true);
+                }
+            }, 30000);
         })();
     </script>
 </body>

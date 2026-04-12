@@ -1163,7 +1163,8 @@
     }
 
     .inventory-ops-card,
-    .packaging-studio-panel {
+    .packaging-studio-panel,
+    .classification-studio-panel {
         border: 1px solid rgba(148, 163, 184, 0.18);
         border-radius: 22px;
         background: linear-gradient(180deg, rgba(15, 23, 42, 0.82), rgba(15, 23, 42, 0.68));
@@ -1172,7 +1173,8 @@
     }
 
     .inventory-ops-card.is-highlight,
-    .packaging-studio-hero {
+    .packaging-studio-hero,
+    .classification-studio-hero {
         background:
             radial-gradient(circle at top right, rgba(59, 130, 246, 0.18), transparent 30%),
             linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(14, 116, 144, 0.44));
@@ -1233,6 +1235,444 @@
         display: flex;
         flex-wrap: wrap;
         gap: 0.45rem;
+    }
+
+    .tab-studio {
+        display: grid;
+        gap: 1rem;
+    }
+
+    .tab-studio-hero {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 1.1rem;
+        border-radius: 24px;
+        background:
+            radial-gradient(circle at top right, rgba(59, 130, 246, 0.18), transparent 30%),
+            linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(14, 116, 144, 0.44));
+        border: 1px solid rgba(125, 211, 252, 0.24);
+        box-shadow: 0 18px 34px rgba(2, 8, 23, 0.2);
+    }
+
+    .tab-studio-hero-copy {
+        max-width: 48rem;
+    }
+
+    .tab-studio-hero-actions {
+        min-width: 260px;
+        display: grid;
+        gap: 0.7rem;
+        justify-items: end;
+    }
+
+    .tab-studio-action-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        justify-content: flex-end;
+    }
+
+    .tab-studio-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.15fr) minmax(300px, 0.85fr);
+        gap: 1rem;
+        align-items: start;
+    }
+
+    .tab-studio-grid--wide {
+        grid-template-columns: minmax(0, 1.08fr) minmax(340px, 0.92fr);
+    }
+
+    .tab-studio-grid--compact {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .tab-studio-grid--single {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .tab-studio-panel {
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        border-radius: 22px;
+        background: linear-gradient(180deg, rgba(15, 23, 42, 0.82), rgba(15, 23, 42, 0.68));
+        box-shadow: 0 18px 34px rgba(2, 8, 23, 0.2);
+        padding: 1rem;
+    }
+
+    .tab-studio-panel--stack {
+        display: grid;
+        gap: 1rem;
+    }
+
+    .tab-studio-panel .section {
+        margin-bottom: 0;
+    }
+
+    .tab-studio-panel .section + .section {
+        padding-top: 1rem;
+        border-top: 1px solid rgba(148, 163, 184, 0.14);
+    }
+
+    .tab-studio-panel .form-group:last-child {
+        margin-bottom: 0;
+    }
+
+    .tab-studio-panel-title {
+        font-size: 1.02rem;
+        font-weight: 800;
+        color: #f8fafc;
+        letter-spacing: -0.02em;
+        margin: 0;
+    }
+
+    .tab-studio-panel-copy {
+        margin: 0.38rem 0 0;
+        color: #dbeafe;
+        font-size: 0.84rem;
+        line-height: 1.58;
+    }
+
+    .tab-studio-support {
+        padding: 0.95rem 1rem;
+        border-radius: 18px;
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        background: rgba(15, 23, 42, 0.54);
+        color: #dbeafe;
+        font-size: 0.84rem;
+        line-height: 1.6;
+    }
+
+    .tab-studio-support strong {
+        display: block;
+        margin-bottom: 0.28rem;
+        color: #f8fafc;
+        font-size: 0.88rem;
+    }
+
+    .tab-studio-photo-preview img {
+        max-width: 100%;
+        max-height: 220px;
+        border-radius: 14px;
+        border: 2px solid rgba(226, 232, 240, 0.16);
+        box-shadow: 0 14px 24px rgba(2, 6, 23, 0.18);
+    }
+
+    .tab-studio-photo-preview .form-check {
+        margin-top: 0.75rem;
+        margin-bottom: 0;
+    }
+
+    .identification-media-panel {
+        min-height: 100%;
+        grid-template-rows: auto minmax(340px, 1fr) auto;
+    }
+
+    .identification-media-stage {
+        position: relative;
+        min-height: 340px;
+        border-radius: 20px;
+        overflow: hidden;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        background:
+            radial-gradient(circle at top right, rgba(59, 130, 246, 0.16), transparent 28%),
+            linear-gradient(180deg, rgba(8, 15, 28, 0.92), rgba(15, 23, 42, 0.98));
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 18px 28px rgba(2, 6, 23, 0.16);
+    }
+
+    .identification-media-stage img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+    }
+
+    .identification-media-placeholder {
+        width: 100%;
+        height: 100%;
+        min-height: 340px;
+        display: grid;
+        place-items: center;
+        padding: 1.2rem;
+        text-align: center;
+        color: rgba(191, 219, 254, 0.86);
+    }
+
+    .identification-media-placeholder i {
+        font-size: 2.4rem;
+        display: block;
+        margin-bottom: 0.7rem;
+    }
+
+    .identification-media-overlay {
+        position: absolute;
+        inset: auto 0 0 0;
+        padding: 1rem;
+        background: linear-gradient(180deg, rgba(15, 23, 42, 0) 0%, rgba(15, 23, 42, 0.84) 48%, rgba(15, 23, 42, 0.96) 100%);
+        display: flex;
+        justify-content: space-between;
+        gap: 0.75rem;
+        align-items: end;
+        flex-wrap: wrap;
+    }
+
+    .identification-media-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.36rem 0.72rem;
+        border-radius: 999px;
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        background: rgba(15, 23, 42, 0.62);
+        color: #eff6ff;
+        font-size: 0.76rem;
+        font-weight: 700;
+        line-height: 1;
+    }
+
+    .identification-media-meta {
+        color: rgba(226, 232, 240, 0.82);
+        font-size: 0.8rem;
+        line-height: 1.45;
+    }
+
+    .identification-media-actions {
+        display: grid;
+        gap: 0.8rem;
+    }
+
+    .finance-studio-hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1.16fr) minmax(290px, 0.84fr);
+        align-items: stretch;
+    }
+
+    .finance-studio-hero-main {
+        display: grid;
+        gap: 0.95rem;
+    }
+
+    .finance-studio-hero-side {
+        display: grid;
+        gap: 0.8rem;
+        align-content: start;
+        padding: 1rem;
+        border-radius: 20px;
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        background: rgba(15, 23, 42, 0.38);
+    }
+
+    .finance-studio-kpis {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.7rem;
+    }
+
+    .finance-studio-kpi {
+        padding: 0.85rem 0.9rem;
+        border-radius: 18px;
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        background: rgba(15, 23, 42, 0.38);
+    }
+
+    .finance-studio-kpi-label {
+        font-size: 0.7rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #7dd3fc;
+    }
+
+    .finance-studio-kpi-value {
+        margin-top: 0.35rem;
+        color: #f8fafc;
+        font-size: 0.96rem;
+        font-weight: 800;
+        line-height: 1.3;
+        overflow-wrap: anywhere;
+    }
+
+    .finance-studio-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.08fr) minmax(320px, 0.92fr);
+        gap: 1rem;
+        align-items: start;
+    }
+
+    .finance-studio-alerts {
+        display: grid;
+        gap: 0.75rem;
+    }
+
+    .finance-studio-alerts .alert {
+        margin: 0;
+    }
+
+    .finance-studio-summary-list {
+        display: grid;
+        gap: 0.75rem;
+    }
+
+    .finance-studio-summary-item {
+        padding: 0.85rem 0.9rem;
+        border-radius: 18px;
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        background: rgba(15, 23, 42, 0.42);
+    }
+
+    .finance-studio-summary-item strong {
+        display: block;
+        margin-bottom: 0.28rem;
+        color: #f8fafc;
+        font-size: 0.84rem;
+    }
+
+    .finance-studio-summary-item span {
+        color: #dbeafe;
+        font-size: 0.83rem;
+        line-height: 1.5;
+        overflow-wrap: anywhere;
+    }
+
+    .classification-studio {
+        display: grid;
+        gap: 1rem;
+    }
+
+    .classification-studio-hero {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 1.1rem;
+        border-radius: 24px;
+    }
+
+    .classification-studio-hero-copy {
+        max-width: 42rem;
+    }
+
+    .classification-studio-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.15fr) minmax(300px, 0.85fr);
+        gap: 1rem;
+        align-items: start;
+    }
+
+    .classification-studio-panel--categories,
+    .classification-studio-panel--location {
+        display: grid;
+        gap: 0.95rem;
+    }
+
+    .classification-field-note {
+        margin: 0 0 0.15rem;
+        color: #dbeafe;
+        font-size: 0.86rem;
+        line-height: 1.6;
+    }
+
+    .classification-studio-panel--categories .inventory-category-select {
+        gap: 0.9rem;
+    }
+
+    .classification-studio-panel--categories .category-visual-select-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+        gap: 0.7rem;
+    }
+
+    .classification-studio-panel--categories .category-visual-select-option {
+        width: 100%;
+    }
+
+    .classification-studio-panel--categories .category-visual-chip {
+        width: 100%;
+        min-height: 60px;
+        padding: 0.72rem 0.9rem;
+        border-radius: 18px;
+        justify-content: flex-start;
+        align-items: flex-start;
+        gap: 0.65rem;
+    }
+
+    .classification-studio-panel--categories .category-visual-chip-icon {
+        width: 24px;
+        height: 24px;
+        font-size: 0.92rem;
+        margin-top: 0.05rem;
+    }
+
+    .classification-studio-panel--categories .category-visual-chip-label {
+        max-width: none;
+        white-space: normal;
+        overflow: visible;
+        text-overflow: clip;
+        line-height: 1.35;
+    }
+
+    .classification-live-title {
+        font-size: 1.05rem;
+        font-weight: 800;
+        color: #f8fafc;
+        letter-spacing: -0.02em;
+    }
+
+    .classification-live-line {
+        margin-top: 0.45rem;
+        color: #dbeafe;
+        font-size: 0.86rem;
+        line-height: 1.6;
+    }
+
+    .classification-location-card,
+    .classification-location-note,
+    .classification-category-summary {
+        padding: 0.95rem 1rem;
+        border-radius: 18px;
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        background: rgba(15, 23, 42, 0.54);
+    }
+
+    .classification-location-card .form-label {
+        margin-bottom: 0.42rem;
+    }
+
+    .classification-location-card .form-control {
+        min-height: 48px;
+    }
+
+    .classification-location-card .form-text {
+        margin-top: 0.55rem;
+        color: #cbd5e1;
+        font-size: 0.82rem;
+        line-height: 1.55;
+    }
+
+    .classification-location-note {
+        color: #dbeafe;
+        font-size: 0.84rem;
+        line-height: 1.6;
+    }
+
+    .classification-location-note strong {
+        display: block;
+        margin-bottom: 0.28rem;
+        color: #f8fafc;
+        font-size: 0.88rem;
+    }
+
+    .classification-category-summary {
+        align-items: flex-start;
+    }
+
+    .classification-category-summary .category-visual-chip {
+        min-height: 34px;
+    }
+
+    .classification-category-legend {
+        margin-top: 0;
     }
 
     .inventory-ops-flow {
@@ -1397,12 +1837,36 @@
     @media (max-width: 992px) {
         .inventory-ops-overview,
         .inventory-ops-flow,
-        .packaging-studio-grid {
+        .packaging-studio-grid,
+        .classification-studio-grid,
+        .tab-studio-grid,
+        .tab-studio-grid--wide,
+        .tab-studio-grid--compact,
+        .finance-studio-grid,
+        .finance-studio-kpis {
             grid-template-columns: 1fr;
         }
 
-        .packaging-studio-hero {
+        .packaging-studio-hero,
+        .classification-studio-hero,
+        .tab-studio-hero,
+        .finance-studio-hero {
             flex-direction: column;
+        }
+
+        .tab-studio-hero-actions {
+            width: 100%;
+            justify-items: start;
+        }
+
+        .tab-studio-action-row {
+            justify-content: flex-start;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .classification-studio-panel--categories .category-visual-select-grid {
+            grid-template-columns: 1fr;
         }
     }
 
@@ -2098,66 +2562,117 @@
             <!-- Tab 1: Identificação -->
             <div class="tab-content galint-folder-panel">
                 <div class="tab-pane active" id="tab-identificacao">
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label class="form-label" for="codigo">Código de barras</label>
-                            <input class="form-control" id="codigo" name="codigo"
-                                value="{{ form_item.codigo if form_item else '' }}" 
-                                {% if item %}readonly{% endif %}
-                                required>
-                            {% if item %}
-                            <small class="form-text">Para alterar o código, crie um novo item.</small>
-                            {% endif %}
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label" for="nota_fiscal">Número da NF</label>
-                            <input class="form-control" id="nota_fiscal" name="nota_fiscal"
-                                value="{{ form_item.nota_fiscal if form_item else '' }}">
-                            <small class="form-text" id="nota_fiscal_autofill_status" style="display: none;"></small>
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label" for="descricao">Produto</label>
-                        <div class="input-group">
-                            <input class="form-control" id="descricao" name="descricao"
-                                value="{{ form_item.descricao if form_item else '' }}" required>
-                            <button type="button" class="btn btn-secondary" id="btn-foto-url" data-foto-url="{{ (request.script_root or '') ~ '/itens/' ~ item.codigo ~ '/foto/url' }}" title="Buscar imagem do item" aria-label="Buscar imagem do item">
-                                <i class="bi bi-search"></i>
-                            </button>
-                        </div>
-                        <small class="form-text">Use o atalho para abrir o buscador de imagens, copiar o termo pronto e aplicar a foto por link sem sair do cadastro.</small>
-                        <div class="alert alert-warning d-none mt-3 mb-0" id="equivalent-item-banner" role="alert">
-                            <div class="fw-semibold mb-1">Material possivelmente equivalente detectado</div>
-                            <div class="small mb-0" id="equivalent-item-banner-text"></div>
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label" for="marca">Marca / Fabricante</label>
-                        <input class="form-control" id="marca" name="marca"
-                            value="{{ form_item.marca if form_item and form_item.marca else '' }}">
-                    </div>
-                    
-                    <!-- Upload de Foto -->
-                    <div class="form-group">
-                        <label class="form-label" for="foto">Foto do Item</label>
-                        <input type="hidden" id="foto_url" name="foto_url" value="{{ form_item.foto_url if form_item and form_item.foto_url else '' }}">
-                        {% if form_item and form_item.foto_path %}
-                        <div class="mb-2">
-                            <img src="{{ url_for('static', filename=form_item.foto_path) }}" 
-                                 alt="Foto atual"
-                                 style="max-width: 200px; max-height: 200px; border-radius: 8px; border: 2px solid #e2e8f0;">
-                            <div class="form-check mt-2">
-                                <input class="form-check-input" type="checkbox" id="remover_foto" name="remover_foto">
-                                <label class="form-check-label" for="remover_foto">
-                                    Remover foto atual
-                                </label>
+                    {% set possui_foto_item = form_item and (form_item.foto_path or form_item.foto_url) %}
+                    <div class="tab-studio">
+                        <section class="tab-studio-hero">
+                            <div class="tab-studio-hero-copy">
+                                <div class="inventory-ops-eyebrow">Identificação base</div>
+                                <h3 class="section-title" style="margin-bottom: 0.35rem;">🔖 Código, descrição e mídia</h3>
+                                <p class="form-text" style="margin: 0;">
+                                    Defina a identidade principal do item. Essa aba concentra código, descrição, marca e a imagem operacional usada no restante do sistema.
+                                </p>
                             </div>
+                            <div class="inventory-ops-chip-row">
+                                <span class="inventory-ops-chip">{% if item %}Código fixado{% else %}Novo cadastro{% endif %}</span>
+                                <span class="inventory-ops-chip">{% if form_item and form_item.descricao %}Produto preenchido{% else %}Produto pendente{% endif %}</span>
+                                <span class="inventory-ops-chip">{% if possui_foto_item %}Foto vinculada{% else %}Foto pendente{% endif %}</span>
+                            </div>
+                        </section>
+
+                        <div class="tab-studio-grid">
+                            <section class="tab-studio-panel tab-studio-panel--stack">
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label class="form-label" for="codigo">Código de barras</label>
+                                        <input class="form-control" id="codigo" name="codigo"
+                                            value="{{ form_item.codigo if form_item else '' }}"
+                                            {% if item %}readonly{% endif %}
+                                            required>
+                                        {% if item %}
+                                        <small class="form-text">Para alterar o código, crie um novo item.</small>
+                                        {% endif %}
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label" for="nota_fiscal">Número da NF</label>
+                                        <input class="form-control" id="nota_fiscal" name="nota_fiscal"
+                                            value="{{ form_item.nota_fiscal if form_item else '' }}">
+                                        <small class="form-text" id="nota_fiscal_autofill_status" style="display: none;"></small>
+                                    </div>
+                                </div>
+
+                                <div class="form-group">
+                                    <label class="form-label" for="descricao">Produto</label>
+                                    <div class="input-group">
+                                        <input class="form-control" id="descricao" name="descricao"
+                                            value="{{ form_item.descricao if form_item else '' }}" required>
+                                        <button type="button" class="btn btn-secondary" id="btn-foto-url" data-foto-url="{{ (request.script_root or '') ~ '/itens/' ~ item.codigo ~ '/foto/url' }}" title="Buscar imagem do item" aria-label="Buscar imagem do item">
+                                            <i class="bi bi-search"></i>
+                                        </button>
+                                    </div>
+                                    <small class="form-text">Use o atalho para abrir o buscador de imagens, copiar o termo pronto e aplicar a foto por link sem sair do cadastro.</small>
+                                    <div class="alert alert-warning d-none mt-3 mb-0" id="equivalent-item-banner" role="alert">
+                                        <div class="fw-semibold mb-1">Material possivelmente equivalente detectado</div>
+                                        <div class="small mb-0" id="equivalent-item-banner-text"></div>
+                                    </div>
+                                </div>
+
+                                <div class="form-group mb-0">
+                                    <label class="form-label" for="marca">Marca / Fabricante</label>
+                                    <input class="form-control" id="marca" name="marca"
+                                        value="{{ form_item.marca if form_item and form_item.marca else '' }}">
+                                </div>
+                            </section>
+
+                            <section class="tab-studio-panel tab-studio-panel--stack identification-media-panel">
+                                <div>
+                                    <div class="inventory-ops-eyebrow">Imagem operacional</div>
+                                    <h4 class="tab-studio-panel-title">Foto do item</h4>
+                                    <p class="tab-studio-panel-copy">Anexe uma foto por arquivo ou prepare um link direto no buscador. A imagem ajuda leitura rápida no modal, no mobile e nos painéis.</p>
+                                </div>
+
+                                <div class="identification-media-stage">
+                                    {% if form_item and form_item.foto_path %}
+                                    <img src="{{ url_for('static', filename=form_item.foto_path) }}" alt="Foto atual">
+                                    <div class="identification-media-overlay">
+                                        <span class="identification-media-badge"><i class="bi bi-image"></i>Foto operacional ativa</span>
+                                        <div class="identification-media-meta">A imagem aparece no modal do item, no mobile e nos painéis operacionais.</div>
+                                    </div>
+                                    {% else %}
+                                    <div class="identification-media-placeholder">
+                                        <div>
+                                            <i class="bi bi-image-alt"></i>
+                                            <div class="tab-studio-panel-title mb-2">Sem foto principal ainda</div>
+                                            <div class="identification-media-meta">Use o buscador ou envie um arquivo para preencher toda esta área com a foto operacional do item.</div>
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="identification-media-actions">
+                                    <div class="form-group mb-0">
+                                        <label class="form-label" for="foto">Foto do Item</label>
+                                    <input type="hidden" id="foto_url" name="foto_url" value="{{ form_item.foto_url if form_item and form_item.foto_url else '' }}">
+                                    {% if form_item and form_item.foto_path %}
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="remover_foto" name="remover_foto">
+                                            <label class="form-check-label" for="remover_foto">
+                                                Remover foto atual
+                                            </label>
+                                        </div>
+                                    {% endif %}
+                                    <input class="form-control" type="file" id="foto" name="foto"
+                                           accept="image/png,image/jpeg,image/jpg,image/webp,image/gif">
+                                    <small class="form-text">Formatos: PNG, JPG, WEBP, GIF. Max: 5MB. Voce pode anexar por arquivo ou por link; se informar os dois, o arquivo enviado prevalece.</small>
+                                    <small class="form-text" id="foto-url-pending-status" {% if not form_item or not form_item.foto_url %}style="display: none;"{% endif %}>Foto por link preparada para este cadastro.</small>
+                                    </div>
+
+                                    <div class="tab-studio-support">
+                                        <strong>Boa prática</strong>
+                                        Priorize uma foto limpa do produto em fundo simples. Isso melhora reconhecimento visual na busca e reduz retrabalho no estoque.
+                                    </div>
+                                </div>
+                            </section>
                         </div>
-                        {% endif %}
-                        <input class="form-control" type="file" id="foto" name="foto" 
-                               accept="image/png,image/jpeg,image/jpg,image/webp,image/gif">
-                        <small class="form-text">Formatos: PNG, JPG, WEBP, GIF. Max: 5MB. Voce pode anexar por arquivo ou por link; se informar os dois, o arquivo enviado prevalece.</small>
-                        <small class="form-text" id="foto-url-pending-status" {% if not form_item or not form_item.foto_url %}style="display: none;"{% endif %}>Foto por link preparada para este cadastro.</small>
                     </div>
 
                     <div class="modal fade" id="modalFotoUrl" tabindex="-1" aria-labelledby="modalFotoUrlLabel" aria-hidden="true">
@@ -2232,49 +2747,95 @@
 
             <!-- Tab 2: Classificação -->
                 <div class="tab-pane" id="tab-classificacao">
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label class="form-label" for="categoria">Categoria</label>
-                            {% set categoria = form_item.categoria if form_item else (category_options[0] if category_options else 'Material Elétrico') %}
-                            {% if categoria == 'Material Pintura' %}
-                            {% set categoria = 'Mat. Pintura e Drywall' %}
-                            {% elif categoria == 'Material de Pintura/Drywall' %}
-                            {% set categoria = 'Mat. Pintura e Drywall' %}
-                            {% elif categoria == 'Mat. Pintura E Drywall' %}
-                            {% set categoria = 'Mat. Pintura e Drywall' %}
-                            {% endif %}
-                            <div class="inventory-category-select">
-                                <select class="form-select inventory-hidden-native-select" id="categoria" name="categoria" required>
-                                    {% for choice in category_options %}
-                                    <option value="{{ choice }}" {% if categoria==choice %}selected{% endif %}>{{ choice }}</option>
-                                    {% endfor %}
-                                </select>
-                                <div class="category-visual-select-grid" data-visual-select="categoria">
-                                    {% for choice in category_options %}
-                                    {% set visual = (category_visual_catalog|selectattr('label', 'equalto', choice)|list|first) or (category_visual_catalog|selectattr('route', 'equalto', choice)|list|first) %}
-                                    <button type="button"
-                                        class="category-visual-select-option {% if categoria==choice %}is-selected{% endif %}"
-                                        data-select-value="{{ choice }}"
-                                        aria-pressed="{{ 'true' if categoria==choice else 'false' }}"
-                                        style="--category-accent: {{ visual.color if visual else '#94a3b8' }}; --category-soft: {{ visual.soft if visual else 'rgba(148, 163, 184, 0.18)' }};">
-                                        <span class="category-visual-chip" style="--category-accent: {{ visual.color if visual else '#94a3b8' }}; --category-soft: {{ visual.soft if visual else 'rgba(148, 163, 184, 0.18)' }};">
-                                            <span class="category-visual-chip-icon">{{ visual.icon if visual else '📦' }}</span>
-                                            <span class="category-visual-chip-label">{{ choice }}</span>
-                                        </span>
-                                    </button>
-                                    {% endfor %}
-                                </div>
-                                <div class="inventory-category-summary" id="category-visual-note"></div>
+                    {% set categoria = form_item.categoria if form_item else (category_options[0] if category_options else 'Material Elétrico') %}
+                    {% if categoria == 'Material Pintura' %}
+                    {% set categoria = 'Mat. Pintura e Drywall' %}
+                    {% elif categoria == 'Material de Pintura/Drywall' %}
+                    {% set categoria = 'Mat. Pintura e Drywall' %}
+                    {% elif categoria == 'Mat. Pintura E Drywall' %}
+                    {% set categoria = 'Mat. Pintura e Drywall' %}
+                    {% endif %}
+                    {% set localizacao_atual = form_item.localizacao if form_item and form_item.localizacao else '' %}
+                    <div class="classification-studio">
+                        <section class="classification-studio-hero">
+                            <div class="classification-studio-hero-copy">
+                                <div class="inventory-ops-eyebrow">Classificação operacional</div>
+                                <h3 class="section-title" style="margin-bottom: 0.35rem;">🏷️ Categoria e localização</h3>
+                                <p class="form-text" style="margin: 0;">
+                                    Organize o item pela categoria oficial do sistema e defina onde ele deve ser encontrado no estoque. Essa leitura governa filtros, cards e indicadores do GALINT.
+                                </p>
                             </div>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label" for="localizacao">Localização</label>
-                            <input class="form-control" id="localizacao" name="localizacao"
-                                value="{{ form_item.localizacao if form_item else '' }}">
-                        </div>
-                    </div>
+                            <div class="inventory-ops-chip-row">
+                                <span class="inventory-ops-chip" id="classification-category-chip">Categoria: {{ categoria }}</span>
+                                <span class="inventory-ops-chip" id="classification-location-chip">{% if localizacao_atual %}Local: {{ localizacao_atual }}{% else %}Local pendente{% endif %}</span>
+                            </div>
+                        </section>
 
-                    <div class="inventory-category-legend">
+                        <div class="classification-studio-grid">
+                            <section class="classification-studio-panel classification-studio-panel--categories">
+                                <span class="inventory-help-row">
+                                    <label class="form-label" for="categoria">Categoria</label>
+                                    <button type="button" class="inventory-help-icon" data-galint-help-tooltip data-bs-toggle="tooltip" title="Escolha a categoria oficial que vai refletir em dashboard, filtros, KPIs e automações do estoque." aria-label="Ajuda sobre categoria">?</button>
+                                </span>
+                                <p class="classification-field-note">
+                                    Selecione a categoria oficial do item. Ela reaparece em toda a leitura operacional e financeira do sistema.
+                                </p>
+                                <div class="inventory-category-select">
+                                    <select class="form-select inventory-hidden-native-select" id="categoria" name="categoria" required>
+                                        {% for choice in category_options %}
+                                        <option value="{{ choice }}" {% if categoria==choice %}selected{% endif %}>{{ choice }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <div class="category-visual-select-grid" data-visual-select="categoria">
+                                        {% for choice in category_options %}
+                                        {% set visual = (category_visual_catalog|selectattr('label', 'equalto', choice)|list|first) or (category_visual_catalog|selectattr('route', 'equalto', choice)|list|first) %}
+                                        <button type="button"
+                                            class="category-visual-select-option {% if categoria==choice %}is-selected{% endif %}"
+                                            data-select-value="{{ choice }}"
+                                            aria-pressed="{{ 'true' if categoria==choice else 'false' }}"
+                                            style="--category-accent: {{ visual.color if visual else '#94a3b8' }}; --category-soft: {{ visual.soft if visual else 'rgba(148, 163, 184, 0.18)' }};">
+                                            <span class="category-visual-chip" style="--category-accent: {{ visual.color if visual else '#94a3b8' }}; --category-soft: {{ visual.soft if visual else 'rgba(148, 163, 184, 0.18)' }};">
+                                                <span class="category-visual-chip-icon">{{ visual.icon if visual else '📦' }}</span>
+                                                <span class="category-visual-chip-label">{{ choice }}</span>
+                                            </span>
+                                        </button>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </section>
+
+                            <section class="classification-studio-panel classification-studio-panel--location">
+                                <div>
+                                    <div class="inventory-ops-eyebrow">Resumo vivo</div>
+                                    <div class="classification-live-title" id="classification-live-title">{{ categoria }} governa este item</div>
+                                    <div class="classification-live-line" id="classification-live-line">
+                                        {% if localizacao_atual %}
+                                        Este item será encontrado em {{ localizacao_atual }}. A categoria selecionada reaparece nos filtros, cards e indicadores do estoque.
+                                        {% else %}
+                                        Defina uma localização curta para agilizar conferência, separação e reposição operacional.
+                                        {% endif %}
+                                    </div>
+                                </div>
+
+                                <div class="classification-location-card">
+                                    <span class="inventory-help-row">
+                                        <label class="form-label" for="localizacao">Localização</label>
+                                        <button type="button" class="inventory-help-icon" data-galint-help-tooltip data-bs-toggle="tooltip" title="Use uma referência curta e operacional, como corredor, estante, box ou área de guarda do item." aria-label="Ajuda sobre localização">?</button>
+                                    </span>
+                                    <input class="form-control" id="localizacao" name="localizacao" placeholder="Ex: Almoxarifado A · Prateleira 03" value="{{ localizacao_atual }}">
+                                    <div class="form-text">Prefira um nome curto e estável. Isso melhora busca, conferência física e reposição.</div>
+                                </div>
+
+                                <div class="inventory-category-summary classification-category-summary" id="category-visual-note"></div>
+
+                                <div class="classification-location-note">
+                                    <strong>Leitura rápida</strong>
+                                    A categoria organiza o item no sistema. A localização orienta onde o time encontra esse material no estoque sem abrir telas extras.
+                                </div>
+                            </section>
+                        </div>
+
+                        <div class="inventory-category-legend classification-category-legend">
                         {% set legend_items = category_visual_catalog %}
                         {% set legend_kicker = 'Paleta oficial' %}
                         {% set legend_title = 'Categorias que governam o estoque' %}
@@ -2282,6 +2843,7 @@
                         {% set legend_badge = 'Padrao unico' %}
                         {% set legend_compact = true %}
                         {% include 'partials/category_visual_legend.html' %}
+                        </div>
                     </div>
 
                     <!-- Campos condicionais: Ferramentas -->
@@ -2453,323 +3015,452 @@
                 <div class="tab-pane" id="tab-financeiro">
                     {% set finance_section_can_edit = finance_section_can_edit if finance_section_can_edit is defined else (item is none or current_user.is_admin) %}
                     {% set finance_locked = item is not none and not finance_section_can_edit %}
-                    <div class="section">
-                        <div class="d-flex align-items-start justify-content-between gap-2">
-                            <h3 class="section-title">💰 Valores do item</h3>
-                            <div class="d-flex flex-wrap gap-2 justify-content-end">
-                                {% if item %}
-                                <button class="btn btn-secondary btn-sm" type="button" id="btn-finance-section-edit">
-                                    <i class="bi bi-pencil-square me-1"></i>
-                                    {% if finance_section_can_edit %}Seção liberada{% else %}Editar seção{% endif %}
-                                </button>
-                                <input type="hidden" id="finance_section_edit_enabled" name="finance_section_edit_enabled" value="{{ '1' if finance_section_can_edit else '0' }}">
-                                {% endif %}
-                                {% if item and item.codigo and not finance_locked %}
-                                <button class="btn btn-sm btn-outline-primary" type="button" id="btn-buscar-preco-form"
-                                    data-preco-codigo="{{ item.codigo|e }}"
-                                    data-preco-descricao="{{ form_item.descricao|e if form_item and form_item.descricao else '' }}"
-                                    data-preco-marca="{{ form_item.marca|e if form_item and form_item.marca else '' }}"
-                                    data-preco-tipo="{{ form_item.tipo_embalagem_novo|e if form_item and form_item.tipo_embalagem_novo else '' }}"
-                                    data-preco-unidades="{{ form_item.unidades_por_embalagem if form_item and form_item.unidades_por_embalagem is not none else '' }}"
-                                    onclick="window.openPriceModalFromForm(event)">
-                                    <i class="bi bi-search me-1"></i> Buscar preco...
-                                </button>
-                                {% endif %}
-                            </div>
-                        </div>
-                        <p class="form-text" style="margin-top: -0.5rem;">
-                            Esses valores alimentam a página <strong>Financeiro</strong> e o modal de detalhes do item.
-                        </p>
-                        {% if item %}
-                        <div class="alert alert-info mt-3 mb-0">
-                            Novas compras e entradas de estoque deste item agora são incorporadas somente pela página <strong>Documentos Fiscais</strong>.
-                        </div>
-                        {% endif %}
-                        {% if item %}
-                        <div class="alert {% if finance_locked %}alert-secondary{% else %}alert-info{% endif %} mt-3 mb-0" id="finance-section-edit-status">
-                            {% if finance_locked %}
-                            Os campos financeiros ficam bloqueados por padrão na edição. Use <strong>Editar seção</strong> para liberar a área. Administradores podem editar direto; demais usuários precisam informar matrícula e senha de um administrador.
-                            {% else %}
-                            A seção financeira está liberada para edição e abre com a última configuração salva do item.
-                            {% endif %}
-                        </div>
-                        {% endif %}
-                    </div>
-
-                    <div class="section">
-                        <h3 class="section-title">🏪 Origem da compra</h3>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label class="form-label" for="finance_supplier_search">Fornecedor / Loja</label>
-                                <div class="position-relative">
-                                    <input class="form-control" id="finance_supplier_search" autocomplete="off"
-                                        value="{{ preferred_supplier.nome_exibicao if preferred_supplier else '' }}"
-                                        placeholder="Digite nome, fantasia ou CNPJ da loja" {% if finance_locked %}readonly{% endif %}>
-                                    <input type="hidden" id="finance_supplier_id" name="finance_supplier_id"
-                                        value="{{ preferred_supplier.id if preferred_supplier else (form_item.finance_supplier_id if form_item and form_item.finance_supplier_id else '') }}">
-                                    <div class="autocomplete-panel" id="finance_supplier_results"></div>
+                    {% set origem_valor = form_item.finance_origem_valor if form_item and form_item.finance_origem_valor else 'inventario_inicial' %}
+                    {% set origem_documental = origem_valor in ['compra_nf', 'compra_cupom'] %}
+                    {% set supplier_defined = preferred_supplier or (form_item and form_item.finance_supplier_id) %}
+                    {% set tipo_documento_tab = form_item.finance_tipo_documento if form_item and form_item.finance_tipo_documento else 'Sem documento' %}
+                    {% set comprovacao_status_tab = form_item.finance_comprovacao_status if form_item and form_item.finance_comprovacao_status else 'sem_comprovacao' %}
+                    <div class="tab-studio">
+                        <section class="tab-studio-hero finance-studio-hero">
+                            <div class="finance-studio-hero-main">
+                                <div class="inventory-ops-eyebrow">Leitura financeira</div>
+                                <h3 class="section-title" style="margin-bottom: 0.35rem;">💰 Origem, documento e preços</h3>
+                                <p class="form-text" style="margin: 0;">
+                                    Consolide a origem do valor, o documento de compra e os preços que alimentam o financeiro e o histórico do item. A trava operacional continua preservada.
+                                </p>
+                                <div class="finance-studio-kpis">
+                                    <div class="finance-studio-kpi">
+                                        <div class="finance-studio-kpi-label">Seção</div>
+                                        <div class="finance-studio-kpi-value">{% if finance_locked %}Protegida{% else %}Liberada{% endif %}</div>
+                                    </div>
+                                    <div class="finance-studio-kpi">
+                                        <div class="finance-studio-kpi-label">Fornecedor</div>
+                                        <div class="finance-studio-kpi-value">{% if preferred_supplier %}{{ preferred_supplier.nome_exibicao }}{% else %}Pendente{% endif %}</div>
+                                    </div>
+                                    <div class="finance-studio-kpi">
+                                        <div class="finance-studio-kpi-label">Origem</div>
+                                        <div class="finance-studio-kpi-value">{% if origem_documental %}Documental{% else %}Manual ou estimada{% endif %}</div>
+                                    </div>
                                 </div>
-                                <small class="form-text">O sistema reutiliza essa loja nas próximas entradas do item.</small>
                             </div>
-                            <div class="form-group">
-                                <label class="form-label" for="finance_origem_valor">Origem do valor</label>
-                                {% set origem_valor = form_item.finance_origem_valor if form_item and form_item.finance_origem_valor else 'inventario_inicial' %}
-                                {% set origem_documental = origem_valor in ['compra_nf', 'compra_cupom'] %}
-                                <select class="form-select" id="finance_origem_valor" name="finance_origem_valor" {% if finance_locked %}disabled{% endif %}>
-                                    <option value="compra_nf" {% if origem_valor == 'compra_nf' %}selected{% endif %}>Compra com NF</option>
-                                    <option value="compra_cupom" {% if origem_valor == 'compra_cupom' %}selected{% endif %}>Compra com cupom</option>
-                                    <option value="inventario_inicial" {% if origem_valor == 'inventario_inicial' %}selected{% endif %}>Inventário inicial</option>
-                                    <option value="valor_estimado" {% if origem_valor == 'valor_estimado' %}selected{% endif %}>Valor estimado</option>
-                                    <option value="doacao" {% if origem_valor == 'doacao' %}selected{% endif %}>Doação</option>
-                                    <option value="ajuste_contabil" {% if origem_valor == 'ajuste_contabil' %}selected{% endif %}>Ajuste contábil</option>
-                                </select>
+                            <div class="tab-studio-hero-actions finance-studio-hero-side">
+                                <div class="tab-studio-action-row">
+                                    {% if item %}
+                                    <button class="btn btn-secondary btn-sm" type="button" id="btn-finance-section-edit">
+                                        <i class="bi bi-pencil-square me-1"></i>
+                                        {% if finance_section_can_edit %}Seção liberada{% else %}Editar seção{% endif %}
+                                    </button>
+                                    <input type="hidden" id="finance_section_edit_enabled" name="finance_section_edit_enabled" value="{{ '1' if finance_section_can_edit else '0' }}">
+                                    {% endif %}
+                                    {% if item and item.codigo and not finance_locked %}
+                                    <button class="btn btn-sm btn-outline-primary" type="button" id="btn-buscar-preco-form"
+                                        data-preco-codigo="{{ item.codigo|e }}"
+                                        data-preco-descricao="{{ form_item.descricao|e if form_item and form_item.descricao else '' }}"
+                                        data-preco-marca="{{ form_item.marca|e if form_item and form_item.marca else '' }}"
+                                        data-preco-tipo="{{ form_item.tipo_embalagem_novo|e if form_item and form_item.tipo_embalagem_novo else '' }}"
+                                        data-preco-unidades="{{ form_item.unidades_por_embalagem if form_item and form_item.unidades_por_embalagem is not none else '' }}"
+                                        onclick="window.openPriceModalFromForm(event)">
+                                        <i class="bi bi-search me-1"></i> Buscar preco...
+                                    </button>
+                                    {% endif %}
+                                </div>
+                                <div class="inventory-ops-chip-row">
+                                    <span class="inventory-ops-chip">{% if finance_locked %}Seção protegida{% else %}Seção liberada{% endif %}</span>
+                                    <span class="inventory-ops-chip">{% if supplier_defined %}Fornecedor vinculado{% else %}Fornecedor pendente{% endif %}</span>
+                                    <span class="inventory-ops-chip">{% if origem_documental %}Origem documental{% else %}Origem manual ou estimada{% endif %}</span>
+                                </div>
                             </div>
-                        </div>
+                        </section>
 
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label class="form-label" for="finance_tipo_documento">Tipo de documento</label>
-                                {% set tipo_documento = form_item.finance_tipo_documento if form_item and form_item.finance_tipo_documento else '' %}
-                                <select class="form-select" id="finance_tipo_documento" name="finance_tipo_documento" {% if finance_locked %}disabled{% endif %}>
-                                    <option value="" {% if tipo_documento == '' %}selected{% endif %}>—</option>
-                                    <option value="nf" {% if tipo_documento == 'nf' %}selected{% endif %}>Nota fiscal</option>
-                                    <option value="cupom" {% if tipo_documento == 'cupom' %}selected{% endif %}>Cupom não fiscal</option>
-                                    <option value="recibo" {% if tipo_documento == 'recibo' %}selected{% endif %}>Recibo</option>
-                                    <option value="manual" {% if tipo_documento == 'manual' %}selected{% endif %}>Lançamento manual</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label" for="finance_comprovacao_status">Comprovação</label>
-                                {% set comprovacao_status = form_item.finance_comprovacao_status if form_item and form_item.finance_comprovacao_status else 'sem_comprovacao' %}
-                                <select class="form-select" id="finance_comprovacao_status" name="finance_comprovacao_status" {% if finance_locked %}disabled{% endif %}>
-                                    <option value="comprovado" {% if comprovacao_status == 'comprovado' %}selected{% endif %}>Comprovado</option>
-                                    <option value="parcial" {% if comprovacao_status == 'parcial' %}selected{% endif %}>Parcialmente comprovado</option>
-                                    <option value="sem_comprovacao" {% if comprovacao_status == 'sem_comprovacao' %}selected{% endif %}>Sem comprovação</option>
-                                </select>
-                            </div>
-                        </div>
+                        <div class="finance-studio-grid">
+                            <section class="tab-studio-panel tab-studio-panel--stack">
+                                <div class="section">
+                                    <h3 class="section-title">🏪 Origem da compra</h3>
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label class="form-label" for="finance_supplier_search">Fornecedor / Loja</label>
+                                            <div class="position-relative">
+                                                <input class="form-control" id="finance_supplier_search" autocomplete="off"
+                                                    value="{{ preferred_supplier.nome_exibicao if preferred_supplier else '' }}"
+                                                    placeholder="Digite nome, fantasia ou CNPJ da loja" {% if finance_locked %}readonly{% endif %}>
+                                                <input type="hidden" id="finance_supplier_id" name="finance_supplier_id"
+                                                    value="{{ preferred_supplier.id if preferred_supplier else (form_item.finance_supplier_id if form_item and form_item.finance_supplier_id else '') }}">
+                                                <div class="autocomplete-panel" id="finance_supplier_results"></div>
+                                            </div>
+                                            <small class="form-text">O sistema reutiliza essa loja nas próximas entradas do item.</small>
+                                        </div>
+                                        <div class="form-group">
+                                            <label class="form-label" for="finance_origem_valor">Origem do valor</label>
+                                            <select class="form-select" id="finance_origem_valor" name="finance_origem_valor" {% if finance_locked %}disabled{% endif %}>
+                                                <option value="compra_nf" {% if origem_valor == 'compra_nf' %}selected{% endif %}>Compra com NF</option>
+                                                <option value="compra_cupom" {% if origem_valor == 'compra_cupom' %}selected{% endif %}>Compra com cupom</option>
+                                                <option value="inventario_inicial" {% if origem_valor == 'inventario_inicial' %}selected{% endif %}>Inventário inicial</option>
+                                                <option value="valor_estimado" {% if origem_valor == 'valor_estimado' %}selected{% endif %}>Valor estimado</option>
+                                                <option value="doacao" {% if origem_valor == 'doacao' %}selected{% endif %}>Doação</option>
+                                                <option value="ajuste_contabil" {% if origem_valor == 'ajuste_contabil' %}selected{% endif %}>Ajuste contábil</option>
+                                            </select>
+                                        </div>
+                                    </div>
 
-                        <div class="d-flex justify-content-end">
-                            {% if endpoint_exists('config.fornecedores') %}
-                            <a class="btn btn-secondary btn-sm" href="{{ url_for('config.fornecedores') }}" target="_blank" rel="noopener">
-                                <i class="bi bi-shop me-1"></i> Cadastrar fornecedor
-                            </a>
-                            {% endif %}
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label class="form-label" for="finance_tipo_documento">Tipo de documento</label>
+                                            {% set tipo_documento = form_item.finance_tipo_documento if form_item and form_item.finance_tipo_documento else '' %}
+                                            <select class="form-select" id="finance_tipo_documento" name="finance_tipo_documento" {% if finance_locked %}disabled{% endif %}>
+                                                <option value="" {% if tipo_documento == '' %}selected{% endif %}>—</option>
+                                                <option value="nf" {% if tipo_documento == 'nf' %}selected{% endif %}>Nota fiscal</option>
+                                                <option value="cupom" {% if tipo_documento == 'cupom' %}selected{% endif %}>Cupom não fiscal</option>
+                                                <option value="recibo" {% if tipo_documento == 'recibo' %}selected{% endif %}>Recibo</option>
+                                                <option value="manual" {% if tipo_documento == 'manual' %}selected{% endif %}>Lançamento manual</option>
+                                            </select>
+                                        </div>
+                                        <div class="form-group">
+                                            <label class="form-label" for="finance_comprovacao_status">Comprovação</label>
+                                            {% set comprovacao_status = form_item.finance_comprovacao_status if form_item and form_item.finance_comprovacao_status else 'sem_comprovacao' %}
+                                            <select class="form-select" id="finance_comprovacao_status" name="finance_comprovacao_status" {% if finance_locked %}disabled{% endif %}>
+                                                <option value="comprovado" {% if comprovacao_status == 'comprovado' %}selected{% endif %}>Comprovado</option>
+                                                <option value="parcial" {% if comprovacao_status == 'parcial' %}selected{% endif %}>Parcialmente comprovado</option>
+                                                <option value="sem_comprovacao" {% if comprovacao_status == 'sem_comprovacao' %}selected{% endif %}>Sem comprovação</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div class="d-flex justify-content-end">
+                                        {% if endpoint_exists('config.fornecedores') %}
+                                        <a class="btn btn-secondary btn-sm" href="{{ url_for('config.fornecedores') }}" target="_blank" rel="noopener">
+                                            <i class="bi bi-shop me-1"></i> Cadastrar fornecedor
+                                        </a>
+                                        {% endif %}
+                                    </div>
+                                </div>
+
+                                <div id="finance_purchase_document_fields" {% if not origem_documental %}style="display: none;"{% endif %}>
+
+                                    <div class="section">
+                                        <h3 class="section-title">💵 Documento e preço de compra</h3>
+
+                                        <div class="form-row">
+                                            <div class="form-group">
+                                                <label class="form-label" for="preco_compra_unitario">Preço de compra (R$)</label>
+                                                <input class="form-control" id="preco_compra_unitario" name="preco_compra_unitario" type="number" step="0.01" min="0"
+                                                    value="{{ form_item.preco_compra_unitario if form_item and form_item.preco_compra_unitario is not none else '' }}" {% if finance_locked %}readonly{% endif %}>
+                                                <small class="form-text">Informe o preço unitário na unidade selecionada ao lado. O sistema converte automaticamente para a unidade base.</small>
+                                            </div>
+                                            <div class="form-group">
+                                                <label class="form-label" for="preco_compra_unidade_preco">Unidade do preço</label>
+                                                <select class="form-select" id="preco_compra_unidade_preco" name="preco_compra_unidade_preco"
+                                                    data-initial-value="{{ form_item.preco_compra_unidade_preco if form_item and form_item.preco_compra_unidade_preco else '' }}" {% if finance_locked %}disabled{% endif %}>
+                                                </select>
+                                                <small class="form-text">Use a unidade em que o valor foi cotado ou lançado no documento.</small>
+                                            </div>
+                                            <div class="form-group">
+                                                <label class="form-label" for="preco_compra_fonte">Fonte (compra)</label>
+                                                {% set compra_fonte = form_item.preco_compra_fonte if form_item and form_item.preco_compra_fonte else '' %}
+                                                <select class="form-select" id="preco_compra_fonte" name="preco_compra_fonte" {% if finance_locked %}disabled{% endif %}>
+                                                    <option value="" {% if compra_fonte=='' %}selected{% endif %}>—</option>
+                                                    <option value="NF" {% if compra_fonte=='NF' %}selected{% endif %}>NF</option>
+                                                    <option value="Cupom" {% if compra_fonte=='Cupom' %}selected{% endif %}>Cupom</option>
+                                                    <option value="Manual" {% if compra_fonte=='Manual' %}selected{% endif %}>Manual</option>
+                                                    <option value="Estimado" {% if compra_fonte=='Estimado' %}selected{% endif %}>Estimado</option>
+                                                </select>
+                                                <small class="form-text">Opcional, para auditoria.</small>
+                                            </div>
+                                        </div>
+
+                                        <div class="form-group">
+                                            <label class="form-label" for="preco_compra_documento">Documento (compra)</label>
+                                            <input class="form-control" id="preco_compra_documento" name="preco_compra_documento"
+                                                value="{{ form_item.preco_compra_documento if form_item and form_item.preco_compra_documento else '' }}"
+                                                placeholder="Ex.: NF 12345 / Cupom 000123" {% if finance_locked %}readonly{% endif %}>
+                                            {% if not finance_locked %}
+                                            <small class="form-text">Ao salvar um novo item com esse documento, o sistema cria ou atualiza o vínculo em Documentos Fiscais. Para NF nova, informe fornecedor, chave de acesso e data de emissão. Para cupom, a chave de acesso não é obrigatória.</small>
+                                            {% endif %}
+                                        </div>
+
+                                        <div class="form-row">
+                                            <div class="form-group" id="preco_compra_chave_acesso_group">
+                                                <label class="form-label" for="preco_compra_chave_acesso">Chave de acesso</label>
+                                                <input class="form-control" id="preco_compra_chave_acesso" name="preco_compra_chave_acesso"
+                                                    value="{{ form_item.preco_compra_chave_acesso if form_item and form_item.preco_compra_chave_acesso else '' }}"
+                                                    placeholder="44 dígitos da NF-e / NFC-e" {% if finance_locked %}readonly{% endif %}>
+                                                <small class="form-text">Obrigatória para NF-e/NFC-e. Para cupom, pode ficar em branco.</small>
+                                            </div>
+                                            <div class="form-group">
+                                                <label class="form-label" for="preco_compra_data_emissao">Data de emissão</label>
+                                                <input class="form-control" id="preco_compra_data_emissao" name="preco_compra_data_emissao" type="date"
+                                                    value="{{ form_item.preco_compra_data_emissao if form_item and form_item.preco_compra_data_emissao else '' }}" {% if finance_locked %}readonly{% endif %}>
+                                            </div>
+                                        </div>
+
+                                        <div class="form-row">
+                                            <div class="form-group">
+                                                <label class="form-label" for="preco_compra_data_recebimento">Data de recebimento</label>
+                                                <input class="form-control" id="preco_compra_data_recebimento" name="preco_compra_data_recebimento" type="date"
+                                                    value="{{ form_item.preco_compra_data_recebimento if form_item and form_item.preco_compra_data_recebimento else '' }}" {% if finance_locked %}readonly{% endif %}>
+                                                <small class="form-text">Use quando a entrega não aconteceu no mesmo dia da emissão.</small>
+                                            </div>
+                                            <div class="form-group">
+                                                <label class="form-label" for="nota_fiscal_finance_hint">Atalho do documento</label>
+                                                <input class="form-control" id="nota_fiscal_finance_hint" value="{{ form_item.nota_fiscal if form_item else '' }}" readonly>
+                                                <small class="form-text">O número informado acima também será refletido no campo de identificação do item.</small>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                </div>
+
+                                <div class="form-group" style="margin-top: 1rem;">
+                                    <label class="form-label" for="finance_observacao">Observação financeira</label>
+                                    <textarea class="form-control" id="finance_observacao" name="finance_observacao" rows="2"
+                                        placeholder="Ex.: compra emergencial, saldo anterior sem comprovante, valor estimado pela diretoria" {% if finance_locked %}readonly{% endif %}>{{ form_item.finance_observacao if form_item and form_item.finance_observacao else '' }}</textarea>
+                                    <small class="form-text">Obrigatória para cadastros sem comprovação fiscal ou parcialmente comprovados.</small>
+                                </div>
+                            </section>
+
+                            <section class="tab-studio-panel tab-studio-panel--stack">
+                                <div>
+                                    <div class="inventory-ops-eyebrow">Síntese operacional</div>
+                                    <h4 class="tab-studio-panel-title">Situação da seção</h4>
+                                    <p class="tab-studio-panel-copy">Aqui fica a leitura rápida de travas, fornecedor e documento, aproveitando a coluna lateral em vez de deixar área vazia.</p>
+                                </div>
+
+                                <div class="finance-studio-alerts">
+                                    {% if item %}
+                                    <div class="alert alert-info">
+                                        Novas compras e entradas de estoque deste item agora são incorporadas somente pela página <strong>Documentos Fiscais</strong>.
+                                    </div>
+                                    {% endif %}
+                                    {% if item %}
+                                    <div class="alert {% if finance_locked %}alert-secondary{% else %}alert-info{% endif %}" id="finance-section-edit-status">
+                                        {% if finance_locked %}
+                                        Os campos financeiros ficam bloqueados por padrão na edição. Use <strong>Editar seção</strong> para liberar a área. Administradores podem editar direto; demais usuários precisam informar matrícula e senha de um administrador.
+                                        {% else %}
+                                        A seção financeira está liberada para edição e abre com a última configuração salva do item.
+                                        {% endif %}
+                                    </div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="finance-studio-summary-list">
+                                    <div class="finance-studio-summary-item">
+                                        <strong>Fornecedor atual</strong>
+                                        <span>{% if preferred_supplier %}{{ preferred_supplier.nome_exibicao }}{% else %}Nenhum fornecedor principal vinculado ainda.{% endif %}</span>
+                                    </div>
+                                    <div class="finance-studio-summary-item">
+                                        <strong>Documento</strong>
+                                        <span>{{ tipo_documento_tab|replace('_', ' ')|capitalize }}</span>
+                                    </div>
+                                    <div class="finance-studio-summary-item">
+                                        <strong>Comprovação</strong>
+                                        <span>{{ comprovacao_status_tab|replace('_', ' ')|capitalize }}</span>
+                                    </div>
+                                </div>
+
+                                <div class="section" style="margin-top: 0;">
+                                    <h3 class="section-title">🧾 Preço de reposição</h3>
+                                    <p class="form-text" style="margin-top: -0.5rem;">
+                                        Use quando não houver comprovante ou para comparar “quanto custaria recomprar hoje”.
+                                    </p>
+                                </div>
+
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label class="form-label" for="preco_reposicao_unitario">Preço de reposição (R$)</label>
+                                        <input class="form-control" id="preco_reposicao_unitario" name="preco_reposicao_unitario" type="number" step="0.01" min="0"
+                                            value="{{ form_item.preco_reposicao_unitario if form_item and form_item.preco_reposicao_unitario is not none else '' }}" {% if finance_locked %}readonly{% endif %}>
+                                        <small class="form-text">Informe o preço unitário na unidade selecionada ao lado. Pode ser preenchido manualmente ou via “Buscar preço…” no modal do item.</small>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label" for="preco_reposicao_unidade_preco">Unidade do preço</label>
+                                        <select class="form-select" id="preco_reposicao_unidade_preco" name="preco_reposicao_unidade_preco"
+                                            data-initial-value="{{ form_item.preco_reposicao_unidade_preco if form_item and form_item.preco_reposicao_unidade_preco else '' }}" {% if finance_locked %}disabled{% endif %}>
+                                        </select>
+                                        <small class="form-text">Escolha a unidade da cotação de mercado ou do valor manual informado.</small>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label" for="preco_reposicao_uf">UF</label>
+                                        <input class="form-control" id="preco_reposicao_uf" name="preco_reposicao_uf" maxlength="2"
+                                            value="{{ form_item.preco_reposicao_uf if form_item and form_item.preco_reposicao_uf else '' }}"
+                                            placeholder="Ex.: SP" {% if finance_locked %}readonly{% endif %}>
+                                        <small class="form-text">Ajuda a manter o preço mais próximo do mercado local.</small>
+                                    </div>
+                                </div>
+
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label class="form-label" for="preco_reposicao_fonte">Fonte (reposição)</label>
+                                        <input class="form-control" id="preco_reposicao_fonte" name="preco_reposicao_fonte"
+                                            value="{{ form_item.preco_reposicao_fonte if form_item and form_item.preco_reposicao_fonte else '' }}"
+                                            placeholder="Ex.: Mercado Livre / SINAPI / Manual" {% if finance_locked %}readonly{% endif %}>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label" for="preco_reposicao_url">Link (opcional)</label>
+                                        <input class="form-control" id="preco_reposicao_url" name="preco_reposicao_url"
+                                            value="{{ form_item.preco_reposicao_url if form_item and form_item.preco_reposicao_url else '' }}" {% if finance_locked %}readonly{% endif %}
+                                            placeholder="https://...">
+                                    </div>
+                                </div>
+
+                                <input type="hidden" id="preco_reposicao_query" name="preco_reposicao_query"
+                                    value="{{ form_item.preco_reposicao_query if form_item and form_item.preco_reposicao_query else '' }}">
+                            </section>
                         </div>
                     </div>
-
-                    <div id="finance_purchase_document_fields" {% if not origem_documental %}style="display: none;"{% endif %}>
-
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label class="form-label" for="preco_compra_unitario">Preço de compra (R$)</label>
-                            <input class="form-control" id="preco_compra_unitario" name="preco_compra_unitario" type="number" step="0.01" min="0"
-                                value="{{ form_item.preco_compra_unitario if form_item and form_item.preco_compra_unitario is not none else '' }}" {% if finance_locked %}readonly{% endif %}>
-                            <small class="form-text">Informe o preço unitário na unidade selecionada ao lado. O sistema converte automaticamente para a unidade base.</small>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label" for="preco_compra_unidade_preco">Unidade do preço</label>
-                            <select class="form-select" id="preco_compra_unidade_preco" name="preco_compra_unidade_preco"
-                                data-initial-value="{{ form_item.preco_compra_unidade_preco if form_item and form_item.preco_compra_unidade_preco else '' }}" {% if finance_locked %}disabled{% endif %}>
-                            </select>
-                            <small class="form-text">Use a unidade em que o valor foi cotado ou lançado no documento.</small>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label" for="preco_compra_fonte">Fonte (compra)</label>
-                            {% set compra_fonte = form_item.preco_compra_fonte if form_item and form_item.preco_compra_fonte else '' %}
-                            <select class="form-select" id="preco_compra_fonte" name="preco_compra_fonte" {% if finance_locked %}disabled{% endif %}>
-                                <option value="" {% if compra_fonte=='' %}selected{% endif %}>—</option>
-                                <option value="NF" {% if compra_fonte=='NF' %}selected{% endif %}>NF</option>
-                                <option value="Cupom" {% if compra_fonte=='Cupom' %}selected{% endif %}>Cupom</option>
-                                <option value="Manual" {% if compra_fonte=='Manual' %}selected{% endif %}>Manual</option>
-                                <option value="Estimado" {% if compra_fonte=='Estimado' %}selected{% endif %}>Estimado</option>
-                            </select>
-                            <small class="form-text">Opcional, para auditoria.</small>
-                        </div>
-                    </div>
-
-                    <div class="form-group">
-                        <label class="form-label" for="preco_compra_documento">Documento (compra)</label>
-                        <input class="form-control" id="preco_compra_documento" name="preco_compra_documento"
-                            value="{{ form_item.preco_compra_documento if form_item and form_item.preco_compra_documento else '' }}"
-                            placeholder="Ex.: NF 12345 / Cupom 000123" {% if finance_locked %}readonly{% endif %}>
-                        {% if not finance_locked %}
-                        <small class="form-text">Ao salvar um novo item com esse documento, o sistema cria ou atualiza o vínculo em Documentos Fiscais. Para NF nova, informe fornecedor, chave de acesso e data de emissão. Para cupom, a chave de acesso não é obrigatória.</small>
-                        {% endif %}
-                    </div>
-
-                    <div class="form-row">
-                        <div class="form-group" id="preco_compra_chave_acesso_group">
-                            <label class="form-label" for="preco_compra_chave_acesso">Chave de acesso</label>
-                            <input class="form-control" id="preco_compra_chave_acesso" name="preco_compra_chave_acesso"
-                                value="{{ form_item.preco_compra_chave_acesso if form_item and form_item.preco_compra_chave_acesso else '' }}"
-                                placeholder="44 dígitos da NF-e / NFC-e" {% if finance_locked %}readonly{% endif %}>
-                            <small class="form-text">Obrigatória para NF-e/NFC-e. Para cupom, pode ficar em branco.</small>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label" for="preco_compra_data_emissao">Data de emissão</label>
-                            <input class="form-control" id="preco_compra_data_emissao" name="preco_compra_data_emissao" type="date"
-                                value="{{ form_item.preco_compra_data_emissao if form_item and form_item.preco_compra_data_emissao else '' }}" {% if finance_locked %}readonly{% endif %}>
-                        </div>
-                    </div>
-
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label class="form-label" for="preco_compra_data_recebimento">Data de recebimento</label>
-                            <input class="form-control" id="preco_compra_data_recebimento" name="preco_compra_data_recebimento" type="date"
-                                value="{{ form_item.preco_compra_data_recebimento if form_item and form_item.preco_compra_data_recebimento else '' }}" {% if finance_locked %}readonly{% endif %}>
-                            <small class="form-text">Use quando a entrega não aconteceu no mesmo dia da emissão.</small>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label" for="nota_fiscal_finance_hint">Atalho do documento</label>
-                            <input class="form-control" id="nota_fiscal_finance_hint" value="{{ form_item.nota_fiscal if form_item else '' }}" readonly>
-                            <small class="form-text">O número informado acima também será refletido no campo de identificação do item.</small>
-                        </div>
-                    </div>
-
-                    </div>
-
-                    <div class="form-group" style="margin-top: 1rem;">
-                        <label class="form-label" for="finance_observacao">Observação financeira</label>
-                        <textarea class="form-control" id="finance_observacao" name="finance_observacao" rows="2"
-                            placeholder="Ex.: compra emergencial, saldo anterior sem comprovante, valor estimado pela diretoria" {% if finance_locked %}readonly{% endif %}>{{ form_item.finance_observacao if form_item and form_item.finance_observacao else '' }}</textarea>
-                        <small class="form-text">Obrigatória para cadastros sem comprovação fiscal ou parcialmente comprovados.</small>
-                    </div>
-
-                    <div class="section" style="margin-top: 1.5rem;">
-                        <h3 class="section-title">🧾 Preço de reposição</h3>
-                        <p class="form-text" style="margin-top: -0.5rem;">
-                            Use quando não houver comprovante ou para comparar “quanto custaria recomprar hoje”.
-                        </p>
-                    </div>
-
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label class="form-label" for="preco_reposicao_unitario">Preço de reposição (R$)</label>
-                            <input class="form-control" id="preco_reposicao_unitario" name="preco_reposicao_unitario" type="number" step="0.01" min="0"
-                                value="{{ form_item.preco_reposicao_unitario if form_item and form_item.preco_reposicao_unitario is not none else '' }}" {% if finance_locked %}readonly{% endif %}>
-                            <small class="form-text">Informe o preço unitário na unidade selecionada ao lado. Pode ser preenchido manualmente ou via “Buscar preço…” no modal do item.</small>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label" for="preco_reposicao_unidade_preco">Unidade do preço</label>
-                            <select class="form-select" id="preco_reposicao_unidade_preco" name="preco_reposicao_unidade_preco"
-                                data-initial-value="{{ form_item.preco_reposicao_unidade_preco if form_item and form_item.preco_reposicao_unidade_preco else '' }}" {% if finance_locked %}disabled{% endif %}>
-                            </select>
-                            <small class="form-text">Escolha a unidade da cotação de mercado ou do valor manual informado.</small>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label" for="preco_reposicao_uf">UF</label>
-                            <input class="form-control" id="preco_reposicao_uf" name="preco_reposicao_uf" maxlength="2"
-                                value="{{ form_item.preco_reposicao_uf if form_item and form_item.preco_reposicao_uf else '' }}"
-                                placeholder="Ex.: SP" {% if finance_locked %}readonly{% endif %}>
-                            <small class="form-text">Ajuda a manter o preço mais próximo do mercado local.</small>
-                        </div>
-                    </div>
-
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label class="form-label" for="preco_reposicao_fonte">Fonte (reposição)</label>
-                            <input class="form-control" id="preco_reposicao_fonte" name="preco_reposicao_fonte"
-                                value="{{ form_item.preco_reposicao_fonte if form_item and form_item.preco_reposicao_fonte else '' }}"
-                                placeholder="Ex.: Mercado Livre / SINAPI / Manual" {% if finance_locked %}readonly{% endif %}>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label" for="preco_reposicao_url">Link (opcional)</label>
-                            <input class="form-control" id="preco_reposicao_url" name="preco_reposicao_url"
-                                value="{{ form_item.preco_reposicao_url if form_item and form_item.preco_reposicao_url else '' }}" {% if finance_locked %}readonly{% endif %}
-                                placeholder="https://...">
-                        </div>
-                    </div>
-
-                    <input type="hidden" id="preco_reposicao_query" name="preco_reposicao_query"
-                        value="{{ form_item.preco_reposicao_query if form_item and form_item.preco_reposicao_query else '' }}">
                 </div>
 
             <!-- Tab 3: Rastreabilidade -->
                 <div class="tab-pane" id="tab-rastreabilidade">
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label class="form-label" for="data_entrada">Data de Entrada</label>
-                            <input class="form-control rastreabilidade-field" id="data_entrada" name="data_entrada" type="date"
-                                value="{{ form_item.data_entrada if form_item and form_item.data_entrada else '' }}">
-                            <small class="form-text">Data de entrada do lote</small>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label" for="lote">Lote</label>
-                            <input class="form-control" id="lote" name="lote"
-                                value="{{ form_item.lote if form_item and form_item.lote else '' }}">
-                            <small class="form-text">Informe o lote quando existir. Se não houver, use o botão de lote automático.</small>
-                            {% if not form_item or not form_item.lote %}
-                            <div class="form-check" style="margin-top: 0.5rem;">
-                                <input class="form-check-input" type="checkbox" id="gerar-lote-automatico" name="gerar_lote_automatico">
-                                <label class="form-check-label" for="gerar-lote-automatico">
-                                    Gerar lote automático
-                                </label>
+                    <div class="tab-studio">
+                        <section class="tab-studio-hero">
+                            <div class="tab-studio-hero-copy">
+                                <div class="inventory-ops-eyebrow">Rastreabilidade do lote</div>
+                                <h3 class="section-title" style="margin-bottom: 0.35rem;">🧭 Entrada, lote e validade</h3>
+                                <p class="form-text" style="margin: 0;">
+                                    Registre os marcos do lote para auditoria, vencimento e leitura operacional. Os campos podem ficar vazios quando o item realmente não exigir rastreio formal.
+                                </p>
                             </div>
-                            {% endif %}
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label class="form-label" for="data_fabricacao">Data de Fabricação</label>
-                            <input class="form-control rastreabilidade-field" id="data_fabricacao" name="data_fabricacao" type="date"
-                                value="{{ form_item.data_fabricacao if form_item and form_item.data_fabricacao else '' }}">
-                            <small class="form-text">Informe a data de fabricação quando aplicável</small>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label" for="data_validade">Data de Validade</label>
-                            <input class="form-control rastreabilidade-field" id="data_validade" name="data_validade" type="date"
-                                value="{{ form_item.data_validade if form_item and form_item.data_validade else '' }}">
-                            <small class="form-text" id="dias_validade"></small>
-                            <div class="form-check" style="margin-top: 0.5rem;">
-                                <input class="form-check-input" type="checkbox" id="validade-indeterminada" name="validade_indeterminada">
-                                <label class="form-check-label" for="validade-indeterminada">
-                                    Validade indeterminada (bloquear campos)
-                                </label>
+                            <div class="inventory-ops-chip-row">
+                                <span class="inventory-ops-chip">{% if form_item and form_item.lote %}Lote definido{% else %}Lote pendente{% endif %}</span>
+                                <span class="inventory-ops-chip">{% if form_item and form_item.data_validade %}Validade definida{% else %}Validade aberta{% endif %}</span>
+                                <span class="inventory-ops-chip">{% if form_item and form_item.data_entrada %}Entrada registrada{% else %}Entrada pendente{% endif %}</span>
                             </div>
+                        </section>
+
+                        <div class="tab-studio-grid tab-studio-grid--compact">
+                            <section class="tab-studio-panel tab-studio-panel--stack">
+                                <div>
+                                    <div class="inventory-ops-eyebrow">Controle de origem</div>
+                                    <h4 class="tab-studio-panel-title">Entrada e lote</h4>
+                                    <p class="tab-studio-panel-copy">Use este bloco para registrar quando o lote entrou e qual identificador acompanha o produto no documento ou na embalagem.</p>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label class="form-label" for="data_entrada">Data de Entrada</label>
+                                        <input class="form-control rastreabilidade-field" id="data_entrada" name="data_entrada" type="date"
+                                            value="{{ form_item.data_entrada if form_item and form_item.data_entrada else '' }}">
+                                        <small class="form-text">Data de entrada do lote</small>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label" for="lote">Lote</label>
+                                        <input class="form-control" id="lote" name="lote"
+                                            value="{{ form_item.lote if form_item and form_item.lote else '' }}">
+                                        <small class="form-text">Informe o lote quando existir. Se não houver, use o botão de lote automático.</small>
+                                        {% if not form_item or not form_item.lote %}
+                                        <div class="form-check" style="margin-top: 0.5rem;">
+                                            <input class="form-check-input" type="checkbox" id="gerar-lote-automatico" name="gerar_lote_automatico">
+                                            <label class="form-check-label" for="gerar-lote-automatico">
+                                                Gerar lote automático
+                                            </label>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </section>
+
+                            <section class="tab-studio-panel tab-studio-panel--stack">
+                                <div>
+                                    <div class="inventory-ops-eyebrow">Ciclo do produto</div>
+                                    <h4 class="tab-studio-panel-title">Fabricação e validade</h4>
+                                    <p class="tab-studio-panel-copy">Preencha quando o fabricante informar datas formais. Para materiais sem vencimento definido, use a opção de validade indeterminada.</p>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label class="form-label" for="data_fabricacao">Data de Fabricação</label>
+                                        <input class="form-control rastreabilidade-field" id="data_fabricacao" name="data_fabricacao" type="date"
+                                            value="{{ form_item.data_fabricacao if form_item and form_item.data_fabricacao else '' }}">
+                                        <small class="form-text">Informe a data de fabricação quando aplicável</small>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label" for="data_validade">Data de Validade</label>
+                                        <input class="form-control rastreabilidade-field" id="data_validade" name="data_validade" type="date"
+                                            value="{{ form_item.data_validade if form_item and form_item.data_validade else '' }}">
+                                        <small class="form-text" id="dias_validade"></small>
+                                        <div class="form-check" style="margin-top: 0.5rem;">
+                                            <input class="form-check-input" type="checkbox" id="validade-indeterminada" name="validade_indeterminada">
+                                            <label class="form-check-label" for="validade-indeterminada">
+                                                Validade indeterminada (bloquear campos)
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </section>
                         </div>
                     </div>
                 </div>
 
             <!-- Tab 4: Equipamentos/Máquinas -->
                 <div class="tab-pane" id="tab-equipamento">
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label class="form-label" for="modelo">Modelo</label>
-                            <input class="form-control equipamento-field" id="modelo" name="modelo"
-                                value="{{ form_item.modelo if form_item and form_item.modelo else '' }}"
-                                placeholder="Ex: XYZ-2000, Modelo A, V3.2">
-                            <small class="form-text">Modelo ou versão do equipamento</small>
+                    <div class="tab-studio">
+                        <section class="tab-studio-hero">
+                            <div class="tab-studio-hero-copy">
+                                <div class="inventory-ops-eyebrow">Dados técnicos</div>
+                                <h3 class="section-title" style="margin-bottom: 0.35rem;">⚙️ Equipamento e instalação</h3>
+                                <p class="form-text" style="margin: 0;">
+                                    Quando o item for equipamento, registre os dados técnicos e o ponto de instalação para facilitar manutenção, retirada e conferência patrimonial.
+                                </p>
+                            </div>
+                            <div class="inventory-ops-chip-row">
+                                <span class="inventory-ops-chip">{% if form_item and form_item.modelo %}Modelo informado{% else %}Modelo pendente{% endif %}</span>
+                                <span class="inventory-ops-chip">{% if form_item and form_item.numero_serie %}Serial informado{% else %}Serial pendente{% endif %}</span>
+                                <span class="inventory-ops-chip">{% if form_item and form_item.local_instalacao %}Local mapeado{% else %}Local pendente{% endif %}</span>
+                            </div>
+                        </section>
+
+                        <div class="tab-studio-grid tab-studio-grid--compact">
+                            <section class="tab-studio-panel tab-studio-panel--stack">
+                                <div>
+                                    <div class="inventory-ops-eyebrow">Identificação técnica</div>
+                                    <h4 class="tab-studio-panel-title">Modelo e número de série</h4>
+                                    <p class="tab-studio-panel-copy">Use os dados do fabricante ou da placa do equipamento para manter o cadastro rastreável.</p>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label class="form-label" for="modelo">Modelo</label>
+                                        <input class="form-control equipamento-field" id="modelo" name="modelo"
+                                            value="{{ form_item.modelo if form_item and form_item.modelo else '' }}"
+                                            placeholder="Ex: XYZ-2000, Modelo A, V3.2">
+                                        <small class="form-text">Modelo ou versão do equipamento</small>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label" for="numero_serie">Serial Number</label>
+                                        <input class="form-control equipamento-field" id="numero_serie" name="numero_serie"
+                                            value="{{ form_item.numero_serie if form_item and form_item.numero_serie else '' }}"
+                                            placeholder="Ex: ABC123456, SN-2024-001">
+                                        <small class="form-text">Número de série único do equipamento</small>
+                                    </div>
+                                </div>
+                            </section>
+
+                            <section class="tab-studio-panel tab-studio-panel--stack">
+                                <div>
+                                    <div class="inventory-ops-eyebrow">Operação elétrica</div>
+                                    <h4 class="tab-studio-panel-title">Rede e instalação</h4>
+                                    <p class="tab-studio-panel-copy">Detalhe alimentação elétrica e o local de uso para apoiar instalação, retirada e assistência.</p>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label class="form-label" for="voltagem">Voltagem</label>
+                                        <input class="form-control equipamento-field" id="voltagem" name="voltagem"
+                                            value="{{ form_item.voltagem if form_item and form_item.voltagem else '' }}"
+                                            placeholder="Ex: 220V, 380V, 12V">
+                                        <small class="form-text">Voltagem de operação do equipamento</small>
+                                    </div>
+                                    <div class="form-group">
+                                        <label class="form-label" for="amperagem">Amperagem</label>
+                                        <input class="form-control equipamento-field" id="amperagem" name="amperagem"
+                                            value="{{ form_item.amperagem if form_item and form_item.amperagem else '' }}"
+                                            placeholder="Ex: 10A, 5.5A, 220mA">
+                                        <small class="form-text">Corrente elétrica consumida</small>
+                                    </div>
+                                </div>
+                                <div class="form-group mb-0">
+                                    <label class="form-label" for="local_instalacao">Local da Instalação/Retirada</label>
+                                    <textarea class="form-control equipamento-field" id="local_instalacao" name="local_instalacao" rows="3"
+                                        placeholder="Descreva onde o equipamento foi/será instalado ou retirado">{{ form_item.local_instalacao if form_item and form_item.local_instalacao else '' }}</textarea>
+                                    <small class="form-text">Local específico de instalação, setor, sala, coordenadas, etc.</small>
+                                </div>
+                            </section>
                         </div>
-                        <div class="form-group">
-                            <label class="form-label" for="numero_serie">Serial Number</label>
-                            <input class="form-control equipamento-field" id="numero_serie" name="numero_serie"
-                                value="{{ form_item.numero_serie if form_item and form_item.numero_serie else '' }}"
-                                placeholder="Ex: ABC123456, SN-2024-001">
-                            <small class="form-text">Número de série único do equipamento</small>
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label class="form-label" for="voltagem">Voltagem</label>
-                            <input class="form-control equipamento-field" id="voltagem" name="voltagem"
-                                value="{{ form_item.voltagem if form_item and form_item.voltagem else '' }}"
-                                placeholder="Ex: 220V, 380V, 12V">
-                            <small class="form-text">Voltagem de operação do equipamento</small>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label" for="amperagem">Amperagem</label>
-                            <input class="form-control equipamento-field" id="amperagem" name="amperagem"
-                                value="{{ form_item.amperagem if form_item and form_item.amperagem else '' }}"
-                                placeholder="Ex: 10A, 5.5A, 220mA">
-                            <small class="form-text">Corrente elétrica consumida</small>
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label" for="local_instalacao">Local da Instalação/Retirada</label>
-                        <textarea class="form-control equipamento-field" id="local_instalacao" name="local_instalacao" rows="3"
-                            placeholder="Descreva onde o equipamento foi/será instalado ou retirado">{{ form_item.local_instalacao if form_item and form_item.local_instalacao else '' }}</textarea>
-                        <small class="form-text">Local específico de instalação, setor, sala, coordenadas, etc.</small>
                     </div>
                 </div>
 
@@ -3682,6 +4373,7 @@ Conversão: 1 saco = 20 quilos</div>
     // ==========================================
 
     const categoriaSelect = document.getElementById('categoria');
+    const localizacaoInput = document.getElementById('localizacao');
     const ferramentasExtra = document.getElementById('ferramentas-extra');
     const habilitarCheckbox = document.getElementById('habilitar-serie-modelo');
     const serieModeloFields = document.getElementById('serie-modelo-fields');
@@ -3757,8 +4449,11 @@ Conversão: 1 saco = 20 quilos</div>
         });
         toggleFerramentasFields();
         toggleEquipamentoTab();
-        renderCategoryVisualNote();
         toggleRastreabilidadeReadonly(); // Inicializar estado
+    }
+    if (localizacaoInput) {
+        localizacaoInput.addEventListener('input', renderClassificationSummary);
+        localizacaoInput.addEventListener('change', renderClassificationSummary);
     }
     if (habilitarCheckbox && serieModeloFields) {
         habilitarCheckbox.addEventListener('change', toggleSerieModeloFields);
@@ -3834,6 +4529,13 @@ Conversão: 1 saco = 20 quilos</div>
         { code: 'par', label: 'Par', dimension: 'unit' },
         { code: 'peca', label: 'Peça', dimension: 'unit' },
     ];
+    if (advancedUnitsModalElement && advancedUnitsModalElement.parentElement !== document.body) {
+        document.body.appendChild(advancedUnitsModalElement);
+    }
+    if (dynamicUnitsHelpModalElement && dynamicUnitsHelpModalElement.parentElement !== document.body) {
+        document.body.appendChild(dynamicUnitsHelpModalElement);
+    }
+
     const advancedUnitsModal = advancedUnitsModalElement && window.bootstrap
         ? new bootstrap.Modal(advancedUnitsModalElement)
         : null;
@@ -4471,6 +5173,10 @@ Conversão: 1 saco = 20 quilos</div>
     const descricaoInput = document.getElementById('descricao');
     const isEditMode = {{ 'true' if item else 'false' }};
     const categoryVisualNote = document.getElementById('category-visual-note');
+    const classificationCategoryChip = document.getElementById('classification-category-chip');
+    const classificationLocationChip = document.getElementById('classification-location-chip');
+    const classificationLiveTitle = document.getElementById('classification-live-title');
+    const classificationLiveLine = document.getElementById('classification-live-line');
     const rawCategoryVisualCatalog = {{ category_visual_catalog|tojson }};
     const categoryVisualCatalog = Array.isArray(rawCategoryVisualCatalog) ? rawCategoryVisualCatalog : [];
     const defaultCategoryVisual = {
@@ -4543,8 +5249,33 @@ Conversão: 1 saco = 20 quilos</div>
         return chip;
     }
 
+    function renderClassificationSummary() {
+        const visual = getCategoryVisual(categoriaSelect?.value);
+        const categoryLabel = String(visual?.label || categoriaSelect?.value || 'Sem categoria').trim();
+        const locationLabel = String(localizacaoInput?.value || '').trim();
+
+        if (classificationCategoryChip instanceof HTMLElement) {
+            classificationCategoryChip.textContent = categoryLabel ? `Categoria: ${categoryLabel}` : 'Categoria pendente';
+        }
+
+        if (classificationLocationChip instanceof HTMLElement) {
+            classificationLocationChip.textContent = locationLabel ? `Local: ${locationLabel}` : 'Local pendente';
+        }
+
+        if (classificationLiveTitle instanceof HTMLElement) {
+            classificationLiveTitle.textContent = categoryLabel ? `${categoryLabel} governa este item` : 'Classificação pendente';
+        }
+
+        if (classificationLiveLine instanceof HTMLElement) {
+            classificationLiveLine.textContent = locationLabel
+                ? `Este item será encontrado em ${locationLabel}. A categoria selecionada reaparece nos filtros, cards e indicadores do estoque.`
+                : 'Defina uma localização curta para agilizar conferência, separação e reposição operacional.';
+        }
+    }
+
     function renderCategoryVisualNote() {
         if (!(categoryVisualNote instanceof HTMLElement)) {
+            renderClassificationSummary();
             return;
         }
 
@@ -4557,7 +5288,10 @@ Conversão: 1 saco = 20 quilos</div>
         const copy = document.createElement('span');
         copy.textContent = description;
         categoryVisualNote.append(copy);
+        renderClassificationSummary();
     }
+
+    renderCategoryVisualNote();
 
     if (window.bootstrap?.Tooltip) {
         document.querySelectorAll('[data-galint-help-tooltip]').forEach((element) => {

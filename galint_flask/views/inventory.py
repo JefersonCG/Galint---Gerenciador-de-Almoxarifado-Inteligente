@@ -1759,14 +1759,8 @@ def update_item(codigo: str):
         form.get("pre_registered_document_number") or request.args.get("pre_registered_document_number") or ""
     ).strip()
 
-    saldo_raw = form.get("saldo_atual", "0").strip()
-    saldo_unidades_soltas_raw = (form.get("saldo_unidades_soltas") or "").strip()
-    # Por padrão, o saldo do formulário é inteiro (itens normais). Para itens com embalagem,
-    # o saldo representa EMBALAGENS e pode ser float (mas o input do form usa step=1).
-    try:
-        saldo_desejado = float(saldo_raw or 0)
-    except ValueError:
-        saldo_desejado = -1
+    saldo_desejado = 0.0
+    saldo_unidades_soltas_raw = ""
     finalize_pre_registration = (
         bool(prev_item.get("pre_cadastro_pendente"))
         and str(form.get("finalizar_pre_cadastro") or "").strip() in {"1", "true", "True"}
@@ -1926,21 +1920,15 @@ def update_item(codigo: str):
         effective_tipo_embalagem = tipo_novo if tipo_novo is not None else previous_tipo_embalagem
         previous_uses_packaging = bool(previous_tipo_embalagem and prev_item.get("unidades_por_embalagem"))
 
-        # A validação do saldo deve respeitar o modo de estoque ANTERIOR.
-        # Ao definir litragem/embalagem pela primeira vez, o usuário está ajustando metadados,
-        # não alterando o saldo operacional já bloqueado.
+        # O saldo não é mais editável neste formulário.
+        # Ignoramos qualquer valor reenviado pela UI para evitar bloqueio em telas antigas,
+        # formulários em cache ou interfaces que exibem o saldo em outra unidade de leitura.
         if previous_uses_packaging:
-            if abs(float(saldo_desejado) - current_packaged_balance) > 1e-6:
-                raise ValueError("O saldo do item não pode mais ser alterado pela edição. Use Documentos Fiscais para entradas e rotinas operacionais para saídas/devoluções.")
-            if saldo_unidades_soltas_raw:
-                try:
-                    saldo_unidades_soltas_informado = float(saldo_unidades_soltas_raw)
-                except ValueError:
-                    raise ValueError("Informe uma quantidade válida para unidades soltas")
-                if abs(saldo_unidades_soltas_informado - current_loose_balance) > 1e-6:
-                    raise ValueError("As unidades soltas não podem ser alteradas pela edição do item. Use Documentos Fiscais quando houver entrada de estoque.")
-        elif abs(float(saldo_desejado) - current_total_balance) > 1e-6:
-            raise ValueError("O saldo do item não pode mais ser alterado pela edição. Use Documentos Fiscais para entradas e rotinas operacionais para saídas/devoluções.")
+            saldo_desejado = current_packaged_balance
+            saldo_unidades_soltas_raw = f"{current_loose_balance:.6f}".rstrip("0").rstrip(".")
+        else:
+            saldo_desejado = current_total_balance
+            saldo_unidades_soltas_raw = ""
 
         previous_internal_balance = float(prev_item.get("saldo") or 0.0)
         effective_unidades_por_embalagem = unidades_var

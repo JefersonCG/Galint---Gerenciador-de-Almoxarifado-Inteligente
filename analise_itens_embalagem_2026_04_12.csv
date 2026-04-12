@@ -1,0 +1,169 @@
+status_auditoria,codigo,descricao,categoria,tipo_embalagem,fator_resolvido,metadado_ignorado,divergencia_visual,saldo_base_ledger,saldo_fisico_total,estoque_embalagens,estoque_unidades_soltas,embalagens_esperadas_ledger,soltas_esperadas_ledger
+metadado_ignorado_desalinhado,7891114029925,JOGO DE CHAVE DE FENDA 6 PEÇAS,Ferramentas,pacote,6.0,sim,sim,71.0,71.0,12.0,0.0,11.0,5.0
+fator_nao_resolvido,07892904021716,BARRAMENTOS IEC CURTO TERMINAL COM PINO TCC 25,Material Elétrico,pacote,0.0,nao,sim,1.0,1.0,0.0,0.0,,
+fator_nao_resolvido,7898214962961,"TP-2322 PRÉ-ISOLADO 23MM 1,5-2,5MM 27A AZUL",Material Elétrico,pacote,0.0,nao,sim,1.0,1.0,0.0,0.0,,
+fator_nao_resolvido,7898927870669,JOGO DE SERRA COPO 11PEÇAS,Ferramentas,caixa,0.0,sim,nao,0.0,0.0,0.0,0.0,,
+fator_nao_resolvido,CABO-RG6-001,Cabo Coaxial RG6 Preto,Material Elétrico,rolo,0.0,nao,nao,0.0,0.0,0.0,0.0,,
+fator_nao_resolvido,UYLN30460,SUPORTE DE PAREDE SUPER ADERENTE,Material/Uso geral,pacote,0.0,nao,sim,10.0,10.0,0.0,0.0,,
+metadado_ignorado_alinhado,7891504352909,JOGO DE CHAVE DE FENDA ISOLADAS 1000V,Ferramentas,caixa,6.0,sim,sim,18.0,18.0,3.0,0.0,3.0,0.0
+metadado_ignorado_alinhado,7899612702524,JOGO DE CHAVE ALLEN LONGA,Ferramentas,pacote,9.0,sim,sim,63.0,63.0,7.0,0.0,7.0,0.0
+divergencia_esperada,07898936842022,"PARAFUSO DRYWALL CAB. TROMB 35X3,5MM",Mat. Pintura e Drywall,caixa,500.0,nao,sim,1.0,1.0,0.0,1.0,0.0,1.0
+divergencia_esperada,100L,SACO LIXO 100 LITROS,Materiais de Limpeza,pacote,100.0,nao,sim,4700.0,4700.0,47.0,0.0,47.0,0.0
+divergencia_esperada,1299433002791,FOSCO AREIA 18L,Mat. Pintura e Drywall,lata,18.0,nao,sim,18.0,18.0,1.0,0.0,1.0,0.0
+divergencia_esperada,200L,SACO LIXO 200 LITROS,Materiais de Limpeza,pacote,100.0,nao,sim,7000.0,7000.0,70.0,0.0,70.0,0.0
+divergencia_esperada,300L,SACO LIXO 300 LITROS,Materiais de Limpeza,pacote,100.0,nao,sim,13600.0,13600.0,136.0,0.0,136.0,0.0
+divergencia_esperada,60L,SACO DE LIXO 60L,Materiais de Limpeza,pacote,100.0,nao,sim,1700.0,1700.0,17.0,0.0,17.0,0.0
+divergencia_esperada,751320017536,DICLORO ORGÂNICO - MULTI 10Kg,Material Piscina,balde,10.0,nao,sim,36.0,36.0,3.0,6.0,3.0,6.0
+divergencia_esperada,751320017543,DICLORO ESTABILIZANTE PREMIUM 10Kg,Material Piscina,balde,10.0,nao,sim,45.0,45.0,4.0,5.0,4.0,5.0
+divergencia_esperada,7891035919787,FRESHMATIC SPRAY AUTOMÁTICO,Materiais de Limpeza,caixa,2.0,nao,sim,10.0,10.0,5.0,0.0,5.0,0.0
+divergencia_esperada,7891040004416,FITA ISOLANTE SCOTCH 20M,Material/Uso geral,rolo,20.0,nao,sim,200.0,200.0,10.0,0.0,10.0,0.0
+divergencia_esperada,7891040044221,FITA ANTIDESLIZANTE 50X5M,Material/Uso geral,rolo,5.0,nao,sim,55.0,55.0,11.0,0.0,11.0,0.0
+divergencia_esperada,7891040105502,FITA ISOLANTE IMPERIAL 18X20M,Material/Uso geral,rolo,20.0,nao,sim,240.0,240.0,12.0,0.0,12.0,0.0
+divergencia_esperada,7891200009848,COLA DE CONTATO 3.3L,Material Construção,lata,3.3,nao,sim,1.0,1.0,0.0,1.0,0.0,1.0
+divergencia_esperada,7891260024287,"TINTA ESMALTE ALUMÍNIO BRILHANTE 3,6L",Mat. Pintura e Drywall,lata,3.6,nao,sim,1.0,1.0,0.0,1.0,0.0,1.0
+divergencia_esperada,7891260026861,"TINTA ESMALTE BRANCO FOSCO 3,6L",Mat. Pintura e Drywall,lata,3.6,nao,sim,1.0,1.0,0.0,1.0,0.0,1.0
+divergencia_esperada,7891260028346,LIQUIBASE COMPLEMENTO PAREDES 18L,Mat. Pintura e Drywall,lata,18.0,nao,sim,20.0,20.0,1.0,2.0,1.0,2.0
+divergencia_esperada,7891260456989,MASSA CORRIDA PRÉ PINTURA,Mat. Pintura e Drywall,balde,1.0,nao,sim,0.688889,0.689,0.0,0.689,0.0,0.688889
+divergencia_esperada,7891260559093,TOQUE DE SEDA RIO NILO 16L,Mat. Pintura e Drywall,lata,16.0,nao,sim,2.0,2.0,0.0,2.0,0.0,2.0
+divergencia_esperada,7891260559154,TOQUE SEDA ACETINADO CROMO 18L,Mat. Pintura e Drywall,lata,18.0,nao,sim,1.0,1.0,0.0,1.0,0.0,1.0
+divergencia_esperada,7891323002474,COMPLEMENTO ACRÍLICO 18L,Mat. Pintura e Drywall,lata,18.0,nao,sim,90.0,90.0,5.0,0.0,5.0,0.0
+divergencia_esperada,7891323003242,BRANCO FOSCO 18L,Mat. Pintura e Drywall,lata,18.0,nao,sim,18.0,18.0,1.0,0.0,1.0,0.0
+divergencia_esperada,7891323004904,MASSA ACRÍLICA 25KG,Material Elétrico,lata,25.0,nao,sim,125.0,125.0,5.0,0.0,5.0,0.0
+divergencia_esperada,7891323079339,TINTA PISO AMARELO 18L,Mat. Pintura e Drywall,lata,18.0,nao,sim,2.0,2.0,0.0,2.0,0.0,2.0
+divergencia_esperada,7891323079391,TINTA PISO AZUL FOSCO,Mat. Pintura e Drywall,lata,2.0,nao,sim,2.0,2.0,1.0,0.0,1.0,0.0
+divergencia_esperada,7891323079407,TINTA PISO PREMIUM BRANCA 3.6L,Mat. Pintura e Drywall,lata,3.6,nao,sim,3.6,3.6,1.0,0.0,1.0,0.0
+divergencia_esperada,7891323079483,TINTA PISO CINZA FOSCO,Mat. Pintura e Drywall,lata,2.0,nao,sim,2.0,2.0,1.0,0.0,1.0,0.0
+divergencia_esperada,7891323079605,TINTA PISO PRETO FOSCO 18L,Mat. Pintura e Drywall,lata,18.0,nao,sim,1.0,1.0,0.0,1.0,0.0,1.0
+divergencia_esperada,7891323079636,TINTA PISO VERDE FOSCO 18L,Mat. Pintura e Drywall,lata,18.0,nao,sim,3.0,3.0,0.0,3.0,0.0,3.0
+divergencia_esperada,7891323088072,MASSA CORRIDA 25KG,Mat. Pintura e Drywall,lata,25.0,nao,sim,213.999876,214.0,8.0,14.0,8.0,13.999876
+divergencia_esperada,7891323113965,TINTA BRANCA EMBORRACHADA METALEX 18Litros,Mat. Pintura e Drywall,lata,18.0,nao,sim,88.0,88.0,4.0,16.0,4.0,16.0
+divergencia_esperada,7891574057322,VERNIZ MOGNO AVERMELHADO 3.6L,Material Construção,lata,3.6,nao,sim,1.0,1.0,0.0,1.0,0.0,1.0
+divergencia_esperada,7891738018954,PREGO GALVANIZADO 17X27MM,Material Construção,pacote,216.0,nao,sim,216.0,216.0,1.0,0.0,1.0,0.0
+divergencia_esperada,7891960829687,FITA VEDA ROSCA 18X50mm,Material Hidráulico,rolo,50.0,nao,sim,500.0,500.0,10.0,0.0,10.0,0.0
+divergencia_esperada,7892183266501,PARAFUSO 4.2X13MM PTA BROCA,Material Construção,caixa,500.0,nao,sim,500.0,500.0,1.0,0.0,1.0,0.0
+divergencia_esperada,7892183267997,"PARAFUSO DRYWALL 3,5X35MM",Material Construção,caixa,1000.0,nao,sim,2000.0,2000.0,2.0,0.0,2.0,0.0
+divergencia_esperada,7892183700999,"PARAFUSO DRYWALL 3,5X25MM",Material Construção,caixa,1000.0,nao,sim,2000.0,2000.0,2.0,0.0,2.0,0.0
+divergencia_esperada,7892261000447,PORCA SEXTAVADA 1/4 CHV 7/16,Material Construção,caixa,1000.0,nao,sim,1000.0,1000.0,1.0,0.0,1.0,0.0
+divergencia_esperada,7892261000522,PORCA 5/16 CHV 1/2,Material Construção,caixa,500.0,nao,sim,959.0,959.0,1.0,459.0,1.0,459.0
+divergencia_esperada,7892261065835,"PARAFUSO FLANGEADO 4,0X45MM PHILLIPS",Material Construção,caixa,300.0,nao,sim,594.0,594.0,1.0,294.0,1.0,294.0
+divergencia_esperada,7892261068706,"PARAFUSO FLANGEADO 4,5X45MM PHILLIPS",Material Construção,caixa,300.0,nao,sim,600.0,600.0,2.0,0.0,2.0,0.0
+divergencia_esperada,7893590283037,ABRAÇADEIRA DE NYLON BRANCA 2.5X200,Material/Uso geral,pacote,100.0,nao,sim,400.0,400.0,4.0,0.0,4.0,0.0
+divergencia_esperada,7893590283082,ABRAÇADEIRA DE NYLON BRANCA 3.6X300,Material/Uso geral,pacote,100.0,nao,sim,300.0,300.0,3.0,0.0,3.0,0.0
+divergencia_esperada,7893590283136,ABRAÇADEIRA DE NYLON BRANCA 4.8X300,Material/Uso geral,pacote,100.0,nao,sim,400.0,400.0,4.0,0.0,4.0,0.0
+divergencia_esperada,7893590283693,ABRAÇADEIRA DE NYLON 7.6X400,Material/Uso geral,pacote,20.0,nao,sim,400.0,400.0,20.0,0.0,20.0,0.0
+divergencia_esperada,7895024030668,REJUNTE ACRÍLICO AREIA 1KG,Material Construção,rolo,100.0,nao,sim,2.0,2.0,0.0,2.0,0.0,2.0
+divergencia_esperada,7896155100053,TINTA ESMALTE MARROMTABACO BRILHANTE,Mat. Pintura e Drywall,lata,4.0,nao,sim,4.0,4.0,1.0,0.0,1.0,0.0
+divergencia_esperada,7896155116405,TEXTURA ACRÍLICA LISA 25KG,Mat. Pintura e Drywall,balde,25.0,nao,sim,125.0,125.0,5.0,0.0,5.0,0.0
+divergencia_esperada,7896155122895,TINTA ESMALTE PRETO BRILHANTE 3.6L,Mat. Pintura e Drywall,lata,3.6,nao,sim,1.0,1.0,0.0,1.0,0.0,1.0
+divergencia_esperada,7896155142008,TINTA ESMALTE CINZA BRILHANTE 3.6L,Mat. Pintura e Drywall,lata,3.6,nao,sim,10.8,10.8,3.0,0.0,3.0,0.0
+divergencia_esperada,7896257576756,RESINA MULTIUSO 18L,Material Construção,lata,18.0,nao,sim,4.0,4.0,0.0,4.0,0.0,4.0
+divergencia_esperada,7896257584119,GRAFFIATO BRANCO NEVE 25KG,Mat. Pintura e Drywall,balde,25.0,nao,sim,100.0,100.0,4.0,0.0,4.0,0.0
+divergencia_esperada,7896603802522,FITA CREPE MASK 48mmX50M,Material/Uso geral,rolo,50.0,nao,sim,2.0,2.0,0.0,2.0,0.0,2.0
+divergencia_esperada,7896603846267,FITA CREPE MASK 18mmX50M,Material/Uso geral,rolo,50.0,nao,sim,13.0,13.0,0.0,13.0,0.0,13.0
+divergencia_esperada,7896785303824,SIKA 2 - ADITIVO ACELERADOR ULTRA RÁPIDO TAMPONAMENTO 3.6L,Material Construção,lata,3.6,nao,sim,1.0,1.0,0.0,1.0,0.0,1.0
+divergencia_esperada,7897321117837,VEDALIT,Material Construção,lata,4.0,nao,sim,4.0,4.0,1.0,0.0,1.0,0.0
+divergencia_esperada,7897381600720,CABO FLEXSIL 6.0mm,Material Elétrico,rolo,100.0,nao,sim,1.0,1.0,0.0,1.0,0.0,1.0
+divergencia_esperada,7897432700140,CLORO GRANULADO 10KG,Material Piscina,balde,10.0,nao,sim,149.0,149.0,14.0,9.0,14.0,9.0
+divergencia_esperada,7897432701123,FITA TESTE,Material Piscina,pacote,25.0,nao,sim,400.0,400.0,16.0,0.0,16.0,0.0
+divergencia_esperada,7897534802032,DESINCRUSTANTE LIMPA REJUNTES 5L,Materiais de Limpeza,bombona,5.0,nao,sim,75.0,75.0,15.0,0.0,15.0,0.0
+divergencia_esperada,7897637118962,CHUMBADOR 5/16 X 2.1/4,Material Construção,caixa,25.0,nao,sim,128.0,128.0,5.0,3.0,5.0,3.0
+divergencia_esperada,7897637126240,BUCHA FLY 1 P/DRYWALL,Mat. Pintura e Drywall,caixa,100.0,nao,sim,282.0,282.0,2.0,82.0,2.0,82.0
+divergencia_esperada,7897702703505,DESINFETANTE DE USO GERAL 500ML,Materiais de Limpeza,litro,0.5,nao,sim,3.0,3.0,6.0,0.0,6.0,0.0
+divergencia_esperada,7898076995237,TINTA ASFÁLTICA 18L,Material Construção,lata,18.0,nao,sim,18.0,18.0,1.0,0.0,1.0,0.0
+divergencia_esperada,7898122760055,CREOLINA 900ml,Materiais de Limpeza,litro,0.9,nao,sim,1.0,1.0,1.0,0.1,1.0,0.1
+divergencia_esperada,7898159800083,FITA VEDA ROSCA 18X50mm,Material Hidráulico,rolo,50.0,nao,sim,799.0,799.0,15.0,49.0,15.0,49.0
+divergencia_esperada,7898180829107,PAPEL HIGIÊNICO XANDY,Materiais de Limpeza,caixa,24.0,nao,sim,504.0,504.0,21.0,0.0,21.0,0.0
+divergencia_esperada,7898191704950,DETERGENTE DESINCRUSTANTE CJ-24  5L,Materiais de Limpeza,bombona,5.0,nao,sim,5.0,5.0,1.0,0.0,1.0,0.0
+divergencia_esperada,7898255670726,ALL CLEAN SABONETE ESPUMA 5L,Materiais de Limpeza,bombona,5.0,nao,sim,135.0,135.0,27.0,0.0,27.0,0.0
+divergencia_esperada,7898255670788,BUTTERFLY HIPOCLORITO DE SÓDIO 5L,Materiais de Limpeza,bombona,5.0,nao,sim,222.0,222.0,44.0,2.0,44.0,2.0
+divergencia_esperada,7898255670818,MAX DETERGENTE 5L,Materiais de Limpeza,bombona,5.0,nao,sim,129.0,129.0,25.0,4.0,25.0,4.0
+divergencia_esperada,7898255671037,CONCENTRAX DESENGRAXRAX 5L,Materiais de Limpeza,bombona,5.0,nao,sim,40.0,40.0,8.0,0.0,8.0,0.0
+divergencia_esperada,7898255671044,CONCENTRAX LIMPA PEDRAS 5L,Materiais de Limpeza,bombona,5.0,nao,sim,35.0,35.0,7.0,0.0,7.0,0.0
+divergencia_esperada,7898255671327,MAX DESINFETANTE 5L,Materiais de Limpeza,bombona,5.0,nao,sim,118.0,118.0,23.0,3.0,23.0,3.0
+divergencia_esperada,7898255672140,BUTTERFLY  LIMPA-VIDRO VIDRAX 5L,Materiais de Limpeza,bombona,5.0,nao,sim,71.0,71.0,14.0,1.0,14.0,1.0
+divergencia_esperada,7898255677381,ALL CLEAN GEL ANTISSÉPTICO 5L,Materiais de Limpeza,bombona,5.0,nao,sim,97.5,97.5,19.0,2.5,19.0,2.5
+divergencia_esperada,7898258651005,"ROLO DE CABO FLEX 1,5 BRANCO 100Metros",Material Elétrico,rolo,100.0,nao,sim,198.0,198.0,1.0,98.0,1.0,98.0
+divergencia_esperada,7898258651111,FIO FLEXSÍVEL  2.5MM AMARELO,Material Elétrico,rolo,100.0,nao,sim,100.0,100.0,1.0,0.0,1.0,0.0
+divergencia_esperada,7898259251778,FIO 1.5 FLEXSÍVEL BRANCO 100M,Material Elétrico,rolo,100.0,nao,sim,100.0,100.0,1.0,0.0,1.0,0.0
+divergencia_esperada,7898259251839,FIO 1.5 FLEXSÍVEL PRETO 100M,Material Elétrico,rolo,100.0,nao,sim,186.0,186.0,1.0,86.0,1.0,86.0
+divergencia_esperada,7898259251860,FIO FLEXSÍVEL BRANCO 2.5MM,Material Elétrico,rolo,100.0,nao,sim,400.0,400.0,4.0,0.0,4.0,0.0
+divergencia_esperada,7898259251884,FIO FLEXSÍVEL AZUL 2.5MM,Material Elétrico,rolo,100.0,nao,sim,100.0,100.0,1.0,0.0,1.0,0.0
+divergencia_esperada,7898259251891,FIO FLEXSÍVEL VERMELHO 2.5MM,Material Elétrico,rolo,100.0,nao,sim,100.0,100.0,1.0,0.0,1.0,0.0
+divergencia_esperada,7898259251921,FIO FLEXSÍVEL  2.5MM PRETO,Material Elétrico,rolo,100.0,nao,sim,769.0,769.0,7.0,69.0,7.0,69.0
+divergencia_esperada,7898259251938,FIO FLEXSÍVEL VERDE 2.5MM,Material Elétrico,rolo,100.0,nao,sim,105.0,105.0,1.0,5.0,1.0,5.0
+divergencia_esperada,7898292937318,FITA AUTOADESIVA DRYWALL 90X48mm,Mat. Pintura e Drywall,rolo,90.0,nao,sim,2.0,2.0,0.0,2.0,0.0,2.0
+divergencia_esperada,7898472262513,FITA CREPE 48X50M,Material/Uso geral,rolo,50.0,nao,sim,8.0,8.0,0.0,8.0,0.0,8.0
+divergencia_esperada,7898493210203,BUCHA SF 6,Material Construção,pacote,1000.0,nao,sim,2000.0,2000.0,2.0,0.0,2.0,0.0
+divergencia_esperada,7898493210227,BUCHA SF8,Material Construção,pacote,500.0,nao,sim,1000.0,1000.0,2.0,0.0,2.0,0.0
+divergencia_esperada,7898493210234,BUCHA SF10,Material Construção,pacote,250.0,nao,sim,494.0,494.0,1.0,244.0,1.0,244.0
+divergencia_esperada,7898493212306,BUCHA FLY 3 P/ DRYWALL,Mat. Pintura e Drywall,pacote,50.0,nao,sim,250.0,250.0,5.0,0.0,5.0,0.0
+divergencia_esperada,7898493212313,BUCHA FLY 4 P/DRYWALL,Mat. Pintura e Drywall,pacote,50.0,nao,sim,250.0,250.0,5.0,0.0,5.0,0.0
+divergencia_esperada,7898494150683,FITA ZEBRADA 70X200m,Material/Uso geral,rolo,200.0,nao,sim,5.0,5.0,0.0,5.0,0.0,5.0
+divergencia_esperada,7898505140238,COPO DESCARTÁVEL  200ML,Materiais de Limpeza,pacote,100.0,nao,sim,7400.0,7400.0,74.0,0.0,74.0,0.0
+divergencia_esperada,7898542184028,MANGUEIRA  TRANÇADA 3/4,Material Hidráulico,rolo,50.0,nao,sim,50.0,50.0,1.0,0.0,1.0,0.0
+divergencia_esperada,7898551092949,KLYO LIMPA INOX 5L,Materiais de Limpeza,bombona,5.0,nao,sim,50.0,50.0,10.0,0.0,10.0,0.0
+divergencia_esperada,7898581776581,FITA VEDA ROSCA 18mmX50M,Material Hidráulico,rolo,50.0,nao,sim,50.0,50.0,1.0,0.0,1.0,0.0
+divergencia_esperada,7898615542649,"ABRAÇADEIRA 300X3,6mm NYLON",Material/Uso geral,pacote,100.0,nao,sim,2.0,2.0,0.0,2.0,0.0,2.0
+divergencia_esperada,7898707631794,QUARTZO MICA OLHO DE TIGRE 23Kg,Mat. Pintura e Drywall,saco,23.0,nao,sim,2.0,2.0,0.0,2.0,0.0,2.0
+divergencia_esperada,7898707632609,SEDA DAMASCO,Mat. Pintura e Drywall,lata,16.0,nao,sim,16.0,16.0,1.0,0.0,1.0,0.0
+divergencia_esperada,7898707632623,TINTA GUADALUPE 16L,Mat. Pintura e Drywall,lata,16.0,nao,sim,80.0,80.0,5.0,0.0,5.0,0.0
+divergencia_esperada,7898918399773,CABO MANGA DE 4 VIAS,Material Elétrico,rolo,100.0,nao,sim,100.0,100.0,1.0,0.0,1.0,0.0
+divergencia_esperada,7898924601617,PAPEL HIGIÊNICO INTERFOLHAS,Materiais de Limpeza,caixa,24.0,nao,sim,1048.0,1048.0,43.0,16.0,43.0,16.0
+divergencia_esperada,7898932541080,MANTA ACRÍLICA FLEXÍVEL 12KG,Material Construção,balde,12.0,nao,sim,1.0,1.0,0.0,1.0,0.0,1.0
+divergencia_esperada,7898936842060,"PARAFUSO DRYWALL 25X3,5MM",Mat. Pintura e Drywall,caixa,1000.0,nao,sim,994006.0,994006.0,994.0,6.0,994.0,6.0
+divergencia_esperada,7898941765033,AGUARRÁS 5L,Material/Uso geral,bombona,5.0,nao,sim,55.0,55.0,11.0,0.0,11.0,0.0
+divergencia_esperada,7898959829468,MANTA VEDATUDO  45cmX10M,Material Construção,rolo,10.0,nao,sim,74.0,74.0,7.0,4.0,7.0,4.0
+divergencia_esperada,7899482300370,BUCHA N10,Material Construção,pacote,1000.0,nao,sim,1.0,1.0,0.0,1.0,0.0,1.0
+divergencia_esperada,7899519912217,MASSA F12 MOGNO 200G,Material Construção,pacote,0.2,nao,sim,1.0,1.0,5.0,0.0,5.0,0.0
+divergencia_esperada,7899682733107,UPPRO EXPERT LIMPADOR MULTIUSO OX2 5L,Materiais de Limpeza,bombona,5.0,nao,sim,90.0,90.0,18.0,0.0,18.0,0.0
+divergencia_esperada,7899682763500,PAPEL TOALHA INTERFOLHAS,Materiais de Limpeza,pacote,1000.0,nao,sim,137000.0,137000.0,137.0,0.0,137.0,0.0
+divergencia_esperada,7899772604560,ROLO DE MANTA PRETA,Material Construção,rolo,100.0,nao,sim,100.0,100.0,1.0,0.0,1.0,0.0
+divergencia_esperada,7899825485124,MASSA PARA DRYWALL 14KG,Mat. Pintura e Drywall,balde,14.0,nao,sim,1.0,1.0,0.0,1.0,0.0,1.0
+divergencia_esperada,78998745600200,ARGAMASSA PISO SOBRE PISO 20KG,Material Construção,saco,20.0,nao,sim,160.0,160.0,8.0,0.0,8.0,0.0
+divergencia_esperada,78998745600201,BRITA 01 SACO 5KG,Material Construção,saco,4.0,nao,sim,120.0,120.0,30.0,0.0,30.0,0.0
+divergencia_esperada,78998745600202,CIMENTO CPII 50KG,Material Construção,saco,50.0,nao,sim,50.0,50.0,1.0,0.0,1.0,0.0
+divergencia_esperada,7899874566540,TUDO SOLDÁVEL 60X6M,Material Hidráulico,rolo,6.0,nao,sim,36.0,36.0,6.0,0.0,6.0,0.0
+divergencia_esperada,789987456654001,"TELA VIVEIRO 1/2 X 26 X 1,20M",Material Elétrico,rolo,50.0,nao,sim,50.0,50.0,1.0,0.0,1.0,0.0
+divergencia_esperada,789987456654002,"TERMINAL TUBULAR SIMPLES 1,5MM PRETO",Material Elétrico,pacote,1000.0,nao,sim,2.0,2.0,0.0,2.0,0.0,2.0
+divergencia_esperada,789987456654003,"TERMINAL TUBULAR SIMPLES 2,5MM AZUL",Material Elétrico,pacote,1000.0,nao,sim,2000.0,2000.0,2.0,0.0,2.0,0.0
+divergencia_esperada,789987456654004,TERMINAL TUBULAR SIMPLES 10MM VERMELHO,Material Elétrico,pacote,1000.0,nao,sim,1000.0,1000.0,1.0,0.0,1.0,0.0
+divergencia_esperada,789987456654005,"TERMINAL TUBULAR SIMPLES 4,0MM CINZA",Material Elétrico,pacote,1000.0,nao,sim,2000.0,2000.0,2.0,0.0,2.0,0.0
+divergencia_esperada,78998745665421,"TERMINAL GARFO 2,5MM VERMELHO",Material Elétrico,pacote,100.0,nao,sim,1.0,1.0,0.0,1.0,0.0,1.0
+divergencia_esperada,789987456654222,TUBO ESGOTO C/ 3METROS,Material Hidráulico,rolo,3.0,nao,sim,3.0,3.0,1.0,0.0,1.0,0.0
+divergencia_esperada,7908467201257,FITA CREPE 48mmX50M,Mat. Pintura e Drywall,rolo,50.0,nao,sim,26.0,26.0,0.0,26.0,0.0,26.0
+divergencia_esperada,7908715000717,DUTO CORRUGADO 1.1/4'' 40MM,Material Elétrico,rolo,50.0,nao,sim,100.0,100.0,2.0,0.0,2.0,0.0
+divergencia_esperada,8891204152792,TOQUE DE SEDA ACETI ALGOD EGÍPCIO 18L,Mat. Pintura e Drywall,lata,18.0,nao,sim,1.0,1.0,0.0,1.0,0.0,1.0
+divergencia_esperada,921001101001,CABO FLEXICOM 6.0mm,Material Elétrico,rolo,100.0,nao,sim,100.0,100.0,1.0,0.0,1.0,0.0
+divergencia_esperada,996555115484,"TINTA ESMALTE VERDE FOLHA BRILHANTE 3,6L",Mat. Pintura e Drywall,lata,3.6,nao,sim,1.0,1.0,0.0,1.0,0.0,1.0
+divergencia_esperada,WEUV20759,FITA ANTIDERRAPANTE 20M,Material Construção,rolo,20.0,nao,sim,280.0,280.0,14.0,0.0,14.0,0.0
+sem_divergencia_visual,1000000013498,MASSA DRYWALL 25KG,Mat. Pintura e Drywall,balde,25.0,nao,nao,0.0,0.0,0.0,0.0,0.0,0.0
+sem_divergencia_visual,2221605003205,REJUNTE ACRÍLICO BRANCO 1KG,Material Construção,saco,1.0,nao,nao,15.0,15.0,15.0,0.0,15.0,0.0
+sem_divergencia_visual,492553552837,LIMPA PISOS 1L,Material Construção,lata,1.0,nao,nao,0.0,0.0,0.0,0.0,0.0,0.0
+sem_divergencia_visual,602883163102,FLOC - CLORIFICANTE FLOCURANTE 1L,Material Piscina,litro,1.0,nao,nao,0.0,0.0,0.0,0.0,0.0,0.0
+sem_divergencia_visual,602883163119,ALGICIDA MANUTENÇÃO 1Litros,Material Piscina,litro,1.0,nao,nao,15.0,15.0,15.0,0.0,15.0,0.0
+sem_divergencia_visual,7891260025833,"VERNIZ MARÍTIMO BRILHANTE NATRUAL 3,6L",Mat. Pintura e Drywall,lata,3.6,nao,nao,0.0,0.0,0.0,0.0,0.0,0.0
+sem_divergencia_visual,7891260058305,TINTA PISO FOSCO CINZA ESCURO,Mat. Pintura e Drywall,lata,5.0,nao,nao,0.0,0.0,0.0,0.0,0.0,0.0
+sem_divergencia_visual,7891260325605,"TINTA ACRÍLICA ACETINA BRANCO 3,6L",Mat. Pintura e Drywall,lata,3.6,nao,nao,0.0,0.0,0.0,0.0,0.0,0.0
+sem_divergencia_visual,7891323079360,TINTA PISO AMARELO DEMARCAÇÃO,Mat. Pintura e Drywall,lata,1.0,nao,nao,1.0,1.0,1.0,0.0,1.0,0.0
+sem_divergencia_visual,7895024019212,ECOPÓXI REJUNTAMENTO 1KG,Material Construção,saco,1.0,nao,nao,3.0,3.0,3.0,0.0,3.0,0.0
+sem_divergencia_visual,7895024030873,REJUNTE MARMORES E GRANITOS 3KG,Material Construção,saco,3.0,nao,nao,0.0,0.0,0.0,0.0,0.0,0.0
+sem_divergencia_visual,7896042400013,ÁLCOOL MONTENEGRO 1L,Materiais de Limpeza,litro,1.0,nao,nao,33.0,33.0,33.0,0.0,33.0,0.0
+sem_divergencia_visual,7896318100074,ÁLCOOL 70% 1L,Materiais de Limpeza,litro,1.0,nao,nao,1.0,1.0,1.0,0.0,1.0,0.0
+sem_divergencia_visual,7896544403697,LIMPA BORDAS 1L,Material Piscina,litro,1.0,nao,nao,10.0,10.0,10.0,0.0,10.0,0.0
+sem_divergencia_visual,789722591256,REJUNTE AREIA 1KG,Material Construção,saco,1.0,nao,nao,1.0,1.0,1.0,0.0,1.0,0.0
+sem_divergencia_visual,7897255921579,REJUNTE ACRÍLICO CINZA ARTICO 1KG,Material Construção,saco,1.0,nao,nao,6.0,6.0,6.0,0.0,6.0,0.0
+sem_divergencia_visual,7897432700010,ALGICIDA DE MANUTENÇÃO 1L,Material Piscina,litro,1.0,nao,nao,45.0,45.0,45.0,0.0,45.0,0.0
+sem_divergencia_visual,7897432700072,CLARIFICANTE MAXFLOC 1L,Material Piscina,litro,1.0,nao,nao,20.0,20.0,20.0,0.0,20.0,0.0
+sem_divergencia_visual,7897432700355,ELIMINADOR DE OLEOSIDADE 1L,Material Piscina,litro,1.0,nao,nao,15.0,15.0,15.0,0.0,15.0,0.0
+sem_divergencia_visual,7897432701031,LIMPA BORDAS,Material Piscina,litro,1.0,nao,nao,40.0,40.0,40.0,0.0,40.0,0.0
+sem_divergencia_visual,7897702700245,LIMPA PISO 1L,Materiais de Limpeza,litro,1.0,nao,nao,2.0,2.0,2.0,0.0,2.0,0.0
+sem_divergencia_visual,7898133950049,CONVERTEDOR DE FERRUGEM,Mat. Pintura e Drywall,litro,1.0,nao,nao,6.0,6.0,6.0,0.0,6.0,0.0
+sem_divergencia_visual,7898191707746,EASYFRESH FACILITADOR P/PASSAR ROUPAS 1L,Materiais de Limpeza,litro,1.0,nao,nao,10.0,10.0,10.0,0.0,10.0,0.0
+sem_divergencia_visual,7898258651074,FIO 2.5MM FLEXÍVEL AZUL 100M,Material Elétrico,rolo,100.0,nao,nao,0.0,0.0,0.0,0.0,0.0,0.0
+sem_divergencia_visual,7898258651081,FIO FLEXSÍVEL  2.5MM VERMELHO,Material Elétrico,rolo,100.0,nao,nao,0.0,0.0,0.0,0.0,0.0,0.0
+sem_divergencia_visual,7898470069121,LIMPADOR DESINCRUSTANTE 5L,Materiais de Limpeza,bombona,5.0,nao,nao,0.0,0.0,0.0,0.0,0.0,0.0
+sem_divergencia_visual,7898505140030,COPO DESCARTÁVEL (100uni) 200ML,Materiais de Limpeza,pacote,100.0,nao,nao,-107478.0,0.0,0.0,0.0,0.0,0.0
+sem_divergencia_visual,7898729414320,LUMINÁRIA SOLAR ILUMINAÇÃO PÚBLICA 400W 6.5K,Material Elétrico,caixa,1.0,nao,nao,25.0,25.0,25.0,0.0,25.0,0.0
+sem_divergencia_visual,7898936437990,MANTA ACRÍLICA FLEXÍVEL 15KG,Material Construção,balde,15.0,nao,nao,0.0,0.0,0.0,0.0,0.0,0.0
+sem_divergencia_visual,7899228204184,ENDURECEDOR M298 II,Material Elétrico,litro,1.0,nao,nao,3.0,3.0,3.0,0.0,3.0,0.0
+sem_divergencia_visual,FOOD12215,FECHADURA PORTA CORTA FOGO,Material/Uso geral,caixa,1.0,nao,nao,6.0,6.0,6.0,0.0,6.0,0.0

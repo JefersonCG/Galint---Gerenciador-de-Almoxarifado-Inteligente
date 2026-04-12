@@ -1096,6 +1096,22 @@ def painel_espelho_state_api():
     return jsonify(mirror_state_service.get_state(mode=mode))
 
 
+@blueprint.get('/painel-espelho/custody-active')
+def painel_espelho_custody_active_api():
+    """Retorna a custodia diaria ativa para exibicao no painel espelho."""
+    mode = _normalize_mirror_mode(request.args.get("mode"))
+    _ensure_mirror_panel_json_access(mode)
+
+    from ..services.tool_custody_service import tool_custody_service
+
+    itens = tool_custody_service.get_daily_custody_feed_items()
+    for item in itens:
+        foto_path = item.pop("foto_path", None)
+        item["foto_url"] = url_for("static", filename=foto_path) if foto_path else None
+
+    return jsonify({"items": itens})
+
+
 @blueprint.post('/painel-espelho/state')
 @login_required
 def painel_espelho_state_publish_api():

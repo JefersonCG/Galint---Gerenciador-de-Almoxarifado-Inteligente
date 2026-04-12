@@ -1770,20 +1770,20 @@
 
     .galint-custody-feed-list {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-        gap: 1rem;
+        grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+        gap: 1.15rem;
         margin-top: 1rem;
     }
 
     .galint-custody-card {
         position: relative;
         overflow: hidden;
-        background: linear-gradient(135deg, #0f172a 0%, #1e293b 72%, #334155 100%);
-        border: 1px solid rgba(148, 163, 184, 0.24);
-        border-radius: 20px;
-        padding: 1rem;
-        transition: all 0.25s ease;
-        box-shadow: 0 18px 38px rgba(15, 23, 42, 0.22);
+        background: linear-gradient(145deg, rgba(15, 23, 42, 0.96) 0%, rgba(23, 37, 84, 0.9) 52%, rgba(30, 41, 59, 0.94) 100%);
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        border-radius: 24px;
+        padding: 1.1rem;
+        transition: transform 0.22s ease, border-color 0.22s ease, box-shadow 0.22s ease;
+        box-shadow: 0 20px 44px rgba(15, 23, 42, 0.24);
     }
 
     .galint-custody-card::before {
@@ -1791,303 +1791,479 @@
         position: absolute;
         inset: 0;
         background:
-            radial-gradient(circle at top left, rgba(59, 130, 246, 0.18), transparent 34%),
-            radial-gradient(circle at 85% 22%, rgba(16, 185, 129, 0.12), transparent 26%),
-            linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 60%);
+            radial-gradient(circle at 12% 14%, rgba(96, 165, 250, 0.18), transparent 26%),
+            radial-gradient(circle at 86% 18%, rgba(125, 211, 252, 0.1), transparent 22%),
+            linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 64%);
         pointer-events: none;
     }
 
     .galint-custody-card::after {
         content: "";
         position: absolute;
-        inset: -18% -12%;
-        border-radius: inherit;
-        opacity: 0;
+        inset: auto -18% -34% 18%;
+        height: 58%;
+        border-radius: 999px;
+        opacity: 0.42;
         pointer-events: none;
-        filter: blur(20px);
-        transition: opacity 0.25s ease;
+        filter: blur(44px);
+        background: radial-gradient(circle, rgba(37, 99, 235, 0.2) 0%, rgba(37, 99, 235, 0) 72%);
+    }
+
+    .galint-custody-card > * {
+        position: relative;
+        z-index: 1;
     }
 
     .galint-custody-card:hover {
-        box-shadow: 0 28px 52px rgba(15, 23, 42, 0.28);
+        transform: translateY(-3px);
         border-color: rgba(96, 165, 250, 0.34);
-        transform: translateY(-4px);
+        box-shadow: 0 30px 56px rgba(15, 23, 42, 0.28);
     }
 
-    .galint-custody-card.is-clickable {
-        cursor: pointer;
+    .galint-custody-card.atrasada,
+    .galint-custody-card.alert-red,
+    .galint-custody-card.alert-yellow {
+        background: linear-gradient(145deg, rgba(15, 23, 42, 0.98) 0%, rgba(30, 41, 59, 0.96) 62%, rgba(51, 65, 85, 0.94) 100%);
     }
 
-    .galint-custody-card.is-clickable:focus-visible {
-        outline: 2px solid rgba(96, 165, 250, 0.95);
-        outline-offset: 2px;
+    .galint-custody-card.atrasada,
+    .galint-custody-card.alert-red {
+        border-color: rgba(248, 113, 113, 0.34);
     }
 
-    .galint-custody-card.atrasada {
-        border-color: rgba(239, 68, 68, 0.32);
-        background: linear-gradient(135deg, #1f1720 0%, #3b1722 55%, #471b27 100%);
-    }
-
-    .galint-custody-card.atrasada::after,
-    .galint-custody-card.alert-red::after,
-    .galint-custody-card.alert-yellow::after {
-        opacity: 1;
+    .galint-custody-card.alert-yellow {
+        border-color: rgba(251, 191, 36, 0.34);
     }
 
     .galint-custody-card.atrasada::after,
     .galint-custody-card.alert-red::after {
-        background: radial-gradient(circle, rgba(239, 68, 68, 0.3) 0%, rgba(239, 68, 68, 0.12) 38%, transparent 68%);
-    }
-
-    .galint-custody-card.alert-yellow {
-        border-color: rgba(245, 158, 11, 0.34);
-        background: linear-gradient(135deg, #1f1a12 0%, #332514 58%, #443116 100%);
+        background: radial-gradient(circle, rgba(239, 68, 68, 0.18) 0%, rgba(239, 68, 68, 0.02) 68%, transparent 78%);
     }
 
     .galint-custody-card.alert-yellow::after {
-        background: radial-gradient(circle, rgba(245, 158, 11, 0.28) 0%, rgba(245, 158, 11, 0.1) 40%, transparent 70%);
-    }
-
-    .galint-custody-card.alert-red {
-        border-color: rgba(239, 68, 68, 0.3);
-        background: linear-gradient(135deg, #1f1720 0%, #3b1722 55%, #471b27 100%);
-    }
-
-    .galint-custody-card.pulse-alert-red,
-    .galint-custody-card.pulse-alert-yellow {
-        animation-duration: 1.7s;
-        animation-timing-function: ease-in-out;
-        animation-iteration-count: infinite;
-    }
-
-    .galint-custody-card.pulse-alert-red {
-        animation-name: custodyRedPulse;
-    }
-
-    .galint-custody-card.pulse-alert-yellow {
-        animation-name: custodyYellowPulse;
-    }
-
-    @keyframes custodyRedPulse {
-        0%,
-        100% {
-            box-shadow: 0 16px 34px rgba(15, 23, 42, 0.08), 0 0 0 rgba(239, 68, 68, 0);
-        }
-
-        50% {
-            box-shadow: 0 18px 38px rgba(15, 23, 42, 0.12), 0 0 26px rgba(239, 68, 68, 0.5);
-        }
-    }
-
-    @keyframes custodyYellowPulse {
-        0%,
-        100% {
-            box-shadow: 0 16px 34px rgba(15, 23, 42, 0.08), 0 0 0 rgba(245, 158, 11, 0);
-        }
-
-        50% {
-            box-shadow: 0 18px 38px rgba(15, 23, 42, 0.12), 0 0 24px rgba(245, 158, 11, 0.46);
-        }
+        background: radial-gradient(circle, rgba(245, 158, 11, 0.18) 0%, rgba(245, 158, 11, 0.02) 68%, transparent 78%);
     }
 
     .galint-custody-header {
         display: flex;
         justify-content: space-between;
-        align-items: start;
-        margin-bottom: 0.75rem;
+        align-items: flex-start;
+        gap: 0.85rem;
+        margin-bottom: 0.95rem;
     }
 
-    .galint-custody-title {
-        font-weight: 700;
-        font-size: 0.98rem;
-        color: #f8fafc;
-        margin: 0;
-        flex: 1;
-    }
-
-    .galint-custody-badge {
-        background: rgba(255, 255, 255, 0.08);
-        color: rgba(226, 232, 240, 0.9);
-        padding: 0.35rem 0.65rem;
-        border-radius: 999px;
-        font-size: 0.75rem;
-        font-weight: 600;
-        margin-left: 0.5rem;
-        border: 1px solid rgba(148, 163, 184, 0.18);
-    }
-
-    .galint-custody-badge.atrasada {
-        background: #fee2e2;
-        color: #dc2626;
-        border-color: rgba(239, 68, 68, 0.18);
-    }
-
-    .galint-custody-badge.atencao {
-        background: #fef3c7;
-        color: #b45309;
-        border-color: rgba(245, 158, 11, 0.22);
-    }
-
-    .galint-custody-body {
+    .galint-custody-header-main {
+        min-width: 0;
         display: grid;
-        grid-template-columns: 78px 1fr;
-        gap: 0.9rem;
-        align-items: start;
-        margin-bottom: 1rem;
+        gap: 0.3rem;
     }
 
-    .galint-custody-photo {
-        width: 78px;
-        height: 78px;
-        border-radius: 18px;
-        overflow: hidden;
-        border: 1px solid rgba(148, 163, 184, 0.22);
-        background: linear-gradient(145deg, rgba(15, 23, 42, 0.82) 0%, rgba(30, 41, 59, 0.92) 100%);
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
-        display: flex;
+    .galint-custody-overline {
+        display: inline-flex;
         align-items: center;
-        justify-content: center;
-    }
-
-    .galint-custody-photo img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        display: block;
-    }
-
-    .galint-custody-photo-placeholder {
-        color: rgba(191, 219, 254, 0.92);
-        font-size: 1.55rem;
-    }
-
-    .galint-custody-info {
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-        margin-bottom: 1rem;
-        padding: 0.95rem 1rem;
-        border-radius: 16px;
-        background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(15, 23, 42, 0.16) 100%);
-        border: 1px solid rgba(148, 163, 184, 0.2);
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
-        backdrop-filter: blur(8px);
+        gap: 0.35rem;
+        width: fit-content;
+        padding: 0.28rem 0.62rem;
+        border-radius: 999px;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        background: rgba(255, 255, 255, 0.06);
+        color: rgba(191, 219, 254, 0.82);
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
     }
 
     .galint-custody-employee {
-        font-size: 1.04rem;
-        font-weight: 700;
-        color: #f8fafc;
         margin: 0;
+        font-size: 1.12rem;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+        color: #f8fafc;
+        overflow-wrap: anywhere;
     }
 
     .galint-custody-subtext {
-        margin-top: 0.2rem;
-        font-size: 0.82rem;
-        color: rgba(191, 219, 254, 0.82);
+        font-size: 0.84rem;
+        color: rgba(226, 232, 240, 0.68);
+        max-width: 26ch;
+        line-height: 1.35;
+        overflow-wrap: anywhere;
+    }
+
+    .galint-custody-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.4rem 0.72rem;
+        border-radius: 999px;
+        font-size: 0.74rem;
+        font-weight: 700;
+        white-space: nowrap;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        color: rgba(226, 232, 240, 0.88);
+    }
+
+    .galint-custody-badge.atrasada {
+        background: rgba(127, 29, 29, 0.22);
+        border-color: rgba(248, 113, 113, 0.24);
+        color: #fecaca;
+    }
+
+    .galint-custody-badge.atencao {
+        background: rgba(120, 53, 15, 0.22);
+        border-color: rgba(251, 191, 36, 0.24);
+        color: #fde68a;
+    }
+
+    .galint-custody-hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1.18fr) minmax(180px, 0.82fr);
+        gap: 0.95rem;
+        margin-bottom: 0.95rem;
+    }
+
+    .galint-custody-gallery {
+        position: relative;
+        min-height: 206px;
+        border-radius: 20px;
+        overflow: hidden;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        background: linear-gradient(145deg, rgba(15, 23, 42, 0.86) 0%, rgba(30, 41, 59, 0.96) 100%);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    }
+
+    .galint-custody-gallery-frame {
+        position: relative;
+        min-height: 206px;
+    }
+
+    .galint-custody-gallery-slide {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        padding: 0;
+        border: none;
+        background: transparent;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.28s ease, transform 0.28s ease;
+        transform: scale(1.02);
+    }
+
+    .galint-custody-gallery-slide.is-visible {
+        opacity: 1;
+        transform: scale(1);
+        pointer-events: auto;
+    }
+
+    .galint-custody-gallery-slide.is-selected {
+        box-shadow: inset 0 0 0 2px rgba(96, 165, 250, 0.48);
+    }
+
+    .galint-custody-gallery-slide img,
+    .galint-custody-gallery-placeholder {
+        width: 100%;
+        height: 100%;
+        display: block;
+    }
+
+    .galint-custody-gallery-slide img {
+        object-fit: cover;
+    }
+
+    .galint-custody-gallery-placeholder {
+        display: grid;
+        place-items: center;
+        gap: 0.5rem;
+        background:
+            radial-gradient(circle at 50% 18%, rgba(96, 165, 250, 0.24), transparent 24%),
+            linear-gradient(180deg, rgba(15, 23, 42, 0.94) 0%, rgba(30, 41, 59, 0.98) 100%);
+        color: rgba(191, 219, 254, 0.86);
+        font-size: 1.8rem;
+    }
+
+    .galint-custody-gallery-placeholder span {
+        font-size: 0.84rem;
+        color: rgba(226, 232, 240, 0.7);
+    }
+
+    .galint-custody-gallery-overlay {
+        position: absolute;
+        inset: auto 0 0 0;
+        padding: 1rem;
+        background: linear-gradient(180deg, rgba(15, 23, 42, 0) 0%, rgba(15, 23, 42, 0.84) 48%, rgba(15, 23, 42, 0.96) 100%);
+        display: grid;
+        gap: 0.3rem;
+        text-align: left;
+    }
+
+    .galint-custody-gallery-overlay strong {
+        font-size: 0.96rem;
+        color: #ffffff;
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        overflow-wrap: anywhere;
+    }
+
+    .galint-custody-gallery-overlay span {
+        font-size: 0.8rem;
+        color: rgba(226, 232, 240, 0.82);
+    }
+
+    .galint-custody-gallery-chip {
+        display: inline-flex;
+        align-items: center;
+        width: fit-content;
+        padding: 0.26rem 0.56rem;
+        border-radius: 999px;
+        background: rgba(15, 23, 42, 0.72);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        color: #dbeafe;
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+    }
+
+    .galint-custody-gallery-controls {
+        position: absolute;
+        inset: auto 0 0 0;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.6rem;
+        padding: 0.75rem 0.8rem;
+        z-index: 2;
+    }
+
+    .galint-custody-gallery-nav {
+        width: 34px;
+        height: 34px;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(15, 23, 42, 0.7);
+        color: #f8fafc;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+    }
+
+    .galint-custody-gallery-nav:hover {
+        transform: translateY(-1px);
+        background: rgba(30, 41, 59, 0.86);
+        border-color: rgba(125, 211, 252, 0.28);
+    }
+
+    .galint-custody-gallery-dots {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex: 1;
+        gap: 0.4rem;
+    }
+
+    .galint-custody-gallery-dot {
+        width: 9px;
+        height: 9px;
+        padding: 0;
+        border-radius: 999px;
+        border: none;
+        background: rgba(226, 232, 240, 0.34);
+        transition: transform 0.18s ease, background 0.18s ease;
+    }
+
+    .galint-custody-gallery-dot.is-active {
+        background: #93c5fd;
+        transform: scale(1.15);
+    }
+
+    .galint-custody-summary {
+        display: grid;
+        gap: 0.7rem;
+        align-content: start;
+    }
+
+    .galint-custody-quick-stats {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.7rem;
+    }
+
+    .galint-custody-quick-stat {
+        padding: 0.85rem 0.9rem;
+        border-radius: 18px;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(15, 23, 42, 0.18) 100%);
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        display: grid;
+        gap: 0.22rem;
+    }
+
+    .galint-custody-quick-stat.is-wide {
+        grid-column: 1 / -1;
+    }
+
+    .galint-custody-quick-stat.is-alert {
+        border-color: rgba(248, 113, 113, 0.22);
+        background: linear-gradient(180deg, rgba(127, 29, 29, 0.18) 0%, rgba(15, 23, 42, 0.18) 100%);
+    }
+
+    .galint-custody-quick-label {
+        font-size: 0.72rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: rgba(148, 163, 184, 0.86);
+    }
+
+    .galint-custody-quick-value {
+        font-size: 1.16rem;
+        font-weight: 800;
+        color: #f8fafc;
+        line-height: 1.1;
+        overflow-wrap: anywhere;
+    }
+
+    .galint-custody-quick-note {
+        font-size: 0.78rem;
+        color: rgba(226, 232, 240, 0.66);
+        line-height: 1.35;
+        min-height: 2.1em;
+    }
+
+    .galint-custody-location-pill {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.55rem;
+        padding: 0.82rem 0.92rem;
+        border-radius: 18px;
+        background: rgba(15, 23, 42, 0.42);
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        color: rgba(226, 232, 240, 0.82);
+        font-size: 0.83rem;
+        line-height: 1.45;
+    }
+
+    .galint-custody-location-pill div {
+        min-width: 0;
+        overflow-wrap: anywhere;
+    }
+
+    .galint-custody-location-pill i {
+        color: #93c5fd;
+        margin-top: 0.05rem;
     }
 
     .galint-custody-preview-list {
         display: grid;
-        gap: 0.5rem;
-        max-height: 320px;
+        gap: 0.55rem;
+        max-height: 268px;
         overflow-y: auto;
-        padding-right: 0.35rem;
+        padding-right: 0.22rem;
         margin-bottom: 0.9rem;
         scrollbar-width: thin;
-        scrollbar-color: rgba(251, 113, 133, 0.42) rgba(15, 23, 42, 0.24);
-        scrollbar-gutter: stable;
+        scrollbar-color: rgba(96, 165, 250, 0.4) rgba(15, 23, 42, 0.22);
     }
 
     .galint-custody-preview-list::-webkit-scrollbar {
-        width: 14px;
+        width: 10px;
     }
 
     .galint-custody-preview-list::-webkit-scrollbar-track {
-        margin-block: 0.25rem;
         border-radius: 999px;
-        background: linear-gradient(180deg, rgba(69, 10, 10, 0.2) 0%, rgba(15, 23, 42, 0.18) 50%, rgba(69, 10, 10, 0.26) 100%);
-        border: 1px solid rgba(251, 113, 133, 0.12);
-        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+        background: rgba(15, 23, 42, 0.28);
     }
 
     .galint-custody-preview-list::-webkit-scrollbar-thumb {
         border-radius: 999px;
-        background: linear-gradient(180deg, rgba(251, 113, 133, 0.46) 0%, rgba(190, 24, 93, 0.28) 100%);
+        background: linear-gradient(180deg, rgba(96, 165, 250, 0.46) 0%, rgba(37, 99, 235, 0.28) 100%);
         border: 2px solid rgba(15, 23, 42, 0.18);
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14);
-    }
-
-    .galint-custody-preview-list::-webkit-scrollbar-thumb:hover {
-        background: linear-gradient(180deg, rgba(251, 113, 133, 0.58) 0%, rgba(225, 29, 72, 0.38) 100%);
-    }
-
-    .galint-custody-preview-list::-webkit-scrollbar-button:single-button {
-        display: block;
-        height: 14px;
-        border-radius: 999px;
-        background-color: rgba(15, 23, 42, 0.28);
-        border: 1px solid rgba(251, 113, 133, 0.14);
-        background-repeat: no-repeat;
-        background-position: center;
-        background-size: 8px 8px;
-    }
-
-    .galint-custody-preview-list::-webkit-scrollbar-button:single-button:hover {
-        background-color: rgba(59, 7, 20, 0.34);
-    }
-
-    .galint-custody-preview-list::-webkit-scrollbar-button:single-button:vertical:decrement {
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M1 7l4-4 4 4' fill='none' stroke='%23f8fafc' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-    }
-
-    .galint-custody-preview-list::-webkit-scrollbar-button:single-button:vertical:increment {
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M1 3l4 4 4-4' fill='none' stroke='%23f8fafc' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
     }
 
     .galint-custody-preview-item {
         width: 100%;
-        padding: 0.7rem 0.8rem;
-        border-radius: 14px;
+        padding: 0.78rem 0.88rem;
+        border-radius: 16px;
         background: rgba(15, 23, 42, 0.42);
         border: 1px solid rgba(148, 163, 184, 0.16);
         text-align: left;
-        display: flex;
-        flex-direction: column;
-        gap: 0.2rem;
+        display: grid;
+        gap: 0.28rem;
         cursor: pointer;
         transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
     }
 
     .galint-custody-preview-item:hover {
         transform: translateY(-1px);
-        border-color: rgba(96, 165, 250, 0.34);
-        background: rgba(30, 41, 59, 0.82);
-        box-shadow: 0 12px 24px rgba(15, 23, 42, 0.16);
+        border-color: rgba(96, 165, 250, 0.3);
+        background: rgba(30, 41, 59, 0.84);
+        box-shadow: 0 14px 24px rgba(15, 23, 42, 0.18);
     }
 
     .galint-custody-preview-item.is-selected {
-        border-color: rgba(96, 165, 250, 0.56);
-        background: rgba(30, 64, 175, 0.16);
-        box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.34), 0 16px 28px rgba(15, 23, 42, 0.18);
+        border-color: rgba(96, 165, 250, 0.54);
+        background: rgba(30, 64, 175, 0.18);
+        box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.3), 0 16px 28px rgba(15, 23, 42, 0.18);
     }
 
-    .galint-custody-preview-item:focus-visible {
+    .galint-custody-preview-item:focus-visible,
+    .galint-custody-gallery-slide:focus-visible,
+    .galint-custody-gallery-dot:focus-visible,
+    .galint-custody-gallery-nav:focus-visible {
         outline: 2px solid rgba(125, 211, 252, 0.9);
         outline-offset: 2px;
+    }
+
+    .galint-custody-preview-top {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.75rem;
+        align-items: flex-start;
     }
 
     .galint-custody-preview-item strong {
         display: block;
         color: #f8fafc;
-        font-size: 0.9rem;
-        margin-bottom: 0.15rem;
+        font-size: 0.91rem;
+        line-height: 1.35;
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        overflow-wrap: anywhere;
+    }
+
+    .galint-custody-preview-days {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        white-space: nowrap;
+        padding: 0.26rem 0.6rem;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        color: rgba(226, 232, 240, 0.84);
+        font-size: 0.73rem;
+        font-weight: 700;
+    }
+
+    .galint-custody-preview-days.is-alert {
+        background: rgba(127, 29, 29, 0.22);
+        border-color: rgba(248, 113, 113, 0.24);
+        color: #fecaca;
     }
 
     .galint-custody-preview-item span {
         display: block;
-        color: rgba(226, 232, 240, 0.76);
-        font-size: 0.8rem;
+        color: rgba(226, 232, 240, 0.74);
+        font-size: 0.79rem;
+        line-height: 1.45;
+        overflow-wrap: anywhere;
     }
 
     .galint-custody-preview-meta {
@@ -2096,50 +2272,35 @@
     }
 
     .galint-custody-preview-note {
-        color: rgba(148, 163, 184, 0.94);
-        font-size: 0.76rem;
+        color: rgba(148, 163, 184, 0.9);
+        font-size: 0.75rem;
         line-height: 1.4;
     }
 
-    .galint-custody-preview-more {
-        margin-top: 0.4rem;
-        color: rgba(148, 163, 184, 0.86);
-        font-size: 0.8rem;
-    }
-
     .galint-custody-selected {
-        margin-top: 0.25rem;
-        margin-bottom: 0.9rem;
-        padding: 0.75rem 0.9rem;
-        border-radius: 14px;
+        margin-bottom: 0.95rem;
+        padding: 0.78rem 0.92rem;
+        border-radius: 16px;
         background: rgba(255, 255, 255, 0.06);
-        border: 1px solid rgba(148, 163, 184, 0.16);
-        color: rgba(226, 232, 240, 0.86);
-        font-size: 0.84rem;
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        color: rgba(226, 232, 240, 0.82);
+        font-size: 0.83rem;
+        line-height: 1.45;
+        min-height: 58px;
+        overflow-wrap: anywhere;
     }
 
-    .galint-custody-field {
-        display: flex;
-        align-items: center;
-        font-size: 0.875rem;
-        color: rgba(226, 232, 240, 0.86);
-    }
-
-    .galint-custody-field-label {
-        font-weight: 500;
-        color: rgba(148, 163, 184, 0.92);
-        min-width: 90px;
-    }
-
-    .galint-custody-field-value {
-        color: #f8fafc;
+    .galint-custody-selected.is-ready {
+        background: rgba(30, 64, 175, 0.16);
+        border-color: rgba(96, 165, 250, 0.24);
+        color: #eff6ff;
     }
 
     .galint-custody-actions {
         display: flex;
-        gap: 0.5rem;
-        padding-top: 0.75rem;
-        border-top: 1px solid rgba(148, 163, 184, 0.18);
+        gap: 0.55rem;
+        padding-top: 0.82rem;
+        border-top: 1px solid rgba(148, 163, 184, 0.16);
     }
 
     .galint-custody-empty {
@@ -2147,27 +2308,61 @@
         padding: 3rem 1rem;
         color: rgba(226, 232, 240, 0.74);
         font-size: 0.95rem;
-        border-radius: 20px;
+        border-radius: 22px;
         background: rgba(255, 255, 255, 0.06);
         border: 1px solid rgba(148, 163, 184, 0.14);
-    }
-
-    @media (max-width: 575.98px) {
-        .galint-custody-body {
-            grid-template-columns: 1fr;
-        }
-
-        .galint-custody-photo {
-            width: 100%;
-            max-width: 96px;
-            height: 96px;
-        }
     }
 
     .galint-custody-empty-icon {
         font-size: 3rem;
         margin-bottom: 1rem;
-        opacity: 0.7;
+        opacity: 0.68;
+    }
+
+    @media (max-width: 767.98px) {
+        .galint-custody-feed-list {
+            grid-template-columns: 1fr;
+        }
+
+        .galint-custody-hero {
+            grid-template-columns: 1fr;
+        }
+
+        .galint-custody-gallery {
+            min-height: 228px;
+        }
+
+        .galint-custody-gallery-frame {
+            min-height: 228px;
+        }
+
+        .galint-custody-actions {
+            flex-direction: column;
+        }
+
+        .galint-custody-actions .galint-custody-btn {
+            width: 100%;
+        }
+    }
+
+    @media (max-width: 575.98px) {
+        .galint-custody-card {
+            padding: 0.92rem;
+        }
+
+        .galint-custody-header {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .galint-custody-quick-stats {
+            grid-template-columns: 1fr;
+        }
+
+        .galint-custody-preview-top {
+            flex-direction: column;
+            gap: 0.45rem;
+        }
     }
 
     .galint-custody-modal-content {
@@ -2969,6 +3164,8 @@
 
         let currentGroups = [];
         const selectedToolsByGroup = new Map();
+        const focusedToolsByGroup = new Map();
+        const galleryTimers = new Map();
 
         function formatDate(isoValue) {
             if (!isoValue) {
@@ -2991,6 +3188,16 @@
         function formatDays(value) {
             const days = Number(value) || 0;
             return `${days} dia${days === 1 ? '' : 's'}`;
+        }
+
+        function formatToolCount(value) {
+            const total = Number(value) || 0;
+            return `${total} ferramenta${total === 1 ? '' : 's'}`;
+        }
+
+        function formatPendingCount(value) {
+            const total = Number(value) || 0;
+            return `${total} pendência${total === 1 ? '' : 's'}`;
         }
 
         function formatLocations(values) {
@@ -3016,6 +3223,80 @@
 
         function getItemKey(item) {
             return `${item?.source || 'saida'}:${item?.id || '0'}`;
+        }
+
+        function getOrderedItems(group) {
+            return [...(group?.items || [])].sort((left, right) => (Number(right.dias_em_uso) || 0) - (Number(left.dias_em_uso) || 0));
+        }
+
+        function clearGalleryTimer(groupKey) {
+            const timerId = galleryTimers.get(groupKey);
+            if (timerId) {
+                window.clearInterval(timerId);
+                galleryTimers.delete(groupKey);
+            }
+        }
+
+        function clearAllGalleryTimers() {
+            galleryTimers.forEach((timerId) => {
+                window.clearInterval(timerId);
+            });
+            galleryTimers.clear();
+        }
+
+        function applyGalleryFocus(group, wrapper, itemKey, options = {}) {
+            if (!group || !wrapper) {
+                return;
+            }
+
+            const orderedItems = getOrderedItems(group);
+            if (!orderedItems.length) {
+                clearGalleryTimer(group.key);
+                return;
+            }
+
+            const focusedItem = orderedItems.find((item) => getItemKey(item) === itemKey) || orderedItems[0];
+            const focusedKey = getItemKey(focusedItem);
+            const selectedKey = selectedToolsByGroup.get(group.key) || '';
+
+            focusedToolsByGroup.set(group.key, focusedKey);
+
+            wrapper.querySelectorAll('.js-custody-gallery-slide').forEach((slide) => {
+                const slideKey = slide.getAttribute('data-tool-key') || '';
+                slide.classList.toggle('is-visible', slideKey === focusedKey);
+                slide.classList.toggle('is-selected', slideKey === selectedKey);
+            });
+
+            wrapper.querySelectorAll('.js-custody-gallery-dot').forEach((dot) => {
+                dot.classList.toggle('is-active', (dot.getAttribute('data-tool-key') || '') === focusedKey);
+            });
+
+            clearGalleryTimer(group.key);
+            if (options.restartTimer === false || orderedItems.length < 2 || selectedToolsByGroup.has(group.key)) {
+                return;
+            }
+
+            const timerId = window.setInterval(() => {
+                if (!document.body.contains(wrapper)) {
+                    clearGalleryTimer(group.key);
+                    return;
+                }
+                moveGallery(group, wrapper, 1);
+            }, 4300);
+
+            galleryTimers.set(group.key, timerId);
+        }
+
+        function moveGallery(group, wrapper, direction) {
+            const orderedItems = getOrderedItems(group);
+            if (orderedItems.length < 2) {
+                return;
+            }
+
+            const persistedFocusKey = focusedToolsByGroup.get(group.key);
+            const currentIndex = Math.max(0, orderedItems.findIndex((item) => getItemKey(item) === persistedFocusKey));
+            const nextIndex = (currentIndex + direction + orderedItems.length) % orderedItems.length;
+            applyGalleryFocus(group, wrapper, getItemKey(orderedItems[nextIndex]));
         }
 
         function groupByEmployee(items) {
@@ -3073,7 +3354,7 @@
                 });
         }
 
-        function applyGroupSelection(group, wrapper, itemKey) {
+        function applyGroupSelection(group, wrapper, itemKey, options = {}) {
             if (!group || !wrapper) {
                 return;
             }
@@ -3081,13 +3362,16 @@
             const selectedLabel = wrapper.querySelector('.js-custody-selected');
             const returnButton = wrapper.querySelector('.js-custody-return');
             const toolButtons = wrapper.querySelectorAll('.js-custody-tool');
-            const selectedItem = group.items.find((item) => getItemKey(item) === itemKey) || null;
+            const orderedItems = getOrderedItems(group);
+            const selectedItem = orderedItems.find((item) => getItemKey(item) === itemKey) || null;
+            const fallbackFocusKey = options.focusKey || focusedToolsByGroup.get(group.key) || (orderedItems[0] ? getItemKey(orderedItems[0]) : '');
 
             if (!selectedItem) {
                 selectedToolsByGroup.delete(group.key);
                 toolButtons.forEach((button) => button.classList.remove('is-selected'));
                 if (selectedLabel) {
-                    selectedLabel.textContent = 'Selecione uma ferramenta abaixo para dar baixa.';
+                    selectedLabel.textContent = 'Selecione uma ferramenta para destacar a foto e liberar a baixa.';
+                    selectedLabel.classList.remove('is-ready');
                 }
                 if (returnButton) {
                     returnButton.disabled = true;
@@ -3097,6 +3381,7 @@
                         returnButton.removeAttribute(attr);
                     });
                 }
+                applyGalleryFocus(group, wrapper, fallbackFocusKey, options);
                 return;
             }
 
@@ -3107,7 +3392,8 @@
             });
 
             if (selectedLabel) {
-                selectedLabel.textContent = `Selecionada: ${selectedItem.descricao || 'Ferramenta'} • ${formatDays(selectedItem.dias_em_uso)} • Código ${selectedItem.codigo || '-'}`;
+                selectedLabel.textContent = `Ferramenta pronta para baixa: ${selectedItem.descricao || 'Ferramenta'} • ${formatDays(selectedItem.dias_em_uso)}`;
+                selectedLabel.classList.add('is-ready');
             }
             if (returnButton) {
                 returnButton.disabled = false;
@@ -3119,11 +3405,16 @@
                 returnButton.setAttribute('data-matricula', selectedItem.matricula_full || selectedItem.matricula || '');
                 returnButton.setAttribute('data-group-key', group.key || '');
             }
+
+            applyGalleryFocus(group, wrapper, selectedKey, options);
         }
 
         function render(groups) {
+            clearAllGalleryTimers();
+
             if (!groups || !groups.length) {
                 selectedToolsByGroup.clear();
+                focusedToolsByGroup.clear();
                 custodyContainer.innerHTML = `
                     <div class="galint-custody-empty">
                         <div class="galint-custody-empty-icon">✅</div>
@@ -3147,62 +3438,103 @@
                     wrapper.classList.add('pulse-alert-yellow');
                 }
 
-                const photoMarkup = group.photoUrl
-                    ? `<img src="${group.photoUrl}" alt="${escapeHtml(group.usuario)}" loading="lazy">`
-                    : '<div class="galint-custody-photo-placeholder"><i class="bi bi-person-workspace"></i></div>';
-
-                const orderedItems = [...group.items].sort((left, right) => (Number(right.dias_em_uso) || 0) - (Number(left.dias_em_uso) || 0));
+                const orderedItems = getOrderedItems(group);
                 const persistedSelectedKey = selectedToolsByGroup.get(group.key);
                 const selectedKey = orderedItems.some((item) => getItemKey(item) === persistedSelectedKey)
                     ? persistedSelectedKey
                     : '';
+                const persistedFocusKey = focusedToolsByGroup.get(group.key);
+                const focusKey = orderedItems.some((item) => getItemKey(item) === persistedFocusKey)
+                    ? persistedFocusKey
+                    : (selectedKey || (orderedItems[0] ? getItemKey(orderedItems[0]) : ''));
                 const selectedItem = orderedItems.find((item) => getItemKey(item) === selectedKey) || null;
+                const totalToolsLabel = formatToolCount(group.totalTools);
+                const locationsLabel = escapeHtml(formatLocations(group.locations));
 
-                let statusBadge = `<span class="galint-custody-badge">${group.totalTools} ferramenta(s)</span>`;
+                let statusBadge = `<span class="galint-custody-badge"><i class="bi bi-tools"></i>${totalToolsLabel}</span>`;
                 if (visualState === 'late') {
-                    statusBadge = `<span class="galint-custody-badge atrasada">${group.overdueCount} pendência(s)</span>`;
+                    statusBadge = `<span class="galint-custody-badge atrasada"><i class="bi bi-exclamation-circle"></i>${formatPendingCount(group.overdueCount)}</span>`;
                 } else if (visualState === 'attention') {
-                    statusBadge = `<span class="galint-custody-badge atencao">Maior permanência ${formatDays(group.maxDays)}</span>`;
+                    statusBadge = `<span class="galint-custody-badge atencao"><i class="bi bi-clock-history"></i>${formatDays(group.maxDays)}</span>`;
                 }
 
                 wrapper.innerHTML = `
                     <div class="galint-custody-header">
-                        <div>
+                        <div class="galint-custody-header-main">
+                            <div class="galint-custody-overline"><i class="bi bi-shield-check"></i> Custódia diária</div>
                             <h3 class="galint-custody-employee">${escapeHtml(group.usuario)}</h3>
-                            <div class="galint-custody-subtext">Matrícula ${escapeHtml(group.matricula || '-')}</div>
+                            <div class="galint-custody-subtext">${totalToolsLabel} em posse para baixa direta</div>
                         </div>
                         ${statusBadge}
                     </div>
-                    <div class="galint-custody-body">
-                        <div class="galint-custody-photo">${photoMarkup}</div>
-                        <div class="galint-custody-info">
-                            <div class="galint-custody-field">
-                                <span class="galint-custody-field-label">Maior prazo:</span>
-                                <span class="galint-custody-field-value">${formatDays(group.maxDays)}</span>
+                    <div class="galint-custody-hero">
+                        <div class="galint-custody-gallery">
+                            <div class="galint-custody-gallery-frame">
+                                ${orderedItems.map((item, index) => `
+                                    <button type="button" class="galint-custody-gallery-slide js-custody-gallery-slide ${getItemKey(item) === focusKey ? 'is-visible' : ''} ${getItemKey(item) === selectedKey ? 'is-selected' : ''}" data-tool-key="${escapeHtml(getItemKey(item))}" aria-label="Exibir foto de ${escapeHtml(item.descricao || 'ferramenta')}">
+                                        ${item.foto_url
+                                            ? `<img src="${escapeHtml(item.foto_url)}" alt="${escapeHtml(item.descricao || 'Ferramenta')}" loading="lazy">`
+                                            : `<div class="galint-custody-gallery-placeholder"><i class="bi bi-image"></i><span>Sem foto desta ferramenta</span></div>`}
+                                        <div class="galint-custody-gallery-overlay">
+                                            <span class="galint-custody-gallery-chip">${index + 1}/${orderedItems.length}</span>
+                                            <strong>${escapeHtml(item.descricao || 'Ferramenta não identificada')}</strong>
+                                            <span>${escapeHtml(formatDays(item.dias_em_uso))} • Qtd ${escapeHtml(item.quantidade || 0)}</span>
+                                        </div>
+                                    </button>
+                                `).join('')}
                             </div>
-                            <div class="galint-custody-field">
-                                <span class="galint-custody-field-label">Pendências:</span>
-                                <span class="galint-custody-field-value">${group.overdueCount ? `${group.overdueCount} acima do prazo` : 'Sem atraso acima do prazo'}</span>
+                            ${orderedItems.length > 1 ? `
+                                <div class="galint-custody-gallery-controls">
+                                    <button type="button" class="galint-custody-gallery-nav js-custody-gallery-prev" aria-label="Foto anterior"><i class="bi bi-chevron-left"></i></button>
+                                    <div class="galint-custody-gallery-dots">
+                                        ${orderedItems.map((item) => `
+                                            <button type="button" class="galint-custody-gallery-dot js-custody-gallery-dot ${getItemKey(item) === focusKey ? 'is-active' : ''}" data-tool-key="${escapeHtml(getItemKey(item))}" aria-label="Ir para foto de ${escapeHtml(item.descricao || 'ferramenta')}"></button>
+                                        `).join('')}
+                                    </div>
+                                    <button type="button" class="galint-custody-gallery-nav js-custody-gallery-next" aria-label="Próxima foto"><i class="bi bi-chevron-right"></i></button>
+                                </div>
+                            ` : ''}
+                        </div>
+                        <div class="galint-custody-summary">
+                            <div class="galint-custody-quick-stats">
+                                <div class="galint-custody-quick-stat">
+                                    <span class="galint-custody-quick-label">Ferramentas</span>
+                                    <strong class="galint-custody-quick-value">${group.totalTools}</strong>
+                                    <span class="galint-custody-quick-note">itens em posse</span>
+                                </div>
+                                <div class="galint-custody-quick-stat">
+                                    <span class="galint-custody-quick-label">Maior prazo</span>
+                                    <strong class="galint-custody-quick-value">${formatDays(group.maxDays)}</strong>
+                                    <span class="galint-custody-quick-note">mais antiga em aberto</span>
+                                </div>
+                                <div class="galint-custody-quick-stat is-wide ${group.overdueCount ? 'is-alert' : ''}">
+                                    <span class="galint-custody-quick-label">Pendências</span>
+                                    <strong class="galint-custody-quick-value">${group.overdueCount ? `${group.overdueCount} acima do prazo` : 'Sem pendências'}</strong>
+                                    <span class="galint-custody-quick-note">somente diárias acima do prazo</span>
+                                </div>
                             </div>
-                            <div class="galint-custody-field">
-                                <span class="galint-custody-field-label">Locais:</span>
-                                <span class="galint-custody-field-value">${escapeHtml(formatLocations(group.locations))}</span>
+                            <div class="galint-custody-location-pill">
+                                <i class="bi bi-geo-alt"></i>
+                                <div><strong class="d-block text-white mb-1">Locais ativos</strong>${locationsLabel}</div>
                             </div>
                         </div>
                     </div>
                     <div class="galint-custody-preview-list">
                         ${orderedItems.map((item) => `
                             <button type="button" class="galint-custody-preview-item js-custody-tool ${getItemKey(item) === selectedKey ? 'is-selected' : ''}" data-tool-key="${escapeHtml(getItemKey(item))}">
-                                <strong>${escapeHtml(item.descricao || 'Item não identificado')}</strong>
-                                <span>${formatDays(item.dias_em_uso)} • ${escapeHtml(item.codigo || '-')} • ${escapeHtml(item.local_servico || 'Não informado')}</span>
+                                <div class="galint-custody-preview-top">
+                                    <strong>${escapeHtml(item.descricao || 'Item não identificado')}</strong>
+                                    <span class="galint-custody-preview-days ${item.atrasada ? 'is-alert' : ''}">${formatDays(item.dias_em_uso)}</span>
+                                </div>
+                                <span>${escapeHtml(item.local_servico || 'Local não informado')}</span>
                                 <span class="galint-custody-preview-meta">Qtd ${escapeHtml(item.quantidade || 0)} • ${escapeHtml(formatDate(item.data_retirada_iso))}</span>
                                 ${item.observacao ? `<small class="galint-custody-preview-note">${escapeHtml(item.observacao)}</small>` : ''}
                             </button>
                         `).join('')}
                     </div>
-                    <div class="galint-custody-selected js-custody-selected">${selectedItem
-                        ? `Selecionada: ${escapeHtml(selectedItem.descricao || 'Ferramenta')} • ${escapeHtml(formatDays(selectedItem.dias_em_uso))} • Código ${escapeHtml(selectedItem.codigo || '-')}`
-                        : 'Selecione uma ferramenta abaixo para dar baixa.'}</div>
+                    <div class="galint-custody-selected js-custody-selected ${selectedItem ? 'is-ready' : ''}">${selectedItem
+                        ? `Ferramenta pronta para baixa: ${escapeHtml(selectedItem.descricao || 'Ferramenta')} • ${escapeHtml(formatDays(selectedItem.dias_em_uso))}`
+                        : 'Selecione uma ferramenta para destacar a foto e liberar a baixa.'}</div>
                     <div class="galint-custody-actions">
                         <a href="/controle-ferramentas/funcionario/${encodeURIComponent(group.matricula_full || group.matricula || '')}" class="galint-custody-btn galint-custody-btn-secondary">Ver ficha</a>
                         <button type="button" data-group-key="${escapeHtml(group.key)}" class="galint-custody-btn galint-custody-btn-primary js-custody-return" ${selectedItem ? '' : 'disabled'}>Dar baixa</button>
@@ -3215,6 +3547,32 @@
                     });
                 });
 
+                wrapper.querySelectorAll('.js-custody-gallery-slide').forEach((slideButton) => {
+                    slideButton.addEventListener('click', () => {
+                        applyGroupSelection(group, wrapper, slideButton.getAttribute('data-tool-key') || '');
+                    });
+                });
+
+                wrapper.querySelectorAll('.js-custody-gallery-dot').forEach((dotButton) => {
+                    dotButton.addEventListener('click', () => {
+                        applyGalleryFocus(group, wrapper, dotButton.getAttribute('data-tool-key') || '');
+                    });
+                });
+
+                const previousButton = wrapper.querySelector('.js-custody-gallery-prev');
+                if (previousButton) {
+                    previousButton.addEventListener('click', () => {
+                        moveGallery(group, wrapper, -1);
+                    });
+                }
+
+                const nextButton = wrapper.querySelector('.js-custody-gallery-next');
+                if (nextButton) {
+                    nextButton.addEventListener('click', () => {
+                        moveGallery(group, wrapper, 1);
+                    });
+                }
+
                 const returnButton = wrapper.querySelector('.js-custody-return');
                 if (returnButton) {
                     returnButton.addEventListener('click', () => {
@@ -3224,7 +3582,7 @@
                     });
                 }
 
-                applyGroupSelection(group, wrapper, selectedKey);
+                applyGroupSelection(group, wrapper, selectedKey, { focusKey, restartTimer: true });
 
                 fragment.appendChild(wrapper);
             });

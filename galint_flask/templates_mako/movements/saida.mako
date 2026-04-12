@@ -1010,6 +1010,7 @@ ${parent.scripts()}
     const mirrorChannelName = 'galint-operation-mirror-v1';
     const mirrorStorageKey = 'galint.operationMirrorState.v1';
     const mirrorChannel = typeof window.BroadcastChannel !== 'undefined' ? new BroadcastChannel(mirrorChannelName) : null;
+    let mirrorActivityTimer = null;
     const btnOpenExpressReturn = document.getElementById('btn-open-express-return');
     const modalDevolucaoExpressaEl = document.getElementById('modalDevolucaoExpressa');
     const modalDevolucaoExpressa = modalDevolucaoExpressaEl ? new bootstrap.Modal(modalDevolucaoExpressaEl) : null;
@@ -1116,6 +1117,7 @@ ${parent.scripts()}
     }
 
     function buildMirrorPayload(status, item, extra) {
+        const extraConfig = extra || {};
         const actor = String((item && item.usuario) || inputUsuario.value || '').trim();
         const local = String((item && item.local) || inputLocal.value || '').trim();
         const payload = {
@@ -1123,8 +1125,8 @@ ${parent.scripts()}
             kind_label: 'Saida',
             status: status,
             generated_at: new Date().toISOString(),
-            source_label: 'registro de saida',
-            batch_label: ((extra && extra.itemCount) || items.length || 0) + ' item(ns) na coleta',
+            source_label: String(extraConfig.sourceLabel || 'registro de saida'),
+            batch_label: String(extraConfig.batchLabel || (((extraConfig.itemCount) || items.length || 0) + ' item(ns) na coleta')),
             actor: {
                 nome: actor,
             },
@@ -1132,6 +1134,10 @@ ${parent.scripts()}
                 local_servico: local,
             },
         };
+
+        if (extraConfig.operatorActive) {
+            payload.operator_active = true;
+        }
 
         if (item) {
             payload.item = {
@@ -1150,6 +1156,25 @@ ${parent.scripts()}
         }
 
         return payload;
+    }
+
+    function scheduleMirrorOperatorHeartbeat() {
+        if (currentPreviewItem) {
+            renderCurrentPreview(currentPreviewItem, 'preview');
+            return;
+        }
+
+        if (mirrorActivityTimer !== null) {
+            window.clearTimeout(mirrorActivityTimer);
+        }
+
+        mirrorActivityTimer = window.setTimeout(function() {
+            mirrorActivityTimer = null;
+            publishMirrorState(buildMirrorPayload('idle', null, {
+                operatorActive: true,
+                sourceLabel: 'preparacao da saida',
+            }));
+        }, 220);
     }
 
     function renderCurrentPreview(item, status, publishState) {
@@ -1334,6 +1359,7 @@ ${parent.scripts()}
     inputCodigo.addEventListener('input', function() {
         const query = this.value.trim();
         clearTimeout(debounceTimerCodigo);
+        scheduleMirrorOperatorHeartbeat();
         
         if (query.length < 1) {
             dropdownCodigo.classList.remove('show');
@@ -1866,7 +1892,17 @@ ${parent.scripts()}
         if (currentPreviewItem) {
             currentPreviewItem.quantidade_input = parseInt(this.value, 10) || 1;
             renderCurrentPreview(currentPreviewItem, 'preview');
+            return;
         }
+        scheduleMirrorOperatorHeartbeat();
+    });
+
+    inputUsuario.addEventListener('input', function() {
+        scheduleMirrorOperatorHeartbeat();
+    });
+
+    inputUsuario.addEventListener('focus', function() {
+        scheduleMirrorOperatorHeartbeat();
     });
 
     inputUsuario.addEventListener('blur', function() {
@@ -1880,7 +1916,21 @@ ${parent.scripts()}
         if (currentPreviewItem) {
             currentPreviewItem.local = String(inputLocal.value || '').trim();
             renderCurrentPreview(currentPreviewItem, 'preview');
+            return;
         }
+        scheduleMirrorOperatorHeartbeat();
+    });
+
+    inputLocal.addEventListener('focus', function() {
+        scheduleMirrorOperatorHeartbeat();
+    });
+
+    inputCodigo.addEventListener('focus', function() {
+        scheduleMirrorOperatorHeartbeat();
+    });
+
+    inputQuantidade.addEventListener('focus', function() {
+        scheduleMirrorOperatorHeartbeat();
     });
 
     inputCodigo.addEventListener('blur', function() {

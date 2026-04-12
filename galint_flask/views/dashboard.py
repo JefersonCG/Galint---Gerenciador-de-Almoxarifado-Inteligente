@@ -39,16 +39,16 @@ _DASHBOARD_MONTH_NAMES = (
 
 _DASHBOARD_MONTH_ICONS = (
     "❄️",
-    "🎭",
-    "☘️",
-    "🌷",
+    "🎡",
+    "🍀",
     "🌸",
+    "🌩️",
     "☀️",
     "🏖️",
-    "🏝️",
+    "🏘️",
     "🍂",
-    "🎃",
-    "🦃",
+    "🎂",
+    "🪺",
     "🎄",
 )
 
@@ -130,15 +130,15 @@ def _dashboard_context(
     dashboard_now = _build_dashboard_now_context()
     total_entradas_registradas = db.session.query(Entrada.id_entrada).count()
     can_view_finance = not shared_view
-    
-    # Informações sobre relatórios automáticos de entradas
+
     from ..services.entrada_report_service import entrada_report_service
+
     ultimo_ciclo = entrada_report_service.get_ultimo_ciclo_gerado()
     proximo_ciclo = ultimo_ciclo + 1
     entradas_necessarias = proximo_ciclo * entrada_report_service.CONTADOR_CICLO
     faltam_entradas = max(0, entradas_necessarias - total_entradas_registradas)
     progresso_pct = min(100, int((total_entradas_registradas % entrada_report_service.CONTADOR_CICLO) / entrada_report_service.CONTADOR_CICLO * 100))
-    
+
     reports = [
         {
             "id": "falta",
@@ -243,123 +243,10 @@ def saidas_feed():
 def custody_active():
     """Retorna apenas ferramentas temporárias ativas para o feed do dashboard."""
     from ..services.tool_custody_service import tool_custody_service
-    from ..models import Item, RetiradaFerramenta, Usuario
-    from sqlalchemy import func
-
-    employees = tool_custody_service.get_all_employees_with_tools()
-    itens: list[dict[str, Any]] = []
-
-    for employee in employees:
-        matricula_full = employee.get("matricula") or ""
-        matricula_short = (
-            matricula_full[-5:] if isinstance(matricula_full, str) and len(matricula_full) >= 5 else matricula_full
-        )
-
-        for tool in employee.get("tools", []):
-            if tool.get("tipo_custodia") == "permanente":
-                continue
-
-            data_saida = tool.get("data_saida")
-            dias_em_uso = int(tool.get("days_in_use") or 0)
-
-            itens.append(
-                {
-                    "id": tool.get("saida_id"),
-                    "source": "saida",
-                    "codigo": tool.get("codigo_item"),
-                    "descricao": tool.get("descricao") or "",
-                    "observacao": tool.get("observacao") or "",
-                    "foto_url": url_for("static", filename=tool.get("foto_path")) if tool.get("foto_path") else None,
-                    "quantidade": tool.get("quantidade") or 0,
-                    "usuario": employee.get("nome") or "",
-                    "matricula": matricula_short,
-                    "matricula_full": matricula_full,
-                    "local_servico": tool.get("local_servico") or "Não informado",
-                    "data_retirada_iso": TimeService.isoformat_utc(data_saida),
-                    "dias_em_uso": dias_em_uso,
-                    "atrasada": bool(tool.get("is_alert", False)),
-                    "data_prevista_devolucao": None,
-                }
-            )
-
-    # Complemento: retiradas em custódia diária registradas via fluxo novo (RetiradaFerramenta).
-    # Importante: o feed legado acima é baseado em Saida; aqui pegamos as que ainda não entram lá.
-    pares_ja_no_feed = {
-        (str(i.get("matricula_full") or ""), str(i.get("codigo") or ""))
-        for i in itens
-        if i.get("matricula_full") and i.get("codigo")
-    }
-
-    retiradas_abertas = (
-        db.session.query(RetiradaFerramenta, Item, Usuario)
-        .join(Item, RetiradaFerramenta.codigo_item == Item.codigo_item)
-        .join(Usuario, RetiradaFerramenta.matricula == Usuario.matricula)
-        .filter(
-            RetiradaFerramenta.status.in_(["em_uso", "atrasada"]),
-            func.lower(Item.categoria).contains("ferrament"),
-        )
-        .order_by(RetiradaFerramenta.data_retirada.desc())
-        .limit(200)
-        .all()
-    )
-
-    for retirada, item, usuario in retiradas_abertas:
-        matricula_full = usuario.matricula or ""
-        matricula_short = (
-            matricula_full[-5:]
-            if isinstance(matricula_full, str) and len(matricula_full) >= 5
-            else matricula_full
-        )
-        key = (str(matricula_full), str(item.codigo_item))
-        if key in pares_ja_no_feed:
-            continue
-
-        try:
-            dias_em_uso = int((datetime.utcnow() - retirada.data_retirada).days)
-        except Exception:
-            dias_em_uso = 0
-
-        # Filtrar retiradas que na prática representam custódia permanente.
-        if tool_custody_service.is_permanent_custody(
-            tipo_custodia_raw=None,
-            local_servico=getattr(retirada, "local_servico", None),
-            observacao=getattr(retirada, "observacao", None),
-            days_in_use=dias_em_uso,
-        ):
-            continue
-
-        # Regras de atraso no dashboard:
-        # - Com data prevista: somente após vencimento.
-        # - Sem data prevista: considera atraso apenas acima de 30 dias.
-        data_prevista = getattr(retirada, "data_prevista_devolucao", None)
-        if data_prevista is not None:
-            atrasada = date.today() > data_prevista
-        else:
-            atrasada = dias_em_uso > 30
-
-        itens.append(
-            {
-                "id": retirada.id,
-                "source": "retirada_ferramenta",
-                "codigo": item.codigo_item,
-                "descricao": item.descricao or "",
-                "observacao": getattr(retirada, "observacao", None) or "",
-                "foto_url": url_for("static", filename=item.foto_path) if item.foto_path else None,
-                "quantidade": retirada.quantidade or 0,
-                "usuario": usuario.nome or "",
-                "matricula": matricula_short,
-                "matricula_full": matricula_full,
-                "local_servico": retirada.local_servico or "Não informado",
-                "data_retirada_iso": TimeService.isoformat_utc(retirada.data_retirada),
-                "dias_em_uso": dias_em_uso,
-                "atrasada": atrasada,
-                "data_prevista_devolucao": (
-                    retirada.data_prevista_devolucao.isoformat()
-                    if getattr(retirada, "data_prevista_devolucao", None)
-                    else None
-                ),
-            }
-        )
+    itens = tool_custody_service.get_daily_custody_feed_items()
+    for item in itens:
+        foto_path = item.pop("foto_path", None)
+        item["foto_url"] = url_for("static", filename=foto_path) if foto_path else None
 
     itens.sort(key=lambda item: item.get("data_retirada_iso") or "", reverse=True)
     itens = itens[:50]
