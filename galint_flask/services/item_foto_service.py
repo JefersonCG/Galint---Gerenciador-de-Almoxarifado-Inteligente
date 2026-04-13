@@ -24,6 +24,8 @@ class ItemFotoService:
     EXTENSOES_PERMITIDAS = {'png', 'jpg', 'jpeg', 'jpe', 'webp', 'gif'}
     TAMANHO_MAXIMO_MB = 5
     FOTO_MAX_LADO = 800
+    FOTO_CANVAS_LADO = 800
+    FOTO_CANVAS_PADDING = 48
     FOTO_QUALIDADE_BASE = 60
     FOTO_QUALIDADE_MIN = 35
     FOTO_MAX_KB = 200
@@ -64,15 +66,19 @@ class ItemFotoService:
 
         image = ImageOps.exif_transpose(image)
 
-        max_lado = ItemFotoService.FOTO_MAX_LADO
-        if max_lado and max_lado > 0:
-            image.thumbnail((max_lado, max_lado), Image.Resampling.LANCZOS)
-
         has_alpha = image.mode in ("RGBA", "LA", "P")
-        if has_alpha:
-            image = image.convert("RGBA")
-        else:
-            image = image.convert("RGB")
+        image_rgba = image.convert("RGBA") if has_alpha else image.convert("RGB").convert("RGBA")
+
+        canvas_side = max(int(ItemFotoService.FOTO_CANVAS_LADO or 0), 1)
+        padding = max(int(ItemFotoService.FOTO_CANVAS_PADDING or 0), 0)
+        content_side = max(canvas_side - (padding * 2), 1)
+
+        processed = ImageOps.contain(image_rgba, (content_side, content_side), Image.Resampling.LANCZOS)
+        canvas = Image.new("RGB", (canvas_side, canvas_side), (255, 255, 255))
+        paste_x = (canvas_side - processed.width) // 2
+        paste_y = (canvas_side - processed.height) // 2
+        canvas.paste(processed.convert("RGB"), (paste_x, paste_y), processed)
+        image = canvas
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         codigo_limpo = secure_filename(codigo_item)

@@ -5549,6 +5549,8 @@
         const resp = await fetch(`/itens/${encodeURIComponent(item.codigo)}/precos/reposicao`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+            credentials: 'same-origin',
+            cache: 'no-store',
             body: JSON.stringify({
                 preco_reposicao_unitario: chosen.price,
                 preco_reposicao_unidade_preco: normalizePriceUnitCode(priceUnit) || null,
@@ -5699,6 +5701,7 @@
 
         let appliedCount = 0;
         const failures = [];
+        const appliedCodes = new Set();
 
         for (const { entry, candidate } of selectedEntries) {
             const item = entry.item || {};
@@ -5715,6 +5718,7 @@
                     resolvePreferredPriceUnit(item, item?.preco_reposicao_unidade_preco || item?.preco_compra_unidade_preco || '')
                 );
                 appliedCount += 1;
+                appliedCodes.add(String(item.codigo || '').trim());
                 syncBatchResultSavedState(item.codigo, updated);
                 if (currentPriceItem && String(currentPriceItem.codigo) === String(item.codigo)) {
                     Object.assign(currentPriceItem, updated);
@@ -5740,6 +5744,15 @@
 
         try {
             if (appliedCount > 0) {
+                currentBatchResults = currentBatchResults.filter((entry) => !appliedCodes.has(String(entry?.item?.codigo || '').trim()));
+                renderBatchSummary(currentBatchCategory, {
+                    ...currentBatchSummary,
+                    pending_total: Math.max(Number(currentBatchSummary.pending_total || 0) - appliedCount, 0),
+                    shown: currentBatchResults.length,
+                });
+                if (currentBatchResults.length) {
+                    renderBatchResults();
+                }
                 await refreshBatchPriceSuggestions();
             } else {
                 renderBatchSummary(currentBatchCategory, currentBatchSummary);
@@ -6001,8 +6014,12 @@
         summaryEl.classList.add('d-none');
 
         try {
-            const url = `/itens/categoria/${encodeURIComponent(category)}/precos/reposicao/lote?item_limit=${encodeURIComponent(PRICE_BATCH_DEFAULT_LIMIT)}`;
-            const response = await fetch(url, { headers: { 'Accept': 'application/json' } });
+            const url = `/itens/categoria/${encodeURIComponent(category)}/precos/reposicao/lote?item_limit=${encodeURIComponent(PRICE_BATCH_DEFAULT_LIMIT)}&_ts=${Date.now()}`;
+            const response = await fetch(url, {
+                headers: { 'Accept': 'application/json' },
+                credentials: 'same-origin',
+                cache: 'no-store',
+            });
             const data = await readJsonResponse(response);
             if (!response.ok || !data?.success) {
                 throw new Error(data?.message || 'Falha ao buscar sugestões em lote');
