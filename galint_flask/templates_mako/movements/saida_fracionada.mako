@@ -4,7 +4,7 @@
 
 <%block name="extra_css">
 <style>
-    @import url('${url_for("static", filename="css/express-return-modal.css")}');
+    @import url('${url_for("static", filename="css/express-return-modal.css")}?v=20260414b');
 
     .saida-container {
         max-width: 900px;
@@ -667,7 +667,7 @@
 <%block name="scripts">
 ${parent.scripts()}
 <script src="${url_for('static', filename='js/mirror-screen-launcher.js')}"></script>
-<script src="${url_for('static', filename='js/express-return-modal.js')}"></script>
+<script src="${url_for('static', filename='js/express-return-modal.js')}?v=20260414b"></script>
 <script>
 (function() {
     let pendingItem = null;

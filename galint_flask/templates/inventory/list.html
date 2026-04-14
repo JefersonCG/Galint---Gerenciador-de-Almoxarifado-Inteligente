@@ -2277,7 +2277,9 @@
 
     .price-batch-results {
         display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
         gap: 0.85rem;
+        align-items: stretch;
     }
 
     .price-batch-intro {
@@ -2329,8 +2331,16 @@
         border: 1px solid rgba(148, 163, 184, 0.18);
         border-radius: 16px;
         padding: 0.95rem 1rem;
+        display: grid;
+        align-content: start;
+        justify-items: center;
         box-shadow: 0 16px 30px rgba(2, 6, 23, 0.16);
         transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
+        text-align: center;
+    }
+
+    .price-batch-card > * {
+        width: 100%;
     }
 
     .price-batch-card.is-ready {
@@ -2343,11 +2353,17 @@
     }
 
     .price-batch-head {
-        display: flex;
-        align-items: flex-start;
-        justify-content: space-between;
-        gap: 1rem;
+        display: grid;
+        justify-items: center;
+        gap: 0.8rem;
         margin-bottom: 0.55rem;
+        text-align: center;
+    }
+
+    .price-batch-head-main {
+        display: grid;
+        gap: 0.35rem;
+        justify-items: center;
     }
 
     .price-batch-title {
@@ -2360,11 +2376,15 @@
     .price-batch-code {
         color: #94a3b8;
         font-size: 0.78rem;
+        text-align: center;
     }
 
     .price-batch-summary {
-        text-align: right;
-        min-width: 165px;
+        display: grid;
+        gap: 0.15rem;
+        justify-items: center;
+        text-align: center;
+        min-width: 0;
     }
 
     .price-batch-median {
@@ -2377,20 +2397,31 @@
         color: #cbd5e1;
         font-size: 0.8rem;
         margin-bottom: 0.5rem;
+        text-align: center;
+    }
+
+    .price-batch-providers {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 0.5rem;
     }
 
     .price-batch-suggestions {
         display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(165px, 1fr));
         gap: 0.55rem;
         margin-top: 0.7rem;
     }
 
     .price-batch-picker-head {
         display: flex;
-        align-items: baseline;
-        justify-content: space-between;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
         gap: 0.75rem;
         margin-top: 0.8rem;
+        text-align: center;
     }
 
     .price-batch-picker-head strong {
@@ -2406,10 +2437,10 @@
     .price-batch-suggestion {
         display: flex;
         flex-direction: column;
-        align-items: stretch;
+        align-items: center;
         gap: 0.3rem;
         width: 100%;
-        text-align: left;
+        text-align: center;
         font-size: 0.78rem;
         color: #cbd5e1;
         background: rgba(15, 23, 42, 0.34);
@@ -2438,7 +2469,7 @@
     .price-batch-suggestion-top {
         display: flex;
         align-items: center;
-        justify-content: space-between;
+        justify-content: center;
         gap: 0.75rem;
     }
 
@@ -2477,7 +2508,7 @@
     .price-batch-actions {
         display: flex;
         flex-wrap: wrap;
-        justify-content: space-between;
+        justify-content: center;
         align-items: center;
         gap: 0.5rem;
         margin-top: 0.9rem;
@@ -2487,6 +2518,7 @@
         font-size: 0.78rem;
         color: #94a3b8;
         margin-top: 0.6rem;
+        text-align: center;
     }
 
     .price-batch-status.is-saved {
@@ -2519,7 +2551,8 @@
     @media (max-width: 767.98px) {
         .price-batch-intro {
             flex-direction: column;
-            align-items: flex-start;
+            align-items: center;
+            text-align: center;
         }
 
         .price-batch-intro-chip {
@@ -2532,11 +2565,11 @@
         #priceBatchModal .modal-footer,
         #categoryModal .modal-footer {
             flex-direction: column;
-            align-items: stretch;
+            align-items: center;
         }
 
         .price-batch-summary {
-            text-align: left;
+            text-align: center;
             min-width: 0;
         }
 
@@ -5930,7 +5963,7 @@
             return `
                 <div class="price-batch-card ${entry.success ? '' : 'is-error'} ${selectedCandidate ? 'is-ready' : ''}" data-batch-item="${escapeHtml(item.codigo || '')}">
                     <div class="price-batch-head">
-                        <div>
+                        <div class="price-batch-head-main">
                             <p class="price-batch-title">${escapeHtml(item.descricao || 'Item')}</p>
                             <div class="price-batch-code">Código ${escapeHtml(item.codigo || '—')} • ${escapeHtml(item.categoria || 'Sem categoria')}${item.marca ? ` • ${escapeHtml(item.marca)}` : ''}</div>
                         </div>
@@ -5940,7 +5973,7 @@
                         </div>
                     </div>
                     <div class="price-batch-query">Busca: ${escapeHtml(entry.query || '')}</div>
-                    <div class="d-flex flex-wrap gap-2">${providerBadges}</div>
+                    <div class="price-batch-providers">${providerBadges}</div>
                     <div class="price-batch-picker-head">
                         <strong>Valor para aplicar</strong>
                         <span>${selectedCandidate ? 'Selecionado para aplicar' : 'Selecione uma sugestão ou a mediana'}</span>
@@ -6222,7 +6255,6 @@
             return;
         }
         updateBadge(matches.length, true);
-        const newItemUrl = `{{ url_for('inventory.new_item_form') }}?codigo=${encodeURIComponent(query)}`;
         const isNumericCode = /^\d{8,}$/.test(query);
 
         if (!matches.length) {
@@ -6231,8 +6263,7 @@
                 resultsContainer.innerHTML = `
                     <div class="list-group-item">
                         <p class="mb-2">O item com código <strong>${escapeHtml(query)}</strong> não foi encontrado.</p>
-                        <p class="mb-0">Deseja cadastrá-lo agora?</p>
-                        <a href="${newItemUrl}" class="btn btn-success btn-sm mt-2">Sim, cadastrar novo item</a>
+                        <p class="mb-0 text-muted">O cadastro inicial deve ser feito em Documentos Fiscais. A busca rápida continua disponível aqui apenas para localizar itens já existentes.</p>
                     </div>
                 `;
             } else {

@@ -110,9 +110,23 @@
             return String(item && (item.saida_id || item.id || item.codigo || '') || '');
         }
 
-        function setStatus(message, tone) {
+        function revealStatus() {
+            if (!statusEl || typeof statusEl.scrollIntoView !== 'function') {
+                return;
+            }
+            try {
+                statusEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            } catch (_error) {
+                statusEl.scrollIntoView();
+            }
+        }
+
+        function setStatus(message, tone, options) {
             statusEl.textContent = message || 'Sem informacoes no momento.';
             statusEl.className = 'alert express-return-status ' + getToneClass(tone);
+            if (options && options.reveal) {
+                revealStatus();
+            }
         }
 
         function renderCollaborators() {
@@ -344,15 +358,18 @@
 
         async function submitReturn() {
             if (!state.selectedCollaborator) {
-                setStatus((config.messages && config.messages.selectCollaborator) || 'Escolha o colaborador antes de devolver.', 'warning');
+                setStatus((config.messages && config.messages.selectCollaborator) || 'Escolha o colaborador antes de devolver.', 'warning', { reveal: true });
                 return;
             }
             if (!state.selectedItem) {
-                setStatus((config.messages && config.messages.selectItem) || 'Escolha o item antes de devolver.', 'warning');
+                setStatus((config.messages && config.messages.selectItem) || 'Escolha o item antes de devolver.', 'warning', { reveal: true });
                 return;
             }
 
             var request;
+            submitButton.disabled = true;
+            submitButton.textContent = (config.messages && config.messages.submitBusy) || 'Devolvendo...';
+
             try {
                 request = config.buildSubmitRequest({
                     collaborator: state.selectedCollaborator,
@@ -360,17 +377,18 @@
                     modalEl: modalEl,
                 });
             } catch (error) {
-                setStatus(error.message || 'Nao foi possivel preparar a devolucao.', 'warning');
+                setStatus(error.message || 'Nao foi possivel preparar a devolucao.', 'warning', { reveal: true });
+                submitButton.disabled = !state.selectedItem;
+                submitButton.textContent = (config.messages && config.messages.submitButton) || 'Fazer devolucao';
                 return;
             }
 
             if (!request || !request.url) {
-                setStatus('Configuracao invalida da devolucao expressa.', 'danger');
+                setStatus('Configuracao invalida da devolucao expressa.', 'danger', { reveal: true });
+                submitButton.disabled = !state.selectedItem;
+                submitButton.textContent = (config.messages && config.messages.submitButton) || 'Fazer devolucao';
                 return;
             }
-
-            submitButton.disabled = true;
-            submitButton.textContent = (config.messages && config.messages.submitBusy) || 'Devolvendo...';
 
             try {
                 var response = await fetchWithSession(request.url, request.options || {}, request.authMessage || config.authMessageSubmit);
@@ -383,12 +401,12 @@
                     preferredIdentifier: getCollaboratorIdentity(state.selectedCollaborator),
                     silent: true,
                 });
-                setStatus(data.message || ((config.messages && config.messages.submitSuccess) || 'Devolucao registrada com sucesso.'), 'success');
+                setStatus(data.message || ((config.messages && config.messages.submitSuccess) || 'Devolucao registrada com sucesso.'), 'success', { reveal: true });
             } catch (error) {
                 if (error && error.isAuthRedirect) {
                     return;
                 }
-                setStatus(error.message || ((config.messages && config.messages.submitError) || 'Falha ao registrar a devolucao expressa.'), 'danger');
+                setStatus(error.message || ((config.messages && config.messages.submitError) || 'Falha ao registrar a devolucao expressa.'), 'danger', { reveal: true });
             } finally {
                 submitButton.disabled = !state.selectedItem;
                 submitButton.textContent = (config.messages && config.messages.submitButton) || 'Fazer devolucao';

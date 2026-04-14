@@ -6,7 +6,7 @@
 
 <%block name="extra_css">
 <style>
-    @import url('${url_for("static", filename="css/express-return-modal.css")}');
+    @import url('${url_for("static", filename="css/express-return-modal.css")}?v=20260414b');
 
     .saida-container {
         max-width: 1200px;
@@ -947,7 +947,7 @@
 <%block name="scripts">
 ${parent.scripts()}
 <script src="${url_for('static', filename='js/mirror-screen-launcher.js')}"></script>
-<script src="${url_for('static', filename='js/express-return-modal.js')}"></script>
+<script src="${url_for('static', filename='js/express-return-modal.js')}?v=20260414b"></script>
 <script>
 (function() {
     const items = [];
@@ -1082,6 +1082,58 @@ ${parent.scripts()}
         return unidade ? quantidade + ' ' + unidade : String(quantidade);
     }
 
+    function buildMirrorDraftPayload() {
+        const quantidadeDigitada = parseInt(inputQuantidade.value, 10) || 1;
+        return {
+            codigo: String(inputCodigo.value || '').trim(),
+            quantidade: quantidadeDigitada,
+            quantidade_display: String(quantidadeDigitada),
+            usuario: String(inputUsuario.value || '').trim(),
+            local_servico: String(inputLocal.value || '').trim(),
+        };
+    }
+
+    function cloneMirrorBatchItem(item, status) {
+        if (!item) {
+            return null;
+        }
+
+        return {
+            codigo: item.codigo || '',
+            descricao: item.descricao || item.codigo || '',
+            quantidade: item.quantidade_exibicao || item.quantidade_input || item.quantidade || 1,
+            quantidade_display: formatPreviewQuantity(item),
+            usuario: String(item.usuario || inputUsuario.value || '').trim(),
+            local: String(item.local || inputLocal.value || '').trim(),
+            foto_url: item.foto_url || '',
+            status: status || 'queued',
+        };
+    }
+
+    function buildMirrorBatchItems(previewItem, config) {
+        const extraConfig = config || {};
+        const defaultStatus = String(extraConfig.defaultStatus || 'queued').trim().toLowerCase() || 'queued';
+        const sourceItems = Array.isArray(extraConfig.batchItems) ? extraConfig.batchItems : items;
+        const batchItems = sourceItems
+            .map((entry) => cloneMirrorBatchItem(entry, defaultStatus))
+            .filter(Boolean);
+
+        if (previewItem && String(extraConfig.previewStatus || '').trim().toLowerCase() === 'preview') {
+            const previewEntry = cloneMirrorBatchItem(previewItem, 'preview');
+            const duplicateIndex = batchItems.findIndex((entry) => {
+                return entry.codigo === previewEntry.codigo
+                    && entry.usuario === previewEntry.usuario
+                    && entry.local === previewEntry.local
+                    && entry.quantidade_display === previewEntry.quantidade_display;
+            });
+            if (duplicateIndex === -1) {
+                batchItems.push(previewEntry);
+            }
+        }
+
+        return batchItems.slice(-8);
+    }
+
     function publishMirrorState(payload) {
         const launcher = window.GalintMirrorScreenLauncher;
         if (launcher && typeof launcher.publishMirrorState === 'function') {
@@ -1109,13 +1161,25 @@ ${parent.scripts()}
         const extraConfig = extra || {};
         const actor = String((item && item.usuario) || inputUsuario.value || '').trim();
         const local = String((item && item.local) || inputLocal.value || '').trim();
+        const batchItems = buildMirrorBatchItems(item, {
+            batchItems: extraConfig.batchItems,
+            previewStatus: status,
+            defaultStatus: extraConfig.batchItemStatus || (status === 'completed' ? 'completed' : 'queued'),
+        });
+        const batchTotalCandidate = Number(extraConfig.batchTotal);
+        const batchTotal = Number.isFinite(batchTotalCandidate) && batchTotalCandidate > 0
+            ? batchTotalCandidate
+            : batchItems.length;
         const payload = {
             kind: 'saida',
             kind_label: 'Saida',
             status: status,
             generated_at: new Date().toISOString(),
             source_label: String(extraConfig.sourceLabel || 'registro de saida'),
-            batch_label: String(extraConfig.batchLabel || (((extraConfig.itemCount) || items.length || 0) + ' item(ns) na coleta')),
+            batch_label: String(extraConfig.batchLabel || (batchTotal + ' item(ns) na coleta')),
+            batch_total: batchTotal,
+            batch_items: batchItems,
+            draft: buildMirrorDraftPayload(),
             actor: {
                 nome: actor,
             },
@@ -1931,7 +1995,8 @@ ${parent.scripts()}
         try {
             const failedItems = [];
             let successCount = 0;
-            const completedSnapshot = items.length ? { ...items[items.length - 1] } : null;
+            const completedBatchItems = items.map((entry) => ({ ...entry }));
+            const completedSnapshot = completedBatchItems.length ? { ...completedBatchItems[completedBatchItems.length - 1] } : null;
             const completedCount = items.length;
 
             for (const group of groups.filter(entry => entry.itens.length > 0)) {
@@ -2004,7 +2069,12 @@ ${parent.scripts()}
 
             if (failedItems.length === 0) {
                 if (completedSnapshot && successCount > 0) {
-                    publishMirrorState(buildMirrorPayload('completed', completedSnapshot, { itemCount: completedCount }));
+                    publishMirrorState(buildMirrorPayload('completed', completedSnapshot, {
+                        itemCount: completedCount,
+                        batchItems: completedBatchItems,
+                        batchTotal: completedCount,
+                        batchItemStatus: 'completed',
+                    }));
                 }
                 alert('✓ Saídas registradas com sucesso.');
                 resetCurrentGroupForm(true);
