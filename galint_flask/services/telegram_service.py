@@ -357,22 +357,24 @@ class TelegramService:
 
     @staticmethod
     def _withdrawal_recipients(*, exclude_chat_ids: set[str] | None = None) -> list[dict[str, str]]:
-        """Retorna um único destinatário operacional para notificações de retirada."""
+        """Retorna todos os destinatários operacionais para notificações de retirada."""
 
         excluded = {str(chat_id) for chat_id in (exclude_chat_ids or set()) if chat_id}
 
+        recipients: list[dict[str, str]] = []
         admins = TelegramService._privileged_users_query().order_by(TelegramUser.id.asc()).all()
         for adm in admins:
             chat_id = str(adm.chat_id)
             if chat_id in excluded:
                 continue
-            return [{
+            excluded.add(chat_id)
+            recipients.append({
                 "chat_id": chat_id,
                 "recipient_name": f"Admin: {getattr(getattr(adm, 'usuario', None), 'nome', None) or adm.matricula}",
                 "target": "admin",
-            }]
+            })
 
-        return []
+        return recipients
 
     
 
