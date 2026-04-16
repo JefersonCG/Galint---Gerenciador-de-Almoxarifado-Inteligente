@@ -6,8 +6,7 @@ from werkzeug.utils import secure_filename
 from ..services.config_service import ConfigService
 from ..services.finance_service import finance_service
 from ..services.galint_notify_service import GalintNotifyService
-from ..services.inventory import inventory_service, ADMIN_BALANCE_ADJUSTMENT_TYPE
-from ..services.admin_stock_audit_sqlite import log_admin_stock_adjustment
+from ..services.inventory import inventory_service
 from ..services.notification_router import NotificationRouterService
 from ..services.telegram_service import TelegramService
 from ..extensions import db
@@ -15,16 +14,6 @@ from ..models import NotificationRouterConfig, TelegramConfig, TelegramUser, Usu
 
 
 bp = Blueprint("config", __name__, url_prefix="/configuracoes")
-
-
-def _parse_balance_value(value: str | None) -> float:
-    raw = str(value or "").strip().replace(",", ".")
-    if not raw:
-        raise ValueError("Informe o saldo alvo")
-    try:
-        return float(raw)
-    except ValueError as exc:
-        raise ValueError("Informe um saldo válido") from exc
 
 
 def _build_admin_adjustment_audit_context(*, codigo: str, novo_saldo: float | None, motivo: str | None) -> dict[str, object]:
@@ -402,53 +391,27 @@ def estoque_ajuste_admin():
 
     if request.method == "POST":
         motivo = (request.form.get("motivo") or "").strip()
-        novo_saldo = None
+        user_id = str(getattr(current_user, "matricula", "") or getattr(current_user, "id", ""))
         audit_context = _build_admin_adjustment_audit_context(
             codigo=selected_code,
-            novo_saldo=novo_saldo,
+            novo_saldo=None,
             motivo=motivo,
         )
-        service_called = False
         try:
-            if request.form.get("confirmar_ajuste") != "on":
-                raise ValueError("Confirme o ajuste administrativo antes de aplicar.")
-
-            novo_saldo = _parse_balance_value(request.form.get("novo_saldo"))
-            audit_context["target_balance"] = novo_saldo
-            service_called = True
-
-            result = inventory_service.set_admin_absolute_balance(
-                codigo=selected_code,
-                novo_saldo=novo_saldo,
-                matricula=str(getattr(current_user, "matricula", "") or getattr(current_user, "id", "")),
+            result = inventory_service.apply_admin_item_adjustments(
+                codigo_atual=selected_code,
+                novo_codigo=request.form.get("novo_codigo"),
+                novo_saldo=request.form.get("novo_saldo"),
+                matricula=user_id,
                 motivo=motivo,
                 audit_context=audit_context,
             )
-            flash(result.get("message") or "Ajuste administrativo aplicado.", "success" if result.get("changed") else "info")
-            return redirect(url_for("config.estoque_ajuste_admin", codigo=selected_code))
+            flash(result.get("message") or "Ajustes administrativos aplicados.", "success" if result.get("changed") else "info")
+            return redirect(url_for("config.estoque_ajuste_admin", codigo=result.get("codigo_atual") or selected_code))
         except ValueError as exc:
-            if not service_called:
-                log_admin_stock_adjustment(
-                    action_type=ADMIN_BALANCE_ADJUSTMENT_TYPE,
-                    action_result="validation_error",
-                    details={
-                        **audit_context,
-                        "error_message": str(exc),
-                    },
-                )
             flash(str(exc), "danger")
         except Exception as exc:
-            if not service_called:
-                log_admin_stock_adjustment(
-                    action_type=ADMIN_BALANCE_ADJUSTMENT_TYPE,
-                    action_result="error",
-                    details={
-                        **audit_context,
-                        "target_balance": novo_saldo,
-                        "error_message": str(exc),
-                    },
-                )
-            flash("Erro interno ao aplicar ajuste administrativo.", "danger")
+            flash("Erro interno ao aplicar os ajustes administrativos.", "danger")
 
     if selected_code:
         try:

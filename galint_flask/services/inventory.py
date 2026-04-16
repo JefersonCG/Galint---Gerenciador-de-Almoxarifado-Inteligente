@@ -14,7 +14,7 @@ from types import SimpleNamespace
 from typing import Any
 from unicodedata import normalize as unicode_normalize
 
-from sqlalchemy import or_, func
+from sqlalchemy import or_, func, inspect, text
 from sqlalchemy.exc import IntegrityError
 
 from ..extensions import db
@@ -1066,6 +1066,8 @@ class MovimentoPayload:
 
 ADMIN_BALANCE_ADJUSTMENT_TYPE = "ajuste_admin_saldo"
 ADMIN_BALANCE_ADJUSTMENT_SOURCE = "admin_balance_portal"
+ADMIN_ITEM_CODE_CHANGE_TYPE = "ajuste_admin_codigo"
+ADMIN_ITEM_CODE_CHANGE_SOURCE = "admin_code_portal"
 ADMIN_BALANCE_DAILY_LIMIT = 4
 ADMIN_BALANCE_PENDING_PRECADASTRO_MESSAGE = (
     "Ajuste administrativo bloqueado: este item está com pré-cadastro pendente. "
@@ -1533,6 +1535,398 @@ class InventoryService:
             action_result=action_result,
             details=details,
         )
+
+    @staticmethod
+    def _build_admin_code_change_audit_details(
+        *,
+        item: Item | None,
+        codigo_anterior: str | None,
+        codigo_novo: str | None,
+        matricula: str | None,
+        motivo: str | None,
+        audit_context: dict[str, Any] | None = None,
+        before: dict[str, Any] | None = None,
+        after: dict[str, Any] | None = None,
+        result: dict[str, Any] | None = None,
+        error_message: str | None = None,
+    ) -> dict[str, Any]:
+        details = dict(audit_context or {})
+        codigo_antigo_norm = _sanitize_codigo(codigo_anterior)
+        codigo_novo_norm = _sanitize_codigo(codigo_novo)
+
+        if item is not None:
+            details.setdefault("descricao_item", item.descricao)
+        details["codigo_item"] = codigo_novo_norm or codigo_antigo_norm or details.get("codigo_item")
+        details["codigo_item_anterior"] = codigo_antigo_norm or None
+        details["codigo_item_novo"] = codigo_novo_norm or None
+
+        if matricula:
+            details.setdefault("user_id", matricula)
+        if motivo is not None:
+            details["reason"] = str(motivo or "").strip() or None
+        if error_message:
+            details["error_message"] = error_message
+
+        if before:
+            details["displayed_balance_before"] = before.get("saldo_exibido")
+            details["legacy_balance_before"] = before.get("legacy_balance")
+            details["ledger_balance_before"] = before.get("ledger_balance")
+            details["stock_balance_before"] = before.get("stock_balance")
+
+        if after:
+            details["displayed_balance_after"] = after.get("saldo_exibido")
+            details["legacy_balance_after"] = after.get("legacy_balance")
+            details["ledger_balance_after"] = after.get("ledger_balance")
+            details["stock_balance_after"] = after.get("stock_balance")
+
+        if result:
+            details["changed"] = bool(result.get("changed"))
+            details["codigo_item_anterior"] = result.get("codigo_anterior") or details.get("codigo_item_anterior")
+            details["codigo_item_novo"] = result.get("codigo_atual") or details.get("codigo_item_novo")
+            if result.get("message"):
+                details["message"] = result.get("message")
+            if result.get("updated_tables") is not None:
+                details["updated_tables"] = result.get("updated_tables")
+
+        return details
+
+    @classmethod
+    def _log_admin_code_change_audit(cls, *, action_result: str, details: dict[str, Any]) -> None:
+        log_admin_stock_adjustment(
+            action_type=ADMIN_ITEM_CODE_CHANGE_TYPE,
+            action_result=action_result,
+            details=details,
+        )
+
+    @staticmethod
+    def _parse_optional_admin_target_balance(value: Any) -> float | None:
+        raw = str(value or "").strip().replace(",", ".")
+        if not raw:
+            return None
+        try:
+            return float(raw)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("Informe um saldo válido") from exc
+
+    def _get_item_code_reference_columns(self) -> list[tuple[str, str]]:
+        inspector = inspect(db.engine)
+        reference_columns: list[tuple[str, str]] = []
+        for table_name in sorted(inspector.get_table_names()):
+            column_names = {str(column.get("name")) for column in inspector.get_columns(table_name)}
+            for candidate in ("codigo_item", "product_id"):
+                if candidate in column_names:
+                    reference_columns.append((table_name, candidate))
+        return reference_columns
+
+    def change_item_code_admin(
+        self,
+        *,
+        codigo_atual: str,
+        novo_codigo: str,
+        matricula: str,
+        motivo: str,
+        audit_context: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        audit_context_norm = dict(audit_context or {})
+        codigo_atual_norm = _sanitize_codigo(codigo_atual)
+        novo_codigo_norm = _sanitize_codigo(novo_codigo)
+        motivo_norm = str(motivo or "").strip()
+
+        if not codigo_atual_norm:
+            message = "Informe o código atual do item"
+            self._log_admin_code_change_audit(
+                action_result="validation_error",
+                details=self._build_admin_code_change_audit_details(
+                    item=None,
+                    codigo_anterior=codigo_atual,
+                    codigo_novo=novo_codigo,
+                    matricula=matricula,
+                    motivo=motivo_norm,
+                    audit_context=audit_context_norm,
+                    error_message=message,
+                ),
+            )
+            raise ValueError(message)
+
+        if not novo_codigo_norm:
+            message = "Informe o novo código de barras"
+            self._log_admin_code_change_audit(
+                action_result="validation_error",
+                details=self._build_admin_code_change_audit_details(
+                    item=None,
+                    codigo_anterior=codigo_atual_norm,
+                    codigo_novo=novo_codigo,
+                    matricula=matricula,
+                    motivo=motivo_norm,
+                    audit_context=audit_context_norm,
+                    error_message=message,
+                ),
+            )
+            raise ValueError(message)
+
+        if not motivo_norm:
+            message = "Informe o motivo da alteração do código de barras"
+            self._log_admin_code_change_audit(
+                action_result="validation_error",
+                details=self._build_admin_code_change_audit_details(
+                    item=None,
+                    codigo_anterior=codigo_atual_norm,
+                    codigo_novo=novo_codigo_norm,
+                    matricula=matricula,
+                    motivo=motivo_norm,
+                    audit_context=audit_context_norm,
+                    error_message=message,
+                ),
+            )
+            raise ValueError(message)
+
+        item = Item.query.get(codigo_atual_norm)
+        if not item:
+            message = "Item não encontrado"
+            self._log_admin_code_change_audit(
+                action_result="validation_error",
+                details=self._build_admin_code_change_audit_details(
+                    item=None,
+                    codigo_anterior=codigo_atual_norm,
+                    codigo_novo=novo_codigo_norm,
+                    matricula=matricula,
+                    motivo=motivo_norm,
+                    audit_context=audit_context_norm,
+                    error_message=message,
+                ),
+            )
+            raise ValueError(message)
+
+        if bool(getattr(item, "pre_cadastro_pendente", False)):
+            self._log_admin_code_change_audit(
+                action_result="pre_cadastro_blocked",
+                details=self._build_admin_code_change_audit_details(
+                    item=item,
+                    codigo_anterior=codigo_atual_norm,
+                    codigo_novo=novo_codigo_norm,
+                    matricula=matricula,
+                    motivo=motivo_norm,
+                    audit_context=audit_context_norm,
+                    error_message=ADMIN_BALANCE_PENDING_PRECADASTRO_MESSAGE,
+                ),
+            )
+            raise ValueError(ADMIN_BALANCE_PENDING_PRECADASTRO_MESSAGE)
+
+        snapshot_before = self.get_admin_balance_snapshot(codigo_atual_norm)
+        if novo_codigo_norm == codigo_atual_norm:
+            result = {
+                "changed": False,
+                "codigo_anterior": codigo_atual_norm,
+                "codigo_atual": codigo_atual_norm,
+                "message": "O item já está com esse código de barras.",
+            }
+            self._log_admin_code_change_audit(
+                action_result="no_change",
+                details=self._build_admin_code_change_audit_details(
+                    item=item,
+                    codigo_anterior=codigo_atual_norm,
+                    codigo_novo=novo_codigo_norm,
+                    matricula=matricula,
+                    motivo=motivo_norm,
+                    audit_context=audit_context_norm,
+                    before=snapshot_before,
+                    after=snapshot_before,
+                    result=result,
+                ),
+            )
+            return result
+
+        if Item.query.get(novo_codigo_norm):
+            message = "Código já cadastrado"
+            self._log_admin_code_change_audit(
+                action_result="validation_error",
+                details=self._build_admin_code_change_audit_details(
+                    item=item,
+                    codigo_anterior=codigo_atual_norm,
+                    codigo_novo=novo_codigo_norm,
+                    matricula=matricula,
+                    motivo=motivo_norm,
+                    audit_context=audit_context_norm,
+                    before=snapshot_before,
+                    error_message=message,
+                ),
+            )
+            raise ValueError(message)
+
+        reference_columns = self._get_item_code_reference_columns()
+        trigger_tables = sorted({table_name for table_name, _ in reference_columns})
+        updated_tables: dict[str, int] = {}
+        timestamp_now = datetime.utcnow()
+
+        try:
+            for table_name in trigger_tables:
+                db.session.execute(text(f'ALTER TABLE "{table_name}" DISABLE TRIGGER ALL'))
+
+            for table_name, column_name in reference_columns:
+                if table_name == "itens":
+                    continue
+                result = db.session.execute(
+                    text(f'UPDATE "{table_name}" SET "{column_name}" = :novo_codigo WHERE "{column_name}" = :codigo_atual'),
+                    {"novo_codigo": novo_codigo_norm, "codigo_atual": codigo_atual_norm},
+                )
+                updated_tables[table_name] = int(result.rowcount or 0)
+
+            db.session.execute(
+                text(
+                    'UPDATE "itens" '
+                    'SET "codigo_item" = :novo_codigo, "ultima_edicao_em" = :ultima_edicao_em, "ultima_edicao_por" = :ultima_edicao_por '
+                    'WHERE "codigo_item" = :codigo_atual'
+                ),
+                {
+                    "novo_codigo": novo_codigo_norm,
+                    "codigo_atual": codigo_atual_norm,
+                    "ultima_edicao_em": timestamp_now,
+                    "ultima_edicao_por": matricula,
+                },
+            )
+
+            db.session.expire_all()
+            item_atualizado = Item.query.get(novo_codigo_norm)
+            if item_atualizado is None:
+                raise ValueError("Falha ao localizar o item após atualizar o código")
+
+            try:
+                barcode_path = generate_barcode(novo_codigo_norm, item_atualizado.descricao)
+                item_atualizado.barcode_image_path = barcode_path
+            except Exception as barcode_error:
+                logger.warning("Não foi possível regenerar barcode administrativo para %s: %s", novo_codigo_norm, barcode_error)
+                item_atualizado.barcode_image_path = get_barcode_path(novo_codigo_norm) or item_atualizado.barcode_image_path
+
+            item_atualizado.ultima_edicao_em = timestamp_now
+            item_atualizado.ultima_edicao_por = matricula
+
+            for table_name in reversed(trigger_tables):
+                db.session.execute(text(f'ALTER TABLE "{table_name}" ENABLE TRIGGER ALL'))
+
+            db.session.commit()
+        except Exception as exc:
+            db.session.rollback()
+            self._log_admin_code_change_audit(
+                action_result="error",
+                details=self._build_admin_code_change_audit_details(
+                    item=item,
+                    codigo_anterior=codigo_atual_norm,
+                    codigo_novo=novo_codigo_norm,
+                    matricula=matricula,
+                    motivo=motivo_norm,
+                    audit_context=audit_context_norm,
+                    before=snapshot_before,
+                    error_message=str(exc),
+                ),
+            )
+            raise
+
+        self.clear_runtime_cache("search_items_for_autocomplete")
+        self.clear_runtime_cache("list_items")
+        self.clear_runtime_cache("dashboard_snapshot")
+
+        snapshot_after = self.get_admin_balance_snapshot(novo_codigo_norm)
+        result = {
+            "changed": True,
+            "codigo_anterior": codigo_atual_norm,
+            "codigo_atual": novo_codigo_norm,
+            "updated_tables": {key: value for key, value in updated_tables.items() if value},
+            "message": "Código de barras alterado com sucesso.",
+            "before": snapshot_before,
+            "after": snapshot_after,
+        }
+        self._log_admin_code_change_audit(
+            action_result="success",
+            details=self._build_admin_code_change_audit_details(
+                item=Item.query.get(novo_codigo_norm),
+                codigo_anterior=codigo_atual_norm,
+                codigo_novo=novo_codigo_norm,
+                matricula=matricula,
+                motivo=motivo_norm,
+                audit_context=audit_context_norm,
+                before=snapshot_before,
+                after=snapshot_after,
+                result=result,
+            ),
+        )
+        return result
+
+    def apply_admin_item_adjustments(
+        self,
+        *,
+        codigo_atual: str,
+        novo_codigo: str | None,
+        novo_saldo: Any,
+        matricula: str,
+        motivo: str,
+        audit_context: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        codigo_atual_norm = _sanitize_codigo(codigo_atual)
+        if not codigo_atual_norm:
+            raise ValueError("Informe o código do item")
+
+        motivo_norm = str(motivo or "").strip()
+        novo_codigo_norm = _sanitize_codigo(novo_codigo) or codigo_atual_norm
+        target_balance = self._parse_optional_admin_target_balance(novo_saldo)
+        audit_context_norm = dict(audit_context or {})
+
+        code_audit_context = dict(audit_context_norm)
+        code_audit_context["codigo_item_anterior"] = codigo_atual_norm
+        code_audit_context["codigo_item_novo"] = novo_codigo_norm or None
+        if motivo_norm:
+            code_audit_context["reason"] = motivo_norm
+
+        balance_audit_context = dict(audit_context_norm)
+        if motivo_norm:
+            balance_audit_context["reason"] = motivo_norm
+        if target_balance is not None:
+            balance_audit_context["target_balance"] = target_balance
+
+        mensagens: list[str] = []
+        houve_alteracao = False
+        codigo_final = codigo_atual_norm
+        code_result: dict[str, Any] | None = None
+        balance_result: dict[str, Any] | None = None
+
+        if novo_codigo_norm != codigo_atual_norm:
+            code_result = self.change_item_code_admin(
+                codigo_atual=codigo_atual_norm,
+                novo_codigo=novo_codigo_norm,
+                matricula=matricula,
+                motivo=motivo_norm,
+                audit_context=code_audit_context,
+            )
+            codigo_final = str(code_result.get("codigo_atual") or codigo_final)
+            if code_result.get("message"):
+                mensagens.append(str(code_result.get("message")))
+            houve_alteracao = bool(code_result.get("changed")) or houve_alteracao
+
+        if target_balance is not None:
+            snapshot = self.get_admin_balance_snapshot(codigo_final)
+            saldo_atual = float(snapshot.get("saldo_exibido") or 0.0)
+            if not self._balance_close(saldo_atual, target_balance):
+                balance_result = self.set_admin_absolute_balance(
+                    codigo=codigo_final,
+                    novo_saldo=target_balance,
+                    matricula=matricula,
+                    motivo=motivo_norm,
+                    audit_context=balance_audit_context,
+                )
+                if balance_result.get("message"):
+                    mensagens.append(str(balance_result.get("message")))
+                houve_alteracao = bool(balance_result.get("changed")) or houve_alteracao
+
+        if not mensagens:
+            mensagens.append("Nenhuma alteração adicional era necessária.")
+
+        return {
+            "changed": houve_alteracao,
+            "codigo_anterior": codigo_atual_norm,
+            "codigo_atual": codigo_final,
+            "message": " ".join(mensagens),
+            "code_result": code_result,
+            "balance_result": balance_result,
+        }
 
     def get_admin_balance_snapshot(self, codigo: str) -> dict[str, Any]:
         codigo_norm = _sanitize_codigo(codigo)
