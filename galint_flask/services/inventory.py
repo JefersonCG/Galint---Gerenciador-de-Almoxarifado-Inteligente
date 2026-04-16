@@ -4379,6 +4379,41 @@ class InventoryService:
         movimento = self._registrar_movimento(payload, is_entrada=False, skip_notification=skip_notification)
         return getattr(movimento, 'id_saida', 0)
 
+    def _dispatch_movement_notification(
+        self,
+        movimento: Any,
+        *,
+        is_entrada: bool,
+        skip_notification: bool,
+        operation_log_id: int | None,
+    ) -> None:
+        if skip_notification:
+            return
+
+        if is_entrada:
+            if operation_log_id:
+                operation_log_service.notify_telegram(operation_log_id)
+            return
+
+        saida_id = getattr(movimento, "id_saida", None)
+        if not saida_id:
+            if operation_log_id:
+                operation_log_service.notify_telegram(operation_log_id)
+            return
+
+        try:
+            from .notification_router import NotificationRouterService
+
+            tipo_custodia = self._normalize_tipo_custodia(getattr(movimento, "tipo_custodia", None))
+            if tipo_custodia == "permanente":
+                NotificationRouterService.route_permanent_custody(saida_id)
+            else:
+                NotificationRouterService.route_withdrawal(saida_id, force_single=True)
+        except Exception:
+            logger.exception("Falha ao rotear notificação de retirada para saida_id=%s", saida_id)
+            if operation_log_id:
+                operation_log_service.notify_telegram(operation_log_id)
+
     def resumo_estoque(self) -> list[dict[str, Any]]:
         itens = Item.query.order_by(Item.setor, Item.descricao).all()
         resumo: list[dict[str, Any]] = []
@@ -5074,8 +5109,12 @@ class InventoryService:
         db.session.commit()
         if ledger_result is not None:
             self.finalize_ledger_mirror(ledger_result)
-            if not skip_notification:
-                operation_log_service.notify_telegram(ledger_result.operation_log_id)
+            self._dispatch_movement_notification(
+                movimento,
+                is_entrada=is_entrada,
+                skip_notification=skip_notification,
+                operation_log_id=ledger_result.operation_log_id,
+            )
         
         # Verificar e gerar relatório automático a cada 1000 entradas (apenas para entradas)
         if is_entrada:
