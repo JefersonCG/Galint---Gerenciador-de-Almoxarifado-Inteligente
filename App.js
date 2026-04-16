@@ -16,6 +16,7 @@ import ScannerScreen from './src/screens/ScannerScreen';
 import EditarItemScreen from './src/screens/EditarItemScreen';
 import RetiradaScreen from './src/screens/RetiradaScreen';
 import DevolverScreen from './src/screens/DevolverScreen';
+import DocumentosFiscaisScreen from './src/screens/DocumentosFiscaisScreen';
 import ConfigScreen from './src/screens/ConfigScreen';
 import MenuScreen from './src/screens/MenuScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
@@ -27,6 +28,7 @@ import ReportsHistoryScreen from './src/screens/ReportsHistoryScreen';
 import UpdateChecker from './src/services/updateChecker';
 import ApiService from './src/services/api';
 import { initOfflineDb } from './src/services/offlineDb'; // Inicializar DB
+import { heroPalette } from './src/theme/heroTheme';
 
 const Stack = createNativeStackNavigator();
 
@@ -223,16 +225,20 @@ export default function App() {
     return (
         <AppErrorBoundary>
             <NavigationContainer>
-                <StatusBar style="light" backgroundColor="#0d6efd" />
+                <StatusBar style="light" backgroundColor={heroPalette.bg} />
                 <Stack.Navigator
                     initialRouteName="Login"
                     screenOptions={({ navigation, route }) => ({
                         headerStyle: {
-                            backgroundColor: '#0d6efd',
+                            backgroundColor: heroPalette.bgAlt,
                         },
                         headerTintColor: '#fff',
                         headerTitleStyle: {
                             fontWeight: 'bold',
+                            color: heroPalette.text,
+                        },
+                        contentStyle: {
+                            backgroundColor: heroPalette.bg,
                         },
                         headerLeft: () => {
                             if (route.name === 'Login' || route.name === 'Estoque') return null;
@@ -256,10 +262,23 @@ export default function App() {
                     <Stack.Screen
                         name="Estoque"
                         component={EstoqueScreen}
-                        options={{
-                            title: 'GALINT - Estoque',
-                            headerBackVisible: false
-                        }}
+                        options={({ navigation }) => ({
+                            title: 'GALINT Mobile',
+                            headerBackVisible: false,
+                            headerRight: () => (
+                                <TouchableOpacity
+                                    onPress={() => navigation.navigate('DocumentosFiscais')}
+                                    style={styles.headerActionButton}
+                                >
+                                    <Text style={styles.headerActionButtonText}>+ NF</Text>
+                                </TouchableOpacity>
+                            ),
+                        })}
+                    />
+                    <Stack.Screen
+                        name="DocumentosFiscais"
+                        component={DocumentosFiscaisScreen}
+                        options={{ title: 'Documentos Fiscais' }}
                     />
                     <Stack.Screen
                         name="Scanner"
@@ -295,7 +314,7 @@ export default function App() {
                     <Stack.Screen
                         name="Menu"
                         component={MenuScreen}
-                        options={{ title: 'Menu' }}
+                        options={{ title: 'Painel' }}
                     />
                     <Stack.Screen
                         name="Profile"
@@ -338,7 +357,7 @@ const styles = StyleSheet.create({
         flex: 1,
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: '#0b3a82',
+        backgroundColor: heroPalette.bg,
         padding: 24,
     },
     splashTitle: {
@@ -349,9 +368,25 @@ const styles = StyleSheet.create({
     },
     splashSubtitle: {
         fontSize: 15,
-        color: '#dbeafe',
+        color: heroPalette.textMuted,
         marginTop: 6,
         marginBottom: 22,
+    },
+    headerActionButton: {
+        minWidth: 60,
+        height: 34,
+        borderRadius: 16,
+        paddingHorizontal: 12,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: 'rgba(34, 211, 238, 0.16)',
+        borderWidth: 1,
+        borderColor: heroPalette.borderStrong,
+    },
+    headerActionButtonText: {
+        color: heroPalette.text,
+        fontSize: 13,
+        fontWeight: '800',
     },
     progressContainer: {
         width: '86%',
@@ -367,48 +402,48 @@ const styles = StyleSheet.create({
     progressBox: {
         flex: 1,
         height: 14,
-        backgroundColor: 'rgba(255,255,255,0.25)',
+        backgroundColor: 'rgba(255,255,255,0.12)',
         borderRadius: 3,
         borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.4)',
+        borderColor: heroPalette.border,
     },
     progressBoxActive: {
-        backgroundColor: '#22c55e',
-        borderColor: '#ffffff',
+        backgroundColor: heroPalette.primaryStrong,
+        borderColor: heroPalette.text,
     },
     progressText: {
         marginTop: 12,
-        color: '#ffffff',
+        color: heroPalette.text,
         fontWeight: '700',
     },
     errorContainer: {
         flex: 1,
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: '#ffffff',
+        backgroundColor: heroPalette.bg,
         padding: 24,
     },
     errorTitle: {
         fontSize: 18,
         fontWeight: '700',
-        color: '#111827',
+        color: heroPalette.text,
         marginBottom: 8,
         textAlign: 'center',
     },
     errorText: {
         fontSize: 14,
-        color: '#6b7280',
+        color: heroPalette.textMuted,
         textAlign: 'center',
         marginBottom: 16,
     },
     errorButton: {
-        backgroundColor: '#0d6efd',
+        backgroundColor: heroPalette.primaryStrong,
         paddingVertical: 10,
         paddingHorizontal: 20,
         borderRadius: 8,
     },
     errorButtonText: {
-        color: '#ffffff',
+        color: heroPalette.bg,
         fontWeight: '600',
     },
 });

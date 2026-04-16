@@ -1,8 +1,10 @@
 import React, { useCallback, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 
 import ApiService from '../services/api';
+import HeroScreen from '../components/HeroScreen';
+import { heroPalette, heroShadow, heroSoftShadow } from '../theme/heroTheme';
 
 export default function MenuScreen({ navigation }) {
     const [unreadCount, setUnreadCount] = useState(0);
@@ -29,14 +31,23 @@ export default function MenuScreen({ navigation }) {
     );
 
     return (
-        <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
-            {/* Header Moderno */}
-            <View style={styles.modernHeader}>
-                <Text style={styles.headerTitle}>⚙️ Menu</Text>
-                <Text style={styles.headerSubtitle}>Configurações e Opções</Text>
-            </View>
-
-            {/* Cards Modernos */}
+        <HeroScreen
+            eyebrow="Painel mobile"
+            title="Controle rapido do dispositivo"
+            subtitle="Sem excesso de blocos. Aqui ficam os atalhos secundarios do app enquanto a operacao principal acontece no estoque, retirada e devolucao."
+            heroContent={
+                <View style={styles.heroStats}>
+                    <View style={styles.heroStatCard}>
+                        <Text style={styles.heroStatLabel}>Notificacoes</Text>
+                        <Text style={styles.heroStatValue}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
+                    </View>
+                    <View style={styles.heroStatCard}>
+                        <Text style={styles.heroStatLabel}>Entrada rapida</Text>
+                        <Text style={styles.heroStatValue}>NF mobile</Text>
+                    </View>
+                </View>
+            }
+        >
             <TouchableOpacity 
                 style={[styles.modernCard, styles.profileCard]} 
                 onPress={() => navigation.navigate('Profile')}
@@ -46,8 +57,8 @@ export default function MenuScreen({ navigation }) {
                     <Text style={styles.cardIcon}>👤</Text>
                 </View>
                 <View style={styles.cardContent}>
-                    <Text style={styles.cardTitle}>Perfil do Usuário</Text>
-                    <Text style={styles.cardSubtitle}>Visualizar dados pessoais e informações da conta</Text>
+                    <Text style={styles.cardTitle}>Perfil</Text>
+                    <Text style={styles.cardSubtitle}>Dados do usuario e informacoes da conta</Text>
                 </View>
                 <Text style={styles.cardArrow}>›</Text>
             </TouchableOpacity>
@@ -62,13 +73,28 @@ export default function MenuScreen({ navigation }) {
                 </View>
                 <View style={styles.cardContent}>
                     <Text style={styles.cardTitle}>Notificações</Text>
-                    <Text style={styles.cardSubtitle}>Ver mensagens operacionais com foto e contexto visual</Text>
+                    <Text style={styles.cardSubtitle}>Mensagens operacionais e leitura de alertas</Text>
                 </View>
                 {unreadCount > 0 ? (
                     <View style={styles.notificationBadge}>
                         <Text style={styles.notificationBadgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
                     </View>
                 ) : null}
+                <Text style={styles.cardArrow}>›</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+                style={[styles.modernCard, styles.documentsCard]}
+                onPress={() => navigation.navigate('DocumentosFiscais')}
+                activeOpacity={0.85}
+            >
+                <View style={styles.cardIconContainer}>
+                    <Text style={styles.cardIcon}>🧾</Text>
+                </View>
+                <View style={styles.cardContent}>
+                    <Text style={styles.cardTitle}>Documentos Fiscais</Text>
+                    <Text style={styles.cardSubtitle}>Cadastro mobile para NF, cupom, recibo e lancamento manual</Text>
+                </View>
                 <Text style={styles.cardArrow}>›</Text>
             </TouchableOpacity>
 
@@ -82,7 +108,7 @@ export default function MenuScreen({ navigation }) {
                 </View>
                 <View style={styles.cardContent}>
                     <Text style={styles.cardTitle}>Atualizações</Text>
-                    <Text style={styles.cardSubtitle}>Verificar e instalar atualizações OTA</Text>
+                    <Text style={styles.cardSubtitle}>Servidor, OTA e configuracoes do dispositivo</Text>
                 </View>
                 <Text style={styles.cardArrow}>›</Text>
             </TouchableOpacity>
@@ -97,86 +123,83 @@ export default function MenuScreen({ navigation }) {
                 </View>
                 <View style={styles.cardContent}>
                     <Text style={styles.cardTitle}>Relatórios</Text>
-                    <Text style={styles.cardSubtitle}>Visualizar relatórios diários e mensais</Text>
+                    <Text style={styles.cardSubtitle}>Relatorios diarios, mensais e historicos</Text>
                 </View>
                 <Text style={styles.cardArrow}>›</Text>
             </TouchableOpacity>
 
-            {/* Footer Info */}
             <View style={styles.footerInfo}>
-                <Text style={styles.footerText}>GALINT v1.2.0</Text>
-                <Text style={styles.footerSubtext}>© 2026 Sublime Max Condominium</Text>
+                <Text style={styles.footerText}>O fluxo operacional principal segue na pesquisa do estoque.</Text>
+                <Text style={styles.footerSubtext}>Use este painel para funcoes auxiliares e governanca do aparelho.</Text>
             </View>
-        </ScrollView>
+        </HeroScreen>
     );
 }
 
 const styles = StyleSheet.create({
-    container: {
+    heroStats: {
+        flexDirection: 'row',
+        gap: 12,
+    },
+    heroStatCard: {
         flex: 1,
-        backgroundColor: '#f8fafc',
+        borderRadius: 18,
+        paddingHorizontal: 14,
+        paddingVertical: 14,
+        backgroundColor: heroPalette.panelAlt,
+        borderWidth: 1,
+        borderColor: heroPalette.border,
+        ...heroSoftShadow,
     },
-    contentContainer: {
-        paddingBottom: 30,
+    heroStatLabel: {
+        color: heroPalette.textMuted,
+        fontSize: 12,
+        fontWeight: '700',
+        textTransform: 'uppercase',
+        letterSpacing: 0.8,
     },
-    modernHeader: {
-        backgroundColor: '#22c55e',
-        paddingTop: 60,
-        paddingBottom: 30,
-        paddingHorizontal: 24,
-        marginBottom: 20,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.15,
-        shadowRadius: 6,
-        elevation: 8,
-    },
-    headerTitle: {
-        fontSize: 28,
-        fontWeight: '800',
-        color: '#ffffff',
-        marginBottom: 6,
-    },
-    headerSubtitle: {
-        fontSize: 15,
-        fontWeight: '500',
-        color: '#e0ffe6',
+    heroStatValue: {
+        marginTop: 8,
+        color: heroPalette.text,
+        fontSize: 22,
+        fontWeight: '900',
     },
     modernCard: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#ffffff',
-        borderRadius: 16,
+        backgroundColor: heroPalette.panel,
+        borderRadius: 22,
         padding: 18,
-        marginHorizontal: 16,
         marginBottom: 14,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.08,
-        shadowRadius: 8,
-        elevation: 4,
-        borderLeftWidth: 4,
+        borderWidth: 1,
+        borderColor: heroPalette.border,
+        ...heroShadow,
     },
     profileCard: {
-        borderLeftColor: '#3b82f6',
+        borderColor: 'rgba(103, 232, 249, 0.24)',
     },
     updatesCard: {
-        borderLeftColor: '#8b5cf6',
+        borderColor: 'rgba(251, 191, 36, 0.24)',
     },
     notificationsCard: {
-        borderLeftColor: '#0ea5e9',
+        borderColor: 'rgba(52, 211, 153, 0.24)',
+    },
+    documentsCard: {
+        borderColor: 'rgba(96, 165, 250, 0.26)',
     },
     reportsCard: {
-        borderLeftColor: '#f59e0b',
+        borderColor: 'rgba(244, 114, 182, 0.22)',
     },
     cardIconContainer: {
         width: 56,
         height: 56,
         borderRadius: 28,
-        backgroundColor: '#f0f9ff',
+        backgroundColor: heroPalette.panelAlt,
         justifyContent: 'center',
         alignItems: 'center',
         marginRight: 16,
+        borderWidth: 1,
+        borderColor: heroPalette.border,
     },
     cardIcon: {
         fontSize: 28,
@@ -187,17 +210,17 @@ const styles = StyleSheet.create({
     cardTitle: {
         fontSize: 17,
         fontWeight: '700',
-        color: '#111827',
+        color: heroPalette.text,
         marginBottom: 4,
     },
     cardSubtitle: {
         fontSize: 13,
-        color: '#6b7280',
+        color: heroPalette.textMuted,
         lineHeight: 18,
     },
     cardArrow: {
         fontSize: 32,
-        color: '#d1d5db',
+        color: heroPalette.textMuted,
         fontWeight: '300',
     },
     notificationBadge: {
@@ -206,7 +229,7 @@ const styles = StyleSheet.create({
         borderRadius: 14,
         paddingHorizontal: 8,
         marginRight: 10,
-        backgroundColor: '#dc2626',
+        backgroundColor: heroPalette.danger,
         alignItems: 'center',
         justifyContent: 'center',
     },
@@ -216,18 +239,22 @@ const styles = StyleSheet.create({
         fontWeight: '800',
     },
     footerInfo: {
-        alignItems: 'center',
-        marginTop: 30,
-        paddingHorizontal: 20,
+        borderRadius: 18,
+        borderWidth: 1,
+        borderColor: heroPalette.border,
+        backgroundColor: heroPalette.panelAlt,
+        paddingHorizontal: 16,
+        paddingVertical: 16,
+        marginTop: 6,
     },
     footerText: {
         fontSize: 14,
         fontWeight: '600',
-        color: '#6b7280',
+        color: heroPalette.text,
         marginBottom: 4,
     },
     footerSubtext: {
         fontSize: 12,
-        color: '#9ca3af',
+        color: heroPalette.textMuted,
     },
 });

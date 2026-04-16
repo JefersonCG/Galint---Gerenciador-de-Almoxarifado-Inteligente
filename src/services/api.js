@@ -972,6 +972,84 @@ class ApiService {
         }
     }
 
+    async getDocumentosFiscaisConfig() {
+        try {
+            const online = await this.isOnline();
+            if (!online) {
+                return {
+                    success: false,
+                    offline: true,
+                    message: 'Documentos Fiscais requer conexao online'
+                };
+            }
+
+            const response = await this.client.get('/api/mobile/documentos-fiscais/config');
+            return response.data;
+        } catch (error) {
+            return {
+                success: false,
+                message: error.response?.data?.message || error.response?.data?.error || 'Erro ao carregar configuracao documental',
+            };
+        }
+    }
+
+    async searchDocumentosFiscaisItems(search, limit = 12) {
+        try {
+            const term = String(search || '').trim();
+            if (term.length < 2) {
+                return { success: true, data: [] };
+            }
+
+            const online = await this.isOnline();
+            if (!online) {
+                return {
+                    success: false,
+                    offline: true,
+                    data: [],
+                    message: 'Busca documental requer conexao online'
+                };
+            }
+
+            const response = await this.client.get('/api/mobile/documentos-fiscais/itens', {
+                params: { search: term, limit }
+            });
+            return response.data;
+        } catch (error) {
+            return {
+                success: false,
+                data: [],
+                message: error.response?.data?.message || error.response?.data?.error || 'Erro ao buscar itens para documento',
+            };
+        }
+    }
+
+    async registrarDocumentoFiscal(payload) {
+        try {
+            const online = await this.isOnline();
+            if (!online) {
+                return {
+                    success: false,
+                    offline: true,
+                    message: 'Lancamento documental requer conexao online'
+                };
+            }
+
+            const response = await this.client.post('/api/mobile/documentos-fiscais', payload, {
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                timeout: 30000,
+            });
+            return response.data;
+        } catch (error) {
+            return {
+                success: false,
+                message: error.response?.data?.message || error.response?.data?.error || 'Erro ao registrar documento fiscal',
+                warnings: error.response?.data?.warnings || [],
+            };
+        }
+    }
+
     /**
      * Pre-load completo do estoque para cache SQLite
      * Deve ser chamado após login bem-sucedido

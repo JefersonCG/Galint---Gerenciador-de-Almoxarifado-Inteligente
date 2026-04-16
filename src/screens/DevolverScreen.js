@@ -14,6 +14,8 @@ import {
 } from 'react-native';
 import ApiService from '../services/api';
 import { formatQuantityWithPackaging } from '../utils/formatQuantity';
+import HeroScreen from '../components/HeroScreen';
+import { heroPalette, heroShadow, heroSoftShadow } from '../theme/heroTheme';
 
 function sanitizeIntText(text) {
     if (text == null) return '';
@@ -206,9 +208,15 @@ export default function DevolverScreen({ navigation, route }) {
             style={styles.container}
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
+            <HeroScreen
+                eyebrow="Operacao de retorno"
+                title={`${icone} Devolucao de ${tipoDisplay}`}
+                subtitle="A devolucao volta a nascer em uma unica tela: item, responsavel e quantidade, sem blocos decorativos desnecessarios."
+                scroll={false}
+                contentContainerStyle={styles.heroContent}
+            >
             <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
                 <View style={styles.card}>
-                    <Text style={styles.title}>{icone} Devolução de {tipoDisplay}</Text>
 
                     {loadingUltimoResponsavel && (
                         <View style={styles.loadingBox}>
@@ -312,10 +320,11 @@ export default function DevolverScreen({ navigation, route }) {
                     </TouchableOpacity>
 
                     <Text style={styles.hint}>
-                        ℹ️ A quantidade será automaticamente reacrescentada ao estoque.
+                        A quantidade sera automaticamente reacrescentada ao estoque.
                     </Text>
                 </View>
             </ScrollView>
+            </HeroScreen>
         </KeyboardAvoidingView>
     );
 }
@@ -323,80 +332,82 @@ export default function DevolverScreen({ navigation, route }) {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#f5f5f5',
+        backgroundColor: heroPalette.bg,
+    },
+    heroContent: {
+        flex: 1,
     },
     scroll: {
-        padding: 16,
+        paddingBottom: 22,
     },
     card: {
-        backgroundColor: '#fff',
-        borderRadius: 12,
+        backgroundColor: heroPalette.panel,
+        borderRadius: 24,
         padding: 20,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 3,
+        borderWidth: 1,
+        borderColor: heroPalette.border,
+        ...heroShadow,
     },
     title: {
         fontSize: 22,
         fontWeight: '700',
-        color: '#111827',
+        color: heroPalette.text,
         marginBottom: 16,
         textAlign: 'center',
     },
     loadingBox: {
-        backgroundColor: '#f0f9ff',
+        backgroundColor: heroPalette.panelAlt,
         padding: 12,
-        borderRadius: 8,
+        borderRadius: 14,
         marginBottom: 16,
         flexDirection: 'row',
         alignItems: 'center',
         borderLeftWidth: 4,
-        borderLeftColor: '#0ea5e9',
+        borderLeftColor: heroPalette.primaryStrong,
     },
     loadingText: {
         fontSize: 14,
-        color: '#000',
+        color: heroPalette.text,
         marginLeft: 10,
         fontWeight: '600',
     },
     infoBox: {
-        backgroundColor: '#f0fdf4',
+        backgroundColor: 'rgba(52, 211, 153, 0.1)',
         padding: 12,
-        borderRadius: 8,
+        borderRadius: 14,
         marginBottom: 16,
         borderLeftWidth: 4,
-        borderLeftColor: '#22c55e',
+        borderLeftColor: heroPalette.accent,
     },
     infoTitle: {
         fontSize: 15,
         fontWeight: 'bold',
-        color: '#166534',
+        color: heroPalette.text,
         marginBottom: 6,
     },
     infoText: {
         fontSize: 14,
-        color: '#15803d',
+        color: heroPalette.textSoft,
         marginTop: 3,
     },
     itemBox: {
-        backgroundColor: '#eff6ff',
+        backgroundColor: heroPalette.panelAlt,
         padding: 16,
-        borderRadius: 8,
+        borderRadius: 18,
         marginBottom: 20,
         borderWidth: 1,
-        borderColor: '#bfdbfe',
+        borderColor: heroPalette.borderStrong,
+        ...heroSoftShadow,
     },
     itemName: {
         fontSize: 16,
         fontWeight: '700',
-        color: '#1e40af',
+        color: heroPalette.text,
         marginBottom: 8,
     },
     itemLine: {
         fontSize: 14,
-        color: '#374151',
+        color: heroPalette.textMuted,
         marginTop: 4,
     },
     inputGroup: {
@@ -405,26 +416,27 @@ const styles = StyleSheet.create({
     label: {
         fontSize: 14,
         fontWeight: '600',
-        color: '#374151',
+        color: heroPalette.text,
         marginBottom: 8,
     },
     input: {
         borderWidth: 1,
-        borderColor: '#d1d5db',
-        borderRadius: 8,
+        borderColor: heroPalette.border,
+        borderRadius: 14,
         padding: 12,
         fontSize: 16,
-        backgroundColor: '#fff',
+        backgroundColor: heroPalette.panelAlt,
+        color: heroPalette.text,
     },
     inputDisabled: {
-        backgroundColor: '#f3f4f6',
-        color: '#6b7280',
+        backgroundColor: heroPalette.bgAlt,
+        color: heroPalette.textMuted,
     },
     autocompleteContainer: {
-        backgroundColor: '#fff',
+        backgroundColor: heroPalette.panelAlt,
         borderWidth: 1,
-        borderColor: '#e5e7eb',
-        borderRadius: 8,
+        borderColor: heroPalette.border,
+        borderRadius: 14,
         marginTop: 6,
         maxHeight: 200,
         overflow: 'hidden',
@@ -435,37 +447,37 @@ const styles = StyleSheet.create({
     autocompleteItem: {
         padding: 10,
         borderBottomWidth: 1,
-        borderBottomColor: '#f1f5f9',
+        borderBottomColor: heroPalette.border,
     },
     autocompleteNome: {
         fontSize: 14,
         fontWeight: '700',
-        color: '#111827',
+        color: heroPalette.text,
     },
     autocompleteDetalhe: {
         fontSize: 12,
-        color: '#6b7280',
+        color: heroPalette.textMuted,
         marginTop: 2,
     },
     button: {
-        backgroundColor: '#10b981',
+        backgroundColor: heroPalette.accent,
         paddingVertical: 14,
         paddingHorizontal: 20,
-        borderRadius: 8,
+        borderRadius: 16,
         alignItems: 'center',
         marginBottom: 12,
     },
     buttonDisabled: {
-        backgroundColor: '#9ca3af',
+        backgroundColor: heroPalette.panelSoft,
     },
     buttonText: {
-        color: '#fff',
+        color: heroPalette.bg,
         fontSize: 16,
-        fontWeight: '600',
+        fontWeight: '800',
     },
     hint: {
         fontSize: 12,
-        color: '#6b7280',
+        color: heroPalette.textMuted,
         textAlign: 'center',
         marginTop: 8,
     },
