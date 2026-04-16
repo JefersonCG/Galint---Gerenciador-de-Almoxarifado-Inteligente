@@ -103,6 +103,13 @@ function detectLiquidType(categoria, descricao) {
     );
 }
 
+function buildWithdrawalEntryKey(entry) {
+    const codigo = String(entry?.item?.id || entry?.item?.codigo_barras || '').trim();
+    const tipoCustodia = String(entry?.tipo_custodia || '').trim().toLowerCase();
+    const tipoFerramenta = String(entry?.tipo_ferramenta || '').trim().toLowerCase();
+    return [codigo, tipoCustodia, tipoFerramenta].join('::');
+}
+
 export default function RetiradaScreen({ navigation, route }) {
     const user = route.params?.user;
     const item = route.params?.item;
@@ -416,15 +423,43 @@ export default function RetiradaScreen({ navigation, route }) {
             tipo_ferramenta: isFerramenta ? tipoFerramenta : undefined,
         };
 
-        setItensRetirada([...itensRetirada, novoItem]);
-        setItemAtualId(itemAtualId + 1);
+        const chaveNovoItem = buildWithdrawalEntryKey(novoItem);
+        const existingIndex = itensRetirada.findIndex(
+            (entry) => buildWithdrawalEntryKey(entry) === chaveNovoItem
+        );
+        const agrupouItemExistente = existingIndex !== -1;
+
+        if (agrupouItemExistente) {
+            setItensRetirada((currentItems) => currentItems.map((entry, index) => {
+                if (index !== existingIndex) {
+                    return entry;
+                }
+
+                const quantidadeAtual = parseInt(sanitizeIntText(entry?.quantidade || ''), 10) || 0;
+                return {
+                    ...entry,
+                    quantidade: String(quantidadeAtual + quantidadeInt),
+                };
+            }));
+        } else {
+            setItensRetirada((currentItems) => [...currentItems, novoItem]);
+        }
+
+        if (!agrupouItemExistente) {
+            setItemAtualId((currentId) => currentId + 1);
+        }
 
         // Resetar formulário para o próximo item
         setItemAtual({ item: null, quantidade: '1' });
         setTipoCustodia('temporaria');
         setTipoFerramenta('diaria');
 
-        Alert.alert('Sucesso', 'Item adicionado! Escaneie o próximo item.');
+        Alert.alert(
+            'Sucesso',
+            agrupouItemExistente
+                ? 'Quantidade somada ao item já existente na lista.'
+                : 'Item adicionado! Escaneie o próximo item.'
+        );
     };
 
     // Remover item da lista
