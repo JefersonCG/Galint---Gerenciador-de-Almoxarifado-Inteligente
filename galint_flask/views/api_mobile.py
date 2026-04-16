@@ -6,7 +6,7 @@ import logging
 import re
 import unicodedata
 import uuid
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from functools import wraps
 from typing import Any
 
@@ -26,13 +26,16 @@ from ..services.auth import (
     create_mobile_token,
     get_mobile_user,
 )
-from ..services.category_catalog import category_catalog_service
+from ..services.category_catalog import DEFAULT_INVENTORY_CATEGORY_NAME, category_catalog_service
 from ..services.finance_service import finance_service
 from ..services.inventory_engine import PRE_CADASTRO_PENDING_EXIT_MESSAGE
 from ..services.inventory import (
+    BASE_ITEM_UNIT_OPTIONS,
     MovimentoPayload,
     apply_operational_context,
+    ensure_base_item_unit,
     inventory_service,
+    normalize_base_item_unit,
     normalize_operational_activity,
     normalize_operational_text,
 )
@@ -2238,6 +2241,547 @@ def listar_categorias():
     """Lista categorias disponíveis."""
     categorias = category_catalog_service.list_form_choices()
     return jsonify({"categorias": categorias}), 200
+
+
+MOBILE_DOCUMENT_PACKAGING_OPTIONS: tuple[str, ...] = (
+    "par",
+    "rolo",
+    "lata",
+    "balde",
+    "bombona",
+    "caixa",
+    "pacote",
+    "fardo",
+    "saco",
+    "litro",
+)
+
+
+def _mobile_documents_available() -> bool:
+    return bool(current_app.config.get("FEATURE_NOTAS_ENABLED", True))
+
+
+def _normalize_mobile_document_type(raw_value: str | None, *, fallback: str = "nf") -> str:
+    normalized = (raw_value or "").strip().lower()
+    if normalized in {"nf", "cupom", "recibo", "manual"}:
+        return normalized
+    return fallback
+
+
+def _resolve_mobile_document_type(
+    *,
+    ui_mode: str | None,
+    raw_document_type: str | None,
+    origem_valor: str | None,
+    comprovacao_status: str | None,
+    supplier_id: int | None,
+    supplier_name: str | None,
+    supplier_cnpj: str | None,
+    chave_acesso: str | None,
+    data_emissao_raw: str | None,
+) -> str:
+    ui_mode_normalized = _normalize_mobile_document_type(ui_mode, fallback="")
+    if ui_mode_normalized:
+        return ui_mode_normalized
+
+    tipo_documento = _normalize_mobile_document_type(raw_document_type, fallback="nf")
+    if tipo_documento != "nf":
+        return tipo_documento
+
+    origem_normalizada = (origem_valor or "").strip().lower()
+    comprovacao_normalizada = (comprovacao_status or "").strip().lower()
+    has_supplier = bool(supplier_id or (supplier_name or "").strip() or (supplier_cnpj or "").strip())
+    has_emission_date = bool((data_emissao_raw or "").strip())
+    has_access_key = bool((chave_acesso or "").strip())
+
+    if (
+        origem_normalizada == "valor_estimado"
+        and comprovacao_normalizada == "sem_comprovacao"
+        and not has_supplier
+        and not has_emission_date
+        and not has_access_key
+    ):
+        return "manual"
+
+    return tipo_documento
+
+
+def _parse_mobile_decimal(raw_value: Any, *, fallback: float | None = None) -> float | None:
+    if raw_value in (None, ""):
+        return fallback
+    if isinstance(raw_value, (int, float)):
+        return float(raw_value)
+
+    raw = str(raw_value).strip().replace(" ", "")
+    if not raw:
+        return fallback
+    if "," in raw and "." in raw:
+        if raw.rfind(",") > raw.rfind("."):
+            raw = raw.replace(".", "").replace(",", ".")
+        else:
+            raw = raw.replace(",", "")
+    elif "," in raw:
+        raw = raw.replace(",", ".")
+
+    try:
+        return float(raw)
+    except ValueError:
+        return fallback
+
+
+def _parse_mobile_date(raw_value: Any, *, fallback: date | None = None) -> date | None:
+    if raw_value in (None, ""):
+        return fallback
+    if isinstance(raw_value, date) and not isinstance(raw_value, datetime):
+        return raw_value
+    if isinstance(raw_value, datetime):
+        return raw_value.date()
+
+    raw = str(raw_value).strip()
+    if not raw:
+        return fallback
+
+    for parser in (date.fromisoformat,):
+        try:
+            return parser(raw)
+        except ValueError:
+            pass
+
+    for fmt in ("%d/%m/%Y", "%d-%m-%Y"):
+        try:
+            return datetime.strptime(raw, fmt).date()
+        except ValueError:
+            continue
+
+    return fallback
+
+
+def _normalize_mobile_packaging_type(raw_value: str | None) -> str | None:
+    normalized = (raw_value or "").strip().lower()
+    if not normalized:
+        return None
+    if normalized in MOBILE_DOCUMENT_PACKAGING_OPTIONS:
+        return normalized
+    raise ValueError("Unidade da compra/NF inválida para o novo item.")
+
+
+def _build_mobile_packaging_payload(
+    *,
+    base_unit: str,
+    packaging_type: str | None,
+    content_per_package: float | None,
+) -> dict[str, Any]:
+    if not packaging_type:
+        return {}
+
+    normalized_base_unit = ensure_base_item_unit(base_unit, fallback="Unidade")
+    if packaging_type == "par":
+        if normalized_base_unit == "Par":
+            return {}
+        raise ValueError(
+            "Quando a compra vier em par, use tambem Par como unidade interna do item novo."
+        )
+
+    if content_per_package is None or float(content_per_package) <= 0:
+        raise ValueError(
+            "Informe o conteudo por embalagem do item novo para fechar a conversao documental."
+        )
+
+    content_value = float(content_per_package)
+    if packaging_type == "litro" and content_value > 1.0:
+        raise ValueError(
+            "Para recipientes acima de 1 litro, use Lata, Balde ou Bombona como unidade da compra."
+        )
+
+    payload: dict[str, Any] = {
+        "tipo_embalagem_novo": packaging_type,
+        "unidades_por_embalagem": content_value,
+    }
+    if normalized_base_unit == "Litro":
+        payload["litros_por_embalagem"] = content_value
+    elif normalized_base_unit in {"Metro", "Quilo"}:
+        payload["grandeza_referencia"] = content_value
+    return payload
+
+
+def _validate_mobile_document_registration_fields(
+    *,
+    numero_documento: str,
+    tipo_documento: str,
+    supplier_id: int | None,
+    supplier_name: str | None,
+    supplier_cnpj: str | None,
+    data_emissao: date | None,
+    data_recebimento: date | None,
+    comprovacao_status: str | None = None,
+    observacao: str | None = None,
+) -> None:
+    missing_fields: list[str] = []
+    tipo_documento_normalizado = (tipo_documento or "").strip().lower()
+    if not (numero_documento or "").strip():
+        missing_fields.append("numero do documento")
+    if tipo_documento_normalizado != "manual" and not (supplier_id or (supplier_name or "").strip() or (supplier_cnpj or "").strip()):
+        missing_fields.append("fornecedor ou CNPJ da loja")
+    if data_recebimento is None:
+        missing_fields.append("data de recebimento")
+    if tipo_documento_normalizado == "nf" and data_emissao is None:
+        missing_fields.append("data de emissao")
+
+    comprovacao = (comprovacao_status or "").strip().lower()
+    if comprovacao in {"sem_comprovacao", "parcial"} and not (observacao or "").strip():
+        missing_fields.append("observacao financeira")
+
+    if missing_fields:
+        raise ValueError(
+            "Complete o cadastro do documento antes de salvar: " + ", ".join(missing_fields) + "."
+        )
+
+
+def _build_mobile_document_unit_options() -> list[str]:
+    seen: set[str] = set()
+    options: list[str] = []
+    for value in BASE_ITEM_UNIT_OPTIONS:
+        normalized = (value or "").strip()
+        if normalized and normalized not in seen:
+            seen.add(normalized)
+            options.append(normalized)
+    return options
+
+
+def _serialize_mobile_document_item(item: Item) -> dict[str, Any]:
+    return {
+        "id": item.codigo_item,
+        "codigo": item.codigo_item,
+        "descricao": item.descricao,
+        "categoria": item.categoria,
+        "marca": item.marca,
+        "unidade": item.unidade,
+        "saldo": round(float(item.get_saldo_fisico_total() or 0.0), 6),
+        "saldo_display": item.get_saldo_fisico_display(),
+        "tipo_embalagem_novo": item.tipo_embalagem_novo,
+        "unidades_por_embalagem": item.unidades_por_embalagem,
+    }
+
+
+@blueprint.get("/documentos-fiscais/config")
+@mobile_login_required
+def mobile_documentos_fiscais_config():
+    current_user = g.mobile_user
+    if not _mobile_documents_available():
+        return jsonify({"success": False, "message": "Documentos Fiscais indisponivel neste ambiente."}), 404
+    if not _is_admin_or_manager(current_user):
+        return jsonify({"success": False, "message": "Acesso negado"}), 403
+
+    return jsonify({
+        "success": True,
+        "data": {
+            "today": date.today().isoformat(),
+            "categorias": category_catalog_service.list_form_choices(),
+            "unidades_base": _build_mobile_document_unit_options(),
+            "unidades_documentais": list(MOBILE_DOCUMENT_PACKAGING_OPTIONS),
+            "fornecedores": finance_service.list_suppliers(limit=120),
+            "tipos_documento": [
+                {"value": "nf", "label": "Nota fiscal"},
+                {"value": "cupom", "label": "Cupom nao fiscal"},
+                {"value": "recibo", "label": "Recibo"},
+                {"value": "manual", "label": "Manual"},
+            ],
+            "origens_valor": [
+                {"value": "compra_nf", "label": "Compra com NF"},
+                {"value": "compra_cupom", "label": "Compra com cupom"},
+                {"value": "valor_estimado", "label": "Valor estimado"},
+                {"value": "inventario_inicial", "label": "Inventario inicial"},
+            ],
+            "comprovacoes": [
+                {"value": "comprovado", "label": "Comprovado"},
+                {"value": "parcial", "label": "Parcialmente comprovado"},
+                {"value": "sem_comprovacao", "label": "Sem comprovacao"},
+            ],
+        },
+    }), 200
+
+
+@blueprint.get("/documentos-fiscais/itens")
+@mobile_login_required
+def mobile_documentos_fiscais_itens():
+    current_user = g.mobile_user
+    if not _mobile_documents_available():
+        return jsonify({"success": False, "message": "Documentos Fiscais indisponivel neste ambiente."}), 404
+    if not _is_admin_or_manager(current_user):
+        return jsonify({"success": False, "message": "Acesso negado"}), 403
+
+    term = (request.args.get("search") or "").strip()
+    limit_raw = request.args.get("limit")
+    try:
+        limit = max(1, min(int(limit_raw or 12), 20))
+    except (TypeError, ValueError):
+        limit = 12
+
+    if len(term) < 2:
+        return jsonify({"success": True, "data": []}), 200
+
+    search_term = f"%{term}%"
+    items = (
+        Item.query
+        .filter(
+            (Item.descricao.ilike(search_term))
+            | (Item.codigo_item.ilike(search_term))
+            | (Item.marca.ilike(search_term))
+            | (Item.categoria.ilike(search_term))
+        )
+        .order_by(Item.descricao.asc())
+        .limit(limit)
+        .all()
+    )
+
+    return jsonify({
+        "success": True,
+        "data": [_serialize_mobile_document_item(item) for item in items],
+    }), 200
+
+
+@blueprint.post("/documentos-fiscais")
+@mobile_login_required
+def mobile_registrar_documento_fiscal():
+    current_user = g.mobile_user
+    if not _mobile_documents_available():
+        return jsonify({"success": False, "message": "Documentos Fiscais indisponivel neste ambiente."}), 404
+    if not _is_admin_or_manager(current_user):
+        return jsonify({"success": False, "message": "Acesso negado"}), 403
+
+    data = request.get_json() or {}
+    warnings: list[str] = []
+    item_criado_na_nf = False
+    pre_registration_count = 0
+    stock_process_result: dict[str, Any] | None = None
+    documento = None
+    document_item = None
+    ledger_entry = None
+
+    try:
+        codigo = str(data.get("codigo") or "").strip()
+        novo_codigo = str(data.get("novo_codigo") or "").strip()
+        nova_descricao = str(data.get("nova_descricao") or "").strip()
+        nova_marca = str(data.get("nova_marca") or "").strip() or None
+        nova_categoria = category_catalog_service.resolve_name(
+            str(data.get("nova_categoria") or "").strip(),
+            fallback=DEFAULT_INVENTORY_CATEGORY_NAME,
+            actor=getattr(current_user, "nome", None) or getattr(current_user, "matricula", None),
+        )
+        nova_unidade = normalize_base_item_unit(str(data.get("nova_unidade") or "").strip(), fallback="Unidade")
+        nota = str(data.get("nota_fiscal") or "").strip()
+        supplier_raw = str(data.get("finance_supplier_id") or "").strip()
+        supplier_id = int(supplier_raw) if supplier_raw.isdigit() else None
+        supplier_name = str(data.get("supplier_name") or data.get("finance_supplier_search") or "").strip() or None
+        supplier_cnpj = str(data.get("supplier_cnpj") or "").strip() or None
+        origem_valor = str(data.get("finance_origem_valor") or "compra_nf").strip() or "compra_nf"
+        comprovacao_status = str(data.get("finance_comprovacao_status") or "comprovado").strip() or "comprovado"
+        observacao = str(data.get("finance_observacao") or "").strip() or None
+        chave_acesso = str(data.get("chave_acesso") or "").strip() or None
+        data_emissao_raw = str(data.get("data_emissao") or "").strip()
+        data_recebimento_raw = str(data.get("data_recebimento") or "").strip()
+
+        quantidade = _parse_mobile_decimal(data.get("quantidade"), fallback=0.0) or 0.0
+        preco_unitario = _parse_mobile_decimal(data.get("preco_unitario"), fallback=None)
+        novo_conteudo_embalagem = _parse_mobile_decimal(data.get("novo_conteudo_embalagem"), fallback=None)
+        nova_unidade_documental = _normalize_mobile_packaging_type(data.get("nova_unidade_documental"))
+        data_emissao = _parse_mobile_date(data_emissao_raw, fallback=None)
+        data_recebimento = _parse_mobile_date(data_recebimento_raw, fallback=date.today())
+        tipo_documento = _resolve_mobile_document_type(
+            ui_mode=data.get("doc_mode"),
+            raw_document_type=data.get("finance_tipo_documento"),
+            origem_valor=origem_valor,
+            comprovacao_status=comprovacao_status,
+            supplier_id=supplier_id,
+            supplier_name=supplier_name,
+            supplier_cnpj=supplier_cnpj,
+            chave_acesso=chave_acesso,
+            data_emissao_raw=data_emissao_raw,
+        )
+
+        if tipo_documento != "nf":
+            chave_acesso = None
+        if tipo_documento == "manual":
+            supplier_id = None
+            supplier_name = None
+            supplier_cnpj = None
+
+        movimenta_estoque = finance_service.resolve_document_movimenta_estoque(
+            data_emissao=data_emissao,
+            data_recebimento=data_recebimento,
+        )
+
+        nova_unidade = ensure_base_item_unit(nova_unidade, fallback="Unidade")
+        if not codigo and novo_codigo:
+            codigo = novo_codigo
+
+        if quantidade <= 0:
+            raise ValueError("Informe uma quantidade valida")
+        if not nota:
+            raise ValueError("Informe o numero do documento")
+
+        _validate_mobile_document_registration_fields(
+            numero_documento=nota,
+            tipo_documento=tipo_documento,
+            supplier_id=supplier_id,
+            supplier_name=supplier_name,
+            supplier_cnpj=supplier_cnpj,
+            data_emissao=data_emissao,
+            data_recebimento=data_recebimento,
+            comprovacao_status=comprovacao_status,
+            observacao=observacao,
+        )
+
+        item_existente = inventory_service.get_item(codigo) if codigo else None
+        if not item_existente:
+            if not codigo:
+                raise ValueError("Selecione um item existente ou informe o codigo do novo item")
+            if not nova_descricao:
+                raise ValueError("Informe a descricao para cadastrar o novo item do documento")
+
+            create_payload = {
+                "codigo": codigo,
+                "descricao": nova_descricao,
+                "categoria": nova_categoria,
+                "unidade": nova_unidade,
+                "nota_fiscal": nota or None,
+                "marca": nova_marca,
+                "localizacao": None,
+                "quantidade": 0,
+                "pre_cadastro_pendente": True,
+                "pre_cadastro_origem": "nf",
+                "pre_cadastro_criado_em": datetime.utcnow(),
+                "pre_cadastro_finalizado_em": None,
+            }
+            create_payload.update(
+                _build_mobile_packaging_payload(
+                    base_unit=nova_unidade,
+                    packaging_type=nova_unidade_documental,
+                    content_per_package=novo_conteudo_embalagem,
+                )
+            )
+            inventory_service.create_item(create_payload)
+            item_criado_na_nf = True
+
+        actor_id = getattr(current_user, "matricula", None) or getattr(current_user, "id", None)
+        item = inventory_service.get_item(codigo) or {}
+
+        document_result = finance_service.register_stock_document_entry(
+            codigo_item=codigo,
+            quantidade=float(quantidade),
+            tipo_documento=tipo_documento,
+            numero_documento=nota,
+            data_emissao=data_emissao,
+            data_recebimento=data_recebimento,
+            chave_acesso=chave_acesso,
+            supplier_id=supplier_id,
+            supplier_name=supplier_name,
+            supplier_cnpj=supplier_cnpj,
+            entrada_id=None,
+            valor_unitario=preco_unitario,
+            lote=(item.get("lote") or "") if item else None,
+            data_validade=None,
+            observacao=observacao,
+            usuario_matricula=actor_id,
+            origem_valor=origem_valor,
+            document_only=True,
+            movimenta_estoque=movimenta_estoque,
+        )
+        document_item = document_result.get("document_item")
+        documento = document_result.get("document")
+
+        if documento and documento.movimenta_estoque and document_item is not None:
+            item_model = document_item.item or db.session.get(Item, document_item.codigo_item)
+            if item_model is not None:
+                item_model.pre_cadastro_pendente = True
+                item_model.pre_cadastro_origem = "nf"
+                item_model.pre_cadastro_documento_item_id = document_item.id_documento_item
+                pre_registration_count = 1
+                db.session.commit()
+
+        try:
+            if document_item is not None:
+                ledger_entry = finance_service.register_financial_entry(
+                    codigo_item=document_item.codigo_item,
+                    categoria_nome=document_item.item.categoria if document_item.item and document_item.item.categoria else "Sem categoria",
+                    quantidade=float(document_item.quantidade or 0.0),
+                    valor_unitario=float(document_item.valor_unitario) if document_item.valor_unitario not in (None, "") else None,
+                    valor_total=float(document_item.valor_total) if document_item.valor_total not in (None, "") else None,
+                    data_lancamento=documento.data_recebimento or documento.data_emissao or datetime.utcnow(),
+                    fornecedor_id=documento.fornecedor_id,
+                    entrada_id=document_item.entrada_id,
+                    usuario_matricula=actor_id,
+                    origem_valor=origem_valor,
+                    tipo_documento=documento.tipo_documento,
+                    numero_documento=documento.numero_documento,
+                    chave_acesso=documento.chave_acesso,
+                    data_emissao_documento=documento.data_emissao,
+                    data_recebimento_documento=documento.data_recebimento,
+                    comprovacao_status=comprovacao_status,
+                    observacao=document_item.observacao or documento.observacao,
+                    unidade_quantidade=document_item.unidade_quantidade,
+                    quantidade_base=document_item.quantidade_base,
+                    valor_unitario_base=document_item.valor_unitario_base,
+                    unidade_preco=document_item.unidade_preco,
+                    fator_preco_base=document_item.fator_preco_base,
+                )
+        except Exception as exc:
+            logger.exception("Erro ao sincronizar financeiro do documento mobile")
+            warnings.append(f"Documento salvo, mas o financeiro nao foi sincronizado automaticamente: {str(exc)}")
+
+        try:
+            if documento is not None and documento.movimenta_estoque and document_item is not None and not pre_registration_count:
+                stock_process_result = finance_service.process_stock_document_entries(
+                    documento.id_documento,
+                    usuario_matricula=actor_id,
+                    only_pending=True,
+                    item_ids=[document_item.id_documento_item],
+                )
+        except Exception as exc:
+            logger.exception("Erro ao processar estoque do documento mobile")
+            warnings.append(f"Documento salvo, mas houve erro ao integrar o estoque: {str(exc)}")
+
+        try:
+            inventory_service.clear_runtime_cache("list_items")
+            inventory_service.clear_runtime_cache("list_notas_fiscais:")
+            inventory_service.clear_runtime_cache(f"get_nota_fiscal:{nota}")
+            finance_service.clear_runtime_cache("list_stock_documents:")
+            finance_service.clear_runtime_cache(f"get_stock_document_by_number:{nota}")
+        except Exception:
+            pass
+
+        message = "Documento fiscal registrado no mobile."
+        if not documento.movimenta_estoque:
+            message = "Documento registrado apenas no financeiro. O estoque nao foi movimentado por opcao do lancamento."
+        elif pre_registration_count:
+            message = "Documento registrado. O item novo ficou em pre-cadastro antes de entrar no estoque."
+        elif stock_process_result and stock_process_result.get("processed"):
+            message = "Documento registrado e item incorporado ao estoque."
+
+        return jsonify({
+            "success": True,
+            "message": message,
+            "warnings": warnings,
+            "data": {
+                "documento_id": getattr(documento, "id_documento", None),
+                "documento_item_id": getattr(document_item, "id_documento_item", None),
+                "numero_documento": getattr(documento, "numero_documento", nota),
+                "tipo_documento": getattr(documento, "tipo_documento", tipo_documento),
+                "movimenta_estoque": bool(getattr(documento, "movimenta_estoque", movimenta_estoque)),
+                "financeiro_registrado": ledger_entry is not None,
+                "estoque_processado": bool(stock_process_result and stock_process_result.get("processed")),
+                "pre_cadastro_pendente": bool(pre_registration_count),
+                "item_criado": item_criado_na_nf,
+                "item": inventory_service.get_item(codigo),
+            },
+        }), 200
+    except ValueError as exc:
+        db.session.rollback()
+        return jsonify({"success": False, "message": str(exc)}), 400
+    except Exception as exc:
+        db.session.rollback()
+        logger.exception("Erro ao registrar documento fiscal mobile")
+        return jsonify({"success": False, "message": f"Erro ao registrar documento fiscal: {str(exc)}"}), 500
 
 
 @blueprint.get("/health")

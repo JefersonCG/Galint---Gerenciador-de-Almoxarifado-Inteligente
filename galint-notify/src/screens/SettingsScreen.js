@@ -71,11 +71,15 @@ export default function SettingsScreen({ session, onLogout, onServerSaved }) {
   }
 
   return (
-    <ScreenShell title="Configurações" subtitle="Gerencie URL do GALINT, sessão e registro de push do aparelho.">
+    <ScreenShell title="Configuracoes" subtitle="Servidor, sessao e push do aparelho em uma tela curta e objetiva.">
       <View style={styles.card}>
         <Text style={styles.label}>URL base do servidor</Text>
         <TextInput value={serverUrl} onChangeText={setServerUrl} style={styles.input} autoCapitalize="none" placeholder="http://10.0.0.245:5000 ou https://notify.suaempresa.com" placeholderTextColor={palette.muted} />
         <Text style={styles.meta}>Usuário atual: {session?.user?.nome || '-'} ({session?.user?.matricula || '-'})</Text>
+        <View style={styles.hintCard}>
+          <Text style={styles.hintTitle}>Diagnostico de rede</Text>
+          <Text style={styles.hintText}>Se a URL usar 10.x, 192.168.x ou .local, o aparelho precisa estar na mesma rede do servidor. Se o IP da maquina mudar, o Notify passa a dar falha de rede ate a URL ser atualizada.</Text>
+        </View>
         <View style={styles.actions}>
           <Pressable style={styles.button} onPress={save}><Text style={styles.buttonText}>Salvar servidor</Text></Pressable>
           <Pressable style={[styles.button, styles.buttonAlt]} onPress={refreshPush}><Text style={styles.buttonText}>Atualizar push</Text></Pressable>
@@ -100,6 +104,9 @@ const styles = StyleSheet.create({
   label: { color: palette.text, fontWeight: '700', marginBottom: 8 },
   input: { backgroundColor: palette.panelAlt, color: palette.text, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12, borderWidth: 1, borderColor: palette.border },
   meta: { color: palette.muted, marginTop: 14 },
+  hintCard: { marginTop: 14, borderRadius: 18, borderWidth: 1, borderColor: palette.border, backgroundColor: palette.panelAlt, padding: 14 },
+  hintTitle: { color: palette.text, fontWeight: '800' },
+  hintText: { color: palette.muted, marginTop: 6, lineHeight: 19 },
   actions: { flexDirection: 'row', gap: 12, marginTop: 18 },
   button: { flex: 1, backgroundColor: palette.primary, borderRadius: 999, paddingVertical: 12, alignItems: 'center' },
   buttonAlt: { backgroundColor: palette.accent },

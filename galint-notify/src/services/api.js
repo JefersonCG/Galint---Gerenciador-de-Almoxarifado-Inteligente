@@ -39,15 +39,58 @@ class NotifyApiService {
     }
   }
 
-  formatRequestError(error) {
+  isPrivateHost(hostname) {
+    const host = String(hostname || '').trim().toLowerCase();
+    if (!host) {
+      return false;
+    }
+    if (host === 'localhost' || host === '127.0.0.1' || host.endsWith('.local')) {
+      return true;
+    }
+    if (!/^\d{1,3}(\.\d{1,3}){3}$/.test(host)) {
+      return false;
+    }
+    const parts = host.split('.').map((entry) => Number(entry));
+    if (parts[0] === 10) return true;
+    if (parts[0] === 127) return true;
+    if (parts[0] === 192 && parts[1] === 168) return true;
+    if (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) return true;
+    return false;
+  }
+
+  buildNetworkHint(baseURL) {
+    const normalized = this.normalizeBaseUrl(baseURL || '');
+    if (!normalized) {
+      return 'Defina a URL do servidor antes de testar ou entrar.';
+    }
+
+    try {
+      const parsed = new URL(normalized);
+      if (this.isPrivateHost(parsed.hostname)) {
+        return 'Este endereco e de rede local. Ele so funciona se o celular estiver na mesma rede Wi-Fi/VPN do servidor e se o IP da maquina nao tiver mudado.';
+      }
+      if (parsed.protocol === 'http:') {
+        return 'Se o aparelho estiver fora da rede local, use um endereco HTTPS valido para evitar falha de comunicacao.';
+      }
+      return 'Confirme se o dominio e o certificado usados por esta URL continuam validos no aparelho.';
+    } catch {
+      return 'Revise a URL do servidor e teste novamente.';
+    }
+  }
+
+  formatRequestError(error, baseURL) {
+    const effectiveBaseUrl = this.normalizeBaseUrl(baseURL || this.baseURL || '');
     if (error?.response?.data?.message) {
       return error.response.data.message;
     }
     if (error?.response?.status) {
       return `Servidor respondeu com status ${error.response.status}.`;
     }
+    if ((error?.code || '').toString().toUpperCase() === 'ECONNABORTED') {
+      return `O servidor em ${effectiveBaseUrl || 'URL nao configurada'} demorou demais para responder. ${this.buildNetworkHint(effectiveBaseUrl)}`;
+    }
     if (error?.message === 'Network Error') {
-      return 'Falha de rede ao acessar o servidor. Verifique a URL base informada e se o dispositivo consegue alcançar esse endereço.';
+      return `Falha de rede ao acessar ${effectiveBaseUrl || 'a URL configurada'}. ${this.buildNetworkHint(effectiveBaseUrl)}`;
     }
     return error?.message || 'Erro de comunicação com o servidor.';
   }
@@ -56,7 +99,7 @@ class NotifyApiService {
     this.baseURL = this.normalizeBaseUrl(baseURL);
     this.client = axios.create({
       baseURL: this.baseURL,
-      timeout: 10000,
+      timeout: 15000,
       headers: { 'Content-Type': 'application/json' },
     });
     this.client.interceptors.request.use(async (config) => {
@@ -183,7 +226,7 @@ class NotifyApiService {
     try {
       response = await this.client.post('/api/notify/login', { matricula, senha });
     } catch (error) {
-      throw new Error(this.formatRequestError(error));
+      throw new Error(this.formatRequestError(error, this.baseURL));
     }
     const payload = response.data || {};
     if (!payload.success || !payload.token || !payload.user) {
@@ -211,7 +254,7 @@ class NotifyApiService {
       if (error?.response?.status === 401 || error?.response?.status === 403) {
         return { success: true, baseUrl: normalized };
       }
-      throw new Error(this.formatRequestError(error));
+      throw new Error(this.formatRequestError(error, normalized));
     }
   }
 

@@ -5,7 +5,12 @@ import ScreenShell from '../components/ScreenShell';
 import api from '../services/api';
 import { palette } from '../theme';
 
-const FILTERS = ['all', 'withdrawal', 'inventory', 'item', 'manual_test'];
+const FILTERS = [
+  { key: 'all', label: 'Tudo' },
+  { key: 'withdrawal', label: 'Retiradas' },
+  { key: 'inventory', label: 'Estoque' },
+  { key: 'item', label: 'Itens' },
+];
 
 export default function MessengerScreen({ navigation, highlightMessageId, onConsumedHighlight }) {
   const [filter, setFilter] = useState('all');
@@ -53,11 +58,11 @@ export default function MessengerScreen({ navigation, highlightMessageId, onCons
   }
 
   return (
-    <ScreenShell title="Messenger" subtitle={`Não lidas: ${payload.unread_count || 0}. Feed somente leitura com destaque para eventos roteados pelo backend.`} scroll={false}>
+    <ScreenShell title="Messenger" subtitle={`${payload.unread_count || 0} nao lidas. Feed resumido, sem excesso de texto bruto.`} scroll={false}>
       <View style={styles.filters}>
         {FILTERS.map((entry) => (
-          <Pressable key={entry} onPress={() => setFilter(entry)} style={[styles.filterChip, filter === entry && styles.filterChipActive]}>
-            <Text style={[styles.filterText, filter === entry && styles.filterTextActive]}>{entry === 'all' ? 'todas' : entry}</Text>
+          <Pressable key={entry.key} onPress={() => setFilter(entry.key)} style={[styles.filterChip, filter === entry.key && styles.filterChipActive]}>
+            <Text style={[styles.filterText, filter === entry.key && styles.filterTextActive]}>{entry.label}</Text>
           </Pressable>
         ))}
       </View>
@@ -71,12 +76,14 @@ export default function MessengerScreen({ navigation, highlightMessageId, onCons
           return (
             <Pressable onPress={() => openItem(item)} style={[styles.card, item.status !== 'read' && styles.cardUnread, highlighted && styles.cardHighlight]}>
               <View style={styles.cardHeader}>
-                <Text style={styles.category}>{item.category}</Text>
+                <Text style={styles.category}>{item.category || item.message_type || 'mensagem'}</Text>
                 <Text style={styles.timestamp}>{item.created_at ? new Date(item.created_at).toLocaleString('pt-BR') : '-'}</Text>
               </View>
-              <Text style={styles.title}>{item.title}</Text>
-              <Text style={styles.body}>{item.body}</Text>
-              <Text style={styles.status}>{item.status === 'read' ? 'Lida' : 'Não lida'}</Text>
+              <Text style={styles.title} numberOfLines={2}>{item.title}</Text>
+              <Text style={styles.body} numberOfLines={3}>{item.body}</Text>
+              <View style={styles.statusRow}>
+                <Text style={styles.status}>{item.status === 'read' ? 'Lida' : 'Nao lida'}</Text>
+              </View>
             </Pressable>
           );
         }}
@@ -98,8 +105,9 @@ const styles = StyleSheet.create({
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8, gap: 12 },
   category: { color: palette.primary, textTransform: 'uppercase', fontSize: 11, fontWeight: '800' },
   timestamp: { color: palette.muted, fontSize: 12 },
-  title: { color: palette.text, fontSize: 18, fontWeight: '800', marginBottom: 6 },
+  title: { color: palette.text, fontSize: 17, fontWeight: '800', marginBottom: 6 },
   body: { color: palette.muted, lineHeight: 20 },
-  status: { marginTop: 12, color: palette.accent, fontWeight: '700' },
+  statusRow: { marginTop: 12, flexDirection: 'row' },
+  status: { color: palette.accent, fontWeight: '700' },
   empty: { color: palette.muted, textAlign: 'center', marginTop: 40 },
 });

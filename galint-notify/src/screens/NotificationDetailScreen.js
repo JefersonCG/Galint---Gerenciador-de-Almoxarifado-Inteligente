@@ -44,7 +44,7 @@ export default function NotificationDetailScreen({ route }) {
   return (
     <ScrollView style={styles.safe} contentContainerStyle={styles.content}>
       <View style={styles.card}>
-        <Text style={styles.category}>{item.category}</Text>
+        <Text style={styles.category}>{item.category || item.message_type || 'mensagem'}</Text>
         <Text style={styles.title}>{item.title}</Text>
         <Text style={styles.body}>{item.body}</Text>
 
@@ -82,8 +82,10 @@ export default function NotificationDetailScreen({ route }) {
           </View>
         ) : null}
 
-        <Text style={styles.blockTitle}>Payload</Text>
-        <Text style={styles.payload}>{JSON.stringify(item.payload || {}, null, 2)}</Text>
+        <View style={styles.noteBox}>
+          <Text style={styles.noteTitle}>Leitura enxuta</Text>
+          <Text style={styles.noteText}>O payload tecnico bruto foi ocultado aqui para a tela ficar operacional. Se faltar algum campo, ele deve virar dado visual do backend em vez de JSON solto no app.</Text>
+        </View>
       </View>
     </ScrollView>
   );
@@ -101,6 +103,8 @@ const styles = StyleSheet.create({
   blockTitle: { color: palette.text, fontWeight: '800', marginTop: 18, marginBottom: 8 },
   infoPrimary: { color: palette.text, fontWeight: '800', fontSize: 17 },
   infoSecondary: { color: palette.muted, marginTop: 6, lineHeight: 20 },
-  payload: { color: palette.text, fontFamily: 'monospace', backgroundColor: palette.panelAlt, padding: 12, borderRadius: 14 },
+  noteBox: { marginTop: 18, borderRadius: 18, borderWidth: 1, borderColor: palette.border, backgroundColor: palette.panelAlt, padding: 14 },
+  noteTitle: { color: palette.text, fontWeight: '800' },
+  noteText: { color: palette.muted, marginTop: 6, lineHeight: 20 },
   empty: { color: palette.text, padding: 20 },
 });
