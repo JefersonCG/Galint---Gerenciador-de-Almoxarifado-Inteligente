@@ -225,10 +225,16 @@ def _validate_document_registration_fields(
 ) -> None:
     missing_fields: list[str] = []
     tipo_documento_normalizado = (tipo_documento or "").strip().lower()
+    cnpj_allowed = finance_service.document_allows_supplier_cnpj(tipo_documento_normalizado)
+    has_supplier_reference = bool(
+        supplier_id
+        or (supplier_name or "").strip()
+        or (((supplier_cnpj or "").strip()) if cnpj_allowed else "")
+    )
     if not (numero_documento or "").strip():
         missing_fields.append("número do documento")
-    if tipo_documento_normalizado != "manual" and not (supplier_id or (supplier_name or "").strip() or (supplier_cnpj or "").strip()):
-        missing_fields.append("fornecedor ou CNPJ da loja")
+    if tipo_documento_normalizado != "manual" and not has_supplier_reference:
+        missing_fields.append("fornecedor ou CNPJ da loja" if cnpj_allowed else "fornecedor")
     if data_recebimento is None:
         missing_fields.append("data de recebimento")
     if tipo_documento_normalizado == "nf" and data_emissao is None:
@@ -1486,9 +1492,15 @@ def registrar_nf():
         chave_acesso = None
     if tipo_documento == "manual":
         nota = MANUAL_SHARED_DOCUMENT_NUMBER
-        supplier_id = None
-        supplier_name = None
-        supplier_cnpj = None
+    supplier_inputs = finance_service.sanitize_document_supplier_inputs(
+        tipo_documento=tipo_documento,
+        supplier_id=supplier_id,
+        supplier_name=supplier_name,
+        supplier_cnpj=supplier_cnpj,
+    )
+    supplier_id = supplier_inputs["supplier_id"]
+    supplier_name = supplier_inputs["supplier_name"]
+    supplier_cnpj = supplier_inputs["supplier_cnpj"]
     data_recebimento_raw = (request.form.get("data_recebimento") or "").strip()
     if tipo_documento == "manual":
         data_recebimento_raw = date.today().isoformat()
@@ -1809,10 +1821,15 @@ def editar_documento(documento_id: int):
         chave_acesso = (request.form.get("chave_acesso") or "").strip() or None
         if tipo_documento != "nf":
             chave_acesso = None
-        if tipo_documento == "manual":
-            supplier_id = None
-            supplier_name = None
-            supplier_cnpj = None
+        supplier_inputs = finance_service.sanitize_document_supplier_inputs(
+            tipo_documento=tipo_documento,
+            supplier_id=supplier_id,
+            supplier_name=supplier_name,
+            supplier_cnpj=supplier_cnpj,
+        )
+        supplier_id = supplier_inputs["supplier_id"]
+        supplier_name = supplier_inputs["supplier_name"]
+        supplier_cnpj = supplier_inputs["supplier_cnpj"]
         observacao = (request.form.get("finance_observacao") or "").strip() or None
 
         movimenta_estoque = _resolve_documento_movimenta_estoque(

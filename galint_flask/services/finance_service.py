@@ -327,6 +327,44 @@ class FinanceService:
         return f"{digits[:2]}.{digits[2:5]}.{digits[5:8]}/{digits[8:12]}-{digits[12:]}"
 
     @staticmethod
+    def normalize_stock_document_type(value: str | None, *, fallback: str = "nf") -> str:
+        normalized = (value or "").strip().lower()
+        return normalized or fallback
+
+    @staticmethod
+    def document_allows_supplier_cnpj(tipo_documento: str | None) -> bool:
+        return FinanceService.normalize_stock_document_type(tipo_documento) in {"nf", "cupom"}
+
+    @staticmethod
+    def sanitize_document_supplier_inputs(
+        *,
+        tipo_documento: str | None,
+        supplier_id: int | None = None,
+        supplier_name: str | None = None,
+        supplier_cnpj: str | None = None,
+    ) -> dict[str, Any]:
+        tipo = FinanceService.normalize_stock_document_type(tipo_documento)
+        normalized_supplier_id = int(supplier_id) if supplier_id else None
+        normalized_supplier_name = (supplier_name or "").strip() or None
+        normalized_supplier_cnpj = FinanceService.normalize_cnpj(supplier_cnpj) or None
+
+        if tipo == "manual":
+            return {
+                "supplier_id": None,
+                "supplier_name": None,
+                "supplier_cnpj": None,
+            }
+
+        if not FinanceService.document_allows_supplier_cnpj(tipo):
+            normalized_supplier_cnpj = None
+
+        return {
+            "supplier_id": normalized_supplier_id,
+            "supplier_name": normalized_supplier_name,
+            "supplier_cnpj": normalized_supplier_cnpj,
+        }
+
+    @staticmethod
     def _cnpj_digits(value: str | None) -> str:
         return "".join(ch for ch in (value or "") if ch.isdigit())
 
@@ -1285,13 +1323,23 @@ class FinanceService:
     ) -> dict[str, Any]:
         codigo = (codigo_item or "").strip()
         numero = FinanceService.normalize_manual_internal_document_number(numero_documento)
-        tipo = (tipo_documento or "nf").strip() or "nf"
+        tipo = FinanceService.normalize_stock_document_type(tipo_documento)
         if not codigo:
             raise ValueError("Informe o item da entrada")
         if not numero:
             raise ValueError("Informe o número do documento")
-        if tipo.strip().lower() == "manual":
+        if tipo == "manual":
             numero = MANUAL_INTERNAL_DOCUMENT_NUMBER
+
+        supplier_inputs = FinanceService.sanitize_document_supplier_inputs(
+            tipo_documento=tipo,
+            supplier_id=supplier_id,
+            supplier_name=supplier_name,
+            supplier_cnpj=supplier_cnpj,
+        )
+        supplier_id = supplier_inputs["supplier_id"]
+        supplier_name = supplier_inputs["supplier_name"]
+        supplier_cnpj = supplier_inputs["supplier_cnpj"]
 
         supplier = FinanceService._resolve_supplier_for_document(
             supplier_id=supplier_id,
@@ -1316,7 +1364,7 @@ class FinanceService:
             )
         )
 
-        aliases = FinanceService.manual_internal_document_aliases() if tipo.strip().lower() == "manual" and FinanceService.is_manual_internal_document_number(numero) else (numero,)
+        aliases = FinanceService.manual_internal_document_aliases() if tipo == "manual" and FinanceService.is_manual_internal_document_number(numero) else (numero,)
 
         document_query = DocumentoEntradaEstoque.query.filter(
             DocumentoEntradaEstoque.tipo_documento == tipo,
@@ -1354,7 +1402,7 @@ class FinanceService:
             db.session.add(document)
             db.session.flush()
         else:
-            manual_shared_bucket = tipo.strip().lower() == "manual" and FinanceService.is_manual_internal_document_number(numero)
+            manual_shared_bucket = tipo == "manual" and FinanceService.is_manual_internal_document_number(numero)
             if reused_legacy_placeholder:
                 document.tipo_documento = tipo
                 document.status_integracao = status_integracao

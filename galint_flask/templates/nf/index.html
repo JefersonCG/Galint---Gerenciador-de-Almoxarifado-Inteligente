@@ -3368,9 +3368,9 @@
             numeroLabel: 'Número do recibo / controle',
             numeroHelp: 'Informe o número do recibo ou outra referência que permita rastrear a compra.',
             badge: 'Fluxo simplificado',
-            guidance: 'Recibo segue a mesma lógica do cupom: referência, datas, valor e observação bem amarrados.',
+            guidance: 'Recibo exige referência, datas, valor, observação e identificação do fornecedor pelo nome, sem usar CNPJ.',
             submitLabel: 'Registrar compra com recibo',
-            activeFields: ['Número do recibo', 'Datas', 'CNPJ da loja', 'Item / valor'],
+            activeFields: ['Número do recibo', 'Datas', 'Fornecedor identificado', 'Item / valor'],
             lockedFields: ['Chave de acesso', 'Classificação fiscal fixa'],
             lockNumber: false,
             lockEmission: false,
@@ -4161,6 +4161,7 @@
         const documentType = String(documentTypeValue || '').trim().toLowerCase() || 'nf';
         const isNf = documentType === 'nf';
         const isManual = documentType === 'manual';
+        const allowsSupplierCnpj = documentType === 'nf' || documentType === 'cupom';
         const preserveLayout = form === nfForm;
         const chaveGroup = form.querySelector('[data-chave-acesso-group]');
         const chaveInput = chaveGroup?.querySelector('input[name="chave_acesso"]') || form.querySelector('input[name="chave_acesso"]');
@@ -4179,14 +4180,14 @@
             }
         }
         if (supplierCnpjField) {
-            supplierCnpjField.disabled = isManual;
-            if (isManual) {
+            supplierCnpjField.disabled = !allowsSupplierCnpj;
+            if (!allowsSupplierCnpj) {
                 supplierCnpjField.value = '';
                 delete supplierCnpjField.dataset.lastLookupDigits;
             }
         }
         if (supplierLookupButton) {
-            supplierLookupButton.disabled = isManual;
+            supplierLookupButton.disabled = !allowsSupplierCnpj;
         }
         if (isManual) {
             if (supplierNameField) {
@@ -4201,6 +4202,8 @@
     const applyRegistrationFieldStates = (modeName) => {
         const normalizedModeName = normalizeDocumentTypeValue(modeName);
         const mode = registrationModes[normalizedModeName] || registrationModes.nf;
+        const cnpjAllowed = normalizedModeName === 'nf' || normalizedModeName === 'cupom';
+        const cnpjLocked = Boolean(mode.lockSupplier || !cnpjAllowed);
         const rememberedTargetState = rememberedModeState[normalizedModeName] || {};
         const shouldRestoreRememberedState = currentRegistrationMode !== normalizedModeName
             && Object.values(rememberedTargetState).some((value) => String(value || '').trim().length > 0);
@@ -4236,14 +4239,14 @@
         }
 
         if (supplierCnpjInput) {
-            supplierCnpjInput.disabled = Boolean(mode.lockSupplier);
-            if (mode.lockSupplier) {
+            supplierCnpjInput.disabled = cnpjLocked;
+            if (cnpjLocked) {
                 supplierCnpjInput.value = '';
                 delete supplierCnpjInput.dataset.lastLookupDigits;
             }
         }
         if (lookupCnpjButton) {
-            lookupCnpjButton.disabled = Boolean(mode.lockSupplier);
+            lookupCnpjButton.disabled = cnpjLocked;
         }
         if (supplierInput && mode.lockSupplier) {
             supplierInput.value = '';
@@ -4276,7 +4279,7 @@
         setLockState('numero', mode.lockNumber, mode.lockNumber ? 'Este modo usa automaticamente a nota interna compartilhada NOTA INTERNA.' : '');
         setLockState('emissao', mode.lockEmission, mode.lockEmission ? 'Data automática do dia para compras sem NF formal.' : '');
         setLockState('recebimento', mode.lockReceipt, mode.lockReceipt ? 'Recebimento fixado para hoje no fluxo sem NF.' : '');
-        setLockState('cnpj', mode.lockSupplier, mode.lockSupplier ? 'Loja e CNPJ não se aplicam ao bucket manual NOTA INTERNA.' : '');
+        setLockState('cnpj', cnpjLocked, cnpjLocked ? (normalizedModeName === 'manual' ? 'Loja e CNPJ não se aplicam ao bucket manual NOTA INTERNA.' : 'CNPJ só pode ser usado quando o documento for NF ou cupom.') : '');
         setLockState('chave', mode.lockAccessKey, mode.lockAccessKey ? 'Este fluxo não usa chave de acesso fiscal.' : '');
         setLockState('finance_tipo_documento', true, 'O tipo do documento acompanha a aba selecionada acima.');
         setLockState('finance_origem_valor', true, 'A origem do valor é fixada pelo fluxo para evitar combinações inconsistentes.');
@@ -4494,6 +4497,7 @@
         const suggestedDocumentType = normalizeDocumentTypeValue(doc.tipo_documento || 'nf');
         const shouldApplySuggestedType = source === 'explicit';
         const effectiveDocumentType = shouldApplySuggestedType ? suggestedDocumentType : currentDocumentType;
+        const effectiveDocumentAllowsSupplierCnpj = effectiveDocumentType === 'nf' || effectiveDocumentType === 'cupom';
         if (effectiveDocumentType === 'manual') {
             hideNotaResults();
             return;
@@ -4504,7 +4508,7 @@
         }
         if (supplierInput && doc.fornecedor_nome && effectiveDocumentType !== 'manual' && !supplierInput.disabled) supplierInput.value = doc.fornecedor_nome;
         if (supplierIdInput && effectiveDocumentType !== 'manual') supplierIdInput.value = doc.fornecedor_id || '';
-        if (supplierCnpjInput && doc.cnpj_emitente && effectiveDocumentType !== 'manual' && !supplierCnpjInput.disabled) supplierCnpjInput.value = doc.cnpj_emitente;
+        if (supplierCnpjInput && doc.cnpj_emitente && effectiveDocumentAllowsSupplierCnpj && !supplierCnpjInput.disabled) supplierCnpjInput.value = doc.cnpj_emitente;
         if (emissionDateInput && doc.data_emissao && effectiveDocumentType !== 'manual') emissionDateInput.value = doc.data_emissao;
         if (receiptDateInput && doc.data_recebimento) receiptDateInput.value = doc.data_recebimento;
         if (chaveAcessoInput && doc.chave_acesso && effectiveDocumentType === 'nf' && !chaveAcessoInput.disabled) chaveAcessoInput.value = doc.chave_acesso;

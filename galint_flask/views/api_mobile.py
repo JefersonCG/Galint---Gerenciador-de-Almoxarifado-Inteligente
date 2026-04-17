@@ -2592,10 +2592,16 @@ def _validate_mobile_document_registration_fields(
 ) -> None:
     missing_fields: list[str] = []
     tipo_documento_normalizado = (tipo_documento or "").strip().lower()
+    cnpj_allowed = finance_service.document_allows_supplier_cnpj(tipo_documento_normalizado)
+    has_supplier_reference = bool(
+        supplier_id
+        or (supplier_name or "").strip()
+        or (((supplier_cnpj or "").strip()) if cnpj_allowed else "")
+    )
     if not (numero_documento or "").strip():
         missing_fields.append("numero do documento")
-    if tipo_documento_normalizado != "manual" and not (supplier_id or (supplier_name or "").strip() or (supplier_cnpj or "").strip()):
-        missing_fields.append("fornecedor ou CNPJ da loja")
+    if tipo_documento_normalizado != "manual" and not has_supplier_reference:
+        missing_fields.append("fornecedor ou CNPJ da loja" if cnpj_allowed else "fornecedor")
     if data_recebimento is None:
         missing_fields.append("data de recebimento")
     if tipo_documento_normalizado == "nf" and data_emissao is None:
@@ -2925,10 +2931,15 @@ def mobile_registrar_documento_fiscal():
 
         if tipo_documento != "nf":
             chave_acesso = None
-        if tipo_documento == "manual":
-            supplier_id = None
-            supplier_name = None
-            supplier_cnpj = None
+        supplier_inputs = finance_service.sanitize_document_supplier_inputs(
+            tipo_documento=tipo_documento,
+            supplier_id=supplier_id,
+            supplier_name=supplier_name,
+            supplier_cnpj=supplier_cnpj,
+        )
+        supplier_id = supplier_inputs["supplier_id"]
+        supplier_name = supplier_inputs["supplier_name"]
+        supplier_cnpj = supplier_inputs["supplier_cnpj"]
 
         movimenta_estoque = finance_service.resolve_document_movimenta_estoque(
             data_emissao=data_emissao,
