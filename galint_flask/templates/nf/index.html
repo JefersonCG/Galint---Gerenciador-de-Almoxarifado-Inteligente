@@ -2288,6 +2288,10 @@
 
                 <form method="post" class="docf-form compact-form d-grid gap-2" id="nf-registration-form">
                     <input type="hidden" name="active_tab" value="registro">
+                    <input type="hidden" id="doc_mode_submit" name="doc_mode" value="nf">
+                    <input type="hidden" id="finance_tipo_documento_submit" name="finance_tipo_documento" value="nf">
+                    <input type="hidden" id="finance_origem_valor_submit" name="finance_origem_valor" value="compra_nf">
+                    <input type="hidden" id="finance_comprovacao_status_submit" name="finance_comprovacao_status" value="comprovado">
                     <div class="docf-form-section compact-section">
                         <div class="docf-form-section-header">
                             <div>
@@ -3067,10 +3071,14 @@
     const docModeActiveFields = document.getElementById('doc-mode-active-fields');
     const docModeLockedFields = document.getElementById('doc-mode-locked-fields');
     const docModeGuidance = document.getElementById('doc-mode-guidance');
+    const docModeSubmitInput = document.getElementById('doc_mode_submit');
     const notaFiscalLabel = document.getElementById('nota_fiscal_label');
     const notaFiscalHelp = document.getElementById('nota_fiscal_help');
     const nfForm = document.getElementById('nf-registration-form');
     const docModeInputs = Array.from(document.querySelectorAll('input[name="doc_mode"]'));
+    const tipoDocumentoSubmitInput = document.getElementById('finance_tipo_documento_submit');
+    const origemValorSubmitInput = document.getElementById('finance_origem_valor_submit');
+    const comprovacaoSubmitInput = document.getElementById('finance_comprovacao_status_submit');
     const submitRegistrationButton = document.getElementById('docf-submit-button');
     const helpToggleButton = document.getElementById('docf-help-toggle');
     const helpToast = document.getElementById('docf-help-toast');
@@ -4266,13 +4274,25 @@
             tipoDocumentoInput.value = mode.tipo;
             tipoDocumentoInput.disabled = true;
         }
+        if (tipoDocumentoSubmitInput) {
+            tipoDocumentoSubmitInput.value = mode.tipo;
+        }
         if (origemValorInput) {
             origemValorInput.value = mode.origem;
             origemValorInput.disabled = true;
         }
+        if (origemValorSubmitInput) {
+            origemValorSubmitInput.value = mode.origem;
+        }
         if (comprovacaoInput) {
             comprovacaoInput.value = mode.comprovacao;
             comprovacaoInput.disabled = true;
+        }
+        if (comprovacaoSubmitInput) {
+            comprovacaoSubmitInput.value = mode.comprovacao;
+        }
+        if (docModeSubmitInput) {
+            docModeSubmitInput.value = normalizedModeName;
         }
         syncAllVisualSelectGroups();
 
