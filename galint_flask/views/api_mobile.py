@@ -2793,7 +2793,7 @@ def mobile_documentos_fiscais_config():
     current_user = g.mobile_user
     if not _mobile_documents_available():
         return jsonify({"success": False, "message": "Documentos Fiscais indisponivel neste ambiente."}), 404
-        if not _can_operate_mobile_custody(current_user):
+    if not _is_admin_or_manager(current_user):
         return jsonify({"success": False, "message": "Acesso negado"}), 403
 
     return jsonify({
@@ -2831,7 +2831,7 @@ def mobile_documentos_fiscais_itens():
     current_user = g.mobile_user
     if not _mobile_documents_available():
         return jsonify({"success": False, "message": "Documentos Fiscais indisponivel neste ambiente."}), 404
-        if not _can_operate_mobile_custody(current_user):
+    if not _is_admin_or_manager(current_user):
         return jsonify({"success": False, "message": "Acesso negado"}), 403
 
     term = (request.args.get("search") or "").strip()
