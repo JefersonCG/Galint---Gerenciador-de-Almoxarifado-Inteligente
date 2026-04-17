@@ -1,0 +1,38 @@
+diff --git a/node_modules/expo-sqlite/android/CMakeLists.txt b/node_modules/expo-sqlite/android/CMakeLists.txt
+index a04751c..b57c913 100644
+--- a/node_modules/expo-sqlite/android/CMakeLists.txt
++++ b/node_modules/expo-sqlite/android/CMakeLists.txt
+@@ -13,6 +13,8 @@ file(GLOB SOURCES "${SRC_DIR}/*.cpp")
+ separate_arguments(SQLITE_BUILDFLAGS)
+ add_compile_options(
+   ${SQLITE_BUILDFLAGS}
++  -frtti
++  -fexceptions
+ )
+ 
+ add_library(
+@@ -42,6 +44,7 @@ target_link_libraries(
+   ${PACKAGE_NAME}
+   ${LOG_LIB}
+   ${OPENSSL_CRYPTO_LIB}
++  c++_shared
+   fbjni::fbjni
+   android
+ )
+diff --git a/node_modules/expo-sqlite/android/build.gradle b/node_modules/expo-sqlite/android/build.gradle
+index 83624a6..6f6872f 100644
+--- a/node_modules/expo-sqlite/android/build.gradle
++++ b/node_modules/expo-sqlite/android/build.gradle
+@@ -51,6 +51,12 @@ def reactNativeArchitectures() {
+ 
+ android {
+   namespace "expo.modules.sqlite"
++  if (rootProject.hasProperty("ndkPath")) {
++    ndkPath rootProject.property("ndkPath")
++  }
++  if (rootProject.hasProperty("ndkVersion")) {
++    ndkVersion rootProject.property("ndkVersion")
++  }
+   defaultConfig {
+     versionCode 18
+     versionName "15.0.6"

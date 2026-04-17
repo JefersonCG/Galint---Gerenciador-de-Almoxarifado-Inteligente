@@ -1,19 +1,16 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, ScrollView } from 'react-native';
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
+
+import HeroScreen from '../components/HeroScreen';
 import ApiService from '../services/api';
+import { heroPalette, heroShadow, heroSoftShadow } from '../theme/heroTheme';
 
 const scopes = [
     { key: 'materials', label: 'Materiais' },
     { key: 'tools', label: 'Ferramentas' },
     { key: 'all', label: 'Geral' },
-];
-
-const formats = [
-    { key: 'pdf', label: 'PDF' },
-    { key: 'xlsx', label: 'XLSX' },
-    { key: 'jpeg', label: 'JPEG' },
 ];
 
 const monthLabels = [
@@ -25,7 +22,7 @@ export default function ReportsMonthlyScreen() {
     const now = new Date();
     const [month, setMonth] = useState(now.getMonth() + 1);
     const [year, setYear] = useState(now.getFullYear());
-    const [loading, setLoading] = useState(false);
+    const [loadingScope, setLoadingScope] = useState(null);
 
     const years = useMemo(() => {
         const list = [];
@@ -35,12 +32,12 @@ export default function ReportsMonthlyScreen() {
         return list;
     }, [now]);
 
-    const handleShare = async (scope, format) => {
-        setLoading(true);
+    const handleShare = async (scope) => {
+        setLoadingScope(scope);
         try {
             const token = await ApiService.getToken();
-            const url = ApiService.getReportUrl('monthly', { scope, format, month, year });
-            const filename = `relatorio_mensal_${year}_${String(month).padStart(2, '0')}_${scope}.${format}`;
+            const url = ApiService.getReportUrl('monthly', { scope, format: 'pdf', month, year });
+            const filename = `relatorio_mensal_${year}_${String(month).padStart(2, '0')}_${scope}.pdf`;
             const fileUri = `${FileSystem.cacheDirectory}${filename}`;
 
             const download = await FileSystem.downloadAsync(url, fileUri, {
@@ -48,13 +45,8 @@ export default function ReportsMonthlyScreen() {
             });
 
             if (await Sharing.isAvailableAsync()) {
-                const mimeType = format === 'pdf'
-                    ? 'application/pdf'
-                    : format === 'xlsx'
-                        ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-                        : 'image/jpeg';
                 await Sharing.shareAsync(download.uri, {
-                    mimeType,
+                    mimeType: 'application/pdf',
                     dialogTitle: 'Compartilhar relatório',
                 });
             } else {
@@ -63,16 +55,29 @@ export default function ReportsMonthlyScreen() {
         } catch (error) {
             Alert.alert('Erro', error?.message || 'Falha ao gerar relatório');
         } finally {
-            setLoading(false);
+            setLoadingScope(null);
         }
     };
 
     return (
-        <ScrollView style={styles.container}>
-            <Text style={styles.title}>Relatório Mensal</Text>
-
-            <Text style={styles.sectionTitle}>Mês</Text>
-            <View style={styles.chipsContainer}>
+        <HeroScreen
+            eyebrow="Relatorio mensal"
+            title="Fechamento em PDF"
+            subtitle="Selecione mes, ano e escopo. O mobile usa a mesma trilha de PDF do servidor para manter consistencia operacional."
+            heroContent={
+                <View style={styles.heroGrid}>
+                    <View style={styles.heroCard}>
+                        <Text style={styles.heroLabel}>Periodo</Text>
+                        <Text style={styles.heroValue}>{monthLabels[month - 1]}</Text>
+                    </View>
+                    <View style={styles.heroCard}>
+                        <Text style={styles.heroLabel}>Ano</Text>
+                        <Text style={styles.heroValue}>{year}</Text>
+                    </View>
+                </View>
+            }
+        >
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsContainer}>
                 {monthLabels.map((label, index) => {
                     const value = index + 1;
                     const selected = value === month;
@@ -86,16 +91,15 @@ export default function ReportsMonthlyScreen() {
                         </TouchableOpacity>
                     );
                 })}
-            </View>
+            </ScrollView>
 
-            <Text style={styles.sectionTitle}>Ano</Text>
-            <View style={styles.row}>
+            <View style={styles.yearRow}>
                 {years.map((y) => {
                     const selected = y === year;
                     return (
                         <TouchableOpacity
                             key={y}
-                            style={[styles.chip, selected && styles.chipActive]}
+                            style={[styles.yearChip, selected && styles.chipActive]}
                             onPress={() => setYear(y)}
                         >
                             <Text style={[styles.chipText, selected && styles.chipTextActive]}>{y}</Text>
@@ -105,89 +109,159 @@ export default function ReportsMonthlyScreen() {
             </View>
 
             {scopes.map((scope) => (
-                <View key={scope.key} style={styles.section}>
-                    <Text style={styles.sectionTitle}>{scope.label}</Text>
-                    <View style={styles.row}>
-                        {formats.map((format) => (
-                            <TouchableOpacity
-                                key={`${scope.key}-${format.key}`}
-                                style={styles.button}
-                                onPress={() => handleShare(scope.key, format.key)}
-                                disabled={loading}
-                            >
-                                {loading ? (
-                                    <ActivityIndicator color="#fff" />
-                                ) : (
-                                    <Text style={styles.buttonText}>{format.label}</Text>
-                                )}
-                            </TouchableOpacity>
-                        ))}
+                <View key={scope.key} style={styles.sectionCard}>
+                    <View style={styles.sectionCopy}>
+                        <Text style={styles.sectionTitle}>{scope.label}</Text>
+                        <Text style={styles.sectionSubtitle}>Gera o fechamento do periodo em PDF pronto para envio.</Text>
                     </View>
+                    <TouchableOpacity
+                        style={styles.button}
+                        onPress={() => handleShare(scope.key)}
+                        disabled={loadingScope === scope.key}
+                    >
+                        {loadingScope === scope.key ? (
+                            <ActivityIndicator color={heroPalette.bg} />
+                        ) : (
+                            <Text style={styles.buttonText}>Gerar PDF</Text>
+                        )}
+                    </TouchableOpacity>
                 </View>
             ))}
-        </ScrollView>
+
+            <View style={styles.infoBox}>
+                <Text style={styles.infoTitle}>Uso recomendado</Text>
+                <Text style={styles.infoText}>Use o mensal para fechamento, auditoria e prestacao de contas. O analitico por categoria e colaborador fica na tela separada de consumo.</Text>
+            </View>
+        </HeroScreen>
     );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        padding: 20,
-        backgroundColor: '#f5f5f5',
-    },
-    title: {
-        fontSize: 22,
-        fontWeight: '700',
-        color: '#111827',
-        marginBottom: 12,
-    },
-    section: {
-        marginBottom: 16,
-    },
-    sectionTitle: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: '#111827',
-        marginBottom: 8,
-        marginTop: 8,
-    },
-    row: {
+    heroGrid: {
         flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 10,
+        gap: 12,
+    },
+    heroCard: {
+        flex: 1,
+        borderRadius: 18,
+        paddingHorizontal: 14,
+        paddingVertical: 14,
+        backgroundColor: heroPalette.panelAlt,
+        borderWidth: 1,
+        borderColor: heroPalette.border,
+        ...heroSoftShadow,
+    },
+    heroLabel: {
+        color: heroPalette.textMuted,
+        fontSize: 11,
+        fontWeight: '800',
+        textTransform: 'uppercase',
+        letterSpacing: 1,
+    },
+    heroValue: {
+        marginTop: 8,
+        color: heroPalette.text,
+        fontSize: 18,
+        fontWeight: '900',
     },
     chipsContainer: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
+        paddingBottom: 4,
         gap: 8,
-        marginBottom: 8,
+        marginBottom: 10,
     },
     chip: {
-        backgroundColor: '#e5e7eb',
+        backgroundColor: heroPalette.panelAlt,
         paddingVertical: 6,
         paddingHorizontal: 10,
         borderRadius: 16,
+        borderWidth: 1,
+        borderColor: heroPalette.border,
     },
     chipActive: {
-        backgroundColor: '#0d6efd',
+        backgroundColor: heroPalette.primaryStrong,
+        borderColor: heroPalette.primaryStrong,
     },
     chipText: {
         fontSize: 12,
-        color: '#111827',
+        color: heroPalette.text,
     },
     chipTextActive: {
-        color: '#000',
-        fontWeight: '600',
+        color: heroPalette.bg,
+        fontWeight: '800',
+    },
+    yearRow: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 10,
+        marginBottom: 14,
+    },
+    yearChip: {
+        backgroundColor: heroPalette.panelAlt,
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: heroPalette.border,
+    },
+    sectionCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        backgroundColor: heroPalette.panel,
+        borderRadius: 22,
+        padding: 18,
+        marginBottom: 14,
+        borderWidth: 1,
+        borderColor: heroPalette.border,
+        ...heroShadow,
+    },
+    sectionCopy: {
+        flex: 1,
+        paddingRight: 12,
+    },
+    sectionTitle: {
+        color: heroPalette.text,
+        fontSize: 18,
+        fontWeight: '800',
+        marginBottom: 6,
+    },
+    sectionSubtitle: {
+        color: heroPalette.textMuted,
+        fontSize: 13,
+        lineHeight: 19,
     },
     button: {
-        backgroundColor: '#0d6efd',
+        minWidth: 116,
+        backgroundColor: heroPalette.primaryStrong,
         paddingVertical: 10,
         paddingHorizontal: 16,
-        borderRadius: 8,
+        borderRadius: 14,
         alignItems: 'center',
+        justifyContent: 'center',
     },
     buttonText: {
-        color: '#000',
-        fontWeight: '600',
+        color: heroPalette.bg,
+        fontWeight: '800',
+        fontSize: 13,
+    },
+    infoBox: {
+        borderRadius: 18,
+        borderWidth: 1,
+        borderColor: heroPalette.border,
+        backgroundColor: heroPalette.panelAlt,
+        paddingHorizontal: 16,
+        paddingVertical: 16,
+        marginTop: 6,
+    },
+    infoTitle: {
+        color: heroPalette.text,
+        fontSize: 14,
+        fontWeight: '700',
+        marginBottom: 4,
+    },
+    infoText: {
+        color: heroPalette.textMuted,
+        fontSize: 12,
+        lineHeight: 18,
     },
 });

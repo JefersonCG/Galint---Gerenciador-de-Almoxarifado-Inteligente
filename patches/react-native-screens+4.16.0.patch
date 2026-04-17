@@ -1,0 +1,42 @@
+diff --git a/node_modules/react-native-screens/android/CMakeLists.txt b/node_modules/react-native-screens/android/CMakeLists.txt
+index 86ec079..ed7782a 100644
+--- a/node_modules/react-native-screens/android/CMakeLists.txt
++++ b/node_modules/react-native-screens/android/CMakeLists.txt
+@@ -30,6 +30,13 @@ set_target_properties(rnscreens PROPERTIES
+     POSITION_INDEPENDENT_CODE ON
+ )
+ 
++target_compile_options(
++    rnscreens
++    PRIVATE
++    -frtti
++    -fexceptions
++)
++
+ target_compile_definitions(
+     rnscreens
+     PRIVATE
+@@ -45,6 +52,7 @@ if(${RNS_NEW_ARCH_ENABLED})
+         target_link_libraries(rnscreens
+             ReactAndroid::reactnative
+             ReactAndroid::jsi
++            c++_shared
+             fbjni::fbjni
+             android
+         )
+@@ -68,6 +76,7 @@ if(${RNS_NEW_ARCH_ENABLED})
+                 ReactAndroid::react_render_consistency
+                 ReactAndroid::react_performance_timeline
+                 ReactAndroid::react_render_observers_events
++                c++_shared
+                 fbjni::fbjni
+                 android
+         )
+@@ -75,6 +84,7 @@ if(${RNS_NEW_ARCH_ENABLED})
+ else()
+     target_link_libraries(rnscreens
+         ReactAndroid::jsi
++        c++_shared
+         android
+     )
+ endif()

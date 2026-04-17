@@ -1,40 +1,62 @@
 import React, { useCallback, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import ApiService from '../services/api';
 import HeroScreen from '../components/HeroScreen';
+import { subscribeNotifyInboxChanged } from '../services/notifyEvents';
 import { heroPalette, heroShadow, heroSoftShadow } from '../theme/heroTheme';
 
 export default function MenuScreen({ navigation }) {
-    const [unreadCount, setUnreadCount] = useState(0);
+    const [overview, setOverview] = useState(null);
+    const [loading, setLoading] = useState(true);
+
+    const loadOverview = useCallback(async (silent = false) => {
+        if (!silent) {
+            setLoading(true);
+        }
+
+        const result = await ApiService.getErpOverview();
+        if (result?.success) {
+            setOverview(result.data || null);
+        } else {
+            setOverview(null);
+        }
+
+        if (!silent) {
+            setLoading(false);
+        }
+    }, []);
 
     useFocusEffect(
         useCallback(() => {
-            let active = true;
+            loadOverview();
+            const intervalId = setInterval(() => loadOverview(true), 12000);
+            const unsubscribeNotify = subscribeNotifyInboxChanged(() => {
+                loadOverview(true);
+            });
 
-            const loadSummary = async () => {
-                const result = await ApiService.getNotifySummary();
-                if (!active) return;
-                if (result?.success) {
-                    setUnreadCount(Number(result.unread_count || 0));
-                } else {
-                    setUnreadCount(0);
-                }
-            };
-
-            loadSummary();
             return () => {
-                active = false;
+                clearInterval(intervalId);
+                unsubscribeNotify();
             };
-        }, [])
+        }, [loadOverview])
     );
+
+    const unreadCount = Number(overview?.notifications?.unread_count || 0);
+    const movementStats = overview?.movement_stats?.today || {};
+    const totalToday = Number(movementStats.entradas || 0) + Number(movementStats.saidas || 0) + Number(movementStats.inventario || 0);
+    const totalItems = Number(overview?.stock?.total_itens || 0);
+    const userName = String(overview?.user?.nome || '').trim();
+    const firstName = userName ? userName.split(' ')[0] : '';
+    const recentMovements = Array.isArray(overview?.recent_movements) ? overview.recent_movements.slice(0, 4) : [];
+    const documentModes = Array.isArray(overview?.features?.document_modes) ? overview.features.document_modes : [];
 
     return (
         <HeroScreen
-            eyebrow="Painel mobile"
-            title="Controle rapido do dispositivo"
-            subtitle="Sem excesso de blocos. Aqui ficam os atalhos secundarios do app enquanto a operacao principal acontece no estoque, retirada e devolucao."
+            eyebrow="Central mobile"
+            title={firstName ? `Operacao rapida de ${firstName}` : 'Central mobile'}
+            subtitle="O mobile agora vira a camada rapida do GALINT: acesso direto a notificacoes, entradas documentais, relatorios e leitura operacional do dia."
             heroContent={
                 <View style={styles.heroStats}>
                     <View style={styles.heroStatCard}>
@@ -42,12 +64,23 @@ export default function MenuScreen({ navigation }) {
                         <Text style={styles.heroStatValue}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
                     </View>
                     <View style={styles.heroStatCard}>
-                        <Text style={styles.heroStatLabel}>Entrada rapida</Text>
-                        <Text style={styles.heroStatValue}>NF mobile</Text>
+                        <Text style={styles.heroStatLabel}>Hoje</Text>
+                        <Text style={styles.heroStatValue}>{totalToday}</Text>
+                    </View>
+                    <View style={styles.heroStatCard}>
+                        <Text style={styles.heroStatLabel}>Estoque</Text>
+                        <Text style={styles.heroStatValue}>{totalItems}</Text>
                     </View>
                 </View>
             }
         >
+            {loading ? (
+                <View style={styles.loadingBox}>
+                    <ActivityIndicator color={heroPalette.primaryStrong} />
+                    <Text style={styles.loadingText}>Atualizando central mobile...</Text>
+                </View>
+            ) : null}
+
             <TouchableOpacity 
                 style={[styles.modernCard, styles.profileCard]} 
                 onPress={() => navigation.navigate('Profile')}
@@ -98,6 +131,21 @@ export default function MenuScreen({ navigation }) {
                 <Text style={styles.cardArrow}>›</Text>
             </TouchableOpacity>
 
+            <TouchableOpacity
+                style={[styles.modernCard, styles.consumptionCard]}
+                onPress={() => navigation.navigate('ReportsConsumption')}
+                activeOpacity={0.85}
+            >
+                <View style={styles.cardIconContainer}>
+                    <Text style={styles.cardIcon}>📊</Text>
+                </View>
+                <View style={styles.cardContent}>
+                    <Text style={styles.cardTitle}>Consumo analitico</Text>
+                    <Text style={styles.cardSubtitle}>Categoria, local e funcionario em leitura simplificada para o aparelho.</Text>
+                </View>
+                <Text style={styles.cardArrow}>›</Text>
+            </TouchableOpacity>
+
             <TouchableOpacity 
                 style={[styles.modernCard, styles.updatesCard]} 
                 onPress={() => navigation.navigate('Config')}
@@ -128,9 +176,32 @@ export default function MenuScreen({ navigation }) {
                 <Text style={styles.cardArrow}>›</Text>
             </TouchableOpacity>
 
+            {documentModes.length ? (
+                <View style={styles.modeBox}>
+                    <Text style={styles.modeTitle}>Entradas disponiveis no mobile</Text>
+                    <View style={styles.modeRow}>
+                        {documentModes.map((mode) => (
+                            <View key={mode.value} style={styles.modeChip}>
+                                <Text style={styles.modeChipText}>{mode.label}</Text>
+                            </View>
+                        ))}
+                    </View>
+                </View>
+            ) : null}
+
             <View style={styles.footerInfo}>
-                <Text style={styles.footerText}>O fluxo operacional principal segue na pesquisa do estoque.</Text>
-                <Text style={styles.footerSubtext}>Use este painel para funcoes auxiliares e governanca do aparelho.</Text>
+                <Text style={styles.footerText}>Movimentacoes recentes</Text>
+                {recentMovements.length ? recentMovements.map((movement, index) => (
+                    <View key={`${movement.id || index}-${movement.tipo}`} style={styles.movementRow}>
+                        <View style={styles.movementCopy}>
+                            <Text style={styles.movementTitle}>{movement.tipo || 'Movimento'} • {movement.descricao || movement.codigo || 'Item'}</Text>
+                            <Text style={styles.movementMeta}>{movement.responsavel || 'Sem responsavel'}{movement.local_servico ? ` • ${movement.local_servico}` : ''}</Text>
+                        </View>
+                        <Text style={styles.movementQty}>{movement.quantidade}</Text>
+                    </View>
+                )) : (
+                    <Text style={styles.footerSubtext}>Sem movimentacoes recentes carregadas para este aparelho.</Text>
+                )}
             </View>
         </HeroScreen>
     );
@@ -190,6 +261,9 @@ const styles = StyleSheet.create({
     reportsCard: {
         borderColor: 'rgba(244, 114, 182, 0.22)',
     },
+    consumptionCard: {
+        borderColor: 'rgba(251, 191, 36, 0.24)',
+    },
     cardIconContainer: {
         width: 56,
         height: 56,
@@ -238,6 +312,55 @@ const styles = StyleSheet.create({
         fontSize: 12,
         fontWeight: '800',
     },
+    loadingBox: {
+        borderRadius: 18,
+        borderWidth: 1,
+        borderColor: heroPalette.border,
+        backgroundColor: heroPalette.panelAlt,
+        paddingHorizontal: 16,
+        paddingVertical: 16,
+        marginBottom: 14,
+        alignItems: 'center',
+    },
+    loadingText: {
+        marginTop: 8,
+        color: heroPalette.textMuted,
+        fontSize: 12,
+    },
+    modeBox: {
+        borderRadius: 18,
+        borderWidth: 1,
+        borderColor: heroPalette.border,
+        backgroundColor: heroPalette.panelAlt,
+        paddingHorizontal: 16,
+        paddingVertical: 16,
+        marginTop: 2,
+        marginBottom: 12,
+    },
+    modeTitle: {
+        color: heroPalette.text,
+        fontSize: 14,
+        fontWeight: '700',
+        marginBottom: 10,
+    },
+    modeRow: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+    },
+    modeChip: {
+        borderRadius: 999,
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        backgroundColor: heroPalette.panel,
+        borderWidth: 1,
+        borderColor: heroPalette.border,
+    },
+    modeChipText: {
+        color: heroPalette.textSoft,
+        fontSize: 11,
+        fontWeight: '700',
+    },
     footerInfo: {
         borderRadius: 18,
         borderWidth: 1,
@@ -256,5 +379,32 @@ const styles = StyleSheet.create({
     footerSubtext: {
         fontSize: 12,
         color: heroPalette.textMuted,
+    },
+    movementRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        gap: 12,
+        paddingTop: 10,
+        borderTopWidth: 1,
+        borderTopColor: heroPalette.border,
+        marginTop: 10,
+    },
+    movementCopy: {
+        flex: 1,
+    },
+    movementTitle: {
+        color: heroPalette.text,
+        fontSize: 13,
+        fontWeight: '700',
+        marginBottom: 3,
+    },
+    movementMeta: {
+        color: heroPalette.textMuted,
+        fontSize: 12,
+    },
+    movementQty: {
+        color: heroPalette.primary,
+        fontSize: 13,
+        fontWeight: '800',
     },
 });

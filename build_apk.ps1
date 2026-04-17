@@ -49,6 +49,7 @@ catch {
 
 Write-Host "Usando Node: $(node -v)" -ForegroundColor Cyan
 Write-Host "Rodando build: eas build -p android --profile $Profile" -ForegroundColor Cyan
+Write-Host "Se o Expo negar permissão para este projeto, use .\build_local_apk.ps1 para gerar o APK localmente." -ForegroundColor Yellow
 
 # Permite rodar EAS mesmo sem Git instalado/configurado
 $env:EAS_NO_VCS = '1'
@@ -71,25 +72,27 @@ npm install
 
 # Requer login: `eas login`
 # Alternativa (recomendado para evitar prompts): usar EXPO_TOKEN.
+$easWhoamiOutput = ''
 try {
-    $null = eas whoami 2>$null
+    $easWhoamiOutput = (& eas whoami 2>$null | Out-String).Trim()
 }
 catch {
 }
 
-if ($LASTEXITCODE -ne 0) {
-    if ($env:EXPO_TOKEN) {
-        Write-Host "EXPO_TOKEN detectado. Continuando sem login interativo..." -ForegroundColor Cyan
-    }
-    else {
-        Write-Host "Você ainda NÃO está logado no EAS. Vou abrir o login agora..." -ForegroundColor Yellow
-        Write-Host "Digite seu e-mail/usuário e senha do Expo." -ForegroundColor Yellow
-        eas login
+if ($LASTEXITCODE -eq 0 -and $easWhoamiOutput) {
+    Write-Host "Sessão EAS ativa: $easWhoamiOutput" -ForegroundColor Cyan
+}
+elseif ($env:EXPO_TOKEN) {
+    Write-Host "EXPO_TOKEN detectado. Continuando sem login interativo..." -ForegroundColor Cyan
+}
+else {
+    Write-Host "Você ainda NÃO está logado no EAS. Vou abrir o login agora..." -ForegroundColor Yellow
+    Write-Host "Digite seu e-mail/usuário e senha do Expo." -ForegroundColor Yellow
+    eas login
 
-        eas whoami 2>$null
-        if ($LASTEXITCODE -ne 0) {
-            throw "Login não concluído. Confira usuário/senha (ou use EXPO_TOKEN) e tente novamente."
-        }
+    $easWhoamiOutput = (& eas whoami 2>$null | Out-String).Trim()
+    if ($LASTEXITCODE -ne 0 -or -not $easWhoamiOutput) {
+        throw "Login não concluído. Confira usuário/senha (ou use EXPO_TOKEN) e tente novamente."
     }
 }
 
@@ -97,6 +100,11 @@ if ($LASTEXITCODE -ne 0) {
 # Depois de configurado, rodar em modo não-interativo evita prompts (ex.: instalar em emulador/ADB).
 Write-Host "EAS_NO_VCS=$env:EAS_NO_VCS" -ForegroundColor DarkGray
 Write-Host "EAS_SKIP_AUTO_FINGERPRINT=$env:EAS_SKIP_AUTO_FINGERPRINT" -ForegroundColor DarkGray
-eas build -p android --profile $Profile --non-interactive
+try {
+    eas build -p android --profile $Profile --non-interactive
+}
+catch {
+    throw "Build remota EAS falhou. Se o problema for permissão do projeto no Expo, rode .\\build_local_apk.ps1. Erro original: $($_.Exception.Message)"
+}
 
 Write-Host "Build finalizada. ExitCode=$LASTEXITCODE" -ForegroundColor Cyan

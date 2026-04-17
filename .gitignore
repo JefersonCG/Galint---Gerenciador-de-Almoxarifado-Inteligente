@@ -4,6 +4,7 @@ node_modules/
 # Ignorar builds
 .expo/
 dist/
+build-output/
 npm-debug.*
 *.jks
 *.p8

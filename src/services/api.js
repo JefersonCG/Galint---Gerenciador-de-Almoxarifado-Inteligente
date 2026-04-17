@@ -291,6 +291,27 @@ class ApiService {
         };
     }
 
+    async getErpOverview() {
+        try {
+            const token = await AsyncStorage.getItem('token');
+            if (!token) {
+                throw new Error('Token não encontrado');
+            }
+
+            const response = await this.client.get('/api/mobile/erp/overview', {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+            });
+            return response.data;
+        } catch (error) {
+            return {
+                success: false,
+                message: error.response?.data?.message || error.response?.data?.error || 'Erro ao carregar central mobile',
+            };
+        }
+    }
+
     async registerNotifyPushToken(pushToken, provider = 'expo') {
         try {
             if (!this.client || !this.baseURL) {
@@ -397,6 +418,54 @@ class ApiService {
         }
     }
 
+    async getReportsHistory(params = {}) {
+        try {
+            const token = await AsyncStorage.getItem('token');
+            if (!token) {
+                throw new Error('Token não encontrado');
+            }
+
+            const response = await this.client.get('/api/mobile/reports/history', {
+                params,
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+            });
+
+            return response.data;
+        } catch (error) {
+            return {
+                success: false,
+                reports: [],
+                count: 0,
+                message: error.response?.data?.message || error.response?.data?.error || 'Erro ao carregar histórico de relatórios',
+            };
+        }
+    }
+
+    async getConsumptionPanel(params = {}) {
+        try {
+            const token = await AsyncStorage.getItem('token');
+            if (!token) {
+                throw new Error('Token não encontrado');
+            }
+
+            const response = await this.client.get('/api/mobile/reports/consumption', {
+                params,
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+            });
+
+            return response.data;
+        } catch (error) {
+            return {
+                success: false,
+                message: error.response?.data?.message || error.response?.data?.error || 'Erro ao carregar painel de consumo',
+            };
+        }
+    }
+
     getReportUrl(type, params = {}) {
         if (!this.baseURL) {
             throw new Error('Servidor não configurado');
@@ -412,6 +481,16 @@ class ApiService {
         }
         if (type === 'monthly') {
             return `${this.baseURL}/api/mobile/reports/monthly${query ? `?${query}` : ''}`;
+        }
+        if (type === 'consumption') {
+            return `${this.baseURL}/api/mobile/reports/consumption/pdf${query ? `?${query}` : ''}`;
+        }
+        if (type === 'download') {
+            const filename = String(params.filename || '').trim();
+            if (!filename) {
+                throw new Error('Arquivo não informado');
+            }
+            return `${this.baseURL}/api/mobile/reports/download/${encodeURIComponent(filename)}`;
         }
 
         throw new Error('Tipo de relatório inválido');
@@ -662,6 +741,83 @@ class ApiService {
             return {
                 success: false,
                 message: error.response?.data?.message || 'Erro ao buscar ferramentas ativas'
+            };
+        }
+    }
+
+    async getDailyCustodyFeed() {
+        try {
+            await this.ensureOfflineReady();
+            const online = await this.isOnline();
+
+            if (!online) {
+                return {
+                    success: false,
+                    offline: true,
+                    message: 'Custodia diaria requer conexao online',
+                };
+            }
+
+            const token = await AsyncStorage.getItem('token');
+            if (!token) {
+                throw new Error('Token não encontrado');
+            }
+
+            const response = await this.client.get('/api/mobile/custodia-diaria', {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+            });
+
+            return response.data;
+        } catch (error) {
+            console.error('[getDailyCustodyFeed] Erro:', error);
+            return {
+                success: false,
+                status: error.response?.status,
+                message: error.response?.data?.message || 'Erro ao carregar custodia diaria',
+            };
+        }
+    }
+
+    async returnDailyCustodyTool(data) {
+        try {
+            await this.ensureOfflineReady();
+            const online = await this.isOnline();
+
+            if (!online) {
+                return {
+                    success: false,
+                    offline: true,
+                    message: 'Baixa da custodia diaria requer conexao online',
+                };
+            }
+
+            const token = await AsyncStorage.getItem('token');
+            if (!token) {
+                throw new Error('Token não encontrado');
+            }
+
+            const payload = {
+                codigo: data?.codigo,
+                quantidade: data?.quantidade || 1,
+                matricula_devolvedor: data?.matricula,
+            };
+
+            const response = await this.client.post('/api/mobile/devolver', payload, {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            return response.data;
+        } catch (error) {
+            console.error('[returnDailyCustodyTool] Erro:', error);
+            return {
+                success: false,
+                status: error.response?.status,
+                message: error.response?.data?.message || 'Erro ao dar baixa na custodia diaria',
             };
         }
     }

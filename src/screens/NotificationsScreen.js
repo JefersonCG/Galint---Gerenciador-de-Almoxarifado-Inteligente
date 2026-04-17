@@ -3,7 +3,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import {
     ActivityIndicator,
     FlatList,
-    Image,
+    ImageBackground,
     RefreshControl,
     StyleSheet,
     Text,
@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 
 import ApiService from '../services/api';
+import { emitNotifyInboxChanged, subscribeNotifyInboxChanged } from '../services/notifyEvents';
 
 function resolveVisualPayload(item) {
     const payload = item?.payload || {};
@@ -19,6 +20,38 @@ function resolveVisualPayload(item) {
         return payload.visual;
     }
     return payload && typeof payload === 'object' ? payload : {};
+}
+
+function resolvePhotoUrl(item) {
+    const visual = resolveVisualPayload(item);
+    const visualItem = visual?.item || {};
+    const media = item?.payload?.media || {};
+    const rawPhotoUrl = media?.url || visualItem?.foto_url || visualItem?.foto_path || null;
+    if (!rawPhotoUrl) return null;
+
+    const configuredBaseURL = ApiService.baseURL || '';
+    if (/^https?:\/\//i.test(rawPhotoUrl)) {
+        try {
+            const candidate = new URL(rawPhotoUrl);
+            if (configuredBaseURL) {
+                const base = new URL(configuredBaseURL);
+                if (['127.0.0.1', 'localhost', '0.0.0.0'].includes(candidate.hostname)) {
+                    candidate.protocol = base.protocol;
+                    candidate.hostname = base.hostname;
+                    candidate.port = base.port;
+                    return candidate.toString();
+                }
+            }
+        } catch (error) {
+            return rawPhotoUrl;
+        }
+        return rawPhotoUrl;
+    }
+
+    if (!configuredBaseURL) return null;
+    if (String(rawPhotoUrl).startsWith('/static/')) return `${configuredBaseURL}${rawPhotoUrl}`;
+    if (String(rawPhotoUrl).startsWith('static/')) return `${configuredBaseURL}/${rawPhotoUrl}`;
+    return `${configuredBaseURL}/static/${String(rawPhotoUrl).replace(/^\/+/, '')}`;
 }
 
 function formatDate(value) {
@@ -36,8 +69,21 @@ function NotificationCard({ item, onMarkRead }) {
     const movement = visual?.movement || {};
     const actor = visual?.actor || {};
     const context = visual?.context || {};
-    const photoUrl = visualItem?.foto_url || null;
+    const categoryLabel = String(item?.category || 'geral').replace(/_/g, ' ');
+    const photoUrl = resolvePhotoUrl(item);
     const isUnread = item?.status === 'unread';
+    const [photoFailed, setPhotoFailed] = useState(false);
+    const showPhoto = Boolean(photoUrl) && !photoFailed;
+    const hasVisualDetails = Boolean(
+        visualItem?.descricao ||
+        movement?.quantidade_display ||
+        actor?.nome ||
+        actor?.matricula ||
+        context?.local_servico ||
+        context?.observacao ||
+        context?.retirado_por ||
+        context?.devolvido_por
+    );
 
     return (
         <TouchableOpacity
@@ -47,7 +93,7 @@ function NotificationCard({ item, onMarkRead }) {
         >
             <View style={styles.cardHeader}>
                 <View style={styles.badgeWrap}>
-                    <Text style={styles.badge}>{item?.category || 'geral'}</Text>
+                    <Text style={styles.badge}>{categoryLabel}</Text>
                     {isUnread ? <Text style={styles.unreadDot}>Novo</Text> : null}
                 </View>
                 <Text style={styles.dateText}>{formatDate(item?.created_at)}</Text>
@@ -56,11 +102,37 @@ function NotificationCard({ item, onMarkRead }) {
             <Text style={styles.title}>{item?.title || 'Notificação'}</Text>
             <Text style={styles.body}>{item?.body || ''}</Text>
 
-            {photoUrl ? (
-                <Image source={{ uri: photoUrl }} style={styles.photo} resizeMode="cover" />
-            ) : null}
+            {showPhoto ? (
+                <ImageBackground
+                    source={{ uri: photoUrl }}
+                    style={styles.photo}
+                    imageStyle={styles.photoImage}
+                    resizeMode="cover"
+                    onError={() => setPhotoFailed(true)}
+                >
+                    <View style={styles.photoOverlay}>
+                        <Text style={styles.photoBadge}>{visual?.kind_label || 'Operação'}</Text>
+                        <Text style={styles.photoTitle} numberOfLines={2}>
+                            {visualItem?.descricao || item?.title || 'Movimento operacional'}
+                        </Text>
+                        {movement?.quantidade_display ? (
+                            <Text style={styles.photoMeta}>{movement.quantidade_display}</Text>
+                        ) : null}
+                    </View>
+                </ImageBackground>
+            ) : (
+                <View style={styles.photoPlaceholder}>
+                    <Text style={styles.photoPlaceholderIcon}>📸</Text>
+                    <Text style={styles.photoPlaceholderTitle}>Visual da notificação</Text>
+                    <Text style={styles.photoPlaceholderText}>
+                        {photoUrl && photoFailed
+                            ? 'A foto do item existe, mas não pôde ser carregada neste momento.'
+                            : 'Quando o item tiver foto cadastrada, ela aparece aqui junto da retirada ou devolução.'}
+                    </Text>
+                </View>
+            )}
 
-            {(visualItem?.descricao || movement?.quantidade_display || actor?.nome || context?.local_servico) ? (
+            {hasVisualDetails ? (
                 <View style={styles.visualPanel}>
                     <Text style={styles.visualTitle}>{visual?.kind_label || 'Operação'}</Text>
                     {visualItem?.descricao ? <Text style={styles.visualLine}>Item: {visualItem.descricao}</Text> : null}
@@ -68,6 +140,8 @@ function NotificationCard({ item, onMarkRead }) {
                     {actor?.nome || actor?.matricula ? (
                         <Text style={styles.visualLine}>Colaborador: {actor.nome || actor.matricula}</Text>
                     ) : null}
+                    {context?.retirado_por ? <Text style={styles.visualLine}>Retirado por: {context.retirado_por}</Text> : null}
+                    {context?.devolvido_por ? <Text style={styles.visualLine}>Devolvido por: {context.devolvido_por}</Text> : null}
                     {context?.local_servico ? <Text style={styles.visualLine}>Local: {context.local_servico}</Text> : null}
                     {context?.observacao ? <Text style={styles.visualLine}>Obs.: {context.observacao}</Text> : null}
                 </View>
@@ -83,9 +157,9 @@ export default function NotificationsScreen() {
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState('');
 
-    const loadInbox = useCallback(async (refresh = false) => {
+    const loadInbox = useCallback(async ({ refresh = false, silent = false } = {}) => {
         if (refresh) setRefreshing(true);
-        else setLoading(true);
+        else if (!silent) setLoading(true);
 
         const result = await ApiService.getNotifyInbox();
         if (result?.success) {
@@ -96,13 +170,29 @@ export default function NotificationsScreen() {
             setError(result?.message || 'Falha ao carregar notificações');
         }
 
-        setLoading(false);
-        setRefreshing(false);
+        if (refresh) setRefreshing(false);
+        if (!silent) setLoading(false);
     }, []);
 
     useFocusEffect(
         useCallback(() => {
             loadInbox();
+
+            const intervalId = setInterval(() => {
+                loadInbox({ silent: true });
+            }, 12000);
+
+            const unsubscribeNotify = subscribeNotifyInboxChanged((payload) => {
+                if (payload?.reason === 'mark-read') {
+                    return;
+                }
+                loadInbox({ silent: true });
+            });
+
+            return () => {
+                clearInterval(intervalId);
+                unsubscribeNotify();
+            };
         }, [loadInbox])
     );
 
@@ -111,11 +201,15 @@ export default function NotificationsScreen() {
         const result = await ApiService.markNotifyRead(item.id);
         if (result?.success) {
             setItems((current) => current.map((entry) => (entry.id === item.id ? { ...entry, status: 'read' } : entry)));
-            setUnreadCount((current) => Math.max(0, current - 1));
+            setUnreadCount((current) => {
+                const nextValue = Math.max(0, current - 1);
+                emitNotifyInboxChanged({ reason: 'mark-read', messageId: item.id, unreadCount: nextValue });
+                return nextValue;
+            });
         }
     };
 
-    if (loading) {
+    if (loading && items.length === 0) {
         return (
             <View style={styles.stateContainer}>
                 <ActivityIndicator size="large" color="#2563eb" />
@@ -136,11 +230,11 @@ export default function NotificationsScreen() {
                 keyExtractor={(item) => String(item.id)}
                 renderItem={({ item }) => <NotificationCard item={item} onMarkRead={handleMarkRead} />}
                 contentContainerStyle={items.length === 0 ? styles.emptyList : styles.listContent}
-                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadInbox(true)} />}
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadInbox({ refresh: true })} />}
                 ListEmptyComponent={
                     <View style={styles.stateContainer}>
                         <Text style={styles.emptyTitle}>Nenhuma notificação</Text>
-                        <Text style={styles.stateText}>As mensagens do GalintNotify aparecerão aqui.</Text>
+                        <Text style={styles.stateText}>As mensagens operacionais do GALINT aparecem aqui.</Text>
                     </View>
                 }
             />
@@ -266,10 +360,71 @@ const styles = StyleSheet.create({
     },
     photo: {
         width: '100%',
-        height: 180,
-        borderRadius: 14,
+        height: 190,
+        borderRadius: 16,
         marginTop: 14,
-        backgroundColor: '#e2e8f0',
+        overflow: 'hidden',
+        justifyContent: 'flex-end',
+        backgroundColor: '#dbe4f3',
+    },
+    photoImage: {
+        borderRadius: 16,
+    },
+    photoOverlay: {
+        padding: 14,
+        backgroundColor: 'rgba(15, 23, 42, 0.45)',
+    },
+    photoBadge: {
+        alignSelf: 'flex-start',
+        paddingHorizontal: 10,
+        paddingVertical: 5,
+        borderRadius: 999,
+        backgroundColor: 'rgba(255,255,255,0.14)',
+        color: '#ffffff',
+        fontSize: 11,
+        fontWeight: '800',
+        textTransform: 'uppercase',
+        marginBottom: 8,
+    },
+    photoTitle: {
+        color: '#ffffff',
+        fontSize: 17,
+        fontWeight: '800',
+        marginBottom: 4,
+    },
+    photoMeta: {
+        color: 'rgba(255,255,255,0.88)',
+        fontSize: 13,
+        fontWeight: '600',
+    },
+    photoPlaceholder: {
+        marginTop: 14,
+        borderRadius: 16,
+        minHeight: 160,
+        borderWidth: 1,
+        borderColor: '#dbe7ff',
+        backgroundColor: '#eff5ff',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingHorizontal: 24,
+        paddingVertical: 20,
+    },
+    photoPlaceholderIcon: {
+        fontSize: 28,
+        marginBottom: 10,
+    },
+    photoPlaceholderTitle: {
+        fontSize: 15,
+        fontWeight: '800',
+        color: '#1e3a8a',
+        marginBottom: 6,
+        textAlign: 'center',
+    },
+    photoPlaceholderText: {
+        fontSize: 13,
+        color: '#475569',
+        textAlign: 'center',
+        lineHeight: 18,
     },
     visualPanel: {
         marginTop: 14,

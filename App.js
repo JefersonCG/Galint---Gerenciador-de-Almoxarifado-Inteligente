@@ -1,6 +1,6 @@
 import 'react-native-gesture-handler';
 import React, { useEffect, useMemo, useState } from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -25,12 +25,15 @@ import ReportsScreen from './src/screens/ReportsScreen';
 import ReportsDailyScreen from './src/screens/ReportsDailyScreen';
 import ReportsMonthlyScreen from './src/screens/ReportsMonthlyScreen';
 import ReportsHistoryScreen from './src/screens/ReportsHistoryScreen';
+import ReportsConsumptionScreen from './src/screens/ReportsConsumptionScreen';
 import UpdateChecker from './src/services/updateChecker';
 import ApiService from './src/services/api';
 import { initOfflineDb } from './src/services/offlineDb'; // Inicializar DB
+import { emitNotifyInboxChanged } from './src/services/notifyEvents';
 import { heroPalette } from './src/theme/heroTheme';
 
 const Stack = createNativeStackNavigator();
+const navigationRef = createNavigationContainerRef();
 
 Notifications.setNotificationHandler({
     handleNotification: async () => ({
@@ -123,6 +126,23 @@ export default function App() {
         // Inicializar Banco de Dados Offline
         initOfflineDb().catch(err => console.error("Erro ao iniciar DB:", err));
 
+        const notificationReceivedSubscription = Notifications.addNotificationReceivedListener((event) => {
+            emitNotifyInboxChanged({
+                reason: 'push-received',
+                data: event?.request?.content?.data || {},
+            });
+        });
+
+        const notificationResponseSubscription = Notifications.addNotificationResponseReceivedListener((response) => {
+            emitNotifyInboxChanged({
+                reason: 'push-response',
+                data: response?.notification?.request?.content?.data || {},
+            });
+            if (navigationRef.isReady()) {
+                navigationRef.navigate('Notifications');
+            }
+        });
+
         // Inicia o sistema de verificação automática de atualizações
         console.log('[App] Iniciando UpdateChecker...');
         UpdateChecker.start();
@@ -167,6 +187,8 @@ export default function App() {
             console.log('[App] Parando UpdateChecker...');
             UpdateChecker.stop();
             if (unsubscribeNet) unsubscribeNet();
+            notificationReceivedSubscription.remove();
+            notificationResponseSubscription.remove();
         };
     }, []);
 
@@ -224,7 +246,7 @@ export default function App() {
 
     return (
         <AppErrorBoundary>
-            <NavigationContainer>
+            <NavigationContainer ref={navigationRef}>
                 <StatusBar style="light" backgroundColor={heroPalette.bg} />
                 <Stack.Navigator
                     initialRouteName="Login"
@@ -262,18 +284,10 @@ export default function App() {
                     <Stack.Screen
                         name="Estoque"
                         component={EstoqueScreen}
-                        options={({ navigation }) => ({
+                        options={{
                             title: 'GALINT Mobile',
                             headerBackVisible: false,
-                            headerRight: () => (
-                                <TouchableOpacity
-                                    onPress={() => navigation.navigate('DocumentosFiscais')}
-                                    style={styles.headerActionButton}
-                                >
-                                    <Text style={styles.headerActionButtonText}>+ NF</Text>
-                                </TouchableOpacity>
-                            ),
-                        })}
+                        }}
                     />
                     <Stack.Screen
                         name="DocumentosFiscais"
@@ -340,6 +354,11 @@ export default function App() {
                         name="ReportsMonthly"
                         component={ReportsMonthlyScreen}
                         options={{ title: 'Relatório Mensal' }}
+                    />
+                    <Stack.Screen
+                        name="ReportsConsumption"
+                        component={ReportsConsumptionScreen}
+                        options={{ title: 'Consumo Analítico' }}
                     />
                     <Stack.Screen
                         name="ReportsHistory"

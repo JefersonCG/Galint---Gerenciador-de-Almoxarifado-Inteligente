@@ -231,11 +231,38 @@ npm start
 .\build_apk.ps1 -Profile "preview" -ExpoToken "SEU_TOKEN_EXPO"
 ```
 
+**Build local no Windows, sem depender da permissão do projeto no Expo:**
+
+```powershell
+.\build_local_apk.ps1
+```
+
+Opcional para instalar logo após a build, se houver um aparelho ADB conectado:
+
+```powershell
+.\build_local_apk.ps1 -InstallConnectedDevice
+```
+
 **O que o script faz:**
 1. Verifica Node.js v20.19.6
 2. `npm install` (dependências)
 3. `eas build -p android --profile preview`
 4. Gera APK assinado com credenciais Expo
+
+**O que o build local faz:**
+1. Copia o projeto para um caminho curto (`C:\gm-src`) para evitar problemas de CMake/Ninja no Windows
+2. Roda `npm install` com `patch-package`, reaplicando os ajustes nativos versionados em `patches/`
+3. Executa `gradlew clean assembleRelease -PnewArchEnabled=false`
+4. Copia o APK final para `build-output/`
+
+**Pré-requisitos do build local:**
+- JDK 17 disponível no PATH
+- Android SDK em `%LOCALAPPDATA%\Android\Sdk` ou configurado em `ANDROID_SDK_ROOT`
+- Componentes instalados: `platform-tools`, `platforms;android-35`, `build-tools;35.0.0`, `cmake;3.22.1`, `ndk;27.1.12297006`
+
+**Notas de compatibilidade do projeto:**
+- `expo-constants` fica travado na linha compatível com Expo SDK 54
+- `expo-sqlite`, `expo-modules-core` e `react-native-screens` recebem patches automáticos no `postinstall` para o build local em Windows
 
 **Resultado:**
 - APK disponível em: `https://expo.dev/accounts/{account}/projects/galint-mobile/builds/{id}`

@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect, useCallback } from 'react';
+import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react';
 import {
     View,
     Text,
@@ -16,6 +16,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
 import ApiService from '../services/api';
+import DailyCustodyPanel from '../components/DailyCustodyPanel';
 import HeartbeatService from '../services/heartbeatService';
 import InactivityService from '../services/inactivityService';
 import SyncService from '../services/dbSync';
@@ -28,6 +29,7 @@ import {
     listPendingOps
 } from '../services/offlineDb';
 import { formatQuantityWithPackaging } from '../utils/formatQuantity';
+import { heroPalette, heroShadow, heroSoftShadow } from '../theme/heroTheme';
 
 // Função Centralizada de Permissões
 function getUserRole(user) {
@@ -63,6 +65,12 @@ function getUserRole(user) {
     return 'operacional'; 
 }
 
+function getRoleLabel(role) {
+    if (role === 'master') return 'Master';
+    if (role === 'gerencia') return 'Gerência';
+    return 'Operação';
+}
+
 export default function EstoqueScreen({ navigation, route }) {
     const [items, setItems] = useState([]);
     const [searchQuery, setSearchQuery] = useState('');
@@ -75,15 +83,68 @@ export default function EstoqueScreen({ navigation, route }) {
     const [isOfflineMode, setIsOfflineMode] = useState(false);
     const [kpiServer, setKpiServer] = useState(null);
     const [user, setUser] = useState(route.params?.user || null);
+    const [dailyCustodyVisible, setDailyCustodyVisible] = useState(true);
+    const [dailyCustodyLoading, setDailyCustodyLoading] = useState(false);
+    const [dailyCustodyGroups, setDailyCustodyGroups] = useState([]);
+    const [dailyCustodySummary, setDailyCustodySummary] = useState({ employees: 0, tools: 0, overdue: 0 });
+    const [dailyCustodyMessage, setDailyCustodyMessage] = useState('');
+    const [dailyCustodyReturningKey, setDailyCustodyReturningKey] = useState('');
     
     // 🔄 Estados para Banner de Conexão
     const [connectionStatus, setConnectionStatus] = useState('online'); // 'online' | 'offline' | 'syncing'
     const [pendingOpsCount, setPendingOpsCount] = useState(0);
     const [isSyncing, setIsSyncing] = useState(false);
     const [downloadingDatabase, setDownloadingDatabase] = useState(false);
+    const latestSearchRef = useRef('');
 
     // Determinar permissão
     const role = useMemo(() => getUserRole(user), [user]);
+    const roleLabel = useMemo(() => getRoleLabel(role), [role]);
+
+    const loadDailyCustody = useCallback(async (silent = false) => {
+        if (!silent) {
+            setDailyCustodyLoading(true);
+        }
+
+        try {
+            const result = await ApiService.getDailyCustodyFeed();
+
+            if (result?.success) {
+                const payload = result.data || {};
+                setDailyCustodyVisible(true);
+                setDailyCustodyGroups(Array.isArray(payload.groups) ? payload.groups : []);
+                setDailyCustodySummary(payload.summary || { employees: 0, tools: 0, overdue: 0 });
+                setDailyCustodyMessage('');
+                return;
+            }
+
+            if (Number(result?.status) === 403) {
+                setDailyCustodyVisible(false);
+                setDailyCustodyGroups([]);
+                setDailyCustodySummary({ employees: 0, tools: 0, overdue: 0 });
+                setDailyCustodyMessage('');
+                return;
+            }
+
+            setDailyCustodyVisible(true);
+            setDailyCustodyGroups([]);
+            setDailyCustodySummary({ employees: 0, tools: 0, overdue: 0 });
+            setDailyCustodyMessage(result?.message || 'Nao foi possivel carregar a custodia diaria agora.');
+        } catch (error) {
+            setDailyCustodyVisible(true);
+            setDailyCustodyGroups([]);
+            setDailyCustodySummary({ employees: 0, tools: 0, overdue: 0 });
+            setDailyCustodyMessage(error?.message || 'Nao foi possivel carregar a custodia diaria agora.');
+        } finally {
+            if (!silent) {
+                setDailyCustodyLoading(false);
+            }
+        }
+    }, []);
+
+    useEffect(() => {
+        latestSearchRef.current = searchQuery;
+    }, [searchQuery]);
 
     // Carregar usuário inicial e iniciar serviços
     useEffect(() => {
@@ -113,6 +174,7 @@ export default function EstoqueScreen({ navigation, route }) {
             // Quando ocorrer um sync, recarregamos dados locais e KPIs
             // console.log('[EstoqueScreen] Sync detectado, atualizando UI...');
             loadEstoque(searchQuery, true); // true = silent update
+            loadDailyCustody(true);
         });
         
         // Carregamento inicial direto
@@ -157,6 +219,7 @@ export default function EstoqueScreen({ navigation, route }) {
              }
              // Depois roda o full load
              loadEstoque('', false);
+               loadDailyCustody(false);
         })();
 
         HeartbeatService.start();
@@ -190,7 +253,7 @@ export default function EstoqueScreen({ navigation, route }) {
             SyncService.stop();
             removeSyncListener();
         };
-    }, [navigation]);
+    }, [loadDailyCustody, navigation]);
 
     // 📡 Monitorar Conexão e Operações Pendentes
     useEffect(() => {
@@ -217,11 +280,11 @@ export default function EstoqueScreen({ navigation, route }) {
 
     useEffect(() => {
         const unsubscribe = navigation.addListener('focus', () => {
-             // Ao focar, tenta dar um refresh suave
-             loadEstoque(searchQuery, true);
+             loadEstoque(latestSearchRef.current, true);
+             loadDailyCustody(true);
         });
         return unsubscribe;
-    }, [navigation, searchQuery]);
+    }, [loadDailyCustody, navigation]);
 
     // Função Principal de Carga de Dados
     // Estratégia: Local First -> Network Update
@@ -296,19 +359,71 @@ export default function EstoqueScreen({ navigation, route }) {
     // REMOVIDO: debounce causava fechamento do teclado
     // A filtragem acontece em memória via useMemo (filteredItems)
 
-    const handleSearch = (text) => {
+    const handleSearch = useCallback((text) => {
         setSearchQuery(text);
-        // O useEffect cuida do reload
-    };
+    }, []);
+
+    const handleClearSearch = useCallback(() => {
+        setSearchQuery('');
+    }, []);
 
     const handleRefresh = () => {
         setRefreshing(true);
         // Forçar um sync Cycle agora
         SyncService.runSync().finally(() => {
             loadEstoque(searchQuery);
+            loadDailyCustody(true);
             setRefreshing(false);
         });
     };
+
+    const executeDailyCustodyReturn = useCallback(async (group, selectedItem) => {
+        if (!selectedItem) {
+            return;
+        }
+
+        setDailyCustodyReturningKey(selectedItem.tool_key);
+        InactivityService.recordActivity();
+
+        try {
+            const result = await ApiService.returnDailyCustodyTool({
+                codigo: selectedItem.codigo,
+                quantidade: selectedItem.quantidade || 1,
+                matricula: group?.matricula_full || group?.matricula || '',
+            });
+
+            if (!result?.success) {
+                Alert.alert('Custodia diaria', result?.message || 'Nao foi possivel dar baixa na ferramenta.');
+                return;
+            }
+
+            await Promise.all([
+                loadDailyCustody(true),
+                loadEstoque(latestSearchRef.current, true),
+            ]);
+
+            Alert.alert('Custodia diaria', `${selectedItem.descricao} devolvida com sucesso.`);
+        } catch (error) {
+            Alert.alert('Custodia diaria', error?.message || 'Nao foi possivel dar baixa na ferramenta.');
+        } finally {
+            setDailyCustodyReturningKey('');
+        }
+    }, [loadDailyCustody, loadEstoque]);
+
+    const handleDailyCustodyReturn = useCallback((group, selectedItem) => {
+        if (!selectedItem) {
+            return;
+        }
+
+        Alert.alert(
+            'Dar baixa da ferramenta',
+            `Confirmar baixa de ${selectedItem.descricao} para ${group?.usuario || 'o colaborador'}?`,
+            [
+                { text: 'Cancelar', style: 'cancel' },
+                { text: 'Dar baixa', onPress: () => executeDailyCustodyReturn(group, selectedItem) },
+            ]
+        );
+    }, [executeDailyCustodyReturn]);
 
     // 🔄 Sincronização Manual (botão no banner offline)
     const handleManualSync = async () => {
@@ -432,6 +547,16 @@ export default function EstoqueScreen({ navigation, route }) {
         setSearchQuery(categoria);
     };
 
+    const handleOpenMenu = useCallback(() => {
+        InactivityService.recordActivity();
+        navigation.navigate('Menu');
+    }, [navigation]);
+
+    const handleOpenDocumentos = useCallback(() => {
+        InactivityService.recordActivity();
+        navigation.navigate('DocumentosFiscais');
+    }, [navigation]);
+
     const renderItem = useCallback(({ item }) => {
         const q = Number(item?.quantidade ?? 0);
         const quantidadeInt = Number.isFinite(q) ? Math.trunc(q) : 0;
@@ -488,64 +613,84 @@ export default function EstoqueScreen({ navigation, route }) {
         );
     };
 
-    // Componente de Header da Lista (Tudo que fica acima dos itens)
-    const renderListHeader = () => {
+    const listHeaderComponent = useMemo(() => {
         const availableCategories = Object.keys(categoriaStats);
+        const pendingLocalOps = offlineDelta.entradas + offlineDelta.retiradas;
+        const displayName = user?.nome || user?.username || 'Usuário';
+        const displayUserRef = user?.matricula || user?.username || 'sem matrícula';
         
         return (
             <View>
-                {/* Header Topo */}
                 <View style={styles.modernHeader}>
                     <View style={styles.headerTop}>
                         <View style={styles.headerTextContainer}>
-                            <Text style={styles.headerTitle}>{user?.nome || user?.username || 'Usuário'}</Text>
-                            <Text style={styles.headerSubtitle}>{role.toUpperCase()} - {user?.matricula || ''}</Text>
+                            <Text style={styles.headerEyebrow}>Shell hero</Text>
+                            <Text style={styles.headerTitle}>GALINT Mobile</Text>
+                            <Text style={styles.headerOperatorName}>{displayName}</Text>
+                            <Text style={styles.headerSubtitle}>{roleLabel} • {displayUserRef}</Text>
                         </View>
                         <View style={styles.headerButtons}>
                             <TouchableOpacity
                                 onPress={handleDownloadDatabase}
-                                style={[styles.modernMenuButton, styles.syncButton]}
+                                style={[styles.modernMenuButton, styles.downloadDatabaseButton]}
                                 disabled={downloadingDatabase}
+                                activeOpacity={0.85}
                             >
                                 {downloadingDatabase ? (
-                                    <ActivityIndicator size="small" color="#fff" />
+                                    <ActivityIndicator size="small" color={heroPalette.text} />
                                 ) : (
-                                    <Text style={styles.modernMenuIcon}>📥</Text>
+                                    <Text style={styles.downloadDatabaseButtonText}>⬇ Base</Text>
                                 )}
                             </TouchableOpacity>
                             <TouchableOpacity
-                                onPress={() => navigation.navigate('Menu')}
+                                onPress={handleOpenMenu}
                                 style={styles.modernMenuButton}
+                                activeOpacity={0.85}
                             >
-                                <Text style={styles.modernMenuIcon}>Menu</Text>
+                                <Text style={styles.modernMenuIcon}>☰</Text>
                             </TouchableOpacity>
                         </View>
                     </View>
+
+                    <View style={styles.headerMetaRow}>
+                        <View style={styles.headerMetaCard}>
+                            <Text style={styles.headerMetaLabel}>Base local</Text>
+                            <Text style={styles.headerMetaValue}>{items.length}</Text>
+                            <Text style={styles.headerMetaHint}>itens no aparelho</Text>
+                        </View>
+                        <View style={styles.headerMetaCard}>
+                            <Text style={styles.headerMetaLabel}>Conexão</Text>
+                            <Text style={styles.headerMetaValue}>
+                                {connectionStatus === 'syncing' ? 'Sincronizando' : connectionStatus === 'offline' ? 'Offline' : 'Online'}
+                            </Text>
+                            <Text style={styles.headerMetaHint}>{pendingOpsCount} pendência(s)</Text>
+                        </View>
+                    </View>
                     
-                    {/* Search Bar */}
                     <View style={styles.headerSearchContainer}>
                         <Text style={styles.searchIcon}>🔍</Text>
                         <TextInput
                             style={styles.headerSearchInput}
-                            placeholder="Pesquisar (Autocomplete)..."
-                            placeholderTextColor="#a3d9a5"
+                            placeholder="Pesquisar item, código ou categoria"
+                            placeholderTextColor={heroPalette.textMuted}
                             value={searchQuery}
                             onChangeText={handleSearch}
                             returnKeyType="search"
+                            blurOnSubmit={false}
+                            autoCorrect={false}
                         />
                         {searchQuery !== '' && (
-                            <TouchableOpacity onPress={() => setSearchQuery('')}>
+                            <TouchableOpacity onPress={handleClearSearch} activeOpacity={0.85}>
                                 <Text style={styles.clearSearchIcon}>✕</Text>
                             </TouchableOpacity>
                         )}
                     </View>
                 </View>
 
-                {/* KPI Offline */}
                 {isOfflineMode && (
                     <View style={styles.kpiSection}>
                         <View style={styles.kpiHeader}>
-                            <Text style={styles.kpiTitle}>📊 Indicador</Text>
+                            <Text style={styles.kpiTitle}>Indicador local</Text>
                             <View style={styles.offlineModeBadge}>
                                 <Text style={styles.offlineModeText}>Modo offline</Text>
                             </View>
@@ -553,21 +698,24 @@ export default function EstoqueScreen({ navigation, route }) {
                         <View style={styles.kpiGrid}>
                             <View style={[styles.kpiCard, styles.kpiOfflineEntradas]}>
                                 <View style={styles.kpiValueContainer}>
-                                    <Text style={styles.kpiValue}>
-                                        {offlineDelta.entradas + offlineDelta.retiradas}
-                                    </Text>
+                                    <Text style={styles.kpiValue}>{pendingLocalOps}</Text>
                                 </View>
                                 <Text style={styles.kpiLabel}>Operações pendentes</Text>
+                            </View>
+                            <View style={[styles.kpiCard, styles.kpiInventoryCard]}>
+                                <View style={styles.kpiValueContainer}>
+                                    <Text style={styles.kpiValue}>{offlineSnapshot?.totalItens || items.length}</Text>
+                                </View>
+                                <Text style={styles.kpiLabel}>Itens no cache</Text>
                             </View>
                         </View>
                     </View>
                 )}
 
-                {/* VISÃO GERENCIA: CATEGORIAS */}
                 {role === 'gerencia' && (
                     <View style={styles.actionsSection}>
                         <View style={styles.actionsTitleContainer}>
-                            <Text style={styles.actionsTitle}>📂 Categorias</Text>
+                            <Text style={styles.actionsTitle}>Categorias rápidas</Text>
                         </View>
                         <View style={styles.actionsGrid}>
                             {availableCategories.map(cat => renderCategoryCard(cat))}
@@ -578,19 +726,31 @@ export default function EstoqueScreen({ navigation, route }) {
                     </View>
                 )}
 
-                {/* VISÃO OPERACIONAL e MASTER: AÇÕES */}
                 {(role === 'operacional' || role === 'master') && (
                     <View style={styles.actionsSection}>
                         <View style={styles.actionsTitleContainer}>
                             <Text style={styles.actionsTitle}>Ações rápidas</Text>
+                            <Text style={styles.actionsSubtitle}>Botões maiores para o fluxo principal do almoxarifado.</Text>
                         </View>
                         <View style={styles.actionsGrid}>
+                            <TouchableOpacity
+                                style={[styles.actionCard, styles.actionCardWide, styles.documentsCard]}
+                                onPress={handleOpenDocumentos}
+                                activeOpacity={0.86}
+                            >
+                                <Text style={styles.actionIcon}>🧾</Text>
+                                <Text style={styles.actionLabel}>Entradas fiscais</Text>
+                                <Text style={styles.actionSubLabel}>NF, cupom, recibo e lançamento manual</Text>
+                            </TouchableOpacity>
+
                             <TouchableOpacity
                                 style={[styles.actionCard, styles.materialCard]}
                                 onPress={() => handleAction('Scanner', { mode: 'withdraw' })}
                                 activeOpacity={0.8}
                             >
+                                <Text style={styles.actionIcon}>📤</Text>
                                 <Text style={styles.actionLabel}>Retirar Material</Text>
+                                <Text style={styles.actionSubLabel}>Saída rápida por código ou câmera</Text>
                             </TouchableOpacity>
 
                             <TouchableOpacity
@@ -598,7 +758,9 @@ export default function EstoqueScreen({ navigation, route }) {
                                 onPress={() => handleAction('Scanner', { mode: 'return' })}
                                 activeOpacity={0.8}
                             >
+                                <Text style={styles.actionIcon}>📥</Text>
                                 <Text style={styles.actionLabel}>Devolver</Text>
+                                <Text style={styles.actionSubLabel}>Retorno simples ao estoque</Text>
                             </TouchableOpacity>
 
                             <TouchableOpacity
@@ -606,7 +768,9 @@ export default function EstoqueScreen({ navigation, route }) {
                                 onPress={() => handleAction('Retirada', { multi: true, items: [] })}
                                 activeOpacity={0.8}
                             >
+                                <Text style={styles.actionIcon}>🧰</Text>
                                 <Text style={styles.actionLabel}>Retirada Múltipla</Text>
+                                <Text style={styles.actionSubLabel}>Monte a saída com vários itens</Text>
                             </TouchableOpacity>
 
                             <TouchableOpacity
@@ -614,15 +778,29 @@ export default function EstoqueScreen({ navigation, route }) {
                                 onPress={() => handleAction('Scanner', { mode: 'withdraw_fraction' })}
                                 activeOpacity={0.8}
                             >
+                                <Text style={styles.actionIcon}>✂️</Text>
                                 <Text style={styles.actionLabel}>Retirada Fracionada</Text>
+                                <Text style={styles.actionSubLabel}>Movimente frações sem sair da base</Text>
                             </TouchableOpacity>
 
                         </View>
                     </View>
                 )}
+
+                {dailyCustodyVisible && (
+                    <DailyCustodyPanel
+                        groups={dailyCustodyGroups}
+                        summary={dailyCustodySummary}
+                        loading={dailyCustodyLoading}
+                        message={dailyCustodyMessage}
+                        returningKey={dailyCustodyReturningKey}
+                        onReload={loadDailyCustody}
+                        onReturnPress={handleDailyCustodyReturn}
+                    />
+                )}
             </View>
         );
-    };
+    }, [categoriaStats, connectionStatus, dailyCustodyGroups, dailyCustodyLoading, dailyCustodyMessage, dailyCustodyReturningKey, dailyCustodySummary, dailyCustodyVisible, downloadingDatabase, handleClearSearch, handleDailyCustodyReturn, handleDownloadDatabase, handleOpenDocumentos, handleOpenMenu, items.length, loadDailyCustody, offlineDelta.entradas, offlineDelta.retiradas, offlineSnapshot?.totalItens, pendingOpsCount, role, roleLabel, searchQuery, user]);
 
     return (
         <View style={styles.container}>
@@ -659,16 +837,18 @@ export default function EstoqueScreen({ navigation, route }) {
             <FlatList
                 data={filteredItems}
                 renderItem={renderItem}
-                keyExtractor={(item) => item.codigo_barras || item.id?.toString() || Math.random().toString()}
+                keyExtractor={(item, index) => item.codigo_barras || item.id?.toString() || `${item.descricao || item.nome || 'item'}-${index}`}
                 contentContainerStyle={styles.listContainer}
-                ListHeaderComponent={renderListHeader}
+                ListHeaderComponent={listHeaderComponent}
                 refreshControl={
                     <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={['#22c55e']} />
                 }
                 initialNumToRender={10}
                 maxToRenderPerBatch={10}
                 windowSize={5}
-                removeClippedSubviews={true}
+                removeClippedSubviews={false}
+                keyboardShouldPersistTaps="always"
+                keyboardDismissMode="none"
                 ListEmptyComponent={
                     !loading && (
                         <View style={styles.emptyContainer}>
@@ -690,116 +870,168 @@ export default function EstoqueScreen({ navigation, route }) {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#f8fafc',
-    },
-    listContainer: {
-        paddingBottom: 20,
+        backgroundColor: heroPalette.bg,
     },
     loadingOverlay: {
         position: 'absolute',
         top: 0, left: 0, right: 0, bottom: 0,
-        backgroundColor: 'rgba(248,250,252,0.9)',
+        backgroundColor: 'rgba(6,16,27,0.88)',
         justifyContent: 'center',
         alignItems: 'center',
         zIndex: 10,
     },
     loadingText: {
         marginTop: 10,
-        color: '#10b981',
+        color: heroPalette.primary,
         fontWeight: 'bold',
     },
-    // ========== HEADER ==========
     modernHeader: {
-        backgroundColor: '#10b981',
-        paddingTop: Platform.OS === 'ios' ? 50 : 15,
-        paddingBottom: 15,
+        marginTop: 14,
+        marginHorizontal: 14,
+        marginBottom: 14,
+        backgroundColor: heroPalette.panel,
+        borderRadius: 28,
+        borderWidth: 1,
+        borderColor: heroPalette.border,
+        paddingTop: Platform.OS === 'ios' ? 18 : 16,
+        paddingBottom: 16,
         paddingHorizontal: 16,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.2,
-        shadowRadius: 8,
-        elevation: 10,
+        ...heroShadow,
     },
     headerTop: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        alignItems: 'center',
+        alignItems: 'flex-start',
         marginBottom: 14,
     },
     headerTextContainer: {
         flex: 1,
+        paddingRight: 12,
+    },
+    headerEyebrow: {
+        fontSize: 10,
+        fontWeight: '900',
+        letterSpacing: 1.2,
+        textTransform: 'uppercase',
+        color: heroPalette.primary,
+    },
+    headerOperatorName: {
+        marginTop: 12,
+        fontSize: 17,
+        fontWeight: '700',
+        color: heroPalette.text,
     },
     headerTitle: {
-        fontSize: 20,
+        marginTop: 6,
+        fontSize: 26,
         fontWeight: '800',
-        color: '#ffffff',
-        letterSpacing: 0.6,
+        color: heroPalette.text,
+        letterSpacing: -0.6,
     },
     headerSubtitle: {
-        fontSize: 13,
+        fontSize: 12,
         fontWeight: '600',
-        color: '#d1fae5',
-        marginTop: 2,
+        color: heroPalette.textMuted,
+        marginTop: 4,
     },
     modernMenuButton: {
-        backgroundColor: 'rgba(255, 255, 255, 0.3)',
-        borderRadius: 12,
-        padding: 11,
+        minWidth: 44,
+        minHeight: 44,
+        backgroundColor: heroPalette.panelAlt,
+        borderRadius: 14,
+        paddingHorizontal: 10,
+        paddingVertical: 10,
         justifyContent: 'center',
         alignItems: 'center',
+        borderWidth: 1,
+        borderColor: heroPalette.border,
+        ...heroSoftShadow,
     },
     headerButtons: {
         flexDirection: 'row',
-        gap: 10,
-    },
-    syncButton: {
-        minWidth: 44,
+        gap: 8,
+        alignItems: 'center',
     },
     modernMenuIcon: {
-        fontSize: 22,
+        fontSize: 18,
+        fontWeight: '900',
+        color: heroPalette.text,
+    },
+    downloadDatabaseButton: {
+        minWidth: 92,
+    },
+    downloadDatabaseButtonText: {
+        fontSize: 12,
+        fontWeight: '800',
+        color: heroPalette.text,
+    },
+    headerMetaRow: {
+        flexDirection: 'row',
+        gap: 10,
+        marginBottom: 14,
+    },
+    headerMetaCard: {
+        flex: 1,
+        borderRadius: 18,
+        paddingHorizontal: 14,
+        paddingVertical: 12,
+        backgroundColor: heroPalette.panelAlt,
+        borderWidth: 1,
+        borderColor: heroPalette.border,
+    },
+    headerMetaLabel: {
+        fontSize: 10,
+        fontWeight: '900',
+        textTransform: 'uppercase',
+        letterSpacing: 0.9,
+        color: heroPalette.textMuted,
+    },
+    headerMetaValue: {
+        marginTop: 8,
+        fontSize: 18,
+        fontWeight: '800',
+        color: heroPalette.text,
+    },
+    headerMetaHint: {
+        marginTop: 2,
+        fontSize: 11,
+        color: heroPalette.textMuted,
     },
     headerSearchContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#ffffff',
-        borderRadius: 28,
+        backgroundColor: heroPalette.bgAlt,
+        borderRadius: 20,
         paddingHorizontal: 16,
-        paddingVertical: 11,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 3 },
-        shadowOpacity: 0.15,
-        shadowRadius: 6,
-        elevation: 5,
+        paddingVertical: 13,
+        borderWidth: 1,
+        borderColor: heroPalette.borderStrong,
     },
     searchIcon: {
         fontSize: 18,
         marginRight: 10,
-        color: '#10b981',
+        color: heroPalette.primary,
     },
     headerSearchInput: {
         flex: 1,
         fontSize: 15,
-        color: '#1f2937',
-        fontWeight: '500',
+        color: heroPalette.text,
+        fontWeight: '600',
     },
     clearSearchIcon: {
         fontSize: 18,
-        color: '#9ca3af',
+        color: heroPalette.textMuted,
         paddingLeft: 8,
     },
-    // ========== KPI ==========
     kpiSection: {
         padding: 16,
-        backgroundColor: '#fff',
+        backgroundColor: heroPalette.panel,
         marginBottom: 12,
-        marginHorizontal: 12,
-        marginTop: 12,
-        borderRadius: 16,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.08,
-        shadowRadius: 8,
-        elevation: 3,
+        marginHorizontal: 14,
+        borderRadius: 24,
+        borderWidth: 1,
+        borderColor: heroPalette.border,
+        ...heroSoftShadow,
     },
     kpiHeader: {
         flexDirection: 'row',
@@ -810,20 +1042,20 @@ const styles = StyleSheet.create({
     kpiTitle: {
         fontSize: 17,
         fontWeight: '700',
-        color: '#111827',
+        color: heroPalette.text,
     },
     offlineModeBadge: {
-        backgroundColor: '#fef2f2',
+        backgroundColor: 'rgba(251, 113, 133, 0.14)',
         paddingHorizontal: 12,
         paddingVertical: 5,
         borderRadius: 14,
         borderWidth: 1,
-        borderColor: '#fca5a5',
+        borderColor: 'rgba(251, 113, 133, 0.35)',
     },
     offlineModeText: {
         fontSize: 11,
         fontWeight: '700',
-        color: '#dc2626',
+        color: heroPalette.danger,
     },
     kpiGrid: {
         flexDirection: 'row',
@@ -832,58 +1064,61 @@ const styles = StyleSheet.create({
     },
     kpiCard: {
         flex: 1,
-        borderRadius: 14,
+        borderRadius: 18,
         paddingVertical: 16,
         alignItems: 'center',
         borderWidth: 1,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.06,
-        shadowRadius: 6,
-        elevation: 2,
+        paddingHorizontal: 10,
     },
     kpiOfflineEntradas: {
-        backgroundColor: '#fef3c7',
+        backgroundColor: 'rgba(251, 191, 36, 0.14)',
         minHeight: 120,
-        borderColor: '#fbbf24',
+        borderColor: 'rgba(251, 191, 36, 0.32)',
+    },
+    kpiInventoryCard: {
+        backgroundColor: 'rgba(34, 211, 238, 0.12)',
+        minHeight: 120,
+        borderColor: 'rgba(34, 211, 238, 0.28)',
     },
     kpiValue: {
         fontSize: 22,
         fontWeight: '800',
-        color: '#111827',
+        color: heroPalette.text,
     },
     kpiLabel: {
         marginTop: 5,
         fontSize: 12,
         fontWeight: '600',
-        color: '#4b5563',
+        color: heroPalette.textMuted,
     },
     kpiValueContainer: {
         flexDirection: 'row',
         justifyContent: 'center',
     },
-    // ========== AÇÕES / CARDS ==========
     actionsSection: {
-        paddingHorizontal: 12,
+        paddingHorizontal: 14,
         paddingBottom: 12,
-        backgroundColor: '#fff',
+        backgroundColor: heroPalette.panel,
         marginBottom: 12,
-        marginHorizontal: 12,
-        borderRadius: 16,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.08,
-        shadowRadius: 8,
-        elevation: 3,
+        marginHorizontal: 14,
+        borderRadius: 24,
+        borderWidth: 1,
+        borderColor: heroPalette.border,
+        ...heroSoftShadow,
     },
     actionsTitleContainer: {
         paddingTop: 14,
         paddingBottom: 8,
     },
     actionsTitle: {
-        fontSize: 15,
-        fontWeight: '700',
-        color: '#111827',
+        fontSize: 18,
+        fontWeight: '800',
+        color: heroPalette.text,
+    },
+    actionsSubtitle: {
+        marginTop: 4,
+        fontSize: 12,
+        color: heroPalette.textMuted,
     },
     actionsGrid: {
         flexDirection: 'row',
@@ -894,33 +1129,30 @@ const styles = StyleSheet.create({
     },
     actionCard: {
         width: '48%',
-        minHeight: 96,
-        borderRadius: 16,
-        paddingVertical: 16,
-        paddingHorizontal: 12,
-        alignItems: 'center',
-        justifyContent: 'center',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 3 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-        elevation: 4,
+        minHeight: 132,
+        borderRadius: 22,
+        paddingVertical: 20,
+        paddingHorizontal: 16,
+        alignItems: 'flex-start',
+        justifyContent: 'flex-end',
+        borderWidth: 1,
+        ...heroSoftShadow,
+    },
+    actionCardWide: {
+        width: '100%',
+        minHeight: 116,
     },
     categoryCard: {
         width: '48%',
-        backgroundColor: '#ffffff',
-        borderRadius: 16,
+        backgroundColor: heroPalette.panelAlt,
+        borderRadius: 20,
         padding: 18,
         alignItems: 'center',
         justifyContent: 'center',
-        borderWidth: 2,
-        borderColor: '#e5e7eb',
+        borderWidth: 1,
+        borderColor: heroPalette.border,
         marginBottom: 8,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.06,
-        shadowRadius: 6,
-        elevation: 2,
+        ...heroSoftShadow,
     },
     categoryIcon: {
         fontSize: 34,
@@ -929,31 +1161,37 @@ const styles = StyleSheet.create({
     categoryTitle: {
         fontSize: 14,
         fontWeight: '700',
-        color: '#1f2937',
+        color: heroPalette.text,
         textAlign: 'center',
         marginBottom: 4,
     },
     categoryCount: {
         fontSize: 12,
-        color: '#6b7280',
+        color: heroPalette.textMuted,
     },
     actionIcon: {
-        fontSize: 26,
-        marginBottom: 7,
+        fontSize: 30,
+        marginBottom: 10,
     },
     actionLabel: {
-        color: '#1f2937',
-        fontWeight: '700',
-        fontSize: 13,
-        lineHeight: 17,
-        textAlign: 'center',
+        color: heroPalette.text,
+        fontWeight: '800',
+        fontSize: 16,
+        lineHeight: 20,
     },
-    materialCard: { backgroundColor: '#dbeafe', borderWidth: 1, borderColor: '#93c5fd' },
-    multipleCard: { backgroundColor: '#f3e8ff', borderWidth: 1, borderColor: '#d8b4fe' },
-    toolCard: { backgroundColor: '#ffedd5', borderWidth: 1, borderColor: '#fdba74' },
-    returnCard: { backgroundColor: '#fee2e2', borderWidth: 1, borderColor: '#fca5a5' },
-    returnMaterialCard: { backgroundColor: '#d1fae5', borderWidth: 1, borderColor: '#6ee7b7' },
-    fractionCard: { backgroundColor: '#cffafe', borderWidth: 1, borderColor: '#67e8f9' },
+    actionSubLabel: {
+        marginTop: 6,
+        color: heroPalette.textMuted,
+        fontSize: 12,
+        lineHeight: 17,
+    },
+    materialCard: { backgroundColor: 'rgba(96, 165, 250, 0.16)', borderColor: 'rgba(96, 165, 250, 0.38)' },
+    multipleCard: { backgroundColor: 'rgba(167, 139, 250, 0.16)', borderColor: 'rgba(167, 139, 250, 0.38)' },
+    toolCard: { backgroundColor: 'rgba(251, 146, 60, 0.16)', borderColor: 'rgba(251, 146, 60, 0.38)' },
+    returnCard: { backgroundColor: 'rgba(251, 113, 133, 0.14)', borderColor: 'rgba(251, 113, 133, 0.35)' },
+    returnMaterialCard: { backgroundColor: 'rgba(52, 211, 153, 0.15)', borderColor: 'rgba(52, 211, 153, 0.35)' },
+    fractionCard: { backgroundColor: 'rgba(34, 211, 238, 0.15)', borderColor: 'rgba(34, 211, 238, 0.35)' },
+    documentsCard: { backgroundColor: 'rgba(251, 191, 36, 0.14)', borderColor: 'rgba(251, 191, 36, 0.38)' },
     multipleToolsCard: { backgroundColor: '#fef3c7', borderWidth: 2, borderColor: '#fbbf24' },
     multipleReturnToolsCard: { backgroundColor: '#ddd6fe', borderWidth: 2, borderColor: '#a78bfa' },
     multipleReturnMaterialsCard: { backgroundColor: '#bbf7d0', borderWidth: 2, borderColor: '#4ade80' },
@@ -961,21 +1199,17 @@ const styles = StyleSheet.create({
     ferramentasCard: { backgroundColor: '#e0e7ff', borderWidth: 2, borderColor: '#6366f1' },
     
     listContainer: {
-        padding: 15,
-        paddingTop: 10,
+        paddingBottom: 28,
     },
     itemCard: {
-        backgroundColor: '#ffffff',
-        borderRadius: 14,
+        backgroundColor: heroPalette.panel,
+        borderRadius: 20,
         padding: 16,
         marginBottom: 12,
+        marginHorizontal: 14,
         borderWidth: 1,
-        borderColor: '#e5e7eb',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.06,
-        shadowRadius: 6,
-        elevation: 2,
+        borderColor: heroPalette.border,
+        ...heroSoftShadow,
     },
     itemHeader: {
         flexDirection: 'row',
@@ -987,7 +1221,7 @@ const styles = StyleSheet.create({
         flex: 1,
         fontSize: 16,
         fontWeight: '700',
-        color: '#1f2937',
+        color: heroPalette.text,
         marginRight: 10,
     },
     badge: {
@@ -1007,7 +1241,7 @@ const styles = StyleSheet.create({
     },
     itemBarcode: {
         fontSize: 13,
-        color: '#6b7280',
+        color: heroPalette.primary,
         marginBottom: 6,
         fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
         fontWeight: '500',
@@ -1019,13 +1253,14 @@ const styles = StyleSheet.create({
     },
     itemDetail: {
         fontSize: 13,
-        color: '#6b7280',
+        color: heroPalette.textMuted,
         fontWeight: '500',
     },
     emptyContainer: {
         alignItems: 'center',
         justifyContent: 'center',
         paddingVertical: 70,
+        paddingHorizontal: 24,
     },
     emptyIcon: {
         fontSize: 68,
@@ -1034,25 +1269,24 @@ const styles = StyleSheet.create({
     emptyText: {
         fontSize: 18,
         fontWeight: '700',
-        color: '#4b5563',
+        color: heroPalette.text,
         marginBottom: 6,
     },
     emptySubtext: {
         fontSize: 14,
-        color: '#9ca3af',
+        color: heroPalette.textMuted,
         fontWeight: '500',
     },
-    // ========== BANNER DE CONEXÃO ==========
     offlineBanner: {
-        backgroundColor: '#f97316',
+        backgroundColor: '#9a3412',
         paddingVertical: 11,
         paddingHorizontal: 16,
-        borderBottomWidth: 2,
-        borderBottomColor: '#ea580c',
+        borderBottomWidth: 1,
+        borderBottomColor: 'rgba(255,255,255,0.12)',
     },
     syncingBanner: {
-        backgroundColor: '#3b82f6',
-        borderBottomColor: '#2563eb',
+        backgroundColor: '#0f766e',
+        borderBottomColor: 'rgba(255,255,255,0.12)',
     },
     offlineBannerContent: {
         flexDirection: 'row',
@@ -1066,11 +1300,13 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     syncButton: {
-        backgroundColor: 'rgba(255,255,255,0.35)',
+        backgroundColor: 'rgba(255,255,255,0.18)',
         paddingVertical: 7,
         paddingHorizontal: 14,
-        borderRadius: 8,
+        borderRadius: 10,
         marginLeft: 10,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.18)',
     },
     syncButtonText: {
         color: '#fff',
