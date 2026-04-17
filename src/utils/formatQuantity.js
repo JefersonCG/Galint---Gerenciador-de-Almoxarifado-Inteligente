@@ -16,8 +16,20 @@ export function formatQuantityWithPackaging(quantidade, item) {
     const qtd = Number(quantidade);
     if (!Number.isFinite(qtd)) return '0';
 
+    const saldoDisplay = typeof item.saldo_display === 'string' ? item.saldo_display.trim() : '';
+    const hasNewPackagingSnapshot = Boolean(
+        item.tipo_embalagem_novo
+        || item.estoque_formatado
+        || item.estoque_embalagens != null
+        || item.estoque_unidades_soltas != null
+    );
+
+    if (saldoDisplay && hasNewPackagingSnapshot) {
+        return saldoDisplay;
+    }
+
     // Sistema fracionado legacy (rolos com grandeza_referencia)
-    if (item.grandeza_referencia && item.grandeza_referencia > 0 && 
+    if (!hasNewPackagingSnapshot && item.grandeza_referencia && item.grandeza_referencia > 0 && 
         item.unidade && item.unidade.toLowerCase() === 'rolo') {
         const totalMetros = qtd * item.grandeza_referencia;
         const nomeRolo = qtd === 1 ? 'rolo' : 'rolos';
@@ -40,7 +52,7 @@ export function formatQuantityWithPackaging(quantidade, item) {
     }
 
     // Sistema de embalagens com peso em kg (lata/balde/bombona com grandeza_referencia)
-    if (item.grandeza_referencia && item.grandeza_referencia > 0 &&
+    if (!hasNewPackagingSnapshot && item.grandeza_referencia && item.grandeza_referencia > 0 &&
         (item.tipo_embalagem_novo || item.unidade) &&
         ['lata', 'balde', 'bombona'].includes((item.tipo_embalagem_novo || item.unidade || '').toLowerCase())) {
         
@@ -89,7 +101,7 @@ export function formatQuantityWithPackaging(quantidade, item) {
 
     // Sistema legacy: rolo/pacote/caixa no campo unidade
     const unidadeLower = (item.unidade || '').toLowerCase().trim();
-    if (['rolo', 'pacote', 'caixa'].includes(unidadeLower) && item.unidades_por_embalagem) {
+    if (!hasNewPackagingSnapshot && ['rolo', 'pacote', 'caixa'].includes(unidadeLower) && item.unidades_por_embalagem) {
         const saldoEmbalagens = qtd;
         const unidadesInternas = item.unidades_por_embalagem;
         const totalInterno = saldoEmbalagens * unidadesInternas;

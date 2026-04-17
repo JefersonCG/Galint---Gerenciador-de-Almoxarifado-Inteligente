@@ -3,6 +3,64 @@ let db = null;
 let initialized = false;
 let available = true;
 
+function isDuplicateColumnError(error) {
+    const message = String(error?.message || error || '').toLowerCase();
+    return message.includes('duplicate column name');
+}
+
+async function ensureItemColumn(columnName, columnType) {
+    try {
+        await runSql(`ALTER TABLE items ADD COLUMN ${columnName} ${columnType}`);
+    } catch (error) {
+        if (!isDuplicateColumnError(error)) {
+            throw error;
+        }
+    }
+}
+
+function toDbNumber(value) {
+    const numeric = Number(value);
+    return Number.isFinite(numeric) ? Number(numeric.toFixed(6)) : null;
+}
+
+function toDbText(value) {
+    if (value === undefined || value === null) return null;
+    const normalized = String(value).trim();
+    return normalized || null;
+}
+
+function toDbJson(value) {
+    if (value === undefined || value === null) return null;
+    try {
+        return JSON.stringify(value);
+    } catch (error) {
+        return null;
+    }
+}
+
+function parseMaybeJson(value) {
+    if (!value || typeof value !== 'string') return null;
+    try {
+        return JSON.parse(value);
+    } catch (error) {
+        return null;
+    }
+}
+
+function hydrateItemRow(row) {
+    if (!row) return null;
+    return {
+        ...row,
+        quantidade: toDbNumber(row.quantidade),
+        estoque_minimo: toDbNumber(row.estoque_minimo),
+        unidades_por_embalagem: toDbNumber(row.unidades_por_embalagem),
+        estoque_embalagens: toDbNumber(row.estoque_embalagens),
+        estoque_unidades_soltas: toDbNumber(row.estoque_unidades_soltas),
+        pre_cadastro_pendente: row.pre_cadastro_pendente === 1 || row.pre_cadastro_pendente === true,
+        estoque_formatado: parseMaybeJson(row.estoque_formatado),
+    };
+}
+
 function runSql(sql, params = []) {
     if (!available || !db) {
         return Promise.resolve({ rows: { _array: [] } });
@@ -45,10 +103,33 @@ export async function initOfflineDb() {
             marca TEXT,
             quantidade REAL,
             unidade TEXT,
+            saldo_display TEXT,
+            estoque_minimo REAL,
+            tipo_embalagem_novo TEXT,
+            unidades_por_embalagem REAL,
+            estoque_embalagens REAL,
+            estoque_unidades_soltas REAL,
+            estoque_formatado TEXT,
+            pre_cadastro_pendente INTEGER,
+            foto_path TEXT,
+            foto_url TEXT,
+            barcode_image_path TEXT,
             updated_at INTEGER,
             codigo_key TEXT PRIMARY KEY
         )`
     );
+
+    await ensureItemColumn('saldo_display', 'TEXT');
+    await ensureItemColumn('estoque_minimo', 'REAL');
+    await ensureItemColumn('tipo_embalagem_novo', 'TEXT');
+    await ensureItemColumn('unidades_por_embalagem', 'REAL');
+    await ensureItemColumn('estoque_embalagens', 'REAL');
+    await ensureItemColumn('estoque_unidades_soltas', 'REAL');
+    await ensureItemColumn('estoque_formatado', 'TEXT');
+    await ensureItemColumn('pre_cadastro_pendente', 'INTEGER');
+    await ensureItemColumn('foto_path', 'TEXT');
+    await ensureItemColumn('foto_url', 'TEXT');
+    await ensureItemColumn('barcode_image_path', 'TEXT');
 
     await runSql(
         `CREATE TABLE IF NOT EXISTS pending_ops (
@@ -75,8 +156,30 @@ export async function upsertItem(item) {
     if (!codigoKey) return;
     await runSql(
         `INSERT OR REPLACE INTO items
-            (id, codigo_barras, descricao, categoria, localizacao, marca, quantidade, unidade, updated_at, codigo_key)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+            (
+                id,
+                codigo_barras,
+                descricao,
+                categoria,
+                localizacao,
+                marca,
+                quantidade,
+                unidade,
+                saldo_display,
+                estoque_minimo,
+                tipo_embalagem_novo,
+                unidades_por_embalagem,
+                estoque_embalagens,
+                estoque_unidades_soltas,
+                estoque_formatado,
+                pre_cadastro_pendente,
+                foto_path,
+                foto_url,
+                barcode_image_path,
+                updated_at,
+                codigo_key
+            )
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
         , [
             item.id ?? null,
             item.codigo_barras ?? item.codigo ?? null,
@@ -84,8 +187,19 @@ export async function upsertItem(item) {
             item.categoria ?? null,
             item.localizacao ?? null,
             item.marca ?? null,
-            Number.isFinite(Number(item.quantidade)) ? Number(Number(item.quantidade).toFixed(6)) : null,
+            toDbNumber(item.quantidade),
             item.unidade ?? null,
+            toDbText(item.saldo_display),
+            toDbNumber(item.estoque_minimo),
+            toDbText(item.tipo_embalagem_novo),
+            toDbNumber(item.unidades_por_embalagem),
+            toDbNumber(item.estoque_embalagens),
+            toDbNumber(item.estoque_unidades_soltas),
+            toDbJson(item.estoque_formatado),
+            item.pre_cadastro_pendente ? 1 : 0,
+            toDbText(item.foto_path),
+            toDbText(item.foto_url),
+            toDbText(item.barcode_image_path),
             Date.now(),
             codigoKey,
         ]
@@ -107,18 +221,18 @@ export async function getItemByCodigo(codigo) {
         [codigoKey, codigoKey, codigoKey]
     );
     const rows = result?.rows?._array || [];
-    return rows.length > 0 ? rows[0] : null;
+    return rows.length > 0 ? hydrateItemRow(rows[0]) : null;
 }
 
 export async function searchItems(query = '') {
     const like = `%${String(query || '').trim()}%`;
     const result = await runSql(
         `SELECT * FROM items
-         WHERE descricao LIKE ? OR categoria LIKE ? OR codigo_barras LIKE ?
+         WHERE descricao LIKE ? OR categoria LIKE ? OR codigo_barras LIKE ? OR marca LIKE ? OR localizacao LIKE ?
          ORDER BY descricao ASC`,
-        [like, like, like]
+        [like, like, like, like, like]
     );
-    return result?.rows?._array || [];
+    return (result?.rows?._array || []).map((row) => hydrateItemRow(row));
 }
 
 export async function adjustLocalSaldo(codigo, delta) {

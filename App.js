@@ -69,6 +69,7 @@ async function getExpoPushToken() {
             importance: Notifications.AndroidImportance.MAX,
             vibrationPattern: [0, 250, 250, 250],
             lightColor: '#0d6efd',
+            sound: 'default',
         });
     }
 

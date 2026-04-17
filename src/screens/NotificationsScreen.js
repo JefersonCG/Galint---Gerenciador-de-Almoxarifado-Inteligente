@@ -54,6 +54,33 @@ function resolvePhotoUrl(item) {
     return `${configuredBaseURL}/static/${String(rawPhotoUrl).replace(/^\/+/, '')}`;
 }
 
+function resolveGalleryPhotos(item) {
+    const visual = resolveVisualPayload(item);
+    const gallery = Array.isArray(visual?.gallery) ? visual.gallery : [];
+    const configuredBaseURL = ApiService.baseURL || '';
+    return gallery
+        .map((entry, index) => {
+            const rawPhotoUrl = entry?.foto_url || entry?.foto_path || null;
+            if (!rawPhotoUrl) return null;
+
+            let uri = String(rawPhotoUrl);
+            if (!/^https?:\/\//i.test(uri)) {
+                if (!configuredBaseURL) return null;
+                if (uri.startsWith('/static/')) uri = `${configuredBaseURL}${uri}`;
+                else if (uri.startsWith('static/')) uri = `${configuredBaseURL}/${uri}`;
+                else uri = `${configuredBaseURL}/static/${uri.replace(/^\/+/, '')}`;
+            }
+
+            return {
+                key: `${entry?.codigo || 'gallery'}-${index}`,
+                uri,
+                descricao: entry?.descricao || 'Item',
+            };
+        })
+        .filter(Boolean)
+        .slice(0, 4);
+}
+
 function formatDate(value) {
     if (!value) return '-';
     try {
@@ -74,6 +101,7 @@ function NotificationCard({ item, onMarkRead }) {
     const isUnread = item?.status === 'unread';
     const [photoFailed, setPhotoFailed] = useState(false);
     const showPhoto = Boolean(photoUrl) && !photoFailed;
+    const galleryPhotos = resolveGalleryPhotos(item);
     const hasVisualDetails = Boolean(
         visualItem?.descricao ||
         movement?.quantidade_display ||
@@ -131,6 +159,19 @@ function NotificationCard({ item, onMarkRead }) {
                     </Text>
                 </View>
             )}
+
+            {galleryPhotos.length > 1 ? (
+                <View style={styles.galleryRow}>
+                    {galleryPhotos.map((photo) => (
+                        <ImageBackground
+                            key={photo.key}
+                            source={{ uri: photo.uri }}
+                            style={styles.galleryThumb}
+                            imageStyle={styles.galleryThumbImage}
+                        />
+                    ))}
+                </View>
+            ) : null}
 
             {hasVisualDetails ? (
                 <View style={styles.visualPanel}>
@@ -425,6 +466,20 @@ const styles = StyleSheet.create({
         color: '#475569',
         textAlign: 'center',
         lineHeight: 18,
+    },
+    galleryRow: {
+        flexDirection: 'row',
+        gap: 8,
+        marginTop: 12,
+    },
+    galleryThumb: {
+        width: 58,
+        height: 58,
+        borderRadius: 14,
+        overflow: 'hidden',
+    },
+    galleryThumbImage: {
+        borderRadius: 14,
     },
     visualPanel: {
         marginTop: 14,

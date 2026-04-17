@@ -51,6 +51,14 @@ export default function MenuScreen({ navigation }) {
     const firstName = userName ? userName.split(' ')[0] : '';
     const recentMovements = Array.isArray(overview?.recent_movements) ? overview.recent_movements.slice(0, 4) : [];
     const documentModes = Array.isArray(overview?.features?.document_modes) ? overview.features.document_modes : [];
+    const canManageDocuments = Boolean(overview?.features?.documentos_fiscais);
+    const canViewReports = Boolean(
+        overview?.features?.reports?.daily
+        || overview?.features?.reports?.monthly
+        || overview?.features?.reports?.history
+        || overview?.features?.reports?.consumption
+    );
+    const canViewConsumption = Boolean(overview?.features?.reports?.consumption);
 
     return (
         <HeroScreen
@@ -116,35 +124,49 @@ export default function MenuScreen({ navigation }) {
                 <Text style={styles.cardArrow}>›</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
-                style={[styles.modernCard, styles.documentsCard]}
-                onPress={() => navigation.navigate('DocumentosFiscais')}
-                activeOpacity={0.85}
-            >
-                <View style={styles.cardIconContainer}>
-                    <Text style={styles.cardIcon}>🧾</Text>
+            {canManageDocuments ? (
+                <TouchableOpacity
+                    style={[styles.modernCard, styles.documentsCard]}
+                    onPress={() => navigation.navigate('DocumentosFiscais')}
+                    activeOpacity={0.85}
+                >
+                    <View style={styles.cardIconContainer}>
+                        <Text style={styles.cardIcon}>🧾</Text>
+                    </View>
+                    <View style={styles.cardContent}>
+                        <Text style={styles.cardTitle}>Documentos Fiscais</Text>
+                        <Text style={styles.cardSubtitle}>Cadastro mobile para NF, cupom, recibo e lancamento manual</Text>
+                    </View>
+                    <Text style={styles.cardArrow}>›</Text>
+                </TouchableOpacity>
+            ) : (
+                <View style={[styles.modernCard, styles.lockedCard]}>
+                    <View style={styles.cardIconContainer}>
+                        <Text style={styles.cardIcon}>🔒</Text>
+                    </View>
+                    <View style={styles.cardContent}>
+                        <Text style={styles.cardTitle}>Documentos Fiscais</Text>
+                        <Text style={styles.cardSubtitle}>Disponível somente para administradores cadastrados no servidor.</Text>
+                    </View>
                 </View>
-                <View style={styles.cardContent}>
-                    <Text style={styles.cardTitle}>Documentos Fiscais</Text>
-                    <Text style={styles.cardSubtitle}>Cadastro mobile para NF, cupom, recibo e lancamento manual</Text>
-                </View>
-                <Text style={styles.cardArrow}>›</Text>
-            </TouchableOpacity>
+            )}
 
-            <TouchableOpacity
-                style={[styles.modernCard, styles.consumptionCard]}
-                onPress={() => navigation.navigate('ReportsConsumption')}
-                activeOpacity={0.85}
-            >
-                <View style={styles.cardIconContainer}>
-                    <Text style={styles.cardIcon}>📊</Text>
-                </View>
-                <View style={styles.cardContent}>
-                    <Text style={styles.cardTitle}>Consumo analitico</Text>
-                    <Text style={styles.cardSubtitle}>Categoria, local e funcionario em leitura simplificada para o aparelho.</Text>
-                </View>
-                <Text style={styles.cardArrow}>›</Text>
-            </TouchableOpacity>
+            {canViewConsumption ? (
+                <TouchableOpacity
+                    style={[styles.modernCard, styles.consumptionCard]}
+                    onPress={() => navigation.navigate('ReportsConsumption')}
+                    activeOpacity={0.85}
+                >
+                    <View style={styles.cardIconContainer}>
+                        <Text style={styles.cardIcon}>📊</Text>
+                    </View>
+                    <View style={styles.cardContent}>
+                        <Text style={styles.cardTitle}>Consumo analitico</Text>
+                        <Text style={styles.cardSubtitle}>Categoria, local e funcionario em leitura simplificada para o aparelho.</Text>
+                    </View>
+                    <Text style={styles.cardArrow}>›</Text>
+                </TouchableOpacity>
+            ) : null}
 
             <TouchableOpacity 
                 style={[styles.modernCard, styles.updatesCard]} 
@@ -161,20 +183,32 @@ export default function MenuScreen({ navigation }) {
                 <Text style={styles.cardArrow}>›</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity 
-                style={[styles.modernCard, styles.reportsCard]} 
-                onPress={() => navigation.navigate('Reports')}
-                activeOpacity={0.85}
-            >
-                <View style={styles.cardIconContainer}>
-                    <Text style={styles.cardIcon}>📄</Text>
+            {canViewReports ? (
+                <TouchableOpacity 
+                    style={[styles.modernCard, styles.reportsCard]} 
+                    onPress={() => navigation.navigate('Reports')}
+                    activeOpacity={0.85}
+                >
+                    <View style={styles.cardIconContainer}>
+                        <Text style={styles.cardIcon}>📄</Text>
+                    </View>
+                    <View style={styles.cardContent}>
+                        <Text style={styles.cardTitle}>Relatórios</Text>
+                        <Text style={styles.cardSubtitle}>Relatorios diarios, mensais e historicos</Text>
+                    </View>
+                    <Text style={styles.cardArrow}>›</Text>
+                </TouchableOpacity>
+            ) : (
+                <View style={[styles.modernCard, styles.lockedCard]}>
+                    <View style={styles.cardIconContainer}>
+                        <Text style={styles.cardIcon}>🔒</Text>
+                    </View>
+                    <View style={styles.cardContent}>
+                        <Text style={styles.cardTitle}>Relatórios</Text>
+                        <Text style={styles.cardSubtitle}>Acesso liberado somente para administradores do GALINT.</Text>
+                    </View>
                 </View>
-                <View style={styles.cardContent}>
-                    <Text style={styles.cardTitle}>Relatórios</Text>
-                    <Text style={styles.cardSubtitle}>Relatorios diarios, mensais e historicos</Text>
-                </View>
-                <Text style={styles.cardArrow}>›</Text>
-            </TouchableOpacity>
+            )}
 
             {documentModes.length ? (
                 <View style={styles.modeBox}>
@@ -263,6 +297,10 @@ const styles = StyleSheet.create({
     },
     consumptionCard: {
         borderColor: 'rgba(251, 191, 36, 0.24)',
+    },
+    lockedCard: {
+        borderColor: 'rgba(148, 163, 184, 0.26)',
+        backgroundColor: 'rgba(15, 27, 49, 0.86)',
     },
     cardIconContainer: {
         width: 56,

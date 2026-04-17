@@ -71,6 +71,15 @@ function getRoleLabel(role) {
     return 'Operação';
 }
 
+function mapNotificationLabel(entry) {
+    const messageType = String(entry?.message_type || '').trim().toLowerCase();
+    const category = String(entry?.category || '').trim().toLowerCase();
+    if (messageType.includes('withdrawal') || category === 'withdrawal') return 'Saídas';
+    if (messageType.includes('inventory') || category === 'inventory') return 'Devoluções';
+    if (messageType.includes('stock') || category === 'stock' || category === 'item') return 'Entradas';
+    return 'Alertas';
+}
+
 export default function EstoqueScreen({ navigation, route }) {
     const [items, setItems] = useState([]);
     const [searchQuery, setSearchQuery] = useState('');
@@ -89,6 +98,7 @@ export default function EstoqueScreen({ navigation, route }) {
     const [dailyCustodySummary, setDailyCustodySummary] = useState({ employees: 0, tools: 0, overdue: 0 });
     const [dailyCustodyMessage, setDailyCustodyMessage] = useState('');
     const [dailyCustodyReturningKey, setDailyCustodyReturningKey] = useState('');
+    const [erpOverview, setErpOverview] = useState(null);
     
     // 🔄 Estados para Banner de Conexão
     const [connectionStatus, setConnectionStatus] = useState('online'); // 'online' | 'offline' | 'syncing'
@@ -100,6 +110,27 @@ export default function EstoqueScreen({ navigation, route }) {
     // Determinar permissão
     const role = useMemo(() => getUserRole(user), [user]);
     const roleLabel = useMemo(() => getRoleLabel(role), [role]);
+    const unreadNotifications = Number(erpOverview?.notifications?.unread_count || 0);
+    const canManageDocuments = Boolean(erpOverview?.features?.documentos_fiscais);
+    const recentNotificationLabels = useMemo(() => {
+        const recent = Array.isArray(erpOverview?.notifications?.recent) ? erpOverview.notifications.recent : [];
+        return Array.from(new Set(recent.map((entry) => mapNotificationLabel(entry)).filter(Boolean))).slice(0, 3);
+    }, [erpOverview]);
+
+    const loadOverviewSummary = useCallback(async (silent = false) => {
+        const result = await ApiService.getErpOverview();
+        if (result?.success) {
+            setErpOverview(result.data || null);
+            if (result.data?.user && !user) {
+                setUser((current) => current || result.data.user);
+            }
+            return;
+        }
+
+        if (!silent) {
+            setErpOverview(null);
+        }
+    }, [user]);
 
     const loadDailyCustody = useCallback(async (silent = false) => {
         if (!silent) {
@@ -175,6 +206,7 @@ export default function EstoqueScreen({ navigation, route }) {
             // console.log('[EstoqueScreen] Sync detectado, atualizando UI...');
             loadEstoque(searchQuery, true); // true = silent update
             loadDailyCustody(true);
+            loadOverviewSummary(true);
         });
         
         // Carregamento inicial direto
@@ -219,7 +251,8 @@ export default function EstoqueScreen({ navigation, route }) {
              }
              // Depois roda o full load
              loadEstoque('', false);
-               loadDailyCustody(false);
+                             loadDailyCustody(false);
+                             loadOverviewSummary(false);
         })();
 
         HeartbeatService.start();
@@ -253,7 +286,7 @@ export default function EstoqueScreen({ navigation, route }) {
             SyncService.stop();
             removeSyncListener();
         };
-    }, [loadDailyCustody, navigation]);
+    }, [loadDailyCustody, loadOverviewSummary, navigation]);
 
     // 📡 Monitorar Conexão e Operações Pendentes
     useEffect(() => {
@@ -282,9 +315,10 @@ export default function EstoqueScreen({ navigation, route }) {
         const unsubscribe = navigation.addListener('focus', () => {
              loadEstoque(latestSearchRef.current, true);
              loadDailyCustody(true);
+             loadOverviewSummary(true);
         });
         return unsubscribe;
-    }, [loadDailyCustody, navigation]);
+    }, [loadDailyCustody, loadOverviewSummary, navigation]);
 
     // Função Principal de Carga de Dados
     // Estratégia: Local First -> Network Update
@@ -373,6 +407,7 @@ export default function EstoqueScreen({ navigation, route }) {
         SyncService.runSync().finally(() => {
             loadEstoque(searchQuery);
             loadDailyCustody(true);
+            loadOverviewSummary(true);
             setRefreshing(false);
         });
     };
@@ -552,10 +587,19 @@ export default function EstoqueScreen({ navigation, route }) {
         navigation.navigate('Menu');
     }, [navigation]);
 
+    const handleOpenNotifications = useCallback(() => {
+        InactivityService.recordActivity();
+        navigation.navigate('Notifications');
+    }, [navigation]);
+
     const handleOpenDocumentos = useCallback(() => {
+        if (!canManageDocuments) {
+            Alert.alert('Acesso restrito', 'Entradas fiscais e documentos fiscais no mobile agora ficam disponíveis somente para administradores cadastrados no servidor.');
+            return;
+        }
         InactivityService.recordActivity();
         navigation.navigate('DocumentosFiscais');
-    }, [navigation]);
+    }, [canManageDocuments, navigation]);
 
     const renderItem = useCallback(({ item }) => {
         const q = Number(item?.quantidade ?? 0);
@@ -630,6 +674,18 @@ export default function EstoqueScreen({ navigation, route }) {
                             <Text style={styles.headerSubtitle}>{roleLabel} • {displayUserRef}</Text>
                         </View>
                         <View style={styles.headerButtons}>
+                            <TouchableOpacity
+                                onPress={handleOpenNotifications}
+                                style={styles.modernMenuButton}
+                                activeOpacity={0.85}
+                            >
+                                <Text style={styles.modernMenuIcon}>🔔</Text>
+                                {unreadNotifications > 0 ? (
+                                    <View style={styles.headerNotifyBadge}>
+                                        <Text style={styles.headerNotifyBadgeText}>{unreadNotifications > 99 ? '99+' : unreadNotifications}</Text>
+                                    </View>
+                                ) : null}
+                            </TouchableOpacity>
                             <TouchableOpacity
                                 onPress={handleDownloadDatabase}
                                 style={[styles.modernMenuButton, styles.downloadDatabaseButton]}
@@ -733,15 +789,23 @@ export default function EstoqueScreen({ navigation, route }) {
                             <Text style={styles.actionsSubtitle}>Botões maiores para o fluxo principal do almoxarifado.</Text>
                         </View>
                         <View style={styles.actionsGrid}>
-                            <TouchableOpacity
-                                style={[styles.actionCard, styles.actionCardWide, styles.documentsCard]}
-                                onPress={handleOpenDocumentos}
-                                activeOpacity={0.86}
-                            >
-                                <Text style={styles.actionIcon}>🧾</Text>
-                                <Text style={styles.actionLabel}>Entradas fiscais</Text>
-                                <Text style={styles.actionSubLabel}>NF, cupom, recibo e lançamento manual</Text>
-                            </TouchableOpacity>
+                            {canManageDocuments ? (
+                                <TouchableOpacity
+                                    style={[styles.actionCard, styles.actionCardWide, styles.documentsCard]}
+                                    onPress={handleOpenDocumentos}
+                                    activeOpacity={0.86}
+                                >
+                                    <Text style={styles.actionIcon}>🧾</Text>
+                                    <Text style={styles.actionLabel}>Entradas fiscais</Text>
+                                    <Text style={styles.actionSubLabel}>NF, cupom, recibo e lançamento manual</Text>
+                                </TouchableOpacity>
+                            ) : (
+                                <View style={[styles.actionCard, styles.actionCardWide, styles.lockedActionCard]}>
+                                    <Text style={styles.actionIcon}>🔒</Text>
+                                    <Text style={styles.actionLabel}>Entradas fiscais</Text>
+                                    <Text style={styles.actionSubLabel}>Disponível apenas para administradores do servidor</Text>
+                                </View>
+                            )}
 
                             <TouchableOpacity
                                 style={[styles.actionCard, styles.materialCard]}
@@ -800,8 +864,26 @@ export default function EstoqueScreen({ navigation, route }) {
                 )}
             </View>
         );
-    }, [categoriaStats, connectionStatus, dailyCustodyGroups, dailyCustodyLoading, dailyCustodyMessage, dailyCustodyReturningKey, dailyCustodySummary, dailyCustodyVisible, downloadingDatabase, handleClearSearch, handleDailyCustodyReturn, handleDownloadDatabase, handleOpenDocumentos, handleOpenMenu, items.length, loadDailyCustody, offlineDelta.entradas, offlineDelta.retiradas, offlineSnapshot?.totalItens, pendingOpsCount, role, roleLabel, searchQuery, user]);
+    }, [canManageDocuments, categoriaStats, connectionStatus, dailyCustodyGroups, dailyCustodyLoading, dailyCustodyMessage, dailyCustodyReturningKey, dailyCustodySummary, dailyCustodyVisible, downloadingDatabase, handleClearSearch, handleDailyCustodyReturn, handleDownloadDatabase, handleOpenDocumentos, handleOpenMenu, handleOpenNotifications, items.length, loadDailyCustody, offlineDelta.entradas, offlineDelta.retiradas, offlineSnapshot?.totalItens, pendingOpsCount, recentNotificationLabels, role, roleLabel, searchQuery, unreadNotifications, user]);
 
+
+                    {(unreadNotifications > 0 || recentNotificationLabels.length > 0) && (
+                        <TouchableOpacity
+                            style={styles.alertHighlightCard}
+                            onPress={handleOpenNotifications}
+                            activeOpacity={0.86}
+                        >
+                            <View style={styles.alertHighlightHeader}>
+                                <Text style={styles.alertHighlightTitle}>Notificações operacionais</Text>
+                                <Text style={styles.alertHighlightCount}>{unreadNotifications > 0 ? `${unreadNotifications} nova(s)` : 'Inbox'}</Text>
+                            </View>
+                            <Text style={styles.alertHighlightText}>
+                                {recentNotificationLabels.length > 0
+                                    ? `Saídas, entradas e devoluções em destaque: ${recentNotificationLabels.join(' • ')}`
+                                    : 'Abra o inbox para acompanhar as movimentações do dia.'}
+                            </Text>
+                        </TouchableOpacity>
+                    )}
     return (
         <View style={styles.container}>
             {/* 🌐 Banner de Status de Conexão */}
@@ -952,6 +1034,25 @@ const styles = StyleSheet.create({
         gap: 8,
         alignItems: 'center',
     },
+    headerNotifyBadge: {
+        position: 'absolute',
+        top: -6,
+        right: -6,
+        minWidth: 20,
+        height: 20,
+        borderRadius: 10,
+        paddingHorizontal: 4,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: heroPalette.danger,
+        borderWidth: 1,
+        borderColor: heroPalette.bg,
+    },
+    headerNotifyBadgeText: {
+        color: '#fff',
+        fontSize: 10,
+        fontWeight: '800',
+    },
     modernMenuIcon: {
         fontSize: 18,
         fontWeight: '900',
@@ -1022,6 +1123,39 @@ const styles = StyleSheet.create({
         fontSize: 18,
         color: heroPalette.textMuted,
         paddingLeft: 8,
+    },
+    alertHighlightCard: {
+        marginTop: 14,
+        borderRadius: 18,
+        borderWidth: 1,
+        borderColor: 'rgba(251, 191, 36, 0.34)',
+        backgroundColor: 'rgba(251, 191, 36, 0.1)',
+        paddingHorizontal: 14,
+        paddingVertical: 14,
+    },
+    alertHighlightHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 6,
+        gap: 12,
+    },
+    alertHighlightTitle: {
+        color: heroPalette.text,
+        fontSize: 14,
+        fontWeight: '800',
+    },
+    alertHighlightCount: {
+        color: heroPalette.warning,
+        fontSize: 12,
+        fontWeight: '900',
+        textTransform: 'uppercase',
+        letterSpacing: 0.6,
+    },
+    alertHighlightText: {
+        color: heroPalette.textSoft,
+        fontSize: 12,
+        lineHeight: 18,
     },
     kpiSection: {
         padding: 16,
@@ -1192,6 +1326,7 @@ const styles = StyleSheet.create({
     returnMaterialCard: { backgroundColor: 'rgba(52, 211, 153, 0.15)', borderColor: 'rgba(52, 211, 153, 0.35)' },
     fractionCard: { backgroundColor: 'rgba(34, 211, 238, 0.15)', borderColor: 'rgba(34, 211, 238, 0.35)' },
     documentsCard: { backgroundColor: 'rgba(251, 191, 36, 0.14)', borderColor: 'rgba(251, 191, 36, 0.38)' },
+    lockedActionCard: { backgroundColor: 'rgba(148, 163, 184, 0.12)', borderColor: 'rgba(148, 163, 184, 0.28)' },
     multipleToolsCard: { backgroundColor: '#fef3c7', borderWidth: 2, borderColor: '#fbbf24' },
     multipleReturnToolsCard: { backgroundColor: '#ddd6fe', borderWidth: 2, borderColor: '#a78bfa' },
     multipleReturnMaterialsCard: { backgroundColor: '#bbf7d0', borderWidth: 2, borderColor: '#4ade80' },

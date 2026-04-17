@@ -13,8 +13,10 @@ import {
     FlatList,
     Switch,
     Modal,
+    Image,
 } from 'react-native';
 import ApiService from '../services/api';
+import { heroPalette, heroShadow, heroSoftShadow } from '../theme/heroTheme';
 
 function sanitizeIntText(text) {
     if (text == null) return '';
@@ -110,6 +112,19 @@ function buildWithdrawalEntryKey(entry) {
     return [codigo, tipoCustodia, tipoFerramenta].join('::');
 }
 
+function resolveItemPhotoUri(item, baseURL) {
+    const raw = String(item?.foto_url || item?.foto_path || '').trim();
+    if (!raw) return null;
+    if (/^https?:\/\//i.test(raw)) return raw;
+    if (!baseURL) return raw;
+    if (raw.startsWith('/')) return `${baseURL}${raw}`;
+    return `${baseURL}/static/${raw.replace(/^\/+/, '')}`;
+}
+
+function getItemCode(item) {
+    return String(item?.id || item?.codigo_barras || '').trim();
+}
+
 export default function RetiradaScreen({ navigation, route }) {
     const user = route.params?.user;
     const item = route.params?.item;
@@ -127,6 +142,7 @@ export default function RetiradaScreen({ navigation, route }) {
     const [itemAtual, setItemAtual] = useState({
         item: null,
         quantidade: '',
+        codigoBusca: '',
     });
 
     // Estados compartilhados (usados tanto em single quanto multi)
@@ -196,14 +212,15 @@ export default function RetiradaScreen({ navigation, route }) {
     useEffect(() => {
         if (multi) {
             // Modo múltiplo: inicializa sem item
-            setItemAtual({ item: null, quantidade: '1' });
+            setItemAtual({ item: null, quantidade: '1', codigoBusca: '' });
         } else if (item) {
             // Modo single: inicializa com o item recebido
             setItemAtual({
                 item,
                 quantidade: defaultQuantity != null && String(defaultQuantity).trim() !== '' 
                     ? sanitizeIntText(defaultQuantity) 
-                    : '1'
+                    : '1',
+                codigoBusca: '',
             });
             const detected = detectLiquidType(item?.categoria, item?.descricao);
             if (detected) {
@@ -227,6 +244,7 @@ export default function RetiradaScreen({ navigation, route }) {
             setItemAtual({
                 item: scannedItem,
                 quantidade: '1',
+                codigoBusca: '',
             });
             // Limpar o scannedItem dos parâmetros para evitar reprocessamento
             navigation.setParams({ scannedItem: null });
@@ -401,6 +419,43 @@ export default function RetiradaScreen({ navigation, route }) {
         return 'Retirada de Material';
     }, [multi, tipo, isFerramenta]);
 
+    const localServicoNormalizado = useMemo(() => {
+        return String(localServico || '').trim().toUpperCase();
+    }, [localServico]);
+
+    const fotoItemAtualUri = useMemo(() => {
+        return resolveItemPhotoUri(itemAtual?.item, ApiService.baseURL);
+    }, [itemAtual]);
+
+    const galeriaRetiradaMultipla = useMemo(() => {
+        const seen = new Set();
+        return itensRetirada.reduce((acc, entry) => {
+            const currentItem = entry?.item;
+            const code = getItemCode(currentItem);
+            const uri = resolveItemPhotoUri(currentItem, ApiService.baseURL);
+            if (!uri || (code && seen.has(code))) {
+                return acc;
+            }
+            if (code) {
+                seen.add(code);
+            }
+            acc.push({
+                key: code || `${acc.length}`,
+                uri,
+                descricao: String(currentItem?.descricao || currentItem?.nome || 'Item').trim(),
+            });
+            return acc;
+        }, []).slice(0, 4);
+    }, [itensRetirada]);
+
+    const contextoObrigatorioOk = useMemo(() => {
+        return Boolean(
+            retiranteSelecionado?.matricula
+            && String(retiranteSelecionado?.nome || '').trim()
+            && localServicoNormalizado
+        );
+    }, [retiranteSelecionado, localServicoNormalizado]);
+
     // Adicionar item à lista (modo múltiplo)
     const handleAdicionarItem = () => {
         if (!itemAtual.item) {
@@ -450,7 +505,7 @@ export default function RetiradaScreen({ navigation, route }) {
         }
 
         // Resetar formulário para o próximo item
-        setItemAtual({ item: null, quantidade: '1' });
+        setItemAtual({ item: null, quantidade: '1', codigoBusca: '' });
         setTipoCustodia('temporaria');
         setTipoFerramenta('diaria');
 
@@ -479,6 +534,11 @@ export default function RetiradaScreen({ navigation, route }) {
             return;
         }
 
+        if (!localServicoNormalizado) {
+            Alert.alert('Erro', 'Informe o local de serviço para concluir a retirada.');
+            return;
+        }
+
         // Validação antecipada dos itens
         const itensInvalidos = itensRetirada.filter(entry => {
             const codigo = String(entry?.item?.id || entry?.item?.codigo_barras || '').trim();
@@ -500,7 +560,7 @@ export default function RetiradaScreen({ navigation, route }) {
 
         Alert.alert(
             'Confirmar Retirada Múltipla',
-            `${totalItens} item(ns) serão retirados por:\n\n👤 ${retiranteSelecionado.nome}\n📍 ${localServico || 'Não informado'}\n\n${resumoItens}${maisItens}`,
+            `${totalItens} item(ns) serão retirados por:\n\n👤 ${retiranteSelecionado.nome}\n📍 ${localServicoNormalizado}\n\n${resumoItens}${maisItens}`,
             [
                 { text: 'Cancelar', style: 'cancel' },
                 {
@@ -520,7 +580,7 @@ export default function RetiradaScreen({ navigation, route }) {
                             const result = await ApiService.registrarRetiradaMultipla({
                                 itens: itensPayload,
                                 matricula_retirante: String(retiranteSelecionado?.matricula || '').trim(),
-                                local_servico: String(localServico || '').toUpperCase(),
+                                local_servico: localServicoNormalizado,
                             });
 
                             if (result.success && result.offline) {
@@ -532,7 +592,7 @@ export default function RetiradaScreen({ navigation, route }) {
                                             text: 'Nova Retirada',
                                             onPress: () => {
                                                 setItensRetirada([]);
-                                                setItemAtual({ item: null, quantidade: '1' });
+                                                setItemAtual({ item: null, quantidade: '1', codigoBusca: '' });
                                                 setItemAtualId(0);
                                                 setLocalServico('');
                                             }
@@ -560,7 +620,7 @@ export default function RetiradaScreen({ navigation, route }) {
                                                 text: 'Nova Retirada',
                                                 onPress: () => {
                                                     setItensRetirada([]);
-                                                    setItemAtual({ item: null, quantidade: '1' });
+                                                    setItemAtual({ item: null, quantidade: '1', codigoBusca: '' });
                                                     setItemAtualId(0);
                                                     setLocalServico('');
                                                 }
@@ -577,7 +637,7 @@ export default function RetiradaScreen({ navigation, route }) {
                                                 text: 'Nova Retirada',
                                                 onPress: () => {
                                                     setItensRetirada([]);
-                                                    setItemAtual({ item: null, quantidade: '1' });
+                                                    setItemAtual({ item: null, quantidade: '1', codigoBusca: '' });
                                                     setItemAtualId(0);
                                                     setLocalServico('');
                                                 }
@@ -668,6 +728,11 @@ export default function RetiradaScreen({ navigation, route }) {
             return;
         }
 
+        if (!localServicoNormalizado) {
+            Alert.alert('Erro', 'Informe o local de serviço para concluir a retirada.');
+            return;
+        }
+
         if (!itemAtual?.item?.id && !itemAtual?.item?.codigo_barras) {
             Alert.alert('Erro', 'Item inválido. Volte e selecione novamente.');
             return;
@@ -700,7 +765,7 @@ export default function RetiradaScreen({ navigation, route }) {
                 codigo,
                 quantidade: usarFracao ? 1 : quantidadeInt,
                 matricula_retirante: String(retiranteSelecionado?.matricula || '').trim(),
-                local_servico: String(localServico || '').toUpperCase(),
+                local_servico: localServicoNormalizado,
                 tipo_custodia: isFerramenta ? tipoCustodia : undefined,
                 tipo_ferramenta: isFerramenta ? tipoFerramenta : undefined,
                 modo_fracionado: usarFracao,
@@ -746,7 +811,7 @@ export default function RetiradaScreen({ navigation, route }) {
                         {
                             text: 'Nova Retirada',
                             onPress: () => {
-                                setItemAtual({ item: null, quantidade: '1' });
+                                setItemAtual({ item: null, quantidade: '1', codigoBusca: '' });
                                 setLocalServico('');
                                 setTotalEmbalagem('');
                                 setFracaoSelecionada(null);
@@ -848,7 +913,44 @@ export default function RetiradaScreen({ navigation, route }) {
                 keyboardShouldPersistTaps="handled"
             >
                 <View style={styles.card}>
-                    <Text style={styles.title}>{titulo}</Text>
+                    <View style={styles.heroBox}>
+                        <Text style={styles.heroEyebrow}>Registro de saídas</Text>
+                        <Text style={styles.title}>{titulo}</Text>
+                        <Text style={styles.heroSubtitle}>
+                            Fluxo alinhado ao web Flask, com menos ruído visual e confirmação obrigatória de retirante e local.
+                        </Text>
+                        <View style={styles.heroMetaRow}>
+                            <View style={styles.heroMetaChip}>
+                                <Text style={styles.heroMetaLabel}>Retirante</Text>
+                                <Text style={styles.heroMetaValue} numberOfLines={1}>
+                                    {retiranteSelecionado?.nome || 'Obrigatório'}
+                                </Text>
+                            </View>
+                            <View style={styles.heroMetaChip}>
+                                <Text style={styles.heroMetaLabel}>Local</Text>
+                                <Text style={styles.heroMetaValue} numberOfLines={1}>
+                                    {localServicoNormalizado || 'Obrigatório'}
+                                </Text>
+                            </View>
+                            <View style={styles.heroMetaChip}>
+                                <Text style={styles.heroMetaLabel}>Modo</Text>
+                                <Text style={styles.heroMetaValue} numberOfLines={1}>
+                                    {multi ? `${itensRetirada.length} item(ns)` : isFerramenta ? 'Ferramenta' : 'Material'}
+                                </Text>
+                            </View>
+                        </View>
+                    </View>
+
+                    <View style={styles.hintsRow}>
+                        <View style={styles.hintCard}>
+                            <Text style={styles.hintIcon}>!</Text>
+                            <Text style={styles.hintText}>Sem retirante e local a baixa não é liberada.</Text>
+                        </View>
+                        <View style={styles.hintCard}>
+                            <Text style={styles.hintIcon}>i</Text>
+                            <Text style={styles.hintText}>A foto do item acompanha a seleção e a retirada múltipla.</Text>
+                        </View>
+                    </View>
 
                     {/* MODO MÚLTIPLO */}
                     {multi ? (
@@ -857,8 +959,36 @@ export default function RetiradaScreen({ navigation, route }) {
                             {itensRetirada.length > 0 && (
                                 <View style={styles.listaItensBox}>
                                     <Text style={styles.listaItensTitle}>Itens adicionados ({itensRetirada.length})</Text>
+                                    {galeriaRetiradaMultipla.length > 0 && (
+                                        <View style={styles.galleryStrip}>
+                                            {galeriaRetiradaMultipla.map((photo) => (
+                                                <Image
+                                                    key={photo.key}
+                                                    source={{ uri: photo.uri }}
+                                                    style={styles.galleryThumb}
+                                                    resizeMode="cover"
+                                                />
+                                            ))}
+                                            {itensRetirada.length > galeriaRetiradaMultipla.length && (
+                                                <View style={styles.galleryMoreBadge}>
+                                                    <Text style={styles.galleryMoreText}>+{itensRetirada.length - galeriaRetiradaMultipla.length}</Text>
+                                                </View>
+                                            )}
+                                        </View>
+                                    )}
                                     {itensRetirada.map((entry) => (
                                         <View key={entry.id} style={styles.itemAdicionadoCard}>
+                                            {resolveItemPhotoUri(entry?.item, ApiService.baseURL) ? (
+                                                <Image
+                                                    source={{ uri: resolveItemPhotoUri(entry?.item, ApiService.baseURL) }}
+                                                    style={styles.itemThumb}
+                                                    resizeMode="cover"
+                                                />
+                                            ) : (
+                                                <View style={styles.itemThumbFallback}>
+                                                    <Text style={styles.itemThumbFallbackText}>Sem foto</Text>
+                                                </View>
+                                            )}
                                             <View style={styles.itemAdicionadoInfo}>
                                                 <Text style={styles.itemAdicionadoNome}>
                                                     {(entry?.item?.descricao || entry?.item?.nome || '').toString()}
@@ -886,24 +1016,40 @@ export default function RetiradaScreen({ navigation, route }) {
 
                                 {itemAtual.item ? (
                                     <View style={styles.itemBox}>
-                                        <Text style={styles.itemName}>
-                                            {(itemAtual.item?.descricao || itemAtual.item?.nome || '').toString().toUpperCase()}
-                                        </Text>
-                                        <Text style={styles.itemLine}>
-                                            Código: {(itemAtual.item?.codigo_barras || itemAtual.item?.id || '').toString()}
-                                        </Text>
-                                        <Text style={styles.itemLine}>Saldo atual: {saldoDetalhado.principal}</Text>
-                                        {saldoDetalhado.secundario && (
-                                            <Text style={styles.itemLineSecondary}>({saldoDetalhado.secundario} no total)</Text>
-                                        )}
+                                        <View style={styles.itemPreviewRow}>
+                                            {fotoItemAtualUri ? (
+                                                <Image source={{ uri: fotoItemAtualUri }} style={styles.itemPhoto} resizeMode="cover" />
+                                            ) : (
+                                                <View style={styles.itemPhotoFallback}>
+                                                    <Text style={styles.itemPhotoFallbackText}>Sem foto</Text>
+                                                </View>
+                                            )}
+                                            <View style={styles.itemPreviewCopy}>
+                                                <Text style={styles.itemName}>
+                                                    {(itemAtual.item?.descricao || itemAtual.item?.nome || '').toString().toUpperCase()}
+                                                </Text>
+                                                <Text style={styles.itemLine}>
+                                                    Código: {(itemAtual.item?.codigo_barras || itemAtual.item?.id || '').toString()}
+                                                </Text>
+                                                <Text style={styles.itemLine}>Saldo atual: {saldoDetalhado.principal}</Text>
+                                                {saldoDetalhado.secundario && (
+                                                    <Text style={styles.itemLineSecondary}>({saldoDetalhado.secundario} no total)</Text>
+                                                )}
+                                            </View>
+                                        </View>
                                     </View>
                                 ) : (
                                     <View style={styles.buscarItemContainer}>
+                                        <View style={styles.labelRow}>
+                                            <Text style={styles.label}>Código do item</Text>
+                                            <Text style={styles.labelHint}>Busca rápida</Text>
+                                        </View>
                                         <TextInput
                                             style={styles.input}
                                             value={itemAtual.codigoBusca || ''}
                                             onChangeText={(text) => setItemAtual({ ...itemAtual, codigoBusca: text })}
                                             placeholder="Digite o código do item"
+                                            placeholderTextColor={heroPalette.textMuted}
                                             autoCapitalize="none"
                                         />
                                         <TouchableOpacity style={styles.buscarButton} onPress={handleBuscarItem}>
@@ -920,12 +1066,16 @@ export default function RetiradaScreen({ navigation, route }) {
 
                                 {itemAtual.item && (
                                     <View style={styles.inputGroup}>
-                                        <Text style={styles.label}>Quantidade *</Text>
+                                        <View style={styles.labelRow}>
+                                            <Text style={styles.label}>Quantidade *</Text>
+                                            <Text style={styles.labelHint}>Informe a retirada real</Text>
+                                        </View>
                                         <TextInput
                                             style={styles.input}
                                             value={itemAtual.quantidade}
                                             onChangeText={(text) => setItemAtual({ ...itemAtual, quantidade: sanitizeIntText(text) })}
                                             placeholder="Quantidade"
+                                            placeholderTextColor={heroPalette.textMuted}
                                             keyboardType="numeric"
                                             returnKeyType="done"
                                         />
@@ -945,27 +1095,42 @@ export default function RetiradaScreen({ navigation, route }) {
                     ) : (
                         /* MODO SINGLE */
                         <View style={styles.itemBox}>
-                            <Text style={styles.itemName}>
-                                {(itemAtual?.item?.descricao || itemAtual?.item?.nome || '').toString().toUpperCase()}
-                            </Text>
-                            <Text style={styles.itemLine}>
-                                Código: {(itemAtual?.item?.codigo_barras || itemAtual?.item?.id || '').toString()}
-                            </Text>
-                            <Text style={styles.itemLine}>Saldo atual: {saldoDetalhado.principal}</Text>
-                            {saldoDetalhado.secundario && (
-                                <Text style={styles.itemLineSecondary}>({saldoDetalhado.secundario} no total)</Text>
-                            )}
-                            {!multi && usarFracao && saldoTotalFracionada != null && (
-                                <Text style={styles.itemLine}>
-                                    Saldo total em estoque: {saldoTotalFracionada} {unidadeSaldoTotalFracionada}
-                                </Text>
-                            )}
+                            <View style={styles.itemPreviewRow}>
+                                {fotoItemAtualUri ? (
+                                    <Image source={{ uri: fotoItemAtualUri }} style={styles.itemPhoto} resizeMode="cover" />
+                                ) : (
+                                    <View style={styles.itemPhotoFallback}>
+                                        <Text style={styles.itemPhotoFallbackText}>Sem foto</Text>
+                                    </View>
+                                )}
+                                <View style={styles.itemPreviewCopy}>
+                                    <Text style={styles.itemName}>
+                                        {(itemAtual?.item?.descricao || itemAtual?.item?.nome || '').toString().toUpperCase()}
+                                    </Text>
+                                    <Text style={styles.itemLine}>
+                                        Código: {(itemAtual?.item?.codigo_barras || itemAtual?.item?.id || '').toString()}
+                                    </Text>
+                                    <Text style={styles.itemLine}>Saldo atual: {saldoDetalhado.principal}</Text>
+                                    {saldoDetalhado.secundario && (
+                                        <Text style={styles.itemLineSecondary}>({saldoDetalhado.secundario} no total)</Text>
+                                    )}
+                                    {!multi && usarFracao && saldoTotalFracionada != null && (
+                                        <Text style={styles.itemLine}>
+                                            Saldo total em estoque: {saldoTotalFracionada} {unidadeSaldoTotalFracionada}
+                                        </Text>
+                                    )}
+                                </View>
+                            </View>
                         </View>
                     )}
 
                     {/* Campos comuns */}
                     <View style={styles.inputGroup}>
-                        <Text style={styles.label}>Retirado por: *</Text>
+                        <View style={styles.labelRow}>
+                            <Text style={styles.label}>Retirado por *</Text>
+                            <Text style={styles.labelHint}>Obrigatório para registrar</Text>
+                        </View>
+                        <Text style={styles.helperText}>A saída e a notificação ficam vinculadas a este colaborador.</Text>
                         <TextInput
                             style={styles.input}
                             value={retiranteBusca}
@@ -978,6 +1143,7 @@ export default function RetiradaScreen({ navigation, route }) {
                             }}
                             onFocus={() => canChooseRetirante && setShowAutocompleteLista(true)}
                             placeholder="Digite o nome ou matrícula"
+                            placeholderTextColor={heroPalette.textMuted}
                             autoCapitalize="words"
                             autoCorrect={false}
                             blurOnSubmit={false}
@@ -1074,12 +1240,16 @@ export default function RetiradaScreen({ navigation, route }) {
                             </View>
 
                             <View style={styles.inputGroup}>
-                                <Text style={styles.label}>Capacidade da embalagem *</Text>
+                                <View style={styles.labelRow}>
+                                    <Text style={styles.label}>Capacidade da embalagem *</Text>
+                                    <Text style={styles.labelHint}>Exemplo 3.6</Text>
+                                </View>
                                 <TextInput
                                     style={styles.input}
                                     value={totalEmbalagem}
                                     onChangeText={(text) => setTotalEmbalagem(sanitizeFloatText(text))}
                                     placeholder="Ex: 3.6"
+                                    placeholderTextColor={heroPalette.textMuted}
                                     keyboardType="numeric"
                                     returnKeyType="next"
                                 />
@@ -1090,12 +1260,16 @@ export default function RetiradaScreen({ navigation, route }) {
                     {!multi && !usarFracao && (
                         <>
                             <View style={styles.inputGroup}>
-                                <Text style={styles.label}>Quantidade *</Text>
+                                <View style={styles.labelRow}>
+                                    <Text style={styles.label}>Quantidade *</Text>
+                                    <Text style={styles.labelHint}>Saída real</Text>
+                                </View>
                                 <TextInput
                                     style={styles.input}
                                     value={itemAtual.quantidade}
                                     onChangeText={(text) => setItemAtual({ ...itemAtual, quantidade: sanitizeIntText(text) })}
                                     placeholder="Quantidade"
+                                    placeholderTextColor={heroPalette.textMuted}
                                     keyboardType="numeric"
                                     returnKeyType="next"
                                 />
@@ -1178,13 +1352,18 @@ export default function RetiradaScreen({ navigation, route }) {
                     )}
 
                     <View style={styles.inputGroup}>
-                        <Text style={styles.label}>Local de Serviço</Text>
+                        <View style={styles.labelRow}>
+                            <Text style={styles.label}>Local de Serviço *</Text>
+                            <Text style={styles.labelHint}>Obrigatório agora</Text>
+                        </View>
+                        <Text style={styles.helperText}>Sem local não é permitido baixar material ou ferramenta.</Text>
                         <TextInput
                             style={styles.input}
                             value={localServico}
                             onChangeText={(text) => setLocalServico(String(text ?? ''))}
                             placeholder="EX: BLOCO A - APTO 201"
-                            autoCapitalize="none"
+                            placeholderTextColor={heroPalette.textMuted}
+                            autoCapitalize="characters"
                             returnKeyType="next"
                             onBlur={() => setLocalServico((prev) => String(prev || '').toUpperCase())}
                             onSubmitEditing={() => setLocalServico((prev) => String(prev || '').toUpperCase())}
@@ -1192,16 +1371,22 @@ export default function RetiradaScreen({ navigation, route }) {
                         />
                     </View>
 
+                    {!contextoObrigatorioOk && (
+                        <View style={styles.requirementBanner}>
+                            <Text style={styles.requirementBannerText}>Preencha retirante e local para liberar o envio da saída.</Text>
+                        </View>
+                    )}
+
                     <TouchableOpacity
                         style={[styles.button, loading && styles.buttonDisabled]}
                         onPress={multi ? handleFinalizarRetiradaMultipla : handleSubmitSingle}
-                        disabled={loading || (multi && itensRetirada.length === 0)}
+                        disabled={loading || !contextoObrigatorioOk || (multi ? itensRetirada.length === 0 : !itemAtual?.item)}
                     >
                         {loading ? (
                             <ActivityIndicator color="#fff" />
                         ) : (
                             <Text style={styles.buttonText}>
-                                {multi ? 'Finalizar Retirada Múltipla' : 'Registrar Retirada'}
+                                {multi ? 'Finalizar Retirada Múltipla' : 'Registrar Saída'}
                             </Text>
                         )}
                     </TouchableOpacity>
@@ -1324,52 +1509,185 @@ export default function RetiradaScreen({ navigation, route }) {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#f5f5f5',
+        backgroundColor: heroPalette.bg,
     },
     scroll: {
         padding: 16,
+        paddingBottom: 28,
     },
     card: {
-        backgroundColor: '#fff',
+        backgroundColor: heroPalette.panel,
         padding: 20,
-        borderRadius: 12,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 3,
+        borderRadius: 28,
+        borderWidth: 1,
+        borderColor: heroPalette.border,
+        ...heroShadow,
+    },
+    heroBox: {
+        backgroundColor: heroPalette.hero,
+        borderRadius: 22,
+        padding: 18,
+        borderWidth: 1,
+        borderColor: heroPalette.borderStrong,
+        marginBottom: 14,
+    },
+    heroEyebrow: {
+        color: heroPalette.primary,
+        fontSize: 11,
+        fontWeight: '900',
+        textTransform: 'uppercase',
+        letterSpacing: 1.1,
+        marginBottom: 8,
     },
     title: {
-        fontSize: 24,
-        fontWeight: 'bold',
-        color: '#333',
-        marginBottom: 20,
+        fontSize: 28,
+        fontWeight: '900',
+        color: heroPalette.text,
+        marginBottom: 8,
+    },
+    heroSubtitle: {
+        color: heroPalette.textMuted,
+        fontSize: 13,
+        lineHeight: 19,
+    },
+    heroMetaRow: {
+        flexDirection: 'row',
+        gap: 10,
+        marginTop: 16,
+    },
+    heroMetaChip: {
+        flex: 1,
+        backgroundColor: heroPalette.panelAlt,
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: heroPalette.border,
+        paddingHorizontal: 12,
+        paddingVertical: 12,
+    },
+    heroMetaLabel: {
+        color: heroPalette.textMuted,
+        fontSize: 10,
+        fontWeight: '900',
+        textTransform: 'uppercase',
+        letterSpacing: 0.9,
+    },
+    heroMetaValue: {
+        color: heroPalette.text,
+        fontSize: 13,
+        fontWeight: '700',
+        marginTop: 6,
+    },
+    hintsRow: {
+        gap: 10,
+        marginBottom: 18,
+    },
+    hintCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+        backgroundColor: heroPalette.panelAlt,
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: heroPalette.border,
+        paddingHorizontal: 14,
+        paddingVertical: 12,
+        ...heroSoftShadow,
+    },
+    hintIcon: {
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        overflow: 'hidden',
         textAlign: 'center',
+        textAlignVertical: 'center',
+        backgroundColor: 'rgba(103, 232, 249, 0.18)',
+        color: heroPalette.primary,
+        fontSize: 14,
+        fontWeight: '900',
+        lineHeight: 24,
+    },
+    hintText: {
+        flex: 1,
+        color: heroPalette.textSoft,
+        fontSize: 12,
+        lineHeight: 18,
     },
     listaItensBox: {
-        backgroundColor: '#f0f9ff',
+        backgroundColor: heroPalette.panelAlt,
         padding: 15,
-        borderRadius: 8,
+        borderRadius: 18,
         marginBottom: 20,
-        borderLeftWidth: 4,
-        borderLeftColor: '#0ea5e9',
+        borderWidth: 1,
+        borderColor: heroPalette.borderStrong,
     },
     listaItensTitle: {
         fontSize: 16,
         fontWeight: '700',
-        color: '#0369a1',
+        color: heroPalette.text,
         marginBottom: 12,
     },
+    galleryStrip: {
+        flexDirection: 'row',
+        gap: 8,
+        marginBottom: 12,
+    },
+    galleryThumb: {
+        width: 52,
+        height: 52,
+        borderRadius: 14,
+        borderWidth: 1,
+        borderColor: heroPalette.border,
+    },
+    galleryMoreBadge: {
+        width: 52,
+        height: 52,
+        borderRadius: 14,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: heroPalette.bgAlt,
+        borderWidth: 1,
+        borderColor: heroPalette.borderStrong,
+    },
+    galleryMoreText: {
+        color: heroPalette.primary,
+        fontWeight: '800',
+    },
     itemAdicionadoCard: {
-        backgroundColor: '#fff',
+        backgroundColor: heroPalette.bgAlt,
         padding: 12,
-        borderRadius: 8,
+        borderRadius: 16,
         marginBottom: 8,
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
         borderWidth: 1,
-        borderColor: '#bae6fd',
+        borderColor: heroPalette.border,
+    },
+    itemThumb: {
+        width: 52,
+        height: 52,
+        borderRadius: 14,
+        marginRight: 12,
+        borderWidth: 1,
+        borderColor: heroPalette.border,
+    },
+    itemThumbFallback: {
+        width: 52,
+        height: 52,
+        borderRadius: 14,
+        marginRight: 12,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: heroPalette.panelSoft,
+        borderWidth: 1,
+        borderColor: heroPalette.border,
+    },
+    itemThumbFallbackText: {
+        color: heroPalette.textMuted,
+        fontSize: 10,
+        fontWeight: '700',
+        textAlign: 'center',
+        paddingHorizontal: 4,
     },
     itemAdicionadoInfo: {
         flex: 1,
@@ -1377,104 +1695,148 @@ const styles = StyleSheet.create({
     itemAdicionadoNome: {
         fontSize: 14,
         fontWeight: '700',
-        color: '#111827',
+        color: heroPalette.text,
         marginBottom: 4,
     },
     itemAdicionadoDetalhe: {
         fontSize: 12,
-        color: '#6b7280',
+        color: heroPalette.textMuted,
     },
     removeButton: {
-        backgroundColor: '#ef4444',
+        backgroundColor: 'rgba(251, 113, 133, 0.18)',
         paddingHorizontal: 10,
         paddingVertical: 6,
-        borderRadius: 6,
+        borderRadius: 10,
         marginLeft: 8,
+        borderWidth: 1,
+        borderColor: 'rgba(251, 113, 133, 0.4)',
     },
     removeButtonText: {
-        color: '#000',
+        color: heroPalette.danger,
         fontWeight: '700',
         fontSize: 14,
     },
     itemAtualBox: {
-        backgroundColor: '#f8f8f8',
+        backgroundColor: heroPalette.panelAlt,
         padding: 15,
-        borderRadius: 8,
+        borderRadius: 18,
         marginBottom: 20,
-        borderLeftWidth: 4,
-        borderLeftColor: '#10b981',
+        borderWidth: 1,
+        borderColor: 'rgba(52, 211, 153, 0.35)',
     },
     itemAtualTitle: {
         fontSize: 14,
         fontWeight: '700',
-        color: '#059669',
+        color: heroPalette.accent,
         marginBottom: 12,
     },
     buscarItemContainer: {
         gap: 10,
     },
     buscarButton: {
-        backgroundColor: '#0d6efd',
+        backgroundColor: heroPalette.heroAlt,
         paddingVertical: 12,
-        borderRadius: 8,
+        borderRadius: 14,
         alignItems: 'center',
+        borderWidth: 1,
+        borderColor: heroPalette.borderStrong,
     },
     buscarButtonText: {
-        color: '#000',
-        fontWeight: '600',
+        color: heroPalette.text,
+        fontWeight: '700',
         fontSize: 14,
     },
     scanButton: {
-        backgroundColor: '#6610f2',
+        backgroundColor: 'rgba(34, 211, 238, 0.18)',
         paddingVertical: 12,
-        borderRadius: 8,
+        borderRadius: 14,
         alignItems: 'center',
+        borderWidth: 1,
+        borderColor: heroPalette.borderStrong,
     },
     scanButtonText: {
-        color: '#000',
-        fontWeight: '600',
+        color: heroPalette.text,
+        fontWeight: '700',
         fontSize: 14,
     },
     adicionarButton: {
-        backgroundColor: '#10b981',
+        backgroundColor: heroPalette.accent,
         paddingVertical: 12,
-        borderRadius: 8,
+        borderRadius: 14,
         alignItems: 'center',
         marginTop: 10,
     },
     adicionarButtonText: {
-        color: '#000',
-        fontWeight: '600',
+        color: '#04121b',
+        fontWeight: '800',
         fontSize: 14,
     },
     itemBox: {
-        backgroundColor: '#f8f8f8',
+        backgroundColor: heroPalette.panelAlt,
         padding: 15,
-        borderRadius: 8,
+        borderRadius: 18,
         marginBottom: 20,
-        borderLeftWidth: 4,
-        borderLeftColor: '#007bff',
+        borderWidth: 1,
+        borderColor: heroPalette.border,
+    },
+    itemPreviewRow: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+    },
+    itemPhoto: {
+        width: 92,
+        height: 92,
+        borderRadius: 18,
+        marginRight: 14,
+        borderWidth: 1,
+        borderColor: heroPalette.border,
+    },
+    itemPhotoFallback: {
+        width: 92,
+        height: 92,
+        borderRadius: 18,
+        marginRight: 14,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: heroPalette.panelSoft,
+        borderWidth: 1,
+        borderColor: heroPalette.border,
+    },
+    itemPhotoFallbackText: {
+        color: heroPalette.textMuted,
+        fontSize: 11,
+        fontWeight: '700',
+    },
+    itemPreviewCopy: {
+        flex: 1,
     },
     itemName: {
         fontSize: 18,
         fontWeight: 'bold',
-        color: '#333',
+        color: heroPalette.text,
         marginBottom: 8,
     },
     itemLine: {
         fontSize: 14,
-        color: '#666',
+        color: heroPalette.textSoft,
         marginTop: 4,
     },
     itemLineSecondary: {
         fontSize: 13,
-        color: '#888',
+        color: heroPalette.textMuted,
         fontStyle: 'italic',
         marginTop: 2,
         marginLeft: 4,
     },
     inputGroup: {
         marginBottom: 16,
+    },
+    labelRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: 8,
+        gap: 10,
     },
     switchRow: {
         flexDirection: 'row',
@@ -1483,17 +1845,30 @@ const styles = StyleSheet.create({
     },
     label: {
         fontSize: 14,
-        fontWeight: '600',
-        color: '#333',
+        fontWeight: '700',
+        color: heroPalette.text,
+    },
+    labelHint: {
+        color: heroPalette.primary,
+        fontSize: 11,
+        fontWeight: '800',
+        textTransform: 'uppercase',
+        letterSpacing: 0.6,
+    },
+    helperText: {
+        color: heroPalette.textMuted,
+        fontSize: 12,
+        lineHeight: 18,
         marginBottom: 8,
     },
     input: {
-        backgroundColor: '#fff',
+        backgroundColor: heroPalette.bgAlt,
         borderWidth: 1,
-        borderColor: '#ddd',
-        borderRadius: 8,
+        borderColor: heroPalette.border,
+        borderRadius: 14,
         padding: 12,
         fontSize: 16,
+        color: heroPalette.text,
     },
     radioGroup: {
         gap: 8,
@@ -1506,33 +1881,33 @@ const styles = StyleSheet.create({
         paddingVertical: 8,
         paddingHorizontal: 10,
         borderWidth: 1,
-        borderColor: '#e5e7eb',
+        borderColor: heroPalette.border,
         borderRadius: 10,
-        backgroundColor: '#f9fafb',
+        backgroundColor: heroPalette.bgAlt,
     },
     radioOuter: {
         width: 20,
         height: 20,
         borderRadius: 10,
         borderWidth: 2,
-        borderColor: '#9ca3af',
+        borderColor: heroPalette.textMuted,
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: '#fff',
+        backgroundColor: heroPalette.panel,
     },
     radioOuterActive: {
-        borderColor: '#0d6efd',
+        borderColor: heroPalette.primary,
     },
     radioInner: {
         width: 10,
         height: 10,
         borderRadius: 5,
-        backgroundColor: '#0d6efd',
+        backgroundColor: heroPalette.primary,
     },
     radioLabel: {
         flex: 1,
         fontSize: 14,
-        color: '#111827',
+        color: heroPalette.text,
         fontWeight: '600',
     },
     fractionGrid: {
@@ -1545,20 +1920,20 @@ const styles = StyleSheet.create({
         paddingHorizontal: 12,
         borderRadius: 8,
         borderWidth: 1,
-        borderColor: '#e5e7eb',
-        backgroundColor: '#fff',
+        borderColor: heroPalette.border,
+        backgroundColor: heroPalette.bgAlt,
     },
     fractionButtonActive: {
-        backgroundColor: '#0d6efd',
-        borderColor: '#0d6efd',
+        backgroundColor: heroPalette.primary,
+        borderColor: heroPalette.primary,
     },
     fractionButtonText: {
         fontSize: 14,
         fontWeight: '600',
-        color: '#111827',
+        color: heroPalette.text,
     },
     fractionButtonTextActive: {
-        color: '#000',
+        color: '#04121b',
     },
     custodiaRow: {
         flexDirection: 'row',
@@ -1567,22 +1942,22 @@ const styles = StyleSheet.create({
     custodiaButton: {
         flex: 1,
         borderWidth: 1,
-        borderColor: '#d1d5db',
+        borderColor: heroPalette.border,
         paddingVertical: 10,
         borderRadius: 10,
-        backgroundColor: '#fff',
+        backgroundColor: heroPalette.bgAlt,
         alignItems: 'center',
     },
     custodiaButtonActive: {
-        backgroundColor: '#0d6efd',
-        borderColor: '#0d6efd',
+        backgroundColor: heroPalette.primary,
+        borderColor: heroPalette.primary,
     },
     custodiaButtonText: {
-        color: '#111827',
+        color: heroPalette.text,
         fontWeight: '600',
     },
     custodiaButtonTextActive: {
-        color: '#000',
+        color: '#04121b',
     },
     unidadeRow: {
         flexDirection: 'row',
@@ -1591,22 +1966,22 @@ const styles = StyleSheet.create({
     unidadeButton: {
         flex: 1,
         borderWidth: 1,
-        borderColor: '#d1d5db',
+        borderColor: heroPalette.border,
         paddingVertical: 10,
         borderRadius: 10,
-        backgroundColor: '#fff',
+        backgroundColor: heroPalette.bgAlt,
         alignItems: 'center',
     },
     unidadeButtonActive: {
-        backgroundColor: '#10b981',
-        borderColor: '#10b981',
+        backgroundColor: heroPalette.accent,
+        borderColor: heroPalette.accent,
     },
     unidadeButtonText: {
-        color: '#111827',
+        color: heroPalette.text,
         fontWeight: '600',
     },
     unidadeButtonTextActive: {
-        color: '#fff',
+        color: '#04121b',
     },
     inputText: {
         fontSize: 16,
@@ -1620,9 +1995,9 @@ const styles = StyleSheet.create({
         marginTop: 4,
         maxHeight: 200,
         borderWidth: 1,
-        borderColor: '#ddd',
-        borderRadius: 8,
-        backgroundColor: '#fff',
+        borderColor: heroPalette.border,
+        borderRadius: 14,
+        backgroundColor: heroPalette.panel,
         overflow: 'hidden',
     },
     autocompleteList: {
@@ -1631,77 +2006,90 @@ const styles = StyleSheet.create({
     autocompleteItem: {
         padding: 12,
         borderBottomWidth: 1,
-        borderBottomColor: '#f0f0f0',
+        borderBottomColor: heroPalette.border,
     },
     autocompleteNome: {
         fontSize: 15,
         fontWeight: '600',
-        color: '#333',
+        color: heroPalette.text,
     },
     autocompleteDetalhe: {
         fontSize: 12,
-        color: '#666',
+        color: heroPalette.textMuted,
         marginTop: 2,
     },
+    requirementBanner: {
+        backgroundColor: 'rgba(251, 113, 133, 0.12)',
+        borderWidth: 1,
+        borderColor: 'rgba(251, 113, 133, 0.28)',
+        borderRadius: 14,
+        paddingHorizontal: 14,
+        paddingVertical: 12,
+        marginBottom: 10,
+    },
+    requirementBannerText: {
+        color: heroPalette.danger,
+        fontSize: 12,
+        lineHeight: 18,
+        fontWeight: '700',
+    },
     button: {
-        backgroundColor: '#007bff',
+        backgroundColor: heroPalette.primary,
         paddingVertical: 14,
-        borderRadius: 8,
+        borderRadius: 16,
         alignItems: 'center',
         marginTop: 10,
     },
     buttonDisabled: {
-        backgroundColor: '#ccc',
+        backgroundColor: 'rgba(148, 163, 184, 0.28)',
     },
     buttonText: {
-        color: '#000',
+        color: '#04121b',
         fontSize: 16,
-        fontWeight: 'bold',
+        fontWeight: '900',
     },
     // Estilos do modal de embalagens
     modalOverlay: {
         flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        backgroundColor: 'rgba(3, 10, 18, 0.78)',
         justifyContent: 'center',
         alignItems: 'center',
         padding: 20,
     },
     modalContainer: {
-        backgroundColor: '#fff',
+        backgroundColor: heroPalette.panel,
         borderRadius: 16,
         padding: 24,
         width: '100%',
         maxWidth: 500,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-        elevation: 8,
+        borderWidth: 1,
+        borderColor: heroPalette.border,
+        ...heroShadow,
     },
     modalTitle: {
         fontSize: 22,
         fontWeight: '700',
-        color: '#111827',
+        color: heroPalette.text,
         textAlign: 'center',
         marginBottom: 8,
     },
     modalSubtitle: {
         fontSize: 15,
-        color: '#6b7280',
+        color: heroPalette.textMuted,
        textAlign: 'center',
         marginBottom: 16,
     },
     modalInfo: {
-        backgroundColor: '#f0f9ff',
+        backgroundColor: heroPalette.panelAlt,
         padding: 12,
         borderRadius: 8,
         marginBottom: 20,
-        borderLeftWidth: 3,
-        borderLeftColor: '#0ea5e9',
+        borderWidth: 1,
+        borderColor: heroPalette.borderStrong,
     },
     modalInfoText: {
         fontSize: 13,
-        color: '#0369a1',
+        color: heroPalette.textSoft,
         marginBottom: 4,
     },
     modalOptions: {
@@ -1713,13 +2101,13 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         padding: 16,
         borderWidth: 2,
-        borderColor: '#e5e7eb',
+        borderColor: heroPalette.border,
         borderRadius: 12,
-        backgroundColor: '#f9fafb',
+        backgroundColor: heroPalette.bgAlt,
     },
     modalOptionActive: {
-        borderColor: '#0d6efd',
-        backgroundColor: '#eff6ff',
+        borderColor: heroPalette.primary,
+        backgroundColor: 'rgba(103, 232, 249, 0.12)',
     },
     modalOptionIcon: {
         fontSize: 28,
@@ -1732,10 +2120,10 @@ const styles = StyleSheet.create({
         flex: 1,
         fontSize: 16,
         fontWeight: '600',
-        color: '#374151',
+        color: heroPalette.text,
     },
     modalOptionTitleActive: {
-        color: '#1e40af',
+        color: heroPalette.primary,
     },
     modalInputGroup: {
         marginBottom: 20,
@@ -1743,16 +2131,17 @@ const styles = StyleSheet.create({
     modalLabel: {
         fontSize: 14,
         fontWeight: '600',
-        color: '#374151',
+        color: heroPalette.text,
         marginBottom: 8,
     },
     modalInput: {
-        backgroundColor: '#fff',
+        backgroundColor: heroPalette.bgAlt,
         borderWidth: 1,
-        borderColor: '#d1d5db',
+        borderColor: heroPalette.border,
         borderRadius: 8,
         padding: 12,
         fontSize: 16,
+        color: heroPalette.text,
     },
     modalButtons: {
         flexDirection: 'row',
@@ -1765,21 +2154,21 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     modalButtonCancel: {
-        backgroundColor: '#f3f4f6',
+        backgroundColor: heroPalette.panelAlt,
         borderWidth: 1,
-        borderColor: '#d1d5db',
+        borderColor: heroPalette.border,
     },
     modalButtonConfirm: {
-        backgroundColor: '#0d6efd',
+        backgroundColor: heroPalette.primary,
     },
     modalButtonTextCancel: {
-        color: '#374151',
+        color: heroPalette.text,
         fontSize: 15,
         fontWeight: '600',
     },
     modalButtonTextConfirm: {
-        color: '#000',
+        color: '#04121b',
         fontSize: 15,
-        fontWeight: '600',
+        fontWeight: '800',
     },
 });

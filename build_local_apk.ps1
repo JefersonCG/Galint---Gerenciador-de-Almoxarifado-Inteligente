@@ -82,6 +82,7 @@ catch {
 
 $javaExecutable = Resolve-ExistingPath @(
     $(if ($env:JAVA_HOME) { Join-Path $env:JAVA_HOME 'bin\java.exe' })
+     (Join-Path $env:USERPROFILE 'tools\jdk-17\bin\java.exe')
 )
 if (-not $javaExecutable) {
     $javaExecutable = Resolve-FirstGlobPath @(
@@ -120,8 +121,8 @@ if (-not $sdkRoot) {
 
 $requiredPaths = @(
     (Join-Path $sdkRoot 'platform-tools\adb.exe'),
-    (Join-Path $sdkRoot 'platforms\android-35'),
-    (Join-Path $sdkRoot 'build-tools\35.0.0'),
+    (Join-Path $sdkRoot 'platforms\android-36'),
+    (Join-Path $sdkRoot 'build-tools\36.0.0'),
     (Join-Path $sdkRoot 'cmake\3.22.1\bin\cmake.exe'),
     (Join-Path $sdkRoot 'ndk\27.1.12297006')
 )
