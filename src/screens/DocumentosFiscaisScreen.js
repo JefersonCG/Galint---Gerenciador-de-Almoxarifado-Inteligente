@@ -61,7 +61,7 @@ const DOC_MODE_PRESETS = {
         documentType: 'recibo',
         origin: 'compra_cupom',
         proof: 'parcial',
-        note: 'Recibo preserva fornecedor e rastreabilidade sem exigir chave de acesso de NF-e.',
+        note: 'Recibo exige fornecedor identificado por nome e nao usa CNPJ do emitente.',
     },
     manual: {
         title: 'Manual e estimado',
@@ -255,16 +255,22 @@ export default function DocumentosFiscaisScreen() {
         if (form.finance_tipo_documento === 'manual') return 'Referencia do registro';
         return 'Numero da NF';
     }, [form.finance_tipo_documento]);
+    const supplierCnpjAllowed = form.finance_tipo_documento === 'nf' || form.finance_tipo_documento === 'cupom';
 
     const applyMode = (mode) => {
         const nextPreset = DOC_MODE_PRESETS[mode] || DOC_MODE_PRESETS.nf;
         setDocMode(mode);
+        if (nextPreset.documentType === 'manual') {
+            setSelectedSupplier(null);
+        }
         setForm((prev) => ({
             ...prev,
             finance_tipo_documento: nextPreset.documentType,
             finance_origem_valor: nextPreset.origin,
             finance_comprovacao_status: nextPreset.proof,
             chave_acesso: mode === 'nf' ? prev.chave_acesso : '',
+            supplier_search: nextPreset.documentType === 'manual' ? '' : prev.supplier_search,
+            supplier_cnpj: nextPreset.documentType === 'nf' || nextPreset.documentType === 'cupom' ? prev.supplier_cnpj : '',
         }));
     };
 
@@ -304,7 +310,9 @@ export default function DocumentosFiscaisScreen() {
         setForm((prev) => ({
             ...prev,
             supplier_search: getSupplierLabel(supplier),
-            supplier_cnpj: supplier?.cnpj || prev.supplier_cnpj,
+            supplier_cnpj: prev.finance_tipo_documento === 'nf' || prev.finance_tipo_documento === 'cupom'
+                ? (supplier?.cnpj || prev.supplier_cnpj)
+                : '',
         }));
     };
 
@@ -319,6 +327,8 @@ export default function DocumentosFiscaisScreen() {
     };
 
     const validateBeforeSave = () => {
+        const supplierNameFilled = Boolean(String(form.supplier_search || '').trim());
+        const supplierCnpjFilled = Boolean(String(form.supplier_cnpj || '').trim());
         if (!selectedItem && !useNewItem) {
             return 'Selecione um item existente ou mude para item novo.';
         }
@@ -339,7 +349,10 @@ export default function DocumentosFiscaisScreen() {
         if (docMode === 'nf' && !String(form.data_emissao || '').trim()) {
             return 'Informe a data de emissao para NF.';
         }
-        if (form.finance_tipo_documento !== 'manual' && !String(form.supplier_search || '').trim() && !String(form.supplier_cnpj || '').trim()) {
+        if (form.finance_tipo_documento === 'recibo' && !supplierNameFilled) {
+            return 'Informe o fornecedor para recibo.';
+        }
+        if (form.finance_tipo_documento !== 'manual' && form.finance_tipo_documento !== 'recibo' && !supplierNameFilled && !supplierCnpjFilled) {
             return 'Informe o fornecedor ou o CNPJ da loja.';
         }
         if (form.finance_comprovacao_status !== 'comprovado' && !String(form.finance_observacao || '').trim()) {
@@ -371,7 +384,7 @@ export default function DocumentosFiscaisScreen() {
             nota_fiscal: String(form.nota_fiscal || '').trim(),
             finance_supplier_id: selectedSupplier?.id ? String(selectedSupplier.id) : '',
             supplier_name: form.finance_tipo_documento === 'manual' ? '' : supplierName,
-            supplier_cnpj: form.finance_tipo_documento === 'manual' ? '' : String(form.supplier_cnpj || '').trim(),
+            supplier_cnpj: supplierCnpjAllowed ? String(form.supplier_cnpj || '').trim() : '',
             finance_origem_valor: form.finance_origem_valor,
             finance_comprovacao_status: form.finance_comprovacao_status,
             preco_unitario: String(form.preco_unitario || '').trim(),
@@ -687,16 +700,22 @@ export default function DocumentosFiscaisScreen() {
                             </View>
                         ) : null}
 
-                        <FieldCard label="CNPJ da loja">
-                            <TextInput
-                                value={form.supplier_cnpj}
-                                onChangeText={(value) => updateField('supplier_cnpj', value)}
-                                placeholder="00.000.000/0000-00"
-                                placeholderTextColor={heroPalette.textMuted}
-                                style={styles.input}
-                                keyboardType="number-pad"
-                            />
-                        </FieldCard>
+                        {supplierCnpjAllowed ? (
+                            <FieldCard label="CNPJ da loja">
+                                <TextInput
+                                    value={form.supplier_cnpj}
+                                    onChangeText={(value) => updateField('supplier_cnpj', value)}
+                                    placeholder="00.000.000/0000-00"
+                                    placeholderTextColor={heroPalette.textMuted}
+                                    style={styles.input}
+                                    keyboardType="number-pad"
+                                />
+                            </FieldCard>
+                        ) : (
+                            <View style={styles.inlineNoteCard}>
+                                <Text style={styles.inlineNoteText}>Recibo nao usa CNPJ. Identifique o fornecedor pelo nome e detalhe a compra na observacao.</Text>
+                            </View>
+                        )}
                     </>
                 ) : (
                     <View style={styles.inlineNoteCard}>
