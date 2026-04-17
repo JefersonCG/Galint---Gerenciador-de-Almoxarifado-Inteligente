@@ -25,31 +25,69 @@
 
             <div class="modal-body general-search-body">
                 <section class="general-search-hero">
-                    <div>
-                        <div class="general-search-hero-badges">
-                            <span class="general-search-hero-badge" id="generalSearchHeroBadgePrimary">
-                                <i class="bi bi-compass"></i>
-                                Centro unico de consulta
-                            </span>
-                            <span class="general-search-hero-badge general-search-hero-badge-muted" id="generalSearchHeroBadgeSecondary">
-                                <i class="bi bi-lightning-charge"></i>
-                                Colaborador, item e diario no mesmo fluxo
-                            </span>
+                    <div class="general-search-hero-grid">
+                        <div class="general-search-hero-copy-panel">
+                            <div class="general-search-hero-badges">
+                                <span class="general-search-hero-badge" id="generalSearchHeroBadgePrimary">
+                                    <i class="bi bi-compass"></i>
+                                    Centro unico de consulta
+                                </span>
+                                <span class="general-search-hero-badge general-search-hero-badge-muted" id="generalSearchHeroBadgeSecondary">
+                                    <i class="bi bi-lightning-charge"></i>
+                                    Colaborador, item e diario no mesmo fluxo
+                                </span>
+                            </div>
+                            <h2 id="generalSearchHeroTitle">Tudo em um unico painel</h2>
+                            <p id="generalSearchHeroText">Alterne entre colaborador, item e diario com a mesma interface e mantenha historico, contexto operacional e conferencias do dia no mesmo modal.</p>
                         </div>
-                        <h2 id="generalSearchHeroTitle">Tudo em um unico painel</h2>
-                        <p id="generalSearchHeroText">Alterne entre colaborador, item e diario com a mesma interface e mantenha historico, contexto operacional e conferencias do dia no mesmo modal.</p>
+                        <aside class="general-search-hero-side">
+                            <div class="general-search-hero-side-card">
+                                <span class="general-search-section-kicker">Estrutura da consulta</span>
+                                <h3>Leitura operacional orientada por foco</h3>
+                                <div class="general-search-hero-feature-list">
+                                    <article class="general-search-hero-feature">
+                                        <strong>Colaborador</strong>
+                                        <span>Checklist do dia, linha do tempo e pendencias no mesmo fluxo.</span>
+                                    </article>
+                                    <article class="general-search-hero-feature">
+                                        <strong>Item</strong>
+                                        <span>Saldo, foto, giro e usuarios envolvidos em um painel unico.</span>
+                                    </article>
+                                    <article class="general-search-hero-feature">
+                                        <strong>Diario</strong>
+                                        <span>Retiradas agrupadas por item com leitura rapida do expediente.</span>
+                                    </article>
+                                </div>
+                            </div>
+                        </aside>
                     </div>
                 </section>
 
                 <form id="generalSearchForm" class="general-search-filter-card" novalidate>
-                    <div class="general-search-scope-switch" role="tablist" aria-label="Modo da pesquisa geral">
-                        <button type="button" class="general-search-scope-btn is-active" data-general-search-scope="funcionario">Colaborador</button>
-                        <button type="button" class="general-search-scope-btn" data-general-search-scope="item">Item</button>
-                        <button type="button" class="general-search-scope-btn" data-general-search-scope="diario">Diario</button>
+                    <div class="general-search-filter-head">
+                        <div class="general-search-filter-copy">
+                            <span class="general-search-section-kicker">Comando de busca</span>
+                            <h3>Monte a leitura sem sair da tela</h3>
+                            <p>Escolha o foco, refine o contexto e atualize o painel com a mesma estrutura visual para colaborador, item ou diario.</p>
+                        </div>
+                        <div class="general-search-scope-switch" role="tablist" aria-label="Modo da pesquisa geral">
+                            <button type="button" class="general-search-scope-btn is-active" data-general-search-scope="funcionario">
+                                <i class="bi bi-person-badge"></i>
+                                <span>Colaborador</span>
+                            </button>
+                            <button type="button" class="general-search-scope-btn" data-general-search-scope="item">
+                                <i class="bi bi-box-seam"></i>
+                                <span>Item</span>
+                            </button>
+                            <button type="button" class="general-search-scope-btn" data-general-search-scope="diario">
+                                <i class="bi bi-calendar-week"></i>
+                                <span>Diario</span>
+                            </button>
+                        </div>
                     </div>
 
-                    <div class="row g-3 align-items-end">
-                        <div class="col-lg-5">
+                    <div class="general-search-control-grid">
+                        <div class="general-search-field-card general-search-field-card--search">
                             <label class="form-label" id="generalSearchInputLabel" for="generalSearchInput">
                                 <i class="bi bi-search"></i>
                                 Buscar colaborador
@@ -66,7 +104,7 @@
                             </div>
                             <div class="form-text" id="generalSearchInputHelp">Digite para localizar o colaborador e abrir o historico completo.</div>
                         </div>
-                        <div class="col-lg-3 col-md-6" id="generalSearchDateColumn">
+                        <div class="general-search-field-card" id="generalSearchDateColumn">
                             <label class="form-label" for="generalSearchDate">
                                 <i class="bi bi-calendar-event"></i>
                                 Data de referencia
@@ -74,7 +112,7 @@
                             <input type="date" class="form-control" id="generalSearchDate">
                             <div class="form-text" id="generalSearchDateHelp">Usada para a visao diaria e para o checklist do dia.</div>
                         </div>
-                        <div class="col-lg-2 col-md-6" id="generalSearchPeriodColumn">
+                        <div class="general-search-field-card" id="generalSearchPeriodColumn">
                             <label class="form-label" for="generalSearchPeriod">
                                 <i class="bi bi-hourglass-split"></i>
                                 Periodo
@@ -89,15 +127,21 @@
                             </select>
                             <div class="form-text" id="generalSearchPeriodHelp">Aplicado na consulta de item.</div>
                         </div>
-                        <div class="col-lg-2 d-flex gap-2 flex-wrap justify-content-lg-end">
-                            <button type="submit" class="btn btn-primary general-search-action-btn">
-                                <i class="bi bi-search"></i>
-                                Atualizar
-                            </button>
-                            <button type="button" class="btn btn-outline-light general-search-action-btn" id="generalSearchClearBtn">
-                                <i class="bi bi-x-circle"></i>
-                                Limpar
-                            </button>
+                        <div class="general-search-actions-card">
+                            <div class="general-search-actions-copy">
+                                <span class="general-search-section-kicker">Execucao</span>
+                                <p>Atualize o painel atual ou limpe os filtros para recomeçar a leitura.</p>
+                            </div>
+                            <div class="general-search-actions">
+                                <button type="submit" class="btn btn-primary general-search-action-btn">
+                                    <i class="bi bi-search"></i>
+                                    Atualizar
+                                </button>
+                                <button type="button" class="btn btn-outline-light general-search-action-btn" id="generalSearchClearBtn">
+                                    <i class="bi bi-x-circle"></i>
+                                    Limpar
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </form>

@@ -161,13 +161,6 @@
                 </a>
                 {% endif %}
             </div>
-            {% if endpoint_exists('reports.index') %}
-            <a class="sidebar-link {% if p.startswith(url_for('reports.index')) %}active{% endif %}"
-                href="{{ url_for('reports.index') }}">
-                <i class="bi bi-file-earmark-bar-graph"></i>
-                <span>Relatórios Gerais</span>
-            </a>
-            {% endif %}
             {% if analytics_url and current_user.is_authenticated and current_user.is_admin %}
             <a class="sidebar-link {% if p.startswith(analytics_url) %}active{% endif %}"
                 href="{{ analytics_url }}">

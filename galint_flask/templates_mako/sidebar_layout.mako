@@ -26,8 +26,6 @@
             admin_stock_adjust_url = optional_url('config.estoque_ajuste_admin')
             central_operacoes_url = optional_url('operations.central_operations')
             lojas_lab_url = optional_url('inventory.lojas_lab')
-            reports_index_url = optional_url('reports.index')
-            analytics_url = optional_url('analytics.index')
             users_list_url = optional_url('users.list_users')
             mobile_panel_url = '/mobile-panel' if getattr(current_user, 'is_authenticated', False) and getattr(current_user, 'is_admin', False) and config.get('FEATURE_MOBILE_PANEL_ENABLED', False) else None
             config_root_url = optional_url('pages.config')
@@ -208,13 +206,6 @@
                 % endif
             </div>
 
-            % if reports_index_url:
-            <a class="sidebar-link ${'active' if p.startswith(reports_index_url) else ''}"
-                href="${reports_index_url}">
-                <i class="bi bi-file-earmark-bar-graph"></i>
-                <span>Relatórios Gerais</span>
-            </a>
-            % endif
             % if analytics_url and current_user.is_authenticated and getattr(current_user, 'is_admin', False):
             <a class="sidebar-link ${'active' if p.startswith(analytics_url) else ''}"
                 href="${analytics_url}">
