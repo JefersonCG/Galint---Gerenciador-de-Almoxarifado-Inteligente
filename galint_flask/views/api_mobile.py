@@ -866,18 +866,7 @@ def buscar_item_por_codigo(current_user: Usuario, codigo: str):
 
     return jsonify({
         "success": True,
-        "data": {
-            "id": item.codigo_item,
-            "codigo_barras": item.codigo_item,
-            "descricao": item.descricao,
-            "categoria": item.categoria,
-            "localizacao": item.localizacao,
-            "marca": item.marca,
-            "quantidade": round(float(item.get_saldo_fisico_total() or 0), 6),
-            "unidade": item.unidade,
-            "saldo_display": item.get_saldo_fisico_display(),
-            "estoque_minimo": item.estoque_minimo,
-        },
+        "data": _serialize_mobile_stock_item(item),
     }), 200
 
 
@@ -958,8 +947,22 @@ def retirar_multipla_mobile(current_user: Usuario):
         if not itens or not isinstance(itens, list):
             return jsonify({"success": False, "message": "Lista de itens é obrigatória"}), 400
 
-        # Verificar permissão se for retirada em nome de outro
+        local_servico_geral = str(local_servico_geral or "").strip().upper()
         matricula_retirante = (matricula_retirante_raw or "").strip()
+
+        if not matricula_retirante:
+            return jsonify({
+                "success": False,
+                "message": "Selecione quem está retirando antes de concluir.",
+            }), 400
+
+        if not local_servico_geral:
+            return jsonify({
+                "success": False,
+                "message": "Informe o local de serviço antes de concluir.",
+            }), 400
+
+        # Verificar permissão se for retirada em nome de outro
         retirante_user = None
         if matricula_retirante and matricula_retirante != current_user.matricula:
             if not _is_admin_or_manager(current_user):
@@ -1505,6 +1508,21 @@ def retirar_mobile(current_user: Usuario):
         if not codigo:
             return jsonify({"success": False, "message": "Código do item é obrigatório"}), 400
 
+        local_servico = str(local_servico or "").strip().upper()
+        matricula_retirante = (matricula_retirante_raw or "").strip()
+
+        if not matricula_retirante:
+            return jsonify({
+                "success": False,
+                "message": "Selecione quem está retirando antes de concluir.",
+            }), 400
+
+        if not local_servico:
+            return jsonify({
+                "success": False,
+                "message": "Informe o local de serviço antes de concluir.",
+            }), 400
+
         quantidade_resolvida = None
 
         item = Item.query.filter(
@@ -1658,7 +1676,6 @@ def retirar_mobile(current_user: Usuario):
                     "message": f"Saldo insuficiente. Disponível: {int(saldo_atual) if saldo_atual.is_integer() else saldo_atual}",
                 }), 400
 
-        matricula_retirante = (matricula_retirante_raw or "").strip()
         retirante_user = None
         if matricula_retirante and matricula_retirante != current_user.matricula:
             if not _is_admin_or_manager(current_user):
@@ -2151,7 +2168,7 @@ def devolver_material_mobile(current_user: Usuario):
 @mobile_login_required
 def mobile_report_daily():
     current_user = g.mobile_user
-    if not _is_admin_or_manager(current_user):
+    if not _mobile_admin_only(current_user):
         return jsonify({"success": False, "message": "Acesso negado"}), 403
 
     scope = (request.args.get("scope") or "all").strip().lower()
@@ -2178,7 +2195,7 @@ def mobile_report_daily():
 @mobile_login_required
 def mobile_report_monthly():
     current_user = g.mobile_user
-    if not _is_admin_or_manager(current_user):
+    if not _mobile_admin_only(current_user):
         return jsonify({"success": False, "message": "Acesso negado"}), 403
 
     scope = (request.args.get("scope") or "all").strip().lower()
@@ -2264,8 +2281,8 @@ def mobile_erp_overview():
                 "cargo": current_user.cargo,
                 "setor": current_user.setor,
                 "role": "admin" if _is_admin_flag(current_user) else ("manager" if _is_admin_or_manager(current_user) else "operador"),
-                "can_manage_documents": _mobile_documents_available() and _is_admin_or_manager(current_user),
-                "can_view_reports": _is_admin_or_manager(current_user),
+                "can_manage_documents": _mobile_documents_available() and _mobile_admin_only(current_user),
+                "can_view_reports": _mobile_admin_only(current_user),
             },
             "stock": {
                 "total_itens": int(total_itens),
@@ -2286,13 +2303,13 @@ def mobile_erp_overview():
                 "router": router_summary,
             },
             "features": {
-                "documentos_fiscais": _mobile_documents_available() and _is_admin_or_manager(current_user),
+                "documentos_fiscais": _mobile_documents_available() and _mobile_admin_only(current_user),
                 "document_modes": _mobile_document_mode_cards(),
                 "reports": {
-                    "daily": _is_admin_or_manager(current_user),
-                    "monthly": _is_admin_or_manager(current_user),
-                    "history": _is_admin_or_manager(current_user),
-                    "consumption": _is_admin_or_manager(current_user),
+                    "daily": _mobile_admin_only(current_user),
+                    "monthly": _mobile_admin_only(current_user),
+                    "history": _mobile_admin_only(current_user),
+                    "consumption": _mobile_admin_only(current_user),
                 },
             },
         },
@@ -2303,7 +2320,7 @@ def mobile_erp_overview():
 @mobile_login_required
 def mobile_consumption_report():
     current_user = g.mobile_user
-    if not _is_admin_or_manager(current_user):
+    if not _mobile_admin_only(current_user):
         return jsonify({"success": False, "message": "Acesso negado"}), 403
 
     panel = finance_service.get_consumption_panel_report(
@@ -2322,7 +2339,7 @@ def mobile_consumption_report():
 @mobile_login_required
 def mobile_consumption_report_pdf():
     current_user = g.mobile_user
-    if not _is_admin_or_manager(current_user):
+    if not _mobile_admin_only(current_user):
         return jsonify({"success": False, "message": "Acesso negado"}), 403
 
     exercise_label = (request.args.get("exercicio") or "").strip() or None
@@ -2433,6 +2450,43 @@ MOBILE_DOCUMENT_PACKAGING_OPTIONS: tuple[str, ...] = (
 
 def _mobile_documents_available() -> bool:
     return bool(current_app.config.get("FEATURE_NOTAS_ENABLED", True))
+
+
+def _mobile_admin_only(current_user: Usuario) -> bool:
+    return _is_admin_flag(current_user)
+
+
+def _serialize_mobile_stock_item(item: Item) -> dict[str, Any]:
+    try:
+        from ..services.embalagem_service import EmbalagemService
+
+        estoque_formatado = EmbalagemService.formatar_estoque(item) if EmbalagemService.tem_embalagem(item) else None
+    except Exception:
+        estoque_formatado = None
+
+    foto_path = (item.foto_path or "").strip() or None
+    foto_url = operation_visual_payload_service._build_photo_url(foto_path)
+    return {
+        "id": item.codigo_item,
+        "descricao": item.descricao,
+        "codigo_barras": item.codigo_item,
+        "categoria": item.categoria,
+        "localizacao": item.localizacao,
+        "marca": item.marca,
+        "quantidade": round(float(item.get_saldo_fisico_total() or 0), 6),
+        "unidade": item.unidade,
+        "saldo_display": item.get_saldo_fisico_display(),
+        "estoque_minimo": item.estoque_minimo,
+        "tipo_embalagem_novo": item.tipo_embalagem_novo,
+        "unidades_por_embalagem": item.unidades_por_embalagem,
+        "estoque_embalagens": item.estoque_embalagens,
+        "estoque_unidades_soltas": item.estoque_unidades_soltas,
+        "estoque_formatado": estoque_formatado,
+        "pre_cadastro_pendente": bool(getattr(item, "pre_cadastro_pendente", False)),
+        "foto_path": foto_path,
+        "foto_url": foto_url,
+        "barcode_image_path": (item.barcode_image_path or "").strip() or None,
+    }
 
 
 def _normalize_mobile_document_type(raw_value: str | None, *, fallback: str = "nf") -> str:
@@ -2799,7 +2853,7 @@ def mobile_documentos_fiscais_config():
     current_user = g.mobile_user
     if not _mobile_documents_available():
         return jsonify({"success": False, "message": "Documentos Fiscais indisponivel neste ambiente."}), 404
-    if not _is_admin_or_manager(current_user):
+    if not _mobile_admin_only(current_user):
         return jsonify({"success": False, "message": "Acesso negado"}), 403
 
     return jsonify({
@@ -2837,7 +2891,7 @@ def mobile_documentos_fiscais_itens():
     current_user = g.mobile_user
     if not _mobile_documents_available():
         return jsonify({"success": False, "message": "Documentos Fiscais indisponivel neste ambiente."}), 404
-    if not _is_admin_or_manager(current_user):
+    if not _mobile_admin_only(current_user):
         return jsonify({"success": False, "message": "Acesso negado"}), 403
 
     term = (request.args.get("search") or "").strip()
@@ -2876,7 +2930,7 @@ def mobile_registrar_documento_fiscal():
     current_user = g.mobile_user
     if not _mobile_documents_available():
         return jsonify({"success": False, "message": "Documentos Fiscais indisponivel neste ambiente."}), 404
-    if not _is_admin_or_manager(current_user):
+    if not _mobile_admin_only(current_user):
         return jsonify({"success": False, "message": "Acesso negado"}), 403
 
     data = request.get_json() or {}
@@ -3219,26 +3273,7 @@ def listar_estoque():
     
     items = query.order_by(Item.descricao).all()
     
-    result = []
-    for item in items:
-        result.append({
-            "id": item.codigo_item,
-            "descricao": item.descricao,
-            "codigo_barras": item.codigo_item,
-            "categoria": item.categoria,
-            "localizacao": item.localizacao,
-            "marca": item.marca,
-            "quantidade": round(float(item.get_saldo_fisico_total() or 0), 6),
-            "unidade": item.unidade,
-            "saldo_display": item.get_saldo_fisico_display(),
-            "estoque_minimo": item.estoque_minimo,
-            "tipo_embalagem_novo": item.tipo_embalagem_novo,
-            "unidades_por_embalagem": item.unidades_por_embalagem,
-            "estoque_embalagens": item.estoque_embalagens,
-            "estoque_unidades_soltas": item.estoque_unidades_soltas,
-        })
-    
-    return jsonify(result), 200
+    return jsonify([_serialize_mobile_stock_item(item) for item in items]), 200
 
 
 @blueprint.get("/estoque/resumo")
@@ -3273,31 +3308,8 @@ def buscar_por_barcode(codigo: str):
     
     if not item:
         return jsonify({"message": "Item não encontrado"}), 404
-    
-    # Formatar estoque com embalagens quando aplicável
-    try:
-        from ..services.embalagem_service import EmbalagemService
-        estoque_formatado = EmbalagemService.formatar_estoque(item) if EmbalagemService.tem_embalagem(item) else None
-    except Exception:
-        estoque_formatado = None
 
-    return jsonify({
-        "id": item.codigo_item,
-        "descricao": item.descricao,
-        "codigo_barras": item.codigo_item,
-        "categoria": item.categoria,
-        "localizacao": item.localizacao,
-        "marca": item.marca,
-        "quantidade": round(float(item.get_saldo_fisico_total() or 0), 6),
-        "unidade": item.unidade,
-        "saldo_display": item.get_saldo_fisico_display(),
-        "estoque_minimo": item.estoque_minimo,
-        "tipo_embalagem_novo": item.tipo_embalagem_novo,
-        "unidades_por_embalagem": item.unidades_por_embalagem,
-        "estoque_embalagens": item.estoque_embalagens,
-        "estoque_unidades_soltas": item.estoque_unidades_soltas,
-        "estoque_formatado": estoque_formatado,
-    }), 200
+    return jsonify(_serialize_mobile_stock_item(item)), 200
 
 
 @blueprint.post("/estoque")
@@ -3367,7 +3379,7 @@ def mobile_reports_history():
         - format: formato (pdf, all)
     """
     current_user = g.mobile_user
-    if not _is_admin_or_manager(current_user):
+    if not _mobile_admin_only(current_user):
         return jsonify({"success": False, "message": "Acesso negado"}), 403
     
     from pathlib import Path
@@ -3522,7 +3534,7 @@ def mobile_reports_download(filename: str):
         filename: Nome do arquivo (validado para evitar path traversal)
     """
     current_user = g.mobile_user
-    if not _is_admin_or_manager(current_user):
+    if not _mobile_admin_only(current_user):
         return jsonify({"success": False, "message": "Acesso negado"}), 403
     
     # Validar nome do arquivo para evitar path traversal

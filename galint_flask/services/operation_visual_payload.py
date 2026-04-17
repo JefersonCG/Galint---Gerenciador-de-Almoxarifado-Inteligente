@@ -176,6 +176,15 @@ class OperationVisualPayloadService:
         item = visual_payload.get("item") or {}
         photo_path = (item.get("foto_path") or "").strip() if isinstance(item, dict) else ""
         photo_url = (item.get("foto_url") or "").strip() if isinstance(item, dict) else ""
+        gallery = visual_payload.get("gallery") if isinstance(visual_payload.get("gallery"), list) else []
+        if not photo_path and not photo_url:
+            for entry in gallery:
+                if not isinstance(entry, dict):
+                    continue
+                photo_path = (entry.get("foto_path") or "").strip()
+                photo_url = (entry.get("foto_url") or "").strip()
+                if photo_path or photo_url:
+                    break
         resolved_path = OperationVisualPayloadService._resolve_photo_file(photo_path)
         if not resolved_path and not photo_url:
             return None
@@ -185,6 +194,35 @@ class OperationVisualPayloadService:
             "url": photo_url or None,
             "caption": None,
         }
+
+    @staticmethod
+    def build_gallery_for_saidas(saidas: list[Saida] | None, *, limit: int = 4) -> list[dict[str, Any]]:
+        gallery: list[dict[str, Any]] = []
+        seen_codes: set[str] = set()
+        for saida in saidas or []:
+            item = saida.item or OperationVisualPayloadService._get_item(saida.codigo_item)
+            if not item:
+                continue
+            code = (item.codigo_item or saida.codigo_item or "").strip()
+            if code and code in seen_codes:
+                continue
+            photo = OperationVisualPayloadService._photo_payload(item)
+            if not photo.get("foto_path") and not photo.get("foto_url"):
+                continue
+            if code:
+                seen_codes.add(code)
+            gallery.append(
+                {
+                    "codigo": code or None,
+                    "descricao": item.descricao,
+                    "quantidade": saida.quantidade,
+                    "quantidade_display": OperationVisualPayloadService._format_balance(saida.quantidade, item.unidade),
+                    **photo,
+                }
+            )
+            if len(gallery) >= limit:
+                break
+        return gallery
 
     @staticmethod
     def _kind_for_saida(saida: Saida, item: Item | None) -> str:

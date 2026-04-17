@@ -219,6 +219,7 @@ class NotificationRouterService:
                 "batch": True,
             }
             visual_payload["batch_label"] = f"{len(saidas)} retiradas"
+            visual_payload["gallery"] = operation_visual_payload_service.build_gallery_for_saidas(saidas)
         payload = {
             "recipient_ids": sorted(recipients),
             "title": "Retiradas agrupadas concluídas",
