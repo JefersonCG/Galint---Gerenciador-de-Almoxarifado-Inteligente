@@ -638,6 +638,128 @@
         transform: translateY(-1px);
     }
 
+    .docf-mode-summary {
+        border-top-left-radius: 0;
+        border-top-right-radius: 18px;
+        border-top: 1px solid rgba(96, 165, 250, 0.18);
+        padding: 0.95rem 1rem;
+    }
+
+    .docf-mode-summary-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 0.9rem;
+        margin-bottom: 0.85rem;
+    }
+
+    .docf-mode-status-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.7rem;
+    }
+
+    .docf-mode-status-card {
+        border-radius: 14px;
+        padding: 0.78rem 0.82rem;
+        background: rgba(7, 14, 24, 0.62);
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        min-height: 100%;
+    }
+
+    .docf-mode-status-label {
+        display: block;
+        margin-bottom: 0.48rem;
+        color: var(--docf-text-soft);
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .docf-mode-chip-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.42rem;
+    }
+
+    .docf-mode-chip {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.34rem 0.66rem;
+        border-radius: 999px;
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        background: rgba(15, 23, 42, 0.72);
+        color: var(--docf-text-primary);
+        font-size: 0.73rem;
+        font-weight: 700;
+        line-height: 1;
+    }
+
+    .docf-mode-chip.is-muted {
+        color: var(--docf-text-muted);
+        background: rgba(15, 23, 42, 0.4);
+        border-style: dashed;
+    }
+
+    .docf-field-lock-shell {
+        position: relative;
+        display: grid;
+        gap: 0.34rem;
+    }
+
+    .docf-field-lock-shell.is-locked {
+        opacity: 0.76;
+    }
+
+    .docf-field-lock-shell.is-locked .form-control,
+    .docf-field-lock-shell.is-locked .form-select {
+        background: rgba(15, 23, 42, 0.78);
+        border-color: rgba(148, 163, 184, 0.16);
+        color: rgba(226, 232, 240, 0.78);
+    }
+
+    .docf-field-lock-shell.is-locked .docf-choice-grid {
+        opacity: 0.58;
+        pointer-events: none;
+    }
+
+    .docf-field-lock-note {
+        padding: 0.45rem 0.62rem;
+        border-radius: 10px;
+        border: 1px dashed rgba(148, 163, 184, 0.18);
+        background: rgba(15, 23, 42, 0.64);
+        color: var(--docf-text-secondary);
+        font-size: 0.76rem;
+        line-height: 1.45;
+    }
+
+    .docf-field-lock-note:empty {
+        display: none;
+    }
+
+    .docf-field-hint {
+        color: var(--docf-text-muted);
+        font-size: 0.76rem;
+        line-height: 1.45;
+    }
+
+    .docf-reference-card {
+        margin-top: 0.85rem;
+        padding: 0.86rem;
+        border-radius: 16px;
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        background: rgba(8, 15, 28, 0.44);
+        transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+    }
+
+    .docf-reference-card.is-priority {
+        border-color: rgba(96, 165, 250, 0.34);
+        background: linear-gradient(135deg, rgba(14, 116, 144, 0.18), rgba(15, 23, 42, 0.74));
+        box-shadow: 0 12px 22px rgba(14, 116, 144, 0.14);
+    }
+
     .docf-period-grid {
         display: grid;
         grid-template-columns: minmax(320px, 420px) minmax(0, 1fr);
@@ -881,6 +1003,17 @@
         border-radius: 14px;
         background: linear-gradient(180deg, rgba(13, 22, 36, 0.92) 0%, rgba(10, 18, 31, 0.94) 100%);
         box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+    }
+
+    .compact-form .docf-finance-section {
+        padding: 0.96rem 1.05rem 0.98rem;
+    }
+
+    .compact-form .docf-finance-grid {
+        --bs-gutter-x: 0.95rem;
+        --bs-gutter-y: 0.6rem;
+        margin-left: 0;
+        margin-right: 0;
     }
 
     .compact-form .compact-actions {
@@ -1171,6 +1304,10 @@
 
     @media (max-width: 992px) {
         .docf-item-create-hero {
+            grid-template-columns: 1fr;
+        }
+
+        .docf-mode-status-grid {
             grid-template-columns: 1fr;
         }
     }
@@ -1733,8 +1870,8 @@
 
     .docf-item-create-hero,
     .docf-mode-actions {
-        gap: 0.6rem;
-        margin-bottom: 0.75rem;
+        gap: 0.2rem;
+        margin-bottom: 0;
     }
 
     .docf-rule-pill,
@@ -1752,11 +1889,24 @@
         background: linear-gradient(180deg, rgba(15, 23, 42, 0.86) 0%, rgba(17, 24, 39, 0.9) 100%);
         color: var(--docf-text-primary);
         border-color: rgba(148, 163, 184, 0.18);
-        padding: 0.66rem 0.78rem;
+        border-bottom-width: 0;
+        border-radius: 18px 18px 0 0;
+        min-height: 96px;
+        padding: 0.78rem 0.9rem 1rem;
     }
 
     .docf-mode-btn span {
         color: var(--docf-text-muted);
+    }
+
+    .docf-mode-btn.is-active {
+        transform: none;
+        padding-bottom: 1.14rem;
+        box-shadow: 0 14px 24px rgba(37, 99, 235, 0.18);
+    }
+
+    .docf-mode-summary {
+        margin-top: -1px;
     }
 
     .docf-step-flow {
@@ -2105,9 +2255,35 @@
                     </label>
                 </div>
 
-                <div class="docf-panel mb-3" id="doc-mode-summary">
-                    <strong id="doc-mode-title">Compra com NF ativa</strong>
-                    <div class="docf-muted mt-1" id="doc-mode-text">Use este modo quando a compra já tiver número de nota e, se existir, chave de acesso.</div>
+                <div class="docf-panel mb-3 docf-mode-summary" id="doc-mode-summary">
+                    <div class="docf-mode-summary-head">
+                        <div>
+                            <strong id="doc-mode-title">Compra com NF ativa</strong>
+                            <div class="docf-muted mt-1" id="doc-mode-text">Use este modo quando a compra já tiver número de nota e, se existir, chave de acesso.</div>
+                        </div>
+                        <span class="docf-chip" id="doc-mode-badge">Fluxo fiscal completo</span>
+                    </div>
+                    <div class="docf-mode-status-grid">
+                        <div class="docf-mode-status-card">
+                            <span class="docf-mode-status-label">Campos ativos</span>
+                            <div class="docf-mode-chip-row" id="doc-mode-active-fields">
+                                <span class="docf-mode-chip">Número fiscal</span>
+                                <span class="docf-mode-chip">Datas</span>
+                                <span class="docf-mode-chip">CNPJ</span>
+                                <span class="docf-mode-chip">Chave</span>
+                            </div>
+                        </div>
+                        <div class="docf-mode-status-card">
+                            <span class="docf-mode-status-label">Bloqueios automáticos</span>
+                            <div class="docf-mode-chip-row" id="doc-mode-locked-fields">
+                                <span class="docf-mode-chip is-muted">Sem bloqueios extras</span>
+                            </div>
+                        </div>
+                        <div class="docf-mode-status-card">
+                            <span class="docf-mode-status-label">Ação esperada</span>
+                            <div class="docf-muted" id="doc-mode-guidance">Preencha o documento completo e mantenha a rastreabilidade fiscal forte desde o cadastro.</div>
+                        </div>
+                    </div>
                 </div>
 
                 <form method="post" class="docf-form compact-form d-grid gap-2" id="nf-registration-form">
@@ -2251,6 +2427,42 @@
                                 </div>
                             </div>
                         </div>
+                        <div class="docf-reference-card" id="docf-reference-card">
+                            <div class="docf-form-section-header">
+                                <div>
+                                    <h4 class="docf-form-section-title">2.1 Referência comercial do pré-cadastro</h4>
+                                    <p class="docf-form-section-text" id="docf-reference-priority-text">Quando o item novo ainda não tem NF formal, este bloco ajuda a deixar o pré-cadastro pronto para revisão com origem comercial, link e imagem.</p>
+                                </div>
+                            </div>
+                            <div class="row g-2 docf-tight-grid align-items-stretch">
+                                <div class="col-md-4">
+                                    <div class="docf-field-card">
+                                        <label class="form-label" for="preco_reposicao_fonte">Fonte comercial</label>
+                                        <input class="form-control form-control-sm" id="preco_reposicao_fonte" name="preco_reposicao_fonte" placeholder="Ex.: Mercado Livre / Manual / fornecedor">
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+                                    <div class="docf-field-card">
+                                        <label class="form-label" for="preco_reposicao_uf">UF</label>
+                                        <input class="form-control form-control-sm" id="preco_reposicao_uf" name="preco_reposicao_uf" maxlength="2" placeholder="Ex.: RJ">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="docf-field-card">
+                                        <label class="form-label" for="preco_reposicao_url">Link de referência</label>
+                                        <input class="form-control form-control-sm" id="preco_reposicao_url" name="preco_reposicao_url" placeholder="https://...">
+                                    </div>
+                                </div>
+                                <div class="col-12">
+                                    <div class="docf-field-card">
+                                        <label class="form-label" for="foto_url">Imagem do produto por link</label>
+                                        <input class="form-control form-control-sm" id="foto_url" name="foto_url" placeholder="https://.../imagem.webp">
+                                        <div class="docf-field-hint">Se preencher, o sistema tenta baixar a foto e já deixa o item novo mais completo para o pré-cadastro.</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <input type="hidden" id="preco_reposicao_query" name="preco_reposicao_query">
+                        </div>
                     </div>
                     </div>
 
@@ -2266,43 +2478,49 @@
                                 <input class="form-control form-control-sm" id="quantidade" name="quantidade" type="number" min="0.01" step="0.01" value="1"
                                     required>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-4 docf-field-lock-shell" data-doc-lock-field="numero">
                                 <label class="form-label" for="nota_fiscal" id="nota_fiscal_label">Número da NF</label>
                                 <input class="form-control form-control-sm" id="nota_fiscal" name="nota_fiscal" value="{{ nota_detalhes.numero_documento|default(nota_busca, true) if active_tab == 'registro' and (nota_detalhes or nota_busca) else '' }}" required>
                                 <div class="list-group mt-2 d-none" id="nota_fiscal_results"></div>
+                                <div class="docf-field-hint" id="nota_fiscal_help">Se essa NF já tiver sido usada no sistema, os dados da empresa serão preenchidos automaticamente.</div>
+                                <div class="docf-field-lock-note" data-doc-lock-note></div>
                             </div>
                             <input type="hidden" id="finance_supplier_search" name="supplier_name">
                             <input type="hidden" id="finance_supplier_id" name="finance_supplier_id">
                             <div class="list-group position-absolute w-100 shadow d-none" id="finance_supplier_results" style="z-index: 50;"></div>
-                            <div class="col-md-3">
+                            <div class="col-md-3 docf-field-lock-shell" data-doc-lock-field="emissao">
                                 <label class="form-label" for="data_emissao">Emissão do documento</label>
                                 <input class="form-control form-control-sm" id="data_emissao" name="data_emissao" type="date">
+                                <div class="docf-field-lock-note" data-doc-lock-note></div>
                             </div>
-                            <div class="col-md-3">
+                            <div class="col-md-3 docf-field-lock-shell" data-doc-lock-field="recebimento">
                                 <label class="form-label" for="data_recebimento">Data de recebimento</label>
                                 <input class="form-control form-control-sm" id="data_recebimento" name="data_recebimento" type="date">
+                                <div class="docf-field-lock-note" data-doc-lock-note></div>
                             </div>
-                            <div class="col-md-5">
+                            <div class="col-md-5 docf-field-lock-shell" data-doc-lock-field="cnpj">
                                 <label class="form-label" for="supplier_cnpj">CNPJ da loja</label>
                                 <div class="input-group">
                                     <input class="form-control form-control-sm" id="supplier_cnpj" name="supplier_cnpj" placeholder="00.000.000/0000-00">
                                     <button class="docf-btn-secondary docf-btn-compact" type="button" id="btn-buscar-cnpj" data-cnpj-lookup-button data-help-label="Consultar CNPJ" data-help-text="Consulta o CNPJ informado para localizar ou completar automaticamente o fornecedor.">Consultar</button>
                                 </div>
+                                <div class="docf-field-lock-note" data-doc-lock-note></div>
                             </div>
-                            <div class="col-md-7" data-chave-acesso-group>
+                            <div class="col-md-7 docf-field-lock-shell" data-chave-acesso-group data-doc-lock-field="chave">
                                 <label class="form-label" for="chave_acesso">Chave de acesso</label>
                                 <input class="form-control form-control-sm" id="chave_acesso" name="chave_acesso" placeholder="44 dígitos da NF-e / NFC-e">
+                                <div class="docf-field-lock-note" data-doc-lock-note></div>
                             </div>
                         </div>
                     </div>
 
-                    <div class="docf-form-section compact-section">
+                    <div class="docf-form-section compact-section docf-finance-section">
                         <div class="docf-form-section-header">
                             <div>
                                 <h3 class="docf-form-section-title">4. Classificação financeira</h3>
                             </div>
                         </div>
-                        <div class="row g-2 docf-tight-grid mb-1">
+                        <div class="row g-2 docf-tight-grid docf-finance-grid mb-1">
                             <div class="col-md-6">
                                 <label class="form-label" for="preco_unitario">Valor unitário (R$)</label>
                                 <input class="form-control form-control-sm" id="preco_unitario" name="preco_unitario" type="number" min="0" step="0.01">
@@ -2317,7 +2535,7 @@
                                     <div class="docf-live-calc-meta" data-calc-meta>O total calculado aparece aqui para você bater rapidamente com a nota antes de salvar.</div>
                                 </div>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-4 docf-field-lock-shell" data-doc-lock-field="finance_tipo_documento">
                                 <label class="form-label" for="finance_tipo_documento">Tipo de documento</label>
                                 <select class="form-select form-select-sm docf-hidden-native-select" id="finance_tipo_documento" name="finance_tipo_documento">
                                     <option value="nf">Nota fiscal</option>
@@ -2331,8 +2549,9 @@
                                     <label class="docf-switch-option" data-select-value="recibo" aria-pressed="false" role="button" tabindex="0"><span class="docf-switch-toggle" aria-hidden="true"></span><span>Recibo</span></label>
                                     <label class="docf-switch-option" data-select-value="manual" aria-pressed="false" role="button" tabindex="0"><span class="docf-switch-toggle" aria-hidden="true"></span><span>Manual</span></label>
                                 </div>
+                                <div class="docf-field-lock-note" data-doc-lock-note></div>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-4 docf-field-lock-shell" data-doc-lock-field="finance_origem_valor">
                                 <label class="form-label" for="finance_origem_valor">Origem do valor</label>
                                 <select class="form-select form-select-sm docf-hidden-native-select" id="finance_origem_valor" name="finance_origem_valor">
                                     <option value="compra_nf">Compra com NF</option>
@@ -2346,8 +2565,9 @@
                                     <label class="docf-switch-option" data-select-value="valor_estimado" aria-pressed="false" role="button" tabindex="0"><span class="docf-switch-toggle" aria-hidden="true"></span><span>Estimado</span></label>
                                     <label class="docf-switch-option" data-select-value="inventario_inicial" aria-pressed="false" role="button" tabindex="0"><span class="docf-switch-toggle" aria-hidden="true"></span><span>Inventário</span></label>
                                 </div>
+                                <div class="docf-field-lock-note" data-doc-lock-note></div>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-4 docf-field-lock-shell" data-doc-lock-field="finance_comprovacao_status">
                                 <label class="form-label" for="finance_comprovacao_status">Comprovação</label>
                                 <select class="form-select form-select-sm docf-hidden-native-select" id="finance_comprovacao_status" name="finance_comprovacao_status">
                                     <option value="comprovado">Comprovado</option>
@@ -2359,6 +2579,7 @@
                                     <label class="docf-switch-option" data-select-value="parcial" aria-pressed="false" role="button" tabindex="0"><span class="docf-switch-toggle" aria-hidden="true"></span><span>Parcial</span></label>
                                     <label class="docf-switch-option" data-select-value="sem_comprovacao" aria-pressed="false" role="button" tabindex="0"><span class="docf-switch-toggle" aria-hidden="true"></span><span>Sem comp.</span></label>
                                 </div>
+                                <div class="docf-field-lock-note" data-doc-lock-note></div>
                             </div>
                             <div class="col-12 mb-1">
                                 <label class="form-label" for="finance_observacao">Observação financeira</label>
@@ -2371,7 +2592,7 @@
                                 </div>
                             </div>
                             <div class="col-12 compact-actions">
-                                <button class="docf-btn-primary" type="submit" data-help-label="Registrar documento fiscal" data-help-text="Salva o documento principal com item, fornecedor e classificação documental.">Registrar documento fiscal</button>
+                                <button class="docf-btn-primary" id="docf-submit-button" type="submit" data-help-label="Registrar documento fiscal" data-help-text="Salva o documento principal com item, fornecedor e classificação documental.">Registrar documento fiscal</button>
                             </div>
                         </div>
                     </div>
@@ -2417,7 +2638,7 @@
                 <div class="docf-card-header">
                     <div>
                         <div class="docf-kicker">Documento em foco</div>
-                        <h2 class="docf-card-title">{{ nota_detalhes.tipo_documento|default('DOC', true)|upper }} {{ nota_detalhes.numero_documento|default(nota_detalhes.nota_fiscal, true) }}</h2>
+                        <h2 class="docf-card-title">{% set numero_foco = nota_detalhes.numero_documento|default(nota_detalhes.nota_fiscal, true) %}{% if nota_detalhes.tipo_documento|default('', true)|lower == 'manual' and numero_foco == 'NOTA INTERNA' %}NOTA INTERNA{% else %}{{ nota_detalhes.tipo_documento|default('DOC', true)|upper }} {{ numero_foco }}{% endif %}</h2>
                     </div>
                     <span class="docf-badge">{{ selected_operational.status_label }}</span>
                 </div>
@@ -2431,7 +2652,7 @@
                     <div class="docf-card-header mb-3">
                         <div>
                             <div class="docf-kicker">Detalhamento</div>
-                            <h3 class="docf-card-title">{{ nota_detalhes.tipo_documento|default('DOC', true)|upper }} {{ nota_detalhes.numero_documento|default(nota_detalhes.nota_fiscal, true) }}</h3>
+                            <h3 class="docf-card-title">{% set numero_foco = nota_detalhes.numero_documento|default(nota_detalhes.nota_fiscal, true) %}{% if nota_detalhes.tipo_documento|default('', true)|lower == 'manual' and numero_foco == 'NOTA INTERNA' %}NOTA INTERNA{% else %}{{ nota_detalhes.tipo_documento|default('DOC', true)|upper }} {{ numero_foco }}{% endif %}</h3>
                         </div>
                         {% if nota_detalhes.status_integracao == 'aguardando_certificado' %}
                         <span class="docf-badge">Aguardando certificado</span>
@@ -2809,10 +3030,18 @@
     const itemResults = document.getElementById('item_results');
     const novoCodigoInput = document.getElementById('novo_codigo');
     const novaDescricaoInput = document.getElementById('nova_descricao');
+    const novaMarcaInput = document.getElementById('nova_marca');
     const newItemDescriptionResults = document.getElementById('new_item_description_results');
     const novaUnidadeInput = document.getElementById('nova_unidade');
     const novaUnidadeDocumentalInput = document.getElementById('nova_unidade_documental');
     const novoConteudoEmbalagemInput = document.getElementById('novo_conteudo_embalagem');
+    const replacementSourceInput = document.getElementById('preco_reposicao_fonte');
+    const replacementUfInput = document.getElementById('preco_reposicao_uf');
+    const replacementUrlInput = document.getElementById('preco_reposicao_url');
+    const replacementQueryInput = document.getElementById('preco_reposicao_query');
+    const photoUrlInput = document.getElementById('foto_url');
+    const referenceCard = document.getElementById('docf-reference-card');
+    const referencePriorityText = document.getElementById('docf-reference-priority-text');
     const newItemSummaryTitle = document.getElementById('docf-new-item-summary-title');
     const newItemSummaryLine = document.getElementById('docf-new-item-summary-line');
     const newItemBaseChip = document.getElementById('docf-new-item-base-chip');
@@ -2834,10 +3063,15 @@
     const modeButtons = document.querySelectorAll('[data-doc-mode]');
     const docModeTitle = document.getElementById('doc-mode-title');
     const docModeText = document.getElementById('doc-mode-text');
+    const docModeBadge = document.getElementById('doc-mode-badge');
+    const docModeActiveFields = document.getElementById('doc-mode-active-fields');
+    const docModeLockedFields = document.getElementById('doc-mode-locked-fields');
+    const docModeGuidance = document.getElementById('doc-mode-guidance');
     const notaFiscalLabel = document.getElementById('nota_fiscal_label');
     const notaFiscalHelp = document.getElementById('nota_fiscal_help');
     const nfForm = document.getElementById('nf-registration-form');
     const docModeInputs = Array.from(document.querySelectorAll('input[name="doc_mode"]'));
+    const submitRegistrationButton = document.getElementById('docf-submit-button');
     const helpToggleButton = document.getElementById('docf-help-toggle');
     const helpToast = document.getElementById('docf-help-toast');
     const helpToastTitle = document.getElementById('docf-help-toast-title');
@@ -2856,6 +3090,13 @@
     let notaSuggestions = [];
     let newItemDescriptionSuggestions = [];
     let helpHideTimer = null;
+    const manualSharedDocumentNumber = 'NOTA INTERNA';
+    let currentRegistrationMode = 'nf';
+    const rememberedModeState = {
+        nf: {},
+        cupom: {},
+        manual: {},
+    };
 
     function formatNewItemNumber(value) {
         const numeric = Number(value);
@@ -2956,6 +3197,19 @@
         newItemSummaryLine.textContent = `A unidade documental foi definida como ${docUnitLabel}. Falta informar o conteúdo de cada ${docUnit} para completar a conversão para ${baseUnit}.`;
     }
 
+    function buildReplacementQuery() {
+        const description = String(novaDescricaoInput?.value || '').trim();
+        const brand = String(novaMarcaInput?.value || '').trim();
+        return [description, brand].filter(Boolean).join(' ').trim();
+    }
+
+    function syncReplacementQuery() {
+        if (!replacementQueryInput) {
+            return;
+        }
+        replacementQueryInput.value = buildReplacementQuery();
+    }
+
     function syncVisualSelectGroup(selectElement) {
         if (!(selectElement instanceof HTMLSelectElement)) {
             return;
@@ -3001,6 +3255,9 @@
                 }
                 button.dataset.visualSelectBound = '1';
                 button.addEventListener('click', () => {
+                    if (selectElement.disabled) {
+                        return;
+                    }
                     const value = button.getAttribute('data-select-value') || '';
                     if (String(selectElement.value || '') !== value) {
                         selectElement.value = value;
@@ -3020,14 +3277,17 @@
         });
     }
 
-    [novoCodigoInput, novaDescricaoInput, novaUnidadeInput, novaUnidadeDocumentalInput, novoConteudoEmbalagemInput].forEach((element) => {
+    [novoCodigoInput, novaDescricaoInput, novaMarcaInput, novaUnidadeInput, novaUnidadeDocumentalInput, novoConteudoEmbalagemInput].forEach((element) => {
         if (element) {
             element.addEventListener('input', updateNewItemSummary);
             element.addEventListener('change', updateNewItemSummary);
+            element.addEventListener('input', syncReplacementQuery);
+            element.addEventListener('change', syncReplacementQuery);
         }
     });
 
     updateNewItemSummary();
+    syncReplacementQuery();
 
     const HELP_STORAGE_KEY = 'galint:nf:help-enabled';
     const storedHelpPreference = window.localStorage.getItem(HELP_STORAGE_KEY);
@@ -3062,7 +3322,19 @@
             title: 'Compra com NF ativa',
             text: 'Use este modo quando a compra já tiver número de nota e, se existir, chave de acesso.',
             numeroLabel: 'Número da NF',
-            numeroHelp: 'Se essa NF já tiver sido usada no sistema, os dados da empresa serão preenchidos automaticamente.'
+            numeroHelp: 'Se essa NF já tiver sido usada no sistema, os dados da empresa serão preenchidos automaticamente.',
+            badge: 'Fluxo fiscal completo',
+            guidance: 'Preencha o documento completo e mantenha a rastreabilidade fiscal forte desde o cadastro.',
+            submitLabel: 'Registrar documento fiscal',
+            activeFields: ['Número fiscal', 'Datas', 'CNPJ', 'Chave', 'Item / valor'],
+            lockedFields: ['Sem bloqueios extras'],
+            lockNumber: false,
+            lockEmission: false,
+            lockReceipt: false,
+            lockSupplier: false,
+            lockAccessKey: false,
+            referencePriority: false,
+            referenceHint: 'No fluxo com NF, o bloco comercial é opcional e serve só para enriquecer o item novo quando fizer sentido.'
         },
         cupom: {
             tipo: 'cupom',
@@ -3072,7 +3344,19 @@
             title: 'Compra com cupom de balcão',
             text: 'Controle por CNPJ da loja, data e valores até o fechamento do período. Não exige chave de acesso.',
             numeroLabel: 'Número do cupom / controle',
-            numeroHelp: 'Informe o identificador do cupom, número interno ou referência que permita rastrear a compra.'
+            numeroHelp: 'Informe o identificador do cupom, número interno ou referência que permita rastrear a compra.',
+            badge: 'Fluxo balcão',
+            guidance: 'Use CNPJ, datas e observação para dar lastro ao cupom sem abrir um fluxo fiscal completo.',
+            submitLabel: 'Registrar compra com cupom',
+            activeFields: ['Número do cupom', 'Datas', 'CNPJ da loja', 'Item / valor'],
+            lockedFields: ['Chave de acesso', 'Classificação fiscal fixa'],
+            lockNumber: false,
+            lockEmission: false,
+            lockReceipt: false,
+            lockSupplier: false,
+            lockAccessKey: true,
+            referencePriority: false,
+            referenceHint: 'Se o item for novo, você ainda pode aproveitar o bloco comercial para guardar link e imagem de apoio.'
         },
         recibo: {
             tipo: 'recibo',
@@ -3082,7 +3366,19 @@
             title: 'Compra com recibo simples',
             text: 'Use quando houver recibo ou comprovante simples do fornecedor, sem chave de acesso fiscal.',
             numeroLabel: 'Número do recibo / controle',
-            numeroHelp: 'Informe o número do recibo ou outra referência que permita rastrear a compra.'
+            numeroHelp: 'Informe o número do recibo ou outra referência que permita rastrear a compra.',
+            badge: 'Fluxo simplificado',
+            guidance: 'Recibo segue a mesma lógica do cupom: referência, datas, valor e observação bem amarrados.',
+            submitLabel: 'Registrar compra com recibo',
+            activeFields: ['Número do recibo', 'Datas', 'CNPJ da loja', 'Item / valor'],
+            lockedFields: ['Chave de acesso', 'Classificação fiscal fixa'],
+            lockNumber: false,
+            lockEmission: false,
+            lockReceipt: false,
+            lockSupplier: false,
+            lockAccessKey: true,
+            referencePriority: false,
+            referenceHint: 'O bloco comercial continua opcional, mas ajuda o pré-cadastro quando o item ainda não existe.'
         },
         manual: {
             tipo: 'manual',
@@ -3090,9 +3386,86 @@
             comprovacao: 'sem_comprovacao',
             buttonMode: 'manual',
             title: 'Compra sem NF formal',
-            text: 'Use somente para não perder rastreabilidade. O documento entra como pendência documental do período.',
-            numeroLabel: 'Número do controle interno',
-            numeroHelp: 'Informe qualquer referência mínima para localizar a compra depois: OS, pedido, protocolo ou anotação interna.'
+            text: 'Use somente para não perder rastreabilidade. O sistema centraliza tudo na nota interna compartilhada NOTA INTERNA.',
+            numeroLabel: 'Documento interno compartilhado',
+            numeroHelp: 'Este fluxo usa automaticamente a nota interna compartilhada NOTA INTERNA para manter tudo no mesmo bucket.',
+            badge: 'Bucket NOTA INTERNA',
+            guidance: 'Explique a compra na observação e complete o item novo com fonte, link e imagem para facilitar o pré-cadastro.',
+            submitLabel: 'Registrar compra sem NF',
+            activeFields: ['Item / valor', 'Observação financeira', 'Pré-cadastro comercial'],
+            lockedFields: ['Número do documento', 'Datas automáticas do dia', 'Loja / CNPJ', 'Chave de acesso'],
+            lockNumber: true,
+            lockEmission: true,
+            lockReceipt: true,
+            lockSupplier: true,
+            lockAccessKey: true,
+            referencePriority: true,
+            referenceHint: 'Sem NF, o bloco comercial vira prioridade: use Mercado Livre, link do anúncio e imagem do produto para deixar o pré-cadastro pronto.',
+            defaultNumber: manualSharedDocumentNumber,
+            defaultReplacementSource: 'Mercado Livre'
+        }
+    };
+
+    currentRegistrationMode = normalizeDocumentTypeValue(getCheckedDocModeInputValue() || tipoDocumentoInput?.value || 'nf');
+
+    const getTodayIsoDate = () => new Date().toISOString().slice(0, 10);
+
+    const setLockState = (fieldKey, locked, message = '') => {
+        const wrapper = nfForm?.querySelector(`[data-doc-lock-field="${fieldKey}"]`);
+        if (!(wrapper instanceof HTMLElement)) {
+            return;
+        }
+        wrapper.classList.toggle('is-locked', Boolean(locked));
+        const note = wrapper.querySelector('[data-doc-lock-note]');
+        if (note instanceof HTMLElement) {
+            note.textContent = locked ? message : '';
+        }
+    };
+
+    const renderModeChipRow = (target, values) => {
+        if (!(target instanceof HTMLElement)) {
+            return;
+        }
+        const items = Array.isArray(values) ? values.filter(Boolean) : [];
+        if (!items.length) {
+            target.innerHTML = '<span class="docf-mode-chip is-muted">Sem itens</span>';
+            return;
+        }
+        target.innerHTML = items.map((value) => {
+            const muted = String(value || '').trim().toLowerCase().startsWith('sem ');
+            return `<span class="docf-mode-chip${muted ? ' is-muted' : ''}">${value}</span>`;
+        }).join('');
+    };
+
+    const rememberModeState = (modeName) => {
+        if (!modeName || !rememberedModeState[modeName]) {
+            return;
+        }
+        rememberedModeState[modeName] = {
+            number: notaFiscalInput?.value || '',
+            emission: emissionDateInput?.value || '',
+            receipt: receiptDateInput?.value || '',
+            supplierCnpj: supplierCnpjInput?.value || '',
+            accessKey: chaveAcessoInput?.value || '',
+        };
+    };
+
+    const restoreModeState = (modeName) => {
+        const remembered = rememberedModeState[modeName] || {};
+        if (notaFiscalInput) {
+            notaFiscalInput.value = remembered.number || '';
+        }
+        if (emissionDateInput) {
+            emissionDateInput.value = remembered.emission || '';
+        }
+        if (receiptDateInput) {
+            receiptDateInput.value = remembered.receipt || getTodayIsoDate();
+        }
+        if (supplierCnpjInput) {
+            supplierCnpjInput.value = remembered.supplierCnpj || '';
+        }
+        if (chaveAcessoInput) {
+            chaveAcessoInput.value = remembered.accessKey || '';
         }
     };
 
@@ -3788,6 +4161,7 @@
         const documentType = String(documentTypeValue || '').trim().toLowerCase() || 'nf';
         const isNf = documentType === 'nf';
         const isManual = documentType === 'manual';
+        const preserveLayout = form === nfForm;
         const chaveGroup = form.querySelector('[data-chave-acesso-group]');
         const chaveInput = chaveGroup?.querySelector('input[name="chave_acesso"]') || form.querySelector('input[name="chave_acesso"]');
         const supplierCnpjField = form.querySelector('input[name="supplier_cnpj"]');
@@ -3796,7 +4170,7 @@
         const supplierIdField = form.querySelector('input[name="finance_supplier_id"]');
 
         if (chaveGroup) {
-            chaveGroup.classList.toggle('d-none', !isNf);
+            chaveGroup.classList.toggle('d-none', !isNf && !preserveLayout);
         }
         if (chaveInput) {
             chaveInput.disabled = !isNf;
@@ -3824,21 +4198,122 @@
         }
     };
 
-    const applyRegistrationMode = (modeName) => {
+    const applyRegistrationFieldStates = (modeName) => {
         const normalizedModeName = normalizeDocumentTypeValue(modeName);
         const mode = registrationModes[normalizedModeName] || registrationModes.nf;
+        const rememberedTargetState = rememberedModeState[normalizedModeName] || {};
+        const shouldRestoreRememberedState = currentRegistrationMode !== normalizedModeName
+            && Object.values(rememberedTargetState).some((value) => String(value || '').trim().length > 0);
+        const today = getTodayIsoDate();
+
+        if (shouldRestoreRememberedState) {
+            restoreModeState(normalizedModeName);
+        }
+
+        if (notaFiscalInput) {
+            notaFiscalInput.readOnly = Boolean(mode.lockNumber);
+            notaFiscalInput.dataset.docModeManaged = mode.lockNumber ? '1' : '0';
+            if (mode.lockNumber) {
+                notaFiscalInput.value = mode.defaultNumber || manualSharedDocumentNumber;
+                hideNotaResults();
+            }
+        }
+
+        if (emissionDateInput) {
+            emissionDateInput.readOnly = Boolean(mode.lockEmission);
+            emissionDateInput.dataset.docModeManaged = mode.lockEmission ? '1' : '0';
+            if (mode.lockEmission) {
+                emissionDateInput.value = today;
+            }
+        }
+
+        if (receiptDateInput) {
+            receiptDateInput.readOnly = Boolean(mode.lockReceipt);
+            receiptDateInput.dataset.docModeManaged = mode.lockReceipt ? '1' : '0';
+            if (mode.lockReceipt) {
+                receiptDateInput.value = today;
+            }
+        }
+
+        if (supplierCnpjInput) {
+            supplierCnpjInput.disabled = Boolean(mode.lockSupplier);
+            if (mode.lockSupplier) {
+                supplierCnpjInput.value = '';
+                delete supplierCnpjInput.dataset.lastLookupDigits;
+            }
+        }
+        if (lookupCnpjButton) {
+            lookupCnpjButton.disabled = Boolean(mode.lockSupplier);
+        }
+        if (supplierInput && mode.lockSupplier) {
+            supplierInput.value = '';
+        }
+        if (supplierIdInput && mode.lockSupplier) {
+            supplierIdInput.value = '';
+        }
+
+        if (chaveAcessoInput) {
+            chaveAcessoInput.disabled = Boolean(mode.lockAccessKey);
+            if (mode.lockAccessKey) {
+                chaveAcessoInput.value = '';
+            }
+        }
+
         if (tipoDocumentoInput) {
             tipoDocumentoInput.value = mode.tipo;
-            syncDocumentFieldAvailability(nfForm, mode.tipo);
+            tipoDocumentoInput.disabled = true;
         }
-        setCheckedDocModeInput(mode.tipo);
         if (origemValorInput) {
             origemValorInput.value = mode.origem;
+            origemValorInput.disabled = true;
         }
         if (comprovacaoInput) {
             comprovacaoInput.value = mode.comprovacao;
+            comprovacaoInput.disabled = true;
         }
         syncAllVisualSelectGroups();
+
+        setLockState('numero', mode.lockNumber, mode.lockNumber ? 'Este modo usa automaticamente a nota interna compartilhada NOTA INTERNA.' : '');
+        setLockState('emissao', mode.lockEmission, mode.lockEmission ? 'Data automática do dia para compras sem NF formal.' : '');
+        setLockState('recebimento', mode.lockReceipt, mode.lockReceipt ? 'Recebimento fixado para hoje no fluxo sem NF.' : '');
+        setLockState('cnpj', mode.lockSupplier, mode.lockSupplier ? 'Loja e CNPJ não se aplicam ao bucket manual NOTA INTERNA.' : '');
+        setLockState('chave', mode.lockAccessKey, mode.lockAccessKey ? 'Este fluxo não usa chave de acesso fiscal.' : '');
+        setLockState('finance_tipo_documento', true, 'O tipo do documento acompanha a aba selecionada acima.');
+        setLockState('finance_origem_valor', true, 'A origem do valor é fixada pelo fluxo para evitar combinações inconsistentes.');
+        setLockState('finance_comprovacao_status', true, 'A comprovação acompanha o fluxo para manter o documento coerente.');
+
+        if (referenceCard) {
+            referenceCard.classList.toggle('is-priority', Boolean(mode.referencePriority));
+        }
+        if (referencePriorityText) {
+            referencePriorityText.textContent = mode.referenceHint || '';
+        }
+        if (replacementSourceInput && normalizedModeName === 'manual' && !String(replacementSourceInput.value || '').trim()) {
+            replacementSourceInput.value = mode.defaultReplacementSource || 'Mercado Livre';
+        }
+        if (replacementQueryInput) {
+            replacementQueryInput.value = buildReplacementQuery();
+        }
+
+        if (docModeBadge) {
+            docModeBadge.textContent = mode.badge || '';
+        }
+        if (docModeGuidance) {
+            docModeGuidance.textContent = mode.guidance || '';
+        }
+        renderModeChipRow(docModeActiveFields, mode.activeFields);
+        renderModeChipRow(docModeLockedFields, mode.lockedFields);
+
+        if (submitRegistrationButton) {
+            submitRegistrationButton.textContent = mode.submitLabel || 'Registrar documento fiscal';
+        }
+    };
+
+    const applyRegistrationMode = (modeName) => {
+        const normalizedModeName = normalizeDocumentTypeValue(modeName);
+        const mode = registrationModes[normalizedModeName] || registrationModes.nf;
+        rememberModeState(currentRegistrationMode);
+        setCheckedDocModeInput(mode.tipo);
         if (docModeTitle) {
             docModeTitle.textContent = mode.title;
         }
@@ -3858,6 +4333,8 @@
         modeButtons.forEach((button) => {
             button.classList.toggle('is-active', button.dataset.docMode === mode.buttonMode);
         });
+        applyRegistrationFieldStates(normalizedModeName);
+        currentRegistrationMode = normalizedModeName;
     };
 
     document.querySelectorAll('select[name="finance_tipo_documento"], select[name="tipo_documento"]').forEach((selectElement) => {
@@ -4017,6 +4494,10 @@
         const suggestedDocumentType = normalizeDocumentTypeValue(doc.tipo_documento || 'nf');
         const shouldApplySuggestedType = source === 'explicit';
         const effectiveDocumentType = shouldApplySuggestedType ? suggestedDocumentType : currentDocumentType;
+        if (effectiveDocumentType === 'manual') {
+            hideNotaResults();
+            return;
+        }
         if (notaFiscalInput && doc.numero_documento) notaFiscalInput.value = doc.numero_documento;
         if (tipoDocumentoInput && shouldApplySuggestedType && doc.tipo_documento) {
             applyRegistrationMode(doc.tipo_documento);
@@ -4032,6 +4513,7 @@
 
     const lookupDocumentDetailsForForm = async (form, numeroDocumento, options = {}) => {
         if (!form || !numeroDocumento) return null;
+        if (currentRegistrationMode === 'manual' || notaFiscalInput?.readOnly) return null;
         const digits = String(numeroDocumento).trim();
         if (digits.length < 2) return null;
         try {
@@ -4067,7 +4549,7 @@
         notaSuggestions = items;
         notaFiscalResults.innerHTML = items.map((doc, index) => `
             <button type="button" class="list-group-item list-group-item-action" data-index="${index}">
-                <div class="fw-semibold">${doc.tipo_documento ? doc.tipo_documento.toUpperCase() : 'DOC'} ${doc.numero_documento}</div>
+                <div class="fw-semibold">${normalizeDocumentTypeValue(doc.tipo_documento || 'nf') === 'manual' && doc.numero_documento === manualSharedDocumentNumber ? manualSharedDocumentNumber : `${doc.tipo_documento ? doc.tipo_documento.toUpperCase() : 'DOC'} ${doc.numero_documento}`}</div>
                 <div class="small text-muted">${doc.fornecedor_nome || 'Fornecedor não informado'}${doc.cnpj_emitente ? ` • ${doc.cnpj_emitente}` : ''}</div>
             </button>
         `).join('');
@@ -4124,6 +4606,10 @@
     });
 
     notaFiscalInput?.addEventListener('input', () => {
+        if (notaFiscalInput.readOnly) {
+            hideNotaResults();
+            return;
+        }
         const q = notaFiscalInput.value.trim();
         if (notaTimer) clearTimeout(notaTimer);
         if (q.length < 2) {
@@ -4146,11 +4632,19 @@
     });
 
     notaFiscalInput?.addEventListener('blur', () => {
+        if (notaFiscalInput.readOnly) {
+            hideNotaResults();
+            return;
+        }
         const q = notaFiscalInput.value.trim();
         lookupDocumentDetailsForForm(nfForm, q, { source: 'passive' });
     });
 
     notaFiscalInput?.addEventListener('change', () => {
+        if (notaFiscalInput.readOnly) {
+            hideNotaResults();
+            return;
+        }
         const q = notaFiscalInput.value.trim();
         lookupDocumentDetailsForForm(nfForm, q, { source: 'passive' });
     });

@@ -22,6 +22,12 @@
             box-sizing: border-box;
         }
 
+        html,
+        body {
+            height: 100%;
+            overflow: hidden;
+        }
+
         body {
             margin: 0;
             min-height: 100vh;
@@ -35,10 +41,12 @@
 
         .mirror-shell {
             min-height: 100vh;
+            height: 100vh;
             display: grid;
-            grid-template-rows: auto 1fr;
-            padding: 1.5rem;
-            gap: 1.25rem;
+            grid-template-rows: auto minmax(0, 1fr);
+            padding: 0.9rem;
+            gap: 0.85rem;
+            overflow: hidden;
         }
 
         .mirror-topbar {
@@ -46,8 +54,8 @@
             justify-content: space-between;
             align-items: center;
             gap: 1rem;
-            padding: 1rem 1.2rem;
-            border-radius: 24px;
+            padding: 0.85rem 1rem;
+            border-radius: 20px;
             background: var(--mirror-panel);
             border: 1px solid var(--mirror-panel-border);
             backdrop-filter: blur(18px);
@@ -61,13 +69,13 @@
         }
 
         .mirror-brand strong {
-            font-size: 1.15rem;
+            font-size: 1.08rem;
             letter-spacing: 0.02em;
         }
 
         .mirror-brand span {
             color: var(--mirror-muted);
-            font-size: 0.95rem;
+            font-size: 0.88rem;
         }
 
         .mirror-status-row {
@@ -95,60 +103,67 @@
 
         .mirror-updated {
             color: var(--mirror-muted);
-            font-size: 0.88rem;
+            font-size: 0.82rem;
         }
 
         .mirror-layout {
             display: grid;
-            grid-template-columns: minmax(300px, 34vw) 1fr;
-            gap: 1.25rem;
+            grid-template-columns: minmax(260px, 30vw) minmax(0, 1fr);
+            gap: 0.85rem;
             min-height: 0;
+            height: 100%;
+            align-items: stretch;
         }
 
         .mirror-card {
             background: var(--mirror-panel);
             border: 1px solid var(--mirror-panel-border);
-            border-radius: 28px;
+            border-radius: 24px;
             backdrop-filter: blur(16px);
             box-shadow: 0 24px 54px rgba(2, 6, 23, 0.3);
+            min-height: 0;
+            overflow: hidden;
         }
 
         .mirror-media {
-            padding: 1rem;
+            padding: 0.8rem;
             display: flex;
             align-items: stretch;
             justify-content: center;
-            min-height: 100%;
+            min-height: 0;
         }
 
         .mirror-media-frame {
             width: 100%;
-            min-height: 100%;
-            border-radius: 24px;
-            background: linear-gradient(145deg, rgba(15, 23, 42, 0.94), rgba(30, 41, 59, 0.92));
-            border: 1px solid rgba(148, 163, 184, 0.16);
+            min-height: 0;
+            height: 100%;
+            border-radius: 22px;
+            background: linear-gradient(180deg, #ffffff 0%, #f4f8fc 100%);
+            border: 1px solid rgba(226, 232, 240, 0.82);
             display: flex;
             align-items: center;
             justify-content: center;
             overflow: hidden;
-            aspect-ratio: 4 / 5;
+            aspect-ratio: auto;
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.65);
         }
 
         .mirror-media-frame img {
             width: 100%;
             height: 100%;
             object-fit: contain;
-            background: rgba(255, 255, 255, 0.04);
+            background: linear-gradient(180deg, #ffffff 0%, #eef4fa 100%);
+            padding: 0.75rem;
         }
 
         .mirror-placeholder {
             text-align: center;
-            padding: 2rem;
+            padding: 1.35rem;
             color: var(--mirror-muted);
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 0.75rem;
+            gap: 0.6rem;
         }
 
         .mirror-placeholder i {
@@ -157,10 +172,12 @@
         }
 
         .mirror-content {
-            padding: 1.4rem;
+            padding: 1rem;
             display: grid;
-            grid-template-rows: auto auto 1fr auto;
-            gap: 1.1rem;
+            grid-template-rows: auto auto auto 1fr auto;
+            gap: 0.85rem;
+            min-height: 0;
+            overflow: hidden;
         }
 
         .mirror-eyebrow {
@@ -181,7 +198,7 @@
 
         .mirror-title {
             margin: 0;
-            font-size: clamp(2rem, 3vw, 3.2rem);
+            font-size: clamp(1.8rem, 2.7vw, 2.9rem);
             line-height: 1.02;
             font-weight: 900;
             letter-spacing: -0.04em;
@@ -189,21 +206,23 @@
         }
 
         .mirror-subtitle {
-            margin-top: 0.45rem;
+            margin-top: 0.3rem;
             color: var(--mirror-muted);
-            font-size: clamp(1rem, 1.4vw, 1.2rem);
+            font-size: clamp(0.94rem, 1.18vw, 1.06rem);
         }
 
         .mirror-callout {
             display: grid;
             grid-template-rows: auto 1fr auto;
-            gap: 0.95rem;
-            padding: 1.05rem 1.1rem;
-            border-radius: 22px;
+            gap: 0.75rem;
+            padding: 0.85rem 0.9rem;
+            border-radius: 20px;
             background: linear-gradient(135deg, rgba(14, 116, 144, 0.22), rgba(37, 99, 235, 0.12));
             border: 1px solid rgba(125, 211, 252, 0.18);
             color: #e0f2fe;
-            min-height: 248px;
+            min-height: 0;
+            align-content: start;
+            overflow: hidden;
         }
 
         .mirror-callout[data-tone="warning"] {
@@ -246,21 +265,25 @@
         }
 
         .mirror-live-text {
-            font-size: clamp(0.98rem, 1.35vw, 1.15rem);
+            font-size: clamp(0.94rem, 1.15vw, 1.03rem);
             font-weight: 700;
             line-height: 1.35;
         }
 
         .mirror-insight-stage {
             display: grid;
-            grid-template-columns: minmax(0, 1fr) 150px;
-            gap: 1rem;
+            grid-template-columns: minmax(0, 1fr) 122px;
+            gap: 0.75rem;
             align-items: stretch;
-            min-height: 140px;
+            min-height: 122px;
         }
 
         .mirror-insight-stage.no-photo {
             grid-template-columns: 1fr;
+        }
+
+        .mirror-insight-stage.is-batch-showcase {
+            grid-template-columns: minmax(0, 1fr) 236px;
         }
 
         .mirror-insight-copy {
@@ -358,6 +381,96 @@
             min-height: 100%;
         }
 
+        .mirror-insight-photo.mirror-gallery {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.45rem;
+            padding: 0.2rem;
+            background: transparent;
+            border: 0;
+            min-height: 0;
+        }
+
+        .mirror-gallery-item {
+            position: relative;
+            min-height: 98px;
+            border-radius: 18px;
+            overflow: hidden;
+            border: 1px solid rgba(191, 219, 254, 0.12);
+            background: rgba(15, 23, 42, 0.82);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+        }
+
+        .mirror-gallery-item.single {
+            grid-column: 1 / -1;
+            min-height: 132px;
+        }
+
+        .mirror-gallery-item img,
+        .mirror-gallery-item-placeholder {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .mirror-gallery-item img {
+            object-fit: cover;
+        }
+
+        .mirror-gallery-item-placeholder {
+            display: grid;
+            place-items: center;
+            background: linear-gradient(180deg, rgba(30, 41, 59, 0.98), rgba(15, 23, 42, 0.98));
+            color: rgba(191, 219, 254, 0.82);
+            font-size: 1.25rem;
+        }
+
+        .mirror-gallery-item-overlay {
+            position: absolute;
+            inset: auto 0 0 0;
+            display: grid;
+            gap: 0.16rem;
+            padding: 0.5rem 0.55rem;
+            background: linear-gradient(180deg, rgba(2, 6, 23, 0) 0%, rgba(2, 6, 23, 0.84) 56%, rgba(2, 6, 23, 0.98) 100%);
+        }
+
+        .mirror-gallery-item-title {
+            font-size: 0.72rem;
+            font-weight: 800;
+            line-height: 1.18;
+            color: #ffffff;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .mirror-gallery-item-meta {
+            font-size: 0.64rem;
+            color: rgba(226, 232, 240, 0.82);
+            line-height: 1.2;
+            overflow-wrap: anywhere;
+        }
+
+        .mirror-gallery-item-badge {
+            position: absolute;
+            top: 0.45rem;
+            right: 0.45rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.22rem;
+            padding: 0.22rem 0.46rem;
+            border-radius: 999px;
+            background: rgba(2, 6, 23, 0.76);
+            border: 1px solid rgba(226, 232, 240, 0.12);
+            color: #f8fafc;
+            font-size: 0.58rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
         .mirror-insight-photo img {
             width: 100%;
             height: 100%;
@@ -414,30 +527,56 @@
         .mirror-grid {
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 0.95rem;
+            gap: 0.7rem;
+            align-content: start;
         }
 
         .mirror-stat {
-            padding: 1rem 1.1rem;
-            border-radius: 20px;
+            padding: 0.95rem 1rem;
+            border-radius: 18px;
             background: rgba(255, 255, 255, 0.04);
             border: 1px solid rgba(148, 163, 184, 0.14);
+            min-height: 0;
+        }
+
+        .mirror-stat-priority {
+            background: linear-gradient(135deg, rgba(37, 99, 235, 0.18), rgba(8, 145, 178, 0.14));
+            border-color: rgba(125, 211, 252, 0.2);
+        }
+
+        .mirror-stat-context {
+            grid-column: span 2;
         }
 
         .mirror-stat-label {
             display: block;
-            margin-bottom: 0.3rem;
-            font-size: 0.82rem;
+            margin-bottom: 0.22rem;
+            font-size: 0.7rem;
             text-transform: uppercase;
             letter-spacing: 0.05em;
             color: #93c5fd;
         }
 
         .mirror-stat-value {
-            font-size: clamp(1rem, 1.35vw, 1.35rem);
+            font-size: clamp(0.96rem, 1.08vw, 1.14rem);
             font-weight: 800;
             color: var(--mirror-text);
-            line-height: 1.2;
+            line-height: 1.15;
+            overflow-wrap: anywhere;
+        }
+
+        .mirror-stat-priority .mirror-stat-value {
+            font-size: clamp(1.24rem, 2vw, 1.92rem);
+            font-weight: 900;
+        }
+
+        .mirror-stat-context .mirror-stat-value {
+            color: #ffffff;
+        }
+
+        .mirror-stat-code .mirror-stat-value,
+        .mirror-stat-status .mirror-stat-value {
+            font-size: clamp(1.02rem, 1.3vw, 1.28rem);
         }
 
         .mirror-footer {
@@ -446,9 +585,9 @@
             align-items: center;
             gap: 1rem;
             flex-wrap: wrap;
-            padding-top: 0.5rem;
+            padding-top: 0.2rem;
             color: var(--mirror-muted);
-            font-size: 0.95rem;
+            font-size: 0.78rem;
         }
 
         .mirror-empty .mirror-title {
@@ -488,20 +627,20 @@
         }
 
         .mirror-live-strip {
-            display: grid;
-            grid-template-columns: minmax(0, 1.18fr) minmax(250px, 0.82fr);
-            gap: 0.8rem;
+            display: none;
+            grid-template-columns: minmax(0, 1.4fr) minmax(260px, 0.6fr);
+            gap: 0.65rem;
             min-height: 0;
         }
 
         .mirror-batch-panel,
         .mirror-draft-panel {
-            padding: 0.85rem 0.9rem;
-            border-radius: 20px;
+            padding: 0.72rem 0.8rem;
+            border-radius: 18px;
             background: rgba(255, 255, 255, 0.04);
             border: 1px solid rgba(148, 163, 184, 0.14);
             display: grid;
-            gap: 0.7rem;
+            gap: 0.55rem;
             min-height: 0;
         }
 
@@ -530,17 +669,17 @@
         }
 
         .mirror-batch-title {
-            margin: 0.45rem 0 0;
-            font-size: 1rem;
+            margin: 0.32rem 0 0;
+            font-size: 0.94rem;
             font-weight: 900;
             line-height: 1.2;
         }
 
         .mirror-batch-copy,
         .mirror-draft-note {
-            margin: 0.22rem 0 0;
+            margin: 0.15rem 0 0;
             color: rgba(226, 232, 240, 0.74);
-            font-size: 0.78rem;
+            font-size: 0.73rem;
             line-height: 1.38;
         }
 
@@ -548,22 +687,22 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            min-width: 96px;
-            padding: 0.44rem 0.8rem;
+            min-width: 88px;
+            padding: 0.4rem 0.72rem;
             border-radius: 999px;
             background: rgba(15, 23, 42, 0.72);
             border: 1px solid rgba(148, 163, 184, 0.16);
             color: #f8fafc;
-            font-size: 0.76rem;
+            font-size: 0.72rem;
             font-weight: 800;
             text-align: center;
         }
 
         .mirror-batch-list {
             display: grid;
-            gap: 0.55rem;
+            gap: 0.45rem;
             min-height: 0;
-            max-height: 232px;
+            max-height: 196px;
             overflow: auto;
             padding-right: 0.1rem;
         }
@@ -589,9 +728,9 @@
         .mirror-batch-row {
             display: grid;
             grid-template-columns: 48px minmax(0, 1fr) auto;
-            gap: 0.6rem;
+            gap: 0.5rem;
             align-items: center;
-            padding: 0.64rem;
+            padding: 0.54rem;
             border-radius: 16px;
             background: rgba(15, 23, 42, 0.48);
             border: 1px solid rgba(148, 163, 184, 0.14);
@@ -705,7 +844,7 @@
         }
 
         .mirror-draft-field {
-            padding: 0.68rem 0.72rem;
+            padding: 0.6rem 0.64rem;
             border-radius: 16px;
             background: rgba(15, 23, 42, 0.48);
             border: 1px solid rgba(148, 163, 184, 0.14);
@@ -721,7 +860,7 @@
         }
 
         .mirror-draft-value {
-            font-size: 0.88rem;
+            font-size: 1rem;
             font-weight: 900;
             line-height: 1.18;
             color: #f8fafc;
@@ -730,8 +869,8 @@
 
         .mirror-custody-frame {
             display: grid;
-            grid-template-columns: minmax(0, 1.45fr) minmax(250px, 0.55fr);
-            gap: 0.8rem;
+            grid-template-columns: 1fr;
+            gap: 0.7rem;
             min-height: 0;
             align-items: stretch;
         }
@@ -748,9 +887,9 @@
         .mirror-custody-spotlight {
             position: relative;
             display: grid;
-            grid-template-columns: minmax(220px, 34%) minmax(0, 1fr);
-            min-height: 420px;
-            max-height: calc(100vh - 210px);
+            grid-template-columns: minmax(250px, 31%) minmax(0, 1fr);
+            min-height: 0;
+            max-height: none;
         }
 
         .mirror-custody-spotlight.alert {
@@ -767,8 +906,8 @@
             width: 100%;
             height: 100%;
             object-fit: contain;
-            padding: 0.9rem;
-            background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(15, 23, 42, 0.84));
+            padding: 1rem;
+            background: linear-gradient(180deg, #ffffff 0%, #eef4fa 100%);
         }
 
         .mirror-custody-visual-empty {
@@ -790,26 +929,26 @@
         .mirror-custody-content {
             display: grid;
             align-content: start;
-            gap: 0.78rem;
-            padding: 0.95rem 1rem;
+            gap: 0.7rem;
+            padding: 0.95rem 1.05rem;
         }
 
         .mirror-custody-badges {
             display: flex;
             flex-wrap: wrap;
-            gap: 0.5rem;
+            gap: 0.38rem;
         }
 
         .mirror-custody-pill {
             display: inline-flex;
             align-items: center;
             gap: 0.4rem;
-            padding: 0.34rem 0.74rem;
+            padding: 0.24rem 0.56rem;
             border-radius: 999px;
             background: rgba(255, 255, 255, 0.08);
             border: 1px solid rgba(148, 163, 184, 0.14);
             color: rgba(226, 232, 240, 0.9);
-            font-size: 0.72rem;
+            font-size: 0.7rem;
             font-weight: 800;
             letter-spacing: 0.06em;
             text-transform: uppercase;
@@ -823,7 +962,7 @@
 
         .mirror-custody-title {
             margin: 0;
-            font-size: clamp(1.32rem, 2vw, 2rem);
+            font-size: clamp(1.6rem, 2.2vw, 2.35rem);
             line-height: 1.02;
             font-weight: 900;
             letter-spacing: -0.04em;
@@ -833,23 +972,92 @@
         .mirror-custody-copy {
             margin: 0;
             color: rgba(226, 232, 240, 0.84);
-            font-size: 0.86rem;
+            font-size: 0.82rem;
             line-height: 1.4;
+        }
+
+        .mirror-custody-focus-strip {
+            display: grid;
+            grid-template-columns: minmax(0, 1.35fr) repeat(2, minmax(180px, 0.85fr));
+            gap: 0.48rem;
+        }
+
+        .mirror-custody-focus-card {
+            padding: 0.62rem 0.7rem;
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(148, 163, 184, 0.14);
+            display: grid;
+            gap: 0.16rem;
+        }
+
+        .mirror-custody-focus-card.primary {
+            background: linear-gradient(135deg, rgba(37, 99, 235, 0.2), rgba(14, 116, 144, 0.18));
+            border-color: rgba(125, 211, 252, 0.24);
+        }
+
+        .mirror-custody-focus-label {
+            font-size: 0.68rem;
+            letter-spacing: 0.07em;
+            text-transform: uppercase;
+            color: rgba(191, 219, 254, 0.82);
+        }
+
+        .mirror-custody-focus-value {
+            font-size: clamp(1.05rem, 1.45vw, 1.35rem);
+            font-weight: 900;
+            color: #ffffff;
+            line-height: 1.14;
+            overflow-wrap: anywhere;
+        }
+
+        .mirror-custody-focus-note {
+            font-size: 0.72rem;
+            color: rgba(226, 232, 240, 0.74);
+            line-height: 1.34;
         }
 
         .mirror-custody-stat-grid {
             display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
+            grid-template-columns: repeat(3, minmax(0, 1fr));
             gap: 0.55rem;
         }
 
         .mirror-custody-stat-card {
-            padding: 0.72rem 0.76rem;
+            padding: 0.76rem 0.82rem;
             border-radius: 16px;
             background: rgba(255, 255, 255, 0.06);
             border: 1px solid rgba(148, 163, 184, 0.14);
             display: grid;
             gap: 0.16rem;
+        }
+
+        .mirror-custody-stat-card.usage {
+            grid-column: span 2;
+            background: linear-gradient(145deg, rgba(37, 99, 235, 0.24), rgba(14, 116, 144, 0.18));
+            border-color: rgba(125, 211, 252, 0.24);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+        }
+
+        .mirror-custody-stat-card.usage .mirror-custody-stat-card-label {
+            color: rgba(191, 219, 254, 0.92);
+        }
+
+        .mirror-custody-stat-card.usage .mirror-custody-stat-card-value {
+            font-size: clamp(2.1rem, 4.4vw, 4.4rem);
+            line-height: 0.92;
+            letter-spacing: -0.07em;
+            color: #ffffff;
+        }
+
+        .mirror-custody-stat-card.usage .mirror-custody-stat-card-note {
+            font-size: 0.8rem;
+            color: rgba(224, 242, 254, 0.92);
+        }
+
+        .mirror-custody-stat-card.observation .mirror-custody-stat-card-value {
+            font-size: clamp(1.02rem, 1.4vw, 1.26rem);
+            line-height: 1.22;
         }
 
         .mirror-custody-stat-card.alert {
@@ -869,7 +1077,7 @@
         }
 
         .mirror-custody-stat-card-value {
-            font-size: 1rem;
+            font-size: clamp(1rem, 1.3vw, 1.18rem);
             font-weight: 900;
             color: #f8fafc;
             line-height: 1.1;
@@ -978,8 +1186,8 @@
             justify-content: space-between;
             align-items: flex-start;
             gap: 1rem;
-            padding: 1.1rem 1.2rem;
-            border-radius: 24px;
+            padding: 0.66rem 0.82rem;
+            border-radius: 20px;
             background: var(--mirror-panel);
             border: 1px solid var(--mirror-panel-border);
             box-shadow: 0 22px 48px rgba(2, 6, 23, 0.24);
@@ -987,28 +1195,28 @@
 
         .mirror-custody-stage-title {
             margin: 0;
-            font-size: clamp(1.3rem, 2vw, 1.8rem);
+            font-size: clamp(1.25rem, 1.8vw, 1.65rem);
             font-weight: 900;
             letter-spacing: -0.03em;
         }
 
         .mirror-custody-stage-copy {
-            margin: 0.35rem 0 0;
+            margin: 0.16rem 0 0;
             color: var(--mirror-muted);
-            font-size: 0.98rem;
-            line-height: 1.45;
+            font-size: 0.76rem;
+            line-height: 1.3;
         }
 
         .mirror-custody-stage-meta {
             display: inline-flex;
             align-items: center;
             gap: 0.5rem;
-            padding: 0.55rem 0.9rem;
+            padding: 0.34rem 0.68rem;
             border-radius: 999px;
             border: 1px solid rgba(96, 165, 250, 0.18);
             background: rgba(37, 99, 235, 0.12);
             color: #dbeafe;
-            font-size: 0.82rem;
+            font-size: 0.72rem;
             font-weight: 700;
             white-space: nowrap;
         }
@@ -1396,6 +1604,10 @@
                 grid-template-columns: 1fr;
             }
 
+            .mirror-stat-context {
+                grid-column: auto;
+            }
+
             .mirror-insight-stage {
                 grid-template-columns: 1fr;
             }
@@ -1415,6 +1627,14 @@
 
             .mirror-custody-stat-grid,
             .mirror-custody-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .mirror-custody-stat-card.usage {
+                grid-column: auto;
+            }
+
+            .mirror-custody-focus-strip {
                 grid-template-columns: 1fr;
             }
 
@@ -1493,29 +1713,29 @@
                 </div>
 
                 <div class="mirror-grid">
-                    <article class="mirror-stat">
-                        <span class="mirror-stat-label">Operacao</span>
-                        <span class="mirror-stat-value" id="mirror-kind">{% if mirror_mode %}{{ mirror_mode|capitalize }}{% else %}Aguardando{% endif %}</span>
+                    <article class="mirror-stat mirror-stat-priority mirror-stat-context">
+                        <span class="mirror-stat-label">Local do serviço</span>
+                        <span class="mirror-stat-value" id="mirror-context">--</span>
+                    </article>
+                    <article class="mirror-stat mirror-stat-priority mirror-stat-actor">
+                        <span class="mirror-stat-label">Colaborador em foco</span>
+                        <span class="mirror-stat-value" id="mirror-actor">--</span>
                     </article>
                     <article class="mirror-stat">
                         <span class="mirror-stat-label">Quantidade</span>
                         <span class="mirror-stat-value" id="mirror-quantity">--</span>
                     </article>
-                    <article class="mirror-stat">
-                        <span class="mirror-stat-label">Colaborador</span>
-                        <span class="mirror-stat-value" id="mirror-actor">--</span>
+                    <article class="mirror-stat mirror-stat-code">
+                        <span class="mirror-stat-label">Código do item</span>
+                        <span class="mirror-stat-value" id="mirror-batch">--</span>
                     </article>
-                    <article class="mirror-stat">
-                        <span class="mirror-stat-label">Contexto</span>
-                        <span class="mirror-stat-value" id="mirror-context">--</span>
-                    </article>
-                    <article class="mirror-stat">
+                    <article class="mirror-stat mirror-stat-status">
                         <span class="mirror-stat-label">Saldo</span>
                         <span class="mirror-stat-value" id="mirror-stock">--</span>
                     </article>
-                    <article class="mirror-stat">
-                        <span class="mirror-stat-label">Lote atual</span>
-                        <span class="mirror-stat-value" id="mirror-batch">--</span>
+                    <article class="mirror-stat mirror-stat-status">
+                        <span class="mirror-stat-label">Operação</span>
+                        <span class="mirror-stat-value" id="mirror-kind">{% if mirror_mode %}{{ mirror_mode|capitalize }}{% else %}Aguardando{% endif %}</span>
                     </article>
                 </div>
 
@@ -1569,7 +1789,7 @@
             <div class="mirror-custody-stage-head">
                 <div>
                     <h2 class="mirror-custody-stage-title">Custódia diária em destaque</h2>
-                    <p class="mirror-custody-stage-copy" id="mirror-custody-stage-copy">Sem novas saídas há pelo menos 2 minutos. Cada ferramenta entra como slide de 00:30, com atrasadas em destaque, até a operação voltar.</p>
+                    <p class="mirror-custody-stage-copy" id="mirror-custody-stage-copy">Sem novas saídas há pelo menos 2 minutos. Cada ferramenta entra como slide de 01:30, com foco em local, responsável e atraso, até a operação voltar.</p>
                 </div>
                 <div class="mirror-custody-stage-meta" id="mirror-custody-stage-meta"><i class="bi bi-clock-history"></i> Aguardando dados</div>
             </div>
@@ -1640,7 +1860,8 @@
                     '<div><strong>Aguardando operacao</strong><div>Abra a tela de saida ou devolucao no monitor principal e selecione um item.</div></div>' +
                 '</div>';
             const custodyIdleThresholdMs = 120000;
-            const custodyItemRotationMs = 30000;
+            const custodyItemRotationMs = 90000;
+            const serverStatePollMs = 80;
             let insightItems = [];
             let insightIndex = 0;
             let insightRotationSeconds = 10;
@@ -1651,6 +1872,9 @@
             let custodyFeedIndex = 0;
             let custodyRotationTimer = null;
             let custodyFeedSignature = '';
+            let latestMirrorPayload = null;
+            let serverStatePollTimer = null;
+            let serverStatePollPending = false;
 
             function buildPanelEndpointUrl(basePath) {
                 const params = new URLSearchParams();
@@ -1734,6 +1958,98 @@
                 }));
             }
 
+            function getPrimaryMirrorItem(payload) {
+                const item = payload?.item || null;
+                if (item && (item.codigo || item.descricao || item.foto_url)) {
+                    return {
+                        codigo: String(item.codigo || '').trim(),
+                        descricao: String(item.descricao || item.codigo || 'Item').trim(),
+                        categoria: String(item.categoria || '').trim(),
+                        marca: String(item.marca || '').trim(),
+                        foto_url: String(item.foto_url || '').trim(),
+                        saldo_display: String(item.saldo_display || item.saldo || '').trim(),
+                        quantidade_display: String(payload?.movement?.quantidade_display || payload?.movement?.quantidade || '').trim(),
+                        usuario: String(payload?.actor?.nome || payload?.actor?.matricula || '').trim(),
+                        local_servico: String(payload?.context?.local_servico || '').trim(),
+                    };
+                }
+
+                const batchItems = normalizeBatchItems(payload);
+                if (!batchItems.length) {
+                    return null;
+                }
+
+                const preferred = batchItems.slice().reverse().find((entry) => entry.status === 'preview')
+                    || batchItems[batchItems.length - 1];
+
+                return {
+                    codigo: preferred.codigo,
+                    descricao: preferred.descricao,
+                    categoria: '',
+                    marca: '',
+                    foto_url: preferred.foto_url,
+                    saldo_display: '',
+                    quantidade_display: preferred.quantidade_display,
+                    usuario: preferred.usuario,
+                    local_servico: preferred.local,
+                };
+            }
+
+            function renderPrimaryItemMedia(item) {
+                if (!item) {
+                    return emptyMediaHtml;
+                }
+                if (item.foto_url) {
+                    return '<img src="' + escapeHtml(item.foto_url) + '" alt="' + escapeHtml(item.descricao || item.codigo || 'Item') + '">';
+                }
+                return '<div class="mirror-placeholder"><i class="bi bi-image"></i><div><strong>Sem foto</strong><div>Cadastre uma imagem para melhorar a conferência visual.</div></div></div>';
+            }
+
+            function buildPrimaryItemSubtitle(item) {
+                if (!item) {
+                    return 'Quando um item entrar em foco, a foto e o contexto operacional aparecem aqui em tempo real.';
+                }
+                const parts = [];
+                if (item.codigo) parts.push('Código ' + item.codigo);
+                if (item.categoria) parts.push(item.categoria);
+                if (item.marca) parts.push(item.marca);
+                return parts.length ? parts.join(' • ') : 'Último item visível da operação atual.';
+            }
+
+            function buildOperationalShowcaseItems(payload) {
+                const batchItems = normalizeBatchItems(payload);
+                const primaryItem = getPrimaryMirrorItem(payload);
+                const items = batchItems.slice();
+
+                if (primaryItem) {
+                    const duplicateIndex = items.findIndex((entry) => {
+                        return entry.codigo === primaryItem.codigo
+                            && entry.usuario === primaryItem.usuario
+                            && entry.local === primaryItem.local_servico
+                            && entry.quantidade_display === primaryItem.quantidade_display;
+                    });
+
+                    if (duplicateIndex === -1) {
+                        items.push({
+                            codigo: primaryItem.codigo,
+                            descricao: primaryItem.descricao,
+                            quantidade_display: primaryItem.quantidade_display,
+                            usuario: primaryItem.usuario,
+                            local: primaryItem.local_servico,
+                            foto_url: primaryItem.foto_url,
+                            status: String(payload?.status || 'preview').trim().toLowerCase(),
+                        });
+                    }
+                }
+
+                return items.slice(-4);
+            }
+
+            function shouldRenderOperationalShowcase(payload) {
+                const items = buildOperationalShowcaseItems(payload);
+                return Boolean(items.length);
+            }
+
             function batchStatusMeta(status) {
                 if (status === 'completed') {
                     return { label: 'confirmado', className: 'done', icon: 'bi-check2-circle' };
@@ -1804,7 +2120,7 @@
                 if (draftLocal) draftLocal.textContent = draft.local || '--';
                 if (draftNote) {
                     draftNote.textContent = hasDraft
-                        ? 'Enquanto o operador digita no Flask, a leitura deste bloco é atualizada em tempo real no painel do colaborador.'
+                        ? 'A cada digito no Flask, este bloco acompanha a digitação quase em tempo real no segundo monitor.'
                         : 'Tudo que o operador digitar aparece aqui antes mesmo da confirmação do item.';
                 }
             }
@@ -1984,14 +2300,12 @@
 
                 const currentItem = custodyFeedItems[custodyFeedIndex] || custodyFeedItems[0];
                 const stats = buildCustodyStats(custodyFeedItems);
-                const nextItems = custodyFeedItems
-                    .slice(custodyFeedIndex + 1)
-                    .concat(custodyFeedItems.slice(0, custodyFeedIndex))
-                    .slice(0, 4);
                 const positionText = `${custodyFeedIndex + 1}/${custodyFeedItems.length}`;
                 const predictedReturn = currentItem?.data_prevista_devolucao
                     ? formatShortDate(currentItem.data_prevista_devolucao)
                     : 'Sem previsão cadastrada';
+                const localServico = escapeHtml(currentItem?.local_servico || 'Não informado');
+                const colaborador = escapeHtml(currentItem?.usuario || 'Colaborador não informado');
                 const visualHtml = currentItem?.foto_url
                     ? `<img class="mirror-custody-visual" src="${escapeHtml(currentItem.foto_url)}" alt="${escapeHtml(currentItem.descricao || 'Ferramenta')}">`
                     : '<div class="mirror-custody-visual-empty"><i class="bi bi-image"></i><div><strong>Sem foto da ferramenta</strong><div>Cadastre uma imagem para melhorar a conferência visual da custódia.</div></div></div>';
@@ -2002,13 +2316,32 @@
                         <div class="mirror-custody-content">
                             <div class="mirror-custody-badges">
                                 <span class="mirror-custody-pill"><i class="bi bi-tools"></i> Custódia diária</span>
-                                <span class="mirror-custody-pill"><i class="bi bi-person-badge"></i> ${escapeHtml(currentItem?.usuario || 'Colaborador não informado')}</span>
+                                <span class="mirror-custody-pill"><i class="bi bi-person-badge"></i> ${colaborador}</span>
+                                <span class="mirror-custody-pill"><i class="bi bi-clock-history"></i> Slide ${formatDurationClock(custodyItemRotationMs / 1000)}</span>
                                 <span class="mirror-custody-pill ${currentItem?.atrasada ? 'alert' : ''}"><i class="bi ${currentItem?.atrasada ? 'bi-exclamation-diamond' : 'bi-clock-history'}"></i> ${currentItem?.atrasada ? 'Atrasada' : 'Dentro do prazo'}</span>
                             </div>
 
                             <div>
                                 <h3 class="mirror-custody-title">${escapeHtml(currentItem?.descricao || 'Ferramenta não identificada')}</h3>
-                                <p class="mirror-custody-copy">${currentItem?.atrasada ? 'ATENÇÃO: ferramenta em atraso.' : 'Ferramenta em custódia diária.'} Responsável: ${escapeHtml(currentItem?.usuario || 'colaborador não informado')} • Local: ${escapeHtml(currentItem?.local_servico || 'não informado')} • Slide de ${formatDurationClock(custodyItemRotationMs / 1000)}.</p>
+                                <p class="mirror-custody-copy">${currentItem?.atrasada ? 'ATENÇÃO: ferramenta em atraso.' : 'Ferramenta em custódia diária.'} A leitura abaixo prioriza o local do serviço, o responsável e a janela operacional para conferência rápida.</p>
+                            </div>
+
+                            <div class="mirror-custody-focus-strip">
+                                <article class="mirror-custody-focus-card primary">
+                                    <span class="mirror-custody-focus-label">Local do serviço</span>
+                                    <strong class="mirror-custody-focus-value">${localServico}</strong>
+                                    <span class="mirror-custody-focus-note">Ponto principal para devolução e checagem visual.</span>
+                                </article>
+                                <article class="mirror-custody-focus-card">
+                                    <span class="mirror-custody-focus-label">Colaborador</span>
+                                    <strong class="mirror-custody-focus-value">${colaborador}</strong>
+                                    <span class="mirror-custody-focus-note">Matrícula ${escapeHtml(currentItem?.matricula_full || currentItem?.matricula || '--')}</span>
+                                </article>
+                                <article class="mirror-custody-focus-card">
+                                    <span class="mirror-custody-focus-label">Rotação</span>
+                                    <strong class="mirror-custody-focus-value">${positionText}</strong>
+                                    <span class="mirror-custody-focus-note">${formatCount(stats.totalItems, 'ferramenta ativa', 'ferramentas ativas')}</span>
+                                </article>
                             </div>
 
                             <div class="mirror-custody-stat-grid">
@@ -2017,22 +2350,17 @@
                                     <strong class="mirror-custody-stat-card-value">${escapeHtml(currentItem?.quantidade || 0)}</strong>
                                     <span class="mirror-custody-stat-card-note">Quantidade associada a esta retirada</span>
                                 </article>
-                                <article class="mirror-custody-stat-card ${currentItem?.atrasada ? 'alert' : ''}">
+                                <article class="mirror-custody-stat-card usage ${currentItem?.atrasada ? 'alert' : ''}">
                                     <span class="mirror-custody-stat-card-label">Tempo em uso</span>
                                     <strong class="mirror-custody-stat-card-value">${escapeHtml(formatDays(currentItem?.dias_em_uso || 0))}</strong>
                                     <span class="mirror-custody-stat-card-note">${currentItem?.atrasada ? 'Já ultrapassou o prazo diário previsto' : 'Acompanhamento diário ativo'}</span>
                                 </article>
                                 <article class="mirror-custody-stat-card">
-                                    <span class="mirror-custody-stat-card-label">Retirada registrada</span>
+                                    <span class="mirror-custody-stat-card-label">Janela operacional</span>
                                     <strong class="mirror-custody-stat-card-value">${escapeHtml(formatShortDate(currentItem?.data_retirada_iso))}</strong>
-                                    <span class="mirror-custody-stat-card-note">Momento em que a ferramenta saiu do controle</span>
+                                    <span class="mirror-custody-stat-card-note">Previsão de retorno: ${escapeHtml(predictedReturn)}</span>
                                 </article>
-                                <article class="mirror-custody-stat-card">
-                                    <span class="mirror-custody-stat-card-label">Previsão de retorno</span>
-                                    <strong class="mirror-custody-stat-card-value">${escapeHtml(predictedReturn)}</strong>
-                                    <span class="mirror-custody-stat-card-note">Base para leitura rápida do prazo operacional</span>
-                                </article>
-                                <article class="mirror-custody-stat-card wide">
+                                <article class="mirror-custody-stat-card wide observation">
                                     <span class="mirror-custody-stat-card-label">Observação operacional</span>
                                     <strong class="mirror-custody-stat-card-value">${escapeHtml(currentItem?.observacao || 'Sem observação adicional cadastrada')}</strong>
                                     <span class="mirror-custody-stat-card-note">Código ${escapeHtml(currentItem?.codigo || '--')} • Matrícula ${escapeHtml(currentItem?.matricula_full || currentItem?.matricula || '--')}</span>
@@ -2040,52 +2368,6 @@
                             </div>
                         </div>
                     </article>
-
-                    <aside class="mirror-custody-side">
-                        <section class="mirror-custody-side-block">
-                            <div class="mirror-custody-rotation"><i class="bi bi-clock-history"></i> Troca automática a cada ${formatDurationClock(custodyItemRotationMs / 1000)}</div>
-                            <h4 class="mirror-custody-side-title">Painel de leitura rápida</h4>
-                            <p class="mirror-custody-side-copy">A vitrine percorre as ferramentas uma a uma. Cada foto fica 00:30 na tela e as atrasadas entram primeiro.</p>
-                            <div class="mirror-custody-summary-list">
-                                <div class="mirror-custody-summary-row">
-                                    <span class="mirror-custody-summary-label">Ferramenta atual</span>
-                                    <strong class="mirror-custody-summary-value">${positionText}</strong>
-                                </div>
-                                <div class="mirror-custody-summary-row">
-                                    <span class="mirror-custody-summary-label">Total em custódia diária</span>
-                                    <strong class="mirror-custody-summary-value">${formatCount(stats.totalItems, 'ferramenta', 'ferramentas')}</strong>
-                                </div>
-                                <div class="mirror-custody-summary-row">
-                                    <span class="mirror-custody-summary-label">Atrasadas</span>
-                                    <strong class="mirror-custody-summary-value">${formatCount(stats.overdueCount, 'ferramenta atrasada', 'ferramentas atrasadas')}</strong>
-                                </div>
-                                <div class="mirror-custody-summary-row">
-                                    <span class="mirror-custody-summary-label">Colaboradores envolvidos</span>
-                                    <strong class="mirror-custody-summary-value">${formatCount(stats.employeeCount, 'colaborador', 'colaboradores')}</strong>
-                                </div>
-                                <div class="mirror-custody-summary-row">
-                                    <span class="mirror-custody-summary-label">Maior permanência aberta</span>
-                                    <strong class="mirror-custody-summary-value">${escapeHtml(formatDays(stats.longestDays))}</strong>
-                                </div>
-                            </div>
-                        </section>
-
-                        <section class="mirror-custody-side-block">
-                            <h4 class="mirror-custody-side-title">Próximas ferramentas na fila</h4>
-                            <p class="mirror-custody-side-copy">A rotação prioriza atrasadas e depois as que estão há mais tempo em posse.</p>
-                            <div class="mirror-custody-upnext">
-                                ${nextItems.length
-                                    ? nextItems.map((item, index) => `
-                                        <div class="mirror-custody-upnext-row ${item.atrasada ? 'alert' : ''}">
-                                            <span class="mirror-custody-upnext-label">Próxima ${custodyFeedIndex + index + 2}/${custodyFeedItems.length}</span>
-                                            <strong class="mirror-custody-upnext-value">${escapeHtml(item.descricao || 'Ferramenta não identificada')}</strong>
-                                            <span class="mirror-custody-upnext-value">${escapeHtml(item.usuario || 'Colaborador não informado')} • ${escapeHtml(formatDays(item.dias_em_uso || 0))}${item.atrasada ? ' • atrasada' : ''}</span>
-                                        </div>
-                                    `).join('')
-                                    : '<div class="mirror-custody-summary-row"><span class="mirror-custody-summary-label">Fila</span><strong class="mirror-custody-summary-value">Sem outras ferramentas aguardando rotação.</strong></div>'}
-                            </div>
-                        </section>
-                    </aside>
                 `;
 
                 if (custodyStageMeta) {
@@ -2174,7 +2456,7 @@
 
                 const idleMinutes = Math.max(2, Math.floor(getPayloadAgeMs(payload) / 60000));
                 if (custodyStageCopy) {
-                    custodyStageCopy.textContent = `Sem novas saídas há ${idleMinutes} minuto(s). Cada ferramenta entra como slide de ${formatDurationClock(custodyItemRotationMs / 1000)}, com destaque para atrasadas, até a operação retomar.`;
+                    custodyStageCopy.textContent = `Sem novas saídas há ${idleMinutes} minuto(s). Cada ferramenta entra como slide de ${formatDurationClock(custodyItemRotationMs / 1000)}, com foco em local, responsável e atraso, até a operação retomar.`;
                 }
                 statusBadge.className = 'mirror-badge status-preview';
                 statusBadge.innerHTML = '<i class="bi bi-grid-1x2"></i> custódia diária';
@@ -2212,6 +2494,7 @@
                 const total = insightItems.length;
                 const tone = String(insight.tone || 'neutral').toLowerCase();
                 callout.dataset.tone = tone;
+                insightStage.classList.remove('is-batch-showcase');
                 insightKicker.textContent = insight.kicker || 'Painel operacional';
                 insightIcon.className = 'bi ' + (insight.icon || 'bi-stars') + ' mirror-insight-icon';
                 insightTitle.textContent = insight.title || 'Sem informativos no momento';
@@ -2230,12 +2513,79 @@
                     }
                     insightStage.classList.remove('no-photo');
                     insightPhoto.classList.remove('mirror-hidden');
+                    insightPhoto.classList.remove('mirror-gallery');
                     insightPhoto.innerHTML = '<img src="' + escapeHtml(insight.photo_url) + '" alt="' + escapeHtml(insight.photo_alt || insight.title || 'Insight operacional') + '">' + badge;
                 } else {
                     insightStage.classList.add('no-photo');
+                    insightPhoto.classList.remove('mirror-gallery');
                     insightPhoto.classList.add('mirror-hidden');
                     insightPhoto.innerHTML = '';
                 }
+            }
+
+            function renderOperationalShowcase(payload) {
+                const showcaseItems = buildOperationalShowcaseItems(payload);
+                if (!showcaseItems.length) {
+                    renderInsightCard(insightItems[insightIndex] || emptyInsight());
+                    restartInsightRotation();
+                    return;
+                }
+
+                if (insightRotationTimer) {
+                    window.clearInterval(insightRotationTimer);
+                    insightRotationTimer = null;
+                }
+
+                const total = Math.max(Number(payload?.batch_total || 0), showcaseItems.length);
+                const primary = showcaseItems[showcaseItems.length - 1];
+                const actorLabel = primary?.usuario || payload?.actor?.nome || payload?.actor?.matricula || 'colaborador';
+                const status = String(payload?.status || 'preview').trim().toLowerCase();
+
+                callout.dataset.tone = status === 'completed' ? 'success' : 'info';
+                insightStage.classList.remove('no-photo');
+                insightStage.classList.add('is-batch-showcase');
+                insightKicker.textContent = total > 1 ? 'Fila visual do colaborador' : 'Item em separação';
+                insightIcon.className = 'bi bi-images mirror-insight-icon';
+                insightTitle.textContent = total > 1
+                    ? (formatCount(total, 'item na saída', 'itens na saída') + ' para ' + actorLabel)
+                    : (primary?.descricao || primary?.codigo || 'Item em separação');
+                insightText.textContent = showcaseItems.length > 1
+                    ? 'Os itens entram aqui conforme são escolhidos. Cada novo item aparece ao lado dos anteriores para a leitura do colaborador.'
+                    : 'Assim que o item entra no campo, a imagem dele sobe para o painel do colaborador.';
+                insightPrimaryLabel.textContent = 'Itens na saída';
+                insightPrimaryValue.textContent = String(total || showcaseItems.length || 0);
+                insightSecondaryLabel.textContent = 'Último item';
+                insightSecondaryValue.textContent = primary?.quantidade_display || '--';
+                insightSource.textContent = primary?.local || payload?.context?.local_servico || 'Fila visual do colaborador';
+                insightPosition.textContent = String(showcaseItems.length) + '/' + String(total || showcaseItems.length);
+
+                insightPhoto.classList.remove('mirror-hidden');
+                insightPhoto.classList.add('mirror-gallery');
+                insightPhoto.innerHTML = showcaseItems.map((entry, index) => {
+                    const photoHtml = entry.foto_url
+                        ? '<img src="' + escapeHtml(entry.foto_url) + '" alt="' + escapeHtml(entry.descricao || entry.codigo || 'Item') + '">'
+                        : '<div class="mirror-gallery-item-placeholder"><i class="bi bi-image"></i></div>';
+                    const badge = index === showcaseItems.length - 1 ? 'Agora' : ('Fila ' + String(index + 1));
+                    const itemClass = showcaseItems.length === 1 ? 'mirror-gallery-item single' : 'mirror-gallery-item';
+                    return '' +
+                        '<article class="' + itemClass + '">' +
+                            photoHtml +
+                            '<span class="mirror-gallery-item-badge">' + escapeHtml(badge) + '</span>' +
+                            '<div class="mirror-gallery-item-overlay">' +
+                                '<div class="mirror-gallery-item-title">' + escapeHtml(entry.descricao || entry.codigo || 'Item') + '</div>' +
+                                '<div class="mirror-gallery-item-meta">' + escapeHtml(entry.codigo || '--') + ' • ' + escapeHtml(entry.quantidade_display || '--') + '</div>' +
+                            '</div>' +
+                        '</article>';
+                }).join('');
+            }
+
+            function syncInsightStage(payload) {
+                if (shouldRenderOperationalShowcase(payload)) {
+                    renderOperationalShowcase(payload);
+                    return;
+                }
+                renderInsightCard(insightItems[insightIndex] || emptyInsight());
+                restartInsightRotation();
             }
 
             function restartInsightRotation() {
@@ -2269,6 +2619,9 @@
                     const data = await response.json();
                     insightItems = Array.isArray(data.items) ? data.items : [];
                     insightRotationSeconds = Math.max(Number(data.rotation_seconds || 10), 5);
+                    if (shouldRenderOperationalShowcase(latestMirrorPayload)) {
+                        return;
+                    }
                     if (!insightItems.length) {
                         insightIndex = 0;
                         renderInsightCard(emptyInsight());
@@ -2282,7 +2635,7 @@
                     restartInsightRotation();
                 } catch (error) {
                     console.error('Erro ao carregar informativos do painel espelho:', error);
-                    if (!insightItems.length) {
+                    if (!insightItems.length && !shouldRenderOperationalShowcase(latestMirrorPayload)) {
                         renderInsightCard(emptyInsight());
                     }
                 }
@@ -2322,27 +2675,36 @@
                 }
                 const meta = statusMeta(payload?.status);
                 const draft = getDraftData(payload);
+                const primaryItem = getPrimaryMirrorItem(payload);
                 statusBadge.className = 'mirror-badge ' + meta.className;
                 statusBadge.innerHTML = '<i class="bi ' + meta.icon + '"></i> ' + meta.label;
                 updated.textContent = formatTimestamp(payload?.generated_at);
-                mediaFrame.innerHTML = emptyMediaHtml;
-                content.classList.add('mirror-empty');
-                eyebrow.innerHTML = '<i class="bi bi-stars"></i> Modo colaborador';
-                title.textContent = payload?.operator_active
-                    ? (draft.codigo ? 'Digitando próxima saída' : 'Preparando próxima saída')
-                    : 'Painel pronto para espelhamento';
-                subtitle.textContent = payload?.operator_active
-                    ? (draft.codigo
-                        ? 'O código, a quantidade, o colaborador e o local digitados no Flask aparecem aqui antes mesmo da confirmação.'
-                        : 'A operação voltou ao monitor principal. Assim que um item entrar em foco, a leitura do colaborador reaparece aqui.')
-                    : 'Quando um item entrar em foco, a foto, o contexto e o lote em montagem aparecem aqui em tempo real.';
+                mediaFrame.innerHTML = renderPrimaryItemMedia(primaryItem);
+                content.classList.toggle('mirror-empty', !primaryItem);
+                eyebrow.innerHTML = primaryItem
+                    ? '<i class="bi bi-box-seam"></i> Último item visível'
+                    : '<i class="bi bi-stars"></i> Modo colaborador';
+                title.textContent = primaryItem
+                    ? (primaryItem.descricao || primaryItem.codigo || 'Item em acompanhamento')
+                    : (payload?.operator_active
+                        ? (draft.codigo ? 'Digitando próxima saída' : 'Preparando próxima saída')
+                        : 'Painel pronto para espelhamento');
+                subtitle.textContent = primaryItem
+                    ? buildPrimaryItemSubtitle(primaryItem)
+                    : (payload?.operator_active
+                        ? (draft.codigo
+                            ? 'O código, a quantidade, o colaborador e o local digitados no Flask aparecem aqui antes mesmo da confirmação.'
+                            : 'A operação voltou ao monitor principal. Assim que um item entrar em foco, a leitura do colaborador reaparece aqui.')
+                        : 'Quando um item entrar em foco, a foto e o contexto operacional aparecem aqui em tempo real.');
                 setLiveCallout(payload, meta);
+                latestMirrorPayload = payload || null;
+                syncInsightStage(latestMirrorPayload);
                 kind.textContent = mirrorMode ? mirrorMode.charAt(0).toUpperCase() + mirrorMode.slice(1) : 'Aguardando';
-                quantity.textContent = draft.quantidade || '--';
-                actor.textContent = draft.usuario || ((payload?.actor && (payload.actor.nome || payload.actor.matricula)) || '--');
-                context.textContent = draft.local || ((payload?.context && (payload.context.local_servico || payload.context.observacao)) || '--');
-                stock.textContent = '--';
-                batch.textContent = payload?.batch_label || formatCount(Number(payload?.batch_total || 0), 'item', 'itens');
+                quantity.textContent = primaryItem?.quantidade_display || draft.quantidade || '--';
+                actor.textContent = primaryItem?.usuario || draft.usuario || ((payload?.actor && (payload.actor.nome || payload.actor.matricula)) || '--');
+                context.textContent = primaryItem?.local_servico || draft.local || ((payload?.context && payload.context.local_servico) || '--');
+                stock.textContent = primaryItem?.saldo_display || '--';
+                batch.textContent = primaryItem?.codigo || draft.codigo || '--';
                 source.textContent = payload?.operator_active
                     ? 'Monitor principal em preparação de saída'
                     : 'Sincronizando navegador principal e janela nativa';
@@ -2373,9 +2735,7 @@
                 const actorInfo = payload.actor || {};
                 const contextInfo = payload.context || {};
                 const movement = payload.movement || {};
-                const foto = item.foto_url
-                    ? '<img src="' + escapeHtml(item.foto_url) + '" alt="' + escapeHtml(item.descricao || item.codigo || 'Item') + '">' 
-                    : '<div class="mirror-placeholder"><i class="bi bi-image"></i><div><strong>Sem foto</strong><div>Cadastre uma imagem para melhorar a conferência visual.</div></div></div>';
+                const foto = renderPrimaryItemMedia(getPrimaryMirrorItem(payload));
 
                 statusBadge.className = 'mirror-badge ' + meta.className;
                 statusBadge.innerHTML = '<i class="bi ' + meta.icon + '"></i> ' + meta.label;
@@ -2384,18 +2744,40 @@
                 content.classList.remove('mirror-empty');
                 eyebrow.innerHTML = '<i class="bi ' + kindIcon(payload.kind) + '"></i> ' + escapeHtml(payload.kind_label || payload.kind || 'Operacao');
                 title.textContent = item.descricao || item.codigo || 'Item';
-                subtitle.textContent = 'Codigo ' + (item.codigo || '--') + (item.categoria ? ' • ' + item.categoria : '') + (item.marca ? ' • ' + item.marca : '');
+                subtitle.textContent = buildPrimaryItemSubtitle(getPrimaryMirrorItem(payload));
                 setLiveCallout(payload, meta);
+                latestMirrorPayload = payload || null;
+                syncInsightStage(latestMirrorPayload);
                 kind.textContent = payload.kind_label || payload.kind || '--';
                 quantity.textContent = movement.quantidade_display || movement.quantidade || '--';
                 actor.textContent = actorInfo.nome || actorInfo.matricula || '--';
-                context.textContent = contextInfo.local_servico || contextInfo.observacao || 'Sem contexto adicional';
+                context.textContent = contextInfo.local_servico || 'Sem local informado';
                 stock.textContent = item.saldo_display || item.saldo || '--';
-                batch.textContent = payload.batch_label || '--';
+                batch.textContent = item.codigo || '--';
                 source.textContent = 'Origem: ' + (payload.source_label || 'monitor principal') + ' • sincronizacao compartilhada';
                 renderBatchPanel(payload);
                 renderDraftPanel(payload);
                 lastRenderedPayloadKey = renderKey;
+            }
+
+            function scheduleServerStatePolling(delayMs) {
+                if (serverStatePollTimer !== null) {
+                    return;
+                }
+                serverStatePollTimer = window.setTimeout(async function () {
+                    serverStatePollTimer = null;
+                    if (serverStatePollPending) {
+                        scheduleServerStatePolling(serverStatePollMs);
+                        return;
+                    }
+                    serverStatePollPending = true;
+                    try {
+                        await loadServerState();
+                    } finally {
+                        serverStatePollPending = false;
+                        scheduleServerStatePolling(serverStatePollMs);
+                    }
+                }, Math.max(0, Number(delayMs) || 0));
             }
 
             function readStorage() {
@@ -2429,8 +2811,7 @@
             loadInsights();
             window.setInterval(loadInsights, 60000);
             renderPayload(readStorage());
-            loadServerState();
-            window.setInterval(loadServerState, 1500);
+            scheduleServerStatePolling(0);
             window.setInterval(function () {
                 if (custodyStage && !custodyStage.classList.contains('mirror-hidden')) {
                     void loadCustodyFeed(true);

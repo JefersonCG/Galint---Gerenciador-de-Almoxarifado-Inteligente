@@ -44,6 +44,7 @@ from ..services.unit_conversion_engine import UnitConversionError, unit_conversi
 from ..services.item_foto_service import ItemFotoService
 from ..services.telegram_reports import TelegramReportService
 from ..services.telegram_service import TelegramService
+from ..services.tool_custody_service import ToolCustodyService
 from ..utils.time_service import TimeService
 from ..extensions import db
 from ..models import (
@@ -427,6 +428,14 @@ def _is_admin_or_manager(user) -> bool:
         return True
     cargo = (getattr(user, "cargo", "") or "").strip().lower()
     return "gerente" in cargo
+
+def _can_operate_mobile_custody(user) -> bool:
+    if not user:
+        return False
+    if _is_admin_or_manager(user) or _is_supervisor(user):
+        return True
+    cargo = (getattr(user, "cargo", "") or "").strip().lower()
+    return "almoxarif" in cargo or cargo == "master"
 
 
 def _is_supervisor(user) -> bool:
@@ -2194,6 +2203,171 @@ def mobile_report_monthly():
     return send_file(path, mimetype="application/pdf", as_attachment=True, download_name=Path(path).name)
 
 
+@blueprint.get("/erp/overview")
+@mobile_login_required
+def mobile_erp_overview():
+    current_user = g.mobile_user
+    today_start = datetime.combine(date.today(), datetime.min.time())
+    total_itens = Item.query.count()
+    total_quantidade = inventory_service.total_quantity()
+    categorias_raw = db.session.query(Item.categoria).distinct().all()
+    total_categorias = len({(row[0] or "Sem categoria") for row in categorias_raw})
+
+    withdrawals_today = Saida.query.filter(Saida.data_saida >= today_start).count()
+    entries_today = Entrada.query.filter(Entrada.data_entrada >= today_start).count()
+    inventory_events_today = InventarioEvento.query.filter(InventarioEvento.data_evento >= today_start).count()
+    recent_movements = [
+        _serialize_mobile_feed_entry(entry)
+        for entry in inventory_service.list_movements_feed(limit=8)
+    ]
+
+    unread_count = 0
+    recent_notifications: list[dict[str, Any]] = []
+    router_summary = {
+        "default_channel": None,
+        "telegram_enabled": False,
+        "notify_enabled": False,
+        "push_enabled": False,
+    }
+    try:
+        from ..services.galint_notify_service import GalintNotifyService
+        from ..services.notification_router import NotificationRouterService
+
+        inbox = GalintNotifyService.list_inbox(matricula=current_user.matricula, page=1, per_page=5)
+        unread_count = int(inbox.get("unread_count") or 0)
+        recent_notifications = [
+            {
+                "id": row.get("id"),
+                "title": row.get("title"),
+                "category": row.get("category"),
+                "message_type": row.get("message_type"),
+                "created_at": row.get("created_at"),
+            }
+            for row in inbox.get("items") or []
+        ]
+        router_status = NotificationRouterService.status_payload()
+        router_summary = {
+            "default_channel": router_status.get("default_channel"),
+            "telegram_enabled": bool(router_status.get("telegram_enabled")),
+            "notify_enabled": bool(router_status.get("notify_enabled")),
+            "push_enabled": bool(router_status.get("push_enabled")),
+        }
+    except Exception:
+        logger.exception("Erro ao carregar resumo de notificacoes mobile")
+
+    return jsonify({
+        "success": True,
+        "data": {
+            "user": {
+                "nome": current_user.nome,
+                "matricula": current_user.matricula,
+                "cargo": current_user.cargo,
+                "setor": current_user.setor,
+                "role": "admin" if _is_admin_flag(current_user) else ("manager" if _is_admin_or_manager(current_user) else "operador"),
+                "can_manage_documents": _mobile_documents_available() and _is_admin_or_manager(current_user),
+                "can_view_reports": _is_admin_or_manager(current_user),
+            },
+            "stock": {
+                "total_itens": int(total_itens),
+                "total_quantidade": int(total_quantidade),
+                "total_categorias": int(total_categorias),
+            },
+            "movement_stats": {
+                "today": {
+                    "entradas": int(entries_today),
+                    "saidas": int(withdrawals_today),
+                    "inventario": int(inventory_events_today),
+                },
+            },
+            "recent_movements": recent_movements,
+            "notifications": {
+                "unread_count": unread_count,
+                "recent": recent_notifications,
+                "router": router_summary,
+            },
+            "features": {
+                "documentos_fiscais": _mobile_documents_available() and _is_admin_or_manager(current_user),
+                "document_modes": _mobile_document_mode_cards(),
+                "reports": {
+                    "daily": _is_admin_or_manager(current_user),
+                    "monthly": _is_admin_or_manager(current_user),
+                    "history": _is_admin_or_manager(current_user),
+                    "consumption": _is_admin_or_manager(current_user),
+                },
+            },
+        },
+    }), 200
+
+
+@blueprint.get("/reports/consumption")
+@mobile_login_required
+def mobile_consumption_report():
+    current_user = g.mobile_user
+    if not _is_admin_or_manager(current_user):
+        return jsonify({"success": False, "message": "Acesso negado"}), 403
+
+    panel = finance_service.get_consumption_panel_report(
+        (request.args.get("exercicio") or "").strip() or None,
+        local_name=(request.args.get("local") or "").strip() or None,
+        category_name=(request.args.get("categoria") or "").strip() or None,
+        employee_id=(request.args.get("matricula") or "").strip() or None,
+    )
+    return jsonify({
+        "success": True,
+        "data": _serialize_mobile_consumption_panel(panel),
+    }), 200
+
+
+@blueprint.get("/reports/consumption/pdf")
+@mobile_login_required
+def mobile_consumption_report_pdf():
+    current_user = g.mobile_user
+    if not _is_admin_or_manager(current_user):
+        return jsonify({"success": False, "message": "Acesso negado"}), 403
+
+    exercise_label = (request.args.get("exercicio") or "").strip() or None
+    local_name = (request.args.get("local") or "").strip() or None
+    category_name = (request.args.get("categoria") or "").strip() or None
+    employee_id = (request.args.get("matricula") or "").strip() or None
+    panel = finance_service.get_consumption_panel_report(
+        exercise_label,
+        local_name=local_name,
+        category_name=category_name,
+        employee_id=employee_id,
+    )
+    if not panel.get("entries"):
+        return jsonify({"success": False, "message": "Nao ha dados de consumo para gerar este relatorio."}), 404
+
+    pdf_buffer = finance_service.build_consumption_panel_pdf(
+        exercise_label,
+        local_name=local_name,
+        category_name=category_name,
+        employee_id=employee_id,
+    )
+    scope_type = panel.get("scope_type") or "geral"
+    filters = panel.get("filters") or {}
+    if scope_type == "local":
+        scope_value = filters.get("local") or "local"
+    elif scope_type == "categoria":
+        scope_value = filters.get("categoria") or "categoria"
+    elif scope_type == "funcionario":
+        scope_value = filters.get("matricula") or "funcionario"
+    else:
+        scope_value = "geral"
+    safe_scope_value = re.sub(r"[^a-zA-Z0-9_-]+", "_", str(scope_value or "geral")).strip("_") or "geral"
+    filename = (
+        f"relatorio_consumo_{scope_type}_"
+        f"{safe_scope_value}_"
+        f"{TimeService.now_local().strftime('%Y%m%d_%H%M%S')}.pdf"
+    )
+    return send_file(
+        pdf_buffer,
+        mimetype="application/pdf",
+        as_attachment=True,
+        download_name=filename,
+    )
+
+
 @blueprint.get("/produtos/buscar/<codigo>")
 @mobile_login_required
 def buscar_produto(codigo: str):
@@ -2463,13 +2637,163 @@ def _serialize_mobile_document_item(item: Item) -> dict[str, Any]:
     }
 
 
+def _mobile_document_mode_cards() -> list[dict[str, str]]:
+    return [
+        {"value": "nf", "label": "Nota fiscal"},
+        {"value": "cupom", "label": "Cupom nao fiscal"},
+        {"value": "recibo", "label": "Recibo"},
+        {"value": "manual", "label": "Manual"},
+    ]
+
+
+def _serialize_mobile_feed_entry(entry: dict[str, Any]) -> dict[str, Any]:
+    data_value = entry.get("data")
+    return {
+        "id": entry.get("id"),
+        "tipo": entry.get("tipo"),
+        "codigo": entry.get("codigo"),
+        "descricao": entry.get("descricao"),
+        "quantidade": round(float(entry.get("quantidade") or 0.0), 6),
+        "data": data_value.isoformat() if hasattr(data_value, "isoformat") else None,
+        "responsavel": entry.get("responsavel") or entry.get("usuario") or entry.get("matricula"),
+        "observacao": entry.get("observacao") or None,
+        "local_servico": entry.get("local_servico") or None,
+        "matricula": entry.get("matricula") or None,
+    }
+
+
+def _serialize_mobile_consumption_panel(panel: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "exercise": panel.get("exercise") or {},
+        "exercise_options": panel.get("exercise_options") or [],
+        "overview": panel.get("overview") or {},
+        "scope_type": panel.get("scope_type") or "geral",
+        "scope_title": panel.get("scope_title") or "Painel de consumo",
+        "scope_subtitle": panel.get("scope_subtitle") or "Visao simplificada do consumo no mobile.",
+        "filters": panel.get("filters") or {},
+        "current_local": panel.get("current_local"),
+        "current_category": panel.get("current_category"),
+        "current_employee": panel.get("current_employee"),
+        "locations": (panel.get("locations") or [])[:12],
+        "categories": (panel.get("categories") or [])[:12],
+        "employees": (panel.get("employees") or [])[:12],
+        "distribution_charts": (panel.get("distribution_charts") or [])[:3],
+        "recent_entries": (panel.get("recent_entries") or [])[:12],
+        "entries_count": len(panel.get("entries") or []),
+        "global_locations": (panel.get("global_locations") or [])[:24],
+        "global_categories": (panel.get("global_categories") or [])[:24],
+        "global_employees": (panel.get("global_employees") or [])[:24],
+    }
+
+
+def _serialize_mobile_daily_custody_panel(items: list[dict[str, Any]]) -> dict[str, Any]:
+    groups_map: dict[str, dict[str, Any]] = {}
+
+    for item in items or []:
+        group_key = str(
+            item.get("matricula_full")
+            or item.get("matricula")
+            or item.get("usuario")
+            or item.get("codigo")
+            or "sem-matricula"
+        )
+        group = groups_map.setdefault(
+            group_key,
+            {
+                "key": group_key,
+                "usuario": item.get("usuario") or "Funcionario nao identificado",
+                "matricula": item.get("matricula") or "-",
+                "matricula_full": item.get("matricula_full") or item.get("matricula") or "",
+                "locations": [],
+                "items": [],
+                "overdue_count": 0,
+                "max_days": 0,
+            },
+        )
+
+        days_in_use = int(item.get("dias_em_uso") or 0)
+        tool_key = f"{item.get('source') or 'saida'}:{item.get('id') or item.get('codigo') or '0'}"
+
+        group["max_days"] = max(group["max_days"], days_in_use)
+        if item.get("atrasada"):
+            group["overdue_count"] += 1
+        if item.get("local_servico"):
+            group["locations"].append(item.get("local_servico"))
+
+        group["items"].append(
+            {
+                "tool_key": tool_key,
+                "id": item.get("id"),
+                "source": item.get("source") or "saida",
+                "codigo": item.get("codigo") or "",
+                "descricao": item.get("descricao") or "Ferramenta",
+                "observacao": item.get("observacao") or None,
+                "quantidade": int(round(float(item.get("quantidade") or 0))),
+                "local_servico": item.get("local_servico") or "Nao informado",
+                "data_retirada_iso": item.get("data_retirada_iso") or None,
+                "dias_em_uso": days_in_use,
+                "atrasada": bool(item.get("atrasada")),
+            }
+        )
+
+    groups: list[dict[str, Any]] = []
+    total_tools = 0
+    total_overdue = 0
+
+    for group in groups_map.values():
+        group["items"].sort(
+            key=lambda current_item: (
+                int(current_item.get("dias_em_uso") or 0),
+                str(current_item.get("descricao") or ""),
+            ),
+            reverse=True,
+        )
+        group["locations"] = list(dict.fromkeys(group.get("locations") or []))[:4]
+        group["total_tools"] = len(group.get("items") or [])
+        total_tools += group["total_tools"]
+        total_overdue += int(group.get("overdue_count") or 0)
+        groups.append(group)
+
+    groups.sort(
+        key=lambda group: (
+            -int(group.get("overdue_count") or 0),
+            -int(group.get("max_days") or 0),
+            str(group.get("usuario") or ""),
+        )
+    )
+
+    return {
+        "summary": {
+            "employees": len(groups),
+            "tools": total_tools,
+            "overdue": total_overdue,
+        },
+        "groups": groups,
+    }
+
+
+@blueprint.get("/custodia-diaria")
+@token_required
+def mobile_daily_custody_panel(current_user: Usuario):
+    if not _can_operate_mobile_custody(current_user):
+        return jsonify({"success": False, "message": "Acesso negado"}), 403
+
+    items = ToolCustodyService.get_daily_custody_feed_items()
+    return jsonify(
+        {
+            "success": True,
+            "data": _serialize_mobile_daily_custody_panel(items),
+        }
+    ), 200
+
+
 @blueprint.get("/documentos-fiscais/config")
 @mobile_login_required
 def mobile_documentos_fiscais_config():
     current_user = g.mobile_user
     if not _mobile_documents_available():
         return jsonify({"success": False, "message": "Documentos Fiscais indisponivel neste ambiente."}), 404
-    if not _is_admin_or_manager(current_user):
+        if not _can_operate_mobile_custody(current_user):
         return jsonify({"success": False, "message": "Acesso negado"}), 403
 
     return jsonify({
@@ -2507,7 +2831,7 @@ def mobile_documentos_fiscais_itens():
     current_user = g.mobile_user
     if not _mobile_documents_available():
         return jsonify({"success": False, "message": "Documentos Fiscais indisponivel neste ambiente."}), 404
-    if not _is_admin_or_manager(current_user):
+        if not _can_operate_mobile_custody(current_user):
         return jsonify({"success": False, "message": "Acesso negado"}), 403
 
     term = (request.args.get("search") or "").strip()
@@ -2633,6 +2957,12 @@ def mobile_registrar_documento_fiscal():
         )
 
         item_existente = inventory_service.get_item(codigo) if codigo else None
+        previous_balance = None
+        if item_existente:
+            try:
+                previous_balance = float(item_existente.get("saldo") or 0.0)
+            except Exception:
+                previous_balance = None
         if not item_existente:
             if not codigo:
                 raise ValueError("Selecione um item existente ou informe o codigo do novo item")
@@ -2750,6 +3080,44 @@ def mobile_registrar_documento_fiscal():
         except Exception:
             pass
 
+        current_item_snapshot = inventory_service.get_item(codigo) or {}
+        try:
+            from ..services.notification_router import NotificationRouterService
+
+            current_balance = None
+            try:
+                current_balance = float(current_item_snapshot.get("saldo") or 0.0)
+            except Exception:
+                current_balance = None
+
+            if item_criado_na_nf:
+                NotificationRouterService.route_item_created(
+                    codigo,
+                    entrada_inicial={
+                        "numero_documento": getattr(documento, "numero_documento", nota),
+                        "tipo_documento": getattr(documento, "tipo_documento", tipo_documento),
+                        "quantidade": float(quantidade),
+                        "origem": "documento_fiscal_mobile",
+                    },
+                )
+            elif (
+                current_balance is not None
+                and previous_balance is not None
+                and current_balance > previous_balance
+            ):
+                NotificationRouterService.route_stock_entry(
+                    codigo,
+                    prev_balance=previous_balance,
+                    quantity_delta=current_balance - previous_balance,
+                    document_number=getattr(documento, "numero_documento", nota),
+                    document_type=getattr(documento, "tipo_documento", tipo_documento),
+                    actor_name=getattr(current_user, "nome", None),
+                    actor_matricula=actor_id,
+                    source_label="documento fiscal mobile",
+                )
+        except Exception:
+            logger.exception("Falha ao rotear notificacao de entrada documental mobile para %s", codigo)
+
         message = "Documento fiscal registrado no mobile."
         if not documento.movimenta_estoque:
             message = "Documento registrado apenas no financeiro. O estoque nao foi movimentado por opcao do lancamento."
@@ -2772,7 +3140,7 @@ def mobile_registrar_documento_fiscal():
                 "estoque_processado": bool(stock_process_result and stock_process_result.get("processed")),
                 "pre_cadastro_pendente": bool(pre_registration_count),
                 "item_criado": item_criado_na_nf,
-                "item": inventory_service.get_item(codigo),
+                "item": current_item_snapshot,
             },
         }), 200
     except ValueError as exc:
@@ -3067,6 +3435,20 @@ def mobile_reports_history():
                     except (ValueError, IndexError):
                         pass
                     
+                    timestamp_part = parts[4].split(".")[0]
+                    try:
+                        dt = datetime.strptime(timestamp_part, "%Y%m%d_%H%M%S")
+                        info["date"] = dt.isoformat()
+                        info["date_formatted"] = dt.strftime("%d/%m/%Y %H:%M")
+                    except ValueError:
+                        info["date"] = datetime.fromtimestamp(item.stat().st_mtime).isoformat()
+                        info["date_formatted"] = datetime.fromtimestamp(item.stat().st_mtime).strftime("%d/%m/%Y %H:%M")
+
+            elif filename.startswith("relatorio_consumo"):
+                info["type"] = "consumo"
+                if len(parts) >= 5:
+                    info["scope"] = parts[2]
+                    info["scope_value"] = parts[3]
                     timestamp_part = parts[4].split(".")[0]
                     try:
                         dt = datetime.strptime(timestamp_part, "%Y%m%d_%H%M%S")

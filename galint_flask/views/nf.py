@@ -14,7 +14,8 @@ from ..extensions import db
 from ..models import CompraPeriodoFechamento, DocumentoEntradaEstoque, DocumentoEntradaEstoqueItem, Entrada, FinanceLedgerEntry, Item, TelegramOutbox
 from ..services.category_catalog import DEFAULT_INVENTORY_CATEGORY_NAME, category_catalog_service
 from ..services.document_integrity_service import allow_document_quantity_update
-from ..services.finance_service import finance_service
+from ..services.finance_service import MANUAL_INTERNAL_DOCUMENT_NUMBER, finance_service
+from ..services.item_foto_service import ItemFotoService
 from ..services.nf_deletion_audit_sqlite import log_document_item_deletion
 from ..services.inventory import BASE_ITEM_UNIT_OPTIONS, ensure_base_item_unit, inventory_service, normalize_base_item_unit
 from ..services.price_normalization import (
@@ -49,6 +50,7 @@ VALID_OPERATIONAL_TABS = {"registro", "processaveis", "erros", "historico"}
 LEGACY_OPERATIONAL_TAB_ALIASES = {
     "pendencias": "processaveis",
 }
+MANUAL_SHARED_DOCUMENT_NUMBER = MANUAL_INTERNAL_DOCUMENT_NUMBER
 
 
 def _normalize_operational_tab(tab_value: str | None) -> str:
@@ -358,9 +360,13 @@ def _get_or_create_document_from_legacy_number(numero_documento: str) -> tuple[D
     if not entradas:
         raise ValueError("Documento legado não encontrado no histórico de entradas.")
 
+    candidate_numbers = [numero]
+    if finance_service.is_manual_internal_document_number(numero):
+        candidate_numbers = list(finance_service.manual_internal_document_aliases())
+
     document = (
         DocumentoEntradaEstoque.query
-        .filter(DocumentoEntradaEstoque.numero_documento == numero)
+        .filter(DocumentoEntradaEstoque.numero_documento.in_(candidate_numbers))
         .order_by(DocumentoEntradaEstoque.id_documento.desc())
         .first()
     )
@@ -1416,6 +1422,7 @@ def nf_index():
 @login_required
 def registrar_nf():
     _require_admin()
+    ui_mode = _normalize_requested_document_type(request.form.get("doc_mode"), fallback="")
     codigo = request.form.get("codigo", "").strip()
     novo_codigo = request.form.get("novo_codigo", "").strip()
     nova_descricao = request.form.get("nova_descricao", "").strip()
@@ -1435,12 +1442,26 @@ def registrar_nf():
     supplier_cnpj = (request.form.get("supplier_cnpj") or "").strip() or None
     origem_valor = (request.form.get("finance_origem_valor") or "compra_nf").strip() or "compra_nf"
     comprovacao_status = (request.form.get("finance_comprovacao_status") or "comprovado").strip() or "comprovado"
+    if ui_mode == "nf":
+        origem_valor = "compra_nf"
+        comprovacao_status = "comprovado"
+    elif ui_mode == "cupom":
+        origem_valor = "compra_cupom"
+        comprovacao_status = "parcial"
+    elif ui_mode == "manual":
+        origem_valor = "valor_estimado"
+        comprovacao_status = "sem_comprovacao"
     preco_unitario_raw = (request.form.get("preco_unitario") or "").strip()
     observacao = (request.form.get("finance_observacao") or "").strip() or None
     chave_acesso = (request.form.get("chave_acesso") or "").strip() or None
     data_emissao_raw = (request.form.get("data_emissao") or "").strip()
+    preco_reposicao_fonte = (request.form.get("preco_reposicao_fonte") or "").strip() or None
+    preco_reposicao_uf = (request.form.get("preco_reposicao_uf") or "").strip().upper() or None
+    preco_reposicao_url = (request.form.get("preco_reposicao_url") or "").strip() or None
+    preco_reposicao_query = (request.form.get("preco_reposicao_query") or "").strip() or None
+    foto_url = (request.form.get("foto_url") or "").strip() or None
     tipo_documento = _resolve_registration_document_type(
-        ui_mode=request.form.get("doc_mode"),
+        ui_mode=ui_mode,
         raw_document_type=request.form.get("finance_tipo_documento"),
         origem_valor=origem_valor,
         comprovacao_status=comprovacao_status,
@@ -1450,13 +1471,27 @@ def registrar_nf():
         chave_acesso=chave_acesso,
         data_emissao_raw=data_emissao_raw,
     )
+    if ui_mode == "manual":
+        today_iso = date.today().isoformat()
+        nota = MANUAL_SHARED_DOCUMENT_NUMBER
+        data_emissao_raw = today_iso
+        preco_reposicao_fonte = preco_reposicao_fonte or "Mercado Livre"
+        chave_acesso = None
+        supplier_id = None
+        supplier_name = None
+        supplier_cnpj = None
+    elif ui_mode == "cupom":
+        chave_acesso = None
     if tipo_documento != "nf":
         chave_acesso = None
     if tipo_documento == "manual":
+        nota = MANUAL_SHARED_DOCUMENT_NUMBER
         supplier_id = None
         supplier_name = None
         supplier_cnpj = None
     data_recebimento_raw = (request.form.get("data_recebimento") or "").strip()
+    if tipo_documento == "manual":
+        data_recebimento_raw = date.today().isoformat()
     quantidade_raw = request.form.get("quantidade", "0")
     try:
         quantidade = float(quantidade_raw or 0)
@@ -1519,11 +1554,20 @@ def registrar_nf():
                 "marca": nova_marca,
                 "localizacao": None,
                 "quantidade": 0,
+                "preco_reposicao_fonte": preco_reposicao_fonte,
+                "preco_reposicao_uf": preco_reposicao_uf,
+                "preco_reposicao_url": preco_reposicao_url,
+                "preco_reposicao_query": preco_reposicao_query or " ".join(part for part in [nova_descricao, nova_marca] if part).strip() or None,
                 "pre_cadastro_pendente": True,
                 "pre_cadastro_origem": "nf",
                 "pre_cadastro_criado_em": datetime.utcnow(),
                 "pre_cadastro_finalizado_em": None,
             }
+            if foto_url:
+                try:
+                    create_payload["foto_path"] = ItemFotoService.download_foto_from_url(foto_url, codigo)
+                except ValueError as exc:
+                    flash(f"Erro ao baixar foto por link: {exc}", "warning")
             create_payload.update(
                 _build_nf_new_item_packaging_payload(
                     base_unit=nova_unidade,

@@ -52,6 +52,12 @@ _PACKAGING_UNIT_LABELS = {
     "saco": ("saco", "sacos"),
 }
 _LEGACY_CONVERSION_DOCUMENT_OBSERVATION = "Convertido automaticamente do histórico legado de entradas."
+MANUAL_INTERNAL_DOCUMENT_NUMBER = "NOTA INTERNA"
+MANUAL_INTERNAL_DOCUMENT_LEGACY_ALIASES = frozenset({
+    MANUAL_INTERNAL_DOCUMENT_NUMBER,
+    "SEM NF/CUPOM",
+})
+MANUAL_INTERNAL_DOCUMENT_UPPER_ALIASES = frozenset(alias.upper() for alias in MANUAL_INTERNAL_DOCUMENT_LEGACY_ALIASES)
 
 
 def _format_compact_number(value: object) -> str | None:
@@ -254,6 +260,40 @@ class FinanceService:
 
     _runtime_cache: dict[str, tuple[float, Any]] = {}
 
+    @staticmethod
+    def normalize_manual_internal_document_number(numero_documento: str | None) -> str:
+        numero = (numero_documento or "").strip()
+        if not numero:
+            return ""
+        if numero.upper() in MANUAL_INTERNAL_DOCUMENT_UPPER_ALIASES:
+            return MANUAL_INTERNAL_DOCUMENT_NUMBER
+        return numero
+
+    @staticmethod
+    def is_manual_internal_document_number(numero_documento: str | None) -> bool:
+        numero = (numero_documento or "").strip()
+        if not numero:
+            return False
+        return numero.upper() in MANUAL_INTERNAL_DOCUMENT_UPPER_ALIASES
+
+    @staticmethod
+    def manual_internal_document_aliases() -> tuple[str, ...]:
+        return tuple(sorted(MANUAL_INTERNAL_DOCUMENT_LEGACY_ALIASES))
+
+    @staticmethod
+    def is_manual_internal_bucket_document(document: DocumentoEntradaEstoque | None) -> bool:
+        if document is None:
+            return False
+        tipo = (document.tipo_documento or "").strip().lower()
+        if tipo != "manual":
+            return False
+        if FinanceService.is_manual_internal_document_number(document.numero_documento):
+            return True
+        has_supplier = document.fornecedor_id is not None or bool((document.fornecedor_nome or "").strip())
+        has_cnpj = bool((document.cnpj_emitente or "").strip())
+        has_access_key = bool((document.chave_acesso or "").strip())
+        return not has_supplier and not has_cnpj and not has_access_key
+
     @classmethod
     def clear_runtime_cache(cls, prefix: str | None = None) -> None:
         if prefix is None:
@@ -346,7 +386,7 @@ class FinanceService:
         documents_by_number: dict[str, DocumentoEntradaEstoque] = {}
         documents_without_number: list[DocumentoEntradaEstoque] = []
         for document in documents:
-            numero = (document.numero_documento or "").strip()
+            numero = FinanceService.normalize_manual_internal_document_number(document.numero_documento)
             if not numero:
                 documents_without_number.append(document)
                 continue
@@ -363,12 +403,13 @@ class FinanceService:
 
     @staticmethod
     def _find_legacy_placeholder_document(numero_documento: str) -> DocumentoEntradaEstoque | None:
-        numero = (numero_documento or "").strip()
+        numero = FinanceService.normalize_manual_internal_document_number(numero_documento)
         if not numero:
             return None
+        aliases = FinanceService.manual_internal_document_aliases() if FinanceService.is_manual_internal_document_number(numero) else (numero,)
         rows = (
             DocumentoEntradaEstoque.query
-            .filter(DocumentoEntradaEstoque.numero_documento == numero)
+            .filter(DocumentoEntradaEstoque.numero_documento.in_(aliases))
             .order_by(DocumentoEntradaEstoque.criado_em.desc(), DocumentoEntradaEstoque.id_documento.desc())
             .all()
         )
@@ -991,10 +1032,11 @@ class FinanceService:
         supplier_name = document.fornecedor.nome_exibicao() if document.fornecedor else document.nome_emitente()
         status_integracao = (document.status_integracao or "manual").strip() or "manual"
         mensagem_integracao = (document.mensagem_integracao or "").strip() or None
+        numero_documento = FinanceService.normalize_manual_internal_document_number(document.numero_documento)
         return {
             "id_documento": document.id_documento,
-            "nota_fiscal": document.numero_documento,
-            "numero_documento": document.numero_documento,
+            "nota_fiscal": numero_documento,
+            "numero_documento": numero_documento,
             "tipo_documento": document.tipo_documento,
             "data": document.criado_em,
             "data_emissao": document.data_emissao,
@@ -1037,7 +1079,7 @@ class FinanceService:
 
     @staticmethod
     def get_stock_document_by_number(numero_documento: str) -> dict[str, Any] | None:
-        numero = (numero_documento or "").strip()
+        numero = FinanceService.normalize_manual_internal_document_number(numero_documento)
         if not numero:
             return None
         cache_key = f"get_stock_document_by_number:{numero}"
@@ -1045,13 +1087,15 @@ class FinanceService:
         if cached is not None:
             return dict(cached)
 
+        aliases = FinanceService.manual_internal_document_aliases() if FinanceService.is_manual_internal_document_number(numero) else (numero,)
+
         rows = (
             DocumentoEntradaEstoque.query
             .options(
                 joinedload(DocumentoEntradaEstoque.fornecedor),
                 joinedload(DocumentoEntradaEstoque.itens).joinedload(DocumentoEntradaEstoqueItem.item),
             )
-            .filter(DocumentoEntradaEstoque.numero_documento == numero)
+            .filter(DocumentoEntradaEstoque.numero_documento.in_(aliases))
             .order_by(DocumentoEntradaEstoque.criado_em.desc(), DocumentoEntradaEstoque.id_documento.desc())
             .all()
         )
@@ -1068,10 +1112,13 @@ class FinanceService:
         if not term:
             return []
         like = f"%{term}%"
+        search_filters = [DocumentoEntradaEstoque.numero_documento.ilike(like)]
+        if MANUAL_INTERNAL_DOCUMENT_NUMBER.lower().startswith(term.lower()) or "sem nf/cupom".startswith(term.lower()) or term.lower() in MANUAL_INTERNAL_DOCUMENT_NUMBER.lower():
+            search_filters.append(DocumentoEntradaEstoque.numero_documento.in_(FinanceService.manual_internal_document_aliases()))
         rows = (
             DocumentoEntradaEstoque.query
             .options(joinedload(DocumentoEntradaEstoque.fornecedor))
-            .filter(DocumentoEntradaEstoque.numero_documento.ilike(like))
+            .filter(or_(*search_filters))
             .order_by(DocumentoEntradaEstoque.criado_em.desc(), DocumentoEntradaEstoque.id_documento.desc())
             .limit(limit)
             .all()
@@ -1080,7 +1127,7 @@ class FinanceService:
         return [
             {
                 "id_documento": row.id_documento,
-                "numero_documento": row.numero_documento,
+                "numero_documento": FinanceService.normalize_manual_internal_document_number(row.numero_documento),
                 "tipo_documento": row.tipo_documento,
                 "fornecedor_id": row.fornecedor_id,
                 "fornecedor_nome": row.fornecedor.nome_exibicao() if row.fornecedor else row.nome_emitente(),
@@ -1098,14 +1145,16 @@ class FinanceService:
         tipo_documento: str | None = None,
         data_emissao: date | None = None,
     ):
-        numero = (numero_documento or "").strip()
+        numero = FinanceService.normalize_manual_internal_document_number(numero_documento)
         if not numero:
             return None
+
+        aliases = FinanceService.manual_internal_document_aliases() if FinanceService.is_manual_internal_document_number(numero) else (numero,)
 
         query = (
             DocumentoEntradaEstoque.query
             .options(joinedload(DocumentoEntradaEstoque.itens))
-            .filter(DocumentoEntradaEstoque.numero_documento == numero)
+            .filter(DocumentoEntradaEstoque.numero_documento.in_(aliases))
         )
         tipo = (tipo_documento or "").strip() or None
         if tipo:
@@ -1235,12 +1284,14 @@ class FinanceService:
         movimenta_estoque: bool | None = None,
     ) -> dict[str, Any]:
         codigo = (codigo_item or "").strip()
-        numero = (numero_documento or "").strip()
+        numero = FinanceService.normalize_manual_internal_document_number(numero_documento)
         tipo = (tipo_documento or "nf").strip() or "nf"
         if not codigo:
             raise ValueError("Informe o item da entrada")
         if not numero:
             raise ValueError("Informe o número do documento")
+        if tipo.strip().lower() == "manual":
+            numero = MANUAL_INTERNAL_DOCUMENT_NUMBER
 
         supplier = FinanceService._resolve_supplier_for_document(
             supplier_id=supplier_id,
@@ -1265,9 +1316,11 @@ class FinanceService:
             )
         )
 
+        aliases = FinanceService.manual_internal_document_aliases() if tipo.strip().lower() == "manual" and FinanceService.is_manual_internal_document_number(numero) else (numero,)
+
         document_query = DocumentoEntradaEstoque.query.filter(
             DocumentoEntradaEstoque.tipo_documento == tipo,
-            DocumentoEntradaEstoque.numero_documento == numero,
+            DocumentoEntradaEstoque.numero_documento.in_(aliases),
         )
         if cnpj:
             document_query = document_query.filter(DocumentoEntradaEstoque.cnpj_emitente == cnpj)
@@ -1301,10 +1354,13 @@ class FinanceService:
             db.session.add(document)
             db.session.flush()
         else:
+            manual_shared_bucket = tipo.strip().lower() == "manual" and FinanceService.is_manual_internal_document_number(numero)
             if reused_legacy_placeholder:
                 document.tipo_documento = tipo
                 document.status_integracao = status_integracao
                 document.mensagem_integracao = mensagem_integracao
+            if manual_shared_bucket:
+                document.numero_documento = MANUAL_INTERNAL_DOCUMENT_NUMBER
             document.movimenta_estoque = movimenta_estoque_documento
             if supplier and not document.fornecedor_id:
                 document.fornecedor_id = supplier.id
@@ -1312,9 +1368,12 @@ class FinanceService:
                 document.cnpj_emitente = cnpj
             if supplier_display and not document.fornecedor_nome:
                 document.fornecedor_nome = supplier_display
-            if data_emissao and not document.data_emissao:
+            if manual_shared_bucket:
                 document.data_emissao = data_emissao
-            if data_recebimento and not document.data_recebimento:
+                document.data_recebimento = data_recebimento
+            elif data_emissao and not document.data_emissao:
+                document.data_emissao = data_emissao
+            if not manual_shared_bucket and data_recebimento and not document.data_recebimento:
                 document.data_recebimento = data_recebimento
             if chave and not document.chave_acesso:
                 document.chave_acesso = chave

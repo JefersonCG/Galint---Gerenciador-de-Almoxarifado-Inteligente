@@ -4927,13 +4927,19 @@ class InventoryService:
         notas_por_numero: dict[str, dict[str, Any]] = {}
 
         for documento in documentos:
-            numero = str(documento.get("numero_documento") or documento.get("nota_fiscal") or "").strip()
+            numero = finance_service.normalize_manual_internal_document_number(
+                documento.get("numero_documento") or documento.get("nota_fiscal") or ""
+            )
             if numero:
                 notas_por_numero[numero] = documento
 
         for numero, nota_legada in agrupadas.items():
-            if numero not in notas_por_numero:
-                notas_por_numero[numero] = nota_legada
+            numero_normalizado = finance_service.normalize_manual_internal_document_number(numero)
+            if numero_normalizado not in notas_por_numero:
+                nota_payload = dict(nota_legada)
+                nota_payload["numero_documento"] = numero_normalizado
+                nota_payload["nota_fiscal"] = numero_normalizado
+                notas_por_numero[numero_normalizado] = nota_payload
 
         notas = sorted(
             notas_por_numero.values(),
@@ -4946,7 +4952,7 @@ class InventoryService:
     def get_nota_fiscal(self, numero: str) -> dict[str, Any] | None:
         from .finance_service import finance_service
 
-        numero = (numero or "").strip()
+        numero = finance_service.normalize_manual_internal_document_number(numero)
         if not numero:
             return None
         cache_key = f"get_nota_fiscal:{numero}"
@@ -4958,8 +4964,12 @@ class InventoryService:
         if documento:
             return self._set_cached(cache_key, dict(documento), ttl_seconds=8.0)
 
+        candidate_numbers = [numero]
+        if finance_service.is_manual_internal_document_number(numero):
+            candidate_numbers = list(finance_service.manual_internal_document_aliases())
+
         registros = (
-            Entrada.query.filter(Entrada.nota_fiscal == numero)
+            Entrada.query.filter(Entrada.nota_fiscal.in_(candidate_numbers))
             .order_by(Entrada.data_entrada.desc())
             .all()
         )
@@ -4967,6 +4977,14 @@ class InventoryService:
             return None
         notas = _agrupar_notas(registros)
         nota = notas.get(numero)
+        if nota is None and finance_service.is_manual_internal_document_number(numero):
+            for alias in finance_service.manual_internal_document_aliases():
+                nota = notas.get(alias)
+                if nota is not None:
+                    nota = dict(nota)
+                    nota["numero_documento"] = numero
+                    nota["nota_fiscal"] = numero
+                    break
         if nota is None:
             return None
         return self._set_cached(cache_key, dict(nota), ttl_seconds=8.0)

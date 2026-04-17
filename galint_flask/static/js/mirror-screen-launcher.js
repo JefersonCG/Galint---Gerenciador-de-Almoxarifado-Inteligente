@@ -3,6 +3,7 @@
     const MIRROR_STATE_ENDPOINT = '/movimentos/painel-espelho/state';
     let mirrorStateSyncTimer = null;
     let pendingMirrorState = null;
+    let mirrorStateSyncInFlight = false;
 
     function toFiniteNumber(value, fallback) {
         const parsed = Number(value);
@@ -76,17 +77,59 @@
         }
     }
 
-    function scheduleMirrorStateSync(payload) {
-        pendingMirrorState = payload;
-        if (mirrorStateSyncTimer !== null) {
+    function isPriorityMirrorPayload(payload) {
+        if (!payload || typeof payload !== 'object') {
+            return false;
+        }
+        if (payload.item) {
+            return true;
+        }
+        if (Array.isArray(payload.batch_items) && payload.batch_items.length) {
+            return true;
+        }
+        const status = String(payload.status || '').trim().toLowerCase();
+        return status === 'preview' || status === 'queued' || status === 'completed';
+    }
+
+    function flushMirrorStateSync() {
+        if (mirrorStateSyncInFlight || !pendingMirrorState) {
             return;
         }
-        mirrorStateSyncTimer = window.setTimeout(function () {
-            const nextPayload = pendingMirrorState;
-            pendingMirrorState = null;
+
+        const nextPayload = pendingMirrorState;
+        pendingMirrorState = null;
+        mirrorStateSyncInFlight = true;
+
+        void syncMirrorStateToServer(nextPayload).finally(function () {
+            mirrorStateSyncInFlight = false;
+            if (pendingMirrorState) {
+                if (mirrorStateSyncTimer !== null) {
+                    window.clearTimeout(mirrorStateSyncTimer);
+                    mirrorStateSyncTimer = null;
+                }
+                flushMirrorStateSync();
+            }
+        });
+    }
+
+    function scheduleMirrorStateSync(payload) {
+        pendingMirrorState = payload;
+        const delayMs = isPriorityMirrorPayload(payload) ? 0 : 40;
+
+        if (mirrorStateSyncTimer !== null) {
+            window.clearTimeout(mirrorStateSyncTimer);
             mirrorStateSyncTimer = null;
-            void syncMirrorStateToServer(nextPayload);
-        }, 180);
+        }
+
+        if (delayMs === 0) {
+            flushMirrorStateSync();
+            return;
+        }
+
+        mirrorStateSyncTimer = window.setTimeout(function () {
+            mirrorStateSyncTimer = null;
+            flushMirrorStateSync();
+        }, delayMs);
     }
 
     function publishMirrorState(payload, options) {

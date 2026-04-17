@@ -32,7 +32,46 @@
     .backup-panel .form-check-input { width: 1.05rem; height: 1.05rem; border-color: rgba(15,23,42,0.28); }
     .backup-panel .form-check-input:checked { background-color: #1d4ed8; border-color: #1d4ed8; }
     .backup-selection-hint { color: rgba(15,23,42,0.72); }
-    @media (max-width: 768px) { .backup-shell { padding: 1rem; border-radius: 22px; } .backup-hero { padding: 1.15rem; border-radius: 20px; } .backup-kpis { grid-template-columns: 1fr; } }
+    .backup-progress-overlay { position: fixed; inset: 0; z-index: 1080; display: none; align-items: center; justify-content: center; padding: 1.5rem; background: rgba(2,6,23,0.7); backdrop-filter: blur(8px); }
+    .backup-progress-overlay.is-visible { display: flex; }
+    .backup-progress-card { position: relative; width: min(100%, 760px); overflow: hidden; border-radius: 30px; background: linear-gradient(155deg, #0b1220 0%, #13203b 50%, #0f766e 100%); color: #e2e8f0; border: 1px solid rgba(148,163,184,0.18); box-shadow: 0 38px 88px rgba(15,23,42,0.34); }
+    .backup-progress-card::before { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(255,255,255,0.06) 0, rgba(255,255,255,0.06) 1px, transparent 1px, transparent 84px), linear-gradient(rgba(255,255,255,0.04) 0, rgba(255,255,255,0.04) 1px, transparent 1px, transparent 84px); background-size: 84px 84px; opacity: 0.18; pointer-events: none; }
+    .backup-progress-head, .backup-progress-body { position: relative; z-index: 1; }
+    .backup-progress-head { padding: 1.4rem 1.5rem 1rem; border-bottom: 1px solid rgba(148,163,184,0.16); }
+    .backup-progress-kicker { display: inline-flex; align-items: center; gap: 0.45rem; padding: 0.38rem 0.7rem; border-radius: 999px; background: rgba(15,23,42,0.42); border: 1px solid rgba(148,163,184,0.18); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; color: rgba(226,232,240,0.84); }
+    .backup-progress-title { margin: 0.95rem 0 0.35rem; font-size: clamp(1.55rem, 2.6vw, 2.15rem); font-weight: 800; letter-spacing: -0.03em; }
+    .backup-progress-subtitle { margin: 0; max-width: 38rem; color: rgba(226,232,240,0.76); line-height: 1.6; }
+    .backup-progress-body { padding: 1.35rem 1.5rem 1.5rem; }
+    .backup-progress-metrics { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 0.85rem; margin-bottom: 1.2rem; }
+    .backup-progress-metric { padding: 0.95rem 1rem; border-radius: 18px; background: rgba(15,23,42,0.36); border: 1px solid rgba(148,163,184,0.16); }
+    .backup-progress-metric-label { display: block; margin-bottom: 0.35rem; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: rgba(148,163,184,0.82); }
+    .backup-progress-metric strong { display: block; font-size: 1rem; font-weight: 800; color: #f8fafc; }
+    .backup-progress-metric small { display: block; margin-top: 0.28rem; color: rgba(226,232,240,0.7); }
+    .backup-progress-bar-shell { padding: 1rem 1.05rem 1.05rem; border-radius: 22px; background: rgba(15,23,42,0.38); border: 1px solid rgba(148,163,184,0.14); }
+    .backup-progress-bar-meta { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 0.8rem; }
+    .backup-progress-label { font-weight: 700; color: #f8fafc; }
+    .backup-progress-percent { font-size: 1.5rem; font-weight: 800; color: #67e8f9; }
+    .backup-progress-track { position: relative; height: 16px; overflow: hidden; border-radius: 999px; background: rgba(15,23,42,0.86); border: 1px solid rgba(59,130,246,0.22); }
+    .backup-progress-fill { position: relative; height: 100%; width: 10%; border-radius: inherit; background: linear-gradient(90deg, #38bdf8 0%, #22c55e 55%, #facc15 100%); box-shadow: 0 0 30px rgba(34,197,94,0.34); transition: width 0.35s ease; }
+    .backup-progress-fill::after { content: ""; position: absolute; inset: 0; background: linear-gradient(120deg, transparent 0%, rgba(255,255,255,0.34) 28%, transparent 56%); animation: backup-progress-scan 1.6s linear infinite; }
+    .backup-progress-telemetry { display: flex; align-items: center; gap: 0.55rem; margin-top: 0.85rem; color: rgba(226,232,240,0.72); font-size: 0.92rem; }
+    .backup-progress-dot { width: 0.62rem; height: 0.62rem; border-radius: 999px; background: #22c55e; box-shadow: 0 0 0 0 rgba(34,197,94,0.54); animation: backup-progress-pulse 1.5s ease infinite; }
+    .backup-progress-steps { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 0.9rem; margin-top: 1.15rem; }
+    .backup-progress-step { display: flex; align-items: flex-start; gap: 0.85rem; padding: 0.95rem 1rem; border-radius: 20px; background: rgba(15,23,42,0.28); border: 1px solid rgba(148,163,184,0.12); opacity: 0.58; transition: transform 0.25s ease, opacity 0.25s ease, border-color 0.25s ease, background 0.25s ease; }
+    .backup-progress-step.is-current, .backup-progress-step.is-complete { opacity: 1; }
+    .backup-progress-step.is-current { transform: translateY(-2px); border-color: rgba(103,232,249,0.4); background: rgba(8,145,178,0.18); }
+    .backup-progress-step.is-complete { border-color: rgba(74,222,128,0.36); background: rgba(20,83,45,0.28); }
+    .backup-progress-step-icon { flex: 0 0 44px; width: 44px; height: 44px; display: inline-flex; align-items: center; justify-content: center; border-radius: 14px; background: rgba(15,23,42,0.54); color: rgba(226,232,240,0.78); border: 1px solid rgba(148,163,184,0.14); }
+    .backup-progress-step.is-current .backup-progress-step-icon { color: #67e8f9; border-color: rgba(103,232,249,0.28); }
+    .backup-progress-step.is-complete .backup-progress-step-icon { color: #4ade80; border-color: rgba(74,222,128,0.3); }
+    .backup-progress-step-label { display: block; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: rgba(148,163,184,0.82); }
+    .backup-progress-step strong { display: block; margin-top: 0.18rem; color: #f8fafc; }
+    .backup-progress-step small { display: block; margin-top: 0.22rem; color: rgba(226,232,240,0.7); line-height: 1.45; }
+    .backup-progress-footnote { margin-top: 1rem; color: rgba(226,232,240,0.68); font-size: 0.9rem; }
+    .backup-progress-lock { overflow: hidden; }
+    @keyframes backup-progress-scan { from { transform: translateX(-120%); } to { transform: translateX(220%); } }
+    @keyframes backup-progress-pulse { 0% { box-shadow: 0 0 0 0 rgba(34,197,94,0.48); } 70% { box-shadow: 0 0 0 12px rgba(34,197,94,0); } 100% { box-shadow: 0 0 0 0 rgba(34,197,94,0); } }
+    @media (max-width: 768px) { .backup-shell { padding: 1rem; border-radius: 22px; } .backup-hero { padding: 1.15rem; border-radius: 20px; } .backup-kpis, .backup-progress-metrics, .backup-progress-steps { grid-template-columns: 1fr; } .backup-progress-head, .backup-progress-body { padding-inline: 1rem; } }
 </style>
 {% endblock %}
 
@@ -105,10 +144,10 @@
             <div class="backup-soft mb-3">
                 <div class="small text-muted">O pacote completo gera um arquivo .zip com o dump SQL dentro e um manifest.json para validacao em staging pelo ConversionEngine.</div>
             </div>
-            <form method="post" action="{{ url_for('pages.create_backup') }}">
+            <form method="post" action="{{ url_for('pages.create_backup') }}" id="backupCreateForm">
                 <div class="backup-actions">
                     <button class="btn btn-primary rounded-pill px-4" type="submit" name="backup_kind" value="database">Gerar backup SQL</button>
-                    <button class="btn btn-outline-success rounded-pill px-4" type="submit" name="backup_kind" value="complete">Gerar pacote completo</button>
+                    <button class="btn btn-outline-success rounded-pill px-4" type="submit" name="backup_kind" value="complete" data-backup-progress="complete">Gerar pacote completo</button>
                     <a class="btn btn-outline-info rounded-pill px-4" href="{{ url_for('pages.config_conversionengine') }}">Abrir restaurador oficial</a>
                     <a class="btn btn-outline-warning rounded-pill px-4" href="{{ url_for('pages.backup_final_checklist') }}">Baixar checklist final</a>
                     <a class="btn btn-outline-secondary rounded-pill px-4" href="{{ url_for('pages.config') }}">Voltar</a>
@@ -168,8 +207,184 @@
         </div>
     </div>
 </div>
+<div class="backup-progress-overlay" id="completeBackupProgress" aria-hidden="true">
+    <div class="backup-progress-card" role="status" aria-live="polite" aria-atomic="true">
+        <div class="backup-progress-head">
+            <span class="backup-progress-kicker"><i class="bi bi-cpu"></i> Orquestração ERP</span>
+            <h2 class="backup-progress-title">Gerando pacote completo</h2>
+            <p class="backup-progress-subtitle">O GALINT está consolidando dump SQL, manifesto e artefatos operacionais em um único lote para o ConversionEngine.</p>
+        </div>
+        <div class="backup-progress-body">
+            <div class="backup-progress-metrics">
+                <div class="backup-progress-metric">
+                    <span class="backup-progress-metric-label">Fluxo</span>
+                    <strong>Backup completo</strong>
+                    <small>Pipeline de empacotamento integral</small>
+                </div>
+                <div class="backup-progress-metric">
+                    <span class="backup-progress-metric-label">Motor</span>
+                    <strong>BackupService</strong>
+                    <small>Orquestra dump, manifesto e ZIP</small>
+                </div>
+                <div class="backup-progress-metric">
+                    <span class="backup-progress-metric-label">Status</span>
+                    <strong>Em processamento</strong>
+                    <small>Aguarde a resposta do servidor</small>
+                </div>
+            </div>
+            <div class="backup-progress-bar-shell">
+                <div class="backup-progress-bar-meta">
+                    <span class="backup-progress-label" id="completeBackupProgressLabel">Inicializando rotina de empacotamento</span>
+                    <span class="backup-progress-percent" id="completeBackupProgressPercent">10%</span>
+                </div>
+                <div class="backup-progress-track" aria-hidden="true">
+                    <div class="backup-progress-fill" id="completeBackupProgressFill"></div>
+                </div>
+                <div class="backup-progress-telemetry">
+                    <span class="backup-progress-dot"></span>
+                    <span id="completeBackupProgressTelemetry">Reservando recursos e preparando validações iniciais.</span>
+                </div>
+            </div>
+            <div class="backup-progress-steps">
+                <div class="backup-progress-step is-current" data-progress-step="0">
+                    <div class="backup-progress-step-icon"><i class="bi bi-shield-check"></i></div>
+                    <div>
+                        <span class="backup-progress-step-label">Etapa 01</span>
+                        <strong>Validar prontidão</strong>
+                        <small>Confere checks obrigatórios e consistência operacional.</small>
+                    </div>
+                </div>
+                <div class="backup-progress-step" data-progress-step="1">
+                    <div class="backup-progress-step-icon"><i class="bi bi-database-gear"></i></div>
+                    <div>
+                        <span class="backup-progress-step-label">Etapa 02</span>
+                        <strong>Gerar snapshot SQL</strong>
+                        <small>Captura o estado atual do banco para restauração controlada.</small>
+                    </div>
+                </div>
+                <div class="backup-progress-step" data-progress-step="2">
+                    <div class="backup-progress-step-icon"><i class="bi bi-box-seam"></i></div>
+                    <div>
+                        <span class="backup-progress-step-label">Etapa 03</span>
+                        <strong>Agregar artefatos</strong>
+                        <small>Coleta manifesto, ativos de disco e metadados do ambiente.</small>
+                    </div>
+                </div>
+                <div class="backup-progress-step" data-progress-step="3">
+                    <div class="backup-progress-step-icon"><i class="bi bi-file-earmark-zip"></i></div>
+                    <div>
+                        <span class="backup-progress-step-label">Etapa 04</span>
+                        <strong>Compactar pacote final</strong>
+                        <small>Fecha o lote ZIP e devolve o catálogo atualizado para a tela.</small>
+                    </div>
+                </div>
+            </div>
+            <div class="backup-progress-footnote">Não feche a janela enquanto o pacote estiver sendo consolidado. O progresso exibido acompanha a orquestração esperada do processo.</div>
+        </div>
+    </div>
+</div>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+    const createForm = document.getElementById('backupCreateForm');
+    const progressOverlay = document.getElementById('completeBackupProgress');
+    const progressFill = document.getElementById('completeBackupProgressFill');
+    const progressPercent = document.getElementById('completeBackupProgressPercent');
+    const progressLabel = document.getElementById('completeBackupProgressLabel');
+    const progressTelemetry = document.getElementById('completeBackupProgressTelemetry');
+    const progressSteps = Array.from(document.querySelectorAll('[data-progress-step]'));
+    const progressPlan = [
+        {
+            milestone: 12,
+            label: 'Validando prontidão do ambiente',
+            telemetry: 'Executando verificações preliminares do fluxo de backup.'
+        },
+        {
+            milestone: 34,
+            label: 'Gerando snapshot SQL transacional',
+            telemetry: 'Consolidando o estado atual do banco para restauração segura.'
+        },
+        {
+            milestone: 62,
+            label: 'Coletando artefatos operacionais',
+            telemetry: 'Inventariando manifesto, arquivos de apoio e metadados do ambiente.'
+        },
+        {
+            milestone: 84,
+            label: 'Compactando o lote final',
+            telemetry: 'Fechando o ZIP e sincronizando o retorno para o catálogo.'
+        }
+    ];
+    const progressThresholds = [12, 34, 62, 84];
+
+    function renderProgress(rawValue) {
+        if (!progressFill || !progressPercent || !progressLabel || !progressTelemetry || !progressSteps.length) return;
+
+        const normalized = Math.max(10, Math.min(96, Math.round(rawValue)));
+        let activeIndex = 0;
+
+        progressThresholds.forEach((threshold, index) => {
+            if (normalized >= threshold) {
+                activeIndex = index;
+            }
+        });
+
+        progressFill.style.width = normalized + '%';
+        progressPercent.textContent = normalized + '%';
+        progressLabel.textContent = progressPlan[activeIndex].label;
+        progressTelemetry.textContent = progressPlan[activeIndex].telemetry;
+
+        progressSteps.forEach((step, index) => {
+            step.classList.toggle('is-complete', normalized > progressThresholds[index] + 10);
+            step.classList.toggle('is-current', index === activeIndex);
+        });
+    }
+
+    function startCompleteProgress(submitter) {
+        if (!createForm || !progressOverlay) return;
+
+        createForm.dataset.progressActive = 'true';
+        progressOverlay.classList.add('is-visible');
+        progressOverlay.setAttribute('aria-hidden', 'false');
+        document.body.classList.add('backup-progress-lock');
+
+        const createButtons = createForm.querySelectorAll('button[type="submit"]');
+        createButtons.forEach((button) => {
+            button.disabled = true;
+        });
+
+        if (submitter) {
+            submitter.classList.remove('btn-outline-success');
+            submitter.classList.add('btn-success');
+            submitter.textContent = 'Processando pacote...';
+        }
+
+        let progressValue = 10;
+        renderProgress(progressValue);
+
+        window.setInterval(function () {
+            const increment = progressValue < 40 ? 5 : progressValue < 72 ? 3 : progressValue < 88 ? 1.5 : 0.6;
+            progressValue = Math.min(96, progressValue + increment);
+            renderProgress(progressValue);
+        }, 340);
+    }
+
+    if (createForm) {
+        createForm.addEventListener('submit', function (event) {
+            const submitter = event.submitter;
+
+            if (!submitter || submitter.value !== 'complete') {
+                return;
+            }
+
+            if (createForm.dataset.progressActive === 'true') {
+                event.preventDefault();
+                return;
+            }
+
+            startCompleteProgress(submitter);
+        });
+    }
+
     const form = document.getElementById('backupCatalogForm');
     if (!form) return;
 

@@ -331,6 +331,82 @@ class NotificationRouterService:
         )
 
     @staticmethod
+    def route_stock_entry(
+        codigo: str,
+        *,
+        prev_balance: float | None = None,
+        quantity_delta: float | None = None,
+        document_number: str | None = None,
+        document_type: str | None = None,
+        actor_name: str | None = None,
+        actor_matricula: str | None = None,
+        source_label: str | None = None,
+    ) -> dict[str, Any]:
+        item = Item.query.get(codigo)
+        recipients = set(NotificationRouterService._resolve_item_recipients(item))
+        if actor_matricula:
+            recipients.add(actor_matricula)
+
+        current_balance = None
+        try:
+            current_balance = float(item.get_saldo_atual() or 0.0) if item else None
+        except Exception:
+            current_balance = None
+
+        if quantity_delta is None and prev_balance is not None and current_balance is not None:
+            quantity_delta = current_balance - float(prev_balance or 0.0)
+
+        resolved_document_type = (document_type or "").strip().upper()
+        resolved_document_number = (document_number or "").strip()
+        document_label = " ".join(part for part in (resolved_document_type, resolved_document_number) if part).strip() or None
+        visual_payload = operation_visual_payload_service.build_for_item(
+            item,
+            kind="entrada",
+            kind_label="Entrada registrada",
+            item_code=codigo,
+            quantity=quantity_delta,
+            actor_name=actor_name,
+            actor_matricula=actor_matricula,
+            context={
+                "observacao": f"Documento {document_label}" if document_label else "Entrada registrada no estoque.",
+            },
+            source_label=source_label or "entrada documental",
+            generated_at=datetime.utcnow(),
+        )
+        quantity_display = (
+            (visual_payload.get("movement") or {}).get("quantidade_display")
+            if isinstance(visual_payload, dict)
+            else None
+        ) or "saldo atualizado"
+        item_desc = item.descricao if item else (codigo or "Item")
+        body = f"Entrada de {quantity_display} registrada para {item_desc}."
+        if document_label:
+            body = f"Entrada de {quantity_display} registrada para {item_desc} via {document_label}."
+
+        payload = {
+            "recipient_ids": sorted(recipients),
+            "title": "Entrada registrada",
+            "body": body,
+            "category": "entry",
+            "message_type": "stock_entry",
+            "payload": {
+                "kind": "stock_entry",
+                "codigo": codigo,
+                "prevBalance": prev_balance,
+                "currentBalance": current_balance,
+                "quantityDelta": quantity_delta,
+                "documentNumber": resolved_document_number or None,
+                "documentType": (document_type or "").strip().lower() or None,
+                "visual": visual_payload,
+            },
+        }
+        return NotificationRouterService.route_event(
+            event_name="stock_entry",
+            telegram_callable=lambda: TelegramService.notify_item_updated(codigo, prev_balance=prev_balance),
+            notify_payload=payload,
+        )
+
+    @staticmethod
     def route_permanent_custody(saida_id: int) -> dict[str, Any]:
         saida = Saida.query.get(saida_id)
         visual_payload = operation_visual_payload_service.build_for_saida(saida) if saida else None

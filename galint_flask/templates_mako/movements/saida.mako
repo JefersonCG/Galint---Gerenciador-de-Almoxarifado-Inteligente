@@ -1023,6 +1023,12 @@ ${parent.scripts()}
         'saco': { singular: 'saco', plural: 'sacos' }
     };
 
+    function clearCurrentItemInputs() {
+        inputCodigo.value = '';
+        inputQuantidade.value = '1';
+        dropdownCodigo.classList.remove('show');
+    }
+
     function normalizePackageText(value) {
         return String(value || '')
             .normalize('NFD')
@@ -1227,7 +1233,7 @@ ${parent.scripts()}
                 operatorActive: true,
                 sourceLabel: 'preparacao da saida',
             }));
-        }, 220);
+        }, 80);
     }
 
     function renderCurrentPreview(item, status, publishState) {
@@ -1635,6 +1641,8 @@ ${parent.scripts()}
             adicionarItemFinal(pendingItem);
             modalUnidade.hide();
             pendingItem = null;
+            clearCurrentItemInputs();
+            inputCodigo.focus();
         }
     });
     
@@ -1650,6 +1658,8 @@ ${parent.scripts()}
             adicionarItemFinal(pendingItem);
             modalUnidade.hide();
             pendingItem = null;
+            clearCurrentItemInputs();
+            inputCodigo.focus();
         }
     });
 
@@ -1664,6 +1674,8 @@ ${parent.scripts()}
             adicionarItemFinal(pendingItem);
             modalUnidade.hide();
             pendingItem = null;
+            clearCurrentItemInputs();
+            inputCodigo.focus();
         }
     });
     
@@ -1802,8 +1814,12 @@ ${parent.scripts()}
                     saldo_display: data.saldo_display,
                     foto_url: data.foto_url
                 };
+
+                currentPreviewItem = { ...pendingItem };
+                renderCurrentPreview(currentPreviewItem, 'preview');
                 
                 mostrarModalUnidade(pendingItem);
+                return;
                 
             } else {
                 // Não tem embalagem - adiciona direto
@@ -1824,10 +1840,7 @@ ${parent.scripts()}
             }
             
             // Limpa campos
-            inputCodigo.value = '';
-            inputQuantidade.value = '1';
-            currentPreviewItem = null;
-            renderCurrentPreview(null, 'idle');
+            clearCurrentItemInputs();
             inputCodigo.focus();
             
         } catch (error) {
