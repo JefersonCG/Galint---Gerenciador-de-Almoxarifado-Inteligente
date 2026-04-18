@@ -1,14 +1,230 @@
 {% extends "base.html" %}
 {% block title %}Contingência{% endblock %}
+{% block body_class %}contingency-hero-page{% endblock %}
+
+{% block extra_css %}
+<style>
+    .contingency-hero-page .content-panel {
+        background:
+            radial-gradient(circle at 12% 14%, rgba(56, 189, 248, 0.1), transparent 22%),
+            radial-gradient(circle at 86% 10%, rgba(59, 130, 246, 0.1), transparent 18%),
+            linear-gradient(180deg, #07111f 0%, #0b1729 100%);
+        color: #e2e8f0;
+    }
+
+    .contingency-hero-page .page-header {
+        display: none;
+    }
+
+    .contingency-shell {
+        position: relative;
+        overflow: hidden;
+        border-radius: 28px;
+        padding: 1.5rem;
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        background: linear-gradient(180deg, rgba(7, 17, 31, 0.88), rgba(11, 23, 41, 0.82));
+        box-shadow: 0 24px 54px rgba(2, 8, 23, 0.42);
+    }
+
+    .contingency-shell::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+            radial-gradient(circle at 14% 16%, rgba(56, 189, 248, 0.18), transparent 24%),
+            radial-gradient(circle at 88% 14%, rgba(96, 165, 250, 0.16), transparent 22%);
+        pointer-events: none;
+    }
+
+    .contingency-shell > * {
+        position: relative;
+        z-index: 1;
+    }
+
+    .contingency-hero {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+        padding: 1.5rem;
+        border-radius: 24px;
+        background: linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(30, 41, 59, 0.88) 52%, rgba(14, 165, 233, 0.46) 100%);
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        box-shadow: 0 22px 50px rgba(15, 23, 42, 0.22);
+        margin-bottom: 1.4rem;
+    }
+
+    .contingency-kicker {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.36rem 0.72rem;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(226, 232, 240, 0.14);
+        font-size: 0.74rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: rgba(226, 232, 240, 0.9);
+        margin-bottom: 0.8rem;
+    }
+
+    .contingency-title {
+        margin: 0;
+        font-size: clamp(1.8rem, 3vw, 2.45rem);
+        font-weight: 800;
+        letter-spacing: -0.03em;
+        color: #f8fafc;
+    }
+
+    .contingency-subtitle {
+        margin: 0.6rem 0 0;
+        max-width: 52rem;
+        color: rgba(226, 232, 240, 0.8);
+        line-height: 1.6;
+    }
+
+    .contingency-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 0.85rem;
+        border-radius: 999px;
+        background: rgba(14, 165, 233, 0.14);
+        border: 1px solid rgba(125, 211, 252, 0.2);
+        color: #bae6fd;
+        font-size: 0.8rem;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+
+    .contingency-panel {
+        border-radius: 24px;
+        padding: 1.35rem;
+        background: linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.74));
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        box-shadow: 0 18px 42px rgba(2, 8, 23, 0.24);
+    }
+
+    .contingency-panel-empty {
+        text-align: center;
+        padding: 2.2rem 1.4rem;
+        color: rgba(226, 232, 240, 0.78);
+    }
+
+    .contingency-panel-empty i {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 4rem;
+        height: 4rem;
+        border-radius: 999px;
+        margin-bottom: 1rem;
+        background: rgba(255, 255, 255, 0.06);
+        color: #7dd3fc;
+        font-size: 1.45rem;
+    }
+
+    .contingency-table {
+        margin-bottom: 1.25rem;
+        color: #e2e8f0;
+        --bs-table-bg: transparent;
+        --bs-table-color: #e2e8f0;
+        --bs-table-border-color: rgba(148, 163, 184, 0.14);
+        --bs-table-striped-bg: rgba(255, 255, 255, 0.03);
+        --bs-table-hover-bg: rgba(125, 211, 252, 0.08);
+    }
+
+    .contingency-table thead th {
+        border-bottom-width: 1px;
+        color: #f8fafc;
+        font-size: 0.78rem;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        padding-top: 0;
+    }
+
+    .contingency-table td,
+    .contingency-table th {
+        padding: 0.9rem 0.8rem;
+        vertical-align: middle;
+    }
+
+    .contingency-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.34rem 0.72rem;
+        border-radius: 999px;
+        background: rgba(59, 130, 246, 0.14);
+        border: 1px solid rgba(96, 165, 250, 0.18);
+        color: #bfdbfe;
+        font-size: 0.78rem;
+        font-weight: 700;
+        text-transform: uppercase;
+    }
+
+    .contingency-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.7rem;
+    }
+
+    .contingency-actions form {
+        margin: 0;
+    }
+
+    .contingency-primary-btn,
+    .contingency-danger-btn {
+        border-radius: 999px;
+        font-weight: 700;
+        padding-inline: 1rem;
+        box-shadow: 0 12px 24px rgba(2, 8, 23, 0.18);
+    }
+
+    .contingency-primary-btn {
+        background: linear-gradient(135deg, #2563eb, #0ea5e9);
+        border-color: transparent;
+    }
+
+    .contingency-danger-btn {
+        background: linear-gradient(135deg, rgba(239, 68, 68, 0.92), rgba(190, 24, 93, 0.88));
+        border-color: transparent;
+    }
+
+    @media (max-width: 768px) {
+        .contingency-shell {
+            padding: 1rem;
+        }
+
+        .contingency-hero {
+            flex-direction: column;
+        }
+
+        .contingency-panel {
+            overflow-x: auto;
+        }
+    }
+</style>
+{% endblock %}
 {% block page_header %}
-<h2>Fila de Contingência</h2>
-<p class="text-muted">Registros aguardando sincronização com o banco de dados.</p>
 {% endblock %}
 {% block content %}
-<div class="card">
-    <div class="card-body">
+<div class="contingency-shell">
+    <section class="contingency-hero">
+        <div>
+            <div class="contingency-kicker"><i class="bi bi-broadcast-pin"></i> Operação Offline</div>
+            <h2 class="contingency-title">Fila de Contingência</h2>
+            <p class="contingency-subtitle">Acompanhe os registros que ainda não foram sincronizados com o banco de dados principal e resolva a fila com uma ação única quando o ambiente voltar ao normal.</p>
+        </div>
+        <span class="contingency-badge"><i class="bi bi-database-exclamation"></i> {{ entries|length }} pendências</span>
+    </section>
+
+    <div class="contingency-panel">
         {% if entries %}
-        <table class="table">
+        <table class="table contingency-table align-middle">
             <thead>
                 <tr>
                     <th>ID</th>
@@ -16,7 +232,7 @@
                     <th>Descrição</th>
                     <th>Qtd</th>
                     <th>Status</th>
-                    <th>Ações</th>
+                    <th class="text-end">Ações</th>
                 </tr>
             </thead>
             <tbody>
@@ -26,22 +242,27 @@
                     <td>{{ e.codigo_item }}</td>
                     <td>{{ e.descricao }}</td>
                     <td>{{ e.quantidade_inicial }}</td>
-                    <td>{{ e.status }}</td>
-                    <td>
-                        <form style="display:inline" method="post"
-                            action="{{ url_for('contingency.delete_entry', entry_id=e.id) }}">
-                            <button class="btn btn-sm btn-danger">Remover</button>
+                    <td><span class="contingency-status"><i class="bi bi-hourglass-split"></i>{{ e.status }}</span></td>
+                    <td class="text-end">
+                        <form method="post" action="{{ url_for('contingency.delete_entry', entry_id=e.id) }}">
+                            <button class="btn btn-sm contingency-danger-btn text-white">Remover</button>
                         </form>
                     </td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
-        <form method="post" action="{{ url_for('contingency.sync_queue') }}">
-            <button class="btn btn-primary">Sincronizar agora</button>
-        </form>
+        <div class="contingency-actions">
+            <form method="post" action="{{ url_for('contingency.sync_queue') }}">
+                <button class="btn contingency-primary-btn text-white"><i class="bi bi-arrow-repeat me-2"></i>Sincronizar agora</button>
+            </form>
+        </div>
         {% else %}
-        <p class="text-muted">Nenhum registro em fila.</p>
+        <div class="contingency-panel-empty">
+            <i class="bi bi-cloud-check"></i>
+            <h5 class="mb-2 text-white">Nenhum registro em fila</h5>
+            <p class="mb-0">A contingência está limpa no momento. Quando houver pendências offline, elas aparecerão aqui com o mesmo padrão Dark Hero.</p>
+        </div>
         {% endif %}
     </div>
 </div>

@@ -1,17 +1,26 @@
 {% extends "base.html" %}
 {% block title %}Sobre{% endblock %}
+{% block body_class %}about-dark-hero-page{% endblock %}
 
 {% block extra_css %}
 <style>
+    .about-dark-hero-page .content-panel {
+        background:
+            radial-gradient(circle at 14% 14%, rgba(56, 189, 248, 0.1), transparent 24%),
+            radial-gradient(circle at 86% 12%, rgba(251, 191, 36, 0.08), transparent 18%),
+            linear-gradient(180deg, #07111f 0%, #0b1729 100%);
+        color: #e2e8f0;
+    }
+
     .about-hero {
-        background: radial-gradient(circle at top right, rgba(56, 189, 248, 0.16), transparent 42%),
-                    radial-gradient(circle at bottom left, rgba(245, 158, 11, 0.12), transparent 30%),
-                    linear-gradient(135deg, #151c25 0%, #18222f 55%, #1d2938 100%);
+        background: radial-gradient(circle at top right, rgba(56, 189, 248, 0.18), transparent 42%),
+                    radial-gradient(circle at bottom left, rgba(245, 158, 11, 0.14), transparent 30%),
+                    linear-gradient(135deg, rgba(15, 23, 42, 0.96) 0%, rgba(30, 41, 59, 0.88) 55%, rgba(14, 165, 233, 0.36) 100%);
         color: #f8fafc;
-        border-radius: 24px;
+        border-radius: 26px;
         padding: 2.25rem 2.5rem;
-        box-shadow: 0 25px 45px rgba(15, 23, 42, 0.2);
-        border: 1px solid rgba(148, 163, 184, 0.12);
+        box-shadow: 0 25px 52px rgba(15, 23, 42, 0.24);
+        border: 1px solid rgba(148, 163, 184, 0.16);
         position: relative;
         overflow: hidden;
         margin-bottom: 2rem;
@@ -61,11 +70,11 @@
     }
 
     .about-card {
-        border-radius: 18px;
-        background: linear-gradient(180deg, #18212b 0%, #141c25 100%);
+        border-radius: 22px;
+        background: linear-gradient(180deg, rgba(15, 23, 42, 0.92) 0%, rgba(15, 23, 42, 0.76) 100%);
         padding: 1.4rem 1.5rem;
-        box-shadow: 0 14px 30px rgba(15, 23, 42, 0.12);
-        border: 1px solid rgba(148, 163, 184, 0.12);
+        box-shadow: 0 18px 38px rgba(15, 23, 42, 0.16);
+        border: 1px solid rgba(148, 163, 184, 0.14);
         color: #e2e8f0;
     }
 
@@ -88,12 +97,13 @@
     }
 
     .about-section {
-        border-radius: 20px;
-        background: linear-gradient(180deg, #161f29 0%, #121922 100%);
+        border-radius: 24px;
+        background: linear-gradient(180deg, rgba(15, 23, 42, 0.92) 0%, rgba(15, 23, 42, 0.78) 100%);
         padding: 1.75rem 2rem;
-        border: 1px solid rgba(148, 163, 184, 0.12);
+        border: 1px solid rgba(148, 163, 184, 0.14);
         margin-bottom: 2rem;
         color: #e2e8f0;
+        box-shadow: 0 20px 44px rgba(15, 23, 42, 0.16);
     }
 
     .about-steps {
@@ -103,10 +113,10 @@
     }
 
     .about-step {
-        background: rgba(19, 28, 38, 0.92);
+        background: rgba(19, 28, 38, 0.82);
         border-radius: 16px;
         padding: 1.25rem;
-        border: 1px solid rgba(148, 163, 184, 0.12);
+        border: 1px solid rgba(148, 163, 184, 0.14);
         display: flex;
         gap: 0.8rem;
         align-items: flex-start;
@@ -119,7 +129,7 @@
     .about-highlight {
         background: linear-gradient(135deg, rgba(37, 99, 235, 0.18), rgba(30, 41, 59, 0.72));
         border: 1px solid rgba(96, 165, 250, 0.2);
-        border-radius: 20px;
+        border-radius: 24px;
         padding: 1.6rem 1.8rem;
         display: flex;
         align-items: center;
@@ -164,9 +174,9 @@
     }
 
     .about-figure {
-        border-radius: 16px;
+        border-radius: 18px;
         padding: 1rem;
-        background: rgba(19, 28, 38, 0.92);
+        background: rgba(19, 28, 38, 0.82);
         border: 1px dashed rgba(125, 211, 252, 0.18);
         text-align: center;
     }
@@ -193,9 +203,9 @@
     }
 
     .about-note {
-        background: rgba(19, 28, 38, 0.92);
+        background: rgba(19, 28, 38, 0.82);
         border-radius: 16px;
-        border: 1px solid rgba(148, 163, 184, 0.12);
+        border: 1px solid rgba(148, 163, 184, 0.14);
         padding: 1.1rem 1.2rem;
         color: rgba(226, 232, 240, 0.8);
     }
@@ -206,10 +216,10 @@
 
     .about-doc-shell {
         margin-top: 1.25rem;
-        border-radius: 20px;
+        border-radius: 24px;
         padding: 1.5rem;
-        background: rgba(12, 18, 24, 0.62);
-        border: 1px solid rgba(148, 163, 184, 0.12);
+        background: rgba(12, 18, 24, 0.56);
+        border: 1px solid rgba(148, 163, 184, 0.14);
     }
 
     .about-doc-content h1,

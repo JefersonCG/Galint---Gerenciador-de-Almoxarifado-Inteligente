@@ -1,7 +1,6 @@
 """Views para configuração da empresa e relatórios."""
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
-from werkzeug.utils import secure_filename
 
 from ..services.config_service import ConfigService
 from ..services.finance_service import finance_service
@@ -38,6 +37,7 @@ def empresa():
         return redirect(url_for("main.index"))
     
     empresa_config = ConfigService.get_empresa_config()
+    login_branding = ConfigService.get_login_branding_config()
     
     if request.method == "POST":
         try:
@@ -62,7 +62,19 @@ def empresa():
             # Validação básica
             if not data["nome_empresa"]:
                 flash("Nome da empresa é obrigatório!", "danger")
-                return render_template("config/empresa.html", empresa_config=empresa_config)
+                return render_template(
+                    "config/empresa.html",
+                    empresa_config=empresa_config,
+                    login_branding=login_branding,
+                )
+
+            if request.form.get("remover_login_background") == "on":
+                login_branding = ConfigService.clear_login_branding_asset("login_background_path")
+                flash("Imagem de fundo do login removida. O sistema voltou para o fundo padrão.", "info")
+
+            if request.form.get("remover_login_card_image") == "on":
+                login_branding = ConfigService.clear_login_branding_asset("login_card_image_path")
+                flash("Imagem do card do login removida. O sistema voltou para a imagem padrão.", "info")
             
             # Upload de logo (se houver)
             if "logo" in request.files:
@@ -74,6 +86,30 @@ def empresa():
                         flash("Logo enviado com sucesso!", "success")
                     except ValueError as e:
                         flash(str(e), "danger")
+
+            if "login_background" in request.files:
+                file = request.files["login_background"]
+                if file and file.filename:
+                    try:
+                        background_path = ConfigService.upload_login_background(file)
+                        login_branding = ConfigService.update_login_branding_config(
+                            {"login_background_path": background_path}
+                        )
+                        flash("Imagem de fundo do login atualizada com sucesso!", "success")
+                    except ValueError as e:
+                        flash(str(e), "danger")
+
+            if "login_card_image" in request.files:
+                file = request.files["login_card_image"]
+                if file and file.filename:
+                    try:
+                        card_image_path = ConfigService.upload_login_card_image(file)
+                        login_branding = ConfigService.update_login_branding_config(
+                            {"login_card_image_path": card_image_path}
+                        )
+                        flash("Imagem do card do login atualizada com sucesso!", "success")
+                    except ValueError as e:
+                        flash(str(e), "danger")
             
             # Atualizar configuração
             ConfigService.update_empresa_config(data)
@@ -83,8 +119,14 @@ def empresa():
             
         except Exception as e:
             flash(f"Erro ao atualizar configurações: {str(e)}", "danger")
+            empresa_config = ConfigService.get_empresa_config()
+            login_branding = ConfigService.get_login_branding_config()
     
-    return render_template("config/empresa.html", empresa_config=empresa_config)
+    return render_template(
+        "config/empresa.html",
+        empresa_config=empresa_config,
+        login_branding=login_branding,
+    )
 
 
 @bp.route("/relatorios", methods=["GET", "POST"])

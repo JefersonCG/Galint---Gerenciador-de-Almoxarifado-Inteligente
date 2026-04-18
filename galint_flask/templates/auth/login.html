@@ -1,12 +1,15 @@
 {% extends "base.html" %}
 {% block title %}Login{% endblock %}
 {% block body_class %}auth-login-page{% endblock %}
+{% set login_background_path = (login_branding.login_background_path if login_branding else None) or 'logo/logo.png' %}
+{% set login_card_image_path = (login_branding.login_card_image_path if login_branding else None) or (empresa_config.logo_path if empresa_config and empresa_config.logo_path else 'logo/icone-galint.png') %}
 <!-- Cache bust: 2026-02-03-10:25 -->
 {% block extra_css %}
 <style>
     body.auth-login-page {
-        background: linear-gradient(rgba(5, 12, 26, 0.45), rgba(5, 12, 26, 0.45)),
-        url("{{ url_for('static', filename='logo/logo.png') }}") center/cover no-repeat fixed;
+        background:
+            linear-gradient(rgba(3, 7, 18, 0.46), rgba(3, 7, 18, 0.46)),
+            url("{{ url_for('static', filename=login_background_path) }}") center/cover no-repeat fixed;
         background-size: cover;
         min-height: 100vh;
         overflow: hidden;
@@ -31,143 +34,541 @@
     body.auth-login-page .app-body {
         min-height: 100vh;
         display: flex;
-        justify-content: center;
-        align-items: center;
-        padding: 2rem;
-        background: rgba(5, 12, 26, 0.55);
-        backdrop-filter: blur(2px);
+        justify-content: flex-end;
+        align-items: flex-start;
+        padding: 0.85rem;
+        background:
+            radial-gradient(circle at 18% 16%, rgba(56, 189, 248, 0.12), transparent 28%),
+            radial-gradient(circle at 82% 12%, rgba(14, 165, 233, 0.12), transparent 22%),
+            linear-gradient(rgba(4, 8, 19, 0.18), rgba(4, 8, 19, 0.28));
+        backdrop-filter: blur(4px);
         overflow: hidden;
         box-sizing: border-box;
     }
 
     body.auth-login-page .content-panel {
         width: 100%;
-        max-width: 480px;
-        border-radius: 26px;
-        background: rgba(255, 255, 255, 0.98);
-        border: 1px solid rgba(255, 255, 255, 0.7);
-        box-shadow:
-            0 24px 48px rgba(4, 12, 26, 0.22),
-            0 12px 28px rgba(4, 12, 26, 0.16),
-            0 2px 6px rgba(4, 12, 26, 0.08);
-        padding: clamp(1.5rem, 4vw, 2.5rem);
-        overflow: hidden;
-        backdrop-filter: blur(6px);
-        margin: auto;
+        min-height: calc(100vh - 1.7rem);
+        padding: 0;
+        background: transparent;
+        border: none;
+        box-shadow: none;
+        backdrop-filter: none;
+        overflow: auto;
         position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 0.75rem;
     }
 
     body.auth-login-page .content-panel::after {
+        display: none;
+    }
+
+    body.auth-login-page .content-panel > .alert {
+        width: min(100%, 27rem);
+        margin: 0;
+        border-radius: 1.1rem;
+        box-shadow: 0 20px 44px rgba(2, 6, 23, 0.32);
+    }
+
+    body.auth-login-page .login-shell {
+        position: fixed;
+        top: 0.85rem;
+        right: 0.85rem;
+        z-index: 5;
+        width: min(27rem, calc(100vw - 1.7rem));
+        border-radius: 2rem;
+        border: 1px solid rgba(226, 232, 240, 0.12);
+        background:
+            linear-gradient(145deg, rgba(7, 11, 22, 0.11), rgba(7, 11, 22, 0.04)),
+            linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.015));
+        box-shadow:
+            0 30px 80px rgba(2, 6, 23, 0.42),
+            inset 0 1px 0 rgba(255, 255, 255, 0.12);
+        backdrop-filter: blur(28px) saturate(1.22);
+        -webkit-backdrop-filter: blur(28px) saturate(1.22);
+        overflow: hidden;
+        cursor: grab;
+        transition:
+            width 0.28s ease,
+            border-radius 0.28s ease,
+            box-shadow 0.28s ease,
+            background-color 0.28s ease,
+            transform 0.28s ease,
+            opacity 0.28s ease;
+        user-select: none;
+    }
+
+    body.auth-login-page .login-shell::before {
         content: "";
         position: absolute;
         inset: 0;
-        border-radius: 26px;
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+        background:
+            radial-gradient(circle at 14% 18%, rgba(125, 211, 252, 0.24), transparent 26%),
+            radial-gradient(circle at 84% 16%, rgba(59, 130, 246, 0.18), transparent 24%);
         pointer-events: none;
+        opacity: 0.92;
     }
 
-    body.auth-login-page .login-header {
+    body.auth-login-page .login-shell.is-dragging {
+        cursor: grabbing;
+        box-shadow: 0 36px 88px rgba(2, 6, 23, 0.5);
+        transition: none;
+    }
+
+    body.auth-login-page .login-shell.is-collapsed {
+        width: 4.95rem;
+        border-radius: 999px;
+        opacity: 0.96;
+    }
+
+    body.auth-login-page .login-shell.is-collapsed .login-shell-inner {
+        grid-template-columns: 1fr;
+        padding: 0.42rem;
+        gap: 0;
+    }
+
+    body.auth-login-page .login-shell.is-collapsed .login-form {
+        display: none;
+    }
+
+    body.auth-login-page .login-shell.is-collapsed .login-brand {
+        padding-right: 0;
+    }
+
+    body.auth-login-page .login-shell.is-collapsed .login-logo-frame {
+        width: 4.1rem;
+        height: 4.1rem;
+        border-radius: 50%;
+    }
+
+    body.auth-login-page .login-shell.is-collapsed .login-shell-controls {
+        top: 0.22rem;
+        right: 0.18rem;
+    }
+
+    body.auth-login-page .login-shell.is-collapsed .login-shell-control {
+        width: 1.55rem;
+        height: 1.55rem;
+        background: rgba(7, 11, 22, 0.38);
+        opacity: 0.88;
+    }
+
+    body.auth-login-page .login-shell-inner {
+        position: relative;
+        z-index: 1;
+        display: grid;
+        grid-template-columns: 5.6rem minmax(0, 1fr);
+        align-items: start;
+        gap: 0.9rem;
+        padding: 1rem;
+    }
+
+    body.auth-login-page .login-brand {
         display: flex;
-        flex-direction: column;
         align-items: center;
-        gap: 0.25rem;
-        margin-bottom: 1.25rem;
+        justify-content: center;
+        min-height: 100%;
+        padding-right: 0.15rem;
     }
 
-    body.auth-login-page .login-logo img {
+    body.auth-login-page .login-logo-frame {
+        width: 5.25rem;
+        height: 5.25rem;
+        border-radius: 1.55rem;
+        padding: 0.45rem;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.025));
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        box-shadow:
+            0 18px 44px rgba(2, 6, 23, 0.24),
+            inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    }
+
+    body.auth-login-page .login-logo-frame img {
         display: block;
-        margin: 0;
-        max-width: 360px;
-        height: auto;
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        border-radius: inherit;
+        filter: drop-shadow(0 12px 24px rgba(2, 6, 23, 0.22));
     }
 
-    body.auth-login-page .login-title {
-        font-weight: 700;
-        color: #0b1f3a;
-        text-align: center;
-        margin: 0;
-        font-size: 1.6rem;
-        letter-spacing: 0.2px;
+    body.auth-login-page .login-form {
+        display: grid;
+        gap: 0.72rem;
+        padding-right: 1.9rem;
+        user-select: auto;
     }
 
-    body.auth-login-page .login-lead {
-        text-align: center;
-        color: #2a3b58;
-        margin: 0.1rem 0 0;
-        font-size: 0.92rem;
-        line-height: 1.35;
+    body.auth-login-page .login-field {
+        position: relative;
+        transition: filter 0.28s ease;
+    }
+
+    body.auth-login-page .login-field:hover {
+        filter: saturate(1.08);
     }
 
     body.auth-login-page .login-form .form-control {
-        background: #e5e7eb;
-        border-color: #d1d5db;
-        color: #111827;
+        min-height: 3rem;
+        padding: 0.78rem 0.98rem;
+        background: rgba(255, 255, 255, 0.11);
+        border-color: rgba(191, 219, 254, 0.14);
+        color: #f8fafc;
+        border-radius: 1rem;
+        box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.06),
+            0 10px 24px rgba(2, 6, 23, 0.08);
+        transition:
+            background-color 0.24s ease,
+            border-color 0.24s ease,
+            box-shadow 0.24s ease,
+            transform 0.24s ease,
+            letter-spacing 0.24s ease;
+    }
+
+    body.auth-login-page .login-form .form-control::placeholder {
+        color: rgba(226, 232, 240, 0.76);
+        letter-spacing: 0.02em;
+    }
+
+    body.auth-login-page .login-field:hover .form-control {
+        background: rgba(255, 255, 255, 0.14);
+        border-color: rgba(125, 211, 252, 0.52);
+        box-shadow: 0 14px 34px rgba(14, 165, 233, 0.12);
     }
 
     body.auth-login-page .login-form .form-control:focus {
-        background: #f1f5f9;
-        border-color: #2563eb;
-        box-shadow: 0 0 0 0.25rem rgba(37, 99, 235, 0.15);
-        color: #0f172a;
+        background: rgba(15, 23, 42, 0.54);
+        border-color: #7dd3fc;
+        box-shadow:
+            0 0 0 0.22rem rgba(56, 189, 248, 0.12),
+            0 18px 38px rgba(14, 165, 233, 0.16);
+        color: #ffffff;
+        transform: translateY(-1px);
     }
 
-    body.auth-login-page .login-welcome {
-        text-align: center;
-        font-family: 'Brush Script MT', 'Lucida Handwriting', cursive;
-        font-size: 1.45rem;
-        color: #1b2b46;
-        margin: 0 0 0.15rem;
+    body.auth-login-page .login-submit-hidden {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
     }
 
-    body.auth-login-page .btn-primary {
-        font-weight: 600;
-        letter-spacing: 0.4px;
-        padding: 0.65rem;
-        border-radius: 12px;
+    body.auth-login-page .login-shell-controls {
+        position: absolute;
+        top: 0.48rem;
+        right: 0.48rem;
+        display: flex;
+        gap: 0.35rem;
+        z-index: 2;
+        opacity: 0;
+        transition: opacity 0.2s ease;
+    }
+
+    body.auth-login-page .login-shell:hover .login-shell-controls,
+    body.auth-login-page .login-shell:focus-within .login-shell-controls,
+    body.auth-login-page .login-shell.is-collapsed .login-shell-controls {
+        opacity: 1;
+    }
+
+    body.auth-login-page .login-shell-control {
+        width: 1.75rem;
+        height: 1.75rem;
+        border: 1px solid rgba(226, 232, 240, 0.1);
+        border-radius: 999px;
+        background: rgba(7, 11, 22, 0.22);
+        color: rgba(241, 245, 249, 0.9);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+        transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+    }
+
+    body.auth-login-page .login-shell-control:hover {
+        background: rgba(15, 23, 42, 0.46);
+        border-color: rgba(125, 211, 252, 0.4);
+        transform: translateY(-1px);
+    }
+
+    body.auth-login-page .login-shell-control:focus-visible {
+        outline: 0;
+        box-shadow: 0 0 0 0.18rem rgba(56, 189, 248, 0.22);
+    }
+
+    body.auth-login-page .login-drag-tip {
+        position: absolute;
+        left: 50%;
+        bottom: 0.42rem;
+        transform: translateX(-50%);
+        width: 2.3rem;
+        height: 0.24rem;
+        border-radius: 999px;
+        background: rgba(226, 232, 240, 0.18);
+        pointer-events: none;
+    }
+
+    @media (max-width: 767.98px) {
+        body.auth-login-page .app-body {
+            padding: 0.85rem;
+        }
+
+        body.auth-login-page .content-panel {
+            align-items: stretch;
+        }
+
+        body.auth-login-page .login-shell {
+            width: calc(100vw - 1.7rem);
+            right: 0.85rem;
+        }
+
+        body.auth-login-page .login-shell-inner {
+            grid-template-columns: 1fr;
+            gap: 0.8rem;
+        }
+
+        body.auth-login-page .login-brand {
+            justify-content: flex-start;
+        }
+
+        body.auth-login-page .login-form {
+            padding-right: 0;
+        }
     }
 </style>
 {% endblock %}
 {% block content %}
-<div>
-    <div class="login-header">
-        <p class="login-welcome">Seja Bem-vindo !</p>
-        <div class="login-logo">
-            {% if empresa_config and empresa_config.logo_path %}
-            <!-- Logo da empresa configurado -->
-            <img src="{{ url_for('static', filename=empresa_config.logo_path) }}" 
-                 alt="{{ empresa_config.nome_empresa }}" 
-                 style="max-width: {{ empresa_config.logo_width }}px; max-height: {{ empresa_config.logo_height }}px;"
-                 loading="lazy">
-            {% else %}
-            <!-- Logo padrão do GALINT -->
-            <img src="{{ url_for('static', filename='logo/icone-galint.png') }}" alt="GALINT" loading="lazy">
-            {% endif %}
-        </div>
-        <h1 class="h2 login-title">
-            {% if empresa_config and empresa_config.nome_empresa and not empresa_config.primeira_execucao %}
-                {{ empresa_config.nome_empresa }}
-            {% else %}
-                Acesso ao GALINT
-            {% endif %}
-        </h1>
-        <p class="login-lead">
-            {% if empresa_config and empresa_config.nome_fantasia and not empresa_config.primeira_execucao %}
-                {{ empresa_config.nome_fantasia }} - Sistema de Gestão de Estoque
-            {% else %}
-                Informe sua matrícula e senha para continuar.
-            {% endif %}
-        </p>
+<div class="login-shell" id="login-shell" aria-label="Painel de login arrastável e recolhível">
+    <div class="login-shell-controls">
+        <button class="login-shell-control" type="button" id="login-shell-toggle" aria-expanded="true" aria-label="Recolher painel de login">
+            <i class="bi bi-arrows-angle-contract"></i>
+        </button>
     </div>
-    <form method="post" class="login-form">
-        <div class="mb-3">
-            <label class="form-label" for="matricula">Matrícula</label>
-            <input class="form-control" id="matricula" name="matricula" required>
+    <div class="login-shell-inner">
+        <div class="login-brand">
+            <div class="login-logo-frame">
+                <img src="{{ url_for('static', filename=login_card_image_path) }}"
+                     alt="{{ empresa_config.nome_empresa if empresa_config and empresa_config.nome_empresa else 'GALINT' }}"
+                     loading="lazy">
+            </div>
         </div>
-        <div class="mb-4">
-            <label class="form-label" for="senha">Senha</label>
-            <input class="form-control" id="senha" name="senha" type="password" required>
-        </div>
-        <button class="btn btn-primary w-100" type="submit">Entrar</button>
-    </form>
+        <form method="post" class="login-form">
+            <div class="login-field">
+                <label class="visually-hidden" for="matricula">Matrícula</label>
+                <input class="form-control" id="matricula" name="matricula" placeholder="Matrícula" autocomplete="username" required autofocus>
+            </div>
+            <div class="login-field">
+                <label class="visually-hidden" for="senha">Senha</label>
+                <input class="form-control" id="senha" name="senha" type="password" placeholder="Senha" autocomplete="current-password" required>
+            </div>
+            <button class="login-submit-hidden" type="submit" tabindex="-1">Entrar</button>
+        </form>
+        <span class="login-drag-tip" aria-hidden="true"></span>
+    </div>
 </div>
+{% endblock %}
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const shell = document.getElementById('login-shell');
+    const toggleButton = document.getElementById('login-shell-toggle');
+    if (!shell || !toggleButton) {
+        return;
+    }
+
+    const storageKey = 'galint.login.hero.state.v1';
+    const interactiveSelector = 'input, button, a, label, textarea, select';
+    const dragState = {
+        active: false,
+        pointerId: null,
+        offsetX: 0,
+        offsetY: 0,
+    };
+    let expandedPosition = null;
+
+    function clamp(value, min, max) {
+        return Math.min(Math.max(value, min), max);
+    }
+
+    function persistState() {
+        const rect = shell.getBoundingClientRect();
+        const payload = {
+            collapsed: shell.classList.contains('is-collapsed'),
+            left: Math.round(rect.left),
+            top: Math.round(rect.top),
+            expandedLeft: expandedPosition ? Math.round(expandedPosition.left) : null,
+            expandedTop: expandedPosition ? Math.round(expandedPosition.top) : null,
+        };
+        localStorage.setItem(storageKey, JSON.stringify(payload));
+    }
+
+    function ensureAbsolutePosition() {
+        const rect = shell.getBoundingClientRect();
+        shell.style.left = `${rect.left}px`;
+        shell.style.top = `${rect.top}px`;
+        shell.style.right = 'auto';
+        shell.style.bottom = 'auto';
+        return rect;
+    }
+
+    function applyPosition(left, top) {
+        const rect = shell.getBoundingClientRect();
+        const maxLeft = Math.max(8, window.innerWidth - rect.width - 8);
+        const maxTop = Math.max(8, window.innerHeight - rect.height - 8);
+        shell.style.left = `${clamp(left, 8, maxLeft)}px`;
+        shell.style.top = `${clamp(top, 8, maxTop)}px`;
+        shell.style.right = 'auto';
+        shell.style.bottom = 'auto';
+    }
+
+    function dockCollapsedShell() {
+        requestAnimationFrame(function () {
+            const rect = ensureAbsolutePosition();
+            const dockLeft = window.innerWidth - rect.width - 12;
+            applyPosition(dockLeft, 12);
+            persistState();
+        });
+    }
+
+    function setCollapsed(collapsed) {
+        const currentRect = shell.getBoundingClientRect();
+        if (collapsed) {
+            expandedPosition = { left: currentRect.left, top: currentRect.top };
+        }
+
+        shell.classList.toggle('is-collapsed', collapsed);
+        toggleButton.innerHTML = collapsed
+            ? '<i class="bi bi-arrows-angle-expand"></i>'
+            : '<i class="bi bi-arrows-angle-contract"></i>';
+        toggleButton.setAttribute('aria-expanded', String(!collapsed));
+        toggleButton.setAttribute(
+            'aria-label',
+            collapsed ? 'Expandir painel de login' : 'Recolher painel de login'
+        );
+
+        if (collapsed) {
+            dockCollapsedShell();
+            return;
+        }
+
+        requestAnimationFrame(function () {
+            const rect = ensureAbsolutePosition();
+            const targetLeft = expandedPosition ? expandedPosition.left : rect.left;
+            const targetTop = expandedPosition ? expandedPosition.top : rect.top;
+            applyPosition(targetLeft, targetTop);
+            persistState();
+        });
+    }
+
+    try {
+        const saved = JSON.parse(localStorage.getItem(storageKey) || '{}');
+        if (saved && typeof saved === 'object') {
+            if (typeof saved.collapsed === 'boolean') {
+                shell.classList.toggle('is-collapsed', saved.collapsed);
+                toggleButton.innerHTML = saved.collapsed
+                    ? '<i class="bi bi-arrows-angle-expand"></i>'
+                    : '<i class="bi bi-arrows-angle-contract"></i>';
+                toggleButton.setAttribute('aria-expanded', String(!saved.collapsed));
+                toggleButton.setAttribute(
+                    'aria-label',
+                    saved.collapsed ? 'Expandir painel de login' : 'Recolher painel de login'
+                );
+            }
+            if (Number.isFinite(saved.expandedLeft) && Number.isFinite(saved.expandedTop)) {
+                expandedPosition = { left: saved.expandedLeft, top: saved.expandedTop };
+            }
+            if (Number.isFinite(saved.left) && Number.isFinite(saved.top)) {
+                requestAnimationFrame(function () {
+                    applyPosition(saved.left, saved.top);
+                });
+            }
+        }
+    } catch (error) {
+    }
+
+    toggleButton.addEventListener('click', function (event) {
+        event.stopPropagation();
+        setCollapsed(!shell.classList.contains('is-collapsed'));
+    });
+
+    shell.addEventListener('dblclick', function (event) {
+        if (event.target.closest(interactiveSelector)) {
+            return;
+        }
+        setCollapsed(!shell.classList.contains('is-collapsed'));
+    });
+
+    shell.addEventListener('pointerdown', function (event) {
+        if (event.button !== 0) {
+            return;
+        }
+        if (event.target.closest(interactiveSelector)) {
+            return;
+        }
+
+        const rect = ensureAbsolutePosition();
+        dragState.active = true;
+        dragState.pointerId = event.pointerId;
+        dragState.offsetX = event.clientX - rect.left;
+        dragState.offsetY = event.clientY - rect.top;
+
+        shell.classList.add('is-dragging');
+        shell.setPointerCapture(event.pointerId);
+    });
+
+    shell.addEventListener('pointermove', function (event) {
+        if (!dragState.active || event.pointerId !== dragState.pointerId) {
+            return;
+        }
+        event.preventDefault();
+        applyPosition(event.clientX - dragState.offsetX, event.clientY - dragState.offsetY);
+        if (!shell.classList.contains('is-collapsed')) {
+            const rect = shell.getBoundingClientRect();
+            expandedPosition = { left: rect.left, top: rect.top };
+        }
+    });
+
+    function finishDrag(event) {
+        if (!dragState.active) {
+            return;
+        }
+        if (event && dragState.pointerId !== null && event.pointerId !== dragState.pointerId) {
+            return;
+        }
+
+        if (dragState.pointerId !== null && shell.hasPointerCapture(dragState.pointerId)) {
+            shell.releasePointerCapture(dragState.pointerId);
+        }
+
+        dragState.active = false;
+        dragState.pointerId = null;
+        shell.classList.remove('is-dragging');
+        persistState();
+    }
+
+    shell.addEventListener('pointerup', finishDrag);
+    shell.addEventListener('pointercancel', finishDrag);
+
+    window.addEventListener('resize', function () {
+        const rect = shell.getBoundingClientRect();
+        if (shell.classList.contains('is-collapsed')) {
+            dockCollapsedShell();
+            return;
+        }
+
+        if (shell.style.left && shell.style.top) {
+            applyPosition(rect.left, rect.top);
+        }
+        persistState();
+    });
+});
+</script>
 {% endblock %}

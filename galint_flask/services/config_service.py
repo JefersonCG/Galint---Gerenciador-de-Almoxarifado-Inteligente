@@ -1,7 +1,7 @@
 """Serviço para gerenciar configurações da empresa e relatórios."""
 from __future__ import annotations
 
-import os
+import json
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -16,6 +16,12 @@ from ..models import EmpresaConfig, RelatorioConfig
 
 class ConfigService:
     """Gerencia configurações da empresa e relatórios."""
+
+    EMPRESA_UPLOAD_DIR = Path("uploads") / "empresa"
+    LOGIN_BRANDING_CONFIG_FILENAME = "login_branding.json"
+    DEFAULT_LOGIN_BACKGROUND_PATH = "logo/logo.png"
+    DEFAULT_LOGIN_CARD_IMAGE_PATH = "logo/icone-galint.png"
+    ALLOWED_IMAGE_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp"}
     
     # Templates padrão
     CABECALHO_PADRAO = """{{nome_empresa}}
@@ -60,7 +66,7 @@ class ConfigService:
             'endereco_rua', 'endereco_numero', 'endereco_complemento',
             'endereco_bairro', 'endereco_cidade', 'endereco_estado', 'endereco_cep',
             'telefone', 'telefone_secundario', 'email', 'site',
-            'logo_width', 'logo_height', 'primeira_execucao', 'setup_completo'
+            'logo_path', 'logo_width', 'logo_height', 'primeira_execucao', 'setup_completo'
         ]
         
         for campo in campos_permitidos:
@@ -73,33 +79,140 @@ class ConfigService:
         return config
     
     @staticmethod
-    def upload_logo(file) -> str:
-        """Upload do logo da empresa."""
+    def _save_empresa_image(file, *, prefix: str) -> str:
+        """Salva uma imagem da empresa em static/uploads/empresa."""
         if not file or not file.filename:
-            raise ValueError("Arquivo de logo inválido")
-        
-        # Validar extensão
-        extensoes_permitidas = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+            raise ValueError("Arquivo de imagem inválido")
+
         filename = secure_filename(file.filename)
         extensao = filename.rsplit('.', 1)[1].lower() if '.' in filename else ''
-        
-        if extensao not in extensoes_permitidas:
-            raise ValueError(f"Extensão não permitida. Use: {', '.join(extensoes_permitidas)}")
-        
-        # Gerar nome único
+
+        if extensao not in ConfigService.ALLOWED_IMAGE_EXTENSIONS:
+            allowed = ', '.join(sorted(ConfigService.ALLOWED_IMAGE_EXTENSIONS))
+            raise ValueError(f"Extensão não permitida. Use: {allowed}")
+
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        novo_filename = f"logo_empresa_{timestamp}.{extensao}"
-        
-        # Criar diretório se não existir
-        upload_folder = Path(current_app.root_path) / "static" / "uploads" / "empresa"
+        novo_filename = f"{prefix}_{timestamp}.{extensao}"
+
+        upload_folder = Path(current_app.root_path) / "static" / ConfigService.EMPRESA_UPLOAD_DIR
         upload_folder.mkdir(parents=True, exist_ok=True)
-        
-        # Salvar arquivo
+
         filepath = upload_folder / novo_filename
         file.save(str(filepath))
-        
-        # Retornar caminho relativo
-        return f"uploads/empresa/{novo_filename}"
+
+        return str(ConfigService.EMPRESA_UPLOAD_DIR / novo_filename).replace('\\', '/')
+
+    @staticmethod
+    def upload_logo(file) -> str:
+        """Upload do logo da empresa."""
+        return ConfigService._save_empresa_image(file, prefix="logo_empresa")
+
+    @staticmethod
+    def upload_login_background(file) -> str:
+        """Upload da imagem de fundo da página de login."""
+        return ConfigService._save_empresa_image(file, prefix="login_background")
+
+    @staticmethod
+    def upload_login_card_image(file) -> str:
+        """Upload da imagem exibida no card da página de login."""
+        return ConfigService._save_empresa_image(file, prefix="login_card")
+
+    @staticmethod
+    def _branding_config_dir() -> Path:
+        config_dir = Path(current_app.instance_path) / "branding"
+        config_dir.mkdir(parents=True, exist_ok=True)
+        return config_dir
+
+    @staticmethod
+    def _branding_config_path() -> Path:
+        return ConfigService._branding_config_dir() / ConfigService.LOGIN_BRANDING_CONFIG_FILENAME
+
+    @staticmethod
+    def _delete_uploaded_empresa_asset(asset_path: str | None) -> bool:
+        if not asset_path:
+            return False
+
+        normalized = str(asset_path).replace('\\', '/').strip().lstrip('/')
+        expected_prefix = str(ConfigService.EMPRESA_UPLOAD_DIR).replace('\\', '/') + '/'
+        if not normalized.startswith(expected_prefix):
+            return False
+
+        file_path = Path(current_app.root_path) / "static" / normalized
+        try:
+            if file_path.exists() and file_path.is_file():
+                file_path.unlink()
+                return True
+        except OSError as exc:
+            current_app.logger.warning("Não foi possível remover asset antigo de branding %s: %s", normalized, exc)
+        return False
+
+    @staticmethod
+    def get_login_branding_config() -> dict[str, Any]:
+        """Retorna a configuração visual da página de login."""
+        config = {
+            "login_background_path": ConfigService.DEFAULT_LOGIN_BACKGROUND_PATH,
+            "login_card_image_path": None,
+        }
+
+        config_path = ConfigService._branding_config_path()
+        if not config_path.exists():
+            return config
+
+        try:
+            payload = json.loads(config_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            current_app.logger.warning("Não foi possível ler branding do login em %s: %s", config_path, exc)
+            return config
+
+        if isinstance(payload, dict):
+            for key in ("login_background_path", "login_card_image_path"):
+                value = payload.get(key)
+                if isinstance(value, str) and value.strip():
+                    config[key] = value.strip().replace('\\', '/')
+                elif value in (None, ""):
+                    config[key] = None if key == "login_card_image_path" else ConfigService.DEFAULT_LOGIN_BACKGROUND_PATH
+
+        return config
+
+    @staticmethod
+    def update_login_branding_config(data: dict[str, Any]) -> dict[str, Any]:
+        """Atualiza e persiste a configuração visual da página de login."""
+        config = ConfigService.get_login_branding_config()
+        previous_config = dict(config)
+        allowed_keys = {"login_background_path", "login_card_image_path"}
+
+        for key, value in data.items():
+            if key not in allowed_keys:
+                continue
+            normalized = str(value).strip().replace('\\', '/') if value not in (None, "") else None
+            if key == "login_background_path":
+                config[key] = normalized or ConfigService.DEFAULT_LOGIN_BACKGROUND_PATH
+            else:
+                config[key] = normalized
+
+            old_value = previous_config.get(key)
+            new_value = config.get(key)
+            if old_value and old_value != new_value:
+                ConfigService._delete_uploaded_empresa_asset(old_value)
+
+        config_path = ConfigService._branding_config_path()
+        config_path.write_text(json.dumps(config, ensure_ascii=False, indent=2), encoding="utf-8")
+        return config
+
+    @staticmethod
+    def clear_login_branding_asset(config_key: str) -> dict[str, Any]:
+        """Remove um asset configurado do login e volta para o fallback."""
+        if config_key not in {"login_background_path", "login_card_image_path"}:
+            raise ValueError("Chave de branding inválida")
+
+        current_config = ConfigService.get_login_branding_config()
+        ConfigService._delete_uploaded_empresa_asset(current_config.get(config_key))
+
+        fallback_value = None
+        if config_key == "login_background_path":
+            fallback_value = ConfigService.DEFAULT_LOGIN_BACKGROUND_PATH
+
+        return ConfigService.update_login_branding_config({config_key: fallback_value})
     
     @staticmethod
     def set_logo(logo_path: str) -> EmpresaConfig:

@@ -14,7 +14,12 @@ blueprint = Blueprint("auth", __name__, url_prefix="/auth")
 def login_form():
     # Passar configuração da empresa para personalizar login
     empresa_config = ConfigService.get_empresa_config()
-    return render_template("auth/login.html", empresa_config=empresa_config)
+    login_branding = ConfigService.get_login_branding_config()
+    return render_template(
+        "auth/login.html",
+        empresa_config=empresa_config,
+        login_branding=login_branding,
+    )
 
 
 @blueprint.post("/login")

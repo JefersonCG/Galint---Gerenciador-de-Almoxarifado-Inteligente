@@ -60,20 +60,117 @@
     .company-panel .form-control, .company-panel .form-select, .company-panel .input-group-text { background: rgba(15,23,42,0.82); color: #f8fafc; border-color: rgba(148,163,184,0.22); }
     .company-panel .form-control::placeholder { color: #94a3b8; }
     .company-panel .form-label, .company-panel .text-muted, .company-panel .form-text, .company-panel small { color: #cbd5e1 !important; }
+    .company-panel .form-check-label { color: #cbd5e1; }
     .company-grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 1rem; }
     .company-grid-4 { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 1rem; }
     .brand-preview { min-height: 100%; border-radius: 22px; background: rgba(255,255,255,0.06); border: 1px solid rgba(148,163,184,0.12); padding: 1.1rem; display: flex; flex-direction: column; gap: 1rem; }
     .brand-logo-box { min-height: 240px; border-radius: 18px; border: 1px dashed rgba(148,163,184,0.28); background: rgba(15,23,42,0.44); display: flex; align-items: center; justify-content: center; overflow: hidden; }
     .brand-logo-box img { max-width: 100%; max-height: 220px; object-fit: contain; }
     .brand-placeholder { text-align: center; color: #94a3b8; }
+    .brand-upload-grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 1rem; margin-top: 1.25rem; }
+    .brand-upload-card {
+        position: relative;
+        overflow: hidden;
+        border-radius: 22px;
+        padding: 1rem;
+        background: linear-gradient(180deg, rgba(15,23,42,0.92), rgba(15,23,42,0.68));
+        border: 1px solid rgba(148,163,184,0.14);
+        box-shadow: 0 18px 38px rgba(2,8,23,0.18);
+    }
+    .brand-upload-card::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(circle at 12% 18%, rgba(56,189,248,0.12), transparent 26%);
+        pointer-events: none;
+    }
+    .brand-upload-card > * { position: relative; z-index: 1; }
+    .brand-upload-title { margin: 0 0 0.35rem; font-size: 1rem; font-weight: 800; color: #f8fafc; }
+    .brand-upload-copy { margin: 0 0 0.9rem; color: rgba(226,232,240,0.74); font-size: 0.9rem; line-height: 1.45; }
+    .brand-preview-note {
+        border-radius: 1rem;
+        background: rgba(15,23,42,0.52);
+        border: 1px solid rgba(148,163,184,0.12);
+        color: rgba(226,232,240,0.82);
+        padding: 0.85rem 0.95rem;
+        font-size: 0.88rem;
+        line-height: 1.45;
+    }
+    .login-preview-stage {
+        position: relative;
+        min-height: 320px;
+        border-radius: 22px;
+        overflow: hidden;
+        background-size: cover;
+        background-position: center;
+        border: 1px solid rgba(148,163,184,0.2);
+        box-shadow: 0 22px 50px rgba(2,8,23,0.28);
+    }
+    .login-preview-stage::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+            radial-gradient(circle at 18% 16%, rgba(56,189,248,0.14), transparent 24%),
+            linear-gradient(rgba(3,7,18,0.44), rgba(3,7,18,0.54));
+    }
+    .login-preview-card {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        width: min(22rem, calc(100% - 2rem));
+        display: grid;
+        grid-template-columns: 4.9rem minmax(0,1fr);
+        gap: 0.85rem;
+        align-items: start;
+        padding: 1rem;
+        border-radius: 1.8rem;
+        background:
+            linear-gradient(145deg, rgba(7,11,22,0.11), rgba(7,11,22,0.04)),
+            linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.015));
+        border: 1px solid rgba(226,232,240,0.12);
+        box-shadow: 0 26px 60px rgba(2,6,23,0.28);
+        backdrop-filter: blur(28px) saturate(1.16);
+        -webkit-backdrop-filter: blur(28px) saturate(1.16);
+    }
+    .login-preview-card-media {
+        width: 4.9rem;
+        height: 4.9rem;
+        border-radius: 1.45rem;
+        padding: 0.35rem;
+        background: rgba(255,255,255,0.06);
+        border: 1px solid rgba(255,255,255,0.12);
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
+    }
+    .login-preview-card-media img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        border-radius: inherit;
+    }
+    .login-preview-card-fields { display: grid; gap: 0.7rem; }
+    .login-preview-card-input {
+        min-height: 2.85rem;
+        border-radius: 1rem;
+        background: rgba(255,255,255,0.11);
+        border: 1px solid rgba(191,219,254,0.14);
+        color: rgba(226,232,240,0.82);
+        display: flex;
+        align-items: center;
+        padding: 0.75rem 0.95rem;
+        font-weight: 600;
+        letter-spacing: 0.01em;
+    }
     .company-actions { display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.5rem; }
     @media (max-width: 1200px) { .company-kpis { grid-template-columns: repeat(2, minmax(0,1fr)); } }
     @media (max-width: 768px) {
         .company-shell { padding: 1rem; border-radius: 22px; }
         .company-hero { padding: 1.15rem; border-radius: 20px; }
-        .company-kpis, .company-grid-2, .company-grid-4 { grid-template-columns: 1fr; }
+        .company-kpis, .company-grid-2, .company-grid-4, .brand-upload-grid { grid-template-columns: 1fr; }
         .company-tabs.nav-pills { flex-direction: column; }
         .company-actions { flex-direction: column-reverse; }
+        .login-preview-card { position: absolute; left: 1rem; right: 1rem; width: auto; grid-template-columns: 1fr; }
+        .login-preview-card-media { width: 4.5rem; height: 4.5rem; }
     }
 </style>
 {% endblock %}
@@ -81,6 +178,8 @@
 {% block page_header %}{% endblock %}
 
 {% block content %}
+{% set login_background_preview_path = (login_branding.login_background_path if login_branding else None) or 'logo/logo.png' %}
+{% set login_card_preview_path = (login_branding.login_card_image_path if login_branding else None) or (empresa_config.logo_path if empresa_config.logo_path else 'logo/icone-galint.png') %}
 <div class="company-shell">
     <section class="company-hero">
         <div class="company-eyebrow"><i class="bi bi-building"></i> Identidade institucional</div>
@@ -160,19 +259,65 @@
                     <div class="card-header"><h5 class="mb-0"><i class="bi bi-image me-2"></i>Branding</h5></div>
                     <div class="card-body">
                         <div class="company-grid-2">
-                            <div>
-                                <label for="logo" class="form-label">Upload do logo</label>
-                                <input type="file" class="form-control" id="logo" name="logo" accept="image/*">
-                                <div class="form-text">Formatos: PNG, JPG, GIF e WEBP. Tamanho máximo: 2MB.</div>
-                            </div>
                             <div class="brand-preview">
-                                <div class="small text-uppercase text-muted fw-semibold">Preview atual</div>
+                                <div class="small text-uppercase text-muted fw-semibold">Logo institucional atual</div>
                                 <div class="brand-logo-box">
                                     {% if empresa_config.logo_path %}
-                                    <img src="{{ url_for('static', filename=empresa_config.logo_path) }}" alt="Logo da empresa">
+                                    <img src="{{ url_for('static', filename=empresa_config.logo_path) }}" alt="Logo da empresa" id="companyLogoPreviewImage">
                                     {% else %}
-                                    <div class="brand-placeholder"><i class="bi bi-image" style="font-size: 3rem;"></i><p class="mb-0 mt-2">Nenhum logo definido</p></div>
+                                    <div class="brand-placeholder" id="companyLogoPlaceholder"><i class="bi bi-image" style="font-size: 3rem;"></i><p class="mb-0 mt-2">Nenhum logo definido</p></div>
                                     {% endif %}
+                                </div>
+                            </div>
+                            <div class="brand-preview">
+                                <div class="small text-uppercase text-muted fw-semibold">Dark Hero do login</div>
+                                <div class="login-preview-stage" id="loginPreviewStage" style="background-image: linear-gradient(rgba(3,7,18,0.46), rgba(3,7,18,0.46)), url('{{ url_for('static', filename=login_background_preview_path) }}');">
+                                    <div class="login-preview-card">
+                                        <div class="login-preview-card-media">
+                                            <img src="{{ url_for('static', filename=login_card_preview_path) }}" alt="Imagem do card do login" id="loginPreviewCardImage">
+                                        </div>
+                                        <div class="login-preview-card-fields">
+                                            <div class="login-preview-card-input">Matrícula</div>
+                                            <div class="login-preview-card-input">Senha</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="brand-preview-note">
+                                    O login já lê essas imagens de forma dinâmica. Depois de salvar, a próxima abertura da tela de login já usa o novo fundo e a nova foto do card, sem editar HTML manualmente.
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="brand-upload-grid">
+                            <div class="brand-upload-card">
+                                <h6 class="brand-upload-title">Logo institucional</h6>
+                                <p class="brand-upload-copy">Mantém o branding geral do sistema e também serve de fallback caso você não envie uma imagem específica para o card do login.</p>
+                                <label for="logo" class="form-label">Enviar logo</label>
+                                <input type="file" class="form-control" id="logo" name="logo" accept="image/*">
+                                <div class="form-text">Formatos: PNG, JPG, GIF e WEBP.</div>
+                            </div>
+
+                            <div class="brand-upload-card">
+                                <h6 class="brand-upload-title">Imagem do card do login</h6>
+                                <p class="brand-upload-copy">Aqui você pode colocar uma foto, arte, avatar ou identidade visual específica para aparecer dentro do card do login.</p>
+                                <label for="login_card_image" class="form-label">Enviar imagem do card</label>
+                                <input type="file" class="form-control" id="login_card_image" name="login_card_image" accept="image/*">
+                                <div class="form-text">Se não enviar nada, o sistema usa o logo institucional como fallback.</div>
+                                <div class="form-check mt-3">
+                                    <input class="form-check-input" type="checkbox" id="remover_login_card_image" name="remover_login_card_image">
+                                    <label class="form-check-label" for="remover_login_card_image">Voltar para a imagem padrão do card</label>
+                                </div>
+                            </div>
+
+                            <div class="brand-upload-card">
+                                <h6 class="brand-upload-title">Fundo da página de login</h6>
+                                <p class="brand-upload-copy">Escolha qualquer foto para virar o background do login. O sistema salva o arquivo, publica no diretório correto e a tela usa a nova imagem automaticamente.</p>
+                                <label for="login_background" class="form-label">Enviar fundo do login</label>
+                                <input type="file" class="form-control" id="login_background" name="login_background" accept="image/*">
+                                <div class="form-text">Ideal para fotos institucionais, fachadas, equipes ou artes de campanha.</div>
+                                <div class="form-check mt-3">
+                                    <input class="form-check-input" type="checkbox" id="remover_login_background" name="remover_login_background">
+                                    <label class="form-check-label" for="remover_login_background">Voltar para o fundo padrão do login</label>
                                 </div>
                             </div>
                         </div>
@@ -189,13 +334,61 @@
 </div>
 {% endblock %}
 
-{% block extra_js %}
+{% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const cnpjInput = document.getElementById('cnpj');
     const buscarCnpjBtn = document.getElementById('buscarCnpjBtn');
+    const logoInput = document.getElementById('logo');
+    const loginCardInput = document.getElementById('login_card_image');
+    const loginBackgroundInput = document.getElementById('login_background');
+    const companyLogoPreviewImage = document.getElementById('companyLogoPreviewImage');
+    const companyLogoPlaceholder = document.getElementById('companyLogoPlaceholder');
+    const loginPreviewCardImage = document.getElementById('loginPreviewCardImage');
+    const loginPreviewStage = document.getElementById('loginPreviewStage');
 
-    cnpjInput.addEventListener('input', function(e) {
+    function previewSelectedImage(input, callback) {
+        if (!input) {
+            return;
+        }
+        input.addEventListener('change', function() {
+            const file = input.files && input.files[0];
+            if (!file) {
+                return;
+            }
+            const objectUrl = URL.createObjectURL(file);
+            callback(objectUrl);
+        });
+    }
+
+    previewSelectedImage(logoInput, function(objectUrl) {
+        if (companyLogoPreviewImage) {
+            companyLogoPreviewImage.src = objectUrl;
+        } else if (companyLogoPlaceholder) {
+            companyLogoPlaceholder.innerHTML = '';
+            const previewImage = document.createElement('img');
+            previewImage.src = objectUrl;
+            previewImage.alt = 'Logo da empresa';
+            previewImage.style.maxWidth = '100%';
+            previewImage.style.maxHeight = '220px';
+            previewImage.style.objectFit = 'contain';
+            companyLogoPlaceholder.appendChild(previewImage);
+        }
+    });
+
+    previewSelectedImage(loginCardInput, function(objectUrl) {
+        if (loginPreviewCardImage) {
+            loginPreviewCardImage.src = objectUrl;
+        }
+    });
+
+    previewSelectedImage(loginBackgroundInput, function(objectUrl) {
+        if (loginPreviewStage) {
+            loginPreviewStage.style.backgroundImage = `linear-gradient(rgba(3,7,18,0.46), rgba(3,7,18,0.46)), url('${objectUrl}')`;
+        }
+    });
+
+    cnpjInput?.addEventListener('input', function(e) {
         let value = e.target.value.replace(/\D/g, '');
         if (value.length <= 14) {
             value = value.replace(/^(\d{2})(\d)/, '$1.$2');
@@ -206,7 +399,7 @@ document.addEventListener('DOMContentLoaded', function() {
         e.target.value = value;
     });
 
-    buscarCnpjBtn.addEventListener('click', async function() {
+    buscarCnpjBtn?.addEventListener('click', async function() {
         const cnpj = cnpjInput.value.replace(/\D/g, '');
         if (!cnpj || cnpj.length !== 14) {
             alert('Por favor, digite um CNPJ válido com 14 dígitos.');
