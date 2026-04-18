@@ -41,35 +41,97 @@ function formatLocations(values) {
     return `${uniqueValues.slice(0, 2).join(' • ')} +${uniqueValues.length - 2}`;
 }
 
+function flattenEntries(groups) {
+    return (groups || []).flatMap((group) => {
+        const items = Array.isArray(group?.items) ? group.items : [];
+        return items.map((item) => ({ group, item }));
+    });
+}
+
+function formatSelectionSummary(items) {
+    const selectedItems = Array.isArray(items) ? items : [];
+    if (!selectedItems.length) {
+        return 'Toque em uma ou mais ferramentas para preparar a baixa multipla ou use a baixa total.';
+    }
+    const preview = selectedItems.slice(0, 2).map((item) => item?.descricao || 'Ferramenta').join(' • ');
+    if (selectedItems.length <= 2) {
+        return `${selectedItems.length} selecionada(s): ${preview}`;
+    }
+    return `${selectedItems.length} selecionada(s): ${preview} +${selectedItems.length - 2}`;
+}
+
 export default function DailyCustodyPanel({
     groups,
     summary,
     loading,
     message,
-    returningKey,
+    isReturning,
     onReload,
-    onReturnPress,
+    onReturnSelectedPress,
+    onReturnAllPress,
 }) {
-    const [selectedByGroup, setSelectedByGroup] = useState({});
+    const [selectedToolKeys, setSelectedToolKeys] = useState({});
 
     useEffect(() => {
-        setSelectedByGroup((previousState) => {
+        setSelectedToolKeys((previousState) => {
+            const validKeys = new Set(
+                flattenEntries(groups)
+                    .map((entry) => entry.item?.tool_key)
+                    .filter(Boolean)
+            );
             const nextState = {};
-            (groups || []).forEach((group) => {
-                const items = Array.isArray(group?.items) ? group.items : [];
-                const previousKey = previousState[group.key];
-                const stillExists = items.some((item) => item.tool_key === previousKey);
-                nextState[group.key] = stillExists ? previousKey : (items[0]?.tool_key || null);
+            Object.keys(previousState || {}).forEach((key) => {
+                if (validKeys.has(key)) {
+                    nextState[key] = true;
+                }
             });
             return nextState;
         });
     }, [groups]);
 
-    const handleSelect = (groupKey, toolKey) => {
-        setSelectedByGroup((previousState) => ({
-            ...previousState,
-            [groupKey]: toolKey,
-        }));
+    const allEntries = flattenEntries(groups);
+    const selectedEntries = allEntries.filter((entry) => Boolean(selectedToolKeys[entry.item?.tool_key]));
+    const totalTools = allEntries.length;
+    const totalSelected = selectedEntries.length;
+
+    const toggleSelection = (toolKey) => {
+        setSelectedToolKeys((previousState) => {
+            const nextState = { ...previousState };
+            if (nextState[toolKey]) {
+                delete nextState[toolKey];
+            } else {
+                nextState[toolKey] = true;
+            }
+            return nextState;
+        });
+    };
+
+    const selectGroupItems = (items) => {
+        setSelectedToolKeys((previousState) => {
+            const nextState = { ...previousState };
+            (items || []).forEach((item) => {
+                if (item?.tool_key) {
+                    nextState[item.tool_key] = true;
+                }
+            });
+            return nextState;
+        });
+    };
+
+    const clearGroupItems = (items) => {
+        setSelectedToolKeys((previousState) => {
+            const nextState = { ...previousState };
+            (items || []).forEach((item) => {
+                if (item?.tool_key) {
+                    delete nextState[item.tool_key];
+                }
+            });
+            return nextState;
+        });
+    };
+
+    const clearAllSelections = () => {
+        setSelectedToolKeys({});
     };
 
     return (
@@ -77,11 +139,58 @@ export default function DailyCustodyPanel({
             <View style={styles.headerRow}>
                 <View style={styles.headerCopy}>
                     <Text style={styles.title}>Custodia diaria</Text>
-                    <Text style={styles.subtitle}>Mesmo fluxo do painel web, adaptado para baixa direta no telefone por colaborador.</Text>
+                    <Text style={styles.subtitle}>Selecione varias ferramentas, baixe por card ou finalize tudo de uma vez no telefone.</Text>
                 </View>
                 <TouchableOpacity style={styles.reloadButton} onPress={() => onReload(false)} activeOpacity={0.84}>
                     <Text style={styles.reloadButtonText}>{loading ? 'Atualizando' : 'Atualizar'}</Text>
                 </TouchableOpacity>
+            </View>
+
+            <View style={styles.bulkToolbar}>
+                <View style={styles.bulkSummary}>
+                    <Text style={styles.bulkSummaryTitle}>
+                        {totalSelected > 0 ? `${totalSelected} selecionada(s)` : `${totalTools} ferramenta(s) no painel`}
+                    </Text>
+                    <Text style={styles.bulkSummaryText}>
+                        {totalSelected > 0
+                            ? formatSelectionSummary(selectedEntries.map((entry) => entry.item))
+                            : 'Monte a multipla baixa clicando em varias ferramentas ou use Baixar tudo.'}
+                    </Text>
+                </View>
+                <View style={styles.bulkActionRow}>
+                    <TouchableOpacity
+                        style={[
+                            styles.bulkActionButton,
+                            styles.bulkActionButtonSecondary,
+                            (!totalSelected || isReturning) && styles.bulkActionButtonDisabled,
+                        ]}
+                        onPress={clearAllSelections}
+                        disabled={!totalSelected || isReturning}
+                        activeOpacity={0.84}
+                    >
+                        <Text style={[styles.bulkActionButtonText, styles.bulkActionButtonTextSecondary]}>Limpar</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.bulkActionButton, (!totalSelected || isReturning) && styles.bulkActionButtonDisabled]}
+                        onPress={() => onReturnSelectedPress(selectedEntries, { scope: 'global-selected' })}
+                        disabled={!totalSelected || isReturning}
+                        activeOpacity={0.84}
+                    >
+                        <Text style={styles.bulkActionButtonText}>Baixar selecionadas</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[
+                            styles.bulkActionButton,
+                            styles.bulkActionButtonSecondary,
+                            (!totalTools || isReturning) && styles.bulkActionButtonDisabled,
+                        ]}
+                        onPress={() => onReturnAllPress(allEntries, { scope: 'global-all' })}
+                        disabled={!totalTools || isReturning}
+                        activeOpacity={0.84}
+                    >
+                        <Text style={[styles.bulkActionButtonText, styles.bulkActionButtonTextSecondary]}>Baixar tudo</Text>
+                    </TouchableOpacity>
+                </View>
             </View>
 
             <View style={styles.statsRow}>
@@ -115,8 +224,9 @@ export default function DailyCustodyPanel({
 
             {!loading && (groups || []).map((group) => {
                 const items = Array.isArray(group?.items) ? group.items : [];
-                const selectedKey = selectedByGroup[group.key] || items[0]?.tool_key;
-                const selectedItem = items.find((item) => item.tool_key === selectedKey) || items[0] || null;
+                const groupEntries = items.map((item) => ({ group, item }));
+                const selectedItems = items.filter((item) => Boolean(selectedToolKeys[item.tool_key]));
+                const selectedCount = selectedItems.length;
                 const isLate = Number(group?.overdue_count || 0) > 0;
                 const needsAttention = !isLate && Number(group?.max_days || 0) >= 15;
 
@@ -147,20 +257,47 @@ export default function DailyCustodyPanel({
                             <Text style={styles.locationPillText}>{formatLocations(group.locations)}</Text>
                         </View>
 
+                        <View style={styles.groupActionRow}>
+                            <TouchableOpacity
+                                style={[styles.groupActionButton, (!items.length || isReturning) && styles.groupActionButtonDisabled]}
+                                onPress={() => selectGroupItems(items)}
+                                disabled={!items.length || isReturning}
+                                activeOpacity={0.84}
+                            >
+                                <Text style={styles.groupActionButtonText}>Selecionar todas</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[styles.groupActionButton, (!selectedCount || isReturning) && styles.groupActionButtonDisabled]}
+                                onPress={() => clearGroupItems(items)}
+                                disabled={!selectedCount || isReturning}
+                                activeOpacity={0.84}
+                            >
+                                <Text style={styles.groupActionButtonText}>Limpar card</Text>
+                            </TouchableOpacity>
+                        </View>
+
                         <View style={styles.toolsList}>
                             {items.map((item) => {
-                                const selected = selectedKey === item.tool_key;
+                                const selected = Boolean(selectedToolKeys[item.tool_key]);
                                 return (
                                     <TouchableOpacity
                                         key={item.tool_key}
                                         style={[styles.toolCard, selected && styles.toolCardSelected]}
-                                        onPress={() => handleSelect(group.key, item.tool_key)}
+                                        onPress={() => toggleSelection(item.tool_key)}
+                                        disabled={isReturning}
                                         activeOpacity={0.84}
                                     >
                                         <View style={styles.toolHeader}>
                                             <Text style={styles.toolTitle}>{item.descricao}</Text>
-                                            <View style={[styles.daysBadge, item.atrasada && styles.daysBadgeLate]}>
-                                                <Text style={styles.daysBadgeText}>{formatDays(item.dias_em_uso)}</Text>
+                                            <View style={styles.toolHeaderBadges}>
+                                                {selected ? (
+                                                    <View style={styles.toolSelectedBadge}>
+                                                        <Text style={styles.toolSelectedBadgeText}>Selecionada</Text>
+                                                    </View>
+                                                ) : null}
+                                                <View style={[styles.daysBadge, item.atrasada && styles.daysBadgeLate]}>
+                                                    <Text style={styles.daysBadgeText}>{formatDays(item.dias_em_uso)}</Text>
+                                                </View>
                                             </View>
                                         </View>
                                         <Text style={styles.toolMeta}>
@@ -174,24 +311,42 @@ export default function DailyCustodyPanel({
 
                         <View style={styles.selectedBox}>
                             <Text style={styles.selectedText}>
-                                {selectedItem
-                                    ? `Pronta para baixa: ${selectedItem.descricao} • ${selectedItem.local_servico || 'Sem local'}`
-                                    : 'Selecione uma ferramenta para liberar a baixa.'}
+                                {selectedCount
+                                    ? formatSelectionSummary(selectedItems)
+                                    : 'Toque em uma ou mais ferramentas deste card para preparar a baixa, ou use a baixa total deste colaborador.'}
                             </Text>
                         </View>
 
-                        <TouchableOpacity
-                            style={[styles.returnButton, !selectedItem && styles.returnButtonDisabled]}
-                            onPress={() => onReturnPress(group, selectedItem)}
-                            disabled={!selectedItem || returningKey === selectedItem?.tool_key}
-                            activeOpacity={0.86}
-                        >
-                            {returningKey === selectedItem?.tool_key ? (
-                                <ActivityIndicator color={heroPalette.bg} />
-                            ) : (
-                                <Text style={styles.returnButtonText}>Dar baixa da selecionada</Text>
-                            )}
-                        </TouchableOpacity>
+                        <View style={styles.returnButtonsRow}>
+                            <TouchableOpacity
+                                style={[styles.returnButton, styles.returnButtonFlex, (!selectedCount || isReturning) && styles.returnButtonDisabled]}
+                                onPress={() => onReturnSelectedPress(groupEntries.filter((entry) => Boolean(selectedToolKeys[entry.item.tool_key])), { scope: 'group-selected', group })}
+                                disabled={!selectedCount || isReturning}
+                                activeOpacity={0.86}
+                            >
+                                {isReturning ? (
+                                    <ActivityIndicator color={heroPalette.bg} />
+                                ) : (
+                                    <Text style={styles.returnButtonText}>
+                                        {selectedCount <= 1 ? 'Dar baixa da selecionada' : `Baixar ${selectedCount} selecionadas`}
+                                    </Text>
+                                )}
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={[
+                                    styles.returnButton,
+                                    styles.returnButtonSecondary,
+                                    styles.returnButtonFlex,
+                                    (!items.length || isReturning) && styles.returnButtonDisabled,
+                                ]}
+                                onPress={() => onReturnAllPress(groupEntries, { scope: 'group-all', group })}
+                                disabled={!items.length || isReturning}
+                                activeOpacity={0.86}
+                            >
+                                <Text style={[styles.returnButtonText, styles.returnButtonSecondaryText]}>Baixar todas</Text>
+                            </TouchableOpacity>
+                        </View>
                     </View>
                 );
             })}
@@ -245,6 +400,56 @@ const styles = StyleSheet.create({
         color: heroPalette.text,
         fontSize: 12,
         fontWeight: '700',
+    },
+    bulkToolbar: {
+        borderRadius: 18,
+        padding: 14,
+        backgroundColor: heroPalette.panelAlt,
+        borderWidth: 1,
+        borderColor: heroPalette.border,
+        marginBottom: 14,
+        gap: 12,
+    },
+    bulkSummary: {
+        gap: 4,
+    },
+    bulkSummaryTitle: {
+        color: heroPalette.text,
+        fontSize: 15,
+        fontWeight: '800',
+    },
+    bulkSummaryText: {
+        color: heroPalette.textMuted,
+        fontSize: 12,
+        lineHeight: 18,
+    },
+    bulkActionRow: {
+        flexDirection: 'row',
+        gap: 8,
+        flexWrap: 'wrap',
+    },
+    bulkActionButton: {
+        borderRadius: 14,
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+        backgroundColor: heroPalette.primaryStrong,
+        borderWidth: 1,
+        borderColor: heroPalette.primaryStrong,
+    },
+    bulkActionButtonSecondary: {
+        backgroundColor: heroPalette.panel,
+        borderColor: heroPalette.border,
+    },
+    bulkActionButtonDisabled: {
+        opacity: 0.45,
+    },
+    bulkActionButtonText: {
+        color: heroPalette.bg,
+        fontSize: 12,
+        fontWeight: '800',
+    },
+    bulkActionButtonTextSecondary: {
+        color: heroPalette.text,
     },
     statsRow: {
         flexDirection: 'row',
@@ -383,6 +588,28 @@ const styles = StyleSheet.create({
         fontSize: 12,
         fontWeight: '600',
     },
+    groupActionRow: {
+        flexDirection: 'row',
+        gap: 8,
+        flexWrap: 'wrap',
+        marginBottom: 12,
+    },
+    groupActionButton: {
+        borderRadius: 12,
+        paddingHorizontal: 12,
+        paddingVertical: 9,
+        backgroundColor: heroPalette.panel,
+        borderWidth: 1,
+        borderColor: heroPalette.border,
+    },
+    groupActionButtonDisabled: {
+        opacity: 0.45,
+    },
+    groupActionButtonText: {
+        color: heroPalette.text,
+        fontSize: 12,
+        fontWeight: '700',
+    },
     toolsList: {
         gap: 10,
     },
@@ -403,11 +630,28 @@ const styles = StyleSheet.create({
         alignItems: 'flex-start',
         gap: 10,
     },
+    toolHeaderBadges: {
+        alignItems: 'flex-end',
+        gap: 6,
+    },
     toolTitle: {
         flex: 1,
         color: heroPalette.text,
         fontSize: 14,
         fontWeight: '700',
+    },
+    toolSelectedBadge: {
+        borderRadius: 999,
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        backgroundColor: 'rgba(34, 197, 94, 0.18)',
+        borderWidth: 1,
+        borderColor: 'rgba(34, 197, 94, 0.3)',
+    },
+    toolSelectedBadgeText: {
+        color: heroPalette.text,
+        fontSize: 10,
+        fontWeight: '800',
     },
     daysBadge: {
         borderRadius: 999,
@@ -450,14 +694,26 @@ const styles = StyleSheet.create({
         fontWeight: '700',
         lineHeight: 18,
     },
-    returnButton: {
+    returnButtonsRow: {
         marginTop: 12,
+        flexDirection: 'row',
+        gap: 10,
+    },
+    returnButton: {
         borderRadius: 16,
         paddingVertical: 13,
         paddingHorizontal: 16,
         alignItems: 'center',
         justifyContent: 'center',
         backgroundColor: heroPalette.primaryStrong,
+    },
+    returnButtonFlex: {
+        flex: 1,
+    },
+    returnButtonSecondary: {
+        backgroundColor: heroPalette.panel,
+        borderWidth: 1,
+        borderColor: heroPalette.border,
     },
     returnButtonDisabled: {
         opacity: 0.45,
@@ -466,5 +722,8 @@ const styles = StyleSheet.create({
         color: heroPalette.bg,
         fontSize: 13,
         fontWeight: '800',
+    },
+    returnButtonSecondaryText: {
+        color: heroPalette.text,
     },
 });

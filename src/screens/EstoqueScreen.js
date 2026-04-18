@@ -97,7 +97,7 @@ export default function EstoqueScreen({ navigation, route }) {
     const [dailyCustodyGroups, setDailyCustodyGroups] = useState([]);
     const [dailyCustodySummary, setDailyCustodySummary] = useState({ employees: 0, tools: 0, overdue: 0 });
     const [dailyCustodyMessage, setDailyCustodyMessage] = useState('');
-    const [dailyCustodyReturningKey, setDailyCustodyReturningKey] = useState('');
+    const [dailyCustodyReturning, setDailyCustodyReturning] = useState(false);
     const [erpOverview, setErpOverview] = useState(null);
     
     // 🔄 Estados para Banner de Conexão
@@ -412,50 +412,110 @@ export default function EstoqueScreen({ navigation, route }) {
         });
     };
 
-    const executeDailyCustodyReturn = useCallback(async (group, selectedItem) => {
-        if (!selectedItem) {
+    const executeDailyCustodyReturn = useCallback(async (entries) => {
+        const normalizedEntries = Array.isArray(entries)
+            ? entries.filter((entry) => entry?.group && entry?.item)
+            : [];
+
+        if (!normalizedEntries.length) {
             return;
         }
 
-        setDailyCustodyReturningKey(selectedItem.tool_key);
+        setDailyCustodyReturning(true);
         InactivityService.recordActivity();
 
         try {
-            const result = await ApiService.returnDailyCustodyTool({
-                codigo: selectedItem.codigo,
-                quantidade: selectedItem.quantidade || 1,
-                matricula: group?.matricula_full || group?.matricula || '',
-            });
+            let successCount = 0;
+            const failures = [];
 
-            if (!result?.success) {
-                Alert.alert('Custodia diaria', result?.message || 'Nao foi possivel dar baixa na ferramenta.');
+            for (const entry of normalizedEntries) {
+                const group = entry.group;
+                const item = entry.item;
+                const result = await ApiService.returnDailyCustodyTool({
+                    codigo: item?.codigo,
+                    quantidade: item?.quantidade || 1,
+                    saida_id: item?.saida_id || item?.id || null,
+                    matricula: group?.matricula_full || group?.matricula || '',
+                });
+
+                if (result?.success) {
+                    successCount += 1;
+                } else {
+                    failures.push(`${item?.descricao || item?.codigo || 'Ferramenta'}: ${result?.message || 'Falha ao devolver.'}`);
+                }
+            }
+
+            if (successCount > 0) {
+                await Promise.all([
+                    loadDailyCustody(true),
+                    loadEstoque(latestSearchRef.current, true),
+                ]);
+            }
+
+            if (!failures.length) {
+                Alert.alert(
+                    'Custodia diaria',
+                    successCount === 1
+                        ? 'Ferramenta devolvida com sucesso.'
+                        : `${successCount} ferramenta(s) devolvida(s) com sucesso.`
+                );
                 return;
             }
 
-            await Promise.all([
-                loadDailyCustody(true),
-                loadEstoque(latestSearchRef.current, true),
-            ]);
+            if (successCount > 0) {
+                Alert.alert(
+                    'Custodia diaria',
+                    `${successCount} devolucao(oes) concluida(s) e ${failures.length} falha(s).\n\n${failures.slice(0, 3).join('\n')}`
+                );
+                return;
+            }
 
-            Alert.alert('Custodia diaria', `${selectedItem.descricao} devolvida com sucesso.`);
+            Alert.alert('Custodia diaria', failures[0] || 'Nao foi possivel dar baixa na ferramenta.');
         } catch (error) {
             Alert.alert('Custodia diaria', error?.message || 'Nao foi possivel dar baixa na ferramenta.');
         } finally {
-            setDailyCustodyReturningKey('');
+            setDailyCustodyReturning(false);
         }
     }, [loadDailyCustody, loadEstoque]);
 
-    const handleDailyCustodyReturn = useCallback((group, selectedItem) => {
-        if (!selectedItem) {
+    const handleDailyCustodyReturn = useCallback((entries, options = {}) => {
+        const normalizedEntries = Array.isArray(entries)
+            ? entries.filter((entry) => entry?.group && entry?.item)
+            : [];
+
+        if (!normalizedEntries.length) {
             return;
         }
 
+        const scope = options?.scope || 'selected';
+        const itemCount = normalizedEntries.length;
+        const collaborators = Array.from(new Set(normalizedEntries.map((entry) => entry?.group?.usuario).filter(Boolean)));
+        let title = 'Dar baixa das ferramentas';
+        let message = `Confirmar a baixa de ${itemCount} ferramenta(s) selecionada(s)?`;
+
+        if (scope === 'group-selected') {
+            title = 'Dar baixa das selecionadas';
+            message = `Confirmar a baixa de ${itemCount} ferramenta(s) selecionada(s) para ${options?.group?.usuario || 'este colaborador'}?`;
+        } else if (scope === 'group-all') {
+            title = 'Dar baixa de todas';
+            message = `Confirmar a baixa de todas as ${itemCount} ferramenta(s) em custodia de ${options?.group?.usuario || 'este colaborador'}?`;
+        } else if (scope === 'global-selected') {
+            title = 'Dar baixa das selecionadas';
+            message = `Confirmar a baixa de ${itemCount} ferramenta(s) distribuida(s) em ${collaborators.length} colaborador(es)?`;
+        } else if (scope === 'global-all') {
+            title = 'Dar baixa de tudo';
+            message = `Confirmar a baixa de todas as ${itemCount} ferramenta(s) visiveis na custodia diaria?`;
+        } else if (itemCount === 1) {
+            title = 'Dar baixa da ferramenta';
+            message = `Confirmar a baixa de ${normalizedEntries[0]?.item?.descricao || 'esta ferramenta'}?`;
+        }
+
         Alert.alert(
-            'Dar baixa da ferramenta',
-            `Confirmar baixa de ${selectedItem.descricao} para ${group?.usuario || 'o colaborador'}?`,
+            title,
+            message,
             [
                 { text: 'Cancelar', style: 'cancel' },
-                { text: 'Dar baixa', onPress: () => executeDailyCustodyReturn(group, selectedItem) },
+                { text: 'Dar baixa', onPress: () => executeDailyCustodyReturn(normalizedEntries) },
             ]
         );
     }, [executeDailyCustodyReturn]);
@@ -857,14 +917,15 @@ export default function EstoqueScreen({ navigation, route }) {
                         summary={dailyCustodySummary}
                         loading={dailyCustodyLoading}
                         message={dailyCustodyMessage}
-                        returningKey={dailyCustodyReturningKey}
+                        isReturning={dailyCustodyReturning}
                         onReload={loadDailyCustody}
-                        onReturnPress={handleDailyCustodyReturn}
+                        onReturnSelectedPress={handleDailyCustodyReturn}
+                        onReturnAllPress={handleDailyCustodyReturn}
                     />
                 )}
             </View>
         );
-    }, [canManageDocuments, categoriaStats, connectionStatus, dailyCustodyGroups, dailyCustodyLoading, dailyCustodyMessage, dailyCustodyReturningKey, dailyCustodySummary, dailyCustodyVisible, downloadingDatabase, handleClearSearch, handleDailyCustodyReturn, handleDownloadDatabase, handleOpenDocumentos, handleOpenMenu, handleOpenNotifications, items.length, loadDailyCustody, offlineDelta.entradas, offlineDelta.retiradas, offlineSnapshot?.totalItens, pendingOpsCount, recentNotificationLabels, role, roleLabel, searchQuery, unreadNotifications, user]);
+    }, [canManageDocuments, categoriaStats, connectionStatus, dailyCustodyGroups, dailyCustodyLoading, dailyCustodyMessage, dailyCustodyReturning, dailyCustodySummary, dailyCustodyVisible, downloadingDatabase, handleClearSearch, handleDailyCustodyReturn, handleDownloadDatabase, handleOpenDocumentos, handleOpenMenu, handleOpenNotifications, items.length, loadDailyCustody, offlineDelta.entradas, offlineDelta.retiradas, offlineSnapshot?.totalItens, pendingOpsCount, recentNotificationLabels, role, roleLabel, searchQuery, unreadNotifications, user]);
 
 
                     {(unreadNotifications > 0 || recentNotificationLabels.length > 0) && (

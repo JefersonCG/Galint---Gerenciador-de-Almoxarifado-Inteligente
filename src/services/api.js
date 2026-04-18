@@ -801,6 +801,7 @@ class ApiService {
             const payload = {
                 codigo: data?.codigo,
                 quantidade: data?.quantidade || 1,
+                saida_id: data?.saida_id || null,
                 matricula_devolvedor: data?.matricula,
             };
 
