@@ -1848,6 +1848,7 @@ def update_item(codigo: str):
         "preco_reposicao_uf": prev_item.get("preco_reposicao_uf"),
         "preco_reposicao_query": prev_item.get("preco_reposicao_query"),
         "preco_reposicao_url": prev_item.get("preco_reposicao_url"),
+        "foto_url": (form.get("foto_url") or "").strip() or None,
         "preco_compra_atualizado_em": prev_item.get("preco_compra_atualizado_em"),
         "preco_compra_atualizado_por": prev_item.get("preco_compra_atualizado_por"),
         "preco_reposicao_atualizado_em": prev_item.get("preco_reposicao_atualizado_em"),
@@ -1978,6 +1979,14 @@ def update_item(codigo: str):
                 payload['foto_path'] = foto_path
             except ValueError as e:
                 flash(f"Erro no upload da foto: {str(e)}", "warning")
+        elif payload.get('foto_url'):
+            try:
+                foto_path = ItemFotoService.download_foto_from_url(str(payload['foto_url']), codigo)
+                if prev_item and prev_item.get('foto_path') and prev_item.get('foto_path') != foto_path:
+                    ItemFotoService.deletar_foto(prev_item['foto_path'])
+                payload['foto_path'] = foto_path
+            except ValueError as e:
+                flash(f"Erro ao baixar foto por link: {str(e)}", "warning")
 
         updated_codigo = inventory_service.update_item(codigo, payload)
         if abs(float(target_internal_balance) - float(previous_internal_balance)) > 1e-6:
@@ -2307,10 +2316,10 @@ def aplicar_foto_url_global():
         return {"success": False, "message": "Item nao encontrado"}, 404
 
     try:
-        if item.foto_path:
-            ItemFotoService.deletar_foto(item.foto_path)
-
         foto_path = ItemFotoService.download_foto_from_url(image_url, codigo)
+        foto_anterior = item.foto_path
+        if foto_anterior and foto_anterior != foto_path:
+            ItemFotoService.deletar_foto(foto_anterior)
         item.foto_path = foto_path
         from ..extensions import db
         db.session.commit()
@@ -2366,11 +2375,10 @@ def atualizar_foto_por_url(codigo: str):
         return {"success": False, "message": "URL da imagem nao informada"}, 400
 
     try:
-        # remover foto anterior (se existir)
-        if item.foto_path:
-            ItemFotoService.deletar_foto(item.foto_path)
-
         foto_path = ItemFotoService.download_foto_from_url(image_url, codigo)
+        foto_anterior = item.foto_path
+        if foto_anterior and foto_anterior != foto_path:
+            ItemFotoService.deletar_foto(foto_anterior)
         item.foto_path = foto_path
         db.session.commit()
         return {"success": True, "message": "Foto atualizada", "foto_path": foto_path}

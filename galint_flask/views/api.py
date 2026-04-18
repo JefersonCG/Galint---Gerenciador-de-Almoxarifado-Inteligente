@@ -26,9 +26,10 @@ def aplicar_foto_url_api():
 
     from ..services.item_foto_service import ItemFotoService
     try:
-        if item.foto_path:
-            ItemFotoService.deletar_foto(item.foto_path)
         foto_path = ItemFotoService.download_foto_from_url(image_url, codigo)
+        foto_anterior = item.foto_path
+        if foto_anterior and foto_anterior != foto_path:
+            ItemFotoService.deletar_foto(foto_anterior)
         item.foto_path = foto_path
         db.session.commit()
         return jsonify({'success': True, 'message': 'Foto atualizada', 'foto_path': foto_path})

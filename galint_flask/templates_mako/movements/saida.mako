@@ -1502,11 +1502,11 @@ ${parent.scripts()}
         const grandezaRef = parseFloat(item.grandeza_referencia) || 0;
         const tipoEmbalagem = inferPackagingType(item);
 
+        if (tipoEmbalagem === 'rolo') return 'metro';
         if (fracaoPadrao === 'litro' || unidadeExibicao === 'l') return 'litro';
         if (fracaoPadrao === 'quilo' || unidadeExibicao === 'kg') return 'kg';
         if (litrosPorEmb > 0) return 'litro';
         if (grandezaRef > 0 && (tipoEmbalagem === 'balde' || tipoEmbalagem === 'bombona' || tipoEmbalagem === 'lata' || tipoEmbalagem === 'pacote' || tipoEmbalagem === 'saco')) return 'kg';
-        if (tipoEmbalagem === 'rolo') return 'metro';
         if (/(^|\b)(litro|litros|l|lt|lts)(\b|$)/.test(unidadeItem)) return 'litro';
         if (/(^|\b)(kg|quilo|quilos)(\b|$)/.test(unidadeItem)) return 'kg';
         if (/(^|\b)(metro|metros|m)(\b|$)/.test(unidadeItem)) return 'metro';

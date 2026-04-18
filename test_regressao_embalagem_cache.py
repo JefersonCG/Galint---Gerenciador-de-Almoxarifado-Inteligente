@@ -22,6 +22,7 @@ from galint_flask.services.ledger_cutover import LedgerCutoverService
 from galint_flask.services.ledger_reconciliation import ReconciliationResult
 from galint_flask.services.legacy_stock_normalizer import infer_packaging_measure, is_legacy_liter_packaging_compatible, resolve_packaging_factor, resolve_packaging_quantity_and_unit, uses_packaging_legacy_normalization
 from galint_flask.services.price_normalization import infer_document_quantity_unit_for_item, infer_price_unit_for_item
+from galint_flask.services.telegram_service import TelegramService
 from galint_flask.views.inventory import _uses_packaging_system
 from galint_flask.views.nf import _apply_document_item_normalization, _build_nf_new_item_packaging_payload, _item_matches_seeded_nf_pre_registration, _mark_manual_nf_document_items_for_pre_registration, _normalize_nf_new_item_packaging_type
 from auditar_realinhamento_unidades_operacionais import _classify_item
@@ -659,6 +660,45 @@ def test_nf_document_unit_par_exige_base_par() -> None:
         assert "compra/NF vier em Par" in str(exc)
     else:
         raise AssertionError("Esperava ValueError quando Par for usado sem base Par")
+
+
+def test_material_return_unit_options_prefere_metro_para_rolo_com_grandeza_referencia() -> None:
+    item = SimpleNamespace(
+        tipo_embalagem_novo="rolo",
+        unidade="Rolo",
+        litros_por_embalagem=None,
+        grandeza_referencia=20,
+        unidades_por_embalagem=None,
+        categoria="Material Construção",
+        descricao="FITA ANTIDERRAPANTE 20M",
+        product_units=[],
+    )
+
+    options = InventoryService().get_material_return_unit_options(item=item)
+
+    assert options[0]["unit_code"] == "metro"
+    assert options[0]["unit_display"] == "m"
+
+
+def test_telegram_balance_totals_prefere_metros_para_rolo_com_grandeza_referencia() -> None:
+    item = SimpleNamespace(
+        tipo_embalagem_novo="rolo",
+        unidade="Rolo",
+        litros_por_embalagem=None,
+        grandeza_referencia=20,
+        unidades_por_embalagem=None,
+        estoque_embalagens=12,
+        estoque_unidades_soltas=0,
+        categoria="Material Construção",
+        descricao="FITA ANTIDERRAPANTE 20M",
+        product_units=[],
+        product_unit_conversions=[],
+    )
+
+    rendered = TelegramService._format_balance_totals(item)
+
+    assert "240 metros" in rendered
+    assert "240 kg" not in rendered
 
 
 def test_infer_packaging_measure_preserva_item_em_par_sem_embalagem() -> None:

@@ -2425,10 +2425,13 @@ class TelegramService:
         try:
 
             from galint_flask.services.embalagem_service import EmbalagemService
+            from galint_flask.services.legacy_stock_normalizer import resolve_canonical_unit, resolve_packaging_factor
 
         except Exception:
 
             EmbalagemService = None
+            resolve_canonical_unit = None
+            resolve_packaging_factor = None
 
 
 
@@ -2479,6 +2482,21 @@ class TelegramService:
         tipo_emb = (item.tipo_embalagem_novo or "").strip().lower()
 
         unidade_raw = (item.unidade or "").strip().lower()
+        canonical_unit = ""
+        packaging_factor = None
+
+        if resolve_canonical_unit is not None:
+            try:
+                canonical_unit = str(resolve_canonical_unit(item) or "").strip().lower()
+            except Exception:
+                canonical_unit = ""
+
+        if resolve_packaging_factor is not None:
+            try:
+                parsed_factor = float(resolve_packaging_factor(item) or 0.0)
+            except Exception:
+                parsed_factor = 0.0
+            packaging_factor = parsed_factor if parsed_factor > 0 else None
 
 
 
@@ -2531,7 +2549,7 @@ class TelegramService:
         total_kg = None
 
         # Se o item é de litros (litros_por_embalagem definido), não exibir KG mesmo que exista valor legado em grandeza_referencia.
-        if not litros_por_emb:
+        if not litros_por_emb and canonical_unit != "m" and tipo_emb != "rolo":
 
             kg_por_emb = getattr(item, "grandeza_referencia", None)
 
@@ -2560,15 +2578,15 @@ class TelegramService:
 
         elif EmbalagemService and EmbalagemService.tem_embalagem(item) and tipo_emb == "rolo":
 
-            total_metros = (embalagens or 0) * (item.unidades_por_embalagem or 0) + (soltas or 0)
+            total_metros = (embalagens or 0) * (packaging_factor or 0) + (soltas or 0)
 
-        elif unidade_raw in ("rolo", "rolos") and item.unidades_por_embalagem:
+        elif unidade_raw in ("rolo", "rolos") and packaging_factor:
 
             # Para ROLO usando campo unidade (legacy) com unidades_por_embalagem configurado
 
-            total_metros = (saldo_total_units or 0) * (item.unidades_por_embalagem or 0)
+            total_metros = (saldo_total_units or 0) * (packaging_factor or 0)
 
-        elif unidade_raw in ("metro", "metros", "m"):
+        elif unidade_raw in ("metro", "metros", "m") or canonical_unit == "m":
 
             total_metros = saldo_total_units
 

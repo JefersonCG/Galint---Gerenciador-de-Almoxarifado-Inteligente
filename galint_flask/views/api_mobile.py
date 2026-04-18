@@ -1877,9 +1877,62 @@ def devolver_ferramenta_mobile(current_user: Usuario):
             return jsonify({"success": False, "message": "Acesso negado"}), 403
 
         data = request.get_json() or {}
+        saida_id_raw = data.get("saida_id")
         codigo = (data.get("codigo") or "").strip()
         quantidade = data.get("quantidade")
         matricula_devolvedor = (data.get("matricula_devolvedor") or "").strip()
+
+        if saida_id_raw not in (None, ""):
+            try:
+                saida_id = int(saida_id_raw)
+            except (TypeError, ValueError):
+                return jsonify({"success": False, "message": "Saída inválida"}), 400
+
+            saida = Saida.query.get(saida_id)
+            if not saida:
+                return jsonify({"success": False, "message": "Saída não encontrada"}), 404
+
+            item = saida.item or Item.query.filter(Item.codigo_item == saida.codigo_item).first()
+            if not item:
+                return jsonify({"success": False, "message": "Item não encontrado"}), 404
+
+            categoria = (item.categoria or "").strip().lower()
+            if "ferrament" not in categoria:
+                return jsonify({
+                    "success": False,
+                    "message": "Somente itens da categoria 'Ferramentas' podem ser devolvidos.",
+                }), 400
+
+            if matricula_devolvedor and matricula_devolvedor != (saida.matricula or ""):
+                return jsonify({
+                    "success": False,
+                    "message": "A saída informada não pertence ao colaborador selecionado.",
+                }), 400
+
+            try:
+                ToolCustodyService.register_return(saida_id, "Devolução via mobile")
+            except ValueError as exc:
+                return jsonify({"success": False, "message": str(exc)}), 400
+
+            db.session.expire_all()
+            item = Item.query.filter(Item.codigo_item == saida.codigo_item).first()
+
+            try:
+                novo_saldo = round(float(item.get_saldo_atual() or 0), 6) if item else None
+            except Exception:
+                novo_saldo = None
+
+            return jsonify({
+                "success": True,
+                "message": "Devolução registrada com sucesso",
+                "data": {
+                    "item": {
+                        "codigo": item.codigo_item if item else saida.codigo_item,
+                        "descricao": item.descricao if item else None,
+                        "saldo": novo_saldo,
+                    }
+                },
+            }), 201
 
         if not codigo:
             return jsonify({"success": False, "message": "Código do item é obrigatório"}), 400
@@ -1915,7 +1968,7 @@ def devolver_ferramenta_mobile(current_user: Usuario):
             RetiradaFerramenta.query.filter(
                 RetiradaFerramenta.codigo_item == item.codigo_item,
                 RetiradaFerramenta.matricula == devolvedor_user.matricula,
-                RetiradaFerramenta.status == 'em_uso',
+                RetiradaFerramenta.status.in_(['em_uso', 'atrasada']),
             )
             .order_by(RetiradaFerramenta.data_retirada)
             .limit(quantidade_int)
@@ -2784,6 +2837,7 @@ def _serialize_mobile_daily_custody_panel(items: list[dict[str, Any]]) -> dict[s
             {
                 "tool_key": tool_key,
                 "id": item.get("id"),
+                "saida_id": item.get("id") if (item.get("source") or "saida") == "saida" else None,
                 "source": item.get("source") or "saida",
                 "codigo": item.get("codigo") or "",
                 "descricao": item.get("descricao") or "Ferramenta",

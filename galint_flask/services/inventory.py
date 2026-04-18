@@ -2438,6 +2438,10 @@ class InventoryService:
         if tipo_embalagem == "rolo" and unidades_por_embalagem > 0:
             return "metro"
 
+        canonical_unit = self._normalize_material_return_unit_code(resolve_canonical_unit(item))
+        if canonical_unit:
+            return canonical_unit
+
         if grandeza_referencia > 0 or self._material_return_text_prefers_weight_unit(lookup_text):
             return "quilo"
 
@@ -2446,10 +2450,6 @@ class InventoryService:
 
         if tipo_embalagem in MATERIAL_RETURN_FRACTIONABLE_PACKAGING_TYPES and unidade_item in {"litro", "quilo", "metro"}:
             return unidade_item
-
-        canonical_unit = self._normalize_material_return_unit_code(resolve_canonical_unit(item))
-        if canonical_unit:
-            return canonical_unit
 
         if unidade_item:
             return unidade_item
