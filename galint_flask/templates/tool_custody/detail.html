@@ -337,11 +337,60 @@
         gap: 14px;
     }
 
+    .temporary-selection-toolbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 14px;
+        padding: 14px 16px;
+        margin-bottom: 14px;
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(148, 163, 184, 0.18);
+    }
+
+    .temporary-selection-summary {
+        flex: 1 1 auto;
+        min-width: 0;
+        color: #d8e4f3;
+        font-size: 0.88rem;
+        line-height: 1.45;
+        overflow-wrap: anywhere;
+    }
+
+    .temporary-selection-actions {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 10px;
+    }
+
+    .temporary-selection-actions .btn {
+        border-radius: 999px;
+        padding-inline: 1rem;
+    }
+
     .tool-surface {
         background: rgba(255, 255, 255, 0.04);
         border-radius: 22px;
         padding: 18px;
         transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .tool-surface.js-temporary-tool-card {
+        cursor: pointer;
+        min-width: 0;
+    }
+
+    .tool-surface.js-temporary-tool-card.is-selected {
+        border-color: rgba(77, 163, 255, 0.42);
+        background: rgba(77, 163, 255, 0.12);
+        box-shadow: 0 16px 30px rgba(8, 15, 30, 0.24), inset 0 0 0 1px rgba(77, 163, 255, 0.18);
+    }
+
+    .tool-surface.js-temporary-tool-card.is-selected.alert {
+        border-color: rgba(251, 191, 36, 0.42);
+        box-shadow: 0 16px 30px rgba(8, 15, 30, 0.24), inset 0 0 0 1px rgba(251, 191, 36, 0.16);
     }
 
     .tool-surface:hover {
@@ -363,21 +412,30 @@
         margin-bottom: 10px;
     }
 
+    .tool-topline > div {
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+
     .tool-name {
         font-size: 1rem;
         font-weight: 700;
         color: #ffffff;
         margin-bottom: 0.3rem;
+        overflow-wrap: anywhere;
     }
 
     .tool-code {
         font-size: 0.86rem;
         color: #b4c5d9;
+        overflow-wrap: anywhere;
     }
 
     .meta-chip {
         background: rgba(255, 255, 255, 0.07);
         border: 1px solid rgba(255, 255, 255, 0.06);
+        max-width: 100%;
+        overflow-wrap: anywhere;
     }
 
     .meta-chip.alert {
@@ -390,11 +448,37 @@
         margin-top: 12px;
         color: #d0dced;
         font-size: 0.9rem;
+        overflow-wrap: anywhere;
     }
 
     .tool-actions .btn {
         border-radius: 12px;
         padding-inline: 0.9rem;
+    }
+
+    .batch-return-preview {
+        display: none;
+        gap: 8px;
+        margin: 0 0 1rem;
+    }
+
+    .batch-return-preview.show {
+        display: grid;
+    }
+
+    .batch-return-preview-item {
+        padding: 0.75rem 0.9rem;
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        color: #e2e8f0;
+        font-size: 0.88rem;
+        line-height: 1.45;
+        overflow-wrap: anywhere;
+    }
+
+    .batch-return-preview-item strong {
+        color: #ffffff;
     }
 
     .modal-callout {
@@ -603,6 +687,16 @@
         }
 
         .tool-actions .btn {
+            width: 100%;
+        }
+
+        .temporary-selection-toolbar,
+        .temporary-selection-actions {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .temporary-selection-actions .btn {
             width: 100%;
         }
 
@@ -818,9 +912,21 @@
                 </div>
 
                 {% if employee.tools_temporaria %}
+                <div class="temporary-selection-toolbar">
+                    <div class="temporary-selection-summary" id="temporarySelectionSummary">Selecione uma ou mais ferramentas para baixa em lote. Clique no card para marcar ou desmarcar.</div>
+                    <div class="temporary-selection-actions">
+                        <button type="button" class="btn btn-outline-light btn-sm" id="temporarySelectAllButton">Selecionar todas</button>
+                        <button type="button" class="btn btn-success btn-sm" id="temporaryBatchReturnButton" disabled>Baixar selecionadas</button>
+                    </div>
+                </div>
                 <div class="tool-list">
                     {% for tool in employee.tools_temporaria %}
-                    <article class="tool-surface {% if tool.is_alert %}alert{% endif %}">
+                    <article class="tool-surface js-temporary-tool-card {% if tool.is_alert %}alert{% endif %}"
+                        data-saida-id="{{ tool.saida_id }}"
+                        data-tool-name="{{ tool.descricao|e }}"
+                        data-tool-code="{{ tool.codigo_item|e }}"
+                        data-tool-days="{{ tool.days_in_use }}"
+                        data-matricula="{{ employee.matricula|e }}">
                         <div class="tool-topline">
                             <div>
                                 <div class="tool-name">{{ tool.descricao }}</div>
@@ -930,6 +1036,7 @@
                     <p class="text-white" id="returnModalMessage">
                         Confirma a devolução da ferramenta <strong id="returnToolName"></strong>?
                     </p>
+                    <div class="batch-return-preview" id="returnBatchPreview"></div>
                     <div class="mt-3" id="returnBarcodeSection" style="display: none;">
                         <div class="text-muted small mb-1">Código de barras</div>
                         <div class="bg-white p-2 rounded border d-inline-block">
@@ -1489,6 +1596,267 @@
     }
 
     (function() {
+        const toolCards = Array.from(document.querySelectorAll('.js-temporary-tool-card'));
+        const summaryEl = document.getElementById('temporarySelectionSummary');
+        const selectAllButton = document.getElementById('temporarySelectAllButton');
+        const batchReturnButton = document.getElementById('temporaryBatchReturnButton');
+        const returnModalEl = document.getElementById('returnModal');
+        const returnForm = document.getElementById('returnForm');
+        const returnModalTitle = document.getElementById('returnModalTitle');
+        const returnModalMessage = document.getElementById('returnModalMessage');
+        const returnBatchPreview = document.getElementById('returnBatchPreview');
+        const returnObservacao = document.getElementById('returnObservacao');
+        const returnConfirmButton = document.getElementById('returnConfirmButton');
+        const returnBarcodeSection = document.getElementById('returnBarcodeSection');
+        const returnBarcodeSvg = document.getElementById('returnBarcodeSvg');
+        const selectedTemporaryTools = new Map();
+        let batchReturnItems = [];
+
+        if (!toolCards.length || !summaryEl || !selectAllButton || !batchReturnButton || !returnModalEl || !returnForm || !returnModalTitle || !returnModalMessage || !returnBatchPreview || !returnObservacao || !returnConfirmButton) {
+            return;
+        }
+
+        function getToolKey(card) {
+            return String(card?.dataset?.saidaId || '');
+        }
+
+        function getToolData(card) {
+            return {
+                saidaId: String(card?.dataset?.saidaId || ''),
+                toolName: String(card?.dataset?.toolName || 'Ferramenta'),
+                toolCode: String(card?.dataset?.toolCode || ''),
+                matricula: String(card?.dataset?.matricula || ''),
+                daysInUse: Number(card?.dataset?.toolDays || 0) || 0,
+            };
+        }
+
+        function getSelectedTools() {
+            return Array.from(selectedTemporaryTools.values());
+        }
+
+        function buildBatchButtonLabel(count) {
+            const total = Number(count) || 0;
+            if (total <= 0) {
+                return 'Baixar selecionadas';
+            }
+            if (total === 1) {
+                return 'Baixar selecionada';
+            }
+            return `Baixar ${total} selecionadas`;
+        }
+
+        function buildSelectionSummary(items) {
+            if (!items.length) {
+                return 'Selecione uma ou mais ferramentas para baixa em lote. Clique no card para marcar ou desmarcar.';
+            }
+
+            const preview = items
+                .slice(0, 2)
+                .map((item) => item.toolName || 'Ferramenta')
+                .join(' • ');
+            const extra = items.length - Math.min(items.length, 2);
+            const suffix = extra > 0 ? ` +${extra}` : '';
+
+            if (items.length === 1) {
+                return `1 ferramenta selecionada para baixa: ${preview}`;
+            }
+
+            return `${items.length} ferramentas selecionadas para baixa: ${preview}${suffix}`;
+        }
+
+        function resetReturnModalBatchState() {
+            batchReturnItems = [];
+            returnForm.dataset.mode = 'single';
+            returnBatchPreview.innerHTML = '';
+            returnBatchPreview.classList.remove('show');
+        }
+
+        function syncTemporarySelectionUi() {
+            const selectedTools = getSelectedTools();
+            const selectedKeys = new Set(selectedTools.map((item) => item.saidaId));
+
+            toolCards.forEach((card) => {
+                const isSelected = selectedKeys.has(getToolKey(card));
+                card.classList.toggle('is-selected', isSelected);
+                card.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
+            });
+
+            summaryEl.textContent = buildSelectionSummary(selectedTools);
+            batchReturnButton.disabled = selectedTools.length === 0;
+            batchReturnButton.textContent = buildBatchButtonLabel(selectedTools.length);
+
+            const isAllSelected = selectedTools.length > 0 && selectedTools.length === toolCards.length;
+            selectAllButton.textContent = isAllSelected ? 'Limpar seleção' : 'Selecionar todas';
+            selectAllButton.classList.toggle('active', isAllSelected);
+            selectAllButton.setAttribute('aria-pressed', isAllSelected ? 'true' : 'false');
+        }
+
+        function toggleToolSelection(card) {
+            const tool = getToolData(card);
+            if (!tool.saidaId) {
+                return;
+            }
+
+            if (selectedTemporaryTools.has(tool.saidaId)) {
+                selectedTemporaryTools.delete(tool.saidaId);
+            } else {
+                selectedTemporaryTools.set(tool.saidaId, tool);
+            }
+
+            syncTemporarySelectionUi();
+        }
+
+        function toggleAllSelections() {
+            const shouldSelectAll = selectedTemporaryTools.size !== toolCards.length;
+            selectedTemporaryTools.clear();
+
+            if (shouldSelectAll) {
+                toolCards.forEach((card) => {
+                    const tool = getToolData(card);
+                    if (tool.saidaId) {
+                        selectedTemporaryTools.set(tool.saidaId, tool);
+                    }
+                });
+            }
+
+            syncTemporarySelectionUi();
+        }
+
+        async function submitBatchReturns() {
+            const observations = (returnObservacao.value || '').trim();
+            const success = [];
+            const failures = [];
+
+            for (let index = 0; index < batchReturnItems.length; index += 1) {
+                const item = batchReturnItems[index];
+                returnConfirmButton.innerHTML = `<i class="bi bi-arrow-repeat"></i> Baixando ${index + 1}/${batchReturnItems.length}`;
+
+                const payload = new URLSearchParams();
+                payload.append('matricula', item.matricula || '');
+                payload.append('codigo_item', item.toolCode || '');
+                payload.append('observacao', observations || 'Devolução registrada via custódia do funcionário');
+
+                try {
+                    const response = await fetch(`/controle-ferramentas/devolucao/${encodeURIComponent(item.saidaId)}/api`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+                            'Accept': 'application/json'
+                        },
+                        body: payload.toString(),
+                        credentials: 'same-origin'
+                    });
+
+                    const result = await response.json().catch(() => ({}));
+                    if (!response.ok || result.success === false) {
+                        throw new Error(result.message || `Erro ${response.status}`);
+                    }
+                    success.push(item);
+                } catch (error) {
+                    failures.push({ item, message: error?.message || 'erro desconhecido' });
+                }
+            }
+
+            return { success, failures };
+        }
+
+        function openBatchReturnModal() {
+            batchReturnItems = getSelectedTools();
+            if (!batchReturnItems.length) {
+                window.alert('Selecione ao menos uma ferramenta para baixar.');
+                return;
+            }
+
+            returnForm.dataset.mode = 'batch';
+            returnForm.action = '#';
+            returnModalTitle.innerHTML = '<i class="bi bi-arrow-return-left"></i> Baixar ferramentas selecionadas';
+            returnModalMessage.innerHTML = `Confirma a baixa de <strong>${batchReturnItems.length} ferramenta(s)</strong> desta custódia?`;
+            returnConfirmButton.innerHTML = '<i class="bi bi-check-circle"></i> Confirmar baixa em lote';
+            returnObservacao.placeholder = 'Adicione uma observação que será aplicada a todas as baixas selecionadas...';
+            returnBatchPreview.innerHTML = batchReturnItems
+                .slice(0, 5)
+                .map((item) => `<div class="batch-return-preview-item"><strong>${escapeHtml(item.toolName)}</strong><br><span>Código ${escapeHtml(item.toolCode || '-')} • ${escapeHtml(item.daysInUse)} dia(s)</span></div>`)
+                .join('');
+
+            if (batchReturnItems.length > 5) {
+                returnBatchPreview.innerHTML += `<div class="batch-return-preview-item">+${batchReturnItems.length - 5} ferramenta(s) adicional(is) também serão baixadas.</div>`;
+            }
+
+            returnBatchPreview.classList.add('show');
+            if (returnBarcodeSection && returnBarcodeSvg) {
+                returnBarcodeSection.style.display = 'none';
+                returnBarcodeSvg.setAttribute('data-galint-barcode-value', '');
+            }
+
+            new bootstrap.Modal(returnModalEl).show();
+        }
+
+        toolCards.forEach((card) => {
+            card.addEventListener('click', (event) => {
+                if (event.target.closest('.tool-actions')) {
+                    return;
+                }
+                toggleToolSelection(card);
+            });
+
+            card.querySelectorAll('.tool-actions .btn').forEach((button) => {
+                button.addEventListener('click', (event) => {
+                    event.stopPropagation();
+                });
+            });
+        });
+
+        selectAllButton.addEventListener('click', toggleAllSelections);
+        batchReturnButton.addEventListener('click', openBatchReturnModal);
+
+        returnForm.addEventListener('submit', async function(event) {
+            if (returnForm.dataset.mode !== 'batch') {
+                return;
+            }
+
+            event.preventDefault();
+
+            const modalButtons = returnModalEl.querySelectorAll('button');
+            modalButtons.forEach((button) => {
+                button.disabled = true;
+            });
+
+            try {
+                const { success, failures } = await submitBatchReturns();
+                const modal = bootstrap.Modal.getOrCreateInstance(returnModalEl);
+                modal.hide();
+
+                if (failures.length) {
+                    const failurePreview = failures
+                        .slice(0, 3)
+                        .map(({ item, message }) => `• ${item.toolName}: ${message}`)
+                        .join('\n');
+                    const remaining = failures.length - Math.min(failures.length, 3);
+                    window.alert(`${success.length} baixa(s) concluída(s) e ${failures.length} falha(s).\n\n${failurePreview}${remaining > 0 ? `\n• +${remaining} outra(s)` : ''}`);
+                } else {
+                    window.alert(`${success.length} baixa(s) concluída(s) com sucesso.`);
+                }
+
+                window.location.reload();
+            } catch (error) {
+                window.alert(`Falha ao concluir a baixa em lote: ${error?.message || 'erro desconhecido'}`);
+            } finally {
+                modalButtons.forEach((button) => {
+                    button.disabled = false;
+                });
+                returnConfirmButton.innerHTML = '<i class="bi bi-check-circle"></i> Confirmar baixa em lote';
+            }
+        });
+
+        returnModalEl.addEventListener('hidden.bs.modal', function() {
+            resetReturnModalBatchState();
+            returnConfirmButton.innerHTML = '<i class="bi bi-check-circle"></i> Confirmar baixa';
+        });
+
+        syncTemporarySelectionUi();
+    })();
+
+    (function() {
         const input = document.getElementById('addToolCodeInput');
         const hiddenCode = document.getElementById('addToolCode');
         const results = document.getElementById('addToolResults');
@@ -1734,11 +2102,20 @@
     })();
 
     function showReturnModal(saidaId, toolName, toolCode, matricula) {
+        const returnForm = document.getElementById('returnForm');
+        const returnBatchPreview = document.getElementById('returnBatchPreview');
         document.getElementById('returnModalTitle').innerHTML = '<i class="bi bi-arrow-return-left"></i> Dar baixa da ferramenta';
         document.getElementById('returnModalMessage').innerHTML = `Confirma a devolução da ferramenta <strong id="returnToolName"></strong>?`;
         document.getElementById('returnToolName').textContent = toolName;
         document.getElementById('returnObservacao').placeholder = 'Adicione observações sobre o estado da ferramenta...';
         document.getElementById('returnConfirmButton').innerHTML = '<i class="bi bi-check-circle"></i> Confirmar baixa';
+        if (returnForm) {
+            returnForm.dataset.mode = 'single';
+        }
+        if (returnBatchPreview) {
+            returnBatchPreview.innerHTML = '';
+            returnBatchPreview.classList.remove('show');
+        }
         const section = document.getElementById('returnBarcodeSection');
         const svg = document.getElementById('returnBarcodeSvg');
         if (section && svg) {
@@ -1753,11 +2130,20 @@
     }
 
     function showRemoveCustodyModal(saidaId, toolName, toolCode, matricula) {
+        const returnForm = document.getElementById('returnForm');
+        const returnBatchPreview = document.getElementById('returnBatchPreview');
         document.getElementById('returnModalTitle').innerHTML = '<i class="bi bi-box-arrow-in-down"></i> Remover custódia permanente';
         document.getElementById('returnModalMessage').innerHTML = `Confirma remover a custódia da ferramenta <strong id="returnToolName"></strong> e liberá-la novamente no estoque?`;
         document.getElementById('returnToolName').textContent = toolName;
         document.getElementById('returnObservacao').placeholder = 'Ex.: desligamento do colaborador, troca de responsável...';
         document.getElementById('returnConfirmButton').innerHTML = '<i class="bi bi-box-arrow-in-down"></i> Liberar no estoque';
+        if (returnForm) {
+            returnForm.dataset.mode = 'single';
+        }
+        if (returnBatchPreview) {
+            returnBatchPreview.innerHTML = '';
+            returnBatchPreview.classList.remove('show');
+        }
         const section = document.getElementById('returnBarcodeSection');
         const svg = document.getElementById('returnBarcodeSvg');
         if (section && svg) {

@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import Any
 import random
 
+from flask import current_app
 from sqlalchemy import func, or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.inspection import inspect as sa_inspect
@@ -38,6 +39,15 @@ class UserService:
     def get_user(self, matricula: str) -> dict[str, Any] | None:
         usuario = Usuario.query.get(matricula)
         return self._to_dict(usuario) if usuario else None
+
+    def get_photo_path(self, matricula: str | None) -> str | None:
+        matricula = (matricula or "").strip()
+        if not matricula:
+            return None
+
+        from .tool_custody_service import ToolCustodyService
+
+        return ToolCustodyService.get_employee_photo_path(matricula)
 
     def find_by_identifier(self, identifier: str) -> Usuario | None:
         if not identifier:
@@ -309,6 +319,13 @@ class UserService:
             raise ValueError(
                 "Falha ao concluir a exclusão arquivada do colaborador. Nenhuma alteração parcial foi mantida."
             ) from exc
+
+        try:
+            from .tool_custody_service import ToolCustodyService
+
+            ToolCustodyService.delete_employee_photo(matricula)
+        except Exception:
+            current_app.logger.warning("Não foi possível remover a foto vinculada ao usuário %s", matricula)
 
     def generate_unique_matricula(self, nome: str) -> str:
         for _ in range(10000):

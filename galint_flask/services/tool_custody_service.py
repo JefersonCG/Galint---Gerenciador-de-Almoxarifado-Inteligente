@@ -46,17 +46,36 @@ class ToolCustodyService:
         return folder
 
     @classmethod
-    def get_employee_photo_path(cls, matricula: str) -> str | None:
+    def _employee_photo_candidates(cls, matricula: str) -> list[Path]:
         matricula_segura = secure_filename(matricula or "")
         if not matricula_segura:
-            return None
+            return []
 
         folder = cls._employee_photo_folder()
-        candidatos = sorted(folder.glob(f"{matricula_segura}.*"), key=lambda item: item.stat().st_mtime, reverse=True)
+        return sorted(folder.glob(f"{matricula_segura}.*"), key=lambda item: item.stat().st_mtime, reverse=True)
+
+    @classmethod
+    def get_employee_photo_path(cls, matricula: str) -> str | None:
+        candidatos = cls._employee_photo_candidates(matricula)
         if not candidatos:
             return None
 
         return "/".join([*cls._EMPLOYEE_PHOTO_DIR, candidatos[0].name])
+
+    @classmethod
+    def delete_employee_photo(cls, matricula: str) -> bool:
+        candidatos = cls._employee_photo_candidates(matricula)
+        if not candidatos:
+            return False
+
+        removed = False
+        for candidato in candidatos:
+            try:
+                candidato.unlink()
+                removed = True
+            except OSError:
+                current_app.logger.warning("Não foi possível remover foto do funcionário %s", matricula)
+        return removed
 
     @classmethod
     def upload_employee_photo(cls, file: Any, matricula: str) -> str:
@@ -72,7 +91,7 @@ class ToolCustodyService:
             raise ValueError("Arquivo de foto não informado")
 
         folder = cls._employee_photo_folder()
-        for existente in folder.glob(f"{matricula_segura}.*"):
+        for existente in cls._employee_photo_candidates(matricula_segura):
             try:
                 existente.unlink()
             except OSError:

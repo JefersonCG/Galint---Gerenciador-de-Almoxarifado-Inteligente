@@ -307,7 +307,7 @@ def _register_inactivity_middleware(app: Flask) -> None:
             return redirect(login_url)
 
         # Ignora verificação para rotas públicas e API mobile (que tem seu próprio controle)
-        if request.endpoint in ('auth.login_form', 'auth.login_submit', 'static', 'api_health'):
+        if request.endpoint in ('auth.login_form', 'auth.login_submit', 'auth.login_photo_lookup', 'static', 'api_health'):
             return
         if request.path.startswith('/api/mobile/'):
             return

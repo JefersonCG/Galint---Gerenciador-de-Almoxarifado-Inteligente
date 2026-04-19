@@ -1,13 +1,32 @@
 """Authentication views."""
 from __future__ import annotations
 
-from flask import Blueprint, render_template, redirect, url_for, flash, request, session, jsonify
+from pathlib import Path
+
+from flask import Blueprint, current_app, render_template, redirect, url_for, flash, request, session, jsonify
 from flask_login import login_required
 
 from ..services.auth import authenticate, end_session
 from ..services.config_service import ConfigService
+from ..services.users import user_service
 
 blueprint = Blueprint("auth", __name__, url_prefix="/auth")
+
+
+def _build_versioned_static_url(relative_path: str | None) -> str | None:
+    normalized = (relative_path or "").strip().replace("\\", "/")
+    if not normalized:
+        return None
+
+    try:
+        file_path = Path(current_app.static_folder) / Path(*normalized.split("/"))
+        version = int(file_path.stat().st_mtime)
+    except OSError:
+        version = None
+
+    if version is None:
+        return url_for("static", filename=normalized)
+    return url_for("static", filename=normalized, v=version)
 
 
 @blueprint.get("/login")
@@ -19,6 +38,25 @@ def login_form():
         "auth/login.html",
         empresa_config=empresa_config,
         login_branding=login_branding,
+    )
+
+
+@blueprint.get("/login-photo")
+def login_photo_lookup():
+    matricula = (request.args.get("matricula") or "").strip()
+    if not matricula:
+        return jsonify({"photo_url": None, "has_custom_photo": False})
+
+    usuario = user_service.get_user(matricula)
+    if not usuario:
+        return jsonify({"photo_url": None, "has_custom_photo": False})
+
+    photo_path = user_service.get_photo_path(matricula)
+    return jsonify(
+        {
+            "photo_url": _build_versioned_static_url(photo_path),
+            "has_custom_photo": bool(photo_path),
+        }
     )
 
 

@@ -10,6 +10,7 @@ from flask import Blueprint, abort, flash, redirect, jsonify, make_response, ren
 from flask_login import current_user, login_required
 
 from ..services.inventory import inventory_service
+from ..services.tool_custody_service import tool_custody_service
 from ..services.users import UserPayload, user_service
 
 blueprint = Blueprint("users", __name__, url_prefix="/usuarios")
@@ -143,6 +144,27 @@ def _build_payload(form, *, matricula: str | None) -> UserPayload:
     )
 
 
+def _apply_user_photo_changes(matricula: str) -> tuple[str, str] | None:
+    file = request.files.get("photo")
+    remove_requested = bool(request.form.get("remove_photo"))
+
+    if file and file.filename:
+        try:
+            tool_custody_service.upload_employee_photo(file, matricula)
+            return ("success", "Foto do usuário atualizada. Ela já passa a aparecer no login para esta matrícula.")
+        except ValueError as exc:
+            return ("warning", f"Cadastro salvo, mas a foto não foi atualizada: {exc}")
+        except Exception as exc:
+            return ("warning", f"Cadastro salvo, mas ocorreu um erro ao atualizar a foto: {exc}")
+
+    if remove_requested:
+        if tool_custody_service.delete_employee_photo(matricula):
+            return ("info", "Foto do usuário removida. O login voltou a usar a imagem global.")
+        return ("warning", "Nenhuma foto atual foi encontrada para remover.")
+
+    return None
+
+
 @blueprint.get("/")
 @login_required
 def list_users():
@@ -200,6 +222,9 @@ def create_user():
     try:
         matricula = user_service.create_user(payload)
         flash(f"Usuário {matricula} cadastrado com sucesso.", "success")
+        photo_feedback = _apply_user_photo_changes(matricula)
+        if photo_feedback:
+            flash(photo_feedback[1], photo_feedback[0])
     except ValueError as exc:
         flash(str(exc), "danger")
         return redirect(url_for("users.new_user_form"))
@@ -214,6 +239,7 @@ def edit_user_form(matricula: str):
     if not usuario:
         flash("Usuário não encontrado.", "danger")
         return redirect(url_for("users.list_users"))
+    usuario["photo_path"] = user_service.get_photo_path(matricula)
     setores = user_service.get_distinct_setores()
     return render_template("users/form.html", usuario=usuario, setores_existentes=setores)
 
@@ -232,6 +258,9 @@ def update_user(matricula: str):
     try:
         user_service.update_user(matricula, payload)
         flash("Usuário atualizado com sucesso.", "success")
+        photo_feedback = _apply_user_photo_changes(matricula)
+        if photo_feedback:
+            flash(photo_feedback[1], photo_feedback[0])
     except ValueError as exc:
         flash(str(exc), "danger")
         return redirect(url_for("users.edit_user_form", matricula=matricula))

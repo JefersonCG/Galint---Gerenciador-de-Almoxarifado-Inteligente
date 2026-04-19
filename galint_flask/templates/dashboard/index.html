@@ -1853,6 +1853,7 @@
     }
 
     .galint-custody-header-main {
+        flex: 1 1 auto;
         min-width: 0;
         display: grid;
         gap: 0.3rem;
@@ -1895,6 +1896,8 @@
         display: inline-flex;
         align-items: center;
         gap: 0.35rem;
+        flex-shrink: 0;
+        max-width: 100%;
         padding: 0.4rem 0.72rem;
         border-radius: 999px;
         font-size: 0.74rem;
@@ -1922,6 +1925,7 @@
         grid-template-columns: minmax(0, 1.18fr) minmax(180px, 0.82fr);
         gap: 0.95rem;
         margin-bottom: 0.95rem;
+        min-width: 0;
     }
 
     .galint-custody-gallery {
@@ -2014,6 +2018,7 @@
     .galint-custody-gallery-overlay span {
         font-size: 0.8rem;
         color: rgba(226, 232, 240, 0.82);
+        overflow-wrap: anywhere;
     }
 
     .galint-custody-gallery-chip {
@@ -2087,6 +2092,7 @@
         display: grid;
         gap: 0.7rem;
         align-content: start;
+        min-width: 0;
     }
 
     .galint-custody-quick-stats {
@@ -2096,6 +2102,8 @@
     }
 
     .galint-custody-quick-stat {
+        min-width: 0;
+        overflow: hidden;
         padding: 0.85rem 0.9rem;
         border-radius: 18px;
         background: linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(15, 23, 42, 0.18) 100%);
@@ -2118,6 +2126,7 @@
         letter-spacing: 0.06em;
         text-transform: uppercase;
         color: rgba(148, 163, 184, 0.86);
+        overflow-wrap: anywhere;
     }
 
     .galint-custody-quick-value {
@@ -2133,12 +2142,14 @@
         color: rgba(226, 232, 240, 0.66);
         line-height: 1.35;
         min-height: 2.1em;
+        overflow-wrap: anywhere;
     }
 
     .galint-custody-location-pill {
         display: flex;
         align-items: flex-start;
         gap: 0.55rem;
+        min-width: 0;
         padding: 0.82rem 0.92rem;
         border-radius: 18px;
         background: rgba(15, 23, 42, 0.42);
@@ -2150,6 +2161,11 @@
 
     .galint-custody-location-pill div {
         min-width: 0;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+    }
+
+    .galint-custody-location-pill strong {
         overflow-wrap: anywhere;
     }
 
@@ -2186,6 +2202,7 @@
 
     .galint-custody-preview-item {
         width: 100%;
+        min-width: 0;
         padding: 0.78rem 0.88rem;
         border-radius: 16px;
         background: rgba(15, 23, 42, 0.42);
@@ -2223,9 +2240,12 @@
         justify-content: space-between;
         gap: 0.75rem;
         align-items: flex-start;
+        min-width: 0;
     }
 
     .galint-custody-preview-item strong {
+        flex: 1 1 auto;
+        min-width: 0;
         display: block;
         color: #f8fafc;
         font-size: 0.91rem;
@@ -2242,6 +2262,7 @@
         display: inline-flex;
         align-items: center;
         gap: 0.35rem;
+        flex-shrink: 0;
         white-space: nowrap;
         padding: 0.26rem 0.6rem;
         border-radius: 999px;
@@ -2275,10 +2296,18 @@
         color: rgba(148, 163, 184, 0.9);
         font-size: 0.75rem;
         line-height: 1.4;
+        overflow-wrap: anywhere;
+    }
+
+    .galint-custody-selected-shell {
+        display: grid;
+        gap: 0.65rem;
+        min-width: 0;
+        margin-bottom: 0.95rem;
     }
 
     .galint-custody-selected {
-        margin-bottom: 0.95rem;
+        margin-bottom: 0;
         padding: 0.78rem 0.92rem;
         border-radius: 16px;
         background: rgba(255, 255, 255, 0.06);
@@ -2288,6 +2317,7 @@
         line-height: 1.45;
         min-height: 58px;
         overflow-wrap: anywhere;
+        word-break: break-word;
     }
 
     .galint-custody-selected.is-ready {
@@ -2296,11 +2326,29 @@
         color: #eff6ff;
     }
 
+    .galint-custody-selection-tools {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.55rem;
+        align-items: center;
+        min-width: 0;
+    }
+
+    .galint-custody-selection-hint {
+        flex: 1 1 180px;
+        min-width: 0;
+        color: rgba(191, 219, 254, 0.76);
+        font-size: 0.77rem;
+        line-height: 1.4;
+        overflow-wrap: anywhere;
+    }
+
     .galint-custody-actions {
         display: flex;
         gap: 0.55rem;
         padding-top: 0.82rem;
         border-top: 1px solid rgba(148, 163, 184, 0.16);
+        min-width: 0;
     }
 
     .galint-custody-empty {
@@ -2508,6 +2556,11 @@
         display: inline-block;
     }
 
+    .galint-custody-btn-compact {
+        flex: 0 0 auto;
+        padding-inline: 0.9rem;
+    }
+
     .galint-custody-btn-primary {
         background: #3b82f6;
         color: #ffffff;
@@ -2527,6 +2580,12 @@
     .galint-custody-btn-secondary:hover {
         background: rgba(255, 255, 255, 0.12);
         color: #f8fafc;
+    }
+
+    .galint-custody-btn-secondary.is-active {
+        background: rgba(30, 64, 175, 0.2);
+        border-color: rgba(96, 165, 250, 0.34);
+        color: #eff6ff;
     }
 
     .galint-custody-btn:disabled {
@@ -3229,6 +3288,72 @@
             return [...(group?.items || [])].sort((left, right) => (Number(right.dias_em_uso) || 0) - (Number(left.dias_em_uso) || 0));
         }
 
+        function getSelectedKeys(groupKey, orderedItems = null) {
+            const rawValue = selectedToolsByGroup.get(groupKey);
+            const normalized = [...new Set((Array.isArray(rawValue) ? rawValue : rawValue ? [rawValue] : []).filter(Boolean))];
+
+            if (!orderedItems) {
+                return normalized;
+            }
+
+            const availableKeys = new Set((orderedItems || []).map((item) => getItemKey(item)));
+            const filtered = normalized.filter((key) => availableKeys.has(key));
+
+            if (!filtered.length && normalized.length) {
+                selectedToolsByGroup.delete(groupKey);
+            } else if (filtered.length !== normalized.length) {
+                selectedToolsByGroup.set(groupKey, filtered);
+            }
+
+            return filtered;
+        }
+
+        function setSelectedKeys(groupKey, keys) {
+            const normalized = [...new Set((keys || []).filter(Boolean))];
+            if (normalized.length) {
+                selectedToolsByGroup.set(groupKey, normalized);
+            } else {
+                selectedToolsByGroup.delete(groupKey);
+            }
+            return normalized;
+        }
+
+        function getSelectedItems(group, orderedItems = null) {
+            const items = orderedItems || getOrderedItems(group);
+            const selectedKeySet = new Set(getSelectedKeys(group.key, items));
+            return items.filter((item) => selectedKeySet.has(getItemKey(item)));
+        }
+
+        function buildSelectionMessage(selectedItems) {
+            if (!selectedItems.length) {
+                return 'Selecione uma ou mais ferramentas. Clique novamente para remover da seleção.';
+            }
+
+            const previewNames = selectedItems
+                .slice(0, 2)
+                .map((item) => item.descricao || 'Ferramenta')
+                .join(' • ');
+            const extraCount = selectedItems.length - Math.min(selectedItems.length, 2);
+            const suffix = extraCount > 0 ? ` +${extraCount}` : '';
+
+            if (selectedItems.length === 1) {
+                return `Ferramenta pronta para baixa: ${previewNames} • ${formatDays(selectedItems[0].dias_em_uso)}`;
+            }
+
+            return `${formatToolCount(selectedItems.length)} prontas para baixa: ${previewNames}${suffix}`;
+        }
+
+        function buildReturnButtonLabel(selectedCount) {
+            const total = Number(selectedCount) || 0;
+            if (total <= 0) {
+                return 'Baixar selecionadas';
+            }
+            if (total === 1) {
+                return 'Baixar selecionada';
+            }
+            return `Baixar ${total} selecionadas`;
+        }
+
         function clearGalleryTimer(groupKey) {
             const timerId = galleryTimers.get(groupKey);
             if (timerId) {
@@ -3257,14 +3382,15 @@
 
             const focusedItem = orderedItems.find((item) => getItemKey(item) === itemKey) || orderedItems[0];
             const focusedKey = getItemKey(focusedItem);
-            const selectedKey = selectedToolsByGroup.get(group.key) || '';
+            const selectedKeySet = new Set(getSelectedKeys(group.key, orderedItems));
 
             focusedToolsByGroup.set(group.key, focusedKey);
 
             wrapper.querySelectorAll('.js-custody-gallery-slide').forEach((slide) => {
                 const slideKey = slide.getAttribute('data-tool-key') || '';
                 slide.classList.toggle('is-visible', slideKey === focusedKey);
-                slide.classList.toggle('is-selected', slideKey === selectedKey);
+                slide.classList.toggle('is-selected', selectedKeySet.has(slideKey));
+                slide.setAttribute('aria-pressed', selectedKeySet.has(slideKey) ? 'true' : 'false');
             });
 
             wrapper.querySelectorAll('.js-custody-gallery-dot').forEach((dot) => {
@@ -3272,7 +3398,7 @@
             });
 
             clearGalleryTimer(group.key);
-            if (options.restartTimer === false || orderedItems.length < 2 || selectedToolsByGroup.has(group.key)) {
+            if (options.restartTimer === false || orderedItems.length < 2 || selectedKeySet.size) {
                 return;
             }
 
@@ -3354,59 +3480,195 @@
                 });
         }
 
-        function applyGroupSelection(group, wrapper, itemKey, options = {}) {
+        function syncGroupSelectionState(group, wrapper, options = {}) {
             if (!group || !wrapper) {
                 return;
             }
 
             const selectedLabel = wrapper.querySelector('.js-custody-selected');
             const returnButton = wrapper.querySelector('.js-custody-return');
+            const selectAllButton = wrapper.querySelector('.js-custody-select-all');
             const toolButtons = wrapper.querySelectorAll('.js-custody-tool');
             const orderedItems = getOrderedItems(group);
-            const selectedItem = orderedItems.find((item) => getItemKey(item) === itemKey) || null;
-            const fallbackFocusKey = options.focusKey || focusedToolsByGroup.get(group.key) || (orderedItems[0] ? getItemKey(orderedItems[0]) : '');
+            const selectedKeys = getSelectedKeys(group.key, orderedItems);
+            const selectedKeySet = new Set(selectedKeys);
+            const selectedItems = orderedItems.filter((item) => selectedKeySet.has(getItemKey(item)));
+            const fallbackFocusKey = options.focusKey || focusedToolsByGroup.get(group.key) || selectedKeys[0] || (orderedItems[0] ? getItemKey(orderedItems[0]) : '');
 
-            if (!selectedItem) {
-                selectedToolsByGroup.delete(group.key);
-                toolButtons.forEach((button) => button.classList.remove('is-selected'));
-                if (selectedLabel) {
-                    selectedLabel.textContent = 'Selecione uma ferramenta para destacar a foto e liberar a baixa.';
-                    selectedLabel.classList.remove('is-ready');
-                }
-                if (returnButton) {
-                    returnButton.disabled = true;
-                    returnButton.textContent = 'Dar baixa';
-                    returnButton.setAttribute('data-group-key', group.key || '');
-                    ['data-id', 'data-source', 'data-codigo', 'data-desc', 'data-matricula'].forEach((attr) => {
-                        returnButton.removeAttribute(attr);
-                    });
-                }
-                applyGalleryFocus(group, wrapper, fallbackFocusKey, options);
-                return;
-            }
-
-            const selectedKey = getItemKey(selectedItem);
-            selectedToolsByGroup.set(group.key, selectedKey);
             toolButtons.forEach((button) => {
-                button.classList.toggle('is-selected', button.getAttribute('data-tool-key') === selectedKey);
+                const buttonKey = button.getAttribute('data-tool-key') || '';
+                const isSelected = selectedKeySet.has(buttonKey);
+                button.classList.toggle('is-selected', isSelected);
+                button.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
             });
 
             if (selectedLabel) {
-                selectedLabel.textContent = `Ferramenta pronta para baixa: ${selectedItem.descricao || 'Ferramenta'} • ${formatDays(selectedItem.dias_em_uso)}`;
-                selectedLabel.classList.add('is-ready');
+                selectedLabel.textContent = buildSelectionMessage(selectedItems);
+                selectedLabel.classList.toggle('is-ready', selectedItems.length > 0);
             }
             if (returnButton) {
-                returnButton.disabled = false;
-                returnButton.textContent = 'Dar baixa';
-                returnButton.setAttribute('data-id', selectedItem.id || '');
-                returnButton.setAttribute('data-source', selectedItem.source || 'saida');
-                returnButton.setAttribute('data-codigo', selectedItem.codigo || '');
-                returnButton.setAttribute('data-desc', selectedItem.descricao || '');
-                returnButton.setAttribute('data-matricula', selectedItem.matricula_full || selectedItem.matricula || '');
+                returnButton.disabled = selectedItems.length === 0;
+                returnButton.textContent = buildReturnButtonLabel(selectedItems.length);
                 returnButton.setAttribute('data-group-key', group.key || '');
             }
 
-            applyGalleryFocus(group, wrapper, selectedKey, options);
+            if (selectAllButton) {
+                const isAllSelected = orderedItems.length > 0 && selectedItems.length === orderedItems.length;
+                selectAllButton.textContent = isAllSelected ? 'Limpar seleção' : 'Selecionar todas';
+                selectAllButton.classList.toggle('is-active', isAllSelected);
+                selectAllButton.setAttribute('aria-pressed', isAllSelected ? 'true' : 'false');
+            }
+
+            applyGalleryFocus(group, wrapper, fallbackFocusKey, options);
+        }
+
+        function toggleGroupSelection(group, wrapper, itemKey) {
+            const orderedItems = getOrderedItems(group);
+            if (!orderedItems.some((item) => getItemKey(item) === itemKey)) {
+                syncGroupSelectionState(group, wrapper);
+                return;
+            }
+
+            const nextSelection = new Set(getSelectedKeys(group.key, orderedItems));
+            if (nextSelection.has(itemKey)) {
+                nextSelection.delete(itemKey);
+            } else {
+                nextSelection.add(itemKey);
+            }
+
+            setSelectedKeys(group.key, [...nextSelection]);
+            focusedToolsByGroup.set(group.key, itemKey);
+            syncGroupSelectionState(group, wrapper, { focusKey: itemKey, restartTimer: true });
+        }
+
+        function toggleAllGroupSelection(group, wrapper) {
+            const orderedItems = getOrderedItems(group);
+            const allKeys = orderedItems.map((item) => getItemKey(item));
+            const selectedKeys = getSelectedKeys(group.key, orderedItems);
+            const nextKeys = selectedKeys.length === orderedItems.length ? [] : allKeys;
+            const focusKey = focusedToolsByGroup.get(group.key) || nextKeys[0] || allKeys[0] || '';
+
+            setSelectedKeys(group.key, nextKeys);
+            if (focusKey) {
+                focusedToolsByGroup.set(group.key, focusKey);
+            }
+            syncGroupSelectionState(group, wrapper, { focusKey, restartTimer: true });
+        }
+
+        async function submitReturnRequest(item) {
+            const retiradaId = item?.id;
+            if (!retiradaId) {
+                throw new Error('Não foi possível identificar a retirada para dar baixa.');
+            }
+
+            const payload = new URLSearchParams();
+            payload.append('matricula', item?.matricula_full || item?.matricula || '');
+            payload.append('codigo_item', item?.codigo || '');
+            payload.append('observacao', 'Devolução registrada via dashboard');
+
+            const endpointUrl = ((item?.source || 'saida').toLowerCase() === 'retirada_ferramenta')
+                ? `/ferramentas/devolver/${retiradaId}/api`
+                : `/controle-ferramentas/devolucao/${retiradaId}/api`;
+
+            const response = await fetch(endpointUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+                    'Accept': 'application/json'
+                },
+                body: payload.toString(),
+                credentials: 'same-origin'
+            });
+
+            const contentType = (response.headers.get('content-type') || '').toLowerCase();
+            const isJson = contentType.includes('application/json');
+
+            if (!response.ok) {
+                const errorPayload = isJson ? await response.json().catch(() => ({})) : {};
+                throw new Error(errorPayload.message || `Erro ${response.status}`);
+            }
+
+            const result = isJson ? await response.json().catch(() => ({})) : {};
+            if (result && result.success === false) {
+                throw new Error(result.message || 'Erro ao registrar devolução');
+            }
+
+            return result;
+        }
+
+        async function handleGroupReturn(group, wrapper, buttonEl) {
+            const orderedItems = getOrderedItems(group);
+            const selectedItems = getSelectedItems(group, orderedItems);
+
+            if (!selectedItems.length) {
+                window.alert('Selecione ao menos uma ferramenta para dar baixa.');
+                return;
+            }
+
+            const previewLines = selectedItems
+                .slice(0, 4)
+                .map((item) => `• ${item.descricao || item.codigo || 'Ferramenta'}`)
+                .join('\n');
+            const extraCount = selectedItems.length - Math.min(selectedItems.length, 4);
+            const confirmMessage = selectedItems.length === 1
+                ? `Confirmar baixa de ${selectedItems[0].descricao || 'Ferramenta'}?`
+                : `Confirmar baixa de ${selectedItems.length} ferramentas de ${group.usuario || 'colaborador'}?\n\n${previewLines}${extraCount > 0 ? `\n• +${extraCount} outras` : ''}`;
+
+            if (!window.confirm(confirmMessage)) {
+                return;
+            }
+
+            const interactiveButtons = Array.from(wrapper.querySelectorAll('button'));
+            interactiveButtons.forEach((button) => {
+                button.disabled = true;
+            });
+
+            try {
+                const failures = [];
+                const failedKeys = [];
+
+                for (let index = 0; index < selectedItems.length; index += 1) {
+                    const item = selectedItems[index];
+                    if (buttonEl && document.body.contains(buttonEl)) {
+                        buttonEl.textContent = `Baixando ${index + 1}/${selectedItems.length}`;
+                    }
+
+                    try {
+                        await submitReturnRequest(item);
+                    } catch (error) {
+                        failures.push({ item, message: error?.message || 'erro desconhecido' });
+                        failedKeys.push(getItemKey(item));
+                    }
+                }
+
+                setSelectedKeys(group.key, failedKeys);
+                if (failedKeys.length) {
+                    focusedToolsByGroup.set(group.key, failedKeys[0]);
+                } else {
+                    focusedToolsByGroup.delete(group.key);
+                }
+
+                await load();
+
+                if (failures.length) {
+                    const failurePreview = failures
+                        .slice(0, 3)
+                        .map(({ item, message }) => `• ${item.descricao || item.codigo || 'Ferramenta'}: ${message}`)
+                        .join('\n');
+                    const otherFailures = failures.length - Math.min(failures.length, 3);
+                    window.alert(`${selectedItems.length - failures.length} baixa(s) concluída(s) e ${failures.length} falha(s).\n\n${failurePreview}${otherFailures > 0 ? `\n• +${otherFailures} outra(s)` : ''}`);
+                }
+            } catch (error) {
+                console.error('Falha ao registrar devolução em lote:', error);
+                window.alert(`Falha ao dar baixa: ${error?.message || 'erro desconhecido'}`);
+            } finally {
+                if (document.body.contains(wrapper)) {
+                    interactiveButtons.forEach((button) => {
+                        button.disabled = false;
+                    });
+                    syncGroupSelectionState(group, wrapper, { focusKey: focusedToolsByGroup.get(group.key), restartTimer: true });
+                }
+            }
         }
 
         function render(groups) {
@@ -3439,15 +3701,13 @@
                 }
 
                 const orderedItems = getOrderedItems(group);
-                const persistedSelectedKey = selectedToolsByGroup.get(group.key);
-                const selectedKey = orderedItems.some((item) => getItemKey(item) === persistedSelectedKey)
-                    ? persistedSelectedKey
-                    : '';
+                const persistedSelectedKeys = getSelectedKeys(group.key, orderedItems);
+                const selectedKeySet = new Set(persistedSelectedKeys);
                 const persistedFocusKey = focusedToolsByGroup.get(group.key);
                 const focusKey = orderedItems.some((item) => getItemKey(item) === persistedFocusKey)
                     ? persistedFocusKey
-                    : (selectedKey || (orderedItems[0] ? getItemKey(orderedItems[0]) : ''));
-                const selectedItem = orderedItems.find((item) => getItemKey(item) === selectedKey) || null;
+                    : (persistedSelectedKeys[0] || (orderedItems[0] ? getItemKey(orderedItems[0]) : ''));
+                const selectedItems = orderedItems.filter((item) => selectedKeySet.has(getItemKey(item)));
                 const totalToolsLabel = formatToolCount(group.totalTools);
                 const locationsLabel = escapeHtml(formatLocations(group.locations));
 
@@ -3471,7 +3731,7 @@
                         <div class="galint-custody-gallery">
                             <div class="galint-custody-gallery-frame">
                                 ${orderedItems.map((item, index) => `
-                                    <button type="button" class="galint-custody-gallery-slide js-custody-gallery-slide ${getItemKey(item) === focusKey ? 'is-visible' : ''} ${getItemKey(item) === selectedKey ? 'is-selected' : ''}" data-tool-key="${escapeHtml(getItemKey(item))}" aria-label="Exibir foto de ${escapeHtml(item.descricao || 'ferramenta')}">
+                                    <button type="button" class="galint-custody-gallery-slide js-custody-gallery-slide ${getItemKey(item) === focusKey ? 'is-visible' : ''} ${selectedKeySet.has(getItemKey(item)) ? 'is-selected' : ''}" data-tool-key="${escapeHtml(getItemKey(item))}" aria-label="Exibir foto de ${escapeHtml(item.descricao || 'ferramenta')}" aria-pressed="${selectedKeySet.has(getItemKey(item)) ? 'true' : 'false'}">
                                         ${item.foto_url
                                             ? `<img src="${escapeHtml(item.foto_url)}" alt="${escapeHtml(item.descricao || 'Ferramenta')}" loading="lazy">`
                                             : `<div class="galint-custody-gallery-placeholder"><i class="bi bi-image"></i><span>Sem foto desta ferramenta</span></div>`}
@@ -3521,7 +3781,7 @@
                     </div>
                     <div class="galint-custody-preview-list">
                         ${orderedItems.map((item) => `
-                            <button type="button" class="galint-custody-preview-item js-custody-tool ${getItemKey(item) === selectedKey ? 'is-selected' : ''}" data-tool-key="${escapeHtml(getItemKey(item))}">
+                            <button type="button" class="galint-custody-preview-item js-custody-tool ${selectedKeySet.has(getItemKey(item)) ? 'is-selected' : ''}" data-tool-key="${escapeHtml(getItemKey(item))}" aria-pressed="${selectedKeySet.has(getItemKey(item)) ? 'true' : 'false'}">
                                 <div class="galint-custody-preview-top">
                                     <strong>${escapeHtml(item.descricao || 'Item não identificado')}</strong>
                                     <span class="galint-custody-preview-days ${item.atrasada ? 'is-alert' : ''}">${formatDays(item.dias_em_uso)}</span>
@@ -3532,24 +3792,28 @@
                             </button>
                         `).join('')}
                     </div>
-                    <div class="galint-custody-selected js-custody-selected ${selectedItem ? 'is-ready' : ''}">${selectedItem
-                        ? `Ferramenta pronta para baixa: ${escapeHtml(selectedItem.descricao || 'Ferramenta')} • ${escapeHtml(formatDays(selectedItem.dias_em_uso))}`
-                        : 'Selecione uma ferramenta para destacar a foto e liberar a baixa.'}</div>
+                    <div class="galint-custody-selected-shell">
+                        <div class="galint-custody-selected js-custody-selected ${selectedItems.length ? 'is-ready' : ''}">${escapeHtml(buildSelectionMessage(selectedItems))}</div>
+                        <div class="galint-custody-selection-tools">
+                            <span class="galint-custody-selection-hint">${orderedItems.length > 1 ? 'Clique nas ferramentas para selecionar quantas quiser antes de dar baixa.' : 'Clique na ferramenta para preparar a baixa.'}</span>
+                            ${orderedItems.length > 1 ? `<button type="button" class="galint-custody-btn galint-custody-btn-secondary galint-custody-btn-compact js-custody-select-all ${selectedItems.length === orderedItems.length ? 'is-active' : ''}" data-group-key="${escapeHtml(group.key)}" aria-pressed="${selectedItems.length === orderedItems.length ? 'true' : 'false'}">${selectedItems.length === orderedItems.length ? 'Limpar seleção' : 'Selecionar todas'}</button>` : ''}
+                        </div>
+                    </div>
                     <div class="galint-custody-actions">
                         <a href="/controle-ferramentas/funcionario/${encodeURIComponent(group.matricula_full || group.matricula || '')}" class="galint-custody-btn galint-custody-btn-secondary">Ver ficha</a>
-                        <button type="button" data-group-key="${escapeHtml(group.key)}" class="galint-custody-btn galint-custody-btn-primary js-custody-return" ${selectedItem ? '' : 'disabled'}>Dar baixa</button>
+                        <button type="button" data-group-key="${escapeHtml(group.key)}" class="galint-custody-btn galint-custody-btn-primary js-custody-return" ${selectedItems.length ? '' : 'disabled'}>${buildReturnButtonLabel(selectedItems.length)}</button>
                     </div>
                 `;
 
                 wrapper.querySelectorAll('.js-custody-tool').forEach((toolButton) => {
                     toolButton.addEventListener('click', () => {
-                        applyGroupSelection(group, wrapper, toolButton.getAttribute('data-tool-key') || '');
+                        toggleGroupSelection(group, wrapper, toolButton.getAttribute('data-tool-key') || '');
                     });
                 });
 
                 wrapper.querySelectorAll('.js-custody-gallery-slide').forEach((slideButton) => {
                     slideButton.addEventListener('click', () => {
-                        applyGroupSelection(group, wrapper, slideButton.getAttribute('data-tool-key') || '');
+                        toggleGroupSelection(group, wrapper, slideButton.getAttribute('data-tool-key') || '');
                     });
                 });
 
@@ -3573,16 +3837,23 @@
                     });
                 }
 
+                const selectAllButton = wrapper.querySelector('.js-custody-select-all');
+                if (selectAllButton) {
+                    selectAllButton.addEventListener('click', () => {
+                        toggleAllGroupSelection(group, wrapper);
+                    });
+                }
+
                 const returnButton = wrapper.querySelector('.js-custody-return');
                 if (returnButton) {
                     returnButton.addEventListener('click', () => {
                         if (!returnButton.disabled) {
-                            window.devolverFerramenta(returnButton);
+                            handleGroupReturn(group, wrapper, returnButton);
                         }
                     });
                 }
 
-                applyGroupSelection(group, wrapper, selectedKey, { focusKey, restartTimer: true });
+                syncGroupSelectionState(group, wrapper, { focusKey, restartTimer: true });
 
                 fragment.appendChild(wrapper);
             });
@@ -3611,73 +3882,6 @@
                 custodyContainer.innerHTML = '<p class="text-danger mb-0">Erro ao carregar ferramentas em custódia. Tente novamente em instantes.</p>';
             }
         }
-
-        // Função global para devolver ferramenta (precisa ser global por causa do onclick)
-        window.devolverFerramenta = async function(buttonEl) {
-            const retiradaId = buttonEl?.getAttribute('data-id');
-            const source = (buttonEl?.getAttribute('data-source') || 'saida').toLowerCase();
-            const matricula = buttonEl?.getAttribute('data-matricula');
-            const codigoItem = buttonEl?.getAttribute('data-codigo');
-                const groupKey = buttonEl?.getAttribute('data-group-key') || '';
-
-            if (!retiradaId) {
-                window.alert('Não foi possível identificar a retirada para dar baixa.');
-                return;
-            }
-
-            if (buttonEl) {
-                buttonEl.disabled = true;
-                buttonEl.dataset.originalLabel = buttonEl.dataset.originalLabel || buttonEl.textContent;
-                buttonEl.textContent = 'Baixando...';
-            }
-
-            try {
-                const payload = new URLSearchParams();
-                payload.append('matricula', matricula || '');
-                payload.append('codigo_item', codigoItem || '');
-                payload.append('observacao', 'Devolução registrada via dashboard');
-
-                const endpointUrl = (source === 'retirada_ferramenta')
-                    ? `/ferramentas/devolver/${retiradaId}/api`
-                    : `/controle-ferramentas/devolucao/${retiradaId}/api`;
-
-                const response = await fetch(endpointUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
-                        'Accept': 'application/json'
-                    },
-                    body: payload.toString(),
-                    credentials: 'same-origin'
-                });
-
-                const contentType = (response.headers.get('content-type') || '').toLowerCase();
-                const isJson = contentType.includes('application/json');
-
-                if (!response.ok) {
-                    const errorPayload = isJson ? await response.json().catch(() => ({})) : {};
-                    throw new Error(errorPayload.message || `Erro ${response.status}`);
-                }
-
-                const result = isJson ? await response.json().catch(() => ({})) : {};
-                if (result && result.success === false) {
-                    throw new Error(result.message || 'Erro ao registrar devolução');
-                }
-
-                if (groupKey) {
-                    selectedToolsByGroup.delete(groupKey);
-                }
-                await load();
-            } catch (error) {
-                console.error('Falha ao registrar devolução:', error);
-                window.alert(`Falha ao dar baixa: ${error?.message || 'erro desconhecido'}`);
-            } finally {
-                if (buttonEl && document.body.contains(buttonEl)) {
-                    buttonEl.disabled = false;
-                    buttonEl.textContent = buttonEl.dataset.originalLabel || 'Dar baixa';
-                }
-            }
-        };
 
         load();
         setInterval(() => load(), 30000); // Atualiza a cada 30 segundos
