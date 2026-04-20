@@ -45,9 +45,9 @@ export default function ReportsDailyScreen() {
 
     return (
         <HeroScreen
-            eyebrow="Relatorio diario"
+            eyebrow="Relatório diário"
             title="PDF operacional do dia"
-            subtitle="O mobile gera o PDF real do fluxo diario e compartilha direto do aparelho. Escolha o escopo e dispare."
+            subtitle="O mobile gera o PDF real do fluxo diário e compartilha direto do aparelho. Escolha o escopo e dispare."
             heroContent={
                 <View style={styles.heroGrid}>
                     <View style={styles.heroCard}>
@@ -65,7 +65,7 @@ export default function ReportsDailyScreen() {
                 <View key={scope.key} style={styles.sectionCard}>
                     <View style={styles.sectionCopy}>
                         <Text style={styles.sectionTitle}>{scope.label}</Text>
-                        <Text style={styles.sectionSubtitle}>Gera o relatorio diario em PDF pronto para compartilhar.</Text>
+                        <Text style={styles.sectionSubtitle}>Gera o relatório diário em PDF pronto para compartilhar.</Text>
                     </View>
                     <TouchableOpacity
                         style={styles.button}
@@ -82,8 +82,8 @@ export default function ReportsDailyScreen() {
             ))}
 
             <View style={styles.infoBox}>
-                <Text style={styles.infoTitle}>Escopos disponiveis</Text>
-                <Text style={styles.infoText}>Materiais, ferramentas e visao geral. O app nao oferece formato falso: aqui o compartilhamento segue exatamente o arquivo que o servidor entrega.</Text>
+                <Text style={styles.infoTitle}>Escopos disponíveis</Text>
+                <Text style={styles.infoText}>Materiais, ferramentas e visão geral. O app não oferece formato falso: aqui o compartilhamento segue exatamente o arquivo que o servidor entrega.</Text>
             </View>
         </HeroScreen>
     );

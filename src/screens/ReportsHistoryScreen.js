@@ -18,15 +18,15 @@ import { heroPalette, heroShadow, heroSoftShadow } from '../theme/heroTheme';
 function getTypeLabel(type) {
     switch (type) {
         case 'saidas':
-            return 'Saidas do dia';
+            return 'Saídas do dia';
         case 'estoque':
             return 'Estoque baixo';
         case 'mensal':
-            return 'Relatorio mensal';
+            return 'Relatório mensal';
         case 'consumo':
-            return 'Consumo analitico';
+            return 'Consumo analítico';
         default:
-            return 'Relatorio';
+            return 'Relatório';
     }
 }
 
@@ -37,7 +37,7 @@ function getScopeLabel(scope, scopeValue) {
         all: 'Geral',
         local: 'Local',
         categoria: 'Categoria',
-        funcionario: 'Funcionario',
+        funcionario: 'Funcionário',
     }[scope] || null;
 
     if (!base && !scopeValue) {
@@ -73,13 +73,13 @@ export default function ReportsHistoryScreen() {
         try {
             const result = await ApiService.getReportsHistory();
             if (!result?.success) {
-                Alert.alert('Historico', result?.message || 'Nao foi possivel carregar os relatorios.');
+                Alert.alert('Histórico', result?.message || 'Não foi possível carregar os relatórios.');
                 setReports([]);
                 return;
             }
             setReports(Array.isArray(result.reports) ? result.reports : []);
         } catch (error) {
-            Alert.alert('Historico', error?.message || 'Nao foi possivel carregar os relatorios.');
+            Alert.alert('Histórico', error?.message || 'Não foi possível carregar os relatórios.');
             setReports([]);
         } finally {
             setLoading(false);
@@ -107,13 +107,13 @@ export default function ReportsHistoryScreen() {
             if (await Sharing.isAvailableAsync()) {
                 await Sharing.shareAsync(download.uri, {
                     mimeType: resolveMimeType(report.filename),
-                    dialogTitle: 'Compartilhar relatorio',
+                    dialogTitle: 'Compartilhar relatório',
                 });
             } else {
-                Alert.alert('Relatorio salvo', download.uri);
+                Alert.alert('Relatório salvo', download.uri);
             }
         } catch (error) {
-            Alert.alert('Download', error?.message || 'Nao foi possivel baixar o relatorio.');
+            Alert.alert('Download', error?.message || 'Não foi possível baixar o relatório.');
         } finally {
             setDownloading(null);
         }
@@ -126,8 +126,8 @@ export default function ReportsHistoryScreen() {
     return (
         <HeroScreen
             eyebrow="Arquivo"
-            title="Historico de relatorios"
-            subtitle="Tudo que ja foi gerado no servidor fica disponivel aqui para reuso rapido no aparelho."
+            title="Histórico de relatórios"
+            subtitle="Tudo que já foi gerado no servidor fica disponível aqui para reúso rápido no aparelho."
             heroContent={
                 <View style={styles.heroGrid}>
                     <View style={styles.heroStat}>
@@ -150,20 +150,20 @@ export default function ReportsHistoryScreen() {
             }
         >
             <TouchableOpacity style={styles.refreshButton} onPress={loadReports} activeOpacity={0.86}>
-                <Text style={styles.refreshButtonText}>{loading ? 'Atualizando...' : 'Recarregar historico'}</Text>
+                <Text style={styles.refreshButtonText}>{loading ? 'Atualizando...' : 'Recarregar histórico'}</Text>
             </TouchableOpacity>
 
             {loading ? (
                 <View style={styles.loadingBox}>
                     <ActivityIndicator color={heroPalette.primaryStrong} />
-                    <Text style={styles.loadingText}>Carregando relatorios...</Text>
+                    <Text style={styles.loadingText}>Carregando relatórios...</Text>
                 </View>
             ) : null}
 
             {!loading && reports.length === 0 ? (
                 <View style={styles.emptyBox}>
-                    <Text style={styles.emptyTitle}>Nenhum relatorio encontrado</Text>
-                    <Text style={styles.emptyText}>Os PDFs gerados pelo servidor vao aparecer aqui para download e compartilhamento.</Text>
+                    <Text style={styles.emptyTitle}>Nenhum relatório encontrado</Text>
+                    <Text style={styles.emptyText}>Os PDFs gerados pelo servidor vão aparecer aqui para download e compartilhamento.</Text>
                 </View>
             ) : null}
 
@@ -175,7 +175,7 @@ export default function ReportsHistoryScreen() {
                             <View style={styles.reportCopy}>
                                 <Text style={styles.reportTitle}>{getTypeLabel(report.type)}</Text>
                                 <Text style={styles.reportMeta}>{report.date_formatted || 'Sem data'}</Text>
-                                {report.month ? <Text style={styles.reportMeta}>Periodo: {report.month}</Text> : null}
+                                {report.month ? <Text style={styles.reportMeta}>Período: {report.month}</Text> : null}
                                 {scopeLabel ? <Text style={styles.scopeBadge}>{scopeLabel}</Text> : null}
                             </View>
                             <View style={styles.formatBadge}>

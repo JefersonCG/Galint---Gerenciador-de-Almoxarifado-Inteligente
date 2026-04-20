@@ -160,12 +160,12 @@ export default function EstoqueScreen({ navigation, route }) {
             setDailyCustodyVisible(true);
             setDailyCustodyGroups([]);
             setDailyCustodySummary({ employees: 0, tools: 0, overdue: 0 });
-            setDailyCustodyMessage(result?.message || 'Nao foi possivel carregar a custodia diaria agora.');
+            setDailyCustodyMessage(result?.message || 'Não foi possível carregar a custódia diária agora.');
         } catch (error) {
             setDailyCustodyVisible(true);
             setDailyCustodyGroups([]);
             setDailyCustodySummary({ employees: 0, tools: 0, overdue: 0 });
-            setDailyCustodyMessage(error?.message || 'Nao foi possivel carregar a custodia diaria agora.');
+            setDailyCustodyMessage(error?.message || 'Não foi possível carregar a custódia diária agora.');
         } finally {
             if (!silent) {
                 setDailyCustodyLoading(false);
@@ -454,7 +454,7 @@ export default function EstoqueScreen({ navigation, route }) {
 
             if (!failures.length) {
                 Alert.alert(
-                    'Custodia diaria',
+                    'Custódia diária',
                     successCount === 1
                         ? 'Ferramenta devolvida com sucesso.'
                         : `${successCount} ferramenta(s) devolvida(s) com sucesso.`
@@ -464,15 +464,15 @@ export default function EstoqueScreen({ navigation, route }) {
 
             if (successCount > 0) {
                 Alert.alert(
-                    'Custodia diaria',
-                    `${successCount} devolucao(oes) concluida(s) e ${failures.length} falha(s).\n\n${failures.slice(0, 3).join('\n')}`
+                    'Custódia diária',
+                    `${successCount} devolução(ões) concluída(s) e ${failures.length} falha(s).\n\n${failures.slice(0, 3).join('\n')}`
                 );
                 return;
             }
 
-            Alert.alert('Custodia diaria', failures[0] || 'Nao foi possivel dar baixa na ferramenta.');
+            Alert.alert('Custódia diária', failures[0] || 'Não foi possível dar baixa na ferramenta.');
         } catch (error) {
-            Alert.alert('Custodia diaria', error?.message || 'Nao foi possivel dar baixa na ferramenta.');
+            Alert.alert('Custódia diária', error?.message || 'Não foi possível dar baixa na ferramenta.');
         } finally {
             setDailyCustodyReturning(false);
         }
@@ -498,13 +498,13 @@ export default function EstoqueScreen({ navigation, route }) {
             message = `Confirmar a baixa de ${itemCount} ferramenta(s) selecionada(s) para ${options?.group?.usuario || 'este colaborador'}?`;
         } else if (scope === 'group-all') {
             title = 'Dar baixa de todas';
-            message = `Confirmar a baixa de todas as ${itemCount} ferramenta(s) em custodia de ${options?.group?.usuario || 'este colaborador'}?`;
+            message = `Confirmar a baixa de todas as ${itemCount} ferramenta(s) em custódia de ${options?.group?.usuario || 'este colaborador'}?`;
         } else if (scope === 'global-selected') {
             title = 'Dar baixa das selecionadas';
-            message = `Confirmar a baixa de ${itemCount} ferramenta(s) distribuida(s) em ${collaborators.length} colaborador(es)?`;
+            message = `Confirmar a baixa de ${itemCount} ferramenta(s) distribuída(s) em ${collaborators.length} colaborador(es)?`;
         } else if (scope === 'global-all') {
             title = 'Dar baixa de tudo';
-            message = `Confirmar a baixa de todas as ${itemCount} ferramenta(s) visiveis na custodia diaria?`;
+            message = `Confirmar a baixa de todas as ${itemCount} ferramenta(s) visíveis na custódia diária?`;
         } else if (itemCount === 1) {
             title = 'Dar baixa da ferramenta';
             message = `Confirmar a baixa de ${normalizedEntries[0]?.item?.descricao || 'esta ferramenta'}?`;

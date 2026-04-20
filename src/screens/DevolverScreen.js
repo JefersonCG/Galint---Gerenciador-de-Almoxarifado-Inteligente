@@ -209,9 +209,9 @@ export default function DevolverScreen({ navigation, route }) {
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
             <HeroScreen
-                eyebrow="Operacao de retorno"
-                title={`${icone} Devolucao de ${tipoDisplay}`}
-                subtitle="A devolucao volta a nascer em uma unica tela: item, responsavel e quantidade, sem blocos decorativos desnecessarios."
+                eyebrow="Operação de retorno"
+                title={`${icone} Devolução de ${tipoDisplay}`}
+                subtitle="A devolução volta a nascer em uma única tela: item, responsável e quantidade, sem blocos decorativos desnecessários."
                 scroll={false}
                 contentContainerStyle={styles.heroContent}
             >
@@ -320,7 +320,7 @@ export default function DevolverScreen({ navigation, route }) {
                     </TouchableOpacity>
 
                     <Text style={styles.hint}>
-                        A quantidade sera automaticamente reacrescentada ao estoque.
+                        A quantidade será automaticamente reacrescentada ao estoque.
                     </Text>
                 </View>
             </ScrollView>

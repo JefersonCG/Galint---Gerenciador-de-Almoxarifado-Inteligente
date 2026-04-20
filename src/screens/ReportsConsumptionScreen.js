@@ -97,13 +97,13 @@ export default function ReportsConsumptionScreen() {
         try {
             const result = await ApiService.getConsumptionPanel(nextFilters);
             if (!result?.success) {
-                Alert.alert('Consumo', result?.message || 'Nao foi possivel carregar o painel analitico.');
+                Alert.alert('Consumo', result?.message || 'Não foi possível carregar o painel analítico.');
                 setPanel(null);
                 return;
             }
             setPanel(result.data || null);
         } catch (error) {
-            Alert.alert('Consumo', error?.message || 'Nao foi possivel carregar o painel analitico.');
+            Alert.alert('Consumo', error?.message || 'Não foi possível carregar o painel analítico.');
             setPanel(null);
         } finally {
             setLoading(false);
@@ -164,13 +164,13 @@ export default function ReportsConsumptionScreen() {
             if (await Sharing.isAvailableAsync()) {
                 await Sharing.shareAsync(download.uri, {
                     mimeType: 'application/pdf',
-                    dialogTitle: 'Compartilhar relatorio de consumo',
+                    dialogTitle: 'Compartilhar relatório de consumo',
                 });
             } else {
-                Alert.alert('Relatorio salvo', download.uri);
+                Alert.alert('Relatório salvo', download.uri);
             }
         } catch (error) {
-            Alert.alert('Consumo', error?.message || 'Nao foi possivel exportar o relatorio.');
+            Alert.alert('Consumo', error?.message || 'Não foi possível exportar o relatório.');
         } finally {
             setSharing(false);
         }
@@ -195,7 +195,7 @@ export default function ReportsConsumptionScreen() {
         <HeroScreen
             eyebrow="Consumo"
             title={panel?.scope_title || 'Painel de consumo'}
-            subtitle={panel?.scope_subtitle || 'Visao simplificada do consumo por categoria, colaborador e local.'}
+            subtitle={panel?.scope_subtitle || 'Visão simplificada do consumo por categoria, colaborador e local.'}
             heroContent={
                 <View style={styles.heroGrid}>
                     <View style={styles.heroStat}>
@@ -203,7 +203,7 @@ export default function ReportsConsumptionScreen() {
                         <Text style={styles.heroValue}>{formatCurrency(overview.total_valor)}</Text>
                     </View>
                     <View style={styles.heroStat}>
-                        <Text style={styles.heroLabel}>Saidas</Text>
+                        <Text style={styles.heroLabel}>Saídas</Text>
                         <Text style={styles.heroValue}>{formatCompactNumber(overview.saidas)}</Text>
                     </View>
                     <View style={styles.heroStat}>
@@ -243,7 +243,7 @@ export default function ReportsConsumptionScreen() {
             {loading ? (
                 <View style={styles.loadingBox}>
                     <ActivityIndicator color={heroPalette.primaryStrong} />
-                    <Text style={styles.loadingText}>Carregando analitico...</Text>
+                    <Text style={styles.loadingText}>Carregando analítico...</Text>
                 </View>
             ) : null}
 
@@ -253,7 +253,7 @@ export default function ReportsConsumptionScreen() {
                     <Text style={styles.highlightText}>
                         {(panel.current_employee.cargo || 'Sem cargo')}
                         {' - '}
-                        {panel.current_employee.saidas || 0} saida(s)
+                        {panel.current_employee.saidas || 0} saída(s)
                         {' - '}
                         {panel.current_employee.locais || 0} local(is)
                     </Text>
@@ -269,7 +269,7 @@ export default function ReportsConsumptionScreen() {
                 <View style={styles.highlightCard}>
                     <Text style={styles.highlightTitle}>{panel.current_category.categoria || 'Categoria'}</Text>
                     <Text style={styles.highlightText}>
-                        {panel.current_category.saidas || 0} saida(s)
+                        {panel.current_category.saidas || 0} saída(s)
                         {' - '}
                         {panel.current_category.colaboradores || 0} colaborador(es)
                         {' - '}
@@ -282,7 +282,7 @@ export default function ReportsConsumptionScreen() {
                 <View style={styles.highlightCard}>
                     <Text style={styles.highlightTitle}>{panel.current_local.local || 'Local'}</Text>
                     <Text style={styles.highlightText}>
-                        {panel.current_local.saidas || 0} saida(s)
+                        {panel.current_local.saidas || 0} saída(s)
                         {' - '}
                         {panel.current_local.colaboradores || 0} colaborador(es)
                         {' - '}
@@ -299,19 +299,19 @@ export default function ReportsConsumptionScreen() {
                                 key={`categoria-${row.categoria}`}
                                 title={row.categoria || 'Sem categoria'}
                                 value={formatCurrency(row.total_valor)}
-                                meta={`${row.saidas || 0} saida(s) - ${row.colaboradores || 0} colaborador(es)`}
+                                meta={`${row.saidas || 0} saída(s) - ${row.colaboradores || 0} colaborador(es)`}
                                 onPress={() => applyScopedFilter('categoria', row.categoria)}
                             />
                         ))}
                     </Surface>
 
-                    <Surface title="Colaboradores" subtitle="Visao individual do consumo por funcionario.">
+                    <Surface title="Colaboradores" subtitle="Visão individual do consumo por funcionário.">
                         {employees.slice(0, 6).map((row) => (
                             <SummaryRow
                                 key={`funcionario-${row.matricula}`}
-                                title={row.nome || row.matricula || 'Funcionario'}
+                                title={row.nome || row.matricula || 'Funcionário'}
                                 value={formatCurrency(row.total_valor)}
-                                meta={`${row.saidas || 0} saida(s) - ${row.locais || 0} local(is)`}
+                                meta={`${row.saidas || 0} saída(s) - ${row.locais || 0} local(is)`}
                                 onPress={() => applyScopedFilter('matricula', row.matricula)}
                             />
                         ))}
@@ -323,7 +323,7 @@ export default function ReportsConsumptionScreen() {
                                 key={`local-${row.local}`}
                                 title={row.local || 'Sem local'}
                                 value={formatCurrency(row.total_valor)}
-                                meta={`${row.saidas || 0} saida(s) - ${row.categorias || 0} categoria(s)`}
+                                meta={`${row.saidas || 0} saída(s) - ${row.categorias || 0} categoria(s)`}
                                 onPress={() => applyScopedFilter('local', row.local)}
                             />
                         ))}

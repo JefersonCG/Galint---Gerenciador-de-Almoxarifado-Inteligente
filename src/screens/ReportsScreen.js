@@ -8,24 +8,24 @@ const REPORT_CARDS = [
     {
         key: 'daily',
         route: 'ReportsDaily',
-        eyebrow: 'PDF rapido',
-        title: 'Relatorio diario',
-        subtitle: 'Saidas do dia por materiais, ferramentas ou visao geral.',
+        eyebrow: 'PDF rápido',
+        title: 'Relatório diário',
+        subtitle: 'Saídas do dia por materiais, ferramentas ou visão geral.',
         accent: 'rgba(103, 232, 249, 0.26)',
     },
     {
         key: 'monthly',
         route: 'ReportsMonthly',
         eyebrow: 'Fechamento',
-        title: 'Relatorio mensal',
-        subtitle: 'Periodo consolidado para auditoria e prestacao de contas.',
+        title: 'Relatório mensal',
+        subtitle: 'Período consolidado para auditoria e prestação de contas.',
         accent: 'rgba(52, 211, 153, 0.24)',
     },
     {
         key: 'consumption',
         route: 'ReportsConsumption',
-        eyebrow: 'Analitico',
-        title: 'Consumo por categoria e funcionario',
+        eyebrow: 'Analítico',
+        title: 'Consumo por categoria e funcionário',
         subtitle: 'Leitura simplificada do painel do web Flask, com local, categoria e colaborador.',
         accent: 'rgba(251, 191, 36, 0.26)',
     },
@@ -33,8 +33,8 @@ const REPORT_CARDS = [
         key: 'history',
         route: 'ReportsHistory',
         eyebrow: 'Arquivo',
-        title: 'Historico de relatorios',
-        subtitle: 'Recuperar PDFs ja gerados e compartilhar novamente pelo aparelho.',
+        title: 'Histórico de relatórios',
+        subtitle: 'Recuperar PDFs já gerados e compartilhar novamente pelo aparelho.',
         accent: 'rgba(244, 114, 182, 0.24)',
     },
 ];
@@ -42,9 +42,9 @@ const REPORT_CARDS = [
 export default function ReportsScreen({ navigation }) {
     return (
         <HeroScreen
-            eyebrow="Relatorios"
-            title="Central analitica mobile"
-            subtitle="O mobile fica mais rapido: gera PDF operacional, abre o historico e consulta o consumo sem depender da tela web completa."
+            eyebrow="Relatórios"
+            title="Central analítica mobile"
+            subtitle="O mobile fica mais rápido: gera PDF operacional, abre o histórico e consulta o consumo sem depender da tela web completa."
             heroContent={
                 <View style={styles.heroGrid}>
                     <View style={styles.heroCard}>
@@ -52,12 +52,12 @@ export default function ReportsScreen({ navigation }) {
                         <Text style={styles.heroValue}>PDF</Text>
                     </View>
                     <View style={styles.heroCard}>
-                        <Text style={styles.heroLabel}>Analitico</Text>
+                        <Text style={styles.heroLabel}>Analítico</Text>
                         <Text style={styles.heroValue}>Categoria</Text>
                     </View>
                     <View style={styles.heroCard}>
-                        <Text style={styles.heroLabel}>Gestao</Text>
-                        <Text style={styles.heroValue}>Funcionario</Text>
+                        <Text style={styles.heroLabel}>Gestão</Text>
+                        <Text style={styles.heroValue}>Funcionário</Text>
                     </View>
                 </View>
             }
@@ -83,7 +83,7 @@ export default function ReportsScreen({ navigation }) {
             <View style={styles.footerBox}>
                 <Text style={styles.footerTitle}>Regra do app</Text>
                 <Text style={styles.footerText}>
-                    O mobile agora assume o que realmente entrega: PDF operacional, historico reutilizavel e leitura analitica simplificada.
+                    O mobile agora assume o que realmente entrega: PDF operacional, histórico reutilizável e leitura analítica simplificada.
                 </Text>
             </View>
         </HeroScreen>

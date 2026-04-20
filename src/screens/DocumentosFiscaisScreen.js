@@ -21,7 +21,7 @@ const DEFAULT_CONFIG = {
     fornecedores: [],
     tipos_documento: [
         { value: 'nf', label: 'Nota fiscal' },
-        { value: 'cupom', label: 'Cupom nao fiscal' },
+        { value: 'cupom', label: 'Cupom não fiscal' },
         { value: 'recibo', label: 'Recibo' },
         { value: 'manual', label: 'Manual' },
     ],
@@ -29,39 +29,39 @@ const DEFAULT_CONFIG = {
         { value: 'compra_nf', label: 'Compra com NF' },
         { value: 'compra_cupom', label: 'Compra com cupom' },
         { value: 'valor_estimado', label: 'Valor estimado' },
-        { value: 'inventario_inicial', label: 'Inventario inicial' },
+        { value: 'inventario_inicial', label: 'Inventário inicial' },
     ],
     comprovacoes: [
         { value: 'comprovado', label: 'Comprovado' },
         { value: 'parcial', label: 'Parcial' },
-        { value: 'sem_comprovacao', label: 'Sem comprovacao' },
+        { value: 'sem_comprovacao', label: 'Sem comprovação' },
     ],
 };
 
 const DOC_MODE_PRESETS = {
     nf: {
         title: 'Nota fiscal',
-        subtitle: 'Fluxo completo para lancar compra com numero, emissao, fornecedor e classificacao financeira.',
+        subtitle: 'Fluxo completo para lançar compra com número, emissão, fornecedor e classificação financeira.',
         documentType: 'nf',
         origin: 'compra_nf',
         proof: 'comprovado',
-        note: 'Use NF quando o documento tiver emissao, fornecedor e chave quando necessario.',
+        note: 'Use NF quando o documento tiver emissão, fornecedor e chave quando necessário.',
     },
     cupom: {
         title: 'Cupom e comprovantes',
-        subtitle: 'Lancamento rapido para cupom, NFC-e simples ou compra presencial com comprovacao direta.',
+        subtitle: 'Lançamento rápido para cupom, NFC-e simples ou compra presencial com comprovação direta.',
         documentType: 'cupom',
         origin: 'compra_cupom',
         proof: 'comprovado',
-        note: 'Cupom mantem o financeiro amarrado sem forcar chave de acesso.',
+        note: 'Cupom mantém o financeiro amarrado sem forçar chave de acesso.',
     },
     recibo: {
         title: 'Recibo e avulsos',
-        subtitle: 'Para recibos simples, comprovantes avulsos e compras com documento nao fiscalizado como NF.',
+        subtitle: 'Para recibos simples, comprovantes avulsos e compras com documento não fiscalizado como NF.',
         documentType: 'recibo',
         origin: 'compra_cupom',
         proof: 'parcial',
-        note: 'Recibo exige fornecedor identificado por nome e nao usa CNPJ do emitente.',
+        note: 'Recibo exige fornecedor identificado por nome e não usa CNPJ do emitente.',
     },
     manual: {
         title: 'Manual e estimado',
@@ -69,7 +69,7 @@ const DOC_MODE_PRESETS = {
         documentType: 'manual',
         origin: 'valor_estimado',
         proof: 'sem_comprovacao',
-        note: 'Quando o documento nao existir, registre a origem do valor e detalhe a observacao.',
+        note: 'Quando o documento não existir, registre a origem do valor e detalhe a observação.',
     },
 };
 
@@ -183,7 +183,7 @@ export default function DocumentosFiscaisScreen() {
             if (!active) return;
 
             if (!result?.success) {
-                setLoadMessage(result?.message || 'Nao foi possivel carregar a configuracao documental.');
+                setLoadMessage(result?.message || 'Não foi possível carregar a configuração documental.');
                 setLoading(false);
                 return;
             }
@@ -250,10 +250,10 @@ export default function DocumentosFiscaisScreen() {
     }, [config.fornecedores, form.finance_tipo_documento, form.supplier_search, selectedSupplier]);
 
     const documentNumberLabel = useMemo(() => {
-        if (form.finance_tipo_documento === 'cupom') return 'Numero do cupom';
-        if (form.finance_tipo_documento === 'recibo') return 'Numero do recibo';
-        if (form.finance_tipo_documento === 'manual') return 'Referencia do registro';
-        return 'Numero da NF';
+        if (form.finance_tipo_documento === 'cupom') return 'Número do cupom';
+        if (form.finance_tipo_documento === 'recibo') return 'Número do recibo';
+        if (form.finance_tipo_documento === 'manual') return 'Referência do registro';
+        return 'Número da NF';
     }, [form.finance_tipo_documento]);
     const supplierCnpjAllowed = form.finance_tipo_documento === 'nf' || form.finance_tipo_documento === 'cupom';
 
@@ -334,20 +334,20 @@ export default function DocumentosFiscaisScreen() {
         }
         if (useNewItem) {
             if (!String(form.novo_codigo || '').trim()) {
-                return 'Informe o codigo do novo item.';
+                return 'Informe o código do novo item.';
             }
             if (!String(form.nova_descricao || '').trim()) {
-                return 'Informe a descricao do novo item.';
+                return 'Informe a descrição do novo item.';
             }
         }
         if (!String(form.quantidade || '').trim()) {
             return 'Informe a quantidade do documento.';
         }
         if (!String(form.nota_fiscal || '').trim()) {
-            return 'Informe o numero do documento.';
+            return 'Informe o número do documento.';
         }
         if (docMode === 'nf' && !String(form.data_emissao || '').trim()) {
-            return 'Informe a data de emissao para NF.';
+            return 'Informe a data de emissão para NF.';
         }
         if (form.finance_tipo_documento === 'recibo' && !supplierNameFilled) {
             return 'Informe o fornecedor para recibo.';
@@ -356,7 +356,7 @@ export default function DocumentosFiscaisScreen() {
             return 'Informe o fornecedor ou o CNPJ da loja.';
         }
         if (form.finance_comprovacao_status !== 'comprovado' && !String(form.finance_observacao || '').trim()) {
-            return 'Explique a situacao financeira quando a comprovacao nao estiver completa.';
+            return 'Explique a situação financeira quando a comprovação não estiver completa.';
         }
         return null;
     };
@@ -364,7 +364,7 @@ export default function DocumentosFiscaisScreen() {
     const handleSubmit = async () => {
         const validationMessage = validateBeforeSave();
         if (validationMessage) {
-            Alert.alert('Validacao', validationMessage);
+            Alert.alert('Validação', validationMessage);
             return;
         }
 
@@ -402,7 +402,7 @@ export default function DocumentosFiscaisScreen() {
         setSaving(false);
 
         if (!result?.success) {
-            Alert.alert('Falha no lancamento', result?.message || 'Nao foi possivel registrar o documento fiscal.');
+            Alert.alert('Falha no lançamento', result?.message || 'Não foi possível registrar o documento fiscal.');
             return;
         }
 
@@ -420,8 +420,8 @@ export default function DocumentosFiscaisScreen() {
         return (
             <HeroScreen
                 eyebrow="Documentos fiscais"
-                title="Preparando o lancamento"
-                subtitle="Carregando categorias, fornecedores e parametros do fluxo documental."
+                title="Preparando o lançamento"
+                subtitle="Carregando categorias, fornecedores e parâmetros do fluxo documental."
             >
                 <View style={styles.loadingCard}>
                     <ActivityIndicator color={heroPalette.primary} />
@@ -435,8 +435,8 @@ export default function DocumentosFiscaisScreen() {
         return (
             <HeroScreen
                 eyebrow="Documentos fiscais"
-                title="Fluxo indisponivel"
-                subtitle="O app nao conseguiu montar o cadastro documental neste momento."
+                title="Fluxo indisponível"
+                subtitle="O app não conseguiu montar o cadastro documental neste momento."
             >
                 <View style={styles.alertCard}>
                     <Text style={styles.alertTitle}>Falha ao carregar</Text>
@@ -458,7 +458,7 @@ export default function DocumentosFiscaisScreen() {
                         <Text style={styles.heroStatValue}>{preset.title}</Text>
                     </View>
                     <View style={styles.heroStatCard}>
-                        <Text style={styles.heroStatLabel}>Conferencia</Text>
+                        <Text style={styles.heroStatLabel}>Conferência</Text>
                         <Text style={styles.heroStatValue}>
                             {totalCalculado == null ? 'Aguardando' : `R$ ${totalCalculado.toFixed(2)}`}
                         </Text>
@@ -467,6 +467,7 @@ export default function DocumentosFiscaisScreen() {
             }
         >
             <DocumentSection title="1. Modo do lancamento" text={preset.note}>
+            <DocumentSection title="1. Modo do lançamento" text={preset.note}>
                 <ChoiceGrid
                     options={[
                         { value: 'nf', label: 'NF' },
@@ -481,7 +482,7 @@ export default function DocumentosFiscaisScreen() {
 
             <DocumentSection
                 title="2. Item existente ou item novo"
-                text="A busca continua sendo o primeiro passo. So crie um item novo quando o material ainda nao existir no estoque."
+                text="A busca continua sendo o primeiro passo. Só crie um item novo quando o material ainda não existir no estoque."
             >
                 <ChoiceGrid
                     options={[
@@ -494,7 +495,7 @@ export default function DocumentosFiscaisScreen() {
 
                 {!useNewItem ? (
                     <>
-                        <FieldCard label="Buscar item" helper="Digite codigo, descricao, marca ou categoria.">
+                        <FieldCard label="Buscar item" helper="Digite código, descrição, marca ou categoria.">
                             <TextInput
                                 value={itemSearch}
                                 onChangeText={setItemSearch}
@@ -548,7 +549,7 @@ export default function DocumentosFiscaisScreen() {
                                 )) : (
                                     <View style={styles.emptyHintCard}>
                                         <Text style={styles.emptyHintTitle}>Nenhum item localizado.</Text>
-                                        <Text style={styles.emptyHintText}>Se o material ainda nao existir, altere para Item novo e registre o pre-cadastro pela propria NF.</Text>
+                                        <Text style={styles.emptyHintText}>Se o material ainda não existir, altere para Item novo e registre o pré-cadastro pela própria NF.</Text>
                                     </View>
                                 )}
                             </View>
@@ -556,22 +557,22 @@ export default function DocumentosFiscaisScreen() {
                     </>
                 ) : (
                     <>
-                        <FieldCard label="Codigo do novo item">
+                        <FieldCard label="Código do novo item">
                             <TextInput
                                 value={form.novo_codigo}
                                 onChangeText={(value) => updateField('novo_codigo', value)}
-                                placeholder="Codigo de barras ou interno"
+                                placeholder="Código de barras ou interno"
                                 placeholderTextColor={heroPalette.textMuted}
                                 style={styles.input}
                                 autoCapitalize="none"
                             />
                         </FieldCard>
 
-                        <FieldCard label="Descricao do novo item">
+                        <FieldCard label="Descrição do novo item">
                             <TextInput
                                 value={form.nova_descricao}
                                 onChangeText={(value) => updateField('nova_descricao', value)}
-                                placeholder="Descricao completa do produto"
+                                placeholder="Descrição completa do produto"
                                 placeholderTextColor={heroPalette.textMuted}
                                 style={styles.input}
                             />
@@ -603,7 +604,7 @@ export default function DocumentosFiscaisScreen() {
                             />
                         </FieldCard>
 
-                        <FieldCard label="Unidade da compra / NF" helper="Use sem embalagem quando a NF ja vier na mesma unidade do saldo interno.">
+                        <FieldCard label="Unidade da compra / NF" helper="Use sem embalagem quando a NF já vier na mesma unidade do saldo interno.">
                             <ChoiceGrid
                                 options={[
                                     { value: '', label: 'Sem embalagem' },
@@ -615,7 +616,7 @@ export default function DocumentosFiscaisScreen() {
                         </FieldCard>
 
                         {form.nova_unidade_documental && form.nova_unidade_documental !== 'par' ? (
-                            <FieldCard label="Conteudo por embalagem">
+                            <FieldCard label="Conteúdo por embalagem">
                                 <TextInput
                                     value={form.novo_conteudo_embalagem}
                                     onChangeText={(value) => updateField('novo_conteudo_embalagem', value)}
@@ -630,7 +631,7 @@ export default function DocumentosFiscaisScreen() {
                 )}
             </DocumentSection>
 
-            <DocumentSection title="3. Dados do documento" text="Quantidade, numero, datas e origem comercial do lancamento.">
+            <DocumentSection title="3. Dados do documento" text="Quantidade, número, datas e origem comercial do lançamento.">
                 <FieldCard label="Quantidade documental">
                     <TextInput
                         value={form.quantidade}
@@ -646,13 +647,13 @@ export default function DocumentosFiscaisScreen() {
                     <TextInput
                         value={form.nota_fiscal}
                         onChangeText={(value) => updateField('nota_fiscal', value)}
-                        placeholder="Numero do documento"
+                        placeholder="Número do documento"
                         placeholderTextColor={heroPalette.textMuted}
                         style={styles.input}
                     />
                 </FieldCard>
 
-                <FieldCard label="Data de emissao" helper="Formato esperado: AAAA-MM-DD ou DD/MM/AAAA.">
+                <FieldCard label="Data de emissão" helper="Formato esperado: AAAA-MM-DD ou DD/MM/AAAA.">
                     <TextInput
                         value={form.data_emissao}
                         onChangeText={(value) => updateField('data_emissao', value)}
@@ -713,22 +714,22 @@ export default function DocumentosFiscaisScreen() {
                             </FieldCard>
                         ) : (
                             <View style={styles.inlineNoteCard}>
-                                <Text style={styles.inlineNoteText}>Recibo nao usa CNPJ. Identifique o fornecedor pelo nome e detalhe a compra na observacao.</Text>
+                                <Text style={styles.inlineNoteText}>Recibo não usa CNPJ. Identifique o fornecedor pelo nome e detalhe a compra na observação.</Text>
                             </View>
                         )}
                     </>
                 ) : (
                     <View style={styles.inlineNoteCard}>
-                        <Text style={styles.inlineNoteText}>Modo manual permite registrar sem fornecedor formal. Use a observacao para explicar a origem.</Text>
+                        <Text style={styles.inlineNoteText}>Modo manual permite registrar sem fornecedor formal. Use a observação para explicar a origem.</Text>
                     </View>
                 )}
 
                 {form.finance_tipo_documento === 'nf' ? (
-                    <FieldCard label="Chave de acesso" helper="Opcional no mobile, mas util para rastreabilidade da NF-e.">
+                    <FieldCard label="Chave de acesso" helper="Opcional no mobile, mas útil para rastreabilidade da NF-e.">
                         <TextInput
                             value={form.chave_acesso}
                             onChangeText={(value) => updateField('chave_acesso', value)}
-                            placeholder="44 digitos da chave"
+                            placeholder="44 dígitos da chave"
                             placeholderTextColor={heroPalette.textMuted}
                             style={styles.input}
                             autoCapitalize="none"
@@ -737,8 +738,8 @@ export default function DocumentosFiscaisScreen() {
                 ) : null}
             </DocumentSection>
 
-            <DocumentSection title="4. Classificacao financeira" text="O valor do documento alimenta o financeiro e, quando aplicavel, a incorporacao ao estoque.">
-                <FieldCard label="Valor unitario (R$)">
+            <DocumentSection title="4. Classificação financeira" text="O valor do documento alimenta o financeiro e, quando aplicável, a incorporação ao estoque.">
+                <FieldCard label="Valor unitário (R$)">
                     <TextInput
                         value={form.preco_unitario}
                         onChangeText={(value) => updateField('preco_unitario', value)}
@@ -750,10 +751,10 @@ export default function DocumentosFiscaisScreen() {
                 </FieldCard>
 
                 <View style={styles.calcCard}>
-                    <Text style={styles.calcLabel}>Conferencia rapida</Text>
+                    <Text style={styles.calcLabel}>Conferência rápida</Text>
                     <Text style={styles.calcFormula}>
                         {quantidadeNumero == null || precoNumero == null
-                            ? 'Preencha quantidade e valor unitario para validar a multiplicacao.'
+                            ? 'Preencha quantidade e valor unitário para validar a multiplicação.'
                             : `${quantidadeNumero} x R$ ${precoNumero.toFixed(2)} = R$ ${totalCalculado.toFixed(2)}`}
                     </Text>
                 </View>
@@ -788,11 +789,11 @@ export default function DocumentosFiscaisScreen() {
                     />
                 </FieldCard>
 
-                <FieldCard label="Observacao financeira">
+                <FieldCard label="Observação financeira">
                     <TextInput
                         value={form.finance_observacao}
                         onChangeText={(value) => updateField('finance_observacao', value)}
-                        placeholder="Ex.: compra emergencial, valor estimado, conferencia parcial..."
+                        placeholder="Ex.: compra emergencial, valor estimado, conferência parcial..."
                         placeholderTextColor={heroPalette.textMuted}
                         style={[styles.input, styles.multilineInput]}
                         multiline

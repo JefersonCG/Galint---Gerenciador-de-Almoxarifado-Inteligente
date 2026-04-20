@@ -61,13 +61,13 @@ export default function ReportsMonthlyScreen() {
 
     return (
         <HeroScreen
-            eyebrow="Relatorio mensal"
+            eyebrow="Relatório mensal"
             title="Fechamento em PDF"
-            subtitle="Selecione mes, ano e escopo. O mobile usa a mesma trilha de PDF do servidor para manter consistencia operacional."
+            subtitle="Selecione mês, ano e escopo. O mobile usa a mesma trilha de PDF do servidor para manter consistência operacional."
             heroContent={
                 <View style={styles.heroGrid}>
                     <View style={styles.heroCard}>
-                        <Text style={styles.heroLabel}>Periodo</Text>
+                        <Text style={styles.heroLabel}>Período</Text>
                         <Text style={styles.heroValue}>{monthLabels[month - 1]}</Text>
                     </View>
                     <View style={styles.heroCard}>
@@ -112,7 +112,7 @@ export default function ReportsMonthlyScreen() {
                 <View key={scope.key} style={styles.sectionCard}>
                     <View style={styles.sectionCopy}>
                         <Text style={styles.sectionTitle}>{scope.label}</Text>
-                        <Text style={styles.sectionSubtitle}>Gera o fechamento do periodo em PDF pronto para envio.</Text>
+                        <Text style={styles.sectionSubtitle}>Gera o fechamento do período em PDF pronto para envio.</Text>
                     </View>
                     <TouchableOpacity
                         style={styles.button}
@@ -130,7 +130,7 @@ export default function ReportsMonthlyScreen() {
 
             <View style={styles.infoBox}>
                 <Text style={styles.infoTitle}>Uso recomendado</Text>
-                <Text style={styles.infoText}>Use o mensal para fechamento, auditoria e prestacao de contas. O analitico por categoria e colaborador fica na tela separada de consumo.</Text>
+                <Text style={styles.infoText}>Use o mensal para fechamento, auditoria e prestação de contas. O analítico por categoria e colaborador fica na tela separada de consumo.</Text>
             </View>
         </HeroScreen>
     );

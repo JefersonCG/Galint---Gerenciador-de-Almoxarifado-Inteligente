@@ -63,12 +63,12 @@ export default function MenuScreen({ navigation }) {
     return (
         <HeroScreen
             eyebrow="Central mobile"
-            title={firstName ? `Operacao rapida de ${firstName}` : 'Central mobile'}
-            subtitle="O mobile agora vira a camada rapida do GALINT: acesso direto a notificacoes, entradas documentais, relatorios e leitura operacional do dia."
+            title={firstName ? `Operação rápida de ${firstName}` : 'Central mobile'}
+            subtitle="O mobile agora vira a camada rápida do GALINT: acesso direto a notificações, entradas documentais, relatórios e leitura operacional do dia."
             heroContent={
                 <View style={styles.heroStats}>
                     <View style={styles.heroStatCard}>
-                        <Text style={styles.heroStatLabel}>Notificacoes</Text>
+                        <Text style={styles.heroStatLabel}>Notificações</Text>
                         <Text style={styles.heroStatValue}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
                     </View>
                     <View style={styles.heroStatCard}>
@@ -99,7 +99,7 @@ export default function MenuScreen({ navigation }) {
                 </View>
                 <View style={styles.cardContent}>
                     <Text style={styles.cardTitle}>Perfil</Text>
-                    <Text style={styles.cardSubtitle}>Dados do usuario e informacoes da conta</Text>
+                    <Text style={styles.cardSubtitle}>Dados do usuário e informações da conta</Text>
                 </View>
                 <Text style={styles.cardArrow}>›</Text>
             </TouchableOpacity>
@@ -135,7 +135,7 @@ export default function MenuScreen({ navigation }) {
                     </View>
                     <View style={styles.cardContent}>
                         <Text style={styles.cardTitle}>Documentos Fiscais</Text>
-                        <Text style={styles.cardSubtitle}>Cadastro mobile para NF, cupom, recibo e lancamento manual</Text>
+                        <Text style={styles.cardSubtitle}>Cadastro mobile para NF, cupom, recibo e lançamento manual</Text>
                     </View>
                     <Text style={styles.cardArrow}>›</Text>
                 </TouchableOpacity>
@@ -161,8 +161,8 @@ export default function MenuScreen({ navigation }) {
                         <Text style={styles.cardIcon}>📊</Text>
                     </View>
                     <View style={styles.cardContent}>
-                        <Text style={styles.cardTitle}>Consumo analitico</Text>
-                        <Text style={styles.cardSubtitle}>Categoria, local e funcionario em leitura simplificada para o aparelho.</Text>
+                        <Text style={styles.cardTitle}>Consumo analítico</Text>
+                        <Text style={styles.cardSubtitle}>Categoria, local e funcionário em leitura simplificada para o aparelho.</Text>
                     </View>
                     <Text style={styles.cardArrow}>›</Text>
                 </TouchableOpacity>
@@ -178,7 +178,7 @@ export default function MenuScreen({ navigation }) {
                 </View>
                 <View style={styles.cardContent}>
                     <Text style={styles.cardTitle}>Atualizações</Text>
-                    <Text style={styles.cardSubtitle}>Servidor, OTA e configuracoes do dispositivo</Text>
+                    <Text style={styles.cardSubtitle}>Servidor, OTA e configurações do dispositivo</Text>
                 </View>
                 <Text style={styles.cardArrow}>›</Text>
             </TouchableOpacity>
@@ -194,7 +194,7 @@ export default function MenuScreen({ navigation }) {
                     </View>
                     <View style={styles.cardContent}>
                         <Text style={styles.cardTitle}>Relatórios</Text>
-                        <Text style={styles.cardSubtitle}>Relatorios diarios, mensais e historicos</Text>
+                        <Text style={styles.cardSubtitle}>Relatórios diários, mensais e históricos</Text>
                     </View>
                     <Text style={styles.cardArrow}>›</Text>
                 </TouchableOpacity>
@@ -212,7 +212,7 @@ export default function MenuScreen({ navigation }) {
 
             {documentModes.length ? (
                 <View style={styles.modeBox}>
-                    <Text style={styles.modeTitle}>Entradas disponiveis no mobile</Text>
+                    <Text style={styles.modeTitle}>Entradas disponíveis no mobile</Text>
                     <View style={styles.modeRow}>
                         {documentModes.map((mode) => (
                             <View key={mode.value} style={styles.modeChip}>
@@ -224,7 +224,7 @@ export default function MenuScreen({ navigation }) {
             ) : null}
 
             <View style={styles.footerInfo}>
-                <Text style={styles.footerText}>Movimentacoes recentes</Text>
+                <Text style={styles.footerText}>Movimentações recentes</Text>
                 {recentMovements.length ? recentMovements.map((movement, index) => (
                     <View key={`${movement.id || index}-${movement.tipo}`} style={styles.movementRow}>
                         <View style={styles.movementCopy}>
