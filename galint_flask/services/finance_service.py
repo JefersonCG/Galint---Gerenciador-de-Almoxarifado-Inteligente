@@ -255,6 +255,63 @@ def _normalize_financial_line(
     }
 
 
+def _coerce_float_or_none(value: object) -> float | None:
+    if value in (None, ""):
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _resolve_financial_entry_metrics(entry: FinanceLedgerEntry) -> dict[str, float]:
+    raw_quantity = _coerce_float_or_none(getattr(entry, "quantidade", None)) or 0.0
+    stored_quantity_base = _coerce_float_or_none(getattr(entry, "quantidade_base", None))
+    raw_unit_price = _coerce_float_or_none(getattr(entry, "valor_unitario", None))
+    stored_unit_price_base = _coerce_float_or_none(getattr(entry, "valor_unitario_base", None))
+    raw_total = _coerce_float_or_none(getattr(entry, "valor_total", None))
+
+    normalized_line = _normalize_financial_line(
+        getattr(entry, "item", None),
+        quantity=raw_quantity,
+        valor_unitario=raw_unit_price,
+        valor_total=raw_total,
+        quantity_unit=getattr(entry, "unidade_quantidade", None),
+        price_unit=getattr(entry, "unidade_preco", None),
+    )
+    normalized_quantity_base = _coerce_float_or_none(normalized_line.get("quantity_base"))
+    normalized_unit_price_base = _coerce_float_or_none(normalized_line.get("unit_price_base"))
+
+    quantity_base = stored_quantity_base if stored_quantity_base not in (None, 0.0) else normalized_quantity_base
+    if (
+        normalized_quantity_base not in (None, 0.0)
+        and stored_quantity_base not in (None, 0.0)
+        and raw_quantity > 0
+        and abs(float(stored_quantity_base) - raw_quantity) <= 1e-6
+        and abs(float(normalized_quantity_base) - raw_quantity) > 1e-6
+    ):
+        quantity_base = normalized_quantity_base
+    if quantity_base in (None, 0.0):
+        quantity_base = raw_quantity
+
+    unit_price_base = stored_unit_price_base if stored_unit_price_base not in (None, 0.0) else normalized_unit_price_base
+    if (
+        normalized_unit_price_base not in (None, 0.0)
+        and stored_unit_price_base not in (None, 0.0)
+        and raw_unit_price not in (None, 0.0)
+        and abs(float(stored_unit_price_base) - float(raw_unit_price)) <= 1e-6
+        and abs(float(normalized_unit_price_base) - float(raw_unit_price)) > 1e-6
+    ):
+        unit_price_base = normalized_unit_price_base
+    if unit_price_base in (None, 0.0):
+        unit_price_base = normalized_unit_price_base if normalized_unit_price_base not in (None, 0.0) else (raw_unit_price or 0.0)
+
+    return {
+        "quantity_base": float(quantity_base or 0.0),
+        "unit_price_base": float(unit_price_base or 0.0),
+    }
+
+
 class FinanceService:
     """Serviço de fornecedores, exercício financeiro e prestação de contas."""
 
@@ -2068,11 +2125,29 @@ class FinanceService:
         if total is None:
             return None
 
-        qty_base = float(quantidade_base) if quantidade_base not in (None, "") else float(normalized_line["quantity_base"] or 0.0)
-        unit_base = float(valor_unitario_base) if valor_unitario_base not in (None, "") else normalized_line["unit_price_base"]
-        quantity_unit_value = (unidade_quantidade or normalized_line["quantity_unit"] or "").strip().lower() or None
-        price_unit_value = (unidade_preco or normalized_line["price_unit"] or "").strip().lower() or None
-        factor_value = float(fator_preco_base) if fator_preco_base not in (None, "") else normalized_line["factor_to_base"]
+        normalized_qty_base = float(normalized_line["quantity_base"] or 0.0)
+        qty_base = normalized_qty_base
+        if qty_base <= 0 and quantidade_base not in (None, ""):
+            qty_base = float(quantidade_base)
+
+        normalized_unit_base = normalized_line["unit_price_base"]
+        if normalized_unit_base not in (None, ""):
+            unit_base = float(normalized_unit_base)
+        elif valor_unitario_base not in (None, ""):
+            unit_base = float(valor_unitario_base)
+        else:
+            unit_base = None
+
+        quantity_unit_value = (normalized_line["quantity_unit"] or unidade_quantidade or "").strip().lower() or None
+        price_unit_value = (normalized_line["price_unit"] or unidade_preco or "").strip().lower() or None
+
+        normalized_factor = normalized_line["factor_to_base"]
+        if normalized_factor not in (None, ""):
+            factor_value = float(normalized_factor)
+        elif fator_preco_base not in (None, ""):
+            factor_value = float(fator_preco_base)
+        else:
+            factor_value = None
 
         when: datetime
         if data_lancamento is None:
@@ -2733,8 +2808,9 @@ class FinanceService:
             item = item_map.get(code)
             category = (entry.categoria_nome or (item.get("categoria") if item else None) or "Sem categoria").strip()
             item_totals = purchases_by_item[code]
+            metrics = _resolve_financial_entry_metrics(entry)
             item_totals["investido"] += float(entry.valor_total or 0)
-            item_totals["quantidade"] += float(entry.quantidade_base if entry.quantidade_base not in (None, "") else entry.quantidade or 0)
+            item_totals["quantidade"] += float(metrics["quantity_base"] or 0.0)
             if entry.fornecedor:
                 item_totals["fornecedor_nome"] = entry.fornecedor.nome_exibicao()
             if item_totals["quantidade"] > 0:
@@ -3710,27 +3786,21 @@ class FinanceService:
                 if e.data_lancamento and (item_stats["last_date"] is None or e.data_lancamento > item_stats["last_date"]):
                     item_stats["last_date"] = e.data_lancamento
 
-                try:
-                    qtd = float(e.quantidade_base if e.quantidade_base not in (None, "") else e.quantidade or 0.0)
-                except Exception:
-                    qtd = 0.0
+                metrics = _resolve_financial_entry_metrics(e)
+                qtd = float(metrics["quantity_base"] or 0.0)
                 item_stats["quantidade"] += qtd
 
-                if e.valor_unitario_base is not None or e.valor_unitario is not None:
-                    try:
-                        vu = float(e.valor_unitario_base if e.valor_unitario_base not in (None, "") else e.valor_unitario)
-                    except Exception:
-                        vu = None
-                    if vu is not None and vu > 0:
-                        if item_stats["min_unit"] is None or vu < float(item_stats["min_unit"]):
-                            item_stats["min_unit"] = vu
-                        if item_stats["max_unit"] is None or vu > float(item_stats["max_unit"]):
-                            item_stats["max_unit"] = vu
+                vu = float(metrics["unit_price_base"] or 0.0)
+                if vu > 0:
+                    if item_stats["min_unit"] is None or vu < float(item_stats["min_unit"]):
+                        item_stats["min_unit"] = vu
+                    if item_stats["max_unit"] is None or vu > float(item_stats["max_unit"]):
+                        item_stats["max_unit"] = vu
 
-                        # Global (comparação entre lojas)
-                        global_item_desc.setdefault(codigo_item, item_stats["descricao"])
-                        global_item_by_supplier[codigo_item][supplier_id]["investido"] += valor_total
-                        global_item_by_supplier[codigo_item][supplier_id]["quantidade"] += max(qtd, 0.0)
+                    # Global (comparação entre lojas)
+                    global_item_desc.setdefault(codigo_item, item_stats["descricao"])
+                    global_item_by_supplier[codigo_item][supplier_id]["investido"] += valor_total
+                    global_item_by_supplier[codigo_item][supplier_id]["quantidade"] += max(qtd, 0.0)
 
         # Finalização por fornecedor
         total_investido_com_loja = 0.0

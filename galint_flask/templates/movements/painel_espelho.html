@@ -1649,11 +1649,11 @@
         <header class="mirror-topbar">
             <div class="mirror-brand">
                 <strong>{{ system_name }}</strong>
-                <span>Painel espelho para segundo monitor{% if mirror_mode %}: {{ mirror_mode }}{% else %}: operacao atual{% endif %}</span>
+                <span>Painel espelho para segundo monitor{% if mirror_mode %}: {{ mirror_mode }}{% else %}: operação atual{% endif %}</span>
             </div>
             <div class="mirror-status-row">
                 <span class="mirror-badge status-idle" id="mirror-status-badge"><i class="bi bi-broadcast"></i> aguardando</span>
-                <span class="mirror-updated" id="mirror-updated">Sem sincronizacao ainda</span>
+                <span class="mirror-updated" id="mirror-updated">Sem sincronização ainda</span>
             </div>
         </header>
 
@@ -1663,8 +1663,8 @@
                     <div class="mirror-placeholder">
                         <i class="bi bi-display"></i>
                         <div>
-                            <strong>Aguardando operacao</strong>
-                            <div>Abra a tela de saida ou devolucao no monitor principal e selecione um item.</div>
+                            <strong>Aguardando operação</strong>
+                            <div>Abra a tela de saída ou devolução no monitor principal e selecione um item.</div>
                         </div>
                     </div>
                 </div>
@@ -1857,7 +1857,7 @@
             const emptyMediaHtml = '' +
                 '<div class="mirror-placeholder">' +
                     '<i class="bi bi-display"></i>' +
-                    '<div><strong>Aguardando operacao</strong><div>Abra a tela de saida ou devolucao no monitor principal e selecione um item.</div></div>' +
+                    '<div><strong>Aguardando operação</strong><div>Abra a tela de saída ou devolução no monitor principal e selecione um item.</div></div>' +
                 '</div>';
             const custodyIdleThresholdMs = 120000;
             const custodyItemRotationMs = 90000;
@@ -2159,16 +2159,16 @@
                     return 'Operador preparando a próxima saída no monitor principal.';
                 }
                 if (!payload || payload.status === 'idle' || !payload.item) {
-                    return 'Aguardando o proximo item no monitor principal.';
+                    return 'Aguardando o próximo item no monitor principal.';
                 }
                 const item = payload.item || {};
                 const movement = payload.movement || {};
-                const amount = movement.quantidade_display || movement.quantidade || 'quantidade nao informada';
+                const amount = movement.quantidade_display || movement.quantidade || 'quantidade não informada';
                 if (payload.status === 'completed') {
-                    return 'Operacao registrada: confira ' + amount + ' de ' + (item.descricao || item.codigo || 'item') + '.';
+                    return 'Operação registrada: confira ' + amount + ' de ' + (item.descricao || item.codigo || 'item') + '.';
                 }
                 if (payload.status === 'queued') {
-                    return 'Operacao em fila: prepare a conferencia de ' + (item.descricao || item.codigo || 'item') + '.';
+                    return 'Operação em fila: prepare a conferência de ' + (item.descricao || item.codigo || 'item') + '.';
                 }
                 return 'Item em foco: confirme visualmente ' + (item.descricao || item.codigo || 'item') + '.';
             }
@@ -2742,7 +2742,7 @@
                 updated.textContent = formatTimestamp(payload.generated_at);
                 mediaFrame.innerHTML = foto;
                 content.classList.remove('mirror-empty');
-                eyebrow.innerHTML = '<i class="bi ' + kindIcon(payload.kind) + '"></i> ' + escapeHtml(payload.kind_label || payload.kind || 'Operacao');
+                eyebrow.innerHTML = '<i class="bi ' + kindIcon(payload.kind) + '"></i> ' + escapeHtml(payload.kind_label || payload.kind || 'Operação');
                 title.textContent = item.descricao || item.codigo || 'Item';
                 subtitle.textContent = buildPrimaryItemSubtitle(getPrimaryMirrorItem(payload));
                 setLiveCallout(payload, meta);

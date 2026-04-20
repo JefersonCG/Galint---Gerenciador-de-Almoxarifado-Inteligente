@@ -29,7 +29,7 @@ from ..services.inventory import (
     resolve_item_base_unit_label,
 )
 from ..services.item_foto_service import ItemFotoService
-from ..services.price_normalization import infer_price_unit_for_item, normalize_item_price
+from ..services.price_normalization import infer_document_quantity_unit_for_item, infer_price_unit_for_item, normalize_document_line, normalize_item_price
 from ..services.price_suggestion_service import price_suggestion_service
 from ..services.telegram_service import TelegramService
 from ..services.inventory_category_summary import build_category_balance_summary, build_category_value_summary
@@ -329,9 +329,28 @@ def _sync_finance_section_snapshot(
     latest_entry.valor_unitario_base = unit_price_base
     latest_entry.unidade_preco = unidade_preco
     latest_entry.fator_preco_base = fator_preco_base
+    normalized_snapshot = None
+    quantidade_snapshot = float(latest_entry.quantidade or 0.0)
+    if item_model is not None and quantidade_snapshot > 0:
+        snapshot_quantity_unit = (latest_entry.unidade_quantidade or "").strip().lower() or infer_document_quantity_unit_for_item(item_model)
+        snapshot_price_unit = unidade_preco or infer_price_unit_for_item(item_model)
+        try:
+            normalized_snapshot = normalize_document_line(
+                item_model,
+                quantity=quantidade_snapshot,
+                quantity_unit=snapshot_quantity_unit,
+                unit_price=unit_price,
+                price_unit=snapshot_price_unit,
+            )
+        except Exception:
+            normalized_snapshot = None
+
     if latest_entry.unidade_quantidade in (None, "") and item_model is not None:
-        latest_entry.unidade_quantidade = (item_model.unidade or "").strip() or None
-    if latest_entry.quantidade_base in (None, ""):
+        latest_entry.unidade_quantidade = infer_document_quantity_unit_for_item(item_model)
+    if normalized_snapshot is not None and float(normalized_snapshot.quantity_base or 0.0) > 0:
+        latest_entry.unidade_quantidade = normalized_snapshot.quantity_unit or latest_entry.unidade_quantidade
+        latest_entry.quantidade_base = float(normalized_snapshot.quantity_base)
+    elif latest_entry.quantidade_base in (None, ""):
         latest_entry.quantidade_base = float(latest_entry.quantidade or 0.0)
     latest_entry.origem_valor = str(finance_payload.get("origem_valor") or "inventario_inicial")
     latest_entry.tipo_documento = finance_payload.get("tipo_documento")
@@ -341,7 +360,9 @@ def _sync_finance_section_snapshot(
     latest_entry.data_recebimento_documento = finance_payload.get("data_recebimento_documento")
     latest_entry.comprovacao_status = str(finance_payload.get("comprovacao_status") or "sem_comprovacao")
     latest_entry.observacao = finance_payload.get("observacao")
-    if latest_entry.quantidade and unit_price is not None:
+    if normalized_snapshot is not None and normalized_snapshot.total_value is not None:
+        latest_entry.valor_total = float(normalized_snapshot.total_value)
+    elif latest_entry.quantidade and unit_price is not None:
         latest_entry.valor_total = float(latest_entry.quantidade or 0) * float(unit_price)
     elif latest_entry.quantidade_base and unit_price_base is not None:
         latest_entry.valor_total = float(latest_entry.quantidade_base or 0) * float(unit_price_base)
@@ -2690,12 +2711,12 @@ def delete_inactive_items_by_category(categoria: str):
 @blueprint.get('/categoria/<path:categoria>/relatorio')
 @login_required
 def category_report(categoria: str):
-    """Gera relatório de itens de uma categoria em PDF."""
+    """Gera relatório de itens de uma categoria em PDF ou XLSX."""
     requested_format = (request.args.get("format") or "pdf").strip().lower()
     if requested_format not in {"pdf", "xlsx"}:
-        flash("Formato inválido. Use PDF.", "danger")
+        flash("Formato inválido. Use PDF ou XLSX.", "danger")
         return redirect(url_for("inventory.list_items", categoria=categoria))
-    format_type = "pdf"
+    format_type = requested_format
 
     itens = inventory_service.list_items()
     itens_categoria = [item for item in itens if item.get("categoria") == categoria]
@@ -2711,50 +2732,139 @@ def category_report(categoria: str):
     if format_type == "xlsx":
         try:
             from openpyxl import Workbook
-            from openpyxl.styles import Alignment, Font, PatternFill
+            from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
         except Exception:
             flash("Não foi possível gerar XLSX (dependência openpyxl).", "danger")
             return redirect(url_for("inventory.list_items", categoria=categoria))
 
         from ..utils.report_branding import get_company_header_lines
 
+        def _item_has_price_attention(item_data: dict[str, object]) -> bool:
+            tipo = _safe_text(item_data.get("tipo_embalagem_novo")).strip().lower()
+            if tipo not in {"lata", "rolo", "pacote", "caixa", "fardo", "litro", "balde", "bombona", "saco"}:
+                return False
+
+            packaging_factor = 0.0
+            for key in ("grandeza_referencia", "litros_por_embalagem", "unidades_por_embalagem"):
+                packaging_factor = max(packaging_factor, _safe_float(item_data.get(key)))
+
+            raw_price = _safe_float(item_data.get("preco_compra_unitario"))
+            base_price = _safe_float(item_data.get("preco_compra_unitario_base"))
+            factor_to_base = _safe_float(item_data.get("preco_compra_fator_base"))
+            if packaging_factor <= 1 or raw_price <= 0 or base_price <= 0:
+                return False
+            if abs(raw_price - base_price) > 1e-8:
+                return False
+            if factor_to_base not in (0.0, 1.0):
+                return False
+            return True
+
+        def _latest_edit_label(item_data: dict[str, object]) -> str:
+            return _safe_text(item_data.get("ultima_edicao_em")) or ""
+
+        itens_com_saldo = [item for item in itens_categoria if _safe_float(item.get("saldo")) > 0]
+        total_valor_compra = sum(_safe_float(item.get("valor_estoque_compra_total")) for item in itens_categoria)
+        total_valor_reposicao = sum(_safe_float(item.get("valor_estoque_reposicao_total")) for item in itens_categoria)
+        total_alertas_preco = sum(1 for item in itens_categoria if _item_has_price_attention(item))
+        ultima_edicao_label = max((_latest_edit_label(item) for item in itens_categoria), default="") or "-"
+
+        thin_border = Border(
+            left=Side(style="thin", color="CBD5E1"),
+            right=Side(style="thin", color="CBD5E1"),
+            top=Side(style="thin", color="CBD5E1"),
+            bottom=Side(style="thin", color="CBD5E1"),
+        )
+
         wb = Workbook()
         ws = wb.active
         ws.title = "Categoria"
+        ws.sheet_view.showGridLines = False
 
-        ws.append(["RELATÓRIO DE ITENS - CATEGORIA"])
+        ws.merge_cells("A1:L1")
+        ws["A1"] = "RELATORIO DE ITENS - CATEGORIA"
+        ws["A1"].font = Font(color="FFFFFF", bold=True, size=14)
+        ws["A1"].fill = PatternFill(start_color="0066CC", end_color="0066CC", fill_type="solid")
+        ws["A1"].alignment = Alignment(horizontal="center", vertical="center")
+
+        current_row = 2
         for line in get_company_header_lines():
-            ws.append([line])
-        ws.append([f"Categoria: {categoria}"])
-        ws.append([f"Total de itens: {len(itens_categoria)}"])
-        ws.append([f"Gerado em: {TimeService.now_local().strftime('%d/%m/%Y %H:%M')}"])
-        ws.append([])
+            ws.merge_cells(start_row=current_row, start_column=1, end_row=current_row, end_column=12)
+            ws.cell(row=current_row, column=1, value=line)
+            ws.cell(row=current_row, column=1).font = Font(size=10, bold=True, color="1E3A8A")
+            current_row += 1
 
-        header_fill = PatternFill(start_color="1f2937", end_color="1f2937", fill_type="solid")
-        header_font = Font(color="FFFFFF", bold=True)
+        summary_lines = [
+            f"Categoria: {categoria}",
+            f"Total de itens: {len(itens_categoria)} | Itens com saldo: {len(itens_com_saldo)}",
+            f"Valor compra total: R$ {total_valor_compra:,.2f} | Valor reposicao total: R$ {total_valor_reposicao:,.2f}",
+            f"Alertas de preco embalado: {total_alertas_preco} | Ultima edicao detectada: {ultima_edicao_label}",
+            f"Gerado em: {TimeService.now_local().strftime('%d/%m/%Y %H:%M')}",
+        ]
+        for line in summary_lines:
+            ws.merge_cells(start_row=current_row, start_column=1, end_row=current_row, end_column=12)
+            ws.cell(row=current_row, column=1, value=line)
+            ws.cell(row=current_row, column=1).font = Font(size=10, color="475569")
+            current_row += 1
+
+        panel_row = current_row
+        ws.merge_cells(start_row=panel_row, start_column=1, end_row=panel_row, end_column=12)
+        ws.cell(row=panel_row, column=1, value="PAINEL DE CATEGORIA")
+        ws.cell(row=panel_row, column=1).font = Font(size=11, bold=True, color="1E3A8A")
+        ws.cell(row=panel_row, column=1).fill = PatternFill(start_color="E8F1FF", end_color="E8F1FF", fill_type="solid")
+        current_row += 1
+
+        metric_rows = [
+            ("Cobertura fisica", f"{len(itens_com_saldo)} item(ns) com saldo visivel e leitura fisica detalhada quando ha embalagem."),
+            ("Leitura financeira", "Valores de compra e reposicao usam os campos normalizados do inventario ja reconciliados no backend."),
+            ("Auditoria", "Linhas com embalagem suspeita permanecem sinalizadas para revisao manual do cadastro."),
+        ]
+        for title, description in metric_rows:
+            ws.merge_cells(start_row=current_row, start_column=1, end_row=current_row, end_column=3)
+            ws.merge_cells(start_row=current_row, start_column=4, end_row=current_row, end_column=12)
+            left = ws.cell(row=current_row, column=1, value=title)
+            right = ws.cell(row=current_row, column=4, value=description)
+            for cell in (left, right):
+                cell.border = thin_border
+                cell.fill = PatternFill(start_color="F6F8FC", end_color="F6F8FC", fill_type="solid")
+                cell.alignment = Alignment(horizontal="left", vertical="center", wrap_text=True)
+            left.font = Font(bold=True, color="0F172A")
+            right.font = Font(color="475569")
+            current_row += 1
+
+        current_row += 1
+
+        header_fill = PatternFill(start_color="0066CC", end_color="0066CC", fill_type="solid")
+        header_font = Font(color="FFFFFF", bold=True, size=10)
 
         headers = [
             "Código",
             "Descrição",
             "Marca",
             "Unidade",
-            "Saldo",
+            "Saldo físico",
             "Mín.",
             "Localização",
+            "Valor compra",
+            "Valor reposição",
             "Última edição",
             "Editado por",
+            "Sinalização",
         ]
-        header_row_index = ws.max_row + 1
+        header_row_index = current_row
         ws.append(headers)
         for cell in ws[header_row_index]:
             cell.fill = header_fill
             cell.font = header_font
-            cell.alignment = Alignment(horizontal="center")
+            cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+            cell.border = thin_border
 
         for item in itens_categoria:
             saldo = item.get("saldo_display") or item.get("saldo")
             minimo = item.get("estoque_minimo")
             ultima_edicao_em = item.get("ultima_edicao_em")
+            valor_compra = _safe_float(item.get("valor_estoque_compra_total"))
+            valor_reposicao = _safe_float(item.get("valor_estoque_reposicao_total"))
+            sinalizacao = "Preço embalado sob revisão" if _item_has_price_attention(item) else "-"
             ws.append(
                 [
                     _safe_text(item.get("codigo")),
@@ -2764,20 +2874,41 @@ def category_report(categoria: str):
                     saldo,
                     minimo if minimo is not None else "",
                     _safe_text(item.get("localizacao")) or "",
+                    valor_compra if valor_compra > 0 else "",
+                    valor_reposicao if valor_reposicao > 0 else "",
                     _safe_text(ultima_edicao_em) or "",
                     _safe_text(item.get("ultima_edicao_por")) or "",
+                    sinalizacao,
                 ]
             )
 
+        data_start_row = header_row_index + 1
+        for row_index in range(data_start_row, ws.max_row + 1):
+            fill_color = "FEF3C7" if ws.cell(row=row_index, column=12).value != "-" else ("FFFFFF" if row_index % 2 else "F8FAFC")
+            for col_index in range(1, 13):
+                cell = ws.cell(row=row_index, column=col_index)
+                cell.border = thin_border
+                cell.fill = PatternFill(start_color=fill_color, end_color=fill_color, fill_type="solid")
+                cell.alignment = Alignment(horizontal="left", vertical="top", wrap_text=True)
+            if ws.cell(row=row_index, column=8).value not in ("", None):
+                ws.cell(row=row_index, column=8).number_format = '"R$" #,##0.00'
+            if ws.cell(row=row_index, column=9).value not in ("", None):
+                ws.cell(row=row_index, column=9).number_format = '"R$" #,##0.00'
+
         ws.column_dimensions["A"].width = 16
-        ws.column_dimensions["B"].width = 50
+        ws.column_dimensions["B"].width = 42
         ws.column_dimensions["C"].width = 22
         ws.column_dimensions["D"].width = 12
-        ws.column_dimensions["E"].width = 10
+        ws.column_dimensions["E"].width = 28
         ws.column_dimensions["F"].width = 8
         ws.column_dimensions["G"].width = 25
-        ws.column_dimensions["H"].width = 24
-        ws.column_dimensions["I"].width = 22
+        ws.column_dimensions["H"].width = 15
+        ws.column_dimensions["I"].width = 15
+        ws.column_dimensions["J"].width = 24
+        ws.column_dimensions["K"].width = 22
+        ws.column_dimensions["L"].width = 28
+        ws.freeze_panes = f"A{data_start_row}"
+        ws.auto_filter.ref = f"A{header_row_index}:L{ws.max_row}"
 
         buffer = BytesIO()
         wb.save(buffer)

@@ -58,7 +58,7 @@ export default function MessengerScreen({ navigation, highlightMessageId, onCons
   }
 
   return (
-    <ScreenShell title="Messenger" subtitle={`${payload.unread_count || 0} nao lidas. Feed resumido, sem excesso de texto bruto.`} scroll={false}>
+    <ScreenShell title="Messenger" subtitle={`${payload.unread_count || 0} não lidas. Feed resumido, sem excesso de texto bruto.`} scroll={false}>
       <View style={styles.filters}>
         {FILTERS.map((entry) => (
           <Pressable key={entry.key} onPress={() => setFilter(entry.key)} style={[styles.filterChip, filter === entry.key && styles.filterChipActive]}>
@@ -82,7 +82,7 @@ export default function MessengerScreen({ navigation, highlightMessageId, onCons
               <Text style={styles.title} numberOfLines={2}>{item.title}</Text>
               <Text style={styles.body} numberOfLines={3}>{item.body}</Text>
               <View style={styles.statusRow}>
-                <Text style={styles.status}>{item.status === 'read' ? 'Lida' : 'Nao lida'}</Text>
+                <Text style={styles.status}>{item.status === 'read' ? 'Lida' : 'Não lida'}</Text>
               </View>
             </Pressable>
           );

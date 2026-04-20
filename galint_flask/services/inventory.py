@@ -14,6 +14,7 @@ from types import SimpleNamespace
 from typing import Any
 from unicodedata import normalize as unicode_normalize
 
+from flask import has_app_context
 from sqlalchemy import or_, func, inspect, text
 from sqlalchemy.exc import IntegrityError
 
@@ -55,7 +56,13 @@ from .legacy_stock_normalizer import (
     uses_packaging_legacy_normalization,
 )
 from .operation_log_service import operation_log_service
-from .price_normalization import infer_price_unit_for_item, normalize_item_price
+from .price_normalization import (
+    infer_document_quantity_unit_for_item,
+    infer_price_unit_for_item,
+    normalize_document_line,
+    normalize_item_price,
+    should_autofix_packaged_document_unit,
+)
 from .unit_conversion_engine import UnitConversionError, unit_conversion_engine
 from .balance_provider import balance_provider
 from .category_catalog import category_catalog_service
@@ -973,6 +980,128 @@ def _price_unit_matches(current: object, expected: str | None) -> bool:
     return _normalize_price_unit_value(current) == _normalize_price_unit_value(expected)
 
 
+def _resolve_effective_historical_line_units(
+    item: Item,
+    *,
+    quantity: float,
+    quantity_base: object,
+    quantity_unit: object,
+    price_unit: object,
+) -> tuple[str, str]:
+    stored_quantity_unit = _normalize_price_unit_value(quantity_unit) or ""
+    effective_quantity_unit = stored_quantity_unit
+    should_refresh_document_unit = not effective_quantity_unit
+
+    if not should_refresh_document_unit and should_autofix_packaged_document_unit(
+        item,
+        current_unit=effective_quantity_unit,
+        quantity=quantity,
+        quantity_base=quantity_base,
+    ):
+        should_refresh_document_unit = True
+
+    if should_refresh_document_unit:
+        effective_quantity_unit = infer_document_quantity_unit_for_item(item)
+
+    effective_quantity_unit = effective_quantity_unit or infer_document_quantity_unit_for_item(item)
+    stored_price_unit = _normalize_price_unit_value(price_unit)
+    if should_refresh_document_unit and (not stored_price_unit or stored_price_unit == stored_quantity_unit):
+        effective_price_unit = effective_quantity_unit
+    else:
+        effective_price_unit = stored_price_unit or effective_quantity_unit
+
+    return effective_quantity_unit, effective_price_unit
+
+
+def _normalize_historical_item_price_row(
+    item: Item,
+    row: DocumentoEntradaEstoqueItem | FinanceLedgerEntry,
+    *,
+    raw_value: float,
+) -> dict[str, float | str] | None:
+    quantity = _coerce_price_value(getattr(row, "quantidade", None))
+    if quantity is None or quantity <= 0:
+        return None
+
+    historical_raw = _coerce_price_value(getattr(row, "valor_unitario", None))
+    if historical_raw is None:
+        total_value = _coerce_price_value(getattr(row, "valor_total", None))
+        if total_value is not None and quantity > 0:
+            historical_raw = round(float(total_value) / float(quantity), 8)
+
+    if historical_raw is None or abs(float(historical_raw) - float(raw_value)) > 1e-6:
+        return None
+
+    quantity_unit, price_unit = _resolve_effective_historical_line_units(
+        item,
+        quantity=float(quantity),
+        quantity_base=getattr(row, "quantidade_base", None),
+        quantity_unit=getattr(row, "unidade_quantidade", None),
+        price_unit=getattr(row, "unidade_preco", None),
+    )
+
+    try:
+        normalized = normalize_document_line(
+            item,
+            quantity=float(quantity),
+            quantity_unit=quantity_unit,
+            unit_price=float(historical_raw),
+            total_price=_coerce_price_value(getattr(row, "valor_total", None)),
+            price_unit=price_unit,
+        )
+    except Exception:
+        return None
+
+    unit_price_base = _coerce_price_value(normalized.unit_price_base)
+    factor_to_base = _coerce_price_value(normalized.factor_to_base) or 1.0
+    if unit_price_base is None or unit_price_base <= 0:
+        return None
+
+    return {
+        "unit_price_base": float(unit_price_base),
+        "price_unit": normalized.price_unit,
+        "factor_to_base": float(factor_to_base),
+    }
+
+
+def _resolve_historical_item_price_proof(item: Item, *, raw_value: float) -> dict[str, float | str] | None:
+    code = str(getattr(item, "codigo_item", "") or "").strip()
+    if not code or raw_value <= 0:
+        return None
+    if not has_app_context():
+        return None
+
+    packaging_factor = float(resolve_packaging_factor(item) or 0.0)
+    if packaging_factor <= 1 or ignore_packaging_metadata_for_stock(item):
+        return None
+
+    document_rows = (
+        DocumentoEntradaEstoqueItem.query
+        .filter(DocumentoEntradaEstoqueItem.codigo_item == code)
+        .order_by(DocumentoEntradaEstoqueItem.id_documento_item.desc())
+        .limit(25)
+        .all()
+    )
+    for row in document_rows:
+        proof = _normalize_historical_item_price_row(item, row, raw_value=raw_value)
+        if proof is not None:
+            return proof
+
+    finance_rows = (
+        FinanceLedgerEntry.query
+        .filter(FinanceLedgerEntry.codigo_item == code)
+        .order_by(FinanceLedgerEntry.id.desc())
+        .limit(25)
+        .all()
+    )
+    for row in finance_rows:
+        proof = _normalize_historical_item_price_row(item, row, raw_value=raw_value)
+        if proof is not None:
+            return proof
+
+    return None
+
+
 def _reconcile_normalized_item_price(item: Item, *, kind: str) -> bool:
     if kind not in {"compra", "reposicao"}:
         raise ValueError("Tipo de preco invalido")
@@ -992,24 +1121,33 @@ def _reconcile_normalized_item_price(item: Item, *, kind: str) -> bool:
         return changed
 
     stored_unit = _normalize_price_unit_value(getattr(item, unit_attr, None))
-    normalized = None
+    candidates = []
     tried_units: set[str | None] = set()
     for candidate_unit in (stored_unit, infer_price_unit_for_item(item)):
         if candidate_unit in tried_units:
             continue
         tried_units.add(candidate_unit)
         try:
-            normalized = normalize_item_price(
-                item,
-                unit_price=raw_value,
-                price_unit=candidate_unit,
-            )
-            break
+            normalized = normalize_item_price(item, unit_price=raw_value, price_unit=candidate_unit)
+            candidates.append(normalized)
         except Exception:
             continue
 
-    if normalized is None:
+    if not candidates:
         return False
+
+    normalized = candidates[0]
+    if len(candidates) > 1:
+        historical_proof = _resolve_historical_item_price_proof(item, raw_value=raw_value)
+        if historical_proof is not None:
+            for candidate in candidates:
+                if (
+                    _price_field_matches(candidate.unit_price_base, historical_proof.get("unit_price_base"))
+                    and _price_unit_matches(candidate.price_unit, str(historical_proof.get("price_unit") or ""))
+                    and _price_field_matches(candidate.factor_to_base, historical_proof.get("factor_to_base"))
+                ):
+                    normalized = candidate
+                    break
 
     expected_base = float(normalized.unit_price_base)
     expected_unit = normalized.price_unit

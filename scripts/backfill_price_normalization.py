@@ -16,7 +16,14 @@ os.environ.setdefault("GALINT_DISABLE_BACKGROUND_SERVICES", "true")
 from app import create_app
 from galint_flask.extensions import db
 from galint_flask.models import DocumentoEntradaEstoqueItem, FinanceLedgerEntry, Item
-from galint_flask.services.price_normalization import infer_price_unit_for_item, normalize_document_line, normalize_item_price
+from galint_flask.services.inventory import _reconcile_normalized_item_prices
+from galint_flask.services.price_normalization import (
+    infer_document_quantity_unit_for_item,
+    infer_price_unit_for_item,
+    normalize_document_line,
+    normalize_item_price,
+    should_autofix_packaged_document_unit,
+)
 
 TOLERANCE = 1e-8
 SAMPLE_LIMIT = 20
@@ -149,6 +156,39 @@ def _safe_normalize_line(
         }
 
 
+def _resolve_effective_line_units(
+    item: Item,
+    *,
+    quantity: float,
+    quantity_base: object,
+    quantity_unit: object,
+    price_unit: object,
+) -> tuple[str, str]:
+    stored_quantity_unit = (str(quantity_unit or "").strip().lower())
+    effective_quantity_unit = stored_quantity_unit
+    should_refresh_document_unit = not effective_quantity_unit
+
+    if not should_refresh_document_unit and should_autofix_packaged_document_unit(
+        item,
+        current_unit=effective_quantity_unit,
+        quantity=quantity,
+        quantity_base=quantity_base,
+    ):
+        should_refresh_document_unit = True
+
+    if should_refresh_document_unit:
+        effective_quantity_unit = infer_document_quantity_unit_for_item(item)
+
+    effective_quantity_unit = effective_quantity_unit or infer_document_quantity_unit_for_item(item)
+    stored_price_unit = (str(price_unit or "").strip().lower())
+    if should_refresh_document_unit and (not stored_price_unit or stored_price_unit == stored_quantity_unit):
+        effective_price_unit = effective_quantity_unit
+    else:
+        effective_price_unit = stored_price_unit or effective_quantity_unit
+
+    return effective_quantity_unit, effective_price_unit
+
+
 def _backfill_item_prices(item: Item, summary: Summary, *, apply: bool) -> None:
     summary.items_scanned += 1
     changed_any = False
@@ -177,8 +217,7 @@ def _backfill_item_prices(item: Item, summary: Summary, *, apply: bool) -> None:
                 f"ITEM {item.codigo_item} {kind}: bruto={raw_price:g} {normalized['price_unit']} -> base={float(normalized['unit_price_base']):g}"
             )
 
-    if changed_any:
-        summary.items_updated += 1
+    return changed_any
 
 
 def _backfill_document_row(row: DocumentoEntradaEstoqueItem, item: Item | None, summary: Summary, *, apply: bool) -> None:
@@ -188,8 +227,13 @@ def _backfill_document_row(row: DocumentoEntradaEstoqueItem, item: Item | None, 
         return
 
     quantity = float(row.quantidade or 0.0)
-    quantity_unit = (row.unidade_quantidade or "").strip().lower() or infer_price_unit_for_item(item)
-    price_unit = (row.unidade_preco or "").strip().lower() or quantity_unit
+    quantity_unit, price_unit = _resolve_effective_line_units(
+        item,
+        quantity=quantity,
+        quantity_base=row.quantidade_base,
+        quantity_unit=row.unidade_quantidade,
+        price_unit=row.unidade_preco,
+    )
     normalized = _safe_normalize_line(
         item,
         quantity=quantity,
@@ -220,8 +264,13 @@ def _backfill_finance_row(entry: FinanceLedgerEntry, item: Item | None, summary:
         return
 
     quantity = float(entry.quantidade or 0.0)
-    quantity_unit = (entry.unidade_quantidade or "").strip().lower() or infer_price_unit_for_item(item)
-    price_unit = (entry.unidade_preco or "").strip().lower() or quantity_unit
+    quantity_unit, price_unit = _resolve_effective_line_units(
+        item,
+        quantity=quantity,
+        quantity_base=entry.quantidade_base,
+        quantity_unit=entry.unidade_quantidade,
+        price_unit=entry.unidade_preco,
+    )
     normalized = _safe_normalize_line(
         item,
         quantity=quantity,
@@ -248,9 +297,11 @@ def _backfill_finance_row(entry: FinanceLedgerEntry, item: Item | None, summary:
 def _run_backfill(*, codigo: str | None, apply: bool) -> Summary:
     summary = Summary()
     item_map = _build_item_map(codigo)
+    changed_item_codes: set[str] = set()
 
     for item in item_map.values():
-        _backfill_item_prices(item, summary, apply=apply)
+        if _backfill_item_prices(item, summary, apply=apply):
+            changed_item_codes.add(str(item.codigo_item))
 
     doc_query = DocumentoEntradaEstoqueItem.query.order_by(DocumentoEntradaEstoqueItem.id_documento_item.asc())
     if codigo:
@@ -263,6 +314,13 @@ def _run_backfill(*, codigo: str | None, apply: bool) -> Summary:
         finance_query = finance_query.filter(FinanceLedgerEntry.codigo_item == codigo)
     for entry in finance_query.all():
         _backfill_finance_row(entry, item_map.get(str(entry.codigo_item or "")), summary, apply=apply)
+
+    for item in item_map.values():
+        if _reconcile_normalized_item_prices(item):
+            changed_item_codes.add(str(item.codigo_item))
+            summary.add_sample(f"ITEM {item.codigo_item}: preco do cadastro reconciliado pelo historico normalizado")
+
+    summary.items_updated = len(changed_item_codes)
 
     if apply:
         db.session.commit()

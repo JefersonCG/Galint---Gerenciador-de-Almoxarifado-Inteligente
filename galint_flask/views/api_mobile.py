@@ -2406,7 +2406,7 @@ def mobile_consumption_report_pdf():
         employee_id=employee_id,
     )
     if not panel.get("entries"):
-        return jsonify({"success": False, "message": "Nao ha dados de consumo para gerar este relatorio."}), 404
+        return jsonify({"success": False, "message": "Não há dados de consumo para gerar este relatório."}), 404
 
     pdf_buffer = finance_service.build_consumption_panel_pdf(
         exercise_label,
@@ -2753,7 +2753,7 @@ def _serialize_mobile_document_item(item: Item) -> dict[str, Any]:
 def _mobile_document_mode_cards() -> list[dict[str, str]]:
     return [
         {"value": "nf", "label": "Nota fiscal"},
-        {"value": "cupom", "label": "Cupom nao fiscal"},
+        {"value": "cupom", "label": "Cupom não fiscal"},
         {"value": "recibo", "label": "Recibo"},
         {"value": "manual", "label": "Manual"},
     ]
@@ -2782,7 +2782,7 @@ def _serialize_mobile_consumption_panel(panel: dict[str, Any]) -> dict[str, Any]
         "overview": panel.get("overview") or {},
         "scope_type": panel.get("scope_type") or "geral",
         "scope_title": panel.get("scope_title") or "Painel de consumo",
-        "scope_subtitle": panel.get("scope_subtitle") or "Visao simplificada do consumo no mobile.",
+        "scope_subtitle": panel.get("scope_subtitle") or "Visão simplificada do consumo no mobile.",
         "filters": panel.get("filters") or {},
         "current_local": panel.get("current_local"),
         "current_category": panel.get("current_category"),
@@ -2814,7 +2814,7 @@ def _serialize_mobile_daily_custody_panel(items: list[dict[str, Any]]) -> dict[s
             group_key,
             {
                 "key": group_key,
-                "usuario": item.get("usuario") or "Funcionario nao identificado",
+                "usuario": item.get("usuario") or "Funcionário não identificado",
                 "matricula": item.get("matricula") or "-",
                 "matricula_full": item.get("matricula_full") or item.get("matricula") or "",
                 "locations": [],
@@ -2843,7 +2843,7 @@ def _serialize_mobile_daily_custody_panel(items: list[dict[str, Any]]) -> dict[s
                 "descricao": item.get("descricao") or "Ferramenta",
                 "observacao": item.get("observacao") or None,
                 "quantidade": int(round(float(item.get("quantidade") or 0))),
-                "local_servico": item.get("local_servico") or "Nao informado",
+                "local_servico": item.get("local_servico") or "Não informado",
                 "data_retirada_iso": item.get("data_retirada_iso") or None,
                 "dias_em_uso": days_in_use,
                 "atrasada": bool(item.get("atrasada")),
@@ -2906,7 +2906,7 @@ def mobile_daily_custody_panel(current_user: Usuario):
 def mobile_documentos_fiscais_config():
     current_user = g.mobile_user
     if not _mobile_documents_available():
-        return jsonify({"success": False, "message": "Documentos Fiscais indisponivel neste ambiente."}), 404
+        return jsonify({"success": False, "message": "Documentos Fiscais indisponível neste ambiente."}), 404
     if not _mobile_admin_only(current_user):
         return jsonify({"success": False, "message": "Acesso negado"}), 403
 
@@ -2920,7 +2920,7 @@ def mobile_documentos_fiscais_config():
             "fornecedores": finance_service.list_suppliers(limit=120),
             "tipos_documento": [
                 {"value": "nf", "label": "Nota fiscal"},
-                {"value": "cupom", "label": "Cupom nao fiscal"},
+                {"value": "cupom", "label": "Cupom não fiscal"},
                 {"value": "recibo", "label": "Recibo"},
                 {"value": "manual", "label": "Manual"},
             ],
@@ -2928,12 +2928,12 @@ def mobile_documentos_fiscais_config():
                 {"value": "compra_nf", "label": "Compra com NF"},
                 {"value": "compra_cupom", "label": "Compra com cupom"},
                 {"value": "valor_estimado", "label": "Valor estimado"},
-                {"value": "inventario_inicial", "label": "Inventario inicial"},
+                {"value": "inventario_inicial", "label": "Inventário inicial"},
             ],
             "comprovacoes": [
                 {"value": "comprovado", "label": "Comprovado"},
                 {"value": "parcial", "label": "Parcialmente comprovado"},
-                {"value": "sem_comprovacao", "label": "Sem comprovacao"},
+                {"value": "sem_comprovacao", "label": "Sem comprovação"},
             ],
         },
     }), 200
@@ -2944,7 +2944,7 @@ def mobile_documentos_fiscais_config():
 def mobile_documentos_fiscais_itens():
     current_user = g.mobile_user
     if not _mobile_documents_available():
-        return jsonify({"success": False, "message": "Documentos Fiscais indisponivel neste ambiente."}), 404
+        return jsonify({"success": False, "message": "Documentos Fiscais indisponível neste ambiente."}), 404
     if not _mobile_admin_only(current_user):
         return jsonify({"success": False, "message": "Acesso negado"}), 403
 
@@ -2983,7 +2983,7 @@ def mobile_documentos_fiscais_itens():
 def mobile_registrar_documento_fiscal():
     current_user = g.mobile_user
     if not _mobile_documents_available():
-        return jsonify({"success": False, "message": "Documentos Fiscais indisponivel neste ambiente."}), 404
+        return jsonify({"success": False, "message": "Documentos Fiscais indisponível neste ambiente."}), 404
     if not _mobile_admin_only(current_user):
         return jsonify({"success": False, "message": "Acesso negado"}), 403
 
@@ -3059,9 +3059,9 @@ def mobile_registrar_documento_fiscal():
             codigo = novo_codigo
 
         if quantidade <= 0:
-            raise ValueError("Informe uma quantidade valida")
+            raise ValueError("Informe uma quantidade válida")
         if not nota:
-            raise ValueError("Informe o numero do documento")
+            raise ValueError("Informe o número do documento")
 
         _validate_mobile_document_registration_fields(
             numero_documento=nota,
@@ -3084,9 +3084,9 @@ def mobile_registrar_documento_fiscal():
                 previous_balance = None
         if not item_existente:
             if not codigo:
-                raise ValueError("Selecione um item existente ou informe o codigo do novo item")
+                raise ValueError("Selecione um item existente ou informe o código do novo item")
             if not nova_descricao:
-                raise ValueError("Informe a descricao para cadastrar o novo item do documento")
+                raise ValueError("Informe a descrição para cadastrar o novo item do documento")
 
             create_payload = {
                 "codigo": codigo,
@@ -3176,7 +3176,7 @@ def mobile_registrar_documento_fiscal():
                 )
         except Exception as exc:
             logger.exception("Erro ao sincronizar financeiro do documento mobile")
-            warnings.append(f"Documento salvo, mas o financeiro nao foi sincronizado automaticamente: {str(exc)}")
+            warnings.append(f"Documento salvo, mas o financeiro não foi sincronizado automaticamente: {str(exc)}")
 
         try:
             if documento is not None and documento.movimenta_estoque and document_item is not None and not pre_registration_count:
@@ -3239,7 +3239,7 @@ def mobile_registrar_documento_fiscal():
 
         message = "Documento fiscal registrado no mobile."
         if not documento.movimenta_estoque:
-            message = "Documento registrado apenas no financeiro. O estoque nao foi movimentado por opcao do lancamento."
+            message = "Documento registrado apenas no financeiro. O estoque não foi movimentado por opção do lançamento."
         elif pre_registration_count:
             message = "Documento registrado. O item novo ficou em pre-cadastro antes de entrar no estoque."
         elif stock_process_result and stock_process_result.get("processed"):

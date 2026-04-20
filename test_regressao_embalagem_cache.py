@@ -18,6 +18,7 @@ from galint_flask.services.embalagem_service import EmbalagemService
 from galint_flask.services.finance_service import FinanceService
 from galint_flask.services.inventory import InventoryService, MovimentoPayload
 from galint_flask.services.inventory import _reconcile_normalized_item_prices, ensure_base_item_unit, resolve_item_base_unit_label
+from galint_flask.services.ledger_backfill_normalized import LEGACY_REBUILD_REFERENCE_TYPES
 from galint_flask.services.ledger_cutover import LedgerCutoverService
 from galint_flask.services.ledger_reconciliation import ReconciliationResult
 from galint_flask.services.legacy_stock_normalizer import infer_packaging_measure, is_legacy_liter_packaging_compatible, resolve_packaging_factor, resolve_packaging_quantity_and_unit, uses_packaging_legacy_normalization
@@ -244,6 +245,10 @@ def test_dual_write_legado_de_ferramenta_jogo_nao_multiplica_quantidade() -> Non
 
     assert InventoryService._should_use_packaging_dual_write(item, payload, metadata) is False
     assert InventoryService._resolve_packaging_dual_write(item, 1.0, payload, metadata) is None
+
+
+def test_rebuild_legado_limpa_saidas_multiplas_espelhadas() -> None:
+    assert "movements_saida_multipla" in LEGACY_REBUILD_REFERENCE_TYPES
 
 
 def test_toolkit_payload_e_normalizado_para_unidade() -> None:
@@ -488,6 +493,46 @@ def test_reconcile_normalized_item_prices_infere_unidade_embalagem_quando_ausent
     assert item.preco_reposicao_unidade_preco == "caixa"
     assert item.preco_reposicao_fator_base == 24.0
     assert item.preco_reposicao_unitario_base == 4.0125
+
+
+def test_reconcile_normalized_item_prices_prefere_prova_historica_embalada() -> None:
+    item = MockPackagingItem(
+        codigo_item="ROLO-PRECO-HISTORICO",
+        tipo_embalagem="rolo",
+        unidades_por_embalagem=100,
+        unidade="Metro",
+    )
+    item.product_units = [
+        SimpleNamespace(unit_code="rolo", unit_label="Rolo", is_base=False, active=True),
+        SimpleNamespace(unit_code="m", unit_label="Metro", is_base=True, active=True),
+    ]
+    item.product_unit_conversions = [
+        SimpleNamespace(from_unit="rolo", to_unit="m", factor=100.0, active=True),
+    ]
+    item.preco_compra_unitario = 235.9
+    item.preco_compra_unitario_base = 235.9
+    item.preco_compra_unidade_preco = "m"
+    item.preco_compra_fator_base = 1.0
+    item.preco_reposicao_unitario = None
+    item.preco_reposicao_unitario_base = None
+    item.preco_reposicao_unidade_preco = None
+    item.preco_reposicao_fator_base = None
+
+    with patch(
+        "galint_flask.services.inventory._resolve_historical_item_price_proof",
+        return_value={
+            "unit_price_base": 2.359,
+            "price_unit": "rolo",
+            "factor_to_base": 100.0,
+        },
+    ):
+        changed = _reconcile_normalized_item_prices(item)
+
+    assert changed is True
+    assert item.preco_compra_unitario == 235.9
+    assert item.preco_compra_unidade_preco == "rolo"
+    assert item.preco_compra_fator_base == 100.0
+    assert item.preco_compra_unitario_base == 2.359
 
 
 def test_apply_document_item_normalization_corrige_linha_pendente_de_rolo_para_embalagem() -> None:

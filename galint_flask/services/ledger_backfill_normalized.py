@@ -10,7 +10,13 @@ from ..extensions import db
 from ..models import Entrada, InventarioEvento, Item, Saida, StockBalance, StockMovement, stock_balance_supports_read_model_ready
 from .legacy_stock_normalizer import build_normalized_legacy_movements, resolve_canonical_unit
 
-LEGACY_REBUILD_REFERENCE_TYPES = ("entrada", "saida", "inventario_evento", "legacy_movimento")
+LEGACY_REBUILD_REFERENCE_TYPES = (
+    "entrada",
+    "saida",
+    "inventario_evento",
+    "legacy_movimento",
+    "movements_saida_multipla",
+)
 
 
 @dataclass(slots=True)

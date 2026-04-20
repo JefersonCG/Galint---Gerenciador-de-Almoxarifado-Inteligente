@@ -67,12 +67,12 @@ class NotifyApiService {
     try {
       const parsed = new URL(normalized);
       if (this.isPrivateHost(parsed.hostname)) {
-        return 'Este endereco e de rede local. Ele so funciona se o celular estiver na mesma rede Wi-Fi/VPN do servidor e se o IP da maquina nao tiver mudado.';
+        return 'Este endereço é de rede local. Ele só funciona se o celular estiver na mesma rede Wi-Fi/VPN do servidor e se o IP da máquina não tiver mudado.';
       }
       if (parsed.protocol === 'http:') {
-        return 'Se o aparelho estiver fora da rede local, use um endereco HTTPS valido para evitar falha de comunicacao.';
+        return 'Se o aparelho estiver fora da rede local, use um endereço HTTPS válido para evitar falha de comunicação.';
       }
-      return 'Confirme se o dominio e o certificado usados por esta URL continuam validos no aparelho.';
+      return 'Confirme se o domínio e o certificado usados por esta URL continuam válidos no aparelho.';
     } catch {
       return 'Revise a URL do servidor e teste novamente.';
     }
@@ -87,7 +87,7 @@ class NotifyApiService {
       return `Servidor respondeu com status ${error.response.status}.`;
     }
     if ((error?.code || '').toString().toUpperCase() === 'ECONNABORTED') {
-      return `O servidor em ${effectiveBaseUrl || 'URL nao configurada'} demorou demais para responder. ${this.buildNetworkHint(effectiveBaseUrl)}`;
+      return `O servidor em ${effectiveBaseUrl || 'URL não configurada'} demorou demais para responder. ${this.buildNetworkHint(effectiveBaseUrl)}`;
     }
     if (error?.message === 'Network Error') {
       return `Falha de rede ao acessar ${effectiveBaseUrl || 'a URL configurada'}. ${this.buildNetworkHint(effectiveBaseUrl)}`;

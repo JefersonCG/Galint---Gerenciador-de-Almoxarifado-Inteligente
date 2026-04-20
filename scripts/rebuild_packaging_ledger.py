@@ -11,7 +11,7 @@ if str(ROOT) not in sys.path:
 from app import create_app
 from galint_flask.extensions import db
 from galint_flask.models import DocumentoEntradaEstoqueItem, Item, OperationLog, StockBalance, StockMovement
-from galint_flask.services.ledger_backfill_normalized import ledger_backfill_service
+from galint_flask.services.ledger_backfill_normalized import LEGACY_REBUILD_REFERENCE_TYPES, ledger_backfill_service
 from galint_flask.services.ledger_cutover import ledger_cutover_service
 from galint_flask.services.legacy_stock_normalizer import (
     resolve_packaging_factor,
@@ -20,14 +20,13 @@ from galint_flask.services.legacy_stock_normalizer import (
 )
 from galint_flask.services.ledger_reconciliation import ledger_reconciliation_service
 
-LEGACY_REFERENCE_TYPES = ("entrada", "saida", "inventario_evento")
 TOLERANCE = 1e-6
 
 
 def _legacy_movement_count() -> int:
     return int(
         db.session.query(StockMovement.id)
-        .filter(StockMovement.reference_type.in_(LEGACY_REFERENCE_TYPES))
+        .filter(StockMovement.reference_type.in_(LEGACY_REBUILD_REFERENCE_TYPES))
         .count()
     )
 

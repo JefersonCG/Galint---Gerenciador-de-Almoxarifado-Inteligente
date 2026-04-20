@@ -16,13 +16,13 @@ def aplicar_foto_url_api():
     codigo = (data.get('codigo') or '').strip()
     image_url = (data.get('image_url') or '').strip()
     if not codigo:
-        return jsonify({'success': False, 'message': 'Codigo do item nao informado'}), 400
+        return jsonify({'success': False, 'message': 'Código do item não informado'}), 400
     if not image_url:
-        return jsonify({'success': False, 'message': 'URL da imagem nao informada'}), 400
+        return jsonify({'success': False, 'message': 'URL da imagem não informada'}), 400
 
     item = Item.query.get(codigo)
     if not item:
-        return jsonify({'success': False, 'message': 'Item nao encontrado'}), 404
+        return jsonify({'success': False, 'message': 'Item não encontrado'}), 404
 
     from ..services.item_foto_service import ItemFotoService
     try:

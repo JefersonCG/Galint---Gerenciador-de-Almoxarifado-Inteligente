@@ -188,34 +188,34 @@
         const scopeMeta = {
             funcionario: {
                 inputLabel: 'Buscar colaborador',
-                inputPlaceholder: 'Digite nome ou matricula',
-                inputHelp: 'Localize a pessoa e carregue historico completo, checklist do dia e pendencias.',
+                inputPlaceholder: 'Digite nome ou matrícula',
+                inputHelp: 'Localize a pessoa e carregue histórico completo, checklist do dia e pendências.',
                 heroBadgePrimary: 'Consulta de pessoas',
-                heroBadgeSecondary: 'Historico completo e pendencias em um painel',
-                heroTitle: 'Tudo sobre o colaborador em uma unica leitura',
-                heroText: 'A pesquisa carrega identidade, checklist do dia, materiais, ferramentas, devolucoes e linha do tempo operacional sem abrir outras paginas.',
+                heroBadgeSecondary: 'Histórico completo e pendências em um painel',
+                heroTitle: 'Tudo sobre o colaborador em uma única leitura',
+                heroText: 'A pesquisa carrega identidade, checklist do dia, materiais, ferramentas, devoluções e linha do tempo operacional sem abrir outras páginas.',
                 showDate: false,
                 showPeriod: false,
             },
             item: {
                 inputLabel: 'Buscar item',
-                inputPlaceholder: 'Digite descricao ou codigo',
-                inputHelp: 'Localize o item e acompanhe foto, saldo, retiradas, usuarios e resumo por dia.',
+                inputPlaceholder: 'Digite descrição ou código',
+                inputHelp: 'Localize o item e acompanhe foto, saldo, retiradas, usuários e resumo por dia.',
                 heroBadgePrimary: 'Consulta de itens',
-                heroBadgeSecondary: 'Foto, saldo e historico operacional',
+                heroBadgeSecondary: 'Foto, saldo e histórico operacional',
                 heroTitle: 'O item vira um dossie operacional',
-                heroText: 'A leitura por item concentra foto, saldo fisico, movimentacoes, colaboradores envolvidos e um resumo diario sem depender de pagina separada.',
+                heroText: 'A leitura por item concentra foto, saldo físico, movimentações, colaboradores envolvidos e um resumo diário sem depender de página separada.',
                 showDate: false,
                 showPeriod: true,
             },
             diario: {
                 inputLabel: 'Filtro opcional',
-                inputPlaceholder: 'Item, codigo, colaborador, local ou observacao',
-                inputHelp: 'Use quando quiser reduzir o dia a um item, colaborador ou detalhe especifico.',
-                heroBadgePrimary: 'Conciliacao diaria',
+                inputPlaceholder: 'Item, código, colaborador, local ou observação',
+                inputHelp: 'Use quando quiser reduzir o dia a um item, colaborador ou detalhe específico.',
+                heroBadgePrimary: 'Conciliação diária',
                 heroBadgeSecondary: 'Retiradas agrupadas por item no mesmo modal',
-                heroTitle: 'A operacao do dia reunida em um unico lugar',
-                heroText: 'A visao diaria agrupa as saidas do dia selecionado por item, mantendo foto, total retirado, historico linha a linha e contexto operacional.',
+                heroTitle: 'A operação do dia reunida em um único lugar',
+                heroText: 'A visão diária agrupa as saídas do dia selecionado por item, mantendo foto, total retirado, histórico linha a linha e contexto operacional.',
                 showDate: true,
                 showPeriod: false,
             },
@@ -266,7 +266,7 @@
                 + '<div class="general-search-empty-state">'
                 + '<div class="spinner-border text-info" role="status"><span class="visually-hidden">Carregando...</span></div>'
                 + '<h3>Montando a leitura operacional</h3>'
-                + '<p>Consultando historico, agrupamentos e sinais do escopo selecionado.</p>'
+                + '<p>Consultando histórico, agrupamentos e sinais do escopo selecionado.</p>'
                 + '</div>';
         }
 
@@ -352,11 +352,11 @@
             url.searchParams.set('scope', state.scope);
             url.searchParams.set('q', query);
             try {
-                const payload = await fetchJson(url.toString(), 'Nao foi possivel buscar sugestoes agora.');
+                const payload = await fetchJson(url.toString(), 'Não foi possível buscar sugestões agora.');
                 state.suggestions = Array.isArray(payload?.results) ? payload.results : [];
                 renderSuggestions(state.suggestions);
             } catch (error) {
-                setMessage(error?.message || 'Falha ao buscar sugestoes.', 'error');
+                setMessage(error?.message || 'Falha ao buscar sugestões.', 'error');
             }
         }
 
@@ -391,7 +391,7 @@
             const url = new URL(suggestionsUrl, window.location.origin);
             url.searchParams.set('scope', state.scope);
             url.searchParams.set('q', query);
-            const payload = await fetchJson(url.toString(), 'Nao foi possivel localizar o registro solicitado.');
+            const payload = await fetchJson(url.toString(), 'Não foi possível localizar o registro solicitado.');
             const rows = Array.isArray(payload?.results) ? payload.results : [];
             state.suggestions = rows;
             const queryLower = query.toLowerCase();
@@ -406,9 +406,9 @@
             const summary = payload.summary || {};
             setResultsMode(modalEl, true);
             renderSummary([
-                { label: 'Linha do tempo', value: formatNumber(summary.timeline_count, 0), help: 'Eventos consolidados entre retiradas e devolucoes.' },
+                { label: 'Linha do tempo', value: formatNumber(summary.timeline_count, 0), help: 'Eventos consolidados entre retiradas e devoluções.' },
                 { label: 'Total retirado', value: formatNumber(summary.total_withdrawn_quantity, 3), help: 'Soma das quantidades retiradas pelo colaborador.' },
-                { label: 'Ferramentas pendentes', value: formatNumber(summary.pending_tools_count, 0), help: 'Retiradas de ferramentas ainda sem devolucao localizada.' },
+                { label: 'Ferramentas pendentes', value: formatNumber(summary.pending_tools_count, 0), help: 'Retiradas de ferramentas ainda sem devolução localizada.' },
                 { label: 'Checklist do dia', value: formatNumber(summary.today_count, 0), help: 'Itens retirados no dia atual pelo colaborador.' },
             ]);
 
@@ -467,15 +467,15 @@
                 : '<tr><td colspan="3" class="text-center py-4">Nenhuma retirada localizada hoje.</td></tr>';
 
             const checklistTable = buildTableWrapper(
-                '<tr><th>Item</th><th>Codigo</th><th class="text-center">Qtd.</th></tr>',
+                '<tr><th>Item</th><th>Código</th><th class="text-center">Qtd.</th></tr>',
                 checklistRows
             );
             const timelineTable = buildTableWrapper(
-                '<tr><th>Data</th><th>Hora</th><th>Tipo</th><th>Item</th><th class="text-center">Qtd.</th><th>Periodo</th><th>Contexto</th></tr>',
+                '<tr><th>Data</th><th>Hora</th><th>Tipo</th><th>Item</th><th class="text-center">Qtd.</th><th>Período</th><th>Contexto</th></tr>',
                 timelineRows
             );
             const materialsTable = buildTableWrapper(
-                '<tr><th>Data</th><th>Hora</th><th>Item</th><th class="text-center">Qtd.</th><th>Local</th><th>Observacao</th></tr>',
+                '<tr><th>Data</th><th>Hora</th><th>Item</th><th class="text-center">Qtd.</th><th>Local</th><th>Observação</th></tr>',
                 materialRows
             );
             const toolsTable = buildTableWrapper(
@@ -488,30 +488,30 @@
                 + '<section class="general-search-employee-hero">'
                 + '<div class="general-search-surface general-search-hero-pane general-search-employee-identity">'
                 + '<span class="general-search-kicker"><i class="bi bi-person-badge"></i> Colaborador em foco</span>'
-                + '<h3>' + escapeHtml(employee.name || 'Funcionario') + '</h3>'
+                + '<h3>' + escapeHtml(employee.name || 'Funcionário') + '</h3>'
                 + '<div class="general-search-meta-row">'
-                + '<span class="general-search-meta-pill"><i class="bi bi-upc-scan"></i> ' + escapeHtml(employee.matricula || 'N/D') + '</span>'
+                + '<span class="general-search-meta-pill"><i class="bi bi-upc-scan"></i> Matrícula: ' + escapeHtml(employee.matricula || 'N/D') + '</span>'
                 + '<span class="general-search-meta-pill"><i class="bi bi-briefcase"></i> ' + escapeHtml(employee.role || 'N/D') + '</span>'
                 + '<span class="general-search-meta-pill"><i class="bi bi-diagram-3"></i> ' + escapeHtml(employee.sector || 'N/D') + '</span>'
                 + '</div>'
-                + '<p class="mt-3 general-search-inline-note">A consulta combina historico de retiradas, devolucoes identificadas, checklist do dia e pendencias de ferramentas em uma unica leitura operacional.</p>'
+                + '<p class="mt-3 general-search-inline-note">A consulta combina histórico de retiradas, devoluções identificadas, checklist do dia e pendências de ferramentas em uma única leitura operacional.</p>'
                 + '</div>'
                 + '<aside class="general-search-surface general-search-quick-pane">'
                 + '<div class="general-search-surface-title">'
-                + '<div><h4>Acao rapida</h4><p>Baixe o relatorio historico completo ou siga a linha do tempo abaixo.</p></div>'
+                + '<div><h4>Ação rápida</h4><p>Baixe o relatório histórico completo ou siga a linha do tempo abaixo.</p></div>'
                 + (payload.download_url ? '<a class="btn btn-outline-info general-search-download-link" href="' + escapeHtml(payload.download_url) + '" target="_blank" rel="noopener"><i class="bi bi-filetype-pdf"></i> Baixar PDF</a>' : '')
                 + '</div>'
                 + '<div class="general-search-chip-row">'
                 + '<span class="general-search-chip"><i class="bi bi-box-seam"></i> Materiais: ' + escapeHtml(formatNumber(summary.materials_count, 0)) + '</span>'
                 + '<span class="general-search-chip"><i class="bi bi-tools"></i> Ferramentas: ' + escapeHtml(formatNumber(summary.tools_count, 0)) + '</span>'
-                + '<span class="general-search-chip"><i class="bi bi-arrow-counterclockwise"></i> Devolucoes: ' + escapeHtml(formatNumber(summary.returns_count, 0)) + '</span>'
+                + '<span class="general-search-chip"><i class="bi bi-arrow-counterclockwise"></i> Devoluções: ' + escapeHtml(formatNumber(summary.returns_count, 0)) + '</span>'
                 + '</div>'
                 + '</aside>'
                 + '</section>'
-                + buildExpandableSection('Checklist do dia', 'Itens retirados hoje para conferencias rapidas.', formatNumber(summary.today_count, 0) + ' itens', checklistTable, false, 'general-search-surface')
-                + buildExpandableSection('Linha do tempo consolidada', 'Retiradas e devolucoes em ordem cronologica para leitura completa.', formatNumber(summary.timeline_count, 0) + ' eventos', timelineTable, true, 'general-search-surface')
+                + buildExpandableSection('Checklist do dia', 'Itens retirados hoje para conferências rápidas.', formatNumber(summary.today_count, 0) + ' itens', checklistTable, false, 'general-search-surface')
+                + buildExpandableSection('Linha do tempo consolidada', 'Retiradas e devoluções em ordem cronológica para leitura completa.', formatNumber(summary.timeline_count, 0) + ' eventos', timelineTable, true, 'general-search-surface')
                 + '<div class="general-search-grid-two">'
-                + buildExpandableSection('Materiais', 'Historico detalhado de retiradas de materiais.', formatNumber(summary.materials_count, 0) + ' itens', materialsTable, false, 'general-search-surface')
+                + buildExpandableSection('Materiais', 'Histórico detalhado de retiradas de materiais.', formatNumber(summary.materials_count, 0) + ' itens', materialsTable, false, 'general-search-surface')
                 + buildExpandableSection('Ferramentas', 'Status atual das retiradas de ferramentas.', formatNumber(summary.tools_count, 0) + ' itens', toolsTable, false, 'general-search-surface')
                 + '</div>'
                 + '</div>';
@@ -523,8 +523,8 @@
             const summary = payload.summary || {};
             setResultsMode(modalEl, true);
             renderSummary([
-                { label: 'Movimentacoes', value: formatNumber(summary.movement_count, 0), help: 'Retiradas localizadas para o periodo selecionado.' },
-                { label: 'Total retirado', value: formatNumber(summary.total_quantity, 3), help: 'Soma das quantidades movimentadas no periodo.' },
+                { label: 'Movimentações', value: formatNumber(summary.movement_count, 0), help: 'Retiradas localizadas para o período selecionado.' },
+                { label: 'Total retirado', value: formatNumber(summary.total_quantity, 3), help: 'Soma das quantidades movimentadas no período.' },
                 { label: 'Colaboradores', value: formatNumber(summary.users_count, 0), help: 'Pessoas diferentes que retiraram o item.' },
                 { label: 'Dias com giro', value: formatNumber(summary.days_count, 0), help: 'Datas em que o item apareceu nas retiradas.' },
             ]);
@@ -541,7 +541,7 @@
                         + '<td>' + escapeHtml(row.local_info) + '</td>'
                         + '</tr>';
                 }).join('')
-                : '<tr><td colspan="6" class="text-center py-4">Nenhuma retirada encontrada para o item neste periodo.</td></tr>';
+                : '<tr><td colspan="6" class="text-center py-4">Nenhuma retirada encontrada para o item neste período.</td></tr>';
 
             const dailyRows = Array.isArray(payload.daily_totals) && payload.daily_totals.length
                 ? payload.daily_totals.map((row) => {
@@ -553,11 +553,11 @@
                         + '<td class="text-center">' + escapeHtml(formatNumber(row.users_count, 0)) + '</td>'
                         + '</tr>';
                 }).join('')
-                : '<tr><td colspan="4" class="text-center py-4">Nenhum resumo diario encontrado.</td></tr>';
+                : '<tr><td colspan="4" class="text-center py-4">Nenhum resumo diário encontrado.</td></tr>';
 
             const photoPanel = buildPhotoPanel(item.photo_url, item.descricao || 'Item', 'is-compact');
             const movementTable = buildTableWrapper(
-                '<tr><th>Data</th><th>Hora</th><th>Colaborador</th><th class="text-center">Qtd.</th><th>Periodo</th><th>Local / Observacao</th></tr>',
+                '<tr><th>Data</th><th>Hora</th><th>Colaborador</th><th class="text-center">Qtd.</th><th>Período</th><th>Local / Observação</th></tr>',
                 movementRows
             );
             const dailyTable = buildTableWrapper(
@@ -575,15 +575,15 @@
                 + '<span class="general-search-chip"><i class="bi bi-upc"></i> ' + escapeHtml(item.codigo_curto || item.codigo || 'N/D') + '</span>'
                 + '<span class="general-search-chip"><i class="bi bi-tags"></i> ' + escapeHtml(item.categoria || 'Sem categoria') + '</span>'
                 + '<span class="general-search-chip"><i class="bi bi-award"></i> ' + escapeHtml(item.marca || 'Sem marca') + '</span>'
-                + '<span class="general-search-chip"><i class="bi bi-box"></i> Saldo fisico: ' + escapeHtml(formatNumber(item.saldo_atual, 3)) + '</span>'
+                + '<span class="general-search-chip"><i class="bi bi-box"></i> Saldo físico: ' + escapeHtml(formatNumber(item.saldo_atual, 3)) + '</span>'
                 + '</div>'
-                + '<p class="mt-3 general-search-inline-note">A leitura do item concentra retirada por colaborador, periodo operacional e resumo diario do giro encontrado.</p>'
+                + '<p class="mt-3 general-search-inline-note">A leitura do item concentra retirada por colaborador, período operacional e resumo diário do giro encontrado.</p>'
                 + (payload.download_url ? '<a class="btn btn-outline-info general-search-download-link mt-3" href="' + escapeHtml(payload.download_url) + '" target="_blank" rel="noopener"><i class="bi bi-filetype-pdf"></i> Baixar PDF do item</a>' : '')
                 + '</div>'
                 + (photoPanel ? '<aside class="general-search-surface general-search-photo-aside">' + photoPanel + '</aside>' : '')
                 + '</section>'
-                + buildExpandableSection('Movimentacoes do item', 'Historico detalhado por colaborador e contexto operacional.', formatNumber(summary.movement_count, 0) + ' mov.', movementTable, true, 'general-search-surface')
-                + buildExpandableSection('Resumo diario do item', 'Datas em que o item apareceu nas retiradas do periodo filtrado.', formatNumber(summary.days_count, 0) + ' dias', dailyTable, false, 'general-search-surface')
+                + buildExpandableSection('Movimentações do item', 'Histórico detalhado por colaborador e contexto operacional.', formatNumber(summary.movement_count, 0) + ' mov.', movementTable, true, 'general-search-surface')
+                + buildExpandableSection('Resumo diário do item', 'Datas em que o item apareceu nas retiradas do período filtrado.', formatNumber(summary.days_count, 0) + ' dias', dailyTable, false, 'general-search-surface')
                 + '</div>';
             wireExpandableAccordions(resultsEl);
         }
@@ -592,9 +592,9 @@
             const summary = payload.summary || {};
             renderSummary([
                 { label: 'Itens no dia', value: formatNumber(summary.total_items, 0), help: 'Itens distintos com retirada registrada.' },
-                { label: 'Movimentacoes', value: formatNumber(summary.total_movements, 0), help: 'Lancamentos individuais localizados para a data.' },
+                { label: 'Movimentações', value: formatNumber(summary.total_movements, 0), help: 'Lançamentos individuais localizados para a data.' },
                 { label: 'Total retirado', value: formatNumber(summary.total_quantity, 3), help: 'Soma das quantidades movimentadas no dia.' },
-                { label: 'Itens com foto', value: formatNumber(summary.items_with_photo, 0), help: 'Grupos que ja possuem imagem cadastrada.' },
+                { label: 'Itens com foto', value: formatNumber(summary.items_with_photo, 0), help: 'Grupos que já possuem imagem cadastrada.' },
             ]);
 
             const items = Array.isArray(payload.grouped_items) ? payload.grouped_items : [];
@@ -604,7 +604,7 @@
                     + '<div class="general-search-empty-state">'
                     + '<i class="bi bi-moon-stars"></i>'
                     + '<h3>Nenhuma retirada encontrada</h3>'
-                    + '<p>Nao ha saidas registradas para ' + escapeHtml(payload.selected_date_label || '') + (payload.search_term ? ' com o filtro informado.' : '.') + '</p>'
+                    + '<p>Não há saídas registradas para ' + escapeHtml(payload.selected_date_label || '') + (payload.search_term ? ' com o filtro informado.' : '.') + '</p>'
                     + '</div>';
                 return;
             }
@@ -631,7 +631,7 @@
                         : '<tr><td colspan="6" class="text-center py-4">Nenhuma retirada encontrada para o item.</td></tr>';
 
                     const movementTable = buildTableWrapper(
-                        '<tr><th>Hora</th><th>Colaborador</th><th class="text-center">Qtd.</th><th>Custodia</th><th>Periodo</th><th>Local / Observacao</th></tr>',
+                        '<tr><th>Hora</th><th>Colaborador</th><th class="text-center">Qtd.</th><th>Custódia</th><th>Período</th><th>Local / Observação</th></tr>',
                         movementRows
                     );
 
@@ -640,7 +640,7 @@
                         + '<div class="general-search-item-summary' + (photoPanel ? ' has-photo' : '') + '">'
                         + '<div class="general-search-item-summary-copy">'
                         + '<h4>' + escapeHtml(item.descricao || 'Item') + '</h4>'
-                        + '<p>Codigo completo: ' + escapeHtml(item.codigo || 'N/D') + '</p>'
+                        + '<p>Código completo: ' + escapeHtml(item.codigo || 'N/D') + '</p>'
                         + '<div class="general-search-chip-row">'
                         + '<span class="general-search-chip"><i class="bi bi-upc"></i> ' + escapeHtml(item.codigo_curto || item.codigo || 'N/D') + '</span>'
                         + '<span class="general-search-chip"><i class="bi bi-tags"></i> ' + escapeHtml(item.categoria || 'Sem categoria') + '</span>'
@@ -656,7 +656,7 @@
                         + '</div>'
                         + '</div>'
                         + '</div>'
-                        + buildExpandableSection('Saidas do item', 'Detalhe das retiradas do dia para este item.', formatNumber(item.movement_count, 0) + ' mov.', movementTable, false, 'general-search-surface is-nested')
+                        + buildExpandableSection('Saídas do item', 'Detalhe das retiradas do dia para este item.', formatNumber(item.movement_count, 0) + ' mov.', movementTable, false, 'general-search-surface is-nested')
                         + '</article>';
                 }).join('')
                 + '</div>';
@@ -676,7 +676,7 @@
                     if (filterQuery) {
                         url.searchParams.set('search', filterQuery);
                     }
-                    const payload = await fetchJson(url.toString(), 'Nao foi possivel carregar a visao diaria.');
+                    const payload = await fetchJson(url.toString(), 'Não foi possível carregar a visão diária.');
                     renderDaily(payload);
                     return;
                 }
@@ -692,14 +692,14 @@
 
                 if (state.scope === 'funcionario') {
                     const url = employeeUrlTemplate.replace('__MATRICULA__', encodeURIComponent(selection.matricula || selection.id || ''));
-                    const payload = await fetchJson(url, 'Nao foi possivel carregar o historico do colaborador.');
+                    const payload = await fetchJson(url, 'Não foi possível carregar o histórico do colaborador.');
                     renderEmployee(payload);
                     return;
                 }
 
                 const url = new URL(itemUrlTemplate.replace('__CODIGO__', encodeURIComponent(selection.codigo_item || selection.id || '')), window.location.origin);
                 url.searchParams.set('period', String(searchPeriod.value || '0'));
-                const payload = await fetchJson(url.toString(), 'Nao foi possivel carregar o historico do item.');
+                const payload = await fetchJson(url.toString(), 'Não foi possível carregar o histórico do item.');
                 renderItem(payload);
             } catch (error) {
                 resetResults();

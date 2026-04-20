@@ -71,14 +71,14 @@ export default function SettingsScreen({ session, onLogout, onServerSaved }) {
   }
 
   return (
-    <ScreenShell title="Configuracoes" subtitle="Servidor, sessao e push do aparelho em uma tela curta e objetiva.">
+    <ScreenShell title="Configurações" subtitle="Servidor, sessão e push do aparelho em uma tela curta e objetiva.">
       <View style={styles.card}>
         <Text style={styles.label}>URL base do servidor</Text>
         <TextInput value={serverUrl} onChangeText={setServerUrl} style={styles.input} autoCapitalize="none" placeholder="http://10.0.0.245:5000 ou https://notify.suaempresa.com" placeholderTextColor={palette.muted} />
         <Text style={styles.meta}>Usuário atual: {session?.user?.nome || '-'} ({session?.user?.matricula || '-'})</Text>
         <View style={styles.hintCard}>
-          <Text style={styles.hintTitle}>Diagnostico de rede</Text>
-          <Text style={styles.hintText}>Se a URL usar 10.x, 192.168.x ou .local, o aparelho precisa estar na mesma rede do servidor. Se o IP da maquina mudar, o Notify passa a dar falha de rede ate a URL ser atualizada.</Text>
+          <Text style={styles.hintTitle}>Diagnóstico de rede</Text>
+          <Text style={styles.hintText}>Se a URL usar 10.x, 192.168.x ou .local, o aparelho precisa estar na mesma rede do servidor. Se o IP da máquina mudar, o Notify passa a dar falha de rede até a URL ser atualizada.</Text>
         </View>
         <View style={styles.actions}>
           <Pressable style={styles.button} onPress={save}><Text style={styles.buttonText}>Salvar servidor</Text></Pressable>

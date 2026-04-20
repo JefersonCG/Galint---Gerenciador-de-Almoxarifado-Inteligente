@@ -853,7 +853,7 @@
                 <i class="bi bi-card-image"></i>
                 <div>
                     <strong>Nenhum item em foco</strong>
-                    <div class="operation-preview-note">Selecione ou adicione um item para ver foto e contexto da devolucao.</div>
+                    <div class="operation-preview-note">Selecione ou adicione um item para ver foto e contexto da devolução.</div>
                 </div>
             </div>
         </div>
@@ -1573,11 +1573,11 @@
         const observacao = String(inputObservacao.value || '').trim();
         const payload = {
             kind: 'entrada',
-            kind_label: 'Devolucao',
+            kind_label: 'Devolução',
             status: status,
             generated_at: new Date().toISOString(),
-            source_label: 'registro de devolucao',
-            batch_label: ((extra && extra.itemCount) || items.length || 0) + ' item(ns) na devolucao',
+            source_label: 'registro de devolução',
+            batch_label: ((extra && extra.itemCount) || items.length || 0) + ' item(ns) na devolução',
             actor: {
                 matricula: actorMatricula,
                 nome: (item && item.returner_nome) || returner.nome || actorMatricula,
@@ -1619,7 +1619,7 @@
                     '<span class="operation-preview-eyebrow"><i class="bi bi-display"></i> Painel operacional</span>' +
                     '<div class="operation-preview-placeholder">' +
                         '<i class="bi bi-card-image"></i>' +
-                        '<div><strong>Nenhum item em foco</strong><div class="operation-preview-note">Selecione ou adicione um item para ver foto e contexto da devolucao.</div></div>' +
+                        '<div><strong>Nenhum item em foco</strong><div class="operation-preview-note">Selecione ou adicione um item para ver foto e contexto da devolução.</div></div>' +
                     '</div>' +
                 '</div>';
             if (shouldPublish) {
@@ -1631,19 +1631,19 @@
         const fotoHtml = item.foto_url
             ? '<img src="' + escapeHtml(item.foto_url) + '" alt="' + escapeHtml(item.descricao || item.codigo || 'Item') + '">'
             : '<div class="operation-preview-placeholder"><i class="bi bi-image"></i><div>Sem foto do item</div></div>';
-        const withdrawer = String(item.retirada_label || '').trim() || 'Nao informado';
-        const returner = String(item.returner_label || getSelectedReturner().label || '').trim() || 'Nao informado';
-        const observacao = String(inputObservacao.value || '').trim() || 'Sem observacao';
-        const saldo = String(item.saldo_display || item.saldo || '').trim() || 'Nao informado';
+        const withdrawer = String(item.retirada_label || '').trim() || 'Não informado';
+        const returner = String(item.returner_label || getSelectedReturner().label || '').trim() || 'Não informado';
+        const observacao = String(inputObservacao.value || '').trim() || 'Sem observação';
+        const saldo = String(item.saldo_display || item.saldo || '').trim() || 'Não informado';
 
         currentItemPreview.className = 'operation-preview';
         currentItemPreview.innerHTML = '' +
             '<div class="operation-preview-media">' + fotoHtml + '</div>' +
             '<div class="operation-preview-body">' +
-                '<span class="operation-preview-eyebrow"><i class="bi bi-arrow-return-left"></i> Em devolucao</span>' +
+                '<span class="operation-preview-eyebrow"><i class="bi bi-arrow-return-left"></i> Em devolução</span>' +
                 '<div>' +
                     '<h3 class="operation-preview-title">' + escapeHtml(item.descricao || item.codigo || 'Item') + '</h3>' +
-                    '<div class="operation-preview-subtitle">Codigo ' + escapeHtml(item.codigo || '—') + (item.categoria ? ' • ' + escapeHtml(item.categoria) : '') + (item.marca ? ' • ' + escapeHtml(item.marca) : '') + '</div>' +
+                    '<div class="operation-preview-subtitle">Código ' + escapeHtml(item.codigo || '—') + (item.categoria ? ' • ' + escapeHtml(item.categoria) : '') + (item.marca ? ' • ' + escapeHtml(item.marca) : '') + '</div>' +
                 '</div>' +
                 '<div class="operation-preview-grid">' +
                     '<div class="operation-preview-stat"><span class="operation-preview-stat-label">Quantidade</span><span class="operation-preview-stat-value">' + escapeHtml(formatPreviewQuantity(item)) + '</span></div>' +
@@ -1651,7 +1651,7 @@
                     '<div class="operation-preview-stat"><span class="operation-preview-stat-label">Último retirante</span><span class="operation-preview-stat-value">' + escapeHtml(withdrawer) + '</span></div>' +
                     '<div class="operation-preview-stat"><span class="operation-preview-stat-label">Devolvido por</span><span class="operation-preview-stat-value">' + escapeHtml(returner) + '</span></div>' +
                 '</div>' +
-                '<div class="operation-preview-note">Observacao: ' + escapeHtml(observacao) + '</div>' +
+                '<div class="operation-preview-note">Observação: ' + escapeHtml(observacao) + '</div>' +
             '</div>';
         if (shouldPublish) {
             publishMirrorState(buildMirrorPayload(previewStatus, item));
@@ -1664,7 +1664,7 @@
         }, 'Sua sessão expirou ao consultar o item. Faça login novamente.');
         const data = await response.json().catch(() => ({}));
         if (!response.ok || !data?.found) {
-            throw new Error(data?.message || 'Item nao encontrado');
+            throw new Error(data?.message || 'Item não encontrado');
         }
         return data;
     }
@@ -1688,7 +1688,7 @@
                 returner_label: returner.label,
                 retirada_matricula: data?.retirada_pendente?.matricula || '',
                 retirada_nome: data?.retirada_pendente?.nome || null,
-                retirada_label: data?.retirada_pendente?.label || 'Nao identificado',
+                retirada_label: data?.retirada_pendente?.label || 'Não identificado',
                 quantidade: parseQuantityValue(inputQuantidade.value) || 1,
                 return_unit_code: data.devolucao_unidade_codigo || currentPreviewItem?.return_unit_code,
                 return_unit_display: data.devolucao_unidade_exibicao || currentPreviewItem?.return_unit_display,
@@ -1700,7 +1700,7 @@
             if (error?.isAuthRedirect) {
                 return;
             }
-            console.error('Erro ao carregar preview da devolucao:', error);
+            console.error('Erro ao carregar preview da devolução:', error);
             renderLastWithdrawerCard(null);
         }
     }

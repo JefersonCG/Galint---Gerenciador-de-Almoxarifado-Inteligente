@@ -122,7 +122,7 @@
         }
 
         function setStatus(message, tone, options) {
-            statusEl.textContent = message || 'Sem informacoes no momento.';
+            statusEl.textContent = message || 'Sem informações no momento.';
             statusEl.className = 'alert express-return-status ' + getToneClass(tone);
             if (options && options.reveal) {
                 revealStatus();
@@ -144,9 +144,9 @@
                     '<button type="button" class="express-return-collaborator' + activeClass + '" data-collaborator-index="' + index + '">' +
                         '<div class="express-return-item-title">' + escapeHtml(collaborator.nome || collaborator.label || collaborator.matricula || 'Colaborador') + '</div>' +
                         '<div class="express-return-item-meta">' +
-                            '<span class="express-return-item-code">Matricula: ' + escapeHtml(collaborator.matricula || '-') + '</span>' +
+                            '<span class="express-return-item-code">Matrícula: ' + escapeHtml(collaborator.matricula || '-') + '</span>' +
                             '<span class="express-return-chip is-highlight">' + escapeHtml(String(collaborator.total_items || 0)) + ' item(ns)</span>' +
-                            (collaborator.ultima_saida_label ? '<span>Ultima saida: ' + escapeHtml(collaborator.ultima_saida_label) + '</span>' : '') +
+                            (collaborator.ultima_saida_label ? '<span>Última saída: ' + escapeHtml(collaborator.ultima_saida_label) + '</span>' : '') +
                         '</div>' +
                         ((collaborator.local_servico || collaborator.latest_label)
                             ? '<div class="express-return-item-meta">' +
@@ -177,7 +177,7 @@
                 return;
             }
             if (!state.items.length) {
-                itemsEl.innerHTML = '<div class="express-return-empty">' + escapeHtml((config.messages && config.messages.noItems) || 'Nenhum item disponivel para devolucao.') + '</div>';
+                itemsEl.innerHTML = '<div class="express-return-empty">' + escapeHtml((config.messages && config.messages.noItems) || 'Nenhum item disponível para devolução.') + '</div>';
                 return;
             }
 
@@ -200,7 +200,7 @@
                     state.selectedItem = state.items[index];
                     renderItems();
                     renderDetail();
-                    setStatus((config.messages && config.messages.readyToSubmit) || 'Revise os dados e confirme a devolucao.', 'success');
+                    setStatus((config.messages && config.messages.readyToSubmit) || 'Revise os dados e confirme a devolução.', 'success');
                 });
             });
         }
@@ -209,9 +209,9 @@
             if (!state.selectedItem) {
                 detailEl.className = 'express-return-detail is-empty';
                 detailEl.innerHTML = '<strong>' + escapeHtml((config.messages && config.messages.emptyDetailTitle) || 'Nenhum item selecionado.') + '</strong>' +
-                    '<div class="express-return-hint">' + escapeHtml((config.messages && config.messages.emptyDetailHint) || 'Escolha um item da lista acima para liberar a devolucao.') + '</div>';
+                    '<div class="express-return-hint">' + escapeHtml((config.messages && config.messages.emptyDetailHint) || 'Escolha um item da lista acima para liberar a devolução.') + '</div>';
                 submitButton.disabled = true;
-                submitButton.textContent = (config.messages && config.messages.submitButton) || 'Fazer devolucao';
+                submitButton.textContent = (config.messages && config.messages.submitButton) || 'Fazer devolução';
                 return;
             }
 
@@ -225,7 +225,7 @@
                 })
                 : '<div class="express-return-detail-title">' + escapeHtml(state.selectedItem.descricao || state.selectedItem.codigo || 'Item') + '</div>';
             submitButton.disabled = false;
-            submitButton.textContent = (config.messages && config.messages.submitButton) || 'Fazer devolucao';
+            submitButton.textContent = (config.messages && config.messages.submitButton) || 'Fazer devolução';
         }
 
         async function loadCollaborators(options) {
@@ -245,7 +245,7 @@
                 }, config.authMessageLoad);
                 var data = await response.json().catch(function () { return {}; });
                 if (!response.ok || !data || data.success === false) {
-                    throw new Error((data && (data.error || data.message)) || 'Nao foi possivel carregar os colaboradores da devolucao expressa.');
+                    throw new Error((data && (data.error || data.message)) || 'Não foi possível carregar os colaboradores da devolução expressa.');
                 }
                 if (requestId !== state.collaboratorsRequestId) {
                     return;
@@ -272,7 +272,7 @@
                 if (state.selectedCollaborator) {
                     await loadItems(state.selectedCollaborator, { silent: true });
                     if (!(options && options.silent)) {
-                        setStatus((config.messages && config.messages.selectItem) || 'Escolha o item para concluir a devolucao expressa.', 'success');
+                        setStatus((config.messages && config.messages.selectItem) || 'Escolha o item para concluir a devolução expressa.', 'success');
                     }
                     return;
                 }
@@ -281,7 +281,7 @@
                     setStatus(
                         data.message || (state.collaborators.length
                             ? ((config.messages && config.messages.selectCollaborator) || 'Escolha o colaborador para carregar os itens.')
-                            : ((config.messages && config.messages.noCollaborators) || 'Nenhum colaborador elegivel foi encontrado.')),
+                            : ((config.messages && config.messages.noCollaborators) || 'Nenhum colaborador elegível foi encontrado.')),
                         data.window_open === false ? 'warning' : 'info'
                     );
                 }
@@ -296,7 +296,7 @@
                 renderCollaborators();
                 renderItems();
                 renderDetail();
-                setStatus(error.message || 'Falha ao carregar os colaboradores da devolucao expressa.', 'danger');
+                setStatus(error.message || 'Falha ao carregar os colaboradores da devolução expressa.', 'danger');
             }
         }
 
@@ -320,7 +320,7 @@
                 }, config.authMessageLoad);
                 var data = await response.json().catch(function () { return {}; });
                 if (!response.ok || !data || data.success === false) {
-                    throw new Error((data && (data.error || data.message)) || 'Nao foi possivel carregar os itens da devolucao expressa.');
+                    throw new Error((data && (data.error || data.message)) || 'Não foi possível carregar os itens da devolução expressa.');
                 }
                 if (requestId !== state.itemsRequestId) {
                     return;
@@ -336,8 +336,8 @@
                 if (!(options && options.silent)) {
                     setStatus(
                         data.message || (state.items.length
-                            ? ((config.messages && config.messages.selectItem) || 'Escolha o item para concluir a devolucao expressa.')
-                            : ((config.messages && config.messages.noItems) || 'Nenhum item disponivel para este colaborador.')),
+                            ? ((config.messages && config.messages.selectItem) || 'Escolha o item para concluir a devolução expressa.')
+                            : ((config.messages && config.messages.noItems) || 'Nenhum item disponível para este colaborador.')),
                         state.items.length ? 'success' : 'info'
                     );
                 }
@@ -352,7 +352,7 @@
                 state.selectedItem = null;
                 renderItems();
                 renderDetail();
-                setStatus(error.message || 'Falha ao carregar os itens da devolucao expressa.', 'danger');
+                setStatus(error.message || 'Falha ao carregar os itens da devolução expressa.', 'danger');
             }
         }
 
@@ -377,16 +377,16 @@
                     modalEl: modalEl,
                 });
             } catch (error) {
-                setStatus(error.message || 'Nao foi possivel preparar a devolucao.', 'warning', { reveal: true });
+                setStatus(error.message || 'Não foi possível preparar a devolução.', 'warning', { reveal: true });
                 submitButton.disabled = !state.selectedItem;
-                submitButton.textContent = (config.messages && config.messages.submitButton) || 'Fazer devolucao';
+                submitButton.textContent = (config.messages && config.messages.submitButton) || 'Fazer devolução';
                 return;
             }
 
             if (!request || !request.url) {
-                setStatus('Configuracao invalida da devolucao expressa.', 'danger', { reveal: true });
+                setStatus('Configuração inválida da devolução expressa.', 'danger', { reveal: true });
                 submitButton.disabled = !state.selectedItem;
-                submitButton.textContent = (config.messages && config.messages.submitButton) || 'Fazer devolucao';
+                submitButton.textContent = (config.messages && config.messages.submitButton) || 'Fazer devolução';
                 return;
             }
 
@@ -394,22 +394,22 @@
                 var response = await fetchWithSession(request.url, request.options || {}, request.authMessage || config.authMessageSubmit);
                 var data = await response.json().catch(function () { return {}; });
                 if (!response.ok || !data || data.success === false) {
-                    throw new Error((data && (data.error || data.message)) || 'Falha ao registrar a devolucao expressa.');
+                    throw new Error((data && (data.error || data.message)) || 'Falha ao registrar a devolução expressa.');
                 }
 
                 await loadCollaborators({
                     preferredIdentifier: getCollaboratorIdentity(state.selectedCollaborator),
                     silent: true,
                 });
-                setStatus(data.message || ((config.messages && config.messages.submitSuccess) || 'Devolucao registrada com sucesso.'), 'success', { reveal: true });
+                setStatus(data.message || ((config.messages && config.messages.submitSuccess) || 'Devolução registrada com sucesso.'), 'success', { reveal: true });
             } catch (error) {
                 if (error && error.isAuthRedirect) {
                     return;
                 }
-                setStatus(error.message || ((config.messages && config.messages.submitError) || 'Falha ao registrar a devolucao expressa.'), 'danger', { reveal: true });
+                setStatus(error.message || ((config.messages && config.messages.submitError) || 'Falha ao registrar a devolução expressa.'), 'danger', { reveal: true });
             } finally {
                 submitButton.disabled = !state.selectedItem;
-                submitButton.textContent = (config.messages && config.messages.submitButton) || 'Fazer devolucao';
+                submitButton.textContent = (config.messages && config.messages.submitButton) || 'Fazer devolução';
             }
         }
 
@@ -421,7 +421,7 @@
             renderCollaborators();
             renderItems();
             renderDetail();
-            setStatus((config.messages && config.messages.initialStatus) || 'Abra o painel para carregar os colaboradores com devolucao pendente.', 'info');
+            setStatus((config.messages && config.messages.initialStatus) || 'Abra o painel para carregar os colaboradores com devolução pendente.', 'info');
         }
 
         if (openButton && config.bindOpenButton !== false) {
