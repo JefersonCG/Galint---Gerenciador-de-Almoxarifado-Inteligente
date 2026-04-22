@@ -37,6 +37,11 @@ class ScopeReportService:
     COLOR_DANGER = "B91C1C"
     COLOR_ALERT = "FEF3C7"
     ANALYSIS_TOLERANCE = 1e-6
+    RANKING_CHART_WIDTH = 18.8
+    RANKING_CHART_MIN_HEIGHT = 9.2
+    RANKING_CHART_MAX_HEIGHT = 12.8
+    TIMELINE_CHART_WIDTH = 18.2
+    TIMELINE_CHART_HEIGHT = 9.4
     BORDER_THIN = Border(
         left=Side(style="thin", color="CBD5E1"),
         right=Side(style="thin", color="CBD5E1"),
@@ -803,6 +808,7 @@ class ScopeReportService:
         if data_end_row < data_start_row:
             return
 
+        row_count = max(1, data_end_row - data_start_row + 1)
         data = Reference(ws, min_col=value_col, min_row=header_row, max_row=data_end_row)
         categories = Reference(ws, min_col=category_col, min_row=data_start_row, max_row=data_end_row)
 
@@ -812,13 +818,15 @@ class ScopeReportService:
         chart.title = title
         chart.grouping = "clustered"
         chart.overlap = 0
-        chart.height = 6.8
-        chart.width = 10.8
-        chart.y_axis.title = "Itens"
-        chart.x_axis.title = value_axis_title
+        chart.height = min(cls.RANKING_CHART_MAX_HEIGHT, max(cls.RANKING_CHART_MIN_HEIGHT, 2.6 + (row_count * 0.82)))
+        chart.width = cls.RANKING_CHART_WIDTH
+        chart.gapWidth = 45
+        chart.y_axis.title = None
+        chart.x_axis.title = None
         chart.legend = None
         chart.add_data(data, titles_from_data=True)
         chart.set_categories(categories)
+        chart.x_axis.numFmt = '"R$" #,##0.00' if 'R$' in value_axis_title else '#,##0'
 
         if chart.series:
             series = chart.series[0]
@@ -827,6 +835,7 @@ class ScopeReportService:
 
         chart.dataLabels = DataLabelList()
         chart.dataLabels.showVal = True
+        chart.dataLabels.dLblPos = "outEnd"
         ws.add_chart(chart, anchor)
 
     @classmethod
@@ -840,10 +849,10 @@ class ScopeReportService:
         chart = LineChart()
         chart.style = 2
         chart.title = "Timeline de movimentações"
-        chart.y_axis.title = "Eventos"
-        chart.x_axis.title = "Período"
-        chart.height = 7.2
-        chart.width = 13.5
+        chart.y_axis.title = None
+        chart.x_axis.title = None
+        chart.height = cls.TIMELINE_CHART_HEIGHT
+        chart.width = cls.TIMELINE_CHART_WIDTH
         chart.add_data(data, titles_from_data=True)
         chart.set_categories(categories)
 
@@ -1039,10 +1048,16 @@ class ScopeReportService:
             "E": 18,
             "F": 16,
             "G": 42,
-            "I": 2,
-            "J": 14,
-            "K": 14,
-            "L": 14,
+            "I": 3,
+            "J": 12,
+            "K": 12,
+            "L": 12,
+            "M": 12,
+            "N": 12,
+            "O": 12,
+            "P": 12,
+            "Q": 12,
+            "R": 12,
         })
 
     @classmethod
@@ -1095,7 +1110,7 @@ class ScopeReportService:
             ws,
             title="RELATORIO DE ESCOPO - RANKINGS DE LEITURA",
             scope_label=scope_label,
-            max_col=14,
+            max_col=20,
             meta_lines=[
                 "Rankings priorizam comparacoes monetarias e frequencia de eventos, evitando mistura de quantidades fisicas incompatíveis.",
             ],
@@ -1146,7 +1161,7 @@ class ScopeReportService:
             cls._style_section_banner(
                 ws,
                 row=current_row,
-                max_col=14,
+                max_col=20,
                 title=section["title"],
                 color=section["color"],
             )
@@ -1187,11 +1202,11 @@ class ScopeReportService:
                     value_col=6,
                     data_start_row=data_start_row,
                     data_end_row=data_end_row,
-                    anchor=f"H{section_start_row}",
+                    anchor=f"I{section_start_row}",
                     color=section["color"],
                     value_axis_title=section["chart_value_title"],
                 )
-                current_row = max(current_row + 2, section_start_row + 18)
+                current_row = max(current_row + 3, section_start_row + 26)
             else:
                 current_row += 2
 
@@ -1205,12 +1220,18 @@ class ScopeReportService:
             "F": 22,
             "G": 3,
             "H": 3,
-            "I": 14,
-            "J": 14,
-            "K": 14,
-            "L": 14,
-            "M": 14,
-            "N": 14,
+            "I": 12,
+            "J": 12,
+            "K": 12,
+            "L": 12,
+            "M": 12,
+            "N": 12,
+            "O": 12,
+            "P": 12,
+            "Q": 12,
+            "R": 12,
+            "S": 12,
+            "T": 12,
         })
 
     @classmethod
