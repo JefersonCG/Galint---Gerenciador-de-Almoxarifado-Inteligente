@@ -189,7 +189,7 @@
             funcionario: {
                 inputLabel: 'Buscar colaborador',
                 inputPlaceholder: 'Digite nome ou matrícula',
-                inputHelp: 'Localize a pessoa e carregue histórico completo, checklist do dia e pendências.',
+                inputHelp: 'Digite nome ou matrícula para abrir o histórico.',
                 heroBadgePrimary: 'Consulta de pessoas',
                 heroBadgeSecondary: 'Histórico completo e pendências em um painel',
                 heroTitle: 'Tudo sobre o colaborador em uma única leitura',
@@ -200,7 +200,7 @@
             item: {
                 inputLabel: 'Buscar item',
                 inputPlaceholder: 'Digite descrição ou código',
-                inputHelp: 'Localize o item e acompanhe foto, saldo, retiradas, usuários e resumo por dia.',
+                inputHelp: 'Digite descrição ou código para abrir saldo e movimentações.',
                 heroBadgePrimary: 'Consulta de itens',
                 heroBadgeSecondary: 'Foto, saldo e histórico operacional',
                 heroTitle: 'O item vira um dossie operacional',
@@ -211,7 +211,7 @@
             diario: {
                 inputLabel: 'Filtro opcional',
                 inputPlaceholder: 'Item, código, colaborador, local ou observação',
-                inputHelp: 'Use quando quiser reduzir o dia a um item, colaborador ou detalhe específico.',
+                inputHelp: 'Opcional. Use para filtrar o dia por item, colaborador ou observação.',
                 heroBadgePrimary: 'Conciliação diária',
                 heroBadgeSecondary: 'Retiradas agrupadas por item no mesmo modal',
                 heroTitle: 'A operação do dia reunida em um único lugar',
@@ -265,8 +265,8 @@
             resultsEl.innerHTML = ''
                 + '<div class="general-search-empty-state">'
                 + '<div class="spinner-border text-info" role="status"><span class="visually-hidden">Carregando...</span></div>'
-                + '<h3>Montando a leitura operacional</h3>'
-                + '<p>Consultando histórico, agrupamentos e sinais do escopo selecionado.</p>'
+                + '<h3>Buscando informações</h3>'
+                + '<p>Consultando os dados do foco selecionado.</p>'
                 + '</div>';
         }
 

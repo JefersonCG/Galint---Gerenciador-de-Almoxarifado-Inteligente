@@ -12,89 +12,9 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/qss_like.css') }}">
     {% if general_search_available %}
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/general-search-modal.css', v='20260416a') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/general-search-modal.css', v='20260422a') }}">
     {% endif %}
     <style>
-        .workspace-window-card {
-            border: 1px solid rgba(148, 163, 184, 0.18);
-            border-radius: 1rem;
-            background: linear-gradient(180deg, rgba(15, 23, 42, 0.98), rgba(30, 41, 59, 0.96));
-            color: #e2e8f0;
-            box-shadow: 0 18px 50px rgba(2, 6, 23, 0.28);
-        }
-
-        .workspace-window-card .modal-header,
-        .workspace-window-card .modal-footer {
-            border-color: rgba(148, 163, 184, 0.16);
-        }
-
-        .workspace-window-slot-group {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 0.75rem;
-        }
-
-        .workspace-window-slot-btn {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.5rem;
-            border-radius: 0.9rem;
-            border: 1px solid rgba(148, 163, 184, 0.18);
-            background: rgba(15, 23, 42, 0.72);
-            color: #cbd5e1;
-            padding: 0.9rem 1rem;
-            font-weight: 700;
-        }
-
-        .workspace-window-slot-btn.active {
-            border-color: rgba(96, 165, 250, 0.45);
-            background: linear-gradient(135deg, rgba(37, 99, 235, 0.95), rgba(14, 165, 233, 0.92));
-            color: #eff6ff;
-            box-shadow: 0 12px 30px rgba(37, 99, 235, 0.26);
-        }
-
-        .workspace-window-actions {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 0.75rem;
-        }
-
-        .workspace-window-action-btn {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            width: 100%;
-            border-radius: 0.95rem;
-            border: 1px solid rgba(148, 163, 184, 0.18);
-            background: rgba(15, 23, 42, 0.72);
-            color: #f8fafc;
-            padding: 0.9rem 1rem;
-            text-align: left;
-        }
-
-        .workspace-window-action-btn:hover {
-            border-color: rgba(125, 211, 252, 0.32);
-            background: rgba(30, 41, 59, 0.94);
-        }
-
-        .workspace-window-action-btn i {
-            font-size: 1.1rem;
-            color: #7dd3fc;
-        }
-
-        .workspace-window-action-copy {
-            display: block;
-            font-size: 0.78rem;
-            color: #94a3b8;
-            margin-top: 0.15rem;
-        }
-
-        .workspace-window-shortcuts {
-            font-size: 0.84rem;
-            color: #94a3b8;
-        }
-
         .workspace-window-badge {
             display: inline-flex;
             align-items: center;
@@ -282,9 +202,6 @@
                 <i class="bi bi-stars"></i> Pesquisa geral
             </button>
             {% endif %}
-            <button class="btn btn-sm btn-outline-info" type="button" data-bs-toggle="modal" data-bs-target="#workspaceWindowModal" title="Abrir novas janelas de trabalho">
-                <i class="bi bi-window-stack"></i> Janelas
-            </button>
             <span class="text-light">{{ current_user.nome }}</span>
             <form method="post" action="{{ url_for('auth.logout') }}">
                 <button class="btn btn-sm btn-outline-light" type="submit">Sair</button>
@@ -352,91 +269,6 @@
 
     {% if general_search_available %}
     {% include 'partials/general_search_modal.html' %}
-    {% endif %}
-
-    {% if current_user.is_authenticated %}
-    {% set current_workspace_path = request.full_path[:-1] if request.full_path.endswith('?') else request.full_path %}
-    <div class="modal fade" id="workspaceWindowModal" tabindex="-1" aria-labelledby="workspaceWindowModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content workspace-window-card">
-                <div class="modal-header">
-                    <div>
-                        <h5 class="modal-title" id="workspaceWindowModalLabel">Janelas de Trabalho</h5>
-                        <div class="small text-white-50">Use a principal e mais duas janelas para não interromper o que já está fazendo.</div>
-                    </div>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <div class="small text-uppercase text-info fw-semibold mb-2">Escolha a janela auxiliar</div>
-                        <div class="workspace-window-slot-group">
-                            <button type="button" class="workspace-window-slot-btn active" data-workspace-slot-option="2">
-                                <i class="bi bi-layout-sidebar-inset"></i>
-                                <span>Janela 2</span>
-                            </button>
-                            <button type="button" class="workspace-window-slot-btn" data-workspace-slot-option="3">
-                                <i class="bi bi-layout-sidebar-reverse"></i>
-                                <span>Janela 3</span>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="mb-3">
-                        <div class="small text-uppercase text-info fw-semibold mb-2">O que abrir</div>
-                        <div class="workspace-window-actions">
-                            <button type="button" class="workspace-window-action-btn" data-workspace-open="1" data-window-path="{{ current_workspace_path }}" data-window-title="{{ self.title()|trim or system_name }}">
-                                <i class="bi bi-copy"></i>
-                                <span>
-                                    <strong>Duplicar esta tela</strong>
-                                    <span class="workspace-window-action-copy">Continua exatamente de onde você está.</span>
-                                </span>
-                            </button>
-                            <button type="button" class="workspace-window-action-btn" data-workspace-open="1" data-window-path="{{ url_for('dashboard.index') }}" data-window-title="{{ system_name }} - Dashboard">
-                                <i class="bi bi-speedometer2"></i>
-                                <span>
-                                    <strong>Dashboard</strong>
-                                    <span class="workspace-window-action-copy">Volte ao painel sem fechar a janela atual.</span>
-                                </span>
-                            </button>
-                            <button type="button" class="workspace-window-action-btn" data-workspace-open="1" data-window-path="{{ url_for('inventory.list_items') }}" data-window-title="{{ system_name }} - Itens Cadastrados">
-                                <i class="bi bi-boxes"></i>
-                                <span>
-                                    <strong>Itens Cadastrados</strong>
-                                    <span class="workspace-window-action-copy">Cadastre ou consulte itens em paralelo.</span>
-                                </span>
-                            </button>
-                            <button type="button" class="workspace-window-action-btn" data-workspace-open="1" data-window-path="{{ url_for('nf.nf_index') if endpoint_exists('nf.nf_index') else url_for('dashboard.index') }}" data-window-title="{{ system_name }} - Documentos Fiscais">
-                                <i class="bi bi-receipt"></i>
-                                <span>
-                                    <strong>Documentos Fiscais</strong>
-                                    <span class="workspace-window-action-copy">Lance ou confira NFs sem sair do cadastro atual.</span>
-                                </span>
-                            </button>
-                            <button type="button" class="workspace-window-action-btn" data-workspace-open="1" data-window-path="{{ url_for('movements.saidas_hub') if endpoint_exists('movements.saidas_hub') else url_for('movements.index') }}" data-window-title="{{ system_name }} - Registro de Saídas">
-                                <i class="bi bi-box-arrow-up-right"></i>
-                                <span>
-                                    <strong>Registro de Saídas</strong>
-                                    <span class="workspace-window-action-copy">Atenda colaborador sem perder a outra operação.</span>
-                                </span>
-                            </button>
-                            <button type="button" class="workspace-window-action-btn" data-workspace-open="1" data-window-path="{{ url_for('movements.entrada_page') if endpoint_exists('movements.entrada_page') else url_for('movements.index') }}" data-window-title="{{ system_name }} - Registro de Devolução">
-                                <i class="bi bi-arrow-return-left"></i>
-                                <span>
-                                    <strong>Registro de Devolução</strong>
-                                    <span class="workspace-window-action-copy">Abra a devolução em uma janela auxiliar dedicada.</span>
-                                </span>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="workspace-window-shortcuts">
-                        Atalhos rápidos: Ctrl + Alt + 2 abre a tela atual na Janela 2. Ctrl + Alt + 3 abre na Janela 3.
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-outline-light" data-bs-dismiss="modal">Fechar</button>
-                </div>
-            </div>
-        </div>
-    </div>
     {% endif %}
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
@@ -608,37 +440,34 @@
         });
     </script>
 
-    {% if current_user.is_authenticated %}
+    {% if current_user.is_authenticated and not is_workspace_window %}
     <script>
         (function () {
-            const modalElement = document.getElementById('workspaceWindowModal');
-            if (!modalElement) {
+            const sidebarMenu = document.querySelector('.sidebar-menu');
+            if (!sidebarMenu) {
                 return;
             }
 
-            const slotButtons = Array.from(modalElement.querySelectorAll('[data-workspace-slot-option]'));
-            const actionButtons = Array.from(modalElement.querySelectorAll('[data-workspace-open]'));
             const nativeWindowEndpoint = {{ (url_for('pages.workspace_native_open_api') if endpoint_exists('pages.workspace_native_open_api') else '/workspace/native-open') | tojson | safe }};
-            const storageKey = 'galint_workspace_target_slot';
-            let selectedSlot = Number(window.localStorage.getItem(storageKey) || 2);
-            if (selectedSlot !== 2 && selectedSlot !== 3) {
-                selectedSlot = 2;
+            const systemName = {{ system_name | tojson | safe }};
+
+            function buildWindowTitle(link) {
+                const clone = link.cloneNode(true);
+                clone.querySelectorAll('i').forEach((icon) => icon.remove());
+                const label = clone.textContent.replace(/\s+/g, ' ').trim();
+                return label ? `${systemName} - ${label}` : (document.title || systemName);
             }
 
-            function syncSlotButtons() {
-                slotButtons.forEach((button) => {
-                    const slot = Number(button.getAttribute('data-workspace-slot-option') || '2');
-                    button.classList.toggle('active', slot === selectedSlot);
-                    button.setAttribute('aria-pressed', slot === selectedSlot ? 'true' : 'false');
-                });
+            function normalizeComparableUrl(rawUrl) {
+                const targetUrl = new URL(rawUrl, window.location.origin);
+                targetUrl.searchParams.delete('workspace_token');
+                targetUrl.searchParams.delete('workspace_window');
+                return `${targetUrl.pathname}${targetUrl.search}${targetUrl.hash}`;
             }
 
-            async function openWorkspaceWindow(path, title, slot) {
+            async function openWorkspaceWindow(path, title) {
                 const resolvedPath = String(path || window.location.pathname + window.location.search || '/').trim();
                 const resolvedTitle = String(title || document.title || 'GALINT').trim() || 'GALINT';
-                const targetUrlObject = new URL(resolvedPath, window.location.origin);
-                targetUrlObject.searchParams.set('workspace_window', '1');
-                const targetUrl = targetUrlObject.toString();
 
                 try {
                     const response = await window.fetch(nativeWindowEndpoint, {
@@ -649,74 +478,88 @@
                         },
                         credentials: 'same-origin',
                         body: JSON.stringify({
-                            path: targetUrl,
+                            path: resolvedPath,
                             title: resolvedTitle,
-                            slot: slot === 3 ? 3 : 2,
+                            slot: 'auto',
                         }),
                     });
                     const payload = await response.json().catch(() => null);
-                    if (!response.ok || !payload || !payload.success) {
-                        throw new Error(payload && payload.message ? payload.message : 'Não foi possível abrir a janela nativa.');
+                    if (response.ok && payload && payload.success) {
+                        return { opened: true, payload };
                     }
+                    return { opened: false, payload };
                 } catch (error) {
-                    const message = error instanceof Error ? error.message : 'Não foi possível abrir a janela nativa.';
-                    window.alert(message);
+                    return {
+                        opened: false,
+                        payload: {
+                            success: false,
+                            code: 'native-open-failed',
+                            message: error instanceof Error ? error.message : 'Não foi possível abrir a janela auxiliar.',
+                        },
+                    };
+                }
+            }
+
+            function shouldHandleSidebarLink(link, event) {
+                if (!link) {
                     return false;
                 }
-
-                try {
-                    const cleanUrl = new URL(window.location.href);
-                    if (cleanUrl.searchParams.has('workspace_token')) {
-                        cleanUrl.searchParams.delete('workspace_token');
-                        history.replaceState({}, document.title, cleanUrl.pathname + cleanUrl.search + cleanUrl.hash);
-                    }
-                } catch (error) {
+                if (event.defaultPrevented) {
+                    return;
                 }
-
-                const instance = window.bootstrap ? window.bootstrap.Modal.getInstance(modalElement) : null;
-                instance?.hide();
+                if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+                    return false;
+                }
+                if ((link.getAttribute('target') || '').trim() && link.getAttribute('target') !== '_self') {
+                    return false;
+                }
+                const href = (link.getAttribute('href') || '').trim();
+                if (!href || href.startsWith('#')) {
+                    return false;
+                }
+                if (link.dataset.workspaceSkip === '1' || link.dataset.workspaceOpening === '1') {
+                    return false;
+                }
                 return true;
             }
 
-            slotButtons.forEach((button) => {
-                button.addEventListener('click', function () {
-                    selectedSlot = Number(this.getAttribute('data-workspace-slot-option') || '2');
-                    if (selectedSlot !== 2 && selectedSlot !== 3) {
-                        selectedSlot = 2;
-                    }
-                    window.localStorage.setItem(storageKey, String(selectedSlot));
-                    syncSlotButtons();
-                });
-            });
-
-            actionButtons.forEach((button) => {
-                button.addEventListener('click', async function () {
-                    await openWorkspaceWindow(
-                        this.getAttribute('data-window-path') || window.location.pathname + window.location.search,
-                        this.getAttribute('data-window-title') || document.title,
-                        selectedSlot,
-                    );
-                });
-            });
-
-            document.addEventListener('keydown', function (event) {
-                if (!event.ctrlKey || !event.altKey || event.shiftKey || event.metaKey) {
+            sidebarMenu.addEventListener('click', async function (event) {
+                const link = event.target.closest('a.sidebar-link[href]');
+                if (!shouldHandleSidebarLink(link, event)) {
                     return;
                 }
 
-                if (event.key === '2' || event.key === '3') {
-                    event.preventDefault();
-                    void openWorkspaceWindow(window.location.pathname + window.location.search, document.title, Number(event.key));
+                const targetUrl = new URL(link.href, window.location.origin);
+                if (targetUrl.origin !== window.location.origin) {
+                    return;
+                }
+
+                const currentPath = normalizeComparableUrl(window.location.href);
+                const targetPath = normalizeComparableUrl(targetUrl.toString());
+                if (currentPath === targetPath) {
+                    return;
+                }
+
+                event.preventDefault();
+                link.dataset.workspaceOpening = '1';
+
+                try {
+                    const outcome = await openWorkspaceWindow(targetUrl.pathname + targetUrl.search + targetUrl.hash, buildWindowTitle(link));
+                    if (outcome.opened) {
+                        return;
+                    }
+
+                    window.location.assign(targetUrl.toString());
+                } finally {
+                    delete link.dataset.workspaceOpening;
                 }
             });
-
-            syncSlotButtons();
         })();
     </script>
     {% endif %}
 
     {% if general_search_available %}
-    <script src="{{ url_for('static', filename='js/general-search-modal.js', v='20260407d') }}"></script>
+    <script src="{{ url_for('static', filename='js/general-search-modal.js', v='20260422a') }}"></script>
     {% endif %}
 
     <script>

@@ -18,7 +18,7 @@
                         Pesquisa operacional unificada
                     </span>
                     <h5 class="modal-title" id="modalPesquisaGeralLabel">Pesquisa geral</h5>
-                    <p class="mb-0">Consulte colaboradores, itens e retiradas do dia sem sair da tela atual.</p>
+                    <p class="mb-0">Consulte colaboradores, itens e retiradas do dia no mesmo modal.</p>
                 </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
             </div>
@@ -46,9 +46,9 @@
                 <form id="generalSearchForm" class="general-search-filter-card" novalidate>
                     <div class="general-search-filter-head">
                         <div class="general-search-filter-copy">
-                            <span class="general-search-section-kicker">Comando de busca</span>
-                            <h3>Monte a leitura sem sair da tela</h3>
-                            <p>Escolha o foco, refine o contexto e atualize o painel com a mesma estrutura visual para colaborador, item ou diário.</p>
+                            <span class="general-search-section-kicker">Pesquisa rápida</span>
+                            <h3>Busque sem sair da tela</h3>
+                            <p>Escolha o foco, informe o termo e veja o resultado logo abaixo.</p>
                         </div>
                         <div class="general-search-scope-switch" role="tablist" aria-label="Modo da pesquisa geral">
                             <button type="button" class="general-search-scope-btn is-active" data-general-search-scope="funcionario">
@@ -82,7 +82,7 @@
                                 >
                                 <div id="generalSearchSuggestions" class="general-search-suggestions d-none"></div>
                             </div>
-                            <div class="form-text" id="generalSearchInputHelp">Digite para localizar o colaborador e abrir o histórico completo.</div>
+                            <div class="form-text" id="generalSearchInputHelp">Digite nome ou matrícula para abrir o histórico.</div>
                         </div>
                         <div class="general-search-field-card" id="generalSearchDateColumn">
                             <label class="form-label" for="generalSearchDate">
@@ -90,7 +90,7 @@
                                 Data de referência
                             </label>
                             <input type="date" class="form-control" id="generalSearchDate">
-                            <div class="form-text" id="generalSearchDateHelp">Usada para a visão diária e para o checklist do dia.</div>
+                            <div class="form-text" id="generalSearchDateHelp">Usada na visão diária.</div>
                         </div>
                         <div class="general-search-field-card" id="generalSearchPeriodColumn">
                             <label class="form-label" for="generalSearchPeriod">
@@ -105,17 +105,13 @@
                                 <option value="180">180 dias</option>
                                 <option value="365">365 dias</option>
                             </select>
-                            <div class="form-text" id="generalSearchPeriodHelp">Aplicado na consulta de item.</div>
+                            <div class="form-text" id="generalSearchPeriodHelp">Usado na consulta por item.</div>
                         </div>
                         <div class="general-search-actions-card">
-                            <div class="general-search-actions-copy">
-                                <span class="general-search-section-kicker">Execucao</span>
-                                <p>Atualize o painel atual ou limpe os filtros para recomeçar a leitura.</p>
-                            </div>
                             <div class="general-search-actions">
                                 <button type="submit" class="btn btn-primary general-search-action-btn">
                                     <i class="bi bi-search"></i>
-                                    Atualizar
+                                    Pesquisar
                                 </button>
                                 <button type="button" class="btn btn-outline-light general-search-action-btn" id="generalSearchClearBtn">
                                     <i class="bi bi-x-circle"></i>
@@ -133,7 +129,7 @@
                     <div class="general-search-empty-state" id="generalSearchEmptyState">
                         <i class="bi bi-radar"></i>
                         <h3>Pesquisa geral pronta</h3>
-                        <p>Escolha o foco da consulta, informe o termo ou a data e o painel monta a leitura unificada sem abrir paginas separadas.</p>
+                        <p>Escolha colaborador, item ou diário e faça a busca.</p>
                     </div>
                 </section>
             </div>

@@ -11,8 +11,10 @@ from openpyxl.chart import BarChart, LineChart, Reference
 from openpyxl.chart.label import DataLabelList
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
+from sqlalchemy import func
 
-from ..models import DocumentoEntradaEstoqueItem, FinanceLedgerEntry, Item
+from ..extensions import db
+from ..models import DocumentoEntradaEstoqueItem, Entrada, FinanceLedgerEntry, InventarioEvento, Item, Saida, StockBalance, StockMovement
 from ..utils.report_branding import get_company_header_lines
 from .legacy_stock_normalizer import ignore_packaging_metadata_for_stock, resolve_canonical_unit, resolve_packaging_factor
 from .price_normalization import infer_document_quantity_unit_for_item, normalize_document_line, should_autofix_packaged_document_unit
@@ -34,6 +36,7 @@ class ScopeReportService:
     COLOR_WARNING = "B45309"
     COLOR_DANGER = "B91C1C"
     COLOR_ALERT = "FEF3C7"
+    ANALYSIS_TOLERANCE = 1e-6
     BORDER_THIN = Border(
         left=Side(style="thin", color="CBD5E1"),
         right=Side(style="thin", color="CBD5E1"),
@@ -56,6 +59,7 @@ class ScopeReportService:
         category_analysis = cls._analyze_by_category(items)
         brand_analysis = cls._analyze_by_brand(items)
         rankings = cls._generate_rankings(items)
+        inconsistency_analysis = cls._build_inconsistency_analysis(scoped_items, items)
         timeline = cls._build_timeline(scoped_items)
 
         wb = Workbook()
@@ -64,6 +68,7 @@ class ScopeReportService:
         cls._create_timeline_sheet(wb, timeline, scope_label)
         cls._create_brand_analysis_sheet(wb, brand_analysis, scope_label)
         cls._create_rankings_sheet(wb, rankings, scope_label)
+        cls._create_inconsistency_sheet(wb, inconsistency_analysis, scope_label)
         cls._create_detailed_sheet(wb, items, scope_label)
 
         buffer = BytesIO()
@@ -532,6 +537,160 @@ class ScopeReportService:
         }
 
     @classmethod
+    def _build_inconsistency_analysis(
+        cls,
+        scoped_items: list[Item],
+        items: list[dict[str, Any]],
+    ) -> dict[str, list[dict[str, Any]]]:
+        codes = sorted({str(item.codigo_item or "").strip() for item in scoped_items if str(item.codigo_item or "").strip()})
+        if not codes:
+            return {"confirmed": [], "probable": [], "future": []}
+
+        summary_by_code = {str(row.get("codigo") or "").strip(): row for row in items if str(row.get("codigo") or "").strip()}
+
+        entradas_map = {
+            str(code or "").strip(): cls._safe_float(total)
+            for code, total in (
+                db.session.query(Entrada.codigo_item, func.coalesce(func.sum(Entrada.quantidade), 0.0))
+                .filter(Entrada.codigo_item.in_(codes))
+                .group_by(Entrada.codigo_item)
+                .all()
+            )
+            if str(code or "").strip()
+        }
+        saidas_map = {
+            str(code or "").strip(): cls._safe_float(total)
+            for code, total in (
+                db.session.query(Saida.codigo_item, func.coalesce(func.sum(Saida.quantidade), 0.0))
+                .filter(Saida.codigo_item.in_(codes))
+                .group_by(Saida.codigo_item)
+                .all()
+            )
+            if str(code or "").strip()
+        }
+        eventos_map = {
+            str(code or "").strip(): cls._safe_float(total)
+            for code, total in (
+                db.session.query(InventarioEvento.codigo_item, func.coalesce(func.sum(InventarioEvento.quantidade), 0.0))
+                .filter(InventarioEvento.codigo_item.in_(codes))
+                .group_by(InventarioEvento.codigo_item)
+                .all()
+            )
+            if str(code or "").strip()
+        }
+        ledger_map = {
+            str(code or "").strip(): cls._safe_float(total)
+            for code, total in (
+                db.session.query(StockMovement.product_id, func.coalesce(func.sum(StockMovement.quantity_base), 0.0))
+                .filter(StockMovement.product_id.in_(codes))
+                .group_by(StockMovement.product_id)
+                .all()
+            )
+            if str(code or "").strip()
+        }
+        cache_map = {
+            str(row.product_id or "").strip(): cls._safe_float(row.quantity_base)
+            for row in (
+                db.session.query(StockBalance)
+                .filter(StockBalance.product_id.in_(codes))
+                .all()
+            )
+            if str(row.product_id or "").strip()
+        }
+
+        sections: dict[str, list[dict[str, Any]]] = {
+            "confirmed": [],
+            "probable": [],
+            "future": [],
+        }
+
+        for item in scoped_items:
+            code = str(item.codigo_item or "").strip()
+            if not code:
+                continue
+
+            summary = summary_by_code.get(code, {})
+            saldo_sistema = cls._safe_float(summary.get("saldo_base") or item.get_saldo_fisico_total())
+            valor_total = cls._safe_float(summary.get("valor_total"))
+            categoria = str(item.categoria or "Sem categoria").strip() or "Sem categoria"
+            packaging_type = str(getattr(item, "tipo_embalagem_novo", None) or getattr(item, "tipo_embalagem", None) or "").strip() or "-"
+            packaging_factor = cls._safe_float(resolve_packaging_factor(item))
+            legacy_balance = cls._safe_float(entradas_map.get(code)) - cls._safe_float(saidas_map.get(code)) + cls._safe_float(eventos_map.get(code))
+            ledger_balance = cls._safe_float(ledger_map.get(code))
+            cache_balance = cls._safe_float(cache_map.get(code, ledger_balance))
+
+            if ignore_packaging_metadata_for_stock(item):
+                if (
+                    abs(legacy_balance - ledger_balance) > cls.ANALYSIS_TOLERANCE
+                    or abs(ledger_balance - cache_balance) > cls.ANALYSIS_TOLERANCE
+                ):
+                    sections["confirmed"].append(
+                        {
+                            "codigo": code,
+                            "descricao": item.descricao or code,
+                            "categoria": categoria,
+                            "saldo_sistema": saldo_sistema,
+                            "valor_total": valor_total,
+                            "signal": "Toolkit/jogo com saldo inflado por multiplicacao interna",
+                            "reference": f"Legado {legacy_balance:g} | Ledger {ledger_balance:g} | Cache {cache_balance:g}",
+                            "impact": "Infla saldo fisico e valor monetario do relatório.",
+                        }
+                    )
+                else:
+                    sections["future"].append(
+                        {
+                            "codigo": code,
+                            "descricao": item.descricao or code,
+                            "categoria": categoria,
+                            "saldo_sistema": saldo_sistema,
+                            "valor_total": valor_total,
+                            "signal": "Toolkit alinhado, mas ainda com metadado de embalagem residual",
+                            "reference": f"Tipo {packaging_type} | fator {packaging_factor:g} | embalagem ignorada pelo estoque",
+                            "impact": "Pode voltar a inflar em rebuild legado ou leitura financeira futura se o fluxo errado for reativado.",
+                        }
+                    )
+
+            if packaging_type != "-" and packaging_factor <= 0 and not ignore_packaging_metadata_for_stock(item):
+                sections["probable"].append(
+                    {
+                        "codigo": code,
+                        "descricao": item.descricao or code,
+                        "categoria": categoria,
+                        "saldo_sistema": saldo_sistema,
+                        "valor_total": valor_total,
+                        "signal": "Embalagem sem fator confiavel de conversao",
+                        "reference": f"Tipo {packaging_type} | fator resolvido {packaging_factor:g}",
+                        "impact": "Pode distorcer saldo fisico, decomposicao visual e totalizacao por valor.",
+                    }
+                )
+
+            if bool(summary.get("has_price_alert")):
+                sections["probable"].append(
+                    {
+                        "codigo": code,
+                        "descricao": item.descricao or code,
+                        "categoria": categoria,
+                        "saldo_sistema": saldo_sistema,
+                        "valor_total": valor_total,
+                        "signal": "Preco base com sinal de embalagem nao normalizada",
+                        "reference": str(summary.get("price_alert") or summary.get("origem_preco") or "Sem detalhe"),
+                        "impact": "Pode inflar ou subestimar o valor em estoque no ranking monetario.",
+                    }
+                )
+
+        for key in sections:
+            sections[key] = sorted(
+                sections[key],
+                key=lambda row: (
+                    -cls._safe_float(row.get("valor_total")),
+                    -cls._safe_float(row.get("saldo_sistema")),
+                    str(row.get("descricao") or "").lower(),
+                ),
+            )
+
+        return sections
+
+    @classmethod
     def _merge_row(cls, ws, row: int, max_col: int, value: str, *, font: Font, fill: PatternFill | None = None, alignment: Alignment | None = None):
         ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=max_col)
         cell = ws.cell(row=row, column=1)
@@ -540,6 +699,19 @@ class ScopeReportService:
         if fill is not None:
             cell.fill = fill
         cell.alignment = alignment or Alignment(horizontal="left", vertical="center")
+
+    @classmethod
+    def _style_section_banner(cls, ws, *, row: int, max_col: int, title: str, color: str) -> None:
+        cls._merge_row(
+            ws,
+            row,
+            max_col,
+            title,
+            font=Font(size=11, bold=True, color=cls.COLOR_WHITE),
+            fill=PatternFill(start_color=color, end_color=color, fill_type="solid"),
+            alignment=Alignment(horizontal="center", vertical="center"),
+        )
+        ws.row_dimensions[row].height = 20
 
     @classmethod
     def _apply_report_header(cls, ws, *, title: str, scope_label: str, max_col: int, meta_lines: list[str] | None = None) -> int:
@@ -564,6 +736,7 @@ class ScopeReportService:
                 max_col,
                 line,
                 font=Font(size=10, bold=True, color=cls.COLOR_HEADER_DARK),
+                alignment=Alignment(horizontal="center", vertical="center"),
             )
             row += 1
 
@@ -578,6 +751,7 @@ class ScopeReportService:
                 max_col,
                 line,
                 font=Font(size=10, color=cls.COLOR_MUTED),
+                alignment=Alignment(horizontal="center", vertical="center"),
             )
             row += 1
 
@@ -638,8 +812,8 @@ class ScopeReportService:
         chart.title = title
         chart.grouping = "clustered"
         chart.overlap = 0
-        chart.height = 7.2
-        chart.width = 13.5
+        chart.height = 6.8
+        chart.width = 10.8
         chart.y_axis.title = "Itens"
         chart.x_axis.title = value_axis_title
         chart.legend = None
@@ -921,7 +1095,7 @@ class ScopeReportService:
             ws,
             title="RELATORIO DE ESCOPO - RANKINGS DE LEITURA",
             scope_label=scope_label,
-            max_col=7,
+            max_col=14,
             meta_lines=[
                 "Rankings priorizam comparacoes monetarias e frequencia de eventos, evitando mistura de quantidades fisicas incompatíveis.",
             ],
@@ -933,7 +1107,6 @@ class ScopeReportService:
                 "color": cls.COLOR_DANGER,
                 "rows": rankings.get("mais_caros") or [],
                 "headers": ["#", "Codigo", "Descricao", "Categoria", "Marca", "Valor total"],
-                "chart_anchor": "I3",
                 "chart_title": "Itens com maior valor em estoque",
                 "chart_value_title": "Valor em estoque (R$)",
                 "type": "valor",
@@ -943,7 +1116,6 @@ class ScopeReportService:
                 "color": cls.COLOR_SUCCESS,
                 "rows": rankings.get("mais_usados") or [],
                 "headers": ["#", "Codigo", "Descricao", "Categoria", "Marca", "Saidas"],
-                "chart_anchor": "I22",
                 "chart_title": "Itens com mais saidas",
                 "chart_value_title": "Saidas (eventos)",
                 "type": "saida_eventos",
@@ -953,7 +1125,6 @@ class ScopeReportService:
                 "color": cls.COLOR_HEADER_DARK,
                 "rows": rankings.get("mais_movimentados") or [],
                 "headers": ["#", "Codigo", "Descricao", "Categoria", "Marca", "Mov. totais"],
-                "chart_anchor": "I41",
                 "chart_title": "Itens mais movimentados",
                 "chart_value_title": "Movimentos (eventos)",
                 "type": "total_movimentacoes",
@@ -963,7 +1134,6 @@ class ScopeReportService:
                 "color": cls.COLOR_WARNING,
                 "rows": rankings.get("com_alerta") or [],
                 "headers": ["#", "Codigo", "Descricao", "Categoria", "Valor total", "Sinalizacao"],
-                "chart_anchor": None,
                 "chart_title": None,
                 "chart_value_title": None,
                 "type": "alerta",
@@ -972,11 +1142,14 @@ class ScopeReportService:
 
         current_row = row
         for section in sections:
-            ws.merge_cells(start_row=current_row, start_column=1, end_row=current_row, end_column=6)
-            title_cell = ws.cell(row=current_row, column=1)
-            title_cell.value = section["title"]
-            title_cell.font = Font(size=11, bold=True, color=section["color"])
-            title_cell.alignment = Alignment(horizontal="left", vertical="center")
+            section_start_row = current_row
+            cls._style_section_banner(
+                ws,
+                row=current_row,
+                max_col=14,
+                title=section["title"],
+                color=section["color"],
+            )
             current_row += 1
 
             header_row = current_row
@@ -1005,7 +1178,7 @@ class ScopeReportService:
                 current_row += 1
 
             data_end_row = current_row - 1
-            if section["chart_anchor"]:
+            if section["chart_title"]:
                 cls._add_ranking_chart(
                     ws,
                     title=section["chart_title"],
@@ -1014,11 +1187,13 @@ class ScopeReportService:
                     value_col=6,
                     data_start_row=data_start_row,
                     data_end_row=data_end_row,
-                    anchor=section["chart_anchor"],
+                    anchor=f"H{section_start_row}",
                     color=section["color"],
                     value_axis_title=section["chart_value_title"],
                 )
-            current_row += 2
+                current_row = max(current_row + 2, section_start_row + 18)
+            else:
+                current_row += 2
 
         ws.freeze_panes = f"A{row + 1}"
         cls._set_widths(ws, {
@@ -1028,10 +1203,113 @@ class ScopeReportService:
             "D": 24,
             "E": 18,
             "F": 22,
-            "I": 2,
+            "G": 3,
+            "H": 3,
+            "I": 14,
             "J": 14,
             "K": 14,
             "L": 14,
+            "M": 14,
+            "N": 14,
+        })
+
+    @classmethod
+    def _create_inconsistency_sheet(cls, wb: Workbook, analysis: dict[str, list[dict[str, Any]]], scope_label: str) -> None:
+        ws = wb.create_sheet("Inconsistencias")
+        confirmed = analysis.get("confirmed") or []
+        probable = analysis.get("probable") or []
+        future = analysis.get("future") or []
+
+        row = cls._apply_report_header(
+            ws,
+            title="RELATORIO DE ESCOPO - INCONSISTENCIAS E RISCOS",
+            scope_label=scope_label,
+            max_col=9,
+            meta_lines=[
+                "Esta aba separa o que ja esta inconsistente, o que parece inconsistente e o que pode voltar a quebrar futuramente.",
+                "Ela usa sinais do proprio GALINT: toolkit divergente, embalagem sem fator confiavel e alertas de precificacao.",
+            ],
+        )
+
+        summary_metrics = [
+            ("Inconsistencias confirmadas", len(confirmed), cls.COLOR_DANGER),
+            ("Provaveis inconsistencias", len(probable), cls.COLOR_WARNING),
+            ("Riscos futuros", len(future), cls.COLOR_HEADER_DARK),
+        ]
+        for label, value, color in summary_metrics:
+            ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=4)
+            ws.merge_cells(start_row=row, start_column=5, end_row=row, end_column=9)
+            left = ws.cell(row=row, column=1)
+            right = ws.cell(row=row, column=5)
+            left.value = label
+            right.value = value
+            left.font = Font(bold=True, color=cls.COLOR_TEXT)
+            right.font = Font(bold=True, color=color)
+            for cell in (left, right):
+                cell.border = cls.BORDER_THIN
+                cell.fill = PatternFill(start_color=cls.COLOR_LIGHT_ALT, end_color=cls.COLOR_LIGHT_ALT, fill_type="solid")
+                cell.alignment = Alignment(horizontal="center", vertical="center")
+            row += 1
+
+        row += 1
+        section_specs = [
+            ("INCONSISTENCIAS CONFIRMADAS", confirmed, cls.COLOR_DANGER),
+            ("PROVAVEIS INCONSISTENCIAS", probable, cls.COLOR_WARNING),
+            ("RISCOS FUTUROS", future, cls.COLOR_HEADER_DARK),
+        ]
+        headers = ["#", "Codigo", "Descricao", "Categoria", "Saldo sistema", "Valor estoque", "Sinal", "Leitura de apoio", "Impacto"]
+
+        for title, rows, color in section_specs:
+            cls._style_section_banner(ws, row=row, max_col=9, title=title, color=color)
+            row += 1
+            header_row = row
+            cls._style_table_header(ws, header_row, headers)
+            row += 1
+
+            if not rows:
+                cls._merge_row(
+                    ws,
+                    row,
+                    9,
+                    "Nenhum item identificado nesta faixa de analise.",
+                    font=Font(size=10, italic=True, color=cls.COLOR_MUTED),
+                    fill=PatternFill(start_color=cls.COLOR_LIGHT, end_color=cls.COLOR_LIGHT, fill_type="solid"),
+                    alignment=Alignment(horizontal="center", vertical="center"),
+                )
+                for col in range(1, 10):
+                    ws.cell(row=row, column=col).border = cls.BORDER_THIN
+                row += 2
+                continue
+
+            for index, entry in enumerate(rows, 1):
+                ws.cell(row=row, column=1, value=index)
+                ws.cell(row=row, column=2, value=entry["codigo"])
+                ws.cell(row=row, column=3, value=entry["descricao"])
+                ws.cell(row=row, column=4, value=entry["categoria"])
+                ws.cell(row=row, column=5, value=round(cls._safe_float(entry["saldo_sistema"]), 2))
+                ws.cell(row=row, column=6, value=round(cls._safe_float(entry["valor_total"]), 2)).number_format = '"R$" #,##0.00'
+                ws.cell(row=row, column=7, value=entry["signal"])
+                ws.cell(row=row, column=8, value=entry["reference"])
+                ws.cell(row=row, column=9, value=entry["impact"])
+                cls._style_table_row(ws, row, 9, alert=title != "RISCOS FUTUROS")
+                ws.cell(row=row, column=1).alignment = Alignment(horizontal="center", vertical="center")
+                ws.cell(row=row, column=5).alignment = Alignment(horizontal="center", vertical="center")
+                ws.cell(row=row, column=6).alignment = Alignment(horizontal="center", vertical="center")
+                row += 1
+
+            row += 2
+
+        ws.freeze_panes = "A8"
+        cls._set_widths(ws, {
+            "A": 5,
+            "B": 16,
+            "C": 38,
+            "D": 22,
+            "E": 14,
+            "F": 16,
+            "G": 32,
+            "H": 36,
+            "I": 42,
         })
 
     @classmethod

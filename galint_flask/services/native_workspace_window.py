@@ -5,9 +5,9 @@ import ctypes
 from pathlib import Path
 import sys
 
-from PySide6.QtCore import Qt, QTimer, QUrl
+from PySide6.QtCore import QStandardPaths, Qt, QTimer, QUrl
 from PySide6.QtGui import QGuiApplication, QIcon
-from PySide6.QtWidgets import QApplication, QMainWindow
+from PySide6.QtWidgets import QApplication, QFileDialog, QMainWindow, QMessageBox
 from PySide6.QtWebEngineCore import QWebEngineSettings
 from PySide6.QtWebEngineWidgets import QWebEngineView
 
@@ -36,6 +36,13 @@ def _normalize_slot(slot: int | str | None) -> int:
     return value if value in (2, 3) else 2
 
 
+def _default_download_dir() -> Path:
+    candidate = QStandardPaths.writableLocation(QStandardPaths.DownloadLocation)
+    if candidate:
+        return Path(candidate)
+    return Path.home() / "Downloads"
+
+
 class NativeWorkspaceWindow(QMainWindow):
     def __init__(self, *, url: str, title: str, slot: int = 2) -> None:
         super().__init__()
@@ -61,6 +68,7 @@ class NativeWorkspaceWindow(QMainWindow):
         settings = self._browser.settings()
         settings.setAttribute(QWebEngineSettings.FullScreenSupportEnabled, True)
         self._browser.loadFinished.connect(self._on_load_finished)
+        self._browser.page().profile().downloadRequested.connect(self._handle_download_requested)
         self._browser.setUrl(QUrl(url))
 
     def open_window(self) -> None:
@@ -106,6 +114,67 @@ class NativeWorkspaceWindow(QMainWindow):
             })();
             """
         )
+
+    def _handle_download_requested(self, download) -> None:
+        suggested_name = "download"
+        for attr_name in ("downloadFileName", "suggestedFileName"):
+            getter = getattr(download, attr_name, None)
+            if not callable(getter):
+                continue
+            candidate = str(getter() or "").strip()
+            if candidate:
+                suggested_name = candidate
+                break
+
+        default_path = _default_download_dir() / suggested_name
+        selected_path, _ = QFileDialog.getSaveFileName(self, "Salvar arquivo", str(default_path))
+        if not selected_path:
+            cancel = getattr(download, "cancel", None)
+            if callable(cancel):
+                cancel()
+            return
+
+        target_path = Path(selected_path)
+        target_path.parent.mkdir(parents=True, exist_ok=True)
+
+        set_directory = getattr(download, "setDownloadDirectory", None)
+        if callable(set_directory):
+            set_directory(str(target_path.parent))
+
+        set_filename = getattr(download, "setDownloadFileName", None)
+        if callable(set_filename):
+            set_filename(target_path.name)
+
+        try:
+            download.isFinishedChanged.connect(lambda: self._handle_download_finished(download, target_path))
+        except Exception:
+            pass
+        download.accept()
+
+    def _handle_download_finished(self, download, target_path: Path) -> None:
+        is_finished = getattr(download, "isFinished", None)
+        if callable(is_finished) and not is_finished():
+            return
+
+        state_getter = getattr(download, "state", None)
+        state = state_getter() if callable(state_getter) else None
+        state_enum = getattr(type(download), "DownloadState", None)
+        completed_state = getattr(state_enum, "DownloadCompleted", None)
+        cancelled_state = getattr(state_enum, "DownloadCancelled", None)
+        interrupted_state = getattr(state_enum, "DownloadInterrupted", None)
+
+        if completed_state is not None and state == completed_state:
+            QMessageBox.information(self, "Download concluído", f"Arquivo salvo em:\n{target_path}")
+            return
+
+        if interrupted_state is not None and state == interrupted_state:
+            reason_getter = getattr(download, "interruptReasonString", None)
+            reason = reason_getter() if callable(reason_getter) else "Falha ao baixar o arquivo."
+            QMessageBox.warning(self, "Falha no download", str(reason or "Falha ao baixar o arquivo."))
+            return
+
+        if cancelled_state is not None and state == cancelled_state:
+            return
 
     def _promote_window(self) -> None:
         self.raise_()

@@ -1171,32 +1171,16 @@
     syncScopeReportCategory();
 
     scopeReportForm.addEventListener('submit', (event) => {
-        event.preventDefault();
         if (scopeReportForm.classList.contains('is-submitting')) {
+                event.preventDefault();
             return;
         }
 
         syncScopeReportCategory();
         setScopeReportSubmitting(true);
-        const url = new URL(scopeReportForm.action, window.location.origin);
-        const selectedCategory = (scopeReportInput.value || '').trim();
-
-        url.searchParams.delete('categoria');
-        if (selectedCategory) {
-            url.searchParams.set('categoria', selectedCategory);
-        }
-
-        window.location.assign(url.toString());
-
-        window.setTimeout(() => {
             if (scopeReportModal) {
                 scopeReportModal.hide();
             }
-        }, 140);
-
-        window.setTimeout(() => {
-            setScopeReportSubmitting(false);
-        }, 900);
     });
 
     if (scopeReportModalElement) {

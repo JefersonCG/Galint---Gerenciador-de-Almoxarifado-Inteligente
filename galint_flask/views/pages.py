@@ -16,7 +16,7 @@ from ..services.backup import BackupService
 from ..services.auth import create_workspace_window_token
 from ..services.backup_restore_jobs import get_job_state, start_restore_job
 from ..services.conversion_engine import ConversionEngineService, get_conversion_job_state, start_conversion_job
-from ..services.native_workspace_launcher import launch_workspace_window
+from ..services.native_workspace_launcher import launch_workspace_window, launch_workspace_window_auto
 from ..services.network_settings import load_network_settings, save_network_settings
 
 
@@ -149,6 +149,13 @@ def _normalize_workspace_slot(raw_value: object) -> int:
     return value if value in (2, 3) else 2
 
 
+def _workspace_slot_request_mode(raw_value: object) -> tuple[bool, int | None]:
+    normalized = str(raw_value or "").strip().lower()
+    if not normalized or normalized == "auto":
+        return True, None
+    return False, _normalize_workspace_slot(raw_value)
+
+
 def _build_workspace_window_url(path: str, token: str) -> str:
     raw_path = str(path or "").strip() or url_for("dashboard.index")
     split = urlsplit(raw_path)
@@ -185,9 +192,19 @@ def workspace_native_open_api():
         return jsonify({"success": False, "message": str(exc)}), 400
 
     title = str((request_data or {}).get("title") or "").strip() or current_app.config.get("SYSTEM_NAME", "GALINT")
-    slot = _normalize_workspace_slot((request_data or {}).get("slot"))
-    result = launch_workspace_window(target_url, title[:120], slot=slot)
-    status_code = 200 if result.get("success") else 503
+    auto_mode, slot = _workspace_slot_request_mode((request_data or {}).get("slot"))
+    owner_key = getattr(current_user, "matricula", None)
+    if auto_mode:
+        result = launch_workspace_window_auto(target_url, title[:120], owner_key=owner_key)
+    else:
+        result = launch_workspace_window(target_url, title[:120], slot=slot, owner_key=owner_key)
+
+    if result.get("success"):
+        status_code = 200
+    elif result.get("code") in {"slot-limit-reached", "slot-occupied"}:
+        status_code = 409
+    else:
+        status_code = 503
     return jsonify(result), status_code
 
 
