@@ -440,7 +440,7 @@
         });
     </script>
 
-    {% if current_user.is_authenticated and not is_workspace_window %}
+    {% if current_user.is_authenticated and not is_workspace_window and config.get('FEATURE_WORKSPACE_WINDOWS_ENABLED', False) %}
     <script>
         (function () {
             const sidebarMenu = document.querySelector('.sidebar-menu');

@@ -182,6 +182,13 @@ def _build_workspace_window_url(path: str, token: str) -> str:
 @blueprint.post("/workspace/native-open")
 @login_required
 def workspace_native_open_api():
+    if not bool(current_app.config.get("FEATURE_WORKSPACE_WINDOWS_ENABLED", False)):
+        return jsonify({
+            "success": False,
+            "code": "workspace-windows-disabled",
+            "message": "As janelas auxiliares estao desativadas nesta instalacao.",
+        }), 404
+
     payload = request.get_json(silent=True)
     request_data = payload if isinstance(payload, dict) else request.form
 

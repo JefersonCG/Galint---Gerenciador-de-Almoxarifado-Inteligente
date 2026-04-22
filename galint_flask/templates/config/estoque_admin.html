@@ -128,6 +128,73 @@
         border-radius: 18px;
         padding: 0.95rem 1rem;
     }
+    .admin-stock-mode-grid {
+        display: grid;
+        gap: 0.75rem;
+    }
+    .admin-stock-mode-option {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 0.75rem;
+        align-items: start;
+        padding: 0.95rem 1rem;
+        border-radius: 18px;
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        background: rgba(15, 23, 42, 0.56);
+        cursor: pointer;
+    }
+    .admin-stock-mode-option:hover {
+        border-color: rgba(96, 165, 250, 0.35);
+    }
+    .admin-stock-mode-option.is-disabled {
+        opacity: 0.58;
+        cursor: not-allowed;
+    }
+    .admin-stock-mode-option .form-check-input {
+        margin-top: 0.2rem;
+    }
+    .admin-stock-mode-title {
+        display: block;
+        font-weight: 700;
+        color: #f8fafc;
+        margin-bottom: 0.2rem;
+    }
+    .admin-stock-mode-desc {
+        display: block;
+        color: #cbd5e1;
+        font-size: 0.92rem;
+        line-height: 1.45;
+    }
+    .admin-stock-mode-section {
+        display: none;
+        border-radius: 18px;
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        background: rgba(15, 23, 42, 0.5);
+        padding: 1rem;
+    }
+    .admin-stock-mode-section.is-active {
+        display: block;
+    }
+    .admin-stock-balance-summary {
+        border-radius: 18px;
+        border: 1px solid rgba(96, 165, 250, 0.24);
+        background: linear-gradient(150deg, rgba(15, 23, 42, 0.74), rgba(30, 41, 59, 0.68));
+        padding: 1rem;
+    }
+    .admin-stock-balance-summary-label {
+        display: block;
+        font-size: 0.76rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: rgba(191, 219, 254, 0.78);
+        margin-bottom: 0.35rem;
+    }
+    .admin-stock-balance-summary-value {
+        font-size: 1.35rem;
+        font-weight: 800;
+        color: #f8fafc;
+        margin-bottom: 0.3rem;
+    }
     @media (max-width: 1100px) {
         .admin-stock-grid { grid-template-columns: 1fr; }
     }
@@ -146,7 +213,7 @@
     <section class="admin-stock-hero">
         <div class="admin-stock-eyebrow"><i class="bi bi-shield-lock"></i> Operação temporária de produção</div>
         <h1 class="admin-stock-title">Porta Administrativa de Estoque</h1>
-        <p class="admin-stock-subtitle">Esta área força um saldo-alvo absoluto no legado, no ledger e no cache para correção operacional. Use apenas quando o fluxo padrão não resolver a inconsistência e sempre registre um motivo objetivo.</p>
+        <p class="admin-stock-subtitle">Esta área pode corrigir o saldo final por valor direto, quantidade de embalagens, embalagens com sobra interna ou somente unidade interna. O resultado continua sendo um saldo-alvo absoluto no legado, no ledger e no cache, sempre com motivo auditável.</p>
     </section>
 
     <div class="admin-stock-grid">
@@ -245,26 +312,108 @@
             <div class="card admin-stock-card">
                 <div class="card-header border-0 pb-0">
                     <h5 class="mb-1">Aplicar ajustes administrativos</h5>
-                    <p class="text-muted mb-0">Use um único envio para trocar o código de barras, ajustar o saldo final ou executar ambos no mesmo fluxo.</p>
+                    <p class="text-muted mb-0">Use um único envio para trocar o código de barras e ajustar o saldo por um dos 4 modos operacionais abaixo.</p>
                 </div>
                 <div class="card-body">
-                    <form method="post" class="d-flex flex-column gap-3">
+                    {% set adjustment_values = adjustment_form or {} %}
+                    {% set balance_input = preview.admin_balance_input %}
+                    {% set balance_locked = preview.pre_cadastro_pendente or preview.daily_limit_exhausted %}
+                    {% set selected_mode = adjustment_values.get('admin_balance_mode') or balance_input.default_mode %}
+                    {% if selected_mode not in ['direct', 'packages', 'packages_plus_internal', 'internal_only'] %}
+                        {% set selected_mode = balance_input.default_mode %}
+                    {% endif %}
+                    {% if selected_mode in ['packages', 'packages_plus_internal'] and not balance_input.supports_packaging %}
+                        {% set selected_mode = 'direct' %}
+                    {% endif %}
+                    <form method="post" class="d-flex flex-column gap-3" id="admin-adjustment-form" data-original-code="{{ preview.codigo }}">
                         <input type="hidden" name="codigo" value="{{ preview.codigo }}">
+                        <input type="hidden" id="novo_saldo" name="novo_saldo" value="{{ '' if balance_locked else (adjustment_values.get('novo_saldo') or ('%.6f'|format(preview.saldo_exibido))) }}">
                         <div>
                             <label for="novo_codigo" class="form-label">Novo código de barras</label>
-                            <input class="form-control form-control-lg" id="novo_codigo" name="novo_codigo" type="text" inputmode="numeric" value="{{ preview.codigo }}" {% if preview.pre_cadastro_pendente %}disabled{% endif %} required>
+                            <input class="form-control form-control-lg" id="novo_codigo" name="novo_codigo" type="text" inputmode="numeric" value="{{ adjustment_values.get('novo_codigo') or preview.codigo }}" {% if preview.pre_cadastro_pendente %}disabled{% endif %} required>
                             <div class="form-text">Altere este campo só quando precisar substituir o código atual. Se ele permanecer igual, o sistema não mexe no código.</div>
                         </div>
-                        <div>
-                            <label for="novo_saldo" class="form-label">Saldo alvo</label>
-                            <input class="form-control form-control-lg" id="novo_saldo" name="novo_saldo" type="number" step="0.000001" min="0" value="{{ '%.6f'|format(preview.saldo_exibido) }}" {% if preview.pre_cadastro_pendente or preview.daily_limit_exhausted %}disabled{% endif %}>
-                            <div class="form-text">Valor final que deve aparecer em todo o sistema. Se já estiver correto, mantenha este valor como está e o sistema não fará novo ajuste de saldo.</div>
+                        {% if balance_input.supports_packaging %}
+                        <div class="alert alert-secondary mb-0">Embalagem detectada: cada {{ balance_input.package_name }} corresponde a {{ balance_input.package_content_display }}. Você pode trabalhar por embalagem, embalagem com sobra interna ou somente {{ balance_input.internal_unit_display }}.</div>
+                        {% endif %}
+                        <div class="d-flex flex-column gap-3">
+                            <div>
+                                <label class="form-label d-block">Modo de ajuste do saldo</label>
+                                <div class="admin-stock-mode-grid">
+                                    <label class="admin-stock-mode-option{% if balance_locked %} is-disabled{% endif %}">
+                                        <input class="form-check-input" type="radio" name="admin_balance_mode" value="direct" {% if selected_mode == 'direct' %}checked{% endif %} {% if balance_locked %}disabled{% endif %}>
+                                        <span>
+                                            <span class="admin-stock-mode-title">1. Saldo final direto</span>
+                                            <span class="admin-stock-mode-desc">Digite o total final consolidado exatamente como ele deve aparecer no sistema.</span>
+                                        </span>
+                                    </label>
+                                    <label class="admin-stock-mode-option{% if (not balance_input.supports_packaging) or balance_locked %} is-disabled{% endif %}">
+                                        <input class="form-check-input" type="radio" name="admin_balance_mode" value="packages" {% if selected_mode == 'packages' %}checked{% endif %} {% if (not balance_input.supports_packaging) or balance_locked %}disabled{% endif %}>
+                                        <span>
+                                            <span class="admin-stock-mode-title">2. Quantidade de embalagens</span>
+                                            <span class="admin-stock-mode-desc">Informe só a quantidade de {{ balance_input.package_plural if balance_input.supports_packaging else 'embalagens' }} quando o saldo inteiro estiver fechado em embalagem.</span>
+                                        </span>
+                                    </label>
+                                    <label class="admin-stock-mode-option{% if (not balance_input.supports_packaging) or balance_locked %} is-disabled{% endif %}">
+                                        <input class="form-check-input" type="radio" name="admin_balance_mode" value="packages_plus_internal" {% if selected_mode == 'packages_plus_internal' %}checked{% endif %} {% if (not balance_input.supports_packaging) or balance_locked %}disabled{% endif %}>
+                                        <span>
+                                            <span class="admin-stock-mode-title">3. Embalagens + saldo interno</span>
+                                            <span class="admin-stock-mode-desc">Use quando houver {{ balance_input.package_plural if balance_input.supports_packaging else 'embalagens' }} completas e também sobra em {{ balance_input.internal_unit_display }}.</span>
+                                        </span>
+                                    </label>
+                                    <label class="admin-stock-mode-option{% if balance_locked %} is-disabled{% endif %}">
+                                        <input class="form-check-input" type="radio" name="admin_balance_mode" value="internal_only" {% if selected_mode == 'internal_only' %}checked{% endif %} {% if balance_locked %}disabled{% endif %}>
+                                        <span>
+                                            <span class="admin-stock-mode-title">4. Somente unidade interna</span>
+                                            <span class="admin-stock-mode-desc">Digite apenas o total em {{ balance_input.internal_unit_label|lower }} quando preferir ajustar direto em {{ balance_input.internal_unit_display }}.</span>
+                                        </span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="admin-stock-mode-section{% if selected_mode == 'direct' %} is-active{% endif %}" data-mode-section="direct">
+                                <label for="admin_balance_direct_value" class="form-label">Saldo final em {{ balance_input.internal_unit_label }}</label>
+                                <input class="form-control form-control-lg" id="admin_balance_direct_value" name="admin_balance_direct_value" type="number" step="{{ balance_input.internal_step }}" min="0" value="{{ adjustment_values.get('admin_balance_direct_value') or ('%.6f'|format(preview.saldo_exibido)) }}" {% if balance_locked %}disabled{% endif %}>
+                                <div class="form-text">Valor final absoluto em {{ balance_input.internal_unit_display }}. Use este modo quando já souber o total consolidado.</div>
+                            </div>
+
+                            <div class="admin-stock-mode-section{% if selected_mode == 'packages' %} is-active{% endif %}" data-mode-section="packages">
+                                <label for="admin_balance_packaging_quantity" class="form-label">Quantidade de {{ balance_input.package_plural if balance_input.supports_packaging else 'embalagens' }}</label>
+                                <input class="form-control form-control-lg" id="admin_balance_packaging_quantity" name="admin_balance_packaging_quantity" type="number" step="1" min="0" value="{{ adjustment_values.get('admin_balance_packaging_quantity') or balance_input.estimated_packages }}" {% if (not balance_input.supports_packaging) or balance_locked %}disabled{% endif %}>
+                                <div class="form-text">Cada {{ balance_input.package_name if balance_input.supports_packaging else 'embalagem' }} equivale a {{ balance_input.package_content_display if balance_input.supports_packaging else 'um conteúdo interno configurado' }}.</div>
+                            </div>
+
+                            <div class="admin-stock-mode-section{% if selected_mode == 'packages_plus_internal' %} is-active{% endif %}" data-mode-section="packages_plus_internal">
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label for="admin_balance_packaging_quantity_mix" class="form-label">Quantidade de {{ balance_input.package_plural if balance_input.supports_packaging else 'embalagens' }}</label>
+                                        <input class="form-control form-control-lg" id="admin_balance_packaging_quantity_mix" name="admin_balance_packaging_quantity" type="number" step="1" min="0" value="{{ adjustment_values.get('admin_balance_packaging_quantity') or balance_input.estimated_packages }}" {% if (not balance_input.supports_packaging) or balance_locked %}disabled{% endif %}>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="admin_balance_internal_extra" class="form-label">Sobra interna em {{ balance_input.internal_unit_label }}</label>
+                                        <input class="form-control form-control-lg" id="admin_balance_internal_extra" name="admin_balance_internal_extra" type="number" step="{{ balance_input.internal_step }}" min="0" value="{{ adjustment_values.get('admin_balance_internal_extra') or ('%.6f'|format(balance_input.estimated_internal_remainder)) }}" {% if balance_locked %}disabled{% endif %}>
+                                    </div>
+                                </div>
+                                <div class="form-text mt-2">Use este modo quando o saldo tiver {{ balance_input.package_plural if balance_input.supports_packaging else 'embalagens' }} fechadas e também sobra em {{ balance_input.internal_unit_display }}.</div>
+                            </div>
+
+                            <div class="admin-stock-mode-section{% if selected_mode == 'internal_only' %} is-active{% endif %}" data-mode-section="internal_only">
+                                <label for="admin_balance_internal_only_value" class="form-label">Quantidade em {{ balance_input.internal_unit_label }}</label>
+                                <input class="form-control form-control-lg" id="admin_balance_internal_only_value" name="admin_balance_internal_only_value" type="number" step="{{ balance_input.internal_step }}" min="0" value="{{ adjustment_values.get('admin_balance_internal_only_value') or ('%.6f'|format(preview.saldo_exibido)) }}" {% if balance_locked %}disabled{% endif %}>
+                                <div class="form-text">Digite apenas o total final em {{ balance_input.internal_unit_display }} quando quiser ignorar a leitura por embalagem.</div>
+                            </div>
+
+                            <div class="admin-stock-balance-summary" id="admin-balance-summary" aria-live="polite">
+                                <span class="admin-stock-balance-summary-label">Saldo calculado para aplicar</span>
+                                <div class="admin-stock-balance-summary-value" id="admin-balance-summary-value">{{ preview.saldo_exibido|round(6) }} {{ balance_input.internal_unit_display }}</div>
+                                <small id="admin-balance-summary-detail">O sistema vai transformar o modo escolhido em um saldo final absoluto antes de gravar o ajuste.</small>
+                            </div>
                         </div>
                         <div>
                             <label for="motivo" class="form-label">Motivo obrigatório</label>
-                            <textarea class="form-control" id="motivo" name="motivo" rows="4" maxlength="600" placeholder="Explique a correção necessária e o contexto operacional." {% if preview.pre_cadastro_pendente %}disabled{% endif %} required></textarea>
+                            <textarea class="form-control" id="motivo" name="motivo" rows="4" maxlength="600" placeholder="Explique a correção necessária e o contexto operacional." {% if preview.pre_cadastro_pendente %}disabled{% endif %} required>{{ adjustment_values.get('motivo') or '' }}</textarea>
                         </div>
-                        <div class="alert alert-warning mb-0">Este é um fluxo administrativo único. Ao clicar em Aplicar ajustes administrativos, o sistema executa a troca do código de barras se ele tiver sido alterado e ajusta o saldo apenas se o valor informado estiver diferente do atual.</div>
+                        <div class="alert alert-warning mb-0">Este é um fluxo administrativo único. Ao clicar em Aplicar ajustes administrativos, o sistema executa a troca do código de barras se ele tiver sido alterado e converte o modo selecionado em um único saldo final auditável.</div>
                         <div class="d-flex flex-wrap gap-2">
                             <button class="btn btn-danger" type="submit" {% if preview.pre_cadastro_pendente %}disabled{% endif %}><i class="bi bi-exclamation-diamond me-1"></i>Aplicar ajustes administrativos</button>
                             <a class="btn btn-outline-light" href="{{ url_for('config.estoque_ajuste_admin', codigo=preview.codigo) }}">Atualizar leitura</a>
@@ -283,8 +432,8 @@
                 </div>
                 <div class="card-body d-flex flex-column gap-3">
                     <div class="admin-stock-history-item">
-                        <strong>1. Saldo absoluto</strong>
-                        <div class="text-muted">O formulário não aplica entrada ou saída solta. Ele recebe um saldo final desejado e alinha os registros para esse alvo.</div>
+                        <strong>1. Saldo final guiado</strong>
+                        <div class="text-muted">Você pode informar o ajuste por saldo direto, por embalagens, por embalagens com sobra ou somente unidade interna. O backend converte tudo para um saldo final único.</div>
                     </div>
                     <div class="admin-stock-history-item">
                         <strong>2. Rastreabilidade</strong>
@@ -410,6 +559,158 @@
         input.addEventListener('blur', function () {
             setTimeout(hideSuggestions, 120);
         });
+    })();
+
+    (function () {
+        const form = document.getElementById('admin-adjustment-form');
+        const config = {% if preview %}{{ preview.admin_balance_input | tojson | safe }}{% else %}null{% endif %};
+        if (!form || !config) {
+            return;
+        }
+
+        const hiddenTarget = document.getElementById('novo_saldo');
+        const summaryValue = document.getElementById('admin-balance-summary-value');
+        const summaryDetail = document.getElementById('admin-balance-summary-detail');
+        const codeInput = document.getElementById('novo_codigo');
+        const modeInputs = Array.from(form.querySelectorAll('input[name="admin_balance_mode"]'));
+        const sections = Array.from(form.querySelectorAll('[data-mode-section]'));
+        const directInput = document.getElementById('admin_balance_direct_value');
+        const packagesInput = document.getElementById('admin_balance_packaging_quantity');
+        const packagesMixInput = document.getElementById('admin_balance_packaging_quantity_mix');
+        const internalExtraInput = document.getElementById('admin_balance_internal_extra');
+        const internalOnlyInput = document.getElementById('admin_balance_internal_only_value');
+
+        function parseNumber(value) {
+            const raw = String(value || '').trim().replace(',', '.');
+            if (!raw) {
+                return null;
+            }
+            const parsed = Number(raw);
+            return Number.isFinite(parsed) ? parsed : null;
+        }
+
+        function formatNumber(value) {
+            return new Intl.NumberFormat('pt-BR', {
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 3,
+            }).format(Number(value || 0));
+        }
+
+        function selectedMode() {
+            const active = modeInputs.find((input) => input.checked && !input.disabled);
+            return active ? active.value : '';
+        }
+
+        function packageLabel(count) {
+            return Math.abs(Number(count || 0) - 1) <= 0.000001 ? config.package_name : config.package_plural;
+        }
+
+        function setSummary(target, detail) {
+            if (!summaryValue || !summaryDetail) {
+                return;
+            }
+            if (target == null || !Number.isFinite(target)) {
+                summaryValue.textContent = 'Saldo final não calculado';
+                summaryDetail.textContent = detail;
+                if (hiddenTarget) {
+                    hiddenTarget.value = '';
+                }
+                return;
+            }
+            summaryValue.textContent = formatNumber(target) + ' ' + config.internal_unit_display;
+            summaryDetail.textContent = detail;
+            if (hiddenTarget) {
+                hiddenTarget.value = Number(target).toFixed(6);
+            }
+        }
+
+        function syncSharedPackagingInputs(source, target) {
+            if (!source || !target || document.activeElement === target) {
+                return;
+            }
+            target.value = source.value;
+        }
+
+        function computeTarget() {
+            const mode = selectedMode();
+            sections.forEach((section) => {
+                section.classList.toggle('is-active', section.dataset.modeSection === mode);
+            });
+
+            if (!mode) {
+                setSummary(null, 'Ajuste de saldo indisponível para este item neste momento.');
+                return;
+            }
+
+            if (packagesInput && packagesMixInput) {
+                if (document.activeElement === packagesInput) {
+                    syncSharedPackagingInputs(packagesInput, packagesMixInput);
+                } else if (document.activeElement === packagesMixInput) {
+                    syncSharedPackagingInputs(packagesMixInput, packagesInput);
+                }
+            }
+
+            if (mode === 'direct') {
+                const directValue = parseNumber(directInput && directInput.value);
+                if (directValue == null) {
+                    setSummary(null, 'Informe o saldo final consolidado para aplicar o ajuste direto.');
+                    return;
+                }
+                setSummary(directValue, 'Modo 1: o valor digitado será aplicado diretamente como saldo final absoluto.');
+                return;
+            }
+
+            if (mode === 'packages') {
+                const packages = parseNumber((packagesInput && packagesInput.value) || (packagesMixInput && packagesMixInput.value));
+                if (packages == null) {
+                    setSummary(null, 'Informe a quantidade de embalagens para calcular o saldo final.');
+                    return;
+                }
+                const target = packages * Number(config.package_factor || 0);
+                setSummary(target, 'Modo 2: ' + formatNumber(packages) + ' ' + packageLabel(packages) + ' x ' + formatNumber(config.package_factor || 0) + ' ' + config.internal_unit_display + '.');
+                return;
+            }
+
+            if (mode === 'packages_plus_internal') {
+                const packages = parseNumber(packagesMixInput && packagesMixInput.value);
+                const internalExtra = parseNumber(internalExtraInput && internalExtraInput.value);
+                if (packages == null && internalExtra == null) {
+                    setSummary(null, 'Informe a quantidade de embalagens, a sobra interna ou ambos.');
+                    return;
+                }
+                const target = (Number(packages || 0) * Number(config.package_factor || 0)) + Number(internalExtra || 0);
+                setSummary(target, 'Modo 3: ' + formatNumber(packages || 0) + ' ' + packageLabel(packages || 0) + ' + ' + formatNumber(internalExtra || 0) + ' ' + config.internal_unit_display + '.');
+                return;
+            }
+
+            if (mode === 'internal_only') {
+                const internalValue = parseNumber(internalOnlyInput && internalOnlyInput.value);
+                if (internalValue == null) {
+                    setSummary(null, 'Informe a quantidade final na unidade interna do item.');
+                    return;
+                }
+                setSummary(internalValue, 'Modo 4: o ajuste será feito somente em ' + config.internal_unit_display + '.');
+            }
+        }
+
+        modeInputs.forEach((input) => input.addEventListener('change', computeTarget));
+        [directInput, packagesInput, packagesMixInput, internalExtraInput, internalOnlyInput].forEach((input) => {
+            if (!input) {
+                return;
+            }
+            input.addEventListener('input', computeTarget);
+        });
+
+        form.addEventListener('submit', function (event) {
+            computeTarget();
+            const codeChanged = codeInput && String(codeInput.value || '').trim() !== String(form.dataset.originalCode || '').trim();
+            if (hiddenTarget && !String(hiddenTarget.value || '').trim() && !codeChanged) {
+                event.preventDefault();
+                window.alert('Informe um saldo final em um dos 4 modos ou altere o código de barras antes de enviar.');
+            }
+        });
+
+        computeTarget();
     })();
 </script>
 {% endblock %}

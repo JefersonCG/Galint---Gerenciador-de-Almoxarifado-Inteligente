@@ -1746,6 +1746,252 @@ class InventoryService:
         except (TypeError, ValueError) as exc:
             raise ValueError("Informe um saldo válido") from exc
 
+    @staticmethod
+    def _admin_balance_unit_meta(unit_code: str | None) -> dict[str, Any]:
+        normalized = str(unit_code or "un").strip().lower() or "un"
+        mapping = {
+            "l": {
+                "code": "l",
+                "label": "Litro",
+                "display": "L",
+                "plural": "litros",
+                "step": "0.001",
+                "allow_decimal": True,
+            },
+            "kg": {
+                "code": "kg",
+                "label": "Quilo",
+                "display": "kg",
+                "plural": "kg",
+                "step": "0.001",
+                "allow_decimal": True,
+            },
+            "m": {
+                "code": "m",
+                "label": "Metro",
+                "display": "m",
+                "plural": "metros",
+                "step": "0.001",
+                "allow_decimal": True,
+            },
+            "par": {
+                "code": "par",
+                "label": "Par",
+                "display": "par",
+                "plural": "pares",
+                "step": "1",
+                "allow_decimal": False,
+            },
+            "un": {
+                "code": "un",
+                "label": "Unidade interna",
+                "display": "un",
+                "plural": "unidades internas",
+                "step": "1",
+                "allow_decimal": False,
+            },
+        }
+        return dict(mapping.get(normalized, mapping["un"]))
+
+    @classmethod
+    def _parse_admin_balance_component(
+        cls,
+        value: Any,
+        *,
+        label: str,
+        allow_blank: bool,
+        allow_decimal: bool,
+    ) -> float | None:
+        raw = str(value or "").strip().replace(",", ".")
+        if not raw:
+            if allow_blank:
+                return None
+            raise ValueError(f"Informe {label.lower()}")
+
+        try:
+            parsed = float(raw)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"Informe {label.lower()} válida") from exc
+
+        if math.isnan(parsed) or math.isinf(parsed):
+            raise ValueError(f"Informe {label.lower()} válida")
+        if parsed < 0:
+            raise ValueError(f"{label} não pode ser negativa")
+        if not allow_decimal and not cls._balance_close(parsed, round(parsed)):
+            raise ValueError(f"{label} deve ser inteira")
+        return float(round(parsed)) if not allow_decimal else float(parsed)
+
+    @classmethod
+    def _build_admin_balance_input_context(cls, *, item: Any, current_balance: float) -> dict[str, Any]:
+        canonical_unit_code = str(resolve_canonical_unit(item) or "un").strip().lower() or "un"
+        unit_meta = cls._admin_balance_unit_meta(canonical_unit_code)
+        packaging_type = str(getattr(item, "tipo_embalagem_novo", None) or "").strip().lower()
+        packaging_factor = Item.normalize_balance_value(resolve_packaging_factor(item) or 0.0)
+        supports_packaging = bool(packaging_type and packaging_factor > 0)
+
+        if hasattr(item, "get_nome_embalagem"):
+            package_name = str(item.get_nome_embalagem() or "embalagem")
+        else:
+            package_name = packaging_type or "embalagem"
+        if hasattr(item, "get_nome_embalagem_plural"):
+            package_plural = str(item.get_nome_embalagem_plural() or "embalagens")
+        else:
+            package_plural = f"{package_name}s" if package_name and not package_name.endswith("s") else (package_name or "embalagens")
+
+        normalized_balance = Item.normalize_balance_value(current_balance)
+        estimated_packages = 0
+        estimated_internal_remainder = normalized_balance
+        if supports_packaging and packaging_factor > 0 and normalized_balance >= 0:
+            estimated_packages = max(0, int(math.floor((normalized_balance + 1e-6) / packaging_factor)))
+            estimated_internal_remainder = Item.normalize_balance_value(normalized_balance - (estimated_packages * packaging_factor))
+            if not unit_meta.get("allow_decimal"):
+                estimated_internal_remainder = float(round(estimated_internal_remainder))
+
+        package_content_display = None
+        if supports_packaging:
+            package_content_display = f"{packaging_factor:g} {unit_meta['display']} por {package_name}"
+
+        default_mode = "packages_plus_internal" if supports_packaging else "direct"
+        return {
+            "supports_packaging": supports_packaging,
+            "package_type": packaging_type or None,
+            "package_name": package_name,
+            "package_plural": package_plural,
+            "package_factor": packaging_factor,
+            "package_content_display": package_content_display,
+            "internal_unit_code": unit_meta["code"],
+            "internal_unit_label": unit_meta["label"],
+            "internal_unit_display": unit_meta["display"],
+            "internal_unit_plural": unit_meta["plural"],
+            "internal_step": unit_meta["step"],
+            "internal_allow_decimal": bool(unit_meta["allow_decimal"]),
+            "estimated_packages": estimated_packages,
+            "estimated_internal_remainder": estimated_internal_remainder,
+            "current_balance": normalized_balance,
+            "default_mode": default_mode,
+        }
+
+    @classmethod
+    def build_admin_balance_input_fallback(cls, preview: dict[str, Any] | None) -> dict[str, Any]:
+        snapshot = dict(preview or {})
+        raw_unit = str(snapshot.get("unidade") or "").strip().lower()
+        if raw_unit in {"kg", "quilo", "quilos"}:
+            unit_code = "kg"
+        elif raw_unit in {"l", "lt", "litro", "litros"}:
+            unit_code = "l"
+        elif raw_unit in {"m", "metro", "metros"}:
+            unit_code = "m"
+        elif raw_unit in {"par", "pares"}:
+            unit_code = "par"
+        else:
+            unit_code = "un"
+
+        unit_meta = cls._admin_balance_unit_meta(unit_code)
+        current_balance = cls._parse_optional_admin_target_balance(snapshot.get("saldo_exibido"))
+        normalized_balance = Item.normalize_balance_value(current_balance or 0.0)
+
+        return {
+            "supports_packaging": False,
+            "package_type": None,
+            "package_name": "embalagem",
+            "package_plural": "embalagens",
+            "package_factor": 0.0,
+            "package_content_display": None,
+            "internal_unit_code": unit_meta["code"],
+            "internal_unit_label": unit_meta["label"],
+            "internal_unit_display": unit_meta["display"],
+            "internal_unit_plural": unit_meta["plural"],
+            "internal_step": unit_meta["step"],
+            "internal_allow_decimal": bool(unit_meta["allow_decimal"]),
+            "estimated_packages": 0,
+            "estimated_internal_remainder": normalized_balance,
+            "current_balance": normalized_balance,
+            "default_mode": "direct",
+        }
+
+    @classmethod
+    def _resolve_admin_target_balance_from_inputs(
+        cls,
+        *,
+        item: Any,
+        raw_target_balance: Any,
+        adjustment_payload: dict[str, Any] | None = None,
+    ) -> tuple[float | None, dict[str, Any]]:
+        payload = dict(adjustment_payload or {})
+        mode = str(payload.get("admin_balance_mode") or "").strip().lower()
+        if not mode:
+            parsed = cls._parse_optional_admin_target_balance(raw_target_balance)
+            return parsed, {}
+
+        context = cls._build_admin_balance_input_context(item=item, current_balance=0.0)
+        supports_packaging = bool(context.get("supports_packaging"))
+        packaging_factor = float(context.get("package_factor") or 0.0)
+        allow_decimal = bool(context.get("internal_allow_decimal"))
+        result_context: dict[str, Any] = {"admin_balance_mode": mode}
+
+        if mode == "direct":
+            direct_value = payload.get("admin_balance_direct_value")
+            parsed = cls._parse_optional_admin_target_balance(direct_value if str(direct_value or "").strip() else raw_target_balance)
+            return parsed, result_context
+
+        if mode == "packages":
+            if not supports_packaging:
+                raise ValueError("Este item não possui embalagem configurada para ajuste por quantidade de embalagens")
+            packages = cls._parse_admin_balance_component(
+                payload.get("admin_balance_packaging_quantity"),
+                label="Quantidade de embalagens",
+                allow_blank=False,
+                allow_decimal=False,
+            )
+            target = float(packages or 0.0) * packaging_factor
+            result_context.update({
+                "package_quantity": packages,
+                "package_factor": packaging_factor,
+                "target_balance": target,
+            })
+            return target, result_context
+
+        if mode == "packages_plus_internal":
+            if not supports_packaging:
+                raise ValueError("Este item não possui embalagem configurada para ajuste por embalagens e saldo interno")
+            packages = cls._parse_admin_balance_component(
+                payload.get("admin_balance_packaging_quantity"),
+                label="Quantidade de embalagens",
+                allow_blank=True,
+                allow_decimal=False,
+            )
+            internal = cls._parse_admin_balance_component(
+                payload.get("admin_balance_internal_extra"),
+                label=f"Quantidade em {context['internal_unit_label']}",
+                allow_blank=True,
+                allow_decimal=allow_decimal,
+            )
+            if packages is None and internal is None:
+                raise ValueError("Informe a quantidade de embalagens, a sobra interna ou ambos")
+            target = (float(packages or 0.0) * packaging_factor) + float(internal or 0.0)
+            result_context.update({
+                "package_quantity": packages,
+                "internal_extra": internal,
+                "package_factor": packaging_factor,
+                "target_balance": target,
+            })
+            return target, result_context
+
+        if mode == "internal_only":
+            internal = cls._parse_admin_balance_component(
+                payload.get("admin_balance_internal_only_value"),
+                label=f"Quantidade em {context['internal_unit_label']}",
+                allow_blank=False,
+                allow_decimal=allow_decimal,
+            )
+            result_context.update({
+                "internal_value": internal,
+                "target_balance": internal,
+            })
+            return internal, result_context
+
+        raise ValueError("Modo de ajuste administrativo inválido")
+
     def _get_item_code_reference_columns(self) -> list[tuple[str, str]]:
         inspector = inspect(db.engine)
         reference_columns: list[tuple[str, str]] = []
@@ -1995,6 +2241,7 @@ class InventoryService:
         codigo_atual: str,
         novo_codigo: str | None,
         novo_saldo: Any,
+        adjustment_payload: dict[str, Any] | None = None,
         matricula: str,
         motivo: str,
         audit_context: dict[str, Any] | None = None,
@@ -2005,8 +2252,17 @@ class InventoryService:
 
         motivo_norm = str(motivo or "").strip()
         novo_codigo_norm = _sanitize_codigo(novo_codigo) or codigo_atual_norm
-        target_balance = self._parse_optional_admin_target_balance(novo_saldo)
         audit_context_norm = dict(audit_context or {})
+        current_item = Item.query.get(codigo_atual_norm)
+        if not current_item:
+            raise ValueError("Item não encontrado")
+
+        target_balance, target_context = self._resolve_admin_target_balance_from_inputs(
+            item=current_item,
+            raw_target_balance=novo_saldo,
+            adjustment_payload=adjustment_payload,
+        )
+        audit_context_norm.update(target_context)
 
         code_audit_context = dict(audit_context_norm)
         code_audit_context["codigo_item_anterior"] = codigo_atual_norm
@@ -2087,6 +2343,7 @@ class InventoryService:
         stock_balance = Item.normalize_balance_value(reconciliation.stock_balance)
         divergence_legacy_vs_ledger = Item.normalize_balance_value(reconciliation.divergence_legacy_vs_ledger)
         divergence_ledger_vs_cache = Item.normalize_balance_value(reconciliation.divergence_ledger_vs_cache)
+        admin_balance_input = self._build_admin_balance_input_context(item=item, current_balance=saldo_exibido)
 
         return {
             "codigo": item.codigo_item,
@@ -2117,6 +2374,7 @@ class InventoryService:
             "daily_adjustments_remaining": daily_usage["remaining"],
             "daily_limit_exhausted": daily_usage["exhausted"],
             "daily_reference_date": daily_usage["local_date"],
+            "admin_balance_input": admin_balance_input,
         }
 
     def list_recent_admin_balance_adjustments(self, limit: int = 12) -> list[dict[str, Any]]:

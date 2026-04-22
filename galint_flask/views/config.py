@@ -430,6 +430,7 @@ def estoque_ajuste_admin():
 
     selected_code = (request.values.get("codigo") or "").strip()
     preview = None
+    adjustment_form = request.form.to_dict() if request.method == "POST" else {}
 
     if request.method == "POST":
         motivo = (request.form.get("motivo") or "").strip()
@@ -444,6 +445,7 @@ def estoque_ajuste_admin():
                 codigo_atual=selected_code,
                 novo_codigo=request.form.get("novo_codigo"),
                 novo_saldo=request.form.get("novo_saldo"),
+                adjustment_payload=adjustment_form,
                 matricula=user_id,
                 motivo=motivo,
                 audit_context=audit_context,
@@ -458,6 +460,8 @@ def estoque_ajuste_admin():
     if selected_code:
         try:
             preview = inventory_service.get_admin_balance_snapshot(selected_code)
+            if preview is not None and not preview.get("admin_balance_input"):
+                preview["admin_balance_input"] = inventory_service.build_admin_balance_input_fallback(preview)
         except ValueError as exc:
             if request.method == "GET":
                 flash(str(exc), "danger")
@@ -466,5 +470,6 @@ def estoque_ajuste_admin():
         "config/estoque_admin.html",
         preview=preview,
         preview_code=selected_code,
+        adjustment_form=adjustment_form,
         recent_adjustments=inventory_service.list_recent_admin_balance_adjustments(limit=12),
     )

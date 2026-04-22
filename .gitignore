@@ -14,6 +14,7 @@ build/
 .venv/
 .venv_broken/
 .venv_build/
+.venv_portable/
 venv/
 ENV/
 env/
@@ -63,6 +64,7 @@ tmp/
 # Environment variables
 .env
 .env.local
+.env.portable
 .env.*.local
 
 # Certificates
@@ -104,3 +106,4 @@ galint-mobile/build_inspect/
 # Runtime / uploads (gerados pela aplicação)
 .galint_server.lock
 galint_flask/static/uploads/
+portable_runtime/
