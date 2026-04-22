@@ -1037,6 +1037,17 @@ ${parent.scripts()}
             .trim();
     }
 
+    function inferLinearMeasureFromItem(item) {
+        const fracaoPadrao = String(item?.fracao_unidade_padrao || '').trim().toLowerCase();
+        const unidadeItem = String(item?.unidade || '').trim().toLowerCase();
+        const unidadeExibicao = String(item?.unidade_exibicao_total || '').trim().toLowerCase();
+
+        if (/(^|\b)(metro|metros|m|cm)(\b|$)/.test(fracaoPadrao)) return true;
+        if (/(^|\b)(metro|metros|m|cm)(\b|$)/.test(unidadeExibicao)) return true;
+        if (/(^|\b)(metro|metros|m|cm)(\b|$)/.test(unidadeItem)) return true;
+        return false;
+    }
+
     function inferPackagingType(item) {
         const directCandidates = [item?.tipo_embalagem, item?.tipo_embalagem_novo, item?.nome_embalagem];
         for (const candidate of directCandidates) {
@@ -1056,7 +1067,7 @@ ${parent.scripts()}
             }
         }
 
-        if (fallbackText.includes('fita') && normalizarUnidadeMedida(item) === 'metro') {
+        if (fallbackText.includes('fita') && inferLinearMeasureFromItem(item)) {
             return 'rolo';
         }
 
