@@ -647,15 +647,21 @@ class BackupService:
         )
         readme_content = self._build_complete_backup_readme(manifest)
 
-        with zipfile.ZipFile(package_path, mode="w", compression=zipfile.ZIP_DEFLATED) as archive:
-            archive.write(sql_path, arcname=f"database/{sql_name}")
-            archive.writestr("manifest.json", json.dumps(manifest, ensure_ascii=False, indent=2))
-            archive.writestr("README_backup_completo.txt", readme_content)
-            for entry in asset_entries:
-                source = Path(entry["source_path"])
-                if not source.exists() or not source.is_file():
-                    continue
-                archive.write(source, arcname=str(entry["archive_path"]))
+        try:
+            with zipfile.ZipFile(package_path, mode="w", compression=zipfile.ZIP_DEFLATED) as archive:
+                archive.write(sql_path, arcname=f"database/{sql_name}")
+                archive.writestr("manifest.json", json.dumps(manifest, ensure_ascii=False, indent=2))
+                archive.writestr("README_backup_completo.txt", readme_content)
+                for entry in asset_entries:
+                    source = Path(entry["source_path"])
+                    if not source.exists() or not source.is_file():
+                        continue
+                    archive.write(source, arcname=str(entry["archive_path"]))
+        except Exception as exc:
+            package_path.unlink(missing_ok=True)
+            raise ValueError(f"Erro ao gerar pacote completo: {exc}") from exc
+        finally:
+            sql_path.unlink(missing_ok=True)
 
         return package_name
 

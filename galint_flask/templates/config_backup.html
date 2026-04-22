@@ -142,9 +142,10 @@
             <h5 class="card-title">Gerar backup</h5>
             <p class="card-text text-muted">Use o backup SQL para recuperacao do banco e o pacote completo para enviar ao ConversionEngine com dump, manifesto e artefatos de disco relevantes.</p>
             <div class="backup-soft mb-3">
-                <div class="small text-muted">O pacote completo gera um arquivo .zip com o dump SQL dentro e um manifest.json para validacao em staging pelo ConversionEngine.</div>
+                <div class="small text-muted">O pacote completo gera um arquivo .zip com o dump SQL dentro e um manifest.json para validacao em staging pelo ConversionEngine. O .sql interno e transitorio e nao deve aparecer como artefato final separado.</div>
             </div>
             <form method="post" action="{{ url_for('pages.create_backup') }}" id="backupCreateForm">
+                <input type="hidden" name="selected_backup_kind" id="backupCreateKind" value="">
                 <div class="backup-actions">
                     <button class="btn btn-primary rounded-pill px-4" type="submit" name="backup_kind" value="database">Gerar backup SQL</button>
                     <button class="btn btn-outline-success rounded-pill px-4" type="submit" name="backup_kind" value="complete" data-backup-progress="complete">Gerar pacote completo</button>
@@ -286,6 +287,7 @@
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const createForm = document.getElementById('backupCreateForm');
+    const createKindField = document.getElementById('backupCreateKind');
     const progressOverlay = document.getElementById('completeBackupProgress');
     const progressFill = document.getElementById('completeBackupProgressFill');
     const progressPercent = document.getElementById('completeBackupProgressPercent');
@@ -315,6 +317,14 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     ];
     const progressThresholds = [12, 34, 62, 84];
+
+    function syncCreateKind(submitter) {
+        if (!createKindField) return '';
+
+        const nextKind = submitter ? String(submitter.value || submitter.dataset.backupKind || '').trim().toLowerCase() : '';
+        createKindField.value = nextKind;
+        return nextKind;
+    }
 
     function renderProgress(rawValue) {
         if (!progressFill || !progressPercent || !progressLabel || !progressTelemetry || !progressSteps.length) return;
@@ -369,10 +379,18 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     if (createForm) {
+        const createButtons = Array.from(createForm.querySelectorAll('button[type="submit"]'));
+        createButtons.forEach((button) => {
+            button.addEventListener('click', function () {
+                syncCreateKind(button);
+            });
+        });
+
         createForm.addEventListener('submit', function (event) {
             const submitter = event.submitter;
+            const selectedKind = syncCreateKind(submitter);
 
-            if (!submitter || submitter.value !== 'complete') {
+            if (!submitter || selectedKind !== 'complete') {
                 return;
             }
 

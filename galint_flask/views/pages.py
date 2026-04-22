@@ -240,7 +240,11 @@ def config_conversionengine():
 def create_backup():
     _require_admin()
     service = BackupService(current_app)
-    backup_kind = (request.form.get("backup_kind") or BackupService.DATABASE_BACKUP_KIND).strip().lower()
+    backup_kind = (
+        request.form.get("selected_backup_kind")
+        or request.form.get("backup_kind")
+        or BackupService.DATABASE_BACKUP_KIND
+    ).strip().lower()
     try:
         backup_name = service.create_backup(backup_kind=backup_kind)
         flash(f"Backup criado: {backup_name}", "success")
