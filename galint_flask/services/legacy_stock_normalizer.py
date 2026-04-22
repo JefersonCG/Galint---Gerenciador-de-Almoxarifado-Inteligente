@@ -228,7 +228,8 @@ def infer_packaging_measure(item: Item) -> tuple[float, str] | None:
         normalized = _normalize_simple_unit(_read_field(base_unit, "unit_code", None))
         if normalized:
             factor = _as_positive_float(getattr(item, "unidades_por_embalagem", None))
-            return ((factor or 1.0), normalized)
+            if factor > 0:
+                return factor, normalized
 
     parsed_measure = _extract_measure_from_text(lookup_text)
     if parsed_measure is not None:

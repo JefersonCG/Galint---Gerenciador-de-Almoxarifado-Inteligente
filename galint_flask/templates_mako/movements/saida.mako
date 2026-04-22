@@ -1487,14 +1487,16 @@ ${parent.scripts()}
                 if (qtdEmbalagens > 0) {
                     if (unidadesSoltas > 0.000001) {
                         const soltaTxt = (unidadeSolta === 'un') ? Math.round(unidadesSoltas) : unidadesSoltas.toFixed(2);
-                        return qtdEmbalagens + ' ' + tipoEmbalagem + plural + ' + ' + soltaTxt + ' ' + unidadeSolta;
+                        const looseSuffix = Math.abs(unidadesSoltas - 1) <= 0.000001 ? 'solto' : 'soltos';
+                        return qtdEmbalagens + ' ' + tipoEmbalagem + plural + ' + ' + soltaTxt + ' ' + unidadeSolta + ' ' + looseSuffix;
                     }
                     return qtdEmbalagens + ' ' + tipoEmbalagem + plural;
                 }
 
                 // Sem embalagens completas: mostra o total na unidade interna.
                 const totalTxt = (unidadeSolta === 'un') ? Math.round(saldo) : saldo.toFixed(2);
-                return totalTxt + ' ' + unidadeSolta;
+                const looseSuffix = Math.abs(saldo - 1) <= 0.000001 ? 'solto' : 'soltos';
+                return totalTxt + ' ' + unidadeSolta + ' ' + looseSuffix;
             }
             
             // Fallback: mostra saldo com unidade genérica

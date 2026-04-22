@@ -962,12 +962,14 @@ ${parent.scripts()}
             return 'Sem saldo restante';
         }
         if (embalagensInteiras > 0 && sobra > 0.000001) {
-            return formatDecimal(embalagensInteiras) + ' ' + pluralizePackage(embalagensInteiras, singular, plural) + ' + ' + formatDecimal(sobra) + ' ' + unidade;
+            const looseSuffix = Math.abs(sobra - 1) < 0.000001 ? 'solto' : 'soltos';
+            return formatDecimal(embalagensInteiras) + ' ' + pluralizePackage(embalagensInteiras, singular, plural) + ' + ' + formatDecimal(sobra) + ' ' + unidade + ' ' + looseSuffix;
         }
         if (embalagensInteiras > 0) {
             return formatDecimal(embalagensInteiras) + ' ' + pluralizePackage(embalagensInteiras, singular, plural);
         }
-        return formatDecimal(sobra) + ' ' + unidade;
+        const looseSuffix = Math.abs(sobra - 1) < 0.000001 ? 'solto' : 'soltos';
+        return formatDecimal(sobra) + ' ' + unidade + ' ' + looseSuffix;
     }
 
     function atualizarResumoRetirada() {
@@ -1186,13 +1188,15 @@ ${parent.scripts()}
                 if (qtdEmbalagens > 0) {
                     if (unidadesSoltas > 0.000001) {
                         const soltaTxt = (unidadeSolta === 'un') ? Math.round(unidadesSoltas) : unidadesSoltas.toFixed(2);
-                        return qtdEmbalagens + ' ' + tipoEmbalagem + plural + ' + ' + soltaTxt + ' ' + unidadeSolta;
+                        const looseSuffix = Math.abs(unidadesSoltas - 1) <= 0.000001 ? 'solto' : 'soltos';
+                        return qtdEmbalagens + ' ' + tipoEmbalagem + plural + ' + ' + soltaTxt + ' ' + unidadeSolta + ' ' + looseSuffix;
                     }
                     return qtdEmbalagens + ' ' + tipoEmbalagem + plural;
                 }
 
                 const totalTxt = (unidadeSolta === 'un') ? Math.round(saldo) : saldo.toFixed(2);
-                return totalTxt + ' ' + unidadeSolta;
+                const looseSuffix = Math.abs(saldo - 1) <= 0.000001 ? 'solto' : 'soltos';
+                return totalTxt + ' ' + unidadeSolta + ' ' + looseSuffix;
             }
             
             // Fallback: mostra saldo com unidade genérica

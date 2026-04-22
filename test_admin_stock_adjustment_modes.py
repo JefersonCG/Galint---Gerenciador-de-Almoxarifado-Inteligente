@@ -6,6 +6,9 @@ os.environ.setdefault("FLASK_ENV", "development")
 os.environ.setdefault("GALINT_TELEGRAM_POLLING", "false")
 os.environ.setdefault("GALINT_DISABLE_BACKGROUND_SERVICES", "true")
 
+from flask import render_template
+
+from app import create_app
 from galint_flask.services.inventory import InventoryService
 
 
@@ -147,3 +150,52 @@ def test_admin_adjustment_fallback_context_for_legacy_preview() -> None:
     assert fallback["default_mode"] == "direct"
     assert fallback["internal_unit_code"] == "kg"
     assert fallback["current_balance"] == 23.0
+
+
+def test_admin_adjustment_template_keeps_form_enabled_after_daily_limit() -> None:
+    preview = {
+        "codigo": "7896155116405",
+        "descricao": "TEXTURA ACRILICA LISA 23KG",
+        "categoria": "Mat. Pintura e Drywall",
+        "marca": "Teste",
+        "unidade": "Quilo",
+        "classification_badge": "success",
+        "classification_label": "Alinhado",
+        "pre_cadastro_pendente": False,
+        "daily_limit_exhausted": True,
+        "daily_adjustments_remaining": 0,
+        "daily_adjustments_used": 4,
+        "daily_limit": 4,
+        "daily_reference_date": None,
+        "classification": "divergencia_zero",
+        "saldo_exibido": 23.0,
+        "saldo_display": "23.0 kg",
+        "source": "stock_balance",
+        "migrated": True,
+        "legacy_balance": 23.0,
+        "ledger_balance": 23.0,
+        "stock_balance": 23.0,
+        "divergence_legacy_vs_ledger": 0.0,
+        "divergence_ledger_vs_cache": 0.0,
+        "explicacao_saldo": "teste",
+        "admin_balance_input": InventoryService.build_admin_balance_input_fallback({
+            "unidade": "Quilo",
+            "saldo_exibido": 23.0,
+        }),
+    }
+
+    app = create_app()
+    with app.app_context():
+        with app.test_request_context("/configuracoes/estoque/ajuste-admin?codigo=7896155116405"):
+            html = render_template(
+                "config/estoque_admin.html",
+                preview=preview,
+                preview_code=preview["codigo"],
+                adjustment_form={},
+                recent_adjustments=[],
+            )
+
+    assert "Limite diário esgotado" not in html
+    assert "Essa contagem agora é apenas informativa" in html
+    assert 'name="admin_balance_mode" value="direct" checked' in html
+    assert 'name="admin_balance_mode" value="direct" checked disabled' not in html

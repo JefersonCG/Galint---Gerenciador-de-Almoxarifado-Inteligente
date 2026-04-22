@@ -171,7 +171,98 @@ def _json_no_store(payload: dict[str, object]):
     return response
 
 
-def _load_linked_document_context(item_data: dict | None) -> dict[str, object]:
+def _format_projection_number(value: object) -> str:
+    try:
+        parsed = float(value or 0.0)
+    except (TypeError, ValueError):
+        parsed = 0.0
+    normalized = Item.normalize_balance_value(parsed)
+    if abs(normalized - round(normalized)) <= 1e-6:
+        return str(int(round(normalized)))
+    return f"{normalized:.6f}".rstrip("0").rstrip(".")
+
+
+def _format_projection_total_display(value: object, unit_label: str | None) -> str:
+    number = _format_projection_number(value)
+    unit = str(unit_label or "").strip()
+    if unit:
+        return f"{number} {unit}"
+    return number
+
+
+def _resolve_projection_packaging_factor(item_data: dict | None) -> float:
+    if not item_data:
+        return 0.0
+    for key in ("grandeza_referencia", "litros_por_embalagem", "unidades_por_embalagem"):
+        try:
+            parsed = float(item_data.get(key) or 0.0)
+        except (TypeError, ValueError):
+            continue
+        if parsed > 0:
+            return parsed
+    return 0.0
+
+
+def _resolve_packaging_labels(item_data: dict | None, item_model: Item | None) -> tuple[str, str]:
+    if item_model is not None:
+        return item_model.get_nome_embalagem(), item_model.get_nome_embalagem_plural()
+
+    raw_type = str((item_data or {}).get("tipo_embalagem_novo") or "").strip().lower()
+    labels = {
+        "lata": ("lata", "latas"),
+        "rolo": ("rolo", "rolos"),
+        "pacote": ("pacote", "pacotes"),
+        "caixa": ("caixa", "caixas"),
+        "fardo": ("fardo", "fardos"),
+        "litro": ("litro", "litros"),
+        "balde": ("balde", "baldes"),
+        "bombona": ("bombona", "bombonas"),
+        "saco": ("saco", "sacos"),
+    }
+    return labels.get(raw_type, ("embalagem", "embalagens"))
+
+
+def _format_projected_operational_balance(
+    item_data: dict | None,
+    total_base_value: object,
+    *,
+    item_model: Item | None = None,
+) -> str:
+    unit_label = (
+        (item_model.get_unidade_interna_display() if item_model is not None else None)
+        or ((item_data or {}).get("unidade_interna_display") if item_data else None)
+        or ((item_data or {}).get("unidade") if item_data else None)
+        or "un"
+    )
+    total = Item.normalize_balance_value(total_base_value)
+    if not _uses_packaging_system(item_data):
+        return _format_projection_total_display(total, unit_label)
+
+    factor = _resolve_projection_packaging_factor(item_data)
+    if factor <= 0:
+        return _format_projection_total_display(total, unit_label)
+
+    closed_packages = int((total + 1e-9) // factor)
+    loose_quantity = Item.normalize_balance_value(total - (closed_packages * factor))
+    singular_label, plural_label = _resolve_packaging_labels(item_data, item_model)
+
+    if closed_packages <= 0:
+        if total <= 0:
+            return f"0 {plural_label}"
+        return _format_projection_total_display(loose_quantity, unit_label)
+
+    package_label = singular_label if closed_packages == 1 else plural_label
+    package_display = f"{_format_projection_number(closed_packages)} {package_label}"
+    if loose_quantity > 0:
+        return f"{package_display} + {_format_projection_total_display(loose_quantity, unit_label)}"
+    return package_display
+
+
+def _load_linked_document_context(
+    item_data: dict | None,
+    *,
+    saldo_total_ean: float | None = None,
+) -> dict[str, object]:
     if not item_data:
         return {}
 
@@ -186,6 +277,53 @@ def _load_linked_document_context(item_data: dict | None) -> dict[str, object]:
         return {}
 
     documento = document_item.documento
+    item_model = document_item.item
+    display_metadata = _build_document_item_display_metadata(document_item)
+    current_item_total = Item.normalize_balance_value(item_data.get("saldo"))
+
+    try:
+        incoming_base_total = float(display_metadata.get("quantidade_base_efetiva") or 0.0)
+    except (TypeError, ValueError):
+        incoming_base_total = 0.0
+    if incoming_base_total <= 0:
+        try:
+            incoming_base_total = float(document_item.quantidade or 0.0)
+        except (TypeError, ValueError):
+            incoming_base_total = 0.0
+    incoming_base_total = Item.normalize_balance_value(incoming_base_total)
+
+    current_total_ean = Item.normalize_balance_value(
+        saldo_total_ean if saldo_total_ean is not None else current_item_total
+    )
+    projected_item_total = Item.normalize_balance_value(current_item_total + incoming_base_total)
+    projected_total_ean = Item.normalize_balance_value(current_total_ean + incoming_base_total)
+
+    base_unit_label = (
+        (item_model.get_unidade_interna_display() if item_model is not None else None)
+        or item_data.get("unidade_interna_display")
+        or item_data.get("unidade")
+        or "un"
+    )
+    document_type_label = _format_pre_registered_document_type(documento.tipo_documento)
+    document_number = str(documento.numero_documento or "").strip()
+    document_reference = (
+        f"{document_type_label} {document_number}".strip()
+        if document_type_label or document_number
+        else "documento fiscal"
+    )
+
+    incoming_document_display = (
+        display_metadata.get("quantidade_documento_display")
+        or _format_projection_total_display(document_item.quantidade or 0.0, item_data.get("unidade") or base_unit_label)
+    )
+    incoming_base_display = (
+        display_metadata.get("quantidade_base_display")
+        or _format_projection_total_display(incoming_base_total, base_unit_label)
+    )
+    conversion_display = display_metadata.get("conversao_display")
+    if not conversion_display and incoming_document_display != incoming_base_display:
+        conversion_display = f"{incoming_document_display} = {incoming_base_display}"
+
     return {
         "nota_fiscal": documento.numero_documento,
         "preco_compra_documento": documento.numero_documento,
@@ -193,6 +331,28 @@ def _load_linked_document_context(item_data: dict | None) -> dict[str, object]:
         "preco_compra_data_emissao": documento.data_emissao.isoformat() if documento.data_emissao else None,
         "preco_compra_data_recebimento": documento.data_recebimento.isoformat() if documento.data_recebimento else None,
         "finance_tipo_documento": documento.tipo_documento,
+        "stock_projection": {
+            "document_type_label": document_type_label,
+            "document_number": document_number,
+            "document_reference": document_reference,
+            "current_operational_display": _format_projected_operational_balance(
+                item_data,
+                current_item_total,
+                item_model=item_model,
+            ),
+            "current_base_display": _format_projection_total_display(current_item_total, base_unit_label),
+            "incoming_document_display": incoming_document_display,
+            "incoming_base_display": incoming_base_display,
+            "incoming_conversion_display": conversion_display,
+            "projected_operational_display": _format_projected_operational_balance(
+                item_data,
+                projected_item_total,
+                item_model=item_model,
+            ),
+            "projected_item_base_display": _format_projection_total_display(projected_item_total, base_unit_label),
+            "current_total_ean_display": _format_projection_total_display(current_total_ean, base_unit_label),
+            "projected_total_ean_display": _format_projection_total_display(projected_total_ean, base_unit_label),
+        },
     }
 
 
@@ -1704,11 +1864,13 @@ def edit_item_form(codigo: str):
         return_to = ""
     pre_registered_document_number = str(request.args.get("pre_registered_document_number") or "").strip()
 
-    if bool(item.get("pre_cadastro_pendente")):
-        item = {**item, **_load_linked_document_context(item)}
-    
     # Calcular saldo total de todos os lotes com o mesmo EAN
     saldo_total = Item.get_saldo_total_by_codigo(codigo)
+    stock_projection = None
+    if bool(item.get("pre_cadastro_pendente")):
+        linked_document_context = _load_linked_document_context(item, saldo_total_ean=saldo_total)
+        item = {**item, **linked_document_context}
+        stock_projection = linked_document_context.get("stock_projection")
 
     saldo_display = item.get("saldo", 0)
     if _uses_packaging_system(item):
@@ -1730,6 +1892,7 @@ def edit_item_form(codigo: str):
         finance_section_can_edit=_can_edit_finance_section(codigo),
         return_to=return_to,
         pre_registered_document_number=pre_registered_document_number,
+        stock_projection=stock_projection,
     )
 
 

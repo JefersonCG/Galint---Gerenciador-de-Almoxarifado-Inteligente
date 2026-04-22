@@ -1045,6 +1045,10 @@ def item_info(codigo: str):
         "unidade_exibicao_total": return_unit_options[0].get("unit_display") or return_quantity_config.get("unit_display") or (item.get("unidade") or "un"),
         "foto_path": foto_path,
         "foto_url": url_for("static", filename=foto_path) if foto_path else None,
+        "preco_reposicao_fonte": item.get("preco_reposicao_fonte"),
+        "preco_reposicao_uf": item.get("preco_reposicao_uf"),
+        "preco_reposicao_query": item.get("preco_reposicao_query"),
+        "preco_reposicao_url": item.get("preco_reposicao_url"),
     }
     if liquid_type:
         response.update(

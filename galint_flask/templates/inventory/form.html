@@ -3,6 +3,7 @@
 {% block body_attributes %}data-script-root="{{ request.script_root }}"{% endblock %}
 {% set form_item = item if item else form_data %}
 {% set saldo_total_ean = saldo_total_ean if saldo_total_ean is defined else None %}
+{% set stock_projection = stock_projection if stock_projection is defined else None %}
 {% set unidade_total_ean = form_item.unidade_interna_display if form_item and form_item.unidade_interna_display else (form_item.unidade if form_item and form_item.unidade else 'un') %}
 {% set category_visual_catalog = category_visual_catalog|default([]) %}
 {% block title %}{% if item %}Editar{% else %}Novo{% endif %} Item{% endblock %}
@@ -1222,6 +1223,55 @@
     .inventory-ops-inline-grid .form-group,
     .packaging-studio-panel .form-group {
         margin-bottom: 0;
+    }
+
+    .inventory-ops-projection-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 0.75rem;
+    }
+
+    .inventory-ops-projection-tile {
+        padding: 0.88rem 0.95rem;
+        border-radius: 18px;
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        background: rgba(15, 23, 42, 0.48);
+        display: grid;
+        gap: 0.28rem;
+    }
+
+    .inventory-ops-projection-tile.is-accent {
+        border-color: rgba(16, 185, 129, 0.34);
+        background: linear-gradient(135deg, rgba(5, 46, 22, 0.48), rgba(15, 23, 42, 0.66));
+    }
+
+    .inventory-ops-projection-kicker {
+        font-size: 0.68rem;
+        font-weight: 800;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: #7dd3fc;
+    }
+
+    .inventory-ops-projection-label {
+        color: #cbd5e1;
+        font-size: 0.78rem;
+        line-height: 1.45;
+    }
+
+    .inventory-ops-projection-value {
+        color: #f8fafc;
+        font-size: 1.02rem;
+        font-weight: 800;
+        line-height: 1.35;
+        overflow-wrap: anywhere;
+    }
+
+    .inventory-ops-projection-meta {
+        color: #dbeafe;
+        font-size: 0.78rem;
+        line-height: 1.45;
+        overflow-wrap: anywhere;
     }
 
     .inventory-ops-caption {
@@ -2909,6 +2959,33 @@
                                 <span class="inventory-ops-badge">{{ nome_embalagem|capitalize }}</span>
                                 {% endif %}
                             </div>
+                            {% if stock_projection %}
+                            <div class="inventory-ops-projection-grid">
+                                <article class="inventory-ops-projection-tile">
+                                    <div class="inventory-ops-projection-kicker">Agora</div>
+                                    <div class="inventory-ops-projection-label">Saldo atual em estoque</div>
+                                    <div class="inventory-ops-projection-value">{{ stock_projection.current_operational_display }}</div>
+                                    <div class="inventory-ops-projection-meta">Total interno atual: {{ stock_projection.current_base_display }}</div>
+                                </article>
+                                <article class="inventory-ops-projection-tile">
+                                    <div class="inventory-ops-projection-kicker">{{ stock_projection.document_type_label or 'Documento' }}</div>
+                                    <div class="inventory-ops-projection-label">Entrada documental prevista em {{ stock_projection.document_reference }}</div>
+                                    <div class="inventory-ops-projection-value">{{ stock_projection.incoming_document_display }}</div>
+                                    <div class="inventory-ops-projection-meta">
+                                        Convertido para o estoque: {{ stock_projection.incoming_base_display }}
+                                        {% if stock_projection.incoming_conversion_display %}
+                                        <br>{{ stock_projection.incoming_conversion_display }}
+                                        {% endif %}
+                                    </div>
+                                </article>
+                                <article class="inventory-ops-projection-tile is-accent">
+                                    <div class="inventory-ops-projection-kicker">Depois do lançamento</div>
+                                    <div class="inventory-ops-projection-label">Saldo projetado do item</div>
+                                    <div class="inventory-ops-projection-value">{{ stock_projection.projected_operational_display }}</div>
+                                    <div class="inventory-ops-projection-meta">Total interno projetado: {{ stock_projection.projected_item_base_display }}</div>
+                                </article>
+                            </div>
+                            {% else %}
                             <div class="inventory-ops-inline-grid">
                                 <div class="form-group">
                                     <label class="form-label" for="saldo_atual">
@@ -2926,8 +3003,13 @@
                                 </div>
                                 {% endif %}
                             </div>
+                            {% endif %}
                             <div class="inventory-ops-caption">
+                                {% if stock_projection %}
+                                O saldo acima separa o que já existe hoje, a entrada do documento <strong>{{ stock_projection.document_reference }}</strong> e quanto o item passará a ter após o lançamento. A edição manual continua bloqueada e a incorporação do estoque segue pela página <strong>Documentos Fiscais</strong>.
+                                {% else %}
                                 Saldo bloqueado para edição manual. As entradas devem ser registradas em <strong>Documentos Fiscais</strong>{% if tem_embalagem %}, onde a compra entra em <strong>{{ nome_embalagem }}</strong> e a conversão para a unidade interna é aplicada automaticamente{% endif %}.
+                                {% endif %}
                             </div>
                         </section>
 
@@ -2975,15 +3057,27 @@
                     <div class="inventory-ops-flow">
                         <div class="inventory-ops-step">
                             <strong>Compra documental</strong>
+                            {% if stock_projection %}
+                            {{ stock_projection.incoming_document_display }} chegam por {{ stock_projection.document_reference }} e entram primeiro na leitura documental do item.
+                            {% else %}
                             A quantidade do documento entra em {{ nome_embalagem }} e não altera manualmente este formulário.
+                            {% endif %}
                         </div>
                         <div class="inventory-ops-step">
                             <strong>Conversão automática</strong>
+                            {% if stock_projection and stock_projection.incoming_conversion_display %}
+                            {{ stock_projection.incoming_conversion_display }}.
+                            {% else %}
                             Cada {{ nome_embalagem }} equivale a <strong>{{ conteudo_embalagem }}</strong> {{ unidade_total_ean }}.
+                            {% endif %}
                         </div>
                         <div class="inventory-ops-step">
-                            <strong>Leitura do saldo</strong>
+                            <strong>{% if stock_projection %}Saldo projetado{% else %}Leitura do saldo{% endif %}</strong>
+                            {% if stock_projection %}
+                            Após a entrada, o item ficará em <strong>{{ stock_projection.projected_operational_display }}</strong> e o código completo irá para <strong>{{ stock_projection.projected_total_ean_display }}</strong>.
+                            {% else %}
                             O sistema separa o estoque fechado da parte aberta exibida como <strong>{{ label_solta|lower }}</strong>.
+                            {% endif %}
                         </div>
                     </div>
                     {% endif %}
@@ -2992,15 +3086,21 @@
                         <strong>Reposição mínima.</strong> O estoque mínimo continua automático em 5% do saldo atual e segue alimentando os alertas do dashboard.
                     </div>
 
-                    {% if saldo_total_ean is not none and saldo_total_ean > 0 %}
+                    {% if (saldo_total_ean is not none and saldo_total_ean > 0) or stock_projection %}
                     <!-- Card de Saldo Total por EAN -->
                     <div class="conversion-preview" style="display: block; background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); border-left-color: var(--success-green);">
-                        <strong style="color: var(--success-green); font-size: 1rem;">📦 Saldo Total Interno (mesmo EAN)</strong>
+                        <strong style="color: var(--success-green); font-size: 1rem;">📦 {% if stock_projection %}Saldo Total Interno Projetado{% else %}Saldo Total Interno{% endif %} (mesmo EAN)</strong>
                         <div style="font-size: 1.5rem; font-weight: 700; color: var(--gray-900); margin-top: 0.5rem;">
+                            {% if stock_projection %}
+                            {{ stock_projection.projected_total_ean_display }}
+                            {% else %}
                             {{ saldo_total_ean }} {{ unidade_total_ean }}
+                            {% endif %}
                         </div>
                         <small style="color: var(--gray-700); font-size: 0.85rem; display: block; margin-top: 0.25rem;">
-                            {% if item %}
+                            {% if stock_projection %}
+                            Atual do código: <strong>{{ stock_projection.current_total_ean_display }}</strong>. Entrada documental: <strong>{{ stock_projection.incoming_base_display }}</strong>. Após salvar/processar, o código <strong>{{ form_item.codigo }}</strong> ficará com esse total interno projetado.
+                            {% elif item %}
                             Total convertido para a unidade interna do item. Soma de todos os lotes com o código <strong>{{ form_item.codigo }}</strong>.
                             {% else %}
                             ⚠️ Já existem lotes deste produto no sistema. Este valor representa o total interno somado entre eles.
@@ -4791,6 +4891,61 @@ Conversão: 1 saco = 20 quilos</div>
         return normalizeAdvancedUnitSettings(inferred);
     }
 
+    function buildLegacyAdvancedSettingsShape(settings) {
+        const normalizedSettings = normalizeAdvancedUnitSettings(settings);
+        const dimensions = normalizedSettings.dimensions
+            .filter((row) => row.enabled !== false)
+            .map((row) => String(row.dimension || '').trim().toLowerCase())
+            .sort();
+        const units = normalizedSettings.units
+            .filter((row) => row.active !== false)
+            .map((row) => ({
+                unit_code: String(row.unit_code || '').trim().toLowerCase(),
+                dimension: String(row.dimension || '').trim().toLowerCase(),
+                is_base: Boolean(row.is_base),
+            }))
+            .sort((left, right) => left.unit_code.localeCompare(right.unit_code));
+        const conversions = normalizedSettings.conversions
+            .filter((row) => row.active !== false)
+            .map((row) => ({
+                from_unit: String(row.from_unit || '').trim().toLowerCase(),
+                to_unit: String(row.to_unit || '').trim().toLowerCase(),
+            }))
+            .sort((left, right) => `${left.from_unit}:${left.to_unit}`.localeCompare(`${right.from_unit}:${right.to_unit}`));
+        return JSON.stringify({ dimensions, units, conversions });
+    }
+
+    function syncLegacyPackagingAdvancedSettingsIfNeeded() {
+        const normalizedCurrent = normalizeAdvancedUnitSettings(advancedUnitSettings);
+        const inferredSettings = inferAdvancedSettingsFromLegacyFields();
+        const canAutoSync = normalizedCurrent.units.length === 0
+            || buildLegacyAdvancedSettingsShape(normalizedCurrent) === buildLegacyAdvancedSettingsShape(inferredSettings);
+
+        if (!canAutoSync) {
+            return false;
+        }
+
+        const currentSerialized = JSON.stringify(normalizedCurrent);
+        const inferredSerialized = JSON.stringify(inferredSettings);
+        if (currentSerialized === inferredSerialized) {
+            return false;
+        }
+
+        advancedUnitSettings = inferredSettings;
+        syncAdvancedUnitSettingsInput();
+        return true;
+    }
+
+    function maybeAutoSyncAdvancedSettingsFromLegacyFields() {
+        if (!syncLegacyPackagingAdvancedSettingsIfNeeded()) {
+            return;
+        }
+        renderAdvancedDimensions();
+        renderAdvancedUnits();
+        renderAdvancedConversions();
+        renderAdvancedSummary();
+    }
+
     function syncAdvancedUnitSettingsInput() {
         const normalizedSettings = normalizeAdvancedUnitSettings(advancedUnitSettings);
         if (advancedUnitSettingsInput) {
@@ -5145,6 +5300,7 @@ Conversão: 1 saco = 20 quilos</div>
     if (unidadeSelect) {
         unidadeSelect.addEventListener('change', function() {
             toggleTabUnidadesDinamicas();
+            maybeAutoSyncAdvancedSettingsFromLegacyFields();
             refreshPriceUnitSelectors();
         });
     }
@@ -5649,7 +5805,7 @@ Conversão: 1 saco = 20 quilos</div>
 
         atualizarCamposEmbalagemNovo();
         toggleTabUnidadesDinamicas();
-        syncAdvancedUnitSettingsInput();
+        maybeAutoSyncAdvancedSettingsFromLegacyFields();
     }
 
     function renderAdvancedSummary() {
@@ -5847,7 +6003,7 @@ Conversão: 1 saco = 20 quilos</div>
 
     function initializeAdvancedUnitSettings() {
         advancedUnitSettings = normalizeAdvancedUnitSettings(advancedUnitSettings);
-        if (!advancedUnitSettings.units.length) {
+        if (!syncLegacyPackagingAdvancedSettingsIfNeeded() && !advancedUnitSettings.units.length) {
             advancedUnitSettings = inferAdvancedSettingsFromLegacyFields();
         }
         syncAdvancedUnitSettingsInput();
@@ -5859,18 +6015,25 @@ Conversão: 1 saco = 20 quilos</div>
 
     // Event listeners
     tiposEmbalagemNovo.forEach(radio => {
-        radio.addEventListener('change', atualizarCamposEmbalagemNovo);
+        radio.addEventListener('change', () => {
+            atualizarCamposEmbalagemNovo();
+            maybeAutoSyncAdvancedSettingsFromLegacyFields();
+        });
     });
 
     unidadeEmbalagemRadios.forEach(radio => {
         radio.addEventListener('change', () => {
             atualizarCamposEmbalagemNovo();
             atualizarPreviewEmbalagem();
+            maybeAutoSyncAdvancedSettingsFromLegacyFields();
         });
     });
     
     if (unidadesPorEmbalagemInput) {
-        unidadesPorEmbalagemInput.addEventListener('input', atualizarPreviewEmbalagem);
+        unidadesPorEmbalagemInput.addEventListener('input', () => {
+            atualizarPreviewEmbalagem();
+            maybeAutoSyncAdvancedSettingsFromLegacyFields();
+        });
     }
     if (descricaoInput) {
         descricaoInput.addEventListener('input', maybeSuggestBombonaFromDescription);

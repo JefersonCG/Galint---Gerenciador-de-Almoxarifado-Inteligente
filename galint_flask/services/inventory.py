@@ -99,6 +99,20 @@ _BASE_ITEM_UNIT_LABEL_BY_CODE = {
     "kg": "Quilo",
     "l": "Litro",
 }
+_BASE_ITEM_STORAGE_CODE_BY_LABEL = {
+    "Unidade": "unidade",
+    "Par": "par",
+    "Metro": "metro",
+    "Quilo": "quilo",
+    "Litro": "litro",
+}
+_ADVANCED_DIMENSION_BY_CANONICAL_UNIT = {
+    "un": "unit",
+    "par": "unit",
+    "m": "length",
+    "kg": "mass",
+    "l": "volume",
+}
 _BASE_ITEM_UNIT_ALIASES = {
     "un": "Unidade",
     "und": "Unidade",
@@ -900,6 +914,155 @@ def _apply_advanced_unit_settings(item: Item, payload: object) -> None:
         )
 
 
+def _normalize_unit_code_key(value: object) -> str:
+    return unit_conversion_engine._normalize_unit_code(str(value or "").strip().lower())
+
+
+def _storage_unit_code_from_canonical(value: object, *, fallback: str = "unidade") -> str:
+    canonical = _normalize_unit_code_key(value)
+    label = _BASE_ITEM_UNIT_LABEL_BY_CODE.get(canonical)
+    if label:
+        return _BASE_ITEM_STORAGE_CODE_BY_LABEL.get(label, fallback)
+
+    normalized_label = normalize_base_item_unit(value)
+    if normalized_label:
+        return _BASE_ITEM_STORAGE_CODE_BY_LABEL.get(normalized_label, fallback)
+
+    raw = str(value or "").strip().lower()
+    return raw or fallback
+
+
+def _resolve_advanced_dimension_for_unit(value: object) -> str:
+    canonical = _normalize_unit_code_key(value)
+    return _ADVANCED_DIMENSION_BY_CANONICAL_UNIT.get(canonical, "unit")
+
+
+def _sync_packaging_conversion_graph(item: Item) -> None:
+    packaging_unit_raw = str(getattr(item, "tipo_embalagem_novo", None) or "").strip().lower()
+    if not packaging_unit_raw or ignore_packaging_metadata_for_stock(item):
+        return
+
+    try:
+        packaging_factor = float(resolve_packaging_factor(item) or 0.0)
+    except (TypeError, ValueError):
+        packaging_factor = 0.0
+    if packaging_factor <= 0:
+        return
+
+    packaging_key = _normalize_unit_code_key(packaging_unit_raw)
+    base_key = _normalize_unit_code_key(resolve_canonical_unit(item) or getattr(item, "unidade", None))
+    if not packaging_key or not base_key or packaging_key == base_key:
+        return
+
+    base_label = resolve_item_base_unit_label(item, fallback="Unidade")
+    base_dimension = _resolve_advanced_dimension_for_unit(base_key)
+    packaging_dimension = base_dimension
+    packaging_label = packaging_unit_raw.capitalize()
+
+    base_unit = next(
+        (
+            row for row in item.product_units
+            if _normalize_unit_code_key(getattr(row, "unit_code", None)) == base_key
+        ),
+        None,
+    )
+    if base_unit is None:
+        base_unit = ProductUnit(
+            product_id=item.codigo_item,
+            unit_code=_storage_unit_code_from_canonical(base_key, fallback="unidade"),
+            unit_label=base_label,
+            dimension=base_dimension,
+            is_base=True,
+            active=True,
+        )
+        item.product_units.append(base_unit)
+    else:
+        base_unit.active = True
+        base_unit.is_base = True
+        if not str(base_unit.unit_code or "").strip():
+            base_unit.unit_code = _storage_unit_code_from_canonical(base_key, fallback="unidade")
+        if not str(base_unit.unit_label or "").strip():
+            base_unit.unit_label = base_label
+        if base_dimension and base_unit.dimension != base_dimension:
+            base_unit.dimension = base_dimension
+
+    packaging_unit = next(
+        (
+            row for row in item.product_units
+            if _normalize_unit_code_key(getattr(row, "unit_code", None)) == packaging_key
+        ),
+        None,
+    )
+    if packaging_unit is None:
+        packaging_unit = ProductUnit(
+            product_id=item.codigo_item,
+            unit_code=packaging_unit_raw,
+            unit_label=packaging_label,
+            dimension=packaging_dimension,
+            is_base=False,
+            active=True,
+        )
+        item.product_units.append(packaging_unit)
+    else:
+        packaging_unit.active = True
+        if packaging_unit.is_base:
+            packaging_unit.is_base = False
+        if not str(packaging_unit.unit_code or "").strip():
+            packaging_unit.unit_code = packaging_unit_raw
+        if not str(packaging_unit.unit_label or "").strip():
+            packaging_unit.unit_label = packaging_label
+        if packaging_dimension and packaging_unit.dimension != packaging_dimension:
+            packaging_unit.dimension = packaging_dimension
+
+    existing_dimensions = {
+        str(row.dimension or "").strip().lower(): row
+        for row in item.product_dimensions
+    }
+    for dimension in {base_dimension, packaging_dimension}:
+        if not dimension:
+            continue
+        dimension_row = existing_dimensions.get(dimension)
+        if dimension_row is None:
+            item.product_dimensions.append(
+                ProductDimension(
+                    product_id=item.codigo_item,
+                    dimension=dimension,
+                    enabled=True,
+                )
+            )
+        else:
+            dimension_row.enabled = True
+
+    matching_conversions = [
+        row
+        for row in item.product_unit_conversions
+        if _normalize_unit_code_key(getattr(row, "from_unit", None)) == packaging_key
+        and _normalize_unit_code_key(getattr(row, "to_unit", None)) == base_key
+    ]
+    if matching_conversions:
+        primary_conversion = matching_conversions[0]
+        primary_conversion.from_unit = packaging_unit.unit_code
+        primary_conversion.to_unit = base_unit.unit_code
+        primary_conversion.factor = packaging_factor
+        primary_conversion.active = True
+        metadata = dict(primary_conversion.metadata_json or {})
+        metadata["source"] = "packaging_metadata_sync"
+        primary_conversion.metadata_json = metadata
+        for duplicate in matching_conversions[1:]:
+            duplicate.active = False
+    else:
+        item.product_unit_conversions.append(
+            ProductUnitConversion(
+                product_id=item.codigo_item,
+                from_unit=packaging_unit.unit_code,
+                to_unit=base_unit.unit_code,
+                factor=packaging_factor,
+                metadata_json={"source": "packaging_metadata_sync"},
+                active=True,
+            )
+        )
+
+
 def _coerce_price_value(value: object) -> float | None:
     if value in ("", None):
         return None
@@ -1605,7 +1768,7 @@ class InventoryService:
             "limit": ADMIN_BALANCE_DAILY_LIMIT,
             "used": used,
             "remaining": remaining,
-            "exhausted": remaining <= 0,
+            "exhausted": False,
             "local_date": local_date,
         }
 
@@ -2582,33 +2745,6 @@ class InventoryService:
                 ),
             )
             return result
-
-        if bool(snapshot_before.get("daily_limit_exhausted")):
-            limit = int(snapshot_before.get("daily_limit") or ADMIN_BALANCE_DAILY_LIMIT)
-            used = int(snapshot_before.get("daily_adjustments_used") or 0)
-            reference_date = snapshot_before.get("daily_reference_date")
-            if hasattr(reference_date, "strftime"):
-                date_label = reference_date.strftime("%d/%m/%Y")
-            else:
-                date_label = str(reference_date or "hoje")
-            message = (
-                f"Limite diário atingido para este item em {date_label}. "
-                f"Já foram feitos {used} ajustes administrativos e o máximo é {limit} por dia."
-            )
-            self._log_admin_balance_audit(
-                action_result="daily_limit_blocked",
-                details=self._build_admin_balance_audit_details(
-                    item=item,
-                    codigo=codigo_norm,
-                    matricula=matricula,
-                    motivo=motivo_norm,
-                    target_balance=target_balance,
-                    audit_context=audit_context_norm,
-                    before=snapshot_before,
-                    error_message=message,
-                ),
-            )
-            raise ValueError(message)
 
         event = None
         if not self._balance_close(legacy_delta, 0.0):
@@ -4599,10 +4735,10 @@ class InventoryService:
                     item_existente.foto_path = nova_foto
                 if "advanced_unit_settings" in payload:
                     _apply_advanced_unit_settings(item_existente, payload.get("advanced_unit_settings"))
-                    _assign_normalized_item_price(item_existente, raw_price=item_existente.preco_compra_unitario, kind="compra")
-                    _assign_normalized_item_price(item_existente, raw_price=item_existente.preco_reposicao_unitario, kind="reposicao")
-
                 self._apply_toolkit_unit_semantics(item_existente)
+                _sync_packaging_conversion_graph(item_existente)
+                _assign_normalized_item_price(item_existente, raw_price=item_existente.preco_compra_unitario, kind="compra")
+                _assign_normalized_item_price(item_existente, raw_price=item_existente.preco_reposicao_unitario, kind="reposicao")
                 
                 # Registrar entrada com a quantidade
                 quantidade = payload.get("quantidade") or payload.get("saldo") or 0
@@ -4780,6 +4916,8 @@ class InventoryService:
         try:
             if "advanced_unit_settings" in payload:
                 _apply_advanced_unit_settings(item, payload.get("advanced_unit_settings"))
+            _sync_packaging_conversion_graph(item)
+            if "advanced_unit_settings" in payload:
                 _assign_normalized_item_price(
                     item,
                     raw_price=item.preco_compra_unitario,
@@ -4971,6 +5109,7 @@ class InventoryService:
 
         if "advanced_unit_settings" in payload:
             _apply_advanced_unit_settings(item, payload.get("advanced_unit_settings"))
+        _sync_packaging_conversion_graph(item)
 
         if "pre_cadastro_pendente" in payload:
             item.pre_cadastro_pendente = bool(payload.get("pre_cadastro_pendente"))

@@ -3034,6 +3034,7 @@
     const itemResults = document.getElementById('item_results');
     const novoCodigoInput = document.getElementById('novo_codigo');
     const novaDescricaoInput = document.getElementById('nova_descricao');
+    const novaCategoriaInput = document.getElementById('nova_categoria');
     const novaMarcaInput = document.getElementById('nova_marca');
     const newItemDescriptionResults = document.getElementById('new_item_description_results');
     const novaUnidadeInput = document.getElementById('nova_unidade');
@@ -3091,6 +3092,20 @@
     const deleteModalForm = document.getElementById('docfDeleteForm');
     const deleteModalReason = document.getElementById('docfDeleteReason');
     const deleteModalSubmit = document.getElementById('docfDeleteSubmit');
+    const newItemFieldDefaults = {
+        novoCodigo: novoCodigoInput?.value || '',
+        novaDescricao: novaDescricaoInput?.value || '',
+        novaCategoria: novaCategoriaInput?.value || '',
+        novaMarca: novaMarcaInput?.value || '',
+        novaUnidade: novaUnidadeInput?.value || 'Unidade',
+        novaUnidadeDocumental: novaUnidadeDocumentalInput?.value || '',
+        novoConteudoEmbalagem: novoConteudoEmbalagemInput?.value || '',
+        precoReposicaoFonte: replacementSourceInput?.value || '',
+        precoReposicaoUf: replacementUfInput?.value || '',
+        precoReposicaoUrl: replacementUrlInput?.value || '',
+        precoReposicaoQuery: replacementQueryInput?.value || '',
+        fotoUrl: photoUrlInput?.value || '',
+    };
     let itemTimer = null;
     let newItemDescriptionTimer = null;
     let supplierTimer = null;
@@ -3098,6 +3113,7 @@
     let notaSuggestions = [];
     let newItemDescriptionSuggestions = [];
     let helpHideTimer = null;
+    let activeExistingItemCode = String(itemCodigoInput?.value || '').trim();
     const manualSharedDocumentNumber = 'NOTA INTERNA';
     let currentRegistrationMode = 'nf';
     const rememberedModeState = {
@@ -3120,6 +3136,191 @@
             return '';
         }
         return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+    }
+
+    function normalizeBaseUnitForForm(value) {
+        const normalized = String(value || '').trim().toLowerCase();
+        if (!normalized) {
+            return 'Unidade';
+        }
+        if (['quilo', 'quilos', 'kg'].includes(normalized)) {
+            return 'Quilo';
+        }
+        if (['litro', 'litros', 'l'].includes(normalized)) {
+            return 'Litro';
+        }
+        if (['metro', 'metros', 'm'].includes(normalized)) {
+            return 'Metro';
+        }
+        if (['par', 'pares'].includes(normalized)) {
+            return 'Par';
+        }
+        return 'Unidade';
+    }
+
+    function formatExistingItemContent(value) {
+        const numeric = Number(value);
+        if (!Number.isFinite(numeric) || numeric <= 0) {
+            return '';
+        }
+        return Number.isInteger(numeric) ? String(numeric) : String(Number(numeric.toFixed(3)));
+    }
+
+    function ensureSelectOption(selectElement, value) {
+        if (!(selectElement instanceof HTMLSelectElement)) {
+            return;
+        }
+        const normalizedValue = String(value || '').trim();
+        if (!normalizedValue) {
+            return;
+        }
+        const existingOption = Array.from(selectElement.options).find((option) => String(option.value || '').trim() === normalizedValue);
+        if (existingOption) {
+            return;
+        }
+        selectElement.appendChild(new Option(normalizedValue, normalizedValue, false, false));
+    }
+
+    function setSelectValue(selectElement, value) {
+        if (!(selectElement instanceof HTMLSelectElement)) {
+            return;
+        }
+        const normalizedValue = String(value || '');
+        ensureSelectOption(selectElement, normalizedValue);
+        selectElement.value = normalizedValue;
+        syncVisualSelectGroup(selectElement);
+    }
+
+    function clearExistingItemAutofill() {
+        activeExistingItemCode = '';
+        if (novoCodigoInput) {
+            novoCodigoInput.value = newItemFieldDefaults.novoCodigo;
+        }
+        if (novaDescricaoInput) {
+            novaDescricaoInput.value = newItemFieldDefaults.novaDescricao;
+        }
+        if (novaCategoriaInput) {
+            setSelectValue(novaCategoriaInput, newItemFieldDefaults.novaCategoria);
+        }
+        if (novaMarcaInput) {
+            novaMarcaInput.value = newItemFieldDefaults.novaMarca;
+        }
+        if (novaUnidadeInput) {
+            setSelectValue(novaUnidadeInput, newItemFieldDefaults.novaUnidade);
+        }
+        if (novaUnidadeDocumentalInput) {
+            setSelectValue(novaUnidadeDocumentalInput, newItemFieldDefaults.novaUnidadeDocumental);
+        }
+        if (novoConteudoEmbalagemInput) {
+            novoConteudoEmbalagemInput.value = newItemFieldDefaults.novoConteudoEmbalagem;
+        }
+        if (replacementSourceInput) {
+            replacementSourceInput.value = newItemFieldDefaults.precoReposicaoFonte;
+        }
+        if (replacementUfInput) {
+            replacementUfInput.value = newItemFieldDefaults.precoReposicaoUf;
+        }
+        if (replacementUrlInput) {
+            replacementUrlInput.value = newItemFieldDefaults.precoReposicaoUrl;
+        }
+        if (replacementQueryInput) {
+            replacementQueryInput.value = newItemFieldDefaults.precoReposicaoQuery;
+        }
+        if (photoUrlInput) {
+            photoUrlInput.value = newItemFieldDefaults.fotoUrl;
+        }
+        updateNewItemSummary();
+        syncReplacementQuery();
+    }
+
+    function applyExistingItemAutofill(item) {
+        if (!item || typeof item !== 'object') {
+            clearExistingItemAutofill();
+            return;
+        }
+
+        const codigo = String(item.codigo || '').trim();
+        const descricao = String(item.descricao || '').trim();
+        const categoria = String(item.categoria || '').trim();
+        const marca = String(item.marca || '').trim();
+        const unidadeBase = normalizeBaseUnitForForm(item.unidade);
+        const unidadeDocumental = String(item.tipo_embalagem_novo || '').trim().toLowerCase();
+        const conteudoEmbalagem = formatExistingItemContent(
+            item.capacidade_embalagem || item.grandeza_referencia || item.litros_por_embalagem || item.unidades_por_embalagem
+        );
+
+        activeExistingItemCode = codigo;
+
+        if (novoCodigoInput) {
+            novoCodigoInput.value = codigo;
+        }
+        if (novaDescricaoInput) {
+            novaDescricaoInput.value = descricao;
+        }
+        if (novaCategoriaInput) {
+            setSelectValue(novaCategoriaInput, categoria || newItemFieldDefaults.novaCategoria);
+        }
+        if (novaMarcaInput) {
+            novaMarcaInput.value = marca;
+        }
+        if (novaUnidadeInput) {
+            setSelectValue(novaUnidadeInput, unidadeBase);
+        }
+        if (novaUnidadeDocumentalInput) {
+            setSelectValue(novaUnidadeDocumentalInput, unidadeDocumental);
+        }
+        if (novoConteudoEmbalagemInput) {
+            novoConteudoEmbalagemInput.value = conteudoEmbalagem;
+        }
+        if (replacementSourceInput) {
+            replacementSourceInput.value = String(item.preco_reposicao_fonte || '').trim();
+        }
+        if (replacementUfInput) {
+            replacementUfInput.value = String(item.preco_reposicao_uf || '').trim().toUpperCase();
+        }
+        if (replacementUrlInput) {
+            replacementUrlInput.value = String(item.preco_reposicao_url || '').trim();
+        }
+        if (replacementQueryInput) {
+            replacementQueryInput.value = String(item.preco_reposicao_query || '').trim();
+        }
+        if (photoUrlInput) {
+            photoUrlInput.value = String(item.foto_url || '').trim();
+        }
+
+        syncAllVisualSelectGroups();
+        updateNewItemSummary();
+        if (replacementQueryInput && !replacementQueryInput.value.trim()) {
+            syncReplacementQuery();
+        }
+        hideNewItemDescriptionResults();
+    }
+
+    async function loadExistingItemAutofill(codigo) {
+        const normalizedCode = String(codigo || '').trim();
+        if (!normalizedCode) {
+            clearExistingItemAutofill();
+            return;
+        }
+
+        try {
+            const response = await fetch(`{{ url_for('movements.item_info', codigo='__CODIGO__') }}`.replace('__CODIGO__', encodeURIComponent(normalizedCode)), {
+                headers: { 'Accept': 'application/json' },
+                credentials: 'same-origin'
+            });
+            if (!response.ok) {
+                clearExistingItemAutofill();
+                return;
+            }
+            const data = await response.json();
+            if (!data || data.found !== true) {
+                clearExistingItemAutofill();
+                return;
+            }
+            applyExistingItemAutofill(data);
+        } catch (_) {
+            clearExistingItemAutofill();
+        }
     }
 
     function updateNewItemSummary() {
@@ -3681,13 +3882,8 @@
         if (itemCodigoInput) {
             itemCodigoInput.value = item.codigo || '';
         }
-        if (novoCodigoInput) {
-            novoCodigoInput.value = '';
-        }
-        if (novaDescricaoInput) {
-            novaDescricaoInput.value = '';
-        }
         hideItemResults();
+        loadExistingItemAutofill(item.codigo || '');
     };
 
     const renderItemResults = (items) => {
@@ -3745,6 +3941,9 @@
         if (itemCodigoInput) {
             itemCodigoInput.value = '';
         }
+        if (activeExistingItemCode) {
+            clearExistingItemAutofill();
+        }
         const q = itemSearchInput.value.trim();
         if (itemTimer) clearTimeout(itemTimer);
         if (q.length < 1) {
@@ -3771,9 +3970,14 @@
             const raw = (itemSearchInput.value || '').trim();
             if (raw) {
                 itemCodigoInput.value = raw.split('—')[0].trim();
+                loadExistingItemAutofill(itemCodigoInput.value);
             }
         }
     });
+
+    if (itemCodigoInput?.value.trim()) {
+        loadExistingItemAutofill(itemCodigoInput.value.trim());
+    }
 
     novaDescricaoInput?.addEventListener('input', () => {
         const q = novaDescricaoInput.value.trim();
