@@ -361,11 +361,26 @@ def resolve_packaging_factor(item: Item) -> float:
 
 
 def uses_packaging_legacy_normalization(item: Item) -> bool:
-    return (
-        resolve_packaging_factor(item) > 1.0
-        and not has_active_unit_config(item)
-        and not ignore_packaging_metadata_for_stock(item)
-    )
+    factor = float(resolve_packaging_factor(item) or 0.0)
+    if factor <= 0.0 or abs(factor - 1.0) <= _TOLERANCE:
+        return False
+    if has_active_unit_config(item) or ignore_packaging_metadata_for_stock(item):
+        return False
+
+    canonical_unit = _normalize_simple_unit(resolve_canonical_unit(item))
+    if not canonical_unit or is_packaging_unit_code(canonical_unit):
+        return False
+
+    unidade_raw = (_read_field(item, "unidade", None) or "").strip().lower()
+    unidade_normalized = _normalize_simple_unit(unidade_raw) or unidade_raw
+    if unidade_normalized and unidade_normalized != canonical_unit:
+        return True
+
+    tipo_emb = (_read_field(item, "tipo_embalagem_novo", None) or "").strip().lower()
+    if tipo_emb and tipo_emb != canonical_unit:
+        return True
+
+    return factor > 1.0
 
 
 def resolve_canonical_unit(item: Item) -> str:

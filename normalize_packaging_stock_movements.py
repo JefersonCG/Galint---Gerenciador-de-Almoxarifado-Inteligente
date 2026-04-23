@@ -25,7 +25,27 @@ from galint_flask import create_app
 from galint_flask.extensions import db
 from galint_flask.models import Item, StockBalance, StockMovement, stock_balance_supports_read_model_ready
 from galint_flask.services.inventory_engine import inventory_engine
-from galint_flask.services.legacy_stock_normalizer import is_packaging_unit_code, resolve_canonical_unit, resolve_packaging_factor
+from galint_flask.services.legacy_stock_normalizer import (
+    is_packaging_unit_code,
+    resolve_canonical_unit,
+    resolve_packaging_factor,
+    uses_packaging_legacy_normalization,
+)
+
+
+def _normalize_unit(value: str | None) -> str:
+    raw = (value or "").strip().lower()
+    aliases = {
+        "unidade": "un",
+        "unidades": "un",
+        "quilo": "kg",
+        "quilos": "kg",
+        "litro": "l",
+        "litros": "l",
+        "metro": "m",
+        "metros": "m",
+    }
+    return aliases.get(raw, raw)
 
 
 @dataclass(slots=True)
@@ -87,11 +107,13 @@ def _should_multiply_quantity(movement: StockMovement, *, packaging_factor: floa
     source = str(metadata.get("source") or "").strip().lower()
     reference_type = str(movement.reference_type or "").strip().lower()
 
-    if packaging_factor <= 1.0:
+    if packaging_factor <= 0.0:
         return False
     if source == "documento_fiscal" or reference_type == "entrada_documento_item":
         return True
-    if source == "ledger_backfill" and reference_type == "entrada":
+    if source == "ledger_backfill" and reference_type in {"entrada", "saida", "inventario_evento"}:
+        return True
+    if packaging_factor < 1.0:
         return True
     if magnitude >= packaging_factor:
         return False
@@ -99,10 +121,17 @@ def _should_multiply_quantity(movement: StockMovement, *, packaging_factor: floa
 
 
 def _normalize_movement(item: Item, movement: StockMovement) -> MovementNormalization | MovementSkip | None:
-    canonical_unit = (resolve_canonical_unit(item) or "").strip().lower()
+    canonical_unit = _normalize_unit(resolve_canonical_unit(item))
     packaging_factor = float(resolve_packaging_factor(item) or 0.0)
-    unit_before = (movement.unit_base or "").strip().lower()
+    unit_before = _normalize_unit(movement.unit_base)
     quantity_before = float(movement.quantity_base or 0.0)
+    item_unit = _normalize_unit(getattr(item, "unidade", None))
+    looks_like_legacy_operational_unit = (
+        uses_packaging_legacy_normalization(item)
+        and bool(item_unit)
+        and unit_before == item_unit
+        and unit_before != canonical_unit
+    )
 
     def skipped(reason: str) -> MovementSkip:
         return MovementSkip(
@@ -115,7 +144,7 @@ def _normalize_movement(item: Item, movement: StockMovement) -> MovementNormaliz
 
     if not canonical_unit or is_packaging_unit_code(canonical_unit):
         return skipped("canonical_unit_unresolved")
-    if not unit_before or not is_packaging_unit_code(unit_before):
+    if not unit_before or (not is_packaging_unit_code(unit_before) and not looks_like_legacy_operational_unit):
         return None
     if packaging_factor <= 0.0:
         return skipped("packaging_factor_unresolved")

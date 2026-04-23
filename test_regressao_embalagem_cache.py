@@ -39,6 +39,7 @@ class MockPackagingItem:
         unidade: str = "un",
         categoria: str | None = None,
         descricao: str | None = None,
+        grandeza_referencia: float | None = None,
     ):
         self.codigo_item = codigo_item
         self.descricao = descricao or codigo_item
@@ -50,7 +51,7 @@ class MockPackagingItem:
         self.estoque_embalagens = 0.0
         self.estoque_unidades_soltas = 0.0
         self.unidade = unidade
-        self.grandeza_referencia = None
+        self.grandeza_referencia = grandeza_referencia
         self.product_units = []
         self.product_unit_conversions = []
 
@@ -230,6 +231,21 @@ def test_ferramenta_jogo_nao_usa_normalizacao_legada_de_embalagem() -> None:
     assert EmbalagemService.tem_embalagem(item) is False
     assert uses_packaging_legacy_normalization(item) is False
     assert resolve_packaging_quantity_and_unit(item, 2.0) is None
+
+
+def test_item_unitario_com_conteudo_em_kg_usa_normalizacao_legada() -> None:
+    item = MockPackagingItem(
+        codigo_item="CLORO-200G-TESTE",
+        tipo_embalagem="",
+        unidades_por_embalagem=0,
+        unidade="Unidade",
+        categoria="Piscina",
+        descricao="PASTILHA DE CLORO TRIPLA ACAO 200g",
+        grandeza_referencia=0.2,
+    )
+
+    assert uses_packaging_legacy_normalization(item) is True
+    assert resolve_packaging_quantity_and_unit(item, 50.0) == (10.0, "kg")
 
 
 def test_dual_write_legado_de_ferramenta_jogo_nao_multiplica_quantidade() -> None:
