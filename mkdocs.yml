@@ -1,0 +1,112 @@
+site_name: GALINT Docs
+site_description: Documentação operacional, técnica e de implantação do GALINT.
+repo_url: https://github.com/JefersonCG/Galint---Gerenciador-de-Almoxarifado-Inteligente
+repo_name: JefersonCG/Galint---Gerenciador-de-Almoxarifado-Inteligente
+docs_dir: docs
+site_dir: site
+use_directory_urls: false
+
+theme:
+  name: material
+  language: pt-BR
+  icon:
+    repo: fontawesome/brands/github
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.tabs.link
+  palette:
+    - scheme: default
+      primary: blue grey
+      accent: light blue
+      toggle:
+        icon: material/weather-night
+        name: Alternar para tema escuro
+    - scheme: slate
+      primary: blue grey
+      accent: cyan
+      toggle:
+        icon: material/weather-sunny
+        name: Alternar para tema claro
+
+plugins:
+  - search
+
+validation:
+  nav:
+    omitted_files: ignore
+    absolute_links: relative_to_docs
+    not_found: warn
+  links:
+    absolute_links: relative_to_docs
+    not_found: ignore
+    unrecognized_links: ignore
+    anchors: ignore
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.inlinehilite
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.snippets:
+      check_paths: true
+      base_path:
+        - docs
+        - .
+
+extra_css:
+  - assets/stylesheets/extra.css
+
+nav:
+  - Inicio: index.md
+  - Visão Geral: visao-geral.md
+  - Arquitetura:
+      - README Principal: arquitetura/readme-principal.md
+      - Plano de Evolução: arquitetura/plano-evolucao.md
+      - Ledger de Estoque: arquitetura/ledger-estoque.md
+      - Valor de Estoque: arquitetura/valor-estoque.md
+  - Operação:
+      - Estoque Unificado: operacao/estoque-unificado.md
+      - Diagnóstico de Saldos: operacao/diagnostico-saldos.md
+      - ConversionEngine: operacao/conversionengine.md
+      - Backup Completo do ConversionEngine: operacao/conversionengine-backup.md
+      - Central de Kits: operacao/central-kits.md
+      - Personalização de Saídas e Devoluções: operacao/personalizacao-saidas-devolucoes.md
+      - Percentual de Movimentos: operacao/percentual-movimentos.md
+      - Sistema de Reparos: operacao/sistema-reparos.md
+  - Comunicação:
+      - Instalação Telegram: comunicacao/instalacao-telegram.md
+      - Cadastro Automático Telegram: comunicacao/cadastro-automatico-telegram.md
+      - Menu Telegram Upgrade: comunicacao/menu-telegram-upgrade.md
+      - Modelos de Notificação: comunicacao/modelos-notificacao.md
+      - Webhook Telegram: comunicacao/webhook-telegram.md
+  - Implantação:
+      - Aplicação em Outra Máquina: implantacao/aplicacao-outra-maquina.md
+  - Infra e Setup:
+      - Setup Ambiente Dev: infra/setup-ambiente-dev.md
+      - HTTPS Setup: infra/https-setup.md
+      - PG Backup Setup: infra/pg-backup-setup.md
+      - Guia Executável e Updates: infra/guia-executavel-updates.md
+      - Guia Pendrive Python Portátil: infra/guia-pendrive-python-portatil.md
+  - Mobile:
+      - Build APK: mobile/build-apk.md
+      - Guia Replicação APK: mobile/guia-replicacao-apk.md
+      - Painel Web Mobile: mobile/painel-web-mobile.md
+      - Foto no Mobile: mobile/foto-implementacao.md
+      - Guia Completo Mobile: mobile/guia-mobile.md
+  - Propostas:
+      - Mensageria Condominial: propostas/mensageria-condominial.md
+      - Proposta de Rastreabilidade: propostas/rastreabilidade.md
+      - Roadmap MRO WMS: propostas/roadmap-mro-wms.md

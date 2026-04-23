@@ -621,7 +621,7 @@
     .docf-mode-btn strong {
         display: block;
         font-size: 0.88rem;
-        margin-bottom: 0.16rem;
+        margin-bottom: 0;
     }
 
     .docf-mode-btn span {
@@ -1585,15 +1585,31 @@
             grid-template-columns: 1fr;
         }
 
+        .docf-main-surface {
+            padding: 0.9rem;
+            border-radius: 22px;
+        }
+
+        .docf-state-tabs .nav-link {
+            min-width: 148px;
+            padding: 0.58rem 0.7rem 0.52rem;
+        }
+
+        .docf-section-toggle {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+
+        .docf-section-toggle-side {
+            width: 100%;
+            justify-content: space-between;
+        }
+
         .docf-help-toast {
             right: 1rem;
             left: 1rem;
             width: auto;
             bottom: 1rem;
-        }
-
-        .docf-state-tabs .nav-link {
-            min-width: 170px;
         }
     }
 
@@ -1678,16 +1694,16 @@
 
     .docf-main-surface {
         margin-top: 0.75rem;
-        padding: 0.9rem;
-        border-radius: 24px;
+        padding: 1.15rem 1.2rem 1.25rem;
+        border-radius: 28px;
         background: linear-gradient(145deg, #0f172a 0%, #1e293b 100%);
         border: 1px solid rgba(148, 163, 184, 0.18);
         box-shadow: 0 18px 40px rgba(2, 8, 23, 0.28);
     }
 
     .docf-state-tabs {
-        padding: 0 0.12rem;
-        gap: 0.28rem;
+        padding: 0 0.1rem 0.4rem;
+        gap: 0.42rem;
     }
 
     .docf-state-tabs .nav-item + .nav-item::before {
@@ -1695,26 +1711,53 @@
     }
 
     .docf-state-tabs .nav-link {
-        background: rgba(15, 23, 42, 0.9);
+        background: linear-gradient(180deg, rgba(15, 23, 42, 0.82) 0%, rgba(17, 24, 39, 0.88) 100%);
         color: #dbeafe;
         border-color: rgba(148, 163, 184, 0.18);
-        min-width: 182px;
-        padding: 0.72rem 0.9rem;
-        box-shadow: none;
+        min-width: 156px;
+        padding: 0.6rem 0.78rem 0.56rem;
+        border-radius: 16px;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+        transition: background 0.24s ease, border-color 0.24s ease, box-shadow 0.24s ease, transform 0.24s ease, color 0.24s ease;
+    }
+
+    .docf-state-tabs .nav-link:hover {
+        transform: translateY(-1px);
+        border-color: rgba(96, 165, 250, 0.22);
+        background: linear-gradient(180deg, rgba(18, 32, 53, 0.9) 0%, rgba(17, 24, 39, 0.92) 100%);
     }
 
     .docf-state-tabs .nav-link.active {
-        background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
+        background: linear-gradient(180deg, rgba(30, 64, 175, 0.5) 0%, rgba(15, 23, 42, 0.98) 100%);
         color: #ffffff;
-        box-shadow: 0 12px 20px rgba(37, 99, 235, 0.18);
+        border-color: rgba(96, 165, 250, 0.34);
+        box-shadow: 0 12px 20px rgba(2, 8, 23, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+    }
+
+    .docf-state-tabs .nav-link.active:hover {
+        transform: translateY(0);
+    }
+
+    .docf-state-tabs .docf-tab-main {
+        font-size: 0.88rem;
     }
 
     .docf-state-tabs .docf-tab-sub {
-        color: rgba(191, 219, 254, 0.78);
+        margin-top: 0.16rem;
+        font-size: 0.72rem;
+        line-height: 1.25;
+        color: rgba(191, 219, 254, 0.7);
     }
 
     .docf-state-tabs .nav-link.active .docf-tab-sub {
         color: rgba(255, 255, 255, 0.88);
+    }
+
+    .docf-state-tabs .badge {
+        margin-top: 0.28rem;
+        padding: 0.16rem 0.48rem;
+        font-size: 0.66rem;
+        font-weight: 800;
     }
 
     .docf-kpis {
@@ -1752,7 +1795,7 @@
     }
 
     .docf-card-header {
-        margin-bottom: 0.7rem;
+        margin-bottom: 0.9rem;
     }
 
     .docf-kicker,
@@ -1838,13 +1881,18 @@
     }
 
     .compact-form {
-        gap: 0.35rem;
+        gap: 0.5rem;
     }
 
     .compact-form .docf-form-section {
-        gap: 0.38rem;
-        padding: 0.7rem 0;
+        gap: 0.52rem;
+        padding: 0.82rem 0;
         border-top-color: rgba(71, 85, 105, 0.3);
+    }
+
+    .compact-form .compact-section {
+        padding: 1rem 1.08rem 1.04rem;
+        border-radius: 18px;
     }
 
     .compact-form .compact-section,
@@ -1868,10 +1916,14 @@
             linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(14, 116, 144, 0.38));
     }
 
-    .docf-item-create-hero,
+    .docf-item-create-hero {
+        gap: 0.62rem;
+        margin-bottom: 0.2rem;
+    }
+
     .docf-mode-actions {
-        gap: 0.2rem;
-        margin-bottom: 0;
+        gap: 0.46rem;
+        margin: 0.2rem 0 0.72rem;
     }
 
     .docf-rule-pill,
@@ -1889,10 +1941,22 @@
         background: linear-gradient(180deg, rgba(15, 23, 42, 0.86) 0%, rgba(17, 24, 39, 0.9) 100%);
         color: var(--docf-text-primary);
         border-color: rgba(148, 163, 184, 0.18);
-        border-bottom-width: 0;
-        border-radius: 18px 18px 0 0;
-        min-height: 96px;
-        padding: 0.78rem 0.9rem 1rem;
+        border-bottom-width: 1px;
+        border-radius: 16px;
+        min-height: 0;
+        padding: 0.7rem 0.82rem;
+        box-shadow: none;
+        transition: background 0.22s ease, border-color 0.22s ease, box-shadow 0.22s ease, transform 0.22s ease;
+    }
+
+    .docf-mode-btn strong {
+        font-size: 0.84rem;
+        line-height: 1.2;
+    }
+
+    .docf-mode-btn:hover {
+        transform: translateY(-1px);
+        border-color: rgba(96, 165, 250, 0.24);
     }
 
     .docf-mode-btn span {
@@ -1900,13 +1964,11 @@
     }
 
     .docf-mode-btn.is-active {
-        transform: none;
-        padding-bottom: 1.14rem;
-        box-shadow: 0 14px 24px rgba(37, 99, 235, 0.18);
-    }
-
-    .docf-mode-summary {
-        margin-top: -1px;
+        transform: translateY(-1px);
+        padding-bottom: 0.7rem;
+        border-color: rgba(96, 165, 250, 0.34);
+        background: linear-gradient(180deg, rgba(30, 64, 175, 0.38) 0%, rgba(17, 24, 39, 0.94) 100%);
+        box-shadow: 0 10px 18px rgba(2, 8, 23, 0.18);
     }
 
     .docf-step-flow {
@@ -1921,9 +1983,95 @@
     }
 
     .docf-form-section {
-        gap: 1rem;
-        padding: 1rem 0;
+        gap: 0.85rem;
+        padding: 0.95rem 0;
         border-top-color: rgba(71, 85, 105, 0.28);
+    }
+
+    .docf-item-search-wrap {
+        max-width: 960px;
+    }
+
+    .docf-item-search-wrap .form-control {
+        min-height: 34px;
+        padding: 0.48rem 0.78rem;
+    }
+
+    .docf-header-link {
+        min-height: 34px;
+        padding: 0.45rem 0.78rem;
+        border-radius: 12px;
+        font-size: 0.86rem;
+        font-weight: 800;
+    }
+
+    .docf-expandable-section {
+        gap: 0.72rem;
+    }
+
+    .docf-section-toggle {
+        width: 100%;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        padding: 0.96rem 1rem;
+        border-radius: 18px;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        background: linear-gradient(180deg, rgba(15, 23, 42, 0.78) 0%, rgba(17, 24, 39, 0.86) 100%);
+        color: var(--docf-text-primary);
+        text-align: left;
+        box-shadow: 0 10px 22px rgba(2, 8, 23, 0.14);
+        transition: border-color 0.24s ease, box-shadow 0.24s ease, transform 0.24s ease, background 0.24s ease;
+    }
+
+    .docf-section-toggle:hover {
+        transform: translateY(-1px);
+        border-color: rgba(96, 165, 250, 0.24);
+        background: linear-gradient(180deg, rgba(18, 32, 53, 0.84) 0%, rgba(17, 24, 39, 0.9) 100%);
+    }
+
+    .docf-section-toggle:focus-visible {
+        outline: none;
+        border-color: rgba(96, 165, 250, 0.42);
+        box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.14);
+    }
+
+    .docf-section-toggle-copy {
+        min-width: 0;
+    }
+
+    .docf-section-toggle-copy .docf-kicker {
+        margin-bottom: 0.22rem;
+    }
+
+    .docf-section-toggle-copy .docf-form-section-text {
+        display: block;
+        margin-top: 0.22rem;
+        max-width: 44rem;
+    }
+
+    .docf-section-toggle-side {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.58rem;
+        flex-shrink: 0;
+        color: var(--docf-text-muted);
+        font-size: 0.78rem;
+        font-weight: 800;
+    }
+
+    .docf-section-toggle-icon {
+        font-size: 0.9rem;
+        transition: transform 0.24s ease;
+    }
+
+    .docf-section-toggle:not(.collapsed) .docf-section-toggle-icon {
+        transform: rotate(180deg);
+    }
+
+    .docf-section-collapse {
+        padding-top: 0.2rem;
     }
 
     .docf-btn-secondary {
@@ -2195,74 +2343,39 @@
         <div class="docf-state-pane">
             {% if can_manage %}
             <section class="docf-card">
-                <div class="docf-card-header">
+                <div class="docf-card-header align-items-start gap-3">
                     <div>
-                        <div class="docf-kicker">Fluxo de registro</div>
-                        <h2 class="docf-card-title">Cadastrar novo documento fiscal</h2>
+                        <h2 class="docf-card-title mb-1">Novo documento fiscal</h2>
+                        <p class="docf-muted small mb-0">Tela prática de cadastro. As explicações de NF, cupom e lançamento sem comprovação fiscal ficaram em Sobre.</p>
                     </div>
-                    <span class="docf-badge">Entrada vinculada por conferência</span>
-                </div>
-
-                <div class="docf-step-flow mb-3">
-                    <div class="docf-step">
-                        <div class="docf-step-header">
-                            <span class="docf-step-index">1</span>
-                            <div>
-                                <h3>Identifique o item e o tipo documental</h3>
-                                <p>Escolha o item existente ou cadastre um novo, depois defina se o comprovante é NF, cupom ou manual.</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="docf-step">
-                        <div class="docf-step-header">
-                            <span class="docf-step-index">2</span>
-                            <div>
-                                <h3>Preencha fornecedor, datas e valores</h3>
-                                <p>O documento entra no radar operacional com o máximo de contexto para triagem posterior.</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="docf-step">
-                        <div class="docf-step-header">
-                            <span class="docf-step-index">3</span>
-                            <div>
-                                <h3>Salve e acompanhe pelas abas</h3>
-                                <p>Depois do cadastro, o documento segue para Processáveis, Erros ou Histórico, sem uma fila separada de pendências.</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="docf-panel info mb-3">
-                    O cadastro permanece rastreável e qualquer falta de preenchimento é avisada na gravação, sem criar uma aba paralela de pendências.
+                    <a class="docf-btn-secondary docf-header-link" href="{{ url_for('pages.sobre', _anchor='about-documents') }}">Como cadastrar</a>
                 </div>
 
                 <div class="docf-mode-actions" id="doc-mode-actions">
                     <label class="docf-mode-btn is-active" data-doc-mode="nf" data-help-label="Modo lançar com NF" data-help-text="Use para documentos com nota fiscal, mantendo o registro fiscal completo.">
                         <input type="radio" name="doc_mode" value="nf" checked>
                         <strong>Lançar com NF</strong>
-                        <span>Documento completo com chave opcional e rastreabilidade forte.</span>
                     </label>
                     <label class="docf-mode-btn" data-doc-mode="cupom" data-help-label="Modo lançar com cupom" data-help-text="Use para compra com cupom ou comprovante simples, sem exigir chave de acesso.">
                         <input type="radio" name="doc_mode" value="cupom">
                         <strong>Lançar com cupom</strong>
-                        <span>Controle rápido de balcão com número do cupom, CNPJ e datas.</span>
                     </label>
                     <label class="docf-mode-btn" data-doc-mode="manual" data-help-label="Modo lançar sem NF" data-help-text="Use quando ainda não existe comprovante formal e você precisa manter a compra documentada.">
                         <input type="radio" name="doc_mode" value="manual">
                         <strong>Lançar sem NF</strong>
-                        <span>Pendência documental controlada até regularização.</span>
                     </label>
                 </div>
 
-                <div class="docf-panel mb-3 docf-mode-summary" id="doc-mode-summary">
+                <div class="docf-panel info docf-mode-summary mb-3">
                     <div class="docf-mode-summary-head">
                         <div>
-                            <strong id="doc-mode-title">Compra com NF ativa</strong>
-                            <div class="docf-muted mt-1" id="doc-mode-text">Use este modo quando a compra já tiver número de nota e, se existir, chave de acesso.</div>
+                            <div class="docf-kicker">Modo ativo</div>
+                            <h3 class="docf-card-title mb-1" id="doc-mode-title">Compra com NF ativa</h3>
+                            <p class="docf-muted small mb-0" id="doc-mode-text">Use este modo quando a compra já tiver número de nota e, se existir, chave de acesso.</p>
                         </div>
-                        <span class="docf-chip" id="doc-mode-badge">Fluxo fiscal completo</span>
+                        <span class="docf-badge" id="doc-mode-badge">Fluxo fiscal completo</span>
                     </div>
+
                     <div class="docf-mode-status-grid">
                         <div class="docf-mode-status-card">
                             <span class="docf-mode-status-label">Campos ativos</span>
@@ -2270,18 +2383,17 @@
                                 <span class="docf-mode-chip">Número fiscal</span>
                                 <span class="docf-mode-chip">Datas</span>
                                 <span class="docf-mode-chip">CNPJ</span>
-                                <span class="docf-mode-chip">Chave</span>
                             </div>
                         </div>
                         <div class="docf-mode-status-card">
-                            <span class="docf-mode-status-label">Bloqueios automáticos</span>
+                            <span class="docf-mode-status-label">Campos travados</span>
                             <div class="docf-mode-chip-row" id="doc-mode-locked-fields">
-                                <span class="docf-mode-chip is-muted">Sem bloqueios extras</span>
+                                <span class="docf-mode-chip is-muted">Sem itens</span>
                             </div>
                         </div>
                         <div class="docf-mode-status-card">
-                            <span class="docf-mode-status-label">Ação esperada</span>
-                            <div class="docf-muted" id="doc-mode-guidance">Preencha o documento completo e mantenha a rastreabilidade fiscal forte desde o cadastro.</div>
+                            <span class="docf-mode-status-label">Orientação</span>
+                            <div class="docf-muted small" id="doc-mode-guidance">Preencha o documento completo e mantenha a rastreabilidade fiscal forte desde o cadastro.</div>
                         </div>
                     </div>
                 </div>
@@ -2299,10 +2411,10 @@
                                 <p class="docf-form-section-text">Comece localizando um item existente. Se o produto ainda não estiver cadastrado, use a área logo abaixo para criar o item e continuar o lançamento na mesma rotina.</p>
                             </div>
                         </div>
-                        <div class="mb-0">
+                        <div class="mb-0 docf-item-search-wrap">
                             <label class="form-label" for="item_search">Item</label>
                             <div class="position-relative">
-                                <input class="form-control" id="item_search" type="text" autocomplete="off"
+                                <input class="form-control docf-item-search-input" id="item_search" type="text" autocomplete="off"
                                     placeholder="Digite código ou descrição do item"
                                     value="{% if selected_item %}{{ selected_item.codigo }} — {{ selected_item.descricao }}{% endif %}">
                                 <input type="hidden" id="codigo" name="codigo" value="{{ codigo_prefill }}" required>
@@ -2311,36 +2423,14 @@
                         </div>
                     </div>
 
-                    <div class="docf-form-section">
+                    <div class="docf-form-section compact-section">
                         <div class="docf-form-section-header">
                             <div>
                                 <h3 class="docf-form-section-title">2. Item novo, se necessário</h3>
-                                <p class="docf-form-section-text">Use esta etapa somente quando o material ainda não existir no estoque. O objetivo é evitar cadastro duplicado e manter a classificação inicial já consistente.</p>
+                                <p class="docf-form-section-text">Preencha somente quando a busca acima não encontrar o material.</p>
                             </div>
                         </div>
                         <div class="docf-panel mb-0">
-                        <div class="docf-item-create-hero">
-                            <div class="docf-item-create-callout">
-                                <div class="docf-kicker">Item novo</div>
-                                <h4 class="docf-item-create-title">Crie o cadastro só quando a busca acima não encontrar o material.</h4>
-                                <p class="docf-item-create-text">A regra prática fica mais direta: descrição clara, unidade interna correta e, se a NF vier em embalagem, informar também a unidade documental e o conteúdo por embalagem.</p>
-                                <div class="docf-rule-stack">
-                                    <div class="docf-rule-pill">1. Código e descrição servem para evitar duplicidade logo na entrada.</div>
-                                    <div class="docf-rule-pill">2. Unidade interna é a base do ledger, do saldo e da saída fracionada.</div>
-                                    <div class="docf-rule-pill">3. Unidade da compra representa a embalagem da NF; o conteúdo fecha a conversão.</div>
-                                </div>
-                            </div>
-                            <div class="docf-item-flow-card" id="docf-new-item-summary">
-                                <div class="docf-item-flow-kicker">Resumo do pré-cadastro</div>
-                                <div class="docf-item-flow-title" id="docf-new-item-summary-title">Aguardando dados do item novo</div>
-                                <div class="docf-item-flow-line" id="docf-new-item-summary-line">Preencha descrição e unidade base para confirmar visualmente como o item será criado antes de salvar o documento.</div>
-                                <div class="docf-item-flow-tags">
-                                    <span class="docf-flow-tag" id="docf-new-item-base-chip">Base: Unidade</span>
-                                    <span class="docf-flow-tag" id="docf-new-item-doc-chip">NF sem embalagem</span>
-                                    <span class="docf-flow-tag" id="docf-new-item-content-chip">Conteúdo pendente</span>
-                                </div>
-                            </div>
-                        </div>
                         <div class="row g-2 docf-tight-grid align-items-stretch">
                             <div class="col-md-3">
                                 <div class="docf-field-card">
@@ -2431,42 +2521,11 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="docf-reference-card" id="docf-reference-card">
-                            <div class="docf-form-section-header">
-                                <div>
-                                    <h4 class="docf-form-section-title">2.1 Referência comercial do pré-cadastro</h4>
-                                    <p class="docf-form-section-text" id="docf-reference-priority-text">Quando o item novo ainda não tem NF formal, este bloco ajuda a deixar o pré-cadastro pronto para revisão com origem comercial, link e imagem.</p>
-                                </div>
-                            </div>
-                            <div class="row g-2 docf-tight-grid align-items-stretch">
-                                <div class="col-md-4">
-                                    <div class="docf-field-card">
-                                        <label class="form-label" for="preco_reposicao_fonte">Fonte comercial</label>
-                                        <input class="form-control form-control-sm" id="preco_reposicao_fonte" name="preco_reposicao_fonte" placeholder="Ex.: Mercado Livre / Manual / fornecedor">
-                                    </div>
-                                </div>
-                                <div class="col-md-2">
-                                    <div class="docf-field-card">
-                                        <label class="form-label" for="preco_reposicao_uf">UF</label>
-                                        <input class="form-control form-control-sm" id="preco_reposicao_uf" name="preco_reposicao_uf" maxlength="2" placeholder="Ex.: RJ">
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="docf-field-card">
-                                        <label class="form-label" for="preco_reposicao_url">Link de referência</label>
-                                        <input class="form-control form-control-sm" id="preco_reposicao_url" name="preco_reposicao_url" placeholder="https://...">
-                                    </div>
-                                </div>
-                                <div class="col-12">
-                                    <div class="docf-field-card">
-                                        <label class="form-label" for="foto_url">Imagem do produto por link</label>
-                                        <input class="form-control form-control-sm" id="foto_url" name="foto_url" placeholder="https://.../imagem.webp">
-                                        <div class="docf-field-hint">Se preencher, o sistema tenta baixar a foto e já deixa o item novo mais completo para o pré-cadastro.</div>
-                                    </div>
-                                </div>
-                            </div>
-                            <input type="hidden" id="preco_reposicao_query" name="preco_reposicao_query">
-                        </div>
+                        <input type="hidden" id="preco_reposicao_fonte" name="preco_reposicao_fonte">
+                        <input type="hidden" id="preco_reposicao_uf" name="preco_reposicao_uf">
+                        <input type="hidden" id="preco_reposicao_url" name="preco_reposicao_url">
+                        <input type="hidden" id="foto_url" name="foto_url">
+                        <input type="hidden" id="preco_reposicao_query" name="preco_reposicao_query">
                     </div>
                     </div>
 
@@ -2482,7 +2541,7 @@
                                 <input class="form-control form-control-sm" id="quantidade" name="quantidade" type="number" min="0.01" step="0.01" value="1"
                                     required>
                             </div>
-                            <div class="col-md-4 docf-field-lock-shell" data-doc-lock-field="numero">
+                            <div class="col-md-4 docf-field-lock-shell" data-doc-lock-field="numero" data-doc-visible-modes="nf,cupom">
                                 <label class="form-label" for="nota_fiscal" id="nota_fiscal_label">Número da NF</label>
                                 <input class="form-control form-control-sm" id="nota_fiscal" name="nota_fiscal" value="{{ nota_detalhes.numero_documento|default(nota_busca, true) if active_tab == 'registro' and (nota_detalhes or nota_busca) else '' }}" required>
                                 <div class="list-group mt-2 d-none" id="nota_fiscal_results"></div>
@@ -2492,17 +2551,17 @@
                             <input type="hidden" id="finance_supplier_search" name="supplier_name">
                             <input type="hidden" id="finance_supplier_id" name="finance_supplier_id">
                             <div class="list-group position-absolute w-100 shadow d-none" id="finance_supplier_results" style="z-index: 50;"></div>
-                            <div class="col-md-3 docf-field-lock-shell" data-doc-lock-field="emissao">
+                            <div class="col-md-3 docf-field-lock-shell" data-doc-lock-field="emissao" data-doc-visible-modes="nf,cupom">
                                 <label class="form-label" for="data_emissao">Emissão do documento</label>
                                 <input class="form-control form-control-sm" id="data_emissao" name="data_emissao" type="date">
                                 <div class="docf-field-lock-note" data-doc-lock-note></div>
                             </div>
-                            <div class="col-md-3 docf-field-lock-shell" data-doc-lock-field="recebimento">
+                            <div class="col-md-3 docf-field-lock-shell" data-doc-lock-field="recebimento" data-doc-visible-modes="nf,cupom">
                                 <label class="form-label" for="data_recebimento">Data de recebimento</label>
                                 <input class="form-control form-control-sm" id="data_recebimento" name="data_recebimento" type="date">
                                 <div class="docf-field-lock-note" data-doc-lock-note></div>
                             </div>
-                            <div class="col-md-5 docf-field-lock-shell" data-doc-lock-field="cnpj">
+                            <div class="col-md-5 docf-field-lock-shell" data-doc-lock-field="cnpj" data-doc-visible-modes="nf,cupom">
                                 <label class="form-label" for="supplier_cnpj">CNPJ da loja</label>
                                 <div class="input-group">
                                     <input class="form-control form-control-sm" id="supplier_cnpj" name="supplier_cnpj" placeholder="00.000.000/0000-00">
@@ -2510,7 +2569,7 @@
                                 </div>
                                 <div class="docf-field-lock-note" data-doc-lock-note></div>
                             </div>
-                            <div class="col-md-7 docf-field-lock-shell" data-chave-acesso-group data-doc-lock-field="chave">
+                            <div class="col-md-7 docf-field-lock-shell" data-chave-acesso-group data-doc-lock-field="chave" data-doc-visible-modes="nf">
                                 <label class="form-label" for="chave_acesso">Chave de acesso</label>
                                 <input class="form-control form-control-sm" id="chave_acesso" name="chave_acesso" placeholder="44 dígitos da NF-e / NFC-e">
                                 <div class="docf-field-lock-note" data-doc-lock-note></div>
@@ -2521,7 +2580,7 @@
                     <div class="docf-form-section compact-section docf-finance-section">
                         <div class="docf-form-section-header">
                             <div>
-                                <h3 class="docf-form-section-title">4. Classificação financeira</h3>
+                                <h3 class="docf-form-section-title">4. Valor e fechamento</h3>
                             </div>
                         </div>
                         <div class="row g-2 docf-tight-grid docf-finance-grid mb-1">
@@ -2539,7 +2598,7 @@
                                     <div class="docf-live-calc-meta" data-calc-meta>O total calculado aparece aqui para você bater rapidamente com a nota antes de salvar.</div>
                                 </div>
                             </div>
-                            <div class="col-md-4 docf-field-lock-shell" data-doc-lock-field="finance_tipo_documento">
+                            <div class="col-md-4 docf-field-lock-shell" data-doc-lock-field="finance_tipo_documento" hidden>
                                 <label class="form-label" for="finance_tipo_documento">Tipo de documento</label>
                                 <select class="form-select form-select-sm docf-hidden-native-select" id="finance_tipo_documento" name="finance_tipo_documento">
                                     <option value="nf">Nota fiscal</option>
@@ -2555,7 +2614,7 @@
                                 </div>
                                 <div class="docf-field-lock-note" data-doc-lock-note></div>
                             </div>
-                            <div class="col-md-4 docf-field-lock-shell" data-doc-lock-field="finance_origem_valor">
+                            <div class="col-md-4 docf-field-lock-shell" data-doc-lock-field="finance_origem_valor" hidden>
                                 <label class="form-label" for="finance_origem_valor">Origem do valor</label>
                                 <select class="form-select form-select-sm docf-hidden-native-select" id="finance_origem_valor" name="finance_origem_valor">
                                     <option value="compra_nf">Compra com NF</option>
@@ -2571,7 +2630,7 @@
                                 </div>
                                 <div class="docf-field-lock-note" data-doc-lock-note></div>
                             </div>
-                            <div class="col-md-4 docf-field-lock-shell" data-doc-lock-field="finance_comprovacao_status">
+                            <div class="col-md-4 docf-field-lock-shell" data-doc-lock-field="finance_comprovacao_status" hidden>
                                 <label class="form-label" for="finance_comprovacao_status">Comprovação</label>
                                 <select class="form-select form-select-sm docf-hidden-native-select" id="finance_comprovacao_status" name="finance_comprovacao_status">
                                     <option value="comprovado">Comprovado</option>
@@ -2585,15 +2644,10 @@
                                 </div>
                                 <div class="docf-field-lock-note" data-doc-lock-note></div>
                             </div>
-                            <div class="col-12 mb-1">
+                            <div class="col-12 mb-1" data-doc-visible-modes="cupom,manual">
                                 <label class="form-label" for="finance_observacao">Observação financeira</label>
                                 <textarea class="form-control form-control-sm" id="finance_observacao" name="finance_observacao" rows="2"
                                     placeholder="Ex.: compra emergencial, documento conferido, valor estimado..."></textarea>
-                            </div>
-                            <div class="col-12 mb-1">
-                                <div class="docf-inline-note">
-                                    Com estoque ativo, item novo entra primeiro em <strong>PRÉ CADASTRADOS</strong>. Se o documento ficar só no financeiro, não há movimentação nem pré-cadastro.
-                                </div>
                             </div>
                             <div class="col-12 compact-actions">
                                 <button class="docf-btn-primary" id="docf-submit-button" type="submit" data-help-label="Registrar documento fiscal" data-help-text="Salva o documento principal com item, fornecedor e classificação documental.">Registrar documento fiscal</button>
@@ -3061,6 +3115,7 @@
     const emissionDateInput = document.getElementById('data_emissao');
     const receiptDateInput = document.getElementById('data_recebimento');
     const chaveAcessoInput = document.getElementById('chave_acesso');
+    const financeObservationInput = document.getElementById('finance_observacao');
     const lookupCnpjButton = document.getElementById('btn-buscar-cnpj');
     const tipoDocumentoInput = document.getElementById('finance_tipo_documento');
     const origemValorInput = document.getElementById('finance_origem_valor');
@@ -3618,6 +3673,25 @@
     currentRegistrationMode = normalizeDocumentTypeValue(getCheckedDocModeInputValue() || tipoDocumentoInput?.value || 'nf');
 
     const getTodayIsoDate = () => new Date().toISOString().slice(0, 10);
+
+    const applyRegistrationVisibility = (modeName) => {
+        const normalizedModeName = normalizeDocumentTypeValue(modeName);
+        document.querySelectorAll('[data-doc-visible-modes]').forEach((wrapper) => {
+            if (!(wrapper instanceof HTMLElement)) {
+                return;
+            }
+            const supportedModes = String(wrapper.dataset.docVisibleModes || '')
+                .split(',')
+                .map((value) => value.trim())
+                .filter(Boolean);
+            const shouldShow = supportedModes.length === 0 || supportedModes.includes(normalizedModeName);
+            wrapper.hidden = !shouldShow;
+        });
+
+        if (financeObservationInput) {
+            financeObservationInput.disabled = normalizedModeName === 'nf';
+        }
+    };
 
     const setLockState = (fieldKey, locked, message = '') => {
         const wrapper = nfForm?.querySelector(`[data-doc-lock-field="${fieldKey}"]`);
@@ -4561,6 +4635,7 @@
             button.classList.toggle('is-active', button.dataset.docMode === mode.buttonMode);
         });
         applyRegistrationFieldStates(normalizedModeName);
+        applyRegistrationVisibility(normalizedModeName);
         currentRegistrationMode = normalizedModeName;
     };
 

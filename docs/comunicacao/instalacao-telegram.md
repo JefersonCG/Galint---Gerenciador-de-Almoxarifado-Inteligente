@@ -1,0 +1,1 @@
+--8<-- "INSTALACAO_TELEGRAM.md"

@@ -1,0 +1,1 @@
+--8<-- "GUIA_REPLICACAO_APK.md"

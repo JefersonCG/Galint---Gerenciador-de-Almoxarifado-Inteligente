@@ -569,7 +569,7 @@
 {% block page_header %}
 <div class="about-hero">
     <h2>Sobre o GALINT</h2>
-    <p>O GALINT fica mais legível quando cada tipo de conteúdo tem seu lugar. O painel principal foca no operacional e esta página concentra visão geral, fluxo, taxonomia e documentação em abas separadas.</p>
+    <p>O GALINT fica mais legível quando cada tipo de conteúdo tem seu lugar. O painel principal foca no operacional e esta página concentra visão geral, fluxo, cadastro documental, taxonomia e documentação em abas separadas.</p>
     <div class="about-pill"><i class="bi bi-stars"></i> Menos ruído visual, mais clareza operacional</div>
 </div>
 {% endblock %}
@@ -579,6 +579,7 @@
     <ul class="nav nav-pills about-tabs" role="tablist">
         <li class="nav-item" role="presentation"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#about-overview" type="button" role="tab">Visão geral</button></li>
         <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#about-flow" type="button" role="tab">Fluxo operacional</button></li>
+        <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#about-documents" type="button" role="tab">Cadastro documental</button></li>
         <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#about-typologies" type="button" role="tab">Tipologias e padrões</button></li>
         <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#about-docs" type="button" role="tab">Documentação</button></li>
     </ul>
@@ -782,6 +783,72 @@
             {% endif %}
         </section>
 
+        <section class="tab-pane fade about-tab-pane" id="about-documents" role="tabpanel">
+            <div class="about-section">
+                <div class="about-highlight mb-4">
+                    <div>
+                        <h4><i class="bi bi-receipt-cutoff text-info me-2"></i>Como cadastrar documentos fiscais</h4>
+                        <p>As explicações de NF, cupom e lançamento sem comprovação fiscal saíram da tela prática de registro para liberar espaço operacional. A aba Registro agora foca só no preenchimento.</p>
+                    </div>
+                    <a class="about-cta" href="{{ url_for('nf.nf_index', aba='registro') }}">
+                        <i class="bi bi-box-arrow-up-right"></i>
+                        Abrir tela de cadastro
+                    </a>
+                </div>
+
+                <div class="about-process-grid">
+                    {% for step in about_document_guide.steps %}
+                    <article class="about-process-card">
+                        <div class="about-process-step">{{ step.step }}</div>
+                        <h5><i class="bi {{ step.icon }} me-2"></i>{{ step.title }}</h5>
+                        <p>{{ step.text }}</p>
+                    </article>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="about-section">
+                <div class="about-section-header-row">
+                    <div>
+                        <div class="about-section-eyebrow"><i class="bi bi-ui-radios-grid"></i> Modos de cadastro</div>
+                        <h4 class="mb-2">Quando usar NF, cupom ou lançamento sem comprovação fiscal</h4>
+                        <p class="about-section-copy mb-0">A regra agora fica documentada aqui: a tela operacional permanece compacta e o critério de uso de cada modo fica separado para consulta.</p>
+                    </div>
+                </div>
+                <div class="about-grid">
+                    {% for mode in about_document_guide.modes %}
+                    <article class="about-card">
+                        <span class="about-section-eyebrow"><i class="bi {{ mode['icon'] }}"></i> {{ mode['badge'] }}</span>
+                        <h5>{{ mode['title'] }}</h5>
+                        <p class="text-muted">{{ mode['summary'] }}</p>
+                        <ul class="about-mini-list mb-0">
+                            {% for item in mode['items'] %}
+                            <li>{{ item }}</li>
+                            {% endfor %}
+                        </ul>
+                    </article>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="about-section">
+                <div class="about-section-header-row">
+                    <div>
+                        <div class="about-section-eyebrow"><i class="bi bi-shield-check"></i> Regras rápidas</div>
+                        <h4 class="mb-2">Critérios para não travar o cadastro nem perder rastreabilidade</h4>
+                    </div>
+                </div>
+                <div class="about-rule-grid">
+                    {% for rule in about_document_guide.rules %}
+                    <article class="about-rule-card">
+                        <h5>{{ rule.title }}</h5>
+                        <p>{{ rule.text }}</p>
+                    </article>
+                    {% endfor %}
+                </div>
+            </div>
+        </section>
+
         <section class="tab-pane fade about-tab-pane" id="about-typologies" role="tabpanel">
             <div class="about-section">
                 <div class="about-section-header-row">
@@ -917,4 +984,39 @@
         </section>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+{{ super() }}
+<script>
+    (() => {
+        const tabButtons = Array.from(document.querySelectorAll('.about-tabs [data-bs-target]'));
+        if (!tabButtons.length || !window.bootstrap?.Tab) {
+            return;
+        }
+
+        const activateTabFromHash = () => {
+            const hash = window.location.hash;
+            if (!hash) {
+                return;
+            }
+            const targetButton = tabButtons.find((button) => button.dataset.bsTarget === hash);
+            if (!targetButton) {
+                return;
+            }
+            window.bootstrap.Tab.getOrCreateInstance(targetButton).show();
+        };
+
+        tabButtons.forEach((button) => {
+            button.addEventListener('shown.bs.tab', (event) => {
+                const target = event.target.getAttribute('data-bs-target');
+                if (target) {
+                    history.replaceState(null, '', target);
+                }
+            });
+        });
+
+        activateTabFromHash();
+    })();
+</script>
 {% endblock %}

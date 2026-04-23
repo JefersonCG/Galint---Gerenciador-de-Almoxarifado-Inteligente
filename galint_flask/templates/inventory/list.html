@@ -1616,23 +1616,53 @@
                 <!-- Aba Histórico -->
                 <div class="galint-tab-content" id="tab-history">
                     <div class="galint-history-info">
-                        <h6 class="mb-3">Movimentações Recentes</h6>
-                        <div class="table-responsive">
-                            <table class="table table-sm table-hover">
-                                <thead>
-                                    <tr>
-                                        <th>Data</th>
-                                        <th>Tipo</th>
-                                        <th>Quantidade</th>
-                                        <th>Responsável</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="history-tbody">
-                                    <tr>
-                                        <td colspan="4" class="text-center text-muted">Histórico não disponível no momento</td>
-                                    </tr>
-                                </tbody>
-                            </table>
+                        <div class="galint-history-section">
+                            <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+                                <div>
+                                    <h6 class="mb-1">Compras documentadas</h6>
+                                    <p class="text-muted small mb-0">Cada linha mostra um documento real já vinculado ao item.</p>
+                                </div>
+                            </div>
+                            <div class="table-responsive mb-4">
+                                <table class="table table-sm table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Recebimento</th>
+                                            <th>Documento</th>
+                                            <th>Quantidade</th>
+                                            <th>Valor</th>
+                                            <th>Fornecedor</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="document-history-tbody">
+                                        <tr>
+                                            <td colspan="6" class="text-center text-muted">Histórico documental não disponível no momento</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="galint-history-section">
+                            <h6 class="mb-3">Movimentações Recentes</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Data</th>
+                                            <th>Tipo</th>
+                                            <th>Quantidade</th>
+                                            <th>Responsável</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="history-tbody">
+                                        <tr>
+                                            <td colspan="4" class="text-center text-muted">Histórico não disponível no momento</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -2993,6 +3023,61 @@
         border: 1px solid rgba(148, 163, 184, 0.14);
         border-radius: 14px;
         padding: 0.45rem;
+    }
+
+    .galint-history-section + .galint-history-section {
+        margin-top: 1.1rem;
+    }
+
+    .galint-history-doc-main {
+        display: grid;
+        gap: 0.18rem;
+    }
+
+    .galint-history-doc-title {
+        color: #f8fbff;
+        font-weight: 700;
+    }
+
+    .galint-history-doc-subtitle,
+    .galint-history-doc-note {
+        color: #c7d6ea;
+        font-size: 0.78rem;
+        line-height: 1.35;
+    }
+
+    .galint-history-status {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 110px;
+        padding: 0.22rem 0.55rem;
+        border-radius: 999px;
+        font-size: 0.74rem;
+        font-weight: 800;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        background: rgba(255, 255, 255, 0.06);
+        color: #e5eefc;
+    }
+
+    .galint-history-status.is-processed {
+        background: rgba(34, 197, 94, 0.16);
+        border-color: rgba(34, 197, 94, 0.28);
+        color: #bbf7d0;
+    }
+
+    .galint-history-status.is-pending {
+        background: rgba(245, 158, 11, 0.16);
+        border-color: rgba(245, 158, 11, 0.28);
+        color: #fde68a;
+    }
+
+    .galint-history-status.is-error {
+        background: rgba(239, 68, 68, 0.16);
+        border-color: rgba(239, 68, 68, 0.28);
+        color: #fecaca;
     }
 
     .galint-history-info .table {
@@ -5774,10 +5859,110 @@
         }).join('');
     };
 
-    const loadItemHistory = async (codigo) => {
-        const historyTbody = document.getElementById('history-tbody');
+    const formatDocumentHistoryDate = (primaryDate, fallbackDate) => {
+        const value = primaryDate || fallbackDate;
+        if (!value) {
+            return '—';
+        }
+        const normalized = String(value);
+        const parsed = normalized.length <= 10
+            ? new Date(`${normalized}T00:00:00`)
+            : new Date(normalized);
+        if (Number.isNaN(parsed.getTime())) {
+            return escapeHtml(normalized);
+        }
+        return parsed.toLocaleDateString('pt-BR');
+    };
+
+    const getDocumentStatusMeta = (status) => {
+        const normalized = String(status || '').trim().toLowerCase();
+        if (normalized === 'processado') {
+            return { label: 'Processado', className: 'is-processed' };
+        }
+        if (normalized === 'erro') {
+            return { label: 'Com erro', className: 'is-error' };
+        }
+        if (normalized === 'processando') {
+            return { label: 'Processando', className: 'is-pending' };
+        }
+        return { label: 'Pendente', className: 'is-pending' };
+    };
+
+    const renderDocumentHistory = (history) => {
+        const historyTbody = document.getElementById('document-history-tbody');
         if (!historyTbody) {
             return;
+        }
+
+        if (!Array.isArray(history) || !history.length) {
+            historyTbody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="text-center text-muted">Nenhum documento fiscal encontrado para este item</td>
+                </tr>
+            `;
+            return;
+        }
+
+        historyTbody.innerHTML = history.map((registro) => {
+            const receiptDate = formatDocumentHistoryDate(registro.data_recebimento, registro.data_emissao || registro.criado_em);
+            const issueDate = registro.data_emissao ? formatDocumentHistoryDate(registro.data_emissao, null) : '';
+            const documentType = String(registro.tipo_documento || 'documento').trim().toUpperCase();
+            const supplierName = escapeHtml(registro.fornecedor_nome || registro.cnpj_emitente || '—');
+            const quantityLabel = escapeHtml(registro.quantidade_documento_display || String(registro.quantidade ?? '—'));
+            const quantityDetail = registro.conversao_display
+                ? escapeHtml(registro.conversao_display)
+                : escapeHtml(registro.quantidade_base_display || '');
+            const unitPrice = formatBrl(registro.valor_unitario);
+            const totalPrice = formatBrl(registro.valor_total);
+            const statusMeta = getDocumentStatusMeta(registro.status_processamento);
+            const observation = String(registro.observacao || '').trim();
+            return `
+                <tr>
+                    <td>
+                        <div class="galint-history-doc-main">
+                            <span class="galint-history-doc-title">${receiptDate}</span>
+                            <span class="galint-history-doc-subtitle">${issueDate ? `Emissão ${issueDate}` : 'Sem emissão informada'}</span>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="galint-history-doc-main">
+                            <span class="galint-history-doc-title">${escapeHtml(documentType)} ${escapeHtml(registro.numero_documento || '—')}</span>
+                            <span class="galint-history-doc-subtitle">Linha documental ${escapeHtml(String(registro.id || '—'))}</span>
+                            ${observation ? `<span class="galint-history-doc-note">${escapeHtml(observation)}</span>` : ''}
+                        </div>
+                    </td>
+                    <td>
+                        <div class="galint-history-doc-main">
+                            <span class="galint-history-doc-title">${quantityLabel}</span>
+                            ${quantityDetail && quantityDetail !== '—' ? `<span class="galint-history-doc-subtitle">${quantityDetail}</span>` : ''}
+                        </div>
+                    </td>
+                    <td>
+                        <div class="galint-history-doc-main">
+                            <span class="galint-history-doc-title">${unitPrice}</span>
+                            <span class="galint-history-doc-subtitle">Total ${totalPrice}</span>
+                        </div>
+                    </td>
+                    <td>${supplierName}</td>
+                    <td><span class="galint-history-status ${statusMeta.className}">${escapeHtml(statusMeta.label)}</span></td>
+                </tr>
+            `;
+        }).join('');
+    };
+
+    const loadItemHistory = async (codigo) => {
+        const historyTbody = document.getElementById('history-tbody');
+        const documentHistoryTbody = document.getElementById('document-history-tbody');
+        if (!historyTbody) {
+            return;
+        }
+
+        if (documentHistoryTbody) {
+            documentHistoryTbody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="text-center text-muted">Carregando histórico documental...</td>
+                </tr>
+            `;
         }
 
         historyTbody.innerHTML = `
@@ -5794,8 +5979,16 @@
             if (!response.ok || !data?.success) {
                 throw new Error(data?.message || 'Falha ao carregar histórico');
             }
+            renderDocumentHistory(data.document_history || []);
             renderItemHistory(data.history || []);
         } catch (err) {
+            if (documentHistoryTbody) {
+                documentHistoryTbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="text-center text-muted">${escapeHtml(String(err?.message || err || 'Histórico documental indisponível'))}</td>
+                    </tr>
+                `;
+            }
             historyTbody.innerHTML = `
                 <tr>
                     <td colspan="4" class="text-center text-muted">${escapeHtml(String(err?.message || err || 'Histórico indisponível'))}</td>

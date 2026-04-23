@@ -131,6 +131,85 @@ _ABOUT_CATEGORY_REFERENCE_RULES = (
     },
 )
 
+_ABOUT_DOCUMENT_GUIDE_STEPS = (
+    {
+        "step": "01",
+        "icon": "bi-search",
+        "title": "Localize o item e escolha o modo",
+        "text": "Busque o item primeiro. Se ele ainda nao existir, crie o item novo na mesma rotina e so depois complete o documento.",
+    },
+    {
+        "step": "02",
+        "icon": "bi-receipt-cutoff",
+        "title": "Preencha so o que comprova a compra",
+        "text": "NF usa numero, datas e fornecedor. Cupom usa comprovacao simples sem chave. Sem NF ou cupom usa referencia interna e observacao.",
+    },
+    {
+        "step": "03",
+        "icon": "bi-kanban",
+        "title": "Acompanhe pelas abas operacionais",
+        "text": "Depois de salvar, o documento segue para Processaveis, Erros ou Historico, sem abrir uma aba separada so para pendencias.",
+    },
+)
+
+_ABOUT_DOCUMENT_GUIDE_MODES = (
+    {
+        "icon": "bi-file-earmark-text",
+        "title": "Lancar com NF",
+        "badge": "Comprovacao fiscal completa",
+        "summary": "Use quando a compra ja tem nota fiscal. Se existir chave de acesso, ela entra no mesmo lancamento.",
+        "items": (
+            "Numero da NF",
+            "Datas de emissao e recebimento",
+            "Fornecedor e CNPJ",
+            "Chave de acesso, se houver",
+        ),
+    },
+    {
+        "icon": "bi-receipt",
+        "title": "Lancar com cupom",
+        "badge": "Comprovacao fiscal simples",
+        "summary": "Use para cupom ou comprovante simples de balcao, sem exigir chave de acesso.",
+        "items": (
+            "Numero do cupom",
+            "Datas",
+            "Fornecedor ou CNPJ da loja",
+            "Itens e valores",
+        ),
+    },
+    {
+        "icon": "bi-journal-minus",
+        "title": "Lancar sem NF ou cupom",
+        "badge": "Sem comprovacao fiscal",
+        "summary": "Use quando ainda nao existe comprovante formal. O registro continua rastreavel, mas com status compativel com ausencia de comprovacao fiscal.",
+        "items": (
+            "Referencia interna compartilhada",
+            "Valor e itens",
+            "Observacao financeira",
+            "Origem do valor",
+        ),
+    },
+)
+
+_ABOUT_DOCUMENT_GUIDE_RULES = (
+    {
+        "title": "NF e o fluxo mais completo",
+        "text": "Quando houver nota fiscal, prefira esse modo para manter o vinculo documental mais forte desde o cadastro.",
+    },
+    {
+        "title": "Cupom nao usa chave de acesso",
+        "text": "Cupom serve para compra simples com comprovacao direta, sem abrir um fluxo pesado de nota fiscal.",
+    },
+    {
+        "title": "Sem NF ou cupom usa o modo manual",
+        "text": "Quando nao houver comprovacao fiscal, use o lancamento sem NF ou cupom. O sistema continua registrando a compra sem inventar numero fiscal.",
+    },
+    {
+        "title": "A triagem continua nas abas",
+        "text": "Depois da gravacao, o acompanhamento segue em Processaveis, Erros e Historico. A explicacao saiu da tela pratica, nao o controle operacional.",
+    },
+)
+
 
 def _inline_markdown_to_html(text: str) -> str:
     escaped = html.escape(text)
@@ -281,6 +360,14 @@ def _build_about_category_reference() -> dict[str, object]:
         "group_count": len(groups),
         "surface_count": len(_ABOUT_CATEGORY_REFERENCE_SURFACES),
         "rule_count": len(_ABOUT_CATEGORY_REFERENCE_RULES),
+    }
+
+
+def _build_about_document_guide() -> dict[str, object]:
+    return {
+        "steps": list(_ABOUT_DOCUMENT_GUIDE_STEPS),
+        "modes": list(_ABOUT_DOCUMENT_GUIDE_MODES),
+        "rules": list(_ABOUT_DOCUMENT_GUIDE_RULES),
     }
 
 
@@ -748,10 +835,12 @@ def sobre():
     kit_readme_path = Path(current_app.root_path).parent / "README_CENTRAL_KITS_FERRAMENTAS.md"
     kit_doc_html = _markdown_file_to_html(kit_readme_path) if kit_readme_path.exists() else ""
     about_category_reference = _build_about_category_reference()
+    about_document_guide = _build_about_document_guide()
     return render_template(
         "sobre.html",
         kit_doc_html=kit_doc_html,
         about_category_reference=about_category_reference,
+        about_document_guide=about_document_guide,
         category_visual_catalog=about_category_reference.get("catalog") or [],
     )
 

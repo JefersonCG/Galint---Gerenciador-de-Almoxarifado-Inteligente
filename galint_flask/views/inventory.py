@@ -3328,10 +3328,31 @@ def get_item_history_api(codigo: str):
         return jsonify({"success": False, "message": "Item não encontrado."}), 404
 
     history = inventory_service.list_item_movements(codigo, limit=20)
+    document_history = inventory_service.list_item_document_history(codigo, limit=12)
+
+    def _serialize_temporal(value):
+        if value is None:
+            return None
+        if isinstance(value, datetime):
+            return TimeService.isoformat_utc(value)
+        if isinstance(value, date):
+            return value.isoformat()
+        return str(value)
+
     return jsonify(
         {
             "success": True,
             "codigo": codigo,
+            "document_history": [
+                {
+                    **registro,
+                    "data_emissao": _serialize_temporal(registro.get("data_emissao")),
+                    "data_recebimento": _serialize_temporal(registro.get("data_recebimento")),
+                    "criado_em": _serialize_temporal(registro.get("criado_em")),
+                    "processado_em": _serialize_temporal(registro.get("processado_em")),
+                }
+                for registro in document_history
+            ],
             "history": [
                 {
                     **registro,

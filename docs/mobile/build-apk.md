@@ -1,0 +1,1 @@
+--8<-- "BUILD_APK_v1.3.0_INSTRUCOES.md"

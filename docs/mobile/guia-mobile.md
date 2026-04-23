@@ -1,0 +1,1 @@
+--8<-- "galint-mobile/GUIA_COMPLETO.md"

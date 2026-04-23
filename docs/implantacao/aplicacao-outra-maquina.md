@@ -1,0 +1,1 @@
+--8<-- "APLICACAO_EM_OUTRA_MAQUINA.md"

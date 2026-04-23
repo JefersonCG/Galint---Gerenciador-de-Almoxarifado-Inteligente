@@ -1,0 +1,1 @@
+--8<-- "README_LEDGER_ESTOQUE.md"

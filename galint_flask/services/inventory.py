@@ -17,6 +17,7 @@ from unicodedata import normalize as unicode_normalize
 from flask import has_app_context
 from sqlalchemy import or_, func, inspect, text
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import joinedload
 
 from ..extensions import db
 from ..models import (
@@ -5677,6 +5678,67 @@ class InventoryService:
         )
         feed.sort(key=lambda registro: registro.get("data") or datetime.min, reverse=True)
         return feed[:limit]
+
+    def list_item_document_history(self, codigo: str, limit: int = 12) -> list[dict[str, Any]]:
+        codigo_norm = (codigo or "").strip()
+        if not codigo_norm:
+            return []
+
+        from .finance_service import FinanceService, _build_document_item_display_metadata
+
+        rows = (
+            DocumentoEntradaEstoqueItem.query
+            .options(
+                joinedload(DocumentoEntradaEstoqueItem.item),
+                joinedload(DocumentoEntradaEstoqueItem.documento).joinedload(DocumentoEntradaEstoque.fornecedor),
+            )
+            .join(DocumentoEntradaEstoque, DocumentoEntradaEstoqueItem.documento_id == DocumentoEntradaEstoque.id_documento)
+            .filter(DocumentoEntradaEstoqueItem.codigo_item == codigo_norm)
+            .order_by(
+                DocumentoEntradaEstoque.data_recebimento.desc(),
+                DocumentoEntradaEstoque.data_emissao.desc(),
+                DocumentoEntradaEstoque.id_documento.desc(),
+                DocumentoEntradaEstoqueItem.id_documento_item.desc(),
+            )
+            .limit(limit)
+            .all()
+        )
+
+        history: list[dict[str, Any]] = []
+        for row in rows:
+            document = row.documento
+            if document is None:
+                continue
+
+            display = _build_document_item_display_metadata(row)
+            supplier_name = document.fornecedor.nome_exibicao() if document.fornecedor else document.nome_emitente()
+            document_number = FinanceService.normalize_manual_internal_document_number(document.numero_documento)
+
+            history.append(
+                {
+                    "id": row.id_documento_item,
+                    "documento_id": document.id_documento,
+                    "tipo_documento": document.tipo_documento,
+                    "numero_documento": document_number,
+                    "fornecedor_nome": supplier_name,
+                    "cnpj_emitente": document.cnpj_emitente,
+                    "data_emissao": document.data_emissao,
+                    "data_recebimento": document.data_recebimento,
+                    "criado_em": row.criado_em,
+                    "movimenta_estoque": bool(document.movimenta_estoque) if document.movimenta_estoque is not None else True,
+                    "status_processamento": row.status_processamento,
+                    "processado_em": row.processado_em,
+                    "chave_acesso": document.chave_acesso,
+                    "observacao": row.observacao or document.observacao,
+                    "quantidade": float(row.quantidade or 0.0),
+                    "quantidade_base": float(row.quantidade_base or 0.0) if row.quantidade_base is not None else None,
+                    "valor_unitario": float(row.valor_unitario or 0.0) if row.valor_unitario is not None else None,
+                    "valor_total": float(row.valor_total or 0.0) if row.valor_total is not None else None,
+                    **display,
+                }
+            )
+
+        return history
 
     def list_item_movements(self, codigo: str, limit: int = 20) -> list[dict[str, Any]]:
         codigo_norm = (codigo or "").strip()

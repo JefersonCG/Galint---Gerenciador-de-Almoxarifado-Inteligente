@@ -102,6 +102,8 @@ Arquivos principais:
 - custódia temporária e permanente
 - relatórios por tipo de custódia
 - detalhe do responsável e histórico da ferramenta
+- baixa em lote por múltipla seleção no dashboard e na ficha do colaborador
+- reaproveitamento de foto por matrícula para leitura operacional
 - acompanhamento de itens em reparo
 
 Arquivos principais:
@@ -142,6 +144,7 @@ Arquivos principais:
 
 - cadastro de usuários
 - histórico e permissões
+- foto do usuário vinculada à matrícula, com reaproveitamento no login
 - apoio à rastreabilidade operacional por colaborador
 
 Arquivos principais:
@@ -186,6 +189,7 @@ Arquivos principais:
 - backup
 - rede
 - empresa
+- branding do login com imagem de fundo e imagem do card
 - relatórios administrativos
 - notificações
 - mecanismo de conversão
@@ -339,6 +343,8 @@ O núcleo do sistema continua sendo Flask + PostgreSQL, mas o produto deixou de 
 - relatórios separados por tipo de custódia
 - feed de saídas recentes no dashboard
 - painel de ferramentas em custódia com atualização em tempo real
+- seleção múltipla e baixa em lote no feed do dashboard
+- seleção múltipla e baixa em lote na tela detalhada do funcionário
 - alertas visuais no dashboard para devolução pendente: atenção em amarelo a partir de 16h40 e alerta crítico em vermelho após 17h
 
 ### Atualizações recentes do ciclo atual
@@ -348,6 +354,231 @@ O núcleo do sistema continua sendo Flask + PostgreSQL, mas o produto deixou de 
 - inclusão assistida de item em NF para reduzir retrabalho durante o vínculo entre documento fiscal e catálogo já existente
 - cards de categoria do estoque com assistente rápido de imagem, permitindo buscar, pré-visualizar e aplicar foto do item sem abrir a tela completa de edição
 - modal de apoio para foto do item reduzido e adaptado para fluxo operacional mais curto dentro da listagem
+- README principal consolidado com regras canônicas de entrada, conversão, saldo, embalagem, custódia, branding e ambiente para evitar regressão semântica
+- login dark hero consolidado com branding configurável, imagem do card redonda e troca automática para foto do usuário quando a matrícula possuir imagem vinculada
+- tela de usuários ampliada com upload e remoção de foto por matrícula, sem criar uma segunda fonte paralela de avatar
+- feed de custódia do dashboard revisado para suportar múltipla seleção, botão Selecionar todas/Limpar seleção, baixa em lote e contenção de textos longos dentro dos cards
+- tela detalhada da custódia revisada com múltipla seleção para ferramentas temporárias, confirmação única de baixa em lote e preview dos itens selecionados no modal
+
+## Regras canônicas para entrada, cálculo, conversão e processamento
+
+Esta seção existe para evitar que o sistema volte a errar semântica de entrada, saldo, embalagem, valor financeiro ou projeção física.
+
+Se houver dúvida entre uma leitura antiga, um comportamento legado e o que o sistema deve fazer hoje, esta é a ordem correta de interpretação:
+
+1. o saldo autoritativo nasce no ledger
+2. a unidade autoritativa é a unidade canônica do item
+3. embalagem é forma operacional de entrada e leitura, não fonte independente de verdade
+4. valor financeiro só pode ler saldo reconciliado
+5. telas, APIs e relatórios devem consumir projeções do backend, não recalcular saldo no frontend
+
+### Fonte de verdade do estoque
+
+Regra central:
+
+- o único saldo autoritativo deve ser a soma de `StockMovement.quantity_base` na unidade canônica do item
+
+Tudo o que aparece na interface deve derivar dessa base:
+
+- `StockBalance` como cache
+- `estoque_embalagens` e `estoque_unidades_soltas` como projeção física operacional
+- `saldo_display` como formatação de leitura
+- valor financeiro como leitura sobre saldo reconciliado
+
+### Fluxo canônico de uma entrada de item
+
+Toda entrada correta precisa passar mentalmente por esta sequência:
+
+1. o operador informa quantidade e unidade operacional de entrada
+2. o sistema resolve a unidade canônica do item
+3. o motor de conversão transforma a quantidade operacional em `quantity_base`
+4. o movimento é gravado no ledger
+5. o cache de saldo é atualizado a partir do ledger
+6. a projeção física de embalagem é recalculada a partir do saldo canônico
+7. a interface recebe apenas a leitura já reconciliada no backend
+
+Exemplos corretos:
+
+- 1 lata de massa corrida 25 kg entra como 25 kg na base
+- 1 rolo de 50 m entra como 50 m na base
+- 1 pacote com 1000 unidades entra como 1000 un na base
+
+O erro histórico que o projeto não pode repetir é tratar lata, pacote, caixa, balde, saco, fardo, bombona ou rolo como unidade autoritativa do saldo quando eles são apenas embalagem ou unidade operacional.
+
+### Semântica oficial dos campos de embalagem
+
+Os campos abaixo não podem mais ser reinterpretados de forma livre:
+
+- `unidades_por_embalagem`: quantidade interna contida em uma embalagem fechada
+- `estoque_embalagens`: quantidade de embalagens fechadas
+- `estoque_unidades_soltas`: resto fracionado de uma embalagem já aberta
+
+Isso significa:
+
+- o saldo base não deve ser promovido diretamente para `estoque_embalagens`
+- a decomposição correta sempre parte do saldo canônico em unidade base
+- a UI deve explicar embalagem como conteúdo e contagem física, não como fonte paralela de saldo
+
+### Regras especiais para jogos, kits e conjuntos
+
+Itens com descrição e semântica de `JOGO`, `KIT` ou `CONJUNTO` não devem reutilizar a lógica de embalagem como se fossem estoque fracionável comum.
+
+Regra operacional consolidada:
+
+- para jogos, kits e conjuntos de ferramentas, `unidades_por_embalagem` representa composição interna, não unidade de saldo
+- esses itens devem convergir para `Unidade` como semântica de estoque
+- metadata de embalagem não deve inflar o saldo desses itens durante backfill, dual-write ou leitura
+
+### Como o valor financeiro deve ser calculado
+
+Regra consolidada:
+
+- `valor_estoque_*_total = saldo_fisico_total × preco_*_unitario`
+
+E atenção:
+
+- `preco_*_unitario` é o preço da unidade interna do item
+- não é preço por pacote, caixa, lata, saco ou outra embalagem operacional
+- se o saldo estiver semanticamente errado, o valor financeiro também ficará errado
+
+### Regras inegociáveis para nunca mais errarmos nisso
+
+Estas regras são obrigatórias em qualquer correção futura:
+
+- nenhum `StockMovement` novo pode ser gravado com unidade base de embalagem
+- nenhum cálculo financeiro pode usar saldo não reconciliado
+- nenhuma tela deve remontar saldo físico por conta própria no frontend
+- nenhum ajuste pode alinhar apenas uma camada deixando ledger, cache e projeção física divergentes
+- nenhum item embalado deve aceitar operação sem unidade canônica resolvida
+- nenhum fluxo paralelo deve gravar estoque fora do writer central
+
+### Arquivos que concentram essa lógica
+
+- `galint_flask/services/inventory.py`
+- `galint_flask/services/inventory_engine.py`
+- `galint_flask/services/balance_provider.py`
+- `galint_flask/services/embalagem_service.py`
+- `galint_flask/services/unit_conversion_engine.py`
+- `galint_flask/services/legacy_stock_normalizer.py`
+- `galint_flask/models.py`
+
+Para o desenho arquitetural completo do tema, a referência canônica detalhada é [README_ESTOQUE_UNIFICADO.md](README_ESTOQUE_UNIFICADO.md).
+
+## O que foi corrigido para impedir regressão semântica
+
+As correções recentes consolidaram alguns pontos que antes ficavam espalhados entre tela, legado, cache e heurística.
+
+### Embalagem e saldo físico
+
+- itens embalados deixaram de promover saldo base diretamente para contagem de embalagens
+- a decomposição do saldo em embalagens fechadas e unidades soltas precisa sempre usar o fator correto de embalagem
+- a recomposição operacional deve partir do saldo reconciliado do ledger
+
+### Cutover, dual-write e cache
+
+- o cutover deve gravar `result.ledger_balance` em `StockBalance.quantity_base`
+- reutilizar cache antigo sem reconstrução pode preservar saldo físico corrompido
+- quando necessário, a reconstrução segura deve partir da soma dos movimentos, não do read-model físico já inflado
+
+### Documentos de entrada, NF e vínculo com item
+
+- o fluxo de entrada documental foi estabilizado para manter fornecedor, número do documento, chave de acesso, datas de emissão e recebimento vinculados ao item e ao histórico financeiro
+- a inclusão assistida de item em NF existe para reduzir retrabalho e diminuir divergência entre catálogo, documento e lançamento operacional
+- o objetivo da entrada não é apenas somar saldo; é preservar rastreabilidade documental e semântica correta de unidade
+
+## Custódia de ferramentas: estado atual consolidado
+
+O módulo de custódia passou a trabalhar com leitura operacional mais forte e menos dependente de ação unitária isolada.
+
+### O que mudou no dashboard
+
+- o feed por colaborador agora aceita múltipla seleção na custódia diária
+- cada clique alterna seleção da ferramenta
+- existe atalho de `Selecionar todas` e `Limpar seleção`
+- o botão principal executa baixa em lote de forma sequencial
+- se parte da operação falhar, apenas as falhas permanecem selecionadas para nova tentativa
+- os cards receberam reforço de `min-width` e `overflow-wrap` para impedir vazamento de textos longos
+
+### O que mudou na tela detalhada do colaborador
+
+- a coluna de custódia temporária agora permite selecionar vários cards
+- a baixa em lote abre um modal único com preview do conjunto selecionado
+- as ações unitárias continuam existindo, mas o fluxo de lote passou a ser o padrão mais rápido para operação diária
+
+### Arquivos principais da custódia recente
+
+- `galint_flask/templates/dashboard/index.html`
+- `galint_flask/templates/tool_custody/detail.html`
+- `galint_flask/views/tool_custody.py`
+- `galint_flask/services/tool_custody_service.py`
+
+## Login, branding e foto de usuário
+
+O login deixou de ser apenas uma tela estática e passou a ter dois níveis de personalização.
+
+### Branding global do login
+
+Hoje o sistema já suporta:
+
+- fundo configurável da página de login
+- imagem configurável do card do login
+- persistência de branding via configuração administrativa da empresa
+
+### Foto de usuário vinculada à matrícula
+
+Além do branding global, o sistema agora suporta:
+
+- upload de foto no cadastro de usuários
+- remoção da foto atual sem criar outro cadastro paralelo de avatar
+- reaproveitamento da mesma foto por matrícula no login
+- fallback automático para a imagem global do card quando a matrícula não tiver foto
+- imagem do card do login em formato redondo para acomodar tanto branding quanto foto de pessoa
+
+Decisão importante de arquitetura:
+
+- a foto do usuário não criou uma nova coluna obrigatória no banco
+- o sistema reaproveita o armazenamento por matrícula já usado em contexto operacional
+- isso evita duas fontes de verdade para a imagem da mesma pessoa
+
+Arquivos principais:
+
+- `galint_flask/templates/auth/login.html`
+- `galint_flask/templates/users/form.html`
+- `galint_flask/views/auth.py`
+- `galint_flask/views/users.py`
+- `galint_flask/services/users.py`
+- `galint_flask/services/tool_custody_service.py`
+
+## Ambiente, execução local e armadilhas conhecidas
+
+Estas observações precisam ficar no README principal porque já causaram erro real em runtime.
+
+### Flask sem reloader automático
+
+- `app.py` sobe o servidor com `use_reloader=False`
+- mudança em rota Python, blueprint, guard global ou lógica de serviço não entra sozinha no processo já em execução
+- se uma rota nova parecer inexistente ou se um comportamento antigo persistir, reinicie manualmente o `python.exe app.py`
+
+### Hierarquia de `.env`
+
+- o projeto carrega `.env` e `.env.local` com prioridade para a raiz do projeto
+- use `.env.local` para credenciais específicas por máquina
+- isso evita herdar configuração errada de pastas acima no Windows
+
+### Background services em diagnósticos
+
+- para smoke tests e diagnósticos read-only, prefira `GALINT_DISABLE_BACKGROUND_SERVICES=true`
+- isso evita scheduler, polling do Telegram e side effects de startup durante verificação local
+
+### Templates base e JavaScript de páginas filhas
+
+- `galint_flask/templates/base.html` precisa renderizar `{% block scripts %}{% endblock %}` perto do fim do `body`
+- sem isso, a página pode abrir, mas perde o JavaScript inline da tela filha e o operador enxerga comportamento aparentemente aleatório em botões, uploads e bindings
+
+### Data e hora
+
+- datas e horas exibidas ao usuário devem usar `TimeService.now_local()` no backend
+- evitar `new Date().toISOString().slice(0, 10)` no frontend, porque esse atalho usa UTC e pode adiantar o dia no Windows UTC-3
 
 ### Experiência e interface
 
@@ -575,6 +806,10 @@ Existe uma observação prática importante neste workspace:
 
 ## Documentação complementar
 
+- [README_ESTOQUE_UNIFICADO.md](README_ESTOQUE_UNIFICADO.md): referência canônica de saldo, ledger, unidade base, embalagem, cache e cutover
+- [README_PERSONALIZACAO_SAIDAS_DEVOLUCOES.md](README_PERSONALIZACAO_SAIDAS_DEVOLUCOES.md): direção de UX visual para saídas, devoluções, foto do item e futura tela espelho
+- [README_CENTRAL_KITS_FERRAMENTAS.md](README_CENTRAL_KITS_FERRAMENTAS.md): desenho do módulo de kits, bolsa-chave e patrimônio de ferramentas
+- [README_MENSAGERIA_CONDOMINIAL.md](README_MENSAGERIA_CONDOMINIAL.md): proposta do novo módulo condominial com modelagem relacional, enums, service transacional, migration inicial e blueprint base
 - [README_PERCENTUAL_MOVIMENTOS.md](README_PERCENTUAL_MOVIMENTOS.md): detalhamento do relatório Percentual Movimentos
 - [BUILD_APK_v1.3.0_INSTRUCOES.md](BUILD_APK_v1.3.0_INSTRUCOES.md): instruções de build do app
 - [DB_MIGRATION.md](DB_MIGRATION.md): notas de migração de banco

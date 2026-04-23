@@ -1,0 +1,1 @@
+--8<-- "GUIA_EXECUTAVEL_E_UPDATES.md"

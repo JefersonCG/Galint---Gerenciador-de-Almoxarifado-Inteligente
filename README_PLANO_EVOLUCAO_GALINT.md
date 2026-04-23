@@ -1,34 +1,34 @@
-# README - Plano de Evolucao do GALINT
+# README - Plano de Evolução do GALINT
 
 ## Objetivo
 
-Este documento descreve como eu conduziria a evolucao do GALINT sem reescrever o sistema, preservando a operacao atual, reduzindo risco de regressao e criando base para crescer em quatro frentes:
+Este documento descreve como eu conduziria a evolução do GALINT sem reescrever o sistema, preservando a operação atual, reduzindo risco de regressão e criando base para crescer em quatro frentes:
 
 - confiabilidade operacional
-- padronizacao de UI/UX
-- arquivamento e exclusao segura de dados sensiveis
-- backup/restauracao como replica real do ambiente
+- padronização de UI/UX
+- arquivamento e exclusão segura de dados sensíveis
+- backup/restauração como réplica real do ambiente
 
-O foco aqui nao e um texto conceitual. O foco e um plano executavel, em ordem, com passos, dependencias, riscos e validacoes.
+O foco aqui não é um texto conceitual. O foco é um plano executável, em ordem, com passos, dependências, riscos e validações.
 
 ---
 
-## Visao executiva
+## Visão executiva
 
-Eu nao faria essa evolucao como um bloco unico. Eu dividiria em trilhas paralelas, mas com uma ordem rigida de precedencia:
+Eu não faria essa evolução como um bloco único. Eu dividiria em trilhas paralelas, mas com uma ordem rígida de precedência:
 
-1. estabilizar o nucleo operacional
-2. fechar os pontos de backup e restauracao
-3. criar um design system minimo para padronizar a interface
-4. convergir telas por familia funcional
+1. estabilizar o núcleo operacional
+2. fechar os pontos de backup e restauração
+3. criar um design system mínimo para padronizar a interface
+4. convergir telas por família funcional
 5. implementar arquivamento controlado para exclusao de usuarios e dados historicos
-6. preparar distribuicao, atualizacao e rollback como disciplina propria
+6. preparar distribuição, atualização e rollback como disciplina própria
 
-O motivo da ordem e simples:
+O motivo da ordem é simples:
 
-- nao adianta melhorar tela em cima de fluxo instavel
-- nao adianta apagar ou migrar dados sem restauracao confiavel
-- nao adianta expandir produto sem padrao visual e tecnico minimo
+- não adianta melhorar tela em cima de fluxo instável
+- não adianta apagar ou migrar dados sem restauração confiável
+- não adianta expandir produto sem padrão visual e técnico mínimo
 
 ---
 
@@ -109,7 +109,7 @@ Existe um pacote minimo de referencia para comparar performance, layout e compor
 
 ---
 
-## Etapa 1 - Estabilizacao do nucleo operacional
+## Etapa 1 - Estabilização do núcleo operacional
 
 ### Objetivo
 
@@ -347,30 +347,30 @@ Eu nao trataria isso como exclusao simples. Eu criaria um fluxo de descomissiona
 - liberar matricula cedo demais causar colisoes historicas ou ambiguidades em auditoria
 - PDF sozinho nao ser suficiente para restauracao ou consulta futura
 
-### Mitigacao
+### Mitigação
 
-1. tratar o processo como arquivamento, nao como delete bruto
-2. manter identificador historico imutavel no dossie arquivado
-3. usar SQL controlado quando o ORM nao refletir o schema real com seguranca
-4. exigir confirmacao de leitura do impacto antes da acao final
+1. tratar o processo como arquivamento, não como delete bruto
+2. manter identificador histórico imutável no dossiê arquivado
+3. usar SQL controlado quando o ORM não refletir o schema real com segurança
+4. exigir confirmação de leitura do impacto antes da ação final
 
-### Criterio de saida
+### Critério de saída
 
-O sistema consegue retirar um usuario da operacao diaria sem perder rastreabilidade nem corromper relacionamentos.
+O sistema consegue retirar um usuário da operação diária sem perder rastreabilidade nem corromper relacionamentos.
 
 ---
 
-## Etapa 6 - Atualizacao, distribuicao e rollback
+## Etapa 6 - Atualização, distribuição e rollback
 
 ### Objetivo
 
-Fazer deploy e atualizacao virarem processo previsivel.
+Fazer deploy e atualização virarem processo previsível.
 
 ### Passo a passo
 
 1. Separar claramente artefatos de aplicacao e dados persistidos.
 2. Revisar a estrategia de executavel e updater.
-3. Garantir que update nao substitua apenas um arquivo quando o build real e onedir.
+3. Garantir que update não substitua apenas um arquivo quando o build real é onedir.
 4. Padronizar o pacote de release:
    - binarios
    - migracoes necessarias
@@ -439,7 +439,7 @@ O sistema fica mais previsivel de operar, manter e diagnosticar.
 Se eu fosse executar isso no projeto, eu faria nesta sequencia de entregas curtas:
 
 1. baseline tecnica e matriz de risco
-2. consolidacao do nucleo operacional mais sensivel
+2. consolidação do núcleo operacional mais sensível
 3. backup completo com manifest e validacao sem restore
 4. restore completo em staging
 5. design system minimo documentado

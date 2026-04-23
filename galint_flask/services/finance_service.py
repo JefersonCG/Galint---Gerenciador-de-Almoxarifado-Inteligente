@@ -477,6 +477,57 @@ class FinanceService:
         return (score, document.criado_em or datetime.min, int(document.id_documento or 0))
 
     @staticmethod
+    def _stock_document_supplier_identity(document: DocumentoEntradaEstoque | None) -> str:
+        if document is None:
+            return ""
+        cnpj = (document.cnpj_emitente or "").strip()
+        if cnpj:
+            return f"cnpj:{cnpj}"
+        if document.fornecedor_id is not None:
+            return f"fornecedor:{int(document.fornecedor_id)}"
+        if FinanceService._is_legacy_conversion_placeholder(document):
+            return ""
+        supplier_name = (document.fornecedor_nome or "").strip().lower()
+        if supplier_name:
+            return f"nome:{supplier_name}"
+        return ""
+
+    @staticmethod
+    def _select_reusable_existing_document(
+        documents: list[DocumentoEntradaEstoque],
+        *,
+        require_unambiguous_identity: bool = False,
+    ) -> DocumentoEntradaEstoque | None:
+        if not documents:
+            return None
+
+        ordered = sorted(
+            documents,
+            key=FinanceService._stock_document_priority,
+            reverse=True,
+        )
+        if not require_unambiguous_identity:
+            return ordered[0]
+
+        identities: dict[str, DocumentoEntradaEstoque] = {}
+        for document in ordered:
+            identity = FinanceService._stock_document_supplier_identity(document)
+            if not identity:
+                continue
+            identities.setdefault(identity, document)
+
+        if len(identities) > 1:
+            raise ValueError(
+                "Já existem documentos com esse mesmo número vinculados a fornecedores diferentes. "
+                "Informe o fornecedor ou o CNPJ para evitar mistura documental."
+            )
+
+        if identities:
+            return next(iter(identities.values()))
+
+        return ordered[0]
+
+    @staticmethod
     def _select_canonical_documents(documents: list[DocumentoEntradaEstoque]) -> list[DocumentoEntradaEstoque]:
         documents_by_number: dict[str, DocumentoEntradaEstoque] = {}
         documents_without_number: list[DocumentoEntradaEstoque] = []
@@ -1432,7 +1483,10 @@ class FinanceService:
         elif supplier:
             document_query = document_query.filter(DocumentoEntradaEstoque.fornecedor_id == supplier.id)
 
-        document = document_query.order_by(DocumentoEntradaEstoque.id_documento.desc()).first()
+        document = FinanceService._select_reusable_existing_document(
+            document_query.order_by(DocumentoEntradaEstoque.id_documento.desc()).all(),
+            require_unambiguous_identity=not bool(cnpj or supplier),
+        )
         reused_legacy_placeholder = False
         if document is None and tipo == "nf":
             legacy_placeholder = FinanceService._find_legacy_placeholder_document(numero)
