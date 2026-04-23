@@ -4,6 +4,8 @@
 
 {% block extra_css %}
 <style>
+    @import url("{{ url_for('static', filename='css/category-visual-system.css') }}");
+
     .about-dark-hero-page .content-panel {
         background:
             radial-gradient(circle at 14% 14%, rgba(56, 189, 248, 0.1), transparent 24%),
@@ -13,9 +15,7 @@
     }
 
     .about-hero {
-        background: radial-gradient(circle at top right, rgba(56, 189, 248, 0.18), transparent 42%),
-                    radial-gradient(circle at bottom left, rgba(245, 158, 11, 0.14), transparent 30%),
-                    linear-gradient(135deg, rgba(15, 23, 42, 0.96) 0%, rgba(30, 41, 59, 0.88) 55%, rgba(14, 165, 233, 0.36) 100%);
+        background: radial-gradient(circle at top right, rgba(56, 189, 248, 0.18), transparent 42%), radial-gradient(circle at bottom left, rgba(245, 158, 11, 0.14), transparent 30%), linear-gradient(135deg, rgba(15, 23, 42, 0.96) 0%, rgba(30, 41, 59, 0.88) 55%, rgba(14, 165, 233, 0.36) 100%);
         color: #f8fafc;
         border-radius: 26px;
         padding: 2.25rem 2.5rem;
@@ -27,7 +27,7 @@
     }
 
     .about-hero::after {
-        content: '';
+        content: "";
         position: absolute;
         width: 240px;
         height: 240px;
@@ -45,7 +45,7 @@
     .about-hero p {
         opacity: 0.8;
         font-size: 1rem;
-        max-width: 680px;
+        max-width: 760px;
     }
 
     .about-pill {
@@ -62,54 +62,201 @@
         margin-top: 0.8rem;
     }
 
-    .about-grid {
+    .about-tabs.nav-pills {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .about-tabs .nav-link {
+        border-radius: 999px;
+        padding: 0.72rem 1.05rem;
+        background: rgba(15, 23, 42, 0.72);
+        color: rgba(226, 232, 240, 0.78);
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        font-weight: 800;
+        letter-spacing: 0.02em;
+    }
+
+    .about-tabs .nav-link.active {
+        background: linear-gradient(135deg, rgba(37, 99, 235, 0.28), rgba(14, 165, 233, 0.22));
+        color: #ffffff;
+        border-color: rgba(125, 211, 252, 0.34);
+        box-shadow: 0 16px 30px rgba(15, 23, 42, 0.18);
+    }
+
+    .about-tab-pane {
+        animation: aboutTabFade 0.22s ease;
+    }
+
+    @keyframes aboutTabFade {
+        from {
+            opacity: 0;
+            transform: translateY(8px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .about-grid,
+    .about-stat-strip,
+    .about-steps,
+    .about-illustration,
+    .about-process-grid,
+    .about-flow-ribbon,
+    .about-rule-grid,
+    .about-doc-link-grid,
+    .about-category-reference-grid {
         display: grid;
+        gap: 1rem;
+    }
+
+    .about-grid {
         grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-        gap: 1.2rem;
         margin-bottom: 2rem;
     }
 
-    .about-card {
+    .about-stat-strip {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        margin-bottom: 2rem;
+    }
+
+    .about-card,
+    .about-stat-card,
+    .about-section,
+    .about-process-card,
+    .about-flow-node,
+    .about-rule-card,
+    .about-doc-link,
+    .about-category-reference-card,
+    .about-taxonomy-panel {
         border-radius: 22px;
-        background: linear-gradient(180deg, rgba(15, 23, 42, 0.92) 0%, rgba(15, 23, 42, 0.76) 100%);
-        padding: 1.4rem 1.5rem;
-        box-shadow: 0 18px 38px rgba(15, 23, 42, 0.16);
+        background: linear-gradient(180deg, rgba(15, 23, 42, 0.92) 0%, rgba(15, 23, 42, 0.78) 100%);
         border: 1px solid rgba(148, 163, 184, 0.14);
+        box-shadow: 0 18px 38px rgba(15, 23, 42, 0.16);
         color: #e2e8f0;
     }
 
+    .about-card,
+    .about-stat-card,
+    .about-process-card,
+    .about-flow-node,
+    .about-rule-card,
+    .about-doc-link,
+    .about-category-reference-card,
+    .about-taxonomy-panel {
+        padding: 1.2rem 1.3rem;
+    }
+
+    .about-section {
+        padding: 1.75rem 2rem;
+        margin-bottom: 2rem;
+    }
+
+    .about-card h5,
+    .about-process-card h5,
+    .about-flow-node h5,
+    .about-rule-card h5,
+    .about-doc-link h5,
+    .about-category-reference-card h5,
+    .about-taxonomy-panel h5,
+    .about-group-head h4 {
+        color: #f8fafc;
+        font-weight: 800;
+    }
+
     .about-card h5 {
-        font-weight: 700;
         margin-top: 0.75rem;
         margin-bottom: 0.5rem;
+    }
+
+    .about-icon,
+    .about-flow-icon,
+    .about-category-reference-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #ffffff;
     }
 
     .about-icon {
         width: 48px;
         height: 48px;
         border-radius: 16px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
         background: rgba(59, 130, 246, 0.14);
         color: #7dd3fc;
         font-size: 1.4rem;
     }
 
-    .about-section {
-        border-radius: 24px;
-        background: linear-gradient(180deg, rgba(15, 23, 42, 0.92) 0%, rgba(15, 23, 42, 0.78) 100%);
-        padding: 1.75rem 2rem;
-        border: 1px solid rgba(148, 163, 184, 0.14);
-        margin-bottom: 2rem;
-        color: #e2e8f0;
-        box-shadow: 0 20px 44px rgba(15, 23, 42, 0.16);
+    .about-stat-label,
+    .about-section-eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .about-stat-label {
+        color: rgba(148, 163, 184, 0.88);
+        margin-bottom: 0.55rem;
+    }
+
+    .about-section-eyebrow {
+        padding: 0.38rem 0.78rem;
+        border-radius: 999px;
+        background: rgba(37, 99, 235, 0.16);
+        border: 1px solid rgba(96, 165, 250, 0.18);
+        color: #93c5fd;
+        margin-bottom: 0.65rem;
+    }
+
+    .about-stat-value {
+        font-size: 1.8rem;
+        font-weight: 900;
+        line-height: 1;
+        color: #f8fafc;
+    }
+
+    .about-stat-note,
+    .about-section-copy,
+    .about-card p,
+    .about-process-card p,
+    .about-flow-node p,
+    .about-rule-card p,
+    .about-doc-link p,
+    .about-category-reference-card p,
+    .about-taxonomy-panel p {
+        color: rgba(203, 213, 225, 0.76);
+        line-height: 1.65;
+    }
+
+    .about-section-header-row,
+    .about-group-head,
+    .about-highlight {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .about-process-grid,
+    .about-flow-ribbon,
+    .about-rule-grid,
+    .about-doc-link-grid,
+    .about-category-reference-grid {
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     }
 
     .about-steps {
-        display: grid;
         grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 1rem;
     }
 
     .about-step {
@@ -126,26 +273,56 @@
         font-weight: 700;
     }
 
+    .about-process-step {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 48px;
+        min-height: 48px;
+        border-radius: 16px;
+        background: rgba(37, 99, 235, 0.16);
+        color: #93c5fd;
+        font-size: 0.95rem;
+        font-weight: 900;
+        margin-bottom: 0.9rem;
+    }
+
+    .about-flow-node {
+        position: relative;
+        overflow: hidden;
+    }
+
+    .about-flow-node::before {
+        content: "";
+        position: absolute;
+        inset: auto 1.2rem 1rem 1.2rem;
+        height: 2px;
+        background: linear-gradient(90deg, rgba(56, 189, 248, 0.42), transparent);
+    }
+
+    .about-flow-icon {
+        width: 42px;
+        height: 42px;
+        border-radius: 14px;
+        background: rgba(56, 189, 248, 0.14);
+        color: #7dd3fc;
+        font-size: 1.1rem;
+        margin-bottom: 0.8rem;
+    }
+
     .about-highlight {
         background: linear-gradient(135deg, rgba(37, 99, 235, 0.18), rgba(30, 41, 59, 0.72));
         border: 1px solid rgba(96, 165, 250, 0.2);
         border-radius: 24px;
         padding: 1.6rem 1.8rem;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 1rem;
-        flex-wrap: wrap;
     }
 
     .about-highlight h4 {
         margin: 0;
-        font-weight: 800;
     }
 
     .about-highlight p {
         margin: 0.25rem 0 0;
-        opacity: 0.82;
         color: rgba(226, 232, 240, 0.82);
     }
 
@@ -162,15 +339,13 @@
         box-shadow: 0 12px 22px rgba(37, 99, 235, 0.2);
     }
 
-    .about-cta:hover {
-        background: #1e40af;
+    .about-cta:hover,
+    .about-doc-link:hover {
         color: #fff;
     }
 
     .about-illustration {
-        display: grid;
         grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-        gap: 0.9rem;
     }
 
     .about-figure {
@@ -186,10 +361,101 @@
         color: #7dd3fc;
     }
 
+    .about-figure strong {
+        display: block;
+        margin-top: 0.5rem;
+        color: #f8fafc;
+    }
+
     .about-figure p {
         margin: 0.5rem 0 0;
         font-size: 0.85rem;
         color: rgba(203, 213, 225, 0.72);
+    }
+
+    .about-taxonomy-summary {
+        display: grid;
+        grid-template-columns: 1.2fr 0.8fr;
+        gap: 1rem;
+        margin-top: 1rem;
+    }
+
+    .about-group-grid {
+        display: grid;
+        gap: 1rem;
+    }
+
+    .about-group-card {
+        --group-accent: #38bdf8;
+        border-radius: 22px;
+        padding: 1.4rem;
+        background: linear-gradient(180deg, rgba(15, 23, 42, 0.92) 0%, rgba(15, 23, 42, 0.78) 100%);
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        box-shadow: 0 18px 38px rgba(15, 23, 42, 0.16);
+    }
+
+    .about-group-head {
+        margin-bottom: 1rem;
+    }
+
+    .about-group-head p {
+        margin: 0;
+        color: rgba(203, 213, 225, 0.76);
+        line-height: 1.6;
+        max-width: 56rem;
+    }
+
+    .about-group-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 34px;
+        padding: 0.38rem 0.78rem;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        color: #f8fafc;
+        font-size: 0.78rem;
+        font-weight: 800;
+    }
+
+    .about-group-progress {
+        height: 10px;
+        border-radius: 999px;
+        background: rgba(51, 65, 85, 0.72);
+        overflow: hidden;
+        margin-bottom: 1rem;
+    }
+
+    .about-group-progress span {
+        display: block;
+        height: 100%;
+        border-radius: 999px;
+        background: linear-gradient(90deg, var(--group-accent), rgba(255, 255, 255, 0.24));
+    }
+
+    .about-category-reference-head {
+        display: flex;
+        align-items: center;
+        gap: 0.65rem;
+        margin-bottom: 0.65rem;
+    }
+
+    .about-category-reference-icon {
+        width: 42px;
+        height: 42px;
+        border-radius: 14px;
+        font-size: 1.1rem;
+        flex-shrink: 0;
+    }
+
+    .about-category-usage {
+        margin-top: 0.7rem;
+        padding-top: 0.7rem;
+        border-top: 1px solid rgba(148, 163, 184, 0.12);
+        color: rgba(226, 232, 240, 0.82);
+        font-size: 0.84rem;
+        line-height: 1.55;
     }
 
     .about-mini-list {
@@ -202,16 +468,18 @@
         margin-top: 0.45rem;
     }
 
-    .about-note {
-        background: rgba(19, 28, 38, 0.82);
-        border-radius: 16px;
-        border: 1px solid rgba(148, 163, 184, 0.14);
-        padding: 1.1rem 1.2rem;
-        color: rgba(226, 232, 240, 0.8);
-    }
-
     .about-page .text-muted {
         color: rgba(203, 213, 225, 0.7) !important;
+    }
+
+    .about-doc-link {
+        text-decoration: none;
+        transition: transform 0.18s ease, border-color 0.18s ease;
+    }
+
+    .about-doc-link:hover {
+        transform: translateY(-2px);
+        border-color: rgba(125, 211, 252, 0.28);
     }
 
     .about-doc-shell {
@@ -269,175 +537,384 @@
         padding: 1rem 1.1rem;
         overflow-x: auto;
     }
+
+    @media (max-width: 1200px) {
+        .about-stat-strip,
+        .about-taxonomy-summary {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    @media (max-width: 768px) {
+        .about-hero {
+            padding: 1.5rem;
+        }
+
+        .about-stat-strip,
+        .about-taxonomy-summary {
+            grid-template-columns: 1fr;
+        }
+
+        .about-section {
+            padding: 1.3rem;
+        }
+
+        .about-tabs.nav-pills {
+            flex-direction: column;
+        }
+    }
 </style>
 {% endblock %}
 
 {% block page_header %}
 <div class="about-hero">
     <h2>Sobre o GALINT</h2>
-    <p>O GALINT deixa o almoxarifado mais leve: tudo organizado, sem sustos e com informações claras para quem cuida do dia a dia.</p>
-    <div class="about-pill"><i class="bi bi-stars"></i> Simples de usar, forte no resultado</div>
+    <p>O GALINT fica mais legível quando cada tipo de conteúdo tem seu lugar. O painel principal foca no operacional e esta página concentra visão geral, fluxo, taxonomia e documentação em abas separadas.</p>
+    <div class="about-pill"><i class="bi bi-stars"></i> Menos ruído visual, mais clareza operacional</div>
 </div>
 {% endblock %}
 
 {% block content %}
 <div class="about-page">
-<div class="about-grid">
-    <div class="about-card">
-        <div class="about-icon"><i class="bi bi-boxes"></i></div>
-        <h5>Estoque sempre em ordem</h5>
-        <p class="text-muted mb-0">Veja rapidamente o que tem, o que falta e o que precisa de atenção.</p>
-    </div>
-    <div class="about-card">
-        <div class="about-icon"><i class="bi bi-arrow-left-right"></i></div>
-        <h5>Entradas e saídas sem dor</h5>
-        <p class="text-muted mb-0">Registre cada movimento com clareza e sem formulários confusos.</p>
-    </div>
-    <div class="about-card">
-        <div class="about-icon"><i class="bi bi-bell"></i></div>
-        <h5>Avisos que ajudam</h5>
-        <p class="text-muted mb-0">Receba alertas quando algo precisa de ação, antes do problema acontecer.</p>
-    </div>
-    <div class="about-card">
-        <div class="about-icon"><i class="bi bi-graph-up"></i></div>
-        <h5>Relatórios amigáveis</h5>
-        <p class="text-muted mb-0">Leituras simples, com números visíveis e prontos para decisão.</p>
-    </div>
-</div>
-
-<div class="about-section">
-    <h4 class="mb-3"><i class="bi bi-lightning-charge text-warning me-2"></i>Como ele facilita seu dia</h4>
-    <div class="about-steps">
-        <div class="about-step">
-            <i class="bi bi-check2-circle text-success"></i>
-            <div>
-                <span>Veja o essencial</span>
-                <p class="small text-muted mb-0">Os indicadores principais ficam “na cara” logo no painel.</p>
-            </div>
-        </div>
-        <div class="about-step">
-            <i class="bi bi-clipboard-check text-primary"></i>
-            <div>
-                <span>Registre com segurança</span>
-                <p class="small text-muted mb-0">Cada movimento fica guardado e fácil de encontrar.</p>
-            </div>
-        </div>
-        <div class="about-step">
-            <i class="bi bi-people text-info"></i>
-            <div>
-                <span>Trabalho em equipe</span>
-                <p class="small text-muted mb-0">Quem opera e quem lidera enxergam a mesma verdade.</p>
-            </div>
-        </div>
-        <div class="about-step">
-            <i class="bi bi-shield-check text-success"></i>
-            <div>
-                <span>Mais tranquilidade</span>
-                <p class="small text-muted mb-0">Menos surpresa e mais previsão nas compras.</p>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="about-section">
-    <h4 class="mb-3"><i class="bi bi-brush text-primary me-2"></i>Figuras rápidas do sistema</h4>
-    <div class="about-illustration">
-        <div class="about-figure">
-            <i class="bi bi-pie-chart"></i>
-            <p>Percentuais claros</p>
-        </div>
-        <div class="about-figure">
-            <i class="bi bi-calendar-check"></i>
-            <p>Histórico simples</p>
-        </div>
-        <div class="about-figure">
-            <i class="bi bi-clipboard-data"></i>
-            <p>Relatórios prontos</p>
-        </div>
-        <div class="about-figure">
-            <i class="bi bi-broadcast"></i>
-            <p>Avisos no tempo certo</p>
-        </div>
-    </div>
-</div>
-
-{% if endpoint_exists('pages.config_conversionengine') %}
-<div class="about-section">
-    <h4 class="mb-3"><i class="bi bi-cpu text-primary me-2"></i>ConversionEngine no fluxo oficial</h4>
-    <p class="text-muted mb-0">O GALINT agora concentra a restauração oficial da base no ConversionEngine, com acompanhamento visual, staging por job e proteção operacional durante a implantação.</p>
-    <div class="about-steps mt-3">
-        <div class="about-step">
-            <i class="bi bi-window-stack text-primary"></i>
-            <div>
-                <span>Página feita para operação real</span>
-                <p class="small text-muted mb-0">A tela foi montada com visual dark, telemetria ao vivo, documentação embutida e ações separadas para análise, download e deploy.</p>
-            </div>
-        </div>
-        <div class="about-step">
-            <i class="bi bi-shield-lock text-success"></i>
-            <div>
-                <span>Restore oficial protegido</span>
-                <p class="small text-muted mb-0">Durante a implantação, o sistema entra em modo de manutenção, bloqueia acessos concorrentes e libera o restore com menos risco de disputa no PostgreSQL.</p>
-            </div>
-        </div>
-        <div class="about-step">
-            <i class="bi bi-tools text-warning"></i>
-            <div>
-                <span>Bugs tratados no caminho</span>
-                <p class="small text-muted mb-0">Timeout de lock, colunas críticas ausentes após restore e sinalização fraca para o operador foram corrigidos no fluxo atual.</p>
-            </div>
-        </div>
-    </div>
-    <ul class="about-mini-list">
-        <li>Aceita SQL, ZIP com SQL ou SQLite e bases SQLite para análise em staging isolado.</li>
-        <li>Libera implantação direta apenas quando a origem realmente é compatível com o pipeline PostgreSQL do GALINT.</li>
-        <li>Mantém pacote técnico disponível para homologação quando a base ainda não pode ser implantada com segurança.</li>
+    <ul class="nav nav-pills about-tabs" role="tablist">
+        <li class="nav-item" role="presentation"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#about-overview" type="button" role="tab">Visão geral</button></li>
+        <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#about-flow" type="button" role="tab">Fluxo operacional</button></li>
+        <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#about-typologies" type="button" role="tab">Tipologias e padrões</button></li>
+        <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#about-docs" type="button" role="tab">Documentação</button></li>
     </ul>
-</div>
-{% endif %}
 
-{% if endpoint_exists('pages.documentacao_percentual_movimentos') %}
-<div class="about-highlight">
-    <div>
-        <h4><i class="bi bi-pie-chart-fill text-primary me-2"></i>Ajuda especial do Percentual</h4>
-        <p>Quer entender os gráficos e os percentuais? Abrimos uma página simples, com exemplos e dicas práticas.</p>
-    </div>
-    <a class="about-cta" href="{{ url_for('pages.documentacao_percentual_movimentos') }}">
-        <i class="bi bi-journal-text"></i>
-        Abrir Ajuda
-    </a>
-</div>
-{% endif %}
+    <div class="tab-content">
+        <section class="tab-pane fade show active about-tab-pane" id="about-overview" role="tabpanel">
+            <div class="about-stat-strip">
+                <article class="about-stat-card">
+                    <span class="about-stat-label">Tipologias oficiais</span>
+                    <div class="about-stat-value">{{ about_category_reference.total_categories }}</div>
+                    <div class="about-stat-note">Catálogo principal organizado em grupos de leitura e apoio.</div>
+                </article>
+                <article class="about-stat-card">
+                    <span class="about-stat-label">Macrogrupos</span>
+                    <div class="about-stat-value">{{ about_category_reference.group_count }}</div>
+                    <div class="about-stat-note">Divisão pensada para explicar a taxonomia sem poluir o fluxo do dashboard.</div>
+                </article>
+                <article class="about-stat-card">
+                    <span class="about-stat-label">Superfícies compartilhadas</span>
+                    <div class="about-stat-value">{{ about_category_reference.surface_count }}</div>
+                    <div class="about-stat-note">Cadastro, filtros, painéis e relatórios usam a mesma base semântica.</div>
+                </article>
+                <article class="about-stat-card">
+                    <span class="about-stat-label">Regras de governança</span>
+                    <div class="about-stat-value">{{ about_category_reference.rule_count }}</div>
+                    <div class="about-stat-note">Diretrizes para manter cor, tipologia e documentação sincronizadas.</div>
+                </article>
+            </div>
 
-<div class="about-section">
-    <h4 class="mb-3"><i class="bi bi-book text-success me-2"></i>Mais informações</h4>
-    <div class="about-note mb-3">
-        Esta página resume o que mudou mais recentemente no produto. Para o detalhamento técnico do ConversionEngine, do restore oficial e das demais frentes do GALINT, a documentação geral foi atualizada junto com estas entregas.
-    </div>
-    <a class="about-cta" href="{{ url_for('pages.documentacao') }}">
-        <i class="bi bi-book"></i>
-        Ver Documentação Geral
-    </a>
-</div>
+            <div class="about-grid">
+                <div class="about-card">
+                    <div class="about-icon"><i class="bi bi-boxes"></i></div>
+                    <h5>Estoque sempre em ordem</h5>
+                    <p class="text-muted mb-0">Veja rapidamente o que tem, o que falta e o que precisa de atenção sem caçar informação espalhada pela tela.</p>
+                </div>
+                <div class="about-card">
+                    <div class="about-icon"><i class="bi bi-arrow-left-right"></i></div>
+                    <h5>Movimentos com contexto</h5>
+                    <p class="text-muted mb-0">Entradas e saídas preservam a mesma lógica visual e semântica do cadastro até os relatórios.</p>
+                </div>
+                <div class="about-card">
+                    <div class="about-icon"><i class="bi bi-tools"></i></div>
+                    <h5>Dashboard menos poluído</h5>
+                    <p class="text-muted mb-0">O painel principal volta a destacar o que é operacional, como a custódia de ferramentas, sem laboratório visual competindo por atenção.</p>
+                </div>
+                <div class="about-card">
+                    <div class="about-icon"><i class="bi bi-journal-check"></i></div>
+                    <h5>Explicação fora da operação</h5>
+                    <p class="text-muted mb-0">A taxonomia continua documentada, mas agora concentrada aqui no Sobre com navegação por abas.</p>
+                </div>
+            </div>
 
-{% if kit_doc_html %}
-<div class="about-section">
-    <div class="about-highlight mb-4">
-        <div>
-            <h4><i class="bi bi-briefcase-fill text-warning me-2"></i>Central de Kits de Ferramentas</h4>
-            <p>Mesmo conteúdo do README interno: bolsa-chave, montagem de kit, PDF patrimonial, perda, quebra com foto e trilha de auditoria rigorosa.</p>
-        </div>
-        {% if endpoint_exists('pages.documentacao_central_kits') %}
-        <a class="about-cta" href="{{ url_for('pages.documentacao_central_kits') }}">
-            <i class="bi bi-journal-richtext"></i>
-            Abrir Dossiê Completo
-        </a>
-        {% endif %}
+            <div class="about-section">
+                <div class="about-section-header-row">
+                    <div>
+                        <div class="about-section-eyebrow"><i class="bi bi-lightning-charge"></i> Leitura rápida</div>
+                        <h4 class="mb-2">Como o GALINT facilita o dia a dia</h4>
+                        <p class="about-section-copy mb-0">A página Sobre agora separa explicação institucional, fluxo operacional, tipologias e documentação técnica. Isso reduz mistura entre conteúdo de apoio e o que realmente precisa ficar no painel diário.</p>
+                    </div>
+                </div>
+                <div class="about-steps">
+                    <div class="about-step">
+                        <i class="bi bi-check2-circle text-success"></i>
+                        <div>
+                            <span>Veja o essencial</span>
+                            <p class="small text-muted mb-0">Os blocos do dashboard ficam mais limpos e voltados ao que precisa de ação imediata.</p>
+                        </div>
+                    </div>
+                    <div class="about-step">
+                        <i class="bi bi-clipboard-check text-primary"></i>
+                        <div>
+                            <span>Registre com segurança</span>
+                            <p class="small text-muted mb-0">Cada item nasce classificado e com uma identidade visual consistente desde a origem.</p>
+                        </div>
+                    </div>
+                    <div class="about-step">
+                        <i class="bi bi-people text-info"></i>
+                        <div>
+                            <span>Trabalho em equipe</span>
+                            <p class="small text-muted mb-0">Operação, gestão e financeiro passam a falar da mesma categoria com a mesma leitura.</p>
+                        </div>
+                    </div>
+                    <div class="about-step">
+                        <i class="bi bi-shield-check text-success"></i>
+                        <div>
+                            <span>Menos ruído visual</span>
+                            <p class="small text-muted mb-0">A documentação pesada sai do painel principal e fica organizada em abas de consulta.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="about-section">
+                <div class="about-section-header-row">
+                    <div>
+                        <div class="about-section-eyebrow"><i class="bi bi-brush"></i> Figuras rápidas</div>
+                        <h4 class="mb-2">Elementos que o sistema repete de forma consistente</h4>
+                    </div>
+                </div>
+                <div class="about-illustration">
+                    <div class="about-figure">
+                        <i class="bi bi-pie-chart"></i>
+                        <strong>Percentuais claros</strong>
+                        <p>KPIs e relatórios usam a mesma lógica visual para reduzir leitura ambígua.</p>
+                    </div>
+                    <div class="about-figure">
+                        <i class="bi bi-calendar-check"></i>
+                        <strong>Histórico simples</strong>
+                        <p>Movimentos e documentação ficam fáceis de localizar sem esconder o contexto operacional.</p>
+                    </div>
+                    <div class="about-figure">
+                        <i class="bi bi-clipboard-data"></i>
+                        <strong>Leitura por camadas</strong>
+                        <p>O que é resumo fica no painel. O que é explicação profunda vai para abas específicas.</p>
+                    </div>
+                    <div class="about-figure">
+                        <i class="bi bi-broadcast"></i>
+                        <strong>Alertas no tempo certo</strong>
+                        <p>Interface operacional mais seca ajuda o usuário a perceber o que realmente exige ação.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="tab-pane fade about-tab-pane" id="about-flow" role="tabpanel">
+            <div class="about-section">
+                <div class="about-section-header-row">
+                    <div>
+                        <div class="about-section-eyebrow"><i class="bi bi-diagram-3"></i> Fluxo oficial</div>
+                        <h4 class="mb-2">Como a classificação viaja pelo produto</h4>
+                        <p class="about-section-copy mb-0">A tipologia não é um enfeite. Ela entra no cadastro, governa filtros, conversa com dashboards e chega nos relatórios. A diferença agora é que a explicação detalhada desse fluxo fica aqui, não no painel inicial.</p>
+                    </div>
+                </div>
+                <div class="about-process-grid">
+                    {% for step in about_category_reference.flow %}
+                    <article class="about-process-card">
+                        <div class="about-process-step">{{ step.step }}</div>
+                        <h5><i class="bi {{ step.icon }} me-2"></i>{{ step.title }}</h5>
+                        <p>{{ step.text }}</p>
+                    </article>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="about-section">
+                <div class="about-section-header-row">
+                    <div>
+                        <div class="about-section-eyebrow"><i class="bi bi-columns-gap"></i> Superfícies</div>
+                        <h4 class="mb-2">Onde a taxonomia precisa aparecer</h4>
+                    </div>
+                </div>
+                <div class="about-flow-ribbon">
+                    {% for surface in about_category_reference.surfaces %}
+                    <article class="about-flow-node">
+                        <div class="about-flow-icon"><i class="bi {{ surface.icon }}"></i></div>
+                        <h5>{{ surface.title }}</h5>
+                        <p>{{ surface.text }}</p>
+                    </article>
+                    {% endfor %}
+                </div>
+            </div>
+
+            {% if endpoint_exists('pages.config_conversionengine') %}
+            <div class="about-section">
+                <div class="about-section-header-row">
+                    <div>
+                        <div class="about-section-eyebrow"><i class="bi bi-cpu"></i> Conversão e restore</div>
+                        <h4 class="mb-2">ConversionEngine no fluxo oficial</h4>
+                        <p class="about-section-copy mb-0">O GALINT concentra a restauração oficial da base no ConversionEngine, com staging por job, acompanhamento visual e proteção operacional durante a implantação.</p>
+                    </div>
+                </div>
+                <div class="about-steps">
+                    <div class="about-step">
+                        <i class="bi bi-window-stack text-primary"></i>
+                        <div>
+                            <span>Página feita para operação real</span>
+                            <p class="small text-muted mb-0">Telemetria, documentação embutida e ações separadas para análise, download e deploy.</p>
+                        </div>
+                    </div>
+                    <div class="about-step">
+                        <i class="bi bi-shield-lock text-success"></i>
+                        <div>
+                            <span>Restore oficial protegido</span>
+                            <p class="small text-muted mb-0">A implantação entra em manutenção e reduz disputa no PostgreSQL.</p>
+                        </div>
+                    </div>
+                    <div class="about-step">
+                        <i class="bi bi-tools text-warning"></i>
+                        <div>
+                            <span>Bugs tratados no caminho</span>
+                            <p class="small text-muted mb-0">Timeouts de lock, colunas críticas ausentes e comunicação fraca com o operador já foram endereçados.</p>
+                        </div>
+                    </div>
+                </div>
+                <ul class="about-mini-list">
+                    <li>Aceita SQL, ZIP com SQL ou SQLite para análise em staging isolado.</li>
+                    <li>Libera implantação direta apenas quando a origem é compatível com o pipeline PostgreSQL do GALINT.</li>
+                    <li>Mantém pacote técnico disponível para homologação quando o restore ainda não pode ser concluído com segurança.</li>
+                </ul>
+            </div>
+            {% endif %}
+        </section>
+
+        <section class="tab-pane fade about-tab-pane" id="about-typologies" role="tabpanel">
+            <div class="about-section">
+                <div class="about-section-header-row">
+                    <div>
+                        <div class="about-section-eyebrow"><i class="bi bi-palette"></i> Aba dedicada</div>
+                        <h4 class="mb-2">Tipologias, cores oficiais e padrão visual</h4>
+                        <p class="about-section-copy mb-0">O bloco que antes poluía o dashboard foi movido para cá. Esta aba concentra o porquê de cada tipologia existir, onde ela aparece e como o padrão visual precisa ser mantido do cadastro até o financeiro.</p>
+                    </div>
+                </div>
+
+                {% set legend_items = category_visual_catalog %}
+                {% set legend_kicker = 'Padrao oficial' %}
+                {% set legend_title = 'Mapa visual oficial das categorias' %}
+                {% set legend_note = 'A mesma paleta governa chips, filtros, cards, relatórios e leituras de apoio. A explicação fica aqui para não poluir o dashboard.' %}
+                {% set legend_badge = 'Taxonomia central' %}
+                {% include 'partials/category_visual_legend.html' %}
+
+                <div class="about-taxonomy-summary">
+                    <div class="about-taxonomy-panel">
+                        <h5>Por que esta aba existe</h5>
+                        <p>O dashboard principal precisa mostrar o que aciona decisão imediata. A taxonomia continua importante, mas o lugar certo da explicação detalhada é uma aba própria, com separação por grupos, regras e superfícies de uso.</p>
+                    </div>
+                    <div class="about-taxonomy-panel">
+                        <h5>O que você encontra aqui</h5>
+                        <p>Mapa oficial de cores, macrogrupos, desenho de propagação, regras de governança e documentação de cada tipologia com linguagem operacional.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="about-section">
+                <div class="about-section-header-row">
+                    <div>
+                        <div class="about-section-eyebrow"><i class="bi bi-bar-chart"></i> Leitura resumida</div>
+                        <h4 class="mb-2">Grupos e peso dentro da taxonomia oficial</h4>
+                    </div>
+                </div>
+                <div class="about-group-grid">
+                    {% for group in about_category_reference.groups %}
+                    <article class="about-group-card" style="--group-accent: {{ group['accent'] }};">
+                        <div class="about-group-head">
+                            <div>
+                                <h4>{{ group['title'] }}</h4>
+                                <p>{{ group['summary'] }}</p>
+                            </div>
+                            <span class="about-group-badge">{{ group['count'] }} tipologia{% if group['count'] != 1 %}s{% endif %}</span>
+                        </div>
+                        <div class="about-group-progress" aria-hidden="true"><span style="width: {{ group['share_pct'] }}%;"></span></div>
+                        <div class="about-category-reference-grid">
+                            {% for item in group['items'] %}
+                            <article class="about-category-reference-card">
+                                <div class="about-category-reference-head">
+                                    <span class="about-category-reference-icon" style="background: {{ item.soft }}; border: 1px solid {{ item.color }};">{{ item.icon }}</span>
+                                    <div>
+                                        <h5>{{ item.label }}</h5>
+                                        <p>{{ item.description }}</p>
+                                    </div>
+                                </div>
+                                <div class="about-category-usage"><strong>Uso no sistema:</strong> {{ item.usage }}</div>
+                            </article>
+                            {% endfor %}
+                        </div>
+                    </article>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="about-section">
+                <div class="about-section-header-row">
+                    <div>
+                        <div class="about-section-eyebrow"><i class="bi bi-shield-check"></i> Governança</div>
+                        <h4 class="mb-2">Regras para manter cor, tipologia e semântica alinhadas</h4>
+                    </div>
+                </div>
+                <div class="about-rule-grid">
+                    {% for rule in about_category_reference.rules %}
+                    <article class="about-rule-card">
+                        <h5>{{ rule.title }}</h5>
+                        <p>{{ rule.text }}</p>
+                    </article>
+                    {% endfor %}
+                </div>
+            </div>
+        </section>
+
+        <section class="tab-pane fade about-tab-pane" id="about-docs" role="tabpanel">
+            <div class="about-section">
+                <div class="about-section-header-row">
+                    <div>
+                        <div class="about-section-eyebrow"><i class="bi bi-book"></i> Dossiês e apoio</div>
+                        <h4 class="mb-2">Documentação separada por frente</h4>
+                        <p class="about-section-copy mb-0">A ideia aqui é deixar o Sobre navegável: visão geral em uma aba, fluxo em outra, taxonomia em outra e os dossiês técnicos separados nesta última camada.</p>
+                    </div>
+                </div>
+                <div class="about-doc-link-grid">
+                    <a class="about-doc-link" href="{{ url_for('pages.documentacao') }}">
+                        <h5><i class="bi bi-book me-2"></i>Documentação geral</h5>
+                        <p>Entrada para a base geral de documentação do GALINT, incluindo restore, operações e frentes recentes.</p>
+                    </a>
+                    {% if endpoint_exists('pages.documentacao_percentual_movimentos') %}
+                    <a class="about-doc-link" href="{{ url_for('pages.documentacao_percentual_movimentos') }}">
+                        <h5><i class="bi bi-pie-chart-fill me-2"></i>Ajuda do Percentual</h5>
+                        <p>Página simples para interpretar gráficos, percentuais e leituras do relatório de movimentos.</p>
+                    </a>
+                    {% endif %}
+                    {% if endpoint_exists('pages.documentacao_central_kits') %}
+                    <a class="about-doc-link" href="{{ url_for('pages.documentacao_central_kits') }}">
+                        <h5><i class="bi bi-briefcase-fill me-2"></i>Dossiê da Central de Kits</h5>
+                        <p>Bolsa-chave, montagem de kit, PDF patrimonial, perda, quebra com foto e trilha auditável completa.</p>
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if kit_doc_html %}
+            <div class="about-section">
+                <div class="about-highlight mb-4">
+                    <div>
+                        <h4><i class="bi bi-briefcase-fill text-warning me-2"></i>Central de Kits de Ferramentas</h4>
+                        <p>Mesmo conteúdo do README interno, agora posicionado na aba de documentação para não competir com a leitura institucional do Sobre.</p>
+                    </div>
+                    {% if endpoint_exists('pages.documentacao_central_kits') %}
+                    <a class="about-cta" href="{{ url_for('pages.documentacao_central_kits') }}">
+                        <i class="bi bi-journal-richtext"></i>
+                        Abrir Dossiê Completo
+                    </a>
+                    {% endif %}
+                </div>
+                <div class="about-doc-shell">
+                    <article class="about-doc-content">{{ kit_doc_html | safe }}</article>
+                </div>
+            </div>
+            {% endif %}
+        </section>
     </div>
-    <div class="about-doc-shell">
-        <article class="about-doc-content">{{ kit_doc_html | safe }}</article>
-    </div>
-</div>
-{% endif %}
 </div>
 {% endblock %}

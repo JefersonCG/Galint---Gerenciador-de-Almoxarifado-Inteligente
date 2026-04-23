@@ -15,12 +15,121 @@ from werkzeug.exceptions import abort
 from ..services.backup import BackupService
 from ..services.auth import create_workspace_window_token
 from ..services.backup_restore_jobs import get_job_state, start_restore_job
+from ..services.category_catalog import DEFAULT_INVENTORY_CATEGORIES, category_catalog_service
 from ..services.conversion_engine import ConversionEngineService, get_conversion_job_state, start_conversion_job
 from ..services.native_workspace_launcher import launch_workspace_window, launch_workspace_window_auto
 from ..services.network_settings import load_network_settings, save_network_settings
 
 
 blueprint = Blueprint("pages", __name__)
+
+
+_ABOUT_CATEGORY_REFERENCE_GROUPS = (
+    {
+        "id": "infraestrutura",
+        "title": "Infraestrutura e acabamento",
+        "summary": "Tipologias que organizam instalações, acabamento e manutenção predial com leitura rápida no catálogo.",
+        "accent": "#38bdf8",
+        "items": (
+            {"key": "material-eletrico", "usage": "Painéis, filtros e listagens de itens energizados, cabeamento e componentes elétricos."},
+            {"key": "material-hidraulico", "usage": "Tubulações, conexões e peças de manutenção hidráulica seguem a mesma assinatura azul técnica."},
+            {"key": "mat-pintura-drywall", "usage": "Tintas, massas e acabamentos ficam agrupados sem depender de leitura textual longa."},
+            {"key": "material-construcao", "usage": "Materiais estruturais e de obra civil aparecem com identidade própria em telas e relatórios."},
+        ),
+    },
+    {
+        "id": "operacao",
+        "title": "Operação, ferramentas e proteção",
+        "summary": "Faixa usada para o que tem leitura mais operacional, patrimonial ou de segurança no dia a dia.",
+        "accent": "#60a5fa",
+        "items": (
+            {"key": "ferramentas", "usage": "Ferramentas manuais e apoio técnico usam a faixa central da custódia e dos filtros operacionais."},
+            {"key": "equipamento", "usage": "Equipamentos permanentes e itens eletrificados mantêm contraste próprio em documentos e painéis."},
+            {"key": "material-ep", "usage": "Materiais de proteção individual preservam uma leitura de segurança sem conflitar com ferramentas."},
+        ),
+    },
+    {
+        "id": "apoio",
+        "title": "Apoio, limpeza e contingência",
+        "summary": "Categorias de apoio operacional e a faixa de contingência para itens ainda não classificados de forma definitiva.",
+        "accent": "#34d399",
+        "items": (
+            {"key": "materiais-limpeza", "usage": "Limpeza operacional e consumo recorrente aparecem com identificação uniforme em todo o sistema."},
+            {"key": "material-piscina", "usage": "Tratamento e operação de piscina ficam isolados sem contaminar outras leituras de manutenção."},
+            {"key": "material-uso-geral", "usage": "Itens transversais de apoio usam uma assinatura distinta para não virar categoria genérica invisível."},
+            {"key": "sem-categoria", "usage": "Faixa transitória para itens que ainda exigem saneamento de classificação antes de entrar no fluxo oficial."},
+        ),
+    },
+)
+
+_ABOUT_CATEGORY_REFERENCE_FLOW = (
+    {
+        "step": "01",
+        "icon": "bi-tags",
+        "title": "Catalogar a tipologia",
+        "text": "O item nasce com categoria canônica, nome consistente, ícone e cor oficial definidos pelo catálogo central.",
+    },
+    {
+        "step": "02",
+        "icon": "bi-palette2",
+        "title": "Propagar a identidade visual",
+        "text": "A mesma tipologia é reaproveitada em chips, filtros, cards, classificadores e resumos financeiros sem criar versões paralelas.",
+    },
+    {
+        "step": "03",
+        "icon": "bi-grid-1x2-fill",
+        "title": "Aplicar nos painéis certos",
+        "text": "No dashboard ficam só os blocos operacionais. A explicação detalhada da taxonomia sai do fluxo principal e vai para o Sobre.",
+    },
+    {
+        "step": "04",
+        "icon": "bi-file-earmark-bar-graph",
+        "title": "Ler e decidir sem ambiguidade",
+        "text": "Relatórios, financeiro e documentação passam a ler a mesma taxonomia, reduzindo ruído visual e divergência de interpretação.",
+    },
+)
+
+_ABOUT_CATEGORY_REFERENCE_SURFACES = (
+    {
+        "icon": "bi-card-checklist",
+        "title": "Cadastro do item",
+        "text": "É onde a tipologia entra oficialmente e evita descrições improvisadas ou filtros quebrados no restante do produto.",
+    },
+    {
+        "icon": "bi-funnel",
+        "title": "Filtros e busca",
+        "text": "Os chips de categoria e os filtros de classificação dependem desse catálogo para manter leitura coerente na operação.",
+    },
+    {
+        "icon": "bi-columns-gap",
+        "title": "Painéis e cards",
+        "text": "Dashboard, laboratórios visuais e cards de apoio devem usar a mesma assinatura, mas só quando isso ajuda a decisão operacional.",
+    },
+    {
+        "icon": "bi-cash-stack",
+        "title": "Financeiro e relatórios",
+        "text": "KPIs, totais por categoria, planilhas e documentos precisam preservar a mesma semântica visual e textual.",
+    },
+)
+
+_ABOUT_CATEGORY_REFERENCE_RULES = (
+    {
+        "title": "Nome canônico primeiro",
+        "text": "Cada tipologia oficial tem nome, ícone e cor padronizados. O produto não deve reinventar isso em cada tela.",
+    },
+    {
+        "title": "Mesma paleta em superfícies compartilhadas",
+        "text": "Cadastro, filtros, dashboards, financeiro e relatórios devem repetir a mesma cor para a mesma categoria.",
+    },
+    {
+        "title": "Sem categoria é contingência, não destino final",
+        "text": "A faixa cinza existe para saneamento operacional e não deve virar categoria definitiva do catálogo saudável.",
+    },
+    {
+        "title": "Documentação separada do fluxo diário",
+        "text": "O dashboard fica com leitura operacional enxuta; a explicação completa da taxonomia e das regras vive no Sobre em aba própria.",
+    },
+)
 
 
 def _inline_markdown_to_html(text: str) -> str:
@@ -112,6 +221,67 @@ def _markdown_file_to_html(file_path: Path) -> str:
         parts.append("</code></pre>")
 
     return "\n".join(parts)
+
+
+def _build_about_category_reference() -> dict[str, object]:
+    default_rows_by_key = {row.key: row for row in DEFAULT_INVENTORY_CATEGORIES}
+    visual_catalog = category_catalog_service.list_visual_catalog(include_inactive=True)
+    visuals_by_key = {str(row.get("key") or ""): row for row in visual_catalog}
+
+    groups: list[dict[str, object]] = []
+    total_categories = 0
+
+    for group in _ABOUT_CATEGORY_REFERENCE_GROUPS:
+        group_items: list[dict[str, object]] = []
+        for index, item_meta in enumerate(group["items"]):
+            key = str(item_meta["key"])
+            default_row = default_rows_by_key.get(key)
+            if default_row is not None:
+                visual = visuals_by_key.get(key) or category_catalog_service.get_visual(default_row.nome, fallback_index=index)
+                description = default_row.descricao
+            else:
+                visual = visuals_by_key.get(key) or category_catalog_service.get_visual("Sem categoria", fallback_index=index)
+                description = "Faixa transitória para itens que ainda aguardam classificação canônica no catálogo oficial."
+
+            group_items.append(
+                {
+                    "key": key,
+                    "label": visual.get("label") or (default_row.nome if default_row is not None else "Sem categoria"),
+                    "icon": visual.get("icon") or "📁",
+                    "color": visual.get("color") or "#94a3b8",
+                    "soft": visual.get("soft") or visual.get("soft_strong") or "rgba(148, 163, 184, 0.18)",
+                    "description": description,
+                    "usage": item_meta["usage"],
+                }
+            )
+
+        total_categories += len(group_items)
+        groups.append(
+            {
+                "id": group["id"],
+                "title": group["title"],
+                "summary": group["summary"],
+                "accent": group["accent"],
+                "items": group_items,
+                "count": len(group_items),
+            }
+        )
+
+    for group in groups:
+        count = int(group["count"] or 0)
+        group["share_pct"] = round((count / total_categories) * 100, 1) if total_categories else 0.0
+
+    return {
+        "catalog": visual_catalog,
+        "groups": groups,
+        "flow": list(_ABOUT_CATEGORY_REFERENCE_FLOW),
+        "surfaces": list(_ABOUT_CATEGORY_REFERENCE_SURFACES),
+        "rules": list(_ABOUT_CATEGORY_REFERENCE_RULES),
+        "total_categories": total_categories,
+        "group_count": len(groups),
+        "surface_count": len(_ABOUT_CATEGORY_REFERENCE_SURFACES),
+        "rule_count": len(_ABOUT_CATEGORY_REFERENCE_RULES),
+    }
 
 
 def _require_admin() -> None:
@@ -577,9 +747,12 @@ def update_rede():
 def sobre():
     kit_readme_path = Path(current_app.root_path).parent / "README_CENTRAL_KITS_FERRAMENTAS.md"
     kit_doc_html = _markdown_file_to_html(kit_readme_path) if kit_readme_path.exists() else ""
+    about_category_reference = _build_about_category_reference()
     return render_template(
         "sobre.html",
         kit_doc_html=kit_doc_html,
+        about_category_reference=about_category_reference,
+        category_visual_catalog=about_category_reference.get("catalog") or [],
     )
 
 
