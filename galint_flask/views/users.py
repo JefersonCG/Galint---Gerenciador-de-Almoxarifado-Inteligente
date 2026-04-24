@@ -165,14 +165,24 @@ def _apply_user_photo_changes(matricula: str) -> tuple[str, str] | None:
     return None
 
 
-@blueprint.get("/")
-@login_required
-def list_users():
-    _require_admin()
-    usuarios = user_service.list_users()
+def _build_user_initials(nome: str | None) -> str:
+    parts = [segment for segment in re.split(r"\s+", (nome or "").strip()) if segment]
+    if not parts:
+        return "SN"
+    if len(parts) == 1:
+        return parts[0][:2].upper()
+    return f"{parts[0][:1]}{parts[-1][:1]}".upper()
+
+
+def _build_setor_cards(usuarios: list[dict[str, Any]]) -> list[dict[str, Any]]:
     setores: dict[str, dict[str, Any]] = {}
     for usuario in usuarios:
-        setor = (usuario.get("setor") or "Sem setor").strip() or "Sem setor"
+        enriched_user = dict(usuario)
+        matricula = str(enriched_user.get("matricula") or "").strip()
+        enriched_user["photo_path"] = user_service.get_photo_path(matricula)
+        enriched_user["initials"] = _build_user_initials(enriched_user.get("nome"))
+
+        setor = (enriched_user.get("setor") or "Sem setor").strip() or "Sem setor"
         bucket = setores.setdefault(
             setor,
             {
@@ -183,20 +193,58 @@ def list_users():
                 "standards": 0,
             },
         )
-        bucket["membros"].append(usuario)
+        bucket["membros"].append(enriched_user)
         bucket["total"] += 1
-        bucket["admins"] += 1 if usuario.get("is_admin") else 0
-        bucket["standards"] += 1 if usuario.get("is_standard") else 0
+        bucket["admins"] += 1 if enriched_user.get("is_admin") else 0
+        bucket["standards"] += 1 if enriched_user.get("is_standard") else 0
 
     setor_cards = sorted(setores.values(), key=lambda card: card["setor"].lower())
     for card in setor_cards:
         card["membros"].sort(key=lambda membro: membro.get("nome", "").lower())
+        card["preview_members"] = card["membros"][:4]
+
+    return setor_cards
+
+
+def _resolve_selected_sector(setor_cards: list[dict[str, Any]], selected_sector: str | None = None) -> dict[str, Any] | None:
+    if not setor_cards:
+        return None
+    if selected_sector:
+        selected_norm = selected_sector.strip().casefold()
+        for card in setor_cards:
+            if str(card.get("setor") or "").strip().casefold() == selected_norm:
+                return card
+    return setor_cards[0]
+
+
+def _render_users_list(*, selected_sector: str | None = None, sector_page: bool = False):
+    _require_admin()
+    usuarios = user_service.list_users()
+    setor_cards = _build_setor_cards(usuarios)
+    selected_sector_card = _resolve_selected_sector(setor_cards, selected_sector)
+    if selected_sector and selected_sector_card is None:
+        flash("Setor não encontrado.", "warning")
+        return redirect(url_for("users.list_users"))
 
     return render_template(
         "users/list.html",
         usuarios=usuarios,
         setor_cards=setor_cards,
+        selected_sector_card=selected_sector_card,
+        sector_page=sector_page,
     )
+
+
+@blueprint.get("/")
+@login_required
+def list_users():
+    return _render_users_list()
+
+
+@blueprint.get("/setor/<path:setor>")
+@login_required
+def list_users_by_sector(setor: str):
+    return _render_users_list(selected_sector=setor, sector_page=True)
 
 
 @blueprint.get("/novo")

@@ -238,11 +238,9 @@
     }
 
     .users-sector-card .card-body {
-        pointer-events: none;
-    }
-
-    .users-sector-card .card-body * {
-        pointer-events: none;
+        min-height: 100%;
+        position: relative;
+        z-index: 1;
     }
 
     .users-sector-body {
@@ -449,38 +447,735 @@
         margin-bottom: 0;
     }
 
-    .sector-modal-list {
-        display: grid;
-        gap: 0.8rem;
+    .users-panel-head--spacious {
+        align-items: center;
+        margin-bottom: 1.45rem;
     }
 
-    .sector-modal-list .list-group-item {
+    .users-panel-actions {
+        display: inline-flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 0.6rem;
+    }
+
+    .users-pill-soft {
+        background: rgba(15, 23, 42, 0.3);
+        color: rgba(226, 232, 240, 0.72);
+    }
+
+    .users-inline-link {
+        text-decoration: none;
+    }
+
+    .users-inline-link:hover {
+        color: #ffffff;
+        border-color: rgba(125, 211, 252, 0.28);
+    }
+
+    .users-sector-grid {
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 1.15rem;
+    }
+
+    .users-sector-card {
+        border-radius: 28px;
+        padding: 0.98rem;
+        box-shadow: 0 22px 52px rgba(2, 6, 23, 0.34);
+        will-change: transform, box-shadow;
+        animation: users-sector-rise 0.5s ease both;
+        animation-delay: calc(var(--sector-order, 0) * 48ms);
+    }
+
+    .users-sector-card.is-active {
+        border-color: rgba(125, 211, 252, 0.38);
+        box-shadow: 0 28px 68px rgba(2, 6, 23, 0.42), 0 0 0 1px rgba(125, 211, 252, 0.12);
+        transform: translateY(-5px);
+    }
+
+    .users-sector-card::after {
+        left: 1rem;
+        right: 1rem;
+        bottom: 1rem;
+        height: 4px;
+    }
+
+    .users-sector-body {
+        gap: 0.95rem;
+    }
+
+    .users-sector-label {
+        font-size: 0.7rem;
+    }
+
+    .users-sector-name {
+        font-size: 1.32rem;
+        line-height: 1.12;
+        -webkit-line-clamp: 2;
+    }
+
+    .users-sector-pill {
+        min-height: 32px;
+        padding-inline: 0.76rem;
+        font-size: 0.72rem;
+    }
+
+    .users-sector-summary {
+        gap: 0.32rem;
+        padding: 1rem 1.05rem;
+        border-radius: 22px;
+    }
+
+    .users-sector-number {
+        font-size: 3rem;
+    }
+
+    .users-sector-number-caption {
+        font-size: 0.7rem;
+    }
+
+    .users-sector-note {
+        font-size: 0.88rem;
+        line-height: 1.5;
+    }
+
+    .users-sector-chip-stack {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.55rem;
+    }
+
+    .users-sector-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        min-height: 34px;
+        padding: 0.4rem 0.78rem;
+        border-radius: 999px;
+        background: rgba(15, 23, 42, 0.48);
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        color: #dbeafe;
+        font-size: 0.78rem;
+        font-weight: 700;
+    }
+
+    .users-sector-chip strong {
+        color: #ffffff;
+        font-size: 0.76rem;
+    }
+
+    .users-sector-preview {
+        display: grid;
+        gap: 0.55rem;
+    }
+
+    .users-sector-preview-label {
+        color: rgba(226, 232, 240, 0.68);
+        font-size: 0.7rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .users-sector-preview-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.52rem;
+    }
+
+    .users-sector-preview-badge,
+    .users-sector-preview-more {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        min-height: 38px;
+        padding: 0.34rem 0.78rem 0.34rem 0.42rem;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        color: #f8fafc;
+        font-size: 0.82rem;
+        font-weight: 700;
+    }
+
+    .users-sector-preview-avatar {
+        width: 28px;
+        height: 28px;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        background: linear-gradient(135deg, rgba(37, 99, 235, 0.86) 0%, rgba(14, 165, 233, 0.82) 100%);
+        color: #ffffff;
+        font-size: 0.68rem;
+        font-weight: 900;
+        flex-shrink: 0;
+    }
+
+    .users-sector-preview-avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+    }
+
+    .users-sector-preview-more {
+        color: #bfdbfe;
+        background: rgba(59, 130, 246, 0.14);
+        border-color: rgba(59, 130, 246, 0.24);
+        padding-inline: 0.8rem;
+    }
+
+    .users-sector-meta {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.68rem;
+    }
+
+    .users-sector-meta-row {
+        padding: 0.82rem 0.88rem;
+        border-radius: 18px;
+    }
+
+    .users-sector-meta-row span {
+        font-size: 0.66rem;
+    }
+
+    .users-sector-meta-row strong {
+        font-size: 1.24rem;
+    }
+
+    .users-sector-footer {
+        padding-top: 1rem;
+        font-size: 0.84rem;
+    }
+
+    .users-sector-footer-actions {
+        display: inline-flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        align-items: center;
+    }
+
+    .users-sector-footer-link,
+    .users-sector-page-link {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 34px;
+        padding: 0.28rem 0.78rem;
+        border-radius: 999px;
+        font-size: 0.7rem;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        text-decoration: none;
+        white-space: nowrap;
+    }
+
+    .users-sector-footer-link {
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.11) 0%, rgba(255, 255, 255, 0.04) 100%);
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+        color: #f8fafc;
+    }
+
+    .users-sector-page-link {
+        background: rgba(59, 130, 246, 0.16);
+        border: 1px solid rgba(59, 130, 246, 0.26);
+        color: #bfdbfe;
+        pointer-events: auto;
+        position: relative;
+        z-index: 2;
+    }
+
+    .users-sector-page-link:hover {
+        color: #ffffff;
+        border-color: rgba(125, 211, 252, 0.34);
+    }
+
+    .users-explorer {
+        position: relative;
+        overflow: hidden;
+        margin-top: 1.55rem;
+        border-radius: 30px;
+        padding: 1.45rem;
+        background: linear-gradient(180deg, #07111f 0%, #0b1729 100%);
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        box-shadow: 0 26px 58px rgba(15, 23, 42, 0.18);
+    }
+
+    .users-explorer::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+            radial-gradient(circle at 10% 16%, rgba(34, 211, 238, 0.12), transparent 24%),
+            radial-gradient(circle at 88% 20%, rgba(59, 130, 246, 0.12), transparent 22%),
+            radial-gradient(circle at 50% 100%, rgba(16, 185, 129, 0.08), transparent 34%);
+        pointer-events: none;
+    }
+
+    .users-explorer > * {
+        position: relative;
+        z-index: 1;
+    }
+
+    .users-explorer-head {
         display: flex;
         justify-content: space-between;
         align-items: flex-start;
         gap: 1rem;
-        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .users-explorer-title {
+        margin: 0 0 0.35rem;
+        color: #ffffff;
+        font-size: 1.45rem;
+        font-weight: 900;
+        letter-spacing: -0.03em;
+    }
+
+    .users-explorer-subtitle {
+        margin: 0;
+        color: rgba(226, 232, 240, 0.72);
+        line-height: 1.65;
+        max-width: 46rem;
+    }
+
+    .users-explorer-search {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.7rem;
+        min-width: 320px;
+        min-height: 50px;
+        padding: 0.78rem 1rem;
         border-radius: 18px;
         background: rgba(15, 23, 42, 0.54);
-        border: 1px solid rgba(148, 163, 184, 0.14);
-        color: #e2e8f0;
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        color: #cbd5e1;
     }
 
-    .sector-modal-list .user-meta {
-        flex: 1;
+    .users-explorer-search i {
+        color: #7dd3fc;
+        font-size: 1rem;
     }
 
-    .sector-modal-list .btn-group {
-        white-space: nowrap;
+    .users-explorer-search input {
+        flex: 1 1 auto;
+        min-width: 0;
+        background: transparent;
+        border: 0;
+        outline: 0;
+        color: #f8fafc;
+        font-size: 0.94rem;
+    }
+
+    .users-explorer-search input::placeholder {
+        color: rgba(148, 163, 184, 0.9);
+    }
+
+    .users-explorer-toolbar {
         display: flex;
-        gap: 0.35rem;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.9rem;
         flex-wrap: wrap;
+        margin-bottom: 1rem;
+    }
+
+    .users-filter-group {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.55rem;
+    }
+
+    .users-filter-chip,
+    .users-cargo-filter {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 38px;
+        padding: 0.42rem 0.85rem;
+        border-radius: 999px;
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        background: rgba(15, 23, 42, 0.46);
+        color: #dbeafe;
+        font-size: 0.8rem;
+        font-weight: 800;
+        letter-spacing: 0.02em;
+        transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .users-filter-chip:hover,
+    .users-cargo-filter:hover {
+        transform: translateY(-1px);
+        border-color: rgba(125, 211, 252, 0.24);
+    }
+
+    .users-filter-chip.is-active,
+    .users-cargo-filter.is-active {
+        background: linear-gradient(135deg, rgba(37, 99, 235, 0.32) 0%, rgba(14, 165, 233, 0.24) 100%);
+        border-color: rgba(125, 211, 252, 0.34);
+        color: #ffffff;
+        box-shadow: 0 10px 20px rgba(2, 6, 23, 0.18);
+    }
+
+    .users-filter-helper {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        min-height: 38px;
+        padding: 0.42rem 0.8rem;
+        border-radius: 999px;
+        background: rgba(15, 23, 42, 0.36);
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        color: rgba(226, 232, 240, 0.78);
+        font-size: 0.8rem;
+        font-weight: 700;
+    }
+
+    .users-filter-helper strong {
+        color: #ffffff;
+    }
+
+    .users-filter-helper-link {
+        text-decoration: none;
+        transition: border-color 0.2s ease, color 0.2s ease;
+    }
+
+    .users-filter-helper-link:hover {
+        color: #ffffff;
+        border-color: rgba(125, 211, 252, 0.28);
+    }
+
+    .users-sector-panel {
+        display: none;
+        gap: 1rem;
+    }
+
+    .users-sector-panel.is-active {
+        display: grid;
+        animation: users-panel-reveal 0.38s ease both;
+    }
+
+    .users-sector-panel-summary {
+        display: grid;
+        grid-template-columns: minmax(0, 1.3fr) minmax(280px, 0.9fr);
+        gap: 1rem;
+    }
+
+    .users-sector-panel-hero {
+        padding: 1.12rem 1.16rem;
+        border-radius: 24px;
+        background: linear-gradient(145deg, rgba(15, 23, 42, 0.94), rgba(16, 42, 67, 0.86));
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    }
+
+    .users-sector-panel-label {
+        color: #7dd3fc;
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        margin-bottom: 0.4rem;
+    }
+
+    .users-sector-panel-title {
+        margin: 0 0 0.35rem;
+        color: #ffffff;
+        font-size: 1.8rem;
+        font-weight: 900;
+        letter-spacing: -0.04em;
+    }
+
+    .users-sector-panel-text {
+        margin: 0;
+        color: rgba(226, 232, 240, 0.74);
+        line-height: 1.65;
+        max-width: 44rem;
+    }
+
+    .users-sector-panel-stats {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.8rem;
+    }
+
+    .users-sector-panel-stat {
+        padding: 0.98rem 1rem;
+        border-radius: 22px;
+        background: rgba(15, 23, 42, 0.54);
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        display: grid;
+        gap: 0.25rem;
+        align-content: start;
+    }
+
+    .users-sector-panel-stat span {
+        color: rgba(203, 213, 225, 0.74);
+        font-size: 0.7rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .users-sector-panel-stat strong {
+        color: #ffffff;
+        font-size: 1.55rem;
+        font-weight: 900;
+        line-height: 1;
+        letter-spacing: -0.04em;
+    }
+
+    .users-cargo-filter-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.55rem;
+        margin-top: 0.15rem;
+    }
+
+    .users-member-groups {
+        display: grid;
+        gap: 1rem;
+    }
+
+    .users-member-group {
+        display: grid;
+        gap: 0.9rem;
+    }
+
+    .users-member-group-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+        padding: 0.92rem 1rem;
+        border-radius: 22px;
+        background: rgba(15, 23, 42, 0.5);
+        border: 1px solid rgba(148, 163, 184, 0.14);
+    }
+
+    .users-member-group-label {
+        color: rgba(203, 213, 225, 0.68);
+        font-size: 0.7rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        margin-bottom: 0.22rem;
+    }
+
+    .users-member-group-title {
+        margin: 0 0 0.2rem;
+        color: #ffffff;
+        font-size: 1.15rem;
+        font-weight: 800;
+    }
+
+    .users-member-group-note {
+        margin: 0;
+        color: rgba(226, 232, 240, 0.72);
+        font-size: 0.88rem;
+    }
+
+    .users-member-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+        gap: 1rem;
+    }
+
+    .users-member-card {
+        display: grid;
+        gap: 0.9rem;
+        padding: 1rem;
+        border-radius: 24px;
+        background: linear-gradient(160deg, rgba(15, 23, 42, 0.96) 0%, rgba(17, 24, 39, 0.92) 100%);
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        box-shadow: 0 18px 36px rgba(2, 6, 23, 0.24);
+        opacity: 0;
+        transform: translateY(18px) scale(0.985);
+    }
+
+    .users-sector-panel.is-active .users-member-card {
+        animation: users-member-reveal 0.42s ease both;
+        animation-delay: calc(var(--member-order, 0) * 36ms);
+    }
+
+    .users-member-card-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 0.8rem;
+    }
+
+    .users-member-ident {
+        display: flex;
+        align-items: center;
+        gap: 0.9rem;
+        min-width: 0;
+    }
+
+    .users-member-avatar {
+        width: 56px;
+        height: 56px;
+        border-radius: 18px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, rgba(37, 99, 235, 0.8) 0%, rgba(14, 165, 233, 0.82) 100%);
+        color: #ffffff;
+        font-size: 1rem;
+        font-weight: 900;
+        letter-spacing: 0.04em;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+        flex-shrink: 0;
+        overflow: hidden;
+    }
+
+    .users-member-avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+    }
+
+    .users-member-name {
+        margin: 0 0 0.25rem;
+        color: #ffffff;
+        font-size: 1.05rem;
+        font-weight: 800;
+        line-height: 1.25;
+        overflow-wrap: break-word;
+    }
+
+    .users-member-matricula {
+        color: rgba(203, 213, 225, 0.78);
+        font-size: 0.82rem;
+        font-weight: 700;
+    }
+
+    .users-member-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
         justify-content: flex-end;
     }
 
-    .sector-modal-list .btn-group form {
-        margin: 0;
-        display: inline;
+    .users-member-tag {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 28px;
+        padding: 0.28rem 0.7rem;
+        border-radius: 999px;
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        background: rgba(255, 255, 255, 0.06);
+        color: #e2e8f0;
+    }
+
+    .users-member-tag.is-admin {
+        background: rgba(245, 158, 11, 0.14);
+        border-color: rgba(245, 158, 11, 0.24);
+        color: #fde68a;
+    }
+
+    .users-member-tag.is-standard {
+        background: rgba(52, 211, 153, 0.12);
+        border-color: rgba(52, 211, 153, 0.2);
+        color: #bbf7d0;
+    }
+
+    .users-member-lines {
+        display: grid;
+        gap: 0.55rem;
+    }
+
+    .users-member-line {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 0.8rem;
+        padding: 0.75rem 0.82rem;
+        border-radius: 16px;
+        background: rgba(15, 23, 42, 0.5);
+        border: 1px solid rgba(148, 163, 184, 0.12);
+    }
+
+    .users-member-line span {
+        color: rgba(203, 213, 225, 0.72);
+        font-size: 0.68rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .users-member-line strong {
+        color: #f8fafc;
+        font-size: 0.88rem;
+        font-weight: 700;
+        text-align: right;
+    }
+
+    .users-member-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+    }
+
+    .users-member-actions .btn {
+        flex: 1 1 108px;
+        min-height: 38px;
+        border-radius: 14px;
+    }
+
+    .users-member-empty {
+        margin-top: 0.2rem;
+        padding: 1rem 1.05rem;
+        border-radius: 18px;
+        background: rgba(15, 23, 42, 0.5);
+        border: 1px dashed rgba(148, 163, 184, 0.24);
+        color: rgba(226, 232, 240, 0.8);
+        text-align: center;
+        font-size: 0.92rem;
+    }
+
+    @keyframes users-sector-rise {
+        from {
+            opacity: 0;
+            transform: translateY(18px) scale(0.985);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+    }
+
+    @keyframes users-panel-reveal {
+        from {
+            opacity: 0;
+            transform: translateY(12px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @keyframes users-member-reveal {
+        from {
+            opacity: 0;
+            transform: translateY(18px) scale(0.985);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
     }
 
     @media (max-width: 991.98px) {
@@ -489,37 +1184,58 @@
         }
 
         .users-hero-top,
-        .users-panel-head {
+        .users-panel-head,
+        .users-panel-head--spacious,
+        .users-explorer-head,
+        .users-explorer-toolbar,
+        .users-member-group-head {
             flex-direction: column;
+        }
+
+        .users-panel-actions {
+            justify-content: flex-start;
+        }
+
+        .users-sector-meta,
+        .users-sector-panel-stats {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .users-sector-panel-summary {
+            grid-template-columns: 1fr;
+        }
+
+        .users-explorer-search {
+            min-width: 0;
+            width: 100%;
         }
     }
 
     @media (max-width: 767.98px) {
         .users-stat-grid,
-        .users-sector-grid {
+        .users-sector-grid,
+        .users-sector-meta,
+        .users-sector-panel-stats,
+        .users-member-grid {
             grid-template-columns: 1fr;
         }
 
-        .users-sector-meta {
-            grid-template-columns: 1fr;
-        }
-
-        .users-sector-footer {
+        .users-sector-top,
+        .users-sector-footer,
+        .users-member-card-top,
+        .users-member-line {
             flex-direction: column;
             align-items: flex-start;
         }
 
-        .sector-modal-list .list-group-item {
-            flex-direction: column;
-            align-items: stretch;
+        .users-member-tags,
+        .users-panel-actions,
+        .users-sector-footer-actions {
+            justify-content: flex-start;
         }
 
-        .sector-modal-list .btn-group {
-            justify-content: stretch;
-        }
-
-        .sector-modal-list .btn-group .btn {
-            flex: 1 1 auto;
+        .users-member-line strong {
+            text-align: left;
         }
     }
 </style>
@@ -563,30 +1279,61 @@
 
     {% if setor_cards %}
     <section class="users-panel">
-        <div class="users-panel-head">
+        <div class="users-panel-head users-panel-head--spacious">
             <div>
-                <h2 class="users-panel-title">Distribuição por setor</h2>
-                <p class="users-panel-subtitle">Cada card abre o quadro completo do setor com histórico e edição. O layout agora prioriza leitura em ambiente escuro e separação visual mais clara.</p>
+                <h2 class="users-panel-title">Mapa vivo dos setores</h2>
+                <p class="users-panel-subtitle">Agora a leitura começa no setor e vai direto para as pessoas. O foco ficou em saber quem está dentro de cada equipe, com leitura grande e sem ruído.</p>
             </div>
-            <div class="users-pill">{{ setor_cards|length }} setores mapeados</div>
+            <div class="users-panel-actions">
+                <div class="users-pill">{{ setor_cards|length }} setores mapeados</div>
+                <div class="users-pill users-pill-soft">Clique para abrir a equipe</div>
+                {% if sector_page %}
+                <a class="users-pill users-pill-soft users-inline-link" href="{{ url_for('users.list_users') }}">Voltar ao mapa completo</a>
+                {% endif %}
+            </div>
         </div>
         <div class="users-sector-grid">
         {% for card in setor_cards %}
         {% set accent = accent_palette[loop.index0 % (accent_palette|length)] %}
-            <div class="users-sector-card sector-card" role="button" tabindex="0" data-sector="{{ card.setor }}"
-                data-sector-template="sector-template-{{ loop.index }}" style="--sector-accent: {{ accent }};">
+            <div class="users-sector-card sector-card{% if selected_sector_card and card.setor == selected_sector_card.setor %} is-active{% endif %}" role="button" tabindex="0" data-sector="{{ card.setor }}"
+                data-sector-target="sector-panel-{{ loop.index }}" data-sector-url="{{ url_for('users.list_users_by_sector', setor=card.setor) }}" style="--sector-accent: {{ accent }}; --sector-order: {{ loop.index0 }};">
                 <div class="card-body d-flex flex-column users-sector-body">
                     <div class="users-sector-top">
                         <div class="users-sector-heading">
-                            <div class="users-sector-label">Setor</div>
+                            <div class="users-sector-label">Setor operacional</div>
                             <h3 class="users-sector-name" title="{{ card.setor }}">{{ card.setor }}</h3>
                         </div>
-                        <span class="users-pill users-sector-pill">{{ card.total }} colaborador{% if card.total != 1 %}es{% endif %}</span>
+                        <span class="users-pill users-sector-pill">{{ card.total }} pessoa{% if card.total != 1 %}s{% endif %}</span>
                     </div>
                     <div class="users-sector-summary">
                         <div class="users-sector-number">{{ card.total }}</div>
                         <div class="users-sector-number-caption">colaboradores ativos</div>
-                        <p class="users-sector-note">Resumo rapido entre perfis administrativos e operacionais.</p>
+                        <p class="users-sector-note">Equipe de {{ card.total }} colaborador{% if card.total != 1 %}es{% endif %} neste setor. O clique abre a equipe completa com identificação rápida por pessoa.</p>
+                    </div>
+                    <div class="users-sector-chip-stack">
+                        <span class="users-sector-chip">Administradores <strong>{{ card.admins }}</strong></span>
+                        <span class="users-sector-chip">Padrão <strong>{{ card.standards }}</strong></span>
+                        <span class="users-sector-chip">Equipe <strong>{{ card.total }}</strong></span>
+                    </div>
+                    <div class="users-sector-preview">
+                        <div class="users-sector-preview-label">Quem está aqui</div>
+                        <div class="users-sector-preview-list">
+                            {% for membro in card.preview_members %}
+                            <span class="users-sector-preview-badge">
+                                <span class="users-sector-preview-avatar">
+                                    {% if membro.photo_path %}
+                                    <img src="{{ url_for('static', filename=membro.photo_path) }}" alt="Foto de {{ membro.nome }}">
+                                    {% else %}
+                                    {{ membro.initials }}
+                                    {% endif %}
+                                </span>
+                                <span>{{ membro.nome }}</span>
+                            </span>
+                            {% endfor %}
+                            {% if card.total > (card.preview_members|length) %}
+                            <span class="users-sector-preview-more">+{{ card.total - (card.preview_members|length) }}</span>
+                            {% endif %}
+                        </div>
                     </div>
                     <div class="users-sector-meta">
                         <div class="users-sector-meta-row">
@@ -597,41 +1344,131 @@
                             <span>Usuários padrão</span>
                             <strong>{{ card.standards }}</strong>
                         </div>
+                        <div class="users-sector-meta-row">
+                            <span>Equipe ativa</span>
+                            <strong>{{ card.total }}</strong>
+                        </div>
                     </div>
                     <div class="users-sector-footer">
-                        <span>Equipe completa e historico do setor.</span>
-                        <span class="users-sector-footer-link">Abrir setor</span>
+                        <span>Abra o setor e navegue por cargo, matrícula e perfil.</span>
+                        <span class="users-sector-footer-actions">
+                            <span class="users-sector-footer-link">Abrir aqui</span>
+                            <a class="users-sector-page-link" data-sector-link href="{{ url_for('users.list_users_by_sector', setor=card.setor) }}">Abrir página</a>
+                        </span>
                     </div>
                 </div>
             </div>
-        <template id="sector-template-{{ loop.index }}">
-            <p class="text-muted small">{{ card.total }} colaborador{% if card.total != 1 %}es{% endif %} neste setor.
-            </p>
-            <div class="list-group sector-modal-list">
-                {% for membro in card.membros %}
-                <div class="list-group-item">
-                    <div class="user-meta">
-                        <strong>{{ membro.nome }}</strong>
-                        <div class="text-white small">Matrícula {{ membro.matricula }}{% if membro.cargo %} • {{
-                            membro.cargo }}{% endif %}</div>
-                    </div>
-                    <div class="btn-group btn-group-sm" role="group" aria-label="Ações">
-                        <a class="btn btn-outline-secondary"
-                            href="{{ url_for('users.edit_user_form', matricula=membro.matricula) }}">Editar</a>
-                        <a class="btn btn-outline-primary"
-                            href="{{ url_for('users.user_history', matricula=membro.matricula) }}">Histórico</a>
-                        {% if current_user.is_admin and membro.matricula != current_user.id %}
-                        <button class="btn btn-outline-danger btn-sm" type="button" 
-                                onclick="openDeleteModal('{{ membro.matricula }}', '{{ membro.nome|e }}')">
-                            Excluir
-                        </button>
-                        {% endif %}
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
-        </template>
         {% endfor %}
+        </div>
+
+        <div class="users-explorer" id="users-sector-explorer">
+            <div class="users-explorer-head">
+                <div>
+                    <div class="users-kicker">Explorador do setor</div>
+                    <h3 class="users-explorer-title">Equipe aberta para leitura rápida</h3>
+                    <p class="users-explorer-subtitle">Pesquise nome, matrícula ou setor. Depois use os filtros para separar administradores e perfis padrão dentro do setor ativo.</p>
+                </div>
+                <label class="users-explorer-search" for="users-sector-search">
+                    <i class="bi bi-search"></i>
+                    <input id="users-sector-search" type="search" placeholder="Buscar por nome, matrícula ou setor dentro da equipe ativa">
+                </label>
+            </div>
+
+            <div class="users-explorer-toolbar">
+                <div class="users-filter-group" id="users-profile-filters">
+                    <button class="users-filter-chip is-active" type="button" data-profile-filter="all">Todos</button>
+                    <button class="users-filter-chip" type="button" data-profile-filter="admin">Somente administradores</button>
+                    <button class="users-filter-chip" type="button" data-profile-filter="standard">Somente padrão</button>
+                </div>
+                <div class="users-filter-group">
+                    <div class="users-filter-helper">Setor ativo <strong id="users-active-sector-name">{{ selected_sector_card.setor }}</strong> • <strong id="users-active-sector-count">{{ selected_sector_card.total }}</strong> visível(is)</div>
+                    <a class="users-filter-helper users-filter-helper-link" id="users-active-sector-route" href="{{ url_for('users.list_users_by_sector', setor=selected_sector_card.setor) }}">Abrir rota do setor</a>
+                </div>
+            </div>
+
+            {% for card in setor_cards %}
+            <section class="users-sector-panel{% if selected_sector_card and card.setor == selected_sector_card.setor %} is-active{% endif %}" id="sector-panel-{{ loop.index }}" data-sector-panel="{{ card.setor }}" data-sector-total="{{ card.total }}" data-sector-url="{{ url_for('users.list_users_by_sector', setor=card.setor) }}">
+                <div class="users-sector-panel-summary">
+                    <div class="users-sector-panel-hero">
+                        <div class="users-sector-panel-label">Quadro do setor</div>
+                        <h4 class="users-sector-panel-title">{{ card.setor }}</h4>
+                        <p class="users-sector-panel-text">Aqui a equipe aparece direto por colaborador, com o setor como referência operacional principal para você entender rápido quem está dentro e onde atuar.</p>
+                    </div>
+                    <div class="users-sector-panel-stats">
+                        <div class="users-sector-panel-stat">
+                            <span>Total do setor</span>
+                            <strong>{{ card.total }}</strong>
+                        </div>
+                        <div class="users-sector-panel-stat">
+                            <span>Usuários padrão</span>
+                            <strong>{{ card.standards }}</strong>
+                        </div>
+                        <div class="users-sector-panel-stat">
+                            <span>Administradores</span>
+                            <strong>{{ card.admins }}</strong>
+                        </div>
+                        <div class="users-sector-panel-stat">
+                            <span>Visíveis agora</span>
+                            <strong data-visible-count>{{ card.total }}</strong>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="users-member-grid">
+                    {% for membro in card.membros %}
+                    <article class="users-member-card"
+                        data-user-search="{{ (membro.nome ~ ' ' ~ membro.matricula ~ ' ' ~ card.setor)|lower }}"
+                        data-user-admin="{{ '1' if membro.is_admin else '0' }}"
+                        data-user-standard="{{ '1' if membro.is_standard else '0' }}" style="--member-order: {{ loop.index0 }};">
+                        <div class="users-member-card-top">
+                            <div class="users-member-ident">
+                                <span class="users-member-avatar">
+                                    {% if membro.photo_path %}
+                                    <img src="{{ url_for('static', filename=membro.photo_path) }}" alt="Foto de {{ membro.nome }}">
+                                    {% else %}
+                                    {{ membro.initials }}
+                                    {% endif %}
+                                </span>
+                                <div>
+                                    <h6 class="users-member-name">{{ membro.nome }}</h6>
+                                    <div class="users-member-matricula">Matrícula {{ membro.matricula }}</div>
+                                </div>
+                            </div>
+                            <div class="users-member-tags">
+                                {% if membro.is_admin %}
+                                <span class="users-member-tag is-admin">Admin</span>
+                                {% endif %}
+                                {% if membro.is_standard %}
+                                <span class="users-member-tag is-standard">Padrão</span>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="users-member-lines">
+                            <div class="users-member-line">
+                                <span>Setor operacional</span>
+                                <strong>{{ card.setor }}</strong>
+                            </div>
+                            <div class="users-member-line">
+                                <span>Acesso</span>
+                                <strong>{% if membro.is_admin and membro.is_standard %}Administrador e padrão{% elif membro.is_admin %}Administrador{% elif membro.is_standard %}Padrão{% else %}Sem perfil definido{% endif %}</strong>
+                            </div>
+                        </div>
+
+                        <div class="users-member-actions">
+                            <a class="btn btn-outline-secondary" href="{{ url_for('users.edit_user_form', matricula=membro.matricula) }}">Editar</a>
+                            <a class="btn btn-outline-primary" href="{{ url_for('users.user_history', matricula=membro.matricula) }}">Histórico</a>
+                            {% if current_user.is_admin and membro.matricula != current_user.id %}
+                            <button class="btn btn-outline-danger" type="button" onclick="openDeleteModal('{{ membro.matricula }}', '{{ membro.nome|e }}')">Excluir</button>
+                            {% endif %}
+                        </div>
+                    </article>
+                    {% endfor %}
+                </div>
+
+                <div class="users-member-empty" hidden>Nenhum colaborador deste setor combina com o filtro atual. Ajuste a busca ou os filtros de perfil.</div>
+            </section>
+            {% endfor %}
         </div>
     </section>
     {% endif %}
@@ -670,57 +1507,127 @@
     </div>
 </div>
 
-<div class="modal fade" id="sectorModal" tabindex="-1" aria-labelledby="sectorModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-scrollable">
-        <div class="modal-content users-modal-surface">
-            <div class="modal-header">
-                <h5 class="modal-title" id="sectorModalLabel">Setor</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
-            </div>
-            <div class="modal-body">
-                <p class="text-muted mb-0">Carregando colaboradores...</p>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Fechar</button>
-            </div>
-        </div>
-    </div>
-</div>
 {% endblock %}
 
 {% block scripts %}
 {{ super() }}
 <script>
     (function () {
-        const modalElement = document.getElementById('sectorModal');
-        if (!modalElement) {
+        const explorer = document.getElementById('users-sector-explorer');
+        const sectorCards = Array.from(document.querySelectorAll('.sector-card'));
+        const sectorPanels = Array.from(document.querySelectorAll('.users-sector-panel'));
+        const searchInput = document.getElementById('users-sector-search');
+        const profileButtons = Array.from(document.querySelectorAll('[data-profile-filter]'));
+        const activeSectorName = document.getElementById('users-active-sector-name');
+        const activeSectorCount = document.getElementById('users-active-sector-count');
+        const activeSectorRoute = document.getElementById('users-active-sector-route');
+
+        if (!explorer || !sectorCards.length || !sectorPanels.length || !searchInput) {
             return;
         }
-        const modalTitle = modalElement.querySelector('.modal-title');
-        const modalBody = modalElement.querySelector('.modal-body');
-        const modal = new bootstrap.Modal(modalElement);
 
-        function openModalFromTemplate(card) {
-            const setor = card.getAttribute('data-sector');
-            const templateId = card.getAttribute('data-sector-template');
-            const template = document.getElementById(templateId);
-            if (!template || !modalTitle || !modalBody) {
+        let activeProfileFilter = 'all';
+
+        const getActivePanel = () => sectorPanels.find((panel) => panel.classList.contains('is-active')) || null;
+
+        const syncSummary = (panel) => {
+            if (!panel) {
                 return;
             }
-            modalTitle.textContent = setor;
-            modalBody.innerHTML = template.innerHTML;
-            modal.show();
-        }
+            if (activeSectorName) {
+                activeSectorName.textContent = panel.dataset.sectorPanel || 'Setor';
+            }
+            if (activeSectorCount) {
+                activeSectorCount.textContent = panel.dataset.sectorTotal || '0';
+            }
+            if (activeSectorRoute) {
+                activeSectorRoute.href = panel.dataset.sectorUrl || '#';
+            }
+        };
 
-        document.querySelectorAll('.sector-card').forEach((card) => {
-            card.addEventListener('click', () => openModalFromTemplate(card));
+        const applyFilters = () => {
+            const panel = getActivePanel();
+            if (!panel) {
+                return;
+            }
+
+            const searchTerm = String(searchInput.value || '').trim().toLowerCase();
+            let visibleCount = 0;
+
+            panel.querySelectorAll('.users-member-card').forEach((memberCard) => {
+                const searchMatches = !searchTerm || String(memberCard.dataset.userSearch || '').includes(searchTerm);
+                const profileMatches = activeProfileFilter === 'all'
+                    || (activeProfileFilter === 'admin' && memberCard.dataset.userAdmin === '1')
+                    || (activeProfileFilter === 'standard' && memberCard.dataset.userStandard === '1');
+                const isVisible = searchMatches && profileMatches;
+
+                memberCard.hidden = !isVisible;
+                if (isVisible) {
+                    visibleCount += 1;
+                }
+            });
+
+            const emptyState = panel.querySelector('.users-member-empty');
+            if (emptyState) {
+                emptyState.hidden = visibleCount > 0;
+            }
+
+            const visibleCountNode = panel.querySelector('[data-visible-count]');
+            if (visibleCountNode) {
+                visibleCountNode.textContent = String(visibleCount);
+            }
+
+            if (activeSectorCount) {
+                activeSectorCount.textContent = String(visibleCount);
+            }
+        };
+
+        const setActiveSector = (card, { scroll = true } = {}) => {
+            const targetId = card.dataset.sectorTarget;
+            const nextPanel = sectorPanels.find((panel) => panel.id === targetId);
+            if (!nextPanel) {
+                return;
+            }
+
+            sectorCards.forEach((item) => item.classList.toggle('is-active', item === card));
+            sectorPanels.forEach((panel) => panel.classList.toggle('is-active', panel === nextPanel));
+
+            syncSummary(nextPanel);
+            applyFilters();
+
+            if (scroll && window.innerWidth < 1200) {
+                explorer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        };
+
+        document.querySelectorAll('[data-sector-link]').forEach((link) => {
+            link.addEventListener('click', (event) => {
+                event.stopPropagation();
+            });
+        });
+
+        sectorCards.forEach((card) => {
+            card.addEventListener('click', () => setActiveSector(card));
             card.addEventListener('keydown', (event) => {
                 if (event.key === 'Enter' || event.key === ' ') {
                     event.preventDefault();
-                    openModalFromTemplate(card);
+                    setActiveSector(card);
                 }
             });
         });
+
+        profileButtons.forEach((button) => {
+            button.addEventListener('click', () => {
+                activeProfileFilter = button.dataset.profileFilter || 'all';
+                profileButtons.forEach((item) => item.classList.toggle('is-active', item === button));
+                applyFilters();
+            });
+        });
+
+        searchInput.addEventListener('input', applyFilters);
+
+        setActiveSector(sectorCards.find((card) => card.classList.contains('is-active')) || sectorCards[0], { scroll: false });
+        applyFilters();
     })();
 
     // Exclusão com arquivamento automático em arquivo morto SQLite
