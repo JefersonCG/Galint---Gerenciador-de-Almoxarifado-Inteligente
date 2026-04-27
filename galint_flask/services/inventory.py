@@ -9,6 +9,7 @@ import json
 import logging
 import math
 import re
+import secrets
 from time import monotonic
 from types import SimpleNamespace
 from typing import Any
@@ -4440,6 +4441,29 @@ class InventoryService:
 
         db.session.commit()
         return stats
+
+    def generate_unique_internal_barcode_code(self, *, prefix: str = "2", max_attempts: int = 200) -> str:
+        prefix_norm = re.sub(r"\D", "", str(prefix or "2"))[:1] or "2"
+
+        for _ in range(max_attempts):
+            body = f"{secrets.randbelow(10 ** 10):010d}"
+            base_digits = prefix_norm + body
+            codigo = base_digits + self._calculate_upc_check_digit(base_digits)
+            if Item.query.get(codigo) is None:
+                return codigo
+
+        raise ValueError("Não foi possível gerar um novo código de barras único")
+
+    @staticmethod
+    def _calculate_upc_check_digit(base_digits: str) -> str:
+        digits = [int(char) for char in str(base_digits or "") if char.isdigit()]
+        if len(digits) != 11:
+            raise ValueError("O código base deve ter 11 dígitos para gerar um código de barras de 12 dígitos")
+
+        odd_sum = sum(digits[::2])
+        even_sum = sum(digits[1::2])
+        checksum = (10 - ((odd_sum * 3 + even_sum) % 10)) % 10
+        return str(checksum)
 
     def list_items(self) -> list[dict[str, Any]]:
         cached = self._get_cached("list_items")

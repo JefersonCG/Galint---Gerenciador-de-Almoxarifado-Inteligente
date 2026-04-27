@@ -249,11 +249,15 @@
         padding: 1rem;
         vertical-align: middle;
         border-bottom: 1px solid rgba(148, 163, 184, 0.12);
-        color: #e2e8f0;
+        color: #0f172a;
+    }
+
+    .items-table tbody tr:not(.group-row) td {
+        background: #ffffff;
     }
     
-    .items-table tbody tr:hover {
-        background: rgba(59, 130, 246, 0.06);
+    .items-table tbody tr:not(.group-row):hover td {
+        background: #eff6ff;
     }
 
     .group-row td {
@@ -468,7 +472,7 @@
     .item-desc-meta {
         display: block;
         margin-top: 0.2rem;
-        color: #94a3b8;
+        color: #475569;
         font-size: 0.8rem;
     }
 
@@ -882,7 +886,8 @@
             </div>
             <div class="modal-body">
                 <p class="mb-3">O item <strong id="modal-item-desc"></strong> usa sistema de embalagens.</p>
-                <p class="mb-3">Você quer dar saída de <strong id="modal-qtd"></strong>:</p>
+                <p class="text-muted small mb-3" id="modal-estoque-fisico"></p>
+                <p class="mb-3">Como deseja registrar a saída de <strong id="modal-qtd"></strong>?</p>
                 
                 <div class="d-grid gap-2" id="modal-opcoes-padrao">
                     <button type="button" class="btn btn-lg btn-outline-primary" id="btn-embalagens">
@@ -994,6 +999,7 @@ ${parent.scripts()}
     // Modal
     const modalUnidade = new bootstrap.Modal(document.getElementById('modalUnidade'));
     const modalItemDesc = document.getElementById('modal-item-desc');
+    const modalEstoqueFisico = document.getElementById('modal-estoque-fisico');
     const modalQtd = document.getElementById('modal-qtd');
     const modalQtdEmb = document.getElementById('modal-qtd-emb');
     const modalQtdUnit = document.getElementById('modal-qtd-unit');
@@ -1553,6 +1559,32 @@ ${parent.scripts()}
         return textoNumero + ' ' + unidade;
     }
 
+    function formatarNumeroSimples(valor) {
+        const numero = Number(valor) || 0;
+        const precisaDecimal = Math.abs(numero - Math.round(numero)) > 0.000001;
+        return precisaDecimal ? numero.toFixed(2) : String(Math.round(numero));
+    }
+
+    function obterSaldoEmbalagensDisponiveis(item) {
+        const saldoFechadoInformado = Number(item?.saldo_embalagens);
+        if (Number.isFinite(saldoFechadoInformado) && saldoFechadoInformado >= 0) {
+            return saldoFechadoInformado;
+        }
+
+        const capacidade = Number(item?.unidades_por_embalagem) || 0;
+        const saldoTotal = Number(item?.saldo) || 0;
+        if (capacidade <= 0) {
+            return 0;
+        }
+        return Math.floor(saldoTotal / capacidade);
+    }
+
+    function podeRetirarEmbalagensFechadas(item) {
+        const quantidadeDigitada = Number(item?.quantidade_input) || 0;
+        const saldoFechadoDisponivel = obterSaldoEmbalagensDisponiveis(item);
+        return quantidadeDigitada > 0 && saldoFechadoDisponivel + 0.000001 >= quantidadeDigitada;
+    }
+
     function buildObservationUnitCode(item, unidadeLabel) {
         const medida = normalizarUnidadeMedida(item);
         if (medida === 'litro') return 'L';
@@ -1645,6 +1677,9 @@ ${parent.scripts()}
     
     btnEmbalagens.addEventListener('click', () => {
         if (pendingItem) {
+            if (!podeRetirarEmbalagensFechadas(pendingItem)) {
+                return;
+            }
             const nomes = nomesEmbalagem[pendingItem.tipo_embalagem] || { singular: 'embalagem', plural: 'embalagens' };
             pendingItem.em_embalagens = true;
             pendingItem.quantidade = pendingItem.quantidade_input;
@@ -1814,6 +1849,8 @@ ${parent.scripts()}
                     unidades_por_embalagem: capacidadeEmbalagem,
                     nome_embalagem: data.nome_embalagem,
                     nome_embalagem_plural: data.nome_embalagem_plural,
+                    saldo_embalagens: data.saldo_embalagens,
+                    saldo_unidades_soltas: data.saldo_unidades_soltas,
                     unidade: data.unidade,
                     categoria: data.categoria,
                     marca: data.marca,
@@ -1872,18 +1909,37 @@ ${parent.scripts()}
         const totalUnidades = item.quantidade_input * item.unidades_por_embalagem;
         const rotuloMedida = obterRotuloMedida(item, item.quantidade_input);
         const permiteCentimetros = item.tipo_embalagem === 'rolo' && normalizarUnidadeMedida(item) === 'metro';
+        const saldoEmbalagensDisponivel = obterSaldoEmbalagensDisponiveis(item);
+        const retiradaEmEmbalagensDisponivel = podeRetirarEmbalagensFechadas(item);
+        const saldoUnidadesSoltas = Number(item.saldo_unidades_soltas);
+        const estoqueFechadoTexto = formatarNumeroSimples(saldoEmbalagensDisponivel) + ' ' + (Math.abs(saldoEmbalagensDisponivel - 1) <= 0.000001 ? nomes.singular : nomes.plural);
+        const estoqueSoltoTexto = Number.isFinite(saldoUnidadesSoltas) && saldoUnidadesSoltas > 0.000001
+            ? formatarQuantidadeMedida(saldoUnidadesSoltas, obterRotuloMedida(item, saldoUnidadesSoltas))
+            : null;
         
         modalItemDesc.textContent = item.descricao;
-        modalQtd.textContent = item.quantidade_input;
+        modalEstoqueFisico.textContent = estoqueSoltoTexto
+            ? 'Estoque em embalagens fechadas: ' + estoqueFechadoTexto + '. Estoque na unidade base: ' + estoqueSoltoTexto + '.'
+            : 'Estoque em embalagens fechadas: ' + estoqueFechadoTexto + '.';
+        modalQtd.textContent = formatarQuantidadeMedida(item.quantidade_input, rotuloMedida);
         modalOpcoesPadrao.style.display = 'grid';
-        modalQtdEmb.textContent = item.quantidade_input;
-        modalQtdUnit.textContent = item.quantidade_input;
-        modalNomeEmbPlural.textContent = item.quantidade_input === 1 ? nomes.singular : nomes.plural;
-        modalTotalEmb.textContent = '= ' + formatarQuantidadeMedida(totalUnidades, rotuloMedida) + ' no total';
+        modalQtdUnit.textContent = formatarNumeroSimples(item.quantidade_input);
         modalUnidadeBase.textContent = item.quantidade_input === 1 ? rotuloMedida.singular : rotuloMedida.plural;
         modalUnidadeDesc.textContent = permiteCentimetros ? '(saída em metros)' : '(quantidade individual)';
         btnCentimetros.style.display = permiteCentimetros ? '' : 'none';
-        modalQtdCentimetros.textContent = item.quantidade_input;
+        modalQtdCentimetros.textContent = formatarNumeroSimples(item.quantidade_input);
+
+        btnEmbalagens.disabled = !retiradaEmEmbalagensDisponivel;
+        btnEmbalagens.classList.toggle('disabled', !retiradaEmEmbalagensDisponivel);
+        if (retiradaEmEmbalagensDisponivel) {
+            modalQtdEmb.textContent = formatarNumeroSimples(item.quantidade_input);
+            modalNomeEmbPlural.textContent = item.quantidade_input === 1 ? nomes.singular : nomes.plural;
+            modalTotalEmb.textContent = '= ' + formatarQuantidadeMedida(totalUnidades, rotuloMedida) + ' no total';
+        } else {
+            modalQtdEmb.textContent = '';
+            modalNomeEmbPlural.textContent = nomes.plural + ' completas indisponíveis';
+            modalTotalEmb.textContent = 'Estoque físico fechado disponível: ' + estoqueFechadoTexto + '. Para ' + formatarQuantidadeMedida(item.quantidade_input, rotuloMedida) + ', registre em ' + rotuloMedida.plural + '.';
+        }
         
         modalUnidade.show();
     }

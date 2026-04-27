@@ -78,6 +78,19 @@ def _parse_optional_float(raw_value: str | None, *, fallback: float | None = Non
         return fallback
 
 
+@blueprint.get("/novo-codigo-barras")
+@login_required
+def novo_codigo_barras():
+    _require_admin()
+    codigo = inventory_service.generate_unique_internal_barcode_code(prefix="2")
+    return jsonify({
+        "success": True,
+        "codigo": codigo,
+        "pattern": "ean12",
+        "length": len(codigo),
+    })
+
+
 def _has_explicit_form_value(raw_value: str | None) -> bool:
     return bool((raw_value or "").strip())
 

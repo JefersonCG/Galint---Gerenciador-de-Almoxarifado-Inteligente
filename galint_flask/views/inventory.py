@@ -30,6 +30,7 @@ from ..services.inventory import (
 )
 from ..services.item_foto_service import ItemFotoService
 from ..services.price_normalization import infer_document_quantity_unit_for_item, infer_price_unit_for_item, normalize_document_line, normalize_item_price
+from ..services.purchase_projection_runtime_service import purchase_projection_service
 from ..services.price_suggestion_service import price_suggestion_service
 from ..services.telegram_service import TelegramService
 from ..services.inventory_category_summary import build_category_balance_summary, build_category_value_summary
@@ -169,6 +170,58 @@ def _json_no_store(payload: dict[str, object]):
     response.headers["Pragma"] = "no-cache"
     response.headers["Expires"] = "0"
     return response
+
+
+def _request_purchase_projection_filters(source=None) -> dict[str, object]:
+    source = source or request.args
+    return purchase_projection_service.normalize_filters(
+        window_days=source.get("window_days"),
+        coverage_days=source.get("coverage_days"),
+        search=source.get("search"),
+        status=source.get("status"),
+        include_inactive=source.get("include_inactive"),
+    )
+
+
+def _request_purchase_projection_selected_codes(source=None) -> list[str]:
+    source = source or request.form
+    if not hasattr(source, "getlist"):
+        return []
+    return [
+        str(code or "").strip()
+        for code in source.getlist("selected_items")
+        if str(code or "").strip()
+    ]
+
+
+def _request_purchase_projection_manual_quantities(source=None) -> dict[str, object]:
+    source = source or request.form
+    if hasattr(source, "items"):
+        items = list(source.items())
+    else:
+        items = []
+    manual_quantities: dict[str, object] = {}
+    for key, value in items:
+        key_text = str(key or "")
+        if not key_text.startswith("manual_qty__"):
+            continue
+        codigo_item = key_text.removeprefix("manual_qty__").strip()
+        if not codigo_item:
+            continue
+        manual_quantities[codigo_item] = value
+    return manual_quantities
+
+
+def _purchase_projection_status_options() -> list[dict[str, str]]:
+    return [
+        {"value": "all", "label": "Todos"},
+        {"value": "actionable", "label": "Somente acionaveis"},
+        {"value": "critical", "label": "Criticos"},
+        {"value": "attention", "label": "Atencao"},
+        {"value": "no_history", "label": "Sem historico"},
+        {"value": "no_consumption", "label": "Sem consumo"},
+        {"value": "ok", "label": "Estaveis"},
+    ]
 
 
 def _format_projection_number(value: object) -> str:
@@ -1474,6 +1527,76 @@ def lojas_lab():
         summary=report.get("summary") or {},
         exercise=report["exercise"],
         exercise_options=report.get("exercise_options") or [],
+    )
+
+
+@blueprint.route("/projecao-compras", methods=["GET", "POST"])
+@login_required
+def purchase_projection_page():
+    _require_admin_or_supervisor()
+    source = request.form if request.method == "POST" else request.args
+    filters = _request_purchase_projection_filters(source)
+    selected_codes = _request_purchase_projection_selected_codes(request.form) if request.method == "POST" else []
+    manual_quantities = _request_purchase_projection_manual_quantities(request.form) if request.method == "POST" else {}
+    report = purchase_projection_service.build_projection_report(
+        **filters,
+        selected_codes=selected_codes,
+        manual_quantities=manual_quantities,
+    )
+    return render_template(
+        "inventory/purchase_projection.html",
+        report=report,
+        filters=report["filters"],
+        compatibility=report["compatibility"],
+        rows=report["rows"],
+        summary=report["summary"],
+        cart=report["cart"],
+        status_options=_purchase_projection_status_options(),
+    )
+
+
+@blueprint.get("/projecao-compras/api")
+@login_required
+def purchase_projection_api():
+    _require_admin_or_supervisor()
+    filters = _request_purchase_projection_filters(request.args)
+    selected_codes = _request_purchase_projection_selected_codes(request.args)
+    manual_quantities = _request_purchase_projection_manual_quantities(request.args)
+    report = purchase_projection_service.build_projection_report(
+        **filters,
+        selected_codes=selected_codes,
+        manual_quantities=manual_quantities,
+    )
+    return _json_no_store(report)
+
+
+@blueprint.post("/projecao-compras/export.xlsx")
+@login_required
+def purchase_projection_export_xlsx():
+    _require_admin_or_supervisor()
+    filters = _request_purchase_projection_filters(request.form)
+    selected_codes = _request_purchase_projection_selected_codes(request.form)
+    manual_quantities = _request_purchase_projection_manual_quantities(request.form)
+    report = purchase_projection_service.build_projection_report(
+        **filters,
+        selected_codes=selected_codes,
+        manual_quantities=manual_quantities,
+    )
+    if not int((report.get("cart") or {}).get("selected_count") or 0):
+        flash("Selecione pelo menos um item com quantidade final positiva para exportar o pedido.", "warning")
+        return redirect(url_for("inventory.purchase_projection_page", **filters))
+
+    workbook = purchase_projection_service.build_workbook(report)
+    filename = (
+        f"projecao_compras_"
+        f"{_sanitize_filename_component(str(filters.get('status') or 'all'))}_"
+        f"{TimeService.now_local().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    )
+    return send_file(
+        workbook,
+        as_attachment=True,
+        download_name=filename,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
 
 

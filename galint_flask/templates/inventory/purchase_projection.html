@@ -1,0 +1,516 @@
+{% extends "base.html" %}
+{% block title %}Projeção de Compras{% endblock %}
+{% block content %}
+{% macro brl(value) -%}
+    {%- if value is none -%}
+        -
+    {%- else -%}
+        {{ ('R$ {:,.2f}'.format(value)).replace(',', 'X').replace('.', ',').replace('X', '.') }}
+    {%- endif -%}
+{%- endmacro %}
+<style>
+    .projection-shell {
+        display: grid;
+        gap: 1rem;
+    }
+
+    .projection-panel {
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        border-radius: 1rem;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.98));
+        box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+        padding: 1rem 1.1rem;
+    }
+
+    .projection-kicker {
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        font-weight: 700;
+        color: #0f766e;
+        margin-bottom: 0.35rem;
+    }
+
+    .projection-hero {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        align-items: flex-start;
+        flex-wrap: wrap;
+    }
+
+    .projection-hero p {
+        max-width: 62rem;
+    }
+
+    .projection-form-grid {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 0.75rem;
+    }
+
+    .projection-summary-grid {
+        display: grid;
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+        gap: 0.75rem;
+    }
+
+    .projection-summary-card {
+        border: 1px solid rgba(226, 232, 240, 0.9);
+        border-radius: 0.9rem;
+        padding: 0.85rem 0.9rem;
+        background: #fff;
+    }
+
+    .projection-summary-label {
+        font-size: 0.74rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #64748b;
+        margin-bottom: 0.35rem;
+    }
+
+    .projection-summary-value {
+        font-size: 1.5rem;
+        line-height: 1;
+        font-weight: 800;
+        color: #0f172a;
+    }
+
+    .projection-summary-note {
+        color: #64748b;
+        font-size: 0.82rem;
+        margin-top: 0.35rem;
+    }
+
+    .projection-form-grid .form-label {
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: #475569;
+        margin-bottom: 0.3rem;
+    }
+
+    .projection-chip-row {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    .projection-chip {
+        border-radius: 999px;
+        background: #e2e8f0;
+        color: #0f172a;
+        padding: 0.32rem 0.7rem;
+        font-size: 0.78rem;
+        font-weight: 600;
+    }
+
+    .projection-compat-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.75rem;
+    }
+
+    .projection-compat-card {
+        border: 1px solid rgba(251, 191, 36, 0.32);
+        border-radius: 0.95rem;
+        background: #fffaf0;
+        padding: 0.85rem 0.9rem;
+    }
+
+    .projection-compat-title {
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        font-weight: 700;
+        color: #92400e;
+        margin-bottom: 0.45rem;
+    }
+
+    .projection-compat-card ul {
+        padding-left: 1rem;
+        margin-bottom: 0;
+        color: #7c2d12;
+        font-size: 0.88rem;
+    }
+
+    .projection-cart-grid {
+        display: grid;
+        grid-template-columns: 1.6fr 1fr;
+        gap: 0.9rem;
+    }
+
+    .projection-cart-group + .projection-cart-group {
+        margin-top: 0.75rem;
+        padding-top: 0.75rem;
+        border-top: 1px dashed rgba(148, 163, 184, 0.5);
+    }
+
+    .projection-cart-group h3 {
+        font-size: 0.98rem;
+        margin-bottom: 0.4rem;
+    }
+
+    .projection-cart-item {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.75rem;
+        font-size: 0.88rem;
+        color: #334155;
+    }
+
+    .projection-table {
+        font-size: 0.88rem;
+    }
+
+    .projection-table th {
+        white-space: nowrap;
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: #475569;
+        border-bottom-width: 1px;
+    }
+
+    .projection-table td {
+        vertical-align: top;
+    }
+
+    .projection-item-title {
+        font-weight: 700;
+        color: #0f172a;
+        margin-bottom: 0.15rem;
+    }
+
+    .projection-item-meta,
+    .projection-muted {
+        color: #64748b;
+        font-size: 0.8rem;
+    }
+
+    .projection-value {
+        font-weight: 700;
+        color: #0f172a;
+    }
+
+    .projection-badges {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.35rem;
+    }
+
+    .projection-manual-input {
+        min-width: 9rem;
+    }
+
+    @media (max-width: 1200px) {
+        .projection-summary-grid,
+        .projection-form-grid,
+        .projection-compat-grid,
+        .projection-cart-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    @media (max-width: 768px) {
+        .projection-summary-grid,
+        .projection-form-grid,
+        .projection-compat-grid,
+        .projection-cart-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .projection-panel {
+            padding: 0.9rem;
+        }
+    }
+</style>
+<div class="projection-shell">
+    <section class="projection-panel">
+        <div class="projection-hero">
+            <div>
+                <div class="projection-kicker">Motor de Decisão</div>
+                <h1 class="h3 mb-2">Projeção de Compras</h1>
+                <p class="text-muted mb-0">
+                    Saldo lido do ledger, consumo calculado em unidade base e pedido consolidado apenas quando fornecedor e preço forem semanticamente coerentes.
+                </p>
+            </div>
+            <div class="d-flex gap-2 flex-wrap">
+                <a class="btn btn-outline-primary" href="{{ url_for('inventory.purchase_projection_api', window_days=filters.window_days, coverage_days=filters.coverage_days, search=filters.search, status=filters.status, include_inactive='1' if filters.include_inactive else None) }}">API JSON</a>
+                <a class="btn btn-outline-secondary" href="{{ url_for('inventory.list_items') }}">Voltar aos itens</a>
+            </div>
+        </div>
+        <div class="projection-chip-row mt-3">
+            <span class="projection-chip">dias_restantes = saldo_base / consumo_medio</span>
+            <span class="projection-chip">quantidade_sugerida = max((consumo_medio x dias_cobertura) - saldo_base, 0)</span>
+            <span class="projection-chip">consumo_medio = consumo_liquido_periodo / janela_dias</span>
+        </div>
+    </section>
+
+    <section class="projection-panel border-warning-subtle">
+        <div class="projection-kicker text-warning-emphasis">Compatibilidade Obrigatória</div>
+        <h2 class="h5 mb-2">Resposta arquitetural</h2>
+        <div class="alert alert-warning mb-3">
+            <strong>Não é compatível de forma totalmente irrestrita.</strong>
+            {{ compatibility.answer }}
+            {{ compatibility.safe_because[0] }}
+        </div>
+        <div class="projection-compat-grid">
+            <div class="projection-compat-card">
+                <div class="projection-compat-title">Conflitos</div>
+                <ul>
+                    {% for text in compatibility.conflicts %}
+                    <li>{{ text }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            <div class="projection-compat-card">
+                <div class="projection-compat-title">Adaptações Aplicadas</div>
+                <ul>
+                    {% for text in compatibility.required_adaptations %}
+                    <li>{{ text }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            <div class="projection-compat-card">
+                <div class="projection-compat-title">Risco Evitado</div>
+                <ul>
+                    {% for text in compatibility.risk_of_repeating_existing_inconsistencies %}
+                    <li>{{ text }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <section class="projection-panel">
+        <form method="get" class="projection-form-grid align-items-end">
+            <div>
+                <label class="form-label" for="projection-search">Busca</label>
+                <input class="form-control" id="projection-search" name="search" value="{{ filters.search }}" placeholder="Código, descrição, marca ou categoria">
+            </div>
+            <div>
+                <label class="form-label" for="projection-window">Janela de consumo</label>
+                <input class="form-control" id="projection-window" type="number" name="window_days" min="1" max="365" value="{{ filters.window_days }}">
+            </div>
+            <div>
+                <label class="form-label" for="projection-coverage">Dias de cobertura</label>
+                <input class="form-control" id="projection-coverage" type="number" name="coverage_days" min="1" max="365" value="{{ filters.coverage_days }}">
+            </div>
+            <div>
+                <label class="form-label" for="projection-status">Status</label>
+                <select class="form-select" id="projection-status" name="status">
+                    {% for option in status_options %}
+                    <option value="{{ option.value }}" {% if filters.status == option.value %}selected{% endif %}>{{ option.label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <div class="form-check mb-2">
+                    <input class="form-check-input" type="checkbox" id="projection-inactive" name="include_inactive" value="1" {% if filters.include_inactive %}checked{% endif %}>
+                    <label class="form-check-label" for="projection-inactive">Incluir itens inativos</label>
+                </div>
+                <button class="btn btn-primary w-100" type="submit">Atualizar projeção</button>
+            </div>
+        </form>
+    </section>
+
+    <section class="projection-summary-grid">
+        <article class="projection-summary-card">
+            <div class="projection-summary-label">Itens visíveis</div>
+            <div class="projection-summary-value">{{ summary.visible_items }}</div>
+            <div class="projection-summary-note">{{ summary.total_items }} itens avaliados na consulta.</div>
+        </article>
+        <article class="projection-summary-card">
+            <div class="projection-summary-label">Críticos</div>
+            <div class="projection-summary-value text-danger">{{ summary.critical_items }}</div>
+            <div class="projection-summary-note">Ruptura ou dado bloqueante.</div>
+        </article>
+        <article class="projection-summary-card">
+            <div class="projection-summary-label">Atenção</div>
+            <div class="projection-summary-value text-warning-emphasis">{{ summary.attention_items }}</div>
+            <div class="projection-summary-note">Risco de cobertura ou fornecedor pendente.</div>
+        </article>
+        <article class="projection-summary-card">
+            <div class="projection-summary-label">Sem histórico</div>
+            <div class="projection-summary-value text-secondary">{{ summary.no_history_items }}</div>
+            <div class="projection-summary-note">Sem saída registrada no ledger.</div>
+        </article>
+        <article class="projection-summary-card">
+            <div class="projection-summary-label">Selecionados</div>
+            <div class="projection-summary-value text-success">{{ summary.selected_items }}</div>
+            <div class="projection-summary-note">{{ summary.selected_groups }} fornecedor(es) no carrinho.</div>
+        </article>
+        <article class="projection-summary-card">
+            <div class="projection-summary-label">Total do carrinho</div>
+            <div class="projection-summary-value">{{ brl(summary.selected_value_total) }}</div>
+            <div class="projection-summary-note">{{ summary.selected_quantity_total }} em unidade base.</div>
+        </article>
+    </section>
+
+    <section class="projection-panel">
+        <div class="projection-cart-grid">
+            <div>
+                <div class="projection-kicker">Carrinho Consolidado</div>
+                <h2 class="h5 mb-2">Resumo por fornecedor</h2>
+                {% if cart.messages %}
+                <div class="alert alert-warning">
+                    {% for message in cart.messages %}
+                    <div>{{ message }}</div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                {% if cart.groups %}
+                    {% for group in cart.groups %}
+                    <div class="projection-cart-group">
+                        <h3>{{ group.supplier_name }}</h3>
+                        {% for item in group.items %}
+                        <div class="projection-cart-item">
+                            <span>{{ item.descricao }} <span class="projection-muted">{{ item.requested_quantity_display }}</span></span>
+                            <span>{{ brl(item.requested_total_value) }}</span>
+                        </div>
+                        {% endfor %}
+                        <div class="projection-cart-item mt-2 fw-semibold">
+                            <span>Total do fornecedor</span>
+                            <span>{{ brl(group.requested_value_total) }}</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                <p class="text-muted mb-0">Selecione itens e ajuste a quantidade final em unidade base para formar o pedido consolidado.</p>
+                {% endif %}
+            </div>
+            <div>
+                <div class="projection-kicker">Controles</div>
+                <h2 class="h5 mb-2">Regras operacionais</h2>
+                <ul class="small text-muted mb-0">
+                    <li>Saldo é sempre a soma do ledger.</li>
+                    <li>Embalagem aparece só como apoio visual.</li>
+                    <li>Preço sempre é tratado por unidade base.</li>
+                    <li>Fornecedor/preço sem coerência explícita viram alerta, não pedido automático.</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <section class="projection-panel">
+        <form method="post">
+            <input type="hidden" name="search" value="{{ filters.search }}">
+            <input type="hidden" name="window_days" value="{{ filters.window_days }}">
+            <input type="hidden" name="coverage_days" value="{{ filters.coverage_days }}">
+            <input type="hidden" name="status" value="{{ filters.status }}">
+            {% if filters.include_inactive %}
+            <input type="hidden" name="include_inactive" value="1">
+            {% endif %}
+            <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap mb-3">
+                <div>
+                    <div class="projection-kicker">Tabela Operacional</div>
+                    <h2 class="h5 mb-0">Itens projetados</h2>
+                </div>
+                <div class="d-flex gap-2 flex-wrap">
+                    <button class="btn btn-primary" type="submit">Atualizar carrinho</button>
+                    <button class="btn btn-success" type="submit" formaction="{{ url_for('inventory.purchase_projection_export_xlsx') }}">Exportar XLS do pedido</button>
+                </div>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm align-middle projection-table">
+                    <thead>
+                        <tr>
+                            <th>Pedido</th>
+                            <th>Item</th>
+                            <th>Saldo</th>
+                            <th>Consumo</th>
+                            <th>Média/dia</th>
+                            <th>Dias restantes</th>
+                            <th>Sugestão</th>
+                            <th>Ajuste manual</th>
+                            <th>Fornecedor</th>
+                            <th>Preço</th>
+                            <th>Status e validações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in rows %}
+                        <tr class="{% if row.status == 'critical' %}table-danger{% elif row.status == 'attention' %}table-warning{% endif %}">
+                            <td>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="selected_items" value="{{ row.codigo_item }}" {% if row.selected %}checked{% endif %}>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="projection-item-title">{{ row.descricao }}</div>
+                                <div class="projection-item-meta">{{ row.codigo_item }}{% if row.categoria %} • {{ row.categoria }}{% endif %}{% if row.marca %} • {{ row.marca }}{% endif %}</div>
+                                {% if row.procurement_note %}
+                                <div class="projection-muted mt-1">{{ row.procurement_note }}</div>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="projection-value">{{ row.balance_display }}</div>
+                                <div class="projection-muted">base: {{ row.balance_base }}</div>
+                            </td>
+                            <td>
+                                <div class="projection-value">{{ row.consumption_window_display }}</div>
+                                <div class="projection-muted">saída registrada: {{ row.last_saida_at or 'nenhuma' }}</div>
+                            </td>
+                            <td>
+                                <div class="projection-value">{{ row.consumption_average_display }}</div>
+                            </td>
+                            <td>
+                                <div class="projection-value">{{ row.days_remaining_display }}</div>
+                            </td>
+                            <td>
+                                <div class="projection-value">{{ row.suggested_quantity_display }}</div>
+                                <div class="projection-muted">{{ brl(row.estimated_suggestion_value) }}</div>
+                            </td>
+                            <td>
+                                <input
+                                    class="form-control form-control-sm projection-manual-input"
+                                    type="number"
+                                    min="0"
+                                    step="0.000001"
+                                    name="manual_qty__{{ row.codigo_item }}"
+                                    value="{% if row.selected and row.requested_quantity_base is not none %}{{ row.requested_quantity_base }}{% else %}{{ row.suggested_quantity_base }}{% endif %}"
+                                >
+                                <div class="projection-muted mt-1">unidade base: {{ row.unit_base_label }}</div>
+                            </td>
+                            <td>
+                                <div class="projection-value">{{ row.supplier.name or 'Sem fornecedor identificado' }}</div>
+                                <div class="projection-muted">{% if row.supplier.cnpj %}{{ row.supplier.cnpj }}{% else %}sem CNPJ{% endif %}</div>
+                            </td>
+                            <td>
+                                <div class="projection-value">{{ row.price_display or '-' }}</div>
+                                <div class="projection-muted">{{ row.price_source_label }}</div>
+                                {% if row.price_reference_document %}
+                                <div class="projection-muted">{{ row.price_reference_type or '' }} {{ row.price_reference_document }}</div>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="projection-badges mb-2">
+                                    <span class="badge text-bg-{{ row.status_badge_class }}">{{ row.status_label }}</span>
+                                </div>
+                                {% if row.validation_notes %}
+                                <div class="projection-badges">
+                                    {% for note in row.validation_notes %}
+                                    <span class="badge text-bg-{% if note.blocking %}danger{% else %}secondary{% endif %}">{{ note.code }}</span>
+                                    {% endfor %}
+                                </div>
+                                <div class="projection-muted mt-2">
+                                    {% for note in row.validation_notes %}
+                                    <div>{{ note.message }}</div>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="11" class="text-center text-muted py-4">Nenhum item encontrado para os filtros atuais.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </form>
+    </section>
+</div>
+{% endblock %}
