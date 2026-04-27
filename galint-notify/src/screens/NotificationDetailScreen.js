@@ -25,6 +25,14 @@ export default function NotificationDetailScreen({ route }) {
   const visualActor = visual.actor || {};
   const visualContext = visual.context || {};
   const media = payload.media || {};
+  const balanceBeforeDisplay = visualMovement.balance_before_display
+    || (visualMovement.balance_before != null
+      ? `${formatDisplayValue(visualMovement.balance_before)} ${visualMovement.balance_unit || ''}`.trim()
+      : null);
+  const balanceAfterDisplay = visualMovement.balance_after_display
+    || (visualMovement.balance_after != null
+      ? `${formatDisplayValue(visualMovement.balance_after)} ${visualMovement.balance_unit || ''}`.trim()
+      : null);
 
   const imageUri = useMemo(() => {
     const candidates = [
@@ -66,8 +74,8 @@ export default function NotificationDetailScreen({ route }) {
             <Text style={styles.blockTitle}>Movimento</Text>
             {visual.kind_label ? <Text style={styles.infoPrimary}>{visual.kind_label}</Text> : null}
             {visualMovement.quantidade_display ? <Text style={styles.infoSecondary}>Quantidade: {visualMovement.quantidade_display}</Text> : null}
-            {visualMovement.balance_before != null ? <Text style={styles.infoSecondary}>Saldo antes: {formatDisplayValue(visualMovement.balance_before)} {visualMovement.balance_unit || ''}</Text> : null}
-            {visualMovement.balance_after != null ? <Text style={styles.infoSecondary}>Saldo depois: {formatDisplayValue(visualMovement.balance_after)} {visualMovement.balance_unit || ''}</Text> : null}
+            {balanceBeforeDisplay ? <Text style={styles.infoSecondary}>Saldo antes: {balanceBeforeDisplay}</Text> : null}
+            {balanceAfterDisplay ? <Text style={styles.infoSecondary}>Saldo depois: {balanceAfterDisplay}</Text> : null}
             {visual.batch_label ? <Text style={styles.infoSecondary}>Lote: {visual.batch_label}</Text> : null}
           </View>
         ) : null}

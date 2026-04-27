@@ -371,6 +371,57 @@ def _build_about_document_guide() -> dict[str, object]:
     }
 
 
+def _build_about_category_reference_fallback() -> dict[str, object]:
+    groups: list[dict[str, object]] = []
+    total_categories = 0
+
+    for group in _ABOUT_CATEGORY_REFERENCE_GROUPS:
+        group_items: list[dict[str, object]] = []
+        for item_meta in group["items"]:
+            key = str(item_meta["key"])
+            label = key.replace("-", " ").strip().title() or "Sem categoria"
+            group_items.append(
+                {
+                    "key": key,
+                    "label": label,
+                    "icon": "🏷️",
+                    "color": group["accent"],
+                    "soft": "rgba(148, 163, 184, 0.18)",
+                    "description": "Referencia visual carregada em modo reduzido.",
+                    "usage": item_meta["usage"],
+                }
+            )
+
+        total_categories += len(group_items)
+        groups.append(
+            {
+                "id": group["id"],
+                "title": group["title"],
+                "summary": group["summary"],
+                "accent": group["accent"],
+                "items": group_items,
+                "count": len(group_items),
+            }
+        )
+
+    for group in groups:
+        count = int(group["count"] or 0)
+        group["share_pct"] = round((count / total_categories) * 100, 1) if total_categories else 0.0
+
+    return {
+        "catalog": [],
+        "groups": groups,
+        "flow": list(_ABOUT_CATEGORY_REFERENCE_FLOW),
+        "surfaces": list(_ABOUT_CATEGORY_REFERENCE_SURFACES),
+        "rules": list(_ABOUT_CATEGORY_REFERENCE_RULES),
+        "total_categories": total_categories,
+        "group_count": len(groups),
+        "surface_count": len(_ABOUT_CATEGORY_REFERENCE_SURFACES),
+        "rule_count": len(_ABOUT_CATEGORY_REFERENCE_RULES),
+        "fallback_mode": True,
+    }
+
+
 def _require_admin() -> None:
     if not bool(getattr(current_user, "is_admin", False)):
         abort(403)
@@ -834,8 +885,22 @@ def update_rede():
 def sobre():
     kit_readme_path = Path(current_app.root_path).parent / "README_CENTRAL_KITS_FERRAMENTAS.md"
     kit_doc_html = _markdown_file_to_html(kit_readme_path) if kit_readme_path.exists() else ""
-    about_category_reference = _build_about_category_reference()
-    about_document_guide = _build_about_document_guide()
+    try:
+        about_category_reference = _build_about_category_reference()
+    except Exception:
+        current_app.logger.exception("Falha ao montar a referencia visual do Sobre; usando fallback reduzido.")
+        about_category_reference = _build_about_category_reference_fallback()
+
+    try:
+        about_document_guide = _build_about_document_guide()
+    except Exception:
+        current_app.logger.exception("Falha ao montar o guia documental do Sobre; usando fallback reduzido.")
+        about_document_guide = {
+            "steps": list(_ABOUT_DOCUMENT_GUIDE_STEPS),
+            "modes": list(_ABOUT_DOCUMENT_GUIDE_MODES),
+            "rules": list(_ABOUT_DOCUMENT_GUIDE_RULES),
+        }
+
     return render_template(
         "sobre.html",
         kit_doc_html=kit_doc_html,

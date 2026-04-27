@@ -167,16 +167,22 @@ class NotificationRouterService:
             return {"success": False, "error": "Saída não encontrada."}
         item_desc = saida.item.descricao if saida.item else saida.codigo_item or "Item"
         user_name = saida.usuario.nome if saida.usuario else saida.matricula or "Usuário"
-        visual_payload = operation_visual_payload_service.build_for_saida(
+        display = operation_visual_payload_service.resolve_withdrawal_display_context(
             saida,
             balance_before=balance_before,
             balance_after=balance_after,
             balance_unit=balance_unit,
         )
+        visual_payload = operation_visual_payload_service.build_for_saida(
+            saida,
+            balance_before=display.get("balance_before"),
+            balance_after=display.get("balance_after"),
+            balance_unit=display.get("balance_unit"),
+        )
         payload = {
             "recipient_ids": NotificationRouterService._resolve_saida_recipients(saida),
             "title": "Nova retirada registrada",
-            "body": f"{user_name} retirou {saida.quantidade:g} de {item_desc}.",
+            "body": f"{user_name} retirou {display.get('quantity_display') or f'{saida.quantidade:g}'} de {item_desc}.",
             "category": "withdrawal",
             "message_type": "withdrawal",
             "payload": {
@@ -185,9 +191,9 @@ class NotificationRouterService:
                 "codigo": saida.codigo_item,
                 "matricula": saida.matricula,
                 "tipoCustodia": saida.tipo_custodia,
-                "balanceBefore": balance_before,
-                "balanceAfter": balance_after,
-                "balanceUnit": balance_unit,
+                "balanceBefore": display.get("balance_before"),
+                "balanceAfter": display.get("balance_after"),
+                "balanceUnit": display.get("balance_unit_display"),
                 "visual": visual_payload,
             },
         }
@@ -196,9 +202,9 @@ class NotificationRouterService:
             telegram_callable=lambda: TelegramService.notify_withdrawal(
                 saida_id,
                 force_single=force_single,
-                balance_before=balance_before,
-                balance_after=balance_after,
-                balance_unit=balance_unit,
+                balance_before=display.get("balance_before"),
+                balance_after=display.get("balance_after"),
+                balance_unit=display.get("balance_unit"),
             ),
             notify_payload=payload,
         )

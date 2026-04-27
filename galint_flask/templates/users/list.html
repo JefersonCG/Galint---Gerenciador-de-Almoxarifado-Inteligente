@@ -1292,6 +1292,7 @@
     </section>
 
     {% if setor_cards %}
+    {% set active_sector_card = selected_sector_card if selected_sector_card is defined and selected_sector_card else setor_cards[0] %}
     <section class="users-panel">
         <div class="users-panel-head users-panel-head--spacious">
             <div>
@@ -1309,8 +1310,9 @@
         <div class="users-sector-grid">
         {% for card in setor_cards %}
         {% set accent = accent_palette[loop.index0 % (accent_palette|length)] %}
-            <div class="users-sector-card sector-card{% if selected_sector_card and card.setor == selected_sector_card.setor %} is-active{% endif %}" role="button" tabindex="0" data-sector="{{ card.setor }}"
-                data-sector-target="sector-panel-{{ loop.index }}" data-sector-url="{{ url_for('users.list_users_by_sector', setor=card.setor) }}" style="--sector-accent: {{ accent }}; --sector-order: {{ loop.index0 }};">
+        {% set sector_page_url = url_for('users.list_users', setor=card.setor, visualizacao='setor') %}
+            <div class="users-sector-card sector-card{% if active_sector_card and card.setor == active_sector_card.setor %} is-active{% endif %}" role="button" tabindex="0" data-sector="{{ card.setor }}"
+            data-sector-target="sector-panel-{{ loop.index }}" data-sector-url="{{ sector_page_url }}" style="--sector-accent: {{ accent }}; --sector-order: {{ loop.index0 }};">
                 <div class="card-body d-flex flex-column users-sector-body">
                     <div class="users-sector-top">
                         <div class="users-sector-heading">
@@ -1367,7 +1369,7 @@
                         <span>Abra o setor e navegue por cargo, matrícula e perfil.</span>
                         <span class="users-sector-footer-actions">
                             <span class="users-sector-footer-link">Abrir aqui</span>
-                            <a class="users-sector-page-link" data-sector-link href="{{ url_for('users.list_users_by_sector', setor=card.setor) }}">Abrir página</a>
+                            <a class="users-sector-page-link" data-sector-link href="{{ sector_page_url }}">Abrir página</a>
                         </span>
                     </div>
                 </div>
@@ -1395,13 +1397,13 @@
                     <button class="users-filter-chip" type="button" data-profile-filter="standard">Somente padrão</button>
                 </div>
                 <div class="users-filter-group">
-                    <div class="users-filter-helper">Setor ativo <strong id="users-active-sector-name">{{ selected_sector_card.setor }}</strong> • <strong id="users-active-sector-count">{{ selected_sector_card.total }}</strong> visível(is)</div>
-                    <a class="users-filter-helper users-filter-helper-link" id="users-active-sector-route" href="{{ url_for('users.list_users_by_sector', setor=selected_sector_card.setor) }}">Abrir rota do setor</a>
+                    <div class="users-filter-helper">Setor ativo <strong id="users-active-sector-name">{{ active_sector_card.setor }}</strong> • <strong id="users-active-sector-count">{{ active_sector_card.total }}</strong> visível(is)</div>
+                    <a class="users-filter-helper users-filter-helper-link" id="users-active-sector-route" href="{{ url_for('users.list_users', setor=active_sector_card.setor, visualizacao='setor') }}">Abrir rota do setor</a>
                 </div>
             </div>
 
             {% for card in setor_cards %}
-            <section class="users-sector-panel{% if selected_sector_card and card.setor == selected_sector_card.setor %} is-active{% endif %}" id="sector-panel-{{ loop.index }}" data-sector-panel="{{ card.setor }}" data-sector-total="{{ card.total }}" data-sector-url="{{ url_for('users.list_users_by_sector', setor=card.setor) }}">
+            <section class="users-sector-panel{% if active_sector_card and card.setor == active_sector_card.setor %} is-active{% endif %}" id="sector-panel-{{ loop.index }}" data-sector-panel="{{ card.setor }}" data-sector-total="{{ card.total }}" data-sector-url="{{ url_for('users.list_users', setor=card.setor, visualizacao='setor') }}">
                 <div class="users-sector-panel-summary">
                     <div class="users-sector-panel-hero">
                         <div class="users-sector-panel-label">Quadro do setor</div>

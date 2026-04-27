@@ -238,13 +238,15 @@ def _render_users_list(*, selected_sector: str | None = None, sector_page: bool 
 @blueprint.get("/")
 @login_required
 def list_users():
-    return _render_users_list()
+    selected_sector = (request.args.get("setor") or "").strip() or None
+    sector_page = bool(selected_sector) or (request.args.get("visualizacao") == "setor")
+    return _render_users_list(selected_sector=selected_sector, sector_page=sector_page)
 
 
 @blueprint.get("/setor/<path:setor>")
 @login_required
 def list_users_by_sector(setor: str):
-    return _render_users_list(selected_sector=setor, sector_page=True)
+    return redirect(url_for("users.list_users", setor=setor, visualizacao="setor"))
 
 
 @blueprint.get("/novo")

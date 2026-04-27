@@ -30,6 +30,7 @@ from ..models import (
     InventarioEvento,
     Item,
     MaterialInventario,
+    OperationLog,
     ProductDimension,
     StockBalance,
     StockMovement,
@@ -5783,6 +5784,117 @@ class InventoryService:
                     "responsavel": saida.usuario.nome if saida.usuario else (saida.matricula or "-"),
                 }
             )
+
+        if not movimentos:
+            ledger_rows = (
+                StockMovement.query
+                .filter(StockMovement.product_id == codigo_norm)
+                .order_by(StockMovement.created_at.desc(), StockMovement.id.desc())
+                .limit(limit)
+                .all()
+            )
+
+            if ledger_rows:
+                document_item_ids: set[int] = set()
+                stock_movement_ids = [row.id for row in ledger_rows]
+                for row in ledger_rows:
+                    if (row.reference_type or "").strip().lower() == "entrada_documento_item":
+                        try:
+                            document_item_ids.add(int(str(row.reference_id or "").strip()))
+                        except (TypeError, ValueError):
+                            continue
+
+                document_items = (
+                    DocumentoEntradaEstoqueItem.query
+                    .options(
+                        joinedload(DocumentoEntradaEstoqueItem.documento).joinedload(DocumentoEntradaEstoque.fornecedor),
+                        joinedload(DocumentoEntradaEstoqueItem.operation_log).joinedload(OperationLog.user),
+                    )
+                    .filter(
+                        or_(
+                            DocumentoEntradaEstoqueItem.stock_movement_id.in_(stock_movement_ids),
+                            DocumentoEntradaEstoqueItem.id_documento_item.in_(document_item_ids or {-1}),
+                        )
+                    )
+                    .all()
+                )
+
+                document_item_by_stock_movement = {
+                    int(row.stock_movement_id): row
+                    for row in document_items
+                    if row.stock_movement_id is not None
+                }
+                document_item_by_id = {
+                    int(row.id_documento_item): row
+                    for row in document_items
+                }
+
+                creator_ids = {
+                    str(row.documento.criado_por).strip()
+                    for row in document_items
+                    if row.documento is not None and str(row.documento.criado_por or "").strip()
+                }
+                creator_names = {
+                    row.matricula: (row.nome or row.matricula)
+                    for row in Usuario.query.filter(Usuario.matricula.in_(creator_ids)).all()
+                } if creator_ids else {}
+
+                movement_type_labels = {
+                    "entrada": "Entrada",
+                    "saida": "Saída",
+                    "devolucao": "Devolução",
+                    "ajuste": "Ajuste",
+                    "inicial": "Saldo inicial",
+                }
+
+                def _resolve_ledger_document_item(row: StockMovement) -> DocumentoEntradaEstoqueItem | None:
+                    if row.id in document_item_by_stock_movement:
+                        return document_item_by_stock_movement[row.id]
+                    if (row.reference_type or "").strip().lower() != "entrada_documento_item":
+                        return None
+                    try:
+                        return document_item_by_id.get(int(str(row.reference_id or "").strip()))
+                    except (TypeError, ValueError):
+                        return None
+
+                def _resolve_ledger_responsavel(row: StockMovement, document_item: DocumentoEntradaEstoqueItem | None) -> str:
+                    if document_item is not None and document_item.operation_log is not None:
+                        log_user = document_item.operation_log.user
+                        if log_user is not None:
+                            return log_user.nome or log_user.matricula or "—"
+                        if document_item.operation_log.user_id:
+                            return creator_names.get(document_item.operation_log.user_id, document_item.operation_log.user_id)
+                    if document_item is not None and document_item.documento is not None:
+                        created_by = str(document_item.documento.criado_por or "").strip()
+                        if created_by:
+                            return creator_names.get(created_by, created_by)
+
+                    metadata = dict(row.metadata_json or {})
+                    for key in ("usuario_nome", "user_name", "responsavel"):
+                        value = str(metadata.get(key) or "").strip()
+                        if value:
+                            return value
+                    for key in ("user_id", "matricula"):
+                        value = str(metadata.get(key) or "").strip()
+                        if value:
+                            return creator_names.get(value, value)
+                    if (row.reference_type or "").strip().lower() == "entrada_documento_item":
+                        return "Documento fiscal"
+                    return "—"
+
+                for row in ledger_rows:
+                    movement_type = (row.movement_type or "").strip().lower()
+                    label = movement_type_labels.get(movement_type, movement_type.title() or "Movimentação")
+                    document_item = _resolve_ledger_document_item(row)
+                    movimentos.append(
+                        {
+                            "id": row.id,
+                            "tipo": label,
+                            "quantidade": abs(float(row.quantity_base or 0.0)),
+                            "data": row.created_at,
+                            "responsavel": _resolve_ledger_responsavel(row, document_item),
+                        }
+                    )
 
         movimentos.sort(key=lambda registro: registro.get("data") or datetime.min, reverse=True)
         return movimentos[:limit]
