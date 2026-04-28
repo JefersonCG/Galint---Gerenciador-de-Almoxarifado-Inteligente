@@ -19,6 +19,7 @@ from ..services.category_catalog import DEFAULT_INVENTORY_CATEGORIES, category_c
 from ..services.conversion_engine import ConversionEngineService, get_conversion_job_state, start_conversion_job
 from ..services.native_workspace_launcher import launch_workspace_window, launch_workspace_window_auto
 from ..services.network_settings import load_network_settings, save_network_settings
+from ..services.purchase_projection_runtime_service import purchase_projection_service
 
 
 blueprint = Blueprint("pages", __name__)
@@ -210,6 +211,71 @@ _ABOUT_DOCUMENT_GUIDE_RULES = (
     },
 )
 
+_ABOUT_PURCHASE_PROJECTION_FORMULAS = (
+    {
+        "icon": "bi-speedometer2",
+        "title": "Dias restantes",
+        "formula": "dias_restantes = saldo_base / consumo_medio",
+        "text": "Mostra quantos dias o saldo do ledger ainda cobre quando existe consumo medio valido em unidade base.",
+    },
+    {
+        "icon": "bi-cart-plus",
+        "title": "Quantidade sugerida",
+        "formula": "quantidade_sugerida = max((consumo_medio x dias_cobertura) - saldo_base, 0)",
+        "text": "A sugestao nasce da cobertura desejada menos o saldo atual, sempre sem deixar valor negativo entrar no pedido.",
+    },
+    {
+        "icon": "bi-activity",
+        "title": "Consumo medio",
+        "formula": "consumo_medio = consumo_liquido_periodo / janela_dias",
+        "text": "A media diaria sai do historico real de saidas no ledger dentro da janela escolhida pelo operador.",
+    },
+)
+
+_ABOUT_PURCHASE_PROJECTION_FILTERS = (
+    {
+        "icon": "bi-search",
+        "title": "Busca livre",
+        "text": "Use codigo ou descricao quando precisar localizar um item especifico sem depender da tabela inteira.",
+    },
+    {
+        "icon": "bi-tags",
+        "title": "Categoria guiada",
+        "text": "A categoria agora entra por seletor com lista pronta, no mesmo estilo do filtro de status, sem obrigar digitacao manual.",
+    },
+    {
+        "icon": "bi-bookmark-star",
+        "title": "Marca guiada",
+        "text": "A marca tambem entra por seletor proprio para separar familias de compra sem ruir a busca livre.",
+    },
+    {
+        "icon": "bi-sliders",
+        "title": "Janela, cobertura e status",
+        "text": "Os parametros operacionais continuam independentes para ajustar horizonte de leitura, risco e itens visiveis.",
+    },
+)
+
+_ABOUT_PURCHASE_PROJECTION_STEPS = (
+    {
+        "step": "01",
+        "icon": "bi-funnel",
+        "title": "Filtre o recorte certo",
+        "text": "Comece por categoria, marca, status e janela antes de selecionar o que realmente vai para o pedido.",
+    },
+    {
+        "step": "02",
+        "icon": "bi-exclamation-diamond",
+        "title": "Leia os bloqueios",
+        "text": "Status, validacoes, fornecedor e preco coerente decidem se o item pode virar pedido ou so alerta operacional.",
+    },
+    {
+        "step": "03",
+        "icon": "bi-file-earmark-spreadsheet",
+        "title": "Consolide e exporte",
+        "text": "A quantidade final continua ajustavel em unidade base e o XLS sai apenas quando o carrinho estiver consistente.",
+    },
+)
+
 
 def _inline_markdown_to_html(text: str) -> str:
     escaped = html.escape(text)
@@ -368,6 +434,37 @@ def _build_about_document_guide() -> dict[str, object]:
         "steps": list(_ABOUT_DOCUMENT_GUIDE_STEPS),
         "modes": list(_ABOUT_DOCUMENT_GUIDE_MODES),
         "rules": list(_ABOUT_DOCUMENT_GUIDE_RULES),
+    }
+
+
+def _build_about_purchase_projection_guide() -> dict[str, object]:
+    compatibility = purchase_projection_service.get_architecture_compatibility()
+    return {
+        "formulas": list(_ABOUT_PURCHASE_PROJECTION_FORMULAS),
+        "filters": list(_ABOUT_PURCHASE_PROJECTION_FILTERS),
+        "steps": list(_ABOUT_PURCHASE_PROJECTION_STEPS),
+        "compatibility_cards": [
+            {
+                "title": "Resposta arquitetural",
+                "text": compatibility["answer"],
+                "items": list(compatibility.get("safe_because") or []),
+            },
+            {
+                "title": "Conflitos",
+                "text": "O modo seguro existe para nao misturar leituras parcialmente reconciliadas como se fossem equivalentes.",
+                "items": list(compatibility.get("conflicts") or []),
+            },
+            {
+                "title": "Adaptacoes aplicadas",
+                "text": "Estas regras mantem a projeção operacional sem fingir que a base ja esta totalmente irrestrita.",
+                "items": list(compatibility.get("required_adaptations") or []),
+            },
+            {
+                "title": "Risco evitado",
+                "text": "O objetivo e impedir que o pedido final repita os mesmos erros de conciliacao ja conhecidos na base.",
+                "items": list(compatibility.get("risk_of_repeating_existing_inconsistencies") or []),
+            },
+        ],
     }
 
 
@@ -901,11 +998,23 @@ def sobre():
             "rules": list(_ABOUT_DOCUMENT_GUIDE_RULES),
         }
 
+    try:
+        about_purchase_projection_guide = _build_about_purchase_projection_guide()
+    except Exception:
+        current_app.logger.exception("Falha ao montar o guia da Projecao de Compras no Sobre; usando fallback reduzido.")
+        about_purchase_projection_guide = {
+            "formulas": list(_ABOUT_PURCHASE_PROJECTION_FORMULAS),
+            "filters": list(_ABOUT_PURCHASE_PROJECTION_FILTERS),
+            "steps": list(_ABOUT_PURCHASE_PROJECTION_STEPS),
+            "compatibility_cards": [],
+        }
+
     return render_template(
         "sobre.html",
         kit_doc_html=kit_doc_html,
         about_category_reference=about_category_reference,
         about_document_guide=about_document_guide,
+        about_purchase_projection_guide=about_purchase_projection_guide,
         category_visual_catalog=about_category_reference.get("catalog") or [],
     )
 

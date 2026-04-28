@@ -126,6 +126,8 @@ class PurchaseProjectionService:
         window_days: object = None,
         coverage_days: object = None,
         search: object = None,
+        category: object = None,
+        brand: object = None,
         status: object = None,
         include_inactive: object = None,
     ) -> dict[str, Any]:
@@ -133,8 +135,38 @@ class PurchaseProjectionService:
             "window_days": cls._normalize_int(window_days, default=cls.DEFAULT_WINDOW_DAYS, minimum=1, maximum=cls.MAX_WINDOW_DAYS),
             "coverage_days": cls._normalize_int(coverage_days, default=cls.DEFAULT_COVERAGE_DAYS, minimum=1, maximum=cls.MAX_COVERAGE_DAYS),
             "search": str(search or "").strip(),
+            "category": str(category or "").strip(),
+            "brand": str(brand or "").strip(),
             "status": cls._normalize_status(status),
             "include_inactive": cls._normalize_bool(include_inactive),
+        }
+
+    @classmethod
+    def build_filter_options(cls, *, include_inactive: object = None) -> dict[str, list[str]]:
+        base_query = Item.query
+        if not cls._normalize_bool(include_inactive) and hasattr(Item, "ativo"):
+            base_query = base_query.filter(Item.ativo.is_(True))
+
+        categories = sorted(
+            {
+                str(value or "").strip()
+                for (value,) in base_query.with_entities(Item.categoria).distinct().all()
+                if str(value or "").strip()
+            },
+            key=str.casefold,
+        )
+        brands = sorted(
+            {
+                str(value or "").strip()
+                for (value,) in base_query.with_entities(Item.marca).distinct().all()
+                if str(value or "").strip()
+            },
+            key=str.casefold,
+        )
+
+        return {
+            "categories": categories,
+            "brands": brands,
         }
 
     @classmethod
@@ -144,6 +176,8 @@ class PurchaseProjectionService:
         window_days: object = None,
         coverage_days: object = None,
         search: object = None,
+        category: object = None,
+        brand: object = None,
         status: object = None,
         include_inactive: object = None,
         selected_codes: list[str] | tuple[str, ...] | set[str] | None = None,
@@ -153,9 +187,12 @@ class PurchaseProjectionService:
             window_days=window_days,
             coverage_days=coverage_days,
             search=search,
+            category=category,
+            brand=brand,
             status=status,
             include_inactive=include_inactive,
         )
+        filter_options = cls.build_filter_options(include_inactive=filters.get("include_inactive"))
         items = cls._load_items(filters)
         product_ids = [str(item.codigo_item or "").strip() for item in items if str(item.codigo_item or "").strip()]
         ledger_balances = cls._load_ledger_balances(product_ids)
@@ -203,6 +240,7 @@ class PurchaseProjectionService:
             "compatibility": cls.get_architecture_compatibility(),
             "generated_at": datetime.utcnow().isoformat(),
             "filters": filters,
+            "filter_options": filter_options,
             "summary": cls._build_summary(rows, visible_rows, cart),
             "rows": visible_rows,
             "cart": cart,
@@ -262,6 +300,8 @@ class PurchaseProjectionService:
         meta.append(["Cobertura (dias)", filters.get("coverage_days")])
         meta.append(["Status aplicado", filters.get("status")])
         meta.append(["Busca", filters.get("search") or ""])
+        meta.append(["Categoria", filters.get("category") or "Todas"])
+        meta.append(["Marca", filters.get("brand") or "Todas"])
         meta.append(["Incluir inativos", "Sim" if filters.get("include_inactive") else "Nao"])
         meta.append(["Compatibilidade total", "Nao"])
         meta.column_dimensions["A"].width = 28
@@ -277,6 +317,12 @@ class PurchaseProjectionService:
         query = Item.query
         if not filters.get("include_inactive") and hasattr(Item, "ativo"):
             query = query.filter(Item.ativo.is_(True))
+        category = str(filters.get("category") or "").strip()
+        if category:
+            query = query.filter(func.lower(func.coalesce(Item.categoria, "")) == category.casefold())
+        brand = str(filters.get("brand") or "").strip()
+        if brand:
+            query = query.filter(func.lower(func.coalesce(Item.marca, "")) == brand.casefold())
         search = str(filters.get("search") or "").strip()
         if search:
             like = f"%{search}%"

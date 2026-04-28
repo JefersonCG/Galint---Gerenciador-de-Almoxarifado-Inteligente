@@ -178,6 +178,8 @@ def _request_purchase_projection_filters(source=None) -> dict[str, object]:
         window_days=source.get("window_days"),
         coverage_days=source.get("coverage_days"),
         search=source.get("search"),
+        category=source.get("category"),
+        brand=source.get("brand"),
         status=source.get("status"),
         include_inactive=source.get("include_inactive"),
     )
@@ -1547,6 +1549,7 @@ def purchase_projection_page():
         "inventory/purchase_projection.html",
         report=report,
         filters=report["filters"],
+        filter_options=report["filter_options"],
         compatibility=report["compatibility"],
         rows=report["rows"],
         summary=report["summary"],

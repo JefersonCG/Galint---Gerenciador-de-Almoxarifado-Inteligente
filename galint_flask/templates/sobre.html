@@ -579,6 +579,7 @@
     <ul class="nav nav-pills about-tabs" role="tablist">
         <li class="nav-item" role="presentation"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#about-overview" type="button" role="tab">Visão geral</button></li>
         <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#about-flow" type="button" role="tab">Fluxo operacional</button></li>
+        <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#about-projection" type="button" role="tab">Projeção de compras</button></li>
         <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#about-documents" type="button" role="tab">Cadastro documental</button></li>
         <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#about-typologies" type="button" role="tab">Tipologias e padrões</button></li>
         <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#about-docs" type="button" role="tab">Documentação</button></li>
@@ -781,6 +782,96 @@
                 </ul>
             </div>
             {% endif %}
+        </section>
+
+        <section class="tab-pane fade about-tab-pane" id="about-projection" role="tabpanel">
+            <div class="about-section">
+                <div class="about-highlight mb-4">
+                    <div>
+                        <h4><i class="bi bi-cart-check text-success me-2"></i>Como ler a Projeção de Compras</h4>
+                        <p>O racional técnico saiu do topo da tela operacional para não ficar exposto o tempo todo. A página prática agora mostra um card expansível e a explicação completa mora aqui no Sobre.</p>
+                    </div>
+                    {% if endpoint_exists('inventory.purchase_projection_page') %}
+                    <a class="about-cta" href="{{ url_for('inventory.purchase_projection_page') }}">
+                        <i class="bi bi-box-arrow-up-right"></i>
+                        Abrir Projeção de Compras
+                    </a>
+                    {% endif %}
+                </div>
+
+                <div class="about-process-grid">
+                    {% for formula in about_purchase_projection_guide.formulas %}
+                    <article class="about-process-card">
+                        <div class="about-process-step"><i class="bi {{ formula.icon }}"></i></div>
+                        <h5>{{ formula.title }}</h5>
+                        <p><strong>{{ formula.formula }}</strong></p>
+                        <p>{{ formula.text }}</p>
+                    </article>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="about-section">
+                <div class="about-section-header-row">
+                    <div>
+                        <div class="about-section-eyebrow"><i class="bi bi-funnel"></i> Filtros guiados</div>
+                        <h4 class="mb-2">O que mudou na leitura operacional</h4>
+                        <p class="about-section-copy mb-0">Categoria e marca passaram a entrar por seletores dedicados, no mesmo espírito do status, enquanto a busca livre fica focada em código e descrição.</p>
+                    </div>
+                </div>
+                <div class="about-grid">
+                    {% for item in about_purchase_projection_guide.filters %}
+                    <article class="about-card">
+                        <div class="about-icon"><i class="bi {{ item.icon }}"></i></div>
+                        <h5>{{ item.title }}</h5>
+                        <p class="text-muted mb-0">{{ item.text }}</p>
+                    </article>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="about-section">
+                <div class="about-section-header-row">
+                    <div>
+                        <div class="about-section-eyebrow"><i class="bi bi-shield-check"></i> Compatibilidade obrigatória</div>
+                        <h4 class="mb-2">Resposta arquitetural e limites operacionais</h4>
+                        <p class="about-section-copy mb-0">Tudo o que aparecia nos cards expostos da projeção foi consolidado aqui para consulta detalhada sem poluir a tela principal.</p>
+                    </div>
+                </div>
+                <div class="about-rule-grid">
+                    {% for card in about_purchase_projection_guide.compatibility_cards %}
+                    <article class="about-rule-card">
+                        <h5>{{ card.title }}</h5>
+                        <p>{{ card.text }}</p>
+                        {% if card.items %}
+                        <ul class="about-mini-list mb-0">
+                            {% for item in card.items %}
+                            <li>{{ item }}</li>
+                            {% endfor %}
+                        </ul>
+                        {% endif %}
+                    </article>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="about-section">
+                <div class="about-section-header-row">
+                    <div>
+                        <div class="about-section-eyebrow"><i class="bi bi-kanban"></i> Uso operacional</div>
+                        <h4 class="mb-2">Como operar a projeção sem transformar alerta em pedido cego</h4>
+                    </div>
+                </div>
+                <div class="about-process-grid">
+                    {% for step in about_purchase_projection_guide.steps %}
+                    <article class="about-process-card">
+                        <div class="about-process-step">{{ step.step }}</div>
+                        <h5><i class="bi {{ step.icon }} me-2"></i>{{ step.title }}</h5>
+                        <p>{{ step.text }}</p>
+                    </article>
+                    {% endfor %}
+                </div>
+            </div>
         </section>
 
         <section class="tab-pane fade about-tab-pane" id="about-documents" role="tabpanel">
