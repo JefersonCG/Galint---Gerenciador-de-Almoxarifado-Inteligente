@@ -5,7 +5,7 @@
 <%block name="extra_css">
 <style>
     .hub-container {
-        max-width: 1120px;
+        max-width: 1360px;
         margin: 0 auto;
         padding: 2rem 1rem;
     }
@@ -77,8 +77,8 @@
     
     .saidas-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-        gap: 2rem;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 1.4rem;
         margin-top: 1.5rem;
     }
     
@@ -124,6 +124,10 @@
     .saida-card.fracionados:hover {
         border-color: rgba(16, 185, 129, 0.42);
     }
+
+    .saida-card.devolucoes:hover {
+        border-color: rgba(168, 85, 247, 0.42);
+    }
     
     .saida-card-icon {
         font-size: 4rem;
@@ -145,6 +149,10 @@
     
     .saida-card.fracionados .saida-card-icon {
         color: #10b981;
+    }
+
+    .saida-card.devolucoes .saida-card-icon {
+        color: #a855f7;
     }
     
     .saida-card-title {
@@ -188,12 +196,28 @@
         border: 1px solid rgba(16, 185, 129, 0.24);
     }
 
+    .saida-card.devolucoes .saida-card-badge {
+        background: rgba(168, 85, 247, 0.16);
+        color: #e9d5ff;
+        border: 1px solid rgba(168, 85, 247, 0.24);
+    }
+
     .saida-card.ferramentas::before {
         background: radial-gradient(circle at 18% 18%, rgba(245, 158, 11, 0.2), transparent 32%);
     }
 
     .saida-card.fracionados::before {
         background: radial-gradient(circle at 18% 18%, rgba(16, 185, 129, 0.18), transparent 32%);
+    }
+
+    .saida-card.devolucoes::before {
+        background: radial-gradient(circle at 18% 18%, rgba(168, 85, 247, 0.2), transparent 32%);
+    }
+
+    @media (max-width: 1200px) {
+        .saidas-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
     }
 
     @media (max-width: 768px) {
@@ -208,6 +232,7 @@
         }
 
         .saidas-grid {
+            grid-template-columns: 1fr;
             gap: 1rem;
         }
     }
@@ -231,9 +256,9 @@
                 </div>
                 <div class="saida-card-title">Materiais Comuns</div>
                 <div class="saida-card-description">
-                    Retirada de materiais em unidades padrão, como pacote, caixa e unidade, com fluxo direto para o estoque geral.
+                    Retirada de materiais em unidades padrão, como pacote, caixa e unidade, com suporte também para ferramentas disponíveis e abertura automática da custódia.
                 </div>
-                <span class="saida-card-badge">Estoque Geral</span>
+                <span class="saida-card-badge">Estoque Geral + Ferramentas</span>
             </div>
             
             <!-- Card Ferramentas -->
@@ -258,6 +283,18 @@
                     Retirada com pesagem manual para produtos líquidos ou fracionados, mantendo o fluxo específico para kg e litros.
                 </div>
                 <span class="saida-card-badge">Pesagem Manual</span>
+            </div>
+
+            <!-- Card Devoluções -->
+            <div class="saida-card devolucoes" onclick="window.location.href='${url_for('movements.entrada_page')}'">
+                <div class="saida-card-icon">
+                    <i class="bi bi-arrow-return-left"></i>
+                </div>
+                <div class="saida-card-title">Devoluções</div>
+                <div class="saida-card-description">
+                    Registro centralizado de devolução para materiais e itens retornados ao estoque, com conferência rápida e rastreabilidade do retorno.
+                </div>
+                <span class="saida-card-badge">Retorno ao Estoque</span>
             </div>
         </div>
     </div>

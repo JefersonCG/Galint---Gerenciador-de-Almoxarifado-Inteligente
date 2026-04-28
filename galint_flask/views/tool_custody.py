@@ -870,6 +870,7 @@ def search_tools():
     ferramentas = [
         item for item in resultados
         if "ferrament" in str(item.get("categoria") or "").lower()
+        and item.get("is_available") is not False
     ]
 
     return jsonify([
@@ -880,7 +881,13 @@ def search_tools():
             "marca": item.get("marca") or "N/D",
             "saldo": item.get("saldo") or 0,
             "saldo_display": item.get("saldo_display") or "0",
+            "saldo_disponivel": item.get("saldo_disponivel") or 0,
+            "saldo_disponivel_display": item.get("saldo_disponivel_display") or "0",
             "unidade": item.get("unidade") or "un.",
+            "is_available": item.get("is_available"),
+            "unavailable_reason": item.get("unavailable_reason"),
+            "unavailable_detail": item.get("unavailable_detail"),
+            "has_open_repair": item.get("has_open_repair"),
         }
         for item in ferramentas
     ])

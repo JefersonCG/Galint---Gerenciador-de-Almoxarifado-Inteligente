@@ -8,7 +8,7 @@ from typing import Any
 from sqlalchemy import and_, or_
 
 from ..extensions import db
-from ..models import Item, RetiradaFerramenta, Usuario
+from ..models import EquipamentoReparo, Item, RetiradaFerramenta, Usuario
 
 
 class FerramentasService:
@@ -17,7 +17,7 @@ class FerramentasService:
     def _calcular_saldo_disponivel(self, codigo_item: str) -> float:
         """Calcula saldo disponível descontando ferramentas em uso.
         
-        Saldo disponível = Saldo total - Quantidade em uso (retiradas ativas)
+        Saldo disponível = Saldo total - Quantidade comprometida (retiradas ativas)
         """
         item = Item.query.get(codigo_item)
         if not item:
@@ -32,11 +32,20 @@ class FerramentasService:
             func.coalesce(func.sum(RetiradaFerramenta.quantidade), 0)
         ).filter(
             RetiradaFerramenta.codigo_item == codigo_item,
-            RetiradaFerramenta.status == 'em_uso'
+            RetiradaFerramenta.status.in_(['em_uso', 'atrasada', 'para_reparo'])
         ).scalar() or 0.0
         
         saldo_disponivel = saldo_total - quantidade_em_uso
         return max(0.0, saldo_disponivel)  # Nunca retornar negativo
+
+    def _has_open_repair(self, codigo_item: str) -> bool:
+        return (
+            db.session.query(EquipamentoReparo.id)
+            .filter(EquipamentoReparo.codigo_item == codigo_item)
+            .filter(EquipamentoReparo.status.in_(["aguardando_orcamento", "em_reparo"]))
+            .first()
+            is not None
+        )
     
     def retirar_ferramenta(
         self,
@@ -59,22 +68,25 @@ class FerramentasService:
         usuario = Usuario.query.get(matricula)
         if not usuario:
             raise ValueError("Usuário não encontrado")
+
+        if self._has_open_repair(codigo_item):
+            raise ValueError("Ferramenta indisponível para retirada: item em reparo.")
         
         # CRÍTICO: Verifica saldo disponível DESCONTANDO ferramentas já retiradas
         saldo_disponivel = self._calcular_saldo_disponivel(codigo_item)
         if saldo_disponivel < quantidade:
             # Informar quantas estão em uso para diagnóstico
             from sqlalchemy import func
-            em_uso = db.session.query(
+            comprometido = db.session.query(
                 func.coalesce(func.sum(RetiradaFerramenta.quantidade), 0)
             ).filter(
                 RetiradaFerramenta.codigo_item == codigo_item,
-                RetiradaFerramenta.status == 'em_uso'
+                RetiradaFerramenta.status.in_(['em_uso', 'atrasada', 'para_reparo'])
             ).scalar() or 0
             
             raise ValueError(
                 f"Saldo insuficiente. Disponível: {int(saldo_disponivel)} "
-                f"(Em uso: {int(em_uso)}, Total: {int(item.get_saldo_atual())})"
+                f"(Comprometido: {int(comprometido)}, Total físico: {int(item.get_saldo_atual())})"
             )
         
         # Calcula data prevista de devolução

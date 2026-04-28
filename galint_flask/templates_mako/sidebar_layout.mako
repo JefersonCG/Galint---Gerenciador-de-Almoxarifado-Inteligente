@@ -92,11 +92,6 @@
                     <i class="bi bi-box-arrow-up-right"></i>
                     <span>Registro de Saídas</span>
                 </a>
-                <a class="sidebar-link ps-4 ${'active' if p.startswith(url_for('movements.entrada_page')) else ''}"
-                    href="${url_for('movements.entrada_page')}">
-                    <i class="bi bi-arrow-return-left"></i>
-                    <span>Registro de Devolução</span>
-                </a>
                 % if saidas_fracionadas_url:
                 <a class="sidebar-link ps-4 ${'active' if p.startswith(saidas_fracionadas_url) else ''}"
                     href="${saidas_fracionadas_url}">

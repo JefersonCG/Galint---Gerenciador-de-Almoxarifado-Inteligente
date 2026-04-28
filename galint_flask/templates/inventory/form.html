@@ -5106,7 +5106,7 @@ Conversão: 1 saco = 20 quilos</div>
             return;
         }
         const tipoSelecionado = document.querySelector('input[name="tipo_embalagem"]:checked')?.value;
-        const quantidade = parseFloat(document.getElementById('saldo_atual').value) || 0;
+            const quantidade = parseFloat(document.getElementById('saldo_atual')?.value || '') || 0;
         const isLata = isLataSelecionada(tipoSelecionado);
         const isLitro = tipoSelecionado === 'Litro';
         
@@ -5218,7 +5218,10 @@ Conversão: 1 saco = 20 quilos</div>
         });
     }
 
-    document.getElementById('saldo_atual').addEventListener('input', calcularConversao);
+        const saldoAtualField = document.getElementById('saldo_atual');
+        if (saldoAtualField) {
+            saldoAtualField.addEventListener('input', calcularConversao);
+        }
     if (grandezaInput) {
         grandezaInput.addEventListener('input', calcularConversao);
     }

@@ -313,7 +313,10 @@ ${parent.scripts()}
         
         // Autocomplete de item
         if (inputSaida && dropdownSaida) {
-            initItemAutocomplete(inputSaida, dropdownSaida, '/movimentos/api/buscar-item');
+            initItemAutocomplete(inputSaida, dropdownSaida, '/movimentos/api/buscar-item?only_available=1', {
+                hideUnavailable: true,
+                unavailableEmptyMessage: 'Nenhum item disponível para saída.'
+            });
         }
         
         if (inputDevolucao && dropdownDevolucao) {

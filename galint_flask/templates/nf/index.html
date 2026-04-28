@@ -745,6 +745,50 @@
         line-height: 1.45;
     }
 
+    .docf-photo-trigger-group {
+        align-items: stretch;
+    }
+
+    .docf-photo-trigger-group > .form-control {
+        min-width: 0;
+    }
+
+    .docf-photo-trigger-button {
+        white-space: nowrap;
+    }
+
+    .docf-photo-status {
+        margin-top: 0.55rem;
+        padding: 0.52rem 0.7rem;
+        border-radius: 12px;
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        background: rgba(15, 23, 42, 0.52);
+        color: var(--docf-text-muted);
+        font-size: 0.75rem;
+        line-height: 1.45;
+    }
+
+    .docf-photo-status.is-ready {
+        border-color: rgba(74, 222, 128, 0.24);
+        background: rgba(20, 83, 45, 0.18);
+        color: #dcfce7;
+    }
+
+    .docf-photo-action-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.55rem;
+    }
+
+    .docf-photo-modal .modal-body {
+        display: grid;
+        gap: 0.9rem;
+    }
+
+    .docf-photo-modal .modal-footer {
+        gap: 0.55rem;
+    }
+
     .docf-reference-card {
         margin-top: 0.85rem;
         padding: 0.86rem;
@@ -2487,9 +2531,13 @@
                                 <div class="docf-field-card">
                                     <label class="form-label" for="nova_descricao">Descrição do novo item</label>
                                     <div class="position-relative">
-                                        <input class="form-control" id="nova_descricao" name="nova_descricao" autocomplete="off" placeholder="Descrição completa do produto">
+                                        <div class="input-group docf-photo-trigger-group">
+                                            <input class="form-control" id="nova_descricao" name="nova_descricao" autocomplete="off" placeholder="Descrição completa do produto">
+                                            <button class="docf-btn-secondary docf-btn-compact docf-photo-trigger-button d-none" type="button" id="novo_item_photo_assistant_button" title="Buscar imagem do novo item" aria-label="Buscar imagem do novo item">Buscar</button>
+                                        </div>
                                         <div class="list-group shadow d-none docf-inline-results" id="new_item_description_results"></div>
                                     </div>
+                                    <div class="docf-photo-status d-none" id="novo_item_photo_status">Link da imagem preparado para este cadastro. O sistema baixará a foto automaticamente quando o item for finalizado.</div>
                                 </div>
                             </div>
                             <div class="col-md-2">
@@ -3090,6 +3138,47 @@
         {% endif %}
     </div>
 </div>
+<div class="modal fade" id="docfPhotoAssistantModal" tabindex="-1" aria-labelledby="docfPhotoAssistantModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content docf-card docf-photo-modal" style="border-radius: 20px;">
+            <div class="modal-header border-0 pb-0">
+                <div>
+                    <div class="docf-kicker">Imagem por link</div>
+                    <h5 class="modal-title docf-card-title" id="docfPhotoAssistantModalLabel">Buscar imagem do novo item</h5>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body pt-2">
+                <div class="docf-panel info mb-0">
+                    <strong>Fluxo do cadastro.</strong>
+                    <span class="d-block docf-muted">A imagem não precisa aparecer nesta página. O link ficará salvo no cadastro e o sistema fará o download automático quando você finalizar o item novo.</span>
+                </div>
+                <div>
+                    <label class="form-label" for="docf-photo-query">Termo de busca</label>
+                    <div class="input-group">
+                        <input class="form-control" id="docf-photo-query" type="text" readonly>
+                        <button class="docf-btn-secondary docf-btn-compact" type="button" id="docf-photo-copy-btn">Copiar</button>
+                    </div>
+                    <div class="docf-field-hint">O termo usa descrição, categoria e marca para reduzir buscas erradas.</div>
+                </div>
+                <div class="docf-photo-action-row">
+                    <button class="docf-btn-secondary" type="button" id="docf-photo-google-btn">Google Imagens</button>
+                    <button class="docf-btn-secondary" type="button" id="docf-photo-bing-btn">Bing Imagens</button>
+                </div>
+                <div>
+                    <label class="form-label" for="docf-photo-url-input">Link direto da imagem</label>
+                    <input class="form-control" id="docf-photo-url-input" type="url" placeholder="Cole aqui um link direto .jpg, .png, .webp...">
+                    <div class="docf-field-hint">Cole o link final da imagem. Esse endereço será enviado junto com o cadastro para o backend baixar e armazenar a foto.</div>
+                </div>
+                <div class="alert mt-0 mb-0 d-none" id="docf-photo-feedback" role="alert"></div>
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="docf-btn-primary" id="docf-photo-apply">Aplicar ao cadastro</button>
+            </div>
+        </div>
+    </div>
+</div>
 <div class="modal fade" id="docfDeleteModal" tabindex="-1" aria-labelledby="docfDeleteModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content docf-card" style="border-radius: 20px;">
@@ -3146,6 +3235,16 @@
     const replacementUrlInput = document.getElementById('preco_reposicao_url');
     const replacementQueryInput = document.getElementById('preco_reposicao_query');
     const photoUrlInput = document.getElementById('foto_url');
+    const newItemPhotoButton = document.getElementById('novo_item_photo_assistant_button');
+    const newItemPhotoStatus = document.getElementById('novo_item_photo_status');
+    const photoAssistantModalEl = document.getElementById('docfPhotoAssistantModal');
+    const photoAssistantQueryInput = document.getElementById('docf-photo-query');
+    const photoAssistantCopyButton = document.getElementById('docf-photo-copy-btn');
+    const photoAssistantGoogleButton = document.getElementById('docf-photo-google-btn');
+    const photoAssistantBingButton = document.getElementById('docf-photo-bing-btn');
+    const photoAssistantUrlInput = document.getElementById('docf-photo-url-input');
+    const photoAssistantFeedback = document.getElementById('docf-photo-feedback');
+    const photoAssistantApplyButton = document.getElementById('docf-photo-apply');
     const referenceCard = document.getElementById('docf-reference-card');
     const referencePriorityText = document.getElementById('docf-reference-priority-text');
     const newItemSummaryTitle = document.getElementById('docf-new-item-summary-title');
@@ -3216,6 +3315,7 @@
     let newItemDescriptionSuggestions = [];
     let helpHideTimer = null;
     let activeExistingItemCode = String(itemCodigoInput?.value || '').trim();
+    let photoAssistantModal = null;
     const manualSharedDocumentNumber = 'NOTA INTERNA';
     const generatedBarcodeCodeUrl = {% if endpoint_exists('nf.novo_codigo_barras') %}`{{ url_for('nf.novo_codigo_barras') }}`{% else %}'/nf/novo-codigo-barras'{% endif %};
     let currentRegistrationMode = 'nf';
@@ -3427,6 +3527,8 @@
     }
 
     function updateNewItemSummary() {
+        updateNewItemPhotoAssistantState();
+
         if (!newItemSummaryTitle || !newItemSummaryLine) {
             return;
         }
@@ -3507,6 +3609,97 @@
             newItemContentChip.textContent = 'Conteúdo pendente';
         }
         newItemSummaryLine.textContent = `A unidade documental foi definida como ${docUnitLabel}. Falta informar o conteúdo de cada ${docUnit} para completar a conversão para ${baseUnit}.`;
+    }
+
+    function isLikelyImageUrl(value) {
+        const raw = String(value || '').trim();
+        if (!/^https?:\/\//i.test(raw)) {
+            return false;
+        }
+        return /\.(png|jpe?g|webp|gif|bmp|svg)(\?.*)?$/i.test(raw) || /image|img|photo|cdn/i.test(raw);
+    }
+
+    function buildPhotoSearchQuery() {
+        return [novaDescricaoInput?.value || '', novaCategoriaInput?.value || '', novaMarcaInput?.value || '']
+            .map((part) => String(part || '').trim())
+            .filter(Boolean)
+            .join(' ')
+            .trim();
+    }
+
+    function hasPhotoAssistantMinimumContext() {
+        return Boolean(String(novaDescricaoInput?.value || '').trim())
+            && Boolean(String(novaCategoriaInput?.value || '').trim())
+            && Boolean(String(novaMarcaInput?.value || '').trim());
+    }
+
+    function setPhotoAssistantFeedback(message, variant = 'warning') {
+        if (!photoAssistantFeedback) {
+            return;
+        }
+        const normalizedMessage = String(message || '').trim();
+        if (!normalizedMessage) {
+            photoAssistantFeedback.textContent = '';
+            photoAssistantFeedback.className = 'alert mt-0 mb-0 d-none';
+            return;
+        }
+        photoAssistantFeedback.textContent = normalizedMessage;
+        photoAssistantFeedback.className = `alert alert-${variant} mt-0 mb-0`;
+    }
+
+    function syncPhotoAssistantApplyButton() {
+        if (!photoAssistantApplyButton) {
+            return;
+        }
+        photoAssistantApplyButton.disabled = !isLikelyImageUrl(String(photoAssistantUrlInput?.value || '').trim());
+    }
+
+    function updateNewItemPhotoStatus() {
+        if (!newItemPhotoStatus) {
+            return;
+        }
+        const hasPhotoLink = Boolean(String(photoUrlInput?.value || '').trim());
+        newItemPhotoStatus.classList.toggle('d-none', !hasPhotoLink);
+        newItemPhotoStatus.classList.toggle('is-ready', hasPhotoLink);
+        if (hasPhotoLink) {
+            newItemPhotoStatus.textContent = 'Link da imagem preparado para este cadastro. O sistema baixará a foto automaticamente quando o item for finalizado.';
+        }
+    }
+
+    function updateNewItemPhotoAssistantState() {
+        const hasMinimumContext = hasPhotoAssistantMinimumContext();
+        const hasPhotoLink = Boolean(String(photoUrlInput?.value || '').trim());
+
+        if (newItemPhotoButton) {
+            newItemPhotoButton.classList.toggle('d-none', !hasMinimumContext);
+            newItemPhotoButton.textContent = hasPhotoLink ? 'Trocar' : 'Buscar';
+        }
+
+        if (photoAssistantQueryInput) {
+            photoAssistantQueryInput.value = buildPhotoSearchQuery();
+        }
+
+        if (!hasMinimumContext && photoAssistantModalEl?.classList.contains('show')) {
+            photoAssistantModal?.hide();
+        }
+
+        updateNewItemPhotoStatus();
+        syncPhotoAssistantApplyButton();
+    }
+
+    function openPhotoAssistantSearch(provider) {
+        const query = buildPhotoSearchQuery();
+        if (!query) {
+            setPhotoAssistantFeedback('Preencha descrição, categoria e marca antes de abrir o buscador.', 'warning');
+            return;
+        }
+        if (photoAssistantQueryInput) {
+            photoAssistantQueryInput.value = query;
+        }
+        const searchUrl = provider === 'bing'
+            ? `https://www.bing.com/images/search?q=${encodeURIComponent(query)}`
+            : `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(query)}`;
+        window.open(searchUrl, '_blank', 'noopener');
     }
 
     function buildReplacementQuery() {
@@ -3639,7 +3832,7 @@
         });
     }
 
-    [novoCodigoInput, novaDescricaoInput, novaMarcaInput, novaUnidadeInput, novaUnidadeDocumentalInput, novoConteudoEmbalagemInput].forEach((element) => {
+    [novoCodigoInput, novaDescricaoInput, novaCategoriaInput, novaMarcaInput, novaUnidadeInput, novaUnidadeDocumentalInput, novoConteudoEmbalagemInput].forEach((element) => {
         if (element) {
             element.addEventListener('input', updateNewItemSummary);
             element.addEventListener('change', updateNewItemSummary);
@@ -3657,6 +3850,83 @@
             if (!novoCodigoInput.value.trim()) {
                 setNewItemCodeFeedback('Gera um código de barras único de 12 dígitos sem repetir item já cadastrado.', 'neutral');
             }
+        });
+    }
+
+    if (photoAssistantModalEl && window.bootstrap) {
+        photoAssistantModal = bootstrap.Modal.getOrCreateInstance(photoAssistantModalEl);
+        photoAssistantModalEl.addEventListener('show.bs.modal', () => {
+            if (photoAssistantQueryInput) {
+                photoAssistantQueryInput.value = buildPhotoSearchQuery();
+            }
+            if (photoAssistantUrlInput) {
+                photoAssistantUrlInput.value = String(photoUrlInput?.value || '').trim();
+            }
+            setPhotoAssistantFeedback('');
+            syncPhotoAssistantApplyButton();
+        });
+        photoAssistantModalEl.addEventListener('hidden.bs.modal', () => {
+            setPhotoAssistantFeedback('');
+        });
+    }
+
+    if (newItemPhotoButton && photoAssistantModal) {
+        newItemPhotoButton.addEventListener('click', (event) => {
+            event.preventDefault();
+            if (!hasPhotoAssistantMinimumContext()) {
+                return;
+            }
+            photoAssistantModal.show();
+        });
+    }
+
+    if (photoAssistantCopyButton) {
+        photoAssistantCopyButton.addEventListener('click', async () => {
+            const query = buildPhotoSearchQuery();
+            if (!query) {
+                setPhotoAssistantFeedback('Não há termo de busca disponível para copiar.', 'warning');
+                return;
+            }
+            try {
+                await navigator.clipboard.writeText(query);
+                setPhotoAssistantFeedback('Termo copiado para a área de transferência.', 'success');
+            } catch (_) {
+                setPhotoAssistantFeedback('Não foi possível copiar automaticamente. Copie manualmente o termo exibido.', 'warning');
+            }
+        });
+    }
+
+    if (photoAssistantGoogleButton) {
+        photoAssistantGoogleButton.addEventListener('click', () => openPhotoAssistantSearch('google'));
+    }
+
+    if (photoAssistantBingButton) {
+        photoAssistantBingButton.addEventListener('click', () => openPhotoAssistantSearch('bing'));
+    }
+
+    if (photoAssistantUrlInput) {
+        photoAssistantUrlInput.addEventListener('input', () => {
+            syncPhotoAssistantApplyButton();
+            if (isLikelyImageUrl(photoAssistantUrlInput.value)) {
+                setPhotoAssistantFeedback('');
+            }
+        });
+    }
+
+    if (photoAssistantApplyButton) {
+        photoAssistantApplyButton.addEventListener('click', () => {
+            const imageUrl = String(photoAssistantUrlInput?.value || '').trim();
+            if (!isLikelyImageUrl(imageUrl)) {
+                setPhotoAssistantFeedback('Cole um link direto de imagem antes de aplicar ao cadastro.', 'warning');
+                syncPhotoAssistantApplyButton();
+                return;
+            }
+            if (photoUrlInput) {
+                photoUrlInput.value = imageUrl;
+            }
+            updateNewItemPhotoAssistantState();
+            setPhotoAssistantFeedback('Link da imagem vinculado ao cadastro. O backend fará o download ao finalizar o item.', 'success');
+            window.setTimeout(() => photoAssistantModal?.hide(), 700);
         });
     }
 

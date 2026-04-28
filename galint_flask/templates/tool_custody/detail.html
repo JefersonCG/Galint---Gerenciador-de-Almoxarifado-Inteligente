@@ -662,6 +662,29 @@
         border-bottom: none;
     }
 
+    .autocomplete-item.is-unavailable {
+        background: rgba(127, 29, 29, 0.34);
+        cursor: not-allowed;
+    }
+
+    .autocomplete-item.is-unavailable:hover,
+    .autocomplete-item.is-unavailable.active {
+        background: rgba(153, 27, 27, 0.42);
+    }
+
+    .autocomplete-item.is-unavailable .autocomplete-item-title,
+    .autocomplete-item.is-unavailable .autocomplete-item-details,
+    .autocomplete-item.is-unavailable .autocomplete-item-code {
+        color: #fecaca;
+    }
+
+    .autocomplete-item-status {
+        margin-top: 0.35rem;
+        font-size: 0.78rem;
+        font-weight: 700;
+        color: #fecaca;
+    }
+
     @media (max-width: 768px) {
         .detail-shell {
             padding: 16px;
@@ -1902,7 +1925,15 @@
             preview.classList.add('show');
         }
 
+        function getUnavailableMessage(item) {
+            return String(item?.unavailable_detail || item?.unavailable_reason || 'Ferramenta indisponível para retirada.').trim();
+        }
+
         function selectItem(item) {
+            if (item && item.is_available === false) {
+                window.alert(getUnavailableMessage(item));
+                return;
+            }
             selectedItem = item;
             hiddenCode.value = item.codigo || '';
             input.value = item.descricao ? `${item.descricao} (${item.codigo || '-'})` : (item.codigo || '');
@@ -1936,14 +1967,17 @@
                         results.innerHTML = '';
                         data.forEach((item) => {
                             const option = document.createElement('div');
-                            option.className = 'autocomplete-item';
+                            const unavailable = item && item.is_available === false;
+                            option.className = unavailable ? 'autocomplete-item is-unavailable' : 'autocomplete-item';
                             option.innerHTML = `
                                 <div class="autocomplete-item-title">${escapeHtml(item.descricao || item.codigo || 'Ferramenta')}</div>
                                 <div class="autocomplete-item-details">
                                     <span class="autocomplete-item-code">Código: ${escapeHtml(item.codigo || '-')}</span>
                                     <span>${escapeHtml(item.marca || 'N/D')}</span>
                                     <span>Saldo: ${escapeHtml(item.saldo_display || String(item.saldo || 0))}</span>
+                                    ${unavailable && item.saldo_disponivel_display ? `<span>Disponível: ${escapeHtml(item.saldo_disponivel_display)}</span>` : ''}
                                 </div>
+                                ${unavailable ? `<div class="autocomplete-item-status">Indisponível: ${escapeHtml(item.unavailable_reason || 'Sem saldo para retirada')}</div>` : ''}
                             `;
                             option.addEventListener('click', () => selectItem(item));
                             results.appendChild(option);

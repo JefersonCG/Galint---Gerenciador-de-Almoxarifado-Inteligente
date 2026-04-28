@@ -278,6 +278,12 @@ def item_info(codigo: str):
         "unidade": item.get("unidade"),
         "saldo": item.get("saldo"),
         "saldo_display": item.get("saldo_display"),
+        "saldo_disponivel": item.get("saldo_disponivel"),
+        "saldo_disponivel_display": item.get("saldo_disponivel_display"),
+        "is_available": item.get("is_available"),
+        "unavailable_reason": item.get("unavailable_reason"),
+        "unavailable_detail": item.get("unavailable_detail"),
+        "has_open_repair": item.get("has_open_repair"),
         "foto_path": foto_path,
         "foto_url": url_for("static", filename=foto_path) if foto_path else None,
     })
@@ -293,7 +299,11 @@ def buscar_item():
     if not query or len(query) < 1:
         return jsonify({"items": [], "itens": []})
     
-    resultados = inventory_service.search_items_for_autocomplete(query, limit=20)
+    resultados = [
+        item
+        for item in inventory_service.search_items_for_autocomplete(query, limit=20)
+        if item.get("is_available") is not False
+    ]
     return jsonify({"items": resultados, "itens": resultados})
 
 

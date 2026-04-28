@@ -482,6 +482,16 @@ class ToolCustodyService:
         if "ferrament" not in str(item.categoria or "").lower():
             raise ValueError("O item selecionado não é uma ferramenta")
 
+        item_data = inventory_service.get_item(codigo_norm)
+        if item_data and item_data.get("is_available") is False:
+            raise ValueError(
+                str(
+                    item_data.get("unavailable_detail")
+                    or item_data.get("unavailable_reason")
+                    or "Ferramenta indisponível para retirada."
+                )
+            )
+
         try:
             quantidade_int = int(quantidade)
         except (TypeError, ValueError):

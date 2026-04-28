@@ -233,6 +233,29 @@
         font-family: monospace;
     }
 
+    .autocomplete-item.is-unavailable {
+        background: #fff1f2;
+        cursor: not-allowed;
+    }
+
+    .autocomplete-item.is-unavailable:hover,
+    .autocomplete-item.is-unavailable.active {
+        background: #ffe4e6;
+    }
+
+    .autocomplete-item.is-unavailable .autocomplete-item-title,
+    .autocomplete-item.is-unavailable .autocomplete-item-details,
+    .autocomplete-item.is-unavailable .autocomplete-item-code {
+        color: #b91c1c;
+    }
+
+    .autocomplete-item-status {
+        margin-top: 0.35rem;
+        font-size: 0.78rem;
+        font-weight: 700;
+        color: #b91c1c;
+    }
+
     .items-table {
         background: linear-gradient(145deg, #0f172a 0%, #1e293b 100%);
         border-radius: 24px;
@@ -364,12 +387,16 @@
     }
 
     .items-table tbody td {
-        color: #e2e8f0;
+        color: #0f172a;
         border-bottom: 1px solid rgba(148, 163, 184, 0.12);
     }
 
-    .items-table tbody tr:hover {
-        background: rgba(59, 130, 246, 0.06);
+    .items-table tbody tr:not(.group-row) td {
+        background: #ffffff;
+    }
+
+    .items-table tbody tr:not(.group-row):hover td {
+        background: #eff6ff;
     }
 
     .group-row td {
@@ -535,7 +562,7 @@
     .item-desc-meta {
         display: block;
         margin-top: 0.2rem;
-        color: #94a3b8;
+        color: #475569;
         font-size: 0.8rem;
     }
 
@@ -758,6 +785,10 @@ ${parent.scripts()}
         }
         const data = await response.json();
         return (data.items || data.itens || []).slice(0, 20);
+    }
+
+    function getUnavailableMessage(item) {
+        return String(item?.unavailable_detail || item?.unavailable_reason || 'Ferramenta indisponível para retirada.').trim();
     }
 
     const inputMatricula = document.getElementById('input-matricula');
@@ -1099,11 +1130,18 @@ ${parent.scripts()}
     });
     
     function showAutocomplete(items) {
-        currentItems = items;
+        const availableItems = items.filter((item) => !item || item.is_available !== false);
+        currentItems = availableItems;
         currentFocus = -1;
         dropdown.innerHTML = '';
+
+        if (availableItems.length === 0) {
+            dropdown.innerHTML = '<div class="autocomplete-item">Nenhuma ferramenta disponível para retirada.</div>';
+            dropdown.classList.add('show');
+            return;
+        }
         
-        items.forEach((item, index) => {
+        availableItems.forEach((item, index) => {
             const div = document.createElement('div');
             div.className = 'autocomplete-item';
             const saldoDisplay = item.saldo_display || item.saldo;
@@ -1127,6 +1165,10 @@ ${parent.scripts()}
     }
     
     function selectItem(item) {
+        if (item && item.is_available === false) {
+            showErrorModal('Ferramenta indisponível', getUnavailableMessage(item));
+            return;
+        }
         inputCodigo.value = item.codigo;
         dropdown.classList.remove('show');
         currentPreviewItem = {
@@ -1275,6 +1317,11 @@ ${parent.scripts()}
 
         try {
             const itemInfo = await buscarInfoFerramenta(codigo);
+            if (itemInfo && itemInfo.is_available === false) {
+                showErrorModal('Ferramenta indisponível', getUnavailableMessage(itemInfo));
+                inputCodigo.focus();
+                return;
+            }
             const matriculaAtual = String(inputMatricula.value || '').trim();
             const localAtual = String(inputLocal.value || '').trim();
             const observacaoAtual = (inputObservacao && inputObservacao.value ? inputObservacao.value.trim() : '') || '';

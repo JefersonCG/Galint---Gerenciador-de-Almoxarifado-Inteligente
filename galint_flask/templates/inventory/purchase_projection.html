@@ -794,7 +794,7 @@
             {% endfor %}
         </div>
         {% else %}
-        <form method="post" id="projection-operational-form" data-sync-url="{{ url_for('inventory.purchase_projection_sync') }}" data-persisted-selected-count="{{ summary.selected_items }}" data-persisted-selected-quantity="{{ summary.selected_quantity_total }}" data-persisted-selected-value="{{ summary.selected_value_total }}">
+        <form method="post" id="projection-operational-form" data-sync-url="{{ url_for('inventory.purchase_projection_sync') if endpoint_exists('inventory.purchase_projection_sync') else '/itens/projecao-compras/sync' }}" data-persisted-selected-count="{{ summary.selected_items }}" data-persisted-selected-quantity="{{ summary.selected_quantity_total }}" data-persisted-selected-value="{{ summary.selected_value_total }}">
             {{ projection_hidden_filters(filters) }}
             <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap mb-3">
                 <div>

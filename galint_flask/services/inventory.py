@@ -77,6 +77,8 @@ from ..utils.time_service import TimeService
 logger = logging.getLogger(__name__)
 
 ADVANCED_DIMENSION_OPTIONS = ("unit", "mass", "volume", "length")
+ACTIVE_TOOL_WITHDRAWAL_STATUSES = ("em_uso", "atrasada", "para_reparo")
+OPEN_TOOL_REPAIR_STATUSES = ("aguardando_orcamento", "em_reparo")
 
 OPERATIONAL_ACTIVITY_OPTIONS: tuple[dict[str, str], ...] = (
     {"key": "piscina", "label": "Piscina e espelho d'agua"},
@@ -4128,6 +4130,125 @@ class InventoryService:
         except Exception:
             return False
 
+    @staticmethod
+    def _is_tool_category(category: Any) -> bool:
+        return "ferrament" in str(category or "").strip().lower()
+
+    @staticmethod
+    def _format_availability_quantity(value: float) -> str:
+        quantity = float(value or 0.0)
+        if abs(quantity - round(quantity)) <= 1e-6:
+            return str(int(round(quantity)))
+        return f"{quantity:.2f}".rstrip("0").rstrip(".")
+
+    def _build_tool_availability_state(self, codes: Iterable[str]) -> dict[str, dict[str, Any]]:
+        normalized_codes = [str(code or "").strip() for code in codes if str(code or "").strip()]
+        if not normalized_codes:
+            return {}
+
+        state: dict[str, dict[str, Any]] = {
+            code: {
+                "reserved_quantity": 0.0,
+                "repair_quantity": 0.0,
+                "has_open_repair": False,
+            }
+            for code in normalized_codes
+        }
+
+        reserved_rows = (
+            db.session.query(
+                RetiradaFerramenta.codigo_item,
+                func.coalesce(func.sum(RetiradaFerramenta.quantidade), 0),
+            )
+            .filter(RetiradaFerramenta.codigo_item.in_(normalized_codes))
+            .filter(RetiradaFerramenta.status.in_(ACTIVE_TOOL_WITHDRAWAL_STATUSES))
+            .group_by(RetiradaFerramenta.codigo_item)
+            .all()
+        )
+        for codigo_item, quantidade in reserved_rows:
+            state.setdefault(codigo_item, {}).update({"reserved_quantity": float(quantidade or 0.0)})
+
+        repair_rows = (
+            db.session.query(
+                RetiradaFerramenta.codigo_item,
+                func.coalesce(func.sum(RetiradaFerramenta.quantidade), 0),
+            )
+            .filter(RetiradaFerramenta.codigo_item.in_(normalized_codes))
+            .filter(RetiradaFerramenta.status == "para_reparo")
+            .group_by(RetiradaFerramenta.codigo_item)
+            .all()
+        )
+        for codigo_item, quantidade in repair_rows:
+            state.setdefault(codigo_item, {}).update({"repair_quantity": float(quantidade or 0.0)})
+
+        open_repair_codes = {
+            str(codigo_item or "").strip()
+            for (codigo_item,) in (
+                db.session.query(EquipamentoReparo.codigo_item)
+                .filter(EquipamentoReparo.codigo_item.in_(normalized_codes))
+                .filter(EquipamentoReparo.status.in_(OPEN_TOOL_REPAIR_STATUSES))
+                .distinct()
+                .all()
+            )
+            if str(codigo_item or "").strip()
+        }
+        for codigo_item in open_repair_codes:
+            state.setdefault(codigo_item, {}).update({"has_open_repair": True})
+
+        return state
+
+    def _apply_withdrawal_availability(
+        self,
+        item: Item,
+        payload: dict[str, Any],
+        *,
+        tool_state: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        saldo_total = float(payload.get("saldo") or 0.0)
+        reserved_quantity = 0.0
+        repair_quantity = 0.0
+        has_open_repair = False
+        available_quantity = max(0.0, saldo_total)
+        unavailable_reason: str | None = None
+        unavailable_detail: str | None = None
+
+        if self._is_tool_category(payload.get("categoria") or getattr(item, "categoria", None)):
+            snapshot = tool_state or {}
+            reserved_quantity = float(snapshot.get("reserved_quantity") or 0.0)
+            repair_quantity = float(snapshot.get("repair_quantity") or 0.0)
+            has_open_repair = bool(snapshot.get("has_open_repair"))
+            available_quantity = max(0.0, saldo_total - reserved_quantity)
+
+            if has_open_repair or repair_quantity > 1e-6:
+                unavailable_reason = "Ferramenta em reparo"
+                unavailable_detail = "Ferramenta indisponível para retirada enquanto houver reparo aberto."
+            elif available_quantity <= 1e-6:
+                unavailable_reason = "Sem saldo disponível"
+                if reserved_quantity > 1e-6 and saldo_total > 1e-6:
+                    unavailable_detail = (
+                        f"Estoque físico atual: {self._format_availability_quantity(saldo_total)}. "
+                        "Toda a disponibilidade já está comprometida em uso, atraso ou custódia."
+                    )
+                else:
+                    unavailable_detail = "Ferramenta sem saldo disponível para retirada."
+        elif available_quantity <= 1e-6:
+            unavailable_reason = "Estoque zerado"
+            unavailable_detail = "Item sem saldo disponível para retirada."
+
+        payload.update(
+            {
+                "saldo_disponivel": available_quantity,
+                "saldo_disponivel_display": self._format_availability_quantity(available_quantity),
+                "reserved_quantity": reserved_quantity,
+                "repair_quantity": repair_quantity,
+                "has_open_repair": has_open_repair,
+                "is_available": unavailable_reason is None,
+                "unavailable_reason": unavailable_reason,
+                "unavailable_detail": unavailable_detail,
+            }
+        )
+        return payload
+
     def search_items_for_autocomplete(self, query: str, limit: int = 20) -> list[dict[str, Any]]:
         q = (query or "").strip()
         if not q or len(q) < 1:
@@ -4154,6 +4275,9 @@ class InventoryService:
 
         from ..services.embalagem_service import EmbalagemService
         bulk_balances = self._resolve_balances_in_bulk(rows)
+        tool_states = self._build_tool_availability_state(
+            item.codigo_item for item in rows if self._is_tool_category(item.categoria)
+        )
         results: list[dict[str, Any]] = []
         updated = False
         for item in rows:
@@ -4168,23 +4292,28 @@ class InventoryService:
             else:
                 saldo = float(bulk_balances.get(item.codigo_item, 0.0))
                 saldo_display = self._build_simple_balance_display(item, saldo)
+            payload = {
+                "codigo": item.codigo_item,
+                "descricao": item.descricao,
+                "categoria": item.categoria,
+                "marca": item.marca,
+                "saldo": saldo,
+                "saldo_display": saldo_display,
+                "tipo_embalagem_novo": item.tipo_embalagem_novo,
+                "unidades_por_embalagem": item.unidades_por_embalagem,
+                "grandeza_referencia": item.grandeza_referencia,
+                "litros_por_embalagem": item.litros_por_embalagem,
+                "saldo_embalagens": item.estoque_embalagens,
+                "saldo_unidades_total": saldo,
+                "saldo_unidades_soltas": item.estoque_unidades_soltas,
+                "unidade": item.unidade,
+            }
             results.append(
-                {
-                    "codigo": item.codigo_item,
-                    "descricao": item.descricao,
-                    "categoria": item.categoria,
-                    "marca": item.marca,
-                    "saldo": saldo,
-                    "saldo_display": saldo_display,
-                    "tipo_embalagem_novo": item.tipo_embalagem_novo,
-                    "unidades_por_embalagem": item.unidades_por_embalagem,
-                    "grandeza_referencia": item.grandeza_referencia,
-                    "litros_por_embalagem": item.litros_por_embalagem,
-                    "saldo_embalagens": item.estoque_embalagens,
-                    "saldo_unidades_total": saldo,
-                    "saldo_unidades_soltas": item.estoque_unidades_soltas,
-                    "unidade": item.unidade,
-                }
+                self._apply_withdrawal_availability(
+                    item,
+                    payload,
+                    tool_state=tool_states.get(item.codigo_item),
+                )
             )
         if updated:
             db.session.commit()
@@ -4688,7 +4817,8 @@ class InventoryService:
             )
         dados["estoque_minimo"] = minimo
         dados["saldo"] = saldo
-        return dados
+        tool_states = self._build_tool_availability_state([item.codigo_item]) if self._is_tool_category(item.categoria) else {}
+        return self._apply_withdrawal_availability(item, dados, tool_state=tool_states.get(item.codigo_item))
 
     def create_item(self, payload: dict[str, Any]) -> str:
         payload = self._normalize_toolkit_registration_payload(payload)
@@ -5331,6 +5461,17 @@ class InventoryService:
         Returns:
             ID da saída criada
         """
+        codigo_norm = str(getattr(payload, "codigo", "") or "").strip()
+        if codigo_norm:
+            item_data = self.get_item(codigo_norm)
+            if item_data and item_data.get("is_available") is False:
+                raise ValueError(
+                    str(
+                        item_data.get("unavailable_detail")
+                        or item_data.get("unavailable_reason")
+                        or "Item indisponível para retirada."
+                    )
+                )
         movimento = self._registrar_movimento(payload, is_entrada=False, skip_notification=skip_notification)
         return getattr(movimento, 'id_saida', 0)
 

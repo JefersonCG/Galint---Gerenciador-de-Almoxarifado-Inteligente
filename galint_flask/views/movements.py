@@ -39,11 +39,14 @@ blueprint = Blueprint("movements", __name__, url_prefix="/movimentos")
 def buscar_item():
     """API: Busca itens por código ou nome (parcial)."""
     query = (request.args.get("q") or "").strip()
+    only_available = (request.args.get("only_available") or "").strip().lower() in {"1", "true", "yes", "sim"}
     
     if not query or len(query) < 1:
         return jsonify({"items": [], "itens": []})
     
     resultados = inventory_service.search_items_for_autocomplete(query, limit=20)
+    if only_available:
+        resultados = [item for item in resultados if item.get("is_available") is not False]
     return jsonify({"items": resultados, "itens": resultados})
 
 
@@ -356,35 +359,46 @@ def _infer_fractional_item(item: dict[str, Any]) -> dict[str, Any]:
     texto = f"{categoria} {descricao}".strip()
 
     liquid_type = _detect_liquid_type(categoria=item.get("categoria"), descricao=item.get("descricao"))
-    if liquid_type:
-        return {
-            "enabled": True,
-            "default_unit": liquid_type.get("default_unit") or "litro",
-            "source": "liquid_type",
-        }
-
     if tipo_embalagem in FRACTIONABLE_PACKAGING_TYPES:
         if tipo_embalagem == "rolo":
             default_unit = "metro"
         elif tipo_embalagem in {"caixa", "fardo"}:
             default_unit = "unidade"
         elif tipo_embalagem in {"pacote", "saco"}:
-            default_unit = "quilo" if grandeza_referencia > 0 else "unidade"
+            if grandeza_referencia > 0 or unidade == "quilo":
+                default_unit = "quilo"
+            elif litros_por_embalagem > 0 or unidade == "litro":
+                default_unit = "litro"
+            elif liquid_type:
+                default_unit = liquid_type.get("default_unit") or "unidade"
+            else:
+                default_unit = "unidade"
         elif tipo_embalagem == "litro" or litros_por_embalagem > 0:
             default_unit = "litro"
         elif tipo_embalagem in {"lata", "balde", "bombona"}:
             if unidade in {"litro", "quilo"}:
                 default_unit = unidade
+            elif litros_por_embalagem > 0:
+                default_unit = "litro"
             elif grandeza_referencia > 0:
                 default_unit = "quilo"
+            elif liquid_type:
+                default_unit = liquid_type.get("default_unit") or "unidade"
             else:
                 default_unit = "unidade"
         else:
-            default_unit = unidade or "unidade"
+            default_unit = unidade or (liquid_type.get("default_unit") if liquid_type else "") or "unidade"
         return {
             "enabled": True,
             "default_unit": default_unit,
             "source": "tipo_embalagem_novo",
+        }
+
+    if liquid_type:
+        return {
+            "enabled": True,
+            "default_unit": liquid_type.get("default_unit") or "litro",
+            "source": "liquid_type",
         }
 
     if litros_por_embalagem > 0:
@@ -1007,6 +1021,12 @@ def item_info(codigo: str):
         "unidade": item.get("unidade"),
         "saldo": item.get("saldo"),
         "saldo_display": item.get("saldo_display"),
+        "saldo_disponivel": item.get("saldo_disponivel"),
+        "saldo_disponivel_display": item.get("saldo_disponivel_display"),
+        "is_available": item.get("is_available"),
+        "unavailable_reason": item.get("unavailable_reason"),
+        "unavailable_detail": item.get("unavailable_detail"),
+        "has_open_repair": item.get("has_open_repair"),
         "saldo_total_fracionado": saldo_total,
         "tipo_embalagem_novo": item.get("tipo_embalagem_novo"),
         "unidades_por_embalagem": item.get("unidades_por_embalagem"),

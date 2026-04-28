@@ -576,6 +576,29 @@
         font-family: monospace;
     }
 
+    .autocomplete-item.is-unavailable {
+        background: #fff1f2;
+        cursor: not-allowed;
+    }
+
+    .autocomplete-item.is-unavailable:hover,
+    .autocomplete-item.is-unavailable.active {
+        background: #ffe4e6;
+    }
+
+    .autocomplete-item.is-unavailable .autocomplete-item-title,
+    .autocomplete-item.is-unavailable .autocomplete-item-details,
+    .autocomplete-item.is-unavailable .autocomplete-item-code {
+        color: #b91c1c;
+    }
+
+    .autocomplete-item-status {
+        margin-top: 0.35rem;
+        font-size: 0.78rem;
+        font-weight: 700;
+        color: #b91c1c;
+    }
+
     .btn-express-return {
         cursor: pointer;
     }
@@ -773,7 +796,7 @@
     <div class="saida-shell">
     <div class="page-header">
         <h2><i class="bi bi-box-arrow-right me-2"></i>Registro de Saída</h2>
-        <p>Adicione itens à lista e registre a saída em lote com o novo padrão visual dark do fluxo de lançamentos.</p>
+        <p>Adicione materiais comuns ou ferramentas à lista e registre a saída em lote, mantendo o fluxo centralizado de lançamentos.</p>
         <div class="page-header-actions">
             <a class="btn-mirror-screen" data-mirror-screen="1" href="${url_for('movements.painel_espelho_page', mode='saida')}" target="_blank" rel="noopener">
                 <span class="btn-mirror-screen-icon"><img src="${url_for('static', filename='img/galint-icon.png')}" alt="GALINT"></span>
@@ -788,7 +811,7 @@
     
     <div class="alert-info-custom">
         <i class="bi bi-info-circle me-2"></i>
-        <strong>Dica:</strong> Você pode montar a coleta com vários funcionários. O envio continua item por item, com notificações separadas.
+        <strong>Dica:</strong> Esta tela também aceita ferramentas disponíveis. Quando o item for ferramenta, a custódia é aberta automaticamente no registro da saída.
     </div>
 
     <div class="input-card">
@@ -808,8 +831,8 @@
         
         <div class="row g-3">
             <div class="col-md-6 position-relative">
-                <label class="form-label"><i class="bi bi-upc-scan me-1"></i>Código do Item</label>
-                <input class="form-control" id="input-codigo" placeholder="Leia ou digite o código do item" autocomplete="off">
+                <label class="form-label"><i class="bi bi-upc-scan me-1"></i>Código do Item / Ferramenta</label>
+                <input class="form-control" id="input-codigo" placeholder="Leia ou digite o código do item ou da ferramenta" autocomplete="off">
                 <div id="autocomplete-dropdown-codigo" class="autocomplete-dropdown"></div>
             </div>
             <div class="col-md-3">
@@ -970,7 +993,7 @@ ${parent.scripts()}
     }
 
     async function fetchItemSuggestions(query) {
-        const response = await window.galintFetchWithAuth(itemSearchUrl + '?q=' + encodeURIComponent(query), {
+        const response = await window.galintFetchWithAuth(itemSearchUrl + '?only_available=1&q=' + encodeURIComponent(query), {
             headers: { 'Accept': 'application/json' }
         }, 'Sua sessão expirou durante a busca de itens. Faça login novamente.');
         if (!response.ok) {
@@ -1280,6 +1303,10 @@ ${parent.scripts()}
         const local = String(item.local || inputLocal.value || '').trim() || 'Nao informado';
         const saldo = String(item.saldo_display || item.saldo || '').trim() || 'Nao informado';
         const quantidade = formatPreviewQuantity(item);
+        const categoriaNorm = normalizeAutocompleteText(item.categoria || '');
+        const previewNote = categoriaNorm.includes('ferrament')
+            ? 'Ferramenta detectada: a custodia tambem sera registrada automaticamente quando esta saida for confirmada.'
+            : 'Este painel e a base da futura tela espelho para segundo monitor.';
 
         currentItemPreview.className = 'operation-preview';
         currentItemPreview.innerHTML = '' +
@@ -1296,7 +1323,7 @@ ${parent.scripts()}
                     '<div class="operation-preview-stat"><span class="operation-preview-stat-label">Colaborador</span><span class="operation-preview-stat-value">' + escapeHtml(usuario) + '</span></div>' +
                     '<div class="operation-preview-stat"><span class="operation-preview-stat-label">Local</span><span class="operation-preview-stat-value">' + escapeHtml(local) + '</span></div>' +
                 '</div>' +
-                '<div class="operation-preview-note">Este painel e a base da futura tela espelho para segundo monitor.</div>' +
+                '<div class="operation-preview-note">' + escapeHtml(previewNote) + '</div>' +
             '</div>';
         if (shouldPublish) {
             publishMirrorState(buildMirrorPayload(previewStatus, item));
@@ -1522,13 +1549,13 @@ ${parent.scripts()}
         const tipoEmbalagem = inferPackagingType(item);
 
         if (tipoEmbalagem === 'rolo') return 'metro';
-        if (fracaoPadrao === 'litro' || unidadeExibicao === 'l') return 'litro';
-        if (fracaoPadrao === 'quilo' || unidadeExibicao === 'kg') return 'kg';
         if (litrosPorEmb > 0) return 'litro';
         if (grandezaRef > 0 && (tipoEmbalagem === 'balde' || tipoEmbalagem === 'bombona' || tipoEmbalagem === 'lata' || tipoEmbalagem === 'pacote' || tipoEmbalagem === 'saco')) return 'kg';
-        if (/(^|\b)(litro|litros|l|lt|lts)(\b|$)/.test(unidadeItem)) return 'litro';
         if (/(^|\b)(kg|quilo|quilos)(\b|$)/.test(unidadeItem)) return 'kg';
+        if (/(^|\b)(litro|litros|l|lt|lts)(\b|$)/.test(unidadeItem)) return 'litro';
         if (/(^|\b)(metro|metros|m)(\b|$)/.test(unidadeItem)) return 'metro';
+        if (fracaoPadrao === 'quilo' || unidadeExibicao === 'kg') return 'kg';
+        if (fracaoPadrao === 'litro' || unidadeExibicao === 'l') return 'litro';
         return 'unidade';
     }
 
@@ -1592,14 +1619,27 @@ ${parent.scripts()}
         if (medida === 'metro') return 'METROS';
         return String(unidadeLabel || 'unidade').toUpperCase();
     }
+
+    function getUnavailableMessage(item) {
+        return String(item?.unavailable_detail || item?.unavailable_reason || 'Item indisponível para retirada.').trim();
+    }
     
     function showAutocompleteCodigo(itens) {
         if (itens.length === 0) {
             dropdownCodigo.classList.remove('show');
             return;
         }
+
+        const availableItems = itens.filter((item) => !item || item.is_available !== false);
+        currentItens = availableItems;
+
+        if (availableItems.length === 0) {
+            dropdownCodigo.innerHTML = '<div class="autocomplete-item">Nenhum item disponível para retirada.</div>';
+            dropdownCodigo.classList.add('show');
+            return;
+        }
         
-        dropdownCodigo.innerHTML = itens.map((item, index) => {
+        dropdownCodigo.innerHTML = availableItems.map((item, index) => {
             const saldoFormatado = formatarSaldoItem(item);
             return '<div class=\"autocomplete-item\" data-index=\"' + index + '\">' +
                 '<div class=\"autocomplete-item-title\">' + (item.descricao || item.codigo) + '</div>' +
@@ -1622,6 +1662,10 @@ ${parent.scripts()}
     }
     
     function selectCodigo(item) {
+        if (item && item.is_available === false) {
+            showErrorModal('Item indisponível', getUnavailableMessage(item));
+            return;
+        }
         inputCodigo.value = item.codigo;
         dropdownCodigo.classList.remove('show');
         loadPreviewForCode(item.codigo);
@@ -1830,6 +1874,11 @@ ${parent.scripts()}
             
             if (!data.descricao) {
                 throw new Error('Item não encontrado');
+            }
+            if (data.is_available === false) {
+                showErrorModal('Item indisponível', getUnavailableMessage(data));
+                inputCodigo.focus();
+                return;
             }
             
             // Verificar se o item usa sistema de embalagens

@@ -19,10 +19,18 @@ def _native_gui_command(argv: list[str] | None = None) -> str | None:
 def _register_runtime_fallback_routes(app: Flask) -> None:
     try:
         from flask import jsonify, render_template, request
+        from flask_login import login_required
 
         from galint_flask.extensions import db
         from galint_flask.models import Item
         from galint_flask.services.item_foto_service import ItemFotoService
+        from galint_flask.views.inventory import (
+            _build_purchase_projection_sync_payload,
+            _json_no_store,
+            _request_purchase_projection_filters,
+            _require_admin_or_supervisor,
+            _sync_purchase_projection_report,
+        )
 
         def _apply_photo_from_url():
             payload = cast(dict[str, Any], request.form.to_dict())
@@ -67,6 +75,21 @@ def _register_runtime_fallback_routes(app: Flask) -> None:
                 endpoint="dynamic_units_help_fallback",
                 view_func=_render_dynamic_units_help_fallback,
                 methods=["GET"],
+            )
+
+        def _purchase_projection_sync_fallback():
+            _require_admin_or_supervisor()
+            filters = _request_purchase_projection_filters(request.form)
+            report, _ = _sync_purchase_projection_report(filters, request.form, flash_feedback=False)
+            return _json_no_store(_build_purchase_projection_sync_payload(report))
+
+        has_purchase_projection_sync_route = any(rule.rule == "/itens/projecao-compras/sync" for rule in app.url_map.iter_rules())
+        if not has_purchase_projection_sync_route and "inventory.purchase_projection_sync" not in app.view_functions:
+            app.add_url_rule(
+                "/itens/projecao-compras/sync",
+                endpoint="inventory.purchase_projection_sync",
+                view_func=login_required(_purchase_projection_sync_fallback),
+                methods=["POST"],
             )
     except Exception:
         pass

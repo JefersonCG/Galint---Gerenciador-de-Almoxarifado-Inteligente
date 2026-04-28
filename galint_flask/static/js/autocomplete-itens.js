@@ -3,11 +3,16 @@
  * Uso: initItemAutocomplete(inputElement, dropdownElement, apiUrl)
  */
 
-function initItemAutocomplete(inputElement, dropdownElement, apiUrl) {
+function initItemAutocomplete(inputElement, dropdownElement, apiUrl, options) {
     if (!inputElement || !dropdownElement) {
         console.error('Autocomplete: elementos não encontrados');
         return;
     }
+
+    const config = Object.assign({
+        hideUnavailable: false,
+        unavailableEmptyMessage: 'Nenhum item disponível para retirada.'
+    }, options || {});
 
     let debounceTimer;
     let currentFocus = -1;
@@ -25,7 +30,8 @@ function initItemAutocomplete(inputElement, dropdownElement, apiUrl) {
         
         debounceTimer = setTimeout(async function() {
             try {
-                const response = await fetch(apiUrl + '?q=' + encodeURIComponent(query));
+                const separator = apiUrl.includes('?') ? '&' : '?';
+                const response = await fetch(apiUrl + separator + 'q=' + encodeURIComponent(query));
                 const data = await response.json();
                 
                 if (data.items && data.items.length > 0) {
@@ -41,13 +47,21 @@ function initItemAutocomplete(inputElement, dropdownElement, apiUrl) {
     });
 
     function showAutocomplete(items) {
-        currentItems = items;
+        const visibleItems = config.hideUnavailable
+            ? items.filter((item) => !item || item.is_available !== false)
+            : items;
+        currentItems = visibleItems;
         currentFocus = -1;
         dropdownElement.innerHTML = '';
+
+        if (visibleItems.length === 0) {
+            dropdownElement.innerHTML = '<div class="autocomplete-item">' + escapeHtml(config.unavailableEmptyMessage) + '</div>';
+            dropdownElement.classList.add('show');
+            return;
+        }
         
-        items.forEach((item, index) => {
+        visibleItems.forEach((item, index) => {
             const div = document.createElement('div');
-            div.className = 'autocomplete-item';
             const saldoDisplay = item.saldo_display || item.saldo;
             div.innerHTML = 
                 '<div class="autocomplete-item-title">' + escapeHtml(item.descricao) + '</div>' +
@@ -68,6 +82,10 @@ function initItemAutocomplete(inputElement, dropdownElement, apiUrl) {
     }
 
     function selectItem(item) {
+        if (config.hideUnavailable && item && item.is_available === false) {
+            window.alert(String(item.unavailable_detail || item.unavailable_reason || 'Item indisponível para retirada.'));
+            return;
+        }
         inputElement.value = item.codigo;
         dropdownElement.classList.remove('show');
         
