@@ -214,6 +214,201 @@ def _request_purchase_projection_manual_quantities(source=None) -> dict[str, obj
     return manual_quantities
 
 
+def _purchase_projection_cart_session_key() -> str:
+    return "inventory_purchase_projection_cart"
+
+
+def _purchase_projection_cart_session_version() -> int:
+    return 2
+
+
+def _get_purchase_projection_cart_state() -> dict[str, str]:
+    raw = session.get(_purchase_projection_cart_session_key())
+    if not isinstance(raw, dict):
+        return {}
+    if int(raw.get("version") or 0) != _purchase_projection_cart_session_version():
+        return {}
+    items = raw.get("items") if isinstance(raw.get("items"), dict) else raw
+    if not isinstance(items, dict):
+        return {}
+    normalized: dict[str, str] = {}
+    for codigo_item, manual_value in items.items():
+        codigo_norm = str(codigo_item or "").strip()
+        if not codigo_norm:
+            continue
+        normalized[codigo_norm] = "" if manual_value is None else str(manual_value)
+    return normalized
+
+
+def _set_purchase_projection_cart_state(items: dict[str, object]) -> None:
+    normalized: dict[str, str] = {}
+    for codigo_item, manual_value in dict(items or {}).items():
+        codigo_norm = str(codigo_item or "").strip()
+        if not codigo_norm:
+            continue
+        normalized[codigo_norm] = "" if manual_value is None else str(manual_value)
+    session[_purchase_projection_cart_session_key()] = {
+        "version": _purchase_projection_cart_session_version(),
+        "items": normalized,
+    }
+    session.modified = True
+
+
+def _purchase_projection_cart_payload_from_session() -> tuple[list[str], dict[str, object]]:
+    cart_items = _get_purchase_projection_cart_state()
+    return list(cart_items.keys()), dict(cart_items)
+
+
+def _request_purchase_projection_category_action(source=None) -> dict[str, object]:
+    source = source or request.form
+    add_category = str(source.get("add_visible_category") or "").strip()
+    remove_category = str(source.get("remove_visible_category") or "").strip()
+    clear_requested = str(source.get("clear_projection_cart") or "").strip() == "1"
+    return {
+        "add_category": add_category or None,
+        "remove_category": remove_category or None,
+        "clear": clear_requested,
+    }
+
+
+def _normalize_purchase_projection_category_name(value: object) -> str:
+    return (str(value or "Sem categoria").strip() or "Sem categoria").casefold()
+
+
+def _merge_purchase_projection_cart_state(
+    cart_items: dict[str, object],
+    rows: list[dict[str, object]],
+    *,
+    selected_codes: list[str] | tuple[str, ...] | set[str] | None = None,
+    manual_quantities: dict[str, object] | None = None,
+    add_category: str | None = None,
+    remove_category: str | None = None,
+    clear: bool = False,
+) -> tuple[dict[str, str], dict[str, object]]:
+    updated = {str(codigo): "" if valor is None else str(valor) for codigo, valor in dict(cart_items or {}).items() if str(codigo or "").strip()}
+    manual_map = {str(codigo or "").strip(): valor for codigo, valor in dict(manual_quantities or {}).items() if str(codigo or "").strip()}
+    selected_set = {str(code or "").strip() for code in (selected_codes or []) if str(code or "").strip()}
+    rows_by_code: dict[str, dict[str, object]] = {}
+    rows_by_category: dict[str, list[str]] = defaultdict(list)
+
+    for row in rows:
+        codigo_item = str(row.get("codigo_item") or "").strip()
+        if not codigo_item:
+            continue
+        rows_by_code[codigo_item] = row
+        rows_by_category[_normalize_purchase_projection_category_name(row.get("categoria"))].append(codigo_item)
+
+    if clear:
+        return {}, {"action": "clear", "changed_count": len(updated)}
+
+    if add_category:
+        category_key = _normalize_purchase_projection_category_name(add_category)
+        category_codes = rows_by_category.get(category_key) or []
+        for codigo_item in category_codes:
+            row = rows_by_code.get(codigo_item) or {}
+            updated[codigo_item] = str(
+                manual_map.get(codigo_item, row.get("manual_quantity_value") or updated.get(codigo_item) or "")
+            )
+        return updated, {
+            "action": "add_category",
+            "category_name": add_category,
+            "changed_count": len(category_codes),
+        }
+
+    if remove_category:
+        category_key = _normalize_purchase_projection_category_name(remove_category)
+        category_codes = rows_by_category.get(category_key) or []
+        removed_count = 0
+        for codigo_item in category_codes:
+            if codigo_item in updated:
+                updated.pop(codigo_item, None)
+                removed_count += 1
+        return updated, {
+            "action": "remove_category",
+            "category_name": remove_category,
+            "changed_count": removed_count,
+        }
+
+    changed_count = 0
+    for codigo_item, row in rows_by_code.items():
+        if codigo_item in selected_set:
+            new_value = str(manual_map.get(codigo_item, row.get("manual_quantity_value") or updated.get(codigo_item) or ""))
+            if updated.get(codigo_item) != new_value:
+                changed_count += 1
+            updated[codigo_item] = new_value
+            continue
+        if codigo_item in updated:
+            updated.pop(codigo_item, None)
+            changed_count += 1
+
+    return updated, {"action": "sync_visible", "changed_count": changed_count}
+
+
+def _flash_purchase_projection_cart_feedback(outcome: dict[str, object]) -> None:
+    action = str(outcome.get("action") or "").strip()
+    changed_count = int(outcome.get("changed_count") or 0)
+    category_name = str(outcome.get("category_name") or "").strip()
+    if action == "add_category" and category_name:
+        flash(f"Categoria '{category_name}' adicionada ao carrinho com {changed_count} item(ns) visível(is).", "success")
+    elif action == "remove_category" and category_name:
+        flash(f"Categoria '{category_name}' removida do carrinho em {changed_count} item(ns).", "info")
+    elif action == "clear":
+        flash("Carrinho da projeção limpo.", "info")
+
+
+def _sync_purchase_projection_report(
+    filters: dict[str, object],
+    source,
+    *,
+    flash_feedback: bool = False,
+) -> tuple[dict[str, object], dict[str, object]]:
+    selected_codes, manual_quantities = _purchase_projection_cart_payload_from_session()
+    base_report = purchase_projection_service.build_projection_report(
+        **filters,
+        selected_codes=selected_codes,
+        manual_quantities=manual_quantities,
+    )
+    merged_cart, outcome = _merge_purchase_projection_cart_state(
+        _get_purchase_projection_cart_state(),
+        list(base_report.get("rows") or []),
+        selected_codes=_request_purchase_projection_selected_codes(source),
+        manual_quantities=_request_purchase_projection_manual_quantities(source),
+        **_request_purchase_projection_category_action(source),
+    )
+    _set_purchase_projection_cart_state(merged_cart)
+    if flash_feedback:
+        _flash_purchase_projection_cart_feedback(outcome)
+
+    synced_codes, synced_manual_quantities = _purchase_projection_cart_payload_from_session()
+    report = purchase_projection_service.build_projection_report(
+        **filters,
+        selected_codes=synced_codes,
+        manual_quantities=synced_manual_quantities,
+    )
+    return report, outcome
+
+
+def _build_purchase_projection_sync_payload(report: dict[str, object]) -> dict[str, object]:
+    rows_payload: list[dict[str, object]] = []
+    for row in report.get("rows") or []:
+        requested_quantity_base = float(row.get("requested_quantity_base") or 0.0)
+        rows_payload.append(
+            {
+                "codigo_item": str(row.get("codigo_item") or "").strip(),
+                "selected": bool(row.get("selected")),
+                "in_cart": requested_quantity_base > purchase_projection_service.BALANCE_TOLERANCE,
+                "requested_quantity_base": requested_quantity_base,
+                "requested_total_value": row.get("requested_total_value"),
+                "manual_quantity_value": str(row.get("manual_quantity_value") or ""),
+            }
+        )
+    return {
+        "summary": report.get("summary") or {},
+        "cart": report.get("cart") or {},
+        "rows": rows_payload,
+    }
+
+
 def _purchase_projection_status_options() -> list[dict[str, str]]:
     return [
         {"value": "all", "label": "Todos"},
@@ -1538,13 +1733,16 @@ def purchase_projection_page():
     _require_admin_or_supervisor()
     source = request.form if request.method == "POST" else request.args
     filters = _request_purchase_projection_filters(source)
-    selected_codes = _request_purchase_projection_selected_codes(request.form) if request.method == "POST" else []
-    manual_quantities = _request_purchase_projection_manual_quantities(request.form) if request.method == "POST" else {}
-    report = purchase_projection_service.build_projection_report(
-        **filters,
-        selected_codes=selected_codes,
-        manual_quantities=manual_quantities,
-    )
+
+    if request.method == "POST":
+        report, _ = _sync_purchase_projection_report(filters, request.form, flash_feedback=True)
+    else:
+        selected_codes, manual_quantities = _purchase_projection_cart_payload_from_session()
+        report = purchase_projection_service.build_projection_report(
+            **filters,
+            selected_codes=selected_codes,
+            manual_quantities=manual_quantities,
+        )
     return render_template(
         "inventory/purchase_projection.html",
         report=report,
@@ -1554,8 +1752,18 @@ def purchase_projection_page():
         rows=report["rows"],
         summary=report["summary"],
         cart=report["cart"],
+        visible_categories=report["visible_categories"],
         status_options=_purchase_projection_status_options(),
     )
+
+
+@blueprint.post("/projecao-compras/sync")
+@login_required
+def purchase_projection_sync():
+    _require_admin_or_supervisor()
+    filters = _request_purchase_projection_filters(request.form)
+    report, _ = _sync_purchase_projection_report(filters, request.form, flash_feedback=False)
+    return _json_no_store(_build_purchase_projection_sync_payload(report))
 
 
 @blueprint.get("/projecao-compras/api")
@@ -1565,6 +1773,10 @@ def purchase_projection_api():
     filters = _request_purchase_projection_filters(request.args)
     selected_codes = _request_purchase_projection_selected_codes(request.args)
     manual_quantities = _request_purchase_projection_manual_quantities(request.args)
+    if not selected_codes:
+        selected_codes, session_manual_quantities = _purchase_projection_cart_payload_from_session()
+        if not manual_quantities:
+            manual_quantities = session_manual_quantities
     report = purchase_projection_service.build_projection_report(
         **filters,
         selected_codes=selected_codes,
@@ -1578,13 +1790,7 @@ def purchase_projection_api():
 def purchase_projection_export_xlsx():
     _require_admin_or_supervisor()
     filters = _request_purchase_projection_filters(request.form)
-    selected_codes = _request_purchase_projection_selected_codes(request.form)
-    manual_quantities = _request_purchase_projection_manual_quantities(request.form)
-    report = purchase_projection_service.build_projection_report(
-        **filters,
-        selected_codes=selected_codes,
-        manual_quantities=manual_quantities,
-    )
+    report, _ = _sync_purchase_projection_report(filters, request.form, flash_feedback=False)
     if not int((report.get("cart") or {}).get("selected_count") or 0):
         flash("Selecione pelo menos um item com quantidade final positiva para exportar o pedido.", "warning")
         return redirect(url_for("inventory.purchase_projection_page", **filters))

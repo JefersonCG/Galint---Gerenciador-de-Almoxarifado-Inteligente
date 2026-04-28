@@ -21,13 +21,14 @@ from ..models import (
     StockBalance,
     StockMovement,
 )
-from .legacy_stock_normalizer import resolve_canonical_unit
+from .legacy_stock_normalizer import infer_packaging_measure, resolve_canonical_unit, resolve_packaging_factor
 from .operation_visual_payload import OperationVisualPayloadService
 from ..utils.report_branding import get_company_header_lines
 
 
 class PurchaseProjectionService:
     VALID_BASE_UNITS = {"kg", "l", "m", "un"}
+    REQUEST_UNIT_ALIASES = {"un", "unidade", "unidades", "peca", "pecas", "peça", "peças"}
     DEFAULT_WINDOW_DAYS = 30
     DEFAULT_COVERAGE_DAYS = 30
     MAX_WINDOW_DAYS = 365
@@ -194,8 +195,18 @@ class PurchaseProjectionService:
             include_inactive=include_inactive,
         )
         filter_options = cls.build_filter_options(include_inactive=filters.get("include_inactive"))
+        selected_set = {str(code or "").strip() for code in (selected_codes or []) if str(code or "").strip()}
         items = cls._load_items(filters)
-        product_ids = [str(item.codigo_item or "").strip() for item in items if str(item.codigo_item or "").strip()]
+        filtered_codes = {str(item.codigo_item or "").strip() for item in items if str(item.codigo_item or "").strip()}
+        supplemental_items = cls._load_items_by_codes(selected_set - filtered_codes)
+        item_map: dict[str, Item] = {}
+        for item in [*items, *supplemental_items]:
+            codigo_item = str(item.codigo_item or "").strip()
+            if not codigo_item or codigo_item in item_map:
+                continue
+            item_map[codigo_item] = item
+
+        product_ids = list(item_map.keys())
         ledger_balances = cls._load_ledger_balances(product_ids)
         cached_balances = cls._load_cached_balances(product_ids)
         window_consumption = cls._load_window_consumption(product_ids, window_days=int(filters["window_days"]))
@@ -219,7 +230,7 @@ class PurchaseProjectionService:
             }
         )
 
-        rows = [
+        all_rows = [
             cls._build_row(
                 item,
                 filters=filters,
@@ -232,11 +243,13 @@ class PurchaseProjectionService:
                 finance_candidates=finance_candidates,
                 supplier_lookup=supplier_lookup,
             )
-            for item in items
+            for item in item_map.values()
         ]
+        row_lookup = {str(row.get("codigo_item") or "").strip(): row for row in all_rows if str(row.get("codigo_item") or "").strip()}
+        rows = [row_lookup[codigo_item] for codigo_item in filtered_codes if codigo_item in row_lookup]
         visible_rows = [row for row in rows if cls._status_matches_filter(str(filters["status"]), row)]
         visible_rows.sort(key=cls._row_sort_key)
-        cart = cls._apply_selection(visible_rows, selected_codes=selected_codes, manual_quantities=manual_quantities)
+        cart = cls._apply_selection(all_rows, selected_codes=selected_codes, manual_quantities=manual_quantities)
         return {
             "compatibility": cls.get_architecture_compatibility(),
             "generated_at": datetime.utcnow().isoformat(),
@@ -245,6 +258,7 @@ class PurchaseProjectionService:
             "summary": cls._build_summary(rows, visible_rows, cart),
             "rows": visible_rows,
             "cart": cart,
+            "visible_categories": cls._build_visible_category_groups(visible_rows),
         }
 
     @classmethod
@@ -305,8 +319,8 @@ class PurchaseProjectionService:
             "Descricao",
             "Marca",
             "Categoria",
-            "Pedido Base",
-            "Preco Unitario Base",
+            "Pedido",
+            "Preco Unitario",
             "Total Estimado",
         ]
         header_row = current_row
@@ -321,26 +335,11 @@ class PurchaseProjectionService:
         sheet.freeze_panes = f"A{header_row + 1}"
 
         data_start_row = header_row + 1
-        export_rows: list[dict[str, Any]] = []
-        for group in cart.get("groups") or []:
-            supplier = dict(group.get("supplier") or {})
-            supplier_name = str(supplier.get("name") or group.get("supplier_name") or "Sem fornecedor identificado").strip() or "Sem fornecedor identificado"
-            supplier_cnpj = str(supplier.get("cnpj") or "").strip()
-            for item in group.get("items") or []:
-                export_rows.append(
-                    {
-                        "supplier_name": supplier_name,
-                        "supplier_cnpj": supplier_cnpj,
-                        "descricao": str(item.get("descricao") or "").strip(),
-                        "marca": str(item.get("marca") or "Sem marca").strip() or "Sem marca",
-                        "categoria": str(item.get("categoria") or "Sem categoria").strip() or "Sem categoria",
-                        "requested_quantity_base": float(item.get("requested_quantity_base") or 0.0),
-                        "price_unit_base": item.get("price_unit_base"),
-                        "requested_total_value": item.get("requested_total_value"),
-                    }
-                )
+        category_fill = PatternFill(start_color="DBEAFE", end_color="DBEAFE", fill_type="solid")
+        category_total_fill = PatternFill(start_color="DCFCE7", end_color="DCFCE7", fill_type="solid")
+        export_categories = list(cart.get("category_groups") or [])
 
-        if not export_rows:
+        if not export_categories:
             sheet.merge_cells(f"A{data_start_row}:{end_column}{data_start_row}")
             cell = sheet.cell(row=data_start_row, column=1)
             cell.value = "Nenhum item selecionado para exportacao."
@@ -349,41 +348,105 @@ class PurchaseProjectionService:
             cell.protection = unlocked_protection
             data_end_row = data_start_row
         else:
-            for offset, item in enumerate(export_rows, start=0):
-                row_index = data_start_row + offset
-                values = [
-                    item["supplier_name"],
-                    item["supplier_cnpj"],
-                    item["descricao"],
-                    item["marca"],
-                    item["categoria"],
-                    float(item.get("requested_quantity_base") or 0.0),
-                    item.get("price_unit_base"),
-                    item.get("requested_total_value"),
-                ]
-                for column_index, value in enumerate(values, start=1):
-                    cell = sheet.cell(row=row_index, column=column_index, value=value)
-                    cell.border = border
-                    cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-                    cell.font = Font(size=12, bold=(column_index == 3), color="0F172A")
-                    cell.protection = unlocked_protection
-                    if column_index in {6, 7, 8}:
-                        cell.alignment = Alignment(horizontal="right", vertical="center")
-                        cell.protection = locked_protection
-                    if column_index in {7, 8} and isinstance(value, (int, float)):
-                        cell.number_format = 'R$ #,##0.00'
-                        cell.fill = value_fill
-                        cell.font = Font(size=12, italic=True, color="0F172A")
-                    if column_index == 6 and isinstance(value, (int, float)):
-                        cell.number_format = '0'
-                        cell.font = Font(size=20, bold=True, color="0F172A")
-                if row_index % 2 == 0:
-                    for column_index in range(1, total_columns + 1):
-                        if column_index in {7, 8}:
-                            continue
-                        sheet.cell(row=row_index, column=column_index).fill = PatternFill(start_color="F8FAFC", end_color="F8FAFC", fill_type="solid")
-                sheet.row_dimensions[row_index].height = 24
-            data_end_row = data_start_row + len(export_rows) - 1
+            current_data_row = data_start_row
+            for category_index, category_group in enumerate(export_categories, start=1):
+                category_name = str(category_group.get("category_name") or "Sem categoria").strip() or "Sem categoria"
+                items = list(category_group.get("items") or [])
+                if not items:
+                    continue
+
+                sheet.merge_cells(start_row=current_data_row, start_column=1, end_row=current_data_row, end_column=total_columns)
+                category_cell = sheet.cell(row=current_data_row, column=1)
+                category_cell.value = f"CATEGORIA: {category_name}"
+                category_cell.fill = category_fill
+                category_cell.font = Font(bold=True, size=12, color="1E3A8A")
+                category_cell.alignment = Alignment(horizontal="left", vertical="center")
+                category_cell.border = border
+                category_cell.protection = unlocked_protection
+                sheet.row_dimensions[current_data_row].height = 22
+                current_data_row += 1
+
+                for item in items:
+                    supplier = dict(item.get("supplier") or {})
+                    row_index = current_data_row
+                    values = [
+                        str(supplier.get("name") or "Sem fornecedor identificado").strip() or "Sem fornecedor identificado",
+                        str(supplier.get("cnpj") or "").strip(),
+                        str(item.get("descricao") or "").strip(),
+                        str(item.get("marca") or "Sem marca").strip() or "Sem marca",
+                        category_name,
+                        float(item.get("requested_quantity_input") or 0.0),
+                        item.get("price_unit_request") if cls._is_positive_number(item.get("price_unit_request")) else item.get("price_unit_base"),
+                        item.get("requested_total_value"),
+                    ]
+                    for column_index, value in enumerate(values, start=1):
+                        cell = sheet.cell(row=row_index, column=column_index, value=value)
+                        cell.border = border
+                        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+                        cell.font = Font(size=12, bold=(column_index == 3), color="0F172A")
+                        cell.protection = unlocked_protection
+                        if column_index in {6, 7, 8}:
+                            cell.alignment = Alignment(horizontal="right", vertical="center")
+                            cell.protection = locked_protection
+                        if column_index in {7, 8} and isinstance(value, (int, float)):
+                            cell.number_format = 'R$ #,##0.00'
+                            cell.fill = value_fill
+                            cell.font = Font(size=12, italic=True, color="0F172A")
+                        if column_index == 6 and isinstance(value, (int, float)):
+                            cell.number_format = '0.######'
+                            cell.font = Font(size=12, bold=True, color="0F172A")
+                    if row_index % 2 == 0:
+                        for column_index in range(1, total_columns + 1):
+                            if column_index in {7, 8}:
+                                continue
+                            sheet.cell(row=row_index, column=column_index).fill = PatternFill(start_color="F8FAFC", end_color="F8FAFC", fill_type="solid")
+                    sheet.row_dimensions[row_index].height = 24
+                    current_data_row += 1
+
+                subtotal_row = current_data_row
+                sheet.merge_cells(start_row=subtotal_row, start_column=1, end_row=subtotal_row, end_column=5)
+                subtotal_label_cell = sheet.cell(row=subtotal_row, column=1)
+                subtotal_label_cell.value = f"SUBTOTAL DA CATEGORIA: {category_name}"
+                subtotal_label_cell.fill = category_total_fill
+                subtotal_label_cell.font = Font(bold=True, size=12, color="166534")
+                subtotal_label_cell.alignment = Alignment(horizontal="right", vertical="center")
+                subtotal_label_cell.border = border
+                subtotal_label_cell.protection = unlocked_protection
+
+                subtotal_quantity_cell = sheet.cell(
+                    row=subtotal_row,
+                    column=6,
+                    value=sum(float(item.get("requested_quantity_input") or 0.0) for item in items),
+                )
+                subtotal_quantity_cell.fill = category_total_fill
+                subtotal_quantity_cell.font = Font(bold=True, size=12, color="166534")
+                subtotal_quantity_cell.alignment = Alignment(horizontal="right", vertical="center")
+                subtotal_quantity_cell.border = border
+                subtotal_quantity_cell.protection = locked_protection
+                subtotal_quantity_cell.number_format = '0.######'
+
+                subtotal_price_cell = sheet.cell(row=subtotal_row, column=7, value="")
+                subtotal_price_cell.fill = category_total_fill
+                subtotal_price_cell.border = border
+                subtotal_price_cell.protection = locked_protection
+
+                subtotal_value_cell = sheet.cell(
+                    row=subtotal_row,
+                    column=8,
+                    value=float(category_group.get("requested_value_total") or 0.0),
+                )
+                subtotal_value_cell.fill = category_total_fill
+                subtotal_value_cell.font = Font(bold=True, size=12, color="166534")
+                subtotal_value_cell.alignment = Alignment(horizontal="right", vertical="center")
+                subtotal_value_cell.border = border
+                subtotal_value_cell.protection = locked_protection
+                subtotal_value_cell.number_format = 'R$ #,##0.00'
+
+                current_data_row += 1
+                if category_index < len(export_categories):
+                    current_data_row += 1
+
+            data_end_row = current_data_row - 1
 
         total_row = data_end_row + 1
         sheet.merge_cells(start_row=total_row, start_column=1, end_row=total_row, end_column=5)
@@ -396,21 +459,21 @@ class PurchaseProjectionService:
         total_label_cell.protection = unlocked_protection
 
         total_formulas = {
-            6: f"=SUM(F{data_start_row}:F{data_end_row})" if export_rows else 0,
+            6: sum(float(item.get("requested_quantity_input") or 0.0) for group in export_categories for item in (group.get("items") or [])) if export_categories else 0,
             7: "",
-            8: f"=SUM(H{data_start_row}:H{data_end_row})" if export_rows else 0,
+            8: float(cart.get("requested_value_total") or 0.0) if export_categories else 0,
         }
         for column_index in range(6, total_columns + 1):
             cell = sheet.cell(row=total_row, column=column_index, value=total_formulas[column_index])
             cell.fill = total_fill if column_index == 6 else value_fill
-            cell.font = Font(bold=True, size=20, color="0F172A") if column_index == 6 else Font(size=12, italic=True, color="0F172A")
+            cell.font = Font(bold=True, size=16, color="0F172A") if column_index == 6 else Font(size=12, italic=True, color="0F172A")
             cell.alignment = Alignment(horizontal="right", vertical="center")
             cell.border = border
             cell.protection = locked_protection
             if column_index == 8:
                 cell.number_format = 'R$ #,##0.00'
             elif column_index == 6:
-                cell.number_format = '0'
+                cell.number_format = '0.######'
 
         footer_row = total_row + 3
         sheet.merge_cells(f"A{footer_row}:{end_column}{footer_row}")
@@ -470,6 +533,15 @@ class PurchaseProjectionService:
                 )
             )
         return query.order_by(Item.descricao.asc(), Item.codigo_item.asc()).all()
+
+    @classmethod
+    def _load_items_by_codes(cls, product_ids: set[str] | list[str] | tuple[str, ...]) -> list[Item]:
+        normalized_ids = [str(product_id or "").strip() for product_id in product_ids if str(product_id or "").strip()]
+        if not normalized_ids:
+            return []
+        rows = Item.query.filter(Item.codigo_item.in_(normalized_ids)).all()
+        rows.sort(key=lambda item: normalized_ids.index(str(item.codigo_item or "").strip()))
+        return rows
 
     @classmethod
     def _load_ledger_balances(cls, product_ids: list[str]) -> dict[str, float]:
@@ -721,6 +793,10 @@ class PurchaseProjectionService:
         suggested_quantity_base = max((consumption_average_base * float(coverage_days)) - balance_base, 0.0) if consumption_average_base > cls.BALANCE_TOLERANCE else 0.0
         price_unit_base = (procurement.get("price") or {}).get("unit_price_base")
         estimated_suggestion_value = round(float(price_unit_base) * suggested_quantity_base, 2) if cls._is_positive_number(price_unit_base) and suggested_quantity_base > cls.BALANCE_TOLERANCE else None
+        request_quantity_contract = cls._build_request_quantity_contract(item, unit_base)
+        request_factor_base = float(request_quantity_contract.get("factor_base") or 1.0)
+        suggested_quantity_input = suggested_quantity_base / request_factor_base if request_factor_base > cls.BALANCE_TOLERANCE else suggested_quantity_base
+        request_unit_price = round(float(price_unit_base) * request_factor_base, 4) if cls._is_positive_number(price_unit_base) else None
         status = cls._classify_row_status(
             balance_base=balance_base,
             consumption_average_base=consumption_average_base,
@@ -754,11 +830,15 @@ class PurchaseProjectionService:
             "days_remaining_display": cls._format_days_remaining(days_remaining),
             "coverage_days": coverage_days,
             "suggested_quantity_base": suggested_quantity_base,
-            "suggested_quantity_display": cls._format_quantity_display(suggested_quantity_base, item, unit_base),
+            "suggested_quantity_base_display": cls._format_quantity_display(suggested_quantity_base, item, unit_base),
+            "suggested_quantity_input": suggested_quantity_input,
+            "suggested_quantity_display": cls._format_request_quantity_display(suggested_quantity_input, request_quantity_contract),
             "estimated_suggestion_value": estimated_suggestion_value,
             "supplier": procurement.get("supplier") or {},
             "price_unit_base": price_unit_base,
-            "price_display": cls._format_currency_per_base(price_unit_base, unit_base),
+            "price_unit_request": request_unit_price,
+            "price_display": cls._format_currency_per_request(request_unit_price, request_quantity_contract),
+            "price_display_base": cls._format_currency_per_base(price_unit_base, unit_base),
             "price_source": (procurement.get("price") or {}).get("source") or "none",
             "price_source_label": cls.PRICE_SOURCE_LABELS.get((procurement.get("price") or {}).get("source") or "none", "Sem preco coerente"),
             "price_reference_document": (procurement.get("price") or {}).get("document_number"),
@@ -770,8 +850,16 @@ class PurchaseProjectionService:
             "validation_notes": validation_notes,
             "selected": False,
             "manual_quantity_input": None,
-            "manual_quantity_value": cls._format_number_input_value(suggested_quantity_base),
+            "manual_quantity_value": cls._format_number_input_value(suggested_quantity_input),
+            "request_quantity_mode": request_quantity_contract.get("mode"),
+            "request_quantity_factor_base": request_factor_base,
+            "request_quantity_unit_label": request_quantity_contract.get("unit_label"),
+            "request_quantity_unit_label_plural": request_quantity_contract.get("unit_label_plural"),
+            "request_quantity_short_label": request_quantity_contract.get("short_label"),
+            "request_quantity_note": request_quantity_contract.get("note"),
             "requested_quantity_base": None,
+            "requested_quantity_base_display": None,
+            "requested_quantity_input": None,
             "requested_quantity_display": None,
             "requested_total_value": None,
             "selection_note": None,
@@ -850,6 +938,7 @@ class PurchaseProjectionService:
         selected_set = {str(code or "").strip() for code in (selected_codes or []) if str(code or "").strip()}
         manual_map = {str(code or "").strip(): value for code, value in dict(manual_quantities or {}).items() if str(code or "").strip()}
         groups: dict[str, dict[str, Any]] = {}
+        category_groups: dict[str, dict[str, Any]] = {}
         messages: list[str] = []
         selected_count = 0
         total_value = 0.0
@@ -859,7 +948,6 @@ class PurchaseProjectionService:
             codigo = str(row.get("codigo_item") or "").strip()
             if codigo not in selected_set:
                 continue
-            selected_count += 1
             row["selected"] = True
             manual_raw = manual_map.get(codigo)
             manual_value, manual_error = cls._parse_manual_quantity(manual_raw)
@@ -873,18 +961,24 @@ class PurchaseProjectionService:
                     }
                 )
                 messages.append(f"{codigo}: {cls.VALIDATION_MESSAGES[manual_error]}")
-            requested_quantity = manual_value if manual_value is not None else float(row.get("suggested_quantity_base") or 0.0)
+            requested_quantity_input = manual_value if manual_value is not None else float(row.get("suggested_quantity_input") or 0.0)
+            request_factor_base = float(row.get("request_quantity_factor_base") or 1.0)
+            requested_quantity = requested_quantity_input * request_factor_base
             row["manual_quantity_input"] = manual_raw
-            row["manual_quantity_value"] = cls._format_number_input_value(requested_quantity)
+            row["manual_quantity_value"] = cls._format_number_input_value(requested_quantity_input)
+            row["requested_quantity_input"] = requested_quantity_input
             if requested_quantity <= cls.BALANCE_TOLERANCE:
                 row["requested_quantity_base"] = 0.0
-                row["requested_quantity_display"] = cls._format_quantity_display(0.0, None, row.get("unit_base"))
+                row["requested_quantity_base_display"] = cls._format_quantity_display(0.0, None, row.get("unit_base"))
+                row["requested_quantity_display"] = cls._format_request_quantity_display(0.0, row)
                 if manual_raw not in (None, ""):
                     messages.append(f"{codigo}: {cls.VALIDATION_MESSAGES['quantidade_manual_zerada']}")
                 continue
 
+            selected_count += 1
             row["requested_quantity_base"] = requested_quantity
-            row["requested_quantity_display"] = cls._format_quantity_display(requested_quantity, None, row.get("unit_base"))
+            row["requested_quantity_base_display"] = cls._format_quantity_display(requested_quantity, None, row.get("unit_base"))
+            row["requested_quantity_display"] = cls._format_request_quantity_display(requested_quantity_input, row)
             price_unit_base = row.get("price_unit_base")
             if cls._is_positive_number(price_unit_base):
                 row["requested_total_value"] = round(float(price_unit_base) * requested_quantity, 2)
@@ -910,6 +1004,21 @@ class PurchaseProjectionService:
             groups[supplier_key]["requested_quantity_total"] += requested_quantity
             groups[supplier_key]["requested_value_total"] += float(row.get("requested_total_value") or 0.0)
 
+            category_key = cls._category_group_key(row.get("categoria"))
+            category_groups.setdefault(
+                category_key,
+                {
+                    "category_key": category_key,
+                    "category_name": cls._category_display_name(row.get("categoria")),
+                    "items": [],
+                    "requested_quantity_total": 0.0,
+                    "requested_value_total": 0.0,
+                },
+            )
+            category_groups[category_key]["items"].append(row)
+            category_groups[category_key]["requested_quantity_total"] += requested_quantity
+            category_groups[category_key]["requested_value_total"] += float(row.get("requested_total_value") or 0.0)
+
         groups_list = sorted(
             groups.values(),
             key=lambda group: (
@@ -917,12 +1026,38 @@ class PurchaseProjectionService:
                 str(group.get("supplier_name") or "").lower(),
             ),
         )
+        for group in groups_list:
+            group["items"] = sorted(
+                list(group.get("items") or []),
+                key=lambda item: (
+                    cls._category_group_key(item.get("categoria")),
+                    str(item.get("descricao") or "").casefold(),
+                    str(item.get("codigo_item") or "").casefold(),
+                ),
+            )
+
+        category_groups_list = sorted(
+            category_groups.values(),
+            key=lambda group: cls._category_group_key(group.get("category_name")),
+        )
+        for group in category_groups_list:
+            group["items"] = sorted(
+                list(group.get("items") or []),
+                key=lambda item: (
+                    str((item.get("supplier") or {}).get("name") or "Sem fornecedor identificado").casefold(),
+                    str(item.get("descricao") or "").casefold(),
+                    str(item.get("codigo_item") or "").casefold(),
+                ),
+            )
+
         return {
             "selected_count": selected_count,
             "group_count": len(groups_list),
+            "category_group_count": len(category_groups_list),
             "requested_quantity_total": total_quantity,
             "requested_value_total": round(total_value, 2),
             "groups": groups_list,
+            "category_groups": category_groups_list,
             "messages": messages,
         }
 
@@ -941,9 +1076,41 @@ class PurchaseProjectionService:
             "no_history_items": sum(1 for row in visible_rows if row.get("status") == cls.STATUS_NO_HISTORY),
             "selected_items": int(cart.get("selected_count") or 0),
             "selected_groups": int(cart.get("group_count") or 0),
+            "selected_categories": int(cart.get("category_group_count") or 0),
             "selected_quantity_total": float(cart.get("requested_quantity_total") or 0.0),
             "selected_value_total": float(cart.get("requested_value_total") or 0.0),
         }
+
+    @classmethod
+    def _build_visible_category_groups(cls, rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        groups: dict[str, dict[str, Any]] = {}
+        for row in rows:
+            category_key = cls._category_group_key(row.get("categoria"))
+            groups.setdefault(
+                category_key,
+                {
+                    "category_key": category_key,
+                    "category_name": cls._category_display_name(row.get("categoria")),
+                    "visible_count": 0,
+                    "selected_count": 0,
+                    "requested_quantity_total": 0.0,
+                    "requested_value_total": 0.0,
+                },
+            )
+            groups[category_key]["visible_count"] += 1
+            if row.get("selected"):
+                groups[category_key]["selected_count"] += 1
+                groups[category_key]["requested_quantity_total"] += float(row.get("requested_quantity_base") or 0.0)
+                groups[category_key]["requested_value_total"] += float(row.get("requested_total_value") or 0.0)
+        return sorted(groups.values(), key=lambda group: str(group.get("category_key") or ""))
+
+    @staticmethod
+    def _category_display_name(value: object) -> str:
+        return str(value or "Sem categoria").strip() or "Sem categoria"
+
+    @classmethod
+    def _category_group_key(cls, value: object) -> str:
+        return cls._category_display_name(value).casefold()
 
     @classmethod
     def _classify_row_status(
@@ -1062,6 +1229,56 @@ class PurchaseProjectionService:
         return parsed, None
 
     @classmethod
+    def _build_request_quantity_contract(cls, item: Item, unit_base: object) -> dict[str, Any]:
+        base_unit = cls._normalize_unit(unit_base)
+        base_label = str(item.get_unidade_interna_display() or base_unit or "base").strip() or "base"
+        package_type = str(getattr(item, "tipo_embalagem_novo", None) or getattr(item, "tipo_embalagem", None) or "").strip().lower()
+        unit_raw = cls._normalize_unit(getattr(item, "unidade", None))
+        inferred_measure = infer_packaging_measure(item)
+        inferred_factor = float((inferred_measure or (0.0, None))[0] or 0.0) if inferred_measure else 0.0
+        factor_base = float(resolve_packaging_factor(item) or 0.0)
+        if inferred_factor > cls.BALANCE_TOLERANCE:
+            factor_base = inferred_factor
+
+        use_request_units = False
+        helper_context: str | None = None
+        if base_unit == "un":
+            use_request_units = True
+            factor_base = 1.0
+        elif package_type and factor_base > cls.BALANCE_TOLERANCE:
+            use_request_units = True
+            if package_type not in {"", "litro"}:
+                try:
+                    helper_context = item.get_nome_embalagem()
+                except Exception:
+                    helper_context = package_type
+        elif unit_raw in cls.REQUEST_UNIT_ALIASES and factor_base > cls.BALANCE_TOLERANCE:
+            use_request_units = True
+
+        if not use_request_units or factor_base <= cls.BALANCE_TOLERANCE:
+            return {
+                "mode": "base",
+                "factor_base": 1.0,
+                "unit_label": base_label,
+                "unit_label_plural": base_label,
+                "short_label": base_label,
+                "note": f"pedido em unidade base: {base_label}",
+            }
+
+        factor_display = cls._format_simple_value(factor_base, base_label)
+        note = f"1 unidade = {factor_display}"
+        if helper_context:
+            note = f"{note} ({helper_context})"
+        return {
+            "mode": "request_unit",
+            "factor_base": factor_base,
+            "unit_label": "unidade",
+            "unit_label_plural": "unidades",
+            "short_label": "un",
+            "note": note,
+        }
+
+    @classmethod
     def _normalize_int(cls, value: object, *, default: int, minimum: int, maximum: int) -> int:
         try:
             parsed = int(str(value).strip()) if value not in (None, "") else default
@@ -1132,6 +1349,15 @@ class PurchaseProjectionService:
         return f"{formatted}/{cls._normalize_unit(unit_base) or 'base'}"
 
     @classmethod
+    def _format_currency_per_request(cls, value: object, request_contract: dict[str, Any] | None) -> str | None:
+        if not cls._is_positive_number(value):
+            return None
+        amount = float(value or 0.0)
+        formatted = f"R$ {amount:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+        label = str((request_contract or {}).get("unit_label") or "unidade").strip() or "unidade"
+        return f"{formatted}/{label}"
+
+    @classmethod
     def _format_simple_value(cls, value: float, unit_hint: str | None) -> str:
         parsed = float(value or 0.0)
         if abs(parsed - round(parsed)) <= 1e-6:
@@ -1140,6 +1366,28 @@ class PurchaseProjectionService:
             number = f"{parsed:.6f}".rstrip("0").rstrip(".")
         unit = str(unit_hint or "").strip()
         return f"{number} {unit}".strip()
+
+    @classmethod
+    def _format_request_quantity_display(cls, value: object, request_contract: dict[str, Any] | None) -> str:
+        try:
+            parsed = float(value or 0.0)
+        except (TypeError, ValueError):
+            parsed = 0.0
+        if abs(parsed) <= cls.BALANCE_TOLERANCE:
+            parsed = 0.0
+        number = cls._format_number_input_value(parsed)
+        singular = str(
+            (request_contract or {}).get("unit_label")
+            or (request_contract or {}).get("request_quantity_unit_label")
+            or "unidade"
+        ).strip() or "unidade"
+        plural = str(
+            (request_contract or {}).get("unit_label_plural")
+            or (request_contract or {}).get("request_quantity_unit_label_plural")
+            or singular
+        ).strip() or singular
+        label = singular if abs(parsed - 1.0) <= 1e-6 else plural
+        return f"{number} {label}".strip()
 
     @classmethod
     def _format_number_input_value(cls, value: object) -> str:

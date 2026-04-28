@@ -9,6 +9,21 @@
         {{ ('R$ {:,.2f}'.format(value)).replace(',', 'X').replace('.', ',').replace('X', '.') }}
     {%- endif -%}
 {%- endmacro %}
+{% macro qty(value) -%}
+    {%- set parsed = value if value is not none else 0 -%}
+    {{ ('{:,.6f}'.format(parsed)).replace(',', 'X').replace('.', ',').replace('X', '.').rstrip('0').rstrip(',') or '0' }}
+{%- endmacro %}
+{% macro projection_hidden_filters(filters) -%}
+    <input type="hidden" name="search" value="{{ filters.search }}">
+    <input type="hidden" name="category" value="{{ filters.category }}">
+    <input type="hidden" name="brand" value="{{ filters.brand }}">
+    <input type="hidden" name="window_days" value="{{ filters.window_days }}">
+    <input type="hidden" name="coverage_days" value="{{ filters.coverage_days }}">
+    <input type="hidden" name="status" value="{{ filters.status }}">
+    {% if filters.include_inactive %}
+    <input type="hidden" name="include_inactive" value="1">
+    {% endif %}
+{%- endmacro %}
 <style>
     .projection-shell {
         display: grid;
@@ -232,6 +247,53 @@
         margin-bottom: 0.4rem;
     }
 
+    .projection-cart-toolbar {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.85rem;
+        align-items: flex-start;
+        flex-wrap: wrap;
+        margin-bottom: 0.75rem;
+    }
+
+    .projection-category-action-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+    }
+
+    .projection-category-action-card {
+        border: 1px solid rgba(148, 163, 184, 0.24);
+        border-radius: 0.95rem;
+        background: #fff;
+        padding: 0.9rem;
+        display: grid;
+        gap: 0.7rem;
+    }
+
+    .projection-category-action-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.75rem;
+        align-items: flex-start;
+    }
+
+    .projection-cart-item-copy {
+        display: grid;
+        gap: 0.18rem;
+    }
+
+    .projection-cart-item-meta {
+        color: #64748b;
+        font-size: 0.78rem;
+    }
+
+    .projection-cart-total-row {
+        padding-top: 0.45rem;
+        border-top: 1px dashed rgba(148, 163, 184, 0.45);
+    }
+
     .projection-cart-item {
         display: flex;
         justify-content: space-between;
@@ -290,6 +352,21 @@
 
     .projection-summary-note.is-live {
         color: #0f766e;
+        font-weight: 600;
+    }
+
+    .projection-sync-status {
+        color: #475569;
+        font-size: 0.82rem;
+    }
+
+    .projection-sync-status.is-pending {
+        color: #1d4ed8;
+        font-weight: 600;
+    }
+
+    .projection-sync-status.is-error {
+        color: #b91c1c;
         font-weight: 600;
     }
 
@@ -559,46 +636,71 @@
         <article class="projection-summary-card">
             <div class="projection-summary-label">Selecionados</div>
             <div class="projection-summary-value text-success" id="projection-selected-count">{{ summary.selected_items }}</div>
-            <div class="projection-summary-note" id="projection-selected-note" data-default-note="{{ summary.selected_groups }} fornecedor(es) no carrinho.">{{ summary.selected_groups }} fornecedor(es) no carrinho.</div>
+            <div class="projection-summary-note" id="projection-selected-note" data-default-note="{{ summary.selected_categories }} categoria(s) e {{ summary.selected_groups }} fornecedor(es) no carrinho.">{{ summary.selected_categories }} categoria(s) e {{ summary.selected_groups }} fornecedor(es) no carrinho.</div>
         </article>
         <article class="projection-summary-card">
             <div class="projection-summary-label">Total do carrinho</div>
             <div class="projection-summary-value" id="projection-selected-total">{{ brl(summary.selected_value_total) }}</div>
-            <div class="projection-summary-note" id="projection-selected-total-note" data-default-note="{{ summary.selected_quantity_total }} em unidade base.">{{ summary.selected_quantity_total }} em unidade base.</div>
+            <div class="projection-summary-note" id="projection-selected-total-note" data-default-note="{{ qty(summary.selected_quantity_total) }} em unidade base.">{{ qty(summary.selected_quantity_total) }} em unidade base.</div>
         </article>
     </section>
 
     <section class="projection-panel">
         <div class="projection-cart-grid">
             <div>
-                <div class="projection-kicker">Carrinho Consolidado</div>
-                <h2 class="h5 mb-2">Resumo por fornecedor</h2>
-                {% if cart.messages %}
-                <div class="alert alert-warning">
-                    {% for message in cart.messages %}
-                    <div>{{ message }}</div>
-                    {% endfor %}
+                <div class="projection-cart-toolbar">
+                    <div>
+                        <div class="projection-kicker">Carrinho Consolidado</div>
+                        <h2 class="h5 mb-1">Resumo por categoria</h2>
+                        <div class="projection-muted">Selecionar o item com quantidade positiva já coloca no carrinho automaticamente. Desmarcar remove da consolidação.</div>
+                    </div>
+                    <form method="post" class="m-0">
+                        {{ projection_hidden_filters(filters) }}
+                        <input type="hidden" name="clear_projection_cart" value="1">
+                        <button class="btn btn-outline-secondary btn-sm" type="submit" {% if not cart.category_groups %}disabled{% endif %}>Limpar carrinho</button>
+                    </form>
                 </div>
+                <div id="projection-cart-messages">
+                {% if cart.messages %}
+                    <div class="alert alert-warning">
+                        {% for message in cart.messages %}
+                        <div>{{ message }}</div>
+                        {% endfor %}
+                    </div>
                 {% endif %}
-                {% if cart.groups %}
-                    {% for group in cart.groups %}
+                </div>
+                <div id="projection-cart-summary" data-empty-message="Selecione itens com quantidade positiva para montar o carrinho automaticamente. O resumo fica salvo enquanto você alterna os filtros da projeção.">
+                {% if cart.category_groups %}
+                    {% for group in cart.category_groups %}
                     <div class="projection-cart-group">
-                        <h3>{{ group.supplier_name }}</h3>
+                        <h3>{{ group.category_name }}</h3>
+                        <div class="projection-muted mb-2">{{ group['items']|length }} item(ns) no carrinho desta categoria</div>
                         {% for item in group['items'] %}
                         <div class="projection-cart-item">
-                            <span>{{ item.descricao }} <span class="projection-muted">{{ item.requested_quantity_display }}</span></span>
+                            <span class="projection-cart-item-copy">
+                                <span>{{ item.descricao }} <span class="projection-muted">{{ item.requested_quantity_display }}</span></span>
+                                {% if item.requested_quantity_base_display and item.requested_quantity_base_display != item.requested_quantity_display %}
+                                <span class="projection-cart-item-meta">Equivale a {{ item.requested_quantity_base_display }} na unidade base</span>
+                                {% endif %}
+                                <span class="projection-cart-item-meta">{{ item.supplier.name or 'Sem fornecedor identificado' }}{% if item.marca %} • {{ item.marca }}{% endif %}</span>
+                            </span>
                             <span>{{ brl(item.requested_total_value) }}</span>
                         </div>
                         {% endfor %}
-                        <div class="projection-cart-item mt-2 fw-semibold">
-                            <span>Total do fornecedor</span>
+                        <div class="projection-cart-item projection-cart-total-row mt-2 fw-semibold">
+                            <span>Subtotal da categoria</span>
                             <span>{{ brl(group.requested_value_total) }}</span>
                         </div>
                     </div>
                     {% endfor %}
+                    <div class="projection-cart-item projection-cart-total-row mt-3 fw-semibold">
+                        <span>Subtotal geral do carrinho</span>
+                        <span>{{ brl(cart.requested_value_total) }}</span>
+                    </div>
                 {% else %}
-                <p class="text-muted mb-0">Selecione itens e ajuste a quantidade final em unidade base para formar o pedido consolidado.</p>
+                <p class="text-muted mb-0">Selecione itens com quantidade positiva para montar o carrinho automaticamente. O resumo fica salvo enquanto você alterna os filtros da projeção.</p>
                 {% endif %}
+                </div>
             </div>
             <div>
                 <div class="projection-kicker">Controles</div>
@@ -608,6 +710,7 @@
                     <li>Embalagem aparece só como apoio visual.</li>
                     <li>Preço sempre é tratado por unidade base.</li>
                     <li>Fornecedor/preço sem coerência explícita viram alerta, não pedido automático.</li>
+                    <li>O carrinho persiste entre categorias até você limpar ou exportar.</li>
                 </ul>
             </div>
         </div>
@@ -691,22 +794,14 @@
             {% endfor %}
         </div>
         {% else %}
-        <form method="post" id="projection-operational-form">
-            <input type="hidden" name="search" value="{{ filters.search }}">
-            <input type="hidden" name="category" value="{{ filters.category }}">
-            <input type="hidden" name="brand" value="{{ filters.brand }}">
-            <input type="hidden" name="window_days" value="{{ filters.window_days }}">
-            <input type="hidden" name="coverage_days" value="{{ filters.coverage_days }}">
-            <input type="hidden" name="status" value="{{ filters.status }}">
-            {% if filters.include_inactive %}
-            <input type="hidden" name="include_inactive" value="1">
-            {% endif %}
+        <form method="post" id="projection-operational-form" data-sync-url="{{ url_for('inventory.purchase_projection_sync') }}" data-persisted-selected-count="{{ summary.selected_items }}" data-persisted-selected-quantity="{{ summary.selected_quantity_total }}" data-persisted-selected-value="{{ summary.selected_value_total }}">
+            {{ projection_hidden_filters(filters) }}
             <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap mb-3">
                 <div>
                     <div class="projection-kicker">Tabela Operacional</div>
                     <h2 class="h5 mb-0">Itens projetados</h2>
                 </div>
-                <div class="d-flex gap-2 flex-wrap">
+                <div class="d-flex gap-2 flex-wrap align-items-center">
                     <button
                         class="btn btn-outline-primary"
                         id="projection-toggle-selection"
@@ -714,11 +809,15 @@
                         data-select-label="Selecionar todos"
                         data-clear-label="Desmarcar todos"
                     >Selecionar todos</button>
-                    <button class="btn btn-primary" type="submit">Atualizar carrinho</button>
-                    <button class="btn btn-success" id="projection-export-button" type="submit" formaction="{{ url_for('inventory.purchase_projection_export_xlsx') }}">Exportar XLS do pedido</button>
+                    <button class="d-none" type="submit" aria-hidden="true" tabindex="-1">Salvar seleção</button>
+                    <span class="projection-sync-status" id="projection-sync-status">Carrinho salvo automaticamente.</span>
+                    <button class="btn btn-success" id="projection-export-button" type="submit" formaction="{{ url_for('inventory.purchase_projection_export_xlsx') }}">Exportar XLS final</button>
+                    <noscript>
+                        <button class="btn btn-primary" type="submit">Salvar seleção</button>
+                    </noscript>
                 </div>
             </div>
-            <div class="projection-operational-note">Selecione um ou mais itens, use o botão para marcar ou limpar tudo de uma vez, ajuste a quantidade manual se necessário e exporte sem precisar lidar com foco indevido no campo numérico.</div>
+            <div class="projection-operational-note">O carrinho agora é sincronizado automaticamente. Marcar um item com quantidade positiva adiciona na hora; desmarcar remove; mudar a quantidade atualiza a consolidação sem botões extras.</div>
             <div class="table-responsive">
                 <table class="table table-sm align-middle projection-table">
                     <thead>
@@ -730,7 +829,7 @@
                             <th>Média/dia</th>
                             <th>Dias restantes</th>
                             <th>Sugestão</th>
-                            <th>Ajuste manual</th>
+                            <th>Qtd. pedido</th>
                             <th>Fornecedor</th>
                             <th>Preço</th>
                             <th>Status e validações</th>
@@ -738,7 +837,7 @@
                     </thead>
                     <tbody>
                         {% for row in rows %}
-                        <tr class="{% if row.status == 'critical' %}table-danger{% elif row.status == 'attention' %}table-warning{% endif %}{% if row.selected %} is-selected{% endif %}" data-projection-row data-price-unit-base="{{ row.price_unit_base if row.price_unit_base is not none else '' }}">
+                        <tr class="{% if row.status == 'critical' %}table-danger{% elif row.status == 'attention' %}table-warning{% endif %}{% if row.selected %} is-selected{% endif %}" data-projection-row data-projection-code="{{ row.codigo_item }}" data-price-unit-base="{{ row.price_unit_base if row.price_unit_base is not none else '' }}" data-request-factor-base="{{ row.request_quantity_factor_base if row.request_quantity_factor_base is not none else 1 }}" data-server-selected="{{ '1' if (row.requested_quantity_base if row.requested_quantity_base is not none else 0) > 0 else '0' }}" data-server-requested-quantity-base="{{ row.requested_quantity_base if row.requested_quantity_base is not none else '' }}" data-server-requested-total-value="{{ row.requested_total_value if row.requested_total_value is not none else '' }}">
                             <td>
                                 <div class="form-check">
                                     <input class="form-check-input" data-projection-select type="checkbox" name="selected_items" value="{{ row.codigo_item }}" {% if row.selected %}checked{% endif %}>
@@ -767,6 +866,9 @@
                             </td>
                             <td>
                                 <div class="projection-value">{{ row.suggested_quantity_display }}</div>
+                                {% if row.suggested_quantity_base_display and row.suggested_quantity_base_display != row.suggested_quantity_display %}
+                                <div class="projection-muted">equivale a {{ row.suggested_quantity_base_display }}</div>
+                                {% endif %}
                                 <div class="projection-muted">{{ brl(row.estimated_suggestion_value) }}</div>
                             </td>
                             <td>
@@ -780,7 +882,7 @@
                                     name="manual_qty__{{ row.codigo_item }}"
                                     value="{{ row.manual_quantity_value }}"
                                 >
-                                <div class="projection-muted mt-1">unidade base: {{ row.unit_base_label }}</div>
+                                <div class="projection-muted mt-1">{{ row.request_quantity_note }}</div>
                             </td>
                             <td>
                                 <div class="projection-value">{{ row.supplier.name or 'Sem fornecedor identificado' }}</div>
@@ -788,6 +890,9 @@
                             </td>
                             <td>
                                 <div class="projection-value">{{ row.price_display or '-' }}</div>
+                                {% if row.price_display_base and row.price_display_base != row.price_display %}
+                                <div class="projection-muted">base: {{ row.price_display_base }}</div>
+                                {% endif %}
                                 <div class="projection-muted">{{ row.price_source_label }}</div>
                                 {% if row.price_reference_document %}
                                 <div class="projection-muted">{{ row.price_reference_type or '' }} {{ row.price_reference_document }}</div>
@@ -841,8 +946,20 @@
         const selectedTotalNoteEl = document.getElementById('projection-selected-total-note');
         const exportButton = document.getElementById('projection-export-button');
         const toggleSelectionButton = document.getElementById('projection-toggle-selection');
+        const syncStatusEl = document.getElementById('projection-sync-status');
+        const cartSummaryEl = document.getElementById('projection-cart-summary');
+        const cartMessagesEl = document.getElementById('projection-cart-messages');
+        const syncUrl = form.dataset.syncUrl || '';
         const currencyFormatter = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
         const numberFormatter = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 6 });
+        let persistedSelectedCount = Number.parseInt(form.dataset.persistedSelectedCount || '0', 10) || 0;
+        let persistedSelectedQuantity = Number.parseFloat(String(form.dataset.persistedSelectedQuantity || '0').replace(',', '.')) || 0;
+        let persistedSelectedValue = Number.parseFloat(String(form.dataset.persistedSelectedValue || '0').replace(',', '.')) || 0;
+        let syncTimer = null;
+        let syncRequestId = 0;
+        let syncController = null;
+        let syncInFlight = false;
+        let syncError = false;
 
         const getSelectableCheckboxes = () => rows
             .map((row) => row.querySelector('[data-projection-select]'))
@@ -854,28 +971,163 @@
             return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
         };
 
+        const escapeHtml = (value) => String(value ?? '')
+            .replaceAll('&', '&amp;')
+            .replaceAll('<', '&lt;')
+            .replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;')
+            .replaceAll("'", '&#39;');
+
+        const formatQuantity = (value) => numberFormatter.format(Number(value || 0));
+
+        const setSyncStatus = (message, tone = '') => {
+            if (!syncStatusEl) {
+                return;
+            }
+            syncStatusEl.textContent = message;
+            syncStatusEl.classList.toggle('is-pending', tone === 'pending');
+            syncStatusEl.classList.toggle('is-error', tone === 'error');
+        };
+
+        const buildDefaultSelectedNote = (summary) => `${summary.selected_categories || 0} categoria(s) e ${summary.selected_groups || 0} fornecedor(es) no carrinho.`;
+        const buildDefaultTotalNote = (summary) => `${formatQuantity(summary.selected_quantity_total || 0)} em unidade base.`;
+
+        const renderCartMessages = (cart) => {
+            if (!cartMessagesEl) {
+                return;
+            }
+            const messages = Array.isArray(cart?.messages) ? cart.messages.filter(Boolean) : [];
+            if (!messages.length) {
+                cartMessagesEl.innerHTML = '';
+                return;
+            }
+            cartMessagesEl.innerHTML = `<div class="alert alert-warning">${messages.map((message) => `<div>${escapeHtml(message)}</div>`).join('')}</div>`;
+        };
+
+        const renderCartSummary = (cart) => {
+            if (!cartSummaryEl) {
+                return;
+            }
+            const groups = Array.isArray(cart?.category_groups) ? cart.category_groups : [];
+            if (!groups.length) {
+                cartSummaryEl.innerHTML = `<p class="text-muted mb-0">${escapeHtml(cartSummaryEl.dataset.emptyMessage || 'Nenhum item no carrinho.')}</p>`;
+                return;
+            }
+
+            cartSummaryEl.innerHTML = groups.map((group) => {
+                const items = Array.isArray(group?.items) ? group.items : [];
+                const itemsHtml = items.map((item) => {
+                    const requestedDisplay = item?.requested_quantity_display || '';
+                    const requestedBaseDisplay = item?.requested_quantity_base_display || '';
+                    const supplierName = item?.supplier?.name || 'Sem fornecedor identificado';
+                    const brandText = item?.marca ? ` • ${escapeHtml(item.marca)}` : '';
+                    const baseNote = requestedBaseDisplay && requestedBaseDisplay !== requestedDisplay
+                        ? `<span class="projection-cart-item-meta">Equivale a ${escapeHtml(requestedBaseDisplay)} na unidade base</span>`
+                        : '';
+                    return `
+                        <div class="projection-cart-item">
+                            <span class="projection-cart-item-copy">
+                                <span>${escapeHtml(item?.descricao || '')} <span class="projection-muted">${escapeHtml(requestedDisplay)}</span></span>
+                                ${baseNote}
+                                <span class="projection-cart-item-meta">${escapeHtml(supplierName)}${brandText}</span>
+                            </span>
+                            <span>${currencyFormatter.format(Number(item?.requested_total_value || 0))}</span>
+                        </div>
+                    `;
+                }).join('');
+                return `
+                    <div class="projection-cart-group">
+                        <h3>${escapeHtml(group?.category_name || 'Sem categoria')}</h3>
+                        <div class="projection-muted mb-2">${items.length} item(ns) no carrinho desta categoria</div>
+                        ${itemsHtml}
+                        <div class="projection-cart-item projection-cart-total-row mt-2 fw-semibold">
+                            <span>Subtotal da categoria</span>
+                            <span>${currencyFormatter.format(Number(group?.requested_value_total || 0))}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('') + `
+                <div class="projection-cart-item projection-cart-total-row mt-3 fw-semibold">
+                    <span>Subtotal geral do carrinho</span>
+                    <span>${currencyFormatter.format(Number(cart?.requested_value_total || 0))}</span>
+                </div>
+            `;
+        };
+
+        const applyServerState = (payloadRows) => {
+            const rowsByCode = new Map(
+                (Array.isArray(payloadRows) ? payloadRows : [])
+                    .map((row) => [String(row?.codigo_item || ''), row])
+                    .filter(([code]) => code),
+            );
+
+            rows.forEach((row) => {
+                const code = row.dataset.projectionCode || '';
+                if (!rowsByCode.has(code)) {
+                    return;
+                }
+                const payloadRow = rowsByCode.get(code) || {};
+                row.dataset.serverSelected = payloadRow.in_cart ? '1' : '0';
+                row.dataset.serverRequestedQuantityBase = payloadRow.requested_quantity_base ?? '';
+                row.dataset.serverRequestedTotalValue = payloadRow.requested_total_value ?? '';
+
+                const checkbox = row.querySelector('[data-projection-select]');
+                if (checkbox instanceof HTMLInputElement) {
+                    checkbox.checked = Boolean(payloadRow.selected);
+                }
+
+                const quantityInput = row.querySelector('[data-projection-quantity]');
+                if (
+                    quantityInput instanceof HTMLInputElement
+                    && document.activeElement !== quantityInput
+                    && typeof payloadRow.manual_quantity_value === 'string'
+                ) {
+                    quantityInput.value = payloadRow.manual_quantity_value;
+                }
+            });
+        };
+
         const updateSelectionPreview = () => {
-            let selectedCount = 0;
-            let selectedQuantityTotal = 0;
-            let selectedValueTotal = 0;
+            let selectedCount = persistedSelectedCount;
+            let selectedQuantityTotal = persistedSelectedQuantity;
+            let selectedValueTotal = persistedSelectedValue;
+            let hasPendingChanges = false;
 
             rows.forEach((row) => {
                 const checkbox = row.querySelector('[data-projection-select]');
                 const quantityInput = row.querySelector('[data-projection-quantity]');
                 const isSelected = checkbox instanceof HTMLInputElement && checkbox.checked;
+                const serverSelected = row.dataset.serverSelected === '1';
+                const serverQuantity = parseQuantity(row.dataset.serverRequestedQuantityBase || '0');
+                const serverValue = Number.parseFloat(String(row.dataset.serverRequestedTotalValue || '').replace(',', '.')) || 0;
+                const requestFactorBase = Number.parseFloat(String(row.dataset.requestFactorBase || '1').replace(',', '.')) || 1;
+                const quantity = parseQuantity(quantityInput instanceof HTMLInputElement ? quantityInput.value : '0');
+                const quantityBase = quantity * requestFactorBase;
+                const localInCart = isSelected && quantityBase > 0;
                 row.classList.toggle('is-selected', isSelected);
-                if (!isSelected) {
-                    return;
+                if (serverSelected) {
+                    selectedCount -= 1;
+                    selectedQuantityTotal -= serverQuantity;
+                    selectedValueTotal -= serverValue;
                 }
 
-                selectedCount += 1;
-                const quantity = parseQuantity(quantityInput instanceof HTMLInputElement ? quantityInput.value : '0');
-                selectedQuantityTotal += quantity;
-                const unitPrice = Number.parseFloat(String(row.dataset.priceUnitBase || '').replace(',', '.'));
-                if (Number.isFinite(unitPrice) && unitPrice > 0 && quantity > 0) {
-                    selectedValueTotal += unitPrice * quantity;
+                if (localInCart) {
+                    selectedCount += 1;
+                    selectedQuantityTotal += quantityBase;
+                    const unitPrice = Number.parseFloat(String(row.dataset.priceUnitBase || '').replace(',', '.'));
+                    if (Number.isFinite(unitPrice) && unitPrice > 0 && quantityBase > 0) {
+                        selectedValueTotal += unitPrice * quantityBase;
+                    }
+                }
+
+                if (localInCart !== serverSelected || (localInCart && Math.abs(quantityBase - serverQuantity) > 1e-6)) {
+                    hasPendingChanges = true;
                 }
             });
+
+            selectedCount = Math.max(selectedCount, 0);
+            selectedQuantityTotal = Math.max(selectedQuantityTotal, 0);
+            selectedValueTotal = Math.max(selectedValueTotal, 0);
 
             if (selectedCountEl) {
                 selectedCountEl.textContent = String(selectedCount);
@@ -885,17 +1137,23 @@
             }
             if (selectedNoteEl) {
                 const defaultNote = selectedNoteEl.dataset.defaultNote || '';
-                selectedNoteEl.textContent = selectedCount > 0
-                    ? 'Prévia local atualizada. Atualize o carrinho ou exporte para consolidar por fornecedor.'
-                    : defaultNote;
-                selectedNoteEl.classList.toggle('is-live', selectedCount > 0);
+                if (syncError) {
+                    selectedNoteEl.textContent = 'Falha ao sincronizar automaticamente. Revise a conexão e tente novamente.';
+                } else if (syncInFlight) {
+                    selectedNoteEl.textContent = 'Salvando o carrinho automaticamente...';
+                } else if (hasPendingChanges) {
+                    selectedNoteEl.textContent = 'Prévia local atualizada. O carrinho será sincronizado automaticamente.';
+                } else {
+                    selectedNoteEl.textContent = defaultNote;
+                }
+                selectedNoteEl.classList.toggle('is-live', syncInFlight || hasPendingChanges || syncError);
             }
             if (selectedTotalNoteEl) {
                 const defaultNote = selectedTotalNoteEl.dataset.defaultNote || '';
-                selectedTotalNoteEl.textContent = selectedCount > 0
-                    ? `${numberFormatter.format(selectedQuantityTotal)} em unidade base na prévia local.`
+                selectedTotalNoteEl.textContent = (syncInFlight || hasPendingChanges)
+                    ? `${numberFormatter.format(selectedQuantityTotal)} em unidade base na prévia automática.`
                     : defaultNote;
-                selectedTotalNoteEl.classList.toggle('is-live', selectedCount > 0);
+                selectedTotalNoteEl.classList.toggle('is-live', syncInFlight || hasPendingChanges);
             }
             if (exportButton instanceof HTMLButtonElement) {
                 exportButton.disabled = selectedCount === 0;
@@ -910,6 +1168,95 @@
             }
         };
 
+        const syncCartState = async () => {
+            if (!syncUrl) {
+                return;
+            }
+
+            syncInFlight = true;
+            syncError = false;
+            setSyncStatus('Salvando carrinho automaticamente...', 'pending');
+            updateSelectionPreview();
+
+            if (syncController) {
+                syncController.abort();
+            }
+
+            const requestId = ++syncRequestId;
+            syncController = new AbortController();
+
+            try {
+                const response = await window.galintFetchWithAuth(
+                    syncUrl,
+                    {
+                        method: 'POST',
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        body: new FormData(form),
+                        signal: syncController.signal,
+                    },
+                    'Sua sessão expirou durante a sincronização automática do carrinho. Faça login novamente.',
+                );
+                if (!response.ok) {
+                    throw new Error('Falha ao sincronizar o carrinho.');
+                }
+                const payload = await response.json();
+                if (requestId !== syncRequestId) {
+                    return;
+                }
+
+                const summary = payload?.summary || {};
+                persistedSelectedCount = Number.parseInt(String(summary.selected_items || '0'), 10) || 0;
+                persistedSelectedQuantity = Number.parseFloat(String(summary.selected_quantity_total || '0').replace(',', '.')) || 0;
+                persistedSelectedValue = Number.parseFloat(String(summary.selected_value_total || '0').replace(',', '.')) || 0;
+                form.dataset.persistedSelectedCount = String(persistedSelectedCount);
+                form.dataset.persistedSelectedQuantity = String(persistedSelectedQuantity);
+                form.dataset.persistedSelectedValue = String(persistedSelectedValue);
+
+                if (selectedNoteEl) {
+                    selectedNoteEl.dataset.defaultNote = buildDefaultSelectedNote(summary);
+                }
+                if (selectedTotalNoteEl) {
+                    selectedTotalNoteEl.dataset.defaultNote = buildDefaultTotalNote(summary);
+                }
+
+                renderCartMessages(payload?.cart || {});
+                renderCartSummary(payload?.cart || {});
+                applyServerState(payload?.rows || []);
+                syncInFlight = false;
+                syncError = false;
+                setSyncStatus('Carrinho salvo automaticamente.');
+                updateSelectionPreview();
+            } catch (error) {
+                if (error && error.name === 'AbortError') {
+                    return;
+                }
+                if (error && error.isAuthRedirect) {
+                    return;
+                }
+                syncInFlight = false;
+                syncError = true;
+                setSyncStatus('Falha ao salvar automaticamente.', 'error');
+                updateSelectionPreview();
+            }
+        };
+
+        const scheduleCartSync = (delay = 220) => {
+            if (!syncUrl) {
+                return;
+            }
+            if (syncTimer) {
+                window.clearTimeout(syncTimer);
+            }
+            setSyncStatus('Alterações pendentes...', 'pending');
+            syncTimer = window.setTimeout(() => {
+                syncTimer = null;
+                syncCartState();
+            }, delay);
+        };
+
         if (toggleSelectionButton instanceof HTMLButtonElement) {
             toggleSelectionButton.addEventListener('click', () => {
                 const checkboxes = getSelectableCheckboxes();
@@ -922,6 +1269,7 @@
                     checkbox.checked = shouldSelectAll;
                 });
                 updateSelectionPreview();
+                scheduleCartSync(120);
             });
         }
 
@@ -931,6 +1279,7 @@
             }
             if (event.target.matches('[data-projection-select], [data-projection-quantity]')) {
                 updateSelectionPreview();
+                scheduleCartSync(event.target.matches('[data-projection-select]') ? 120 : 220);
             }
         });
 
@@ -940,9 +1289,11 @@
             }
             if (event.target.matches('[data-projection-quantity]')) {
                 updateSelectionPreview();
+                scheduleCartSync(380);
             }
         });
 
+        setSyncStatus('Carrinho salvo automaticamente.');
         updateSelectionPreview();
     })();
 </script>
