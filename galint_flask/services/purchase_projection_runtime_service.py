@@ -6,7 +6,7 @@ from math import isfinite
 from typing import Any
 
 from openpyxl import Workbook
-from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+from openpyxl.styles import Alignment, Border, Font, PatternFill, Protection, Side
 from openpyxl.utils import get_column_letter
 from sqlalchemy import case, func, or_
 
@@ -265,10 +265,13 @@ class PurchaseProjectionService:
             top=Side(style="thin", color="CBD5E1"),
             bottom=Side(style="thin", color="CBD5E1"),
         )
+        unlocked_protection = Protection(locked=False)
+        locked_protection = Protection(locked=True)
         title_fill = PatternFill(start_color="0F172A", end_color="0F172A", fill_type="solid")
         header_fill = PatternFill(start_color="1D4ED8", end_color="1D4ED8", fill_type="solid")
         total_fill = PatternFill(start_color="FEF3C7", end_color="FEF3C7", fill_type="solid")
         footer_fill = PatternFill(start_color="E2E8F0", end_color="E2E8F0", fill_type="solid")
+        value_fill = PatternFill(start_color="FDE9D9", end_color="FDE9D9", fill_type="solid")
 
         current_row = 1
         company_lines = get_company_header_lines()
@@ -278,6 +281,7 @@ class PurchaseProjectionService:
             cell.value = line
             cell.font = Font(bold=(index == 0), size=18 if index == 0 else 11, color="0F172A")
             cell.alignment = Alignment(horizontal="center", vertical="center")
+            cell.protection = unlocked_protection
             sheet.row_dimensions[current_row].height = 28 if index == 0 else 18
             current_row += 1
 
@@ -288,6 +292,7 @@ class PurchaseProjectionService:
         title_cell.font = Font(bold=True, size=16, color="FFFFFF")
         title_cell.alignment = Alignment(horizontal="center", vertical="center")
         title_cell.border = border
+        title_cell.protection = unlocked_protection
         sheet.row_dimensions[current_row].height = 26
         current_row += 2
 
@@ -311,6 +316,7 @@ class PurchaseProjectionService:
             cell.font = Font(bold=True, size=12, color="FFFFFF")
             cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
             cell.border = border
+            cell.protection = locked_protection if column_index in {6, 7, 8} else unlocked_protection
         sheet.row_dimensions[header_row].height = 24
         sheet.freeze_panes = f"A{header_row + 1}"
 
@@ -340,6 +346,7 @@ class PurchaseProjectionService:
             cell.value = "Nenhum item selecionado para exportacao."
             cell.alignment = Alignment(horizontal="center", vertical="center")
             cell.font = Font(size=12, italic=True, color="64748B")
+            cell.protection = unlocked_protection
             data_end_row = data_start_row
         else:
             for offset, item in enumerate(export_rows, start=0):
@@ -359,14 +366,21 @@ class PurchaseProjectionService:
                     cell.border = border
                     cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
                     cell.font = Font(size=12, bold=(column_index == 3), color="0F172A")
+                    cell.protection = unlocked_protection
                     if column_index in {6, 7, 8}:
                         cell.alignment = Alignment(horizontal="right", vertical="center")
+                        cell.protection = locked_protection
                     if column_index in {7, 8} and isinstance(value, (int, float)):
                         cell.number_format = 'R$ #,##0.00'
+                        cell.fill = value_fill
+                        cell.font = Font(size=12, italic=True, color="0F172A")
                     if column_index == 6 and isinstance(value, (int, float)):
                         cell.number_format = '0'
+                        cell.font = Font(size=20, bold=True, color="0F172A")
                 if row_index % 2 == 0:
                     for column_index in range(1, total_columns + 1):
+                        if column_index in {7, 8}:
+                            continue
                         sheet.cell(row=row_index, column=column_index).fill = PatternFill(start_color="F8FAFC", end_color="F8FAFC", fill_type="solid")
                 sheet.row_dimensions[row_index].height = 24
             data_end_row = data_start_row + len(export_rows) - 1
@@ -379,6 +393,7 @@ class PurchaseProjectionService:
         total_label_cell.font = Font(bold=True, size=12, color="7C2D12")
         total_label_cell.alignment = Alignment(horizontal="right", vertical="center")
         total_label_cell.border = border
+        total_label_cell.protection = unlocked_protection
 
         total_formulas = {
             6: f"=SUM(F{data_start_row}:F{data_end_row})" if export_rows else 0,
@@ -387,10 +402,11 @@ class PurchaseProjectionService:
         }
         for column_index in range(6, total_columns + 1):
             cell = sheet.cell(row=total_row, column=column_index, value=total_formulas[column_index])
-            cell.fill = total_fill
-            cell.font = Font(bold=True, size=12)
+            cell.fill = total_fill if column_index == 6 else value_fill
+            cell.font = Font(bold=True, size=20, color="0F172A") if column_index == 6 else Font(size=12, italic=True, color="0F172A")
             cell.alignment = Alignment(horizontal="right", vertical="center")
             cell.border = border
+            cell.protection = locked_protection
             if column_index == 8:
                 cell.number_format = 'R$ #,##0.00'
             elif column_index == 6:
@@ -404,6 +420,7 @@ class PurchaseProjectionService:
         footer_cell.font = Font(bold=True, size=12, color="0F172A")
         footer_cell.alignment = Alignment(horizontal="center", vertical="center")
         footer_cell.border = border
+        footer_cell.protection = unlocked_protection
         sheet.row_dimensions[footer_row].height = 24
 
         sheet.column_dimensions["A"].width = 28
@@ -415,6 +432,15 @@ class PurchaseProjectionService:
         sheet.column_dimensions["G"].width = 20
         sheet.column_dimensions["H"].width = 18
         sheet.page_setup.orientation = "landscape"
+        sheet.protection.sheet = True
+        sheet.protection.enable()
+        sheet.protection.formatCells = False
+        sheet.protection.formatColumns = False
+        sheet.protection.formatRows = False
+        sheet.protection.insertColumns = False
+        sheet.protection.insertRows = False
+        sheet.protection.deleteColumns = False
+        sheet.protection.deleteRows = False
 
         buffer = BytesIO()
         workbook.save(buffer)

@@ -707,11 +707,18 @@
                     <h2 class="h5 mb-0">Itens projetados</h2>
                 </div>
                 <div class="d-flex gap-2 flex-wrap">
+                    <button
+                        class="btn btn-outline-primary"
+                        id="projection-toggle-selection"
+                        type="button"
+                        data-select-label="Selecionar todos"
+                        data-clear-label="Desmarcar todos"
+                    >Selecionar todos</button>
                     <button class="btn btn-primary" type="submit">Atualizar carrinho</button>
                     <button class="btn btn-success" id="projection-export-button" type="submit" formaction="{{ url_for('inventory.purchase_projection_export_xlsx') }}">Exportar XLS do pedido</button>
                 </div>
             </div>
-            <div class="projection-operational-note">Selecione um ou mais itens, ajuste a quantidade manual se necessário e exporte sem precisar lidar com foco indevido no campo numérico.</div>
+            <div class="projection-operational-note">Selecione um ou mais itens, use o botão para marcar ou limpar tudo de uma vez, ajuste a quantidade manual se necessário e exporte sem precisar lidar com foco indevido no campo numérico.</div>
             <div class="table-responsive">
                 <table class="table table-sm align-middle projection-table">
                     <thead>
@@ -833,8 +840,13 @@
         const selectedTotalEl = document.getElementById('projection-selected-total');
         const selectedTotalNoteEl = document.getElementById('projection-selected-total-note');
         const exportButton = document.getElementById('projection-export-button');
+        const toggleSelectionButton = document.getElementById('projection-toggle-selection');
         const currencyFormatter = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
         const numberFormatter = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 6 });
+
+        const getSelectableCheckboxes = () => rows
+            .map((row) => row.querySelector('[data-projection-select]'))
+            .filter((checkbox) => checkbox instanceof HTMLInputElement);
 
         const parseQuantity = (rawValue) => {
             const normalized = String(rawValue || '').trim().replace(',', '.');
@@ -888,7 +900,30 @@
             if (exportButton instanceof HTMLButtonElement) {
                 exportButton.disabled = selectedCount === 0;
             }
+            if (toggleSelectionButton instanceof HTMLButtonElement) {
+                const checkboxes = getSelectableCheckboxes();
+                const allSelected = checkboxes.length > 0 && checkboxes.every((checkbox) => checkbox.checked);
+                toggleSelectionButton.disabled = checkboxes.length === 0;
+                toggleSelectionButton.textContent = allSelected
+                    ? toggleSelectionButton.dataset.clearLabel || 'Desmarcar todos'
+                    : toggleSelectionButton.dataset.selectLabel || 'Selecionar todos';
+            }
         };
+
+        if (toggleSelectionButton instanceof HTMLButtonElement) {
+            toggleSelectionButton.addEventListener('click', () => {
+                const checkboxes = getSelectableCheckboxes();
+                if (checkboxes.length === 0) {
+                    return;
+                }
+
+                const shouldSelectAll = checkboxes.some((checkbox) => !checkbox.checked);
+                checkboxes.forEach((checkbox) => {
+                    checkbox.checked = shouldSelectAll;
+                });
+                updateSelectionPreview();
+            });
+        }
 
         form.addEventListener('change', (event) => {
             if (!(event.target instanceof HTMLElement)) {
