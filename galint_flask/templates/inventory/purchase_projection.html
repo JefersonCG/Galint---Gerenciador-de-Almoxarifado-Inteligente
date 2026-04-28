@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Projeção de Compras{% endblock %}
 {% block content %}
+{% set catalog_mode = not filters.search and not filters.category and not filters.brand and filters.status == 'all' and summary.selected_items == 0 %}
 {% macro brl(value) -%}
     {%- if value is none -%}
         -
@@ -283,6 +284,92 @@
         min-width: 9rem;
     }
 
+    .projection-table tbody tr.is-selected td {
+        background: rgba(220, 252, 231, 0.7);
+    }
+
+    .projection-summary-note.is-live {
+        color: #0f766e;
+        font-weight: 600;
+    }
+
+    .projection-operational-note {
+        margin-bottom: 1rem;
+        padding: 0.85rem 0.95rem;
+        border-radius: 0.9rem;
+        border: 1px dashed rgba(148, 163, 184, 0.35);
+        background: rgba(241, 245, 249, 0.78);
+        color: #475569;
+        font-size: 0.88rem;
+    }
+
+    .projection-card-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 0.9rem;
+    }
+
+    .projection-item-card {
+        display: grid;
+        gap: 0.85rem;
+        padding: 1rem;
+        border-radius: 1rem;
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        background: #ffffff;
+        box-shadow: 0 16px 30px rgba(15, 23, 42, 0.06);
+    }
+
+    .projection-item-card.is-critical {
+        border-color: rgba(248, 113, 113, 0.36);
+    }
+
+    .projection-item-card.is-attention {
+        border-color: rgba(245, 158, 11, 0.4);
+    }
+
+    .projection-item-card-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 0.75rem;
+    }
+
+    .projection-item-card-meta {
+        color: #64748b;
+        font-size: 0.82rem;
+    }
+
+    .projection-item-card-metrics {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.65rem;
+    }
+
+    .projection-item-card-metric {
+        border-radius: 0.85rem;
+        border: 1px solid rgba(226, 232, 240, 0.9);
+        background: rgba(248, 250, 252, 0.95);
+        padding: 0.72rem 0.78rem;
+    }
+
+    .projection-item-card-metric span {
+        display: block;
+        font-size: 0.74rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: #64748b;
+        margin-bottom: 0.18rem;
+    }
+
+    .projection-item-card-metric strong {
+        color: #0f172a;
+    }
+
+    .projection-item-card-actions {
+        display: flex;
+        justify-content: flex-end;
+    }
+
     @media (max-width: 1200px) {
         .projection-summary-grid,
         .projection-form-grid,
@@ -315,6 +402,10 @@
         .projection-disclosure-summary {
             align-items: flex-start;
             flex-direction: column;
+        }
+
+        .projection-item-card-metrics {
+            grid-template-columns: 1fr;
         }
     }
 </style>
@@ -467,13 +558,13 @@
         </article>
         <article class="projection-summary-card">
             <div class="projection-summary-label">Selecionados</div>
-            <div class="projection-summary-value text-success">{{ summary.selected_items }}</div>
-            <div class="projection-summary-note">{{ summary.selected_groups }} fornecedor(es) no carrinho.</div>
+            <div class="projection-summary-value text-success" id="projection-selected-count">{{ summary.selected_items }}</div>
+            <div class="projection-summary-note" id="projection-selected-note" data-default-note="{{ summary.selected_groups }} fornecedor(es) no carrinho.">{{ summary.selected_groups }} fornecedor(es) no carrinho.</div>
         </article>
         <article class="projection-summary-card">
             <div class="projection-summary-label">Total do carrinho</div>
-            <div class="projection-summary-value">{{ brl(summary.selected_value_total) }}</div>
-            <div class="projection-summary-note">{{ summary.selected_quantity_total }} em unidade base.</div>
+            <div class="projection-summary-value" id="projection-selected-total">{{ brl(summary.selected_value_total) }}</div>
+            <div class="projection-summary-note" id="projection-selected-total-note" data-default-note="{{ summary.selected_quantity_total }} em unidade base.">{{ summary.selected_quantity_total }} em unidade base.</div>
         </article>
     </section>
 
@@ -522,8 +613,85 @@
         </div>
     </section>
 
-    <section class="projection-panel">
-        <form method="post">
+    <section class="projection-panel" id="projection-operational-list">
+        {% if catalog_mode %}
+        <div class="d-flex justify-content-between align-items-center gap-2 flex-wrap mb-3">
+            <div>
+                <div class="projection-kicker">Catálogo Operacional</div>
+                <h2 class="h5 mb-0">Itens projetados em cards</h2>
+            </div>
+        </div>
+        <div class="projection-operational-note">Sem filtros ativos, a projeção abre em cards para leitura mais leve. Abra um item para ver a ficha completa, ajustar quantidade e selecionar para o carrinho.</div>
+        <div class="projection-card-grid">
+            {% for row in rows %}
+            <article class="projection-item-card {% if row.status == 'critical' %}is-critical{% elif row.status == 'attention' %}is-attention{% endif %}">
+                <div class="projection-item-card-head">
+                    <div>
+                        <div class="projection-item-title">{{ row.descricao }}</div>
+                        <div class="projection-item-card-meta">{{ row.codigo_item }}{% if row.categoria %} • {{ row.categoria }}{% endif %}{% if row.marca %} • {{ row.marca }}{% endif %}</div>
+                    </div>
+                    <span class="badge text-bg-{{ row.status_badge_class }}">{{ row.status_label }}</span>
+                </div>
+
+                {% if row.procurement_note %}
+                <div class="projection-muted">{{ row.procurement_note }}</div>
+                {% endif %}
+
+                <div class="projection-item-card-metrics">
+                    <div class="projection-item-card-metric">
+                        <span>Saldo</span>
+                        <strong>{{ row.balance_display }}</strong>
+                    </div>
+                    <div class="projection-item-card-metric">
+                        <span>Consumo</span>
+                        <strong>{{ row.consumption_average_display }}</strong>
+                    </div>
+                    <div class="projection-item-card-metric">
+                        <span>Dias restantes</span>
+                        <strong>{{ row.days_remaining_display }}</strong>
+                    </div>
+                    <div class="projection-item-card-metric">
+                        <span>Sugestão</span>
+                        <strong>{{ row.suggested_quantity_display }}</strong>
+                    </div>
+                </div>
+
+                <div class="projection-item-card-metrics">
+                    <div class="projection-item-card-metric">
+                        <span>Fornecedor</span>
+                        <strong>{{ row.supplier.name or 'Sem fornecedor identificado' }}</strong>
+                    </div>
+                    <div class="projection-item-card-metric">
+                        <span>Preço</span>
+                        <strong>{{ row.price_display or '-' }}</strong>
+                    </div>
+                </div>
+
+                {% if row.validation_notes %}
+                <div>
+                    <div class="projection-badges mb-2">
+                        {% for note in row.validation_notes %}
+                        <span class="badge text-bg-{% if note.blocking %}danger{% else %}secondary{% endif %}">{{ note.code }}</span>
+                        {% endfor %}
+                    </div>
+                    <div class="projection-muted">
+                        {% for note in row.validation_notes %}
+                        <div>{{ note.message }}</div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                <div class="projection-item-card-actions">
+                    <a class="btn btn-primary btn-sm" href="{{ url_for('inventory.purchase_projection_page', search=row.codigo_item, window_days=filters.window_days, coverage_days=filters.coverage_days, status=None if filters.status == 'all' else filters.status, include_inactive='1' if filters.include_inactive else None) }}#projection-operational-list">Abrir item para selecionar</a>
+                </div>
+            </article>
+            {% else %}
+            <div class="projection-operational-note">Nenhum item projetado disponível para o modo em cards.</div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <form method="post" id="projection-operational-form">
             <input type="hidden" name="search" value="{{ filters.search }}">
             <input type="hidden" name="category" value="{{ filters.category }}">
             <input type="hidden" name="brand" value="{{ filters.brand }}">
@@ -540,9 +708,10 @@
                 </div>
                 <div class="d-flex gap-2 flex-wrap">
                     <button class="btn btn-primary" type="submit">Atualizar carrinho</button>
-                    <button class="btn btn-success" type="submit" formaction="{{ url_for('inventory.purchase_projection_export_xlsx') }}">Exportar XLS do pedido</button>
+                    <button class="btn btn-success" id="projection-export-button" type="submit" formaction="{{ url_for('inventory.purchase_projection_export_xlsx') }}">Exportar XLS do pedido</button>
                 </div>
             </div>
+            <div class="projection-operational-note">Selecione um ou mais itens, ajuste a quantidade manual se necessário e exporte sem precisar lidar com foco indevido no campo numérico.</div>
             <div class="table-responsive">
                 <table class="table table-sm align-middle projection-table">
                     <thead>
@@ -562,10 +731,10 @@
                     </thead>
                     <tbody>
                         {% for row in rows %}
-                        <tr class="{% if row.status == 'critical' %}table-danger{% elif row.status == 'attention' %}table-warning{% endif %}">
+                        <tr class="{% if row.status == 'critical' %}table-danger{% elif row.status == 'attention' %}table-warning{% endif %}{% if row.selected %} is-selected{% endif %}" data-projection-row data-price-unit-base="{{ row.price_unit_base if row.price_unit_base is not none else '' }}">
                             <td>
                                 <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" name="selected_items" value="{{ row.codigo_item }}" {% if row.selected %}checked{% endif %}>
+                                    <input class="form-check-input" data-projection-select type="checkbox" name="selected_items" value="{{ row.codigo_item }}" {% if row.selected %}checked{% endif %}>
                                 </div>
                             </td>
                             <td>
@@ -596,11 +765,13 @@
                             <td>
                                 <input
                                     class="form-control form-control-sm projection-manual-input"
+                                    data-projection-quantity
                                     type="number"
                                     min="0"
-                                    step="0.000001"
+                                    step="any"
+                                    inputmode="decimal"
                                     name="manual_qty__{{ row.codigo_item }}"
-                                    value="{% if row.selected and row.requested_quantity_base is not none %}{{ row.requested_quantity_base }}{% else %}{{ row.suggested_quantity_base }}{% endif %}"
+                                    value="{{ row.manual_quantity_value }}"
                                 >
                                 <div class="projection-muted mt-1">unidade base: {{ row.unit_base_label }}</div>
                             </td>
@@ -642,6 +813,102 @@
                 </table>
             </div>
         </form>
+        {% endif %}
     </section>
 </div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    (() => {
+        const form = document.getElementById('projection-operational-form');
+        if (!(form instanceof HTMLFormElement)) {
+            return;
+        }
+
+        const rows = Array.from(form.querySelectorAll('[data-projection-row]'));
+        const selectedCountEl = document.getElementById('projection-selected-count');
+        const selectedNoteEl = document.getElementById('projection-selected-note');
+        const selectedTotalEl = document.getElementById('projection-selected-total');
+        const selectedTotalNoteEl = document.getElementById('projection-selected-total-note');
+        const exportButton = document.getElementById('projection-export-button');
+        const currencyFormatter = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+        const numberFormatter = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 6 });
+
+        const parseQuantity = (rawValue) => {
+            const normalized = String(rawValue || '').trim().replace(',', '.');
+            const parsed = Number.parseFloat(normalized);
+            return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+        };
+
+        const updateSelectionPreview = () => {
+            let selectedCount = 0;
+            let selectedQuantityTotal = 0;
+            let selectedValueTotal = 0;
+
+            rows.forEach((row) => {
+                const checkbox = row.querySelector('[data-projection-select]');
+                const quantityInput = row.querySelector('[data-projection-quantity]');
+                const isSelected = checkbox instanceof HTMLInputElement && checkbox.checked;
+                row.classList.toggle('is-selected', isSelected);
+                if (!isSelected) {
+                    return;
+                }
+
+                selectedCount += 1;
+                const quantity = parseQuantity(quantityInput instanceof HTMLInputElement ? quantityInput.value : '0');
+                selectedQuantityTotal += quantity;
+                const unitPrice = Number.parseFloat(String(row.dataset.priceUnitBase || '').replace(',', '.'));
+                if (Number.isFinite(unitPrice) && unitPrice > 0 && quantity > 0) {
+                    selectedValueTotal += unitPrice * quantity;
+                }
+            });
+
+            if (selectedCountEl) {
+                selectedCountEl.textContent = String(selectedCount);
+            }
+            if (selectedTotalEl) {
+                selectedTotalEl.textContent = currencyFormatter.format(selectedValueTotal || 0);
+            }
+            if (selectedNoteEl) {
+                const defaultNote = selectedNoteEl.dataset.defaultNote || '';
+                selectedNoteEl.textContent = selectedCount > 0
+                    ? 'Prévia local atualizada. Atualize o carrinho ou exporte para consolidar por fornecedor.'
+                    : defaultNote;
+                selectedNoteEl.classList.toggle('is-live', selectedCount > 0);
+            }
+            if (selectedTotalNoteEl) {
+                const defaultNote = selectedTotalNoteEl.dataset.defaultNote || '';
+                selectedTotalNoteEl.textContent = selectedCount > 0
+                    ? `${numberFormatter.format(selectedQuantityTotal)} em unidade base na prévia local.`
+                    : defaultNote;
+                selectedTotalNoteEl.classList.toggle('is-live', selectedCount > 0);
+            }
+            if (exportButton instanceof HTMLButtonElement) {
+                exportButton.disabled = selectedCount === 0;
+            }
+        };
+
+        form.addEventListener('change', (event) => {
+            if (!(event.target instanceof HTMLElement)) {
+                return;
+            }
+            if (event.target.matches('[data-projection-select], [data-projection-quantity]')) {
+                updateSelectionPreview();
+            }
+        });
+
+        form.addEventListener('input', (event) => {
+            if (!(event.target instanceof HTMLElement)) {
+                return;
+            }
+            if (event.target.matches('[data-projection-quantity]')) {
+                updateSelectionPreview();
+            }
+        });
+
+        updateSelectionPreview();
+    })();
+</script>
 {% endblock %}

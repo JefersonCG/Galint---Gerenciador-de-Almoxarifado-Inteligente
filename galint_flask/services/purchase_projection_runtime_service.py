@@ -635,6 +635,7 @@ class PurchaseProjectionService:
             "validation_notes": validation_notes,
             "selected": False,
             "manual_quantity_input": None,
+            "manual_quantity_value": cls._format_number_input_value(suggested_quantity_base),
             "requested_quantity_base": None,
             "requested_quantity_display": None,
             "requested_total_value": None,
@@ -739,6 +740,7 @@ class PurchaseProjectionService:
                 messages.append(f"{codigo}: {cls.VALIDATION_MESSAGES[manual_error]}")
             requested_quantity = manual_value if manual_value is not None else float(row.get("suggested_quantity_base") or 0.0)
             row["manual_quantity_input"] = manual_raw
+            row["manual_quantity_value"] = cls._format_number_input_value(requested_quantity)
             if requested_quantity <= cls.BALANCE_TOLERANCE:
                 row["requested_quantity_base"] = 0.0
                 row["requested_quantity_display"] = cls._format_quantity_display(0.0, None, row.get("unit_base"))
@@ -1003,6 +1005,16 @@ class PurchaseProjectionService:
             number = f"{parsed:.6f}".rstrip("0").rstrip(".")
         unit = str(unit_hint or "").strip()
         return f"{number} {unit}".strip()
+
+    @classmethod
+    def _format_number_input_value(cls, value: object) -> str:
+        try:
+            parsed = float(value or 0.0)
+        except (TypeError, ValueError):
+            parsed = 0.0
+        if abs(parsed - round(parsed)) <= 1e-6:
+            return str(int(round(parsed)))
+        return f"{parsed:.6f}".rstrip("0").rstrip(".")
 
     @classmethod
     def _style_sheet_header(cls, row) -> None:
