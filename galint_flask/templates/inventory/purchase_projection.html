@@ -584,7 +584,7 @@
                     {% for group in cart.groups %}
                     <div class="projection-cart-group">
                         <h3>{{ group.supplier_name }}</h3>
-                        {% for item in group.items %}
+                        {% for item in group['items'] %}
                         <div class="projection-cart-item">
                             <span>{{ item.descricao }} <span class="projection-muted">{{ item.requested_quantity_display }}</span></span>
                             <span>{{ brl(item.requested_total_value) }}</span>

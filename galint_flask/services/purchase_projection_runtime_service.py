@@ -23,6 +23,7 @@ from ..models import (
 )
 from .legacy_stock_normalizer import resolve_canonical_unit
 from .operation_visual_payload import OperationVisualPayloadService
+from ..utils.report_branding import get_company_header_lines
 
 
 class PurchaseProjectionService:
@@ -247,65 +248,173 @@ class PurchaseProjectionService:
         }
 
     @classmethod
-    def build_workbook(cls, report: dict[str, Any]) -> BytesIO:
+    def build_workbook(cls, report: dict[str, Any], *, requested_by: dict[str, Any] | None = None) -> BytesIO:
         workbook = Workbook()
         sheet = workbook.active
-        sheet.title = "Pedido Consolidado"
+        sheet.title = "Pedido"
+        sheet.sheet_view.showGridLines = False
         filters = dict(report.get("filters") or {})
         cart = dict(report.get("cart") or {})
+        requested_by = dict(requested_by or {})
 
-        sheet.append(["PROJECAO DE COMPRAS GALINT"])
-        sheet.append([f"Gerado em: {report.get('generated_at') or ''}"])
-        sheet.append([
-            f"Janela de consumo: {filters.get('window_days') or cls.DEFAULT_WINDOW_DAYS} dias | Cobertura: {filters.get('coverage_days') or cls.DEFAULT_COVERAGE_DAYS} dias"
-        ])
-        sheet.append(["Saldo e consumo derivados de StockMovement; StockBalance usado apenas para validacao."])
-        sheet.append([])
+        total_columns = 8
+        end_column = get_column_letter(total_columns)
+        border = Border(
+            left=Side(style="thin", color="CBD5E1"),
+            right=Side(style="thin", color="CBD5E1"),
+            top=Side(style="thin", color="CBD5E1"),
+            bottom=Side(style="thin", color="CBD5E1"),
+        )
+        title_fill = PatternFill(start_color="0F172A", end_color="0F172A", fill_type="solid")
+        header_fill = PatternFill(start_color="1D4ED8", end_color="1D4ED8", fill_type="solid")
+        total_fill = PatternFill(start_color="FEF3C7", end_color="FEF3C7", fill_type="solid")
+        footer_fill = PatternFill(start_color="E2E8F0", end_color="E2E8F0", fill_type="solid")
+
+        current_row = 1
+        company_lines = get_company_header_lines()
+        for index, line in enumerate(company_lines):
+            sheet.merge_cells(f"A{current_row}:{end_column}{current_row}")
+            cell = sheet.cell(row=current_row, column=1)
+            cell.value = line
+            cell.font = Font(bold=(index == 0), size=18 if index == 0 else 11, color="0F172A")
+            cell.alignment = Alignment(horizontal="center", vertical="center")
+            sheet.row_dimensions[current_row].height = 28 if index == 0 else 18
+            current_row += 1
+
+        sheet.merge_cells(f"A{current_row}:{end_column}{current_row}")
+        title_cell = sheet.cell(row=current_row, column=1)
+        title_cell.value = "PROJECAO DE COMPRAS"
+        title_cell.fill = title_fill
+        title_cell.font = Font(bold=True, size=16, color="FFFFFF")
+        title_cell.alignment = Alignment(horizontal="center", vertical="center")
+        title_cell.border = border
+        sheet.row_dimensions[current_row].height = 26
+        current_row += 2
+
+        requester_label = str(requested_by.get("nome") or "Solicitante nao informado").strip() or "Solicitante nao informado"
+        requested_at_label = str(requested_by.get("requested_at") or report.get("generated_at") or "").strip()
 
         headers = [
             "Fornecedor",
             "CNPJ",
-            "Codigo",
             "Descricao",
+            "Marca",
             "Categoria",
-            "Unidade Base",
-            "Saldo Base",
-            "Consumo Janela",
-            "Consumo Medio/Dia",
-            "Dias Restantes",
-            "Cobertura (dias)",
-            "Sugestao Base",
             "Pedido Base",
             "Preco Unitario Base",
             "Total Estimado",
-            "Fonte Preco",
-            "Status",
-            "Validacoes",
         ]
-        sheet.append(headers)
-        cls._style_sheet_header(sheet[6])
+        header_row = current_row
+        for column_index, header in enumerate(headers, start=1):
+            cell = sheet.cell(row=header_row, column=column_index, value=header)
+            cell.fill = header_fill
+            cell.font = Font(bold=True, size=12, color="FFFFFF")
+            cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+            cell.border = border
+        sheet.row_dimensions[header_row].height = 24
+        sheet.freeze_panes = f"A{header_row + 1}"
 
-        groups = list(cart.get("groups") or [])
-        if not groups:
-            sheet.append(["Sem itens selecionados para exportacao."])
+        data_start_row = header_row + 1
+        export_rows: list[dict[str, Any]] = []
+        for group in cart.get("groups") or []:
+            supplier = dict(group.get("supplier") or {})
+            supplier_name = str(supplier.get("name") or group.get("supplier_name") or "Sem fornecedor identificado").strip() or "Sem fornecedor identificado"
+            supplier_cnpj = str(supplier.get("cnpj") or "").strip()
+            for item in group.get("items") or []:
+                export_rows.append(
+                    {
+                        "supplier_name": supplier_name,
+                        "supplier_cnpj": supplier_cnpj,
+                        "descricao": str(item.get("descricao") or "").strip(),
+                        "marca": str(item.get("marca") or "Sem marca").strip() or "Sem marca",
+                        "categoria": str(item.get("categoria") or "Sem categoria").strip() or "Sem categoria",
+                        "requested_quantity_base": float(item.get("requested_quantity_base") or 0.0),
+                        "price_unit_base": item.get("price_unit_base"),
+                        "requested_total_value": item.get("requested_total_value"),
+                    }
+                )
+
+        if not export_rows:
+            sheet.merge_cells(f"A{data_start_row}:{end_column}{data_start_row}")
+            cell = sheet.cell(row=data_start_row, column=1)
+            cell.value = "Nenhum item selecionado para exportacao."
+            cell.alignment = Alignment(horizontal="center", vertical="center")
+            cell.font = Font(size=12, italic=True, color="64748B")
+            data_end_row = data_start_row
         else:
-            for group in groups:
-                cls._append_group_rows(sheet, group, filters)
+            for offset, item in enumerate(export_rows, start=0):
+                row_index = data_start_row + offset
+                values = [
+                    item["supplier_name"],
+                    item["supplier_cnpj"],
+                    item["descricao"],
+                    item["marca"],
+                    item["categoria"],
+                    float(item.get("requested_quantity_base") or 0.0),
+                    item.get("price_unit_base"),
+                    item.get("requested_total_value"),
+                ]
+                for column_index, value in enumerate(values, start=1):
+                    cell = sheet.cell(row=row_index, column=column_index, value=value)
+                    cell.border = border
+                    cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+                    cell.font = Font(size=12, bold=(column_index == 3), color="0F172A")
+                    if column_index in {6, 7, 8}:
+                        cell.alignment = Alignment(horizontal="right", vertical="center")
+                    if column_index in {7, 8} and isinstance(value, (int, float)):
+                        cell.number_format = 'R$ #,##0.00'
+                    if column_index == 6 and isinstance(value, (int, float)):
+                        cell.number_format = '0'
+                if row_index % 2 == 0:
+                    for column_index in range(1, total_columns + 1):
+                        sheet.cell(row=row_index, column=column_index).fill = PatternFill(start_color="F8FAFC", end_color="F8FAFC", fill_type="solid")
+                sheet.row_dimensions[row_index].height = 24
+            data_end_row = data_start_row + len(export_rows) - 1
 
-        cls._fit_sheet_columns(sheet)
+        total_row = data_end_row + 1
+        sheet.merge_cells(start_row=total_row, start_column=1, end_row=total_row, end_column=5)
+        total_label_cell = sheet.cell(row=total_row, column=1)
+        total_label_cell.value = "SUBTOTAL GERAL"
+        total_label_cell.fill = total_fill
+        total_label_cell.font = Font(bold=True, size=12, color="7C2D12")
+        total_label_cell.alignment = Alignment(horizontal="right", vertical="center")
+        total_label_cell.border = border
 
-        meta = workbook.create_sheet("Parametros")
-        meta.append(["Campo", "Valor"])
-        meta.append(["Janela de consumo (dias)", filters.get("window_days")])
-        meta.append(["Cobertura (dias)", filters.get("coverage_days")])
-        meta.append(["Status aplicado", filters.get("status")])
-        meta.append(["Busca", filters.get("search") or ""])
-        meta.append(["Categoria", filters.get("category") or "Todas"])
-        meta.append(["Marca", filters.get("brand") or "Todas"])
-        meta.append(["Incluir inativos", "Sim" if filters.get("include_inactive") else "Nao"])
-        meta.append(["Compatibilidade total", "Nao"])
-        meta.column_dimensions["A"].width = 28
-        meta.column_dimensions["B"].width = 90
+        total_formulas = {
+            6: f"=SUM(F{data_start_row}:F{data_end_row})" if export_rows else 0,
+            7: "",
+            8: f"=SUM(H{data_start_row}:H{data_end_row})" if export_rows else 0,
+        }
+        for column_index in range(6, total_columns + 1):
+            cell = sheet.cell(row=total_row, column=column_index, value=total_formulas[column_index])
+            cell.fill = total_fill
+            cell.font = Font(bold=True, size=12)
+            cell.alignment = Alignment(horizontal="right", vertical="center")
+            cell.border = border
+            if column_index == 8:
+                cell.number_format = 'R$ #,##0.00'
+            elif column_index == 6:
+                cell.number_format = '0'
+
+        footer_row = total_row + 3
+        sheet.merge_cells(f"A{footer_row}:{end_column}{footer_row}")
+        footer_cell = sheet.cell(row=footer_row, column=1)
+        footer_cell.value = f"Emitido por {requester_label} em {requested_at_label}"
+        footer_cell.fill = footer_fill
+        footer_cell.font = Font(bold=True, size=12, color="0F172A")
+        footer_cell.alignment = Alignment(horizontal="center", vertical="center")
+        footer_cell.border = border
+        sheet.row_dimensions[footer_row].height = 24
+
+        sheet.column_dimensions["A"].width = 28
+        sheet.column_dimensions["B"].width = 22
+        sheet.column_dimensions["C"].width = 44
+        sheet.column_dimensions["D"].width = 20
+        sheet.column_dimensions["E"].width = 24
+        sheet.column_dimensions["F"].width = 16
+        sheet.column_dimensions["G"].width = 20
+        sheet.column_dimensions["H"].width = 18
+        sheet.page_setup.orientation = "landscape"
 
         buffer = BytesIO()
         workbook.save(buffer)

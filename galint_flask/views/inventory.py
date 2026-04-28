@@ -1589,7 +1589,14 @@ def purchase_projection_export_xlsx():
         flash("Selecione pelo menos um item com quantidade final positiva para exportar o pedido.", "warning")
         return redirect(url_for("inventory.purchase_projection_page", **filters))
 
-    workbook = purchase_projection_service.build_workbook(report)
+    requested_by = {
+        "nome": str(getattr(current_user, "nome", "") or getattr(current_user, "id", "")).strip(),
+        "matricula": str(getattr(current_user, "id", "") or "").strip(),
+        "setor": str(getattr(current_user, "setor", "") or "").strip(),
+        "cargo": str(getattr(current_user, "cargo", "") or "").strip(),
+        "requested_at": TimeService.now_local().strftime("%d/%m/%Y %H:%M"),
+    }
+    workbook = purchase_projection_service.build_workbook(report, requested_by=requested_by)
     filename = (
         f"projecao_compras_"
         f"{_sanitize_filename_component(str(filters.get('status') or 'all'))}_"
