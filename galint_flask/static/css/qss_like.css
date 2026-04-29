@@ -152,10 +152,14 @@ html {
 
 .sidebar-menu .collapse {
     position: relative;
-    display: grid;
     gap: 0.3rem;
     margin: 0.18rem 0 0.48rem 0.9rem;
     padding: 0.2rem 0 0 0.85rem;
+}
+
+.sidebar-menu .collapse.show,
+.sidebar-menu .collapsing {
+    display: grid;
 }
 
 .sidebar-menu .collapse::before {
