@@ -2,18 +2,20 @@
 import argparse
 import os
 import sys
+from pathlib import Path
 from typing import Any, cast
 
 from flask import Flask
 from galint_flask import create_app
+from galint_flask.services.barcode_studio_file_launcher import open_layout_file
 
 
-def _native_gui_command(argv: list[str] | None = None) -> str | None:
+def _bootstrap_command(argv: list[str] | None = None) -> str | None:
     values = list(sys.argv[1:] if argv is None else argv)
     if not values:
         return None
     command = values[0]
-    return command if command in {"native-mirror", "native-window"} else None
+    return command if command in {"native-mirror", "native-window", "open-layout-file"} else None
 
 
 def _register_runtime_fallback_routes(app: Flask) -> None:
@@ -101,7 +103,7 @@ def _create_runtime_app() -> Flask:
     return runtime_app
 
 
-app: Flask | None = None if _native_gui_command() else _create_runtime_app()
+app: Flask | None = None if _bootstrap_command() else _create_runtime_app()
 
 
 def _load_migration_funcs():
@@ -155,7 +157,7 @@ def _run_upgrade(app: Flask) -> None:
 
 
 if __name__ == "__main__":
-    native_gui_command = _native_gui_command()
+    native_gui_command = _bootstrap_command()
 
     if native_gui_command == "native-mirror":
         parser = argparse.ArgumentParser(description="Abre o painel espelho em janela nativa")
@@ -179,6 +181,38 @@ if __name__ == "__main__":
         from galint_flask.services.native_workspace_window import run_native_workspace_window
 
         sys.exit(run_native_workspace_window(url=args.url, title=args.title, slot=args.slot))
+
+    if native_gui_command == "open-layout-file":
+        parser = argparse.ArgumentParser(description="Abre um arquivo do Editor de Etiquetas no GALINT")
+        parser.add_argument("command")
+        parser.add_argument("layout_file")
+        parser.add_argument("--base-url", default=None)
+        parser.add_argument("--no-open-browser", action="store_true")
+        parser.add_argument("--no-ensure-server", action="store_true")
+        args = parser.parse_args()
+
+        layout_path = Path(args.layout_file).expanduser().resolve()
+        try:
+            result = open_layout_file(
+                layout_path,
+                base_url=args.base_url,
+                ensure_server=not bool(args.no_ensure_server),
+                open_browser=not bool(args.no_open_browser),
+            )
+        except FileNotFoundError:
+            print(f"Arquivo nao encontrado: {layout_path}")
+            sys.exit(2)
+        except ValueError as exc:
+            print(str(exc))
+            sys.exit(2)
+        except Exception as exc:
+            print(f"Falha ao abrir layout no GALINT: {exc}")
+            sys.exit(1)
+
+        print(result.get("message") or "Arquivo preparado para o Editor de Etiquetas.")
+        if result.get("url"):
+            print(result["url"])
+        sys.exit(0 if result.get("success") else 1)
 
     if app is None:
         raise RuntimeError("Aplicacao Flask indisponivel para este modo de execucao")

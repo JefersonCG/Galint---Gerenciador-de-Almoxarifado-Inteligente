@@ -275,10 +275,24 @@
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
     <script>
         (function () {
+            function isValidEan8(raw) {
+                if (!/^\d{8}$/.test(raw)) return false;
+                const digits = raw.split('').map((digit) => Number(digit));
+                const checksum = (10 - ((digits[0] + digits[2] + digits[4] + digits[6]) * 3 + digits[1] + digits[3] + digits[5]) % 10) % 10;
+                return checksum === digits[7];
+            }
+
+            function isValidEan13(raw) {
+                if (!/^\d{13}$/.test(raw)) return false;
+                const digits = raw.split('').map((digit) => Number(digit));
+                const checksum = (10 - ((digits[0] + digits[2] + digits[4] + digits[6] + digits[8] + digits[10]) + (digits[1] + digits[3] + digits[5] + digits[7] + digits[9] + digits[11]) * 3) % 10) % 10;
+                return checksum === digits[12];
+            }
+
             function inferFormat(value) {
                 const raw = String(value || '').trim();
-                if (/^\d{13}$/.test(raw)) return 'EAN13';
-                if (/^\d{8}$/.test(raw)) return 'EAN8';
+                if (isValidEan13(raw)) return 'EAN13';
+                if (isValidEan8(raw)) return 'EAN8';
                 return 'CODE128';
             }
 

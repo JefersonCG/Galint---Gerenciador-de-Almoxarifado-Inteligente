@@ -13,6 +13,7 @@ from sqlalchemy import and_, func, or_
 
 from ..extensions import db
 from ..models import DocumentoEntradaEstoque, DocumentoEntradaEstoqueItem, FinanceLedgerEntry, Item, Usuario
+from ..services.barcode_studio_service import barcode_studio_service
 from ..services.category_catalog import (
     DEFAULT_INVENTORY_CATEGORY_NAME,
     category_catalog_service,
@@ -1577,6 +1578,15 @@ def _serialize_barcode_studio_item(raw_item: dict | None) -> dict[str, object]:
     }
 
 
+def _read_barcode_studio_layout_payload() -> tuple[str, dict[str, object]]:
+    payload = request.get_json(silent=True) or {}
+    if not isinstance(payload, dict):
+        raise ValueError("Payload inválido para o layout.")
+    name = str(payload.get("name") or "").strip()
+    snapshot = payload.get("snapshot")
+    return name, snapshot
+
+
 @blueprint.get("/barcodes/estudio")
 @login_required
 def barcode_studio_page():
@@ -1585,6 +1595,116 @@ def barcode_studio_page():
         "inventory/barcode_studio.html",
         barcode_search_api_url=url_for("inventory.barcode_studio_search_api"),
         barcode_regenerate_url=url_for("inventory.generate_all_barcodes"),
+        barcode_layouts_api_url=url_for("inventory.barcode_studio_layouts_api"),
+        barcode_layout_detail_url_template=url_for("inventory.barcode_studio_layout_detail_api", filename="__FILENAME__"),
+        barcode_layouts_internal_dir=barcode_studio_service.get_layouts_dir_display(),
+        barcode_layout_extension=barcode_studio_service.LAYOUT_EXTENSION,
+        barcode_layout_format=barcode_studio_service.LAYOUT_FORMAT,
+        barcode_layout_version=barcode_studio_service.LAYOUT_VERSION,
+    )
+
+
+@blueprint.get("/api/barcodes/layouts")
+@login_required
+def barcode_studio_layouts_api():
+    _require_admin_or_supervisor()
+    return _json_no_store(
+        {
+            "success": True,
+            "layouts": barcode_studio_service.list_layouts(),
+            "internal_dir": barcode_studio_service.get_layouts_dir_display(),
+            "extension": barcode_studio_service.LAYOUT_EXTENSION,
+        }
+    )
+
+
+@blueprint.post("/api/barcodes/layouts")
+@login_required
+def barcode_studio_layout_create_api():
+    _require_admin_or_supervisor()
+    try:
+        name, snapshot = _read_barcode_studio_layout_payload()
+        layout = barcode_studio_service.create_layout(name, snapshot)
+    except ValueError as exc:
+        return jsonify({"success": False, "message": str(exc)}), 400
+    return _json_no_store(
+        {
+            "success": True,
+            "layout": layout,
+            "message": f"Layout salvo no sistema: {layout['name']}",
+        }
+    )
+
+
+@blueprint.get("/api/barcodes/layouts/<path:filename>")
+@login_required
+def barcode_studio_layout_detail_api(filename: str):
+    _require_admin_or_supervisor()
+    try:
+        layout = barcode_studio_service.get_layout(filename)
+    except FileNotFoundError:
+        return jsonify({"success": False, "message": "Layout não encontrado."}), 404
+    except ValueError as exc:
+        return jsonify({"success": False, "message": str(exc)}), 400
+    return _json_no_store({"success": True, "layout": layout})
+
+
+@blueprint.put("/api/barcodes/layouts/<path:filename>")
+@login_required
+def barcode_studio_layout_update_api(filename: str):
+    _require_admin_or_supervisor()
+    try:
+        name, snapshot = _read_barcode_studio_layout_payload()
+        layout = barcode_studio_service.update_layout(filename, name, snapshot)
+    except FileNotFoundError:
+        return jsonify({"success": False, "message": "Layout não encontrado."}), 404
+    except ValueError as exc:
+        return jsonify({"success": False, "message": str(exc)}), 400
+    return _json_no_store(
+        {
+            "success": True,
+            "layout": layout,
+            "message": f"Layout atualizado: {layout['name']}",
+        }
+    )
+
+
+@blueprint.delete("/api/barcodes/layouts/<path:filename>")
+@login_required
+def barcode_studio_layout_delete_api(filename: str):
+    _require_admin_or_supervisor()
+    try:
+        layout = barcode_studio_service.get_layout(filename)
+        barcode_studio_service.delete_layout(filename)
+    except FileNotFoundError:
+        return jsonify({"success": False, "message": "Layout não encontrado."}), 404
+    except ValueError as exc:
+        return jsonify({"success": False, "message": str(exc)}), 400
+    return _json_no_store(
+        {
+            "success": True,
+            "filename": filename,
+            "message": f"Layout removido: {layout['name']}",
+        }
+    )
+
+
+@blueprint.get("/api/barcodes/layout-imports/<token>")
+@login_required
+def barcode_studio_layout_import_api(token: str):
+    _require_admin_or_supervisor()
+    try:
+        imported_layout = barcode_studio_service.consume_pending_import(token)
+    except FileNotFoundError:
+        return jsonify({"success": False, "message": "Arquivo pendente não encontrado ou já consumido."}), 404
+    except ValueError as exc:
+        return jsonify({"success": False, "message": str(exc)}), 400
+    return _json_no_store(
+        {
+            "success": True,
+            "layout": imported_layout,
+            "message": f"Arquivo importado: {imported_layout['name']}",
+        }
     )
 
 

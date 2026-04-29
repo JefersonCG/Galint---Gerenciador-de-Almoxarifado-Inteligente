@@ -56,6 +56,7 @@ AppUpdatesURL={#MyAppURL}
 DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 AllowNoIcons=yes
+ChangesAssociations=yes
 OutputDir=dist\installers
 OutputBaseFilename=GALINT-Setup-v{#MyAppVersion}
 SetupIconFile=galint_flask\static\img\galint-icon.ico
@@ -78,6 +79,12 @@ Source: "dist\GALINT\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs c
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
 Name: "{group}\Desinstalar {#MyAppName}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
+
+[Registry]
+Root: HKA; Subkey: "Software\Classes\.galintetq\OpenWithProgids"; ValueType: string; ValueName: "GALINT.LabelLayout"; ValueData: ""; Flags: uninsdeletevalue
+Root: HKA; Subkey: "Software\Classes\GALINT.LabelLayout"; ValueType: string; ValueName: ""; ValueData: "Layout do Editor de Etiquetas do GALINT"; Flags: uninsdeletekey
+Root: HKA; Subkey: "Software\Classes\GALINT.LabelLayout\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\{#MyAppExeName},0"
+Root: HKA; Subkey: "Software\Classes\GALINT.LabelLayout\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" open-layout-file """%1""""
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "Iniciar {#MyAppName}"; Flags: nowait postinstall skipifsilent

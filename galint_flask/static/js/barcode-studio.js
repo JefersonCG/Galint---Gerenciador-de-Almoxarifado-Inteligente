@@ -13,6 +13,7 @@
         items: [],
         selectedId: null,
         savedLayouts: [],
+        currentLayoutFilename: null,
         page: {
             orientation: 'portrait',
             columns: 3,
@@ -50,7 +51,11 @@
         gridInfo: document.getElementById('barcodeStudioGridInfo'),
         layoutName: document.getElementById('barcodeStudioLayoutName'),
         savedLayouts: document.getElementById('barcodeStudioSavedLayouts'),
+        layoutsDirNote: document.getElementById('barcodeStudioLayoutsDirNote'),
         saveLayoutBtn: document.getElementById('barcodeStudioSaveLayoutBtn'),
+        saveAsFileBtn: document.getElementById('barcodeStudioSaveAsFileBtn'),
+        importFileBtn: document.getElementById('barcodeStudioImportFileBtn'),
+        importFileInput: document.getElementById('barcodeStudioImportFileInput'),
         loadLayoutBtn: document.getElementById('barcodeStudioLoadLayoutBtn'),
         deleteLayoutBtn: document.getElementById('barcodeStudioDeleteLayoutBtn'),
         propertiesEmpty: document.getElementById('barcodeStudioPropertiesEmpty'),
@@ -83,8 +88,29 @@
     let lastSearchResults = [];
     let guideState = null;
 
-    function getStorageKey() {
-        return String(config.storageKey || 'galint-barcode-studio-layouts-v1');
+    function getLayoutListUrl() {
+        return String(config.layoutListApiUrl || '').trim();
+    }
+
+    function getLayoutDetailUrl(filename) {
+        return String(config.layoutDetailUrlTemplate || '').replace('__FILENAME__', encodeURIComponent(String(filename || '').trim()));
+    }
+
+    function getLayoutImportUrl(token) {
+        return String(config.layoutImportUrlTemplate || '').replace('__TOKEN__', encodeURIComponent(String(token || '').trim()));
+    }
+
+    function getLayoutFileExtension() {
+        return String(config.layoutFileExtension || '.galintetq').trim() || '.galintetq';
+    }
+
+    function getLayoutFormat() {
+        return String(config.layoutFormat || 'galint-label-layout').trim() || 'galint-label-layout';
+    }
+
+    function getLayoutVersion() {
+        const numeric = Number(config.layoutVersion || 1);
+        return Number.isFinite(numeric) && numeric > 0 ? numeric : 1;
     }
 
     function createId() {
@@ -119,6 +145,28 @@
         return PAGE_PRESETS[state.page.orientation] || PAGE_PRESETS.portrait;
     }
 
+    function isValidEan8(raw) {
+        if (!/^\d{8}$/.test(raw)) {
+            return false;
+        }
+        const digits = raw.split('').map(function (digit) {
+            return Number(digit);
+        });
+        const checksum = (10 - (((digits[0] + digits[2] + digits[4] + digits[6]) * 3) + digits[1] + digits[3] + digits[5]) % 10) % 10;
+        return checksum === digits[7];
+    }
+
+    function isValidEan13(raw) {
+        if (!/^\d{13}$/.test(raw)) {
+            return false;
+        }
+        const digits = raw.split('').map(function (digit) {
+            return Number(digit);
+        });
+        const checksum = (10 - ((digits[0] + digits[2] + digits[4] + digits[6] + digits[8] + digits[10]) + ((digits[1] + digits[3] + digits[5] + digits[7] + digits[9] + digits[11]) * 3)) % 10) % 10;
+        return checksum === digits[12];
+    }
+
     function readAddQuantity() {
         return clamp(parseInt(elements.addQuantity ? elements.addQuantity.value : '1', 10) || 1, 1, 60);
     }
@@ -129,10 +177,10 @@
 
     function inferBarcodeFormat(value) {
         const raw = String(value || '').trim();
-        if (/^\d{13}$/.test(raw)) {
+        if (isValidEan13(raw)) {
             return 'EAN13';
         }
-        if (/^\d{8}$/.test(raw)) {
+        if (isValidEan8(raw)) {
             return 'EAN8';
         }
         return 'CODE128';
@@ -193,6 +241,16 @@
         return JSON.parse(JSON.stringify(items || []));
     }
 
+    function slugifyFileName(value) {
+        const normalized = String(value || '')
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^a-zA-Z0-9]+/g, '-')
+            .replace(/^-+|-+$/g, '')
+            .toLowerCase();
+        return normalized || 'layout-etiquetas';
+    }
+
     function getLayoutSnapshot() {
         return {
             page: JSON.parse(JSON.stringify(state.page)),
@@ -200,75 +258,161 @@
         };
     }
 
-    function writeLayoutsToStorage() {
+    function buildLayoutDocument(name, snapshot) {
+        return {
+            format: getLayoutFormat(),
+            version: getLayoutVersion(),
+            name: String(name || '').trim(),
+            saved_at: new Date().toISOString(),
+            page: snapshot.page,
+            items: snapshot.items,
+        };
+    }
+
+    function extractLayoutSnapshot(documentData) {
+        if (!documentData || typeof documentData !== 'object') {
+            throw new Error('Arquivo de layout invalido.');
+        }
+        if (!documentData.page || typeof documentData.page !== 'object' || !Array.isArray(documentData.items)) {
+            throw new Error('Arquivo de layout invalido. Estrutura ausente.');
+        }
+        return {
+            name: String(documentData.name || '').trim() || 'Layout importado',
+            snapshot: {
+                page: documentData.page,
+                items: documentData.items,
+            },
+        };
+    }
+
+    function readQueryParam(name) {
         try {
-            window.localStorage.setItem(getStorageKey(), JSON.stringify(state.savedLayouts));
+            const url = new URL(window.location.href);
+            return String(url.searchParams.get(name) || '').trim();
         } catch (error) {
-            setFeedback('Nao foi possivel salvar os modelos neste navegador.', 'danger');
+            return '';
         }
     }
 
-    function readLayoutsFromStorage() {
+    function clearQueryParam(name) {
         try {
-            const raw = window.localStorage.getItem(getStorageKey());
-            if (!raw) {
-                return [];
+            const url = new URL(window.location.href);
+            if (!url.searchParams.has(name)) {
+                return;
             }
-            const parsed = JSON.parse(raw);
-            return Array.isArray(parsed) ? parsed : [];
+            url.searchParams.delete(name);
+            window.history.replaceState({}, document.title, url.pathname + url.search + url.hash);
         } catch (error) {
-            return [];
         }
     }
 
-    function renderSavedLayouts() {
+    async function fetchJson(url, options) {
+        const response = await window.fetch(url, Object.assign({
+            headers: { Accept: 'application/json' },
+        }, options || {}));
+        let payload = null;
+        try {
+            payload = await response.json();
+        } catch (error) {
+            payload = null;
+        }
+        if (!response.ok || !payload || payload.success === false) {
+            const message = payload && payload.message ? payload.message : 'Falha ao processar a operacao.';
+            throw new Error(message);
+        }
+        return payload;
+    }
+
+    function updateLayoutsDirNote(internalDir) {
+        if (!elements.layoutsDirNote) {
+            return;
+        }
+        const text = String(internalDir || config.internalLayoutsDir || '').trim();
+        elements.layoutsDirNote.textContent = text ? 'Pasta interna do sistema: ' + text : 'Pasta interna do sistema indisponivel no momento.';
+    }
+
+    function renderSavedLayouts(selectedFilename) {
         if (!elements.savedLayouts) {
             return;
         }
-        const currentValue = elements.savedLayouts.value;
+        const currentValue = String(selectedFilename || elements.savedLayouts.value || state.currentLayoutFilename || '').trim();
         elements.savedLayouts.innerHTML = '';
         const placeholder = document.createElement('option');
         placeholder.value = '';
-        placeholder.textContent = state.savedLayouts.length ? 'Selecione um modelo salvo' : 'Nenhum modelo salvo';
+        placeholder.textContent = state.savedLayouts.length ? 'Selecione um layout salvo' : 'Nenhum layout salvo';
         elements.savedLayouts.appendChild(placeholder);
         state.savedLayouts.forEach(function (layout) {
             const option = document.createElement('option');
-            option.value = layout.id;
+            option.value = layout.filename;
             option.textContent = layout.name;
             elements.savedLayouts.appendChild(option);
         });
-        if (currentValue && state.savedLayouts.some(function (layout) { return layout.id === currentValue; })) {
+        if (currentValue && state.savedLayouts.some(function (layout) { return layout.filename === currentValue; })) {
             elements.savedLayouts.value = currentValue;
         }
     }
 
-    function saveCurrentLayout() {
-        const name = String(elements.layoutName ? elements.layoutName.value : '').trim();
-        if (!name) {
-            setFeedback('Informe um nome para o modelo antes de salvar.', 'warning');
+    async function refreshSavedLayouts(selectedFilename) {
+        const url = getLayoutListUrl();
+        if (!url) {
             return;
         }
-        const existingIndex = state.savedLayouts.findIndex(function (layout) {
-            return layout.name.toLowerCase() === name.toLowerCase();
+        try {
+            const payload = await fetchJson(url);
+            state.savedLayouts = Array.isArray(payload.layouts) ? payload.layouts : [];
+            updateLayoutsDirNote(payload.internal_dir || config.internalLayoutsDir || '');
+            renderSavedLayouts(selectedFilename);
+        } catch (error) {
+            updateLayoutsDirNote(config.internalLayoutsDir || '');
+            setFeedback(error.message || 'Nao foi possivel consultar os layouts salvos.', 'danger');
+        }
+    }
+
+    async function saveCurrentLayout() {
+        const listUrl = getLayoutListUrl();
+        if (!listUrl) {
+            setFeedback('API de layouts indisponivel no momento.', 'danger');
+            return;
+        }
+        const name = String(elements.layoutName ? elements.layoutName.value : '').trim();
+        if (!name) {
+            setFeedback('Informe um nome para o layout antes de salvar.', 'warning');
+            return;
+        }
+        const matchedLayout = state.savedLayouts.find(function (layout) {
+            return String(layout.name || '').trim().toLowerCase() === name.toLowerCase();
         });
-        const snapshot = getLayoutSnapshot();
-        const payload = {
-            id: existingIndex >= 0 ? state.savedLayouts[existingIndex].id : createId(),
-            name: name,
-            updatedAt: new Date().toISOString(),
-            snapshot: snapshot,
-        };
-        if (existingIndex >= 0) {
-            state.savedLayouts.splice(existingIndex, 1, payload);
-        } else {
-            state.savedLayouts.unshift(payload);
+        let targetFilename = state.currentLayoutFilename;
+        if (!targetFilename && matchedLayout) {
+            if (!window.confirm('Ja existe um layout com esse nome. Deseja sobrescrever o arquivo salvo?')) {
+                setFeedback('Salvamento cancelado.', 'warning');
+                return;
+            }
+            targetFilename = matchedLayout.filename;
         }
-        writeLayoutsToStorage();
-        renderSavedLayouts();
-        if (elements.savedLayouts) {
-            elements.savedLayouts.value = payload.id;
+        try {
+            const requestUrl = targetFilename ? getLayoutDetailUrl(targetFilename) : listUrl;
+            const payload = await fetchJson(requestUrl, {
+                method: targetFilename ? 'PUT' : 'POST',
+                headers: {
+                    Accept: 'application/json',
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    name: name,
+                    snapshot: getLayoutSnapshot(),
+                }),
+            });
+            const layout = payload.layout || null;
+            state.currentLayoutFilename = layout && layout.filename ? layout.filename : targetFilename;
+            await refreshSavedLayouts(state.currentLayoutFilename);
+            if (elements.savedLayouts && state.currentLayoutFilename) {
+                elements.savedLayouts.value = state.currentLayoutFilename;
+            }
+            setFeedback(payload.message || ('Layout salvo: ' + name + '.'), 'muted');
+        } catch (error) {
+            setFeedback(error.message || 'Nao foi possivel salvar o layout.', 'danger');
         }
-        setFeedback('Modelo salvo: ' + name + '.', 'muted');
     }
 
     function applyLayoutSnapshot(snapshot) {
@@ -287,51 +431,147 @@
         updateSheetMetrics();
     }
 
-    function loadSelectedLayout() {
-        const layoutId = String(elements.savedLayouts ? elements.savedLayouts.value : '').trim();
-        if (!layoutId) {
-            setFeedback('Selecione um modelo salvo para carregar.', 'warning');
+    async function loadSelectedLayout() {
+        const filename = String(elements.savedLayouts ? elements.savedLayouts.value : '').trim();
+        if (!filename) {
+            setFeedback('Selecione um layout salvo para carregar.', 'warning');
             return;
         }
-        const layout = state.savedLayouts.find(function (entry) {
-            return entry.id === layoutId;
-        });
-        if (!layout) {
-            setFeedback('Modelo salvo nao encontrado.', 'danger');
-            return;
+        try {
+            const payload = await fetchJson(getLayoutDetailUrl(filename));
+            const layout = payload.layout || null;
+            if (!layout || !layout.snapshot) {
+                throw new Error('Layout salvo nao encontrado.');
+            }
+            applyLayoutSnapshot(layout.snapshot);
+            state.currentLayoutFilename = layout.filename;
+            renderSavedLayouts(layout.filename);
+            if (elements.layoutName) {
+                elements.layoutName.value = layout.name;
+            }
+            setFeedback('Layout carregado: ' + layout.name + '.', 'muted');
+        } catch (error) {
+            setFeedback(error.message || 'Nao foi possivel carregar o layout.', 'danger');
         }
-        applyLayoutSnapshot(layout.snapshot);
-        if (elements.layoutName) {
-            elements.layoutName.value = layout.name;
-        }
-        setFeedback('Modelo carregado: ' + layout.name + '.', 'muted');
     }
 
-    function deleteSelectedLayout() {
-        const layoutId = String(elements.savedLayouts ? elements.savedLayouts.value : '').trim();
-        if (!layoutId) {
-            setFeedback('Selecione um modelo salvo para excluir.', 'warning');
+    async function deleteSelectedLayout() {
+        const filename = String(elements.savedLayouts ? elements.savedLayouts.value : '').trim();
+        if (!filename) {
+            setFeedback('Selecione um layout salvo para excluir.', 'warning');
             return;
         }
         const layout = state.savedLayouts.find(function (entry) {
-            return entry.id === layoutId;
+            return entry.filename === filename;
         });
         if (!layout) {
-            setFeedback('Modelo salvo nao encontrado.', 'danger');
+            setFeedback('Layout salvo nao encontrado.', 'danger');
             return;
         }
-        if (!window.confirm('Excluir o modelo salvo "' + layout.name + '"?')) {
+        if (!window.confirm('Excluir o layout salvo "' + layout.name + '"?')) {
             return;
         }
-        state.savedLayouts = state.savedLayouts.filter(function (entry) {
-            return entry.id !== layoutId;
-        });
-        writeLayoutsToStorage();
-        renderSavedLayouts();
-        if (elements.layoutName && elements.layoutName.value.trim() === layout.name) {
-            elements.layoutName.value = '';
+        try {
+            const payload = await fetchJson(getLayoutDetailUrl(filename), { method: 'DELETE' });
+            if (state.currentLayoutFilename === filename) {
+                state.currentLayoutFilename = null;
+            }
+            await refreshSavedLayouts('');
+            if (elements.layoutName && elements.layoutName.value.trim() === layout.name) {
+                elements.layoutName.value = '';
+            }
+            setFeedback(payload.message || ('Layout excluido: ' + layout.name + '.'), 'muted');
+        } catch (error) {
+            setFeedback(error.message || 'Nao foi possivel excluir o layout.', 'danger');
         }
-        setFeedback('Modelo excluido: ' + layout.name + '.', 'muted');
+    }
+
+    async function saveLayoutAsFile() {
+        const name = String(elements.layoutName ? elements.layoutName.value : '').trim() || 'Layout de etiquetas';
+        const documentData = buildLayoutDocument(name, getLayoutSnapshot());
+        const serialized = JSON.stringify(documentData, null, 2) + '\n';
+        const suggestedName = slugifyFileName(name) + getLayoutFileExtension();
+
+        try {
+            if (typeof window.showSaveFilePicker === 'function') {
+                const handle = await window.showSaveFilePicker({
+                    suggestedName: suggestedName,
+                    types: [
+                        {
+                            description: 'Layout do Editor de Etiquetas',
+                            accept: { 'application/json': [getLayoutFileExtension()] },
+                        },
+                    ],
+                });
+                const writable = await handle.createWritable();
+                await writable.write(serialized);
+                await writable.close();
+            } else {
+                const blob = new Blob([serialized], { type: 'application/json' });
+                const url = window.URL.createObjectURL(blob);
+                const anchor = document.createElement('a');
+                anchor.href = url;
+                anchor.download = suggestedName;
+                document.body.appendChild(anchor);
+                anchor.click();
+                anchor.remove();
+                window.setTimeout(function () {
+                    window.URL.revokeObjectURL(url);
+                }, 0);
+            }
+            setFeedback('Arquivo exportado. Voce pode guardar esse layout em outra pasta.', 'muted');
+        } catch (error) {
+            if (error && error.name === 'AbortError') {
+                setFeedback('Salvar como cancelado.', 'warning');
+                return;
+            }
+            setFeedback('Nao foi possivel exportar o arquivo agora.', 'danger');
+        }
+    }
+
+    async function importLayoutFile(file) {
+        if (!file) {
+            return;
+        }
+        try {
+            const rawText = await file.text();
+            const documentData = JSON.parse(String(rawText || '').replace(/^\uFEFF/, ''));
+            const imported = extractLayoutSnapshot(documentData);
+            applyLayoutSnapshot(imported.snapshot);
+            state.currentLayoutFilename = null;
+            renderSavedLayouts('');
+            if (elements.layoutName) {
+                elements.layoutName.value = imported.name;
+            }
+            setFeedback('Arquivo carregado com sucesso. Se quiser, agora voce pode salvar no sistema.', 'muted');
+        } catch (error) {
+            setFeedback(error.message || 'Nao foi possivel abrir esse arquivo.', 'danger');
+        }
+    }
+
+    async function importPendingLayoutFromQuery() {
+        const token = readQueryParam('layout_import_token');
+        if (!token) {
+            return;
+        }
+        try {
+            const payload = await fetchJson(getLayoutImportUrl(token));
+            const layout = payload.layout || null;
+            if (!layout || !layout.snapshot) {
+                throw new Error('Arquivo pendente invalido.');
+            }
+            applyLayoutSnapshot(layout.snapshot);
+            state.currentLayoutFilename = null;
+            renderSavedLayouts('');
+            if (elements.layoutName) {
+                elements.layoutName.value = layout.name || 'Layout importado';
+            }
+            setFeedback(payload.message || 'Arquivo aberto no Editor de Etiquetas.', 'muted');
+        } catch (error) {
+            setFeedback(error.message || 'Nao foi possivel abrir o arquivo enviado ao editor.', 'danger');
+        } finally {
+            clearQueryParam('layout_import_token');
+        }
     }
 
     function syncPageInputs() {
@@ -1072,11 +1312,22 @@
         elements.nudgeUpBtn && elements.nudgeUpBtn.addEventListener('click', function () { nudgeSelected(0, -1); });
         elements.nudgeDownBtn && elements.nudgeDownBtn.addEventListener('click', function () { nudgeSelected(0, 1); });
         elements.saveLayoutBtn && elements.saveLayoutBtn.addEventListener('click', saveCurrentLayout);
+        elements.saveAsFileBtn && elements.saveAsFileBtn.addEventListener('click', saveLayoutAsFile);
+        elements.importFileBtn && elements.importFileBtn.addEventListener('click', function () {
+            if (elements.importFileInput) {
+                elements.importFileInput.click();
+            }
+        });
         elements.loadLayoutBtn && elements.loadLayoutBtn.addEventListener('click', loadSelectedLayout);
         elements.deleteLayoutBtn && elements.deleteLayoutBtn.addEventListener('click', deleteSelectedLayout);
+        elements.importFileInput && elements.importFileInput.addEventListener('change', function () {
+            const file = elements.importFileInput.files && elements.importFileInput.files[0] ? elements.importFileInput.files[0] : null;
+            importLayoutFile(file);
+            elements.importFileInput.value = '';
+        });
         elements.savedLayouts && elements.savedLayouts.addEventListener('change', function () {
             const layout = state.savedLayouts.find(function (entry) {
-                return entry.id === elements.savedLayouts.value;
+                return entry.filename === elements.savedLayouts.value;
             });
             if (layout && elements.layoutName) {
                 elements.layoutName.value = layout.name;
@@ -1117,18 +1368,19 @@
     }
 
     function init() {
-        state.savedLayouts = readLayoutsFromStorage();
         wireSearch();
         wireProperties();
         wirePageControls();
         wireKeyboardShortcuts();
-        renderSavedLayouts();
+        updateLayoutsDirNote(config.internalLayoutsDir || '');
+        refreshSavedLayouts('');
         syncPageInputs();
         renderPage();
         renderProperties();
         updateSheetMetrics();
         guideState = createGuideState();
         hideGuides();
+        importPendingLayoutFromQuery();
     }
 
     if (document.readyState === 'loading') {

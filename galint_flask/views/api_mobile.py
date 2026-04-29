@@ -40,6 +40,7 @@ from ..services.inventory import (
     normalize_operational_text,
 )
 from ..services.legacy_stock_normalizer import resolve_canonical_unit
+from ..services.operation_visual_payload import operation_visual_payload_service
 from ..services.unit_conversion_engine import UnitConversionError, unit_conversion_engine
 from ..services.item_foto_service import ItemFotoService
 from ..services.telegram_reports import TelegramReportService

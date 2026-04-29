@@ -9,7 +9,7 @@
         {% endif %}
         {% if can_edit_items and endpoint_exists('inventory.barcode_studio_page') %}
         <a class="btn btn-outline-light" href="{{ url_for('inventory.barcode_studio_page') }}">
-            <i class="bi bi-upc-scan me-1"></i> Estúdio de Códigos
+            <i class="bi bi-upc-scan me-1"></i> Editor de Etiquetas
         </a>
         {% endif %}
         {% if can_create %}

@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Estúdio de Códigos{% endblock %}
+{% block title %}Editor de Etiquetas{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/barcode-studio.css', v='20260429a') }}">
@@ -14,7 +14,7 @@
                 <i class="bi bi-upc-scan"></i>
                 Editor visual de etiquetas A4
             </span>
-            <h1 class="barcode-studio-title">Estúdio de Códigos de Barras</h1>
+            <h1 class="barcode-studio-title">Editor de Etiquetas</h1>
             <p class="barcode-studio-subtitle">
                 Busque itens do estoque, monte varias etiquetas na mesma folha A4, ajuste titulo, tamanho e posicao
                 livremente e imprima quando a composicao estiver pronta.
@@ -127,7 +127,7 @@
 
             <div class="barcode-studio-panel-head compact">
                 <h3>Modelos salvos</h3>
-                <p>Guarde composicoes prontas para reutilizar depois neste navegador.</p>
+                <p>Salve no sistema, reabra depois e exporte para outro local com Salvar como.</p>
             </div>
 
             <div class="row g-3">
@@ -141,22 +141,36 @@
                         <option value="">Nenhum modelo salvo</option>
                     </select>
                 </div>
+                <div class="col-12">
+                    <div class="barcode-studio-note mb-0" id="barcodeStudioLayoutsDirNote">
+                        Pasta interna do sistema: {{ barcode_layouts_internal_dir }}
+                    </div>
+                </div>
             </div>
 
             <div class="barcode-studio-layout-actions mt-3">
                 <button class="btn btn-outline-light btn-sm" type="button" id="barcodeStudioSaveLayoutBtn">
                     <i class="bi bi-save"></i>
-                    Salvar modelo
+                    Salvar no sistema
                 </button>
                 <button class="btn btn-outline-light btn-sm" type="button" id="barcodeStudioLoadLayoutBtn">
                     <i class="bi bi-folder2-open"></i>
                     Carregar
+                </button>
+                <button class="btn btn-outline-light btn-sm" type="button" id="barcodeStudioSaveAsFileBtn">
+                    <i class="bi bi-download"></i>
+                    Salvar como arquivo
+                </button>
+                <button class="btn btn-outline-light btn-sm" type="button" id="barcodeStudioImportFileBtn">
+                    <i class="bi bi-file-earmark-arrow-up"></i>
+                    Abrir arquivo
                 </button>
                 <button class="btn btn-outline-light btn-sm" type="button" id="barcodeStudioDeleteLayoutBtn">
                     <i class="bi bi-trash3"></i>
                     Excluir
                 </button>
             </div>
+            <input id="barcodeStudioImportFileInput" type="file" accept="{{ barcode_layout_extension }},application/json" hidden>
         </aside>
 
         <section class="barcode-studio-panel barcode-studio-panel-preview">
@@ -309,8 +323,14 @@
 <script>
     window.GALINT_BARCODE_STUDIO = {{ {
         "searchApiUrl": barcode_search_api_url,
-        "storageKey": "galint-barcode-studio-layouts-v1",
+        "layoutListApiUrl": barcode_layouts_api_url,
+        "layoutDetailUrlTemplate": barcode_layout_detail_url_template,
+        "layoutImportUrlTemplate": url_for('inventory.barcode_studio_layout_import_api', token='__TOKEN__'),
+        "layoutFileExtension": barcode_layout_extension,
+        "layoutFormat": barcode_layout_format,
+        "layoutVersion": barcode_layout_version,
+        "internalLayoutsDir": barcode_layouts_internal_dir,
     } | tojson | safe }};
 </script>
-<script src="{{ url_for('static', filename='js/barcode-studio.js', v='20260429a') }}"></script>
+<script src="{{ url_for('static', filename='js/barcode-studio.js', v='20260429d') }}"></script>
 {% endblock %}
