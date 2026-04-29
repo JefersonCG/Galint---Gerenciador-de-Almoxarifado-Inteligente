@@ -26,6 +26,8 @@
             admin_stock_adjust_url = optional_url('config.estoque_ajuste_admin')
             central_operacoes_url = optional_url('operations.central_operations')
             lojas_lab_url = optional_url('inventory.lojas_lab')
+            projection_url = optional_url('inventory.purchase_projection_page')
+            nf_url = url_for('nf.nf_index') if config.get('FEATURE_NOTAS_ENABLED', True) else None
             users_list_url = optional_url('users.list_users')
             mobile_panel_url = '/mobile-panel' if getattr(current_user, 'is_authenticated', False) and getattr(current_user, 'is_admin', False) and config.get('FEATURE_MOBILE_PANEL_ENABLED', False) else None
             config_root_url = optional_url('pages.config')
@@ -48,13 +50,18 @@
                 or (saidas_fracionadas_url and p.startswith(saidas_fracionadas_url))
             )
             estoque_active = (
-                p.startswith('/itens')
-                or p.startswith('/nf')
+                (p.startswith('/itens') and not (projection_url and p.startswith(projection_url)))
                 or p.startswith('/estoque')
                 or (central_operacoes_url and p.startswith(central_operacoes_url))
+                or (consumo_painel_url and p.startswith(consumo_painel_url))
+            )
+            suprimentos_active = (
+                (valor_estoque_url and p.startswith(valor_estoque_url))
                 or (fornecedores_url and p.startswith(fornecedores_url))
                 or (admin_stock_adjust_url and p.startswith(admin_stock_adjust_url))
-                or (consumo_painel_url and p.startswith(consumo_painel_url))
+                or (lojas_lab_url and p.startswith(lojas_lab_url))
+                or (nf_url and p.startswith(nf_url))
+                or (projection_url and p.startswith(projection_url))
             )
             ferramentas_active = (central_kits_url and p.startswith(central_kits_url)) or (tool_custody_url and p.startswith(tool_custody_url)) or (reparo_url and p.startswith(reparo_url))
             configuracoes_active = (
@@ -116,13 +123,6 @@
                     <i class="bi bi-card-list"></i>
                     <span>Itens Cadastrados</span>
                 </a>
-                % if valor_estoque_url:
-                <a class="sidebar-link ps-4 ${'active' if p.startswith(valor_estoque_url) else ''}"
-                    href="${valor_estoque_url}">
-                    <i class="bi bi-cash-stack"></i>
-                    <span>Financeiro</span>
-                </a>
-                % endif
                 % if consumo_painel_url:
                 <a class="sidebar-link ps-4 ${'active' if p.startswith(consumo_painel_url) else ''}"
                     href="${consumo_painel_url}">
@@ -135,6 +135,26 @@
                     href="${central_operacoes_url}">
                     <i class="bi bi-activity"></i>
                     <span>Central de Operações</span>
+                </a>
+                % endif
+            </div>
+
+            <button
+                class="sidebar-link d-flex justify-content-between align-items-center border-0 bg-transparent text-start w-100 ${'active' if suprimentos_active else 'collapsed'}"
+                type="button" data-bs-toggle="collapse" data-bs-target="#suprimentosMenu"
+                aria-expanded="${'true' if suprimentos_active else 'false'}">
+                <span>
+                    <i class="bi bi-briefcase-fill"></i>
+                    <span>Gestão de Suprimentos</span>
+                </span>
+                <i class="bi bi-chevron-down small"></i>
+            </button>
+            <div id="suprimentosMenu" class="collapse ${'show' if suprimentos_active else ''}">
+                % if valor_estoque_url:
+                <a class="sidebar-link ps-4 ${'active' if p.startswith(valor_estoque_url) else ''}"
+                    href="${valor_estoque_url}">
+                    <i class="bi bi-cash-stack"></i>
+                    <span>Financeiro</span>
                 </a>
                 % endif
                 % if fornecedores_url:
@@ -158,11 +178,18 @@
                     <span>Laboratório de Lojas</span>
                 </a>
                 % endif
-                % if config.get('FEATURE_NOTAS_ENABLED', True):
-                <a class="sidebar-link ps-4 ${'active' if p.startswith(url_for('nf.nf_index')) else ''}"
-                    href="${url_for('nf.nf_index')}">
+                % if nf_url:
+                <a class="sidebar-link ps-4 ${'active' if p.startswith(nf_url) else ''}"
+                    href="${nf_url}">
                     <i class="bi bi-receipt"></i>
                     <span>Documentos Fiscais</span>
+                </a>
+                % endif
+                % if projection_url:
+                <a class="sidebar-link ps-4 ${'active' if p.startswith(projection_url) else ''}"
+                    href="${projection_url}">
+                    <i class="bi bi-graph-up-arrow"></i>
+                    <span>Projeção de Compras</span>
                 </a>
                 % endif
             </div>
