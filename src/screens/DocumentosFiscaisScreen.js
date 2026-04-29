@@ -466,7 +466,6 @@ export default function DocumentosFiscaisScreen() {
                 </View>
             }
         >
-            <DocumentSection title="1. Modo do lancamento" text={preset.note}>
             <DocumentSection title="1. Modo do lançamento" text={preset.note}>
                 <ChoiceGrid
                     options={[

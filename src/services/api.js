@@ -341,7 +341,7 @@ class ApiService {
             }
 
             const response = await this.client.post(
-                '/api/notify/push/register',
+                '/api/mobile/notifications/push/register',
                 {
                     device_uuid: deviceInfo.device_uuid,
                     token: normalizedToken,
@@ -374,7 +374,7 @@ class ApiService {
                 throw new Error('Token não encontrado');
             }
 
-            const response = await this.client.get('/api/notify/inbox', {
+            const response = await this.client.get('/api/mobile/notifications/inbox', {
                 params: { page, per_page: perPage },
                 headers: {
                     Authorization: `Bearer ${token}`,
@@ -399,7 +399,7 @@ class ApiService {
             }
 
             const response = await this.client.post(
-                `/api/notify/inbox/${messageId}/read`,
+                `/api/mobile/notifications/inbox/${messageId}/read`,
                 {},
                 {
                     headers: {
@@ -1014,7 +1014,7 @@ class ApiService {
             }
 
             const response = await this.client.get(
-                `/api/mobile/itens/${codigo}`,
+                `/api/mobile/itens/${encodeURIComponent(String(codigo || '').trim())}`,
                 {
                     headers: {
                         'Authorization': `Bearer ${token}`,
@@ -1265,7 +1265,7 @@ class ApiService {
                 }
                 return { success: false, notFound: true, offline: true };
             }
-            const response = await this.client.get(`/api/mobile/estoque/barcode/${barcode}`);
+            const response = await this.client.get(`/api/mobile/estoque/barcode/${encodeURIComponent(String(barcode || '').trim())}`);
             const item = response.data;
             if (item) {
                 await upsertItem(item);
