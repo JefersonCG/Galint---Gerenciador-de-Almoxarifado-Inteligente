@@ -150,6 +150,72 @@ html {
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
 }
 
+.sidebar-menu .collapse {
+    position: relative;
+    display: grid;
+    gap: 0.3rem;
+    margin: 0.18rem 0 0.48rem 0.9rem;
+    padding: 0.2rem 0 0 0.85rem;
+}
+
+.sidebar-menu .collapse::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0.2rem;
+    bottom: 0.2rem;
+    width: 1px;
+    background: linear-gradient(180deg, rgba(96, 165, 250, 0.08), rgba(148, 163, 184, 0.2), rgba(96, 165, 250, 0.08));
+}
+
+.sidebar-menu .collapse > .sidebar-link {
+    position: relative;
+    gap: 0.62rem;
+    padding: 0.58rem 0.9rem 0.58rem 1rem;
+    min-height: 2.5rem;
+    margin-left: 0.05rem;
+    border-radius: 10px;
+    font-size: 0.88rem;
+    color: rgba(226, 232, 240, 0.9);
+    background: rgba(15, 23, 42, 0.18);
+}
+
+.sidebar-menu .collapse > .sidebar-link::before {
+    content: "";
+    position: absolute;
+    left: -0.98rem;
+    top: 50%;
+    width: 0.42rem;
+    height: 0.42rem;
+    border-radius: 999px;
+    background: rgba(148, 163, 184, 0.42);
+    transform: translateY(-50%);
+    transition: background 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.sidebar-menu .collapse > .sidebar-link:hover {
+    background: rgba(37, 99, 235, 0.14);
+    border-color: rgba(96, 165, 250, 0.16);
+    color: #f8fbff;
+}
+
+.sidebar-menu .collapse > .sidebar-link:hover::before {
+    background: rgba(125, 211, 252, 0.78);
+}
+
+.sidebar-menu .collapse > .sidebar-link.active {
+    color: #ffffff;
+    background: linear-gradient(135deg, rgba(37, 99, 235, 0.3), rgba(59, 130, 246, 0.14));
+    border-color: rgba(125, 211, 252, 0.28);
+    box-shadow: 0 10px 22px rgba(15, 23, 42, 0.18);
+}
+
+.sidebar-menu .collapse > .sidebar-link.active::before {
+    background: #7dd3fc;
+    box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.16);
+    transform: translateY(-50%) scale(1.05);
+}
+
 .sidebar-group {
     display: flex;
     flex-direction: column;
