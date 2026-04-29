@@ -1,0 +1,316 @@
+{% extends "base.html" %}
+
+{% block title %}Estúdio de Códigos{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/barcode-studio.css', v='20260429a') }}">
+{% endblock %}
+
+{% block content %}
+<div class="barcode-studio-shell">
+    <section class="barcode-studio-hero">
+        <div>
+            <span class="barcode-studio-eyebrow">
+                <i class="bi bi-upc-scan"></i>
+                Editor visual de etiquetas A4
+            </span>
+            <h1 class="barcode-studio-title">Estúdio de Códigos de Barras</h1>
+            <p class="barcode-studio-subtitle">
+                Busque itens do estoque, monte varias etiquetas na mesma folha A4, ajuste titulo, tamanho e posicao
+                livremente e imprima quando a composicao estiver pronta.
+            </p>
+        </div>
+        <div class="barcode-studio-hero-actions">
+            <button class="btn btn-light" type="button" id="barcodeStudioPrintBtn">
+                <i class="bi bi-printer"></i>
+                Imprimir folha
+            </button>
+            <button class="btn btn-outline-light" type="button" id="barcodeStudioPdfBtn">
+                <i class="bi bi-file-earmark-pdf"></i>
+                Exportar PDF
+            </button>
+            <button class="btn btn-outline-light" type="button" id="barcodeStudioGridBtn">
+                <i class="bi bi-grid-3x3-gap"></i>
+                Distribuir em grade
+            </button>
+            <button class="btn btn-outline-light" type="button" id="barcodeStudioClearBtn">
+                <i class="bi bi-trash3"></i>
+                Limpar folha
+            </button>
+            {% if current_user.is_authenticated and current_user.is_admin %}
+            <form method="post" action="{{ barcode_regenerate_url }}">
+                <button class="btn btn-outline-warning" type="submit">
+                    <i class="bi bi-arrow-repeat"></i>
+                    Gerar PNGs faltantes
+                </button>
+            </form>
+            {% endif %}
+        </div>
+    </section>
+
+    <div class="barcode-studio-grid">
+        <aside class="barcode-studio-panel barcode-studio-panel-search">
+            <div class="barcode-studio-panel-head">
+                <h2>Buscar item</h2>
+                <p>Digite codigo, descricao ou marca e adicione o resultado direto na folha.</p>
+            </div>
+
+            <label class="form-label" for="barcodeStudioSearchInput">Termo de busca</label>
+            <div class="barcode-studio-search-box">
+                <input class="form-control form-control-lg" id="barcodeStudioSearchInput" type="search"
+                    placeholder="Ex.: ITEM-0283, cabo, furadeira" autocomplete="off" spellcheck="false">
+                <button class="btn btn-outline-light" type="button" id="barcodeStudioSearchClear" aria-label="Limpar busca">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+            <div class="barcode-studio-search-meta">
+                <span id="barcodeStudioSearchStatus">Busque um item para comecar.</span>
+            </div>
+            <div class="barcode-studio-search-results" id="barcodeStudioSearchResults" aria-live="polite"></div>
+
+            <div class="barcode-studio-divider"></div>
+
+            <div class="barcode-studio-panel-head compact">
+                <h3>Folha A4</h3>
+                <p>Defina a estrutura geral antes de distribuir os codigos.</p>
+            </div>
+
+            <div class="row g-3">
+                <div class="col-6">
+                    <label class="form-label" for="barcodeStudioAddQuantity">Etiquetas ao adicionar</label>
+                    <input class="form-control" id="barcodeStudioAddQuantity" type="number" min="1" max="60" value="1">
+                </div>
+                <div class="col-6">
+                    <label class="form-label" for="barcodeStudioOrientation">Orientacao</label>
+                    <select class="form-select" id="barcodeStudioOrientation">
+                        <option value="portrait">Retrato</option>
+                        <option value="landscape">Paisagem</option>
+                    </select>
+                </div>
+                <div class="col-6">
+                    <label class="form-label" for="barcodeStudioCopies">Duplicar selecionado</label>
+                    <div class="input-group">
+                        <input class="form-control" id="barcodeStudioCopies" type="number" min="1" max="24" value="1">
+                        <button class="btn btn-outline-light" type="button" id="barcodeStudioDuplicateBtn">Duplicar</button>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <label class="form-label d-block">Ajuste magnetico</label>
+                    <label class="form-check barcode-studio-inline-toggle mt-2">
+                        <input class="form-check-input" type="checkbox" id="barcodeStudioSnapToggle" checked>
+                        <span class="form-check-label">Prender em guia e grade</span>
+                    </label>
+                </div>
+                <div class="col-4">
+                    <label class="form-label" for="barcodeStudioColumns">Colunas</label>
+                    <input class="form-control" id="barcodeStudioColumns" type="number" min="1" max="8" value="3">
+                </div>
+                <div class="col-4">
+                    <label class="form-label" for="barcodeStudioRows">Linhas</label>
+                    <input class="form-control" id="barcodeStudioRows" type="number" min="1" max="12" value="8">
+                </div>
+                <div class="col-4">
+                    <label class="form-label" for="barcodeStudioGap">Espaco (mm)</label>
+                    <input class="form-control" id="barcodeStudioGap" type="number" min="0" max="30" step="0.5" value="6">
+                </div>
+                <div class="col-12">
+                    <label class="form-label" for="barcodeStudioMargin">Margem interna (mm)</label>
+                    <input class="form-control" id="barcodeStudioMargin" type="number" min="4" max="30" step="0.5" value="10">
+                </div>
+            </div>
+
+            <div class="barcode-studio-note">
+                Arraste etiquetas diretamente na folha. O ponto azul no canto inferior direito permite redimensionar.
+            </div>
+
+            <div class="barcode-studio-divider"></div>
+
+            <div class="barcode-studio-panel-head compact">
+                <h3>Modelos salvos</h3>
+                <p>Guarde composicoes prontas para reutilizar depois neste navegador.</p>
+            </div>
+
+            <div class="row g-3">
+                <div class="col-12">
+                    <label class="form-label" for="barcodeStudioLayoutName">Nome do modelo</label>
+                    <input class="form-control" id="barcodeStudioLayoutName" type="text" maxlength="80" placeholder="Ex.: Etiquetas prateleira A4">
+                </div>
+                <div class="col-12">
+                    <label class="form-label" for="barcodeStudioSavedLayouts">Modelos disponiveis</label>
+                    <select class="form-select" id="barcodeStudioSavedLayouts">
+                        <option value="">Nenhum modelo salvo</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="barcode-studio-layout-actions mt-3">
+                <button class="btn btn-outline-light btn-sm" type="button" id="barcodeStudioSaveLayoutBtn">
+                    <i class="bi bi-save"></i>
+                    Salvar modelo
+                </button>
+                <button class="btn btn-outline-light btn-sm" type="button" id="barcodeStudioLoadLayoutBtn">
+                    <i class="bi bi-folder2-open"></i>
+                    Carregar
+                </button>
+                <button class="btn btn-outline-light btn-sm" type="button" id="barcodeStudioDeleteLayoutBtn">
+                    <i class="bi bi-trash3"></i>
+                    Excluir
+                </button>
+            </div>
+        </aside>
+
+        <section class="barcode-studio-panel barcode-studio-panel-preview">
+            <div class="barcode-studio-panel-head inline">
+                <div>
+                    <h2>Folha em edicao</h2>
+                    <p>Monte a composicao final antes de imprimir ou salvar em PDF pelo navegador.</p>
+                </div>
+                <div class="barcode-studio-sheet-stats">
+                    <span class="stat-pill"><strong id="barcodeStudioItemCount">0</strong> etiqueta(s)</span>
+                    <span class="stat-pill" id="barcodeStudioPageInfo">A4 retrato</span>
+                    <span class="stat-pill" id="barcodeStudioGridInfo">Grade 3 x 8</span>
+                </div>
+            </div>
+
+            <div class="barcode-studio-workbench">
+                <div class="barcode-studio-sheet-wrap">
+                    <div class="barcode-studio-sheet" id="barcodeStudioSheet" aria-label="Folha A4 para montagem de etiquetas">
+                        <div class="barcode-studio-sheet-empty" id="barcodeStudioSheetEmpty">
+                            <i class="bi bi-bounding-box-circles"></i>
+                            <h3>Nenhuma etiqueta na folha</h3>
+                            <p>Busque um item na coluna lateral e adicione para comecar a montar a impressao.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="barcode-studio-footer">
+                <div id="barcodeStudioFeedback" class="barcode-studio-feedback" data-tone="muted">
+                    A folha esta pronta para edicao livre.
+                </div>
+                <div class="barcode-studio-footer-actions">
+                    <button class="btn btn-outline-light btn-sm" type="button" id="barcodeStudioRemoveBtn">Remover selecionado</button>
+                    <button class="btn btn-outline-light btn-sm" type="button" id="barcodeStudioNudgeLeftBtn" aria-label="Mover selecionado para a esquerda">
+                        <i class="bi bi-arrow-left"></i>
+                    </button>
+                    <button class="btn btn-outline-light btn-sm" type="button" id="barcodeStudioNudgeUpBtn" aria-label="Mover selecionado para cima">
+                        <i class="bi bi-arrow-up"></i>
+                    </button>
+                    <button class="btn btn-outline-light btn-sm" type="button" id="barcodeStudioNudgeDownBtn" aria-label="Mover selecionado para baixo">
+                        <i class="bi bi-arrow-down"></i>
+                    </button>
+                    <button class="btn btn-outline-light btn-sm" type="button" id="barcodeStudioNudgeRightBtn" aria-label="Mover selecionado para a direita">
+                        <i class="bi bi-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <aside class="barcode-studio-panel barcode-studio-panel-properties">
+            <div class="barcode-studio-panel-head">
+                <h2>Propriedades</h2>
+                <p>Selecione uma etiqueta para ajustar texto, tamanho e posicionamento.</p>
+            </div>
+
+            <div class="barcode-studio-properties-empty" id="barcodeStudioPropertiesEmpty">
+                <i class="bi bi-cursor"></i>
+                <p>Sem etiqueta selecionada. Clique em um bloco da folha para editar.</p>
+            </div>
+
+            <div id="barcodeStudioPropertiesForm" class="barcode-studio-properties-form d-none">
+                <div class="barcode-studio-selection-summary">
+                    <div>
+                        <span class="summary-label">Codigo</span>
+                        <strong id="barcodeStudioSelectedCode">-</strong>
+                    </div>
+                    <a id="barcodeStudioSelectedEditLink" class="btn btn-sm btn-outline-light" href="#" target="_blank" rel="noreferrer noopener">
+                        Abrir item
+                    </a>
+                </div>
+
+                <div class="barcode-studio-meta-grid">
+                    <div>
+                        <span class="summary-label">Categoria</span>
+                        <strong id="barcodeStudioSelectedCategory">-</strong>
+                    </div>
+                    <div>
+                        <span class="summary-label">Marca</span>
+                        <strong id="barcodeStudioSelectedBrand">-</strong>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label" for="barcodeStudioTitleInput">Nome impresso</label>
+                    <input class="form-control" id="barcodeStudioTitleInput" type="text" maxlength="120">
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-6">
+                        <label class="form-label" for="barcodeStudioWidthInput">Largura (mm)</label>
+                        <input class="form-control" id="barcodeStudioWidthInput" type="number" min="20" max="180" step="0.5">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label" for="barcodeStudioHeightInput">Altura (mm)</label>
+                        <input class="form-control" id="barcodeStudioHeightInput" type="number" min="18" max="180" step="0.5">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label" for="barcodeStudioXInput">Posicao X (mm)</label>
+                        <input class="form-control" id="barcodeStudioXInput" type="number" min="0" max="400" step="0.5">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label" for="barcodeStudioYInput">Posicao Y (mm)</label>
+                        <input class="form-control" id="barcodeStudioYInput" type="number" min="0" max="400" step="0.5">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label" for="barcodeStudioBarcodeHeightInput">Altura do barcode (mm)</label>
+                        <input class="form-control" id="barcodeStudioBarcodeHeightInput" type="number" min="8" max="120" step="0.5">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label" for="barcodeStudioPaddingInput">Margem interna (mm)</label>
+                        <input class="form-control" id="barcodeStudioPaddingInput" type="number" min="1" max="12" step="0.5">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label" for="barcodeStudioTitleSizeInput">Fonte do nome (px)</label>
+                        <input class="form-control" id="barcodeStudioTitleSizeInput" type="number" min="8" max="30" step="1">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label" for="barcodeStudioCodeSizeInput">Fonte do codigo (px)</label>
+                        <input class="form-control" id="barcodeStudioCodeSizeInput" type="number" min="8" max="24" step="1">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label" for="barcodeStudioAlignInput">Alinhamento do conteudo</label>
+                        <select class="form-select" id="barcodeStudioAlignInput">
+                            <option value="left">Esquerda</option>
+                            <option value="center">Centro</option>
+                            <option value="right">Direita</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="barcode-studio-switches">
+                    <label class="form-check">
+                        <input class="form-check-input" type="checkbox" id="barcodeStudioShowNameInput">
+                        <span class="form-check-label">Mostrar nome do item</span>
+                    </label>
+                    <label class="form-check">
+                        <input class="form-check-input" type="checkbox" id="barcodeStudioShowCodeInput">
+                        <span class="form-check-label">Mostrar texto do codigo</span>
+                    </label>
+                </div>
+            </div>
+        </aside>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script>
+    window.GALINT_BARCODE_STUDIO = {{ {
+        "searchApiUrl": barcode_search_api_url,
+        "storageKey": "galint-barcode-studio-layouts-v1",
+    } | tojson | safe }};
+</script>
+<script src="{{ url_for('static', filename='js/barcode-studio.js', v='20260429a') }}"></script>
+{% endblock %}

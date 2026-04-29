@@ -1559,6 +1559,35 @@ def list_items():
     )
 
 
+def _serialize_barcode_studio_item(raw_item: dict | None) -> dict[str, object]:
+    item = dict(raw_item or {})
+    codigo = str(item.get("codigo") or "").strip()
+    return {
+        "codigo": codigo,
+        "descricao": str(item.get("descricao") or "").strip(),
+        "categoria": str(item.get("categoria") or "").strip(),
+        "marca": str(item.get("marca") or "").strip(),
+        "unidade": str(item.get("unidade") or "").strip(),
+        "saldo": item.get("saldo"),
+        "saldo_display": str(item.get("saldo_display") or item.get("saldo") or "").strip(),
+        "tipo_embalagem_novo": str(item.get("tipo_embalagem_novo") or "").strip(),
+        "barcode_png_url": url_for("inventory.item_barcode_png", codigo=codigo) if codigo else None,
+        "barcode_svg_url": url_for("inventory.item_barcode_svg", codigo=codigo) if codigo else None,
+        "edit_url": url_for("inventory.edit_item_form", codigo=codigo) if codigo else None,
+    }
+
+
+@blueprint.get("/barcodes/estudio")
+@login_required
+def barcode_studio_page():
+    _require_admin_or_supervisor()
+    return render_template(
+        "inventory/barcode_studio.html",
+        barcode_search_api_url=url_for("inventory.barcode_studio_search_api"),
+        barcode_regenerate_url=url_for("inventory.generate_all_barcodes"),
+    )
+
+
 @blueprint.get("/valor-estoque")
 @login_required
 def valor_estoque():
@@ -3646,6 +3675,29 @@ def item_barcode_png(codigo: str):
     resp.headers["Cache-Control"] = "no-store, max-age=0"
     resp.headers["Pragma"] = "no-cache"
     return resp
+
+
+@blueprint.get("/api/barcodes/search")
+@login_required
+def barcode_studio_search_api():
+    _require_admin_or_supervisor()
+
+    query = (request.args.get("q") or "").strip()
+    try:
+        limit = max(1, min(int(request.args.get("limit") or 12), 40))
+    except (TypeError, ValueError):
+        limit = 12
+
+    if not query:
+        return _json_no_store({"success": True, "items": []})
+
+    results = inventory_service.search_items_for_autocomplete(query, limit=limit)
+    return _json_no_store(
+        {
+            "success": True,
+            "items": [_serialize_barcode_studio_item(item) for item in results],
+        }
+    )
 
 
 @blueprint.get("/api/<codigo>")

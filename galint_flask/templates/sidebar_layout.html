@@ -19,7 +19,9 @@
             {% set central_operacoes_url = url_for('operations.central_operations') if endpoint_exists('operations.central_operations') else None %}
             {% set lojas_lab_url = url_for('inventory.lojas_lab') if endpoint_exists('inventory.lojas_lab') else None %}
             {% set projection_url = url_for('inventory.purchase_projection_page') if endpoint_exists('inventory.purchase_projection_page') else None %}
+            {% set barcode_studio_url = url_for('inventory.barcode_studio_page') if endpoint_exists('inventory.barcode_studio_page') else None %}
             {% set nf_url = url_for('nf.nf_index') if config.get('FEATURE_NOTAS_ENABLED', True) else None %}
+            {% set inventory_list_active = p.startswith(url_for('inventory.list_items')) and not (barcode_studio_url and p.startswith(barcode_studio_url)) %}
             <a class="sidebar-link {% if p == url_for('dashboard.index') %}active{% endif %}"
                 href="{{ url_for('dashboard.index') }}">
                 <i class="bi bi-speedometer2"></i>
@@ -61,11 +63,18 @@
                 <i class="bi bi-chevron-down small"></i>
             </button>
             <div id="estoqueMenu" class="collapse {{ 'show' if estoque_active else '' }}">
-                <a class="sidebar-link ps-4 {% if p.startswith(url_for('inventory.list_items')) %}active{% endif %}"
+                <a class="sidebar-link ps-4 {% if inventory_list_active %}active{% endif %}"
                     href="{{ url_for('inventory.list_items') }}">
                     <i class="bi bi-card-list"></i>
                     <span>Itens Cadastrados</span>
                 </a>
+                {% if barcode_studio_url %}
+                <a class="sidebar-link ps-4 {% if p.startswith(barcode_studio_url) %}active{% endif %}"
+                    href="{{ barcode_studio_url }}">
+                    <i class="bi bi-upc-scan"></i>
+                    <span>Estúdio de Códigos</span>
+                </a>
+                {% endif %}
                 {% if consumo_painel_url %}
                 <a class="sidebar-link ps-4 {% if p.startswith(consumo_painel_url) %}active{% endif %}"
                     href="{{ consumo_painel_url }}">

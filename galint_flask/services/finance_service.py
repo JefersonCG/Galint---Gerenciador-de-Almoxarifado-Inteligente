@@ -10,6 +10,7 @@ from time import monotonic
 import requests
 from flask import current_app
 from sqlalchemy import func, or_
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import joinedload
 
 from ..extensions import db
@@ -58,6 +59,42 @@ MANUAL_INTERNAL_DOCUMENT_LEGACY_ALIASES = frozenset({
     "SEM NF/CUPOM",
 })
 MANUAL_INTERNAL_DOCUMENT_UPPER_ALIASES = frozenset(alias.upper() for alias in MANUAL_INTERNAL_DOCUMENT_LEGACY_ALIASES)
+_SUPPLIER_FIELD_LENGTH_LIMITS = {
+    "razao_social": 200,
+    "nome_fantasia": 200,
+    "cnpj": 18,
+    "inscricao_estadual": 30,
+    "endereco_rua": 255,
+    "endereco_numero": 20,
+    "endereco_complemento": 100,
+    "endereco_bairro": 100,
+    "endereco_cidade": 100,
+    "endereco_estado": 2,
+    "endereco_cep": 10,
+    "telefone": 30,
+    "email": 120,
+    "site": 120,
+    "situacao_cadastral": 40,
+    "api_origem": 40,
+}
+_SUPPLIER_FIELD_LABELS = {
+    "razao_social": "Razao social",
+    "nome_fantasia": "Nome fantasia",
+    "cnpj": "CNPJ",
+    "inscricao_estadual": "Inscricao estadual",
+    "endereco_rua": "Logradouro",
+    "endereco_numero": "Numero",
+    "endereco_complemento": "Complemento",
+    "endereco_bairro": "Bairro",
+    "endereco_cidade": "Cidade",
+    "endereco_estado": "UF",
+    "endereco_cep": "CEP",
+    "telefone": "Telefone",
+    "email": "E-mail",
+    "site": "Site",
+    "situacao_cadastral": "Situacao cadastral",
+    "api_origem": "Origem da API",
+}
 
 
 def _format_compact_number(value: object) -> str | None:
@@ -439,6 +476,95 @@ class FinanceService:
     @staticmethod
     def _as_text(value: Any) -> str:
         return str(value or "").strip()
+
+    @staticmethod
+    def _first_nested_text(value: Any, *, preferred_keys: tuple[str, ...] = ()) -> str:
+        if value in (None, ""):
+            return ""
+        if isinstance(value, dict):
+            for key in preferred_keys:
+                text = FinanceService._first_nested_text(value.get(key), preferred_keys=preferred_keys)
+                if text:
+                    return text
+            for nested in value.values():
+                text = FinanceService._first_nested_text(nested, preferred_keys=preferred_keys)
+                if text:
+                    return text
+            return ""
+        if isinstance(value, (list, tuple, set)):
+            for item in value:
+                text = FinanceService._first_nested_text(item, preferred_keys=preferred_keys)
+                if text:
+                    return text
+            return ""
+        return FinanceService._as_text(value)
+
+    @staticmethod
+    def _extract_supplier_registration(value: Any) -> str | None:
+        text = FinanceService._first_nested_text(
+            value,
+            preferred_keys=(
+                "inscricao_estadual",
+                "inscricao",
+                "numero",
+                "registration",
+                "value",
+            ),
+        )
+        return text or None
+
+    @staticmethod
+    def _normalize_supplier_phone(*values: Any) -> str | None:
+        parts: list[str] = []
+
+        def _collect(raw_value: Any) -> None:
+            if raw_value in (None, ""):
+                return
+            if isinstance(raw_value, dict):
+                ddd = FinanceService._first_nested_text(
+                    raw_value.get("ddd") or raw_value.get("ddd1") or raw_value.get("ddd2") or raw_value.get("codigo_area")
+                )
+                number = FinanceService._first_nested_text(
+                    raw_value.get("telefone") or raw_value.get("telefone1") or raw_value.get("telefone2") or raw_value.get("numero")
+                )
+                joined = " ".join(part for part in (ddd, number) if part).strip()
+                if joined:
+                    parts.append(joined)
+                    return
+                for nested in raw_value.values():
+                    _collect(nested)
+                return
+            if isinstance(raw_value, (list, tuple, set)):
+                for item in raw_value:
+                    _collect(item)
+                return
+            text = FinanceService._as_text(raw_value)
+            if text:
+                parts.append(re.sub(r"\s+", " ", text))
+
+        for candidate in values:
+            _collect(candidate)
+
+        normalized_parts: list[str] = []
+        seen: set[str] = set()
+        for part in parts:
+            cleaned = part.strip()
+            if not cleaned or cleaned in seen:
+                continue
+            seen.add(cleaned)
+            normalized_parts.append(cleaned)
+        return " / ".join(normalized_parts) or None
+
+    @staticmethod
+    def _validate_supplier_string_lengths(data: dict[str, Any]) -> None:
+        for field_name, max_length in _SUPPLIER_FIELD_LENGTH_LIMITS.items():
+            value = data.get(field_name)
+            if value in (None, ""):
+                continue
+            text = FinanceService._as_text(value)
+            if len(text) > max_length:
+                label = _SUPPLIER_FIELD_LABELS.get(field_name, field_name.replace("_", " ").capitalize())
+                raise ValueError(f"{label} excede o limite de {max_length} caracteres.")
 
     @staticmethod
     def _is_legacy_conversion_placeholder(document: DocumentoEntradaEstoque | None) -> bool:
@@ -950,28 +1076,53 @@ class FinanceService:
         if not razao_social:
             raise ValueError("Informe a razão social ou nome fantasia do fornecedor")
 
-        supplier.razao_social = razao_social
-        supplier.nome_fantasia = nome_fantasia or None
-        supplier.cnpj = cnpj
-        supplier.inscricao_estadual = (data.get("inscricao_estadual") or "").strip() or None
-        supplier.endereco_rua = (data.get("endereco_rua") or "").strip() or None
-        supplier.endereco_numero = (data.get("endereco_numero") or "").strip() or None
-        supplier.endereco_complemento = (data.get("endereco_complemento") or "").strip() or None
-        supplier.endereco_bairro = (data.get("endereco_bairro") or "").strip() or None
-        supplier.endereco_cidade = (data.get("endereco_cidade") or "").strip() or None
-        supplier.endereco_estado = ((data.get("endereco_estado") or "").strip() or None)
-        supplier.endereco_cep = (data.get("endereco_cep") or "").strip() or None
-        supplier.telefone = (data.get("telefone") or "").strip() or None
-        supplier.email = (data.get("email") or "").strip() or None
-        supplier.site = (data.get("site") or "").strip() or None
-        supplier.situacao_cadastral = (data.get("situacao_cadastral") or "").strip() or None
-        supplier.api_origem = (data.get("api_origem") or "").strip() or None
-        supplier.observacoes = (data.get("observacoes") or "").strip() or None
+        normalized_data = {
+            "razao_social": razao_social,
+            "nome_fantasia": nome_fantasia or None,
+            "cnpj": cnpj,
+            "inscricao_estadual": FinanceService._extract_supplier_registration(data.get("inscricao_estadual")),
+            "endereco_rua": (data.get("endereco_rua") or "").strip() or None,
+            "endereco_numero": (data.get("endereco_numero") or "").strip() or None,
+            "endereco_complemento": (data.get("endereco_complemento") or "").strip() or None,
+            "endereco_bairro": (data.get("endereco_bairro") or "").strip() or None,
+            "endereco_cidade": (data.get("endereco_cidade") or "").strip() or None,
+            "endereco_estado": ((data.get("endereco_estado") or "").strip().upper() or None),
+            "endereco_cep": (data.get("endereco_cep") or "").strip() or None,
+            "telefone": FinanceService._normalize_supplier_phone(data.get("telefone")),
+            "email": (data.get("email") or "").strip() or None,
+            "site": (data.get("site") or "").strip() or None,
+            "situacao_cadastral": (data.get("situacao_cadastral") or "").strip() or None,
+            "api_origem": (data.get("api_origem") or "").strip() or None,
+            "observacoes": (data.get("observacoes") or "").strip() or None,
+        }
+        FinanceService._validate_supplier_string_lengths(normalized_data)
+
+        supplier.razao_social = normalized_data["razao_social"]
+        supplier.nome_fantasia = normalized_data["nome_fantasia"]
+        supplier.cnpj = normalized_data["cnpj"]
+        supplier.inscricao_estadual = normalized_data["inscricao_estadual"]
+        supplier.endereco_rua = normalized_data["endereco_rua"]
+        supplier.endereco_numero = normalized_data["endereco_numero"]
+        supplier.endereco_complemento = normalized_data["endereco_complemento"]
+        supplier.endereco_bairro = normalized_data["endereco_bairro"]
+        supplier.endereco_cidade = normalized_data["endereco_cidade"]
+        supplier.endereco_estado = normalized_data["endereco_estado"]
+        supplier.endereco_cep = normalized_data["endereco_cep"]
+        supplier.telefone = normalized_data["telefone"]
+        supplier.email = normalized_data["email"]
+        supplier.site = normalized_data["site"]
+        supplier.situacao_cadastral = normalized_data["situacao_cadastral"]
+        supplier.api_origem = normalized_data["api_origem"]
+        supplier.observacoes = normalized_data["observacoes"]
         supplier.ativo = bool(data.get("ativo", True))
         if data.get("data_consulta_cnpj"):
             supplier.data_consulta_cnpj = data["data_consulta_cnpj"]
 
-        db.session.commit()
+        try:
+            db.session.commit()
+        except SQLAlchemyError:
+            db.session.rollback()
+            raise
         return supplier
 
     @staticmethod
@@ -1050,7 +1201,9 @@ class FinanceService:
             "razao_social": razao_social,
             "nome_fantasia": nome_fantasia,
             "cnpj": FinanceService.normalize_cnpj(payload.get("cnpj") or estabelecimento.get("cnpj")),
-            "inscricao_estadual": FinanceService._as_text(estabelecimento.get("inscricoes_estaduais", [None])[0] if isinstance(estabelecimento.get("inscricoes_estaduais"), list) and estabelecimento.get("inscricoes_estaduais") else estabelecimento.get("inscricao_estadual")) or None,
+            "inscricao_estadual": FinanceService._extract_supplier_registration(
+                estabelecimento.get("inscricoes_estaduais") or estabelecimento.get("inscricao_estadual")
+            ),
             "endereco_rua": FinanceService._as_text(estabelecimento.get("logradouro")) or None,
             "endereco_numero": endereco_numero,
             "endereco_complemento": FinanceService._as_text(estabelecimento.get("complemento")) or None,
@@ -1058,7 +1211,17 @@ class FinanceService:
             "endereco_cidade": FinanceService._as_text(estabelecimento.get("cidade", {}).get("nome") if isinstance(estabelecimento.get("cidade"), dict) else estabelecimento.get("municipio")) or None,
             "endereco_estado": FinanceService._as_text(estabelecimento.get("estado", {}).get("sigla") if isinstance(estabelecimento.get("estado"), dict) else estabelecimento.get("uf")) or None,
             "endereco_cep": FinanceService._as_text(estabelecimento.get("cep")) or None,
-            "telefone": FinanceService._as_text(estabelecimento.get("ddd1") or estabelecimento.get("ddd2") or payload.get("telefone")) or None,
+            "telefone": FinanceService._normalize_supplier_phone(
+                {
+                    "ddd": estabelecimento.get("ddd1"),
+                    "telefone": estabelecimento.get("telefone1") or estabelecimento.get("telefone"),
+                },
+                {
+                    "ddd": estabelecimento.get("ddd2"),
+                    "telefone": estabelecimento.get("telefone2"),
+                },
+                payload.get("telefone"),
+            ),
             "email": FinanceService._as_text(estabelecimento.get("email")) or None,
             "situacao_cadastral": FinanceService._as_text(payload.get("situacao_cadastral") or estabelecimento.get("situacao_cadastral")) or None,
             "site": FinanceService._as_text(payload.get("site")) or None,

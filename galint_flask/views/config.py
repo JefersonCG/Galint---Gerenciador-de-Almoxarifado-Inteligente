@@ -225,6 +225,7 @@ def fornecedores():
             flash(f"Fornecedor salvo com sucesso: {supplier.nome_exibicao()}", "success")
             return redirect(url_for("config.fornecedores", supplier_id=supplier.id))
         except Exception as exc:
+            db.session.rollback()
             flash(f"Erro ao salvar fornecedor: {exc}", "danger")
 
     supplier_id = request.args.get("supplier_id", type=int)

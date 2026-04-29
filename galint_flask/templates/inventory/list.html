@@ -7,6 +7,11 @@
         {% if endpoint_exists('inventory.purchase_projection_page') %}
         <a class="btn btn-outline-success" href="{{ url_for('inventory.purchase_projection_page') }}">Projeção de Compras</a>
         {% endif %}
+        {% if can_edit_items and endpoint_exists('inventory.barcode_studio_page') %}
+        <a class="btn btn-outline-light" href="{{ url_for('inventory.barcode_studio_page') }}">
+            <i class="bi bi-upc-scan me-1"></i> Estúdio de Códigos
+        </a>
+        {% endif %}
         {% if can_create %}
         <button class="btn btn-outline-warning position-relative" type="button" data-bs-toggle="modal" data-bs-target="#preRegisteredModal">
             PRÉ CADASTRADOS

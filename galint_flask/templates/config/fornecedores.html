@@ -409,20 +409,20 @@
                     <input type="hidden" name="api_origem" id="api_origem" value="{{ supplier_edit.api_origem if supplier_edit else '' }}">
                     <div class="mb-3">
                         <label class="form-label" for="razao_social">Razão social</label>
-                        <input class="form-control" id="razao_social" name="razao_social" value="{{ supplier_edit.razao_social if supplier_edit else '' }}" required>
+                        <input class="form-control" id="razao_social" name="razao_social" maxlength="200" value="{{ supplier_edit.razao_social if supplier_edit else '' }}" required>
                     </div>
                     <div class="mb-3">
                         <label class="form-label" for="nome_fantasia">Nome fantasia</label>
-                        <input class="form-control" id="nome_fantasia" name="nome_fantasia" value="{{ supplier_edit.nome_fantasia if supplier_edit else '' }}">
+                        <input class="form-control" id="nome_fantasia" name="nome_fantasia" maxlength="200" value="{{ supplier_edit.nome_fantasia if supplier_edit else '' }}">
                     </div>
                     <div class="row g-3">
                         <div class="col-md-7">
                             <label class="form-label" for="cnpj">CNPJ</label>
-                            <input class="form-control" id="cnpj" name="cnpj" value="{{ supplier_edit.cnpj if supplier_edit else '' }}">
+                            <input class="form-control" id="cnpj" name="cnpj" maxlength="18" value="{{ supplier_edit.cnpj if supplier_edit else '' }}">
                         </div>
                         <div class="col-md-5">
                             <label class="form-label" for="inscricao_estadual">Inscrição estadual</label>
-                            <input class="form-control" id="inscricao_estadual" name="inscricao_estadual" value="{{ supplier_edit.inscricao_estadual if supplier_edit else '' }}">
+                            <input class="form-control" id="inscricao_estadual" name="inscricao_estadual" maxlength="30" value="{{ supplier_edit.inscricao_estadual if supplier_edit else '' }}">
                         </div>
                     </div>
                     <div class="row g-3 mt-1">
@@ -432,23 +432,23 @@
                         </div>
                         <div class="col-md-4">
                             <label class="form-label" for="endereco_numero">Número</label>
-                            <input class="form-control" id="endereco_numero" name="endereco_numero" value="{{ supplier_edit.endereco_numero if supplier_edit else '' }}">
+                            <input class="form-control" id="endereco_numero" name="endereco_numero" maxlength="20" value="{{ supplier_edit.endereco_numero if supplier_edit else '' }}">
                         </div>
                     </div>
                     <div class="row g-3 mt-1">
                         <div class="col-md-6">
                             <label class="form-label" for="endereco_complemento">Complemento</label>
-                            <input class="form-control" id="endereco_complemento" name="endereco_complemento" value="{{ supplier_edit.endereco_complemento if supplier_edit else '' }}">
+                            <input class="form-control" id="endereco_complemento" name="endereco_complemento" maxlength="100" value="{{ supplier_edit.endereco_complemento if supplier_edit else '' }}">
                         </div>
                         <div class="col-md-6">
                             <label class="form-label" for="endereco_bairro">Bairro</label>
-                            <input class="form-control" id="endereco_bairro" name="endereco_bairro" value="{{ supplier_edit.endereco_bairro if supplier_edit else '' }}">
+                            <input class="form-control" id="endereco_bairro" name="endereco_bairro" maxlength="100" value="{{ supplier_edit.endereco_bairro if supplier_edit else '' }}">
                         </div>
                     </div>
                     <div class="row g-3 mt-1">
                         <div class="col-md-5">
                             <label class="form-label" for="endereco_cidade">Cidade</label>
-                            <input class="form-control" id="endereco_cidade" name="endereco_cidade" value="{{ supplier_edit.endereco_cidade if supplier_edit else '' }}">
+                            <input class="form-control" id="endereco_cidade" name="endereco_cidade" maxlength="100" value="{{ supplier_edit.endereco_cidade if supplier_edit else '' }}">
                         </div>
                         <div class="col-md-3">
                             <label class="form-label" for="endereco_estado">UF</label>
@@ -456,27 +456,27 @@
                         </div>
                         <div class="col-md-4">
                             <label class="form-label" for="endereco_cep">CEP</label>
-                            <input class="form-control" id="endereco_cep" name="endereco_cep" value="{{ supplier_edit.endereco_cep if supplier_edit else '' }}">
+                            <input class="form-control" id="endereco_cep" name="endereco_cep" maxlength="10" value="{{ supplier_edit.endereco_cep if supplier_edit else '' }}">
                         </div>
                     </div>
                     <div class="row g-3 mt-1">
                         <div class="col-md-4">
                             <label class="form-label" for="telefone">Telefone</label>
-                            <input class="form-control" id="telefone" name="telefone" value="{{ supplier_edit.telefone if supplier_edit else '' }}">
+                            <input class="form-control" id="telefone" name="telefone" maxlength="30" value="{{ supplier_edit.telefone if supplier_edit else '' }}">
                         </div>
                         <div class="col-md-4">
                             <label class="form-label" for="email">E-mail</label>
-                            <input class="form-control" id="email" name="email" value="{{ supplier_edit.email if supplier_edit else '' }}">
+                            <input class="form-control" id="email" name="email" maxlength="120" value="{{ supplier_edit.email if supplier_edit else '' }}">
                         </div>
                         <div class="col-md-4">
                             <label class="form-label" for="site">Site</label>
-                            <input class="form-control" id="site" name="site" value="{{ supplier_edit.site if supplier_edit else '' }}">
+                            <input class="form-control" id="site" name="site" maxlength="120" value="{{ supplier_edit.site if supplier_edit else '' }}">
                         </div>
                     </div>
                     <div class="row g-3 mt-1">
                         <div class="col-md-8">
                             <label class="form-label" for="situacao_cadastral">Situação cadastral</label>
-                            <input class="form-control" id="situacao_cadastral" name="situacao_cadastral" value="{{ supplier_edit.situacao_cadastral if supplier_edit else '' }}">
+                            <input class="form-control" id="situacao_cadastral" name="situacao_cadastral" maxlength="40" value="{{ supplier_edit.situacao_cadastral if supplier_edit else '' }}">
                         </div>
                         <div class="col-md-4 d-flex align-items-end">
                             <div class="form-check">
