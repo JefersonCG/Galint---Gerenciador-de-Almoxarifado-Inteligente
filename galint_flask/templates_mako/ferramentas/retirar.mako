@@ -586,7 +586,7 @@
         <h2><i class="bi bi-tools me-2"></i>Retirada de Ferramentas</h2>
         <p>Registre retiradas com o novo padrão visual dark, preservando o fluxo especial de custódia temporária.</p>
         <div class="page-header-actions">
-            <a class="btn-mirror-screen" data-mirror-screen="1" href="${url_for('movements.painel_espelho_page', mode='ferramenta')}" target="_blank" rel="noopener">
+            <a class="btn-mirror-screen" data-mirror-screen="1" href="${url_for('movements.painel_espelho_page')}" target="_blank" rel="noopener">
                 <span class="btn-mirror-screen-icon"><img src="${url_for('static', filename='img/galint-icon.png')}" alt="GALINT"></span>
                 <span class="btn-mirror-screen-label">Painel de Visualização</span>
             </a>
@@ -912,8 +912,31 @@ ${parent.scripts()}
         }
     }
 
+    function clearSelectedCollaborator() {
+        delete inputMatricula.dataset.nome;
+        delete inputMatricula.dataset.matricula;
+    }
+
+    function getCollaboratorDisplayName(rawValue, explicitName) {
+        const knownName = String(explicitName || '').trim();
+        if (knownName) {
+            return knownName;
+        }
+
+        const raw = String(rawValue || '').trim();
+        const selectedName = String(inputMatricula.dataset.nome || '').trim();
+        const selectedMatricula = String(inputMatricula.dataset.matricula || '').trim();
+
+        if (selectedName && (!raw || raw === selectedMatricula || raw === selectedName)) {
+            return selectedName;
+        }
+
+        return raw;
+    }
+
     function buildMirrorPayload(status, item, extra) {
         const actor = String((item && item.matricula) || inputMatricula.value || '').trim();
+        const actorName = getCollaboratorDisplayName(actor, item && item.colaborador_nome);
         const local = String((item && item.local) || inputLocal.value || '').trim();
         const observacao = String(inputObservacao && inputObservacao.value ? inputObservacao.value : '').trim();
         const payload = {
@@ -925,7 +948,7 @@ ${parent.scripts()}
             batch_label: ((extra && extra.itemCount) || items.length || 0) + ' ferramenta(s) na coleta',
             actor: {
                 matricula: actor,
-                nome: actor,
+                nome: actorName || actor,
             },
             context: {
                 local_servico: local,
@@ -976,6 +999,7 @@ ${parent.scripts()}
             ? '<img src="' + escapeHtml(item.foto_url) + '" alt="' + escapeHtml(item.descricao || item.codigo || 'Ferramenta') + '">'
             : '<div class="operation-preview-placeholder"><i class="bi bi-image"></i><div>Sem foto da ferramenta</div></div>';
         const matricula = String(item.matricula || inputMatricula.value || '').trim() || 'Nao informado';
+        const collaboratorLabel = getCollaboratorDisplayName(matricula, item && item.colaborador_nome) || matricula || 'Nao informado';
         const local = String(item.local || inputLocal.value || '').trim() || 'Nao informado';
         const saldo = String(item.saldo_display || item.saldo || '').trim() || 'Nao informado';
         const observacao = String(item.observacao || (inputObservacao && inputObservacao.value) || '').trim() || 'Sem observacao';
@@ -992,7 +1016,7 @@ ${parent.scripts()}
                 '<div class="operation-preview-grid">' +
                     '<div class="operation-preview-stat"><span class="operation-preview-stat-label">Quantidade</span><span class="operation-preview-stat-value">' + escapeHtml(String(item.quantidade || 1)) + '</span></div>' +
                     '<div class="operation-preview-stat"><span class="operation-preview-stat-label">Saldo</span><span class="operation-preview-stat-value">' + escapeHtml(saldo) + '</span></div>' +
-                    '<div class="operation-preview-stat"><span class="operation-preview-stat-label">Colaborador</span><span class="operation-preview-stat-value">' + escapeHtml(matricula) + '</span></div>' +
+                    '<div class="operation-preview-stat"><span class="operation-preview-stat-label">Colaborador</span><span class="operation-preview-stat-value">' + escapeHtml(collaboratorLabel) + '</span></div>' +
                     '<div class="operation-preview-stat"><span class="operation-preview-stat-label">Local</span><span class="operation-preview-stat-value">' + escapeHtml(local) + '</span></div>' +
                 '</div>' +
                 '<div class="operation-preview-note">' + escapeHtml(observacao) + '</div>' +
@@ -1005,6 +1029,12 @@ ${parent.scripts()}
     inputMatricula.addEventListener('input', function() {
         clearTimeout(debounceTimerMatricula);
         const query = this.value.trim();
+        const selectedMatricula = String(this.dataset.matricula || '').trim();
+        const selectedName = String(this.dataset.nome || '').trim();
+
+        if ((selectedMatricula || selectedName) && query !== selectedMatricula && query !== selectedName) {
+            clearSelectedCollaborator();
+        }
         
         if (query.length < 1) {
             dropdownMatricula.classList.remove('show');
@@ -1055,9 +1085,12 @@ ${parent.scripts()}
     
     function selectFuncionario(func) {
         inputMatricula.value = func.matricula;
+        inputMatricula.dataset.nome = String(func.nome || '').trim();
+        inputMatricula.dataset.matricula = String(func.matricula || '').trim();
         dropdownMatricula.classList.remove('show');
         if (currentPreviewItem) {
             currentPreviewItem.matricula = func.matricula;
+            currentPreviewItem.colaborador_nome = String(func.nome || '').trim();
             renderCurrentPreview(currentPreviewItem, 'preview');
         }
         inputCodigo.focus();
@@ -1181,6 +1214,7 @@ ${parent.scripts()}
             saldo_display: item.saldo_display,
             foto_url: item.foto_url,
             matricula: String(inputMatricula.value || '').trim(),
+            colaborador_nome: getCollaboratorDisplayName(inputMatricula.value),
             local: String(inputLocal.value || '').trim(),
             observacao: String(inputObservacao && inputObservacao.value ? inputObservacao.value : '').trim(),
             quantidade: getSanitizedQuantity(inputQuantidade.value),
@@ -1257,6 +1291,7 @@ ${parent.scripts()}
     function resetCurrentGroupForm(suppressMirrorReset) {
         currentGroupId = null;
         inputMatricula.value = '';
+        clearSelectedCollaborator();
         inputCodigo.value = '';
         inputQuantidade.value = '1';
         inputLocal.value = '';
@@ -1349,6 +1384,7 @@ ${parent.scripts()}
                 saldo_display: itemInfo ? itemInfo.saldo_display : '',
                 foto_url: itemInfo ? itemInfo.foto_url : null,
                 matricula: matriculaAtual,
+                colaborador_nome: getCollaboratorDisplayName(matriculaAtual),
                 local: localAtual,
                 observacao: observacaoAtual,
             };
@@ -1480,6 +1516,7 @@ ${parent.scripts()}
                     saldo_display: item.saldo_display,
                     foto_url: item.foto_url,
                     matricula: item.matricula,
+                    colaborador_nome: item.colaborador_nome,
                     local: item.local,
                     observacao: item.observacao,
                 };
@@ -1603,6 +1640,7 @@ ${parent.scripts()}
             ...itemInfo,
             quantidade: getSanitizedQuantity(inputQuantidade.value),
             matricula: String(inputMatricula.value || '').trim(),
+            colaborador_nome: getCollaboratorDisplayName(inputMatricula.value),
             local: String(inputLocal.value || '').trim(),
             observacao: String(inputObservacao.value || '').trim(),
             foto_url: itemInfo.foto_url,

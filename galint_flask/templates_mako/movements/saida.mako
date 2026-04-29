@@ -798,7 +798,7 @@
         <h2><i class="bi bi-box-arrow-right me-2"></i>Registro de Saída</h2>
         <p>Adicione materiais comuns ou ferramentas à lista e registre a saída em lote, mantendo o fluxo centralizado de lançamentos.</p>
         <div class="page-header-actions">
-            <a class="btn-mirror-screen" data-mirror-screen="1" href="${url_for('movements.painel_espelho_page', mode='saida')}" target="_blank" rel="noopener">
+            <a class="btn-mirror-screen" data-mirror-screen="1" href="${url_for('movements.painel_espelho_page')}" target="_blank" rel="noopener">
                 <span class="btn-mirror-screen-icon"><img src="${url_for('static', filename='img/galint-icon.png')}" alt="GALINT"></span>
                 <span class="btn-mirror-screen-label">Painel de Visualização</span>
             </a>

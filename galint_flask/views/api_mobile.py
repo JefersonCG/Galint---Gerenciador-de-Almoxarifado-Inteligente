@@ -315,6 +315,65 @@ def _normalize_text(value: str | None) -> str:
     return "".join(char for char in normalized if unicodedata.category(char) != "Mn")
 
 
+def _barcode_lookup_candidates(value: str | None) -> list[str]:
+    raw = str(value or "").strip()
+    if not raw:
+        return []
+
+    candidates: list[str] = []
+    seen: set[str] = set()
+
+    def add(candidate: str | None) -> None:
+        normalized = str(candidate or "").strip()
+        if not normalized or normalized in seen:
+            return
+        seen.add(normalized)
+        candidates.append(normalized)
+
+    compact = re.sub(r"\s+", "", raw)
+    add(raw)
+    add(compact)
+
+    # Alguns scanners incluem identificador de simbologia GS1/AIM, ex.: ]E0 ou ]C1.
+    if compact.startswith("]") and len(compact) > 3:
+        add(compact[3:])
+
+    digits_only = re.sub(r"\D+", "", compact)
+    add(digits_only)
+
+    # Compatibilidade comum entre UPC-A (12) e EAN-13 (13 com zero a esquerda).
+    if len(digits_only) == 13 and digits_only.startswith("0"):
+        add(digits_only[1:])
+    if len(digits_only) == 12:
+        add(f"0{digits_only}")
+    if len(digits_only) == 14 and digits_only.startswith("00"):
+        add(digits_only[2:])
+        add(digits_only[1:])
+
+    return candidates
+
+
+def _find_item_by_barcode(value: str | None) -> Item | None:
+    candidates = _barcode_lookup_candidates(value)
+    if not candidates:
+        return None
+
+    for candidate in candidates:
+        item = Item.query.filter_by(codigo_item=candidate).first()
+        if item is not None:
+            return item
+
+    # Fallback defensivo para bases antigas com prefixos/sufixos no código salvo.
+    for candidate in candidates:
+        if len(candidate) < 8:
+            continue
+        matches = Item.query.filter(Item.codigo_item.ilike(f"%{candidate}%")).limit(2).all()
+        if len(matches) == 1:
+            return matches[0]
+
+    return None
+
+
 def _collect_operational_context(source: Any) -> dict[str, str | None]:
     getter = getattr(source, "get", None)
     if getter is None:
@@ -849,6 +908,61 @@ def mobile_logout():
         return jsonify({"success": False, "message": "Erro interno"}), 500
 
 
+@blueprint.post("/notifications/push/register")
+@mobile_login_required
+def mobile_register_notification_push():
+    data = request.get_json() or {}
+    device_uuid = str(data.get("device_uuid", "")).strip()
+    token = str(data.get("token", "")).strip()
+    provider = str(data.get("provider", "expo")).strip().lower() or "expo"
+    if not device_uuid or not token:
+        return jsonify({"success": False, "message": "device_uuid e token são obrigatórios"}), 400
+
+    from ..services.galint_notify_service import GalintNotifyService
+
+    entry = GalintNotifyService.register_push_token(
+        matricula=g.mobile_user.matricula,
+        device_uuid=device_uuid,
+        provider=provider,
+        token=token,
+    )
+    return jsonify({"success": True, "id": entry.id, "provider": entry.provider})
+
+
+@blueprint.get("/notifications/inbox")
+@mobile_login_required
+def mobile_notifications_inbox():
+    page = request.args.get("page", 1, type=int)
+    per_page = request.args.get("per_page", 20, type=int)
+
+    from ..services.galint_notify_service import GalintNotifyService
+
+    return jsonify(
+        {
+            "success": True,
+            **GalintNotifyService.list_inbox(
+                matricula=g.mobile_user.matricula,
+                page=page,
+                per_page=per_page,
+            ),
+        }
+    )
+
+
+@blueprint.post("/notifications/inbox/<int:message_id>/read")
+@mobile_login_required
+def mobile_notifications_mark_read(message_id: int):
+    from ..services.galint_notify_service import GalintNotifyService
+
+    recipient = GalintNotifyService.mark_read(
+        matricula=g.mobile_user.matricula,
+        message_id=message_id,
+    )
+    if recipient is None:
+        return jsonify({"success": False, "message": "Notificação não encontrada"}), 404
+    return jsonify({"success": True, "message_id": message_id, "status": recipient.status})
+
+
 @blueprint.get("/itens/<codigo>")
 @token_required
 def buscar_item_por_codigo(current_user: Usuario, codigo: str):
@@ -857,9 +971,7 @@ def buscar_item_por_codigo(current_user: Usuario, codigo: str):
     if not codigo:
         return jsonify({"success": False, "message": "Código não fornecido"}), 400
 
-    item = Item.query.filter(
-        (Item.codigo_item == codigo)
-    ).first()
+    item = _find_item_by_barcode(codigo)
 
     if not item:
         return jsonify({"success": False, "message": "Item não encontrado"}), 404
@@ -1140,7 +1252,7 @@ def retirar_multipla_mobile(current_user: Usuario):
                 ledger_result.metadata["reference_id"] = str(saida.id_saida)
                 inventory_service.finalize_ledger_mirror(ledger_result)
 
-        # Notificar via router (Telegram -> failover GalintNotify)
+        # Notificar via router (Telegram + inbox mobile)
         try:
             from ..services.notification_router import NotificationRouterService
             saida_ids = [s.id_saida for s in saidas_criadas]
@@ -1295,7 +1407,7 @@ def devolver_multipla_ferramentas_mobile(current_user: Usuario):
                 ledger_result.metadata["reference_id"] = str(evento.id_evento)
                 inventory_service.finalize_ledger_mirror(ledger_result)
 
-        # Notificar via router (Telegram -> failover GalintNotify)
+        # Notificar via router (Telegram + inbox mobile)
         try:
             from ..services.notification_router import NotificationRouterService
             for evento in eventos_criados:
@@ -1820,7 +1932,7 @@ def retirar_mobile(current_user: Usuario):
         except Exception:
             novo_saldo = None
 
-        # Notificar via router (Telegram -> failover GalintNotify)
+        # Notificar via router (Telegram + inbox mobile)
         try:
             from ..services.notification_router import NotificationRouterService
 
@@ -2174,7 +2286,7 @@ def devolver_material_mobile(current_user: Usuario):
             commit=True,
         )
 
-        # Notificar via router (Telegram -> failover GalintNotify)
+        # Notificar via router (Telegram + inbox mobile)
         try:
             if evento and hasattr(evento, 'id_evento'):
                 from ..services.notification_router import NotificationRouterService
@@ -2445,7 +2557,8 @@ def buscar_produto(codigo: str):
     if not codigo:
         return jsonify({"error": "Código não fornecido"}), 400
 
-    item = inventory_service.get_item(codigo)
+    item_model = _find_item_by_barcode(codigo)
+    item = inventory_service.get_item(item_model.codigo_item) if item_model else None
 
     if not item:
         return jsonify({
@@ -3358,7 +3471,7 @@ def resumo_estoque_mobile():
 @mobile_login_required
 def buscar_por_barcode(codigo: str):
     """Busca item por código de barras."""
-    item = Item.query.filter_by(codigo_item=codigo).first()
+    item = _find_item_by_barcode(codigo)
     
     if not item:
         return jsonify({"message": "Item não encontrado"}), 404

@@ -13,7 +13,6 @@
                 except Exception:
                     return None
 
-            saidas_fracionadas_url = optional_url('movements.saidas_fracionadas_page')
             saidas_hub_url = optional_url('movements.saidas_hub') or url_for('movements.index')
             saida_fracionada_url = optional_url('movements.saida_fracionada_page')
             central_kits_url = optional_url('central_kits.index')
@@ -47,7 +46,6 @@
                 or p.startswith(url_for('movements.saida_page'))
                 or (saida_fracionada_url and p.startswith(saida_fracionada_url))
                 or p.startswith(url_for('movements.entrada_page'))
-                or (saidas_fracionadas_url and p.startswith(saidas_fracionadas_url))
             )
             estoque_active = (
                 (p.startswith('/itens') and not (projection_url and p.startswith(projection_url)))
@@ -99,13 +97,6 @@
                     <i class="bi bi-box-arrow-up-right"></i>
                     <span>Registro de Saídas</span>
                 </a>
-                % if saidas_fracionadas_url:
-                <a class="sidebar-link ps-4 ${'active' if p.startswith(saidas_fracionadas_url) else ''}"
-                    href="${saidas_fracionadas_url}">
-                    <i class="bi bi-droplet-half"></i>
-                    <span>Saídas Fracionadas</span>
-                </a>
-                % endif
             </div>
             <button
                 class="sidebar-link d-flex justify-content-between align-items-center border-0 bg-transparent text-start w-100 ${'active' if estoque_active else 'collapsed'}"

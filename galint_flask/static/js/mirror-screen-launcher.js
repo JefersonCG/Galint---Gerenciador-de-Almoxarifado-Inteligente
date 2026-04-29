@@ -48,6 +48,7 @@
     function normalizeUrl(href) {
         try {
             const url = new URL(href, window.location.href);
+            url.searchParams.delete('mode');
             url.searchParams.set('opened_via', 'mirror_launcher');
             return url.toString();
         } catch (error) {
@@ -217,7 +218,6 @@
         }
 
         const nativeUrl = new URL(targetUrl.pathname.replace(/\/$/, '') + '/native-open', targetUrl.origin);
-        const mode = String(targetUrl.searchParams.get('mode') || '').trim();
 
         try {
             const response = await window.fetch(nativeUrl.toString(), {
@@ -227,7 +227,7 @@
                     'Content-Type': 'application/json',
                 },
                 credentials: 'same-origin',
-                body: JSON.stringify(mode ? { mode } : {}),
+                body: JSON.stringify({}),
             });
             if (!response.ok) {
                 return false;
@@ -284,17 +284,18 @@
             }
             anchor.dataset.mirrorLauncherBound = '1';
             anchor.addEventListener('click', function (event) {
+                const fallbackHref = normalizeUrl(anchor.href);
                 if (!shouldHandleClick(event)) {
                     return;
                 }
                 event.preventDefault();
                 openMirrorWindow(anchor).then((opened) => {
                     if (!opened) {
-                        window.open(anchor.href, WINDOW_NAME, 'resizable=yes,scrollbars=yes');
+                        window.open(fallbackHref, WINDOW_NAME, 'resizable=yes,scrollbars=yes');
                     }
                 }).catch((error) => {
                     console.error('Erro ao abrir painel espelho:', error);
-                    window.open(anchor.href, WINDOW_NAME, 'resizable=yes,scrollbars=yes');
+                    window.open(fallbackHref, WINDOW_NAME, 'resizable=yes,scrollbars=yes');
                 });
             });
         });

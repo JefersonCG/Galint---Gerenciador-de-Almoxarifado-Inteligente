@@ -468,7 +468,7 @@
         <h2><i class="bi bi-droplet-half me-2"></i>Registro de Saída Fracionada</h2>
         <p>Insira a quantidade pesada com o novo container dark, mantendo o fluxo específico para itens líquidos e fracionados.</p>
         <div class="page-header-actions">
-            <a class="btn-mirror-screen" data-mirror-screen="1" href="${url_for('movements.painel_espelho_page', mode='fracionada')}" target="_blank" rel="noopener">
+            <a class="btn-mirror-screen" data-mirror-screen="1" href="${url_for('movements.painel_espelho_page')}" target="_blank" rel="noopener">
                 <span class="btn-mirror-screen-icon"><img src="${url_for('static', filename='img/galint-icon.png')}" alt="GALINT"></span>
                 <span class="btn-mirror-screen-label">Painel de Visualização</span>
             </a>

@@ -544,6 +544,11 @@
             border-color: rgba(125, 211, 252, 0.2);
         }
 
+        .mirror-stat-quantity {
+            background: linear-gradient(135deg, rgba(37, 99, 235, 0.22), rgba(14, 116, 144, 0.18));
+            border-color: rgba(125, 211, 252, 0.24);
+        }
+
         .mirror-stat-context {
             grid-column: span 2;
         }
@@ -572,6 +577,21 @@
 
         .mirror-stat-context .mirror-stat-value {
             color: #ffffff;
+        }
+
+        .mirror-stat-quantity .mirror-stat-label {
+            color: #dbeafe;
+        }
+
+        .mirror-stat-quantity .mirror-stat-value {
+            font-size: clamp(1.95rem, 3.9vw, 3.6rem);
+            font-weight: 950;
+            line-height: 0.95;
+            color: #ffffff;
+        }
+
+        .mirror-stat-actor .mirror-stat-value {
+            font-size: clamp(1.18rem, 1.7vw, 1.6rem);
         }
 
         .mirror-stat-code .mirror-stat-value,
@@ -624,6 +644,124 @@
 
         .mirror-layout.is-hidden {
             display: none;
+        }
+
+        .mirror-layout.is-idle-fullscreen {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .mirror-layout.is-idle-fullscreen .mirror-media {
+            display: none;
+        }
+
+        .mirror-layout.is-idle-fullscreen .mirror-content {
+            padding: 1.1rem 1.15rem;
+            grid-template-rows: auto auto minmax(0, 1.16fr) minmax(0, 0.9fr) auto;
+        }
+
+        .mirror-layout.is-idle-fullscreen .mirror-callout {
+            padding: 1rem 1.05rem;
+        }
+
+        .mirror-layout.is-idle-fullscreen .mirror-live-row {
+            padding-bottom: 0.95rem;
+        }
+
+        .mirror-layout.is-idle-fullscreen .mirror-live-text {
+            font-size: clamp(1rem, 1.4vw, 1.18rem);
+        }
+
+        .mirror-layout.is-idle-fullscreen .mirror-insight-stage {
+            grid-template-columns: minmax(0, 1.08fr) minmax(280px, 0.92fr);
+            min-height: 240px;
+            gap: 1rem;
+        }
+
+        .mirror-layout.is-idle-fullscreen .mirror-insight-stage.no-photo {
+            grid-template-columns: 1fr;
+        }
+
+        .mirror-layout.is-idle-fullscreen .mirror-insight-title {
+            font-size: clamp(1.48rem, 2.4vw, 2.42rem);
+        }
+
+        .mirror-layout.is-idle-fullscreen .mirror-insight-text {
+            font-size: clamp(1rem, 1.3vw, 1.14rem);
+        }
+
+        .mirror-layout.is-idle-fullscreen .mirror-insight-metrics {
+            gap: 0.85rem;
+        }
+
+        .mirror-layout.is-idle-fullscreen .mirror-insight-metric {
+            padding: 0.95rem 1rem;
+        }
+
+        .mirror-layout.is-idle-fullscreen .mirror-insight-metric-value {
+            font-size: clamp(1.3rem, 2vw, 1.9rem);
+        }
+
+        .mirror-layout.is-idle-fullscreen .mirror-grid {
+            display: none;
+        }
+
+        .mirror-layout.is-idle-fullscreen .mirror-live-strip {
+            display: grid;
+            grid-template-columns: minmax(0, 1.08fr) minmax(320px, 0.92fr);
+            gap: 0.8rem;
+        }
+
+        .mirror-layout.is-idle-fullscreen .mirror-batch-panel,
+        .mirror-layout.is-idle-fullscreen .mirror-draft-panel {
+            padding: 0.95rem 1rem;
+            border-radius: 20px;
+        }
+
+        .mirror-layout.is-idle-fullscreen .mirror-batch-title {
+            font-size: 1.08rem;
+        }
+
+        .mirror-layout.is-idle-fullscreen .mirror-batch-copy,
+        .mirror-layout.is-idle-fullscreen .mirror-draft-note {
+            font-size: 0.82rem;
+        }
+
+        .mirror-layout.is-idle-fullscreen .mirror-batch-list {
+            max-height: none;
+        }
+
+        .mirror-layout.is-idle-fullscreen .mirror-batch-row {
+            grid-template-columns: 60px minmax(0, 1fr) auto;
+            gap: 0.65rem;
+            padding: 0.7rem;
+        }
+
+        .mirror-layout.is-idle-fullscreen .mirror-batch-thumb,
+        .mirror-layout.is-idle-fullscreen .mirror-batch-thumb-placeholder {
+            width: 60px;
+            height: 60px;
+            border-radius: 16px;
+        }
+
+        .mirror-layout.is-idle-fullscreen .mirror-batch-name {
+            font-size: 0.96rem;
+        }
+
+        .mirror-layout.is-idle-fullscreen .mirror-batch-meta,
+        .mirror-layout.is-idle-fullscreen .mirror-batch-code {
+            font-size: 0.78rem;
+        }
+
+        .mirror-layout.is-idle-fullscreen .mirror-batch-qty {
+            font-size: 1rem;
+        }
+
+        .mirror-layout.is-idle-fullscreen .mirror-draft-field {
+            padding: 0.75rem 0.8rem;
+        }
+
+        .mirror-layout.is-idle-fullscreen .mirror-draft-value {
+            font-size: 1.08rem;
         }
 
         .mirror-live-strip {
@@ -1721,7 +1859,7 @@
                         <span class="mirror-stat-label">Colaborador em foco</span>
                         <span class="mirror-stat-value" id="mirror-actor">--</span>
                     </article>
-                    <article class="mirror-stat">
+                    <article class="mirror-stat mirror-stat-priority mirror-stat-quantity">
                         <span class="mirror-stat-label">Quantidade</span>
                         <span class="mirror-stat-value" id="mirror-quantity">--</span>
                     </article>
@@ -2060,6 +2198,44 @@
                 return { label: 'na retirada', className: 'queued', icon: 'bi-hourglass-split' };
             }
 
+            function normalizeActorDisplayName(value) {
+                const raw = String(value || '').replace(/\s+/g, ' ').trim();
+                if (!raw) {
+                    return '';
+                }
+                if (/^.+\s+[—-]\s+[0-9A-Za-z./_-]{3,}$/.test(raw)) {
+                    return raw.replace(/\s+[—-]\s+[0-9A-Za-z./_-]{3,}$/, '').trim();
+                }
+                return raw;
+            }
+
+            function resolveActorLabel(primaryItem, draft, payload) {
+                return normalizeActorDisplayName(
+                    primaryItem?.usuario
+                    || draft?.usuario
+                    || payload?.actor?.nome
+                    || payload?.actor?.matricula
+                    || ''
+                ) || '--';
+            }
+
+            function setIdleFullscreenMode(enabled) {
+                if (!layout) {
+                    return;
+                }
+                layout.classList.toggle('is-idle-fullscreen', Boolean(enabled));
+            }
+
+            function shouldUseIdleFullscreen(payload, primaryItem) {
+                if (payload?.operator_active) {
+                    return false;
+                }
+                if (primaryItem) {
+                    return false;
+                }
+                return !shouldRenderOperationalShowcase(payload);
+            }
+
             function renderBatchPanel(payload) {
                 if (!batchList || !batchTitle || !batchCopy || !batchTotal || !batchKicker) {
                     return;
@@ -2093,6 +2269,7 @@
                     const thumb = entry.foto_url
                         ? `<img class="mirror-batch-thumb" src="${escapeHtml(entry.foto_url)}" alt="${escapeHtml(entry.descricao || entry.codigo || 'Item')}">`
                         : '<div class="mirror-batch-thumb-placeholder"><i class="bi bi-image"></i></div>';
+                    const actorLabel = normalizeActorDisplayName(entry.usuario) || 'Colaborador não informado';
                     const localInfo = entry.local ? ` • ${escapeHtml(entry.local)}` : '';
                     return `
                         <article class="mirror-batch-row ${meta.className}">
@@ -2100,7 +2277,7 @@
                             <div class="mirror-batch-body">
                                 <div class="mirror-batch-name">${escapeHtml(entry.descricao || entry.codigo || 'Item')}</div>
                                 <div class="mirror-batch-code">Código ${escapeHtml(entry.codigo || '--')}</div>
-                                <div class="mirror-batch-meta">${escapeHtml(entry.usuario || 'Colaborador não informado')}${localInfo}</div>
+                                <div class="mirror-batch-meta">${escapeHtml(actorLabel)}${localInfo}</div>
                             </div>
                             <div class="mirror-batch-side">
                                 <div class="mirror-batch-qty">${escapeHtml(entry.quantidade_display || '--')}</div>
@@ -2116,7 +2293,7 @@
                 const hasDraft = Boolean(draft.codigo || draft.quantidade || draft.usuario || draft.local);
                 if (draftCode) draftCode.textContent = draft.codigo || '--';
                 if (draftQuantity) draftQuantity.textContent = draft.quantidade || '--';
-                if (draftActor) draftActor.textContent = draft.usuario || '--';
+                if (draftActor) draftActor.textContent = normalizeActorDisplayName(draft.usuario) || '--';
                 if (draftLocal) draftLocal.textContent = draft.local || '--';
                 if (draftNote) {
                     draftNote.textContent = hasDraft
@@ -2538,7 +2715,7 @@
 
                 const total = Math.max(Number(payload?.batch_total || 0), showcaseItems.length);
                 const primary = showcaseItems[showcaseItems.length - 1];
-                const actorLabel = primary?.usuario || payload?.actor?.nome || payload?.actor?.matricula || 'colaborador';
+                const actorLabel = normalizeActorDisplayName(primary?.usuario || payload?.actor?.nome || payload?.actor?.matricula) || 'colaborador';
                 const status = String(payload?.status || 'preview').trim().toLowerCase();
 
                 callout.dataset.tone = status === 'completed' ? 'success' : 'info';
@@ -2664,6 +2841,9 @@
             }
 
             function renderEmpty(payload) {
+                const primaryItem = getPrimaryMirrorItem(payload);
+                setIdleFullscreenMode(shouldUseIdleFullscreen(payload, primaryItem));
+
                 if (toggleCustodyStage(payload)) {
                     return;
                 }
@@ -2675,7 +2855,6 @@
                 }
                 const meta = statusMeta(payload?.status);
                 const draft = getDraftData(payload);
-                const primaryItem = getPrimaryMirrorItem(payload);
                 statusBadge.className = 'mirror-badge ' + meta.className;
                 statusBadge.innerHTML = '<i class="bi ' + meta.icon + '"></i> ' + meta.label;
                 updated.textContent = formatTimestamp(payload?.generated_at);
@@ -2701,7 +2880,7 @@
                 syncInsightStage(latestMirrorPayload);
                 kind.textContent = mirrorMode ? mirrorMode.charAt(0).toUpperCase() + mirrorMode.slice(1) : 'Aguardando';
                 quantity.textContent = primaryItem?.quantidade_display || draft.quantidade || '--';
-                actor.textContent = primaryItem?.usuario || draft.usuario || ((payload?.actor && (payload.actor.nome || payload.actor.matricula)) || '--');
+                actor.textContent = resolveActorLabel(primaryItem, draft, payload);
                 context.textContent = primaryItem?.local_servico || draft.local || ((payload?.context && payload.context.local_servico) || '--');
                 stock.textContent = primaryItem?.saldo_display || '--';
                 batch.textContent = primaryItem?.codigo || draft.codigo || '--';
@@ -2719,6 +2898,8 @@
                     renderEmpty(payload);
                     return;
                 }
+
+                setIdleFullscreenMode(false);
 
                 if (toggleCustodyStage(payload)) {
                     return;
@@ -2750,7 +2931,7 @@
                 syncInsightStage(latestMirrorPayload);
                 kind.textContent = payload.kind_label || payload.kind || '--';
                 quantity.textContent = movement.quantidade_display || movement.quantidade || '--';
-                actor.textContent = actorInfo.nome || actorInfo.matricula || '--';
+                actor.textContent = normalizeActorDisplayName(actorInfo.nome || actorInfo.matricula) || '--';
                 context.textContent = contextInfo.local_servico || 'Sem local informado';
                 stock.textContent = item.saldo_display || item.saldo || '--';
                 batch.textContent = item.codigo || '--';

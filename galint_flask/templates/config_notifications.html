@@ -55,16 +55,16 @@
             <div>
                 <div class="notify-status notify-status-ok mb-3"><i class="bi bi-broadcast-pin"></i> Notification Router</div>
                 <h1 class="mb-2" style="font-size: clamp(2rem, 3.5vw, 3rem); font-weight: 900; letter-spacing: -0.04em; color: #f8fbff;">Painel de Notificações</h1>
-                <p class="mb-0" style="max-width: 58rem; color: #bfd1e8;">Escolha o canal padrão, acompanhe a saúde do Telegram, habilite o inbox nativo GalintNotify e teste o failover automático com cooldown para evitar flapping.</p>
+                <p class="mb-0" style="max-width: 58rem; color: #bfd1e8;">Escolha o canal padrão, acompanhe a saúde do Telegram, habilite o inbox mobile nativo e teste o failover automático com cooldown para evitar flapping.</p>
             </div>
             <div class="notify-soft" style="min-width: 280px;">
                 <div class="small text-uppercase" style="letter-spacing: 0.08em; color: #7dd3fc;">Canal padrão</div>
-                <div style="font-size: 1.08rem; font-weight: 700; color: #f8fbff;">{{ router_status.default_channel|upper }}</div>
-                <div class="small text-muted mt-2">Telegram ativo: {{ 'sim' if router_status.telegram_enabled else 'não' }} | GalintNotify ativo: {{ 'sim' if router_status.notify_enabled else 'não' }}</div>
+                <div style="font-size: 1.08rem; font-weight: 700; color: #f8fbff;">{{ 'APP MOBILE' if router_status.default_channel == 'notify' else (router_status.default_channel|upper) }}</div>
+                <div class="small text-muted mt-2">Telegram ativo: {{ 'sim' if router_status.telegram_enabled else 'não' }} | Inbox mobile ativo: {{ 'sim' if router_status.notify_enabled else 'não' }}</div>
             </div>
         </div>
         <div class="notify-kpis">
-            <article class="notify-kpi"><span class="notify-kpi-label">Dispositivos Notify</span><div class="notify-kpi-value">{{ notify_metrics.devices }}</div></article>
+            <article class="notify-kpi"><span class="notify-kpi-label">Dispositivos mobile</span><div class="notify-kpi-value">{{ notify_metrics.devices }}</div></article>
             <article class="notify-kpi"><span class="notify-kpi-label">Usuários com token</span><div class="notify-kpi-value">{{ notify_metrics.users_with_tokens }}</div></article>
             <article class="notify-kpi"><span class="notify-kpi-label">Não lidas</span><div class="notify-kpi-value">{{ notify_metrics.unread }}</div></article>
             <article class="notify-kpi"><span class="notify-kpi-label">Falhas Telegram</span><div class="notify-kpi-value">{{ router_status.telegram_fail_count }}</div></article>
@@ -74,7 +74,7 @@
     <ul class="nav nav-pills notify-tabs galint-folder-tabs" role="tablist">
         <li class="nav-item" role="presentation"><button class="nav-link active" data-bs-toggle="pill" data-bs-target="#tab-router" type="button" role="tab">Router</button></li>
         <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-telegram" type="button" role="tab">Telegram</button></li>
-        <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-notify" type="button" role="tab">GalintNotify</button></li>
+        <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#tab-notify" type="button" role="tab">Mobile</button></li>
     </ul>
 
     <div class="tab-content galint-folder-content">
@@ -89,7 +89,7 @@
                                     <label class="form-label">Canal padrão</label>
                                     <select class="form-select" name="default_channel">
                                         <option value="telegram" {% if router_config.default_channel == 'telegram' %}selected{% endif %}>Telegram</option>
-                                        <option value="notify" {% if router_config.default_channel == 'notify' %}selected{% endif %}>GalintNotify</option>
+                                        <option value="notify" {% if router_config.default_channel == 'notify' %}selected{% endif %}>App Mobile</option>
                                     </select>
                                 </div>
                                 <div>
@@ -102,7 +102,7 @@
                             <div class="notify-grid-2 mb-3">
                                 <div class="notify-soft">
                                     <div class="form-check form-switch mb-2"><input class="form-check-input" type="checkbox" id="telegram_enabled" name="telegram_enabled" {% if router_config.telegram_enabled %}checked{% endif %}><label class="form-check-label" for="telegram_enabled">Habilitar Telegram no router</label></div>
-                                    <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="notify_enabled" name="notify_enabled" {% if router_config.notify_enabled %}checked{% endif %}><label class="form-check-label" for="notify_enabled">Habilitar GalintNotify no router</label></div>
+                                    <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="notify_enabled" name="notify_enabled" {% if router_config.notify_enabled %}checked{% endif %}><label class="form-check-label" for="notify_enabled">Habilitar inbox mobile no router</label></div>
                                 </div>
                                 <div class="notify-soft">
                                     <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="push_enabled" name="push_enabled" {% if router_config.push_enabled %}checked{% endif %}><label class="form-check-label" for="push_enabled">Habilitar push Android</label></div>
@@ -157,7 +157,7 @@
         <div class="tab-pane fade" id="tab-notify" role="tabpanel">
             <div class="notify-grid">
                 <div class="card notify-panel">
-                    <div class="card-header"><h5 class="mb-1">GalintNotify</h5><p class="mb-0 text-muted">Inbox nativo com push Expo e métricas de dispositivos.</p></div>
+                    <div class="card-header"><h5 class="mb-1">Inbox Mobile</h5><p class="mb-0 text-muted">Inbox nativo do app principal com push Expo e métricas de dispositivos.</p></div>
                     <div class="card-body">
                         <div class="notify-grid-2 mb-4">
                             <div class="notify-soft"><strong>Push provider:</strong> {{ router_config.push_provider|upper }}<br><strong>Push ativo:</strong> {{ 'sim' if router_config.push_enabled else 'não' }}<br><strong>Mensagens:</strong> {{ notify_metrics.messages }}</div>
@@ -166,9 +166,9 @@
                         <form method="POST" action="{{ url_for('config.notificacoes_testar') }}" class="notify-soft mb-3">
                             <div class="notify-grid-2 mb-3">
                                 <div><label class="form-label">Usuário de teste</label><select class="form-select" name="matricula" required>{% for usuario in usuarios %}<option value="{{ usuario.matricula }}">{{ usuario.nome }} ({{ usuario.matricula }})</option>{% endfor %}</select></div>
-                                <div><label class="form-label">Título</label><input class="form-control notify-form-control" type="text" name="title" value="Teste GalintNotify"></div>
+                                <div><label class="form-label">Título</label><input class="form-control notify-form-control" type="text" name="title" value="Teste app mobile"></div>
                             </div>
-                            <div class="mb-3"><label class="form-label">Mensagem</label><textarea class="form-control notify-form-control" name="message" rows="3">Mensagem de teste do inbox nativo com push Expo.</textarea></div>
+                            <div class="mb-3"><label class="form-label">Mensagem</label><textarea class="form-control notify-form-control" name="message" rows="3">Mensagem de teste do inbox mobile com push Expo.</textarea></div>
                             <div class="notify-actions"><button class="btn btn-success rounded-pill px-4" type="submit" name="channel" value="notify">Testar push/inbox</button><button class="btn btn-outline-info rounded-pill px-4" type="submit" name="channel" value="router">Testar pelo router</button></div>
                         </form>
                     </div>

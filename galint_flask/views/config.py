@@ -345,7 +345,7 @@ def notificacoes_testar():
             message_type="manual_test",
             payload={"kind": "manual_test"},
         )
-        flash("Teste GalintNotify enviado." if result.get("success") else f"Falha no teste: {result.get('error')}", "success" if result.get("success") else "danger")
+        flash("Teste do inbox mobile enviado." if result.get("success") else f"Falha no teste: {result.get('error')}", "success" if result.get("success") else "danger")
         return redirect(url_for("config.notificacoes"))
 
     telegram_user = TelegramUser.query.filter_by(matricula=matricula, enabled=True).first()

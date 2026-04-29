@@ -5747,43 +5747,6 @@ class InventoryService:
             )
         return resultado
 
-    def list_saidas_fracionadas(self, limit: int = 200) -> list[dict[str, Any]]:
-        registros = (
-            Saida.query.filter(
-                or_(Saida.usou_fracao.is_(True), Saida.fracao_denominador.isnot(None))
-            )
-            .order_by(Saida.data_saida.desc())
-            .limit(limit)
-            .all()
-        )
-        resultado: list[dict[str, Any]] = []
-        for saida in registros:
-            resultado.append(
-                {
-                    "id": saida.id_saida,
-                    "codigo": saida.codigo_item,
-                    "descricao": saida.item.descricao if saida.item else "",
-                    "quantidade": saida.quantidade,
-                    "data": saida.data_saida,
-                    "observacao": saida.observacao,
-                    "usuario": saida.usuario.nome if saida.usuario else saida.matricula,
-                    "matricula": saida.usuario.matricula if saida.usuario else saida.matricula,
-                    "tipo_produto": saida.tipo_produto,
-                    "densidade_aplicada": saida.densidade_aplicada,
-                    "fracao_numerador": saida.fracao_numerador,
-                    "fracao_denominador": saida.fracao_denominador,
-                    "quantidade_total_embalagem": saida.quantidade_total_embalagem,
-                    "quantidade_retirada_em_litros": saida.quantidade_retirada_em_litros,
-                    "quantidade_retirada_em_quilos": saida.quantidade_retirada_em_quilos,
-                    "quantidade_restante": saida.quantidade_restante,
-                    "usou_fracao": bool(saida.usou_fracao),
-                    "atividade_operacional": getattr(saida, "atividade_operacional", None),
-                    "ordem_servico": getattr(saida, "ordem_servico", None),
-                    "centro_custo": getattr(saida, "centro_custo", None),
-                }
-            )
-        return resultado
-
     def list_saidas_por_usuario(
         self,
         matricula: str,

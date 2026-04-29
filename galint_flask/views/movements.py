@@ -936,9 +936,10 @@ def registrar_saida():
             return jsonify({"success": False, "error": str(exc)}), 400
         
         flash(str(exc), "danger")
-    # Não redirecionar mais - manter na mesma página (AJAX)
-    # return redirect(url_for("movements.saida_fracionada_page"))
-    return redirect(url_for("movements.saida_fracionada_page"))
+    referrer = str(request.referrer or "")
+    if "/movimentos/saida-fracionada/page" in referrer:
+        return redirect(url_for("movements.saida_fracionada_page"))
+    return redirect(url_for("movements.saida_page"))
 
 
 @blueprint.get("/item-info/<codigo>")
@@ -1187,15 +1188,6 @@ def saida_fracionada_page():
     )
 
 
-@blueprint.get('/saidas-fracionadas')
-@login_required
-def saidas_fracionadas_page():
-    """Página com histórico de saídas fracionadas."""
-    _require_admin()
-    saidas = inventory_service.list_saidas_fracionadas(limit=200)
-    return render_mako_template('movements/saidas_fracionadas.mako', saidas=saidas)
-
-
 @blueprint.get('/entrada/page')
 @login_required
 def entrada_page():
@@ -1412,7 +1404,7 @@ def registrar_entrada():
         flash("Entrada registrada.", "success")
     except ValueError as exc:
         flash(str(exc), "danger")
-    return redirect(url_for("movements.saida_fracionada_page"))  # Redirecionar para página principal
+    return redirect(url_for("movements.entrada_page"))
 
 
 @blueprint.post("/devolucao")

@@ -272,7 +272,7 @@
                 </div>
                 <span class="saida-card-badge">Controle Especial</span>
             </div>
-            
+
             <!-- Card Fracionados -->
             <div class="saida-card fracionados" onclick="window.location.href='${url_for('movements.saida_fracionada_page')}'">
                 <div class="saida-card-icon">
@@ -284,7 +284,7 @@
                 </div>
                 <span class="saida-card-badge">Pesagem Manual</span>
             </div>
-
+            
             <!-- Card Devoluções -->
             <div class="saida-card devolucoes" onclick="window.location.href='${url_for('movements.entrada_page')}'">
                 <div class="saida-card-icon">
