@@ -454,6 +454,25 @@
     color: #93c5fd;
 }
 
+.barcode-studio-dimension-lock {
+    margin-top: 1rem;
+    padding: 1rem;
+    border-radius: 18px;
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    background: rgba(15, 23, 42, 0.42);
+}
+
+.barcode-studio-dimension-lock .barcode-studio-note {
+    margin: 0;
+}
+
+.barcode-studio-dimension-lock-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.55rem;
+    margin-top: 0.85rem;
+}
+
 .barcode-studio-selection-summary,
 .barcode-studio-meta-grid {
     display: grid;

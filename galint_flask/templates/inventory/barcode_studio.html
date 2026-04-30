@@ -3,7 +3,7 @@
 {% block title %}Editor de Etiquetas{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/barcode-studio.css', v='20260429a') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/barcode-studio.css', v='20260430a') }}">
 {% endblock %}
 
 {% block content %}
@@ -231,6 +231,20 @@
                 <p>Sem etiqueta selecionada. Clique em um bloco da folha para editar.</p>
             </div>
 
+            <div class="barcode-studio-dimension-lock">
+                <div class="barcode-studio-note" id="barcodeStudioDimensionPresetStatus">
+                    Nenhuma dimensao fixa ativa. Ajuste uma etiqueta e fixe o tamanho para reaproveitar nas proximas.
+                </div>
+                <div class="barcode-studio-dimension-lock-actions">
+                    <button class="btn btn-outline-light btn-sm" type="button" id="barcodeStudioLockDimensionsBtn">
+                        Fixar dimensao atual
+                    </button>
+                    <button class="btn btn-outline-light btn-sm" type="button" id="barcodeStudioClearDimensionsBtn">
+                        Remover dimensao fixa
+                    </button>
+                </div>
+            </div>
+
             <div id="barcodeStudioPropertiesForm" class="barcode-studio-properties-form d-none">
                 <div class="barcode-studio-selection-summary">
                     <div>
@@ -332,5 +346,5 @@
         "internalLayoutsDir": barcode_layouts_internal_dir,
     } | tojson | safe }};
 </script>
-<script src="{{ url_for('static', filename='js/barcode-studio.js', v='20260429d') }}"></script>
+<script src="{{ url_for('static', filename='js/barcode-studio.js', v='20260430a') }}"></script>
 {% endblock %}

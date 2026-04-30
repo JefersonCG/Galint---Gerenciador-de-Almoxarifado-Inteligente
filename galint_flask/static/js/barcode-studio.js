@@ -21,6 +21,7 @@
             gapMm: 6,
             marginMm: 10,
             snapEnabled: true,
+            defaultItemSize: null,
         },
     };
 
@@ -59,6 +60,9 @@
         loadLayoutBtn: document.getElementById('barcodeStudioLoadLayoutBtn'),
         deleteLayoutBtn: document.getElementById('barcodeStudioDeleteLayoutBtn'),
         propertiesEmpty: document.getElementById('barcodeStudioPropertiesEmpty'),
+        dimensionPresetStatus: document.getElementById('barcodeStudioDimensionPresetStatus'),
+        lockDimensionsBtn: document.getElementById('barcodeStudioLockDimensionsBtn'),
+        clearDimensionsBtn: document.getElementById('barcodeStudioClearDimensionsBtn'),
         propertiesForm: document.getElementById('barcodeStudioPropertiesForm'),
         selectedCode: document.getElementById('barcodeStudioSelectedCode'),
         selectedCategory: document.getElementById('barcodeStudioSelectedCategory'),
@@ -143,6 +147,39 @@
 
     function getPagePreset() {
         return PAGE_PRESETS[state.page.orientation] || PAGE_PRESETS.portrait;
+    }
+
+    function roundMm(value) {
+        return Math.round(Number(value || 0) * 10) / 10;
+    }
+
+    function normalizeFixedItemSize(rawSize, presetOverride) {
+        if (!rawSize || typeof rawSize !== 'object') {
+            return null;
+        }
+        const preset = presetOverride || getPagePreset();
+        const widthValue = Number(rawSize.widthMm);
+        const heightValue = Number(rawSize.heightMm);
+        if (!Number.isFinite(widthValue) || !Number.isFinite(heightValue)) {
+            return null;
+        }
+        return {
+            widthMm: roundMm(clamp(widthValue, 24, Math.max(24, preset.widthMm - 4))),
+            heightMm: roundMm(clamp(heightValue, 20, Math.max(20, preset.heightMm - 4))),
+        };
+    }
+
+    function getFixedItemSize() {
+        return normalizeFixedItemSize(state.page.defaultItemSize, getPagePreset());
+    }
+
+    function setFixedItemSize(rawSize) {
+        state.page.defaultItemSize = normalizeFixedItemSize(rawSize, getPagePreset());
+        return state.page.defaultItemSize;
+    }
+
+    function getNewItemSize() {
+        return getFixedItemSize() || { widthMm: 72, heightMm: 40 };
     }
 
     function isValidEan8(raw) {
@@ -419,7 +456,12 @@
         if (!snapshot || typeof snapshot !== 'object') {
             return;
         }
-        state.page = Object.assign({}, state.page, snapshot.page || {});
+        const incomingPage = snapshot.page && typeof snapshot.page === 'object' ? snapshot.page : {};
+        state.page = Object.assign({}, state.page, incomingPage);
+        if (!Object.prototype.hasOwnProperty.call(incomingPage, 'defaultItemSize')) {
+            state.page.defaultItemSize = null;
+        }
+        state.page.defaultItemSize = normalizeFixedItemSize(state.page.defaultItemSize, getPagePreset());
         state.items = cloneSerializableItems(snapshot.items || []);
         state.items.forEach(function (item) {
             normalizeLabel(item);
@@ -808,10 +850,15 @@
 
     function addItemToSheet(item, options) {
         const preset = getPagePreset();
+        const itemSize = getNewItemSize();
         const quantity = clamp(parseInt(options && options.quantity ? options.quantity : readAddQuantity(), 10) || 1, 1, 60);
         let lastCreated = null;
         for (let index = 0; index < quantity; index += 1) {
             const offset = (state.items.length + index) % 6;
+            const maxX = Math.max(0, preset.widthMm - itemSize.widthMm);
+            const maxY = Math.max(0, preset.heightMm - itemSize.heightMm);
+            const startX = Math.min(state.page.marginMm, maxX);
+            const startY = Math.min(state.page.marginMm, maxY);
             const label = {
                 id: createId(),
                 codigo: String(item.codigo || '').trim(),
@@ -821,11 +868,11 @@
                 unidade: String(item.unidade || '').trim(),
                 saldoDisplay: String(item.saldo_display || '').trim(),
                 customTitle: String(item.descricao || item.codigo || '').trim(),
-                widthMm: 72,
-                heightMm: 40,
-                xMm: clamp(state.page.marginMm + (offset * 8), state.page.marginMm, Math.max(state.page.marginMm, preset.widthMm - 80)),
-                yMm: clamp(state.page.marginMm + (offset * 8), state.page.marginMm, Math.max(state.page.marginMm, preset.heightMm - 48)),
-                barcodeHeightMm: 18,
+                widthMm: itemSize.widthMm,
+                heightMm: itemSize.heightMm,
+                xMm: clamp(state.page.marginMm + (offset * 8), startX, maxX),
+                yMm: clamp(state.page.marginMm + (offset * 8), startY, maxY),
+                barcodeHeightMm: clamp(18, 8, Math.max(8, itemSize.heightMm - 4)),
                 paddingMm: 3,
                 fontSizePx: 14,
                 codeFontSizePx: 11,
@@ -950,6 +997,57 @@
         setFeedback('Folha A4 limpa.', 'muted');
     }
 
+    function updateDimensionPresetStatus() {
+        const fixedItemSize = getFixedItemSize();
+        state.page.defaultItemSize = fixedItemSize;
+        if (elements.dimensionPresetStatus) {
+            elements.dimensionPresetStatus.textContent = fixedItemSize
+                ? 'Dimensao fixa ativa: ' + fixedItemSize.widthMm.toFixed(1) + ' x ' + fixedItemSize.heightMm.toFixed(1) + ' mm. Novas etiquetas entram nesse tamanho.'
+                : 'Nenhuma dimensao fixa ativa. Ajuste uma etiqueta e fixe o tamanho para reaproveitar nas proximas.';
+        }
+        if (elements.lockDimensionsBtn) {
+            elements.lockDimensionsBtn.disabled = !getSelectedItem();
+        }
+        if (elements.clearDimensionsBtn) {
+            elements.clearDimensionsBtn.disabled = !fixedItemSize;
+        }
+    }
+
+    function fixSelectedDimensions() {
+        const item = getSelectedItem();
+        if (!item) {
+            setFeedback('Selecione uma etiqueta para fixar a dimensao.', 'warning');
+            updateDimensionPresetStatus();
+            return;
+        }
+        const fixedItemSize = setFixedItemSize({ widthMm: item.widthMm, heightMm: item.heightMm });
+        if (!fixedItemSize) {
+            setFeedback('Nao foi possivel fixar a dimensao selecionada.', 'danger');
+            return;
+        }
+        state.items.forEach(function (entry) {
+            entry.widthMm = fixedItemSize.widthMm;
+            entry.heightMm = fixedItemSize.heightMm;
+            entry.barcodeHeightMm = clamp(Number(entry.barcodeHeightMm || 18), 8, Math.max(8, fixedItemSize.heightMm - 4));
+            entry.isSnapping = false;
+            normalizeLabel(entry);
+        });
+        renderPage();
+        renderProperties();
+        setFeedback('Dimensao ' + fixedItemSize.widthMm.toFixed(1) + ' x ' + fixedItemSize.heightMm.toFixed(1) + ' mm fixada para as etiquetas atuais e futuras.', 'muted');
+    }
+
+    function clearFixedDimensions() {
+        if (!getFixedItemSize()) {
+            setFeedback('Nenhuma dimensao fixa esta ativa.', 'warning');
+            updateDimensionPresetStatus();
+            return;
+        }
+        state.page.defaultItemSize = null;
+        renderProperties();
+        setFeedback('Dimensao fixa removida. Novas etiquetas voltam ao tamanho padrao.', 'muted');
+    }
+
     function updateSelectedFromForm() {
         const item = getSelectedItem();
         if (!item) {
@@ -982,6 +1080,7 @@
         if (elements.propertiesForm) {
             elements.propertiesForm.classList.toggle('d-none', !hasSelection);
         }
+        updateDimensionPresetStatus();
         if (!item) {
             return;
         }
@@ -1307,6 +1406,8 @@
         elements.pdfBtn && elements.pdfBtn.addEventListener('click', exportSheetPdf);
         elements.removeBtn && elements.removeBtn.addEventListener('click', removeSelectedItem);
         elements.duplicateBtn && elements.duplicateBtn.addEventListener('click', duplicateSelectedItem);
+        elements.lockDimensionsBtn && elements.lockDimensionsBtn.addEventListener('click', fixSelectedDimensions);
+        elements.clearDimensionsBtn && elements.clearDimensionsBtn.addEventListener('click', clearFixedDimensions);
         elements.nudgeLeftBtn && elements.nudgeLeftBtn.addEventListener('click', function () { nudgeSelected(-1, 0); });
         elements.nudgeRightBtn && elements.nudgeRightBtn.addEventListener('click', function () { nudgeSelected(1, 0); });
         elements.nudgeUpBtn && elements.nudgeUpBtn.addEventListener('click', function () { nudgeSelected(0, -1); });
