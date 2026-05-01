@@ -1607,8 +1607,6 @@ def _build_barcode_studio_categories(*, query: str = "", limit: int = 40) -> lis
         category_name = _normalize_barcode_studio_category_name(category.get("label") or category.get("route"))
         category_key = _normalize_barcode_studio_lookup(category_name)
         total_items = int(counts_by_category.get(category_key) or 0)
-        if total_items <= 0:
-            continue
         if normalized_query and normalized_query not in category_key:
             continue
         payloads.append(
@@ -1640,7 +1638,6 @@ def _build_barcode_studio_categories(*, query: str = "", limit: int = 40) -> lis
 
     payloads.sort(
         key=lambda item: (
-            -int(item.get("item_count") or 0),
             int(item.get("position") or 0),
             str(item.get("name") or "").casefold(),
         )

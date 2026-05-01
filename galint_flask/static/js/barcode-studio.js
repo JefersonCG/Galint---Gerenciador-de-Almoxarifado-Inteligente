@@ -25,6 +25,7 @@
             rows: 8,
             gapMm: 6,
             marginMm: 10,
+            gridAlignX: 'center',
             snapEnabled: true,
             defaultItemSize: null,
         },
@@ -50,6 +51,7 @@
         rows: document.getElementById('barcodeStudioRows'),
         gap: document.getElementById('barcodeStudioGap'),
         margin: document.getElementById('barcodeStudioMargin'),
+        gridAlignInput: document.getElementById('barcodeStudioGridAlignInput'),
         snapToggle: document.getElementById('barcodeStudioSnapToggle'),
         copies: document.getElementById('barcodeStudioCopies'),
         duplicateBtn: document.getElementById('barcodeStudioDuplicateBtn'),
@@ -189,7 +191,7 @@
 
     function getEmptySearchStatus() {
         return getSearchMode() === 'category'
-            ? 'Digite para filtrar categorias ou deixe vazio para listar todas.'
+            ? 'Todas as categorias do estoque aparecem abaixo. Digite se quiser filtrar.'
             : 'Busque um item para comecar.';
     }
 
@@ -281,6 +283,7 @@
         state.page.rows = clamp(parseInt(elements.rows ? elements.rows.value : String(state.page.rows), 10) || 8, 1, 12);
         state.page.gapMm = clamp(parseFloat(elements.gap ? elements.gap.value : String(state.page.gapMm)) || 0, 0, 30);
         state.page.marginMm = clamp(parseFloat(elements.margin ? elements.margin.value : String(state.page.marginMm)) || 10, 4, 30);
+        state.page.gridAlignX = elements.gridAlignInput && elements.gridAlignInput.value === 'left' ? 'left' : 'center';
     }
 
     function syncDimensionPresetInputs(options) {
@@ -333,20 +336,58 @@
         let cellWidth = 0;
         let cellHeight = 0;
 
-        if (preferFixedSize) {
-            const fixedItemSize = getFixedItemSize();
-            const usableWidth = preset.widthMm - (marginMm * 2);
-            const usableHeight = preset.heightMm - (marginMm * 2);
-            if (!fixedItemSize || fixedItemSize.widthMm > usableWidth || fixedItemSize.heightMm > usableHeight) {
+        function fitAxis(pageSizeMm, itemSizeMm) {
+            const safeMarginMm = clamp(Number(marginMm || 0), 0, Math.max(0, (pageSizeMm - itemSizeMm) / 2));
+            const usableSizeMm = Math.max(0, pageSizeMm - (safeMarginMm * 2));
+            if (!(itemSizeMm > 0) || itemSizeMm > usableSizeMm) {
                 throw new Error('A dimensao fixa nao cabe na area util da folha atual.');
             }
-            columns = Math.max(1, Math.floor((usableWidth + gapMm) / (fixedItemSize.widthMm + gapMm)));
-            rows = Math.max(1, Math.floor((usableHeight + gapMm) / (fixedItemSize.heightMm + gapMm)));
+            const count = Math.max(1, Math.floor(usableSizeMm / itemSizeMm));
+            const freeSizeMm = Math.max(0, usableSizeMm - (count * itemSizeMm));
+            let actualGapMm = 0;
+            let extraSpaceMm = freeSizeMm;
+            if (count > 1) {
+                const maxGapMm = freeSizeMm / (count - 1);
+                actualGapMm = Math.min(Math.max(0, gapMm), maxGapMm);
+                extraSpaceMm = Math.max(0, freeSizeMm - (actualGapMm * (count - 1)));
+            }
+            return {
+                count: count,
+                marginMm: safeMarginMm,
+                usableSizeMm: usableSizeMm,
+                gapMm: actualGapMm,
+                extraSpaceMm: extraSpaceMm,
+            };
+        }
+
+        if (preferFixedSize) {
+            const fixedItemSize = getFixedItemSize();
+            if (!fixedItemSize) {
+                throw new Error('A dimensao fixa nao esta disponivel para montar a grade.');
+            }
+            const fitX = fitAxis(preset.widthMm, fixedItemSize.widthMm);
+            const fitY = fitAxis(preset.heightMm, fixedItemSize.heightMm);
+            columns = fitX.count;
+            rows = fitY.count;
             cellWidth = fixedItemSize.widthMm;
             cellHeight = fixedItemSize.heightMm;
             state.page.columns = columns;
             state.page.rows = rows;
             syncPageInputs();
+            return {
+                preset: preset,
+                gapMm: gapMm,
+                marginMm: marginMm,
+                columns: columns,
+                rows: rows,
+                cellWidth: cellWidth,
+                cellHeight: cellHeight,
+                capacity: Math.max(1, columns * rows),
+                fixedSizeMode: true,
+                fitX: fitX,
+                fitY: fitY,
+                gridAlignX: state.page.gridAlignX,
+            };
         } else {
             const usableWidth = preset.widthMm - (marginMm * 2) - ((columns - 1) * gapMm);
             const usableHeight = preset.heightMm - (marginMm * 2) - ((rows - 1) * gapMm);
@@ -366,6 +407,8 @@
             cellWidth: cellWidth,
             cellHeight: cellHeight,
             capacity: Math.max(1, columns * rows),
+            fixedSizeMode: false,
+            gridAlignX: state.page.gridAlignX,
         };
     }
 
@@ -380,11 +423,22 @@
         items.forEach(function (item, index) {
             const pageOffset = Math.floor(index / metrics.capacity);
             const indexWithinPage = index % metrics.capacity;
+            const itemsOnPage = Math.min(metrics.capacity, items.length - (pageOffset * metrics.capacity));
             const row = Math.floor(indexWithinPage / metrics.columns);
             const column = indexWithinPage % metrics.columns;
             item.pageIndex = startPage + pageOffset;
-            item.xMm = metrics.marginMm + (column * (metrics.cellWidth + metrics.gapMm));
-            item.yMm = metrics.marginMm + (row * (metrics.cellHeight + metrics.gapMm));
+            if (metrics.fixedSizeMode) {
+                const itemsBeforeRow = row * metrics.columns;
+                const itemsInRow = Math.max(1, Math.min(metrics.columns, itemsOnPage - itemsBeforeRow));
+                const rowWidthMm = (itemsInRow * metrics.cellWidth) + (Math.max(0, itemsInRow - 1) * metrics.fitX.gapMm);
+                const rowRemainingMm = Math.max(0, metrics.fitX.usableSizeMm - rowWidthMm);
+                const rowStartMm = metrics.fitX.marginMm + (metrics.gridAlignX === 'center' ? (rowRemainingMm / 2) : 0);
+                item.xMm = rowStartMm + (column * (metrics.cellWidth + metrics.fitX.gapMm));
+                item.yMm = metrics.fitY.marginMm + (row * (metrics.cellHeight + metrics.fitY.gapMm));
+            } else {
+                item.xMm = metrics.marginMm + (column * (metrics.cellWidth + metrics.gapMm));
+                item.yMm = metrics.marginMm + (row * (metrics.cellHeight + metrics.gapMm));
+            }
             item.widthMm = metrics.cellWidth;
             item.heightMm = metrics.cellHeight;
             item.barcodeHeightMm = clamp(metrics.cellHeight * 0.46, 10, Math.max(10, metrics.cellHeight - 6));
@@ -818,6 +872,9 @@
         if (elements.margin) {
             elements.margin.value = String(state.page.marginMm);
         }
+        if (elements.gridAlignInput) {
+            elements.gridAlignInput.value = state.page.gridAlignX === 'left' ? 'left' : 'center';
+        }
         if (elements.snapToggle) {
             elements.snapToggle.checked = state.page.snapEnabled !== false;
         }
@@ -1028,7 +1085,7 @@
         const total = Number(category.item_count || 0);
         button.innerHTML = '' +
             '<div class="barcode-studio-result__top">' +
-                '<span class="barcode-studio-result__code"><span class="barcode-studio-result__emoji">' + icon + '</span>Estoque</span>' +
+                '<span class="barcode-studio-result__code"><span class="barcode-studio-result__emoji">' + icon + '</span>Categoria</span>' +
                 '<span class="badge text-bg-dark">' + total + ' item(ns)</span>' +
             '</div>' +
             '<p class="barcode-studio-result__title">' + name + '</p>' +
@@ -1803,6 +1860,10 @@
             state.page.marginMm = clamp(parseFloat(elements.margin.value) || 10, 4, 30);
             updateSheetMetrics();
         });
+        elements.gridAlignInput && elements.gridAlignInput.addEventListener('change', function () {
+            state.page.gridAlignX = elements.gridAlignInput.value === 'left' ? 'left' : 'center';
+            updateSheetMetrics();
+        });
         elements.snapToggle && elements.snapToggle.addEventListener('change', function () {
             state.page.snapEnabled = Boolean(elements.snapToggle.checked);
             hideGuides();
@@ -1849,12 +1910,15 @@
         elements.searchMode && elements.searchMode.addEventListener('change', function () {
             state.search.mode = elements.searchMode.value === 'category' ? 'category' : 'item';
             syncSearchModeUI();
+            if (elements.searchInput) {
+                elements.searchInput.value = '';
+            }
             lastSearchResults = [];
             renderSearchResults([]);
             clearSelectedCategory({ silent: true });
             setSearchStatus(getEmptySearchStatus(), 'muted');
             if (getSearchMode() === 'category') {
-                fetchCategoryResults(elements.searchInput ? elements.searchInput.value : '');
+                fetchCategoryResults('');
             }
         });
         elements.searchInput && elements.searchInput.addEventListener('input', scheduleSearch);

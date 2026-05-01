@@ -138,10 +138,17 @@
                     <label class="form-label" for="barcodeStudioMargin">Margem interna (mm)</label>
                     <input class="form-control" id="barcodeStudioMargin" type="number" min="4" max="30" step="0.5" value="10">
                 </div>
+                <div class="col-12">
+                    <label class="form-label" for="barcodeStudioGridAlignInput">Alinhamento horizontal da grade</label>
+                    <select class="form-select" id="barcodeStudioGridAlignInput">
+                        <option value="left">Esquerda</option>
+                        <option value="center" selected>Centralizar</option>
+                    </select>
+                </div>
             </div>
 
             <div class="barcode-studio-note">
-                Arraste etiquetas diretamente na folha. O ponto azul no canto inferior direito permite redimensionar.
+                Arraste etiquetas diretamente na folha. Com dimensao fixa ativa, a grade recalcula automaticamente quantas cabem na folha e pode centralizar a ultima linha.
             </div>
 
             <div class="barcode-studio-divider"></div>
