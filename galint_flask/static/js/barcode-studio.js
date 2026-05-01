@@ -14,6 +14,11 @@
         selectedId: null,
         savedLayouts: [],
         currentLayoutFilename: null,
+        search: {
+            mode: 'item',
+            selectedCategory: null,
+            selectedCategoryItems: [],
+        },
         page: {
             orientation: 'portrait',
             columns: 3,
@@ -26,10 +31,19 @@
     };
 
     const elements = {
+        searchPanelTitle: document.getElementById('barcodeStudioSearchPanelTitle'),
+        searchPanelSubtitle: document.getElementById('barcodeStudioSearchPanelSubtitle'),
+        searchInputLabel: document.getElementById('barcodeStudioSearchInputLabel'),
+        searchMode: document.getElementById('barcodeStudioSearchMode'),
         searchInput: document.getElementById('barcodeStudioSearchInput'),
         searchClear: document.getElementById('barcodeStudioSearchClear'),
         searchResults: document.getElementById('barcodeStudioSearchResults'),
         searchStatus: document.getElementById('barcodeStudioSearchStatus'),
+        categoryToolbar: document.getElementById('barcodeStudioCategoryToolbar'),
+        selectedCategoryName: document.getElementById('barcodeStudioSelectedCategoryName'),
+        selectedCategoryMeta: document.getElementById('barcodeStudioSelectedCategoryMeta'),
+        addCategoryBtn: document.getElementById('barcodeStudioAddCategoryBtn'),
+        categoryItems: document.getElementById('barcodeStudioCategoryItems'),
         addQuantity: document.getElementById('barcodeStudioAddQuantity'),
         orientation: document.getElementById('barcodeStudioOrientation'),
         columns: document.getElementById('barcodeStudioColumns'),
@@ -44,10 +58,10 @@
         printBtn: document.getElementById('barcodeStudioPrintBtn'),
         pdfBtn: document.getElementById('barcodeStudioPdfBtn'),
         removeBtn: document.getElementById('barcodeStudioRemoveBtn'),
-        sheet: document.getElementById('barcodeStudioSheet'),
-        sheetEmpty: document.getElementById('barcodeStudioSheetEmpty'),
+        sheetsContainer: document.getElementById('barcodeStudioSheetsContainer'),
         feedback: document.getElementById('barcodeStudioFeedback'),
         itemCount: document.getElementById('barcodeStudioItemCount'),
+        pageCount: document.getElementById('barcodeStudioPageCount'),
         pageInfo: document.getElementById('barcodeStudioPageInfo'),
         gridInfo: document.getElementById('barcodeStudioGridInfo'),
         layoutName: document.getElementById('barcodeStudioLayoutName'),
@@ -61,6 +75,9 @@
         deleteLayoutBtn: document.getElementById('barcodeStudioDeleteLayoutBtn'),
         propertiesEmpty: document.getElementById('barcodeStudioPropertiesEmpty'),
         dimensionPresetStatus: document.getElementById('barcodeStudioDimensionPresetStatus'),
+        presetWidthInput: document.getElementById('barcodeStudioPresetWidthInput'),
+        presetHeightInput: document.getElementById('barcodeStudioPresetHeightInput'),
+        applyPresetBtn: document.getElementById('barcodeStudioApplyPresetBtn'),
         lockDimensionsBtn: document.getElementById('barcodeStudioLockDimensionsBtn'),
         clearDimensionsBtn: document.getElementById('barcodeStudioClearDimensionsBtn'),
         propertiesForm: document.getElementById('barcodeStudioPropertiesForm'),
@@ -90,10 +107,19 @@
     let searchTimer = null;
     let searchAbortController = null;
     let lastSearchResults = [];
+    let lastSearchMode = 'item';
     let guideState = null;
 
     function getLayoutListUrl() {
         return String(config.layoutListApiUrl || '').trim();
+    }
+
+    function getCategoriesUrl() {
+        return String(config.categoriesApiUrl || '').trim();
+    }
+
+    function getCategoryItemsUrl() {
+        return String(config.categoryItemsApiUrl || '').trim();
     }
 
     function getLayoutDetailUrl(filename) {
@@ -128,6 +154,14 @@
         return Math.min(Math.max(value, min), max);
     }
 
+    function normalizeLookup(value) {
+        return String(value == null ? '' : value)
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .trim()
+            .toLowerCase();
+    }
+
     function mmToPx(value) {
         return Number(value || 0) * 3.7795275591;
     }
@@ -147,6 +181,40 @@
 
     function getPagePreset() {
         return PAGE_PRESETS[state.page.orientation] || PAGE_PRESETS.portrait;
+    }
+
+    function getSearchMode() {
+        return state.search.mode === 'category' ? 'category' : 'item';
+    }
+
+    function getEmptySearchStatus() {
+        return getSearchMode() === 'category'
+            ? 'Digite para filtrar categorias ou deixe vazio para listar todas.'
+            : 'Busque um item para comecar.';
+    }
+
+    function getSearchPlaceholder() {
+        return getSearchMode() === 'category'
+            ? 'Ex.: material eletrico, ferramentas, limpeza'
+            : 'Ex.: ITEM-0283, cabo, furadeira';
+    }
+
+    function syncSearchModeUI() {
+        const isCategory = getSearchMode() === 'category';
+        if (elements.searchPanelTitle) {
+            elements.searchPanelTitle.textContent = isCategory ? 'Buscar categoria' : 'Buscar item';
+        }
+        if (elements.searchPanelSubtitle) {
+            elements.searchPanelSubtitle.textContent = isCategory
+                ? 'As categorias do estoque aparecem abaixo. Clique em uma para abrir todos os itens dela.'
+                : 'Digite codigo, descricao ou marca e adicione o resultado direto na folha.';
+        }
+        if (elements.searchInputLabel) {
+            elements.searchInputLabel.textContent = isCategory ? 'Filtrar categorias' : 'Termo de busca';
+        }
+        if (elements.searchInput) {
+            elements.searchInput.placeholder = getSearchPlaceholder();
+        }
     }
 
     function roundMm(value) {
@@ -208,6 +276,130 @@
         return clamp(parseInt(elements.addQuantity ? elements.addQuantity.value : '1', 10) || 1, 1, 60);
     }
 
+    function readPageConfigInputs() {
+        state.page.columns = clamp(parseInt(elements.columns ? elements.columns.value : String(state.page.columns), 10) || 3, 1, 8);
+        state.page.rows = clamp(parseInt(elements.rows ? elements.rows.value : String(state.page.rows), 10) || 8, 1, 12);
+        state.page.gapMm = clamp(parseFloat(elements.gap ? elements.gap.value : String(state.page.gapMm)) || 0, 0, 30);
+        state.page.marginMm = clamp(parseFloat(elements.margin ? elements.margin.value : String(state.page.marginMm)) || 10, 4, 30);
+    }
+
+    function syncDimensionPresetInputs(options) {
+        const force = Boolean(options && options.force);
+        const fixedItemSize = getFixedItemSize();
+        const fallback = fixedItemSize || { widthMm: 72, heightMm: 40 };
+        if (elements.presetWidthInput && (force || document.activeElement !== elements.presetWidthInput)) {
+            elements.presetWidthInput.value = String(roundMm(fallback.widthMm));
+        }
+        if (elements.presetHeightInput && (force || document.activeElement !== elements.presetHeightInput)) {
+            elements.presetHeightInput.value = String(roundMm(fallback.heightMm));
+        }
+    }
+
+    function readPresetSizeFromInputs() {
+        const widthValue = parseFloat(elements.presetWidthInput ? elements.presetWidthInput.value : '0');
+        const heightValue = parseFloat(elements.presetHeightInput ? elements.presetHeightInput.value : '0');
+        return normalizeFixedItemSize({ widthMm: widthValue, heightMm: heightValue }, getPagePreset());
+    }
+
+    function getUsedPageCount() {
+        if (!state.items.length) {
+            return 1;
+        }
+        return state.items.reduce(function (maxPage, item) {
+            return Math.max(maxPage, Math.max(0, parseInt(item.pageIndex, 10) || 0));
+        }, 0) + 1;
+    }
+
+    function getPageIndices() {
+        return Array.from({ length: getUsedPageCount() }, function (_, index) {
+            return index;
+        });
+    }
+
+    function getItemsForPage(pageIndex) {
+        return state.items.filter(function (item) {
+            return Math.max(0, parseInt(item.pageIndex, 10) || 0) === pageIndex;
+        });
+    }
+
+    function resolveGridMetrics() {
+        readPageConfigInputs();
+        const preset = getPagePreset();
+        const gapMm = state.page.gapMm;
+        const marginMm = state.page.marginMm;
+        const preferFixedSize = Boolean(getFixedItemSize());
+        let columns = state.page.columns;
+        let rows = state.page.rows;
+        let cellWidth = 0;
+        let cellHeight = 0;
+
+        if (preferFixedSize) {
+            const fixedItemSize = getFixedItemSize();
+            const usableWidth = preset.widthMm - (marginMm * 2);
+            const usableHeight = preset.heightMm - (marginMm * 2);
+            if (!fixedItemSize || fixedItemSize.widthMm > usableWidth || fixedItemSize.heightMm > usableHeight) {
+                throw new Error('A dimensao fixa nao cabe na area util da folha atual.');
+            }
+            columns = Math.max(1, Math.floor((usableWidth + gapMm) / (fixedItemSize.widthMm + gapMm)));
+            rows = Math.max(1, Math.floor((usableHeight + gapMm) / (fixedItemSize.heightMm + gapMm)));
+            cellWidth = fixedItemSize.widthMm;
+            cellHeight = fixedItemSize.heightMm;
+            state.page.columns = columns;
+            state.page.rows = rows;
+            syncPageInputs();
+        } else {
+            const usableWidth = preset.widthMm - (marginMm * 2) - ((columns - 1) * gapMm);
+            const usableHeight = preset.heightMm - (marginMm * 2) - ((rows - 1) * gapMm);
+            if (usableWidth <= 0 || usableHeight <= 0) {
+                throw new Error('A grade ficou maior que a area util da folha. Revise margens e espacamentos.');
+            }
+            cellWidth = usableWidth / columns;
+            cellHeight = usableHeight / rows;
+        }
+
+        return {
+            preset: preset,
+            gapMm: gapMm,
+            marginMm: marginMm,
+            columns: columns,
+            rows: rows,
+            cellWidth: cellWidth,
+            cellHeight: cellHeight,
+            capacity: Math.max(1, columns * rows),
+        };
+    }
+
+    function layoutItemsInGrid(itemsToLayout, options) {
+        const items = Array.isArray(itemsToLayout) ? itemsToLayout : [];
+        if (!items.length) {
+            return { capacity: 0, columns: state.page.columns, rows: state.page.rows, usedPages: 0 };
+        }
+
+        const metrics = resolveGridMetrics();
+        const startPage = Math.max(0, parseInt(options && options.startPageIndex, 10) || 0);
+        items.forEach(function (item, index) {
+            const pageOffset = Math.floor(index / metrics.capacity);
+            const indexWithinPage = index % metrics.capacity;
+            const row = Math.floor(indexWithinPage / metrics.columns);
+            const column = indexWithinPage % metrics.columns;
+            item.pageIndex = startPage + pageOffset;
+            item.xMm = metrics.marginMm + (column * (metrics.cellWidth + metrics.gapMm));
+            item.yMm = metrics.marginMm + (row * (metrics.cellHeight + metrics.gapMm));
+            item.widthMm = metrics.cellWidth;
+            item.heightMm = metrics.cellHeight;
+            item.barcodeHeightMm = clamp(metrics.cellHeight * 0.46, 10, Math.max(10, metrics.cellHeight - 6));
+            item.paddingMm = clamp(metrics.cellWidth * 0.05, 1.5, 4);
+            item.isSnapping = false;
+            normalizeLabel(item);
+        });
+        return {
+            capacity: metrics.capacity,
+            columns: metrics.columns,
+            rows: metrics.rows,
+            usedPages: Math.ceil(items.length / metrics.capacity),
+        };
+    }
+
     function readSnapThresholdMm() {
         return state.page.snapEnabled ? 3 : 0;
     }
@@ -240,16 +432,10 @@
     }
 
     function createGuideState() {
-        if (!elements.sheet) {
+        if (!elements.sheetsContainer) {
             return null;
         }
-        const vertical = document.createElement('div');
-        vertical.className = 'barcode-studio-guide barcode-studio-guide--vertical';
-        const horizontal = document.createElement('div');
-        horizontal.className = 'barcode-studio-guide barcode-studio-guide--horizontal';
-        elements.sheet.appendChild(vertical);
-        elements.sheet.appendChild(horizontal);
-        return { vertical: vertical, horizontal: horizontal };
+        return null;
     }
 
     function hideGuides() {
@@ -735,6 +921,7 @@
 
     function normalizeLabel(item) {
         const preset = getPagePreset();
+        item.pageIndex = Math.max(0, parseInt(item.pageIndex, 10) || 0);
         item.widthMm = clamp(Number(item.widthMm || 72), 24, preset.widthMm - 4);
         item.heightMm = clamp(Number(item.heightMm || 40), 20, preset.heightMm - 4);
         item.xMm = clamp(Number(item.xMm || state.page.marginMm), 0, Math.max(0, preset.widthMm - item.widthMm));
@@ -754,11 +941,59 @@
         if (elements.itemCount) {
             elements.itemCount.textContent = String(state.items.length);
         }
+        if (elements.pageCount) {
+            elements.pageCount.textContent = String(getUsedPageCount());
+        }
         if (elements.pageInfo) {
             elements.pageInfo.textContent = preset.label;
         }
         if (elements.gridInfo) {
             elements.gridInfo.textContent = 'Grade ' + state.page.columns + ' x ' + state.page.rows;
+        }
+    }
+
+    function renderCategorySelection() {
+        const category = state.search.selectedCategory;
+        const items = state.search.selectedCategoryItems || [];
+        const hasCategory = Boolean(category);
+        if (elements.categoryToolbar) {
+            elements.categoryToolbar.classList.toggle('d-none', !hasCategory);
+        }
+        if (elements.categoryItems) {
+            elements.categoryItems.classList.toggle('d-none', !hasCategory);
+        }
+        if (!hasCategory) {
+            if (elements.categoryItems) {
+                elements.categoryItems.innerHTML = '';
+            }
+            return;
+        }
+
+        const totalItems = Number(category.item_count || items.length || 0);
+        if (elements.selectedCategoryName) {
+            elements.selectedCategoryName.textContent = category.name || category.label || 'Categoria';
+        }
+        if (elements.selectedCategoryMeta) {
+            elements.selectedCategoryMeta.textContent = totalItems + ' item(ns) disponivel(is) para a folha';
+        }
+        if (elements.addCategoryBtn) {
+            elements.addCategoryBtn.disabled = !items.length;
+        }
+        if (!elements.categoryItems) {
+            return;
+        }
+        elements.categoryItems.innerHTML = '';
+        items.forEach(function (item) {
+            elements.categoryItems.appendChild(buildSearchResultCard(item));
+        });
+    }
+
+    function clearSelectedCategory(options) {
+        state.search.selectedCategory = null;
+        state.search.selectedCategoryItems = [];
+        renderCategorySelection();
+        if (!options || options.silent !== true) {
+            setFeedback('Selecao de categoria limpa.', 'muted');
         }
     }
 
@@ -783,21 +1018,50 @@
         return button;
     }
 
+    function buildCategoryResultCard(category) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'barcode-studio-result barcode-studio-result--category';
+        const icon = escapeHtml(category.icon || '🏷️');
+        const name = escapeHtml(category.name || category.label || 'Categoria');
+        const description = escapeHtml(category.descricao || 'Abra a categoria para carregar todos os itens na folha.');
+        const total = Number(category.item_count || 0);
+        button.innerHTML = '' +
+            '<div class="barcode-studio-result__top">' +
+                '<span class="barcode-studio-result__code"><span class="barcode-studio-result__emoji">' + icon + '</span>Estoque</span>' +
+                '<span class="badge text-bg-dark">' + total + ' item(ns)</span>' +
+            '</div>' +
+            '<p class="barcode-studio-result__title">' + name + '</p>' +
+            '<div class="barcode-studio-result__meta">' +
+                '<span>' + description + '</span>' +
+                '<span>Clique para abrir os itens dessa categoria.</span>' +
+            '</div>';
+        button.addEventListener('click', function () {
+            loadCategoryItems(category);
+        });
+        return button;
+    }
+
     function renderSearchResults(items) {
         if (!elements.searchResults) {
             return;
         }
         elements.searchResults.innerHTML = '';
         lastSearchResults = items.slice();
+        lastSearchMode = getSearchMode();
         if (!items.length) {
             const empty = document.createElement('div');
             empty.className = 'barcode-studio-result';
-            empty.innerHTML = '<p class="barcode-studio-result__title">Nenhum item encontrado</p><div class="barcode-studio-result__meta"><span>Tente outro trecho do nome, codigo ou marca.</span></div>';
+            if (getSearchMode() === 'category') {
+                empty.innerHTML = '<p class="barcode-studio-result__title">Nenhuma categoria encontrada</p><div class="barcode-studio-result__meta"><span>Tente outro trecho do nome da categoria.</span></div>';
+            } else {
+                empty.innerHTML = '<p class="barcode-studio-result__title">Nenhum item encontrado</p><div class="barcode-studio-result__meta"><span>Tente outro trecho do nome, codigo ou marca.</span></div>';
+            }
             elements.searchResults.appendChild(empty);
             return;
         }
         items.forEach(function (item) {
-            elements.searchResults.appendChild(buildSearchResultCard(item));
+            elements.searchResults.appendChild(getSearchMode() === 'category' ? buildCategoryResultCard(item) : buildSearchResultCard(item));
         });
     }
 
@@ -806,7 +1070,7 @@
         if (!trimmed) {
             lastSearchResults = [];
             renderSearchResults([]);
-            setSearchStatus('Busque um item para comecar.', 'muted');
+            setSearchStatus(getEmptySearchStatus(), 'muted');
             return;
         }
 
@@ -841,9 +1105,82 @@
         }
     }
 
+    async function fetchCategoryResults(query) {
+        const urlBase = getCategoriesUrl();
+        if (!urlBase) {
+            setSearchStatus('API de categorias indisponivel no momento.', 'danger');
+            return;
+        }
+
+        if (searchAbortController) {
+            searchAbortController.abort();
+        }
+
+        searchAbortController = new AbortController();
+        setSearchStatus('Buscando categorias...', 'muted');
+
+        try {
+            const url = new URL(urlBase, window.location.origin);
+            const trimmed = String(query || '').trim();
+            if (trimmed) {
+                url.searchParams.set('q', trimmed);
+            }
+            url.searchParams.set('limit', '40');
+            const response = await window.fetch(url.toString(), {
+                headers: { Accept: 'application/json' },
+                signal: searchAbortController.signal,
+            });
+            if (!response.ok) {
+                throw new Error('Falha ao buscar categorias (' + response.status + ')');
+            }
+            const payload = await response.json();
+            const categories = Array.isArray(payload.categories) ? payload.categories : [];
+            renderSearchResults(categories);
+            if (!trimmed) {
+                setSearchStatus(categories.length + ' categoria(s) disponivel(is) no estoque.', categories.length ? 'muted' : 'warning');
+            } else {
+                setSearchStatus(categories.length + ' categoria(s) encontrada(s).', categories.length ? 'muted' : 'warning');
+            }
+        } catch (error) {
+            if (error && error.name === 'AbortError') {
+                return;
+            }
+            renderSearchResults([]);
+            setSearchStatus('Nao foi possivel consultar as categorias agora.', 'danger');
+        }
+    }
+
+    async function loadCategoryItems(category) {
+        if (!category || !category.name) {
+            setFeedback('Categoria invalida para carregamento.', 'danger');
+            return;
+        }
+        const urlBase = getCategoryItemsUrl();
+        if (!urlBase) {
+            setFeedback('API de itens por categoria indisponivel.', 'danger');
+            return;
+        }
+        try {
+            const url = new URL(urlBase, window.location.origin);
+            url.searchParams.set('category', category.name);
+            const payload = await fetchJson(url.toString());
+            state.search.selectedCategory = payload.category || category;
+            state.search.selectedCategoryItems = Array.isArray(payload.items) ? payload.items : [];
+            renderCategorySelection();
+            setFeedback('Categoria carregada: ' + (state.search.selectedCategory.name || category.name) + '.', 'muted');
+        } catch (error) {
+            clearSelectedCategory({ silent: true });
+            setFeedback(error.message || 'Nao foi possivel carregar os itens da categoria.', 'danger');
+        }
+    }
+
     function scheduleSearch() {
         window.clearTimeout(searchTimer);
         searchTimer = window.setTimeout(function () {
+            if (getSearchMode() === 'category') {
+                fetchCategoryResults(elements.searchInput ? elements.searchInput.value : '');
+                return;
+            }
             fetchSearchResults(elements.searchInput ? elements.searchInput.value : '');
         }, 180);
     }
@@ -868,6 +1205,7 @@
                 unidade: String(item.unidade || '').trim(),
                 saldoDisplay: String(item.saldo_display || '').trim(),
                 customTitle: String(item.descricao || item.codigo || '').trim(),
+                pageIndex: Math.max(0, parseInt(options && options.pageIndex, 10) || 0),
                 widthMm: itemSize.widthMm,
                 heightMm: itemSize.heightMm,
                 xMm: clamp(state.page.marginMm + (offset * 8), startX, maxX),
@@ -886,12 +1224,17 @@
             state.items.push(label);
             lastCreated = label;
         }
-        if (lastCreated) {
+        if (lastCreated && (!options || options.selectLast !== false)) {
             state.selectedId = lastCreated.id;
         }
-        renderPage();
-        renderProperties();
-        setFeedback(quantity + ' etiqueta(s) adicionada(s) para ' + String(item.codigo || '') + '.', 'muted');
+        if (!options || options.render !== false) {
+            renderPage();
+            renderProperties();
+        }
+        if (!options || options.silent !== true) {
+            setFeedback(quantity + ' etiqueta(s) adicionada(s) para ' + String(item.codigo || '') + '.', 'muted');
+        }
+        return lastCreated;
     }
 
     function removeSelectedItem() {
@@ -921,6 +1264,7 @@
         for (let index = 0; index < copies; index += 1) {
             const clone = JSON.parse(JSON.stringify(base));
             clone.id = createId();
+            clone.pageIndex = Math.max(0, parseInt(base.pageIndex, 10) || 0);
             clone.xMm = clamp(base.xMm + ((index + 1) * 6), 0, Math.max(0, preset.widthMm - base.widthMm));
             clone.yMm = clamp(base.yMm + ((index + 1) * 6), 0, Math.max(0, preset.heightMm - base.heightMm));
             clone.isSnapping = false;
@@ -937,50 +1281,61 @@
     }
 
     function applyGridLayout() {
-        const preset = getPagePreset();
-        state.page.columns = clamp(parseInt(elements.columns ? elements.columns.value : '3', 10) || 3, 1, 8);
-        state.page.rows = clamp(parseInt(elements.rows ? elements.rows.value : '8', 10) || 8, 1, 12);
-        state.page.gapMm = clamp(parseFloat(elements.gap ? elements.gap.value : '6') || 0, 0, 30);
-        state.page.marginMm = clamp(parseFloat(elements.margin ? elements.margin.value : '10') || 0, 4, 30);
+        try {
+            const result = layoutItemsInGrid(state.items, { startPageIndex: 0 });
+            renderPage();
+            renderProperties();
+            setFeedback(
+                'Grade ' + result.columns + ' x ' + result.rows + ' aplicada em ' + getUsedPageCount() + ' folha(s).',
+                'muted'
+            );
+        } catch (error) {
+            setFeedback(error.message || 'Nao foi possivel aplicar a grade agora.', 'danger');
+        }
+    }
 
-        const columns = state.page.columns;
-        const rows = state.page.rows;
-        const gapMm = state.page.gapMm;
-        const marginMm = state.page.marginMm;
-        const capacity = columns * rows;
-        const usableWidth = preset.widthMm - (marginMm * 2) - ((columns - 1) * gapMm);
-        const usableHeight = preset.heightMm - (marginMm * 2) - ((rows - 1) * gapMm);
-
-        if (usableWidth <= 0 || usableHeight <= 0) {
-            setFeedback('A grade ficou maior que a area util da folha. Revise margens e espacamentos.', 'danger');
+    function addSelectedCategoryToSheet() {
+        const category = state.search.selectedCategory;
+        const items = state.search.selectedCategoryItems || [];
+        if (!category || !items.length) {
+            setFeedback('Carregue uma categoria com itens antes de adicionar em lote.', 'warning');
             return;
         }
-
-        const cellWidth = usableWidth / columns;
-        const cellHeight = usableHeight / rows;
-        state.items.forEach(function (item, index) {
-            if (index >= capacity) {
-                return;
+        const startPageIndex = state.items.length ? getUsedPageCount() : 0;
+        const newItems = [];
+        let lastCreated = null;
+        items.forEach(function (item) {
+            lastCreated = addItemToSheet(item, {
+                quantity: 1,
+                render: false,
+                silent: true,
+                selectLast: false,
+                pageIndex: startPageIndex,
+            }) || lastCreated;
+            if (lastCreated) {
+                newItems.push(lastCreated);
             }
-            const row = Math.floor(index / columns);
-            const column = index % columns;
-            item.xMm = marginMm + (column * (cellWidth + gapMm));
-            item.yMm = marginMm + (row * (cellHeight + gapMm));
-            item.widthMm = cellWidth;
-            item.heightMm = cellHeight;
-            item.barcodeHeightMm = clamp(cellHeight * 0.46, 10, Math.max(10, cellHeight - 6));
-            item.paddingMm = clamp(cellWidth * 0.05, 1.5, 4);
-            item.isSnapping = false;
-            normalizeLabel(item);
         });
-
-        renderPage();
-        renderProperties();
-        if (state.items.length > capacity) {
-            setFeedback('Grade aplicada para ' + capacity + ' etiqueta(s). As demais ficaram na posicao anterior.', 'warning');
-            return;
+        if (lastCreated) {
+            state.selectedId = lastCreated.id;
         }
-        setFeedback('Grade ' + columns + ' x ' + rows + ' aplicada na folha.', 'muted');
+        try {
+            layoutItemsInGrid(newItems, { startPageIndex: startPageIndex });
+            renderPage();
+            renderProperties();
+            setFeedback(
+                'Categoria ' + (category.name || category.label || '') + ' adicionada com ' + items.length + ' etiqueta(s) em ' + getUsedPageCount() + ' folha(s), sem mexer nas etiquetas ja montadas.',
+                'muted'
+            );
+        } catch (error) {
+            state.items = state.items.filter(function (item) {
+                return newItems.indexOf(item) === -1;
+            });
+            state.selectedId = state.items.length ? state.items[state.items.length - 1].id : null;
+            renderPage();
+            renderProperties();
+            setFeedback(error.message || 'Nao foi possivel adicionar a categoria inteira agora.', 'danger');
+        }
     }
 
     function clearSheet() {
@@ -1013,6 +1368,21 @@
         }
     }
 
+    function applyDimensionPresetFromInputs() {
+        const presetSize = readPresetSizeFromInputs();
+        if (!presetSize) {
+            setFeedback('Informe largura e altura validas para salvar o tamanho predefinido.', 'warning');
+            return;
+        }
+        setFixedItemSize(presetSize);
+        syncDimensionPresetInputs({ force: true });
+        renderProperties();
+        setFeedback(
+            'Tamanho predefinido salvo: ' + presetSize.widthMm.toFixed(1) + ' x ' + presetSize.heightMm.toFixed(1) + ' mm. Novas etiquetas vao entrar nesse tamanho.',
+            'muted'
+        );
+    }
+
     function fixSelectedDimensions() {
         const item = getSelectedItem();
         if (!item) {
@@ -1032,6 +1402,7 @@
             entry.isSnapping = false;
             normalizeLabel(entry);
         });
+        syncDimensionPresetInputs({ force: true });
         renderPage();
         renderProperties();
         setFeedback('Dimensao ' + fixedItemSize.widthMm.toFixed(1) + ' x ' + fixedItemSize.heightMm.toFixed(1) + ' mm fixada para as etiquetas atuais e futuras.', 'muted');
@@ -1044,6 +1415,7 @@
             return;
         }
         state.page.defaultItemSize = null;
+        syncDimensionPresetInputs({ force: true });
         renderProperties();
         setFeedback('Dimensao fixa removida. Novas etiquetas voltam ao tamanho padrao.', 'muted');
     }
@@ -1138,42 +1510,67 @@
     }
 
     function renderPage() {
-        if (!elements.sheet) {
+        if (!elements.sheetsContainer) {
             return;
         }
 
         const preset = getPagePreset();
-        elements.sheet.style.width = mmToPx(preset.widthMm) + 'px';
-        elements.sheet.style.height = mmToPx(preset.heightMm) + 'px';
-        elements.sheet.innerHTML = '';
-        if (elements.sheetEmpty) {
-            elements.sheet.appendChild(elements.sheetEmpty);
-            elements.sheetEmpty.hidden = state.items.length > 0;
-        }
+        elements.sheetsContainer.innerHTML = '';
 
-        state.items.forEach(function (item) {
-            normalizeLabel(item);
-            const label = document.createElement('article');
-            label.className = 'barcode-studio-label' + (item.id === state.selectedId ? ' is-selected' : '') + (item.isSnapping ? ' is-snapping' : '');
-            label.dataset.labelId = item.id;
-            label.style.left = mmToPx(item.xMm) + 'px';
-            label.style.top = mmToPx(item.yMm) + 'px';
-            label.style.width = mmToPx(item.widthMm) + 'px';
-            label.style.height = mmToPx(item.heightMm) + 'px';
-            label.innerHTML = '' +
-                '<div class="barcode-studio-label__chrome">' +
-                    '<span class="barcode-studio-label__tag"><i class="bi bi-upc"></i>' + escapeHtml(item.codigo) + '</span>' +
-                    '<span>' + item.widthMm.toFixed(1) + ' x ' + item.heightMm.toFixed(1) + ' mm</span>' +
-                '</div>' +
-                '<div class="barcode-studio-label__body" style="padding:' + item.paddingMm + 'mm;text-align:' + item.align + ';">' +
-                    (item.showName ? '<div class="barcode-studio-label__title" style="font-size:' + item.fontSizePx + 'px;">' + escapeHtml(item.customTitle) + '</div>' : '') +
-                    '<div class="barcode-studio-label__barcode" style="height:' + mmToPx(item.barcodeHeightMm) + 'px;"><svg aria-hidden="true"></svg></div>' +
-                    (item.showCode ? '<div class="barcode-studio-label__code" style="font-size:' + item.codeFontSizePx + 'px;">' + escapeHtml(item.codigo) + '</div>' : '') +
-                '</div>' +
-                '<div class="barcode-studio-resize-handle" aria-hidden="true"></div>';
-            label.addEventListener('pointerdown', onLabelPointerDown);
-            elements.sheet.appendChild(label);
-            renderBarcode(label, item);
+        getPageIndices().forEach(function (pageIndex) {
+            const pageShell = document.createElement('section');
+            pageShell.className = 'barcode-studio-sheet-page';
+            const pageCaption = document.createElement('div');
+            pageCaption.className = 'barcode-studio-sheet-caption';
+            pageCaption.textContent = 'Folha ' + (pageIndex + 1);
+            pageShell.appendChild(pageCaption);
+
+            const sheetWrap = document.createElement('div');
+            sheetWrap.className = 'barcode-studio-sheet-wrap';
+            const sheet = document.createElement('div');
+            sheet.className = 'barcode-studio-sheet';
+            sheet.dataset.pageIndex = String(pageIndex);
+            sheet.setAttribute('aria-label', 'Folha A4 ' + (pageIndex + 1) + ' para montagem de etiquetas');
+            sheet.style.width = mmToPx(preset.widthMm) + 'px';
+            sheet.style.height = mmToPx(preset.heightMm) + 'px';
+
+            const pageItems = getItemsForPage(pageIndex);
+            if (!pageItems.length && pageIndex === 0 && !state.items.length) {
+                const empty = document.createElement('div');
+                empty.className = 'barcode-studio-sheet-empty';
+                empty.innerHTML = '<i class="bi bi-bounding-box-circles"></i><h3>Nenhuma etiqueta na folha</h3><p>Busque um item ou uma categoria na coluna lateral e adicione para comecar a montar a impressao.</p>';
+                sheet.appendChild(empty);
+            }
+
+            pageItems.forEach(function (item) {
+                normalizeLabel(item);
+                const label = document.createElement('article');
+                label.className = 'barcode-studio-label' + (item.id === state.selectedId ? ' is-selected' : '') + (item.isSnapping ? ' is-snapping' : '');
+                label.dataset.labelId = item.id;
+                label.dataset.pageIndex = String(item.pageIndex || 0);
+                label.style.left = mmToPx(item.xMm) + 'px';
+                label.style.top = mmToPx(item.yMm) + 'px';
+                label.style.width = mmToPx(item.widthMm) + 'px';
+                label.style.height = mmToPx(item.heightMm) + 'px';
+                label.innerHTML = '' +
+                    '<div class="barcode-studio-label__chrome">' +
+                        '<span class="barcode-studio-label__tag"><i class="bi bi-upc"></i>' + escapeHtml(item.codigo) + '</span>' +
+                        '<span>' + item.widthMm.toFixed(1) + ' x ' + item.heightMm.toFixed(1) + ' mm</span>' +
+                    '</div>' +
+                    '<div class="barcode-studio-label__body" style="padding:' + item.paddingMm + 'mm;text-align:' + item.align + ';">' +
+                        (item.showName ? '<div class="barcode-studio-label__title" style="font-size:' + item.fontSizePx + 'px;">' + escapeHtml(item.customTitle) + '</div>' : '') +
+                        '<div class="barcode-studio-label__barcode" style="height:' + mmToPx(item.barcodeHeightMm) + 'px;"><svg aria-hidden="true"></svg></div>' +
+                        (item.showCode ? '<div class="barcode-studio-label__code" style="font-size:' + item.codeFontSizePx + 'px;">' + escapeHtml(item.codigo) + '</div>' : '') +
+                    '</div>' +
+                    '<div class="barcode-studio-resize-handle" aria-hidden="true"></div>';
+                label.addEventListener('pointerdown', onLabelPointerDown);
+                sheet.appendChild(label);
+                renderBarcode(label, item);
+            });
+
+            sheetWrap.appendChild(sheet);
+            pageShell.appendChild(sheetWrap);
+            elements.sheetsContainer.appendChild(pageShell);
         });
 
         updateSheetMetrics();
@@ -1260,16 +1657,19 @@
     }
 
     function buildPrintableMarkup() {
-        return state.items.map(function (item) {
-            const current = elements.sheet.querySelector('[data-label-id="' + item.id + '"]');
-            const svgElement = current ? current.querySelector('svg') : null;
-            const svgMarkup = svgElement ? svgElement.outerHTML : '';
-            return '' +
-                '<article class="barcode-print-label" style="left:' + item.xMm + 'mm;top:' + item.yMm + 'mm;width:' + item.widthMm + 'mm;height:' + item.heightMm + 'mm;padding:' + item.paddingMm + 'mm;text-align:' + item.align + ';">' +
-                    (item.showName ? '<div class="barcode-print-label__title" style="font-size:' + item.fontSizePx + 'px;">' + escapeHtml(item.customTitle) + '</div>' : '') +
-                    '<div class="barcode-print-label__barcode" style="height:' + item.barcodeHeightMm + 'mm;">' + (svgMarkup || ('<div>' + escapeHtml(item.codigo) + '</div>')) + '</div>' +
-                    (item.showCode ? '<div class="barcode-print-label__code" style="font-size:' + item.codeFontSizePx + 'px;">' + escapeHtml(item.codigo) + '</div>' : '') +
-                '</article>';
+        return getPageIndices().map(function (pageIndex) {
+            const pageMarkup = getItemsForPage(pageIndex).map(function (item) {
+                const current = elements.sheetsContainer.querySelector('[data-label-id="' + item.id + '"]');
+                const svgElement = current ? current.querySelector('svg') : null;
+                const svgMarkup = svgElement ? svgElement.outerHTML : '';
+                return '' +
+                    '<article class="barcode-print-label" style="left:' + item.xMm + 'mm;top:' + item.yMm + 'mm;width:' + item.widthMm + 'mm;height:' + item.heightMm + 'mm;padding:' + item.paddingMm + 'mm;text-align:' + item.align + ';">' +
+                        (item.showName ? '<div class="barcode-print-label__title" style="font-size:' + item.fontSizePx + 'px;">' + escapeHtml(item.customTitle) + '</div>' : '') +
+                        '<div class="barcode-print-label__barcode" style="height:' + item.barcodeHeightMm + 'mm;">' + (svgMarkup || ('<div>' + escapeHtml(item.codigo) + '</div>')) + '</div>' +
+                        (item.showCode ? '<div class="barcode-print-label__code" style="font-size:' + item.codeFontSizePx + 'px;">' + escapeHtml(item.codigo) + '</div>' : '') +
+                    '</article>';
+            }).join('');
+            return '<section class="barcode-print-sheet">' + pageMarkup + '</section>';
         }).join('');
     }
 
@@ -1294,7 +1694,8 @@
                     '@page { size: A4 ' + state.page.orientation + '; margin: 8mm; }' +
                     'html, body { margin: 0; padding: 0; background: #ffffff; }' +
                     'body { font-family: Arial, sans-serif; }' +
-                    '.barcode-print-sheet { position: relative; width: ' + preset.widthMm + 'mm; height: ' + preset.heightMm + 'mm; margin: 0 auto; background: #ffffff; }' +
+                    '.barcode-print-sheet { position: relative; width: ' + preset.widthMm + 'mm; height: ' + preset.heightMm + 'mm; margin: 0 auto; background: #ffffff; break-after: page; page-break-after: always; }' +
+                    '.barcode-print-sheet:last-child { break-after: auto; page-break-after: auto; }' +
                     '.barcode-print-label { position: absolute; box-sizing: border-box; overflow: hidden; background: #ffffff; color: #111827; display: flex; flex-direction: column; justify-content: center; line-height: 1.15; }' +
                     '.barcode-print-label__title { font-weight: 700; margin-bottom: 1.6mm; }' +
                     '.barcode-print-label__barcode { display: flex; align-items: center; justify-content: center; width: 100%; }' +
@@ -1303,7 +1704,7 @@
                 '</style>' +
             '</head>' +
             '<body>' +
-                '<div class="barcode-print-sheet">' + buildPrintableMarkup() + '</div>' +
+                '<div class="barcode-print-document">' + buildPrintableMarkup() + '</div>' +
                 '<script>' +
                     'window.addEventListener("load", function () {' +
                         'window.setTimeout(function () { window.print(); window.close(); }, 180);' +
@@ -1321,19 +1722,14 @@
             setFeedback('Adicione pelo menos uma etiqueta antes de exportar PDF.', 'warning');
             return;
         }
-        if (!elements.sheet || !window.html2canvas || !window.jspdf || !window.jspdf.jsPDF) {
+        if (!elements.sheetsContainer || !window.html2canvas || !window.jspdf || !window.jspdf.jsPDF) {
             setFeedback('Biblioteca de PDF indisponivel no momento.', 'danger');
             return;
         }
         try {
             setFeedback('Gerando PDF da folha...', 'muted');
             const preset = getPagePreset();
-            const canvas = await window.html2canvas(elements.sheet, {
-                backgroundColor: '#ffffff',
-                scale: 2,
-                useCORS: true,
-                logging: false,
-            });
+            const sheets = Array.from(elements.sheetsContainer.querySelectorAll('.barcode-studio-sheet'));
             const orientation = state.page.orientation === 'landscape' ? 'l' : 'p';
             const pdf = new window.jspdf.jsPDF({
                 orientation: orientation,
@@ -1341,8 +1737,19 @@
                 format: 'a4',
                 compress: true,
             });
-            const imageData = canvas.toDataURL('image/png');
-            pdf.addImage(imageData, 'PNG', 0, 0, preset.widthMm, preset.heightMm, undefined, 'FAST');
+            for (let index = 0; index < sheets.length; index += 1) {
+                const canvas = await window.html2canvas(sheets[index], {
+                    backgroundColor: '#ffffff',
+                    scale: 2,
+                    useCORS: true,
+                    logging: false,
+                });
+                if (index > 0) {
+                    pdf.addPage('a4', orientation);
+                }
+                const imageData = canvas.toDataURL('image/png');
+                pdf.addImage(imageData, 'PNG', 0, 0, preset.widthMm, preset.heightMm, undefined, 'FAST');
+            }
             const fileName = 'barcode-studio-' + new Date().toISOString().slice(0, 19).replace(/[T:]/g, '-') + '.pdf';
             pdf.save(fileName);
             setFeedback('PDF exportado com sucesso.', 'muted');
@@ -1406,8 +1813,10 @@
         elements.pdfBtn && elements.pdfBtn.addEventListener('click', exportSheetPdf);
         elements.removeBtn && elements.removeBtn.addEventListener('click', removeSelectedItem);
         elements.duplicateBtn && elements.duplicateBtn.addEventListener('click', duplicateSelectedItem);
+        elements.applyPresetBtn && elements.applyPresetBtn.addEventListener('click', applyDimensionPresetFromInputs);
         elements.lockDimensionsBtn && elements.lockDimensionsBtn.addEventListener('click', fixSelectedDimensions);
         elements.clearDimensionsBtn && elements.clearDimensionsBtn.addEventListener('click', clearFixedDimensions);
+        elements.addCategoryBtn && elements.addCategoryBtn.addEventListener('click', addSelectedCategoryToSheet);
         elements.nudgeLeftBtn && elements.nudgeLeftBtn.addEventListener('click', function () { nudgeSelected(-1, 0); });
         elements.nudgeRightBtn && elements.nudgeRightBtn.addEventListener('click', function () { nudgeSelected(1, 0); });
         elements.nudgeUpBtn && elements.nudgeUpBtn.addEventListener('click', function () { nudgeSelected(0, -1); });
@@ -1437,10 +1846,25 @@
     }
 
     function wireSearch() {
+        elements.searchMode && elements.searchMode.addEventListener('change', function () {
+            state.search.mode = elements.searchMode.value === 'category' ? 'category' : 'item';
+            syncSearchModeUI();
+            lastSearchResults = [];
+            renderSearchResults([]);
+            clearSelectedCategory({ silent: true });
+            setSearchStatus(getEmptySearchStatus(), 'muted');
+            if (getSearchMode() === 'category') {
+                fetchCategoryResults(elements.searchInput ? elements.searchInput.value : '');
+            }
+        });
         elements.searchInput && elements.searchInput.addEventListener('input', scheduleSearch);
         elements.searchInput && elements.searchInput.addEventListener('keydown', function (event) {
             if (event.key === 'Enter' && lastSearchResults.length) {
                 event.preventDefault();
+                if (lastSearchMode === 'category') {
+                    loadCategoryItems(lastSearchResults[0]);
+                    return;
+                }
                 addItemToSheet(lastSearchResults[0], { quantity: readAddQuantity() });
             }
         });
@@ -1451,6 +1875,11 @@
             }
             lastSearchResults = [];
             renderSearchResults([]);
+            clearSelectedCategory({ silent: true });
+            if (getSearchMode() === 'category') {
+                fetchCategoryResults('');
+                return;
+            }
             setSearchStatus('Busca limpa. Digite outro termo.', 'muted');
         });
     }
@@ -1469,6 +1898,10 @@
     }
 
     function init() {
+        if (elements.searchMode) {
+            elements.searchMode.value = state.search.mode;
+        }
+        syncSearchModeUI();
         wireSearch();
         wireProperties();
         wirePageControls();
@@ -1476,8 +1909,10 @@
         updateLayoutsDirNote(config.internalLayoutsDir || '');
         refreshSavedLayouts('');
         syncPageInputs();
+        syncDimensionPresetInputs({ force: true });
         renderPage();
         renderProperties();
+        renderCategorySelection();
         updateSheetMetrics();
         guideState = createGuideState();
         hideGuides();

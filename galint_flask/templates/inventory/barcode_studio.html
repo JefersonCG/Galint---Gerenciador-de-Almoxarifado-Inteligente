@@ -3,7 +3,7 @@
 {% block title %}Editor de Etiquetas{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/barcode-studio.css', v='20260430a') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/barcode-studio.css', v='20260501a') }}">
 {% endblock %}
 
 {% block content %}
@@ -51,11 +51,21 @@
     <div class="barcode-studio-grid">
         <aside class="barcode-studio-panel barcode-studio-panel-search">
             <div class="barcode-studio-panel-head">
-                <h2>Buscar item</h2>
-                <p>Digite codigo, descricao ou marca e adicione o resultado direto na folha.</p>
+                <h2 id="barcodeStudioSearchPanelTitle">Busca do estoque</h2>
+                <p id="barcodeStudioSearchPanelSubtitle">Alterne entre item e categoria para montar etiquetas avulsas ou em lote.</p>
             </div>
 
-            <label class="form-label" for="barcodeStudioSearchInput">Termo de busca</label>
+            <div class="row g-3 mb-3">
+                <div class="col-12">
+                    <label class="form-label" for="barcodeStudioSearchMode">Buscar por</label>
+                    <select class="form-select" id="barcodeStudioSearchMode">
+                        <option value="item">Item</option>
+                        <option value="category">Categoria</option>
+                    </select>
+                </div>
+            </div>
+
+            <label class="form-label" for="barcodeStudioSearchInput" id="barcodeStudioSearchInputLabel">Termo de busca</label>
             <div class="barcode-studio-search-box">
                 <input class="form-control form-control-lg" id="barcodeStudioSearchInput" type="search"
                     placeholder="Ex.: ITEM-0283, cabo, furadeira" autocomplete="off" spellcheck="false">
@@ -66,7 +76,18 @@
             <div class="barcode-studio-search-meta">
                 <span id="barcodeStudioSearchStatus">Busque um item para comecar.</span>
             </div>
+            <div class="barcode-studio-category-toolbar d-none" id="barcodeStudioCategoryToolbar">
+                <div>
+                    <span class="barcode-studio-category-toolbar__eyebrow">Categoria selecionada</span>
+                    <strong id="barcodeStudioSelectedCategoryName">-</strong>
+                    <small id="barcodeStudioSelectedCategoryMeta">0 item(s)</small>
+                </div>
+                <button class="btn btn-outline-light btn-sm" type="button" id="barcodeStudioAddCategoryBtn">
+                    Adicionar categoria inteira
+                </button>
+            </div>
             <div class="barcode-studio-search-results" id="barcodeStudioSearchResults" aria-live="polite"></div>
+            <div class="barcode-studio-category-items d-none" id="barcodeStudioCategoryItems"></div>
 
             <div class="barcode-studio-divider"></div>
 
@@ -177,25 +198,18 @@
             <div class="barcode-studio-panel-head inline">
                 <div>
                     <h2>Folha em edicao</h2>
-                    <p>Monte a composicao final antes de imprimir ou salvar em PDF pelo navegador.</p>
+                    <p>Monte a composicao final, inclusive em varias folhas, antes de imprimir ou exportar PDF.</p>
                 </div>
                 <div class="barcode-studio-sheet-stats">
                     <span class="stat-pill"><strong id="barcodeStudioItemCount">0</strong> etiqueta(s)</span>
+                    <span class="stat-pill"><strong id="barcodeStudioPageCount">1</strong> folha(s)</span>
                     <span class="stat-pill" id="barcodeStudioPageInfo">A4 retrato</span>
                     <span class="stat-pill" id="barcodeStudioGridInfo">Grade 3 x 8</span>
                 </div>
             </div>
 
             <div class="barcode-studio-workbench">
-                <div class="barcode-studio-sheet-wrap">
-                    <div class="barcode-studio-sheet" id="barcodeStudioSheet" aria-label="Folha A4 para montagem de etiquetas">
-                        <div class="barcode-studio-sheet-empty" id="barcodeStudioSheetEmpty">
-                            <i class="bi bi-bounding-box-circles"></i>
-                            <h3>Nenhuma etiqueta na folha</h3>
-                            <p>Busque um item na coluna lateral e adicione para comecar a montar a impressao.</p>
-                        </div>
-                    </div>
-                </div>
+                <div class="barcode-studio-sheets" id="barcodeStudioSheetsContainer" aria-live="polite"></div>
             </div>
 
             <div class="barcode-studio-footer">
@@ -235,7 +249,20 @@
                 <div class="barcode-studio-note" id="barcodeStudioDimensionPresetStatus">
                     Nenhuma dimensao fixa ativa. Ajuste uma etiqueta e fixe o tamanho para reaproveitar nas proximas.
                 </div>
+                <div class="row g-3 mt-1">
+                    <div class="col-6">
+                        <label class="form-label" for="barcodeStudioPresetWidthInput">Largura predefinida (mm)</label>
+                        <input class="form-control" id="barcodeStudioPresetWidthInput" type="number" min="20" max="180" step="0.5" value="72">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label" for="barcodeStudioPresetHeightInput">Altura predefinida (mm)</label>
+                        <input class="form-control" id="barcodeStudioPresetHeightInput" type="number" min="18" max="180" step="0.5" value="40">
+                    </div>
+                </div>
                 <div class="barcode-studio-dimension-lock-actions">
+                    <button class="btn btn-outline-light btn-sm" type="button" id="barcodeStudioApplyPresetBtn">
+                        Salvar tamanho predefinido
+                    </button>
                     <button class="btn btn-outline-light btn-sm" type="button" id="barcodeStudioLockDimensionsBtn">
                         Fixar dimensao atual
                     </button>
@@ -337,6 +364,8 @@
 <script>
     window.GALINT_BARCODE_STUDIO = {{ {
         "searchApiUrl": barcode_search_api_url,
+        "categoriesApiUrl": barcode_categories_api_url,
+        "categoryItemsApiUrl": barcode_category_items_api_url,
         "layoutListApiUrl": barcode_layouts_api_url,
         "layoutDetailUrlTemplate": barcode_layout_detail_url_template,
         "layoutImportUrlTemplate": url_for('inventory.barcode_studio_layout_import_api', token='__TOKEN__'),
@@ -346,5 +375,5 @@
         "internalLayoutsDir": barcode_layouts_internal_dir,
     } | tojson | safe }};
 </script>
-<script src="{{ url_for('static', filename='js/barcode-studio.js', v='20260430a') }}"></script>
+<script src="{{ url_for('static', filename='js/barcode-studio.js', v='20260501a') }}"></script>
 {% endblock %}

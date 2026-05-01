@@ -4,6 +4,7 @@ from __future__ import annotations
 from collections import defaultdict
 from datetime import date, datetime
 import json
+from unicodedata import normalize as unicode_normalize
 
 from io import BytesIO
 
@@ -1578,6 +1579,110 @@ def _serialize_barcode_studio_item(raw_item: dict | None) -> dict[str, object]:
     }
 
 
+def _normalize_barcode_studio_lookup(value: object) -> str:
+    normalized = " ".join(str(value or "").strip().split()).casefold()
+    ascii_value = unicode_normalize("NFKD", normalized).encode("ascii", "ignore").decode("ascii")
+    return ascii_value.strip()
+
+
+def _normalize_barcode_studio_category_name(value: object) -> str:
+    return " ".join(str(value or "").strip().split()) or "Sem categoria"
+
+
+def _build_barcode_studio_categories(*, query: str = "", limit: int = 40) -> list[dict[str, object]]:
+    source_items = inventory_service.list_items()
+    normalized_query = _normalize_barcode_studio_lookup(query)
+    counts_by_category: dict[str, int] = defaultdict(int)
+    labels_by_category: dict[str, str] = {}
+
+    for item in source_items:
+        category_name = _normalize_barcode_studio_category_name(item.get("categoria"))
+        category_key = _normalize_barcode_studio_lookup(category_name)
+        counts_by_category[category_key] += 1
+        labels_by_category.setdefault(category_key, category_name)
+
+    payloads: list[dict[str, object]] = []
+    seen_keys: set[str] = set()
+    for index, category in enumerate(category_catalog_service.list_visual_catalog()):
+        category_name = _normalize_barcode_studio_category_name(category.get("label") or category.get("route"))
+        category_key = _normalize_barcode_studio_lookup(category_name)
+        total_items = int(counts_by_category.get(category_key) or 0)
+        if total_items <= 0:
+            continue
+        if normalized_query and normalized_query not in category_key:
+            continue
+        payloads.append(
+            {
+                **category,
+                "name": category_name,
+                "item_count": total_items,
+                "search_key": category_key,
+                "position": index,
+            }
+        )
+        seen_keys.add(category_key)
+
+    for category_key, category_name in labels_by_category.items():
+        if category_key in seen_keys:
+            continue
+        if normalized_query and normalized_query not in category_key:
+            continue
+        visual = category_catalog_service.get_visual(category_name, fallback_index=len(payloads))
+        payloads.append(
+            {
+                **visual,
+                "name": category_name,
+                "item_count": int(counts_by_category.get(category_key) or 0),
+                "search_key": category_key,
+                "position": 9999,
+            }
+        )
+
+    payloads.sort(
+        key=lambda item: (
+            -int(item.get("item_count") or 0),
+            int(item.get("position") or 0),
+            str(item.get("name") or "").casefold(),
+        )
+    )
+    for payload in payloads:
+        payload.pop("search_key", None)
+        payload.pop("position", None)
+    return payloads[:limit]
+
+
+def _build_barcode_studio_category_items(category_name: str) -> tuple[dict[str, object], list[dict[str, object]]]:
+    normalized_target = _normalize_barcode_studio_lookup(category_name)
+    if not normalized_target:
+        raise ValueError("Informe a categoria desejada.")
+
+    source_items = inventory_service.list_items()
+    matching_rows: list[dict] = []
+    resolved_category_name = _normalize_barcode_studio_category_name(category_name)
+    for item in source_items:
+        item_category = _normalize_barcode_studio_category_name(item.get("categoria"))
+        if _normalize_barcode_studio_lookup(item_category) != normalized_target:
+            continue
+        matching_rows.append(dict(item))
+        resolved_category_name = item_category
+
+    visual = category_catalog_service.get_visual(resolved_category_name)
+    matching_rows.sort(
+        key=lambda item: (
+            str(item.get("descricao") or "").casefold(),
+            str(item.get("codigo") or "").casefold(),
+        )
+    )
+    return (
+        {
+            **visual,
+            "name": resolved_category_name,
+            "item_count": len(matching_rows),
+        },
+        [_serialize_barcode_studio_item(item) for item in matching_rows],
+    )
+
+
 def _read_barcode_studio_layout_payload() -> tuple[str, dict[str, object]]:
     payload = request.get_json(silent=True) or {}
     if not isinstance(payload, dict):
@@ -1594,6 +1699,8 @@ def barcode_studio_page():
     return render_template(
         "inventory/barcode_studio.html",
         barcode_search_api_url=url_for("inventory.barcode_studio_search_api"),
+        barcode_categories_api_url=url_for("inventory.barcode_studio_categories_api"),
+        barcode_category_items_api_url=url_for("inventory.barcode_studio_category_items_api"),
         barcode_regenerate_url=url_for("inventory.generate_all_barcodes"),
         barcode_layouts_api_url=url_for("inventory.barcode_studio_layouts_api"),
         barcode_layout_detail_url_template=url_for("inventory.barcode_studio_layout_detail_api", filename="__FILENAME__"),
@@ -3816,6 +3923,48 @@ def barcode_studio_search_api():
         {
             "success": True,
             "items": [_serialize_barcode_studio_item(item) for item in results],
+        }
+    )
+
+
+@blueprint.get("/api/barcodes/categories")
+@login_required
+def barcode_studio_categories_api():
+    _require_admin_or_supervisor()
+
+    query = (request.args.get("q") or "").strip()
+    try:
+        limit = max(1, min(int(request.args.get("limit") or 40), 80))
+    except (TypeError, ValueError):
+        limit = 40
+
+    return _json_no_store(
+        {
+            "success": True,
+            "categories": _build_barcode_studio_categories(query=query, limit=limit),
+        }
+    )
+
+
+@blueprint.get("/api/barcodes/categories/items")
+@login_required
+def barcode_studio_category_items_api():
+    _require_admin_or_supervisor()
+
+    category_name = (request.args.get("category") or "").strip()
+    if not category_name:
+        return jsonify({"success": False, "message": "Informe a categoria desejada."}), 400
+
+    try:
+        category_payload, items = _build_barcode_studio_category_items(category_name)
+    except ValueError as exc:
+        return jsonify({"success": False, "message": str(exc)}), 400
+
+    return _json_no_store(
+        {
+            "success": True,
+            "category": category_payload,
+            "items": items,
         }
     )
 
