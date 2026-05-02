@@ -1698,7 +1698,6 @@ def barcode_studio_page():
         barcode_search_api_url=url_for("inventory.barcode_studio_search_api"),
         barcode_categories_api_url=url_for("inventory.barcode_studio_categories_api"),
         barcode_category_items_api_url=url_for("inventory.barcode_studio_category_items_api"),
-        barcode_category_options=_build_barcode_studio_categories(query="", limit=200),
         barcode_regenerate_url=url_for("inventory.generate_all_barcodes"),
         barcode_layouts_api_url=url_for("inventory.barcode_studio_layouts_api"),
         barcode_layout_detail_url_template=url_for("inventory.barcode_studio_layout_detail_api", filename="__FILENAME__"),

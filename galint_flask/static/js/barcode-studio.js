@@ -199,14 +199,6 @@
         return String(elements.searchMode ? elements.searchMode.value : '').trim();
     }
 
-    function getSelectedCategoryNameFromSearchOption() {
-        const rawValue = getSelectedSearchOptionValue();
-        if (!rawValue || !rawValue.startsWith('category:')) {
-            return '';
-        }
-        return rawValue.slice('category:'.length).trim();
-    }
-
     function isSearchReady() {
         return Boolean(getFixedItemSize());
     }
@@ -242,7 +234,7 @@
             return 'Primeiro salve o tamanho predefinido em Propriedades para habilitar a busca.';
         }
         return getSearchMode() === 'category'
-            ? 'Escolha uma categoria no menu acima. Ao selecionar, todos os itens entram automaticamente na folha.'
+            ? 'Digite parte do nome da categoria para localizar e revisar os itens antes de adicionar na folha.'
             : 'Busque um item para comecar.';
     }
 
@@ -259,20 +251,17 @@
         const searchReady = isSearchReady();
         const isCategory = searchReady && getSearchMode() === 'category';
         if (elements.searchPanelTitle) {
-            elements.searchPanelTitle.textContent = isCategory ? 'Escolher categoria' : 'Buscar item';
+            elements.searchPanelTitle.textContent = isCategory ? 'Buscar categoria' : 'Buscar item';
         }
         if (elements.searchPanelSubtitle) {
             elements.searchPanelSubtitle.textContent = !searchReady
                 ? 'Primeiro defina e salve o tamanho predefinido da etiqueta. Depois a busca por item ou categoria sera liberada.'
                 : isCategory
-                ? 'Escolha a categoria direto na lista acima. Ao clicar, todos os itens entram automaticamente na folha.'
+                ? 'Digite o nome da categoria, abra a lista e revise os itens antes de adicionar a categoria inteira na folha.'
                 : 'Digite codigo, descricao ou marca e adicione o resultado direto na folha.';
         }
-        if (elements.searchFilterGroup) {
-            elements.searchFilterGroup.classList.toggle('d-none', isCategory);
-        }
         if (elements.searchInputLabel) {
-            elements.searchInputLabel.textContent = 'Termo de busca';
+            elements.searchInputLabel.textContent = isCategory ? 'Nome da categoria' : 'Termo de busca';
         }
         if (elements.searchInput) {
             elements.searchInput.placeholder = getSearchPlaceholder();
@@ -2058,18 +2047,17 @@
                 syncSearchAvailabilityUI();
                 return;
             }
-            const categoryName = getSelectedCategoryNameFromSearchOption();
-            state.search.mode = categoryName ? 'category' : 'item';
+            state.search.mode = getSelectedSearchOptionValue() === 'category' ? 'category' : 'item';
             syncSearchModeUI();
             clearSearchResults();
             clearSelectedCategory({ silent: true });
-            if (categoryName) {
-                loadCategoryItems({ name: categoryName }, { autoAdd: true });
-                return;
-            }
             if (elements.searchInput) {
                 elements.searchInput.value = '';
                 elements.searchInput.focus();
+            }
+            if (getSearchMode() === 'category') {
+                fetchCategoryResults('');
+                return;
             }
             setSearchStatus(getEmptySearchStatus(), 'muted');
         });

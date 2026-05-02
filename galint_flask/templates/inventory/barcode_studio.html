@@ -61,9 +61,7 @@
                         <label class="form-label" for="barcodeStudioSearchMode">Buscar por</label>
                         <select class="form-select" id="barcodeStudioSearchMode">
                             <option value="item">Item por item</option>
-                            {% for category in barcode_category_options %}
-                            <option value="category:{{ category.name }}">{{ category.name }}</option>
-                            {% endfor %}
+                            <option value="category">Categoria do estoque</option>
                         </select>
                     </div>
                 </div>
