@@ -32,12 +32,12 @@
     };
 
     const elements = {
+        searchSection: document.getElementById('barcodeStudioSearchSection'),
         searchPanelTitle: document.getElementById('barcodeStudioSearchPanelTitle'),
         searchPanelSubtitle: document.getElementById('barcodeStudioSearchPanelSubtitle'),
         searchFilterGroup: document.getElementById('barcodeStudioSearchFilterGroup'),
         searchInputLabel: document.getElementById('barcodeStudioSearchInputLabel'),
         searchMode: document.getElementById('barcodeStudioSearchMode'),
-        searchUnlockNote: document.getElementById('barcodeStudioSearchUnlockNote'),
         searchInput: document.getElementById('barcodeStudioSearchInput'),
         searchClear: document.getElementById('barcodeStudioSearchClear'),
         searchResults: document.getElementById('barcodeStudioSearchResults'),
@@ -47,6 +47,8 @@
         selectedCategoryMeta: document.getElementById('barcodeStudioSelectedCategoryMeta'),
         addCategoryBtn: document.getElementById('barcodeStudioAddCategoryBtn'),
         categoryItems: document.getElementById('barcodeStudioCategoryItems'),
+        sheetSectionToggle: document.getElementById('barcodeStudioSheetSectionToggle'),
+        sheetSectionBody: document.getElementById('barcodeStudioSheetSectionBody'),
         addQuantity: document.getElementById('barcodeStudioAddQuantity'),
         orientation: document.getElementById('barcodeStudioOrientation'),
         columns: document.getElementById('barcodeStudioColumns'),
@@ -68,9 +70,10 @@
         pageCount: document.getElementById('barcodeStudioPageCount'),
         pageInfo: document.getElementById('barcodeStudioPageInfo'),
         gridInfo: document.getElementById('barcodeStudioGridInfo'),
+        layoutsSectionToggle: document.getElementById('barcodeStudioLayoutsSectionToggle'),
+        layoutsSectionBody: document.getElementById('barcodeStudioLayoutsSectionBody'),
         layoutName: document.getElementById('barcodeStudioLayoutName'),
         savedLayouts: document.getElementById('barcodeStudioSavedLayouts'),
-        layoutsDirNote: document.getElementById('barcodeStudioLayoutsDirNote'),
         saveLayoutBtn: document.getElementById('barcodeStudioSaveLayoutBtn'),
         saveAsFileBtn: document.getElementById('barcodeStudioSaveAsFileBtn'),
         importFileBtn: document.getElementById('barcodeStudioImportFileBtn'),
@@ -215,6 +218,25 @@
         }
     }
 
+    function setSectionExpanded(toggleElement, bodyElement, expanded) {
+        if (!toggleElement || !bodyElement) {
+            return;
+        }
+        toggleElement.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+        bodyElement.classList.toggle('d-none', !expanded);
+    }
+
+    function wireSectionToggle(toggleElement, bodyElement, expandedByDefault) {
+        if (!toggleElement || !bodyElement) {
+            return;
+        }
+        setSectionExpanded(toggleElement, bodyElement, expandedByDefault !== false);
+        toggleElement.addEventListener('click', function () {
+            const expanded = toggleElement.getAttribute('aria-expanded') !== 'false';
+            setSectionExpanded(toggleElement, bodyElement, !expanded);
+        });
+    }
+
     function getEmptySearchStatus() {
         if (!isSearchReady()) {
             return 'Primeiro salve o tamanho predefinido em Propriedades para habilitar a busca.';
@@ -271,8 +293,8 @@
             clearSelectedCategory({ silent: true });
         }
 
-        if (elements.searchUnlockNote) {
-            elements.searchUnlockNote.classList.toggle('d-none', searchReady);
+        if (elements.searchSection) {
+            elements.searchSection.classList.toggle('d-none', !searchReady);
         }
         if (elements.searchMode) {
             elements.searchMode.disabled = !searchReady;
@@ -676,11 +698,17 @@
     }
 
     function updateLayoutsDirNote(internalDir) {
-        if (!elements.layoutsDirNote) {
-            return;
+        void internalDir;
+    }
+
+    function getCurrentSavedLayout() {
+        const currentFilename = String(state.currentLayoutFilename || '').trim();
+        if (!currentFilename) {
+            return null;
         }
-        const text = String(internalDir || config.internalLayoutsDir || '').trim();
-        elements.layoutsDirNote.textContent = text ? 'Pasta interna do sistema: ' + text : 'Pasta interna do sistema indisponivel no momento.';
+        return state.savedLayouts.find(function (layout) {
+            return layout.filename === currentFilename;
+        }) || null;
     }
 
     function renderSavedLayouts(selectedFilename) {
@@ -731,10 +759,16 @@
             setFeedback('Informe um nome para o layout antes de salvar.', 'warning');
             return;
         }
+        const normalizedName = name.toLowerCase();
         const matchedLayout = state.savedLayouts.find(function (layout) {
-            return String(layout.name || '').trim().toLowerCase() === name.toLowerCase();
+            return String(layout.name || '').trim().toLowerCase() === normalizedName;
         });
-        let targetFilename = state.currentLayoutFilename;
+        const currentSavedLayout = getCurrentSavedLayout();
+        const currentSavedName = currentSavedLayout ? String(currentSavedLayout.name || '').trim().toLowerCase() : '';
+        let targetFilename = currentSavedLayout ? currentSavedLayout.filename : state.currentLayoutFilename;
+        if (currentSavedLayout && normalizedName !== currentSavedName) {
+            targetFilename = null;
+        }
         if (!targetFilename && matchedLayout) {
             if (!window.confirm('Ja existe um layout com esse nome. Deseja sobrescrever o arquivo salvo?')) {
                 setFeedback('Salvamento cancelado.', 'warning');
@@ -1547,7 +1581,7 @@
         syncDimensionPresetInputs({ force: true });
         renderProperties();
         setFeedback(
-            'Tamanho predefinido salvo: ' + presetSize.widthMm.toFixed(1) + ' x ' + presetSize.heightMm.toFixed(1) + ' mm. Novas etiquetas vao entrar nesse tamanho.',
+            'Tamanho predefinido salvo: ' + presetSize.widthMm.toFixed(1) + ' x ' + presetSize.heightMm.toFixed(1) + ' mm. A busca por item e categoria foi liberada.',
             'muted'
         );
     }
@@ -1586,7 +1620,7 @@
         state.page.defaultItemSize = null;
         syncDimensionPresetInputs({ force: true });
         renderProperties();
-        setFeedback('Dimensao fixa removida. Novas etiquetas voltam ao tamanho padrao.', 'muted');
+        setFeedback('Dimensao fixa removida. A busca por item e categoria foi ocultada ate salvar um novo tamanho predefinido.', 'muted');
     }
 
     function updateSelectedFromForm() {
@@ -2083,6 +2117,8 @@
             elements.searchMode.value = state.search.mode;
         }
         syncSearchAvailabilityUI();
+        wireSectionToggle(elements.sheetSectionToggle, elements.sheetSectionBody, true);
+        wireSectionToggle(elements.layoutsSectionToggle, elements.layoutsSectionBody, true);
         wireSearch();
         wireProperties();
         wirePageControls();
