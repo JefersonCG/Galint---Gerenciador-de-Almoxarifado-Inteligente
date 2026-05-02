@@ -37,6 +37,7 @@
         searchFilterGroup: document.getElementById('barcodeStudioSearchFilterGroup'),
         searchInputLabel: document.getElementById('barcodeStudioSearchInputLabel'),
         searchMode: document.getElementById('barcodeStudioSearchMode'),
+        searchUnlockNote: document.getElementById('barcodeStudioSearchUnlockNote'),
         searchInput: document.getElementById('barcodeStudioSearchInput'),
         searchClear: document.getElementById('barcodeStudioSearchClear'),
         searchResults: document.getElementById('barcodeStudioSearchResults'),
@@ -111,6 +112,7 @@
     let searchAbortController = null;
     let lastSearchResults = [];
     let lastSearchMode = 'item';
+    let lastSearchReady = null;
     let guideState = null;
 
     function getLayoutListUrl() {
@@ -202,36 +204,93 @@
         return rawValue.slice('category:'.length).trim();
     }
 
+    function isSearchReady() {
+        return Boolean(getFixedItemSize());
+    }
+
+    function resetSearchModeToItem() {
+        state.search.mode = 'item';
+        if (elements.searchMode) {
+            elements.searchMode.value = 'item';
+        }
+    }
+
     function getEmptySearchStatus() {
+        if (!isSearchReady()) {
+            return 'Primeiro salve o tamanho predefinido em Propriedades para habilitar a busca.';
+        }
         return getSearchMode() === 'category'
-            ? 'Todas as categorias do estoque aparecem abaixo. Digite se quiser filtrar.'
+            ? 'Escolha uma categoria no menu acima. Ao selecionar, todos os itens entram automaticamente na folha.'
             : 'Busque um item para comecar.';
     }
 
     function getSearchPlaceholder() {
+        if (!isSearchReady()) {
+            return 'Salve o tamanho predefinido para habilitar a busca';
+        }
         return getSearchMode() === 'category'
             ? 'Ex.: material eletrico, ferramentas, limpeza'
             : 'Ex.: ITEM-0283, cabo, furadeira';
     }
 
     function syncSearchModeUI() {
-        const isCategory = getSearchMode() === 'category';
+        const searchReady = isSearchReady();
+        const isCategory = searchReady && getSearchMode() === 'category';
         if (elements.searchPanelTitle) {
             elements.searchPanelTitle.textContent = isCategory ? 'Escolher categoria' : 'Buscar item';
         }
         if (elements.searchPanelSubtitle) {
-            elements.searchPanelSubtitle.textContent = isCategory
-                ? 'Escolha a categoria direto na lista acima. Nao precisa abrir filtro para listar categoria.'
+            elements.searchPanelSubtitle.textContent = !searchReady
+                ? 'Primeiro defina e salve o tamanho predefinido da etiqueta. Depois a busca por item ou categoria sera liberada.'
+                : isCategory
+                ? 'Escolha a categoria direto na lista acima. Ao clicar, todos os itens entram automaticamente na folha.'
                 : 'Digite codigo, descricao ou marca e adicione o resultado direto na folha.';
         }
         if (elements.searchFilterGroup) {
             elements.searchFilterGroup.classList.toggle('d-none', isCategory);
         }
         if (elements.searchInputLabel) {
-            elements.searchInputLabel.textContent = isCategory ? 'Filtrar categorias' : 'Termo de busca';
+            elements.searchInputLabel.textContent = 'Termo de busca';
         }
         if (elements.searchInput) {
             elements.searchInput.placeholder = getSearchPlaceholder();
+        }
+    }
+
+    function syncSearchAvailabilityUI() {
+        const searchReady = isSearchReady();
+        const changed = lastSearchReady !== searchReady;
+        lastSearchReady = searchReady;
+
+        if (!searchReady && changed) {
+            resetSearchModeToItem();
+            if (elements.searchInput) {
+                elements.searchInput.value = '';
+            }
+            clearSearchResults();
+            clearSelectedCategory({ silent: true });
+        }
+
+        if (elements.searchUnlockNote) {
+            elements.searchUnlockNote.classList.toggle('d-none', searchReady);
+        }
+        if (elements.searchMode) {
+            elements.searchMode.disabled = !searchReady;
+        }
+        if (elements.searchInput) {
+            elements.searchInput.disabled = !searchReady;
+        }
+        if (elements.searchClear) {
+            elements.searchClear.disabled = !searchReady;
+        }
+
+        syncSearchModeUI();
+        if (!searchReady) {
+            setSearchStatus(getEmptySearchStatus(), 'warning');
+            return;
+        }
+        if (changed) {
+            setSearchStatus(getEmptySearchStatus(), 'muted');
         }
     }
 
@@ -1230,7 +1289,8 @@
         }
     }
 
-    async function loadCategoryItems(category) {
+    async function loadCategoryItems(category, options) {
+        const settings = options || {};
         if (!category || !category.name) {
             setFeedback('Categoria invalida para carregamento.', 'danger');
             return;
@@ -1246,6 +1306,10 @@
             const payload = await fetchJson(url.toString());
             state.search.selectedCategory = payload.category || category;
             state.search.selectedCategoryItems = Array.isArray(payload.items) ? payload.items : [];
+            if (settings.autoAdd) {
+                addSelectedCategoryToSheet({ autoAdded: true, clearSelection: true });
+                return;
+            }
             renderCategorySelection();
             setFeedback('Categoria carregada: ' + (state.search.selectedCategory.name || category.name) + '.', 'muted');
         } catch (error) {
@@ -1266,6 +1330,10 @@
     }
 
     function addItemToSheet(item, options) {
+        if (!isSearchReady()) {
+            setFeedback('Salve um tamanho predefinido antes de adicionar etiquetas do estoque.', 'warning');
+            return null;
+        }
         const preset = getPagePreset();
         const itemSize = getNewItemSize();
         const quantity = clamp(parseInt(options && options.quantity ? options.quantity : readAddQuantity(), 10) || 1, 1, 60);
@@ -1374,12 +1442,24 @@
         }
     }
 
-    function addSelectedCategoryToSheet() {
+    function addSelectedCategoryToSheet(options) {
+        const settings = options || {};
         const category = state.search.selectedCategory;
         const items = state.search.selectedCategoryItems || [];
-        if (!category || !items.length) {
-            setFeedback('Carregue uma categoria com itens antes de adicionar em lote.', 'warning');
-            return;
+        if (!isSearchReady()) {
+            setFeedback('Salve um tamanho predefinido antes de adicionar categorias inteiras na folha.', 'warning');
+            return false;
+        }
+        if (!category) {
+            setFeedback('Selecione uma categoria valida antes de adicionar em lote.', 'warning');
+            return false;
+        }
+        if (!items.length) {
+            setFeedback('A categoria ' + (category.name || category.label || '') + ' nao possui itens disponiveis para adicionar.', 'warning');
+            if (settings.clearSelection) {
+                clearSelectedCategory({ silent: true });
+            }
+            return false;
         }
         const startPageIndex = state.items.length ? getUsedPageCount() : 0;
         const newItems = [];
@@ -1404,9 +1484,13 @@
             renderPage();
             renderProperties();
             setFeedback(
-                'Categoria ' + (category.name || category.label || '') + ' adicionada com ' + items.length + ' etiqueta(s) em ' + getUsedPageCount() + ' folha(s), sem mexer nas etiquetas ja montadas.',
+                'Categoria ' + (category.name || category.label || '') + (settings.autoAdded ? ' adicionada automaticamente' : ' adicionada') + ' com ' + items.length + ' etiqueta(s) em ' + getUsedPageCount() + ' folha(s), sem mexer nas etiquetas ja montadas.',
                 'muted'
             );
+            if (settings.clearSelection) {
+                clearSelectedCategory({ silent: true });
+            }
+            return true;
         } catch (error) {
             state.items = state.items.filter(function (item) {
                 return newItems.indexOf(item) === -1;
@@ -1414,7 +1498,11 @@
             state.selectedId = state.items.length ? state.items[state.items.length - 1].id : null;
             renderPage();
             renderProperties();
+            if (settings.clearSelection) {
+                clearSelectedCategory({ silent: true });
+            }
             setFeedback(error.message || 'Nao foi possivel adicionar a categoria inteira agora.', 'danger');
+            return false;
         }
     }
 
@@ -1446,6 +1534,7 @@
         if (elements.clearDimensionsBtn) {
             elements.clearDimensionsBtn.disabled = !fixedItemSize;
         }
+        syncSearchAvailabilityUI();
     }
 
     function applyDimensionPresetFromInputs() {
@@ -1931,18 +2020,22 @@
 
     function wireSearch() {
         elements.searchMode && elements.searchMode.addEventListener('change', function () {
+            if (!isSearchReady()) {
+                syncSearchAvailabilityUI();
+                return;
+            }
             const categoryName = getSelectedCategoryNameFromSearchOption();
             state.search.mode = categoryName ? 'category' : 'item';
             syncSearchModeUI();
             clearSearchResults();
             clearSelectedCategory({ silent: true });
             if (categoryName) {
-                setSearchStatus('Categoria escolhida no menu acima.', 'muted');
-                loadCategoryItems({ name: categoryName });
+                loadCategoryItems({ name: categoryName }, { autoAdd: true });
                 return;
             }
             if (elements.searchInput) {
                 elements.searchInput.value = '';
+                elements.searchInput.focus();
             }
             setSearchStatus(getEmptySearchStatus(), 'muted');
         });
@@ -1989,7 +2082,7 @@
         if (elements.searchMode) {
             elements.searchMode.value = state.search.mode;
         }
-        syncSearchModeUI();
+        syncSearchAvailabilityUI();
         wireSearch();
         wireProperties();
         wirePageControls();
