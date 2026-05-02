@@ -35,8 +35,34 @@ BEGIN
       criado_em timestamp NOT NULL DEFAULT now(),
       atualizado_em timestamp NOT NULL DEFAULT now()
     );
+  ELSE
+    ALTER TABLE inventory_categories
+      ADD COLUMN IF NOT EXISTS descricao text NULL,
+      ADD COLUMN IF NOT EXISTS ordem integer NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS ativa boolean NOT NULL DEFAULT true,
+      ADD COLUMN IF NOT EXISTS sistema boolean NOT NULL DEFAULT false,
+      ADD COLUMN IF NOT EXISTS criada_por varchar(100) NULL,
+      ADD COLUMN IF NOT EXISTS atualizada_por varchar(100) NULL,
+      ADD COLUMN IF NOT EXISTS criado_em timestamp NULL,
+      ADD COLUMN IF NOT EXISTS atualizado_em timestamp NULL;
+
+    ALTER TABLE inventory_categories
+      ALTER COLUMN ordem SET DEFAULT 0,
+      ALTER COLUMN ativa SET DEFAULT true,
+      ALTER COLUMN sistema SET DEFAULT false,
+      ALTER COLUMN criado_em SET DEFAULT now(),
+      ALTER COLUMN atualizado_em SET DEFAULT now();
+
+    UPDATE inventory_categories
+       SET criado_em = COALESCE(criado_em, now()),
+           atualizado_em = COALESCE(atualizado_em, now());
+
+    ALTER TABLE inventory_categories
+      ALTER COLUMN criado_em SET NOT NULL,
+      ALTER COLUMN atualizado_em SET NOT NULL;
   END IF;
 
+  CREATE UNIQUE INDEX IF NOT EXISTS ux_inventory_categories_nome ON inventory_categories(nome);
   CREATE INDEX IF NOT EXISTS ix_inventory_categories_ativa ON inventory_categories(ativa);
 END $$;
 """
