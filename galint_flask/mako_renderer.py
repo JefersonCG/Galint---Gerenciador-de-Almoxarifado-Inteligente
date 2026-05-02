@@ -38,6 +38,7 @@ def render_mako_template(template_name: str, **context: Any) -> str:
             "current_user": current_user,
             "get_flashed_messages": get_flashed_messages,
             "request": request,
+            "system_name": current_app.config.get("SYSTEM_NAME", "Gerenciador de Almoxarifado Inteligente"),
             "tojson": tojson,
         }
     )

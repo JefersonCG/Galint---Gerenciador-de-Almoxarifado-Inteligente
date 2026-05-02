@@ -791,24 +791,25 @@
 </style>
 </%block>
 
+<%block name="page_header">
+    <h2><i class="bi bi-box-arrow-right me-2"></i>Registro de Saída</h2>
+    <p>Adicione materiais comuns ou ferramentas à lista e registre a saída em lote, mantendo o fluxo centralizado de lançamentos.</p>
+    <div class="page-header-actions">
+        <a class="btn-mirror-screen" data-mirror-screen="1" href="${url_for('movements.painel_espelho_page')}" target="_blank" rel="noopener">
+            <span class="btn-mirror-screen-icon"><img src="${url_for('static', filename='img/galint-icon.png')}" alt="GALINT"></span>
+            <span class="btn-mirror-screen-label">Painel de Visualização</span>
+        </a>
+        <button class="btn-mirror-screen btn-express-return" type="button" id="btn-open-express-return">
+            <span class="btn-mirror-screen-icon"><i class="bi bi-arrow-return-left"></i></span>
+            <span class="btn-mirror-screen-label">Devolução Expressa</span>
+        </button>
+    </div>
+</%block>
+
 <%block name="content">
 <div class="saida-container">
     <div class="saida-shell">
-    <div class="page-header">
-        <h2><i class="bi bi-box-arrow-right me-2"></i>Registro de Saída</h2>
-        <p>Adicione materiais comuns ou ferramentas à lista e registre a saída em lote, mantendo o fluxo centralizado de lançamentos.</p>
-        <div class="page-header-actions">
-            <a class="btn-mirror-screen" data-mirror-screen="1" href="${url_for('movements.painel_espelho_page')}" target="_blank" rel="noopener">
-                <span class="btn-mirror-screen-icon"><img src="${url_for('static', filename='img/galint-icon.png')}" alt="GALINT"></span>
-                <span class="btn-mirror-screen-label">Painel de Visualização</span>
-            </a>
-            <button class="btn-mirror-screen btn-express-return" type="button" id="btn-open-express-return">
-                <span class="btn-mirror-screen-icon"><i class="bi bi-arrow-return-left"></i></span>
-                <span class="btn-mirror-screen-label">Devolução Expressa</span>
-            </button>
-        </div>
-    </div>
-    
+
     <div class="alert-info-custom">
         <i class="bi bi-info-circle me-2"></i>
         <strong>Dica:</strong> Esta tela também aceita ferramentas disponíveis. Quando o item for ferramenta, a custódia é aberta automaticamente no registro da saída.
@@ -979,6 +980,7 @@ ${parent.scripts()}
 <script>
 (function() {
     const items = [];
+    const STOCK_TOLERANCE = 1e-6;
     let itemCounter = 0;
     let pendingItem = null; // Item aguardando escolha de unidade
     const usuariosAutocompleteData = ${tojson(usuarios)|n};
@@ -1128,6 +1130,188 @@ ${parent.scripts()}
         return unidade ? quantidade + ' ' + unidade : String(quantidade);
     }
 
+    function getBaseStockValue(item) {
+        const saldoDisponivel = Number(item?.saldo_disponivel);
+        if (Number.isFinite(saldoDisponivel) && saldoDisponivel >= 0) {
+            return saldoDisponivel;
+        }
+        const saldoTotal = Number(item?.saldo);
+        if (Number.isFinite(saldoTotal) && saldoTotal >= 0) {
+            return saldoTotal;
+        }
+        return 0;
+    }
+
+    function getItemRequestedBaseQuantity(item) {
+        if (!item) {
+            return 0;
+        }
+
+        if (item.em_embalagens === true) {
+            const quantidadePacotes = Number(item.quantidade_input ?? item.quantidade_exibicao ?? item.quantidade) || 0;
+            const capacidade = getPackagingCapacity(item);
+            if (capacidade > 0) {
+                return quantidadePacotes * capacidade;
+            }
+        }
+
+        const quantidadeBase = Number(item.quantidade);
+        if (Number.isFinite(quantidadeBase) && quantidadeBase > 0) {
+            return quantidadeBase;
+        }
+
+        const quantidadeDigitada = Number(item.quantidade_input ?? item.quantidade_exibicao);
+        return Number.isFinite(quantidadeDigitada) && quantidadeDigitada > 0 ? quantidadeDigitada : 0;
+    }
+
+    function getPendingBaseQuantityForCode(codigo, options) {
+        const normalizedCode = String(codigo || '').trim();
+        if (!normalizedCode) {
+            return 0;
+        }
+
+        const extraOptions = options || {};
+        const excludeItemId = extraOptions.excludeItemId;
+
+        return items.reduce((accumulator, queuedItem) => {
+            if (String(queuedItem?.codigo || '').trim() !== normalizedCode) {
+                return accumulator;
+            }
+            if (excludeItemId != null && queuedItem?.id === excludeItemId) {
+                return accumulator;
+            }
+            return accumulator + getItemRequestedBaseQuantity(queuedItem);
+        }, 0);
+    }
+
+    function buildRuntimeStockSnapshot(item, options) {
+        const extraOptions = options || {};
+        const capacity = getPackagingCapacity(item);
+        const baseTotal = Math.max(0, getBaseStockValue(item));
+        const pendingBase = Math.max(0, getPendingBaseQuantityForCode(item?.codigo, extraOptions));
+        const currentDraftBase = Math.max(0, Number(extraOptions.currentDraftBase) || 0);
+        const availableBeforeDraft = Math.max(0, baseTotal - pendingBase);
+        const availableAfterDraft = Math.max(0, availableBeforeDraft - currentDraftBase);
+        const packagingAvailableBeforeDraft = capacity > 0
+            ? Math.max(0, Math.floor((availableBeforeDraft + STOCK_TOLERANCE) / capacity))
+            : 0;
+        const packagingAvailableAfterDraft = capacity > 0
+            ? Math.max(0, Math.floor((availableAfterDraft + STOCK_TOLERANCE) / capacity))
+            : 0;
+
+        return {
+            baseTotal,
+            capacity,
+            pendingBase,
+            currentDraftBase,
+            availableBeforeDraft,
+            availableAfterDraft,
+            packagingAvailableBeforeDraft,
+            packagingAvailableAfterDraft,
+        };
+    }
+
+    function buildAdjustedBalanceItem(item, snapshot, options) {
+        if (!item) {
+            return item;
+        }
+
+        const effectiveSnapshot = snapshot || buildRuntimeStockSnapshot(item, options);
+        const adjustedItem = { ...item };
+        adjustedItem.saldo = effectiveSnapshot.availableAfterDraft;
+        adjustedItem.saldo_disponivel = effectiveSnapshot.availableAfterDraft;
+        if (effectiveSnapshot.capacity > 0) {
+            adjustedItem.saldo_embalagens = effectiveSnapshot.packagingAvailableAfterDraft;
+            adjustedItem.saldo_unidades_soltas = Math.max(
+                0,
+                effectiveSnapshot.availableAfterDraft - (effectiveSnapshot.packagingAvailableAfterDraft * effectiveSnapshot.capacity)
+            );
+        }
+        return adjustedItem;
+    }
+
+    function formatStockShortageMessage(item, requestedDisplay, availableDisplay, stockLabel) {
+        const description = String(item?.descricao || item?.codigo || 'Item').trim();
+        const requestedText = String(requestedDisplay || '').trim();
+        const availableText = String(availableDisplay || '').trim();
+        const stockText = String(stockLabel || 'Saldo disponível').trim();
+        return description + '\n\nSolicitado: ' + requestedText + '\nDisponível agora: ' + availableText + '\n' + stockText;
+    }
+
+    function showStockShortageMessage(title, item, requestedDisplay, availableDisplay, stockLabel) {
+        const heading = String(title || 'Saldo insuficiente').trim() || 'Saldo insuficiente';
+        const message = formatStockShortageMessage(item, requestedDisplay, availableDisplay, stockLabel);
+        if (typeof showErrorModal === 'function') {
+            showErrorModal(heading, message);
+            return;
+        }
+        window.alert(heading + '\n\n' + message);
+    }
+
+    function validateDraftAgainstRuntimeStock(item, options) {
+        const extraOptions = options || {};
+        const draftMode = extraOptions.mode || 'base';
+        const silent = extraOptions.silent === true;
+        const effectiveItem = item || {};
+        const rotuloMedida = obterRotuloMedida(effectiveItem, effectiveItem.quantidade_input);
+        let currentDraftBase = 0;
+        let requestedDisplay = formatarQuantidadeMedida(effectiveItem.quantidade_input, rotuloMedida);
+
+        if (draftMode === 'package') {
+            const capacidade = getPackagingCapacity(effectiveItem);
+            currentDraftBase = (Number(effectiveItem.quantidade_input) || 0) * capacidade;
+            const nomes = nomesEmbalagem[effectiveItem.tipo_embalagem] || { singular: 'embalagem', plural: 'embalagens' };
+            requestedDisplay = formatarNumeroSimples(effectiveItem.quantidade_input) + ' ' + ((Number(effectiveItem.quantidade_input) || 0) === 1 ? nomes.singular : nomes.plural);
+        } else if (draftMode === 'cm') {
+            currentDraftBase = (Number(effectiveItem.quantidade_input) || 0) / 100;
+            requestedDisplay = formatarNumeroSimples(effectiveItem.quantidade_input) + ' cm';
+        } else {
+            currentDraftBase = Number(effectiveItem.quantidade_input) || Number(effectiveItem.quantidade) || 0;
+        }
+
+        const snapshot = buildRuntimeStockSnapshot(effectiveItem, {
+            excludeItemId: extraOptions.excludeItemId,
+            currentDraftBase,
+        });
+
+        if (draftMode === 'package') {
+            const availablePackagesDisplay = formatarNumeroSimples(snapshot.packagingAvailableBeforeDraft) + ' ' + (
+                snapshot.packagingAvailableBeforeDraft === 1
+                    ? ((nomesEmbalagem[effectiveItem.tipo_embalagem] || { singular: 'embalagem' }).singular)
+                    : ((nomesEmbalagem[effectiveItem.tipo_embalagem] || { plural: 'embalagens' }).plural)
+            );
+            if ((Number(effectiveItem.quantidade_input) || 0) > snapshot.packagingAvailableBeforeDraft + STOCK_TOLERANCE) {
+                if (!silent) {
+                    showStockShortageMessage(
+                        'Saldo insuficiente para embalagens fechadas',
+                        effectiveItem,
+                        requestedDisplay,
+                        availablePackagesDisplay,
+                        'Estoque fechado disponível agora.'
+                    );
+                }
+                return { ok: false, snapshot };
+            }
+            return { ok: true, snapshot };
+        }
+
+        if (currentDraftBase > snapshot.availableBeforeDraft + STOCK_TOLERANCE) {
+            const availableDisplay = formatarQuantidadeMedida(snapshot.availableBeforeDraft, obterRotuloMedida(effectiveItem, snapshot.availableBeforeDraft));
+            if (!silent) {
+                showStockShortageMessage(
+                    'Saldo insuficiente',
+                    effectiveItem,
+                    requestedDisplay,
+                    availableDisplay,
+                    'Saldo disponível agora, já descontando o que está pendente na lista.'
+                );
+            }
+            return { ok: false, snapshot };
+        }
+
+        return { ok: true, snapshot };
+    }
+
     function buildMirrorDraftPayload() {
         const quantidadeDigitada = parseInt(inputQuantidade.value, 10) || 1;
         return {
@@ -1239,14 +1423,20 @@ ${parent.scripts()}
         }
 
         if (item) {
+            const previewDraftBase = status === 'preview'
+                ? getItemRequestedBaseQuantity({ ...item, quantidade: item.quantidade_input })
+                : 0;
+            const adjustedItem = buildAdjustedBalanceItem(item, buildRuntimeStockSnapshot(item, {
+                currentDraftBase: previewDraftBase,
+            }));
             payload.item = {
                 codigo: item.codigo || '',
                 descricao: item.descricao || item.codigo || '',
                 categoria: item.categoria || '',
                 marca: item.marca || '',
                 foto_url: item.foto_url || '',
-                saldo: item.saldo,
-                saldo_display: item.saldo_display || '',
+                saldo: adjustedItem.saldo,
+                saldo_display: formatarSaldoItem(adjustedItem) || item.saldo_display || '',
             };
             payload.movement = {
                 quantidade: item.quantidade_exibicao || item.quantidade_input || item.quantidade || 1,
@@ -1301,12 +1491,23 @@ ${parent.scripts()}
             : '<div class="operation-preview-placeholder"><i class="bi bi-image"></i><div>Sem foto do item</div></div>';
         const usuario = String(item.usuario || inputUsuario.value || '').trim() || 'Nao informado';
         const local = String(item.local || inputLocal.value || '').trim() || 'Nao informado';
-        const saldo = String(item.saldo_display || item.saldo || '').trim() || 'Nao informado';
+        const previewDraftBase = previewStatus === 'preview' ? getItemRequestedBaseQuantity({ ...item, quantidade: item.quantidade_input }) : 0;
+        const stockSnapshot = buildRuntimeStockSnapshot(item, {
+            currentDraftBase: previewDraftBase,
+        });
+        const adjustedBalanceItem = buildAdjustedBalanceItem(item, stockSnapshot);
+        const saldo = formatarSaldoItem(adjustedBalanceItem) || String(item.saldo_display || item.saldo || '').trim() || 'Nao informado';
         const quantidade = formatPreviewQuantity(item);
         const categoriaNorm = normalizeAutocompleteText(item.categoria || '');
+        const runtimeStockNote = stockSnapshot.pendingBase > STOCK_TOLERANCE
+            ? 'Pendente na lista: ' + formatarQuantidadeMedida(stockSnapshot.pendingBase, obterRotuloMedida(item, stockSnapshot.pendingBase)) + '. '
+            : '';
+        const availabilityNote = previewStatus === 'preview'
+            ? runtimeStockNote + 'Disponivel apos esta retirada: ' + formatarQuantidadeMedida(stockSnapshot.availableAfterDraft, obterRotuloMedida(item, stockSnapshot.availableAfterDraft)) + '.'
+            : runtimeStockNote + 'Disponivel para novas retiradas: ' + formatarQuantidadeMedida(stockSnapshot.availableAfterDraft, obterRotuloMedida(item, stockSnapshot.availableAfterDraft)) + '.';
         const previewNote = categoriaNorm.includes('ferrament')
-            ? 'Ferramenta detectada: a custodia tambem sera registrada automaticamente quando esta saida for confirmada.'
-            : 'Este painel e a base da futura tela espelho para segundo monitor.';
+            ? availabilityNote + ' Custodia automatica sera registrada quando esta saida for confirmada.'
+            : availabilityNote + ' Este painel e a base da futura tela espelho para segundo monitor.';
 
         currentItemPreview.className = 'operation-preview';
         currentItemPreview.innerHTML = '' +
@@ -1532,8 +1733,8 @@ ${parent.scripts()}
                 return totalTxt + ' ' + unidadeSolta + ' ' + looseSuffix;
             }
             
-            // Fallback: mostra saldo com unidade genérica
-            return Math.round(saldo) + ' un';
+            // Fallback: mostra saldo usando a unidade operacional do item.
+            return formatarQuantidadeMedida(saldo, obterRotuloMedida(item, saldo));
         } catch (e) {
             console.error('Erro ao formatar saldo:', e);
             return item.saldo_display ? String(item.saldo_display) : (item.saldo ? String(item.saldo) : '');
@@ -1593,23 +1794,11 @@ ${parent.scripts()}
     }
 
     function obterSaldoEmbalagensDisponiveis(item) {
-        const saldoFechadoInformado = Number(item?.saldo_embalagens);
-        if (Number.isFinite(saldoFechadoInformado) && saldoFechadoInformado >= 0) {
-            return saldoFechadoInformado;
-        }
-
-        const capacidade = Number(item?.unidades_por_embalagem) || 0;
-        const saldoTotal = Number(item?.saldo) || 0;
-        if (capacidade <= 0) {
-            return 0;
-        }
-        return Math.floor(saldoTotal / capacidade);
+        return buildRuntimeStockSnapshot(item).packagingAvailableBeforeDraft;
     }
 
     function podeRetirarEmbalagensFechadas(item) {
-        const quantidadeDigitada = Number(item?.quantidade_input) || 0;
-        const saldoFechadoDisponivel = obterSaldoEmbalagensDisponiveis(item);
-        return quantidadeDigitada > 0 && saldoFechadoDisponivel + 0.000001 >= quantidadeDigitada;
+        return validateDraftAgainstRuntimeStock(item, { mode: 'package', silent: true }).ok;
     }
 
     function buildObservationUnitCode(item, unidadeLabel) {
@@ -1630,7 +1819,9 @@ ${parent.scripts()}
             return;
         }
 
-        const availableItems = itens.filter((item) => !item || item.is_available !== false);
+        const availableItems = itens
+            .filter((item) => !item || item.is_available !== false)
+            .map((item) => buildAdjustedBalanceItem(item, buildRuntimeStockSnapshot(item)));
         currentItens = availableItems;
 
         if (availableItems.length === 0) {
@@ -1721,7 +1912,8 @@ ${parent.scripts()}
     
     btnEmbalagens.addEventListener('click', () => {
         if (pendingItem) {
-            if (!podeRetirarEmbalagensFechadas(pendingItem)) {
+            const validation = validateDraftAgainstRuntimeStock(pendingItem, { mode: 'package' });
+            if (!validation.ok) {
                 return;
             }
             const nomes = nomesEmbalagem[pendingItem.tipo_embalagem] || { singular: 'embalagem', plural: 'embalagens' };
@@ -1740,6 +1932,10 @@ ${parent.scripts()}
     
     btnUnidades.addEventListener('click', () => {
         if (pendingItem) {
+            const validation = validateDraftAgainstRuntimeStock(pendingItem, { mode: 'base' });
+            if (!validation.ok) {
+                return;
+            }
             const rotuloMedida = obterRotuloMedida(pendingItem, pendingItem.quantidade_input);
             const unidadeBaseSafe = String(pendingItem.quantidade_input === 1 ? rotuloMedida.singular : rotuloMedida.plural);
             pendingItem.em_embalagens = false;
@@ -1757,6 +1953,10 @@ ${parent.scripts()}
 
     btnCentimetros.addEventListener('click', () => {
         if (pendingItem) {
+            const validation = validateDraftAgainstRuntimeStock(pendingItem, { mode: 'cm' });
+            if (!validation.ok) {
+                return;
+            }
             const convertido = pendingItem.quantidade_input / 100;
             pendingItem.em_embalagens = false;
             pendingItem.quantidade = convertido;
@@ -1880,6 +2080,16 @@ ${parent.scripts()}
                 inputCodigo.focus();
                 return;
             }
+
+            const baseDraftValidation = validateDraftAgainstRuntimeStock({
+                ...data,
+                codigo: codigo,
+                quantidade_input: quantidade,
+            }, { mode: 'base' });
+            if (!baseDraftValidation.ok) {
+                inputCodigo.focus();
+                return;
+            }
             
             // Verificar se o item usa sistema de embalagens
             const tipoEmbalagemDetectado = inferPackagingType(data);
@@ -1910,6 +2120,7 @@ ${parent.scripts()}
                     capacidade_embalagem: data.capacidade_embalagem,
                     em_embalagens: null,
                     saldo: data.saldo,
+                    saldo_disponivel: data.saldo_disponivel,
                     saldo_display: data.saldo_display,
                     foto_url: data.foto_url
                 };
@@ -1933,6 +2144,7 @@ ${parent.scripts()}
                     categoria: data.categoria,
                     marca: data.marca,
                     saldo: data.saldo,
+                    saldo_disponivel: data.saldo_disponivel,
                     saldo_display: data.saldo_display,
                     foto_url: data.foto_url
                 });
@@ -1958,9 +2170,17 @@ ${parent.scripts()}
         const totalUnidades = item.quantidade_input * item.unidades_por_embalagem;
         const rotuloMedida = obterRotuloMedida(item, item.quantidade_input);
         const permiteCentimetros = item.tipo_embalagem === 'rolo' && normalizarUnidadeMedida(item) === 'metro';
-        const saldoEmbalagensDisponivel = obterSaldoEmbalagensDisponiveis(item);
-        const retiradaEmEmbalagensDisponivel = podeRetirarEmbalagensFechadas(item);
-        const saldoUnidadesSoltas = Number(item.saldo_unidades_soltas);
+        const baseValidation = validateDraftAgainstRuntimeStock(item, { mode: 'base', silent: true });
+        const packageValidation = validateDraftAgainstRuntimeStock(item, { mode: 'package', silent: true });
+        const cmValidation = permiteCentimetros
+            ? validateDraftAgainstRuntimeStock(item, { mode: 'cm', silent: true })
+            : { ok: true };
+        const stockSnapshot = buildRuntimeStockSnapshot(item);
+        const saldoEmbalagensDisponivel = stockSnapshot.packagingAvailableBeforeDraft;
+        const retiradaEmEmbalagensDisponivel = packageValidation.ok;
+        const saldoUnidadesSoltas = stockSnapshot.capacity > 0
+            ? Math.max(0, stockSnapshot.availableBeforeDraft - (saldoEmbalagensDisponivel * stockSnapshot.capacity))
+            : stockSnapshot.availableBeforeDraft;
         const estoqueFechadoTexto = formatarNumeroSimples(saldoEmbalagensDisponivel) + ' ' + (Math.abs(saldoEmbalagensDisponivel - 1) <= 0.000001 ? nomes.singular : nomes.plural);
         const estoqueSoltoTexto = Number.isFinite(saldoUnidadesSoltas) && saldoUnidadesSoltas > 0.000001
             ? formatarQuantidadeMedida(saldoUnidadesSoltas, obterRotuloMedida(item, saldoUnidadesSoltas))
@@ -1989,6 +2209,11 @@ ${parent.scripts()}
             modalNomeEmbPlural.textContent = nomes.plural + ' completas indisponíveis';
             modalTotalEmb.textContent = 'Estoque físico fechado disponível: ' + estoqueFechadoTexto + '. Para ' + formatarQuantidadeMedida(item.quantidade_input, rotuloMedida) + ', registre em ' + rotuloMedida.plural + '.';
         }
+
+        btnUnidades.disabled = !baseValidation.ok;
+        btnUnidades.classList.toggle('disabled', !baseValidation.ok);
+        btnCentimetros.disabled = permiteCentimetros && !cmValidation.ok;
+        btnCentimetros.classList.toggle('disabled', btnCentimetros.disabled);
         
         modalUnidade.show();
     }

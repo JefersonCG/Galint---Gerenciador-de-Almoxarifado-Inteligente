@@ -227,13 +227,14 @@
 </style>
 </%block>
 
+<%block name="page_header">
+    <h2><i class="bi bi-speedometer2 me-2"></i>Painel de Ferramentas</h2>
+    <p>Controle e rastreabilidade de ferramentas em uso</p>
+</%block>
+
 <%block name="content">
 <div class="container-fluid">
-    <div class="page-header">
-        <h2><i class="bi bi-speedometer2 me-2"></i>Painel de Ferramentas</h2>
-        <p>Controle e rastreabilidade de ferramentas em uso</p>
-    </div>
-    
+
     <!-- Estatísticas -->
     <div class="stats-row">
         <div class="stat-card verde">

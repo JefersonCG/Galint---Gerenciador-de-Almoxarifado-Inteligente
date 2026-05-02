@@ -218,9 +218,12 @@
         </aside>
         {% endif %}
         <section class="content-panel">
+            {% set page_header_content %}{% block page_header %}{% endblock %}{% endset %}
+            {% if page_header_content|trim %}
             <div class="page-header">
-                {% block page_header %}{% endblock %}
+                {{ page_header_content|safe }}
             </div>
+            {% endif %}
             {% block content %}{% endblock %}
         </section>
     </div>

@@ -461,23 +461,24 @@
 </style>
 </%block>
 
+<%block name="page_header">
+    <h2><i class="bi bi-droplet-half me-2"></i>Registro de Saída Fracionada</h2>
+    <p>Insira a quantidade pesada com o novo container dark, mantendo o fluxo específico para itens líquidos e fracionados.</p>
+    <div class="page-header-actions">
+        <a class="btn-mirror-screen" data-mirror-screen="1" href="${url_for('movements.painel_espelho_page')}" target="_blank" rel="noopener">
+            <span class="btn-mirror-screen-icon"><img src="${url_for('static', filename='img/galint-icon.png')}" alt="GALINT"></span>
+            <span class="btn-mirror-screen-label">Painel de Visualização</span>
+        </a>
+        <button class="btn-mirror-screen btn-express-return" type="button" id="btn-open-express-return">
+            <span class="btn-mirror-screen-icon"><i class="bi bi-arrow-return-left"></i></span>
+            <span class="btn-mirror-screen-label">Devolução Expressa</span>
+        </button>
+    </div>
+</%block>
+
 <%block name="content">
 <div class="saida-container">
     <div class="saida-shell">
-    <div class="page-header">
-        <h2><i class="bi bi-droplet-half me-2"></i>Registro de Saída Fracionada</h2>
-        <p>Insira a quantidade pesada com o novo container dark, mantendo o fluxo específico para itens líquidos e fracionados.</p>
-        <div class="page-header-actions">
-            <a class="btn-mirror-screen" data-mirror-screen="1" href="${url_for('movements.painel_espelho_page')}" target="_blank" rel="noopener">
-                <span class="btn-mirror-screen-icon"><img src="${url_for('static', filename='img/galint-icon.png')}" alt="GALINT"></span>
-                <span class="btn-mirror-screen-label">Painel de Visualização</span>
-            </a>
-            <button class="btn-mirror-screen btn-express-return" type="button" id="btn-open-express-return">
-                <span class="btn-mirror-screen-icon"><i class="bi bi-arrow-return-left"></i></span>
-                <span class="btn-mirror-screen-label">Devolução Expressa</span>
-            </button>
-        </div>
-    </div>
 
     <div class="info-strip" role="alert">
         <i class="bi bi-info-circle me-2"></i>

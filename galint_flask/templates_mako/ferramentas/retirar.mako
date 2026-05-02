@@ -579,24 +579,25 @@
 </style>
 </%block>
 
+<%block name="page_header">
+    <h2><i class="bi bi-tools me-2"></i>Retirada de Ferramentas</h2>
+    <p>Registre retiradas com o novo padrão visual dark, preservando o fluxo especial de custódia temporária.</p>
+    <div class="page-header-actions">
+        <a class="btn-mirror-screen" data-mirror-screen="1" href="${url_for('movements.painel_espelho_page')}" target="_blank" rel="noopener">
+            <span class="btn-mirror-screen-icon"><img src="${url_for('static', filename='img/galint-icon.png')}" alt="GALINT"></span>
+            <span class="btn-mirror-screen-label">Painel de Visualização</span>
+        </a>
+        <button class="btn-mirror-screen btn-express-return" type="button" id="btn-open-express-return">
+            <span class="btn-mirror-screen-icon"><i class="bi bi-arrow-return-left"></i></span>
+            <span class="btn-mirror-screen-label">Devolução Expressa</span>
+        </button>
+    </div>
+</%block>
+
 <%block name="content">
 <div class="container-fluid" style="max-width: 900px;">
     <div class="tool-shell">
-    <div class="page-header">
-        <h2><i class="bi bi-tools me-2"></i>Retirada de Ferramentas</h2>
-        <p>Registre retiradas com o novo padrão visual dark, preservando o fluxo especial de custódia temporária.</p>
-        <div class="page-header-actions">
-            <a class="btn-mirror-screen" data-mirror-screen="1" href="${url_for('movements.painel_espelho_page')}" target="_blank" rel="noopener">
-                <span class="btn-mirror-screen-icon"><img src="${url_for('static', filename='img/galint-icon.png')}" alt="GALINT"></span>
-                <span class="btn-mirror-screen-label">Painel de Visualização</span>
-            </a>
-            <button class="btn-mirror-screen btn-express-return" type="button" id="btn-open-express-return">
-                <span class="btn-mirror-screen-icon"><i class="bi bi-arrow-return-left"></i></span>
-                <span class="btn-mirror-screen-label">Devolução Expressa</span>
-            </button>
-        </div>
-    </div>
-    
+
     <div class="alert-info-custom">
         <i class="bi bi-info-circle me-2"></i>
         <strong>Importante:</strong> As ferramentas devem ser devolvidas até o final do dia. Você pode montar vários funcionários na mesma coleta; o envio continua separado por ferramenta.

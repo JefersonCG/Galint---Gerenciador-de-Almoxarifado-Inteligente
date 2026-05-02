@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="utf-8">
-    <title><%block name="title">GALINT</%block></title>
+    <title><%block name="title">${system_name}</%block></title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
@@ -18,7 +18,7 @@
                 <i class="bi bi-list"></i>
             </button>
             <div class="topbar-brand">
-                <span class="brand-title">GALINT</span>
+                <span class="brand-title">${system_name}</span>
                 <small class="text-muted">Sistema pensado para almoxarifado</small>
             </div>
         </div>
@@ -38,9 +38,7 @@
             <%include file="sidebar_layout.mako"/>
         </aside>
         <section class="content-panel">
-            <div class="page-header">
-                <%block name="page_header"></%block>
-            </div>
+            <div class="page-header"><%block name="page_header"></%block></div>
             <%
                 flashes = get_flashed_messages(with_categories=True)
             %>

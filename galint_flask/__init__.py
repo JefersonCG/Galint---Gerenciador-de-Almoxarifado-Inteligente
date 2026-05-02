@@ -12,6 +12,7 @@ from werkzeug.exceptions import HTTPException
 
 from .config import load_config
 from .extensions import register_extensions
+from .sidebar_navigation import build_sidebar_navigation
 from .services.document_integrity_service import install_document_integrity_guards
 from .views import register_blueprints
 from .cli import register_cli
@@ -116,10 +117,14 @@ def create_app(config_name: str | None = None) -> Flask:
 
     @app.context_processor
     def _inject_system_name():
-        return {"system_name": app.config.get("SYSTEM_NAME", "Gerenciador de Almoxarifado Inteligente")}
+        return {
+            "system_name": app.config.get("SYSTEM_NAME", "Gerenciador de Almoxarifado Inteligente"),
+            "build_sidebar_navigation": build_sidebar_navigation,
+        }
 
     # Helpers globais para templates
     app.jinja_env.globals["endpoint_exists"] = lambda endpoint: endpoint in app.view_functions
+    app.jinja_env.globals["build_sidebar_navigation"] = build_sidebar_navigation
     
     # Filtro customizado para formatar datas no timezone local
     from .utils.time_service import TimeService

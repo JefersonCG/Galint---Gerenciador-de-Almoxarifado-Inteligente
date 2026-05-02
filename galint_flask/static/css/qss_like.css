@@ -297,6 +297,11 @@ html {
     align-items: baseline;
 }
 
+.content-panel > .page-header:empty {
+    display: none;
+    margin-bottom: 0;
+}
+
 .summary-card {
     padding: 1.25rem;
     border-radius: 12px;
