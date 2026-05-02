@@ -59,22 +59,27 @@
                 <div class="col-12">
                     <label class="form-label" for="barcodeStudioSearchMode">Buscar por</label>
                     <select class="form-select" id="barcodeStudioSearchMode">
-                        <option value="item">Item</option>
-                        <option value="category">Categoria</option>
+                        <option value="item">Item por item</option>
+                        {% for category in barcode_category_options %}
+                        <option value="category:{{ category.name }}">{{ category.name }}</option>
+                        {% endfor %}
                     </select>
                 </div>
             </div>
 
-            <label class="form-label" for="barcodeStudioSearchInput" id="barcodeStudioSearchInputLabel">Termo de busca</label>
-            <div class="barcode-studio-search-box">
-                <input class="form-control form-control-lg" id="barcodeStudioSearchInput" type="search"
-                    placeholder="Ex.: ITEM-0283, cabo, furadeira" autocomplete="off" spellcheck="false">
-                <button class="btn btn-outline-light" type="button" id="barcodeStudioSearchClear" aria-label="Limpar busca">
-                    <i class="bi bi-x-lg"></i>
-                </button>
-            </div>
-            <div class="barcode-studio-search-meta">
-                <span id="barcodeStudioSearchStatus">Busque um item para comecar.</span>
+            <div id="barcodeStudioSearchFilterGroup">
+                <label class="form-label" for="barcodeStudioSearchInput" id="barcodeStudioSearchInputLabel">Termo de busca</label>
+                <div class="barcode-studio-search-box">
+                    <input class="form-control form-control-lg" id="barcodeStudioSearchInput" type="search"
+                        placeholder="Ex.: ITEM-0283, cabo, furadeira" autocomplete="off" spellcheck="false">
+                    <button class="btn btn-outline-light" type="button" id="barcodeStudioSearchClear" aria-label="Limpar busca">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                </div>
+                <div class="barcode-studio-search-meta">
+                    <span id="barcodeStudioSearchStatus">Busque um item para comecar.</span>
+                </div>
+                <div class="barcode-studio-search-results" id="barcodeStudioSearchResults" aria-live="polite"></div>
             </div>
             <div class="barcode-studio-category-toolbar d-none" id="barcodeStudioCategoryToolbar">
                 <div>
@@ -86,7 +91,6 @@
                     Adicionar categoria inteira
                 </button>
             </div>
-            <div class="barcode-studio-search-results" id="barcodeStudioSearchResults" aria-live="polite"></div>
             <div class="barcode-studio-category-items d-none" id="barcodeStudioCategoryItems"></div>
 
             <div class="barcode-studio-divider"></div>

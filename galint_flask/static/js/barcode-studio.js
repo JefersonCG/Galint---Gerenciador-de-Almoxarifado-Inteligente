@@ -34,6 +34,7 @@
     const elements = {
         searchPanelTitle: document.getElementById('barcodeStudioSearchPanelTitle'),
         searchPanelSubtitle: document.getElementById('barcodeStudioSearchPanelSubtitle'),
+        searchFilterGroup: document.getElementById('barcodeStudioSearchFilterGroup'),
         searchInputLabel: document.getElementById('barcodeStudioSearchInputLabel'),
         searchMode: document.getElementById('barcodeStudioSearchMode'),
         searchInput: document.getElementById('barcodeStudioSearchInput'),
@@ -189,6 +190,18 @@
         return state.search.mode === 'category' ? 'category' : 'item';
     }
 
+    function getSelectedSearchOptionValue() {
+        return String(elements.searchMode ? elements.searchMode.value : '').trim();
+    }
+
+    function getSelectedCategoryNameFromSearchOption() {
+        const rawValue = getSelectedSearchOptionValue();
+        if (!rawValue || !rawValue.startsWith('category:')) {
+            return '';
+        }
+        return rawValue.slice('category:'.length).trim();
+    }
+
     function getEmptySearchStatus() {
         return getSearchMode() === 'category'
             ? 'Todas as categorias do estoque aparecem abaixo. Digite se quiser filtrar.'
@@ -204,12 +217,15 @@
     function syncSearchModeUI() {
         const isCategory = getSearchMode() === 'category';
         if (elements.searchPanelTitle) {
-            elements.searchPanelTitle.textContent = isCategory ? 'Buscar categoria' : 'Buscar item';
+            elements.searchPanelTitle.textContent = isCategory ? 'Escolher categoria' : 'Buscar item';
         }
         if (elements.searchPanelSubtitle) {
             elements.searchPanelSubtitle.textContent = isCategory
-                ? 'As categorias do estoque aparecem abaixo. Clique em uma para abrir todos os itens dela.'
+                ? 'Escolha a categoria direto na lista acima. Nao precisa abrir filtro para listar categoria.'
                 : 'Digite codigo, descricao ou marca e adicione o resultado direto na folha.';
+        }
+        if (elements.searchFilterGroup) {
+            elements.searchFilterGroup.classList.toggle('d-none', isCategory);
         }
         if (elements.searchInputLabel) {
             elements.searchInputLabel.textContent = isCategory ? 'Filtrar categorias' : 'Termo de busca';
@@ -1122,6 +1138,13 @@
         });
     }
 
+    function clearSearchResults() {
+        lastSearchResults = [];
+        if (elements.searchResults) {
+            elements.searchResults.innerHTML = '';
+        }
+    }
+
     async function fetchSearchResults(query) {
         const trimmed = String(query || '').trim();
         if (!trimmed) {
@@ -1908,18 +1931,20 @@
 
     function wireSearch() {
         elements.searchMode && elements.searchMode.addEventListener('change', function () {
-            state.search.mode = elements.searchMode.value === 'category' ? 'category' : 'item';
+            const categoryName = getSelectedCategoryNameFromSearchOption();
+            state.search.mode = categoryName ? 'category' : 'item';
             syncSearchModeUI();
+            clearSearchResults();
+            clearSelectedCategory({ silent: true });
+            if (categoryName) {
+                setSearchStatus('Categoria escolhida no menu acima.', 'muted');
+                loadCategoryItems({ name: categoryName });
+                return;
+            }
             if (elements.searchInput) {
                 elements.searchInput.value = '';
             }
-            lastSearchResults = [];
-            renderSearchResults([]);
-            clearSelectedCategory({ silent: true });
             setSearchStatus(getEmptySearchStatus(), 'muted');
-            if (getSearchMode() === 'category') {
-                fetchCategoryResults('');
-            }
         });
         elements.searchInput && elements.searchInput.addEventListener('input', scheduleSearch);
         elements.searchInput && elements.searchInput.addEventListener('keydown', function (event) {
@@ -1937,8 +1962,7 @@
                 elements.searchInput.value = '';
                 elements.searchInput.focus();
             }
-            lastSearchResults = [];
-            renderSearchResults([]);
+            clearSearchResults();
             clearSelectedCategory({ silent: true });
             if (getSearchMode() === 'category') {
                 fetchCategoryResults('');
