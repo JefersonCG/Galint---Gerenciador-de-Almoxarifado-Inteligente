@@ -42,6 +42,11 @@ Write-Host "Versao: $version" -ForegroundColor Cyan
 Write-Host "[4/5] Compilando executavel..." -ForegroundColor Green
 Write-Host "Isso pode levar alguns minutos..." -ForegroundColor Yellow
 pyinstaller galint.spec --clean
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "" 
+    Write-Host "ERRO: PyInstaller retornou codigo $LASTEXITCODE" -ForegroundColor Red
+    exit $LASTEXITCODE
+}
 
 # Verificar resultado
 Write-Host "[5/5] Verificando build..." -ForegroundColor Green
