@@ -1859,6 +1859,78 @@ class CompraPeriodoFechamento(db.Model):
     fornecedor: Mapped[FinanceSupplier | None] = relationship("FinanceSupplier")
 
 
+class PurchaseProjectionSummary(db.Model):
+    __tablename__ = "inventory_purchase_projection_summaries"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    title: Mapped[str] = mapped_column(String(160), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="draft", index=True)
+    filters_json: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    cart_state_json: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    cart_summary_json: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    revision_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    created_by_matricula: Mapped[str | None] = mapped_column(
+        ForeignKey("usuarios.matricula", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    updated_by_matricula: Mapped[str | None] = mapped_column(
+        ForeignKey("usuarios.matricula", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    source_summary_id: Mapped[int | None] = mapped_column(
+        ForeignKey("inventory_purchase_projection_summaries.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now(), index=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now(), onupdate=func.now(), index=True)
+
+    created_by: Mapped["Usuario | None"] = relationship("Usuario", foreign_keys=[created_by_matricula])
+    updated_by: Mapped["Usuario | None"] = relationship("Usuario", foreign_keys=[updated_by_matricula])
+    source_summary: Mapped["PurchaseProjectionSummary | None"] = relationship(
+        "PurchaseProjectionSummary",
+        remote_side=[id],
+        foreign_keys=[source_summary_id],
+    )
+    revisions: Mapped[list["PurchaseProjectionSummaryRevision"]] = relationship(
+        "PurchaseProjectionSummaryRevision",
+        back_populates="summary",
+        cascade="all, delete-orphan",
+        order_by="PurchaseProjectionSummaryRevision.revision_number.desc()",
+    )
+
+
+class PurchaseProjectionSummaryRevision(db.Model):
+    __tablename__ = "inventory_purchase_projection_summary_revisions"
+    __table_args__ = (
+        UniqueConstraint("summary_id", "revision_number", name="uq_purchase_projection_summary_revision"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    summary_id: Mapped[int] = mapped_column(
+        ForeignKey("inventory_purchase_projection_summaries.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    revision_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    action: Mapped[str] = mapped_column(String(20), nullable=False, default="save")
+    title_snapshot: Mapped[str] = mapped_column(String(160), nullable=False)
+    filters_json: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    cart_state_json: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    cart_summary_json: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    created_by_matricula: Mapped[str | None] = mapped_column(
+        ForeignKey("usuarios.matricula", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now(), index=True)
+
+    summary: Mapped[PurchaseProjectionSummary] = relationship("PurchaseProjectionSummary", back_populates="revisions")
+    created_by: Mapped["Usuario | None"] = relationship("Usuario", foreign_keys=[created_by_matricula])
+
+
 class FinanceLedgerEntry(db.Model):
     """Histórico financeiro das entradas incorporadas ao almoxarifado."""
     __tablename__ = "finance_lancamentos"

@@ -13,7 +13,15 @@ from flask_login import login_required, current_user
 from sqlalchemy import and_, func, or_
 
 from ..extensions import db
-from ..models import DocumentoEntradaEstoque, DocumentoEntradaEstoqueItem, FinanceLedgerEntry, Item, Usuario
+from ..models import (
+    DocumentoEntradaEstoque,
+    DocumentoEntradaEstoqueItem,
+    FinanceLedgerEntry,
+    Item,
+    PurchaseProjectionSummary,
+    PurchaseProjectionSummaryRevision,
+    Usuario,
+)
 from ..services.barcode_studio_service import barcode_studio_service
 from ..services.category_catalog import (
     DEFAULT_INVENTORY_CATEGORY_NAME,
@@ -222,6 +230,158 @@ def _purchase_projection_cart_session_key() -> str:
 
 def _purchase_projection_cart_session_version() -> int:
     return 2
+
+
+def _purchase_projection_active_summary_session_key() -> str:
+    return "inventory_purchase_projection_active_summary"
+
+
+def _get_purchase_projection_active_summary_id() -> int | None:
+    raw = session.get(_purchase_projection_active_summary_session_key())
+    try:
+        parsed = int(raw)
+    except (TypeError, ValueError):
+        return None
+    return parsed if parsed > 0 else None
+
+
+def _set_purchase_projection_active_summary_id(summary_id: int | None) -> None:
+    if summary_id is None:
+        session.pop(_purchase_projection_active_summary_session_key(), None)
+    else:
+        session[_purchase_projection_active_summary_session_key()] = int(summary_id)
+    session.modified = True
+
+
+def _default_purchase_projection_summary_title() -> str:
+    return f"Resumo {TimeService.now_local().strftime('%d/%m/%Y %H:%M')}"
+
+
+def _normalize_purchase_projection_summary_title(value: object, *, fallback: object = None) -> str:
+    title = str(value or "").strip()
+    if not title:
+        title = str(fallback or "").strip()
+    if not title:
+        title = _default_purchase_projection_summary_title()
+    return title[:160]
+
+
+def _normalize_purchase_projection_filters_payload(raw_filters: object) -> dict[str, object]:
+    raw = dict(raw_filters or {}) if isinstance(raw_filters, dict) else {}
+    return purchase_projection_service.normalize_filters(
+        window_days=raw.get("window_days"),
+        coverage_days=raw.get("coverage_days"),
+        search=raw.get("search"),
+        category=raw.get("category"),
+        brand=raw.get("brand"),
+        status=raw.get("status"),
+        include_inactive=raw.get("include_inactive"),
+    )
+
+
+def _purchase_projection_route_args(filters: dict[str, object] | None) -> dict[str, object]:
+    normalized = _normalize_purchase_projection_filters_payload(filters)
+    payload: dict[str, object] = {
+        "window_days": normalized.get("window_days"),
+        "coverage_days": normalized.get("coverage_days"),
+        "status": normalized.get("status"),
+    }
+    for key in ("search", "category", "brand"):
+        value = str(normalized.get(key) or "").strip()
+        if value:
+            payload[key] = value
+    if normalized.get("include_inactive"):
+        payload["include_inactive"] = "1"
+    return payload
+
+
+def _build_purchase_projection_saved_payload(report: dict[str, object]) -> dict[str, dict[str, object]]:
+    return {
+        "filters_json": dict(_normalize_purchase_projection_filters_payload(report.get("filters") or {})),
+        "cart_state_json": dict(_get_purchase_projection_cart_state()),
+        "cart_summary_json": dict(report.get("cart") or {}),
+    }
+
+
+def _purchase_projection_actor_matricula() -> str | None:
+    actor = str(getattr(current_user, "id", "") or "").strip()
+    return actor or None
+
+
+def _get_active_purchase_projection_summary() -> PurchaseProjectionSummary | None:
+    summary_id = _get_purchase_projection_active_summary_id()
+    if not summary_id:
+        return None
+    summary = PurchaseProjectionSummary.query.get(summary_id)
+    if not summary:
+        _set_purchase_projection_active_summary_id(None)
+        return None
+    return summary
+
+
+def _append_purchase_projection_summary_revision(
+    summary: PurchaseProjectionSummary,
+    *,
+    action: str,
+    actor_matricula: str | None,
+    payload: dict[str, dict[str, object]],
+) -> None:
+    next_revision = int(summary.revision_count or 0) + 1
+    summary.revision_count = next_revision
+    db.session.add(
+        PurchaseProjectionSummaryRevision(
+            summary=summary,
+            revision_number=next_revision,
+            action=str(action or "save").strip() or "save",
+            title_snapshot=summary.title,
+            filters_json=dict(payload.get("filters_json") or {}),
+            cart_state_json=dict(payload.get("cart_state_json") or {}),
+            cart_summary_json=dict(payload.get("cart_summary_json") or {}),
+            created_by_matricula=actor_matricula,
+        )
+    )
+
+
+def _build_purchase_projection_summary_entry(
+    summary: PurchaseProjectionSummary,
+    *,
+    active_summary_id: int | None = None,
+) -> dict[str, object]:
+    cart_summary = dict(summary.cart_summary_json or {})
+    return {
+        "id": int(summary.id),
+        "title": str(summary.title or "Resumo sem título").strip() or "Resumo sem título",
+        "status": str(summary.status or "draft").strip() or "draft",
+        "revision_count": int(summary.revision_count or 0),
+        "selected_count": int(cart_summary.get("selected_count") or 0),
+        "selected_groups": int(cart_summary.get("group_count") or 0),
+        "selected_categories": int(cart_summary.get("category_group_count") or 0),
+        "requested_value_total": float(cart_summary.get("requested_value_total") or 0.0),
+        "created_at_display": TimeService.format_local(summary.created_at, "%d/%m/%Y %H:%M") if summary.created_at else "-",
+        "updated_at_display": TimeService.format_local(summary.updated_at, "%d/%m/%Y %H:%M") if summary.updated_at else "-",
+        "created_by_name": getattr(summary.created_by, "nome", None) or summary.created_by_matricula or "Nao informado",
+        "updated_by_name": getattr(summary.updated_by, "nome", None) or summary.updated_by_matricula or "Nao informado",
+        "is_active": bool(active_summary_id and summary.id == active_summary_id),
+        "source_summary_id": summary.source_summary_id,
+    }
+
+
+def _list_purchase_projection_summary_entries(limit: int = 20) -> list[dict[str, object]]:
+    active_summary_id = _get_purchase_projection_active_summary_id()
+    query = PurchaseProjectionSummary.query.order_by(PurchaseProjectionSummary.updated_at.desc(), PurchaseProjectionSummary.id.desc())
+    if limit > 0:
+        query = query.limit(limit)
+    return [
+        _build_purchase_projection_summary_entry(summary, active_summary_id=active_summary_id)
+        for summary in query.all()
+    ]
+
+
+def _purchase_projection_redirect(filters: dict[str, object] | None, *, anchor: str | None = None):
+    target = url_for("inventory.purchase_projection_page", **_purchase_projection_route_args(filters))
+    if anchor:
+        target = f"{target}#{anchor}"
+    return redirect(target)
 
 
 def _get_purchase_projection_cart_state() -> dict[str, str]:
@@ -1989,6 +2149,8 @@ def purchase_projection_page():
 
     if request.method == "POST":
         report, _ = _sync_purchase_projection_report(filters, request.form, flash_feedback=True)
+        if str(request.form.get("clear_projection_cart") or "").strip() == "1":
+            _set_purchase_projection_active_summary_id(None)
     else:
         selected_codes, manual_quantities = _purchase_projection_cart_payload_from_session()
         report = purchase_projection_service.build_projection_report(
@@ -1996,6 +2158,7 @@ def purchase_projection_page():
             selected_codes=selected_codes,
             manual_quantities=manual_quantities,
         )
+    active_saved_summary = _get_active_purchase_projection_summary()
     return render_template(
         "inventory/purchase_projection.html",
         report=report,
@@ -2007,7 +2170,137 @@ def purchase_projection_page():
         cart=report["cart"],
         visible_categories=report["visible_categories"],
         status_options=_purchase_projection_status_options(),
+        active_saved_summary=_build_purchase_projection_summary_entry(active_saved_summary) if active_saved_summary else None,
+        summary_history=_list_purchase_projection_summary_entries(),
+        summary_form_title=(active_saved_summary.title if active_saved_summary else _default_purchase_projection_summary_title()),
     )
+
+
+@blueprint.post("/projecao-compras/resumos/salvar")
+@login_required
+def purchase_projection_summary_save():
+    _require_admin_or_supervisor()
+    filters = _request_purchase_projection_filters(request.form)
+    report, _ = _sync_purchase_projection_report(filters, request.form, flash_feedback=False)
+    cart = dict(report.get("cart") or {})
+    if not int(cart.get("selected_count") or 0):
+        flash("Selecione pelo menos um item com quantidade final positiva antes de salvar um resumo.", "warning")
+        return _purchase_projection_redirect(report.get("filters") or filters, anchor="projection-cart-history")
+
+    actor_matricula = _purchase_projection_actor_matricula()
+    mode = str(request.form.get("save_mode") or "new").strip().lower()
+    active_summary = _get_active_purchase_projection_summary()
+    fallback_title = active_summary.title if active_summary and mode == "update" else _default_purchase_projection_summary_title()
+    title = _normalize_purchase_projection_summary_title(request.form.get("summary_title"), fallback=fallback_title)
+    payload = _build_purchase_projection_saved_payload(report)
+
+    if mode == "update" and active_summary is not None:
+        active_summary.title = title
+        active_summary.status = "draft"
+        active_summary.filters_json = dict(payload.get("filters_json") or {})
+        active_summary.cart_state_json = dict(payload.get("cart_state_json") or {})
+        active_summary.cart_summary_json = dict(payload.get("cart_summary_json") or {})
+        active_summary.updated_by_matricula = actor_matricula
+        _append_purchase_projection_summary_revision(
+            active_summary,
+            action="update",
+            actor_matricula=actor_matricula,
+            payload=payload,
+        )
+        saved_summary = active_summary
+        flash(f"Resumo '{title}' atualizado com nova revisão.", "success")
+    else:
+        source_summary_id = active_summary.id if active_summary is not None else None
+        saved_summary = PurchaseProjectionSummary(
+            title=title,
+            status="draft",
+            filters_json=dict(payload.get("filters_json") or {}),
+            cart_state_json=dict(payload.get("cart_state_json") or {}),
+            cart_summary_json=dict(payload.get("cart_summary_json") or {}),
+            created_by_matricula=actor_matricula,
+            updated_by_matricula=actor_matricula,
+            source_summary_id=source_summary_id,
+        )
+        db.session.add(saved_summary)
+        db.session.flush()
+        _append_purchase_projection_summary_revision(
+            saved_summary,
+            action="create",
+            actor_matricula=actor_matricula,
+            payload=payload,
+        )
+        flash(f"Resumo '{title}' salvo no histórico.", "success")
+
+    db.session.commit()
+    _set_purchase_projection_active_summary_id(saved_summary.id)
+    return _purchase_projection_redirect(saved_summary.filters_json, anchor="projection-cart-history")
+
+
+@blueprint.post("/projecao-compras/resumos/desvincular")
+@login_required
+def purchase_projection_summary_detach():
+    _require_admin_or_supervisor()
+    filters = _request_purchase_projection_filters(request.form)
+    report, _ = _sync_purchase_projection_report(filters, request.form, flash_feedback=False)
+    _set_purchase_projection_active_summary_id(None)
+    flash("Carrinho atual foi desvinculado do resumo salvo. Agora ele pode ser salvo como um novo resumo.", "info")
+    return _purchase_projection_redirect(report.get("filters") or filters, anchor="projection-cart-history")
+
+
+@blueprint.post("/projecao-compras/resumos/<int:summary_id>/abrir")
+@login_required
+def purchase_projection_summary_open(summary_id: int):
+    _require_admin_or_supervisor()
+    summary = PurchaseProjectionSummary.query.get(summary_id)
+    if not summary:
+        flash("Resumo salvo não encontrado.", "warning")
+        return _purchase_projection_redirect(_request_purchase_projection_filters(request.form), anchor="projection-cart-history")
+
+    _set_purchase_projection_cart_state(dict(summary.cart_state_json or {}))
+    _set_purchase_projection_active_summary_id(summary.id)
+    flash(f"Resumo '{summary.title}' carregado para edição.", "info")
+    return _purchase_projection_redirect(summary.filters_json, anchor="projection-cart-history")
+
+
+@blueprint.post("/projecao-compras/resumos/<int:summary_id>/duplicar")
+@login_required
+def purchase_projection_summary_duplicate(summary_id: int):
+    _require_admin_or_supervisor()
+    source_summary = PurchaseProjectionSummary.query.get(summary_id)
+    if not source_summary:
+        flash("Resumo salvo não encontrado para duplicação.", "warning")
+        return _purchase_projection_redirect(_request_purchase_projection_filters(request.form), anchor="projection-cart-history")
+
+    actor_matricula = _purchase_projection_actor_matricula()
+    duplicated_summary = PurchaseProjectionSummary(
+        title=_normalize_purchase_projection_summary_title(f"{source_summary.title} (copia)"),
+        status="draft",
+        filters_json=dict(source_summary.filters_json or {}),
+        cart_state_json=dict(source_summary.cart_state_json or {}),
+        cart_summary_json=dict(source_summary.cart_summary_json or {}),
+        created_by_matricula=actor_matricula,
+        updated_by_matricula=actor_matricula,
+        source_summary_id=source_summary.id,
+    )
+    payload = {
+        "filters_json": dict(source_summary.filters_json or {}),
+        "cart_state_json": dict(source_summary.cart_state_json or {}),
+        "cart_summary_json": dict(source_summary.cart_summary_json or {}),
+    }
+    db.session.add(duplicated_summary)
+    db.session.flush()
+    _append_purchase_projection_summary_revision(
+        duplicated_summary,
+        action="duplicate",
+        actor_matricula=actor_matricula,
+        payload=payload,
+    )
+    db.session.commit()
+
+    _set_purchase_projection_cart_state(dict(duplicated_summary.cart_state_json or {}))
+    _set_purchase_projection_active_summary_id(duplicated_summary.id)
+    flash(f"Resumo '{source_summary.title}' duplicado para '{duplicated_summary.title}'.", "success")
+    return _purchase_projection_redirect(duplicated_summary.filters_json, anchor="projection-cart-history")
 
 
 @blueprint.post("/projecao-compras/sync")

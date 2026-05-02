@@ -447,6 +447,83 @@
         justify-content: flex-end;
     }
 
+    .projection-history-shell {
+        margin-top: 1rem;
+        padding-top: 1rem;
+        border-top: 1px solid rgba(226, 232, 240, 0.9);
+        display: grid;
+        gap: 0.85rem;
+    }
+
+    .projection-history-form {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 0.75rem;
+        align-items: end;
+    }
+
+    .projection-history-list {
+        display: grid;
+        gap: 0.75rem;
+    }
+
+    .projection-history-card {
+        display: grid;
+        gap: 0.55rem;
+        border: 1px solid rgba(226, 232, 240, 0.9);
+        border-radius: 0.95rem;
+        background: #fff;
+        padding: 0.85rem 0.9rem;
+    }
+
+    .projection-history-card.is-active {
+        border-color: rgba(37, 99, 235, 0.28);
+        background: rgba(239, 246, 255, 0.92);
+        box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.08);
+    }
+
+    .projection-history-card-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.75rem;
+        align-items: flex-start;
+    }
+
+    .projection-history-title {
+        font-size: 0.98rem;
+        font-weight: 700;
+        color: #0f172a;
+    }
+
+    .projection-history-meta,
+    .projection-history-stats {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem 1rem;
+    }
+
+    .projection-history-meta {
+        font-size: 0.78rem;
+        color: #64748b;
+    }
+
+    .projection-history-stats {
+        font-size: 0.82rem;
+        color: #0f172a;
+        font-weight: 600;
+    }
+
+    .projection-history-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        align-items: center;
+    }
+
+    .projection-history-actions form {
+        margin: 0;
+    }
+
     @media (max-width: 1200px) {
         .projection-summary-grid,
         .projection-form-grid,
@@ -483,6 +560,12 @@
 
         .projection-item-card-metrics {
             grid-template-columns: 1fr;
+        }
+
+        .projection-history-form,
+        .projection-history-card-head {
+            grid-template-columns: 1fr;
+            display: grid;
         }
     }
 </style>
@@ -700,6 +783,108 @@
                 {% else %}
                 <p class="text-muted mb-0">Selecione itens com quantidade positiva para montar o carrinho automaticamente. O resumo fica salvo enquanto você alterna os filtros da projeção.</p>
                 {% endif %}
+                </div>
+
+                <div class="projection-history-shell" id="projection-cart-history">
+                    <div>
+                        <div class="projection-kicker">Histórico de Resumos</div>
+                        <h2 class="h5 mb-1">Salvar, reabrir e revisar o carrinho</h2>
+                        <div class="projection-muted">O carrinho continua autosalvo na sessão. O histórico abaixo só muda quando você salva um resumo novo ou uma revisão.</div>
+                    </div>
+
+                    {% if active_saved_summary %}
+                    <div class="projection-inline-note">
+                        <strong>Editando resumo salvo:</strong> {{ active_saved_summary.title }}.
+                        <div class="mt-1 small">Criado em {{ active_saved_summary.created_at_display }} • última revisão em {{ active_saved_summary.updated_at_display }} • {{ active_saved_summary.revision_count }} revisão(ões).</div>
+                    </div>
+                    {% endif %}
+
+                    <div class="projection-history-form">
+                        <div>
+                            <label class="form-label" for="projection-summary-title">Título do resumo</label>
+                            <input
+                                class="form-control form-control-sm"
+                                id="projection-summary-title"
+                                type="text"
+                                name="summary_title"
+                                maxlength="160"
+                                value="{{ summary_form_title }}"
+                                form="projection-operational-form"
+                                {% if not cart.category_groups or catalog_mode %}disabled{% endif %}
+                            >
+                        </div>
+                        <div class="projection-history-actions">
+                            <button
+                                class="btn btn-primary btn-sm"
+                                type="submit"
+                                name="save_mode"
+                                value="new"
+                                form="projection-operational-form"
+                                formaction="{{ url_for('inventory.purchase_projection_summary_save') }}"
+                                {% if not cart.category_groups or catalog_mode %}disabled{% endif %}
+                            >Salvar novo resumo</button>
+                            {% if active_saved_summary %}
+                            <button
+                                class="btn btn-outline-primary btn-sm"
+                                type="submit"
+                                name="save_mode"
+                                value="update"
+                                form="projection-operational-form"
+                                formaction="{{ url_for('inventory.purchase_projection_summary_save') }}"
+                                {% if not cart.category_groups or catalog_mode %}disabled{% endif %}
+                            >Salvar revisão</button>
+                            <button
+                                class="btn btn-outline-secondary btn-sm"
+                                type="submit"
+                                form="projection-operational-form"
+                                formaction="{{ url_for('inventory.purchase_projection_summary_detach') }}"
+                                {% if not cart.category_groups or catalog_mode %}disabled{% endif %}
+                            >Trabalhar sem vínculo</button>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="projection-history-list">
+                        {% if summary_history %}
+                            {% for entry in summary_history %}
+                            <div class="projection-history-card{% if entry.is_active %} is-active{% endif %}">
+                                <div class="projection-history-card-head">
+                                    <div>
+                                        <div class="projection-history-title">{{ entry.title }}</div>
+                                        <div class="projection-history-meta">
+                                            <span>Criado em {{ entry.created_at_display }}</span>
+                                            <span>Última revisão em {{ entry.updated_at_display }}</span>
+                                        </div>
+                                    </div>
+                                    <span class="badge {% if entry.is_active %}text-bg-primary{% else %}text-bg-light{% endif %}">{% if entry.is_active %}Em edição{% else %}Salvo{% endif %}</span>
+                                </div>
+                                <div class="projection-history-stats">
+                                    <span>{{ entry.selected_count }} item(ns)</span>
+                                    <span>{{ entry.selected_categories }} categoria(s)</span>
+                                    <span>{{ entry.selected_groups }} fornecedor(es)</span>
+                                    <span>{{ brl(entry.requested_value_total) }}</span>
+                                </div>
+                                <div class="projection-history-meta">
+                                    <span>{{ entry.revision_count }} revisão(ões)</span>
+                                    <span>Criado por {{ entry.created_by_name }}</span>
+                                    <span>Última alteração por {{ entry.updated_by_name }}</span>
+                                </div>
+                                <div class="projection-history-actions">
+                                    <form method="post" action="{{ url_for('inventory.purchase_projection_summary_open', summary_id=entry.id) }}">
+                                        {{ projection_hidden_filters(filters) }}
+                                        <button class="btn btn-outline-primary btn-sm" type="submit">{% if entry.is_active %}Reabrir{% else %}Editar{% endif %}</button>
+                                    </form>
+                                    <form method="post" action="{{ url_for('inventory.purchase_projection_summary_duplicate', summary_id=entry.id) }}">
+                                        {{ projection_hidden_filters(filters) }}
+                                        <button class="btn btn-outline-secondary btn-sm" type="submit">Duplicar</button>
+                                    </form>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                        <p class="text-muted mb-0">Nenhum resumo salvo ainda. Monte o carrinho atual e use o botão de salvar para começar o histórico.</p>
+                        {% endif %}
+                    </div>
                 </div>
             </div>
             <div>
