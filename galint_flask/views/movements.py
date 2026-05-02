@@ -661,6 +661,47 @@ def registrar_saida_multipla():
                 item = Item.query.filter_by(codigo_item=codigo).first()
                 if not item:
                     raise ValueError("Item não encontrado")
+
+                categoria_text = (item.categoria or '').lower()
+                is_tool_item = 'ferrament' in categoria_text
+
+                if is_tool_item:
+                    try:
+                        saldo_total_ferramenta = float(item.get_saldo_atual() or 0)
+                    except Exception:
+                        saldo_total_ferramenta = 0.0
+
+                    tool_payload = inventory_service._apply_withdrawal_availability(
+                        item,
+                        {
+                            "saldo": saldo_total_ferramenta,
+                            "categoria": item.categoria,
+                        },
+                        tool_state=inventory_service._build_tool_availability_state([item.codigo_item]).get(item.codigo_item),
+                    )
+
+                    try:
+                        saldo_disponivel_ferramenta = float(tool_payload.get("saldo_disponivel") or 0.0)
+                    except Exception:
+                        saldo_disponivel_ferramenta = 0.0
+
+                    if saldo_disponivel_ferramenta + 1e-6 < float(quantidade):
+                        detalhe_ferramenta = str(
+                            tool_payload.get("unavailable_detail")
+                            or tool_payload.get("unavailable_reason")
+                            or ""
+                        ).strip()
+                        if not detalhe_ferramenta:
+                            try:
+                                quantidade_comprometida = float(tool_payload.get("reserved_quantity") or 0.0)
+                            except Exception:
+                                quantidade_comprometida = 0.0
+                            detalhe_ferramenta = (
+                                f"Ferramenta indisponível. Disponível: {int(saldo_disponivel_ferramenta)} "
+                                f"(Em uso/comprometido: {int(quantidade_comprometida)}, "
+                                f"Total físico: {int(saldo_total_ferramenta)})"
+                            )
+                        raise ValueError(detalhe_ferramenta)
                 
                 # Verificar saldo considerando sistema de embalagens
                 from galint_flask.services.embalagem_service import EmbalagemService
@@ -722,30 +763,7 @@ def registrar_saida_multipla():
                 
                 # Se for ferramenta, criar registro em retiradas_ferramentas
                 try:
-                    categoria_text = (item.categoria or '').lower()
-                    if 'ferrament' in categoria_text:
-                        # VALIDAÇÃO CRÍTICA: Verificar se há saldo disponível para ferramentas
-                        from sqlalchemy import func
-                        quantidade_em_uso = db.session.query(
-                            func.coalesce(func.sum(RetiradaFerramenta.quantidade), 0)
-                        ).filter(
-                            RetiradaFerramenta.codigo_item == item.codigo_item,
-                            RetiradaFerramenta.status == 'em_uso'
-                        ).scalar() or 0
-                        
-                        # Ferramentas usam controle tradicional (quantidade em uso vs saldo total)
-                        try:
-                            saldo_atual_ferramenta = float(item.get_saldo_atual() or 0)
-                        except Exception:
-                            saldo_atual_ferramenta = 0.0
-
-                        saldo_disponivel_ferramenta = saldo_atual_ferramenta - quantidade_em_uso
-                        
-                        if saldo_disponivel_ferramenta < quantidade:
-                            raise ValueError(
-                                f"Ferramenta indisponível. {int(quantidade_em_uso)} em uso por outro(s) funcionário(s)"
-                            )
-                        
+                    if is_tool_item:
                         retirada = RetiradaFerramenta(
                             codigo_item=item.codigo_item,
                             matricula=usuario.matricula,

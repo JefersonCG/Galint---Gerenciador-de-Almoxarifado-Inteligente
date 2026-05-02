@@ -375,7 +375,7 @@ class PurchaseProjectionService:
                         str(item.get("descricao") or "").strip(),
                         str(item.get("marca") or "Sem marca").strip() or "Sem marca",
                         category_name,
-                        float(item.get("requested_quantity_input") or 0.0),
+                        cls._format_number_input_value(item.get("requested_quantity_input") or 0.0),
                         item.get("price_unit_request") if cls._is_positive_number(item.get("price_unit_request")) else item.get("price_unit_base"),
                         item.get("requested_total_value"),
                     ]
@@ -385,16 +385,17 @@ class PurchaseProjectionService:
                         cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
                         cell.font = Font(size=12, bold=(column_index == 3), color="0F172A")
                         cell.protection = unlocked_protection
-                        if column_index in {6, 7, 8}:
+                        if column_index == 6:
+                            cell.alignment = Alignment(horizontal="center", vertical="center")
+                            cell.protection = locked_protection
+                            cell.font = Font(size=12, bold=True, color="0F172A")
+                        if column_index in {7, 8}:
                             cell.alignment = Alignment(horizontal="right", vertical="center")
                             cell.protection = locked_protection
                         if column_index in {7, 8} and isinstance(value, (int, float)):
                             cell.number_format = 'R$ #,##0.00'
                             cell.fill = value_fill
                             cell.font = Font(size=12, italic=True, color="0F172A")
-                        if column_index == 6 and isinstance(value, (int, float)):
-                            cell.number_format = '0.######'
-                            cell.font = Font(size=12, bold=True, color="0F172A")
                     if row_index % 2 == 0:
                         for column_index in range(1, total_columns + 1):
                             if column_index in {7, 8}:
@@ -416,14 +417,15 @@ class PurchaseProjectionService:
                 subtotal_quantity_cell = sheet.cell(
                     row=subtotal_row,
                     column=6,
-                    value=sum(float(item.get("requested_quantity_input") or 0.0) for item in items),
+                    value=cls._format_number_input_value(
+                        sum(float(item.get("requested_quantity_input") or 0.0) for item in items)
+                    ),
                 )
                 subtotal_quantity_cell.fill = category_total_fill
                 subtotal_quantity_cell.font = Font(bold=True, size=12, color="166534")
-                subtotal_quantity_cell.alignment = Alignment(horizontal="right", vertical="center")
+                subtotal_quantity_cell.alignment = Alignment(horizontal="center", vertical="center")
                 subtotal_quantity_cell.border = border
                 subtotal_quantity_cell.protection = locked_protection
-                subtotal_quantity_cell.number_format = '0.######'
 
                 subtotal_price_cell = sheet.cell(row=subtotal_row, column=7, value="")
                 subtotal_price_cell.fill = category_total_fill
@@ -459,7 +461,9 @@ class PurchaseProjectionService:
         total_label_cell.protection = unlocked_protection
 
         total_formulas = {
-            6: sum(float(item.get("requested_quantity_input") or 0.0) for group in export_categories for item in (group.get("items") or [])) if export_categories else 0,
+            6: cls._format_number_input_value(
+                sum(float(item.get("requested_quantity_input") or 0.0) for group in export_categories for item in (group.get("items") or []))
+            ) if export_categories else "0",
             7: "",
             8: float(cart.get("requested_value_total") or 0.0) if export_categories else 0,
         }
@@ -467,13 +471,11 @@ class PurchaseProjectionService:
             cell = sheet.cell(row=total_row, column=column_index, value=total_formulas[column_index])
             cell.fill = total_fill if column_index == 6 else value_fill
             cell.font = Font(bold=True, size=16, color="0F172A") if column_index == 6 else Font(size=12, italic=True, color="0F172A")
-            cell.alignment = Alignment(horizontal="right", vertical="center")
+            cell.alignment = Alignment(horizontal="center", vertical="center") if column_index == 6 else Alignment(horizontal="right", vertical="center")
             cell.border = border
             cell.protection = locked_protection
             if column_index == 8:
                 cell.number_format = 'R$ #,##0.00'
-            elif column_index == 6:
-                cell.number_format = '0.######'
 
         footer_row = total_row + 3
         sheet.merge_cells(f"A{footer_row}:{end_column}{footer_row}")

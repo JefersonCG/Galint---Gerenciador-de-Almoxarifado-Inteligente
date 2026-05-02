@@ -1993,11 +1993,20 @@ ${parent.scripts()}
         modalUnidade.show();
     }
     
+    function findMatchingGroup(usuario, local) {
+        const usuarioKey = normalizeAutocompleteText(usuario);
+        const localKey = normalizeAutocompleteText(local);
+        return groups.find((entry) => {
+            return normalizeAutocompleteText(entry.usuario) === usuarioKey
+                && normalizeAutocompleteText(entry.local) === localKey;
+        }) || null;
+    }
+
     function adicionarItemFinal(item) {
         const usuario = String(item.usuario || '').trim();
         const local = String(item.local || '').trim();
-        let group = groups.find((entry) => entry.id === currentGroupId);
-        if (!group || group.usuario !== usuario || group.local !== local) {
+        let group = findMatchingGroup(usuario, local);
+        if (!group) {
             group = {
                 id: ++groupCounter,
                 usuario: usuario,
@@ -2005,8 +2014,8 @@ ${parent.scripts()}
                 itens: []
             };
             groups.push(group);
-            currentGroupId = group.id;
         }
+        currentGroupId = group.id;
         group.itens.push(item);
         items.push(item);
         currentPreviewItem = { ...item };
