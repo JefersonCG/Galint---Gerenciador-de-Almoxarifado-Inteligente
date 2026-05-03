@@ -179,18 +179,8 @@ def build_sidebar_navigation() -> dict[str, Any]:
     if dashboard_url:
         entries.append(_link_item("Dashboard", dashboard_url, "bi-speedometer2", path == dashboard_url))
 
-    lancamentos_children: list[dict[str, Any]] = []
     if saidas_hub_url:
-        lancamentos_children.append(
-            _link_item(
-                "Registro de Saídas",
-                saidas_hub_url,
-                "bi-box-arrow-up-right",
-                _path_matches(path, saidas_hub_url) or path == (movements_index_url or ""),
-            )
-        )
-    if lancamentos_children:
-        entries.append(_group_item("Lançamentos", "bi-box-seam", "lancamentosMenu", lancamentos_active, lancamentos_children))
+        entries.append(_link_item("Lançamentos", saidas_hub_url, "bi-box-seam", lancamentos_active))
 
     estoque_children: list[dict[str, Any]] = []
     if inventory_list_url:

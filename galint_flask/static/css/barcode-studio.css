@@ -302,10 +302,77 @@
     line-height: 1.45;
 }
 
-.barcode-studio-inline-toggle {
-    display: inline-flex;
-    align-items: center;
+.barcode-studio-sheet-controls {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 0.65rem;
+}
+
+.barcode-studio-sheet-controls--compact {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin-top: 0.65rem;
+}
+
+.barcode-studio-sheet-stack {
+    display: grid;
+    gap: 0.65rem;
+    margin-top: 0.65rem;
+}
+
+.barcode-studio-sheet-control {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    min-height: 100%;
+    padding: 0.7rem 0.75rem;
+    border-radius: 14px;
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    background: rgba(15, 23, 42, 0.42);
+}
+
+.barcode-studio-sheet-control .form-label {
+    margin: 0;
+    font-size: 0.82rem;
+}
+
+.barcode-studio-sheet-control .form-control,
+.barcode-studio-sheet-control .form-select,
+.barcode-studio-sheet-control .input-group {
+    margin-top: 0;
+}
+
+.barcode-studio-sheet-control--compact {
+    padding: 0.62rem 0.68rem;
+}
+
+.barcode-studio-sheet-control--compact .form-label {
+    font-size: 0.78rem;
+}
+
+.barcode-studio-sheet-toggle-label {
+    color: #e2e8f0;
+}
+
+.barcode-studio-inline-toggle {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.65rem 0.75rem;
+    border-radius: 12px;
+    border: 1px solid rgba(96, 165, 250, 0.18);
+    background: rgba(15, 23, 42, 0.58);
+    cursor: pointer;
+}
+
+.barcode-studio-inline-toggle .form-check-input {
+    margin: 0;
+}
+
+.barcode-studio-inline-toggle__title {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #f8fafc;
 }
 
 .barcode-studio-layout-actions {
@@ -663,7 +730,9 @@
 @media (max-width: 575.98px) {
     .barcode-studio-search-box,
     .barcode-studio-selection-summary,
-    .barcode-studio-meta-grid {
+    .barcode-studio-meta-grid,
+    .barcode-studio-sheet-controls,
+    .barcode-studio-sheet-controls--compact {
         grid-template-columns: 1fr;
     }
 

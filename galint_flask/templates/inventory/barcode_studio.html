@@ -101,51 +101,55 @@
                     <i class="bi bi-chevron-up"></i>
                 </button>
                 <div class="barcode-studio-section-body" id="barcodeStudioSheetSectionBody">
-                    <p class="barcode-studio-section-description">Defina a estrutura geral antes de distribuir os codigos.</p>
-
-                    <div class="row g-3">
-                        <div class="col-6">
+                    <div class="barcode-studio-sheet-controls">
+                        <div class="barcode-studio-sheet-control">
                             <label class="form-label" for="barcodeStudioAddQuantity">Etiquetas ao adicionar</label>
                             <input class="form-control" id="barcodeStudioAddQuantity" type="number" min="1" max="60" value="1">
                         </div>
-                        <div class="col-6">
+                        <div class="barcode-studio-sheet-control">
                             <label class="form-label" for="barcodeStudioOrientation">Orientacao</label>
                             <select class="form-select" id="barcodeStudioOrientation">
                                 <option value="portrait">Retrato</option>
                                 <option value="landscape">Paisagem</option>
                             </select>
                         </div>
-                        <div class="col-6">
+                        <div class="barcode-studio-sheet-control barcode-studio-sheet-control--action">
                             <label class="form-label" for="barcodeStudioCopies">Duplicar selecionado</label>
                             <div class="input-group">
                                 <input class="form-control" id="barcodeStudioCopies" type="number" min="1" max="24" value="1">
                                 <button class="btn btn-outline-light" type="button" id="barcodeStudioDuplicateBtn">Duplicar</button>
                             </div>
                         </div>
-                        <div class="col-6">
-                            <label class="form-label d-block">Ajuste magnetico</label>
-                            <label class="form-check barcode-studio-inline-toggle mt-2">
+                        <div class="barcode-studio-sheet-control barcode-studio-sheet-control--toggle">
+                            <label class="form-label barcode-studio-sheet-toggle-label" for="barcodeStudioSnapToggle">Ajuste magnetico</label>
+                            <label class="barcode-studio-inline-toggle" for="barcodeStudioSnapToggle">
                                 <input class="form-check-input" type="checkbox" id="barcodeStudioSnapToggle" checked>
-                                <span class="form-check-label">Prender em guia e grade</span>
+                                <span class="barcode-studio-inline-toggle__title">Prender em guia e grade</span>
                             </label>
                         </div>
-                        <div class="col-4">
+                    </div>
+
+                    <div class="barcode-studio-sheet-controls barcode-studio-sheet-controls--compact">
+                        <div class="barcode-studio-sheet-control barcode-studio-sheet-control--compact">
                             <label class="form-label" for="barcodeStudioColumns">Colunas</label>
                             <input class="form-control" id="barcodeStudioColumns" type="number" min="1" max="8" value="3">
                         </div>
-                        <div class="col-4">
+                        <div class="barcode-studio-sheet-control barcode-studio-sheet-control--compact">
                             <label class="form-label" for="barcodeStudioRows">Linhas</label>
                             <input class="form-control" id="barcodeStudioRows" type="number" min="1" max="12" value="8">
                         </div>
-                        <div class="col-4">
+                        <div class="barcode-studio-sheet-control barcode-studio-sheet-control--compact">
                             <label class="form-label" for="barcodeStudioGap">Espaco (mm)</label>
                             <input class="form-control" id="barcodeStudioGap" type="number" min="0" max="30" step="0.5" value="6">
                         </div>
-                        <div class="col-12">
+                    </div>
+
+                    <div class="barcode-studio-sheet-stack">
+                        <div class="barcode-studio-sheet-control barcode-studio-sheet-control--wide">
                             <label class="form-label" for="barcodeStudioMargin">Margem interna (mm)</label>
                             <input class="form-control" id="barcodeStudioMargin" type="number" min="4" max="30" step="0.5" value="10">
                         </div>
-                        <div class="col-12">
+                        <div class="barcode-studio-sheet-control barcode-studio-sheet-control--wide">
                             <label class="form-label" for="barcodeStudioGridAlignInput">Alinhamento horizontal da grade</label>
                             <select class="form-select" id="barcodeStudioGridAlignInput">
                                 <option value="left">Esquerda</option>
