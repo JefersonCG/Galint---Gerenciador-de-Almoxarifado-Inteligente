@@ -35,14 +35,13 @@
     body.auth-login-page .app-body {
         min-height: 100vh;
         display: flex;
-        justify-content: flex-end;
-        align-items: flex-start;
+        justify-content: center;
+        align-items: center;
         padding: 0.85rem;
         background:
-            radial-gradient(circle at 18% 16%, rgba(56, 189, 248, 0.12), transparent 28%),
-            radial-gradient(circle at 82% 12%, rgba(14, 165, 233, 0.12), transparent 22%),
-            linear-gradient(rgba(4, 8, 19, 0.18), rgba(4, 8, 19, 0.28));
-        backdrop-filter: blur(4px);
+            radial-gradient(circle at 18% 16%, rgba(56, 189, 248, 0.08), transparent 28%),
+            radial-gradient(circle at 82% 12%, rgba(14, 165, 233, 0.1), transparent 22%),
+            linear-gradient(rgba(4, 8, 19, 0.04), rgba(4, 8, 19, 0.14));
         overflow: hidden;
         box-sizing: border-box;
     }
@@ -59,7 +58,8 @@
         position: relative;
         display: flex;
         flex-direction: column;
-        align-items: flex-end;
+        align-items: center;
+        justify-content: center;
         gap: 0.75rem;
     }
 
@@ -79,8 +79,8 @@
         top: 0.85rem;
         right: 0.85rem;
         z-index: 5;
-        width: min(27rem, calc(100vw - 1.7rem));
-        border-radius: 2rem;
+        width: min(23.5rem, calc(100vw - 1.7rem));
+        border-radius: 1.35rem;
         border: 1px solid rgba(226, 232, 240, 0.12);
         background:
             linear-gradient(145deg, rgba(7, 11, 22, 0.11), rgba(7, 11, 22, 0.04)),
@@ -100,6 +100,25 @@
             transform 0.28s ease,
             opacity 0.28s ease;
         user-select: none;
+    }
+
+    body.auth-login-page .login-shell.is-portal-hidden {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transform: translateY(-0.9rem) scale(0.96);
+    }
+
+    body.auth-login-page .login-shell.is-auth-active {
+        border-color: rgba(34, 211, 238, 0.34);
+        background:
+            radial-gradient(circle at 18% 10%, rgba(34, 211, 238, 0.16), transparent 34%),
+            radial-gradient(circle at 78% 84%, rgba(74, 222, 128, 0.12), transparent 36%),
+            linear-gradient(145deg, rgba(3, 10, 26, 0.64), rgba(4, 11, 24, 0.34));
+        box-shadow:
+            0 32px 86px rgba(2, 6, 23, 0.5),
+            0 0 38px rgba(34, 211, 238, 0.12),
+            inset 0 1px 0 rgba(255, 255, 255, 0.12);
     }
 
     body.auth-login-page .login-shell::before {
@@ -161,10 +180,10 @@
         position: relative;
         z-index: 1;
         display: grid;
-        grid-template-columns: 5.6rem minmax(0, 1fr);
+        grid-template-columns: 4.6rem minmax(0, 1fr);
         align-items: start;
-        gap: 0.9rem;
-        padding: 1rem;
+        gap: 0.78rem;
+        padding: 0.82rem;
     }
 
     body.auth-login-page .login-brand {
@@ -176,8 +195,8 @@
     }
 
     body.auth-login-page .login-logo-frame {
-        width: 5.25rem;
-        height: 5.25rem;
+        width: 4.3rem;
+        height: 4.3rem;
         border-radius: 50%;
         padding: 0.45rem;
         background: linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.025));
@@ -214,9 +233,16 @@
 
     body.auth-login-page .login-form {
         display: grid;
-        gap: 0.72rem;
-        padding-right: 1.9rem;
+        gap: 0.58rem;
+        padding-right: 1.45rem;
         user-select: auto;
+        transition: opacity 0.22s ease, filter 0.22s ease;
+    }
+
+    body.auth-login-page .login-shell.is-auto-submitting .login-form {
+        opacity: 0.7;
+        filter: saturate(0.8);
+        pointer-events: none;
     }
 
     body.auth-login-page .login-field {
@@ -229,12 +255,12 @@
     }
 
     body.auth-login-page .login-form .form-control {
-        min-height: 3rem;
-        padding: 0.78rem 0.98rem;
+        min-height: 2.62rem;
+        padding: 0.62rem 0.86rem;
         background: rgba(255, 255, 255, 0.11);
         border-color: rgba(191, 219, 254, 0.14);
         color: #f8fafc;
-        border-radius: 1rem;
+        border-radius: 0.95rem;
         box-shadow:
             inset 0 1px 0 rgba(255, 255, 255, 0.06),
             0 10px 24px rgba(2, 6, 23, 0.08);
@@ -265,18 +291,6 @@
             0 18px 38px rgba(14, 165, 233, 0.16);
         color: #ffffff;
         transform: translateY(-1px);
-    }
-
-    body.auth-login-page .login-submit-hidden {
-        position: absolute;
-        width: 1px;
-        height: 1px;
-        padding: 0;
-        margin: -1px;
-        overflow: hidden;
-        clip: rect(0, 0, 0, 0);
-        white-space: nowrap;
-        border: 0;
     }
 
     body.auth-login-page .login-shell-controls {
@@ -321,16 +335,269 @@
         box-shadow: 0 0 0 0.18rem rgba(56, 189, 248, 0.22);
     }
 
+    body.auth-login-page .login-shell.is-auto-submitting::after {
+        content: "";
+        position: absolute;
+        left: 12%;
+        right: 12%;
+        bottom: 0.55rem;
+        height: 2px;
+        border-radius: 999px;
+        background: linear-gradient(90deg, transparent, rgba(34, 211, 238, 0.95), rgba(74, 222, 128, 0.85), transparent);
+        animation: loginPortalScan 1.05s linear infinite;
+        z-index: 2;
+    }
+
     body.auth-login-page .login-drag-tip {
         position: absolute;
         left: 50%;
-        bottom: 0.42rem;
+        bottom: 0.28rem;
         transform: translateX(-50%);
         width: 2.3rem;
         height: 0.24rem;
         border-radius: 999px;
         background: rgba(226, 232, 240, 0.18);
         pointer-events: none;
+    }
+
+    body.auth-login-page .login-module-portal {
+        position: fixed;
+        left: 50%;
+        top: auto;
+        bottom: clamp(4.3rem, 11vh, 7rem);
+        z-index: 4;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: clamp(1.8rem, 6.5vw, 6.8rem);
+        width: min(56rem, calc(100vw - 2rem));
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        box-shadow: none;
+        transform: translateX(-50%);
+        overflow: visible;
+        animation: loginPortalIn 0.7s ease both;
+        transition:
+            opacity 0.24s ease,
+            filter 0.24s ease,
+            visibility 0.24s ease,
+            transform 0.24s ease;
+    }
+
+    body.auth-login-page.is-login-panel-open .login-module-portal {
+        opacity: 0.2;
+        filter: saturate(0.72) blur(0.5px);
+        transform: translateX(-50%) translateY(0.35rem) scale(0.98);
+    }
+
+    body.auth-login-page .login-module-portal::before,
+    body.auth-login-page .login-module-portal::after {
+        display: none;
+    }
+
+    body.auth-login-page .login-module-portal::before {
+        top: 0;
+        background: linear-gradient(90deg, transparent, rgba(34, 211, 238, 0.9), transparent);
+        animation: loginPortalScan 3.8s linear infinite;
+    }
+
+    body.auth-login-page .login-module-portal::after {
+        bottom: 0;
+        background: linear-gradient(90deg, transparent, rgba(74, 222, 128, 0.74), transparent);
+    }
+
+    body.auth-login-page .login-module-button {
+        position: relative;
+        width: clamp(8.2rem, 14vw, 10rem);
+        min-height: 5.35rem;
+        padding: 0.2rem 0.35rem;
+        border: 0;
+        border-radius: 999px;
+        background: transparent;
+        color: #f8fafc;
+        display: grid;
+        justify-items: center;
+        align-content: center;
+        gap: 0.42rem;
+        overflow: visible;
+        transition:
+            color 0.24s ease,
+            transform 0.24s ease;
+    }
+
+    body.auth-login-page .login-module-button:last-child {
+        border: 0;
+    }
+
+    body.auth-login-page .login-module-button::before {
+        content: "";
+        position: absolute;
+        left: 50%;
+        top: 42%;
+        width: 5.6rem;
+        height: 5.6rem;
+        border-radius: 50%;
+        background:
+            radial-gradient(circle, rgba(34, 211, 238, 0.26), rgba(34, 211, 238, 0.08) 48%, transparent 72%);
+        filter: blur(2px);
+        opacity: 0.76;
+        transform: translate(-50%, -50%) scale(0.82);
+        transition: opacity 0.26s ease, transform 0.26s ease, filter 0.26s ease;
+        pointer-events: none;
+    }
+
+    body.auth-login-page .login-module-button::after {
+        content: "";
+        position: absolute;
+        left: 50%;
+        right: auto;
+        bottom: -0.15rem;
+        width: 5.7rem;
+        height: 2px;
+        border-radius: 999px;
+        background: linear-gradient(90deg, transparent, #22d3ee, #4ade80, transparent);
+        opacity: 0.42;
+        transform: translateX(-50%) scaleX(0.46);
+        transition: opacity 0.24s ease, transform 0.24s ease;
+    }
+
+    body.auth-login-page .login-module-icon {
+        position: relative;
+        z-index: 1;
+        width: 3.35rem;
+        height: 3.35rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #22d3ee;
+        font-size: 2.35rem;
+        text-shadow:
+            0 0 16px rgba(34, 211, 238, 0.72),
+            0 12px 32px rgba(2, 6, 23, 0.72);
+        transition: color 0.24s ease, text-shadow 0.24s ease, transform 0.24s ease, box-shadow 0.24s ease;
+    }
+
+    body.auth-login-page .login-module-button[data-module="almoxarifado"] .login-module-icon {
+        color: #38bdf8;
+    }
+
+    body.auth-login-page .login-module-button[data-module="mensageria"] .login-module-icon {
+        color: #22d3ee;
+    }
+
+    body.auth-login-page .login-module-button[data-module="administracao"] .login-module-icon {
+        color: #4ade80;
+    }
+
+    body.auth-login-page .login-module-label {
+        position: relative;
+        z-index: 1;
+        font-size: 0.92rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0;
+        color: rgba(248, 250, 252, 0.94);
+        text-shadow: 0 8px 24px rgba(2, 6, 23, 0.72);
+        transition: color 0.24s ease, text-shadow 0.24s ease;
+    }
+
+    body.auth-login-page .login-module-button:hover,
+    body.auth-login-page .login-module-button:focus-visible {
+        background: transparent;
+        box-shadow: none;
+        color: #ffffff;
+        outline: none;
+        transform: translateY(-6px);
+    }
+
+    body.auth-login-page .login-module-button:hover::before,
+    body.auth-login-page .login-module-button:focus-visible::before {
+        opacity: 1;
+        filter: blur(1px);
+        transform: translate(-50%, -50%) scale(1.12);
+    }
+
+    body.auth-login-page .login-module-button:hover::after,
+    body.auth-login-page .login-module-button:focus-visible::after {
+        opacity: 1;
+        transform: translateX(-50%) scaleX(1);
+    }
+
+    body.auth-login-page .login-module-button:hover .login-module-icon,
+    body.auth-login-page .login-module-button:focus-visible .login-module-icon {
+        color: #fef08a;
+        text-shadow:
+            0 0 16px rgba(250, 204, 21, 0.52),
+            0 0 32px rgba(34, 211, 238, 0.46);
+        transform: translateY(-3px) scale(1.08);
+        box-shadow: 0 0 0 0.18rem rgba(125, 211, 252, 0.12);
+    }
+
+    body.auth-login-page .login-module-button:hover .login-module-label,
+    body.auth-login-page .login-module-button:focus-visible .login-module-label {
+        color: #ffffff;
+        text-shadow:
+            0 0 14px rgba(34, 211, 238, 0.58),
+            0 8px 24px rgba(2, 6, 23, 0.72);
+    }
+
+    body.auth-login-page .login-module-button.is-waiting {
+        animation: loginModulePulse 0.52s ease;
+    }
+
+    body.auth-login-page .login-module-feedback {
+        position: fixed;
+        left: 50%;
+        top: auto;
+        bottom: calc(clamp(4.3rem, 11vh, 7rem) + 6.1rem);
+        z-index: 4;
+        padding: 0.55rem 0.9rem;
+        border-radius: 999px;
+        border: 1px solid rgba(125, 211, 252, 0.28);
+        background: rgba(2, 6, 23, 0.58);
+        color: #dff7ff;
+        box-shadow: 0 18px 36px rgba(2, 6, 23, 0.24);
+        transform: translateX(-50%) translateY(0.5rem);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.22s ease, transform 0.22s ease;
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+    }
+
+    body.auth-login-page .login-module-feedback.is-visible {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+
+    @keyframes loginPortalIn {
+        from {
+            opacity: 0;
+            transform: translateX(-50%) translateY(1rem);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+    }
+
+    @keyframes loginPortalScan {
+        from {
+            transform: translateX(-100%);
+        }
+        to {
+            transform: translateX(100%);
+        }
+    }
+
+    @keyframes loginModulePulse {
+        0%, 100% {
+            transform: translateY(0);
+        }
+        50% {
+            transform: translateY(-4px) scale(1.02);
+        }
     }
 
     @media (max-width: 767.98px) {
@@ -340,6 +607,90 @@
 
         body.auth-login-page .content-panel {
             align-items: stretch;
+        }
+
+        body.auth-login-page .login-module-portal {
+            top: auto;
+            bottom: clamp(3.2rem, 8vh, 5.4rem);
+            width: calc(100vw - 1.5rem);
+            gap: clamp(0.4rem, 2.4vw, 1.2rem);
+        }
+
+        body.auth-login-page .login-module-button {
+            width: min(31%, 8.4rem);
+            justify-items: center;
+            align-content: center;
+            min-height: 4.85rem;
+            border-right: 0;
+            border-bottom: 0;
+        }
+
+        body.auth-login-page .login-module-icon {
+            width: 2.9rem;
+            height: 2.9rem;
+            font-size: 2.05rem;
+        }
+
+        body.auth-login-page .login-module-label {
+            font-size: 0.74rem;
+        }
+
+        body.auth-login-page .login-module-button:last-child {
+            border-bottom: 0;
+        }
+
+        body.auth-login-page .login-module-feedback {
+            width: min(22rem, calc(100vw - 1.5rem));
+            top: auto;
+            bottom: calc(clamp(3.2rem, 8vh, 5.4rem) + 5.45rem);
+            text-align: center;
+        }
+
+        body.auth-login-page.is-login-panel-open .login-module-portal {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+            transform: translateX(-50%) translateY(1rem) scale(0.96);
+        }
+    }
+
+    @media (max-width: 479.98px) {
+        body.auth-login-page .login-module-portal {
+            top: auto;
+            bottom: clamp(1rem, 4vh, 2rem);
+            flex-direction: column;
+            width: min(15rem, calc(100vw - 1.5rem));
+            gap: 0.35rem;
+        }
+
+        body.auth-login-page .login-module-button {
+            grid-template-columns: auto 1fr;
+            width: 100%;
+            min-height: 3.55rem;
+            justify-items: start;
+            gap: 0.52rem;
+        }
+
+        body.auth-login-page .login-module-button::before {
+            left: 1.85rem;
+            top: 50%;
+            width: 4.15rem;
+            height: 4.15rem;
+        }
+
+        body.auth-login-page .login-module-button::after {
+            left: 3.05rem;
+            bottom: 0.18rem;
+            width: 4rem;
+        }
+
+        body.auth-login-page .login-module-label {
+            font-size: 0.78rem;
+        }
+
+        body.auth-login-page .login-module-feedback {
+            top: auto;
+            bottom: calc(clamp(1rem, 4vh, 2rem) + 11.4rem);
         }
 
         body.auth-login-page .login-shell {
@@ -363,7 +714,23 @@
 </style>
 {% endblock %}
 {% block content %}
-<div class="login-shell" id="login-shell" aria-label="Painel de login arrastável e recolhível">
+<div class="login-module-feedback" id="login-module-feedback" role="status" aria-live="polite"></div>
+<nav class="login-module-portal" id="login-module-portal" aria-label="Módulos do Galint Web">
+    <button class="login-module-button" type="button" data-module="almoxarifado" data-module-title="Almoxarifado" aria-label="Módulo Almoxarifado">
+        <span class="login-module-icon" aria-hidden="true"><i class="bi bi-box-seam"></i></span>
+        <span class="login-module-label">Almoxarifado</span>
+    </button>
+    <button class="login-module-button" type="button" data-module="mensageria" data-module-title="Mensageria" aria-label="Módulo Mensageria">
+        <span class="login-module-icon" aria-hidden="true"><i class="bi bi-truck"></i></span>
+        <span class="login-module-label">Mensageria</span>
+    </button>
+    <button class="login-module-button" type="button" data-module="administracao" data-module-title="Administração" aria-label="Módulo Administração">
+        <span class="login-module-icon" aria-hidden="true"><i class="bi bi-people"></i></span>
+        <span class="login-module-label">Administração</span>
+    </button>
+</nav>
+
+<div class="login-shell is-portal-hidden" id="login-shell" aria-label="Painel de login arrastável e recolhível" aria-hidden="true">
     <div class="login-shell-controls">
         <button class="login-shell-control" type="button" id="login-shell-toggle" aria-expanded="true" aria-label="Recolher painel de login">
             <i class="bi bi-arrows-angle-contract"></i>
@@ -380,15 +747,15 @@
             </div>
         </div>
         <form method="post" class="login-form">
+            <input type="hidden" name="modulo" id="login-module-input" value="almoxarifado">
             <div class="login-field">
                 <label class="visually-hidden" for="matricula">Matrícula</label>
-                <input class="form-control" id="matricula" name="matricula" placeholder="Matrícula" autocomplete="username" required autofocus>
+                <input class="form-control" id="matricula" name="matricula" placeholder="Matrícula" autocomplete="username" required>
             </div>
             <div class="login-field">
                 <label class="visually-hidden" for="senha">Senha</label>
                 <input class="form-control" id="senha" name="senha" type="password" placeholder="Senha" autocomplete="current-password" required>
             </div>
-            <button class="login-submit-hidden" type="submit" tabindex="-1">Entrar</button>
         </form>
         <span class="login-drag-tip" aria-hidden="true"></span>
     </div>
@@ -399,7 +766,12 @@
 document.addEventListener('DOMContentLoaded', function () {
     const shell = document.getElementById('login-shell');
     const toggleButton = document.getElementById('login-shell-toggle');
+    const portalButtons = Array.from(document.querySelectorAll('.login-module-button'));
+    const portalFeedback = document.getElementById('login-module-feedback');
+    const moduleInput = document.getElementById('login-module-input');
+    const loginForm = shell ? shell.querySelector('.login-form') : null;
     const matriculaInput = document.getElementById('matricula');
+    const senhaInput = document.getElementById('senha');
     const logoFrame = document.getElementById('login-logo-frame');
     const logoImage = document.getElementById('login-logo-image');
     const defaultLogoSrc = logoImage ? (logoImage.dataset.defaultSrc || logoImage.getAttribute('src') || '') : '';
@@ -421,6 +793,9 @@ document.addEventListener('DOMContentLoaded', function () {
     let photoLookupTimer = null;
     let photoLookupController = null;
     let lastPhotoLookupValue = '';
+    let portalFeedbackTimer = null;
+    let autoLoginTimer = null;
+    let autoLoginSubmitted = false;
 
     function applyDefaultLogo() {
         if (!logoImage || !logoFrame) {
@@ -518,6 +893,50 @@ document.addEventListener('DOMContentLoaded', function () {
         return Math.min(Math.max(value, min), max);
     }
 
+    function showPortalFeedback(message) {
+        if (!portalFeedback) {
+            return;
+        }
+        portalFeedback.textContent = message;
+        portalFeedback.classList.add('is-visible');
+        window.clearTimeout(portalFeedbackTimer);
+        portalFeedbackTimer = window.setTimeout(function () {
+            portalFeedback.classList.remove('is-visible');
+        }, 2600);
+    }
+
+    function scheduleAutoLogin() {
+        if (!loginForm || !matriculaInput || !senhaInput || autoLoginSubmitted) {
+            return;
+        }
+        window.clearTimeout(autoLoginTimer);
+        if (shell.classList.contains('is-portal-hidden') || shell.classList.contains('is-collapsed')) {
+            return;
+        }
+
+        const matricula = (matriculaInput.value || '').trim();
+        const senha = senhaInput.value || '';
+        if (!matricula || !senha) {
+            return;
+        }
+
+        autoLoginTimer = window.setTimeout(function () {
+            const liveMatricula = (matriculaInput.value || '').trim();
+            const liveSenha = senhaInput.value || '';
+            if (!liveMatricula || !liveSenha || !loginForm.checkValidity()) {
+                return;
+            }
+            autoLoginSubmitted = true;
+            shell.classList.add('is-auto-submitting');
+            showPortalFeedback('Validando acesso');
+            if (typeof loginForm.requestSubmit === 'function') {
+                loginForm.requestSubmit();
+                return;
+            }
+            loginForm.submit();
+        }, 900);
+    }
+
     function persistState() {
         const rect = shell.getBoundingClientRect();
         const payload = {
@@ -588,6 +1007,51 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    function revealLoginShell(moduleName) {
+        shell.classList.remove('is-portal-hidden');
+        shell.classList.add('is-auth-active');
+        shell.setAttribute('aria-hidden', 'false');
+        document.body.classList.add('is-login-panel-open');
+        if (moduleInput) {
+            moduleInput.value = moduleName || 'almoxarifado';
+        }
+        if (shell.classList.contains('is-collapsed')) {
+            shell.classList.remove('is-collapsed');
+            toggleButton.innerHTML = '<i class="bi bi-arrows-angle-contract"></i>';
+            toggleButton.setAttribute('aria-expanded', 'true');
+            toggleButton.setAttribute('aria-label', 'Recolher painel de login');
+        }
+        expandedPosition = null;
+        shell.style.left = 'auto';
+        shell.style.right = 'clamp(1rem, 6vw, 5rem)';
+        shell.style.top = 'clamp(1rem, 8vh, 4.8rem)';
+        shell.style.bottom = 'auto';
+        window.setTimeout(function () {
+            if (matriculaInput) {
+                matriculaInput.focus();
+            }
+        }, 180);
+    }
+
+    portalButtons.forEach(function (button) {
+        button.addEventListener('click', function () {
+            const moduleName = button.dataset.module || '';
+            const moduleTitle = button.dataset.moduleTitle || button.textContent.trim();
+            button.classList.remove('is-waiting');
+            void button.offsetWidth;
+            button.classList.add('is-waiting');
+            if (moduleName === 'almoxarifado') {
+                revealLoginShell(moduleName);
+                showPortalFeedback('Acesso ao Almoxarifado');
+                return;
+            }
+            showPortalFeedback(moduleTitle + ' em preparação');
+        });
+        button.addEventListener('animationend', function () {
+            button.classList.remove('is-waiting');
+        });
+    });
+
     try {
         const saved = JSON.parse(localStorage.getItem(storageKey) || '{}');
         if (saved && typeof saved === 'object') {
@@ -612,6 +1076,10 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         }
     } catch (error) {
+    }
+
+    if (document.querySelector('.galint-flash-toast-stack, body.auth-login-page .content-panel > .alert')) {
+        revealLoginShell('almoxarifado');
     }
 
     toggleButton.addEventListener('click', function (event) {
@@ -693,9 +1161,11 @@ document.addEventListener('DOMContentLoaded', function () {
     if (matriculaInput) {
         matriculaInput.addEventListener('input', function () {
             schedulePhotoLookup(false);
+            scheduleAutoLogin();
         });
         matriculaInput.addEventListener('change', function () {
             schedulePhotoLookup(true);
+            scheduleAutoLogin();
         });
         matriculaInput.addEventListener('blur', function () {
             schedulePhotoLookup(true);
@@ -707,6 +1177,11 @@ document.addEventListener('DOMContentLoaded', function () {
         window.setTimeout(function () {
             schedulePhotoLookup(true);
         }, 260);
+    }
+
+    if (senhaInput) {
+        senhaInput.addEventListener('input', scheduleAutoLogin);
+        senhaInput.addEventListener('change', scheduleAutoLogin);
     }
 });
 </script>
