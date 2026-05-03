@@ -666,42 +666,21 @@ def registrar_saida_multipla():
                 is_tool_item = 'ferrament' in categoria_text
 
                 if is_tool_item:
-                    try:
-                        saldo_total_ferramenta = float(item.get_saldo_atual() or 0)
-                    except Exception:
-                        saldo_total_ferramenta = 0.0
+                    raise ValueError("Ferramentas só podem sair pelo fluxo de Ferramentas/Custódia.")
 
-                    tool_payload = inventory_service._apply_withdrawal_availability(
-                        item,
-                        {
-                            "saldo": saldo_total_ferramenta,
-                            "categoria": item.categoria,
-                        },
-                        tool_state=inventory_service._build_tool_availability_state([item.codigo_item]).get(item.codigo_item),
-                    )
-
-                    try:
-                        saldo_disponivel_ferramenta = float(tool_payload.get("saldo_disponivel") or 0.0)
-                    except Exception:
-                        saldo_disponivel_ferramenta = 0.0
-
-                    if saldo_disponivel_ferramenta + 1e-6 < float(quantidade):
-                        detalhe_ferramenta = str(
-                            tool_payload.get("unavailable_detail")
-                            or tool_payload.get("unavailable_reason")
-                            or ""
-                        ).strip()
-                        if not detalhe_ferramenta:
-                            try:
-                                quantidade_comprometida = float(tool_payload.get("reserved_quantity") or 0.0)
-                            except Exception:
-                                quantidade_comprometida = 0.0
-                            detalhe_ferramenta = (
-                                f"Ferramenta indisponível. Disponível: {int(saldo_disponivel_ferramenta)} "
-                                f"(Em uso/comprometido: {int(quantidade_comprometida)}, "
-                                f"Total físico: {int(saldo_total_ferramenta)})"
-                            )
-                        raise ValueError(detalhe_ferramenta)
+                payload_saida = MovimentoPayload(
+                    codigo=item.codigo_item,
+                    quantidade=float(quantidade),
+                    matricula=usuario.matricula,
+                    observacao=str(observacao or "").upper() if observacao else None,
+                    local_servico=str(local_servico_geral or "").upper() if local_servico_geral else None,
+                    atividade_operacional=operational_context.get("atividade_operacional"),
+                    ordem_servico=operational_context.get("ordem_servico"),
+                    centro_custo=operational_context.get("centro_custo"),
+                    em_embalagens=em_embalagens,
+                    canal_saida="materiais",
+                )
+                inventory_service.validate_exit_payload_policy(item, payload_saida)
                 
                 # Verificar saldo considerando sistema de embalagens
                 from galint_flask.services.embalagem_service import EmbalagemService
@@ -723,17 +702,7 @@ def registrar_saida_multipla():
                     product_id=item.codigo_item,
                     movement_type="saida",
                     quantity=float(quantidade),
-                    payload=MovimentoPayload(
-                        codigo=item.codigo_item,
-                        quantidade=float(quantidade),
-                        matricula=usuario.matricula,
-                        observacao=str(observacao or "").upper() if observacao else None,
-                        local_servico=str(local_servico_geral or "").upper() if local_servico_geral else None,
-                        atividade_operacional=operational_context.get("atividade_operacional"),
-                        ordem_servico=operational_context.get("ordem_servico"),
-                        centro_custo=operational_context.get("centro_custo"),
-                        em_embalagens=em_embalagens,
-                    ),
+                    payload=payload_saida,
                     metadata={
                         "reference_type": "movements_saida_multipla",
                     },
@@ -895,17 +864,22 @@ def registrar_saida():
         # Processar unidade fracionada (kg ou litro)
         # IMPORTANTE: Não converter para embalagens! O serviço de embalagens já faz isso automaticamente
         quantidade_convertida = quantidade
+        modo_fracionado = bool(unidade_fracionada)
+        quantidade_retirada_em_litros = None
+        quantidade_retirada_em_quilos = None
         if unidade_fracionada:
             # Para kg: enviar direto em kg (unidades base)
             if unidade_fracionada == 'kg':
                 quantidade_convertida = quantidade  # Ex: 0.4 kg
                 em_embalagens = False  # Indicar que é em unidades base (kg, não baldes)
+                quantidade_retirada_em_quilos = quantidade
                 if not observacao:
                     observacao = f"Retirada fracionada: {quantidade} kg"
             # Para litros: enviar direto em litros (unidades base)
             elif unidade_fracionada == 'litro':
                 quantidade_convertida = quantidade  # Ex: 2.5 litros
                 em_embalagens = False  # Indicar que é em unidades base (litros, não latas)
+                quantidade_retirada_em_litros = quantidade
                 if not observacao:
                     observacao = f"Retirada fracionada: {quantidade} L"
             elif unidade_fracionada in {'metro', 'cm'}:
@@ -936,6 +910,10 @@ def registrar_saida():
             "ordem_servico": operational_context.get("ordem_servico"),
             "centro_custo": operational_context.get("centro_custo"),
             "em_embalagens": em_embalagens,
+            "modo_fracionado": modo_fracionado,
+            "quantidade_retirada_em_litros": quantidade_retirada_em_litros,
+            "quantidade_retirada_em_quilos": quantidade_retirada_em_quilos,
+            "canal_saida": "fracionado" if modo_fracionado else "materiais",
         }
 
         payload = MovimentoPayload(**payload_kwargs)

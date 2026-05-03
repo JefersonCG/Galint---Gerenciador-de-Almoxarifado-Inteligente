@@ -357,3 +357,11 @@
     </div>
 </div>
 {% endblock %}
+
+{% block scripts %}
+{% if status_code == 404 and request_path == '/auth/gestao' %}
+<script>
+window.location.replace("{{ url_for('auth.login_form') }}?gestao=1");
+</script>
+{% endif %}
+{% endblock %}

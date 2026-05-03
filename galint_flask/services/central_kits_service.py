@@ -755,6 +755,7 @@ class CentralKitsService:
                         observacao="Associado via Central de Kits",
                         local_servico="Central de Kits",
                         tipo_custodia="permanente",
+                        canal_saida="central_kits",
                     ),
                     skip_notification=True,
                 )

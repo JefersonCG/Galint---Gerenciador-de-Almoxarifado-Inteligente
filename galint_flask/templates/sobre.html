@@ -843,9 +843,9 @@
                     <article class="about-rule-card">
                         <h5>{{ card.title }}</h5>
                         <p>{{ card.text }}</p>
-                        {% if card.items %}
+                        {% if card['items'] %}
                         <ul class="about-mini-list mb-0">
-                            {% for item in card.items %}
+                            {% for item in card['items'] %}
                             <li>{{ item }}</li>
                             {% endfor %}
                         </ul>

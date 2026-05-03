@@ -2,8 +2,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from flask import current_app, request, url_for
+from flask import current_app, request, session, url_for
 from flask_login import current_user
+
+from .services.enterprise_navigation import build_enterprise_sections
 
 
 def _endpoint_exists(endpoint: str) -> bool:
@@ -45,10 +47,62 @@ def _group_item(label: str, icon: str, collapse_id: str, active: bool, children:
     }
 
 
+def _has_management_access() -> bool:
+    if not bool(getattr(current_user, "is_authenticated", False)):
+        return False
+    admin_value = getattr(current_user, "is_admin", 0)
+    if bool(admin_value) or str(admin_value).strip().lower() in {"1", "true", "sim", "yes"}:
+        return True
+    return bool(session.get("galint_management_access"))
+
+
+def _is_enterprise_mode() -> bool:
+    return bool(getattr(current_user, "is_authenticated", False) and session.get("galint_management_access"))
+
+
+def _build_enterprise_navigation(path: str, *, is_admin: bool) -> list[dict[str, Any]]:
+    entries: list[dict[str, Any]] = []
+    sobre_url = _optional_url("pages.sobre")
+
+    sections = build_enterprise_sections(is_admin=is_admin)
+    config_root_url = _optional_url("pages.config")
+
+    if config_root_url:
+        entries.append(_link_item("Configurações", config_root_url, "bi-command", path == config_root_url))
+
+    for section in sections:
+        children = [
+            _link_item(item["label"], item["href"], item["icon"], _path_matches(path, item["href"]))
+            for item in section["items"]
+        ]
+        entries.append(
+            _group_item(
+                section["label"],
+                section["icon"],
+                section["collapse_id"],
+                _path_matches_any(path, [item["href"] for item in section["items"]]),
+                children,
+            )
+        )
+
+    entries.append({"type": "divider"})
+    if sobre_url:
+        entries.append(_link_item("Sobre", sobre_url, "bi-info-circle", path == sobre_url))
+    return entries
+
+
 def build_sidebar_navigation() -> dict[str, Any]:
     path = request.path
     is_authenticated = bool(getattr(current_user, "is_authenticated", False))
     is_admin = bool(is_authenticated and getattr(current_user, "is_admin", False))
+    has_management_access = _has_management_access()
+
+    if _is_enterprise_mode():
+        return {
+            "entries": _build_enterprise_navigation(path, is_admin=is_admin),
+            "footer_user_label": getattr(current_user, "nome", "Visitante") if is_authenticated else "Visitante",
+            "mode_label": "GALINT Enterprise",
+        }
 
     dashboard_url = _optional_url("dashboard.index")
     movements_index_url = _optional_url("movements.index")
@@ -97,11 +151,11 @@ def build_sidebar_navigation() -> dict[str, Any]:
     )
     estoque_active = _path_matches_any(
         path,
-        [inventory_list_url, barcode_studio_url, consumo_painel_url, central_operacoes_url],
+        [inventory_list_url, barcode_studio_url, central_operacoes_url],
     ) or path.startswith("/estoque")
     suprimentos_active = _path_matches_any(
         path,
-        [valor_estoque_url, fornecedores_url, admin_stock_adjust_url, lojas_lab_url, nf_url, projection_url],
+        [fornecedores_url, admin_stock_adjust_url, lojas_lab_url, nf_url],
     )
     ferramentas_active = _path_matches_any(path, [central_kits_url, tool_custody_url, reparo_url])
     configuracoes_active = _path_matches_any(
@@ -143,16 +197,12 @@ def build_sidebar_navigation() -> dict[str, Any]:
         estoque_children.append(_link_item("Itens Cadastrados", inventory_list_url, "bi-card-list", inventory_list_active))
     if barcode_studio_url:
         estoque_children.append(_link_item("Editor de Etiquetas", barcode_studio_url, "bi-upc-scan", _path_matches(path, barcode_studio_url)))
-    if consumo_painel_url:
-        estoque_children.append(_link_item("Painel de Consumo", consumo_painel_url, "bi-geo-alt", _path_matches(path, consumo_painel_url)))
     if central_operacoes_url:
         estoque_children.append(_link_item("Central de Operações", central_operacoes_url, "bi-activity", _path_matches(path, central_operacoes_url)))
     if estoque_children:
         entries.append(_group_item("Estoque", "bi-boxes", "estoqueMenu", estoque_active, estoque_children))
 
     suprimentos_children: list[dict[str, Any]] = []
-    if valor_estoque_url:
-        suprimentos_children.append(_link_item("Financeiro", valor_estoque_url, "bi-cash-stack", _path_matches(path, valor_estoque_url)))
     if fornecedores_url:
         suprimentos_children.append(_link_item("Cadastrar fornecedor", fornecedores_url, "bi-building-add", _path_matches(path, fornecedores_url)))
     if is_admin and admin_stock_adjust_url:
@@ -161,8 +211,6 @@ def build_sidebar_navigation() -> dict[str, Any]:
         suprimentos_children.append(_link_item("Laboratório de Lojas", lojas_lab_url, "bi-shop", _path_matches(path, lojas_lab_url)))
     if nf_url:
         suprimentos_children.append(_link_item("Documentos Fiscais", nf_url, "bi-receipt", _path_matches(path, nf_url)))
-    if projection_url:
-        suprimentos_children.append(_link_item("Projeção de Compras", projection_url, "bi-graph-up-arrow", _path_matches(path, projection_url)))
     if suprimentos_children:
         entries.append(_group_item("Gestão de Suprimentos", "bi-briefcase-fill", "suprimentosMenu", suprimentos_active, suprimentos_children))
 
@@ -176,15 +224,25 @@ def build_sidebar_navigation() -> dict[str, Any]:
     if ferramentas_children:
         entries.append(_group_item("Ferramentas", "bi-tools", "ferramentasMenu", ferramentas_active, ferramentas_children))
 
+    power_bi_children: list[dict[str, Any]] = []
     if analytics_url and is_admin:
-        entries.append(_link_item("Central Analítica", analytics_url, "bi-bar-chart-line", _path_matches(path, analytics_url)))
+        power_bi_children.append(_link_item("Central Analítica", analytics_url, "bi-bar-chart-line", _path_matches(path, analytics_url)))
+    if consumo_painel_url:
+        power_bi_children.append(_link_item("Consumo", consumo_painel_url, "bi-geo-alt", _path_matches(path, consumo_painel_url)))
+    if valor_estoque_url:
+        power_bi_children.append(_link_item("Financeiro", valor_estoque_url, "bi-cash-stack", _path_matches(path, valor_estoque_url)))
+    if projection_url:
+        power_bi_children.append(_link_item("Projeção", projection_url, "bi-graph-up-arrow", _path_matches(path, projection_url)))
+    if power_bi_children:
+        power_bi_active = _path_matches_any(path, [analytics_url if is_admin else None, consumo_painel_url, valor_estoque_url, projection_url])
+        entries.append(_group_item("Power BI", "bi-pie-chart-fill", "powerBiMenu", power_bi_active, power_bi_children))
 
     if is_admin and users_list_url:
         entries.append(_link_item("Usuários", users_list_url, "bi-people-fill", _path_matches(path, users_list_url)))
     if is_admin and mobile_panel_url:
         entries.append(_link_item("Painel Mobile", mobile_panel_url, "bi-phone-fill", path.startswith(mobile_panel_url)))
 
-    if is_admin:
+    if has_management_access:
         entries.append({"type": "divider"})
         configuracoes_children: list[dict[str, Any]] = []
         if empresa_url:

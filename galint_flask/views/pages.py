@@ -17,6 +17,7 @@ from ..services.auth import create_workspace_window_token
 from ..services.backup_restore_jobs import get_job_state, start_restore_job
 from ..services.category_catalog import DEFAULT_INVENTORY_CATEGORIES, category_catalog_service
 from ..services.conversion_engine import ConversionEngineService, get_conversion_job_state, start_conversion_job
+from ..services.enterprise_navigation import build_enterprise_sections
 from ..services.native_workspace_launcher import launch_workspace_window, launch_workspace_window_auto
 from ..services.network_settings import load_network_settings, save_network_settings
 from ..services.purchase_projection_runtime_service import purchase_projection_service
@@ -524,6 +525,15 @@ def _require_admin() -> None:
         abort(403)
 
 
+def _has_management_access() -> bool:
+    if not bool(getattr(current_user, "is_authenticated", False)):
+        return False
+    admin_value = getattr(current_user, "is_admin", 0)
+    if bool(admin_value) or str(admin_value).strip().lower() in {"1", "true", "sim", "yes"}:
+        return True
+    return bool(session.get("galint_management_access"))
+
+
 def _prime_admin_session() -> None:
     try:
         session.setdefault("galint_is_admin", bool(getattr(current_user, "is_admin", 0)))
@@ -623,7 +633,13 @@ def workspace_native_open_api():
 @blueprint.get("/configuracoes")
 @login_required
 def config():
-    return render_template("config.html")
+    if not _has_management_access():
+        flash("Acesso restrito a gestores, gerentes e desenvolvedores.", "danger")
+        return redirect(url_for("dashboard.index"))
+    return render_template(
+        "config.html",
+        enterprise_sections=build_enterprise_sections(is_admin=bool(getattr(current_user, "is_admin", 0))),
+    )
 
 
 @blueprint.get("/configuracoes/backup")

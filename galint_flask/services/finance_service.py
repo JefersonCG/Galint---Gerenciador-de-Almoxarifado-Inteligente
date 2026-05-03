@@ -95,6 +95,13 @@ _SUPPLIER_FIELD_LABELS = {
     "situacao_cadastral": "Situacao cadastral",
     "api_origem": "Origem da API",
 }
+_WITHDRAWAL_REFERENCE_TYPES = frozenset({
+    "saida",
+    "legacy_movimento",
+    "movements_saida_multipla",
+    "api_mobile_retirar",
+    "api_mobile_retirar_multipla",
+})
 
 
 def _format_compact_number(value: object) -> str | None:
@@ -3075,7 +3082,7 @@ class FinanceService:
             saida_movements = (
                 StockMovement.query
                 .filter(StockMovement.movement_type == "saida")
-                .filter(StockMovement.reference_type == "saida")
+                .filter(StockMovement.reference_type.in_(tuple(_WITHDRAWAL_REFERENCE_TYPES)))
                 .filter(StockMovement.reference_id.in_(saida_ids))
                 .order_by(StockMovement.created_at.asc(), StockMovement.id.asc())
                 .all()

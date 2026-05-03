@@ -79,6 +79,8 @@ logger = logging.getLogger(__name__)
 ADVANCED_DIMENSION_OPTIONS = ("unit", "mass", "volume", "length")
 ACTIVE_TOOL_WITHDRAWAL_STATUSES = ("em_uso", "atrasada", "para_reparo")
 OPEN_TOOL_REPAIR_STATUSES = ("aguardando_orcamento", "em_reparo")
+TOOL_EXIT_CHANNELS = {"ferramenta", "ferramentas", "custodia", "tool_custody", "central_kits"}
+FRACTIONAL_EXIT_CHANNELS = {"fracionado", "saida_fracionada", "saida-fracionada"}
 
 OPERATIONAL_ACTIVITY_OPTIONS: tuple[dict[str, str], ...] = (
     {"key": "piscina", "label": "Piscina e espelho d'agua"},
@@ -1368,6 +1370,7 @@ class MovimentoPayload:
     is_devolucao: bool = False
     em_embalagens: bool | None = None  # True = embalagens, False = unidades, None = item sem embalagem
     tipo_custodia: str = "temporaria"
+    canal_saida: str | None = None
 
 
 ADMIN_BALANCE_ADJUSTMENT_TYPE = "ajuste_admin_saldo"
@@ -3778,6 +3781,116 @@ class InventoryService:
         return "temporaria"
 
     @staticmethod
+    def _normalize_exit_channel(value: str | None, payload: MovimentoPayload | None = None) -> str:
+        raw = (value or "").strip().lower()
+        if not raw and payload and payload.modo_fracionado:
+            raw = "fracionado"
+        if not raw:
+            raw = "materiais"
+        normalized = unicode_normalize("NFKD", raw).encode("ascii", "ignore").decode("ascii")
+        return normalized.replace(" ", "_")
+
+    @staticmethod
+    def _is_tool_item(item: Item | None) -> bool:
+        if item is None:
+            return False
+        return "ferrament" in str(getattr(item, "categoria", "") or "").lower()
+
+    @staticmethod
+    def _is_mass_or_volume_item(item: Item | None) -> bool:
+        if item is None:
+            return False
+        canonical_unit = (resolve_canonical_unit(item) or "").strip().lower()
+        if canonical_unit in {"kg", "l"}:
+            return True
+        unidade = str(getattr(item, "unidade", "") or "").strip().lower()
+        if normalize_base_item_unit(unidade) in {"Quilo", "Litro"}:
+            return True
+        if InventoryService._as_positive_float(getattr(item, "litros_por_embalagem", None)) > 0:
+            return True
+        grandeza = InventoryService._as_positive_float(getattr(item, "grandeza_referencia", None))
+        return grandeza > 0 and any(token in unidade for token in ("kg", "quilo", "litro", "lt"))
+
+    @staticmethod
+    def _fractional_payload_unit(item: Item, payload: MovimentoPayload) -> str | None:
+        if not payload.modo_fracionado:
+            return None
+        if InventoryService._as_positive_float(payload.quantidade_retirada_em_litros) > 0:
+            return "l"
+        if InventoryService._as_positive_float(payload.quantidade_retirada_em_quilos) > 0:
+            return "kg"
+        if payload.em_embalagens is False:
+            canonical_unit = (resolve_canonical_unit(item) or "").strip().lower()
+            return canonical_unit or None
+        return None
+
+    @staticmethod
+    def _package_factor_for_operational_policy(item: Item) -> float:
+        factor = InventoryService._as_positive_float(resolve_packaging_factor(item))
+        if factor > 0:
+            return factor
+        canonical_unit = (resolve_canonical_unit(item) or "").strip().lower()
+        if canonical_unit == "l":
+            return InventoryService._as_positive_float(getattr(item, "litros_por_embalagem", None))
+        if canonical_unit == "kg":
+            return InventoryService._as_positive_float(getattr(item, "grandeza_referencia", None))
+        return 0.0
+
+    @staticmethod
+    def _is_full_package_exit(item: Item, payload: MovimentoPayload) -> bool:
+        if payload.em_embalagens is True:
+            return True
+
+        try:
+            quantity_value, unit_value = InventoryService._resolve_ledger_input_for_mirror(
+                item,
+                payload,
+                metadata={"reference_type": "legacy_movimento"},
+            )
+            quantity_base = float(
+                unit_conversion_engine.convert_item_to_base(item, quantity_value, unit_value).quantity_base or 0.0
+            )
+        except Exception:
+            quantity_base = InventoryService._as_positive_float(getattr(payload, "quantidade", None))
+
+        if quantity_base <= 0:
+            return False
+
+        package_factor = InventoryService._package_factor_for_operational_policy(item)
+        if package_factor <= 0:
+            return math.isclose(quantity_base, round(quantity_base), rel_tol=0.0, abs_tol=1e-6)
+
+        package_count = quantity_base / package_factor
+        return math.isclose(package_count, round(package_count), rel_tol=0.0, abs_tol=1e-6)
+
+    def validate_exit_payload_policy(self, item: Item, payload: MovimentoPayload) -> None:
+        channel = self._normalize_exit_channel(getattr(payload, "canal_saida", None), payload)
+        is_tool = self._is_tool_item(item)
+
+        if is_tool:
+            if payload.modo_fracionado or channel in FRACTIONAL_EXIT_CHANNELS:
+                raise ValueError("Ferramentas não podem sair no fracionado. Use o fluxo de Ferramentas/Custódia.")
+            if channel not in TOOL_EXIT_CHANNELS:
+                raise ValueError("Ferramentas só podem sair pelo fluxo de Ferramentas/Custódia.")
+            return
+
+        if payload.modo_fracionado or channel in FRACTIONAL_EXIT_CHANNELS:
+            if payload.is_devolucao:
+                raise ValueError("Devolução não é registrada pelo fracionado.")
+            fractional_unit = self._fractional_payload_unit(item, payload)
+            if fractional_unit not in {"kg", "l", "m"}:
+                raise ValueError("Saída fracionada aceita apenas materiais em kg, litros ou metros.")
+            if fractional_unit in {"kg", "l"} and not self._is_mass_or_volume_item(item):
+                raise ValueError("Este item não pertence à régua de fracionado em kg/L.")
+            return
+
+        if self._is_mass_or_volume_item(item) and not self._is_full_package_exit(item, payload):
+            raise ValueError(
+                "Materiais em kg/L no fluxo comum só podem sair por embalagem completa/total da NF. "
+                "Use Saída Fracionada para retirar 3 kg, 2 kg, 1,5 kg, 1 L, 2 L ou 1,5 L."
+            )
+
+    @staticmethod
     def _should_use_packaging_dual_write(
         item: Item,
         payload: MovimentoPayload | None = None,
@@ -3983,6 +4096,7 @@ class InventoryService:
                 "em_embalagens": payload.em_embalagens,
                 "modo_fracionado": payload.modo_fracionado,
                 "tipo_custodia": payload.tipo_custodia,
+                "canal_saida": payload.canal_saida,
             },
             **(metadata or {}),
         }
@@ -4055,6 +4169,21 @@ class InventoryService:
     def finalize_ledger_mirror(result: InventoryOperationResult | None) -> None:
         if result is None:
             return
+        try:
+            movement = db.session.get(StockMovement, getattr(result, "movement_id", None))
+            if movement is not None:
+                reference_id = result.metadata.get("reference_id")
+                reference_type = result.metadata.get("reference_type")
+                if reference_id is not None and str(getattr(movement, "reference_id", "") or "") != str(reference_id):
+                    movement.reference_id = str(reference_id)
+                if reference_type and str(getattr(movement, "reference_type", "") or "") != str(reference_type):
+                    movement.reference_type = str(reference_type)
+        except Exception as exc:
+            logger.warning(
+                "Falha ao sincronizar reference_id/reference_type no StockMovement %s: %s",
+                getattr(result, "movement_id", None),
+                exc,
+            )
         try:
             inventory_engine.sync_packaging_read_model(
                 product_id=result.product_id,
@@ -6227,6 +6356,9 @@ class InventoryService:
 
         if not is_entrada and bool(getattr(item, "pre_cadastro_pendente", False)):
             raise ValueError(PRE_CADASTRO_PENDING_EXIT_MESSAGE)
+
+        if not is_entrada:
+            self.validate_exit_payload_policy(item, payload)
 
         categoria_text = (item.categoria or "").lower()
         if not is_entrada and "ferrament" in categoria_text:

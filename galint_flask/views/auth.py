@@ -13,6 +13,28 @@ from ..services.users import user_service
 blueprint = Blueprint("auth", __name__, url_prefix="/auth")
 
 
+def _is_management_user(usuario) -> bool:
+    if not usuario:
+        return False
+    admin_value = getattr(usuario, "is_admin", 0)
+    if bool(admin_value) or str(admin_value).strip().lower() in {"1", "true", "sim", "yes"}:
+        return True
+    perfil = " ".join(
+        str(getattr(usuario, attr, "") or "").strip().lower()
+        for attr in ("cargo", "setor")
+    )
+    return any(token in perfil for token in ("desenvolvedor", "gerente", "gestor", "gestao", "gestão"))
+
+
+def _set_session_flags(usuario, *, management_access: bool = False) -> None:
+    session["galint_is_admin"] = bool(getattr(usuario, "is_admin", 0))
+    session["galint_user_id"] = str(getattr(usuario, "matricula", ""))
+    if management_access:
+        session["galint_management_access"] = True
+    else:
+        session.pop("galint_management_access", None)
+
+
 def _build_versioned_static_url(relative_path: str | None) -> str | None:
     normalized = (relative_path or "").strip().replace("\\", "/")
     if not normalized:
@@ -41,6 +63,11 @@ def login_form():
     )
 
 
+@blueprint.route("/gestao", methods=["GET", "POST"])
+def management_login():
+    return redirect(url_for("auth.login_form", gestao=1))
+
+
 @blueprint.get("/login-photo")
 def login_photo_lookup():
     matricula = (request.args.get("matricula") or "").strip()
@@ -64,14 +91,24 @@ def login_photo_lookup():
 def login_submit():
     matricula = request.form.get("matricula", "").strip()
     senha = request.form.get("senha", "")
+    modulo = request.form.get("modulo", "").strip().lower()
+    is_management_login = modulo == "gestao"
+    login_redirect = url_for("auth.login_form", gestao=1) if is_management_login else url_for("auth.login_form")
     if not matricula or not senha:
         flash("Informe matrícula e senha.", "danger")
-        return redirect(url_for("auth.login_form"))
+        return redirect(login_redirect)
     usuario = authenticate(matricula, senha)
     if usuario:
-        # Guardar flags de autorização na sessão para rotas que precisam evitar consultas ao banco.
-        session["galint_is_admin"] = bool(getattr(usuario, "is_admin", 0))
-        session["galint_user_id"] = str(getattr(usuario, "matricula", ""))
+        if is_management_login:
+            if not _is_management_user(usuario):
+                end_session()
+                flash("Acesso restrito a gestores, gerentes e desenvolvedores.", "danger")
+                return redirect(login_redirect)
+            _set_session_flags(usuario, management_access=True)
+            flash("Acesso gerencial liberado.", "success")
+            return redirect(url_for("pages.config"))
+
+        _set_session_flags(usuario)
 
         # Aviso de contingência: se Telegram estiver fora, informar ao usuário ao entrar.
         try:
@@ -91,7 +128,7 @@ def login_submit():
         flash("Bem-vindo!", "success")
         return redirect(url_for("dashboard.index"))
     flash("Credenciais inválidas.", "danger")
-    return redirect(url_for("auth.login_form"))
+    return redirect(login_redirect)
 
 
 @blueprint.post("/logout")

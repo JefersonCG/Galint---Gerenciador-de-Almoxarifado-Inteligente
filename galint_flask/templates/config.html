@@ -1,89 +1,257 @@
 {% extends "base.html" %}
-{% block title %}Configurações{% endblock %}
-{% block page_header %}
-<h2>Configurações</h2>
-<p class="text-muted">Ajustes do sistema e operações administrativas.</p>
+{% block title %}Enterprise{% endblock %}
+{% block body_class %}enterprise-config-page{% endblock %}
+{% block page_header %}{% endblock %}
+{% block extra_css %}
+<style>
+    body.enterprise-config-page .app-body {
+        background:
+            radial-gradient(circle at 18% 10%, rgba(14, 165, 233, 0.16), transparent 24rem),
+            radial-gradient(circle at 86% 14%, rgba(34, 197, 94, 0.1), transparent 23rem),
+            linear-gradient(180deg, #cbd5e1 0%, #b8c4d3 58%, #aebbc9 100%);
+    }
+
+    body.enterprise-config-page .content-panel {
+        background:
+            linear-gradient(180deg, rgba(241, 245, 249, 0.72), rgba(203, 213, 225, 0.46)),
+            rgba(226, 232, 240, 0.5);
+        border-left: 1px solid rgba(15, 23, 42, 0.08);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.62);
+    }
+
+    .enterprise-config-shell {
+        color: #1e293b;
+        display: grid;
+        gap: 1.15rem;
+    }
+
+    .enterprise-config-header {
+        display: flex;
+        align-items: end;
+        justify-content: space-between;
+        gap: 1rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid rgba(15, 23, 42, 0.12);
+    }
+
+    .enterprise-config-title {
+        margin: 0;
+        font-size: clamp(1.65rem, 2.6vw, 2.25rem);
+        font-weight: 850;
+        letter-spacing: 0;
+        color: #0f172a;
+        text-shadow: 0 1px 0 rgba(255, 255, 255, 0.52);
+    }
+
+    .enterprise-config-kicker {
+        margin: 0 0 0.35rem;
+        color: #0369a1;
+        font-size: 0.75rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .enterprise-config-badges {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .enterprise-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        min-height: 2rem;
+        padding: 0.34rem 0.68rem;
+        border-radius: 999px;
+        border: 1px solid rgba(15, 23, 42, 0.12);
+        background: rgba(30, 41, 59, 0.78);
+        color: #f8fafc;
+        font-size: 0.74rem;
+        font-weight: 800;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+    }
+
+    .enterprise-config-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1rem;
+    }
+
+    .enterprise-command-section {
+        min-width: 0;
+        display: grid;
+        align-content: start;
+        gap: 0.58rem;
+    }
+
+    .enterprise-section-heading {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        min-height: 2rem;
+        margin-bottom: 0.12rem;
+        color: #1e293b;
+        font-size: 0.88rem;
+        font-weight: 850;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+
+    .enterprise-section-heading i {
+        color: #0284c7;
+        font-size: 1.05rem;
+    }
+
+    .enterprise-command {
+        position: relative;
+        min-height: 4.2rem;
+        display: grid;
+        grid-template-columns: 2.45rem minmax(0, 1fr) auto auto;
+        align-items: center;
+        gap: 0.72rem;
+        padding: 0.72rem 0.86rem;
+        border: 1px solid rgba(15, 23, 42, 0.12);
+        border-left-width: 3px;
+        border-radius: 8px;
+        background:
+            linear-gradient(180deg, rgba(255, 255, 255, 0.76), rgba(226, 232, 240, 0.72)),
+            rgba(241, 245, 249, 0.72);
+        color: #172033;
+        text-decoration: none;
+        box-shadow: 0 14px 28px rgba(15, 23, 42, 0.14);
+        transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+    }
+
+    .enterprise-command:hover,
+    .enterprise-command:focus-visible {
+        outline: none;
+        background:
+            linear-gradient(180deg, rgba(248, 250, 252, 0.96), rgba(226, 232, 240, 0.92)),
+            #f8fafc;
+        border-color: rgba(2, 132, 199, 0.34);
+        transform: translateY(-1px);
+        color: #0f172a;
+    }
+
+    .enterprise-command-icon {
+        width: 2.35rem;
+        height: 2.35rem;
+        border-radius: 8px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(15, 23, 42, 0.9);
+        border: 1px solid rgba(15, 23, 42, 0.14);
+        color: #7dd3fc;
+        font-size: 1.1rem;
+    }
+
+    .enterprise-command-label {
+        min-width: 0;
+        display: grid;
+        gap: 0.16rem;
+    }
+
+    .enterprise-command-label strong {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 0.98rem;
+        color: #111827;
+    }
+
+    .enterprise-command-label span {
+        color: #64748b;
+        font-size: 0.74rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .enterprise-command-code {
+        color: #334155;
+        font-size: 0.72rem;
+        font-weight: 850;
+        letter-spacing: 0.05em;
+        white-space: nowrap;
+    }
+
+    .enterprise-command .bi-arrow-right-short {
+        font-size: 1.35rem;
+        color: #64748b;
+    }
+
+    .enterprise-command.tone-cyan { border-left-color: #22d3ee; }
+    .enterprise-command.tone-green { border-left-color: #22c55e; }
+    .enterprise-command.tone-amber { border-left-color: #f59e0b; }
+    .enterprise-command.tone-red { border-left-color: #f87171; }
+    .enterprise-command.tone-violet { border-left-color: #a78bfa; }
+
+    @media (max-width: 991.98px) {
+        .enterprise-config-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .enterprise-config-header {
+            align-items: start;
+            flex-direction: column;
+        }
+
+        .enterprise-config-badges {
+            justify-content: flex-start;
+        }
+    }
+
+    @media (max-width: 575.98px) {
+        .enterprise-command {
+            grid-template-columns: 2.45rem minmax(0, 1fr) auto;
+        }
+
+        .enterprise-command-code {
+            display: none;
+        }
+    }
+</style>
 {% endblock %}
+{% macro command_link(href, icon, label, code, family, tone='cyan') -%}
+<a class="enterprise-command tone-{{ tone }}" href="{{ href }}">
+    <span class="enterprise-command-icon"><i class="bi {{ icon }}"></i></span>
+    <span class="enterprise-command-label">
+        <strong>{{ label }}</strong>
+        <span>{{ family }}</span>
+    </span>
+    <span class="enterprise-command-code">{{ code }}</span>
+    <i class="bi bi-arrow-right-short" aria-hidden="true"></i>
+</a>
+{%- endmacro %}
 {% block content %}
-<div class="row gy-4">
-    {% if current_user.is_admin and endpoint_exists('config.estoque_ajuste_admin') %}
-    <div class="col-lg-6">
-        <a href="{{ url_for('config.estoque_ajuste_admin') }}" class="text-decoration-none">
-            <div class="card h-100" style="background: linear-gradient(160deg, #1f2937, #0f172a); border: 1px solid rgba(248, 113, 113, 0.22); color: #e5e7eb; box-shadow: 0 20px 42px rgba(15, 23, 42, 0.18);">
-                <div class="card-body">
-                    <div class="small text-uppercase mb-2" style="letter-spacing: 0.08em; color: #fca5a5;">Área controlada</div>
-                    <h5 class="card-title" style="color: #fff7ed;">Porta Administrativa de Estoque</h5>
-                    <p class="card-text" style="color: rgba(229, 231, 235, 0.78);">Forçar saldo-alvo em legado, ledger e cache com rastreabilidade, motivo obrigatório e visão de divergência antes da aplicação.</p>
-                    <span class="btn btn-outline-danger">Abrir</span>
-                </div>
-            </div>
-        </a>
-    </div>
-    {% endif %}
-    {% if endpoint_exists('config.notificacoes') %}
-    <div class="col-lg-6">
-        <a href="{{ url_for('config.notificacoes') }}" class="text-decoration-none">
-            <div class="card h-100" style="background: linear-gradient(160deg, #0f172a, #111827); border: 1px solid rgba(34, 197, 94, 0.18); color: #e2e8f0; box-shadow: 0 20px 42px rgba(15, 23, 42, 0.18);">
-                <div class="card-body">
-                    <div class="small text-uppercase mb-2" style="letter-spacing: 0.08em; color: #86efac;">Novo painel</div>
-                    <h5 class="card-title" style="color: #f8fafc;">Notificações</h5>
-                    <p class="card-text" style="color: rgba(226, 232, 240, 0.78);">Gerenciar failover entre Telegram e o inbox mobile, tokens de push, circuit breaker e testes de entrega.</p>
-                    <span class="btn btn-outline-success">Abrir</span>
-                </div>
-            </div>
-        </a>
-    </div>
-    {% endif %}
-    {% if endpoint_exists('pages.config_conversionengine') %}
-    <div class="col-lg-6">
-        <a href="{{ url_for('pages.config_conversionengine') }}" class="text-decoration-none">
-            <div class="card h-100" style="background: linear-gradient(160deg, #0f172a, #111827); border: 1px solid rgba(56, 189, 248, 0.18); color: #e2e8f0; box-shadow: 0 20px 42px rgba(15, 23, 42, 0.18);">
-                <div class="card-body">
-                    <div class="small text-uppercase mb-2" style="letter-spacing: 0.08em; color: #7dd3fc;">Nova área</div>
-                    <h5 class="card-title" style="color: #f8fafc;">ConversionEngine</h5>
-                    <p class="card-text" style="color: rgba(226, 232, 240, 0.78);">Analisar bases externas, medir compatibilidade em tempo real, gerar nova base em visual dark e implantar direto quando o dump estiver apto.</p>
-                    <span class="btn btn-outline-info">Abrir</span>
-                </div>
-            </div>
-        </a>
-    </div>
-    {% endif %}
-    <div class="col-lg-6">
-        <a href="{{ url_for('pages.config_backup') }}" class="text-decoration-none">
-            <div class="card h-100">
-                <div class="card-body">
-                    <h5 class="card-title text-dark">Backup</h5>
-                    <p class="card-text text-muted">Gerar e administrar cópias de segurança. A restauração oficial da base passa pelo ConversionEngine.</p>
-                    <span class="btn btn-outline-primary">Abrir</span>
-                </div>
-            </div>
-        </a>
-    </div>
-    <div class="col-lg-6">
-        <a href="{{ url_for('pages.config_rede') }}" class="text-decoration-none">
-            <div class="card h-100">
-                <div class="card-body">
-                    <h5 class="card-title text-dark">Rede</h5>
-                    <p class="card-text text-muted">Fixar IP/porta do servidor e testar comunicação com o GALINT Mobile.
-                    </p>
-                    <span class="btn btn-outline-primary">Abrir</span>
-                </div>
-            </div>
-        </a>
-    </div>
-    <div class="col-lg-6">
-        <a href="{{ url_for('telegram_config.index') }}" class="text-decoration-none">
-            <div class="card h-100">
-                <div class="card-body">
-                    <h5 class="card-title text-dark">
-                        <i class="bi bi-telegram text-info me-2"></i>Telegram
-                    </h5>
-                    <p class="card-text text-muted">Configurar notificações automáticas para retiradas de ferramentas e
-                        alertas agendados.</p>
-                    <span class="btn btn-outline-primary">Abrir</span>
-                </div>
-            </div>
-        </a>
+<div class="enterprise-config-shell">
+    <header class="enterprise-config-header">
+        <div>
+            <p class="enterprise-config-kicker">ERP Enterprise</p>
+            <h1 class="enterprise-config-title">Configurações</h1>
+        </div>
+        <div class="enterprise-config-badges" aria-label="Ambiente">
+            <span class="enterprise-badge"><i class="bi bi-shield-check"></i> Gestão</span>
+            <span class="enterprise-badge"><i class="bi bi-pie-chart-fill"></i> Power BI</span>
+            <span class="enterprise-badge"><i class="bi bi-terminal"></i> Técnico</span>
+        </div>
+    </header>
+
+    <div class="enterprise-config-grid">
+        {% for section in enterprise_sections %}
+        <section class="enterprise-command-section" aria-labelledby="enterprise-{{ section['id'] }}-title">
+            <h2 class="enterprise-section-heading" id="enterprise-{{ section['id'] }}-title"><i class="bi {{ section['icon'] }}"></i> {{ section['label'] }}</h2>
+            {% for item in section['items'] %}
+            {{ command_link(item['href'], item['icon'], item['label'], item['code'], item['family'], item['tone']) }}
+            {% endfor %}
+        </section>
+        {% endfor %}
     </div>
 </div>
 {% endblock %}

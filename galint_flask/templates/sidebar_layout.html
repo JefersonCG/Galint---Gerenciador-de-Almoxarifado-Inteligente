@@ -1,10 +1,10 @@
 <div class="sidebar-wrapper">
+    {% set sidebar = build_sidebar_navigation() %}
     <div class="sidebar-brand px-3 py-4 text-uppercase text-light">
         <strong>GALINT</strong>
-        <small class="text-white-50 d-block">Gestão de Almoxarifado</small>
+        <small class="text-white-50 d-block">{{ sidebar.mode_label if sidebar.mode_label else 'Gestão de Almoxarifado' }}</small>
     </div>
     <div class="sidebar-scroll">
-        {% set sidebar = build_sidebar_navigation() %}
         <nav class="sidebar-menu">
             {% for entry in sidebar.entries %}
                 {% if entry.type == 'divider' %}

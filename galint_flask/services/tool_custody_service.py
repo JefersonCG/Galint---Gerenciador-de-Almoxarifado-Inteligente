@@ -511,6 +511,7 @@ class ToolCustodyService:
                 observacao=observacao_norm,
                 local_servico=local_norm,
                 tipo_custodia=tipo_norm,
+                canal_saida="ferramentas",
             )
         )
 

@@ -1,6 +1,7 @@
 {% extends "base.html" %}
-{% block title %}Login{% endblock %}
-{% block body_class %}auth-login-page{% endblock %}
+{% set is_management_login = ((request.args.get('gestao', '') or '')|lower) in ['1', 'true', 'sim', 'yes'] %}
+{% block title %}{% if is_management_login %}Acesso gerencial{% else %}Login{% endif %}{% endblock %}
+{% block body_class %}{% if is_management_login %}auth-management-page{% else %}auth-login-page{% endif %}{% endblock %}
 {% set login_background_path = (login_branding.login_background_path if login_branding else None) or 'logo/logo.png' %}
 {% set login_card_image_path = (login_branding.login_card_image_path if login_branding else None) or (empresa_config.logo_path if empresa_config and empresa_config.logo_path else 'logo/icone-galint.png') %}
 {% set login_card_image_url = url_for('static', filename=login_card_image_path) %}
@@ -18,6 +19,16 @@
         padding: 0;
     }
 
+    body.auth-management-page {
+        min-height: 100vh;
+        overflow: hidden;
+        background:
+            radial-gradient(circle at 50% 36%, rgba(14, 165, 233, 0.16), transparent 32rem),
+            radial-gradient(circle at 72% 68%, rgba(20, 184, 166, 0.11), transparent 26rem),
+            #030712;
+        color: #e5eef8;
+    }
+
     html,
     body {
         height: 100%;
@@ -28,8 +39,124 @@
 
     body.auth-login-page .topbar,
     body.auth-login-page #sidebar-column,
+    body.auth-management-page .topbar,
+    body.auth-management-page #sidebar-column,
+    body.auth-management-page .sidebar-column,
+    body.auth-management-page .page-header,
     body.auth-login-page .page-header {
         display: none !important;
+    }
+
+    body.auth-management-page .app-body,
+    body.auth-management-page .content-panel {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        max-width: none;
+        min-height: 100vh;
+        background: transparent;
+        box-shadow: none;
+        overflow: hidden;
+    }
+
+    body.auth-management-page .management-login-stage {
+        position: relative;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: clamp(1.5rem, 5vw, 4rem);
+    }
+
+    body.auth-management-page .management-login-back {
+        position: fixed;
+        top: clamp(1rem, 4vh, 2rem);
+        right: clamp(1rem, 3vw, 2.2rem);
+        width: 3rem;
+        height: 3rem;
+        border: 0;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #7dd3fc;
+        text-decoration: none;
+        text-shadow: 0 0 18px rgba(125, 211, 252, 0.68);
+        transition: color 0.22s ease, transform 0.22s ease, text-shadow 0.22s ease;
+        z-index: 4;
+    }
+
+    body.auth-management-page .management-login-back i {
+        font-size: 2.05rem;
+    }
+
+    body.auth-management-page .management-login-back:hover,
+    body.auth-management-page .management-login-back:focus-visible {
+        color: #fef08a;
+        outline: none;
+        transform: rotate(-18deg) scale(1.04);
+        text-shadow: 0 0 20px rgba(250, 204, 21, 0.54), 0 0 34px rgba(34, 211, 238, 0.35);
+    }
+
+    body.auth-management-page .management-login-panel {
+        width: min(23rem, calc(100vw - 2rem));
+        display: grid;
+        gap: 0.9rem;
+        justify-items: center;
+    }
+
+    body.auth-management-page .management-login-mark {
+        width: 4.1rem;
+        height: 4.1rem;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #7dd3fc;
+        text-shadow: 0 0 22px rgba(125, 211, 252, 0.76);
+    }
+
+    body.auth-management-page .management-login-mark i {
+        font-size: 3rem;
+    }
+
+    body.auth-management-page .management-login-form {
+        width: 100%;
+        display: grid;
+        gap: 0.72rem;
+    }
+
+    body.auth-management-page .management-login-field {
+        margin: 0;
+    }
+
+    body.auth-management-page .management-login-form .form-control {
+        height: 3.2rem;
+        border: 1px solid rgba(125, 211, 252, 0.18);
+        border-radius: 0.85rem;
+        background: rgba(3, 7, 18, 0.7);
+        color: #e5eef8;
+        box-shadow: 0 18px 44px rgba(2, 6, 23, 0.25);
+        text-align: center;
+        font-size: 1rem;
+        font-weight: 650;
+        letter-spacing: 0;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+    }
+
+    body.auth-management-page .management-login-form .form-control::placeholder {
+        color: rgba(226, 232, 240, 0.56);
+    }
+
+    body.auth-management-page .management-login-form .form-control:focus {
+        border-color: rgba(125, 211, 252, 0.68);
+        background: rgba(15, 23, 42, 0.78);
+        box-shadow: 0 0 0 0.2rem rgba(14, 165, 233, 0.16), 0 18px 44px rgba(2, 6, 23, 0.34);
+        color: #f8fafc;
+    }
+
+    body.auth-management-page .management-login-form.is-auto-submitting .form-control {
+        border-color: rgba(250, 204, 21, 0.54);
+        box-shadow: 0 0 0 0.2rem rgba(250, 204, 21, 0.13), 0 18px 44px rgba(2, 6, 23, 0.34);
     }
 
     body.auth-login-page .app-body {
@@ -358,6 +485,62 @@
         border-radius: 999px;
         background: rgba(226, 232, 240, 0.18);
         pointer-events: none;
+    }
+
+    body.auth-login-page .login-management-entry {
+        position: fixed;
+        top: clamp(1.15rem, 4vh, 2.2rem);
+        right: clamp(1.15rem, 3vw, 2.4rem);
+        z-index: 6;
+        width: 3.15rem;
+        height: 3.15rem;
+        border: 0;
+        border-radius: 50%;
+        background: transparent;
+        color: #7dd3fc;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        text-decoration: none;
+        text-shadow:
+            0 0 16px rgba(125, 211, 252, 0.76),
+            0 12px 32px rgba(2, 6, 23, 0.84);
+        transition: color 0.24s ease, transform 0.24s ease, text-shadow 0.24s ease;
+    }
+
+    body.auth-login-page .login-management-entry::before {
+        content: "";
+        position: absolute;
+        inset: -0.9rem;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(34, 211, 238, 0.18), rgba(34, 211, 238, 0.06) 46%, transparent 70%);
+        filter: blur(1px);
+        opacity: 0.82;
+        transform: scale(0.84);
+        transition: opacity 0.24s ease, transform 0.24s ease;
+        pointer-events: none;
+    }
+
+    body.auth-login-page .login-management-entry i {
+        position: relative;
+        z-index: 1;
+        font-size: 2.15rem;
+    }
+
+    body.auth-login-page .login-management-entry:hover,
+    body.auth-login-page .login-management-entry:focus-visible {
+        color: #fef08a;
+        outline: none;
+        transform: translateY(-2px) rotate(18deg) scale(1.05);
+        text-shadow:
+            0 0 18px rgba(250, 204, 21, 0.58),
+            0 0 32px rgba(34, 211, 238, 0.42);
+    }
+
+    body.auth-login-page .login-management-entry:hover::before,
+    body.auth-login-page .login-management-entry:focus-visible::before {
+        opacity: 1;
+        transform: scale(1.08);
     }
 
     body.auth-login-page .login-module-portal {
@@ -710,10 +893,45 @@
         body.auth-login-page .login-form {
             padding-right: 0;
         }
+
+        body.auth-management-page .management-login-panel {
+            width: min(20.5rem, calc(100vw - 1.5rem));
+        }
+
+        body.auth-management-page .management-login-form .form-control {
+            height: 3rem;
+            border-radius: 0.78rem;
+        }
     }
 </style>
 {% endblock %}
 {% block content %}
+{% if is_management_login %}
+<section class="management-login-stage" aria-label="Acesso gerencial">
+    <a class="management-login-back" href="{{ url_for('auth.login_form') }}" aria-label="Voltar ao portal">
+        <i class="bi bi-gear-fill" aria-hidden="true"></i>
+    </a>
+    <div class="management-login-panel">
+        <div class="management-login-mark" aria-hidden="true">
+            <i class="bi bi-gear-fill"></i>
+        </div>
+        <form class="management-login-form" method="post" action="{{ url_for('auth.login_submit') }}" autocomplete="on">
+            <input type="hidden" name="modulo" value="gestao">
+            <div class="management-login-field">
+                <label class="visually-hidden" for="management-matricula">Matrícula</label>
+                <input class="form-control" id="management-matricula" name="matricula" placeholder="Matrícula" autocomplete="username" required autofocus>
+            </div>
+            <div class="management-login-field">
+                <label class="visually-hidden" for="management-senha">Senha</label>
+                <input class="form-control" id="management-senha" name="senha" type="password" placeholder="Senha" autocomplete="current-password" required>
+            </div>
+        </form>
+    </div>
+</section>
+{% else %}
+<a class="login-management-entry" href="{{ url_for('auth.login_form') }}?gestao=1" aria-label="Acesso gerencial">
+    <i class="bi bi-gear-fill" aria-hidden="true"></i>
+</a>
 <div class="login-module-feedback" id="login-module-feedback" role="status" aria-live="polite"></div>
 <nav class="login-module-portal" id="login-module-portal" aria-label="Módulos do Galint Web">
     <button class="login-module-button" type="button" data-module="almoxarifado" data-module-title="Almoxarifado" aria-label="Módulo Almoxarifado">
@@ -760,8 +978,55 @@
         <span class="login-drag-tip" aria-hidden="true"></span>
     </div>
 </div>
+{% endif %}
 {% endblock %}
 {% block scripts %}
+{% if is_management_login %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const form = document.querySelector('.management-login-form');
+    const matriculaInput = document.getElementById('management-matricula');
+    const senhaInput = document.getElementById('management-senha');
+    let autoLoginTimer = null;
+    let autoLoginSubmitted = false;
+
+    function scheduleAutoLogin() {
+        if (!form || !matriculaInput || !senhaInput || autoLoginSubmitted) {
+            return;
+        }
+        window.clearTimeout(autoLoginTimer);
+        const matricula = (matriculaInput.value || '').trim();
+        const senha = senhaInput.value || '';
+        if (!matricula || !senha) {
+            return;
+        }
+        autoLoginTimer = window.setTimeout(function () {
+            const liveMatricula = (matriculaInput.value || '').trim();
+            const liveSenha = senhaInput.value || '';
+            if (!liveMatricula || !liveSenha || !form.checkValidity()) {
+                return;
+            }
+            autoLoginSubmitted = true;
+            form.classList.add('is-auto-submitting');
+            if (typeof form.requestSubmit === 'function') {
+                form.requestSubmit();
+                return;
+            }
+            form.submit();
+        }, 850);
+    }
+
+    if (matriculaInput) {
+        matriculaInput.addEventListener('input', scheduleAutoLogin);
+        matriculaInput.addEventListener('change', scheduleAutoLogin);
+    }
+    if (senhaInput) {
+        senhaInput.addEventListener('input', scheduleAutoLogin);
+        senhaInput.addEventListener('change', scheduleAutoLogin);
+    }
+});
+</script>
+{% endif %}
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const shell = document.getElementById('login-shell');

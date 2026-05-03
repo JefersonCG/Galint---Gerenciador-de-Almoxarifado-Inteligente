@@ -1158,6 +1158,22 @@ def retirar_multipla_mobile(current_user: Usuario):
                     original_quantity=float(quantidade),
                 )
 
+            is_tool_item = inventory_service._is_tool_item(item)
+            payload_saida = MovimentoPayload(
+                codigo=item.codigo_item,
+                quantidade=float(quantidade_operacao),
+                matricula=retirante_user.matricula,
+                observacao=str(obs_final or "").upper() or None,
+                local_servico=str(local_servico_geral or "").upper() or None,
+                atividade_operacional=operational_context.get("atividade_operacional"),
+                ordem_servico=operational_context.get("ordem_servico"),
+                centro_custo=operational_context.get("centro_custo"),
+                em_embalagens=False if requested_unit in {"cm", "m"} else None,
+                tipo_custodia=tipo_custodia_item,
+                canal_saida="ferramentas" if is_tool_item else "materiais",
+            )
+            inventory_service.validate_exit_payload_policy(item, payload_saida)
+
             # Criar saída
             saida = Saida()
             saida.codigo_item = item.codigo_item
@@ -1180,18 +1196,7 @@ def retirar_multipla_mobile(current_user: Usuario):
                 product_id=item.codigo_item,
                 movement_type="saida",
                 quantity=float(quantidade_operacao),
-                payload=MovimentoPayload(
-                    codigo=item.codigo_item,
-                    quantidade=float(quantidade_operacao),
-                    matricula=retirante_user.matricula,
-                    observacao=str(obs_final or "").upper() or None,
-                    local_servico=str(local_servico_geral or "").upper() or None,
-                    atividade_operacional=operational_context.get("atividade_operacional"),
-                    ordem_servico=operational_context.get("ordem_servico"),
-                    centro_custo=operational_context.get("centro_custo"),
-                    em_embalagens=False if requested_unit in {"cm", "m"} else None,
-                    tipo_custodia=tipo_custodia_item,
-                ),
+                payload=payload_saida,
                 metadata={
                     "reference_type": "api_mobile_retirar_multipla",
                 },
@@ -1805,30 +1810,35 @@ def retirar_mobile(current_user: Usuario):
         else:
             retirante_user = current_user
 
+        is_tool_item = inventory_service._is_tool_item(item)
+        payload_saida = MovimentoPayload(
+            codigo=item.codigo_item,
+            quantidade=float(quantidade_operacao or 0),
+            matricula=retirante_user.matricula,
+            observacao=str(observacao or "").upper() or None,
+            local_servico=str(local_servico or "").upper() or None,
+            atividade_operacional=operational_context.get("atividade_operacional"),
+            ordem_servico=operational_context.get("ordem_servico"),
+            centro_custo=operational_context.get("centro_custo"),
+            tipo_produto=fracao_payload.get("tipo_produto") if fracao_payload else None,
+            fracao_numerador=fracao_payload.get("fracao_numerador") if fracao_payload else None,
+            fracao_denominador=fracao_payload.get("fracao_denominador") if fracao_payload else None,
+            quantidade_total_embalagem=fracao_payload.get("quantidade_total_embalagem") if fracao_payload else None,
+            quantidade_retirada_em_litros=fracao_payload.get("quantidade_retirada_em_litros") if fracao_payload else None,
+            quantidade_retirada_em_quilos=fracao_payload.get("quantidade_retirada_em_quilos") if fracao_payload else None,
+            quantidade_restante=fracao_payload.get("quantidade_restante") if fracao_payload else None,
+            em_embalagens=bool(em_embalagens) if em_embalagens is not None else None,
+            modo_fracionado=bool(fracao_payload),
+            tipo_custodia=tipo_custodia,
+            canal_saida=("ferramentas" if is_tool_item else ("fracionado" if fracao_payload else "materiais")),
+        )
+        inventory_service.validate_exit_payload_policy(item, payload_saida)
+
         ledger_result = inventory_service.mirror_legacy_movement(
             product_id=item.codigo_item,
             movement_type="saida",
             quantity=float(quantidade_operacao or 0),
-            payload=MovimentoPayload(
-                codigo=item.codigo_item,
-                quantidade=float(quantidade_operacao or 0),
-                matricula=retirante_user.matricula,
-                observacao=str(observacao or "").upper() or None,
-                local_servico=str(local_servico or "").upper() or None,
-                atividade_operacional=operational_context.get("atividade_operacional"),
-                ordem_servico=operational_context.get("ordem_servico"),
-                centro_custo=operational_context.get("centro_custo"),
-                tipo_produto=fracao_payload.get("tipo_produto") if fracao_payload else None,
-                fracao_numerador=fracao_payload.get("fracao_numerador") if fracao_payload else None,
-                fracao_denominador=fracao_payload.get("fracao_denominador") if fracao_payload else None,
-                quantidade_total_embalagem=fracao_payload.get("quantidade_total_embalagem") if fracao_payload else None,
-                quantidade_retirada_em_litros=fracao_payload.get("quantidade_retirada_em_litros") if fracao_payload else None,
-                quantidade_retirada_em_quilos=fracao_payload.get("quantidade_retirada_em_quilos") if fracao_payload else None,
-                quantidade_restante=fracao_payload.get("quantidade_restante") if fracao_payload else None,
-                em_embalagens=bool(em_embalagens) if em_embalagens is not None else None,
-                modo_fracionado=bool(fracao_payload),
-                tipo_custodia=tipo_custodia,
-            ),
+            payload=payload_saida,
             metadata={
                 "reference_type": "api_mobile_retirar",
             },
