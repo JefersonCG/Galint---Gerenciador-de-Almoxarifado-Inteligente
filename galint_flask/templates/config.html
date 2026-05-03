@@ -25,6 +25,76 @@
         gap: 1.15rem;
     }
 
+    .enterprise-portal-hero {
+        position: relative;
+        min-height: clamp(15rem, 31vw, 21rem);
+        display: flex;
+        align-items: flex-end;
+        padding: clamp(1.2rem, 2.8vw, 2rem);
+        overflow: hidden;
+        border: 1px solid rgba(56, 189, 248, 0.18);
+        border-radius: 1.5rem;
+        background:
+            linear-gradient(90deg, rgba(2, 6, 23, 0.92) 0%, rgba(2, 6, 23, 0.76) 38%, rgba(2, 6, 23, 0.18) 100%),
+            linear-gradient(180deg, rgba(2, 6, 23, 0.02) 26%, rgba(2, 6, 23, 0.82) 100%),
+            url("{{ url_for('static', filename='logo/PORTAL.png', v='20260503-login') }}") center center / cover no-repeat;
+        box-shadow: 0 24px 56px rgba(15, 23, 42, 0.24);
+        isolation: isolate;
+    }
+
+    .enterprise-portal-hero::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+            radial-gradient(circle at 22% 18%, rgba(56, 189, 248, 0.18), transparent 16rem),
+            linear-gradient(180deg, rgba(15, 23, 42, 0) 42%, rgba(15, 23, 42, 0.18) 100%);
+        pointer-events: none;
+    }
+
+    .enterprise-portal-copy {
+        position: relative;
+        z-index: 1;
+        max-width: min(39rem, 100%);
+        display: grid;
+        gap: 0.8rem;
+    }
+
+    .enterprise-portal-kicker {
+        width: fit-content;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin: 0;
+        padding: 0.42rem 0.8rem;
+        border: 1px solid rgba(125, 211, 252, 0.22);
+        border-radius: 999px;
+        background: rgba(15, 23, 42, 0.44);
+        color: #bae6fd;
+        font-size: 0.76rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .enterprise-portal-title {
+        margin: 0;
+        font-size: clamp(2rem, 4vw, 3.1rem);
+        line-height: 0.98;
+        font-weight: 900;
+        letter-spacing: -0.04em;
+        color: #f8fafc;
+        text-shadow: 0 10px 24px rgba(2, 6, 23, 0.42);
+    }
+
+    .enterprise-portal-subtitle {
+        margin: 0;
+        max-width: 32rem;
+        color: rgba(226, 232, 240, 0.94);
+        font-size: 0.98rem;
+        line-height: 1.55;
+    }
+
     .enterprise-config-header {
         display: flex;
         align-items: end;
@@ -50,6 +120,15 @@
         font-weight: 800;
         letter-spacing: 0.08em;
         text-transform: uppercase;
+    }
+
+    .enterprise-config-summary {
+        margin: 0;
+        max-width: 38rem;
+        color: #334155;
+        font-size: 0.95rem;
+        line-height: 1.55;
+        font-weight: 600;
     }
 
     .enterprise-config-badges {
@@ -205,6 +284,11 @@
         .enterprise-config-badges {
             justify-content: flex-start;
         }
+
+        .enterprise-portal-hero {
+            min-height: 13.5rem;
+            background-position: 64% center;
+        }
     }
 
     @media (max-width: 575.98px) {
@@ -214,6 +298,15 @@
 
         .enterprise-command-code {
             display: none;
+        }
+
+        .enterprise-portal-title {
+            font-size: 1.7rem;
+        }
+
+        .enterprise-portal-subtitle,
+        .enterprise-config-summary {
+            font-size: 0.9rem;
         }
     }
 </style>
@@ -231,10 +324,18 @@
 {%- endmacro %}
 {% block content %}
 <div class="enterprise-config-shell">
+    <section class="enterprise-portal-hero" aria-label="Portal Enterprise com arte principal de gestão">
+        <div class="enterprise-portal-copy">
+            <p class="enterprise-portal-kicker"><i class="bi bi-gear-wide-connected"></i> Portal Enterprise</p>
+            <h1 class="enterprise-portal-title">Configurações de Alto Nível</h1>
+            <p class="enterprise-portal-subtitle">Analytics, infraestrutura, integrações e governança reunidos em um hub visual único para a gestão do ERP.</p>
+        </div>
+    </section>
+
     <header class="enterprise-config-header">
         <div>
             <p class="enterprise-config-kicker">ERP Enterprise</p>
-            <h1 class="enterprise-config-title">Configurações</h1>
+            <p class="enterprise-config-summary">Selecione um domínio administrativo para abrir os comandos técnicos e gerenciais do sistema a partir da engrenagem.</p>
         </div>
         <div class="enterprise-config-badges" aria-label="Ambiente">
             <span class="enterprise-badge"><i class="bi bi-shield-check"></i> Gestão</span>

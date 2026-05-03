@@ -5,6 +5,10 @@
 {% set login_background_path = (login_branding.login_background_path if login_branding else None) or 'logo/logo.png' %}
 {% set login_card_image_path = (login_branding.login_card_image_path if login_branding else None) or (empresa_config.logo_path if empresa_config and empresa_config.logo_path else 'logo/icone-galint.png') %}
 {% set login_card_image_url = url_for('static', filename=login_card_image_path) %}
+{% set login_portal_icon_url = url_for('static', filename='logo/icon/iconegalint.png') %}
+{% set login_module_stock_icon_url = url_for('static', filename='logo/icon/estoque.png', v='20260503-modules') %}
+{% set login_module_supplier_icon_url = url_for('static', filename='logo/icon/fornecedores.png', v='20260503-modules') %}
+{% set login_module_user_icon_url = url_for('static', filename='logo/icon/usuarios.png', v='20260503-modules') %}
 <!-- Cache bust: 2026-02-03-10:25 -->
 {% block extra_css %}
 <style>
@@ -98,25 +102,33 @@
     }
 
     body.auth-management-page .management-login-panel {
-        width: min(23rem, calc(100vw - 2rem));
+        width: min(22rem, calc(100vw - 1rem));
         display: grid;
-        gap: 0.9rem;
+        gap: 0.78rem;
         justify-items: center;
     }
 
     body.auth-management-page .management-login-mark {
-        width: 4.1rem;
-        height: 4.1rem;
-        border-radius: 50%;
+        width: 4.35rem;
+        height: 4.35rem;
+        padding: 0.72rem;
+        border-radius: 1.15rem;
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        color: #7dd3fc;
-        text-shadow: 0 0 22px rgba(125, 211, 252, 0.76);
+        background: linear-gradient(180deg, rgba(15, 23, 42, 0.72), rgba(15, 23, 42, 0.42));
+        border: 1px solid rgba(125, 211, 252, 0.16);
+        box-shadow:
+            0 18px 40px rgba(2, 6, 23, 0.32),
+            inset 0 1px 0 rgba(255, 255, 255, 0.08);
     }
 
-    body.auth-management-page .management-login-mark i {
-        font-size: 3rem;
+    body.auth-management-page .management-login-mark img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        filter: drop-shadow(0 10px 24px rgba(34, 211, 238, 0.18));
     }
 
     body.auth-management-page .management-login-form {
@@ -164,7 +176,7 @@
         display: flex;
         justify-content: center;
         align-items: center;
-        padding: 0.85rem;
+        padding: 0.35rem;
         background:
             radial-gradient(circle at 18% 16%, rgba(56, 189, 248, 0.08), transparent 28%),
             radial-gradient(circle at 82% 12%, rgba(14, 165, 233, 0.1), transparent 22%),
@@ -175,7 +187,7 @@
 
     body.auth-login-page .content-panel {
         width: 100%;
-        min-height: calc(100vh - 1.7rem);
+        min-height: 100vh;
         padding: 0;
         background: transparent;
         border: none;
@@ -197,26 +209,26 @@
     body.auth-login-page .content-panel > .alert {
         width: min(100%, 27rem);
         margin: 0;
-        border-radius: 1.1rem;
-        box-shadow: 0 20px 44px rgba(2, 6, 23, 0.32);
+        border-radius: 0.95rem;
+        box-shadow: 0 16px 36px rgba(2, 6, 23, 0.24);
     }
 
     body.auth-login-page .login-shell {
         position: fixed;
-        top: 0.85rem;
-        right: 0.85rem;
+        top: clamp(0.45rem, 1.8vw, 0.72rem);
+        right: clamp(0.45rem, 1.8vw, 0.72rem);
         z-index: 5;
-        width: min(23.5rem, calc(100vw - 1.7rem));
-        border-radius: 1.35rem;
-        border: 1px solid rgba(226, 232, 240, 0.12);
+        width: min(22.75rem, calc(100vw - 1rem));
+        border-radius: 1.05rem;
+        border: 1px solid rgba(226, 232, 240, 0.08);
         background:
-            linear-gradient(145deg, rgba(7, 11, 22, 0.11), rgba(7, 11, 22, 0.04)),
-            linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.015));
+            linear-gradient(150deg, rgba(7, 11, 22, 0.18), rgba(7, 11, 22, 0.08)),
+            linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.012));
         box-shadow:
-            0 30px 80px rgba(2, 6, 23, 0.42),
-            inset 0 1px 0 rgba(255, 255, 255, 0.12);
-        backdrop-filter: blur(28px) saturate(1.22);
-        -webkit-backdrop-filter: blur(28px) saturate(1.22);
+            0 20px 56px rgba(2, 6, 23, 0.34),
+            inset 0 1px 0 rgba(255, 255, 255, 0.08);
+        backdrop-filter: blur(18px) saturate(1.08);
+        -webkit-backdrop-filter: blur(18px) saturate(1.08);
         overflow: hidden;
         cursor: grab;
         transition:
@@ -239,13 +251,13 @@
     body.auth-login-page .login-shell.is-auth-active {
         border-color: rgba(34, 211, 238, 0.34);
         background:
-            radial-gradient(circle at 18% 10%, rgba(34, 211, 238, 0.16), transparent 34%),
-            radial-gradient(circle at 78% 84%, rgba(74, 222, 128, 0.12), transparent 36%),
-            linear-gradient(145deg, rgba(3, 10, 26, 0.64), rgba(4, 11, 24, 0.34));
+            radial-gradient(circle at 18% 10%, rgba(34, 211, 238, 0.12), transparent 34%),
+            radial-gradient(circle at 78% 84%, rgba(74, 222, 128, 0.08), transparent 36%),
+            linear-gradient(145deg, rgba(3, 10, 26, 0.54), rgba(4, 11, 24, 0.28));
         box-shadow:
-            0 32px 86px rgba(2, 6, 23, 0.5),
-            0 0 38px rgba(34, 211, 238, 0.12),
-            inset 0 1px 0 rgba(255, 255, 255, 0.12);
+            0 24px 64px rgba(2, 6, 23, 0.4),
+            0 0 24px rgba(34, 211, 238, 0.08),
+            inset 0 1px 0 rgba(255, 255, 255, 0.1);
     }
 
     body.auth-login-page .login-shell::before {
@@ -256,7 +268,7 @@
             radial-gradient(circle at 14% 18%, rgba(125, 211, 252, 0.24), transparent 26%),
             radial-gradient(circle at 84% 16%, rgba(59, 130, 246, 0.18), transparent 24%);
         pointer-events: none;
-        opacity: 0.92;
+        opacity: 0.54;
     }
 
     body.auth-login-page .login-shell.is-dragging {
@@ -266,7 +278,7 @@
     }
 
     body.auth-login-page .login-shell.is-collapsed {
-        width: 4.95rem;
+        width: 4.7rem;
         border-radius: 999px;
         opacity: 0.96;
     }
@@ -285,10 +297,14 @@
         padding-right: 0;
     }
 
+    body.auth-login-page .login-shell.is-collapsed .login-form-intro {
+        display: none;
+    }
+
     body.auth-login-page .login-shell.is-collapsed .login-logo-frame {
-        width: 4.1rem;
-        height: 4.1rem;
-        border-radius: 50%;
+        width: 3.9rem;
+        height: 3.9rem;
+        border-radius: 1rem;
     }
 
     body.auth-login-page .login-shell.is-collapsed .login-shell-controls {
@@ -307,30 +323,32 @@
         position: relative;
         z-index: 1;
         display: grid;
-        grid-template-columns: 4.6rem minmax(0, 1fr);
+        grid-template-columns: 4.45rem minmax(0, 1fr);
         align-items: start;
-        gap: 0.78rem;
-        padding: 0.82rem;
+        gap: 0.68rem;
+        padding: 0.68rem;
     }
 
     body.auth-login-page .login-brand {
         display: flex;
-        align-items: center;
-        justify-content: center;
+        flex-direction: column;
+        align-items: flex-start;
+        justify-content: flex-start;
+        gap: 0;
         min-height: 100%;
-        padding-right: 0.15rem;
+        padding-right: 0.1rem;
     }
 
     body.auth-login-page .login-logo-frame {
-        width: 4.3rem;
-        height: 4.3rem;
-        border-radius: 50%;
-        padding: 0.45rem;
-        background: linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.025));
-        border: 1px solid rgba(255, 255, 255, 0.12);
+        width: 4rem;
+        height: 4rem;
+        border-radius: 1.05rem;
+        padding: 0.38rem;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
+        border: 1px solid rgba(255, 255, 255, 0.08);
         box-shadow:
-            0 18px 44px rgba(2, 6, 23, 0.24),
-            inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            0 14px 32px rgba(2, 6, 23, 0.18),
+            inset 0 1px 0 rgba(255, 255, 255, 0.06);
         transition: padding 0.24s ease, box-shadow 0.24s ease, border-color 0.24s ease;
     }
 
@@ -360,10 +378,31 @@
 
     body.auth-login-page .login-form {
         display: grid;
-        gap: 0.58rem;
-        padding-right: 1.45rem;
+        gap: 0.5rem;
+        padding-right: 0.25rem;
         user-select: auto;
         transition: opacity 0.22s ease, filter 0.22s ease;
+    }
+
+    body.auth-login-page .login-form-intro {
+        display: grid;
+        gap: 0.08rem;
+        margin-bottom: 0.18rem;
+    }
+
+    body.auth-login-page .login-form-kicker {
+        color: rgba(125, 211, 252, 0.84);
+        font-size: 0.62rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    body.auth-login-page .login-form-intro strong {
+        color: #f8fafc;
+        font-size: 0.96rem;
+        font-weight: 800;
+        line-height: 1.1;
     }
 
     body.auth-login-page .login-shell.is-auto-submitting .login-form {
@@ -648,8 +687,8 @@
     body.auth-login-page .login-module-icon {
         position: relative;
         z-index: 1;
-        width: 3.35rem;
-        height: 3.35rem;
+        width: 4.1rem;
+        height: 4.1rem;
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -658,7 +697,20 @@
         text-shadow:
             0 0 16px rgba(34, 211, 238, 0.72),
             0 12px 32px rgba(2, 6, 23, 0.72);
-        transition: color 0.24s ease, text-shadow 0.24s ease, transform 0.24s ease, box-shadow 0.24s ease;
+        transition: color 0.24s ease, text-shadow 0.24s ease, transform 0.24s ease;
+    }
+
+    body.auth-login-page .login-module-icon img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        filter: drop-shadow(0 10px 24px rgba(2, 6, 23, 0.34));
+        transition: transform 0.24s ease, filter 0.24s ease;
+    }
+
+    body.auth-login-page .login-module-button[data-module="mensageria"] .login-module-icon {
+        width: 4.45rem;
     }
 
     body.auth-login-page .login-module-button[data-module="almoxarifado"] .login-module-icon {
@@ -709,12 +761,15 @@
 
     body.auth-login-page .login-module-button:hover .login-module-icon,
     body.auth-login-page .login-module-button:focus-visible .login-module-icon {
-        color: #fef08a;
-        text-shadow:
-            0 0 16px rgba(250, 204, 21, 0.52),
-            0 0 32px rgba(34, 211, 238, 0.46);
         transform: translateY(-3px) scale(1.08);
-        box-shadow: 0 0 0 0.18rem rgba(125, 211, 252, 0.12);
+    }
+
+    body.auth-login-page .login-module-button:hover .login-module-icon img,
+    body.auth-login-page .login-module-button:focus-visible .login-module-icon img {
+        filter:
+            drop-shadow(0 0 14px rgba(34, 211, 238, 0.22))
+            drop-shadow(0 10px 24px rgba(2, 6, 23, 0.34));
+        transform: scale(1.02);
     }
 
     body.auth-login-page .login-module-button:hover .login-module-label,
@@ -785,7 +840,7 @@
 
     @media (max-width: 767.98px) {
         body.auth-login-page .app-body {
-            padding: 0.85rem;
+            padding: 0.4rem;
         }
 
         body.auth-login-page .content-panel {
@@ -809,9 +864,13 @@
         }
 
         body.auth-login-page .login-module-icon {
-            width: 2.9rem;
-            height: 2.9rem;
+            width: 3.45rem;
+            height: 3.45rem;
             font-size: 2.05rem;
+        }
+
+        body.auth-login-page .login-module-button[data-module="mensageria"] .login-module-icon {
+            width: 3.8rem;
         }
 
         body.auth-login-page .login-module-label {
@@ -877,13 +936,14 @@
         }
 
         body.auth-login-page .login-shell {
-            width: calc(100vw - 1.7rem);
-            right: 0.85rem;
+            width: calc(100vw - 0.9rem);
+            right: 0.45rem;
+            top: 0.45rem;
         }
 
         body.auth-login-page .login-shell-inner {
             grid-template-columns: 1fr;
-            gap: 0.8rem;
+            gap: 0.62rem;
         }
 
         body.auth-login-page .login-brand {
@@ -913,7 +973,7 @@
     </a>
     <div class="management-login-panel">
         <div class="management-login-mark" aria-hidden="true">
-            <i class="bi bi-gear-fill"></i>
+            <img src="{{ login_portal_icon_url }}" alt="" loading="lazy">
         </div>
         <form class="management-login-form" method="post" action="{{ url_for('auth.login_submit') }}" autocomplete="on">
             <input type="hidden" name="modulo" value="gestao">
@@ -929,21 +989,21 @@
     </div>
 </section>
 {% else %}
-<a class="login-management-entry" href="{{ url_for('auth.login_form') }}?gestao=1" aria-label="Acesso gerencial">
+<a class="login-management-entry" href="{{ url_for('auth.login_form') }}?gestao=1" data-module="gestao" data-module-title="Gestão" aria-label="Acesso gerencial">
     <i class="bi bi-gear-fill" aria-hidden="true"></i>
 </a>
 <div class="login-module-feedback" id="login-module-feedback" role="status" aria-live="polite"></div>
 <nav class="login-module-portal" id="login-module-portal" aria-label="Módulos do Galint Web">
     <button class="login-module-button" type="button" data-module="almoxarifado" data-module-title="Almoxarifado" aria-label="Módulo Almoxarifado">
-        <span class="login-module-icon" aria-hidden="true"><i class="bi bi-box-seam"></i></span>
+        <span class="login-module-icon" aria-hidden="true"><img src="{{ login_module_stock_icon_url }}" alt="" loading="lazy"></span>
         <span class="login-module-label">Almoxarifado</span>
     </button>
     <button class="login-module-button" type="button" data-module="mensageria" data-module-title="Mensageria" aria-label="Módulo Mensageria">
-        <span class="login-module-icon" aria-hidden="true"><i class="bi bi-truck"></i></span>
+        <span class="login-module-icon" aria-hidden="true"><img src="{{ login_module_supplier_icon_url }}" alt="" loading="lazy"></span>
         <span class="login-module-label">Mensageria</span>
     </button>
     <button class="login-module-button" type="button" data-module="administracao" data-module-title="Administração" aria-label="Módulo Administração">
-        <span class="login-module-icon" aria-hidden="true"><i class="bi bi-people"></i></span>
+        <span class="login-module-icon" aria-hidden="true"><img src="{{ login_module_user_icon_url }}" alt="" loading="lazy"></span>
         <span class="login-module-label">Administração</span>
     </button>
 </nav>
@@ -966,6 +1026,10 @@
         </div>
         <form method="post" class="login-form">
             <input type="hidden" name="modulo" id="login-module-input" value="almoxarifado">
+            <div class="login-form-intro">
+                <span class="login-form-kicker">Portal de acesso</span>
+                <strong>{{ empresa_config.nome_fantasia if empresa_config and empresa_config.nome_fantasia else (empresa_config.nome_empresa if empresa_config and empresa_config.nome_empresa else 'Galint Web') }}</strong>
+            </div>
             <div class="login-field">
                 <label class="visually-hidden" for="matricula">Matrícula</label>
                 <input class="form-control" id="matricula" name="matricula" placeholder="Matrícula" autocomplete="username" required>
@@ -1032,6 +1096,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const shell = document.getElementById('login-shell');
     const toggleButton = document.getElementById('login-shell-toggle');
     const portalButtons = Array.from(document.querySelectorAll('.login-module-button'));
+    const managementEntry = document.querySelector('.login-management-entry');
     const portalFeedback = document.getElementById('login-module-feedback');
     const moduleInput = document.getElementById('login-module-input');
     const loginForm = shell ? shell.querySelector('.login-form') : null;
@@ -1061,6 +1126,10 @@ document.addEventListener('DOMContentLoaded', function () {
     let portalFeedbackTimer = null;
     let autoLoginTimer = null;
     let autoLoginSubmitted = false;
+    const defaultShellPosition = {
+        right: 'clamp(1rem, 6vw, 5rem)',
+        top: 'clamp(1rem, 8vh, 4.8rem)',
+    };
 
     function applyDefaultLogo() {
         if (!logoImage || !logoFrame) {
@@ -1203,15 +1272,18 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function persistState() {
-        const rect = shell.getBoundingClientRect();
         const payload = {
             collapsed: shell.classList.contains('is-collapsed'),
-            left: Math.round(rect.left),
-            top: Math.round(rect.top),
-            expandedLeft: expandedPosition ? Math.round(expandedPosition.left) : null,
-            expandedTop: expandedPosition ? Math.round(expandedPosition.top) : null,
         };
         localStorage.setItem(storageKey, JSON.stringify(payload));
+    }
+
+    function resetShellToDefaultPosition() {
+        expandedPosition = null;
+        shell.style.left = 'auto';
+        shell.style.right = defaultShellPosition.right;
+        shell.style.top = defaultShellPosition.top;
+        shell.style.bottom = 'auto';
     }
 
     function ensureAbsolutePosition() {
@@ -1286,16 +1358,20 @@ document.addEventListener('DOMContentLoaded', function () {
             toggleButton.setAttribute('aria-expanded', 'true');
             toggleButton.setAttribute('aria-label', 'Recolher painel de login');
         }
-        expandedPosition = null;
-        shell.style.left = 'auto';
-        shell.style.right = 'clamp(1rem, 6vw, 5rem)';
-        shell.style.top = 'clamp(1rem, 8vh, 4.8rem)';
-        shell.style.bottom = 'auto';
+        resetShellToDefaultPosition();
+        persistState();
         window.setTimeout(function () {
             if (matriculaInput) {
                 matriculaInput.focus();
             }
         }, 180);
+    }
+
+    function moduleAccessMessage(moduleName, moduleTitle) {
+        if (moduleName === 'gestao') {
+            return 'Acesso gerencial';
+        }
+        return 'Acesso ao ' + (moduleTitle || moduleName || 'módulo');
     }
 
     portalButtons.forEach(function (button) {
@@ -1305,17 +1381,21 @@ document.addEventListener('DOMContentLoaded', function () {
             button.classList.remove('is-waiting');
             void button.offsetWidth;
             button.classList.add('is-waiting');
-            if (moduleName === 'almoxarifado') {
-                revealLoginShell(moduleName);
-                showPortalFeedback('Acesso ao Almoxarifado');
-                return;
-            }
-            showPortalFeedback(moduleTitle + ' em preparação');
+            revealLoginShell(moduleName || 'almoxarifado');
+            showPortalFeedback(moduleAccessMessage(moduleName, moduleTitle));
         });
         button.addEventListener('animationend', function () {
             button.classList.remove('is-waiting');
         });
     });
+
+    if (managementEntry) {
+        managementEntry.addEventListener('click', function (event) {
+            event.preventDefault();
+            revealLoginShell(managementEntry.dataset.module || 'gestao');
+            showPortalFeedback(moduleAccessMessage(managementEntry.dataset.module || 'gestao', managementEntry.dataset.moduleTitle || 'Gestão'));
+        });
+    }
 
     try {
         const saved = JSON.parse(localStorage.getItem(storageKey) || '{}');
@@ -1330,14 +1410,6 @@ document.addEventListener('DOMContentLoaded', function () {
                     'aria-label',
                     saved.collapsed ? 'Expandir painel de login' : 'Recolher painel de login'
                 );
-            }
-            if (Number.isFinite(saved.expandedLeft) && Number.isFinite(saved.expandedTop)) {
-                expandedPosition = { left: saved.expandedLeft, top: saved.expandedTop };
-            }
-            if (Number.isFinite(saved.left) && Number.isFinite(saved.top)) {
-                requestAnimationFrame(function () {
-                    applyPosition(saved.left, saved.top);
-                });
             }
         }
     } catch (error) {
