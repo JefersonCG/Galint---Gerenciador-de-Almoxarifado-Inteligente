@@ -378,6 +378,13 @@
         font-size: 1.15rem;
     }
 
+    .enterprise-category-icon img {
+        width: 1.45rem;
+        height: 1.45rem;
+        object-fit: contain;
+        display: block;
+    }
+
     .enterprise-category-label {
         min-width: 0;
         display: grid;
@@ -679,7 +686,13 @@
                 {% for card in enterprise_management_overview.category_cards %}
                 <article class="enterprise-category-card" style="--enterprise-accent: {{ card.color }}; --enterprise-accent-soft: {{ card.soft }};">
                     <div class="enterprise-category-top">
-                        <span class="enterprise-category-icon">{{ card.icon }}</span>
+                        <span class="enterprise-category-icon">
+                            {% if card.icon_url %}
+                            <img src="{{ card.icon_url }}" alt="" loading="lazy" decoding="async" aria-hidden="true">
+                            {% else %}
+                            {{ card.icon }}
+                            {% endif %}
+                        </span>
                         <div class="enterprise-category-label">
                             <strong>{{ card.label }}</strong>
                             <span>{{ card.total_itens }} item{% if card.total_itens != 1 %}s{% endif %}</span>

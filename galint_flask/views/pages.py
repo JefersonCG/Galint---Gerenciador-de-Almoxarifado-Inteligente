@@ -66,6 +66,28 @@ _ABOUT_CATEGORY_REFERENCE_GROUPS = (
     },
 )
 
+_ENTERPRISE_CATEGORY_ICON_FILE_BY_KEY = {
+    "material-eletrico": "logo/icon/eletricos.png",
+    "material-hidraulico": "logo/icon/hidraulico.png",
+    "material-piscina": "logo/icon/piscina.png",
+    "mat-pintura-drywall": "logo/icon/pintura.png",
+    "materiais-limpeza": "logo/icon/limpeza.png",
+    "material-construcao": "logo/icon/materiais.png",
+    "ferramentas": "logo/icon/ferramentas.png",
+    "equipamento": "logo/icon/equipamentos.png",
+    "equipamento-ti": "logo/icon/equipamentos.png",
+    "material-ep": "logo/icon/epi.png",
+    "material-uso-geral": "logo/icon/materiais.png",
+    "sem-categoria": "logo/icon/estoque.png",
+}
+
+
+def _resolve_enterprise_category_icon_url(category_key: object) -> str | None:
+    asset_path = _ENTERPRISE_CATEGORY_ICON_FILE_BY_KEY.get(str(category_key or "").strip())
+    if not asset_path:
+        return None
+    return url_for("static", filename=asset_path, v="20260504-enterprise-categories")
+
 _ABOUT_CATEGORY_REFERENCE_FLOW = (
     {
         "step": "01",
@@ -797,11 +819,12 @@ def _build_enterprise_management_overview() -> dict[str, object]:
     for row in snapshot.get("category_summary") or []:
         total_itens = int(row.get("total_itens") or 0)
         saldo_total = float(row.get("saldo_total") or 0.0)
+        category_key = str(row.get("category_key") or "")
         total_category_items += total_itens
         total_category_balance += saldo_total
 
         visual = dict(
-            visual_by_key.get(str(row.get("category_key") or ""))
+            visual_by_key.get(category_key)
             or category_catalog_service.get_visual(row.get("categoria"))
         )
         unit_breakdown = []
@@ -817,6 +840,7 @@ def _build_enterprise_management_overview() -> dict[str, object]:
         category_cards.append(
             {
                 "label": str(row.get("categoria") or visual.get("label") or "Sem categoria"),
+                "icon_url": _resolve_enterprise_category_icon_url(category_key or visual.get("key")),
                 "icon": str(visual.get("icon") or "📦"),
                 "color": str(visual.get("color") or "#22d3ee"),
                 "soft": str(visual.get("soft") or "rgba(34, 211, 238, 0.22)"),

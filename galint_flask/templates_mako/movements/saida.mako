@@ -2227,6 +2227,123 @@ ${parent.scripts()}
         }) || null;
     }
 
+    function getQueuedItemDisplayQuantity(item) {
+        const quantidadeExibicao = Number(item?.quantidade_exibicao);
+        if (Number.isFinite(quantidadeExibicao) && quantidadeExibicao > 0) {
+            return quantidadeExibicao;
+        }
+
+        const quantidadeInput = Number(item?.quantidade_input);
+        if (Number.isFinite(quantidadeInput) && quantidadeInput > 0) {
+            return quantidadeInput;
+        }
+
+        const quantidade = Number(item?.quantidade);
+        return Number.isFinite(quantidade) && quantidade > 0 ? quantidade : 0;
+    }
+
+    function extractObservationUnitCode(item) {
+        const observacao = String(item?.observacao_unit || '').trim();
+        const match = observacao.match(/(?:^|;)UNIDADE=([^;]+)/i);
+        if (match && match[1]) {
+            return String(match[1]).trim().toUpperCase();
+        }
+
+        return buildObservationUnitCode(item, item?.unidade_label);
+    }
+
+    function buildQueuedItemMergeKey(item) {
+        const codigo = String(item?.codigo || '').trim();
+        if (!codigo) {
+            return '';
+        }
+
+        if (item?.em_embalagens === true) {
+            return codigo + '|PACK:' + normalizePackageText(item?.tipo_embalagem || item?.nome_embalagem || item?.unidade_label);
+        }
+
+        return codigo + '|UNIT:' + extractObservationUnitCode(item);
+    }
+
+    function resolveMergedUnitLabel(item, quantidadeExibicao) {
+        if (item?.em_embalagens === true) {
+            const nomes = nomesEmbalagem[item.tipo_embalagem] || { singular: 'embalagem', plural: 'embalagens' };
+            return quantidadeExibicao === 1 ? nomes.singular : nomes.plural;
+        }
+
+        const unitCode = extractObservationUnitCode(item);
+        if (unitCode === 'CM') {
+            return 'cm';
+        }
+        if (unitCode === 'L') {
+            return quantidadeExibicao === 1 ? 'litro' : 'litros';
+        }
+        if (unitCode === 'KG') {
+            return 'kg';
+        }
+        if (unitCode === 'METROS') {
+            return quantidadeExibicao === 1 ? 'metro' : 'metros';
+        }
+        return quantidadeExibicao === 1 ? 'unidade' : 'unidades';
+    }
+
+    function buildMergedObservationUnit(item, quantidadeExibicao) {
+        if (item?.em_embalagens === true) {
+            return null;
+        }
+        return 'UNIDADE=' + extractObservationUnitCode(item) + ';QTD_ORIGINAL=' + formatarNumeroSimples(quantidadeExibicao);
+    }
+
+    function findMatchingQueuedItem(group, item) {
+        if (!group || !Array.isArray(group.itens) || !item) {
+            return null;
+        }
+
+        const mergeKey = buildQueuedItemMergeKey(item);
+        if (!mergeKey) {
+            return null;
+        }
+
+        return group.itens.find((queuedItem) => buildQueuedItemMergeKey(queuedItem) === mergeKey) || null;
+    }
+
+    function mergeQueuedItems(targetItem, incomingItem) {
+        const mergedBaseQuantity = (Number(targetItem?.quantidade) || 0) + (Number(incomingItem?.quantidade) || 0);
+        const mergedDisplayQuantity = getQueuedItemDisplayQuantity(targetItem) + getQueuedItemDisplayQuantity(incomingItem);
+
+        targetItem.quantidade = mergedBaseQuantity;
+        targetItem.quantidade_input = mergedDisplayQuantity;
+        targetItem.quantidade_exibicao = mergedDisplayQuantity;
+        targetItem.unidade_label = resolveMergedUnitLabel(targetItem, mergedDisplayQuantity);
+        targetItem.observacao_unit = buildMergedObservationUnit(targetItem, mergedDisplayQuantity);
+        targetItem.usuario = String(incomingItem?.usuario || targetItem?.usuario || '').trim();
+        targetItem.local = String(incomingItem?.local || targetItem?.local || '').trim();
+
+        if (!targetItem.foto_url && incomingItem?.foto_url) {
+            targetItem.foto_url = incomingItem.foto_url;
+        }
+        if (!targetItem.categoria && incomingItem?.categoria) {
+            targetItem.categoria = incomingItem.categoria;
+        }
+        if (!targetItem.marca && incomingItem?.marca) {
+            targetItem.marca = incomingItem.marca;
+        }
+        if (incomingItem?.saldo !== undefined) {
+            targetItem.saldo = incomingItem.saldo;
+        }
+        if (incomingItem?.saldo_disponivel !== undefined) {
+            targetItem.saldo_disponivel = incomingItem.saldo_disponivel;
+        }
+        if (incomingItem?.saldo_display) {
+            targetItem.saldo_display = incomingItem.saldo_display;
+        }
+        if (incomingItem?.error) {
+            targetItem.error = incomingItem.error;
+        }
+
+        return targetItem;
+    }
+
     function adicionarItemFinal(item) {
         const usuario = String(item.usuario || '').trim();
         const local = String(item.local || '').trim();
@@ -2241,9 +2358,17 @@ ${parent.scripts()}
             groups.push(group);
         }
         currentGroupId = group.id;
-        group.itens.push(item);
-        items.push(item);
-        currentPreviewItem = { ...item };
+
+        const matchingItem = findMatchingQueuedItem(group, item);
+        if (matchingItem) {
+            mergeQueuedItems(matchingItem, item);
+            currentPreviewItem = { ...matchingItem };
+        } else {
+            group.itens.push(item);
+            items.push(item);
+            currentPreviewItem = { ...item };
+        }
+
         renderCurrentPreview(currentPreviewItem, 'queued');
         renderItems();
     }
