@@ -60,9 +60,18 @@ def buscar_item():
         item_code = str(item_payload.get("codigo") or "").strip()
         item_model = item_models.get(item_code)
         unit_context = _build_saida_unit_context(item_payload, item_model)
+        movement_balance_display = _build_saida_balance_display(
+            item_payload,
+            unit_context,
+            balance_key="saldo",
+            fallback_key="saldo_display",
+        )
         enriched_results.append({
             **item_payload,
             **unit_context,
+            "unidade_cadastro": item_payload.get("unidade"),
+            "unidade": unit_context.get("devolucao_unidade_label") or item_payload.get("unidade"),
+            "saldo_display": movement_balance_display,
         })
     return jsonify({"items": enriched_results, "itens": enriched_results})
 
@@ -264,6 +273,8 @@ def _infer_unidade(unidade: str | None) -> str:
     if not normalized:
         return ""
     # Evita interpretar termos como "lata 18l" como litro
+    if re.search(r"\b(par|pares)\b", normalized):
+        return "par"
     if re.search(r"\b(litro|litros|lt|lts)\b", normalized):
         return "litro"
     if re.search(r"\b(kg|quilo|quilos)\b", normalized):
@@ -279,6 +290,8 @@ def _normalize_saida_unit_code(value: str | None) -> str:
     normalized = _normalize_text(value)
     if not normalized:
         return ""
+    if re.search(r"\b(par|pares)\b", normalized):
+        return "par"
     if re.search(r"\b(cm|centimetro|centimetros)\b", normalized):
         return "cm"
     if re.search(r"\b(m|mt|mts|metro|metros)\b", normalized):
@@ -453,6 +466,69 @@ def _build_saida_unit_context(item: dict[str, Any], item_model: Item | None) -> 
     }
 
 
+def _format_saida_quantity_display(
+    quantity: float | int | None,
+    *,
+    unit_code: str,
+    unit_display: str | None,
+    unit_label: str | None,
+    allow_decimal: bool,
+) -> str:
+    try:
+        numeric_quantity = float(quantity or 0.0)
+    except (TypeError, ValueError):
+        numeric_quantity = 0.0
+
+    if allow_decimal or abs(numeric_quantity - round(numeric_quantity)) > 1e-6:
+        quantity_text = f"{numeric_quantity:.3f}".rstrip("0").rstrip(".")
+    else:
+        quantity_text = str(int(round(numeric_quantity)))
+
+    normalized_unit_code = (unit_code or "").strip().lower()
+    if normalized_unit_code == "unidade":
+        unit_text = "unidade" if abs(numeric_quantity - 1.0) <= 1e-6 else "unidades"
+        return f"{quantity_text} {unit_text}"
+    if normalized_unit_code == "par":
+        unit_text = "par" if abs(numeric_quantity - 1.0) <= 1e-6 else "pares"
+        return f"{quantity_text} {unit_text}"
+    if normalized_unit_code == "litro":
+        unit_text = "litro" if abs(numeric_quantity - 1.0) <= 1e-6 else "litros"
+        return f"{quantity_text} {unit_text}"
+    if normalized_unit_code == "metro":
+        unit_text = "metro" if abs(numeric_quantity - 1.0) <= 1e-6 else "metros"
+        return f"{quantity_text} {unit_text}"
+    if normalized_unit_code in {"quilo", "kg"}:
+        return f"{quantity_text} kg"
+
+    fallback_unit = str(unit_display or unit_label or normalized_unit_code or "un").strip()
+    return f"{quantity_text} {fallback_unit}"
+
+
+def _build_saida_balance_display(
+    item: dict[str, Any],
+    unit_context: dict[str, Any],
+    *,
+    balance_key: str,
+    fallback_key: str | None = None,
+) -> str:
+    raw_balance = _as_positive_float(item.get(balance_key))
+    unit_code = str(unit_context.get("devolucao_unidade_codigo") or "").strip().lower()
+    unit_factor_base = _as_positive_float(unit_context.get("devolucao_unidade_fator_base")) or 1.0
+
+    if unit_code:
+        operational_balance = raw_balance / unit_factor_base if unit_factor_base > 0 else raw_balance
+        return _format_saida_quantity_display(
+            operational_balance,
+            unit_code=unit_code,
+            unit_display=unit_context.get("devolucao_unidade_exibicao"),
+            unit_label=unit_context.get("devolucao_unidade_label"),
+            allow_decimal=bool(unit_context.get("devolucao_permite_decimal")),
+        )
+
+    fallback_value = item.get(fallback_key) if fallback_key else None
+    return str(fallback_value or item.get(balance_key) or "").strip()
+
+
 def _infer_fractional_item(item: dict[str, Any]) -> dict[str, Any]:
     tipo_embalagem = _normalize_text(item.get("tipo_embalagem_novo"))
     descricao = _normalize_text(item.get("descricao"))
@@ -548,15 +624,15 @@ def _resolve_return_quantity_config(item: dict[str, Any], *, fractional_info: di
     inferred_unit = _infer_unidade(item.get("unidade"))
     fallback_unit = _normalize_text(fractional_info.get("default_unit"))
 
-    if inferred_unit in {"litro", "quilo", "metro", "unidade"}:
+    if inferred_unit in {"litro", "quilo", "metro", "unidade", "par"}:
         unit_code = inferred_unit
     elif bool(fractional_info.get("enabled")):
         unit_code = fallback_unit
     else:
         unit_code = "unidade"
 
-    if unit_code not in {"litro", "quilo", "metro", "unidade"}:
-        unit_code = inferred_unit if inferred_unit in {"litro", "quilo", "metro", "unidade"} else "unidade"
+    if unit_code not in {"litro", "quilo", "metro", "unidade", "par"}:
+        unit_code = inferred_unit if inferred_unit in {"litro", "quilo", "metro", "unidade", "par"} else "unidade"
 
     if unit_code == "litro":
         unit_display = "L"
@@ -570,6 +646,10 @@ def _resolve_return_quantity_config(item: dict[str, Any], *, fractional_info: di
         unit_display = "m"
         unit_label = "Metro"
         allow_decimal = True
+    elif unit_code == "par":
+        unit_display = "par"
+        unit_label = "Par"
+        allow_decimal = False
     else:
         unit_display = "un"
         unit_label = "Unidade"
@@ -1115,17 +1195,32 @@ def item_info(codigo: str):
                 pending_return_by_unit = dict(retirada_pendente_por_unidade)
                 pending_return = pending_return_by_unit.get(default_return_unit, 0.0)
 
+    movement_unit_label = unit_context.get("devolucao_unidade_label") or item.get("unidade")
+    movement_balance_display = _build_saida_balance_display(
+        item,
+        unit_context,
+        balance_key="saldo",
+        fallback_key="saldo_display",
+    )
+    movement_available_display = _build_saida_balance_display(
+        item,
+        unit_context,
+        balance_key="saldo_disponivel",
+        fallback_key="saldo_disponivel_display",
+    )
+
     response = {
         "found": True,
         "codigo": canonical_code,
         "descricao": item.get("descricao"),
         "categoria": item.get("categoria"),
         "marca": item.get("marca"),
-        "unidade": item.get("unidade"),
+        "unidade": movement_unit_label,
+        "unidade_cadastro": item.get("unidade"),
         "saldo": item.get("saldo"),
-        "saldo_display": item.get("saldo_display"),
+        "saldo_display": movement_balance_display,
         "saldo_disponivel": item.get("saldo_disponivel"),
-        "saldo_disponivel_display": item.get("saldo_disponivel_display"),
+        "saldo_disponivel_display": movement_available_display,
         "is_available": item.get("is_available"),
         "unavailable_reason": item.get("unavailable_reason"),
         "unavailable_detail": item.get("unavailable_detail"),

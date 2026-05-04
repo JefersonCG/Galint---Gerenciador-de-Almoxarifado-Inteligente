@@ -575,6 +575,8 @@ MATERIAL_RETURN_UNIT_ALIASES = {
     "mts": "metro",
     "metro": "metro",
     "metros": "metro",
+    "par": "par",
+    "pares": "par",
     "un": "unidade",
     "und": "unidade",
     "pc": "unidade",
@@ -604,6 +606,13 @@ MATERIAL_RETURN_UNIT_META = {
         "allow_decimal": True,
         "input_step": 0.001,
         "input_min": 0.001,
+    },
+    "par": {
+        "unit_display": "par",
+        "unit_label": "Par",
+        "allow_decimal": False,
+        "input_step": 1,
+        "input_min": 1,
     },
     "metro": {
         "unit_display": "m",
@@ -1676,6 +1685,12 @@ class InventoryService:
                 categoria=probe.categoria,
             )
         if inferred_measure is None:
+            unidade_base_fallback = resolve_item_base_unit_label(current_item, fallback="Unidade") if current_item is not None else "Unidade"
+            if inferred_packaging_type is not None and (
+                unidade_atual in {"", "un", "und", "unidade", "unidades"}
+                or is_packaging_unit_code(unidade_atual)
+            ):
+                normalized_payload["unidade"] = unidade_base_fallback
             if unidade_numerica:
                 inferred_unit_only = _infer_unit_only_from_numeric_legacy(
                     descricao=probe.descricao,
@@ -1685,6 +1700,10 @@ class InventoryService:
                     normalized_payload["unidade"] = inferred_unit_only
                 elif inferred_unit_only and current_item is not None and normalized_payload.get("unidade", getattr(current_item, "unidade", None)) == getattr(current_item, "unidade", None):
                     normalized_payload["unidade"] = inferred_unit_only
+                elif normalized_payload.get("unidade") in (None, ""):
+                    normalized_payload["unidade"] = "Unidade"
+                elif current_item is not None and normalized_payload.get("unidade", getattr(current_item, "unidade", None)) == getattr(current_item, "unidade", None):
+                    normalized_payload["unidade"] = "Unidade"
             return normalized_payload
 
         inferred_value, inferred_unit = inferred_measure

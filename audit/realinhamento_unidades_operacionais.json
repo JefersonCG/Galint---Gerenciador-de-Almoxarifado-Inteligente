@@ -1,10 +1,10 @@
 {
-  "generated_at": "2026-04-11T22:33:14",
+  "generated_at": "2026-05-04T13:36:16",
   "summary": {
-    "items_evaluated": 632,
-    "kept": 618,
+    "items_evaluated": 686,
+    "kept": 674,
     "safe_apply": 0,
-    "manual_review": 14,
+    "manual_review": 12,
     "applied_safe_codes": []
   },
   "results": [
@@ -63,6 +63,66 @@
       "applied": false
     },
     {
+      "codigo_item": "0055",
+      "descricao": "SERRA MÁRMORE GDC 1500W",
+      "status": "kept",
+      "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
+      "current_unit": "Unidade",
+      "current_packaging": null,
+      "current_factor": 0.0,
+      "current_canonical_unit": "un",
+      "proposed_unit": "Unidade",
+      "proposed_packaging": null,
+      "proposed_factor": 0.0,
+      "proposed_canonical_unit": "un",
+      "changes": {},
+      "document_evidence": {
+        "rows_count": 1,
+        "unique_units": [
+          "unidade"
+        ],
+        "unique_factors": [
+          1.0
+        ],
+        "strong_unit": "unidade",
+        "strong_factor": 1.0,
+        "sample_document_numbers": [
+          "NOTA INTERNA"
+        ]
+      },
+      "applied": false
+    },
+    {
+      "codigo_item": "0199",
+      "descricao": "FASÍMETRO",
+      "status": "kept",
+      "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
+      "current_unit": "Unidade",
+      "current_packaging": null,
+      "current_factor": 0.0,
+      "current_canonical_unit": "un",
+      "proposed_unit": "Unidade",
+      "proposed_packaging": null,
+      "proposed_factor": 0.0,
+      "proposed_canonical_unit": "un",
+      "changes": {},
+      "document_evidence": {
+        "rows_count": 1,
+        "unique_units": [
+          "unidade"
+        ],
+        "unique_factors": [
+          1.0
+        ],
+        "strong_unit": "unidade",
+        "strong_factor": 1.0,
+        "sample_document_numbers": [
+          "NOTA INTERNA"
+        ]
+      },
+      "applied": false
+    },
+    {
       "codigo_item": "0202",
       "descricao": "MALETA PRETA",
       "status": "kept",
@@ -113,30 +173,6 @@
     {
       "codigo_item": "0208",
       "descricao": "MALETA DO LASER  0262",
-      "status": "kept",
-      "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
-      "current_unit": "Unidade",
-      "current_packaging": null,
-      "current_factor": 0.0,
-      "current_canonical_unit": "un",
-      "proposed_unit": "Unidade",
-      "proposed_packaging": null,
-      "proposed_factor": 0.0,
-      "proposed_canonical_unit": "un",
-      "changes": {},
-      "document_evidence": {
-        "rows_count": 0,
-        "unique_units": [],
-        "unique_factors": [],
-        "strong_unit": null,
-        "strong_factor": null,
-        "sample_document_numbers": []
-      },
-      "applied": false
-    },
-    {
-      "codigo_item": "0210",
-      "descricao": "ALICATE CRIMPADOR AZUL",
       "status": "kept",
       "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
       "current_unit": "Unidade",
@@ -327,80 +363,8 @@
       "applied": false
     },
     {
-      "codigo_item": "0219",
-      "descricao": "ALICATE CRIMPADOR AZUL",
-      "status": "kept",
-      "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
-      "current_unit": "Unidade",
-      "current_packaging": null,
-      "current_factor": 0.0,
-      "current_canonical_unit": "un",
-      "proposed_unit": "Unidade",
-      "proposed_packaging": null,
-      "proposed_factor": 0.0,
-      "proposed_canonical_unit": "un",
-      "changes": {},
-      "document_evidence": {
-        "rows_count": 0,
-        "unique_units": [],
-        "unique_factors": [],
-        "strong_unit": null,
-        "strong_factor": null,
-        "sample_document_numbers": []
-      },
-      "applied": false
-    },
-    {
       "codigo_item": "0220",
       "descricao": "APLICADOR DE PU VERMELHO",
-      "status": "kept",
-      "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
-      "current_unit": "Unidade",
-      "current_packaging": null,
-      "current_factor": 0.0,
-      "current_canonical_unit": "un",
-      "proposed_unit": "Unidade",
-      "proposed_packaging": null,
-      "proposed_factor": 0.0,
-      "proposed_canonical_unit": "un",
-      "changes": {},
-      "document_evidence": {
-        "rows_count": 0,
-        "unique_units": [],
-        "unique_factors": [],
-        "strong_unit": null,
-        "strong_factor": null,
-        "sample_document_numbers": []
-      },
-      "applied": false
-    },
-    {
-      "codigo_item": "0221",
-      "descricao": "ALICATE CRIMPADOR AZUL",
-      "status": "kept",
-      "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
-      "current_unit": "Unidade",
-      "current_packaging": null,
-      "current_factor": 0.0,
-      "current_canonical_unit": "un",
-      "proposed_unit": "Unidade",
-      "proposed_packaging": null,
-      "proposed_factor": 0.0,
-      "proposed_canonical_unit": "un",
-      "changes": {},
-      "document_evidence": {
-        "rows_count": 0,
-        "unique_units": [],
-        "unique_factors": [],
-        "strong_unit": null,
-        "strong_factor": null,
-        "sample_document_numbers": []
-      },
-      "applied": false
-    },
-    {
-      "codigo_item": "0222",
-      "descricao": "ALICATE CRIMPADOR AZUL",
       "status": "kept",
       "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
       "current_unit": "Unidade",
@@ -813,11 +777,11 @@
       "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
       "current_unit": "Unidade",
       "current_packaging": null,
-      "current_factor": 1.0,
+      "current_factor": 0.0,
       "current_canonical_unit": "un",
       "proposed_unit": "Unidade",
       "proposed_packaging": null,
-      "proposed_factor": 1.0,
+      "proposed_factor": 0.0,
       "proposed_canonical_unit": "un",
       "changes": {},
       "document_evidence": {
@@ -957,11 +921,11 @@
       "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
       "current_unit": "Unidade",
       "current_packaging": null,
-      "current_factor": 1.0,
+      "current_factor": 0.0,
       "current_canonical_unit": "un",
       "proposed_unit": "Unidade",
       "proposed_packaging": null,
-      "proposed_factor": 1.0,
+      "proposed_factor": 0.0,
       "proposed_canonical_unit": "un",
       "changes": {},
       "document_evidence": {
@@ -1029,11 +993,11 @@
       "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
       "current_unit": "Unidade",
       "current_packaging": null,
-      "current_factor": 1.0,
+      "current_factor": 0.0,
       "current_canonical_unit": "un",
       "proposed_unit": "Unidade",
       "proposed_packaging": null,
-      "proposed_factor": 1.0,
+      "proposed_factor": 0.0,
       "proposed_canonical_unit": "un",
       "changes": {},
       "document_evidence": {
@@ -1047,7 +1011,7 @@
         "strong_unit": "unidade",
         "strong_factor": 1.0,
         "sample_document_numbers": [
-          "SEM NF/CUPOM"
+          "NOTA INTERNA"
         ]
       },
       "applied": false
@@ -1083,11 +1047,11 @@
       "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
       "current_unit": "Unidade",
       "current_packaging": null,
-      "current_factor": 1.0,
+      "current_factor": 0.0,
       "current_canonical_unit": "un",
       "proposed_unit": "Unidade",
       "proposed_packaging": null,
-      "proposed_factor": 1.0,
+      "proposed_factor": 0.0,
       "proposed_canonical_unit": "un",
       "changes": {},
       "document_evidence": {
@@ -1107,11 +1071,11 @@
       "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
       "current_unit": "Unidade",
       "current_packaging": null,
-      "current_factor": 1.0,
+      "current_factor": 0.0,
       "current_canonical_unit": "un",
       "proposed_unit": "Unidade",
       "proposed_packaging": null,
-      "proposed_factor": 1.0,
+      "proposed_factor": 0.0,
       "proposed_canonical_unit": "un",
       "changes": {},
       "document_evidence": {
@@ -1377,11 +1341,11 @@
       "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
       "current_unit": "Unidade",
       "current_packaging": null,
-      "current_factor": 1.0,
+      "current_factor": 0.0,
       "current_canonical_unit": "un",
       "proposed_unit": "Unidade",
       "proposed_packaging": null,
-      "proposed_factor": 1.0,
+      "proposed_factor": 0.0,
       "proposed_canonical_unit": "un",
       "changes": {},
       "document_evidence": {
@@ -1400,14 +1364,16 @@
       "status": "manual_review",
       "reason": "fator operacional nao foi resolvido com seguranca",
       "current_unit": "Pacote",
-      "current_packaging": "pacote",
+      "current_packaging": null,
       "current_factor": 0.0,
       "current_canonical_unit": "un",
       "proposed_unit": "Pacote",
       "proposed_packaging": "pacote",
       "proposed_factor": 0.0,
       "proposed_canonical_unit": "un",
-      "changes": {},
+      "changes": {
+        "tipo_embalagem_novo": "pacote"
+      },
       "document_evidence": {
         "rows_count": 0,
         "unique_units": [],
@@ -1623,6 +1589,66 @@
       "applied": false
     },
     {
+      "codigo_item": "225438000648",
+      "descricao": "ESTAÇÃO DE RECARGA 11kW",
+      "status": "kept",
+      "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
+      "current_unit": "Unidade",
+      "current_packaging": null,
+      "current_factor": 0.0,
+      "current_canonical_unit": "un",
+      "proposed_unit": "Unidade",
+      "proposed_packaging": null,
+      "proposed_factor": 0.0,
+      "proposed_canonical_unit": "un",
+      "changes": {},
+      "document_evidence": {
+        "rows_count": 1,
+        "unique_units": [
+          "unidade"
+        ],
+        "unique_factors": [
+          1.0
+        ],
+        "strong_unit": "unidade",
+        "strong_factor": 1.0,
+        "sample_document_numbers": [
+          "NOTA INTERNA"
+        ]
+      },
+      "applied": false
+    },
+    {
+      "codigo_item": "246198420217",
+      "descricao": "BOMBA DE INDUÇÃO 1,5CV",
+      "status": "kept",
+      "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
+      "current_unit": "Unidade",
+      "current_packaging": null,
+      "current_factor": 0.0,
+      "current_canonical_unit": "un",
+      "proposed_unit": "Unidade",
+      "proposed_packaging": null,
+      "proposed_factor": 0.0,
+      "proposed_canonical_unit": "un",
+      "changes": {},
+      "document_evidence": {
+        "rows_count": 1,
+        "unique_units": [
+          "unidade"
+        ],
+        "unique_factors": [
+          1.0
+        ],
+        "strong_unit": "unidade",
+        "strong_factor": 1.0,
+        "sample_document_numbers": [
+          "NOTA INTERNA"
+        ]
+      },
+      "applied": false
+    },
+    {
       "codigo_item": "2500000014390",
       "descricao": "LUMINÁRIA TARTARUGA EM ALUMINIO 60W",
       "status": "kept",
@@ -1643,6 +1669,157 @@
         "strong_unit": null,
         "strong_factor": null,
         "sample_document_numbers": []
+      },
+      "applied": false
+    },
+    {
+      "codigo_item": "259209971998",
+      "descricao": "ESTAÇÃO DE RECARGA 11kW",
+      "status": "kept",
+      "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
+      "current_unit": "Unidade",
+      "current_packaging": null,
+      "current_factor": 0.0,
+      "current_canonical_unit": "un",
+      "proposed_unit": "Unidade",
+      "proposed_packaging": null,
+      "proposed_factor": 0.0,
+      "proposed_canonical_unit": "un",
+      "changes": {},
+      "document_evidence": {
+        "rows_count": 1,
+        "unique_units": [
+          "unidade"
+        ],
+        "unique_factors": [
+          1.0
+        ],
+        "strong_unit": "unidade",
+        "strong_factor": 1.0,
+        "sample_document_numbers": [
+          "NOTA INTERNA"
+        ]
+      },
+      "applied": false
+    },
+    {
+      "codigo_item": "271686395739",
+      "descricao": "LUMINÁRIA LED 300W STREET",
+      "status": "kept",
+      "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
+      "current_unit": "Unidade",
+      "current_packaging": null,
+      "current_factor": 0.0,
+      "current_canonical_unit": "un",
+      "proposed_unit": "Unidade",
+      "proposed_packaging": null,
+      "proposed_factor": 0.0,
+      "proposed_canonical_unit": "un",
+      "changes": {},
+      "document_evidence": {
+        "rows_count": 3,
+        "unique_units": [
+          "unidade"
+        ],
+        "unique_factors": [
+          1.0
+        ],
+        "strong_unit": "unidade",
+        "strong_factor": 1.0,
+        "sample_document_numbers": [
+          "364366",
+          "364365"
+        ]
+      },
+      "applied": false
+    },
+    {
+      "codigo_item": "274929407435",
+      "descricao": "VÁLVULA DE RETENÇÃO VERTICAL 1.1/2\"",
+      "status": "kept",
+      "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
+      "current_unit": "Unidade",
+      "current_packaging": null,
+      "current_factor": 0.0,
+      "current_canonical_unit": "un",
+      "proposed_unit": "Unidade",
+      "proposed_packaging": null,
+      "proposed_factor": 0.0,
+      "proposed_canonical_unit": "un",
+      "changes": {},
+      "document_evidence": {
+        "rows_count": 1,
+        "unique_units": [
+          "unidade"
+        ],
+        "unique_factors": [
+          1.0
+        ],
+        "strong_unit": "unidade",
+        "strong_factor": 1.0,
+        "sample_document_numbers": [
+          "NOTA INTERNA"
+        ]
+      },
+      "applied": false
+    },
+    {
+      "codigo_item": "279063183696",
+      "descricao": "LUVA ROSQUEADA METAL 2.1/2\"",
+      "status": "kept",
+      "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
+      "current_unit": "Unidade",
+      "current_packaging": null,
+      "current_factor": 0.0,
+      "current_canonical_unit": "un",
+      "proposed_unit": "Unidade",
+      "proposed_packaging": null,
+      "proposed_factor": 0.0,
+      "proposed_canonical_unit": "un",
+      "changes": {},
+      "document_evidence": {
+        "rows_count": 1,
+        "unique_units": [
+          "unidade"
+        ],
+        "unique_factors": [
+          1.0
+        ],
+        "strong_unit": "unidade",
+        "strong_factor": 1.0,
+        "sample_document_numbers": [
+          "NOTA INTERNA"
+        ]
+      },
+      "applied": false
+    },
+    {
+      "codigo_item": "287763158647",
+      "descricao": "ESTAÇÃO DE RECARGA 11kW",
+      "status": "kept",
+      "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
+      "current_unit": "Unidade",
+      "current_packaging": null,
+      "current_factor": 0.0,
+      "current_canonical_unit": "un",
+      "proposed_unit": "Unidade",
+      "proposed_packaging": null,
+      "proposed_factor": 0.0,
+      "proposed_canonical_unit": "un",
+      "changes": {},
+      "document_evidence": {
+        "rows_count": 1,
+        "unique_units": [
+          "unidade"
+        ],
+        "unique_factors": [
+          1.0
+        ],
+        "strong_unit": "unidade",
+        "strong_factor": 1.0,
+        "sample_document_numbers": [
+          "NOTA INTERNA"
+        ]
       },
       "applied": false
     },
@@ -1725,11 +1902,11 @@
       "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
       "current_unit": "Unidade",
       "current_packaging": null,
-      "current_factor": 1.0,
+      "current_factor": 0.0,
       "current_canonical_unit": "un",
       "proposed_unit": "Unidade",
       "proposed_packaging": null,
-      "proposed_factor": 1.0,
+      "proposed_factor": 0.0,
       "proposed_canonical_unit": "un",
       "changes": {},
       "document_evidence": {
@@ -2595,11 +2772,11 @@
       "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
       "current_unit": "Unidade",
       "current_packaging": null,
-      "current_factor": 1.0,
+      "current_factor": 0.0,
       "current_canonical_unit": "un",
       "proposed_unit": "Unidade",
       "proposed_packaging": null,
-      "proposed_factor": 1.0,
+      "proposed_factor": 0.0,
       "proposed_canonical_unit": "un",
       "changes": {},
       "document_evidence": {
@@ -2739,11 +2916,11 @@
       "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
       "current_unit": "Unidade",
       "current_packaging": null,
-      "current_factor": 1.0,
+      "current_factor": 0.0,
       "current_canonical_unit": "un",
       "proposed_unit": "Unidade",
       "proposed_packaging": null,
-      "proposed_factor": 1.0,
+      "proposed_factor": 0.0,
       "proposed_canonical_unit": "un",
       "changes": {},
       "document_evidence": {
@@ -2991,84 +3168,6 @@
       "proposed_packaging": null,
       "proposed_factor": 0.0,
       "proposed_canonical_unit": "un",
-      "changes": {},
-      "document_evidence": {
-        "rows_count": 0,
-        "unique_units": [],
-        "unique_factors": [],
-        "strong_unit": null,
-        "strong_factor": null,
-        "sample_document_numbers": []
-      },
-      "applied": false
-    },
-    {
-      "codigo_item": "700560",
-      "descricao": "PIGMENTO COLORANTE DIVERSO",
-      "status": "kept",
-      "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
-      "current_unit": "Unidade",
-      "current_packaging": null,
-      "current_factor": 0.0,
-      "current_canonical_unit": "un",
-      "proposed_unit": "Unidade",
-      "proposed_packaging": null,
-      "proposed_factor": 0.0,
-      "proposed_canonical_unit": "un",
-      "changes": {},
-      "document_evidence": {
-        "rows_count": 1,
-        "unique_units": [
-          "unidade"
-        ],
-        "unique_factors": [
-          1.0
-        ],
-        "strong_unit": "unidade",
-        "strong_factor": 1.0,
-        "sample_document_numbers": [
-          "236"
-        ]
-      },
-      "applied": false
-    },
-    {
-      "codigo_item": "751320017536",
-      "descricao": "DICLORO ORGÂNICO - MULTI 10Kg",
-      "status": "kept",
-      "reason": "item ja compativel com a regra operacional nova",
-      "current_unit": "KG",
-      "current_packaging": "balde",
-      "current_factor": 10.0,
-      "current_canonical_unit": "kg",
-      "proposed_unit": "KG",
-      "proposed_packaging": "balde",
-      "proposed_factor": 10.0,
-      "proposed_canonical_unit": "kg",
-      "changes": {},
-      "document_evidence": {
-        "rows_count": 0,
-        "unique_units": [],
-        "unique_factors": [],
-        "strong_unit": null,
-        "strong_factor": null,
-        "sample_document_numbers": []
-      },
-      "applied": false
-    },
-    {
-      "codigo_item": "751320017543",
-      "descricao": "DICLORO ESTABILIZANTE PREMIUM 10Kg",
-      "status": "kept",
-      "reason": "item ja compativel com a regra operacional nova",
-      "current_unit": "KG",
-      "current_packaging": "balde",
-      "current_factor": 10.0,
-      "current_canonical_unit": "kg",
-      "proposed_unit": "KG",
-      "proposed_packaging": "balde",
-      "proposed_factor": 10.0,
-      "proposed_canonical_unit": "kg",
       "changes": {},
       "document_evidence": {
         "rows_count": 0,
@@ -3591,11 +3690,11 @@
       "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
       "current_unit": "Unidade",
       "current_packaging": null,
-      "current_factor": 1.0,
+      "current_factor": 0.0,
       "current_canonical_unit": "un",
       "proposed_unit": "Unidade",
       "proposed_packaging": null,
-      "proposed_factor": 1.0,
+      "proposed_factor": 0.0,
       "proposed_canonical_unit": "un",
       "changes": {},
       "document_evidence": {
@@ -3612,14 +3711,14 @@
       "codigo_item": "7891114029925",
       "descricao": "JOGO DE CHAVE DE FENDA 6 PEÇAS",
       "status": "kept",
-      "reason": "item kit/ferramenta mantido sem normalizacao operacional de embalagem",
-      "current_unit": "un",
-      "current_packaging": "pacote",
-      "current_factor": 6.0,
+      "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
+      "current_unit": "Unidade",
+      "current_packaging": null,
+      "current_factor": 0.0,
       "current_canonical_unit": "un",
-      "proposed_unit": "un",
-      "proposed_packaging": "pacote",
-      "proposed_factor": 6.0,
+      "proposed_unit": "Unidade",
+      "proposed_packaging": null,
+      "proposed_factor": 0.0,
       "proposed_canonical_unit": "un",
       "changes": {},
       "document_evidence": {
@@ -3628,10 +3727,10 @@
           "pacote"
         ],
         "unique_factors": [
-          6.0
+          1.0
         ],
         "strong_unit": "pacote",
-        "strong_factor": 6.0,
+        "strong_factor": 1.0,
         "sample_document_numbers": [
           "101456"
         ]
@@ -3783,11 +3882,11 @@
       "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
       "current_unit": "Unidade",
       "current_packaging": null,
-      "current_factor": 1.0,
+      "current_factor": 0.0,
       "current_canonical_unit": "un",
       "proposed_unit": "Unidade",
       "proposed_packaging": null,
-      "proposed_factor": 1.0,
+      "proposed_factor": 0.0,
       "proposed_canonical_unit": "un",
       "changes": {},
       "document_evidence": {
@@ -3813,11 +3912,11 @@
       "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
       "current_unit": "Unidade",
       "current_packaging": null,
-      "current_factor": 1.0,
+      "current_factor": 0.0,
       "current_canonical_unit": "un",
       "proposed_unit": "Unidade",
       "proposed_packaging": null,
-      "proposed_factor": 1.0,
+      "proposed_factor": 0.0,
       "proposed_canonical_unit": "un",
       "changes": {},
       "document_evidence": {
@@ -3943,15 +4042,15 @@
       "document_evidence": {
         "rows_count": 1,
         "unique_units": [
-          "litro"
+          "lata"
         ],
         "unique_factors": [
-          1.0
+          3.6
         ],
-        "strong_unit": "litro",
-        "strong_factor": 1.0,
+        "strong_unit": "lata",
+        "strong_factor": 3.6,
         "sample_document_numbers": [
-          "SEM NF/CUPOM"
+          "NOTA INTERNA"
         ]
       },
       "applied": false
@@ -4155,11 +4254,11 @@
       "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
       "current_unit": "Unidade",
       "current_packaging": null,
-      "current_factor": 1.0,
+      "current_factor": 0.0,
       "current_canonical_unit": "un",
       "proposed_unit": "Unidade",
       "proposed_packaging": null,
-      "proposed_factor": 1.0,
+      "proposed_factor": 0.0,
       "proposed_canonical_unit": "un",
       "changes": {},
       "document_evidence": {
@@ -4262,17 +4361,17 @@
       "descricao": "BRANCO FOSCO 18L",
       "status": "kept",
       "reason": "item ja compativel com a regra operacional nova",
-      "current_unit": "Lata",
+      "current_unit": "Litro",
       "current_packaging": "lata",
       "current_factor": 18.0,
       "current_canonical_unit": "l",
-      "proposed_unit": "Lata",
+      "proposed_unit": "Litro",
       "proposed_packaging": "lata",
       "proposed_factor": 18.0,
       "proposed_canonical_unit": "l",
       "changes": {},
       "document_evidence": {
-        "rows_count": 2,
+        "rows_count": 3,
         "unique_units": [
           "lata"
         ],
@@ -4283,7 +4382,8 @@
         "strong_factor": 18.0,
         "sample_document_numbers": [
           "2353611",
-          "2332656"
+          "2332656",
+          "2361618"
         ]
       },
       "applied": false
@@ -4293,22 +4393,28 @@
       "descricao": "MASSA ACRÍLICA 25KG",
       "status": "kept",
       "reason": "item ja compativel com a regra operacional nova",
-      "current_unit": "Unidade",
+      "current_unit": "Quilo",
       "current_packaging": "lata",
       "current_factor": 25.0,
       "current_canonical_unit": "kg",
-      "proposed_unit": "Unidade",
+      "proposed_unit": "Quilo",
       "proposed_packaging": "lata",
       "proposed_factor": 25.0,
       "proposed_canonical_unit": "kg",
       "changes": {},
       "document_evidence": {
-        "rows_count": 0,
-        "unique_units": [],
-        "unique_factors": [],
-        "strong_unit": null,
-        "strong_factor": null,
-        "sample_document_numbers": []
+        "rows_count": 1,
+        "unique_units": [
+          "lata"
+        ],
+        "unique_factors": [
+          25.0
+        ],
+        "strong_unit": "lata",
+        "strong_factor": 25.0,
+        "sample_document_numbers": [
+          "2353611"
+        ]
       },
       "applied": false
     },
@@ -4555,11 +4661,11 @@
       "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
       "current_unit": "Unidade",
       "current_packaging": null,
-      "current_factor": 1.0,
+      "current_factor": 0.0,
       "current_canonical_unit": "un",
       "proposed_unit": "Unidade",
       "proposed_packaging": null,
-      "proposed_factor": 1.0,
+      "proposed_factor": 0.0,
       "proposed_canonical_unit": "un",
       "changes": {},
       "document_evidence": {
@@ -4573,7 +4679,7 @@
         "strong_unit": "unidade",
         "strong_factor": 1.0,
         "sample_document_numbers": [
-          "SEM NF/CUPOM"
+          "NOTA INTERNA"
         ]
       },
       "applied": false
@@ -4585,11 +4691,11 @@
       "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
       "current_unit": "Unidade",
       "current_packaging": null,
-      "current_factor": 1.0,
+      "current_factor": 0.0,
       "current_canonical_unit": "un",
       "proposed_unit": "Unidade",
       "proposed_packaging": null,
-      "proposed_factor": 1.0,
+      "proposed_factor": 0.0,
       "proposed_canonical_unit": "un",
       "changes": {},
       "document_evidence": {
@@ -4760,10 +4866,10 @@
           "caixa"
         ],
         "unique_factors": [
-          6.0
+          1.0
         ],
         "strong_unit": "caixa",
-        "strong_factor": 6.0,
+        "strong_factor": 1.0,
         "sample_document_numbers": [
           "101456"
         ]
@@ -4915,6 +5021,36 @@
       "applied": false
     },
     {
+      "codigo_item": "7891595001403",
+      "descricao": "SUPORTE DE ROLO 23CM VERMELHO",
+      "status": "kept",
+      "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
+      "current_unit": "Unidade",
+      "current_packaging": null,
+      "current_factor": 0.0,
+      "current_canonical_unit": "un",
+      "proposed_unit": "Unidade",
+      "proposed_packaging": null,
+      "proposed_factor": 0.0,
+      "proposed_canonical_unit": "un",
+      "changes": {},
+      "document_evidence": {
+        "rows_count": 1,
+        "unique_units": [
+          "unidade"
+        ],
+        "unique_factors": [
+          1.0
+        ],
+        "strong_unit": "unidade",
+        "strong_factor": 1.0,
+        "sample_document_numbers": [
+          "NOTA INTERNA"
+        ]
+      },
+      "applied": false
+    },
+    {
       "codigo_item": "7891738018954",
       "descricao": "PREGO GALVANIZADO 17X27MM",
       "status": "kept",
@@ -4934,10 +5070,10 @@
           "pacote"
         ],
         "unique_factors": [
-          1.0
+          216.0
         ],
         "strong_unit": "pacote",
-        "strong_factor": 1.0,
+        "strong_factor": 216.0,
         "sample_document_numbers": [
           "PREGO GALVANIZADO 17X27"
         ]
@@ -4951,11 +5087,11 @@
       "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
       "current_unit": "Unidade",
       "current_packaging": null,
-      "current_factor": 1.0,
+      "current_factor": 0.0,
       "current_canonical_unit": "un",
       "proposed_unit": "Unidade",
       "proposed_packaging": null,
-      "proposed_factor": 1.0,
+      "proposed_factor": 0.0,
       "proposed_canonical_unit": "un",
       "changes": {},
       "document_evidence": {
@@ -4999,8 +5135,98 @@
       "applied": false
     },
     {
+      "codigo_item": "7891960017152",
+      "descricao": "BUCHA REDUÇÃO SOLD 110X60MM",
+      "status": "kept",
+      "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
+      "current_unit": "Unidade",
+      "current_packaging": null,
+      "current_factor": 1.0,
+      "current_canonical_unit": "un",
+      "proposed_unit": "Unidade",
+      "proposed_packaging": null,
+      "proposed_factor": 1.0,
+      "proposed_canonical_unit": "un",
+      "changes": {},
+      "document_evidence": {
+        "rows_count": 1,
+        "unique_units": [
+          "unidade"
+        ],
+        "unique_factors": [
+          1.0
+        ],
+        "strong_unit": "unidade",
+        "strong_factor": 1.0,
+        "sample_document_numbers": [
+          "583017"
+        ]
+      },
+      "applied": false
+    },
+    {
+      "codigo_item": "7891960017749",
+      "descricao": "LUVA SOLDÁVEL 75MM",
+      "status": "kept",
+      "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
+      "current_unit": "Unidade",
+      "current_packaging": null,
+      "current_factor": 0.0,
+      "current_canonical_unit": "un",
+      "proposed_unit": "Unidade",
+      "proposed_packaging": null,
+      "proposed_factor": 0.0,
+      "proposed_canonical_unit": "un",
+      "changes": {},
+      "document_evidence": {
+        "rows_count": 1,
+        "unique_units": [
+          "unidade"
+        ],
+        "unique_factors": [
+          1.0
+        ],
+        "strong_unit": "unidade",
+        "strong_factor": 1.0,
+        "sample_document_numbers": [
+          "NOTA INTERNA"
+        ]
+      },
+      "applied": false
+    },
+    {
+      "codigo_item": "7891960120074",
+      "descricao": "ADAPTADOR SOLDÁVEL CURTO 50MMX1.1/2''",
+      "status": "kept",
+      "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
+      "current_unit": "Unidade",
+      "current_packaging": null,
+      "current_factor": 0.0,
+      "current_canonical_unit": "un",
+      "proposed_unit": "Unidade",
+      "proposed_packaging": null,
+      "proposed_factor": 0.0,
+      "proposed_canonical_unit": "un",
+      "changes": {},
+      "document_evidence": {
+        "rows_count": 1,
+        "unique_units": [
+          "unidade"
+        ],
+        "unique_factors": [
+          1.0
+        ],
+        "strong_unit": "unidade",
+        "strong_factor": 1.0,
+        "sample_document_numbers": [
+          "583016"
+        ]
+      },
+      "applied": false
+    },
+    {
       "codigo_item": "7891960120081",
-      "descricao": "ADAP SOLDA ROSCA 60MMX2''",
+      "descricao": "ADAPTADOR SOLDÁVEL CURTO 60MMX2''",
       "status": "kept",
       "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
       "current_unit": "Unidade",
@@ -5035,11 +5261,11 @@
       "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
       "current_unit": "Unidade",
       "current_packaging": null,
-      "current_factor": 1.0,
+      "current_factor": 0.0,
       "current_canonical_unit": "un",
       "proposed_unit": "Unidade",
       "proposed_packaging": null,
-      "proposed_factor": 1.0,
+      "proposed_factor": 0.0,
       "proposed_canonical_unit": "un",
       "changes": {},
       "document_evidence": {
@@ -5053,6 +5279,68 @@
         "strong_unit": "unidade",
         "strong_factor": 1.0,
         "sample_document_numbers": [
+          "583017"
+        ]
+      },
+      "applied": false
+    },
+    {
+      "codigo_item": "7891960120968",
+      "descricao": "CURVA 90 SOLDÁVEL 60MM",
+      "status": "kept",
+      "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
+      "current_unit": "Unidade",
+      "current_packaging": null,
+      "current_factor": 1.0,
+      "current_canonical_unit": "un",
+      "proposed_unit": "Unidade",
+      "proposed_packaging": null,
+      "proposed_factor": 1.0,
+      "proposed_canonical_unit": "un",
+      "changes": {},
+      "document_evidence": {
+        "rows_count": 2,
+        "unique_units": [
+          "unidade"
+        ],
+        "unique_factors": [
+          1.0
+        ],
+        "strong_unit": "unidade",
+        "strong_factor": 1.0,
+        "sample_document_numbers": [
+          "2357531",
+          "583017"
+        ]
+      },
+      "applied": false
+    },
+    {
+      "codigo_item": "7891960121361",
+      "descricao": "JOELHO 45GRAUS 60MM SOLDÁVEL",
+      "status": "kept",
+      "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
+      "current_unit": "Unidade",
+      "current_packaging": null,
+      "current_factor": 1.0,
+      "current_canonical_unit": "un",
+      "proposed_unit": "Unidade",
+      "proposed_packaging": null,
+      "proposed_factor": 1.0,
+      "proposed_canonical_unit": "un",
+      "changes": {},
+      "document_evidence": {
+        "rows_count": 2,
+        "unique_units": [
+          "unidade"
+        ],
+        "unique_factors": [
+          1.0
+        ],
+        "strong_unit": "unidade",
+        "strong_factor": 1.0,
+        "sample_document_numbers": [
+          "2357531",
           "583017"
         ]
       },
@@ -5089,8 +5377,8 @@
       "applied": false
     },
     {
-      "codigo_item": "7891960140751",
-      "descricao": "JUNÇÃO RED SIMPLES ESGOTO 100X75MM",
+      "codigo_item": "7891960122566",
+      "descricao": "UNIÃO SOLDÁVEL 60MM",
       "status": "kept",
       "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
       "current_unit": "Unidade",
@@ -5100,6 +5388,37 @@
       "proposed_unit": "Unidade",
       "proposed_packaging": null,
       "proposed_factor": 1.0,
+      "proposed_canonical_unit": "un",
+      "changes": {},
+      "document_evidence": {
+        "rows_count": 2,
+        "unique_units": [
+          "unidade"
+        ],
+        "unique_factors": [
+          1.0
+        ],
+        "strong_unit": "unidade",
+        "strong_factor": 1.0,
+        "sample_document_numbers": [
+          "2357531",
+          "583017"
+        ]
+      },
+      "applied": false
+    },
+    {
+      "codigo_item": "7891960140751",
+      "descricao": "JUNÇÃO RED SIMPLES ESGOTO 100X75MM",
+      "status": "kept",
+      "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
+      "current_unit": "Unidade",
+      "current_packaging": null,
+      "current_factor": 0.0,
+      "current_canonical_unit": "un",
+      "proposed_unit": "Unidade",
+      "proposed_packaging": null,
+      "proposed_factor": 0.0,
       "proposed_canonical_unit": "un",
       "changes": {},
       "document_evidence": {
@@ -5114,6 +5433,66 @@
         "strong_factor": 1.0,
         "sample_document_numbers": [
           "2357531"
+        ]
+      },
+      "applied": false
+    },
+    {
+      "codigo_item": "7891960140768",
+      "descricao": "JUNÇÃO RED SIMPLES ESGOTO 100MM",
+      "status": "kept",
+      "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
+      "current_unit": "Unidade",
+      "current_packaging": null,
+      "current_factor": 0.0,
+      "current_canonical_unit": "un",
+      "proposed_unit": "Unidade",
+      "proposed_packaging": null,
+      "proposed_factor": 0.0,
+      "proposed_canonical_unit": "un",
+      "changes": {},
+      "document_evidence": {
+        "rows_count": 1,
+        "unique_units": [
+          "unidade"
+        ],
+        "unique_factors": [
+          1.0
+        ],
+        "strong_unit": "unidade",
+        "strong_factor": 1.0,
+        "sample_document_numbers": [
+          "583017"
+        ]
+      },
+      "applied": false
+    },
+    {
+      "codigo_item": "7891960152020",
+      "descricao": "T AZUL 25MMX1.1/2''",
+      "status": "kept",
+      "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
+      "current_unit": "Unidade",
+      "current_packaging": null,
+      "current_factor": 0.0,
+      "current_canonical_unit": "un",
+      "proposed_unit": "Unidade",
+      "proposed_packaging": null,
+      "proposed_factor": 0.0,
+      "proposed_canonical_unit": "un",
+      "changes": {},
+      "document_evidence": {
+        "rows_count": 1,
+        "unique_units": [
+          "unidade"
+        ],
+        "unique_factors": [
+          1.0
+        ],
+        "strong_unit": "unidade",
+        "strong_factor": 1.0,
+        "sample_document_numbers": [
+          "583016"
         ]
       },
       "applied": false
@@ -5143,17 +5522,47 @@
       "applied": false
     },
     {
+      "codigo_item": "7891960200066",
+      "descricao": "REGISTRO DE ESFERA C/UNIÃO 60MM",
+      "status": "kept",
+      "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
+      "current_unit": "Unidade",
+      "current_packaging": null,
+      "current_factor": 0.0,
+      "current_canonical_unit": "un",
+      "proposed_unit": "Unidade",
+      "proposed_packaging": null,
+      "proposed_factor": 0.0,
+      "proposed_canonical_unit": "un",
+      "changes": {},
+      "document_evidence": {
+        "rows_count": 1,
+        "unique_units": [
+          "unidade"
+        ],
+        "unique_factors": [
+          1.0
+        ],
+        "strong_unit": "unidade",
+        "strong_factor": 1.0,
+        "sample_document_numbers": [
+          "583017"
+        ]
+      },
+      "applied": false
+    },
+    {
       "codigo_item": "7891960731416",
       "descricao": "ADESIVO PLASTICO P/GRANDES DIÂMETROS 850g",
       "status": "kept",
       "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
       "current_unit": "Unidade",
       "current_packaging": null,
-      "current_factor": 1.0,
+      "current_factor": 0.0,
       "current_canonical_unit": "un",
       "proposed_unit": "Unidade",
       "proposed_packaging": null,
-      "proposed_factor": 1.0,
+      "proposed_factor": 0.0,
       "proposed_canonical_unit": "un",
       "changes": {},
       "document_evidence": {
@@ -5217,6 +5626,96 @@
         "strong_unit": null,
         "strong_factor": null,
         "sample_document_numbers": []
+      },
+      "applied": false
+    },
+    {
+      "codigo_item": "7891960820332",
+      "descricao": "JOELHO AQUATHERM 45GRAUS 22MM",
+      "status": "kept",
+      "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
+      "current_unit": "Unidade",
+      "current_packaging": null,
+      "current_factor": 0.0,
+      "current_canonical_unit": "un",
+      "proposed_unit": "Unidade",
+      "proposed_packaging": null,
+      "proposed_factor": 0.0,
+      "proposed_canonical_unit": "un",
+      "changes": {},
+      "document_evidence": {
+        "rows_count": 1,
+        "unique_units": [
+          "unidade"
+        ],
+        "unique_factors": [
+          1.0
+        ],
+        "strong_unit": "unidade",
+        "strong_factor": 1.0,
+        "sample_document_numbers": [
+          "85917"
+        ]
+      },
+      "applied": false
+    },
+    {
+      "codigo_item": "7891960820554",
+      "descricao": "JOELHO AQUATHERM 90 22MM",
+      "status": "kept",
+      "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
+      "current_unit": "Unidade",
+      "current_packaging": null,
+      "current_factor": 0.0,
+      "current_canonical_unit": "un",
+      "proposed_unit": "Unidade",
+      "proposed_packaging": null,
+      "proposed_factor": 0.0,
+      "proposed_canonical_unit": "un",
+      "changes": {},
+      "document_evidence": {
+        "rows_count": 1,
+        "unique_units": [
+          "unidade"
+        ],
+        "unique_factors": [
+          1.0
+        ],
+        "strong_unit": "unidade",
+        "strong_factor": 1.0,
+        "sample_document_numbers": [
+          "85917"
+        ]
+      },
+      "applied": false
+    },
+    {
+      "codigo_item": "7891960820851",
+      "descricao": "LUVA AQUATHERM 22MM",
+      "status": "kept",
+      "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
+      "current_unit": "Unidade",
+      "current_packaging": null,
+      "current_factor": 0.0,
+      "current_canonical_unit": "un",
+      "proposed_unit": "Unidade",
+      "proposed_packaging": null,
+      "proposed_factor": 0.0,
+      "proposed_canonical_unit": "un",
+      "changes": {},
+      "document_evidence": {
+        "rows_count": 1,
+        "unique_units": [
+          "unidade"
+        ],
+        "unique_factors": [
+          1.0
+        ],
+        "strong_unit": "unidade",
+        "strong_factor": 1.0,
+        "sample_document_numbers": [
+          "85917"
+        ]
       },
       "applied": false
     },
@@ -5377,6 +5876,96 @@
       "applied": false
     },
     {
+      "codigo_item": "7892183031475",
+      "descricao": "PARAFUSO 4,5X60MM",
+      "status": "kept",
+      "reason": "item ja compativel com a regra operacional nova",
+      "current_unit": "Unidade",
+      "current_packaging": "caixa",
+      "current_factor": 200.0,
+      "current_canonical_unit": "un",
+      "proposed_unit": "Unidade",
+      "proposed_packaging": "caixa",
+      "proposed_factor": 200.0,
+      "proposed_canonical_unit": "un",
+      "changes": {},
+      "document_evidence": {
+        "rows_count": 1,
+        "unique_units": [
+          "caixa"
+        ],
+        "unique_factors": [
+          200.0
+        ],
+        "strong_unit": "caixa",
+        "strong_factor": 200.0,
+        "sample_document_numbers": [
+          "2361618"
+        ]
+      },
+      "applied": false
+    },
+    {
+      "codigo_item": "7892183045069",
+      "descricao": "PARAFUSO 4,2X19MM",
+      "status": "kept",
+      "reason": "item ja compativel com a regra operacional nova",
+      "current_unit": "Unidade",
+      "current_packaging": "caixa",
+      "current_factor": 1000.0,
+      "current_canonical_unit": "un",
+      "proposed_unit": "Unidade",
+      "proposed_packaging": "caixa",
+      "proposed_factor": 1000.0,
+      "proposed_canonical_unit": "un",
+      "changes": {},
+      "document_evidence": {
+        "rows_count": 1,
+        "unique_units": [
+          "caixa"
+        ],
+        "unique_factors": [
+          1000.0
+        ],
+        "strong_unit": "caixa",
+        "strong_factor": 1000.0,
+        "sample_document_numbers": [
+          "2361618"
+        ]
+      },
+      "applied": false
+    },
+    {
+      "codigo_item": "7892183264477",
+      "descricao": "ARRUELA 5/16",
+      "status": "kept",
+      "reason": "item ja compativel com a regra operacional nova",
+      "current_unit": "Unidade",
+      "current_packaging": "pacote",
+      "current_factor": 300.0,
+      "current_canonical_unit": "un",
+      "proposed_unit": "Unidade",
+      "proposed_packaging": "pacote",
+      "proposed_factor": 300.0,
+      "proposed_canonical_unit": "un",
+      "changes": {},
+      "document_evidence": {
+        "rows_count": 1,
+        "unique_units": [
+          "pacote"
+        ],
+        "unique_factors": [
+          300.0
+        ],
+        "strong_unit": "pacote",
+        "strong_factor": 300.0,
+        "sample_document_numbers": [
+          "NOTA INTERNA"
+        ]
+      },
+      "applied": false
+    },
+    {
       "codigo_item": "7892183266501",
       "descricao": "PARAFUSO 4.2X13MM PTA BROCA",
       "status": "kept",
@@ -5449,6 +6038,36 @@
       "applied": false
     },
     {
+      "codigo_item": "7892183606017",
+      "descricao": "PARAFUSO 4,5X45MM",
+      "status": "kept",
+      "reason": "item ja compativel com a regra operacional nova",
+      "current_unit": "Unidade",
+      "current_packaging": "caixa",
+      "current_factor": 500.0,
+      "current_canonical_unit": "un",
+      "proposed_unit": "Unidade",
+      "proposed_packaging": "caixa",
+      "proposed_factor": 500.0,
+      "proposed_canonical_unit": "un",
+      "changes": {},
+      "document_evidence": {
+        "rows_count": 1,
+        "unique_units": [
+          "caixa"
+        ],
+        "unique_factors": [
+          500.0
+        ],
+        "strong_unit": "caixa",
+        "strong_factor": 500.0,
+        "sample_document_numbers": [
+          "2361618"
+        ]
+      },
+      "applied": false
+    },
+    {
       "codigo_item": "7892183700999",
       "descricao": "PARAFUSO DRYWALL 3,5X25MM",
       "status": "kept",
@@ -5469,6 +6088,36 @@
         "strong_unit": null,
         "strong_factor": null,
         "sample_document_numbers": []
+      },
+      "applied": false
+    },
+    {
+      "codigo_item": "7892183702900",
+      "descricao": "ARRUELA 1/4",
+      "status": "kept",
+      "reason": "item ja compativel com a regra operacional nova",
+      "current_unit": "Unidade",
+      "current_packaging": "pacote",
+      "current_factor": 370.0,
+      "current_canonical_unit": "un",
+      "proposed_unit": "Unidade",
+      "proposed_packaging": "pacote",
+      "proposed_factor": 370.0,
+      "proposed_canonical_unit": "un",
+      "changes": {},
+      "document_evidence": {
+        "rows_count": 1,
+        "unique_units": [
+          "pacote"
+        ],
+        "unique_factors": [
+          370.0
+        ],
+        "strong_unit": "pacote",
+        "strong_factor": 370.0,
+        "sample_document_numbers": [
+          "NOTA INTERNA"
+        ]
       },
       "applied": false
     },
@@ -6007,6 +6656,97 @@
       "applied": false
     },
     {
+      "codigo_item": "7894200024064",
+      "descricao": "BASE DE REGISTRO DE PRESSÃO 1/2\"",
+      "status": "kept",
+      "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
+      "current_unit": "Unidade",
+      "current_packaging": null,
+      "current_factor": 0.0,
+      "current_canonical_unit": "un",
+      "proposed_unit": "Unidade",
+      "proposed_packaging": null,
+      "proposed_factor": 0.0,
+      "proposed_canonical_unit": "un",
+      "changes": {},
+      "document_evidence": {
+        "rows_count": 1,
+        "unique_units": [
+          "unidade"
+        ],
+        "unique_factors": [
+          1.0
+        ],
+        "strong_unit": "unidade",
+        "strong_factor": 1.0,
+        "sample_document_numbers": [
+          "NOTA INTERNA"
+        ]
+      },
+      "applied": false
+    },
+    {
+      "codigo_item": "7894200053521",
+      "descricao": "REGISTRIO DE ESPERA 3/4",
+      "status": "kept",
+      "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
+      "current_unit": "Unidade",
+      "current_packaging": null,
+      "current_factor": 0.0,
+      "current_canonical_unit": "un",
+      "proposed_unit": "Unidade",
+      "proposed_packaging": null,
+      "proposed_factor": 0.0,
+      "proposed_canonical_unit": "un",
+      "changes": {},
+      "document_evidence": {
+        "rows_count": 2,
+        "unique_units": [
+          "unidade"
+        ],
+        "unique_factors": [
+          1.0
+        ],
+        "strong_unit": "unidade",
+        "strong_factor": 1.0,
+        "sample_document_numbers": [
+          "NOTA INTERNA",
+          "583016"
+        ]
+      },
+      "applied": false
+    },
+    {
+      "codigo_item": "7894200053613",
+      "descricao": "REGISTRO DE ESPERA 1.1/2''",
+      "status": "kept",
+      "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
+      "current_unit": "Unidade",
+      "current_packaging": null,
+      "current_factor": 0.0,
+      "current_canonical_unit": "un",
+      "proposed_unit": "Unidade",
+      "proposed_packaging": null,
+      "proposed_factor": 0.0,
+      "proposed_canonical_unit": "un",
+      "changes": {},
+      "document_evidence": {
+        "rows_count": 1,
+        "unique_units": [
+          "unidade"
+        ],
+        "unique_factors": [
+          1.0
+        ],
+        "strong_unit": "unidade",
+        "strong_factor": 1.0,
+        "sample_document_numbers": [
+          "583016"
+        ]
+      },
+      "applied": false
+    },
+    {
       "codigo_item": "7894200159612",
       "descricao": "CONJUNTO DE FIXAÇÃO BACIAS E BIDÊS",
       "status": "kept",
@@ -6056,6 +6796,67 @@
         "strong_factor": 1.0,
         "sample_document_numbers": [
           "4420"
+        ]
+      },
+      "applied": false
+    },
+    {
+      "codigo_item": "78945612398",
+      "descricao": "REJUNTE PALHA",
+      "status": "kept",
+      "reason": "item ja compativel com a regra operacional nova",
+      "current_unit": "Quilo",
+      "current_packaging": "saco",
+      "current_factor": 1.0,
+      "current_canonical_unit": "kg",
+      "proposed_unit": "Quilo",
+      "proposed_packaging": "saco",
+      "proposed_factor": 1.0,
+      "proposed_canonical_unit": "kg",
+      "changes": {},
+      "document_evidence": {
+        "rows_count": 1,
+        "unique_units": [
+          "saco"
+        ],
+        "unique_factors": [
+          1.0
+        ],
+        "strong_unit": "saco",
+        "strong_factor": 1.0,
+        "sample_document_numbers": [
+          "NOTA INTERNA"
+        ]
+      },
+      "applied": false
+    },
+    {
+      "codigo_item": "78945612399",
+      "descricao": "REJUNTE BRANCO",
+      "status": "kept",
+      "reason": "item ja compativel com a regra operacional nova",
+      "current_unit": "Quilo",
+      "current_packaging": "saco",
+      "current_factor": 1.0,
+      "current_canonical_unit": "kg",
+      "proposed_unit": "Quilo",
+      "proposed_packaging": "saco",
+      "proposed_factor": 1.0,
+      "proposed_canonical_unit": "kg",
+      "changes": {},
+      "document_evidence": {
+        "rows_count": 2,
+        "unique_units": [
+          "saco"
+        ],
+        "unique_factors": [
+          1.0
+        ],
+        "strong_unit": "saco",
+        "strong_factor": 1.0,
+        "sample_document_numbers": [
+          "2371046",
+          "NOTA INTERNA"
         ]
       },
       "applied": false
@@ -6307,11 +7108,11 @@
       "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
       "current_unit": "Unidade",
       "current_packaging": null,
-      "current_factor": 1.0,
+      "current_factor": 0.0,
       "current_canonical_unit": "un",
       "proposed_unit": "Unidade",
       "proposed_packaging": null,
-      "proposed_factor": 1.0,
+      "proposed_factor": 0.0,
       "proposed_canonical_unit": "un",
       "changes": {},
       "document_evidence": {
@@ -6434,7 +7235,7 @@
     },
     {
       "codigo_item": "7896038107117",
-      "descricao": "SILICONE ACÉTICO MULTIUSO (PU) PRETO 250g",
+      "descricao": "PU PRETO 250g",
       "status": "kept",
       "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
       "current_unit": "Unidade",
@@ -6554,30 +7355,33 @@
     },
     {
       "codigo_item": "7896155116405",
-      "descricao": "TEXTURA ACRÍLICA LISA 25KG",
+      "descricao": "TEXTURA ACRÍLICA LISA 23KG",
       "status": "kept",
       "reason": "item ja compativel com a regra operacional nova",
-      "current_unit": "Balde",
+      "current_unit": "Quilo",
       "current_packaging": "balde",
-      "current_factor": 25.0,
+      "current_factor": 23.0,
       "current_canonical_unit": "kg",
-      "proposed_unit": "Balde",
+      "proposed_unit": "Quilo",
       "proposed_packaging": "balde",
-      "proposed_factor": 25.0,
+      "proposed_factor": 23.0,
       "proposed_canonical_unit": "kg",
       "changes": {},
       "document_evidence": {
-        "rows_count": 1,
+        "rows_count": 3,
         "unique_units": [
           "balde"
         ],
         "unique_factors": [
-          1.0
+          23.0,
+          25.0
         ],
         "strong_unit": "balde",
-        "strong_factor": 1.0,
+        "strong_factor": null,
         "sample_document_numbers": [
-          "2341565"
+          "2366707",
+          "2341565",
+          "2372230"
         ]
       },
       "applied": false
@@ -6627,6 +7431,36 @@
         "strong_unit": null,
         "strong_factor": null,
         "sample_document_numbers": []
+      },
+      "applied": false
+    },
+    {
+      "codigo_item": "7896155149328",
+      "descricao": "TEXTURA RAFIATTO RÚSTICO ACRÍLICO  23KG",
+      "status": "kept",
+      "reason": "item ja compativel com a regra operacional nova",
+      "current_unit": "Quilo",
+      "current_packaging": "balde",
+      "current_factor": 23.0,
+      "current_canonical_unit": "kg",
+      "proposed_unit": "Quilo",
+      "proposed_packaging": "balde",
+      "proposed_factor": 23.0,
+      "proposed_canonical_unit": "kg",
+      "changes": {},
+      "document_evidence": {
+        "rows_count": 1,
+        "unique_units": [
+          "balde"
+        ],
+        "unique_factors": [
+          23.0
+        ],
+        "strong_unit": "balde",
+        "strong_factor": 23.0,
+        "sample_document_numbers": [
+          "2372230"
+        ]
       },
       "applied": false
     },
@@ -6698,10 +7532,10 @@
           "balde"
         ],
         "unique_factors": [
-          1.0
+          25.0
         ],
         "strong_unit": "balde",
-        "strong_factor": 1.0,
+        "strong_factor": 25.0,
         "sample_document_numbers": [
           "048259"
         ]
@@ -6729,6 +7563,36 @@
         "strong_unit": null,
         "strong_factor": null,
         "sample_document_numbers": []
+      },
+      "applied": false
+    },
+    {
+      "codigo_item": "7896380103188",
+      "descricao": "ROLO BRASILEIRINHO 23CM",
+      "status": "kept",
+      "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
+      "current_unit": "Unidade",
+      "current_packaging": null,
+      "current_factor": 0.0,
+      "current_canonical_unit": "un",
+      "proposed_unit": "Unidade",
+      "proposed_packaging": null,
+      "proposed_factor": 0.0,
+      "proposed_canonical_unit": "un",
+      "changes": {},
+      "document_evidence": {
+        "rows_count": 1,
+        "unique_units": [
+          "unidade"
+        ],
+        "unique_factors": [
+          1.0
+        ],
+        "strong_unit": "unidade",
+        "strong_factor": 1.0,
+        "sample_document_numbers": [
+          "NOTA INTERNA"
+        ]
       },
       "applied": false
     },
@@ -6889,7 +7753,7 @@
         "strong_unit": "unidade",
         "strong_factor": 1.0,
         "sample_document_numbers": [
-          "SEM NF/CUPOM"
+          "NOTA INTERNA"
         ]
       },
       "applied": false
@@ -6961,11 +7825,11 @@
       "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
       "current_unit": "Unidade",
       "current_packaging": null,
-      "current_factor": 1.0,
+      "current_factor": 0.0,
       "current_canonical_unit": "un",
       "proposed_unit": "Unidade",
       "proposed_packaging": null,
-      "proposed_factor": 1.0,
+      "proposed_factor": 0.0,
       "proposed_canonical_unit": "un",
       "changes": {},
       "document_evidence": {
@@ -6991,11 +7855,11 @@
       "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
       "current_unit": "Unidade",
       "current_packaging": null,
-      "current_factor": 1.0,
+      "current_factor": 0.0,
       "current_canonical_unit": "un",
       "proposed_unit": "Unidade",
       "proposed_packaging": null,
-      "proposed_factor": 1.0,
+      "proposed_factor": 0.0,
       "proposed_canonical_unit": "un",
       "changes": {},
       "document_evidence": {
@@ -7168,15 +8032,15 @@
       "codigo_item": "7896544403741",
       "descricao": "REDUTOR DE PH",
       "status": "manual_review",
-      "reason": "unidade atual esta gravada como valor numerico legado",
-      "current_unit": "51",
-      "current_packaging": null,
-      "current_factor": 0.0,
-      "current_canonical_unit": "51",
-      "proposed_unit": "51",
-      "proposed_packaging": null,
-      "proposed_factor": 0.0,
-      "proposed_canonical_unit": "51",
+      "reason": "tipo_embalagem_novo=litro fica fora da nova regra operacional e exige revisao manual",
+      "current_unit": "Litro",
+      "current_packaging": "litro",
+      "current_factor": 1.0,
+      "current_canonical_unit": "l",
+      "proposed_unit": "Litro",
+      "proposed_packaging": "litro",
+      "proposed_factor": 1.0,
+      "proposed_canonical_unit": "l",
       "changes": {},
       "document_evidence": {
         "rows_count": 0,
@@ -7191,16 +8055,16 @@
     {
       "codigo_item": "7896544403758",
       "descricao": "ESTABILIZADOR DE PH 2KG",
-      "status": "manual_review",
-      "reason": "unidade atual esta gravada como valor numerico legado",
-      "current_unit": "8",
+      "status": "kept",
+      "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
+      "current_unit": "Unidade",
       "current_packaging": null,
       "current_factor": 0.0,
-      "current_canonical_unit": "8",
-      "proposed_unit": "8",
+      "current_canonical_unit": "un",
+      "proposed_unit": "Unidade",
       "proposed_packaging": null,
       "proposed_factor": 0.0,
-      "proposed_canonical_unit": "8",
+      "proposed_canonical_unit": "un",
       "changes": {},
       "document_evidence": {
         "rows_count": 0,
@@ -7305,6 +8169,66 @@
         "strong_unit": null,
         "strong_factor": null,
         "sample_document_numbers": []
+      },
+      "applied": false
+    },
+    {
+      "codigo_item": "7896637669382",
+      "descricao": "FONTE DE ALIMENTAÇÃO ININTERRUPTA 2A",
+      "status": "kept",
+      "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
+      "current_unit": "Unidade",
+      "current_packaging": null,
+      "current_factor": 0.0,
+      "current_canonical_unit": "un",
+      "proposed_unit": "Unidade",
+      "proposed_packaging": null,
+      "proposed_factor": 0.0,
+      "proposed_canonical_unit": "un",
+      "changes": {},
+      "document_evidence": {
+        "rows_count": 1,
+        "unique_units": [
+          "unidade"
+        ],
+        "unique_factors": [
+          1.0
+        ],
+        "strong_unit": "unidade",
+        "strong_factor": 1.0,
+        "sample_document_numbers": [
+          "NOTA INTERNA"
+        ]
+      },
+      "applied": false
+    },
+    {
+      "codigo_item": "7896637671026",
+      "descricao": "FECHADURA-ELETROIMÃ",
+      "status": "kept",
+      "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
+      "current_unit": "Unidade",
+      "current_packaging": null,
+      "current_factor": 0.0,
+      "current_canonical_unit": "un",
+      "proposed_unit": "Unidade",
+      "proposed_packaging": null,
+      "proposed_factor": 0.0,
+      "proposed_canonical_unit": "un",
+      "changes": {},
+      "document_evidence": {
+        "rows_count": 1,
+        "unique_units": [
+          "unidade"
+        ],
+        "unique_factors": [
+          1.0
+        ],
+        "strong_unit": "unidade",
+        "strong_factor": 1.0,
+        "sample_document_numbers": [
+          "NOTA INTERNA"
+        ]
       },
       "applied": false
     },
@@ -7824,17 +8748,17 @@
       "descricao": "CLARIFICANTE MAXFLOC 1L",
       "status": "kept",
       "reason": "item legado em litro mantido por compatibilidade operacional",
-      "current_unit": "L",
+      "current_unit": "Litro",
       "current_packaging": "litro",
       "current_factor": 1.0,
       "current_canonical_unit": "l",
-      "proposed_unit": "L",
+      "proposed_unit": "Litro",
       "proposed_packaging": "litro",
       "proposed_factor": 1.0,
       "proposed_canonical_unit": "l",
       "changes": {},
       "document_evidence": {
-        "rows_count": 1,
+        "rows_count": 2,
         "unique_units": [
           "litro"
         ],
@@ -7844,7 +8768,8 @@
         "strong_unit": "litro",
         "strong_factor": 1.0,
         "sample_document_numbers": [
-          "02922"
+          "02922",
+          "03206"
         ]
       },
       "applied": false
@@ -7854,17 +8779,17 @@
       "descricao": "CLORO GRANULADO 10KG",
       "status": "kept",
       "reason": "item ja compativel com a regra operacional nova",
-      "current_unit": "Balde",
+      "current_unit": "Quilo",
       "current_packaging": "balde",
       "current_factor": 10.0,
       "current_canonical_unit": "kg",
-      "proposed_unit": "Balde",
+      "proposed_unit": "Quilo",
       "proposed_packaging": "balde",
       "proposed_factor": 10.0,
       "proposed_canonical_unit": "kg",
       "changes": {},
       "document_evidence": {
-        "rows_count": 3,
+        "rows_count": 4,
         "unique_units": [
           "balde"
         ],
@@ -7876,7 +8801,8 @@
         "sample_document_numbers": [
           "183363",
           "03095",
-          "002990"
+          "002990",
+          "03206"
         ]
       },
       "applied": false
@@ -7915,15 +8841,15 @@
       "codigo_item": "7897432700676",
       "descricao": "PASTILHA DE CLORO TRIPLA AÇÃO 200g",
       "status": "kept",
-      "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
-      "current_unit": "Unidade",
-      "current_packaging": null,
+      "reason": "item ja compativel com a regra operacional nova",
+      "current_unit": "Quilo",
+      "current_packaging": "balde",
       "current_factor": 0.2,
-      "current_canonical_unit": "kg",
-      "proposed_unit": "Unidade",
-      "proposed_packaging": null,
+      "current_canonical_unit": "un",
+      "proposed_unit": "Quilo",
+      "proposed_packaging": "balde",
       "proposed_factor": 0.2,
-      "proposed_canonical_unit": "kg",
+      "proposed_canonical_unit": "un",
       "changes": {},
       "document_evidence": {
         "rows_count": 2,
@@ -7931,10 +8857,10 @@
           "unidade"
         ],
         "unique_factors": [
-          1.0
+          0.2
         ],
         "strong_unit": "unidade",
-        "strong_factor": 1.0,
+        "strong_factor": 0.2,
         "sample_document_numbers": [
           "02924",
           "03095"
@@ -8191,11 +9117,11 @@
       "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
       "current_unit": "Unidade",
       "current_packaging": null,
-      "current_factor": 1.0,
+      "current_factor": 0.0,
       "current_canonical_unit": "un",
       "proposed_unit": "Unidade",
       "proposed_packaging": null,
-      "proposed_factor": 1.0,
+      "proposed_factor": 0.0,
       "proposed_canonical_unit": "un",
       "changes": {},
       "document_evidence": {
@@ -8215,11 +9141,11 @@
       "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
       "current_unit": "Unidade",
       "current_packaging": null,
-      "current_factor": 1.0,
+      "current_factor": 0.0,
       "current_canonical_unit": "un",
       "proposed_unit": "Unidade",
       "proposed_packaging": null,
-      "proposed_factor": 1.0,
+      "proposed_factor": 0.0,
       "proposed_canonical_unit": "un",
       "changes": {},
       "document_evidence": {
@@ -8259,6 +9185,36 @@
         "strong_unit": null,
         "strong_factor": null,
         "sample_document_numbers": []
+      },
+      "applied": false
+    },
+    {
+      "codigo_item": "7897613520727",
+      "descricao": "SUPORTE DE ROLO 23CM PRETO",
+      "status": "kept",
+      "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
+      "current_unit": "Unidade",
+      "current_packaging": null,
+      "current_factor": 0.0,
+      "current_canonical_unit": "un",
+      "proposed_unit": "Unidade",
+      "proposed_packaging": null,
+      "proposed_factor": 0.0,
+      "proposed_canonical_unit": "un",
+      "changes": {},
+      "document_evidence": {
+        "rows_count": 1,
+        "unique_units": [
+          "unidade"
+        ],
+        "unique_factors": [
+          1.0
+        ],
+        "strong_unit": "unidade",
+        "strong_factor": 1.0,
+        "sample_document_numbers": [
+          "2353611"
+        ]
       },
       "applied": false
     },
@@ -8365,11 +9321,11 @@
       "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
       "current_unit": "Unidade",
       "current_packaging": null,
-      "current_factor": 1.0,
+      "current_factor": 0.0,
       "current_canonical_unit": "un",
       "proposed_unit": "Unidade",
       "proposed_packaging": null,
-      "proposed_factor": 1.0,
+      "proposed_factor": 0.0,
       "proposed_canonical_unit": "un",
       "changes": {},
       "document_evidence": {
@@ -8383,7 +9339,7 @@
         "strong_unit": "unidade",
         "strong_factor": 1.0,
         "sample_document_numbers": [
-          "SEM NF/CUPOM"
+          "NOTA INTERNA"
         ]
       },
       "applied": false
@@ -8395,11 +9351,11 @@
       "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
       "current_unit": "Unidade",
       "current_packaging": null,
-      "current_factor": 1.0,
+      "current_factor": 0.0,
       "current_canonical_unit": "un",
       "proposed_unit": "Unidade",
       "proposed_packaging": null,
-      "proposed_factor": 1.0,
+      "proposed_factor": 0.0,
       "proposed_canonical_unit": "un",
       "changes": {},
       "document_evidence": {
@@ -8413,32 +9369,8 @@
         "strong_unit": "unidade",
         "strong_factor": 1.0,
         "sample_document_numbers": [
-          "SEM NF/CUPOM"
+          "NOTA INTERNA"
         ]
-      },
-      "applied": false
-    },
-    {
-      "codigo_item": "7897702700245",
-      "descricao": "LIMPA PISO 1L",
-      "status": "kept",
-      "reason": "item legado em litro mantido por compatibilidade operacional",
-      "current_unit": "Litro",
-      "current_packaging": "litro",
-      "current_factor": 1.0,
-      "current_canonical_unit": "l",
-      "proposed_unit": "Litro",
-      "proposed_packaging": "litro",
-      "proposed_factor": 1.0,
-      "proposed_canonical_unit": "l",
-      "changes": {},
-      "document_evidence": {
-        "rows_count": 0,
-        "unique_units": [],
-        "unique_factors": [],
-        "strong_unit": null,
-        "strong_factor": null,
-        "sample_document_numbers": []
       },
       "applied": false
     },
@@ -8563,17 +9495,47 @@
       "applied": false
     },
     {
+      "codigo_item": "7897795001458",
+      "descricao": "JUNÇÃO RED SIMPLES ESGOTO 150X100MM",
+      "status": "kept",
+      "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
+      "current_unit": "Unidade",
+      "current_packaging": null,
+      "current_factor": 0.0,
+      "current_canonical_unit": "un",
+      "proposed_unit": "Unidade",
+      "proposed_packaging": null,
+      "proposed_factor": 0.0,
+      "proposed_canonical_unit": "un",
+      "changes": {},
+      "document_evidence": {
+        "rows_count": 1,
+        "unique_units": [
+          "unidade"
+        ],
+        "unique_factors": [
+          1.0
+        ],
+        "strong_unit": "unidade",
+        "strong_factor": 1.0,
+        "sample_document_numbers": [
+          "583017"
+        ]
+      },
+      "applied": false
+    },
+    {
       "codigo_item": "78978013001084",
       "descricao": "REGISTRO DE ESFERA 60MM",
       "status": "kept",
       "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
       "current_unit": "Unidade",
       "current_packaging": null,
-      "current_factor": 1.0,
+      "current_factor": 0.0,
       "current_canonical_unit": "un",
       "proposed_unit": "Unidade",
       "proposed_packaging": null,
-      "proposed_factor": 1.0,
+      "proposed_factor": 0.0,
       "proposed_canonical_unit": "un",
       "changes": {},
       "document_evidence": {
@@ -8623,11 +9585,11 @@
       "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
       "current_unit": "Unidade",
       "current_packaging": null,
-      "current_factor": 1.0,
+      "current_factor": 0.0,
       "current_canonical_unit": "un",
       "proposed_unit": "Unidade",
       "proposed_packaging": null,
-      "proposed_factor": 1.0,
+      "proposed_factor": 0.0,
       "proposed_canonical_unit": "un",
       "changes": {},
       "document_evidence": {
@@ -8671,68 +9633,6 @@
       "applied": false
     },
     {
-      "codigo_item": "7897801307550",
-      "descricao": "CURVA 90 SOLDÁVEL 60MM",
-      "status": "kept",
-      "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
-      "current_unit": "Unidade",
-      "current_packaging": null,
-      "current_factor": 1.0,
-      "current_canonical_unit": "un",
-      "proposed_unit": "Unidade",
-      "proposed_packaging": null,
-      "proposed_factor": 1.0,
-      "proposed_canonical_unit": "un",
-      "changes": {},
-      "document_evidence": {
-        "rows_count": 2,
-        "unique_units": [
-          "unidade"
-        ],
-        "unique_factors": [
-          1.0
-        ],
-        "strong_unit": "unidade",
-        "strong_factor": 1.0,
-        "sample_document_numbers": [
-          "2357531",
-          "583017"
-        ]
-      },
-      "applied": false
-    },
-    {
-      "codigo_item": "7897801308403",
-      "descricao": "UNIÃO SOLDÁVEL 60MM",
-      "status": "kept",
-      "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
-      "current_unit": "Unidade",
-      "current_packaging": null,
-      "current_factor": 1.0,
-      "current_canonical_unit": "un",
-      "proposed_unit": "Unidade",
-      "proposed_packaging": null,
-      "proposed_factor": 1.0,
-      "proposed_canonical_unit": "un",
-      "changes": {},
-      "document_evidence": {
-        "rows_count": 2,
-        "unique_units": [
-          "unidade"
-        ],
-        "unique_factors": [
-          1.0
-        ],
-        "strong_unit": "unidade",
-        "strong_factor": 1.0,
-        "sample_document_numbers": [
-          "2357531",
-          "583017"
-        ]
-      },
-      "applied": false
-    },
-    {
       "codigo_item": "7897826107937",
       "descricao": "COLA GARTFIX RODA PÉ 1KG",
       "status": "manual_review",
@@ -8759,24 +9659,150 @@
     {
       "codigo_item": "7897841947686",
       "descricao": "AREIA PARA FILTRO",
-      "status": "manual_review",
-      "reason": "unidade atual esta gravada como valor numerico legado",
-      "current_unit": "3",
-      "current_packaging": null,
-      "current_factor": 0.0,
-      "current_canonical_unit": "3",
-      "proposed_unit": "3",
-      "proposed_packaging": null,
-      "proposed_factor": 0.0,
-      "proposed_canonical_unit": "3",
+      "status": "kept",
+      "reason": "item ja compativel com a regra operacional nova",
+      "current_unit": "Quilo",
+      "current_packaging": "saco",
+      "current_factor": 25.0,
+      "current_canonical_unit": "un",
+      "proposed_unit": "Quilo",
+      "proposed_packaging": "saco",
+      "proposed_factor": 25.0,
+      "proposed_canonical_unit": "un",
       "changes": {},
       "document_evidence": {
-        "rows_count": 0,
-        "unique_units": [],
-        "unique_factors": [],
-        "strong_unit": null,
-        "strong_factor": null,
-        "sample_document_numbers": []
+        "rows_count": 1,
+        "unique_units": [
+          "3"
+        ],
+        "unique_factors": [
+          1.0
+        ],
+        "strong_unit": "3",
+        "strong_factor": 1.0,
+        "sample_document_numbers": [
+          "119606"
+        ]
+      },
+      "applied": false
+    },
+    {
+      "codigo_item": "7897841950570",
+      "descricao": "BOMBA PF-17 1/2 CV",
+      "status": "kept",
+      "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
+      "current_unit": "Unidade",
+      "current_packaging": null,
+      "current_factor": 0.0,
+      "current_canonical_unit": "un",
+      "proposed_unit": "Unidade",
+      "proposed_packaging": null,
+      "proposed_factor": 0.0,
+      "proposed_canonical_unit": "un",
+      "changes": {},
+      "document_evidence": {
+        "rows_count": 1,
+        "unique_units": [
+          "unidade"
+        ],
+        "unique_factors": [
+          1.0
+        ],
+        "strong_unit": "unidade",
+        "strong_factor": 1.0,
+        "sample_document_numbers": [
+          "119606"
+        ]
+      },
+      "applied": false
+    },
+    {
+      "codigo_item": "7897841950587",
+      "descricao": "BOMBA PF-17 3/4 CV",
+      "status": "kept",
+      "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
+      "current_unit": "Unidade",
+      "current_packaging": null,
+      "current_factor": 0.0,
+      "current_canonical_unit": "un",
+      "proposed_unit": "Unidade",
+      "proposed_packaging": null,
+      "proposed_factor": 0.0,
+      "proposed_canonical_unit": "un",
+      "changes": {},
+      "document_evidence": {
+        "rows_count": 1,
+        "unique_units": [
+          "unidade"
+        ],
+        "unique_factors": [
+          1.0
+        ],
+        "strong_unit": "unidade",
+        "strong_factor": 1.0,
+        "sample_document_numbers": [
+          "119606"
+        ]
+      },
+      "applied": false
+    },
+    {
+      "codigo_item": "7897841950594",
+      "descricao": "BOMBA PF-17 1.0 CV",
+      "status": "kept",
+      "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
+      "current_unit": "Unidade",
+      "current_packaging": null,
+      "current_factor": 1.0,
+      "current_canonical_unit": "un",
+      "proposed_unit": "Unidade",
+      "proposed_packaging": null,
+      "proposed_factor": 1.0,
+      "proposed_canonical_unit": "un",
+      "changes": {},
+      "document_evidence": {
+        "rows_count": 1,
+        "unique_units": [
+          "unidade"
+        ],
+        "unique_factors": [
+          1.0
+        ],
+        "strong_unit": "unidade",
+        "strong_factor": 1.0,
+        "sample_document_numbers": [
+          "119606"
+        ]
+      },
+      "applied": false
+    },
+    {
+      "codigo_item": "7897841966731",
+      "descricao": "FILTRO DFR 15",
+      "status": "kept",
+      "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
+      "current_unit": "Unidade",
+      "current_packaging": null,
+      "current_factor": 0.0,
+      "current_canonical_unit": "un",
+      "proposed_unit": "Unidade",
+      "proposed_packaging": null,
+      "proposed_factor": 0.0,
+      "proposed_canonical_unit": "un",
+      "changes": {},
+      "document_evidence": {
+        "rows_count": 1,
+        "unique_units": [
+          "unidade"
+        ],
+        "unique_factors": [
+          1.0
+        ],
+        "strong_unit": "unidade",
+        "strong_factor": 1.0,
+        "sample_document_numbers": [
+          "119606"
+        ]
       },
       "applied": false
     },
@@ -8787,11 +9813,11 @@
       "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
       "current_unit": "Unidade",
       "current_packaging": null,
-      "current_factor": 1.0,
+      "current_factor": 0.0,
       "current_canonical_unit": "un",
       "proposed_unit": "Unidade",
       "proposed_packaging": null,
-      "proposed_factor": 1.0,
+      "proposed_factor": 0.0,
       "proposed_canonical_unit": "un",
       "changes": {},
       "document_evidence": {
@@ -8895,6 +9921,36 @@
       "applied": false
     },
     {
+      "codigo_item": "7898006030106",
+      "descricao": "RESINA ACRÍLICA 5L",
+      "status": "kept",
+      "reason": "item ja compativel com a regra operacional nova",
+      "current_unit": "Litro",
+      "current_packaging": "lata",
+      "current_factor": 5.0,
+      "current_canonical_unit": "l",
+      "proposed_unit": "Litro",
+      "proposed_packaging": "lata",
+      "proposed_factor": 5.0,
+      "proposed_canonical_unit": "l",
+      "changes": {},
+      "document_evidence": {
+        "rows_count": 1,
+        "unique_units": [
+          "lata"
+        ],
+        "unique_factors": [
+          5.0
+        ],
+        "strong_unit": "lata",
+        "strong_factor": 5.0,
+        "sample_document_numbers": [
+          "2371046"
+        ]
+      },
+      "applied": false
+    },
+    {
       "codigo_item": "7898031546924",
       "descricao": "MASSA ADESIVA 400G",
       "status": "kept",
@@ -8973,11 +10029,11 @@
       "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
       "current_unit": "Unidade",
       "current_packaging": null,
-      "current_factor": 1.0,
+      "current_factor": 0.0,
       "current_canonical_unit": "un",
       "proposed_unit": "Unidade",
       "proposed_packaging": null,
-      "proposed_factor": 1.0,
+      "proposed_factor": 0.0,
       "proposed_canonical_unit": "un",
       "changes": {},
       "document_evidence": {
@@ -9322,10 +10378,10 @@
           "bombona"
         ],
         "unique_factors": [
-          1.0
+          5.0
         ],
         "strong_unit": "bombona",
-        "strong_factor": 1.0,
+        "strong_factor": 5.0,
         "sample_document_numbers": [
           "051847"
         ]
@@ -9347,7 +10403,7 @@
       "proposed_canonical_unit": "l",
       "changes": {},
       "document_evidence": {
-        "rows_count": 5,
+        "rows_count": 6,
         "unique_units": [
           "litro"
         ],
@@ -9498,14 +10554,16 @@
       "status": "manual_review",
       "reason": "fator operacional nao foi resolvido com seguranca",
       "current_unit": "Pacote",
-      "current_packaging": "pacote",
+      "current_packaging": null,
       "current_factor": 0.0,
       "current_canonical_unit": "un",
       "proposed_unit": "Pacote",
       "proposed_packaging": "pacote",
       "proposed_factor": 0.0,
       "proposed_canonical_unit": "un",
-      "changes": {},
+      "changes": {
+        "tipo_embalagem_novo": "pacote"
+      },
       "document_evidence": {
         "rows_count": 0,
         "unique_units": [],
@@ -9836,14 +10894,14 @@
     },
     {
       "codigo_item": "7898258651074",
-      "descricao": "FIO 2.5MM FLEXÍVEL AZUL 100M",
+      "descricao": "FIO FLEXÍVEL 2.5MM AZUL",
       "status": "kept",
       "reason": "item ja compativel com a regra operacional nova",
-      "current_unit": "Rolo",
+      "current_unit": "Metro",
       "current_packaging": "rolo",
       "current_factor": 100.0,
       "current_canonical_unit": "m",
-      "proposed_unit": "Rolo",
+      "proposed_unit": "Metro",
       "proposed_packaging": "rolo",
       "proposed_factor": 100.0,
       "proposed_canonical_unit": "m",
@@ -9854,10 +10912,10 @@
           "rolo"
         ],
         "unique_factors": [
-          1.0
+          100.0
         ],
         "strong_unit": "rolo",
-        "strong_factor": 1.0,
+        "strong_factor": 100.0,
         "sample_document_numbers": [
           "86149"
         ]
@@ -9920,7 +10978,7 @@
     },
     {
       "codigo_item": "7898259251778",
-      "descricao": "FIO 1.5 FLEXSÍVEL BRANCO 100M",
+      "descricao": "FIO FLEXSÍVEL 1.5MM BRANCO",
       "status": "kept",
       "reason": "item ja compativel com a regra operacional nova",
       "current_unit": "Metro",
@@ -9950,14 +11008,14 @@
     },
     {
       "codigo_item": "7898259251839",
-      "descricao": "FIO 1.5 FLEXSÍVEL PRETO 100M",
+      "descricao": "FIO FLEXSÍVEL 1.5MM PRETO",
       "status": "kept",
       "reason": "item ja compativel com a regra operacional nova",
-      "current_unit": "metros",
+      "current_unit": "Metro",
       "current_packaging": "rolo",
       "current_factor": 100.0,
       "current_canonical_unit": "m",
-      "proposed_unit": "metros",
+      "proposed_unit": "Metro",
       "proposed_packaging": "rolo",
       "proposed_factor": 100.0,
       "proposed_canonical_unit": "m",
@@ -9974,14 +11032,14 @@
     },
     {
       "codigo_item": "7898259251860",
-      "descricao": "FIO FLEXSÍVEL BRANCO 2.5MM",
+      "descricao": "FIO FLEXSÍVEL 2.5MM BRANCO",
       "status": "kept",
       "reason": "item ja compativel com a regra operacional nova",
-      "current_unit": "metros",
+      "current_unit": "Metro",
       "current_packaging": "rolo",
       "current_factor": 100.0,
       "current_canonical_unit": "m",
-      "proposed_unit": "metros",
+      "proposed_unit": "Metro",
       "proposed_packaging": "rolo",
       "proposed_factor": 100.0,
       "proposed_canonical_unit": "m",
@@ -10004,7 +11062,7 @@
     },
     {
       "codigo_item": "7898259251884",
-      "descricao": "FIO FLEXSÍVEL AZUL 2.5MM",
+      "descricao": "FIO FLEXSÍVEL 2.5MM AZUL",
       "status": "kept",
       "reason": "item ja compativel com a regra operacional nova",
       "current_unit": "Metro",
@@ -10019,13 +11077,13 @@
       "document_evidence": {
         "rows_count": 1,
         "unique_units": [
-          "metro"
+          "rolo"
         ],
         "unique_factors": [
-          1.0
+          100.0
         ],
-        "strong_unit": "metro",
-        "strong_factor": 1.0,
+        "strong_unit": "rolo",
+        "strong_factor": 100.0,
         "sample_document_numbers": [
           "086294"
         ]
@@ -10049,13 +11107,13 @@
       "document_evidence": {
         "rows_count": 1,
         "unique_units": [
-          "metro"
+          "rolo"
         ],
         "unique_factors": [
-          1.0
+          100.0
         ],
-        "strong_unit": "metro",
-        "strong_factor": 1.0,
+        "strong_unit": "rolo",
+        "strong_factor": 100.0,
         "sample_document_numbers": [
           "086294"
         ]
@@ -10097,7 +11155,7 @@
     },
     {
       "codigo_item": "7898259251938",
-      "descricao": "FIO FLEXSÍVEL VERDE 2.5MM",
+      "descricao": "FIO FLEXSÍVEL 2.5MM VERDE",
       "status": "kept",
       "reason": "item ja compativel com a regra operacional nova",
       "current_unit": "Metro",
@@ -10183,11 +11241,11 @@
       "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
       "current_unit": "Unidade",
       "current_packaging": null,
-      "current_factor": 1.0,
+      "current_factor": 0.0,
       "current_canonical_unit": "un",
       "proposed_unit": "Unidade",
       "proposed_packaging": null,
-      "proposed_factor": 1.0,
+      "proposed_factor": 0.0,
       "proposed_canonical_unit": "un",
       "changes": {},
       "document_evidence": {
@@ -10209,30 +11267,6 @@
     {
       "codigo_item": "7898322648313",
       "descricao": "TOMADA FÊMEA 20A",
-      "status": "kept",
-      "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
-      "current_unit": "Unidade",
-      "current_packaging": null,
-      "current_factor": 0.0,
-      "current_canonical_unit": "un",
-      "proposed_unit": "Unidade",
-      "proposed_packaging": null,
-      "proposed_factor": 0.0,
-      "proposed_canonical_unit": "un",
-      "changes": {},
-      "document_evidence": {
-        "rows_count": 0,
-        "unique_units": [],
-        "unique_factors": [],
-        "strong_unit": null,
-        "strong_factor": null,
-        "sample_document_numbers": []
-      },
-      "applied": false
-    },
-    {
-      "codigo_item": "7898324232527",
-      "descricao": "LÂMPADA FLUORESCENTE 26W 2.7K BASE G24Q3",
       "status": "kept",
       "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
       "current_unit": "Unidade",
@@ -10433,11 +11467,11 @@
       "descricao": "FITA CREPE 48X50M",
       "status": "kept",
       "reason": "item ja compativel com a regra operacional nova",
-      "current_unit": "Rolo",
+      "current_unit": "Metro",
       "current_packaging": "rolo",
       "current_factor": 50.0,
       "current_canonical_unit": "m",
-      "proposed_unit": "Rolo",
+      "proposed_unit": "Metro",
       "proposed_packaging": "rolo",
       "proposed_factor": 50.0,
       "proposed_canonical_unit": "m",
@@ -10448,10 +11482,10 @@
           "rolo"
         ],
         "unique_factors": [
-          1.0
+          50.0
         ],
         "strong_unit": "rolo",
-        "strong_factor": 1.0,
+        "strong_factor": 50.0,
         "sample_document_numbers": [
           "101456"
         ]
@@ -10747,36 +11781,6 @@
       "applied": false
     },
     {
-      "codigo_item": "7898505140030",
-      "descricao": "COPO DESCARTÁVEL (100uni) 200ML",
-      "status": "kept",
-      "reason": "item ja compativel com a regra operacional nova",
-      "current_unit": "un",
-      "current_packaging": "pacote",
-      "current_factor": 100.0,
-      "current_canonical_unit": "un",
-      "proposed_unit": "un",
-      "proposed_packaging": "pacote",
-      "proposed_factor": 100.0,
-      "proposed_canonical_unit": "un",
-      "changes": {},
-      "document_evidence": {
-        "rows_count": 1,
-        "unique_units": [
-          "pacote"
-        ],
-        "unique_factors": [
-          100.0
-        ],
-        "strong_unit": "pacote",
-        "strong_factor": 100.0,
-        "sample_document_numbers": [
-          "183363"
-        ]
-      },
-      "applied": false
-    },
-    {
       "codigo_item": "7898505140238",
       "descricao": "COPO DESCARTÁVEL  200ML",
       "status": "kept",
@@ -10861,11 +11865,11 @@
       "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
       "current_unit": "Unidade",
       "current_packaging": null,
-      "current_factor": 1.0,
+      "current_factor": 0.0,
       "current_canonical_unit": "un",
       "proposed_unit": "Unidade",
       "proposed_packaging": null,
-      "proposed_factor": 1.0,
+      "proposed_factor": 0.0,
       "proposed_canonical_unit": "un",
       "changes": {},
       "document_evidence": {
@@ -10963,11 +11967,11 @@
       "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
       "current_unit": "Unidade",
       "current_packaging": null,
-      "current_factor": 1.0,
+      "current_factor": 0.0,
       "current_canonical_unit": "un",
       "proposed_unit": "Unidade",
       "proposed_packaging": null,
-      "proposed_factor": 1.0,
+      "proposed_factor": 0.0,
       "proposed_canonical_unit": "un",
       "changes": {},
       "document_evidence": {
@@ -11017,11 +12021,11 @@
       "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
       "current_unit": "Unidade",
       "current_packaging": null,
-      "current_factor": 1.0,
+      "current_factor": 0.0,
       "current_canonical_unit": "un",
       "proposed_unit": "Unidade",
       "proposed_packaging": null,
-      "proposed_factor": 1.0,
+      "proposed_factor": 0.0,
       "proposed_canonical_unit": "un",
       "changes": {},
       "document_evidence": {
@@ -11047,11 +12051,11 @@
       "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
       "current_unit": "Unidade",
       "current_packaging": null,
-      "current_factor": 1.0,
+      "current_factor": 0.0,
       "current_canonical_unit": "un",
       "proposed_unit": "Unidade",
       "proposed_packaging": null,
-      "proposed_factor": 1.0,
+      "proposed_factor": 0.0,
       "proposed_canonical_unit": "un",
       "changes": {},
       "document_evidence": {
@@ -11101,11 +12105,11 @@
       "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
       "current_unit": "Unidade",
       "current_packaging": null,
-      "current_factor": 1.0,
+      "current_factor": 0.0,
       "current_canonical_unit": "un",
       "proposed_unit": "Unidade",
       "proposed_packaging": null,
-      "proposed_factor": 1.0,
+      "proposed_factor": 0.0,
       "proposed_canonical_unit": "un",
       "changes": {},
       "document_evidence": {
@@ -11324,6 +12328,36 @@
       "applied": false
     },
     {
+      "codigo_item": "7898543592341",
+      "descricao": "ADAPTADOR SOLDÁVEL CURTO 60MMX2''",
+      "status": "kept",
+      "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
+      "current_unit": "Unidade",
+      "current_packaging": null,
+      "current_factor": 0.0,
+      "current_canonical_unit": "un",
+      "proposed_unit": "Unidade",
+      "proposed_packaging": null,
+      "proposed_factor": 0.0,
+      "proposed_canonical_unit": "un",
+      "changes": {},
+      "document_evidence": {
+        "rows_count": 1,
+        "unique_units": [
+          "unidade"
+        ],
+        "unique_factors": [
+          1.0
+        ],
+        "strong_unit": "unidade",
+        "strong_factor": 1.0,
+        "sample_document_numbers": [
+          "583017"
+        ]
+      },
+      "applied": false
+    },
+    {
       "codigo_item": "7898550259947",
       "descricao": "CAIXA ACOPLADA COMPLETO",
       "status": "kept",
@@ -11397,10 +12431,10 @@
           "bombona"
         ],
         "unique_factors": [
-          1.0
+          5.0
         ],
         "strong_unit": "bombona",
-        "strong_factor": 1.0,
+        "strong_factor": 5.0,
         "sample_document_numbers": [
           "091330"
         ]
@@ -11670,15 +12704,15 @@
       "document_evidence": {
         "rows_count": 1,
         "unique_units": [
-          "unidade"
+          "pacote"
         ],
         "unique_factors": [
-          1.0
+          100.0
         ],
-        "strong_unit": "unidade",
-        "strong_factor": 1.0,
+        "strong_unit": "pacote",
+        "strong_factor": 100.0,
         "sample_document_numbers": [
-          "SEM NF/CUPOM"
+          "NOTA INTERNA"
         ]
       },
       "applied": false
@@ -11816,6 +12850,36 @@
       "applied": false
     },
     {
+      "codigo_item": "7898615549105",
+      "descricao": "PREGO AÇO 17X27MM",
+      "status": "kept",
+      "reason": "item ja compativel com a regra operacional nova",
+      "current_unit": "Unidade",
+      "current_packaging": "pacote",
+      "current_factor": 216.0,
+      "current_canonical_unit": "un",
+      "proposed_unit": "Unidade",
+      "proposed_packaging": "pacote",
+      "proposed_factor": 216.0,
+      "proposed_canonical_unit": "un",
+      "changes": {},
+      "document_evidence": {
+        "rows_count": 1,
+        "unique_units": [
+          "pacote"
+        ],
+        "unique_factors": [
+          216.0
+        ],
+        "strong_unit": "pacote",
+        "strong_factor": 216.0,
+        "sample_document_numbers": [
+          "85917"
+        ]
+      },
+      "applied": false
+    },
+    {
       "codigo_item": "7898619332710",
       "descricao": "MACACÃO IMPERMEÁVEL EG",
       "status": "kept",
@@ -11892,11 +12956,11 @@
       "descricao": "CARRINHO LIMPA PISCINA",
       "status": "kept",
       "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
-      "current_unit": "Peça",
+      "current_unit": "Unidade",
       "current_packaging": null,
       "current_factor": 0.0,
       "current_canonical_unit": "un",
-      "proposed_unit": "Peça",
+      "proposed_unit": "Unidade",
       "proposed_packaging": null,
       "proposed_factor": 0.0,
       "proposed_canonical_unit": "un",
@@ -11942,11 +13006,11 @@
       "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
       "current_unit": "Unidade",
       "current_packaging": null,
-      "current_factor": 1.0,
+      "current_factor": 0.0,
       "current_canonical_unit": "un",
       "proposed_unit": "Unidade",
       "proposed_packaging": null,
-      "proposed_factor": 1.0,
+      "proposed_factor": 0.0,
       "proposed_canonical_unit": "un",
       "changes": {},
       "document_evidence": {
@@ -11966,11 +13030,11 @@
       "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
       "current_unit": "Unidade",
       "current_packaging": null,
-      "current_factor": 1.0,
+      "current_factor": 0.0,
       "current_canonical_unit": "un",
       "proposed_unit": "Unidade",
       "proposed_packaging": null,
-      "proposed_factor": 1.0,
+      "proposed_factor": 0.0,
       "proposed_canonical_unit": "un",
       "changes": {},
       "document_evidence": {
@@ -12270,17 +13334,17 @@
       "descricao": "TINTA GUADALUPE 16L",
       "status": "kept",
       "reason": "item ja compativel com a regra operacional nova",
-      "current_unit": "Lata",
+      "current_unit": "Litro",
       "current_packaging": "lata",
       "current_factor": 16.0,
       "current_canonical_unit": "l",
-      "proposed_unit": "Lata",
+      "proposed_unit": "Litro",
       "proposed_packaging": "lata",
       "proposed_factor": 16.0,
       "proposed_canonical_unit": "l",
       "changes": {},
       "document_evidence": {
-        "rows_count": 1,
+        "rows_count": 2,
         "unique_units": [
           "lata"
         ],
@@ -12290,7 +13354,8 @@
         "strong_unit": "lata",
         "strong_factor": 16.0,
         "sample_document_numbers": [
-          "236"
+          "236",
+          "262"
         ]
       },
       "applied": false
@@ -12464,6 +13529,36 @@
       "applied": false
     },
     {
+      "codigo_item": "7898925059127",
+      "descricao": "VÁLVULA RETENÇÃO VERTICAL 1.1/2''",
+      "status": "kept",
+      "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
+      "current_unit": "Unidade",
+      "current_packaging": null,
+      "current_factor": 0.0,
+      "current_canonical_unit": "un",
+      "proposed_unit": "Unidade",
+      "proposed_packaging": null,
+      "proposed_factor": 0.0,
+      "proposed_canonical_unit": "un",
+      "changes": {},
+      "document_evidence": {
+        "rows_count": 1,
+        "unique_units": [
+          "unidade"
+        ],
+        "unique_factors": [
+          1.0
+        ],
+        "strong_unit": "unidade",
+        "strong_factor": 1.0,
+        "sample_document_numbers": [
+          "583016"
+        ]
+      },
+      "applied": false
+    },
+    {
       "codigo_item": "7898927870225",
       "descricao": "ALICATE UNIVERSAL 8''",
       "status": "kept",
@@ -12521,13 +13616,13 @@
       "codigo_item": "7898927870669",
       "descricao": "JOGO DE SERRA COPO 11PEÇAS",
       "status": "kept",
-      "reason": "item kit/ferramenta mantido sem normalizacao operacional de embalagem",
-      "current_unit": "Caixa",
-      "current_packaging": "caixa",
+      "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
+      "current_unit": "Unidade",
+      "current_packaging": null,
       "current_factor": 0.0,
       "current_canonical_unit": "un",
-      "proposed_unit": "Caixa",
-      "proposed_packaging": "caixa",
+      "proposed_unit": "Unidade",
+      "proposed_packaging": null,
       "proposed_factor": 0.0,
       "proposed_canonical_unit": "un",
       "changes": {},
@@ -12591,25 +13686,31 @@
     },
     {
       "codigo_item": "7898936842053",
-      "descricao": "PARAFUSO PONTA BRONCA 13X4,2MM",
+      "descricao": "PARAFUSO 4.2X13MM",
       "status": "kept",
-      "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
+      "reason": "item ja compativel com a regra operacional nova",
       "current_unit": "Unidade",
-      "current_packaging": null,
-      "current_factor": 0.0,
+      "current_packaging": "caixa",
+      "current_factor": 1000.0,
       "current_canonical_unit": "un",
       "proposed_unit": "Unidade",
-      "proposed_packaging": null,
-      "proposed_factor": 0.0,
+      "proposed_packaging": "caixa",
+      "proposed_factor": 1000.0,
       "proposed_canonical_unit": "un",
       "changes": {},
       "document_evidence": {
-        "rows_count": 0,
-        "unique_units": [],
-        "unique_factors": [],
-        "strong_unit": null,
-        "strong_factor": null,
-        "sample_document_numbers": []
+        "rows_count": 1,
+        "unique_units": [
+          "caixa"
+        ],
+        "unique_factors": [
+          1000.0
+        ],
+        "strong_unit": "caixa",
+        "strong_factor": 1000.0,
+        "sample_document_numbers": [
+          "2361618"
+        ]
       },
       "applied": false
     },
@@ -12848,11 +13949,11 @@
       "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
       "current_unit": "Par",
       "current_packaging": null,
-      "current_factor": 1.0,
+      "current_factor": 0.1,
       "current_canonical_unit": "par",
       "proposed_unit": "Par",
       "proposed_packaging": null,
-      "proposed_factor": 1.0,
+      "proposed_factor": 0.1,
       "proposed_canonical_unit": "par",
       "changes": {},
       "document_evidence": {
@@ -13190,11 +14291,11 @@
       "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
       "current_unit": "Unidade",
       "current_packaging": null,
-      "current_factor": 1.0,
+      "current_factor": 0.0,
       "current_canonical_unit": "un",
       "proposed_unit": "Unidade",
       "proposed_packaging": null,
-      "proposed_factor": 1.0,
+      "proposed_factor": 0.0,
       "proposed_canonical_unit": "un",
       "changes": {},
       "document_evidence": {
@@ -13246,12 +14347,18 @@
       "proposed_canonical_unit": "un",
       "changes": {},
       "document_evidence": {
-        "rows_count": 0,
-        "unique_units": [],
-        "unique_factors": [],
-        "strong_unit": null,
-        "strong_factor": null,
-        "sample_document_numbers": []
+        "rows_count": 1,
+        "unique_units": [
+          "unidade"
+        ],
+        "unique_factors": [
+          1.0
+        ],
+        "strong_unit": "unidade",
+        "strong_factor": 1.0,
+        "sample_document_numbers": [
+          "85917"
+        ]
       },
       "applied": false
     },
@@ -13262,11 +14369,11 @@
       "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
       "current_unit": "Unidade",
       "current_packaging": null,
-      "current_factor": 1.0,
+      "current_factor": 0.0,
       "current_canonical_unit": "un",
       "proposed_unit": "Unidade",
       "proposed_packaging": null,
-      "proposed_factor": 1.0,
+      "proposed_factor": 0.0,
       "proposed_canonical_unit": "un",
       "changes": {},
       "document_evidence": {
@@ -13280,7 +14387,7 @@
         "strong_unit": "unidade",
         "strong_factor": 1.0,
         "sample_document_numbers": [
-          "SEM NF/CUPOM"
+          "NOTA INTERNA"
         ]
       },
       "applied": false
@@ -13388,11 +14495,11 @@
       "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
       "current_unit": "Unidade",
       "current_packaging": null,
-      "current_factor": 1.0,
+      "current_factor": 0.0,
       "current_canonical_unit": "un",
       "proposed_unit": "Unidade",
       "proposed_packaging": null,
-      "proposed_factor": 1.0,
+      "proposed_factor": 0.0,
       "proposed_canonical_unit": "un",
       "changes": {},
       "document_evidence": {
@@ -13418,11 +14525,11 @@
       "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
       "current_unit": "Unidade",
       "current_packaging": null,
-      "current_factor": 1.0,
+      "current_factor": 0.0,
       "current_canonical_unit": "un",
       "proposed_unit": "Unidade",
       "proposed_packaging": null,
-      "proposed_factor": 1.0,
+      "proposed_factor": 0.0,
       "proposed_canonical_unit": "un",
       "changes": {},
       "document_evidence": {
@@ -13437,6 +14544,36 @@
         "strong_factor": 1.0,
         "sample_document_numbers": [
           "2323448"
+        ]
+      },
+      "applied": false
+    },
+    {
+      "codigo_item": "7899481315894",
+      "descricao": "VÁLVULA P/ LAVATÓRIO 7CM",
+      "status": "kept",
+      "reason": "item ja compativel com a regra operacional nova",
+      "current_unit": "Unidade",
+      "current_packaging": "pacote",
+      "current_factor": 1.0,
+      "current_canonical_unit": "un",
+      "proposed_unit": "Unidade",
+      "proposed_packaging": "pacote",
+      "proposed_factor": 1.0,
+      "proposed_canonical_unit": "un",
+      "changes": {},
+      "document_evidence": {
+        "rows_count": 1,
+        "unique_units": [
+          "pacote"
+        ],
+        "unique_factors": [
+          1.0
+        ],
+        "strong_unit": "pacote",
+        "strong_factor": 1.0,
+        "sample_document_numbers": [
+          "NOTA INTERNA"
         ]
       },
       "applied": false
@@ -13509,10 +14646,10 @@
           "pacote"
         ],
         "unique_factors": [
-          9.0
+          1.0
         ],
         "strong_unit": "pacote",
-        "strong_factor": 9.0,
+        "strong_factor": 1.0,
         "sample_document_numbers": [
           "101456"
         ]
@@ -13580,11 +14717,11 @@
       "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
       "current_unit": "Unidade",
       "current_packaging": null,
-      "current_factor": 1.0,
+      "current_factor": 0.0,
       "current_canonical_unit": "un",
       "proposed_unit": "Unidade",
       "proposed_packaging": null,
-      "proposed_factor": 1.0,
+      "proposed_factor": 0.0,
       "proposed_canonical_unit": "un",
       "changes": {},
       "document_evidence": {
@@ -13598,7 +14735,7 @@
         "strong_unit": "unidade",
         "strong_factor": 1.0,
         "sample_document_numbers": [
-          "SEM NF/CUPOM"
+          "NOTA INTERNA"
         ]
       },
       "applied": false
@@ -13712,7 +14849,7 @@
         "strong_unit": "unidade",
         "strong_factor": 1.0,
         "sample_document_numbers": [
-          "SEM NF/CUPOM"
+          "NOTA INTERNA"
         ]
       },
       "applied": false
@@ -13958,11 +15095,11 @@
       "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
       "current_unit": "Unidade",
       "current_packaging": null,
-      "current_factor": 1.0,
+      "current_factor": 0.0,
       "current_canonical_unit": "un",
       "proposed_unit": "Unidade",
       "proposed_packaging": null,
-      "proposed_factor": 1.0,
+      "proposed_factor": 0.0,
       "proposed_canonical_unit": "un",
       "changes": {},
       "document_evidence": {
@@ -13988,11 +15125,11 @@
       "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
       "current_unit": "Unidade",
       "current_packaging": null,
-      "current_factor": 1.0,
+      "current_factor": 0.0,
       "current_canonical_unit": "un",
       "proposed_unit": "Unidade",
       "proposed_packaging": null,
-      "proposed_factor": 1.0,
+      "proposed_factor": 0.0,
       "proposed_canonical_unit": "un",
       "changes": {},
       "document_evidence": {
@@ -14104,10 +15241,10 @@
           "rolo"
         ],
         "unique_factors": [
-          1.0
+          100.0
         ],
         "strong_unit": "rolo",
-        "strong_factor": 1.0,
+        "strong_factor": 100.0,
         "sample_document_numbers": [
           "84511"
         ]
@@ -14115,26 +15252,32 @@
       "applied": false
     },
     {
-      "codigo_item": "7899825485124",
-      "descricao": "MASSA PARA DRYWALL 14KG",
+      "codigo_item": "7899786801672",
+      "descricao": "VÁLVULA ESPERA RETA GÁS 1/2",
       "status": "kept",
-      "reason": "item ja compativel com a regra operacional nova",
-      "current_unit": "KG",
-      "current_packaging": "balde",
-      "current_factor": 14.0,
-      "current_canonical_unit": "kg",
-      "proposed_unit": "KG",
-      "proposed_packaging": "balde",
-      "proposed_factor": 14.0,
-      "proposed_canonical_unit": "kg",
+      "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
+      "current_unit": "Unidade",
+      "current_packaging": null,
+      "current_factor": 0.0,
+      "current_canonical_unit": "un",
+      "proposed_unit": "Unidade",
+      "proposed_packaging": null,
+      "proposed_factor": 0.0,
+      "proposed_canonical_unit": "un",
       "changes": {},
       "document_evidence": {
-        "rows_count": 0,
-        "unique_units": [],
-        "unique_factors": [],
-        "strong_unit": null,
-        "strong_factor": null,
-        "sample_document_numbers": []
+        "rows_count": 1,
+        "unique_units": [
+          "unidade"
+        ],
+        "unique_factors": [
+          1.0
+        ],
+        "strong_unit": "unidade",
+        "strong_factor": 1.0,
+        "sample_document_numbers": [
+          "583016"
+        ]
       },
       "applied": false
     },
@@ -14224,11 +15367,11 @@
       "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
       "current_unit": "Peça",
       "current_packaging": null,
-      "current_factor": 1.0,
+      "current_factor": 0.0,
       "current_canonical_unit": "un",
       "proposed_unit": "Peça",
       "proposed_packaging": null,
-      "proposed_factor": 1.0,
+      "proposed_factor": 0.0,
       "proposed_canonical_unit": "un",
       "changes": {},
       "document_evidence": {
@@ -14242,7 +15385,39 @@
         "strong_unit": "unidade",
         "strong_factor": 1.0,
         "sample_document_numbers": [
-          "SEM NF/CUPOM"
+          "NOTA INTERNA"
+        ]
+      },
+      "applied": false
+    },
+    {
+      "codigo_item": "7899845665479",
+      "descricao": "TANQUE DE PRESSÃO TAP24 VERTICAL",
+      "status": "kept",
+      "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
+      "current_unit": "Unidade",
+      "current_packaging": null,
+      "current_factor": 0.0,
+      "current_canonical_unit": "un",
+      "proposed_unit": "Unidade",
+      "proposed_packaging": null,
+      "proposed_factor": 0.0,
+      "proposed_canonical_unit": "un",
+      "changes": {},
+      "document_evidence": {
+        "rows_count": 3,
+        "unique_units": [
+          "unidade"
+        ],
+        "unique_factors": [
+          1.0
+        ],
+        "strong_unit": "unidade",
+        "strong_factor": 1.0,
+        "sample_document_numbers": [
+          "1644",
+          "1643",
+          "NOTA INTERNA"
         ]
       },
       "applied": false
@@ -14278,6 +15453,36 @@
       "applied": false
     },
     {
+      "codigo_item": "7899872026",
+      "descricao": "APLICADOR DE PU AMARELO",
+      "status": "kept",
+      "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
+      "current_unit": "Unidade",
+      "current_packaging": null,
+      "current_factor": 0.0,
+      "current_canonical_unit": "un",
+      "proposed_unit": "Unidade",
+      "proposed_packaging": null,
+      "proposed_factor": 0.0,
+      "proposed_canonical_unit": "un",
+      "changes": {},
+      "document_evidence": {
+        "rows_count": 1,
+        "unique_units": [
+          "unidade"
+        ],
+        "unique_factors": [
+          1.0
+        ],
+        "strong_unit": "unidade",
+        "strong_factor": 1.0,
+        "sample_document_numbers": [
+          "NOTA INTERNA"
+        ]
+      },
+      "applied": false
+    },
+    {
       "codigo_item": "789987456.654221",
       "descricao": "TAMPA CAP ESGOTO 150MM",
       "status": "kept",
@@ -14292,12 +15497,18 @@
       "proposed_canonical_unit": "un",
       "changes": {},
       "document_evidence": {
-        "rows_count": 0,
-        "unique_units": [],
-        "unique_factors": [],
-        "strong_unit": null,
-        "strong_factor": null,
-        "sample_document_numbers": []
+        "rows_count": 1,
+        "unique_units": [
+          "unidade"
+        ],
+        "unique_factors": [
+          1.0
+        ],
+        "strong_unit": "unidade",
+        "strong_factor": 1.0,
+        "sample_document_numbers": [
+          "86363"
+        ]
       },
       "applied": false
     },
@@ -14316,12 +15527,18 @@
       "proposed_canonical_unit": "un",
       "changes": {},
       "document_evidence": {
-        "rows_count": 0,
-        "unique_units": [],
-        "unique_factors": [],
-        "strong_unit": null,
-        "strong_factor": null,
-        "sample_document_numbers": []
+        "rows_count": 1,
+        "unique_units": [
+          "unidade"
+        ],
+        "unique_factors": [
+          1.0
+        ],
+        "strong_unit": "unidade",
+        "strong_factor": 1.0,
+        "sample_document_numbers": [
+          "583016"
+        ]
       },
       "applied": false
     },
@@ -14340,12 +15557,18 @@
       "proposed_canonical_unit": "un",
       "changes": {},
       "document_evidence": {
-        "rows_count": 0,
-        "unique_units": [],
-        "unique_factors": [],
-        "strong_unit": null,
-        "strong_factor": null,
-        "sample_document_numbers": []
+        "rows_count": 1,
+        "unique_units": [
+          "unidade"
+        ],
+        "unique_factors": [
+          1.0
+        ],
+        "strong_unit": "unidade",
+        "strong_factor": 1.0,
+        "sample_document_numbers": [
+          "NOTA INTERNA"
+        ]
       },
       "applied": false
     },
@@ -14364,12 +15587,18 @@
       "proposed_canonical_unit": "un",
       "changes": {},
       "document_evidence": {
-        "rows_count": 0,
-        "unique_units": [],
-        "unique_factors": [],
-        "strong_unit": null,
-        "strong_factor": null,
-        "sample_document_numbers": []
+        "rows_count": 1,
+        "unique_units": [
+          "unidade"
+        ],
+        "unique_factors": [
+          1.0
+        ],
+        "strong_unit": "unidade",
+        "strong_factor": 1.0,
+        "sample_document_numbers": [
+          "583016"
+        ]
       },
       "applied": false
     },
@@ -14388,12 +15617,18 @@
       "proposed_canonical_unit": "un",
       "changes": {},
       "document_evidence": {
-        "rows_count": 0,
-        "unique_units": [],
-        "unique_factors": [],
-        "strong_unit": null,
-        "strong_factor": null,
-        "sample_document_numbers": []
+        "rows_count": 1,
+        "unique_units": [
+          "unidade"
+        ],
+        "unique_factors": [
+          1.0
+        ],
+        "strong_unit": "unidade",
+        "strong_factor": 1.0,
+        "sample_document_numbers": [
+          "583016"
+        ]
       },
       "applied": false
     },
@@ -14436,12 +15671,18 @@
       "proposed_canonical_unit": "un",
       "changes": {},
       "document_evidence": {
-        "rows_count": 0,
-        "unique_units": [],
-        "unique_factors": [],
-        "strong_unit": null,
-        "strong_factor": null,
-        "sample_document_numbers": []
+        "rows_count": 1,
+        "unique_units": [
+          "unidade"
+        ],
+        "unique_factors": [
+          1.0
+        ],
+        "strong_unit": "unidade",
+        "strong_factor": 1.0,
+        "sample_document_numbers": [
+          "583016"
+        ]
       },
       "applied": false
     },
@@ -14500,11 +15741,11 @@
       "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
       "current_unit": "Unidade",
       "current_packaging": null,
-      "current_factor": 0.0,
+      "current_factor": 1.0,
       "current_canonical_unit": "un",
       "proposed_unit": "Unidade",
       "proposed_packaging": null,
-      "proposed_factor": 0.0,
+      "proposed_factor": 1.0,
       "proposed_canonical_unit": "un",
       "changes": {},
       "document_evidence": {
@@ -14846,28 +16087,30 @@
       "descricao": "BRITA 01 SACO 5KG",
       "status": "kept",
       "reason": "item ja compativel com a regra operacional nova",
-      "current_unit": "Saco",
+      "current_unit": "Quilo",
       "current_packaging": "saco",
-      "current_factor": 4.0,
+      "current_factor": 5.0,
       "current_canonical_unit": "kg",
-      "proposed_unit": "Saco",
+      "proposed_unit": "Quilo",
       "proposed_packaging": "saco",
-      "proposed_factor": 4.0,
+      "proposed_factor": 5.0,
       "proposed_canonical_unit": "kg",
       "changes": {},
       "document_evidence": {
-        "rows_count": 2,
+        "rows_count": 3,
         "unique_units": [
           "saco"
         ],
         "unique_factors": [
-          4.0
+          4.0,
+          5.0
         ],
         "strong_unit": "saco",
-        "strong_factor": 4.0,
+        "strong_factor": null,
         "sample_document_numbers": [
           "84313",
-          "85337"
+          "85337",
+          "85917"
         ]
       },
       "applied": false
@@ -14957,6 +16200,211 @@
       "applied": false
     },
     {
+      "codigo_item": "789987456100",
+      "descricao": "VERGALHÃO 5/16 8MM",
+      "status": "kept",
+      "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
+      "current_unit": "Unidade",
+      "current_packaging": null,
+      "current_factor": 0.0,
+      "current_canonical_unit": "un",
+      "proposed_unit": "Unidade",
+      "proposed_packaging": null,
+      "proposed_factor": 0.0,
+      "proposed_canonical_unit": "un",
+      "changes": {},
+      "document_evidence": {
+        "rows_count": 2,
+        "unique_units": [
+          "unidade"
+        ],
+        "unique_factors": [
+          1.0
+        ],
+        "strong_unit": "unidade",
+        "strong_factor": 1.0,
+        "sample_document_numbers": [
+          "583016",
+          "85917"
+        ]
+      },
+      "applied": false
+    },
+    {
+      "codigo_item": "7899874561012",
+      "descricao": "BUCHA DE REDUÇÃO 50X32MM",
+      "status": "kept",
+      "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
+      "current_unit": "Unidade",
+      "current_packaging": null,
+      "current_factor": 0.0,
+      "current_canonical_unit": "un",
+      "proposed_unit": "Unidade",
+      "proposed_packaging": null,
+      "proposed_factor": 0.0,
+      "proposed_canonical_unit": "un",
+      "changes": {},
+      "document_evidence": {
+        "rows_count": 1,
+        "unique_units": [
+          "unidade"
+        ],
+        "unique_factors": [
+          1.0
+        ],
+        "strong_unit": "unidade",
+        "strong_factor": 1.0,
+        "sample_document_numbers": [
+          "583016"
+        ]
+      },
+      "applied": false
+    },
+    {
+      "codigo_item": "789987456103",
+      "descricao": "TUBO ESGOTO C/ 3METROS",
+      "status": "kept",
+      "reason": "item ja compativel com a regra operacional nova",
+      "current_unit": "Metro",
+      "current_packaging": "rolo",
+      "current_factor": 3.0,
+      "current_canonical_unit": "m",
+      "proposed_unit": "Metro",
+      "proposed_packaging": "rolo",
+      "proposed_factor": 3.0,
+      "proposed_canonical_unit": "m",
+      "changes": {},
+      "document_evidence": {
+        "rows_count": 1,
+        "unique_units": [
+          "rolo"
+        ],
+        "unique_factors": [
+          3.0
+        ],
+        "strong_unit": "rolo",
+        "strong_factor": 3.0,
+        "sample_document_numbers": [
+          "86363"
+        ]
+      },
+      "applied": false
+    },
+    {
+      "codigo_item": "789987456299",
+      "descricao": "GRAMPO TIPO-U",
+      "status": "kept",
+      "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
+      "current_unit": "Unidade",
+      "current_packaging": null,
+      "current_factor": 0.0,
+      "current_canonical_unit": "un",
+      "proposed_unit": "Unidade",
+      "proposed_packaging": null,
+      "proposed_factor": 0.0,
+      "proposed_canonical_unit": "un",
+      "changes": {},
+      "document_evidence": {
+        "rows_count": 1,
+        "unique_units": [
+          "unidade"
+        ],
+        "unique_factors": [
+          1.0
+        ],
+        "strong_unit": "unidade",
+        "strong_factor": 1.0,
+        "sample_document_numbers": [
+          "NOTA INTERNA"
+        ]
+      },
+      "applied": false
+    },
+    {
+      "codigo_item": "789987456321",
+      "descricao": "VÁLVULA DE RETENÇÃO VERTICAL 65MM 2.1/2",
+      "status": "kept",
+      "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
+      "current_unit": "Unidade",
+      "current_packaging": null,
+      "current_factor": 0.0,
+      "current_canonical_unit": "un",
+      "proposed_unit": "Unidade",
+      "proposed_packaging": null,
+      "proposed_factor": 0.0,
+      "proposed_canonical_unit": "un",
+      "changes": {},
+      "document_evidence": {
+        "rows_count": 1,
+        "unique_units": [
+          "unidade"
+        ],
+        "unique_factors": [
+          1.0
+        ],
+        "strong_unit": "unidade",
+        "strong_factor": 1.0,
+        "sample_document_numbers": [
+          "NOTA INTERNA"
+        ]
+      },
+      "applied": false
+    },
+    {
+      "codigo_item": "78998745632100",
+      "descricao": "VÁLVULA DE RETENÇÃO VERTICAL 2''",
+      "status": "kept",
+      "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
+      "current_unit": "Unidade",
+      "current_packaging": null,
+      "current_factor": 0.0,
+      "current_canonical_unit": "un",
+      "proposed_unit": "Unidade",
+      "proposed_packaging": null,
+      "proposed_factor": 0.0,
+      "proposed_canonical_unit": "un",
+      "changes": {},
+      "document_evidence": {
+        "rows_count": 1,
+        "unique_units": [
+          "unidade"
+        ],
+        "unique_factors": [
+          1.0
+        ],
+        "strong_unit": "unidade",
+        "strong_factor": 1.0,
+        "sample_document_numbers": [
+          "NOTA INTERNA"
+        ]
+      },
+      "applied": false
+    },
+    {
+      "codigo_item": "789987456654",
+      "descricao": "ALICATE CRIMPADOR AZUL",
+      "status": "kept",
+      "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
+      "current_unit": "Unidade",
+      "current_packaging": null,
+      "current_factor": 0.0,
+      "current_canonical_unit": "un",
+      "proposed_unit": "Unidade",
+      "proposed_packaging": null,
+      "proposed_factor": 0.0,
+      "proposed_canonical_unit": "un",
+      "changes": {},
+      "document_evidence": {
+        "rows_count": 0,
+        "unique_units": [],
+        "unique_factors": [],
+        "strong_unit": null,
+        "strong_factor": null,
+        "sample_document_numbers": []
+      },
+      "applied": false
+    },
+    {
       "codigo_item": "7899874566540",
       "descricao": "TUDO SOLDÁVEL 60X6M",
       "status": "kept",
@@ -15006,10 +16454,10 @@
           "rolo"
         ],
         "unique_factors": [
-          1.0
+          50.0
         ],
         "strong_unit": "rolo",
-        "strong_factor": 1.0,
+        "strong_factor": 50.0,
         "sample_document_numbers": [
           "85337"
         ]
@@ -15033,13 +16481,13 @@
       "document_evidence": {
         "rows_count": 1,
         "unique_units": [
-          "unidade"
+          "pacote"
         ],
         "unique_factors": [
-          1.0
+          1000.0
         ],
-        "strong_unit": "unidade",
-        "strong_factor": 1.0,
+        "strong_unit": "pacote",
+        "strong_factor": 1000.0,
         "sample_document_numbers": [
           "089698"
         ]
@@ -15053,11 +16501,11 @@
       "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
       "current_unit": "Unidade",
       "current_packaging": null,
-      "current_factor": 1.0,
+      "current_factor": 0.0,
       "current_canonical_unit": "un",
       "proposed_unit": "Unidade",
       "proposed_packaging": null,
-      "proposed_factor": 1.0,
+      "proposed_factor": 0.0,
       "proposed_canonical_unit": "un",
       "changes": {},
       "document_evidence": {
@@ -15071,7 +16519,7 @@
         "strong_unit": "unidade",
         "strong_factor": 1.0,
         "sample_document_numbers": [
-          "SEM NF/CUPOM"
+          "NOTA INTERNA"
         ]
       },
       "applied": false
@@ -15092,10 +16540,14 @@
       "changes": {},
       "document_evidence": {
         "rows_count": 1,
-        "unique_units": [],
-        "unique_factors": [],
-        "strong_unit": null,
-        "strong_factor": null,
+        "unique_units": [
+          "pacote"
+        ],
+        "unique_factors": [
+          1000.0
+        ],
+        "strong_unit": "pacote",
+        "strong_factor": 1000.0,
         "sample_document_numbers": [
           "089696"
         ]
@@ -15122,10 +16574,10 @@
           "pacote"
         ],
         "unique_factors": [
-          1.0
+          1000.0
         ],
         "strong_unit": "pacote",
-        "strong_factor": 1.0,
+        "strong_factor": 1000.0,
         "sample_document_numbers": [
           "003342"
         ]
@@ -15152,10 +16604,10 @@
           "pacote"
         ],
         "unique_factors": [
-          1.0
+          1000.0
         ],
         "strong_unit": "pacote",
-        "strong_factor": 1.0,
+        "strong_factor": 1000.0,
         "sample_document_numbers": [
           "032047"
         ]
@@ -15163,17 +16615,17 @@
       "applied": false
     },
     {
-      "codigo_item": "789987456654100",
-      "descricao": "BOLSA DE FERRAMENTAS",
+      "codigo_item": "7899874566541",
+      "descricao": "PÁ",
       "status": "kept",
       "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
       "current_unit": "Unidade",
       "current_packaging": null,
-      "current_factor": 1.0,
+      "current_factor": 0.0,
       "current_canonical_unit": "un",
       "proposed_unit": "Unidade",
       "proposed_packaging": null,
-      "proposed_factor": 1.0,
+      "proposed_factor": 0.0,
       "proposed_canonical_unit": "un",
       "changes": {},
       "document_evidence": {
@@ -15187,7 +16639,101 @@
         "strong_unit": "unidade",
         "strong_factor": 1.0,
         "sample_document_numbers": [
-          "SEM NF/CUPOM"
+          "NOTA INTERNA"
+        ]
+      },
+      "applied": false
+    },
+    {
+      "codigo_item": "789987456654100",
+      "descricao": "BOLSA DE FERRAMENTAS",
+      "status": "kept",
+      "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
+      "current_unit": "Unidade",
+      "current_packaging": null,
+      "current_factor": 0.0,
+      "current_canonical_unit": "un",
+      "proposed_unit": "Unidade",
+      "proposed_packaging": null,
+      "proposed_factor": 0.0,
+      "proposed_canonical_unit": "un",
+      "changes": {},
+      "document_evidence": {
+        "rows_count": 1,
+        "unique_units": [
+          "unidade"
+        ],
+        "unique_factors": [
+          1.0
+        ],
+        "strong_unit": "unidade",
+        "strong_factor": 1.0,
+        "sample_document_numbers": [
+          "NOTA INTERNA"
+        ]
+      },
+      "applied": false
+    },
+    {
+      "codigo_item": "789987456654101",
+      "descricao": "BAMBU RACHADO (2 METROS",
+      "status": "kept",
+      "reason": "item ja compativel com a regra operacional nova",
+      "current_unit": "Unidade",
+      "current_packaging": "fardo",
+      "current_factor": 24.0,
+      "current_canonical_unit": "un",
+      "proposed_unit": "Unidade",
+      "proposed_packaging": "fardo",
+      "proposed_factor": 24.0,
+      "proposed_canonical_unit": "un",
+      "changes": {},
+      "document_evidence": {
+        "rows_count": 12,
+        "unique_units": [
+          "fardo"
+        ],
+        "unique_factors": [
+          24.0
+        ],
+        "strong_unit": "fardo",
+        "strong_factor": 24.0,
+        "sample_document_numbers": [
+          "18508",
+          "18505",
+          "17543",
+          "18506",
+          "18507"
+        ]
+      },
+      "applied": false
+    },
+    {
+      "codigo_item": "789987456654109",
+      "descricao": "ENXADA LARGA",
+      "status": "kept",
+      "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
+      "current_unit": "Unidade",
+      "current_packaging": null,
+      "current_factor": 0.0,
+      "current_canonical_unit": "un",
+      "proposed_unit": "Unidade",
+      "proposed_packaging": null,
+      "proposed_factor": 0.0,
+      "proposed_canonical_unit": "un",
+      "changes": {},
+      "document_evidence": {
+        "rows_count": 1,
+        "unique_units": [
+          "unidade"
+        ],
+        "unique_factors": [
+          1.0
+        ],
+        "strong_unit": "unidade",
+        "strong_factor": 1.0,
+        "sample_document_numbers": [
+          "NOTA INTERNA"
         ]
       },
       "applied": false
@@ -15209,15 +16755,15 @@
       "document_evidence": {
         "rows_count": 1,
         "unique_units": [
-          "unidade"
+          "pacote"
         ],
         "unique_factors": [
-          1.0
+          100.0
         ],
-        "strong_unit": "unidade",
-        "strong_factor": 1.0,
+        "strong_unit": "pacote",
+        "strong_factor": 100.0,
         "sample_document_numbers": [
-          "SEM NF/CUPOM"
+          "NOTA INTERNA"
         ]
       },
       "applied": false
@@ -15229,11 +16775,11 @@
       "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
       "current_unit": "Unidade",
       "current_packaging": null,
-      "current_factor": 1.0,
+      "current_factor": 0.0,
       "current_canonical_unit": "un",
       "proposed_unit": "Unidade",
       "proposed_packaging": null,
-      "proposed_factor": 1.0,
+      "proposed_factor": 0.0,
       "proposed_canonical_unit": "un",
       "changes": {},
       "document_evidence": {
@@ -15289,11 +16835,11 @@
       "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
       "current_unit": "Unidade",
       "current_packaging": null,
-      "current_factor": 1.0,
+      "current_factor": 0.0,
       "current_canonical_unit": "un",
       "proposed_unit": "Unidade",
       "proposed_packaging": null,
-      "proposed_factor": 1.0,
+      "proposed_factor": 0.0,
       "proposed_canonical_unit": "un",
       "changes": {},
       "document_evidence": {
@@ -15308,6 +16854,66 @@
         "strong_factor": 1.0,
         "sample_document_numbers": [
           "583016"
+        ]
+      },
+      "applied": false
+    },
+    {
+      "codigo_item": "789987456654226",
+      "descricao": "TUBO PVC SOLDÁVEL 60MMX6M",
+      "status": "kept",
+      "reason": "item ja compativel com a regra operacional nova",
+      "current_unit": "Metro",
+      "current_packaging": "rolo",
+      "current_factor": 6.0,
+      "current_canonical_unit": "m",
+      "proposed_unit": "Metro",
+      "proposed_packaging": "rolo",
+      "proposed_factor": 6.0,
+      "proposed_canonical_unit": "m",
+      "changes": {},
+      "document_evidence": {
+        "rows_count": 1,
+        "unique_units": [
+          "rolo"
+        ],
+        "unique_factors": [
+          6.0
+        ],
+        "strong_unit": "rolo",
+        "strong_factor": 6.0,
+        "sample_document_numbers": [
+          "583017"
+        ]
+      },
+      "applied": false
+    },
+    {
+      "codigo_item": "7899876544561",
+      "descricao": "BUCHA DE REDUÇÃO 50X25MM",
+      "status": "kept",
+      "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
+      "current_unit": "Unidade",
+      "current_packaging": null,
+      "current_factor": 0.0,
+      "current_canonical_unit": "un",
+      "proposed_unit": "Unidade",
+      "proposed_packaging": null,
+      "proposed_factor": 0.0,
+      "proposed_canonical_unit": "un",
+      "changes": {},
+      "document_evidence": {
+        "rows_count": 1,
+        "unique_units": [
+          "unidade"
+        ],
+        "unique_factors": [
+          1.0
+        ],
+        "strong_unit": "unidade",
+        "strong_factor": 1.0,
+        "sample_document_numbers": [
+          "NOTA INTERNA"
         ]
       },
       "applied": false
@@ -15643,11 +17249,11 @@
       "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
       "current_unit": "Unidade",
       "current_packaging": null,
-      "current_factor": 1.0,
+      "current_factor": 0.0,
       "current_canonical_unit": "un",
       "proposed_unit": "Unidade",
       "proposed_packaging": null,
-      "proposed_factor": 1.0,
+      "proposed_factor": 0.0,
       "proposed_canonical_unit": "un",
       "changes": {},
       "document_evidence": {
@@ -15667,15 +17273,135 @@
       "applied": false
     },
     {
+      "codigo_item": "7908424503837",
+      "descricao": "SWITCH 16P/POE ATIVO - HZEL1319P-1SFP",
+      "status": "kept",
+      "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
+      "current_unit": "Unidade",
+      "current_packaging": null,
+      "current_factor": 0.0,
+      "current_canonical_unit": "un",
+      "proposed_unit": "Unidade",
+      "proposed_packaging": null,
+      "proposed_factor": 0.0,
+      "proposed_canonical_unit": "un",
+      "changes": {},
+      "document_evidence": {
+        "rows_count": 1,
+        "unique_units": [
+          "unidade"
+        ],
+        "unique_factors": [
+          1.0
+        ],
+        "strong_unit": "unidade",
+        "strong_factor": 1.0,
+        "sample_document_numbers": [
+          "NOTA INTERNA"
+        ]
+      },
+      "applied": false
+    },
+    {
+      "codigo_item": "7908424503974",
+      "descricao": "NVR 4K  HZ-NVR32CH2HD",
+      "status": "kept",
+      "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
+      "current_unit": "Unidade",
+      "current_packaging": null,
+      "current_factor": 0.0,
+      "current_canonical_unit": "un",
+      "proposed_unit": "Unidade",
+      "proposed_packaging": null,
+      "proposed_factor": 0.0,
+      "proposed_canonical_unit": "un",
+      "changes": {},
+      "document_evidence": {
+        "rows_count": 1,
+        "unique_units": [
+          "unidade"
+        ],
+        "unique_factors": [
+          1.0
+        ],
+        "strong_unit": "unidade",
+        "strong_factor": 1.0,
+        "sample_document_numbers": [
+          "NOTA INTERNA"
+        ]
+      },
+      "applied": false
+    },
+    {
+      "codigo_item": "7908424504056",
+      "descricao": "CÂMERA DOME HZ-D2.8IP POE",
+      "status": "kept",
+      "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
+      "current_unit": "Unidade",
+      "current_packaging": null,
+      "current_factor": 0.0,
+      "current_canonical_unit": "un",
+      "proposed_unit": "Unidade",
+      "proposed_packaging": null,
+      "proposed_factor": 0.0,
+      "proposed_canonical_unit": "un",
+      "changes": {},
+      "document_evidence": {
+        "rows_count": 1,
+        "unique_units": [
+          "unidade"
+        ],
+        "unique_factors": [
+          1.0
+        ],
+        "strong_unit": "unidade",
+        "strong_factor": 1.0,
+        "sample_document_numbers": [
+          "NOTA INTERNA"
+        ]
+      },
+      "applied": false
+    },
+    {
+      "codigo_item": "7908424504513",
+      "descricao": "CÂMERA BULLET BRANCA HZ-B28IPC POE",
+      "status": "kept",
+      "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
+      "current_unit": "Unidade",
+      "current_packaging": null,
+      "current_factor": 0.0,
+      "current_canonical_unit": "un",
+      "proposed_unit": "Unidade",
+      "proposed_packaging": null,
+      "proposed_factor": 0.0,
+      "proposed_canonical_unit": "un",
+      "changes": {},
+      "document_evidence": {
+        "rows_count": 1,
+        "unique_units": [
+          "unidade"
+        ],
+        "unique_factors": [
+          1.0
+        ],
+        "strong_unit": "unidade",
+        "strong_factor": 1.0,
+        "sample_document_numbers": [
+          "NOTA INTERNA"
+        ]
+      },
+      "applied": false
+    },
+    {
       "codigo_item": "7908467201257",
       "descricao": "FITA CREPE 48mmX50M",
       "status": "kept",
       "reason": "item ja compativel com a regra operacional nova",
-      "current_unit": "Rolo",
+      "current_unit": "Metro",
       "current_packaging": "rolo",
       "current_factor": 50.0,
       "current_canonical_unit": "m",
-      "proposed_unit": "Rolo",
+      "proposed_unit": "Metro",
       "proposed_packaging": "rolo",
       "proposed_factor": 50.0,
       "proposed_canonical_unit": "m",
@@ -15806,10 +17532,10 @@
           "rolo"
         ],
         "unique_factors": [
-          1.0
+          50.0
         ],
         "strong_unit": "rolo",
-        "strong_factor": 1.0,
+        "strong_factor": 50.0,
         "sample_document_numbers": [
           "258381"
         ]
@@ -15869,11 +17595,11 @@
       "descricao": "INVERSOR DE FREQUENCIA CFW500",
       "status": "kept",
       "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
-      "current_unit": "Peça",
+      "current_unit": "Unidade",
       "current_packaging": null,
       "current_factor": 1.0,
       "current_canonical_unit": "un",
-      "proposed_unit": "Peça",
+      "proposed_unit": "Unidade",
       "proposed_packaging": null,
       "proposed_factor": 1.0,
       "proposed_canonical_unit": "un",
@@ -15986,14 +17712,14 @@
           "rolo"
         ],
         "unique_factors": [
-          1.0
+          100.0
         ],
         "strong_unit": "rolo",
-        "strong_factor": 1.0,
+        "strong_factor": 100.0,
         "sample_document_numbers": [
+          "MANUAL-DOCMODE-1",
           "TESTE-MANUAL-COPILOT",
-          "MANUAL-FALLBACK-1",
-          "MANUAL-DOCMODE-1"
+          "MANUAL-FALLBACK-1"
         ]
       },
       "applied": false
@@ -16047,19 +17773,51 @@
       "applied": false
     },
     {
+      "codigo_item": "BUCHA RED",
+      "descricao": "BUCHA REDUÇÃO SOLD 60X50MM",
+      "status": "kept",
+      "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
+      "current_unit": "Unidade",
+      "current_packaging": null,
+      "current_factor": 1.0,
+      "current_canonical_unit": "un",
+      "proposed_unit": "Unidade",
+      "proposed_packaging": null,
+      "proposed_factor": 1.0,
+      "proposed_canonical_unit": "un",
+      "changes": {},
+      "document_evidence": {
+        "rows_count": 1,
+        "unique_units": [
+          "unidade"
+        ],
+        "unique_factors": [
+          1.0
+        ],
+        "strong_unit": "unidade",
+        "strong_factor": 1.0,
+        "sample_document_numbers": [
+          "583017"
+        ]
+      },
+      "applied": false
+    },
+    {
       "codigo_item": "CABO-RG6-001",
       "descricao": "Cabo Coaxial RG6 Preto",
       "status": "manual_review",
       "reason": "fator operacional nao foi resolvido com seguranca",
       "current_unit": "Rolo",
-      "current_packaging": "rolo",
+      "current_packaging": null,
       "current_factor": 0.0,
-      "current_canonical_unit": "m",
+      "current_canonical_unit": "un",
       "proposed_unit": "Rolo",
       "proposed_packaging": "rolo",
       "proposed_factor": 0.0,
       "proposed_canonical_unit": "m",
-      "changes": {},
+      "changes": {
+        "tipo_embalagem_novo": "rolo"
+      },
       "document_evidence": {
         "rows_count": 0,
         "unique_units": [],
@@ -16067,6 +17825,36 @@
         "strong_unit": null,
         "strong_factor": null,
         "sample_document_numbers": []
+      },
+      "applied": false
+    },
+    {
+      "codigo_item": "DMSD-BN4",
+      "descricao": "POWER BALUN PASSIVE",
+      "status": "kept",
+      "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
+      "current_unit": "Unidade",
+      "current_packaging": null,
+      "current_factor": 0.0,
+      "current_canonical_unit": "un",
+      "proposed_unit": "Unidade",
+      "proposed_packaging": null,
+      "proposed_factor": 0.0,
+      "proposed_canonical_unit": "un",
+      "changes": {},
+      "document_evidence": {
+        "rows_count": 1,
+        "unique_units": [
+          "unidade"
+        ],
+        "unique_factors": [
+          1.0
+        ],
+        "strong_unit": "unidade",
+        "strong_factor": 1.0,
+        "sample_document_numbers": [
+          "NOTA INTERNA"
+        ]
       },
       "applied": false
     },
@@ -16115,37 +17903,6 @@
         "strong_unit": null,
         "strong_factor": null,
         "sample_document_numbers": []
-      },
-      "applied": false
-    },
-    {
-      "codigo_item": "JOE",
-      "descricao": "JOELHO 45GRAUS 60MM SOLDÁVEL",
-      "status": "kept",
-      "reason": "item sem embalagem ja pode ser mantido na unidade base atual",
-      "current_unit": "Unidade",
-      "current_packaging": null,
-      "current_factor": 1.0,
-      "current_canonical_unit": "un",
-      "proposed_unit": "Unidade",
-      "proposed_packaging": null,
-      "proposed_factor": 1.0,
-      "proposed_canonical_unit": "un",
-      "changes": {},
-      "document_evidence": {
-        "rows_count": 2,
-        "unique_units": [
-          "unidade"
-        ],
-        "unique_factors": [
-          1.0
-        ],
-        "strong_unit": "unidade",
-        "strong_factor": 1.0,
-        "sample_document_numbers": [
-          "2357531",
-          "583017"
-        ]
       },
       "applied": false
     },
@@ -16203,14 +17960,16 @@
       "status": "manual_review",
       "reason": "fator operacional nao foi resolvido com seguranca",
       "current_unit": "Pacote",
-      "current_packaging": "pacote",
+      "current_packaging": null,
       "current_factor": 0.0,
       "current_canonical_unit": "un",
       "proposed_unit": "Pacote",
       "proposed_packaging": "pacote",
       "proposed_factor": 0.0,
       "proposed_canonical_unit": "un",
-      "changes": {},
+      "changes": {
+        "tipo_embalagem_novo": "pacote"
+      },
       "document_evidence": {
         "rows_count": 0,
         "unique_units": [],
@@ -16226,27 +17985,28 @@
       "descricao": "FITA ANTIDERRAPANTE 20M",
       "status": "kept",
       "reason": "item ja compativel com a regra operacional nova",
-      "current_unit": "Rolo",
+      "current_unit": "Metro",
       "current_packaging": "rolo",
       "current_factor": 20.0,
       "current_canonical_unit": "m",
-      "proposed_unit": "Rolo",
+      "proposed_unit": "Metro",
       "proposed_packaging": "rolo",
       "proposed_factor": 20.0,
       "proposed_canonical_unit": "m",
       "changes": {},
       "document_evidence": {
-        "rows_count": 1,
+        "rows_count": 2,
         "unique_units": [
           "rolo"
         ],
         "unique_factors": [
-          1.0
+          20.0
         ],
         "strong_unit": "rolo",
-        "strong_factor": 1.0,
+        "strong_factor": 20.0,
         "sample_document_numbers": [
-          "424903"
+          "424903",
+          "NOTA INTERNA"
         ]
       },
       "applied": false

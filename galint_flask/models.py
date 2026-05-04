@@ -329,6 +329,39 @@ class Item(db.Model):
             pass
         return self.normalize_balance_value(self.get_saldo_atual())
 
+    def _get_operational_packaging_balance_display(self, total: float) -> str | None:
+        try:
+            from .services.legacy_stock_normalizer import infer_packaging_measure, resolve_canonical_unit, resolve_packaging_factor
+
+            inferred_measure = infer_packaging_measure(self)
+            if inferred_measure is None:
+                return None
+
+            _, inferred_unit = inferred_measure
+            canonical_unit = (resolve_canonical_unit(self) or "").strip().lower()
+            if canonical_unit not in {"un", "par"} or inferred_unit not in {"kg", "l", "m"}:
+                return None
+
+            packaging_factor = float(resolve_packaging_factor(self) or 0.0)
+            if packaging_factor <= 0:
+                return None
+
+            operational_total = self.normalize_balance_value(total / packaging_factor)
+        except Exception:
+            return None
+
+        if abs(operational_total - round(operational_total)) > 1e-6:
+            quantity_text = f"{operational_total:.3f}".rstrip("0").rstrip(".")
+        else:
+            quantity_text = str(int(round(operational_total)))
+
+        if canonical_unit == "par":
+            unit_text = "par" if abs(operational_total - 1.0) <= 1e-6 else "pares"
+            return f"{quantity_text} {unit_text}"
+
+        unit_text = "unidade" if abs(operational_total - 1.0) <= 1e-6 else "unidades"
+        return f"{quantity_text} {unit_text}"
+
     def get_saldo_fisico_display(self) -> str:
         """Mescla: estoque físico detalhado + total interno (quando aplicável)."""
         total = self.normalize_balance_value(self.get_saldo_fisico_total())
@@ -338,6 +371,9 @@ class Item(db.Model):
             from .services.embalagem_service import EmbalagemService
 
             if EmbalagemService.tem_embalagem(self) or EmbalagemService.tem_rolo_legacy(self):
+                operational_display = self._get_operational_packaging_balance_display(total)
+                if operational_display:
+                    return operational_display
                 fisico = EmbalagemService.formatar_estoque(self)
                 # Ex.: "5 latas + 9 Litros | Total: 99L"
                 return f"{fisico} | Total: {total:g}{unidade_total}"

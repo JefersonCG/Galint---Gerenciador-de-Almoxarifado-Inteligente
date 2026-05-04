@@ -1071,6 +1071,7 @@ ${parent.scripts()}
     function normalizeOperationalUnitCode(value) {
         const normalized = normalizePackageText(value);
         if (!normalized) return '';
+        if (/(^|\b)(par|pares)(\b|$)/.test(normalized)) return 'par';
         if (/(^|\b)(cm|centimetro|centimetros)(\b|$)/.test(normalized)) return 'cm';
         if (/(^|\b)(metro|metros|m|mt|mts)(\b|$)/.test(normalized)) return 'metro';
         if (/(^|\b)(litro|litros|l|lt|lts)(\b|$)/.test(normalized)) return 'litro';
@@ -1134,6 +1135,12 @@ ${parent.scripts()}
         const unitCode = getOperationalUnitCode(item);
         const numericQuantity = Number(quantity) || 0;
 
+        if (unitCode === 'par') {
+            return {
+                singular: 'par',
+                plural: numericQuantity === 1 ? 'par' : 'pares'
+            };
+        }
         if (unitCode === 'litro') {
             return { singular: 'litro', plural: 'litros' };
         }
@@ -1883,6 +1890,7 @@ ${parent.scripts()}
 
     function normalizarUnidadeMedida(item) {
         const explicitUnitCode = getOperationalUnitCode(item);
+        if (explicitUnitCode === 'par') return 'par';
         if (explicitUnitCode === 'litro') return 'litro';
         if (explicitUnitCode === 'kg') return 'kg';
         if (explicitUnitCode === 'metro' || explicitUnitCode === 'cm') return 'metro';
@@ -1898,6 +1906,7 @@ ${parent.scripts()}
         if (tipoEmbalagem === 'rolo') return 'metro';
         if (litrosPorEmb > 0) return 'litro';
         if (grandezaRef > 0 && (tipoEmbalagem === 'balde' || tipoEmbalagem === 'bombona' || tipoEmbalagem === 'lata' || tipoEmbalagem === 'pacote' || tipoEmbalagem === 'saco')) return 'kg';
+        if (/(^|\b)(par|pares)(\b|$)/.test(unidadeItem)) return 'par';
         if (/(^|\b)(kg|quilo|quilos)(\b|$)/.test(unidadeItem)) return 'kg';
         if (/(^|\b)(litro|litros|l|lt|lts)(\b|$)/.test(unidadeItem)) return 'litro';
         if (/(^|\b)(metro|metros|m)(\b|$)/.test(unidadeItem)) return 'metro';
@@ -1910,6 +1919,9 @@ ${parent.scripts()}
         const medida = normalizarUnidadeMedida(item);
         const qty = Number(quantidade) || 0;
 
+        if (medida === 'par') {
+            return { singular: 'par', plural: qty === 1 ? 'par' : 'pares' };
+        }
         if (medida === 'litro') {
             return { singular: 'litro', plural: 'litros' };
         }
@@ -1949,12 +1961,14 @@ ${parent.scripts()}
 
     function buildObservationUnitCode(item, unidadeLabel) {
         const explicitUnitCode = getOperationalUnitCode(item);
+        if (explicitUnitCode === 'par') return 'PAR';
         if (explicitUnitCode === 'litro') return 'L';
         if (explicitUnitCode === 'kg') return 'KG';
         if (explicitUnitCode === 'metro' || explicitUnitCode === 'cm') return 'METROS';
         if (explicitUnitCode === 'unidade') return 'UNIDADE';
 
         const medida = normalizarUnidadeMedida(item);
+        if (medida === 'par') return 'PAR';
         if (medida === 'litro') return 'L';
         if (medida === 'kg') return 'KG';
         if (medida === 'metro') return 'METROS';
