@@ -39,7 +39,10 @@ _DOCUMENT_UNIT_LABELS = {
     "kg": ("kg", "kg"),
     "l": ("litro", "litros"),
     "un": ("unidade", "unidades"),
+    "unidade": ("unidade", "unidades"),
+    "unidades": ("unidade", "unidades"),
     "par": ("par", "pares"),
+    "pares": ("par", "pares"),
 }
 _PACKAGING_UNIT_LABELS = {
     "lata": ("lata", "latas"),

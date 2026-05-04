@@ -62,6 +62,9 @@ def _normalize_unit_key(value: str | None) -> str:
 def _infer_packaging_document_unit(item: Item) -> str | None:
     packaging_unit = (item.tipo_embalagem_novo or "").strip().lower()
     packaging_factor = float(resolve_packaging_factor(item) or 0.0)
+    canonical_unit = _normalize_unit_key(resolve_canonical_unit(item))
+    if canonical_unit in {"un", "par"} and packaging_factor <= 1.0:
+        return None
     if packaging_unit and packaging_factor > 0 and not ignore_packaging_metadata_for_stock(item):
         return packaging_unit
     return None
@@ -86,13 +89,25 @@ def should_autofix_packaged_document_unit(
     quantity_base: float | None,
 ) -> bool:
     packaging_unit = _infer_packaging_document_unit(item)
+    raw_packaging_unit = (item.tipo_embalagem_novo or "").strip().lower()
+    raw_packaging_key = _normalize_unit_key(raw_packaging_unit)
+    canonical_key = _normalize_unit_key(resolve_canonical_unit(item))
+    current_key = _normalize_unit_key(current_unit)
+    packaging_factor = float(resolve_packaging_factor(item) or 0.0)
+
+    if (
+        not packaging_unit
+        and raw_packaging_key
+        and current_key == raw_packaging_key
+        and canonical_key in {"un", "par"}
+        and 0 < packaging_factor <= 1.0
+    ):
+        return True
+
     if not packaging_unit:
         return False
 
     packaging_key = _normalize_unit_key(packaging_unit)
-    canonical_key = _normalize_unit_key(resolve_canonical_unit(item))
-    current_key = _normalize_unit_key(current_unit)
-    packaging_factor = float(resolve_packaging_factor(item) or 0.0)
 
     if not packaging_key or not canonical_key or not current_key:
         return False
