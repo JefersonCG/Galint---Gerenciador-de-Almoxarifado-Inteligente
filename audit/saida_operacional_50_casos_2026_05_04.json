@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-04T15:48:42",
+  "generated_at": "2026-05-04T15:50:45",
   "summary": {
     "total": 50,
     "by_status": {
@@ -409,7 +409,7 @@
       "tipo_embalagem_novo": "balde",
       "saldo_legado": "266 unidades",
       "unidade_saida": "Unidade",
-      "saldo_saida": "53.2 unidades"
+      "saldo_saida": "266 unidades"
     },
     {
       "codigo": "7897637118962",
@@ -445,7 +445,7 @@
       "tipo_embalagem_novo": "saco",
       "saldo_legado": "3 unidades",
       "unidade_saida": "Unidade",
-      "saldo_saida": "75 unidades"
+      "saldo_saida": "3 unidades"
     },
     {
       "codigo": "7898180829107",

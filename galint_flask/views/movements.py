@@ -25,7 +25,7 @@ from ..services.mirror_state_service import mirror_state_service
 from ..services.notification_router import NotificationRouterService
 from ..services.mirror_insights_service import mirror_insights_service
 from ..services.native_panel_launcher import launch_panel as launch_native_panel
-from ..services.legacy_stock_normalizer import resolve_packaging_factor
+from ..services.legacy_stock_normalizer import infer_packaging_measure, resolve_canonical_unit, resolve_packaging_factor
 from ..services.users import user_service
 from ..services.entrada_service import entrada_service
 from ..services.telegram_service import TelegramService
@@ -419,6 +419,15 @@ def _resolve_unit_factor_base(item_model: Item | None, unit_code: str) -> float:
         return 1.0
 
     raw_unit = _infer_unidade(getattr(item_model, "unidade", None))
+    if unit_code == "unidade":
+        canonical_unit = (resolve_canonical_unit(item_model) or "").strip().lower()
+        inferred_measure = infer_packaging_measure(item_model)
+        inferred_measure_unit = inferred_measure[1] if inferred_measure is not None else None
+        if canonical_unit == "un" and inferred_measure_unit in {"kg", "l", "m"}:
+            packaging_factor = float(resolve_packaging_factor(item_model) or 0.0)
+            if packaging_factor > 0:
+                return packaging_factor
+
     if unit_code == "unidade" and raw_unit in {"quilo", "litro", "metro"}:
         packaging_factor = float(resolve_packaging_factor(item_model) or 0.0)
         if packaging_factor > 0:

@@ -1,6 +1,6 @@
 # Relatorio Enxuto da Saida Operacional
 
-Gerado em: 2026-05-04T15:48:42
+Gerado em: 2026-05-04T15:50:45
 
 ## Resumo
 
@@ -45,10 +45,10 @@ Gerado em: 2026-05-04T15:48:42
 | 7891035919787 | FRESHMATIC SPRAY AUTOMÁTICO | cadastro_embalagem_ou_medida | corrigido_unidade_operacional | Unidade | Unidade | 10 unidades (5 caixas) / Total: 10un | 10 unidades | cadastro realinhado para unidade operacional |
 | 7891738018954 | PREGO GALVANIZADO 17X27MM | cadastro_embalagem_ou_medida | corrigido_unidade_operacional | Unidade | Unidade | 0 unidades / Total: 0un | 0 unidades | cadastro realinhado para unidade operacional |
 | 7892261000447 | PORCA SEXTAVADA 1/4 CHV 7/16 | cadastro_embalagem_ou_medida | corrigido_unidade_operacional | Unidade | Unidade | 1000 unidades (1 caixa) / Total: 1000un | 1000 unidades | cadastro realinhado para unidade operacional |
-| 7897432700676 | PASTILHA DE CLORO TRIPLA AÇÃO 200g | cadastro_embalagem_ou_medida | corrigido_unidade_operacional | Unidade | Unidade | 266 unidades | 53.2 unidades | cadastro realinhado para unidade operacional |
+| 7897432700676 | PASTILHA DE CLORO TRIPLA AÇÃO 200g | cadastro_embalagem_ou_medida | corrigido_unidade_operacional | Unidade | Unidade | 266 unidades | 266 unidades | cadastro realinhado para unidade operacional |
 | 7897637118962 | CHUMBADOR 5/16 X 2.1/4 | cadastro_embalagem_ou_medida | corrigido_unidade_operacional | Unidade | Unidade | 5 caixas + 3 unidades / Total: 128un | 128 unidades | cadastro realinhado para unidade operacional |
 | 7897637126240 | BUCHA FLY 1 P/DRYWALL | cadastro_embalagem_ou_medida | corrigido_unidade_operacional | Unidade | Unidade | 2 caixas + 82 unidades / Total: 282un | 282 unidades | cadastro realinhado para unidade operacional |
-| 7897841947686 | AREIA PARA FILTRO | cadastro_embalagem_ou_medida | corrigido_unidade_operacional | Unidade | Unidade | 3 unidades | 75 unidades | cadastro realinhado para unidade operacional |
+| 7897841947686 | AREIA PARA FILTRO | cadastro_embalagem_ou_medida | corrigido_unidade_operacional | Unidade | Unidade | 3 unidades | 3 unidades | cadastro realinhado para unidade operacional |
 | 7898180829107 | PAPEL HIGIÊNICO XANDY | cadastro_embalagem_ou_medida | corrigido_unidade_operacional | Unidade | Unidade | 6 caixas + 18 unidades / Total: 162un | 162 unidades | cadastro realinhado para unidade operacional |
 | 7898214962961 | TP-2322 PRÉ-ISOLADO 23MM 1,5-2,5MM 27A AZUL | divergencia_operacional_unidade | corrigido_unidade_operacional | Unidade | Unidade | 1 Unidade | 1 unidade | cadastro realinhado para unidade operacional |
 | 7898729414320 | LUMINÁRIA SOLAR ILUMINAÇÃO PÚBLICA 400W 6.5K | cadastro_embalagem_ou_medida | corrigido_unidade_operacional | Unidade | Unidade | 25 unidades (25 caixas) / Total: 25un | 25 unidades | cadastro realinhado para unidade operacional |
