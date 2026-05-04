@@ -30,6 +30,7 @@ DEFAULT_INVENTORY_CATEGORIES: tuple[DefaultInventoryCategory, ...] = (
     DefaultInventoryCategory("material-construcao", "Material Construção", "Materiais estruturais e de obra civil.", 60, "🧱", "#fb7185"),
     DefaultInventoryCategory("ferramentas", "Ferramentas", "Ferramentas de uso manual e apoio técnico.", 70, "🛠️", "#60a5fa"),
     DefaultInventoryCategory("equipamento", "Equipamento", "Equipamentos permanentes e itens eletrificados.", 80, "⚙️", "#c084fc"),
+    DefaultInventoryCategory("equipamento-ti", "Equipamentos T.I", "Equipamentos de tecnologia, informática e apoio operacional digital.", 85, "💻", "#818cf8"),
     DefaultInventoryCategory("material-ep", "Material de EP", "Equipamentos e materiais de proteção individual.", 90, "⛑️", "#fde047"),
     DefaultInventoryCategory("material-uso-geral", "Material/Uso geral", "Itens transversais de uso geral e apoio operacional.", 100, "💼", "#a3e635"),
 )

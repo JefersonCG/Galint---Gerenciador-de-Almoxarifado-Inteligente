@@ -278,6 +278,25 @@ _DASHBOARD_CATEGORY_DEFINITIONS: tuple[dict[str, Any], ...] = (
         ),
     },
     {
+        "key": "equipamento-ti",
+        "label": "Equipamentos T.I",
+        "route": "Equipamentos T.I",
+        "aliases": (
+            "equipamento de ti",
+            "equipamentos de ti",
+            "equipamento ti",
+            "equipamentos ti",
+            "equipamento t i",
+            "equipamentos t i",
+            "equipamentos t.i",
+            "equipamento t.i",
+            "equipamento de informatica",
+            "equipamento de informática",
+            "equipamentos de informatica",
+            "equipamentos de informática",
+        ),
+    },
+    {
         "key": "material-construcao",
         "label": "Material Construção",
         "route": "Material Construção",
@@ -436,6 +455,7 @@ def _accumulate_dashboard_category_summary(
     categoria_value: object,
     unidade_value: object,
     saldo_categoria: float,
+    photo_path: str | None = None,
 ) -> None:
     category_meta = _resolve_dashboard_category_meta(categoria_value)
     raw_category = " ".join(str(categoria_value or "").strip().split()) or category_meta["route"]
@@ -451,11 +471,16 @@ def _accumulate_dashboard_category_summary(
             "saldo_total": 0.0,
             "_order": _DASHBOARD_CATEGORY_ORDER.get(category_key, 999),
             "_unit_map": _new_dashboard_unit_map(),
+            "_photo_paths": [],
         },
     )
     category_summary["source_categories"].add(raw_category)
     if raw_category == category_meta["route"] or category_summary.get("route_categoria") == category_meta["label"]:
         category_summary["route_categoria"] = raw_category
+
+    normalized_photo_path = str(photo_path or "").strip()
+    if normalized_photo_path and normalized_photo_path not in category_summary["_photo_paths"]:
+        category_summary["_photo_paths"].append(normalized_photo_path)
 
     unit_key = _resolve_dashboard_unit_key(unidade_value)
     rounded_balance = _round_dashboard_balance(unit_key, float(saldo_categoria or 0.0))
@@ -511,6 +536,7 @@ def _finalize_dashboard_category_summary(categorias: dict[str, dict[str, Any]]) 
                 "categoria": summary["categoria"],
                 "route_categoria": summary.get("route_categoria") or summary["categoria"],
                 "source_categories": sorted(str(value) for value in summary.get("source_categories") or []),
+                "photo_paths": list(summary.get("_photo_paths") or []),
                 "total_itens": total_itens,
                 "saldo_total": round(float(summary.get("saldo_total") or 0.0), 1),
                 "unit_breakdown": unit_breakdown,
@@ -5727,6 +5753,7 @@ class InventoryService:
                 categoria_value=item.categoria,
                 unidade_value=item.unidade,
                 saldo_categoria=saldo_categoria,
+                photo_path=(item.foto_path if saldo_categoria > 0 else None),
             )
 
         if atualizado:
@@ -6193,6 +6220,7 @@ class InventoryService:
                 categoria_value=item.categoria,
                 unidade_value=item.unidade,
                 saldo_categoria=saldo,
+                photo_path=(item.foto_path if saldo > 0 else None),
             )
 
         return _finalize_dashboard_category_summary(categorias)

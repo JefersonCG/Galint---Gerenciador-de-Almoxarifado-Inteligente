@@ -271,9 +271,309 @@
     .enterprise-command.tone-red { border-left-color: #f87171; }
     .enterprise-command.tone-violet { border-left-color: #a78bfa; }
 
+    .enterprise-insight-grid {
+        display: grid;
+        grid-template-columns: 1.15fr 0.85fr;
+        gap: 1rem;
+    }
+
+    .enterprise-insight-panel {
+        border: 1px solid rgba(15, 23, 42, 0.12);
+        border-radius: 1.2rem;
+        padding: 1rem 1.05rem;
+        background:
+            linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(241, 245, 249, 0.9)),
+            rgba(248, 250, 252, 0.9);
+        box-shadow: 0 18px 36px rgba(15, 23, 42, 0.1);
+    }
+
+    .enterprise-insight-head {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 0.8rem;
+        flex-wrap: wrap;
+        padding-bottom: 0.85rem;
+        border-bottom: 1px solid rgba(226, 232, 240, 0.96);
+        margin-bottom: 0.95rem;
+    }
+
+    .enterprise-insight-kicker {
+        margin: 0 0 0.3rem;
+        color: #0369a1;
+        font-size: 0.75rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .enterprise-insight-title {
+        margin: 0;
+        color: #0f172a;
+        font-size: 1.28rem;
+        font-weight: 850;
+    }
+
+    .enterprise-insight-copy {
+        margin: 0.35rem 0 0;
+        color: #475569;
+        font-size: 0.9rem;
+        line-height: 1.55;
+        max-width: 40rem;
+    }
+
+    .enterprise-insight-badges {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+        justify-content: flex-end;
+    }
+
+    .enterprise-insight-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        min-height: 2rem;
+        padding: 0.34rem 0.68rem;
+        border-radius: 999px;
+        background: rgba(15, 23, 42, 0.9);
+        color: #f8fafc;
+        font-size: 0.74rem;
+        font-weight: 800;
+    }
+
+    .enterprise-category-preview-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.75rem;
+    }
+
+    .enterprise-category-card {
+        min-width: 0;
+        border: 1px solid rgba(226, 232, 240, 0.98);
+        border-radius: 1rem;
+        padding: 0.85rem 0.9rem;
+        background:
+            linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.96)),
+            rgba(255, 255, 255, 0.96);
+        box-shadow: 0 14px 26px rgba(15, 23, 42, 0.08);
+    }
+
+    .enterprise-category-top {
+        display: flex;
+        align-items: center;
+        gap: 0.65rem;
+        margin-bottom: 0.65rem;
+    }
+
+    .enterprise-category-icon {
+        width: 2.25rem;
+        height: 2.25rem;
+        border-radius: 0.85rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--enterprise-accent-soft);
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        font-size: 1.15rem;
+    }
+
+    .enterprise-category-label {
+        min-width: 0;
+        display: grid;
+        gap: 0.14rem;
+    }
+
+    .enterprise-category-label strong {
+        color: #0f172a;
+        font-size: 0.95rem;
+        line-height: 1.25;
+    }
+
+    .enterprise-category-label span {
+        color: #64748b;
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+    }
+
+    .enterprise-category-balance {
+        color: #0f172a;
+        font-size: 1.45rem;
+        font-weight: 900;
+        letter-spacing: -0.05em;
+        line-height: 1;
+    }
+
+    .enterprise-category-note {
+        margin: 0.18rem 0 0.7rem;
+        color: #64748b;
+        font-size: 0.8rem;
+    }
+
+    .enterprise-category-units {
+        display: grid;
+        gap: 0.36rem;
+    }
+
+    .enterprise-category-unit {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+        padding: 0.42rem 0.5rem;
+        border-radius: 0.8rem;
+        background: rgba(15, 23, 42, 0.04);
+        color: #334155;
+        font-size: 0.8rem;
+        font-weight: 700;
+    }
+
+    .enterprise-category-empty {
+        padding: 0.78rem 0.82rem;
+        border-radius: 0.85rem;
+        border: 1px dashed rgba(148, 163, 184, 0.38);
+        background: rgba(241, 245, 249, 0.8);
+        color: #64748b;
+        font-size: 0.8rem;
+        text-align: center;
+    }
+
+    .enterprise-custody-list {
+        display: grid;
+        gap: 0.7rem;
+    }
+
+    .enterprise-custody-card {
+        border: 1px solid rgba(226, 232, 240, 0.98);
+        border-radius: 1rem;
+        padding: 0.82rem 0.88rem;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.96));
+        box-shadow: 0 14px 26px rgba(15, 23, 42, 0.08);
+    }
+
+    .enterprise-custody-card.is-alert {
+        border-color: rgba(245, 158, 11, 0.34);
+        box-shadow: 0 16px 28px rgba(245, 158, 11, 0.1);
+    }
+
+    .enterprise-custody-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 0.7rem;
+    }
+
+    .enterprise-custody-person {
+        min-width: 0;
+        display: grid;
+        gap: 0.2rem;
+    }
+
+    .enterprise-custody-person strong {
+        color: #0f172a;
+        font-size: 0.95rem;
+        line-height: 1.25;
+    }
+
+    .enterprise-custody-person span {
+        color: #64748b;
+        font-size: 0.8rem;
+    }
+
+    .enterprise-custody-days {
+        flex-shrink: 0;
+        display: inline-flex;
+        align-items: center;
+        min-height: 1.95rem;
+        padding: 0.28rem 0.64rem;
+        border-radius: 999px;
+        background: rgba(15, 23, 42, 0.92);
+        color: #f8fafc;
+        font-size: 0.74rem;
+        font-weight: 800;
+        white-space: nowrap;
+    }
+
+    .enterprise-custody-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.42rem;
+        margin-top: 0.7rem;
+    }
+
+    .enterprise-custody-meta span {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        min-height: 1.85rem;
+        padding: 0.28rem 0.6rem;
+        border-radius: 999px;
+        background: rgba(14, 165, 233, 0.1);
+        color: #0369a1;
+        font-size: 0.74rem;
+        font-weight: 800;
+    }
+
+    .enterprise-custody-meta span.is-alert {
+        background: rgba(245, 158, 11, 0.14);
+        color: #b45309;
+    }
+
+    .enterprise-custody-tools {
+        display: grid;
+        gap: 0.42rem;
+        margin-top: 0.75rem;
+    }
+
+    .enterprise-custody-tool {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.55rem;
+        padding: 0.44rem 0.52rem;
+        border-radius: 0.8rem;
+        background: rgba(15, 23, 42, 0.04);
+        color: #334155;
+    }
+
+    .enterprise-custody-tool strong {
+        font-size: 0.82rem;
+        color: #0f172a;
+        line-height: 1.25;
+    }
+
+    .enterprise-custody-tool span {
+        flex-shrink: 0;
+        font-size: 0.74rem;
+        font-weight: 800;
+        color: #64748b;
+        white-space: nowrap;
+    }
+
+    .enterprise-custody-overflow {
+        margin-top: 0.75rem;
+        color: #64748b;
+        font-size: 0.8rem;
+        text-align: right;
+    }
+
     @media (max-width: 991.98px) {
         .enterprise-config-grid {
             grid-template-columns: 1fr;
+        }
+
+        .enterprise-insight-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .enterprise-insight-badges {
+            justify-content: flex-start;
+        }
+
+        .enterprise-category-preview-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
         }
 
         .enterprise-config-header {
@@ -298,6 +598,10 @@
 
         .enterprise-command-code {
             display: none;
+        }
+
+        .enterprise-category-preview-grid {
+            grid-template-columns: 1fr;
         }
 
         .enterprise-portal-title {
@@ -327,20 +631,21 @@
     <section class="enterprise-portal-hero" aria-label="Portal Enterprise com arte principal de gestão">
         <div class="enterprise-portal-copy">
             <p class="enterprise-portal-kicker"><i class="bi bi-gear-wide-connected"></i> Portal Enterprise</p>
-            <h1 class="enterprise-portal-title">Configurações de Alto Nível</h1>
-            <p class="enterprise-portal-subtitle">Analytics, infraestrutura, integrações e governança reunidos em um hub visual único para a gestão do ERP.</p>
+            <h1 class="enterprise-portal-title">Administração de Alto Nível</h1>
+            <p class="enterprise-portal-subtitle">Condomínio, suprimentos, dashboard, ferramentas, integrações e governança reunidos em um hub visual único para a gestão do ERP.</p>
         </div>
     </section>
 
     <header class="enterprise-config-header">
         <div>
             <p class="enterprise-config-kicker">ERP Enterprise</p>
-            <p class="enterprise-config-summary">Selecione um domínio administrativo para abrir os comandos técnicos e gerenciais do sistema a partir da engrenagem.</p>
+            <p class="enterprise-config-summary">Selecione um domínio administrativo para abrir os comandos gerenciais do sistema e, logo abaixo, acompanhe as leituras visuais de suprimentos, categorias e custódia sem sair da Administração.</p>
         </div>
         <div class="enterprise-config-badges" aria-label="Ambiente">
+            <span class="enterprise-badge"><i class="bi bi-buildings"></i> Condomínio</span>
             <span class="enterprise-badge"><i class="bi bi-shield-check"></i> Gestão</span>
-            <span class="enterprise-badge"><i class="bi bi-pie-chart-fill"></i> Power BI</span>
-            <span class="enterprise-badge"><i class="bi bi-terminal"></i> Técnico</span>
+            <span class="enterprise-badge"><i class="bi bi-briefcase-fill"></i> Suprimentos</span>
+            <span class="enterprise-badge"><i class="bi bi-speedometer2"></i> Dashboard</span>
         </div>
     </header>
 
@@ -354,5 +659,100 @@
         </section>
         {% endfor %}
     </div>
+
+    {% if enterprise_management_overview %}
+    <div class="enterprise-insight-grid">
+        <section class="enterprise-insight-panel" id="enterprise-dashboard-preview">
+            <div class="enterprise-insight-head">
+                <div>
+                    <p class="enterprise-insight-kicker">Dashboard em Administração</p>
+                    <h2 class="enterprise-insight-title">Distribuição por categoria</h2>
+                    <p class="enterprise-insight-copy">Os cards do dashboard agora também aparecem na Administração só para visualização. Aqui não existe clique para abrir categoria; a leitura é gerencial.</p>
+                </div>
+                <div class="enterprise-insight-badges">
+                    <span class="enterprise-insight-chip"><i class="bi bi-grid"></i> {{ enterprise_management_overview.category_count }} categorias</span>
+                    <span class="enterprise-insight-chip"><i class="bi bi-box-seam"></i> {{ enterprise_management_overview.total_category_items }} itens</span>
+                    <span class="enterprise-insight-chip"><i class="bi bi-graph-up"></i> {{ enterprise_management_overview.total_category_balance|number_br }} saldo</span>
+                </div>
+            </div>
+            <div class="enterprise-category-preview-grid">
+                {% for card in enterprise_management_overview.category_cards %}
+                <article class="enterprise-category-card" style="--enterprise-accent: {{ card.color }}; --enterprise-accent-soft: {{ card.soft }};">
+                    <div class="enterprise-category-top">
+                        <span class="enterprise-category-icon">{{ card.icon }}</span>
+                        <div class="enterprise-category-label">
+                            <strong>{{ card.label }}</strong>
+                            <span>{{ card.total_itens }} item{% if card.total_itens != 1 %}s{% endif %}</span>
+                        </div>
+                    </div>
+                    <div class="enterprise-category-balance">{{ card.saldo_total|number_br }}</div>
+                    <p class="enterprise-category-note">Saldo consolidado da categoria</p>
+                    <div class="enterprise-category-units">
+                        {% if card.unit_breakdown %}
+                            {% for unit in card.unit_breakdown %}
+                            <div class="enterprise-category-unit">
+                                <span>{{ unit.label }}</span>
+                                <strong>{{ unit.saldo_total|number_br }}</strong>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="enterprise-category-empty">Sem recorte de unidade disponível.</div>
+                        {% endif %}
+                    </div>
+                </article>
+                {% endfor %}
+            </div>
+        </section>
+
+        <section class="enterprise-insight-panel" id="enterprise-custody-preview">
+            <div class="enterprise-insight-head">
+                <div>
+                    <p class="enterprise-insight-kicker">Ferramentas em Custódia</p>
+                    <h2 class="enterprise-insight-title">Custódia só leitura</h2>
+                    <p class="enterprise-insight-copy">Na Administração a custódia aparece apenas como leitura gerencial. Fica visível quem está responsável, quais ferramentas estão em posse e há quantos dias cada conjunto segue sob custódia.</p>
+                </div>
+                <div class="enterprise-insight-badges">
+                    <span class="enterprise-insight-chip"><i class="bi bi-people"></i> {{ enterprise_management_overview.custody_employee_count }} pessoas</span>
+                    <span class="enterprise-insight-chip"><i class="bi bi-tools"></i> {{ enterprise_management_overview.custody_total_tools }} ferramentas</span>
+                    <span class="enterprise-insight-chip"><i class="bi bi-exclamation-triangle"></i> {{ enterprise_management_overview.custody_total_alerts }} alertas</span>
+                </div>
+            </div>
+            {% if enterprise_management_overview.custody_cards %}
+            <div class="enterprise-custody-list">
+                {% for card in enterprise_management_overview.custody_cards %}
+                <article class="enterprise-custody-card {% if card.has_alerts %}is-alert{% endif %}">
+                    <div class="enterprise-custody-head">
+                        <div class="enterprise-custody-person">
+                            <strong>{{ card.nome }}</strong>
+                            <span>{{ card.setor }} • {{ card.cargo }} • Matrícula {{ card.matricula }}</span>
+                        </div>
+                        <span class="enterprise-custody-days">{{ card.days_oldest }} dia{% if card.days_oldest != 1 %}s{% endif %}</span>
+                    </div>
+                    <div class="enterprise-custody-meta">
+                        <span><i class="bi bi-tools"></i> {{ card.total_ferramentas }} ferramenta{% if card.total_ferramentas != 1 %}s{% endif %}</span>
+                        {% if card.has_alerts %}
+                        <span class="is-alert"><i class="bi bi-exclamation-circle"></i> {{ card.alerts_count }} alerta{% if card.alerts_count != 1 %}s{% endif %}</span>
+                        {% endif %}
+                    </div>
+                    <div class="enterprise-custody-tools">
+                        {% for tool in card.tools %}
+                        <div class="enterprise-custody-tool">
+                            <strong>{{ tool.descricao }}</strong>
+                            <span>{{ tool.days_in_use }} dia{% if tool.days_in_use != 1 %}s{% endif %} • Qtd {{ tool.quantidade }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </article>
+                {% endfor %}
+            </div>
+            {% if enterprise_management_overview.custody_overflow %}
+            <div class="enterprise-custody-overflow">Mostrando os 6 primeiros responsáveis. Ainda existem mais {{ enterprise_management_overview.custody_overflow }} em custódia.</div>
+            {% endif %}
+            {% else %}
+            <div class="enterprise-category-empty">Nenhuma ferramenta em custódia no momento.</div>
+            {% endif %}
+        </section>
+    </div>
+    {% endif %}
 </div>
 {% endblock %}

@@ -18,9 +18,11 @@ from ..services.backup_restore_jobs import get_job_state, start_restore_job
 from ..services.category_catalog import DEFAULT_INVENTORY_CATEGORIES, category_catalog_service
 from ..services.conversion_engine import ConversionEngineService, get_conversion_job_state, start_conversion_job
 from ..services.enterprise_navigation import build_enterprise_sections
+from ..services.inventory import inventory_service
 from ..services.native_workspace_launcher import launch_workspace_window, launch_workspace_window_auto
 from ..services.network_settings import load_network_settings, save_network_settings
 from ..services.purchase_projection_runtime_service import purchase_projection_service
+from ..services.tool_custody_service import tool_custody_service
 
 
 blueprint = Blueprint("pages", __name__)
@@ -594,6 +596,288 @@ def _build_workspace_window_url(path: str, token: str) -> str:
     return urlunsplit((request.scheme, request.host, normalized_path, urlencode(query_pairs, doseq=True), ""))
 
 
+def _build_condominium_blocks() -> list[dict[str, object]]:
+    blocks: list[dict[str, object]] = []
+    for index in range(1, 10):
+        blocks.append(
+            {
+                "code": f"B{index:02d}",
+                "title": f"Bloco {index}",
+                "floors": 10,
+                "columns": ("Coluna impar", "Coluna par"),
+                "coverage": "10o pavimento reservado para cobertura",
+                "parking_mode": "Modo inicial com vaga livre, preparado para vaga fixa ou mista",
+            }
+        )
+    return blocks
+
+
+def _build_admin_condominium_blueprint(*, mode: str) -> dict[str, object]:
+    schedule_mode = mode == "schedule"
+    hero = {
+        "kicker": "Agenda condominial" if schedule_mode else "Cadastro mestre",
+        "title": "Agendamento de Mudancas e Reservas" if schedule_mode else "Cadastros Relacionais do Condominio",
+        "summary": (
+            "A agenda nasce amarrada ao cadastro principal: responsavel, unidade, janela de acesso, placa do veiculo, apoio de prestadores e historico operacional."
+            if schedule_mode
+            else "O cadastro principal nasce como Proprietario ou Locatario. Pessoas da casa, visitantes recorrentes, veiculos, condutores e observacoes entram como vinculos do titular e da unidade."
+        ),
+        "badge": "Mudanca de entrada e saida" if schedule_mode else "Sem menu principal Morador",
+    }
+    return {
+        "mode": mode,
+        "hero": hero,
+        "focus_section": "agendamentos" if schedule_mode else "cadastro-mestre",
+        "anchors": [
+            {"id": "cadastro-mestre", "label": "Cadastro mestre"},
+            {"id": "estrutura", "label": "Blocos e unidades"},
+            {"id": "vinculos", "label": "Vinculos e acessos"},
+            {"id": "agendamentos", "label": "Agendamento"},
+            {"id": "detalhe-relacional", "label": "Tela relacional"},
+            {"id": "lgpd", "label": "LGPD"},
+        ],
+        "quick_facts": [
+            {"label": "Blocos iniciais", "value": "9", "note": "Modelo parametrico para outros condominios"},
+            {"label": "Andares", "value": "10", "note": "10o pavimento como cobertura"},
+            {"label": "Colunas", "value": "Par e impar", "note": "Estrutura base por bloco"},
+            {"label": "Agenda", "value": "Entrada + saida", "note": "Mudanca com janela operacional"},
+        ],
+        "principles": [
+            {
+                "title": "Titular principal sem menu Morador",
+                "text": "O cadastro principal nasce como Proprietario ou Locatario. Filhos, pais, conjuges e demais pessoas da casa entram como vinculados do titular e da unidade.",
+            },
+            {
+                "title": "Visitante entra uma vez e ganha permissao depois",
+                "text": "Domestica, cuidador, pintor ou visitante recorrente ganham cadastro proprio e depois recebem acesso por unidade, bloco, periodo e finalidade.",
+            },
+            {
+                "title": "Veiculos ficam dentro do cadastro",
+                "text": "Carro, moto, bicicleta e bicicleta eletrica vivem no cadastro da unidade, preparados para vaga livre, fixa ou mista conforme a regra do condominio.",
+            },
+        ],
+        "field_rules": [
+            {"label": "Nome completo ou razao social", "rule": "Obrigatorio", "note": "Base primaria de identificacao"},
+            {"label": "Tipo de pessoa", "rule": "Obrigatorio", "note": "Fisica ou juridica"},
+            {"label": "CPF ou CNPJ", "rule": "Obrigatorio conforme tipo", "note": "Documento principal do titular"},
+            {"label": "RG", "rule": "Fluxo residencial", "note": "Mantido quando fizer parte da identificacao civil"},
+            {"label": "CNH", "rule": "Obrigatorio para condutor", "note": "So entra quando a pessoa puder dirigir veiculo vinculado"},
+            {"label": "Foto", "rule": "Obrigatoria no cadastro principal", "note": "Base para identificacao visual e futuras integracoes"},
+            {"label": "Telefone e e-mail", "rule": "Opcional", "note": "Nao devem travar o cadastro"},
+            {"label": "Situacao cadastral", "rule": "Enxuta", "note": "Ativo, bloqueado ou encerrado apenas quando impactar a operacao"},
+        ],
+        "relationship_cards": [
+            {
+                "title": "Titular da unidade",
+                "items": [
+                    "Proprietario ou Locatario como responsavel principal",
+                    "Vigencia do vinculo com a unidade",
+                    "Observacoes e historico do contrato ou posse",
+                ],
+            },
+            {
+                "title": "Pessoas vinculadas",
+                "items": [
+                    "Dependentes e pessoas da casa",
+                    "Conjuge, filhos, pais e moradores vinculados",
+                    "Permissoes herdadas ou individualizadas por acesso",
+                ],
+            },
+            {
+                "title": "Visitantes autorizados",
+                "items": [
+                    "Visitante recorrente cadastrado uma unica vez",
+                    "Prestador recorrente com bloco e unidade definidos",
+                    "Controle por periodo, finalidade e observacao operacional",
+                ],
+            },
+        ],
+        "vehicle_cards": [
+            {
+                "title": "Tipos de veiculo",
+                "items": ["Carro", "Moto", "Bicicleta", "Bicicleta eletrica"],
+            },
+            {
+                "title": "Condutores autorizados",
+                "items": [
+                    "Pessoa vinculada ao titular ou a unidade",
+                    "CNH quando o tipo de veiculo exigir habilitacao",
+                    "Historico de quem pode usar cada veiculo",
+                ],
+            },
+            {
+                "title": "Regra de vaga versatil",
+                "items": [
+                    "Modo livre para o condominio atual",
+                    "Modo fixo para empreendimentos com vaga definida",
+                    "Modo misto para excecoes e reservas futuras",
+                ],
+            },
+        ],
+        "schedule_cards": [
+            {
+                "title": "Mudanca de entrada",
+                "text": "Reserva o dia de chegada, janela de uso, apoio de elevador, placa do veiculo, responsavel e observacoes da portaria.",
+            },
+            {
+                "title": "Mudanca de saida",
+                "text": "Repete a logica de agenda com historico proprio, checklist de liberacao e registro do encerramento do uso da unidade.",
+            },
+            {
+                "title": "Reservas de areas comuns",
+                "text": "A mesma agenda pode crescer para salao, espaco gourmet e outras areas comuns sem quebrar a relacao com unidade e responsavel.",
+            },
+        ],
+        "detail_cards": [
+            {
+                "title": "Quem e a pessoa",
+                "text": "Leitura consolidada de identidade, documentos, foto, contatos e vinculo principal com a unidade.",
+            },
+            {
+                "title": "Quem responde pela unidade",
+                "text": "Mostra se o titular atual e Proprietario ou Locatario, quem foi o anterior e quais observacoes ainda impactam a operacao.",
+            },
+            {
+                "title": "Veiculos e condutores",
+                "text": "Lista placas, tipos, condutores autorizados, regras de vaga e observacoes de acesso por veiculo.",
+            },
+            {
+                "title": "Visitantes e acessos",
+                "text": "Mostra visitantes recorrentes, prestadores vinculados e o recorte de unidade ou bloco liberado para cada pessoa.",
+            },
+            {
+                "title": "Ocorrencias e observacoes",
+                "text": "A tela deve consolidar historico operacional, alertas internos e fatos relevantes do cadastro sem espalhar informacao em varias rotinas.",
+            },
+            {
+                "title": "Reservas e mudancas",
+                "text": "Ao abrir o cadastro, a pessoa tambem enxerga reservas futuras, mudancas de entrada e saida e o que ja foi concluido.",
+            },
+        ],
+        "lgpd_cards": [
+            {
+                "title": "Mascaramento por perfil",
+                "text": "CPF, RG, CNH, placa e outros dados sensiveis aparecem mascarados por padrao e so abrem integralmente para perfil autorizado.",
+            },
+            {
+                "title": "Auditoria de leitura e edicao",
+                "text": "Nao basta registrar quem alterou. O modulo precisa registrar tambem quem consultou dado sensivel, liberou acesso ou exportou cadastro.",
+            },
+            {
+                "title": "Minimizacao de coleta",
+                "text": "Contato nao pode ser obrigatorio sem finalidade. O sistema coleta o necessario para operar, nao um volume indiscriminado de dados.",
+            },
+            {
+                "title": "Integracao por adapter",
+                "text": "Facial, portaria ou cancela devem ser integrados por camada separada. O cadastro do GALINT continua como fonte principal de verdade.",
+            },
+        ],
+        "integration_notes": [
+            "Integracao futura com facial e controle de acesso entra por adapter, sem acoplar o cadastro ao fornecedor.",
+            "Mensageria e app de ocorrencias devem consumir o mesmo vinculo entre titular, unidade, visitante, veiculo e agenda.",
+            "A mesma base suporta o condominio atual com vaga livre e tambem futuros empreendimentos com regras fixas.",
+        ],
+        "blocks": _build_condominium_blocks(),
+    }
+
+
+def _build_enterprise_management_overview() -> dict[str, object]:
+    snapshot = inventory_service.dashboard_snapshot()
+    visual_catalog = category_catalog_service.list_visual_catalog(include_inactive=True)
+    visual_by_key = {
+        str(row.get("key") or ""): row
+        for row in visual_catalog
+        if str(row.get("key") or "")
+    }
+
+    category_cards: list[dict[str, object]] = []
+    total_category_items = 0
+    total_category_balance = 0.0
+
+    for row in snapshot.get("category_summary") or []:
+        total_itens = int(row.get("total_itens") or 0)
+        saldo_total = float(row.get("saldo_total") or 0.0)
+        total_category_items += total_itens
+        total_category_balance += saldo_total
+
+        visual = dict(
+            visual_by_key.get(str(row.get("category_key") or ""))
+            or category_catalog_service.get_visual(row.get("categoria"))
+        )
+        unit_breakdown = []
+        for unit in row.get("unit_breakdown") or []:
+            unit_breakdown.append(
+                {
+                    "label": str(unit.get("label") or unit.get("unit_key") or "Unidade"),
+                    "saldo_total": float(unit.get("saldo_total") or 0.0),
+                }
+            )
+        unit_breakdown.sort(key=lambda item: float(item.get("saldo_total") or 0.0), reverse=True)
+
+        category_cards.append(
+            {
+                "label": str(row.get("categoria") or visual.get("label") or "Sem categoria"),
+                "icon": str(visual.get("icon") or "📦"),
+                "color": str(visual.get("color") or "#22d3ee"),
+                "soft": str(visual.get("soft") or "rgba(34, 211, 238, 0.22)"),
+                "total_itens": total_itens,
+                "saldo_total": saldo_total,
+                "unit_breakdown": unit_breakdown[:3],
+            }
+        )
+
+    employees = tool_custody_service.get_all_employees_with_tools()
+    employees.sort(
+        key=lambda employee: (
+            0 if employee.get("has_alerts") else 1,
+            -int(employee.get("days_oldest") or 0),
+            str(employee.get("nome") or "").casefold(),
+        )
+    )
+
+    custody_cards: list[dict[str, object]] = []
+    for employee in employees[:6]:
+        ordered_tools = sorted(
+            list(employee.get("tools") or []),
+            key=lambda tool: (
+                -int(tool.get("days_in_use") or 0),
+                str(tool.get("descricao") or "").casefold(),
+            ),
+        )
+        custody_cards.append(
+            {
+                "nome": str(employee.get("nome") or "Funcionário não identificado"),
+                "matricula": str(employee.get("matricula") or "-"),
+                "setor": str(employee.get("setor") or "N/D"),
+                "cargo": str(employee.get("cargo") or "N/D"),
+                "total_ferramentas": int(employee.get("total_ferramentas") or 0),
+                "days_oldest": int(employee.get("days_oldest") or 0),
+                "has_alerts": bool(employee.get("has_alerts")),
+                "alerts_count": int(employee.get("alerts_count") or 0),
+                "tools": [
+                    {
+                        "descricao": str(tool.get("descricao") or "Ferramenta sem descrição"),
+                        "days_in_use": int(tool.get("days_in_use") or 0),
+                        "quantidade": int(tool.get("quantidade") or 0),
+                    }
+                    for tool in ordered_tools[:4]
+                ],
+            }
+        )
+
+    return {
+        "category_cards": category_cards,
+        "category_count": len(category_cards),
+        "total_category_items": total_category_items,
+        "total_category_balance": round(total_category_balance, 1),
+        "custody_cards": custody_cards,
+        "custody_employee_count": len(employees),
+        "custody_total_tools": sum(int(employee.get("total_ferramentas") or 0) for employee in employees),
+        "custody_total_alerts": sum(int(employee.get("alerts_count") or 0) for employee in employees),
+        "custody_overflow": max(len(employees) - len(custody_cards), 0),
+    }
+
+
 @blueprint.post("/workspace/native-open")
 @login_required
 def workspace_native_open_api():
@@ -639,6 +923,31 @@ def config():
     return render_template(
         "config.html",
         enterprise_sections=build_enterprise_sections(is_admin=bool(getattr(current_user, "is_admin", 0))),
+        enterprise_management_overview=_build_enterprise_management_overview(),
+    )
+
+
+@blueprint.get("/configuracoes/condominio/cadastros")
+@login_required
+def admin_condominium_registry():
+    if not _has_management_access():
+        flash("Acesso restrito a gestores, gerentes e desenvolvedores.", "danger")
+        return redirect(url_for("dashboard.index"))
+    return render_template(
+        "config_condominium_blueprint.html",
+        blueprint_page=_build_admin_condominium_blueprint(mode="registry"),
+    )
+
+
+@blueprint.get("/configuracoes/condominio/agendamentos")
+@login_required
+def admin_condominium_schedule():
+    if not _has_management_access():
+        flash("Acesso restrito a gestores, gerentes e desenvolvedores.", "danger")
+        return redirect(url_for("dashboard.index"))
+    return render_template(
+        "config_condominium_blueprint.html",
+        blueprint_page=_build_admin_condominium_blueprint(mode="schedule"),
     )
 
 

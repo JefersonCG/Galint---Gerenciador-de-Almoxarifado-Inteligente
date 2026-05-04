@@ -4,6 +4,7 @@ from __future__ import annotations
 from datetime import date, datetime, timedelta
 import csv
 import io
+from random import sample
 from typing import Any
 
 from flask import Blueprint, Response, abort, current_app, jsonify, render_template, url_for
@@ -124,6 +125,24 @@ def _dashboard_context(
     tag_label: str | None = None,
 ) -> dict[str, Any]:
     snapshot = inventory_service.dashboard_snapshot()
+    category_summary: list[dict[str, Any]] = []
+    for row in snapshot["category_summary"]:
+        payload = dict(row)
+        raw_photo_paths: list[str] = []
+        for photo_path in row.get("photo_paths") or []:
+            normalized_photo_path = str(photo_path or "").strip()
+            if not normalized_photo_path:
+                continue
+            raw_photo_paths.append(normalized_photo_path)
+
+        selected_photo_paths = sample(raw_photo_paths, min(2, len(raw_photo_paths))) if raw_photo_paths else []
+        photo_urls = [
+            url_for("static", filename=photo_path)
+            for photo_path in selected_photo_paths
+        ]
+        payload["photo_urls"] = photo_urls
+        category_summary.append(payload)
+
     resumo = snapshot["resumo"]
     total_quantity = snapshot["total_quantity"]
     competencia = date.today().strftime("%m-%Y")
@@ -167,7 +186,7 @@ def _dashboard_context(
         "faltam_entradas": faltam_entradas,
         "progresso_relatorio_pct": progresso_pct,
         "reports": reports,
-        "category_summary": snapshot["category_summary"],
+        "category_summary": category_summary,
         "shared_view": shared_view,
         "can_view_finance": can_view_finance,
         "header_title": header_title or f"Resumo Mensal de Estoque - {competencia}",

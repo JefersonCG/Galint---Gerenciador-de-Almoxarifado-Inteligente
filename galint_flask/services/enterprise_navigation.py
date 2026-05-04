@@ -45,6 +45,52 @@ def build_enterprise_sections(*, is_admin: bool) -> list[dict[str, Any]]:
     mobile_panel_enabled = is_admin and bool(current_app.config.get("FEATURE_MOBILE_PANEL_ENABLED", False))
     sections = [
         _section(
+            "condominio",
+            "Condominio",
+            "bi-buildings",
+            "enterpriseCondominioMenu",
+            [
+                _item("Cadastros", _optional_url("pages.admin_condominium_registry"), "bi-person-vcard", "ADM-001", "Cadastro", "cyan"),
+                _item("Agendamentos", _optional_url("pages.admin_condominium_schedule"), "bi-calendar2-week", "ADM-002", "Agenda", "amber"),
+            ],
+        ),
+        _section(
+            "suprimentos",
+            "Gestão de Suprimentos",
+            "bi-briefcase-fill",
+            "enterpriseSuprimentosMenu",
+            [
+                _item("Financeiro", _optional_url("inventory.valor_estoque"), "bi-cash-stack", "SUP-001", "Gestão", "green"),
+                _item("Projeção", _optional_url("inventory.purchase_projection_page"), "bi-graph-up-arrow", "SUP-002", "Gestão", "green"),
+                _item("Fornecedores", _optional_url("config.fornecedores"), "bi-building-add", "SUP-003", "Cadastro", "amber"),
+                _item("Documentos Fiscais", _optional_url("nf.nf_index", enabled=bool(current_app.config.get("FEATURE_NOTAS_ENABLED", True))), "bi-receipt", "SUP-004", "Fiscal", "amber"),
+                _item("Laboratório de Lojas", _optional_url("inventory.lojas_lab"), "bi-shop", "SUP-005", "Operação", "cyan"),
+                _item("Ajuste Administrativo", _optional_url("config.estoque_ajuste_admin", enabled=is_admin), "bi-shield-lock", "SUP-006", "Controle", "red"),
+            ],
+        ),
+        _section(
+            "dashboard",
+            "Dashboard",
+            "bi-speedometer2",
+            "enterpriseDashboardMenu",
+            [
+                _item("Resumo de Estoque", _optional_url("dashboard.index"), "bi-grid-1x2-fill", "DASH-001", "Leitura", "cyan"),
+                _item("Central de Operações", _optional_url("operations.central_operations"), "bi-activity", "DASH-002", "Leitura", "green"),
+                _item("Consumo", _optional_url("inventory.consumption_dashboard"), "bi-geo-alt", "DASH-003", "Leitura", "cyan"),
+            ],
+        ),
+        _section(
+            "ferramentas",
+            "Ferramentas",
+            "bi-tools",
+            "enterpriseFerramentasMenu",
+            [
+                _item("Central de Kits", _optional_url("central_kits.index"), "bi-briefcase-fill", "FER-001", "Kits", "cyan"),
+                _item("Em Custódia", _optional_url("tool_custody.index"), "bi-person-workspace", "FER-002", "Custódia", "green"),
+                _item("Em reparo", _optional_url("reparo.listar_reparos"), "bi-wrench-adjustable", "FER-003", "Reparo", "amber"),
+            ],
+        ),
+        _section(
             "power-bi",
             "Power BI",
             "bi-pie-chart-fill",

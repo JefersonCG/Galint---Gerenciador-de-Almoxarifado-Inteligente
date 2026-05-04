@@ -1,0 +1,604 @@
+{% extends "base.html" %}
+{% block title %}{{ blueprint_page.hero.title }}{% endblock %}
+{% block body_class %}condominium-blueprint-page{% endblock %}
+{% block extra_css %}
+<style>
+    body.condominium-blueprint-page .app-body {
+        background:
+            radial-gradient(circle at 10% 8%, rgba(14, 165, 233, 0.12), transparent 22rem),
+            radial-gradient(circle at 92% 10%, rgba(15, 23, 42, 0.08), transparent 24rem),
+            linear-gradient(180deg, #eef4f8 0%, #e7edf4 58%, #e1e8ef 100%);
+    }
+
+    body.condominium-blueprint-page .content-panel {
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(241, 245, 249, 0.9));
+        border-left: 1px solid rgba(148, 163, 184, 0.2);
+    }
+
+    .condo-shell {
+        display: grid;
+        gap: 1rem;
+        color: #172033;
+    }
+
+    .condo-panel {
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        border-radius: 1.15rem;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.96));
+        box-shadow: 0 18px 42px rgba(15, 23, 42, 0.08);
+        padding: 1rem 1.1rem;
+    }
+
+    .condo-hero {
+        position: relative;
+        overflow: hidden;
+        display: grid;
+        gap: 1rem;
+        background:
+            linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(236, 242, 248, 0.96)),
+            linear-gradient(180deg, rgba(15, 23, 42, 0.05), rgba(15, 23, 42, 0));
+    }
+
+    .condo-hero::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+            radial-gradient(circle at 84% 16%, rgba(14, 165, 233, 0.12), transparent 16rem),
+            linear-gradient(90deg, rgba(15, 23, 42, 0.04), transparent 42%);
+        pointer-events: none;
+    }
+
+    .condo-hero-copy,
+    .condo-hero-facts {
+        position: relative;
+        z-index: 1;
+    }
+
+    .condo-kicker {
+        width: fit-content;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin: 0 0 0.45rem;
+        padding: 0.42rem 0.76rem;
+        border-radius: 999px;
+        background: rgba(15, 23, 42, 0.88);
+        color: #f8fafc;
+        font-size: 0.74rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+    }
+
+    .condo-title {
+        margin: 0;
+        font-size: clamp(1.85rem, 3.2vw, 2.8rem);
+        line-height: 1;
+        font-weight: 900;
+        letter-spacing: -0.04em;
+        color: #0f172a;
+    }
+
+    .condo-summary {
+        margin: 0.7rem 0 0;
+        max-width: 48rem;
+        color: #334155;
+        font-size: 0.96rem;
+        line-height: 1.6;
+        font-weight: 600;
+    }
+
+    .condo-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-top: 0.85rem;
+        padding: 0.44rem 0.82rem;
+        border-radius: 999px;
+        background: rgba(14, 165, 233, 0.12);
+        color: #0369a1;
+        font-size: 0.78rem;
+        font-weight: 800;
+    }
+
+    .condo-facts-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 0.75rem;
+    }
+
+    .condo-fact-card {
+        border: 1px solid rgba(226, 232, 240, 0.95);
+        border-radius: 0.95rem;
+        background: #fff;
+        padding: 0.85rem 0.9rem;
+    }
+
+    .condo-fact-label {
+        font-size: 0.74rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #64748b;
+        margin-bottom: 0.32rem;
+    }
+
+    .condo-fact-value {
+        font-size: 1.35rem;
+        line-height: 1;
+        font-weight: 800;
+        color: #0f172a;
+    }
+
+    .condo-fact-note {
+        margin-top: 0.4rem;
+        color: #64748b;
+        font-size: 0.82rem;
+    }
+
+    .condo-anchor-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.55rem;
+    }
+
+    .condo-anchor-row a {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.38rem 0.76rem;
+        border-radius: 999px;
+        background: #e2e8f0;
+        color: #0f172a;
+        font-size: 0.78rem;
+        font-weight: 700;
+        text-decoration: none;
+    }
+
+    .condo-section {
+        display: grid;
+        gap: 0.95rem;
+    }
+
+    .condo-section.is-focus {
+        border-color: rgba(14, 165, 233, 0.44);
+        box-shadow: 0 22px 48px rgba(14, 165, 233, 0.12);
+    }
+
+    .condo-section-head {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 0.85rem;
+        flex-wrap: wrap;
+        padding-bottom: 0.9rem;
+        border-bottom: 1px solid rgba(226, 232, 240, 0.96);
+    }
+
+    .condo-section-kicker {
+        margin: 0 0 0.28rem;
+        color: #0f766e;
+        font-size: 0.74rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+    }
+
+    .condo-section-title {
+        margin: 0;
+        font-size: 1.45rem;
+        font-weight: 850;
+        color: #0f172a;
+    }
+
+    .condo-section-copy {
+        margin: 0.35rem 0 0;
+        max-width: 50rem;
+        color: #475569;
+        font-size: 0.92rem;
+        line-height: 1.55;
+    }
+
+    .condo-two-col {
+        display: grid;
+        grid-template-columns: 1.08fr 0.92fr;
+        gap: 0.9rem;
+    }
+
+    .condo-card-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.8rem;
+    }
+
+    .condo-info-card {
+        border: 1px solid rgba(226, 232, 240, 0.96);
+        border-radius: 0.95rem;
+        background: #fff;
+        padding: 0.88rem 0.92rem;
+        display: grid;
+        gap: 0.45rem;
+    }
+
+    .condo-info-card h3,
+    .condo-info-card h4 {
+        margin: 0;
+        font-size: 0.98rem;
+        color: #0f172a;
+    }
+
+    .condo-info-card p {
+        margin: 0;
+        color: #475569;
+        font-size: 0.88rem;
+        line-height: 1.5;
+    }
+
+    .condo-info-card ul {
+        margin: 0;
+        padding-left: 1rem;
+        color: #475569;
+        font-size: 0.87rem;
+    }
+
+    .condo-field-list {
+        display: grid;
+        gap: 0.55rem;
+    }
+
+    .condo-field-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 0.65rem;
+        align-items: start;
+        border: 1px solid rgba(226, 232, 240, 0.88);
+        border-radius: 0.85rem;
+        background: rgba(255, 255, 255, 0.9);
+        padding: 0.72rem 0.8rem;
+    }
+
+    .condo-field-row strong {
+        display: block;
+        color: #0f172a;
+        font-size: 0.9rem;
+    }
+
+    .condo-field-row span {
+        display: block;
+        margin-top: 0.18rem;
+        color: #64748b;
+        font-size: 0.8rem;
+    }
+
+    .condo-field-tag {
+        display: inline-flex;
+        align-items: center;
+        min-height: 1.95rem;
+        padding: 0.32rem 0.68rem;
+        border-radius: 999px;
+        background: rgba(15, 23, 42, 0.92);
+        color: #f8fafc;
+        font-size: 0.73rem;
+        font-weight: 800;
+        white-space: nowrap;
+    }
+
+    .condo-block-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.85rem;
+    }
+
+    .condo-block-card {
+        border: 1px solid rgba(226, 232, 240, 0.98);
+        border-radius: 1rem;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.96));
+        overflow: hidden;
+        box-shadow: 0 16px 30px rgba(15, 23, 42, 0.06);
+    }
+
+    .condo-block-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.65rem;
+        padding: 0.85rem 0.9rem;
+        background: rgba(15, 23, 42, 0.94);
+        color: #f8fafc;
+    }
+
+    .condo-block-top strong {
+        display: block;
+        font-size: 1rem;
+    }
+
+    .condo-block-top span {
+        display: block;
+        color: rgba(226, 232, 240, 0.74);
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+    }
+
+    .condo-block-body {
+        display: grid;
+        gap: 0.75rem;
+        padding: 0.9rem;
+    }
+
+    .condo-tower-labels {
+        display: grid;
+        grid-template-columns: 1.55rem repeat(2, minmax(0, 1fr));
+        gap: 0.25rem;
+        color: #64748b;
+        font-size: 0.72rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+    }
+
+    .condo-tower-grid {
+        display: grid;
+        grid-template-columns: 1.55rem repeat(2, minmax(0, 1fr));
+        gap: 0.25rem;
+        align-items: center;
+    }
+
+    .condo-floor-label {
+        color: #64748b;
+        font-size: 0.72rem;
+        font-weight: 800;
+        text-align: right;
+    }
+
+    .condo-floor-cell {
+        min-height: 1.15rem;
+        border-radius: 0.35rem;
+        background: linear-gradient(180deg, rgba(226, 232, 240, 0.92), rgba(203, 213, 225, 0.88));
+        border: 1px solid rgba(148, 163, 184, 0.36);
+    }
+
+    .condo-floor-cell.is-coverage {
+        background: linear-gradient(180deg, rgba(14, 165, 233, 0.28), rgba(14, 165, 233, 0.16));
+        border-color: rgba(14, 165, 233, 0.42);
+    }
+
+    .condo-inline-note {
+        border: 1px dashed rgba(148, 163, 184, 0.44);
+        border-radius: 0.9rem;
+        background: rgba(241, 245, 249, 0.82);
+        padding: 0.82rem 0.9rem;
+        color: #475569;
+        font-size: 0.88rem;
+    }
+
+    .condo-note-list {
+        display: grid;
+        gap: 0.55rem;
+    }
+
+    .condo-note-item {
+        border-radius: 0.9rem;
+        background: rgba(15, 23, 42, 0.04);
+        padding: 0.72rem 0.82rem;
+        color: #334155;
+        font-size: 0.88rem;
+    }
+
+    @media (max-width: 1199.98px) {
+        .condo-facts-grid,
+        .condo-card-grid,
+        .condo-block-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+
+    @media (max-width: 991.98px) {
+        .condo-two-col,
+        .condo-facts-grid,
+        .condo-card-grid,
+        .condo-block-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 575.98px) {
+        .condo-panel {
+            padding: 0.9rem;
+        }
+
+        .condo-title {
+            font-size: 1.7rem;
+        }
+    }
+</style>
+{% endblock %}
+{% block content %}
+<div class="condo-shell">
+    <section class="condo-panel condo-hero">
+        <div class="condo-hero-copy">
+            <p class="condo-kicker"><i class="bi bi-buildings"></i> {{ blueprint_page.hero.kicker }}</p>
+            <h1 class="condo-title">{{ blueprint_page.hero.title }}</h1>
+            <p class="condo-summary">{{ blueprint_page.hero.summary }}</p>
+            <span class="condo-badge"><i class="bi bi-check2-circle"></i> {{ blueprint_page.hero.badge }}</span>
+        </div>
+        <div class="condo-hero-facts condo-facts-grid">
+            {% for fact in blueprint_page.quick_facts %}
+            <article class="condo-fact-card">
+                <div class="condo-fact-label">{{ fact.label }}</div>
+                <div class="condo-fact-value">{{ fact.value }}</div>
+                <div class="condo-fact-note">{{ fact.note }}</div>
+            </article>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section class="condo-panel">
+        <div class="condo-anchor-row">
+            {% for anchor in blueprint_page.anchors %}
+            <a href="#{{ anchor.id }}">{{ anchor.label }}</a>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section id="cadastro-mestre" class="condo-panel condo-section {% if blueprint_page.focus_section == 'cadastro-mestre' %}is-focus{% endif %}">
+        <div class="condo-section-head">
+            <div>
+                <p class="condo-section-kicker">Modelo principal</p>
+                <h2 class="condo-section-title">Cadastro mestre em camadas</h2>
+                <p class="condo-section-copy">Primeiro entra o titular da unidade. Depois entram as pessoas vinculadas, os visitantes recorrentes, os veiculos, os condutores e o historico de observacoes.</p>
+            </div>
+        </div>
+        <div class="condo-two-col">
+            <div class="condo-card-grid">
+                {% for card in blueprint_page.principles %}
+                <article class="condo-info-card">
+                    <h3>{{ card.title }}</h3>
+                    <p>{{ card.text }}</p>
+                </article>
+                {% endfor %}
+            </div>
+            <div class="condo-field-list">
+                {% for field in blueprint_page.field_rules %}
+                <article class="condo-field-row">
+                    <div>
+                        <strong>{{ field.label }}</strong>
+                        <span>{{ field.note }}</span>
+                    </div>
+                    <span class="condo-field-tag">{{ field.rule }}</span>
+                </article>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+
+    <section id="estrutura" class="condo-panel condo-section {% if blueprint_page.focus_section == 'estrutura' %}is-focus{% endif %}">
+        <div class="condo-section-head">
+            <div>
+                <p class="condo-section-kicker">Estrutura fisica</p>
+                <h2 class="condo-section-title">Blocos, andares e colunas</h2>
+                <p class="condo-section-copy">A configuracao inicial considera 9 blocos, 10 andares por bloco, duas colunas por pavimento e cobertura no 10o andar. O desenho precisa ser parametrico para outros condominios.</p>
+            </div>
+        </div>
+        <div class="condo-inline-note">O desenho abaixo ja deixa visivel a ideia estrutural: bloco, coluna impar, coluna par e cobertura. No condominio atual a vaga e livre, mas a base precisa suportar vaga fixa e modo misto sem refazer o cadastro.</div>
+        <div class="condo-block-grid">
+            {% for block in blueprint_page.blocks %}
+            <article class="condo-block-card">
+                <div class="condo-block-top">
+                    <div>
+                        <strong>{{ block.title }}</strong>
+                        <span>{{ block.code }}</span>
+                    </div>
+                    <span>{{ block.floors }} andares</span>
+                </div>
+                <div class="condo-block-body">
+                    <div class="condo-tower-labels">
+                        <span></span>
+                        <span>{{ block.columns[0] }}</span>
+                        <span>{{ block.columns[1] }}</span>
+                    </div>
+                    <div class="condo-tower-grid">
+                        {% for floor in range(block.floors, 0, -1) %}
+                        <span class="condo-floor-label">{{ '%02d'|format(floor) }}</span>
+                        <span class="condo-floor-cell {% if floor == block.floors %}is-coverage{% endif %}"></span>
+                        <span class="condo-floor-cell {% if floor == block.floors %}is-coverage{% endif %}"></span>
+                        {% endfor %}
+                    </div>
+                    <div class="condo-inline-note">{{ block.coverage }}. {{ block.parking_mode }}.</div>
+                </div>
+            </article>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section id="vinculos" class="condo-panel condo-section {% if blueprint_page.focus_section == 'vinculos' %}is-focus{% endif %}">
+        <div class="condo-section-head">
+            <div>
+                <p class="condo-section-kicker">Relacao entre pessoas e unidades</p>
+                <h2 class="condo-section-title">Vinculos, visitantes, veiculos e condutores</h2>
+                <p class="condo-section-copy">O cadastro precisa responder quem e o titular da unidade, quem mora junto, quem visita, quem presta servico, quais veiculos pertencem a esse nucleo e quem pode dirigir cada um deles.</p>
+            </div>
+        </div>
+        <div class="condo-card-grid">
+            {% for card in blueprint_page.relationship_cards %}
+            <article class="condo-info-card">
+                <h3>{{ card.title }}</h3>
+                <ul>
+                    {% for item in card["items"] %}
+                    <li>{{ item }}</li>
+                    {% endfor %}
+                </ul>
+            </article>
+            {% endfor %}
+            {% for card in blueprint_page.vehicle_cards %}
+            <article class="condo-info-card">
+                <h3>{{ card.title }}</h3>
+                <ul>
+                    {% for item in card["items"] %}
+                    <li>{{ item }}</li>
+                    {% endfor %}
+                </ul>
+            </article>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section id="agendamentos" class="condo-panel condo-section {% if blueprint_page.focus_section == 'agendamentos' %}is-focus{% endif %}">
+        <div class="condo-section-head">
+            <div>
+                <p class="condo-section-kicker">Agenda operacional</p>
+                <h2 class="condo-section-title">Mudanca de entrada, mudanca de saida e reservas</h2>
+                <p class="condo-section-copy">Agendamento nao e modulo solto. Ele depende do titular, da unidade, do historico do cadastro e das pessoas ou veiculos envolvidos na operacao do dia.</p>
+            </div>
+        </div>
+        <div class="condo-card-grid">
+            {% for card in blueprint_page.schedule_cards %}
+            <article class="condo-info-card">
+                <h3>{{ card.title }}</h3>
+                <p>{{ card.text }}</p>
+            </article>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section id="detalhe-relacional" class="condo-panel condo-section {% if blueprint_page.focus_section == 'detalhe-relacional' %}is-focus{% endif %}">
+        <div class="condo-section-head">
+            <div>
+                <p class="condo-section-kicker">Leitura unificada</p>
+                <h2 class="condo-section-title">Tela de detalhe relacional</h2>
+                <p class="condo-section-copy">Ao abrir um cadastro, a pessoa precisa ver a relacao completa do nucleo: unidade, titular, vinculados, veiculos, visitantes, ocorrencias e agenda.</p>
+            </div>
+        </div>
+        <div class="condo-card-grid">
+            {% for card in blueprint_page.detail_cards %}
+            <article class="condo-info-card">
+                <h4>{{ card.title }}</h4>
+                <p>{{ card.text }}</p>
+            </article>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section id="lgpd" class="condo-panel condo-section {% if blueprint_page.focus_section == 'lgpd' %}is-focus{% endif %}">
+        <div class="condo-section-head">
+            <div>
+                <p class="condo-section-kicker">Governanca obrigatoria</p>
+                <h2 class="condo-section-title">LGPD, auditoria e integracao futura</h2>
+                <p class="condo-section-copy">Dados sensiveis, facial, portaria, mensageria e futuras ocorrencias precisam nascer com regra de acesso, mascaramento e trilha de auditoria desde a primeira versao.</p>
+            </div>
+        </div>
+        <div class="condo-card-grid">
+            {% for card in blueprint_page.lgpd_cards %}
+            <article class="condo-info-card">
+                <h4>{{ card.title }}</h4>
+                <p>{{ card.text }}</p>
+            </article>
+            {% endfor %}
+        </div>
+        <div class="condo-note-list">
+            {% for note in blueprint_page.integration_notes %}
+            <div class="condo-note-item">{{ note }}</div>
+            {% endfor %}
+        </div>
+    </section>
+</div>
+{% endblock %}
