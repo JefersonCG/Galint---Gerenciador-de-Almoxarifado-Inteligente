@@ -28,7 +28,7 @@ from ..services.category_catalog import (
     category_catalog_service,
 )
 from ..services.config_service import ConfigService
-from ..services.finance_service import _build_document_item_display_metadata, finance_service
+from ..services.finance_service import _build_document_item_display_metadata, _resolve_internal_content_document_unit, finance_service
 from ..services.inventory import (
     BASE_ITEM_UNIT_OPTIONS,
     OPERATIONAL_ACTIVITY_OPTIONS,
@@ -56,6 +56,13 @@ def _uses_packaging_system(item_data: dict | None) -> bool:
         return False
     tipo = (item_data.get("tipo_embalagem_novo") or "").strip().lower()
     if tipo not in {"lata", "rolo", "pacote", "caixa", "fardo", "litro", "balde", "bombona", "saco"}:
+        return False
+    try:
+        packaging_factor = _resolve_projection_packaging_factor(item_data)
+    except Exception:
+        packaging_factor = 0.0
+    raw_unit = str(item_data.get("unidade_interna_display") or item_data.get("unidade") or "").strip().lower()
+    if raw_unit in {"un", "unidade", "unidades", "par", "pares"} and 0 < packaging_factor <= 1.0:
         return False
     for key in ("unidades_por_embalagem", "litros_por_embalagem", "grandeza_referencia"):
         try:
@@ -724,6 +731,15 @@ def _load_linked_document_context(
         else "documento fiscal"
     )
 
+    projection_item_data = dict(item_data or {})
+    projection_item_model = item_model
+    internal_content_unit = _resolve_internal_content_document_unit(item_model, row=document_item)
+    if internal_content_unit is not None:
+        projection_item_data["tipo_embalagem_novo"] = None
+        projection_item_data["unidade"] = "Par" if internal_content_unit == "par" else "Unidade"
+        projection_item_data["unidade_interna_display"] = internal_content_unit
+        projection_item_model = None
+
     incoming_document_display = (
         display_metadata.get("quantidade_documento_display")
         or _format_projection_total_display(document_item.quantidade or 0.0, item_data.get("unidade") or base_unit_label)
@@ -736,6 +752,31 @@ def _load_linked_document_context(
     if not conversion_display and incoming_document_display != incoming_base_display:
         conversion_display = f"{incoming_document_display} = {incoming_base_display}"
 
+    stock_projection = None
+    if bool(item_data.get("pre_cadastro_pendente")) and (document_item.status_processamento or "").strip().lower() != "processado":
+        stock_projection = {
+            "document_type_label": document_type_label,
+            "document_number": document_number,
+            "document_reference": document_reference,
+            "current_operational_display": _format_projected_operational_balance(
+                projection_item_data,
+                current_item_total,
+                item_model=projection_item_model,
+            ),
+            "current_base_display": _format_projection_total_display(current_item_total, base_unit_label),
+            "incoming_document_display": incoming_document_display,
+            "incoming_base_display": incoming_base_display,
+            "incoming_conversion_display": conversion_display,
+            "projected_operational_display": _format_projected_operational_balance(
+                projection_item_data,
+                projected_item_total,
+                item_model=projection_item_model,
+            ),
+            "projected_item_base_display": _format_projection_total_display(projected_item_total, base_unit_label),
+            "current_total_ean_display": _format_projection_total_display(current_total_ean, base_unit_label),
+            "projected_total_ean_display": _format_projection_total_display(projected_total_ean, base_unit_label),
+        }
+
     return {
         "nota_fiscal": documento.numero_documento,
         "preco_compra_documento": documento.numero_documento,
@@ -743,28 +784,7 @@ def _load_linked_document_context(
         "preco_compra_data_emissao": documento.data_emissao.isoformat() if documento.data_emissao else None,
         "preco_compra_data_recebimento": documento.data_recebimento.isoformat() if documento.data_recebimento else None,
         "finance_tipo_documento": documento.tipo_documento,
-        "stock_projection": {
-            "document_type_label": document_type_label,
-            "document_number": document_number,
-            "document_reference": document_reference,
-            "current_operational_display": _format_projected_operational_balance(
-                item_data,
-                current_item_total,
-                item_model=item_model,
-            ),
-            "current_base_display": _format_projection_total_display(current_item_total, base_unit_label),
-            "incoming_document_display": incoming_document_display,
-            "incoming_base_display": incoming_base_display,
-            "incoming_conversion_display": conversion_display,
-            "projected_operational_display": _format_projected_operational_balance(
-                item_data,
-                projected_item_total,
-                item_model=item_model,
-            ),
-            "projected_item_base_display": _format_projection_total_display(projected_item_total, base_unit_label),
-            "current_total_ean_display": _format_projection_total_display(current_total_ean, base_unit_label),
-            "projected_total_ean_display": _format_projection_total_display(projected_total_ean, base_unit_label),
-        },
+        "stock_projection": stock_projection,
     }
 
 
@@ -1473,6 +1493,9 @@ def _repair_pending_pre_registered_links() -> int:
             if len(rows) != 1:
                 continue
             row = rows[0]
+
+        if (row.status_processamento or "").strip().lower() == "processado":
+            continue
 
         if item_model.pre_cadastro_documento_item_id != row.id_documento_item:
             item_model.pre_cadastro_documento_item_id = row.id_documento_item

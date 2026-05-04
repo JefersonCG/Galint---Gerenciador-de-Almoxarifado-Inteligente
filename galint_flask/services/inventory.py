@@ -68,6 +68,7 @@ from .price_normalization import (
 )
 from .unit_conversion_engine import UnitConversionError, unit_conversion_engine
 from .balance_provider import balance_provider
+from .finance_service import _resolve_internal_content_document_unit
 from .category_catalog import category_catalog_service
 from .material_return_metadata import format_material_return_actor_label
 from ..utils.lote_generator import generate_lote
@@ -1462,6 +1463,35 @@ class InventoryService:
         normalized_payload["unidades_por_embalagem"] = None
         normalized_payload["grandeza_referencia"] = None
         normalized_payload["litros_por_embalagem"] = None
+        normalized_payload["estoque_embalagens"] = 0.0
+        normalized_payload["estoque_unidades_soltas"] = 0.0
+        return normalized_payload
+
+    @staticmethod
+    def _normalize_linked_document_unit_payload(
+        payload: dict[str, Any] | None,
+        *,
+        current_item: Item | None = None,
+    ) -> dict[str, Any]:
+        normalized_payload = dict(payload or {})
+        raw_document_item_id = normalized_payload.get("pre_cadastro_documento_item_id")
+        if raw_document_item_id in (None, "") and current_item is not None:
+            raw_document_item_id = getattr(current_item, "pre_cadastro_documento_item_id", None)
+
+        try:
+            document_item_id = int(raw_document_item_id) if raw_document_item_id not in (None, "") else None
+        except (TypeError, ValueError):
+            document_item_id = None
+        if document_item_id is None:
+            return normalized_payload
+
+        document_row = db.session.get(DocumentoEntradaEstoqueItem, document_item_id)
+        reference_item = document_row.item if document_row is not None and document_row.item is not None else current_item
+        internal_content_unit = _resolve_internal_content_document_unit(reference_item, row=document_row)
+        if internal_content_unit is None:
+            return normalized_payload
+
+        normalized_payload["unidade"] = "Par" if internal_content_unit == "par" else "Unidade"
         normalized_payload["estoque_embalagens"] = 0.0
         normalized_payload["estoque_unidades_soltas"] = 0.0
         return normalized_payload
@@ -5003,6 +5033,7 @@ class InventoryService:
 
     def create_item(self, payload: dict[str, Any]) -> str:
         payload = self._normalize_toolkit_registration_payload(payload)
+        payload = self._normalize_linked_document_unit_payload(payload)
         payload = self._hydrate_missing_packaging_metadata(payload)
         payload["categoria"] = category_catalog_service.resolve_name(payload.get("categoria"))
         codigo = _sanitize_codigo(payload.get("codigo") or payload.get("codigo_item"))
@@ -5289,6 +5320,7 @@ class InventoryService:
             raise ValueError("Item não encontrado")
 
         payload = self._normalize_toolkit_registration_payload(payload, current_item=item)
+        payload = self._normalize_linked_document_unit_payload(payload, current_item=item)
         payload = self._hydrate_missing_packaging_metadata(payload, current_item=item)
         payload["categoria"] = category_catalog_service.resolve_name(
             payload.get("categoria"),

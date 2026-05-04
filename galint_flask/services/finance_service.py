@@ -27,7 +27,7 @@ from ..models import (
     StockMovement,
 )
 from .category_catalog import category_catalog_service
-from .legacy_stock_normalizer import ignore_packaging_metadata_for_stock, resolve_canonical_unit, resolve_packaging_factor
+from .legacy_stock_normalizer import infer_packaging_measure, ignore_packaging_metadata_for_stock, resolve_canonical_unit, resolve_packaging_factor
 from .price_normalization import (
     infer_document_quantity_unit_for_item,
     normalize_document_line,
@@ -140,6 +140,53 @@ def _format_quantity_text(value: object, unit_label: str | None) -> str | None:
     if unit_label:
         return f"{number} {unit_label}"
     return number
+
+
+def _normalize_document_unit_code(value: object) -> str:
+    raw = str(value or "").strip().lower()
+    aliases = {
+        "unidade": "un",
+        "unidades": "un",
+        "un": "un",
+        "par": "par",
+        "pares": "par",
+        "quilo": "kg",
+        "kg": "kg",
+        "litro": "l",
+        "litros": "l",
+        "l": "l",
+        "metro": "m",
+        "metros": "m",
+        "m": "m",
+    }
+    return aliases.get(raw, raw)
+
+
+def _resolve_internal_content_document_unit(
+    item: Item | None,
+    *,
+    row: DocumentoEntradaEstoqueItem | None = None,
+) -> str | None:
+    if item is None:
+        return None
+
+    packaging_factor = float(resolve_packaging_factor(item) or 0.0)
+    if packaging_factor <= 0 or packaging_factor > 1.0 or ignore_packaging_metadata_for_stock(item):
+        return None
+
+    packaging_measure = infer_packaging_measure(item)
+    if packaging_measure is None or packaging_measure[1] not in {"kg", "l", "m"}:
+        return None
+
+    if row is not None:
+        row_unit = _normalize_document_unit_code(row.unidade_quantidade)
+        if row_unit in {"un", "par"}:
+            return row_unit
+
+    canonical_unit = _normalize_document_unit_code(resolve_canonical_unit(item))
+    if canonical_unit in {"un", "par"}:
+        return canonical_unit
+    return None
 
 
 def _build_document_item_display_metadata(row: DocumentoEntradaEstoqueItem) -> dict[str, Any]:
@@ -2161,6 +2208,7 @@ class FinanceService:
             return False
 
         changed = False
+        internal_content_unit = _resolve_internal_content_document_unit(item_model, row=item_row)
         balance = db.session.get(StockBalance, item_row.codigo_item)
         if (
             item_row.entrada_id is None
@@ -2178,6 +2226,18 @@ class FinanceService:
         if item_model.pre_cadastro_documento_item_id != item_row.id_documento_item:
             item_model.pre_cadastro_documento_item_id = item_row.id_documento_item
             changed = True
+
+        if internal_content_unit is not None:
+            desired_unit = "Par" if internal_content_unit == "par" else "Unidade"
+            if item_model.unidade != desired_unit:
+                item_model.unidade = desired_unit
+                changed = True
+            if abs(float(item_model.estoque_embalagens or 0.0)) > 1e-6:
+                item_model.estoque_embalagens = 0.0
+                changed = True
+            if abs(float(item_model.estoque_unidades_soltas or 0.0)) > 1e-6:
+                item_model.estoque_unidades_soltas = 0.0
+                changed = True
 
         if balance is not None and hasattr(balance, "read_model_ready") and not bool(getattr(balance, "read_model_ready", False)):
             balance.read_model_ready = True
