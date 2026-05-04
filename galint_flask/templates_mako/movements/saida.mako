@@ -1068,6 +1068,112 @@ ${parent.scripts()}
             .trim();
     }
 
+    function normalizeOperationalUnitCode(value) {
+        const normalized = normalizePackageText(value);
+        if (!normalized) return '';
+        if (/(^|\b)(cm|centimetro|centimetros)(\b|$)/.test(normalized)) return 'cm';
+        if (/(^|\b)(metro|metros|m|mt|mts)(\b|$)/.test(normalized)) return 'metro';
+        if (/(^|\b)(litro|litros|l|lt|lts)(\b|$)/.test(normalized)) return 'litro';
+        if (/(^|\b)(kg|quilo|quilos|kilo|kilos)(\b|$)/.test(normalized)) return 'kg';
+        if (/(^|\b)(un|und|unidade|unidades|peca|pecas)(\b|$)/.test(normalized)) return 'unidade';
+        return normalized;
+    }
+
+    function getOperationalUnitCode(item) {
+        const candidates = [
+            item?.return_unit_code,
+            item?.devolucao_unidade_codigo,
+            item?.fracao_unidade_padrao,
+        ];
+
+        for (const candidate of candidates) {
+            const normalized = normalizeOperationalUnitCode(candidate);
+            if (normalized) {
+                return normalized;
+            }
+        }
+
+        return '';
+    }
+
+    function getOperationalUnitBaseFactor(item) {
+        const parsed = parseFloat(item?.devolucao_unidade_fator_base);
+        return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
+    }
+
+    function hasExplicitOperationalUnit(item) {
+        return Boolean(getOperationalUnitCode(item));
+    }
+
+    function convertOperationalQuantityToBase(item, quantity) {
+        const numericQuantity = Number(quantity) || 0;
+        if (numericQuantity <= 0) {
+            return 0;
+        }
+        if (!hasExplicitOperationalUnit(item)) {
+            return numericQuantity;
+        }
+
+        return numericQuantity * getOperationalUnitBaseFactor(item);
+    }
+
+    function convertBaseQuantityToOperational(item, quantity) {
+        const numericQuantity = Number(quantity) || 0;
+        if (numericQuantity <= 0) {
+            return 0;
+        }
+        if (!hasExplicitOperationalUnit(item)) {
+            return numericQuantity;
+        }
+
+        const factor = getOperationalUnitBaseFactor(item);
+        return factor > 0 ? (numericQuantity / factor) : numericQuantity;
+    }
+
+    function getOperationalUnitLabels(item, quantity) {
+        const unitCode = getOperationalUnitCode(item);
+        const numericQuantity = Number(quantity) || 0;
+
+        if (unitCode === 'litro') {
+            return { singular: 'litro', plural: 'litros' };
+        }
+        if (unitCode === 'kg') {
+            return { singular: 'kg', plural: 'kg' };
+        }
+        if (unitCode === 'metro') {
+            return { singular: 'metro', plural: 'metros' };
+        }
+        if (unitCode === 'cm') {
+            return { singular: 'cm', plural: 'cm' };
+        }
+        if (unitCode === 'unidade') {
+            return {
+                singular: 'unidade',
+                plural: numericQuantity === 1 ? 'unidade' : 'unidades'
+            };
+        }
+
+        return null;
+    }
+
+    function formatBaseQuantityForDisplay(item, quantityBase) {
+        const displayQuantity = hasExplicitOperationalUnit(item)
+            ? convertBaseQuantityToOperational(item, quantityBase)
+            : (Number(quantityBase) || 0);
+        const labels = getOperationalUnitLabels(item, displayQuantity) || obterRotuloMedida(item, displayQuantity);
+        return formatarQuantidadeMedida(displayQuantity, labels);
+    }
+
+    function shouldOfferPackagingChoice(item) {
+        if (item?.permite_saida_em_embalagens === true) {
+            return true;
+        }
+        if (item?.permite_saida_em_embalagens === false) {
+            return false;
+        }
+        return null;
+    }
+
     function inferLinearMeasureFromItem(item) {
         const fracaoPadrao = String(item?.fracao_unidade_padrao || '').trim().toLowerCase();
         const unidadeItem = String(item?.unidade || '').trim().toLowerCase();
@@ -1080,6 +1186,11 @@ ${parent.scripts()}
     }
 
     function inferPackagingType(item) {
+        const packagingDecision = shouldOfferPackagingChoice(item);
+        if (packagingDecision === false) {
+            return '';
+        }
+
         const directCandidates = [item?.tipo_embalagem, item?.tipo_embalagem_novo, item?.nome_embalagem];
         for (const candidate of directCandidates) {
             const normalized = normalizePackageText(candidate);
@@ -1106,6 +1217,15 @@ ${parent.scripts()}
     }
 
     function getPackagingCapacity(item) {
+        const explicitCapacity = parseFloat(item?.capacidade_embalagem);
+        if (Number.isFinite(explicitCapacity) && explicitCapacity > 0) {
+            return explicitCapacity;
+        }
+
+        if (shouldOfferPackagingChoice(item) === false) {
+            return 0;
+        }
+
         const candidates = [
             item?.unidades_por_embalagem,
             item?.capacidade_embalagem,
@@ -1127,7 +1247,16 @@ ${parent.scripts()}
         if (!item) return '1';
         const quantidade = Number(item.quantidade_exibicao || item.quantidade_input || item.quantidade || inputQuantidade.value || 1);
         const unidade = String(item.unidade_label || '').trim();
-        return unidade ? quantidade + ' ' + unidade : String(quantidade);
+        if (unidade) {
+            return quantidade + ' ' + unidade;
+        }
+
+        const explicitLabels = getOperationalUnitLabels(item, quantidade);
+        if (explicitLabels) {
+            return formatarQuantidadeMedida(quantidade, explicitLabels);
+        }
+
+        return String(quantidade);
     }
 
     function getBaseStockValue(item) {
@@ -1153,6 +1282,13 @@ ${parent.scripts()}
             if (capacidade > 0) {
                 return quantidadePacotes * capacidade;
             }
+        }
+
+        if (hasExplicitOperationalUnit(item)) {
+            const quantidadeOperacional = Number(item.quantidade_input ?? item.quantidade_exibicao ?? item.quantidade);
+            return Number.isFinite(quantidadeOperacional) && quantidadeOperacional > 0
+                ? convertOperationalQuantityToBase(item, quantidadeOperacional)
+                : 0;
         }
 
         const quantidadeBase = Number(item.quantidade);
@@ -1296,7 +1432,7 @@ ${parent.scripts()}
         }
 
         if (currentDraftBase > snapshot.availableBeforeDraft + STOCK_TOLERANCE) {
-            const availableDisplay = formatarQuantidadeMedida(snapshot.availableBeforeDraft, obterRotuloMedida(effectiveItem, snapshot.availableBeforeDraft));
+            const availableDisplay = formatBaseQuantityForDisplay(effectiveItem, snapshot.availableBeforeDraft);
             if (!silent) {
                 showStockShortageMessage(
                     'Saldo insuficiente',
@@ -1500,11 +1636,11 @@ ${parent.scripts()}
         const quantidade = formatPreviewQuantity(item);
         const categoriaNorm = normalizeAutocompleteText(item.categoria || '');
         const runtimeStockNote = stockSnapshot.pendingBase > STOCK_TOLERANCE
-            ? 'Pendente na lista: ' + formatarQuantidadeMedida(stockSnapshot.pendingBase, obterRotuloMedida(item, stockSnapshot.pendingBase)) + '. '
+            ? 'Pendente na lista: ' + formatBaseQuantityForDisplay(item, stockSnapshot.pendingBase) + '. '
             : '';
         const availabilityNote = previewStatus === 'preview'
-            ? runtimeStockNote + 'Disponivel apos esta retirada: ' + formatarQuantidadeMedida(stockSnapshot.availableAfterDraft, obterRotuloMedida(item, stockSnapshot.availableAfterDraft)) + '.'
-            : runtimeStockNote + 'Disponivel para novas retiradas: ' + formatarQuantidadeMedida(stockSnapshot.availableAfterDraft, obterRotuloMedida(item, stockSnapshot.availableAfterDraft)) + '.';
+            ? runtimeStockNote + 'Disponivel apos esta retirada: ' + formatBaseQuantityForDisplay(item, stockSnapshot.availableAfterDraft) + '.'
+            : runtimeStockNote + 'Disponivel para novas retiradas: ' + formatBaseQuantityForDisplay(item, stockSnapshot.availableAfterDraft) + '.';
         const previewNote = categoriaNorm.includes('ferrament')
             ? availabilityNote + ' Custodia automatica sera registrada quando esta saida for confirmada.'
             : availabilityNote + ' Este painel e a base da futura tela espelho para segundo monitor.';
@@ -1696,6 +1832,10 @@ ${parent.scripts()}
             if (!item || item.saldo === undefined || item.saldo === null) return '';
             
             const saldo = parseFloat(item.saldo) || 0;
+            if (hasExplicitOperationalUnit(item)) {
+                return formatBaseQuantityForDisplay(item, saldo);
+            }
+
             const tipoEmbalagem = inferPackagingType(item);
             const unidadesPorEmb = getPackagingCapacity(item);
             const grandezaRef = parseFloat(item.grandeza_referencia) || 0;
@@ -1742,6 +1882,12 @@ ${parent.scripts()}
     }
 
     function normalizarUnidadeMedida(item) {
+        const explicitUnitCode = getOperationalUnitCode(item);
+        if (explicitUnitCode === 'litro') return 'litro';
+        if (explicitUnitCode === 'kg') return 'kg';
+        if (explicitUnitCode === 'metro' || explicitUnitCode === 'cm') return 'metro';
+        if (explicitUnitCode === 'unidade') return 'unidade';
+
         const fracaoPadrao = String(item.fracao_unidade_padrao || '').trim().toLowerCase();
         const unidadeItem = String(item.unidade || '').trim().toLowerCase();
         const unidadeExibicao = String(item.unidade_exibicao_total || '').trim().toLowerCase();
@@ -1802,6 +1948,12 @@ ${parent.scripts()}
     }
 
     function buildObservationUnitCode(item, unidadeLabel) {
+        const explicitUnitCode = getOperationalUnitCode(item);
+        if (explicitUnitCode === 'litro') return 'L';
+        if (explicitUnitCode === 'kg') return 'KG';
+        if (explicitUnitCode === 'metro' || explicitUnitCode === 'cm') return 'METROS';
+        if (explicitUnitCode === 'unidade') return 'UNIDADE';
+
         const medida = normalizarUnidadeMedida(item);
         if (medida === 'litro') return 'L';
         if (medida === 'kg') return 'KG';
@@ -2115,9 +2267,14 @@ ${parent.scripts()}
                     marca: data.marca,
                     fracao_unidade_padrao: data.fracao_unidade_padrao,
                     unidade_exibicao_total: data.unidade_exibicao_total,
+                    devolucao_unidade_codigo: data.devolucao_unidade_codigo,
+                    devolucao_unidade_exibicao: data.devolucao_unidade_exibicao,
+                    devolucao_unidade_label: data.devolucao_unidade_label,
+                    devolucao_unidade_fator_base: data.devolucao_unidade_fator_base,
                     grandeza_referencia: data.grandeza_referencia,
                     litros_por_embalagem: data.litros_por_embalagem,
                     capacidade_embalagem: data.capacidade_embalagem,
+                    permite_saida_em_embalagens: data.permite_saida_em_embalagens,
                     em_embalagens: null,
                     saldo: data.saldo,
                     saldo_disponivel: data.saldo_disponivel,
@@ -2133,16 +2290,31 @@ ${parent.scripts()}
                 
             } else {
                 // Não tem embalagem - adiciona direto
+                const rotuloMedida = obterRotuloMedida(data, quantidade);
+                const unidadeBaseSafe = String(quantidade === 1 ? rotuloMedida.singular : rotuloMedida.plural);
                 adicionarItemFinal({
                     id: ++itemCounter,
                     codigo: codigo,
                     descricao: data.descricao,
                     quantidade: quantidade,
+                    quantidade_input: quantidade,
+                    quantidade_exibicao: quantidade,
                     usuario: usuario,
                     local: local,
-                    em_embalagens: null,
+                    em_embalagens: false,
+                    unidade_label: unidadeBaseSafe,
+                    observacao_unit: 'UNIDADE=' + buildObservationUnitCode(data, unidadeBaseSafe) + ';QTD_ORIGINAL=' + quantidade,
                     categoria: data.categoria,
                     marca: data.marca,
+                    unidade: data.unidade,
+                    unidade_exibicao_total: data.unidade_exibicao_total,
+                    devolucao_unidade_codigo: data.devolucao_unidade_codigo,
+                    devolucao_unidade_exibicao: data.devolucao_unidade_exibicao,
+                    devolucao_unidade_label: data.devolucao_unidade_label,
+                    devolucao_unidade_fator_base: data.devolucao_unidade_fator_base,
+                    fracao_unidade_padrao: data.fracao_unidade_padrao,
+                    capacidade_embalagem: data.capacidade_embalagem,
+                    permite_saida_em_embalagens: data.permite_saida_em_embalagens,
                     saldo: data.saldo,
                     saldo_disponivel: data.saldo_disponivel,
                     saldo_display: data.saldo_display,
@@ -2336,6 +2508,24 @@ ${parent.scripts()}
         }
         if (incomingItem?.saldo_display) {
             targetItem.saldo_display = incomingItem.saldo_display;
+        }
+        if (incomingItem?.devolucao_unidade_codigo) {
+            targetItem.devolucao_unidade_codigo = incomingItem.devolucao_unidade_codigo;
+        }
+        if (incomingItem?.devolucao_unidade_exibicao) {
+            targetItem.devolucao_unidade_exibicao = incomingItem.devolucao_unidade_exibicao;
+        }
+        if (incomingItem?.devolucao_unidade_label) {
+            targetItem.devolucao_unidade_label = incomingItem.devolucao_unidade_label;
+        }
+        if (incomingItem?.devolucao_unidade_fator_base !== undefined) {
+            targetItem.devolucao_unidade_fator_base = incomingItem.devolucao_unidade_fator_base;
+        }
+        if (incomingItem?.capacidade_embalagem !== undefined) {
+            targetItem.capacidade_embalagem = incomingItem.capacidade_embalagem;
+        }
+        if (incomingItem?.permite_saida_em_embalagens !== undefined) {
+            targetItem.permite_saida_em_embalagens = incomingItem.permite_saida_em_embalagens;
         }
         if (incomingItem?.error) {
             targetItem.error = incomingItem.error;

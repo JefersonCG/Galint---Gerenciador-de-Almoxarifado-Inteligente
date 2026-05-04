@@ -25,6 +25,7 @@ from ..services.mirror_state_service import mirror_state_service
 from ..services.notification_router import NotificationRouterService
 from ..services.mirror_insights_service import mirror_insights_service
 from ..services.native_panel_launcher import launch_panel as launch_native_panel
+from ..services.legacy_stock_normalizer import resolve_packaging_factor
 from ..services.users import user_service
 from ..services.entrada_service import entrada_service
 from ..services.telegram_service import TelegramService
@@ -47,7 +48,23 @@ def buscar_item():
     resultados = inventory_service.search_items_for_autocomplete(query, limit=20)
     if only_available:
         resultados = [item for item in resultados if item.get("is_available") is not False]
-    return jsonify({"items": resultados, "itens": resultados})
+
+    item_codes = [str(item.get("codigo") or "").strip() for item in resultados if str(item.get("codigo") or "").strip()]
+    item_models = {
+        item.codigo_item: item
+        for item in Item.query.filter(Item.codigo_item.in_(item_codes)).all()
+    } if item_codes else {}
+
+    enriched_results: list[dict[str, Any]] = []
+    for item_payload in resultados:
+        item_code = str(item_payload.get("codigo") or "").strip()
+        item_model = item_models.get(item_code)
+        unit_context = _build_saida_unit_context(item_payload, item_model)
+        enriched_results.append({
+            **item_payload,
+            **unit_context,
+        })
+    return jsonify({"items": enriched_results, "itens": enriched_results})
 
 
 @blueprint.after_request
@@ -328,25 +345,112 @@ def _pluralize_package_name(package_name: str) -> str:
 
 
 def _infer_package_capacity(item: dict[str, Any], *, fractional_info: dict[str, Any]) -> float:
+    return _infer_package_capacity_for_unit(item, fractional_info=fractional_info, primary_unit_code=None)
+
+
+def _infer_package_capacity_for_unit(
+    item: dict[str, Any],
+    *,
+    fractional_info: dict[str, Any],
+    primary_unit_code: str | None,
+) -> float:
     unidades_por_embalagem = _as_positive_float(item.get("unidades_por_embalagem"))
     if unidades_por_embalagem > 0:
         return unidades_por_embalagem
 
+    effective_unit = _normalize_text(primary_unit_code) or _normalize_text(fractional_info.get("default_unit"))
+
+    if effective_unit == "unidade":
+        return 0.0
+
     litros_por_embalagem = _as_positive_float(item.get("litros_por_embalagem"))
-    if litros_por_embalagem > 0:
+    if effective_unit == "litro" and litros_por_embalagem > 0:
         return litros_por_embalagem
 
     grandeza_referencia = _as_positive_float(item.get("grandeza_referencia"))
-    if grandeza_referencia > 0:
+    if effective_unit in {"quilo", "metro"} and grandeza_referencia > 0:
         return grandeza_referencia
 
     texto = f"{_normalize_text(item.get('descricao'))} {_normalize_text(item.get('categoria'))}".strip()
-    default_unit = _normalize_text(fractional_info.get("default_unit"))
-    if default_unit == "litro":
+    if effective_unit == "litro":
         return _extract_measurement_from_text(texto, r"l|lt|lts|litro|litros")
-    if default_unit == "quilo":
+    if effective_unit == "quilo":
         return _extract_measurement_from_text(texto, r"kg|quilo|quilos")
+    if effective_unit == "metro":
+        return _extract_measurement_from_text(texto, r"m|mt|mts|metro|metros")
     return 0.0
+
+
+def _resolve_primary_return_unit_option(
+    *,
+    item_model: Item | None,
+    fallback_config: dict[str, Any],
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    return_unit_options = inventory_service.get_material_return_unit_options(item=item_model)
+    if not return_unit_options:
+        return_unit_options = [dict(fallback_config)]
+
+    primary_option = dict(return_unit_options[0]) if return_unit_options else {}
+    primary_option.setdefault("unit_code", fallback_config.get("unit_code") or "unidade")
+    primary_option.setdefault("unit_display", fallback_config.get("unit_display") or "un")
+    primary_option.setdefault("unit_label", fallback_config.get("unit_label") or "Unidade")
+    primary_option.setdefault("allow_decimal", bool(fallback_config.get("allow_decimal")))
+    primary_option.setdefault("input_step", fallback_config.get("input_step") or (0.001 if primary_option.get("allow_decimal") else 1))
+    primary_option.setdefault("input_min", fallback_config.get("input_min") or (0.001 if primary_option.get("allow_decimal") else 1))
+    return return_unit_options, primary_option
+
+
+def _resolve_unit_factor_base(item_model: Item | None, unit_code: str) -> float:
+    unit_code = (unit_code or "").strip().lower()
+    if not item_model or not unit_code:
+        return 1.0
+
+    raw_unit = _infer_unidade(getattr(item_model, "unidade", None))
+    if unit_code == "unidade" and raw_unit in {"quilo", "litro", "metro"}:
+        packaging_factor = float(resolve_packaging_factor(item_model) or 0.0)
+        if packaging_factor > 0:
+            return packaging_factor
+
+    try:
+        conversion = unit_conversion_engine.convert_item_to_base(item_model, 1.0, unit_code)
+        quantity_base = float(conversion.quantity_base or 0.0)
+        return quantity_base if quantity_base > 0 else 1.0
+    except (UnitConversionError, TypeError, ValueError):
+        return 1.0
+
+
+def _build_saida_unit_context(item: dict[str, Any], item_model: Item | None) -> dict[str, Any]:
+    fractional_info = _infer_fractional_item(item)
+    return_quantity_config = _resolve_return_quantity_config(item, fractional_info=fractional_info)
+    return_unit_options, primary_option = _resolve_primary_return_unit_option(
+        item_model=item_model,
+        fallback_config=return_quantity_config,
+    )
+
+    unit_code = str(primary_option.get("unit_code") or return_quantity_config.get("unit_code") or "unidade").strip().lower() or "unidade"
+    unit_display = primary_option.get("unit_display") or return_quantity_config.get("unit_display") or "un"
+    unit_label = primary_option.get("unit_label") or return_quantity_config.get("unit_label") or "Unidade"
+    package_capacity = _infer_package_capacity_for_unit(
+        item,
+        fractional_info=fractional_info,
+        primary_unit_code=unit_code,
+    )
+    package_name = _infer_package_name(item)
+
+    return {
+        "fracao_unidade_padrao": unit_code,
+        "devolucao_unidade_codigo": unit_code,
+        "devolucao_unidade_exibicao": unit_display,
+        "devolucao_unidade_label": unit_label,
+        "devolucao_permite_decimal": bool(primary_option.get("allow_decimal")),
+        "devolucao_step": primary_option.get("input_step") or (0.001 if primary_option.get("allow_decimal") else 1),
+        "devolucao_min": primary_option.get("input_min") or (0.001 if primary_option.get("allow_decimal") else 1),
+        "devolucao_unidade_fator_base": _resolve_unit_factor_base(item_model, unit_code),
+        "devolucao_unidades_opcoes": return_unit_options,
+        "unidade_exibicao_total": unit_display,
+        "capacidade_embalagem": package_capacity,
+        "permite_saida_em_embalagens": bool(package_capacity > 0 and package_name in FRACTIONABLE_PACKAGING_TYPES),
+    }
 
 
 def _infer_fractional_item(item: dict[str, Any]) -> dict[str, Any]:
@@ -955,12 +1059,14 @@ def item_info(codigo: str):
     liquid_type = _detect_liquid_type(categoria=item.get("categoria"), descricao=item.get("descricao"))
     fractional_info = _infer_fractional_item(item)
     return_quantity_config = _resolve_return_quantity_config(item, fractional_info=fractional_info)
-    return_unit_options = inventory_service.get_material_return_unit_options(item=item_model)
-    if not return_unit_options:
-        return_unit_options = [dict(return_quantity_config)]
-    default_return_unit = str(return_unit_options[0].get("unit_code") or return_quantity_config.get("unit_code") or "unidade")
+    return_unit_options, primary_return_unit = _resolve_primary_return_unit_option(
+        item_model=item_model,
+        fallback_config=return_quantity_config,
+    )
+    default_return_unit = str(primary_return_unit.get("unit_code") or return_quantity_config.get("unit_code") or "unidade")
     package_name = _infer_package_name(item)
-    package_capacity = _infer_package_capacity(item, fractional_info=fractional_info)
+    unit_context = _build_saida_unit_context(item, item_model)
+    package_capacity = float(unit_context.get("capacidade_embalagem") or 0.0)
     package_name_plural = _pluralize_package_name(package_name)
     saldo_total = _as_positive_float(item.get("saldo"))
     foto_path = item.get("foto_path")
@@ -1031,18 +1137,19 @@ def item_info(codigo: str):
         "litros_por_embalagem": item.get("litros_por_embalagem"),
         "saldo_embalagens": item.get("saldo_embalagens"),
         "saldo_unidades_soltas": item.get("saldo_unidades_soltas"),
-        "permite_saida_fracionada": bool(fractional_info.get("enabled")),
-        "fracao_unidade_padrao": fractional_info.get("default_unit"),
+        "permite_saida_fracionada": str(unit_context.get("devolucao_unidade_codigo") or "") in {"litro", "quilo", "metro"},
+        "fracao_unidade_padrao": unit_context.get("fracao_unidade_padrao"),
         "fracao_origem": fractional_info.get("source"),
         "nome_embalagem": item_model.get_nome_embalagem() if item_model and item_model.tipo_embalagem_novo else package_name,
         "nome_embalagem_plural": item_model.get_nome_embalagem_plural() if item_model and item_model.tipo_embalagem_novo else package_name_plural,
         "capacidade_embalagem": package_capacity,
-        "devolucao_permite_decimal": bool(return_quantity_config.get("allow_decimal")),
-        "devolucao_unidade_codigo": default_return_unit,
-        "devolucao_unidade_exibicao": return_unit_options[0].get("unit_display") or return_quantity_config.get("unit_display"),
-        "devolucao_unidade_label": return_unit_options[0].get("unit_label") or return_quantity_config.get("unit_label"),
-        "devolucao_step": return_unit_options[0].get("input_step") or return_quantity_config.get("input_step"),
-        "devolucao_min": return_unit_options[0].get("input_min") or return_quantity_config.get("input_min"),
+        "devolucao_permite_decimal": unit_context.get("devolucao_permite_decimal"),
+        "devolucao_unidade_codigo": unit_context.get("devolucao_unidade_codigo") or default_return_unit,
+        "devolucao_unidade_exibicao": unit_context.get("devolucao_unidade_exibicao") or primary_return_unit.get("unit_display") or return_quantity_config.get("unit_display"),
+        "devolucao_unidade_label": unit_context.get("devolucao_unidade_label") or primary_return_unit.get("unit_label") or return_quantity_config.get("unit_label"),
+        "devolucao_step": unit_context.get("devolucao_step") or primary_return_unit.get("input_step") or return_quantity_config.get("input_step"),
+        "devolucao_min": unit_context.get("devolucao_min") or primary_return_unit.get("input_min") or return_quantity_config.get("input_min"),
+        "devolucao_unidade_fator_base": unit_context.get("devolucao_unidade_fator_base"),
         "devolucao_pendente": pending_return,
         "devolucao_pendente_por_unidade": pending_return_by_unit,
         "retirada_pendente": {
@@ -1059,7 +1166,8 @@ def item_info(codigo: str):
         "devolucao_unidades_opcoes": return_unit_options,
         "usuario_encontrado": usuario_encontrado,
         "suporta_devolucao_material": supports_material_return,
-        "unidade_exibicao_total": return_unit_options[0].get("unit_display") or return_quantity_config.get("unit_display") or (item.get("unidade") or "un"),
+        "unidade_exibicao_total": unit_context.get("unidade_exibicao_total") or primary_return_unit.get("unit_display") or return_quantity_config.get("unit_display") or (item.get("unidade") or "un"),
+        "permite_saida_em_embalagens": unit_context.get("permite_saida_em_embalagens"),
         "foto_path": foto_path,
         "foto_url": url_for("static", filename=foto_path) if foto_path else None,
         "preco_reposicao_fonte": item.get("preco_reposicao_fonte"),
