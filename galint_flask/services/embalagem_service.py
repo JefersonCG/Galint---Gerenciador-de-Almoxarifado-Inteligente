@@ -13,10 +13,14 @@ class EmbalagemService:
     @staticmethod
     def tem_embalagem(item: Item) -> bool:
         """Verifica se o item usa sistema de embalagens."""
-        from .legacy_stock_normalizer import ignore_packaging_metadata_for_stock, resolve_packaging_factor
+        from .legacy_stock_normalizer import ignore_packaging_metadata_for_stock, resolve_canonical_unit, resolve_packaging_factor
 
         tipo_embalagem = str(item.tipo_embalagem_novo or "").strip().lower()
         fator_embalagem = float(resolve_packaging_factor(item) or 0.0)
+        unidade_canonica = str(resolve_canonical_unit(item) or "").strip().lower()
+
+        if unidade_canonica in {"un", "par"} and 0 < fator_embalagem <= 1.0:
+            return False
 
         return (
             bool(tipo_embalagem)

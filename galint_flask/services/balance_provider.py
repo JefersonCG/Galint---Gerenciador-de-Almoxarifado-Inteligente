@@ -6,7 +6,7 @@ from sqlalchemy import func
 
 from ..extensions import db
 from ..models import Entrada, InventarioEvento, Item, Saida, StockBalance, stock_balance_supports_read_model_ready
-from .legacy_stock_normalizer import resolve_canonical_unit
+from .legacy_stock_normalizer import resolve_canonical_unit, resolve_packaging_factor
 
 
 @dataclass(slots=True)
@@ -26,7 +26,20 @@ class BalanceProvider:
         if item is None or balance is None:
             return False
         origem = (getattr(item, "pre_cadastro_origem", "") or "").strip().lower()
-        return origem == "nf"
+        if origem != "nf":
+            return False
+        try:
+            canonical_unit = (resolve_canonical_unit(item) or "").strip().lower()
+            packaging_factor = float(resolve_packaging_factor(item) or 0.0)
+            if (
+                canonical_unit in {"un", "par"}
+                and 0 < packaging_factor <= 1.0
+                and BalanceProvider._has_legacy_history(item.codigo_item)
+            ):
+                return False
+        except Exception:
+            pass
+        return True
 
     @staticmethod
     def get_balances(product_ids: list[str], *, items_by_id: dict[str, Item] | None = None) -> dict[str, BalanceSnapshot]:

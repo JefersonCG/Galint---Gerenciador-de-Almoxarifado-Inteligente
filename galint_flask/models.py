@@ -276,9 +276,12 @@ class Item(db.Model):
     def get_estoque_total_com_embalagens(self) -> float:
         """Calcula o estoque total considerando embalagens + unidades soltas."""
         try:
-            from .services.legacy_stock_normalizer import ignore_packaging_metadata_for_stock, resolve_packaging_factor
+            from .services.legacy_stock_normalizer import ignore_packaging_metadata_for_stock, resolve_canonical_unit, resolve_packaging_factor
 
             fator_embalagem = float(resolve_packaging_factor(self) or 0)
+            unidade_canonica = str(resolve_canonical_unit(self) or "").strip().lower()
+            if unidade_canonica in {"un", "par"} and 0 < fator_embalagem <= 1.0:
+                return self.normalize_balance_value(self.get_saldo_atual())
             if self.tipo_embalagem_novo and fator_embalagem > 0 and not ignore_packaging_metadata_for_stock(self):
                 total = (self.estoque_embalagens * fator_embalagem) + self.estoque_unidades_soltas
                 return self.normalize_balance_value(total)
@@ -381,7 +384,14 @@ class Item(db.Model):
             pass
 
         # Itens sem embalagem: mantém o padrão simples.
-        return f"{total:g} {self.unidade or 'un'}"
+        unit_text = str(self.unidade or "un").strip()
+        unit_key = unit_text.lower()
+        is_single_unit = abs(total - 1.0) <= 1e-6
+        if unit_key in {"un", "unidade", "unidades"}:
+            unit_text = "unidade" if is_single_unit else "unidades"
+        elif unit_key in {"par", "pares"}:
+            unit_text = "par" if is_single_unit else "pares"
+        return f"{total:g} {unit_text}"
     
     def get_explicacao_saldo(self) -> str | None:
         """Retorna explicação detalhada do saldo para itens com embalagens."""

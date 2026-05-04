@@ -2931,7 +2931,14 @@ class InventoryService:
     @staticmethod
     def _build_simple_balance_display(item: Item, saldo: float) -> str:
         normalized_balance = Item.normalize_balance_value(saldo)
-        return f"{normalized_balance:g} {item.unidade or 'un'}"
+        unit_text = str(item.unidade or "un").strip()
+        unit_key = unit_text.lower()
+        is_single_unit = abs(normalized_balance - 1.0) <= 1e-6
+        if unit_key in {"un", "unidade", "unidades"}:
+            unit_text = "unidade" if is_single_unit else "unidades"
+        elif unit_key in {"par", "pares"}:
+            unit_text = "par" if is_single_unit else "pares"
+        return f"{normalized_balance:g} {unit_text}"
 
     @staticmethod
     def _should_use_packaging_display(item: Item) -> bool:
