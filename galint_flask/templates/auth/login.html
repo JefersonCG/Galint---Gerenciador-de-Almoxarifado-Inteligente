@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 {% set is_management_login = ((request.args.get('gestao', '') or '')|lower) in ['1', 'true', 'sim', 'yes'] %}
+{% set requested_login_module = ((request.args.get('module', '') or '')|lower) %}
+{% set active_login_module = requested_login_module if requested_login_module in ['almoxarifado', 'mensageria', 'administracao', 'gestao'] else 'almoxarifado' %}
 {% block title %}{% if is_management_login %}Acesso gerencial{% else %}Login{% endif %}{% endblock %}
 {% block body_class %}{% if is_management_login %}auth-management-page{% else %}auth-login-page{% endif %}{% endblock %}
 {% set login_background_path = (login_branding.login_background_path if login_branding else None) or 'logo/logo.png' %}
@@ -1025,7 +1027,7 @@
             </div>
         </div>
         <form method="post" class="login-form">
-            <input type="hidden" name="modulo" id="login-module-input" value="almoxarifado">
+            <input type="hidden" name="modulo" id="login-module-input" value="{{ active_login_module }}">
             <div class="login-form-intro">
                 <span class="login-form-kicker">Portal de acesso</span>
                 <strong>{{ empresa_config.nome_fantasia if empresa_config and empresa_config.nome_fantasia else (empresa_config.nome_empresa if empresa_config and empresa_config.nome_empresa else 'Galint Web') }}</strong>
@@ -1107,6 +1109,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const defaultLogoSrc = logoImage ? (logoImage.dataset.defaultSrc || logoImage.getAttribute('src') || '') : '';
     const defaultLogoAlt = logoImage ? (logoImage.getAttribute('alt') || 'GALINT') : 'GALINT';
     const loginPhotoLookupUrl = '{{ url_for("auth.login_photo_lookup") }}';
+    const initialModuleName = '{{ active_login_module }}';
     if (!shell || !toggleButton) {
         return;
     }
@@ -1416,7 +1419,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     if (document.querySelector('.galint-flash-toast-stack, body.auth-login-page .content-panel > .alert')) {
-        revealLoginShell('almoxarifado');
+        revealLoginShell(initialModuleName || 'almoxarifado');
     }
 
     toggleButton.addEventListener('click', function (event) {

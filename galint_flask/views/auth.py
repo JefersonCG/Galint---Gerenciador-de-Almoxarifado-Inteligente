@@ -12,6 +12,35 @@ from ..services.users import user_service
 
 blueprint = Blueprint("auth", __name__, url_prefix="/auth")
 
+_MANAGEMENT_LOGIN_MODULES = {"gestao", "administracao", "mensageria"}
+
+
+def _normalize_login_module(raw_module: str | None) -> str:
+    normalized = str(raw_module or "").strip().lower()
+    aliases = {
+        "admin": "administracao",
+        "administração": "administracao",
+        "gestão": "gestao",
+    }
+    return aliases.get(normalized, normalized)
+
+
+def _build_login_redirect(*, login_module: str, is_management_login: bool) -> str:
+    if is_management_login and login_module == "gestao":
+        return url_for("auth.login_form", gestao=1)
+    if login_module:
+        return url_for("auth.login_form", module=login_module)
+    return url_for("auth.login_form")
+
+
+def _management_landing_url(usuario, *, login_module: str) -> str:
+    if login_module == "mensageria":
+        admin_value = getattr(usuario, "is_admin", 0)
+        is_admin = bool(admin_value) or str(admin_value).strip().lower() in {"1", "true", "sim", "yes"}
+        if is_admin:
+            return url_for("config.notificacoes")
+    return url_for("pages.config")
+
 
 def _is_management_user(usuario) -> bool:
     if not usuario:
@@ -26,13 +55,15 @@ def _is_management_user(usuario) -> bool:
     return any(token in perfil for token in ("desenvolvedor", "gerente", "gestor", "gestao", "gestão"))
 
 
-def _set_session_flags(usuario, *, management_access: bool = False) -> None:
+def _set_session_flags(usuario, *, management_access: bool = False, management_module: str | None = None) -> None:
     session["galint_is_admin"] = bool(getattr(usuario, "is_admin", 0))
     session["galint_user_id"] = str(getattr(usuario, "matricula", ""))
     if management_access:
         session["galint_management_access"] = True
+        session["galint_management_module"] = str(management_module or "gestao")
     else:
         session.pop("galint_management_access", None)
+        session.pop("galint_management_module", None)
 
 
 def _build_versioned_static_url(relative_path: str | None) -> str | None:
@@ -91,9 +122,9 @@ def login_photo_lookup():
 def login_submit():
     matricula = request.form.get("matricula", "").strip()
     senha = request.form.get("senha", "")
-    modulo = request.form.get("modulo", "").strip().lower()
-    is_management_login = modulo == "gestao"
-    login_redirect = url_for("auth.login_form", gestao=1) if is_management_login else url_for("auth.login_form")
+    login_module = _normalize_login_module(request.form.get("modulo", ""))
+    is_management_login = login_module in _MANAGEMENT_LOGIN_MODULES
+    login_redirect = _build_login_redirect(login_module=login_module, is_management_login=is_management_login)
     if not matricula or not senha:
         flash("Informe matrícula e senha.", "danger")
         return redirect(login_redirect)
@@ -104,9 +135,9 @@ def login_submit():
                 end_session()
                 flash("Acesso restrito a gestores, gerentes e desenvolvedores.", "danger")
                 return redirect(login_redirect)
-            _set_session_flags(usuario, management_access=True)
+            _set_session_flags(usuario, management_access=True, management_module=login_module)
             flash("Acesso gerencial liberado.", "success")
-            return redirect(url_for("pages.config"))
+            return redirect(_management_landing_url(usuario, login_module=login_module))
 
         _set_session_flags(usuario)
 
