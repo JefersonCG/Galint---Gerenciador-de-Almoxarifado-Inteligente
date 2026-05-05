@@ -6289,13 +6289,14 @@
 
         const q = qEl.value.trim();
         const uf = ufEl.value.trim();
+        const unit = document.getElementById('price-unit')?.value?.trim() || '';
         resultsEl.innerHTML = '<div class="text-muted small">Buscando sugestões…</div>';
         providersEl.innerHTML = '';
         statsEl.classList.add('d-none');
         emptyEl.classList.add('d-none');
 
         try {
-            const url = `/itens/${encodeURIComponent(currentPriceItem.codigo)}/precos/reposicao/sugestoes?q=${encodeURIComponent(q)}&uf=${encodeURIComponent(uf)}`;
+            const url = `/itens/${encodeURIComponent(currentPriceItem.codigo)}/precos/reposicao/sugestoes?q=${encodeURIComponent(q)}&uf=${encodeURIComponent(uf)}&unit=${encodeURIComponent(unit)}`;
             const response = await fetch(url, { headers: { 'Accept': 'application/json' } });
             const data = await readJsonResponse(response);
             if (!response.ok || !data?.success) {

@@ -7887,6 +7887,7 @@ Conversão: 1 saco = 20 quilos</div>
 
         const q = qEl.value.trim();
         const uf = ufEl.value.trim();
+        const unit = document.getElementById('price-unit')?.value?.trim() || '';
         resultsEl.innerHTML = '<div class="text-muted small">Buscando sugestoes...</div>';
         providersEl.innerHTML = '';
         statsEl.classList.add('d-none');
@@ -7894,7 +7895,7 @@ Conversão: 1 saco = 20 quilos</div>
         setPriceModalFeedback('');
 
         try {
-            const url = `/itens/${encodeURIComponent(currentPriceItem.codigo)}/precos/reposicao/sugestoes?q=${encodeURIComponent(q)}&uf=${encodeURIComponent(uf)}`;
+            const url = `/itens/${encodeURIComponent(currentPriceItem.codigo)}/precos/reposicao/sugestoes?q=${encodeURIComponent(q)}&uf=${encodeURIComponent(uf)}&unit=${encodeURIComponent(unit)}`;
             const response = await fetch(url, { headers: { 'Accept': 'application/json' } });
             const data = await readJsonResponse(response);
             if (!response.ok || !data?.success) {

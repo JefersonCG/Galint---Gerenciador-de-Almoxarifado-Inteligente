@@ -8,15 +8,21 @@ o sistema sugere, o usuário confirma e então salvamos o valor escolhido.
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import html
 import json
+import os
 import statistics
 import time
 import re
 from dataclasses import dataclass
 from typing import Any
-from urllib.parse import quote
+from urllib.parse import parse_qs, quote, urlencode, unquote, urlparse
 
 import requests
+
+
+class PriceProviderUnavailable(RuntimeError):
+    pass
 
 
 def _normalize_uf(value: object) -> str | None:
@@ -91,6 +97,19 @@ class PriceSuggestionService:
             "Referer": "https://www.mercadolivre.com.br/",
         }
 
+    @staticmethod
+    def _mercado_livre_access_token() -> str:
+        for key in (
+            "MERCADO_LIVRE_ACCESS_TOKEN",
+            "MERCADOLIVRE_ACCESS_TOKEN",
+            "MELI_ACCESS_TOKEN",
+            "ML_ACCESS_TOKEN",
+        ):
+            value = os.getenv(key)
+            if value and value.strip():
+                return value.strip()
+        return ""
+
     def get_replacement_suggestions(self, *, query: str, uf: str | None, limit: int = 20) -> dict[str, Any]:
         query_norm = (query or "").strip()
         if not query_norm:
@@ -114,7 +133,14 @@ class PriceSuggestionService:
         except Exception as exc:
             providers.append({"name": "MercadoLivre", "ok": False, "error": str(exc)})
 
-        # (Fallbacks futuros podem ser adicionados aqui mantendo a mesma interface)
+        if len(suggestions) < min(limit_i, 5):
+            try:
+                web = self._fetch_public_web_prices(query=query_norm, limit=limit_i)
+                suggestions.extend(self._dedupe_suggestions([*suggestions, *web]))
+                suggestions = self._dedupe_suggestions(suggestions)
+                providers.append({"name": "BuscaWeb", "ok": True, "count": len(web)})
+            except Exception as exc:
+                providers.append({"name": "BuscaWeb", "ok": False, "error": str(exc)})
 
         prices = [s.price for s in suggestions if isinstance(s.price, (int, float)) and s.price > 0]
         stats = {
@@ -230,30 +256,176 @@ class PriceSuggestionService:
         }
 
     def _fetch_mercado_livre(self, *, query: str, uf: str | None, limit: int) -> list[PriceSuggestion]:
+        headers = self._request_headers()
+        token = self._mercado_livre_access_token()
+        if token:
+            headers = {**headers, "Authorization": f"Bearer {token}"}
         try:
             url = "https://api.mercadolibre.com/sites/MLB/search"
             resp = requests.get(
                 url,
                 params={"q": query, "limit": limit},
-                headers=self._request_headers(),
+                headers=headers,
                 timeout=6,
             )
-            if resp.status_code == 403:
-                return self._fetch_mercado_livre_web(query=query, uf=uf, limit=limit)
+            if resp.status_code in {401, 403}:
+                if token:
+                    raise PriceProviderUnavailable("MercadoLivre recusou o token configurado.")
+                raise PriceProviderUnavailable("MercadoLivre bloqueou consultas anonimas no momento.")
             resp.raise_for_status()
             data = resp.json() if resp.content else {}
             results = data.get("results") or []
             if not isinstance(results, list):
                 return []
             parsed = self._parse_mercado_livre_api_results(results)
-        except requests.RequestException:
-            parsed = self._fetch_mercado_livre_web(query=query, uf=uf, limit=limit)
+        except PriceProviderUnavailable:
+            raise
+        except requests.RequestException as exc:
+            raise PriceProviderUnavailable(f"MercadoLivre indisponivel: {exc}") from exc
 
         if uf:
             matches = [s for s in parsed if s.uf == uf]
             if len(matches) >= 5:
                 return matches[:limit]
         return parsed[:limit]
+
+    def _dedupe_suggestions(self, suggestions: list[PriceSuggestion]) -> list[PriceSuggestion]:
+        seen: set[tuple[str, str, int]] = set()
+        deduped: list[PriceSuggestion] = []
+        for suggestion in suggestions:
+            key = (
+                re.sub(r"\s+", " ", suggestion.title.lower()).strip(),
+                str(suggestion.url or "").split("?", 1)[0].lower(),
+                int(round(float(suggestion.price or 0) * 100)),
+            )
+            if key in seen:
+                continue
+            seen.add(key)
+            deduped.append(suggestion)
+        return deduped
+
+    def _fetch_public_web_prices(self, *, query: str, limit: int) -> list[PriceSuggestion]:
+        result_links = self._fetch_duckduckgo_result_links(query=query, limit=min(8, max(4, limit)))
+        suggestions: list[PriceSuggestion] = []
+        for result in result_links:
+            if len(suggestions) >= limit:
+                break
+            url = str(result.get("url") or "").strip()
+            title = str(result.get("title") or "").strip()
+            if not url:
+                continue
+            host = urlparse(url).netloc.lower()
+            if "mercadolivre" in host or "mercadolibre" in host:
+                continue
+            try:
+                page = requests.get(url, headers=self._request_headers(), timeout=8, allow_redirects=True)
+                if page.status_code >= 400:
+                    continue
+                price = self._extract_best_page_price(page.text or "")
+            except requests.RequestException:
+                continue
+            if price is None or price <= 0:
+                continue
+            final_url = str(page.url or url).strip()
+            source_host = urlparse(final_url).netloc.lower().replace("www.", "")
+            suggestions.append(
+                PriceSuggestion(
+                    source=f"Busca web: {source_host or 'site'}",
+                    title=title or source_host or query,
+                    price=float(price),
+                    currency="BRL",
+                    url=final_url,
+                    uf=None,
+                    uf_raw=None,
+                )
+            )
+        return suggestions[:limit]
+
+    def _fetch_duckduckgo_result_links(self, *, query: str, limit: int) -> list[dict[str, str]]:
+        search_query = f"{query} preco R$ comprar"
+        response = requests.get(
+            "https://duckduckgo.com/html/",
+            params={"q": search_query},
+            headers=self._request_headers(),
+            timeout=8,
+        )
+        response.raise_for_status()
+        raw_html = response.text or ""
+        blocks = re.findall(
+            r'<div[^>]+class="[^"]*result__body[^"]*"[\s\S]*?</div>\s*</div>',
+            raw_html,
+            flags=re.I,
+        )
+        links: list[dict[str, str]] = []
+        for block in blocks:
+            if len(links) >= limit:
+                break
+            match = re.search(
+                r'<a[^>]+class="[^"]*result__a[^"]*"[^>]+href="([^"]+)"[^>]*>([\s\S]*?)</a>',
+                block,
+                flags=re.I,
+            )
+            if not match:
+                continue
+            href = html.unescape(match.group(1))
+            if href.startswith("//duckduckgo.com/l/"):
+                href = f"https:{href}"
+            parsed = urlparse(href)
+            if "duckduckgo.com" in parsed.netloc:
+                href = parse_qs(parsed.query).get("uddg", [""])[0]
+            href = html.unescape(unquote(str(href or "").strip()))
+            if not href.startswith("http"):
+                continue
+            title = html.unescape(re.sub(r"<[^>]+>", " ", match.group(2)))
+            title = re.sub(r"\s+", " ", title).strip()
+            links.append({"title": title, "url": href})
+        return links
+
+    def _extract_best_page_price(self, html_text: str) -> float | None:
+        structured_patterns = [
+            r'property=["\']product:price:amount["\'][^>]+content=["\']([^"\']+)["\']',
+            r'content=["\']([^"\']+)["\'][^>]+property=["\']product:price:amount["\']',
+            r'itemprop=["\']price["\'][^>]+content=["\']([^"\']+)["\']',
+            r'content=["\']([^"\']+)["\'][^>]+itemprop=["\']price["\']',
+            r'["\']price["\']\s*:\s*["\']?([0-9]+(?:[\.,][0-9]{1,2})?)["\']?',
+            r'["\']priceAmount["\']\s*:\s*["\']?([0-9]+(?:[\.,][0-9]{1,2})?)["\']?',
+            r'["\']salePrice["\']\s*:\s*["\']?([0-9]+(?:[\.,][0-9]{1,2})?)["\']?',
+        ]
+        text = html.unescape(html_text or "")
+        for pattern in structured_patterns:
+            for match in re.findall(pattern, text, flags=re.I):
+                parsed = self._parse_price_number(match)
+                if parsed is not None:
+                    return parsed
+
+        for match in re.findall(r"R\$\s*([0-9]{1,4}(?:\.[0-9]{3})*,[0-9]{2})", text, flags=re.I):
+            parsed = self._parse_price_number(match)
+            if parsed is not None:
+                return parsed
+        return None
+
+    @staticmethod
+    def _parse_price_number(value: Any) -> float | None:
+        raw = str(value or "").strip()
+        if not raw:
+            return None
+        raw = raw.replace("R$", "").replace("\xa0", " ").strip()
+        raw = re.sub(r"[^0-9,\.]", "", raw)
+        if not raw:
+            return None
+        if re.fullmatch(r"[0-9]+", raw):
+            numeric = float(raw)
+            if len(raw) == 4:
+                numeric = numeric / 10.0
+            elif len(raw) >= 5:
+                numeric = numeric / 100.0
+        elif "," in raw:
+            numeric = float(raw.replace(".", "").replace(",", "."))
+        else:
+            numeric = float(raw.replace(",", ""))
+        if 1.0 <= numeric <= 100000.0:
+            return float(numeric)
+        return None
 
     def _parse_mercado_livre_api_results(self, results: list[dict[str, Any]]) -> list[PriceSuggestion]:
         parsed: list[PriceSuggestion] = []

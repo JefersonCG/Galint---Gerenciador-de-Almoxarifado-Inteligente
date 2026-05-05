@@ -450,6 +450,39 @@ def _resolve_unit_factor_base(item_model: Item | None, unit_code: str) -> float:
         return 1.0
 
 
+def _build_fractional_unit_factors(item_model: Item | None, default_unit_code: str) -> dict[str, float]:
+    normalized_default = (default_unit_code or "").strip().lower()
+    if item_model is None or not normalized_default:
+        return {}
+
+    if normalized_default == "metro":
+        candidates = ["metro", "cm"]
+    elif normalized_default in {"quilo", "kg", "litro"}:
+        candidates = ["kg", "litro"]
+    else:
+        candidates = [normalized_default]
+
+    factors: dict[str, float] = {}
+    for candidate in candidates:
+        try:
+            conversion = unit_conversion_engine.convert_item_to_base(item_model, 1.0, candidate)
+            quantity_base = float(conversion.quantity_base or 0.0)
+        except (UnitConversionError, TypeError, ValueError):
+            quantity_base = 0.0
+        if quantity_base > 0:
+            key = "kg" if candidate in {"quilo", "kg"} else candidate
+            factors[key] = quantity_base
+
+    if normalized_default in {"quilo", "kg"}:
+        factors.setdefault("kg", 1.0)
+    elif normalized_default == "litro":
+        factors.setdefault("litro", 1.0)
+    elif normalized_default == "metro":
+        factors.setdefault("metro", 1.0)
+
+    return factors
+
+
 def _build_saida_unit_context(item: dict[str, Any], item_model: Item | None) -> dict[str, Any]:
     fractional_info = _infer_fractional_item(item)
     return_quantity_config = _resolve_return_quantity_config(item, fractional_info=fractional_info)
@@ -1168,6 +1201,7 @@ def item_info(codigo: str):
     package_name_plural = _pluralize_package_name(package_name)
     saldo_total = _as_positive_float(item.get("saldo"))
     foto_path = item.get("foto_path")
+    fractional_unit_factors = _build_fractional_unit_factors(item_model, default_return_unit)
     categoria_norm = _normalize_text(item.get("categoria"))
     supports_material_return = "ferrament" not in categoria_norm
     pending_return = None
@@ -1284,6 +1318,7 @@ def item_info(codigo: str):
         "permite_saida_em_embalagens": unit_context.get("permite_saida_em_embalagens"),
         "foto_path": foto_path,
         "foto_url": url_for("static", filename=foto_path) if foto_path else None,
+        "fracao_fatores_base": fractional_unit_factors,
         "valor_referencia": financial_reference,
         "preco_reposicao_fonte": item.get("preco_reposicao_fonte"),
         "preco_reposicao_uf": item.get("preco_reposicao_uf"),

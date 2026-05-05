@@ -1045,6 +1045,66 @@ def _build_replacement_price_query(item: Item | dict | None) -> str:
     return f"{descricao}{f' {marca}' if marca else ''}{extra}".strip()
 
 
+def _replacement_price_unit_label(unit_code: object, *, plural: bool = False) -> str:
+    normalized = _safe_text(unit_code).strip().lower()
+    labels = {
+        "l": "litro",
+        "lt": "litro",
+        "litro": "litro",
+        "litros": "litro",
+        "kg": "quilo",
+        "quilo": "quilo",
+        "quilos": "quilo",
+        "un": "unidade",
+        "und": "unidade",
+        "unidade": "unidade",
+        "unidades": "unidade",
+        "lata": "lata",
+        "latas": "lata",
+        "bombona": "bombona",
+        "caixa": "caixa",
+        "pacote": "pacote",
+        "fardo": "fardo",
+        "saco": "saco",
+        "rolo": "rolo",
+        "balde": "balde",
+        "par": "par",
+        "peca": "peca",
+        "peça": "peca",
+    }
+    base = labels.get(normalized) or normalized
+    if plural and base in {"litro", "quilo", "unidade", "lata", "bombona", "caixa", "pacote", "fardo", "saco", "rolo", "balde", "peca"}:
+        return "pecas" if base == "peca" else f"{base}s"
+    return base
+
+
+def _enrich_replacement_price_query(item: Item, query: str, selected_unit: str | None) -> str:
+    query_norm = " ".join(_safe_text(query).split())
+    unit_norm = _safe_text(selected_unit).strip().lower()
+    if not query_norm:
+        query_norm = _build_replacement_price_query(item)
+    if not unit_norm:
+        return query_norm
+
+    tipo_embalagem = _safe_text(getattr(item, "tipo_embalagem_novo", "")).strip().lower()
+    unidades_por_embalagem = _safe_float(getattr(item, "unidades_por_embalagem", 0))
+    base_unit_label = _replacement_price_unit_label(getattr(item, "unidade", ""), plural=unidades_por_embalagem > 1)
+    unit_label = _replacement_price_unit_label(unit_norm)
+
+    extras: list[str] = []
+    if tipo_embalagem and unit_norm == tipo_embalagem and unidades_por_embalagem > 0:
+        quantidade = int(unidades_por_embalagem) if unidades_por_embalagem.is_integer() else unidades_por_embalagem
+        extras.append(f"{unit_label} {quantidade} {base_unit_label}".strip())
+    elif unit_label and unit_label not in query_norm.lower():
+        extras.append(unit_label)
+
+    enriched = query_norm
+    for extra in extras:
+        if extra and extra.lower() not in enriched.lower():
+            enriched = f"{enriched} {extra}".strip()
+    return enriched
+
+
 def _serialize_batch_price_item(item: Item) -> dict[str, object]:
     return {
         "codigo": item.codigo_item,
@@ -1884,6 +1944,7 @@ def barcode_studio_page():
         barcode_regenerate_url=url_for("inventory.generate_all_barcodes"),
         barcode_layouts_api_url=url_for("inventory.barcode_studio_layouts_api"),
         barcode_layout_detail_url_template=url_for("inventory.barcode_studio_layout_detail_api", filename="__FILENAME__"),
+        barcode_export_pdf_api_url=url_for("inventory.barcode_studio_export_pdf_api"),
         barcode_layouts_internal_dir=barcode_studio_service.get_layouts_dir_display(),
         barcode_layout_extension=barcode_studio_service.LAYOUT_EXTENSION,
         barcode_layout_format=barcode_studio_service.LAYOUT_FORMAT,
@@ -1992,6 +2053,24 @@ def barcode_studio_layout_import_api(token: str):
             "layout": imported_layout,
             "message": f"Arquivo importado: {imported_layout['name']}",
         }
+    )
+
+
+@blueprint.post("/api/barcodes/export-pdf")
+@login_required
+def barcode_studio_export_pdf_api():
+    _require_admin_or_supervisor()
+    try:
+        name, snapshot = _read_barcode_studio_layout_payload()
+        buffer, filename = barcode_studio_service.build_pdf_export(name, snapshot)
+    except ValueError as exc:
+        return jsonify({"success": False, "message": str(exc)}), 400
+    return send_file(
+        buffer,
+        mimetype="application/pdf",
+        as_attachment=True,
+        download_name=filename,
+        max_age=0,
     )
 
 
@@ -3170,6 +3249,7 @@ def sugestoes_preco_reposicao(codigo: str):
         return {"success": False, "message": "Item nÃ£o encontrado"}, 404
 
     query = (request.args.get("q") or "").strip() or (item.descricao or "").strip()
+    query = _enrich_replacement_price_query(item, query, request.args.get("unit"))
     uf = _resolve_replacement_price_uf(request.args.get("uf"))
 
     try:

@@ -1004,12 +1004,18 @@ ${parent.scripts()}
         const local = String(item.local || inputLocal.value || '').trim() || 'Nao informado';
         const saldo = String(item.saldo_display || item.saldo || '').trim() || 'Nao informado';
         const observacao = String(item.observacao || (inputObservacao && inputObservacao.value) || '').trim() || 'Sem observacao';
+        const eyebrowLabel = previewStatus === 'completed'
+            ? '<i class="bi bi-check2-circle"></i> Ultima retirada registrada'
+            : '<i class="bi bi-tools"></i> Custodia diaria';
+        const previewNote = previewStatus === 'completed'
+            ? 'Ultima ferramenta registrada. Confira os dados antes de iniciar a proxima retirada.'
+            : observacao;
 
         currentItemPreview.className = 'operation-preview';
         currentItemPreview.innerHTML = '' +
             '<div class="operation-preview-media">' + fotoHtml + '</div>' +
             '<div class="operation-preview-body">' +
-                '<span class="operation-preview-eyebrow"><i class="bi bi-tools"></i> Custodia diaria</span>' +
+                '<span class="operation-preview-eyebrow">' + eyebrowLabel + '</span>' +
                 '<div>' +
                     '<h3 class="operation-preview-title">' + escapeHtml(item.descricao || item.codigo || 'Ferramenta') + '</h3>' +
                     '<div class="operation-preview-subtitle">Codigo ' + escapeHtml(item.codigo || '—') + (item.categoria ? ' • ' + escapeHtml(item.categoria) : '') + (item.marca ? ' • ' + escapeHtml(item.marca) : '') + '</div>' +
@@ -1020,7 +1026,7 @@ ${parent.scripts()}
                     '<div class="operation-preview-stat"><span class="operation-preview-stat-label">Colaborador</span><span class="operation-preview-stat-value">' + escapeHtml(collaboratorLabel) + '</span></div>' +
                     '<div class="operation-preview-stat"><span class="operation-preview-stat-label">Local</span><span class="operation-preview-stat-value">' + escapeHtml(local) + '</span></div>' +
                 '</div>' +
-                '<div class="operation-preview-note">' + escapeHtml(observacao) + '</div>' +
+                '<div class="operation-preview-note">' + escapeHtml(previewNote) + '</div>' +
             '</div>';
         if (shouldPublish) {
             publishMirrorState(buildMirrorPayload(previewStatus, item));
@@ -1289,7 +1295,7 @@ ${parent.scripts()}
         }
     };
 
-    function resetCurrentGroupForm(suppressMirrorReset) {
+    function resetCurrentGroupForm(suppressMirrorReset, preservedPreview) {
         currentGroupId = null;
         inputMatricula.value = '';
         clearSelectedCollaborator();
@@ -1301,8 +1307,13 @@ ${parent.scripts()}
         }
         dropdown.classList.remove('show');
         dropdownMatricula.classList.remove('show');
-        currentPreviewItem = null;
-        renderCurrentPreview(null, 'idle', suppressMirrorReset !== true);
+        if (preservedPreview) {
+            currentPreviewItem = { ...preservedPreview };
+            renderCurrentPreview(currentPreviewItem, 'completed', false);
+        } else {
+            currentPreviewItem = null;
+            renderCurrentPreview(null, 'idle', suppressMirrorReset !== true);
+        }
         inputMatricula.focus();
     }
 
@@ -1529,9 +1540,10 @@ ${parent.scripts()}
             if (failedItems.length === 0) {
                 if (completedSnapshot && successCount > 0) {
                     publishMirrorState(buildMirrorPayload('completed', completedSnapshot, { itemCount: completedCount }));
+                    renderCurrentPreview(completedSnapshot, 'completed', false);
                 }
                 alert('✓ Retiradas registradas com sucesso.');
-                resetCurrentGroupForm(true);
+                resetCurrentGroupForm(true, completedSnapshot && successCount > 0 ? completedSnapshot : null);
             } else {
                 showErrorModal(
                     'Parte das retiradas falhou',

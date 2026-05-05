@@ -12,6 +12,7 @@
     const state = {
         items: [],
         selectedId: null,
+        bulkSelectedIds: [],
         savedLayouts: [],
         currentLayoutFilename: null,
         search: {
@@ -88,6 +89,8 @@
         lockDimensionsBtn: document.getElementById('barcodeStudioLockDimensionsBtn'),
         clearDimensionsBtn: document.getElementById('barcodeStudioClearDimensionsBtn'),
         propertiesForm: document.getElementById('barcodeStudioPropertiesForm'),
+        selectAllBtn: document.getElementById('barcodeStudioSelectAllBtn'),
+        selectionScope: document.getElementById('barcodeStudioSelectionScope'),
         selectedCode: document.getElementById('barcodeStudioSelectedCode'),
         selectedCategory: document.getElementById('barcodeStudioSelectedCategory'),
         selectedBrand: document.getElementById('barcodeStudioSelectedBrand'),
@@ -102,6 +105,11 @@
         titleSizeInput: document.getElementById('barcodeStudioTitleSizeInput'),
         codeSizeInput: document.getElementById('barcodeStudioCodeSizeInput'),
         alignInput: document.getElementById('barcodeStudioAlignInput'),
+        showBorderInput: document.getElementById('barcodeStudioShowBorderInput'),
+        borderWidthInput: document.getElementById('barcodeStudioBorderWidthInput'),
+        borderStyleInput: document.getElementById('barcodeStudioBorderStyleInput'),
+        borderColorInput: document.getElementById('barcodeStudioBorderColorInput'),
+        applyBorderToAllBtn: document.getElementById('barcodeStudioApplyBorderToAllBtn'),
         showNameInput: document.getElementById('barcodeStudioShowNameInput'),
         showCodeInput: document.getElementById('barcodeStudioShowCodeInput'),
         nudgeLeftBtn: document.getElementById('barcodeStudioNudgeLeftBtn'),
@@ -136,6 +144,10 @@
 
     function getLayoutImportUrl(token) {
         return String(config.layoutImportUrlTemplate || '').replace('__TOKEN__', encodeURIComponent(String(token || '').trim()));
+    }
+
+    function getExportPdfUrl() {
+        return String(config.exportPdfApiUrl || '').trim();
     }
 
     function getLayoutFileExtension() {
@@ -614,11 +626,151 @@
         return normalized || 'layout-etiquetas';
     }
 
+    function normalizeBorderStyle(value) {
+        return value === 'solid' ? 'solid' : 'dashed';
+    }
+
+    function normalizeBorderColor(value) {
+        const normalized = String(value || '').trim();
+        return /^#[0-9a-fA-F]{6}$/.test(normalized) ? normalized.toLowerCase() : '#64748b';
+    }
+
+    function hasPrintableBorder(item) {
+        return Boolean(item && item.showBorder !== false && Number(item.borderWidthMm) > 0);
+    }
+
+    function getVisibleBorderWidthMm(item) {
+        if (!hasPrintableBorder(item)) {
+            return 0;
+        }
+        return Math.max(0.35, Number(item.borderWidthMm) || 0.3);
+    }
+
+    function getPrintableBorderStyle(item) {
+        if (!hasPrintableBorder(item)) {
+            return '0';
+        }
+        return getVisibleBorderWidthMm(item).toFixed(2) + 'mm ' + item.borderStyle + ' ' + item.borderColor;
+    }
+
+    function clearInvalidBulkSelection() {
+        const validIds = new Set(state.items.map(function (item) {
+            return item.id;
+        }));
+        state.bulkSelectedIds = (Array.isArray(state.bulkSelectedIds) ? state.bulkSelectedIds : []).filter(function (itemId, index, ids) {
+            return validIds.has(itemId) && ids.indexOf(itemId) === index;
+        });
+    }
+
+    function clearBulkSelection() {
+        state.bulkSelectedIds = [];
+    }
+
+    function isBulkSelected(itemId) {
+        return state.bulkSelectedIds.indexOf(itemId) !== -1;
+    }
+
+    function selectAllItemsForBulk() {
+        clearInvalidBulkSelection();
+        if (!state.items.length) {
+            setFeedback('Adicione pelo menos uma etiqueta antes de selecionar todas.', 'warning');
+            return;
+        }
+        if (state.items.length > 1 && state.bulkSelectedIds.length === state.items.length) {
+            clearBulkSelection();
+            renderPage();
+            renderProperties();
+            setFeedback('Selecao em lote limpa. A etiqueta base continua selecionada.', 'muted');
+            return;
+        }
+        state.bulkSelectedIds = state.items.map(function (item) {
+            return item.id;
+        });
+        if (!getSelectedItem()) {
+            state.selectedId = state.bulkSelectedIds[0] || null;
+        }
+        renderPage();
+        renderProperties();
+        setFeedback(state.bulkSelectedIds.length + ' etiqueta(s) marcadas para acao em lote.', 'muted');
+    }
+
+    function readBorderValues(sourceItem) {
+        const item = sourceItem || getSelectedItem() || {};
+        const fallbackWidth = Number(item.borderWidthMm || 0.3);
+        const widthValue = parseFloat(elements.borderWidthInput ? elements.borderWidthInput.value : fallbackWidth);
+        return {
+            showBorder: Boolean(elements.showBorderInput ? elements.showBorderInput.checked : item.showBorder !== false),
+            borderWidthMm: clamp(Number.isFinite(widthValue) ? widthValue : fallbackWidth, 0.1, 2),
+            borderStyle: normalizeBorderStyle(elements.borderStyleInput ? elements.borderStyleInput.value : item.borderStyle),
+            borderColor: normalizeBorderColor(elements.borderColorInput ? elements.borderColorInput.value : item.borderColor),
+        };
+    }
+
+    function applyBorderToAll() {
+        const item = getSelectedItem();
+        if (!item || !state.items.length) {
+            setFeedback('Selecione uma etiqueta antes de aplicar a borda em todas.', 'warning');
+            return;
+        }
+        const borderValues = readBorderValues(item);
+        state.items.forEach(function (entry) {
+            entry.showBorder = borderValues.showBorder;
+            entry.borderWidthMm = borderValues.borderWidthMm;
+            entry.borderStyle = borderValues.borderStyle;
+            entry.borderColor = borderValues.borderColor;
+            entry.isSnapping = false;
+            normalizeLabel(entry);
+        });
+        state.bulkSelectedIds = state.items.map(function (entry) {
+            return entry.id;
+        });
+        renderPage();
+        renderProperties();
+        setFeedback('Borda aplicada em ' + state.items.length + ' etiqueta(s) de uma vez.', 'muted');
+    }
+
     function getLayoutSnapshot() {
         return {
             page: JSON.parse(JSON.stringify(state.page)),
             items: cloneSerializableItems(state.items),
         };
+    }
+
+    function buildPdfFallbackName() {
+        return 'barcode-studio-' + new Date().toISOString().slice(0, 19).replace(/[T:]/g, '-') + '.pdf';
+    }
+
+    function downloadBlob(blob, fileName) {
+        const url = window.URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = fileName;
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        window.setTimeout(function () {
+            window.URL.revokeObjectURL(url);
+        }, 0);
+    }
+
+    function getDownloadFileNameFromResponse(response, fallbackName) {
+        const disposition = String(response.headers.get('Content-Disposition') || '').trim();
+        if (!disposition) {
+            return fallbackName;
+        }
+        const utfMatch = disposition.match(/filename\*=UTF-8''([^;]+)/i);
+        if (utfMatch && utfMatch[1]) {
+            try {
+                return decodeURIComponent(utfMatch[1]);
+            } catch (error) {
+                return utfMatch[1];
+            }
+        }
+        const plainMatch = disposition.match(/filename="([^"]+)"|filename=([^;]+)/i);
+        if (!plainMatch) {
+            return fallbackName;
+        }
+        return String(plainMatch[1] || plainMatch[2] || fallbackName).trim();
     }
 
     function buildLayoutDocument(name, snapshot) {
@@ -805,6 +957,7 @@
             normalizeLabel(item);
         });
         state.selectedId = state.items.length ? state.items[0].id : null;
+        clearBulkSelection();
         syncPageInputs();
         renderPage();
         renderProperties();
@@ -1085,6 +1238,10 @@
         item.paddingMm = clamp(Number(item.paddingMm || 3), 1, 12);
         item.fontSizePx = clamp(Number(item.fontSizePx || 14), 8, 30);
         item.codeFontSizePx = clamp(Number(item.codeFontSizePx || 11), 8, 24);
+        item.showBorder = item.showBorder !== false;
+        item.borderWidthMm = clamp(Number(item.borderWidthMm || 0.3), 0.1, 2);
+        item.borderStyle = normalizeBorderStyle(item.borderStyle);
+        item.borderColor = normalizeBorderColor(item.borderColor);
         item.align = ['left', 'center', 'right'].includes(item.align) ? item.align : 'center';
         item.showName = item.showName !== false;
         item.showCode = item.showCode !== false;
@@ -1385,6 +1542,10 @@
                 paddingMm: 3,
                 fontSizePx: 14,
                 codeFontSizePx: 11,
+                showBorder: true,
+                borderWidthMm: 0.3,
+                borderStyle: 'dashed',
+                borderColor: '#64748b',
                 align: 'center',
                 showName: true,
                 showCode: true,
@@ -1397,6 +1558,7 @@
         }
         if (lastCreated && (!options || options.selectLast !== false)) {
             state.selectedId = lastCreated.id;
+            clearBulkSelection();
         }
         if (!options || options.render !== false) {
             renderPage();
@@ -1501,6 +1663,7 @@
         });
         if (lastCreated) {
             state.selectedId = lastCreated.id;
+            clearBulkSelection();
         }
         try {
             layoutItemsInGrid(newItems, { startPageIndex: startPageIndex });
@@ -1519,6 +1682,7 @@
                 return newItems.indexOf(item) === -1;
             });
             state.selectedId = state.items.length ? state.items[state.items.length - 1].id : null;
+            clearBulkSelection();
             renderPage();
             renderProperties();
             if (settings.clearSelection) {
@@ -1538,6 +1702,7 @@
         }
         state.items = [];
         state.selectedId = null;
+        clearBulkSelection();
         renderPage();
         renderProperties();
         setFeedback('Folha A4 limpa.', 'muted');
@@ -1626,6 +1791,7 @@
         item.paddingMm = parseFloat(elements.paddingInput ? elements.paddingInput.value : item.paddingMm) || item.paddingMm;
         item.fontSizePx = parseFloat(elements.titleSizeInput ? elements.titleSizeInput.value : item.fontSizePx) || item.fontSizePx;
         item.codeFontSizePx = parseFloat(elements.codeSizeInput ? elements.codeSizeInput.value : item.codeFontSizePx) || item.codeFontSizePx;
+        Object.assign(item, readBorderValues(item));
         item.align = elements.alignInput ? elements.alignInput.value : item.align;
         item.showName = Boolean(elements.showNameInput && elements.showNameInput.checked);
         item.showCode = Boolean(elements.showCodeInput && elements.showCodeInput.checked);
@@ -1636,6 +1802,7 @@
     }
 
     function renderProperties() {
+        clearInvalidBulkSelection();
         const item = getSelectedItem();
         const hasSelection = Boolean(item);
         if (elements.propertiesEmpty) {
@@ -1645,6 +1812,24 @@
             elements.propertiesForm.classList.toggle('d-none', !hasSelection);
         }
         updateDimensionPresetStatus();
+        if (elements.selectAllBtn) {
+            elements.selectAllBtn.disabled = !state.items.length;
+            elements.selectAllBtn.textContent = state.items.length > 1 && state.bulkSelectedIds.length === state.items.length
+                ? 'Limpar selecao em lote'
+                : 'Selecionar todas';
+        }
+        if (elements.selectionScope) {
+            if (!item) {
+                elements.selectionScope.textContent = 'Sem etiqueta base selecionada.';
+            } else if (state.bulkSelectedIds.length > 1) {
+                elements.selectionScope.textContent = state.bulkSelectedIds.length + ' etiquetas marcadas para aplicar ajustes em lote de borda.';
+            } else {
+                elements.selectionScope.textContent = '1 etiqueta base selecionada.';
+            }
+        }
+        if (elements.applyBorderToAllBtn) {
+            elements.applyBorderToAllBtn.disabled = !item || !state.items.length;
+        }
         if (!item) {
             return;
         }
@@ -1671,6 +1856,10 @@
         elements.paddingInput.value = item.paddingMm.toFixed(1);
         elements.titleSizeInput.value = String(Math.round(item.fontSizePx));
         elements.codeSizeInput.value = String(Math.round(item.codeFontSizePx));
+        elements.showBorderInput.checked = item.showBorder;
+        elements.borderWidthInput.value = item.borderWidthMm.toFixed(1);
+        elements.borderStyleInput.value = item.borderStyle;
+        elements.borderColorInput.value = item.borderColor;
         elements.alignInput.value = item.align;
         elements.showNameInput.checked = item.showName;
         elements.showCodeInput.checked = item.showCode;
@@ -1706,6 +1895,8 @@
             return;
         }
 
+        clearInvalidBulkSelection();
+
         const preset = getPagePreset();
         elements.sheetsContainer.innerHTML = '';
 
@@ -1737,14 +1928,19 @@
             pageItems.forEach(function (item) {
                 normalizeLabel(item);
                 const label = document.createElement('article');
-                label.className = 'barcode-studio-label' + (item.id === state.selectedId ? ' is-selected' : '') + (item.isSnapping ? ' is-snapping' : '');
+                const isSelected = item.id === state.selectedId;
+                label.className = 'barcode-studio-label' + (isSelected ? ' is-selected' : '') + (isBulkSelected(item.id) && !isSelected ? ' is-bulk-selected' : '') + (item.isSnapping ? ' is-snapping' : '');
                 label.dataset.labelId = item.id;
                 label.dataset.pageIndex = String(item.pageIndex || 0);
                 label.style.left = mmToPx(item.xMm) + 'px';
                 label.style.top = mmToPx(item.yMm) + 'px';
                 label.style.width = mmToPx(item.widthMm) + 'px';
                 label.style.height = mmToPx(item.heightMm) + 'px';
+                label.style.setProperty('--barcode-studio-cut-border-width', hasPrintableBorder(item) ? item.borderWidthMm + 'mm' : '0');
+                label.style.setProperty('--barcode-studio-cut-border-style', item.borderStyle || 'dashed');
+                label.style.setProperty('--barcode-studio-cut-border-color', item.borderColor || '#64748b');
                 label.innerHTML = '' +
+                    '<div class="barcode-studio-label__cut-border" aria-hidden="true"></div>' +
                     '<div class="barcode-studio-label__chrome">' +
                         '<span class="barcode-studio-label__tag"><i class="bi bi-upc"></i>' + escapeHtml(item.codigo) + '</span>' +
                         '<span>' + item.widthMm.toFixed(1) + ' x ' + item.heightMm.toFixed(1) + ' mm</span>' +
@@ -1777,6 +1973,7 @@
             return;
         }
         state.selectedId = item.id;
+        clearBulkSelection();
         renderProperties();
         renderPage();
 
@@ -1855,7 +2052,7 @@
                 const svgElement = current ? current.querySelector('svg') : null;
                 const svgMarkup = svgElement ? svgElement.outerHTML : '';
                 return '' +
-                    '<article class="barcode-print-label" style="left:' + item.xMm + 'mm;top:' + item.yMm + 'mm;width:' + item.widthMm + 'mm;height:' + item.heightMm + 'mm;padding:' + item.paddingMm + 'mm;text-align:' + item.align + ';">' +
+                    '<article class="barcode-print-label" style="left:' + item.xMm + 'mm;top:' + item.yMm + 'mm;width:' + item.widthMm + 'mm;height:' + item.heightMm + 'mm;padding:' + item.paddingMm + 'mm;text-align:' + item.align + ';border:' + getPrintableBorderStyle(item) + ';">' +
                         (item.showName ? '<div class="barcode-print-label__title" style="font-size:' + item.fontSizePx + 'px;">' + escapeHtml(item.customTitle) + '</div>' : '') +
                         '<div class="barcode-print-label__barcode" style="height:' + item.barcodeHeightMm + 'mm;">' + (svgMarkup || ('<div>' + escapeHtml(item.codigo) + '</div>')) + '</div>' +
                         (item.showCode ? '<div class="barcode-print-label__code" style="font-size:' + item.codeFontSizePx + 'px;">' + escapeHtml(item.codigo) + '</div>' : '') +
@@ -1871,11 +2068,6 @@
             return;
         }
         const preset = getPagePreset();
-        const printWindow = window.open('', '_blank', 'noopener,noreferrer');
-        if (!printWindow) {
-            setFeedback('Nao foi possivel abrir a janela de impressao.', 'danger');
-            return;
-        }
         const html = '' +
             '<!doctype html>' +
             '<html lang="pt-BR">' +
@@ -1897,16 +2089,71 @@
             '</head>' +
             '<body>' +
                 '<div class="barcode-print-document">' + buildPrintableMarkup() + '</div>' +
-                '<script>' +
-                    'window.addEventListener("load", function () {' +
-                        'window.setTimeout(function () { window.print(); window.close(); }, 180);' +
-                    '});' +
-                '<\/script>' +
             '</body>' +
             '</html>';
-        printWindow.document.open();
-        printWindow.document.write(html);
-        printWindow.document.close();
+
+        const printFrame = document.createElement('iframe');
+        printFrame.title = 'Impressao de codigos';
+        printFrame.style.position = 'fixed';
+        printFrame.style.left = '0';
+        printFrame.style.top = '0';
+        printFrame.style.width = '1px';
+        printFrame.style.height = '1px';
+        printFrame.style.opacity = '0';
+        printFrame.style.pointerEvents = 'none';
+        printFrame.style.border = '0';
+
+        let cleanupTimer = null;
+        let cleaned = false;
+        function cleanupPrintFrame() {
+            if (cleaned) {
+                return;
+            }
+            cleaned = true;
+            if (cleanupTimer) {
+                window.clearTimeout(cleanupTimer);
+            }
+            window.setTimeout(function () {
+                printFrame.remove();
+            }, 500);
+        }
+
+        function printFrameDocument() {
+            const frameWindow = printFrame.contentWindow;
+            if (!frameWindow) {
+                cleanupPrintFrame();
+                setFeedback('Nao foi possivel preparar a impressao.', 'danger');
+                return;
+            }
+            try {
+                frameWindow.focus();
+                frameWindow.addEventListener('afterprint', cleanupPrintFrame, { once: true });
+                cleanupTimer = window.setTimeout(cleanupPrintFrame, 60000);
+                window.setTimeout(function () {
+                    frameWindow.print();
+                }, 350);
+                setFeedback('Janela de impressao aberta com a folha preenchida.', 'muted');
+            } catch (error) {
+                cleanupPrintFrame();
+                setFeedback('Nao foi possivel abrir a impressao.', 'danger');
+            }
+        }
+
+        printFrame.addEventListener('load', printFrameDocument, { once: true });
+        document.body.appendChild(printFrame);
+        if ('srcdoc' in printFrame) {
+            printFrame.srcdoc = html;
+            return;
+        }
+        const frameDocument = printFrame.contentDocument || (printFrame.contentWindow && printFrame.contentWindow.document);
+        if (!frameDocument) {
+            cleanupPrintFrame();
+            setFeedback('Nao foi possivel preparar a impressao.', 'danger');
+            return;
+        }
+        frameDocument.open();
+        frameDocument.write(html);
+        frameDocument.close();
     }
 
     async function exportSheetPdf() {
@@ -1914,39 +2161,62 @@
             setFeedback('Adicione pelo menos uma etiqueta antes de exportar PDF.', 'warning');
             return;
         }
-        if (!elements.sheetsContainer || !window.html2canvas || !window.jspdf || !window.jspdf.jsPDF) {
-            setFeedback('Biblioteca de PDF indisponivel no momento.', 'danger');
+        const exportUrl = getExportPdfUrl();
+        if (!exportUrl) {
+            setFeedback('API de exportacao PDF indisponivel no momento.', 'danger');
             return;
         }
         try {
-            setFeedback('Gerando PDF da folha...', 'muted');
-            const preset = getPagePreset();
-            const sheets = Array.from(elements.sheetsContainer.querySelectorAll('.barcode-studio-sheet'));
-            const orientation = state.page.orientation === 'landscape' ? 'l' : 'p';
-            const pdf = new window.jspdf.jsPDF({
-                orientation: orientation,
-                unit: 'mm',
-                format: 'a4',
-                compress: true,
-            });
-            for (let index = 0; index < sheets.length; index += 1) {
-                const canvas = await window.html2canvas(sheets[index], {
-                    backgroundColor: '#ffffff',
-                    scale: 2,
-                    useCORS: true,
-                    logging: false,
-                });
-                if (index > 0) {
-                    pdf.addPage('a4', orientation);
-                }
-                const imageData = canvas.toDataURL('image/png');
-                pdf.addImage(imageData, 'PNG', 0, 0, preset.widthMm, preset.heightMm, undefined, 'FAST');
+            if (elements.pdfBtn) {
+                elements.pdfBtn.disabled = true;
             }
-            const fileName = 'barcode-studio-' + new Date().toISOString().slice(0, 19).replace(/[T:]/g, '-') + '.pdf';
-            pdf.save(fileName);
+            setFeedback('Gerando PDF da folha...', 'muted');
+            const response = await window.fetch(exportUrl, {
+                method: 'POST',
+                headers: {
+                    Accept: 'application/pdf, application/json',
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    name: String(elements.layoutName ? elements.layoutName.value : '').trim(),
+                    snapshot: getLayoutSnapshot(),
+                }),
+            });
+
+            if (!response.ok) {
+                let message = 'Nao foi possivel exportar o PDF agora.';
+                try {
+                    const payload = await response.json();
+                    if (payload && payload.message) {
+                        message = payload.message;
+                    }
+                } catch (error) {
+                }
+                throw new Error(message);
+            }
+
+            const contentType = String(response.headers.get('Content-Type') || '').toLowerCase();
+            if (contentType.indexOf('application/pdf') === -1) {
+                if (contentType.indexOf('application/json') !== -1) {
+                    try {
+                        const payload = await response.json();
+                        throw new Error(payload && payload.message ? payload.message : 'Resposta invalida ao exportar o PDF.');
+                    } catch (error) {
+                        throw new Error(error.message || 'Resposta invalida ao exportar o PDF.');
+                    }
+                }
+                throw new Error('Sua sessao pode ter expirado. Recarregue a pagina e tente novamente.');
+            }
+
+            const fileBlob = await response.blob();
+            downloadBlob(fileBlob, getDownloadFileNameFromResponse(response, buildPdfFallbackName()));
             setFeedback('PDF exportado com sucesso.', 'muted');
         } catch (error) {
-            setFeedback('Nao foi possivel exportar o PDF agora.', 'danger');
+            setFeedback(error.message || 'Nao foi possivel exportar o PDF agora.', 'danger');
+        } finally {
+            if (elements.pdfBtn) {
+                elements.pdfBtn.disabled = false;
+            }
         }
     }
 
@@ -1961,6 +2231,10 @@
             elements.paddingInput,
             elements.titleSizeInput,
             elements.codeSizeInput,
+            elements.showBorderInput,
+            elements.borderWidthInput,
+            elements.borderStyleInput,
+            elements.borderColorInput,
             elements.alignInput,
             elements.showNameInput,
             elements.showCodeInput,
@@ -2009,6 +2283,8 @@
         elements.pdfBtn && elements.pdfBtn.addEventListener('click', exportSheetPdf);
         elements.removeBtn && elements.removeBtn.addEventListener('click', removeSelectedItem);
         elements.duplicateBtn && elements.duplicateBtn.addEventListener('click', duplicateSelectedItem);
+        elements.selectAllBtn && elements.selectAllBtn.addEventListener('click', selectAllItemsForBulk);
+        elements.applyBorderToAllBtn && elements.applyBorderToAllBtn.addEventListener('click', applyBorderToAll);
         elements.applyPresetBtn && elements.applyPresetBtn.addEventListener('click', applyDimensionPresetFromInputs);
         elements.lockDimensionsBtn && elements.lockDimensionsBtn.addEventListener('click', fixSelectedDimensions);
         elements.clearDimensionsBtn && elements.clearDimensionsBtn.addEventListener('click', clearFixedDimensions);

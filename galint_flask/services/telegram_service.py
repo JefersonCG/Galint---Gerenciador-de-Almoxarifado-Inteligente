@@ -2458,26 +2458,47 @@ class TelegramService:
         *,
         prefix: str = "   ",
     ) -> list[str]:
+        return TelegramService._build_saida_reference_section(saida, item, prefix=prefix)[1]
+
+    @staticmethod
+    def _build_saida_reference_section(
+        saida: Saida,
+        item: Item,
+        *,
+        prefix: str = "   ",
+    ) -> tuple[str | None, str | None, list[str]]:
         try:
             financial = operation_visual_payload_service.resolve_withdrawal_financial_context(saida, item)
         except Exception:
-            return []
+            return None, None, []
 
         total_display = str(financial.get("total_value_display") or "").strip()
-        if not total_display:
-            return []
-
+        unit_price_display = str(financial.get("valor_unitario_display") or "").strip()
         detail_display = str(financial.get("detail_display_full") or financial.get("detail_display") or "").strip()
         detail_kind = str(financial.get("detail_kind") or "").strip().lower()
         source_label = str(financial.get("origem_label") or "").strip()
 
-        lines = [f"{prefix}• Valor total: <b>{total_display}</b>"]
-        if source_label:
-            lines.append(f"{prefix}• Referência de preço: {source_label}")
+        if total_display:
+            lines = [f"{prefix}• Valor total: <b>{total_display}</b>"]
+            if source_label:
+                lines.append(f"{prefix}• Referência de preço: {source_label}")
+            if detail_display:
+                label = "Conversão" if detail_kind == "conversion" else "Valor unitário"
+                lines.append(f"{prefix}• {label}: {detail_display}")
+            return "💰", "REFERÊNCIA DE VALOR", lines
+
+        if unit_price_display:
+            lines = [f"{prefix}• Valor unitário: {unit_price_display}"]
+            if source_label:
+                lines.append(f"{prefix}• Referência de preço: {source_label}")
+            if detail_display and detail_display != unit_price_display:
+                lines.append(f"{prefix}• Conversão: {detail_display}")
+            return "💰", "REFERÊNCIA DE VALOR", lines
+
         if detail_display:
-            label = "Conversão" if detail_kind == "conversion" else "Valor unitário"
-            lines.append(f"{prefix}• {label}: {detail_display}")
-        return lines
+            return "📐", "REFERÊNCIA OPERACIONAL", [f"{prefix}• Conversão: {detail_display}"]
+
+        return None, None, []
 
 
 
@@ -2742,10 +2763,10 @@ class TelegramService:
         if hasattr(item, "lote") and item.lote:
             msg += f"   • Lote: {item.lote}\n"
         msg += f"   • Destino: {local}\n"
-        financial_lines = TelegramService._build_saida_financial_lines(saida, item)
-        if financial_lines:
-            msg += "\n💰 <b>REFERÊNCIA DE VALOR</b>\n"
-            for line in financial_lines:
+        reference_icon, reference_title, reference_lines = TelegramService._build_saida_reference_section(saida, item)
+        if reference_lines and reference_title:
+            msg += f"\n{reference_icon} <b>{reference_title}</b>\n"
+            for line in reference_lines:
                 msg += f"{line}\n"
         msg += f"\n📊 <b>IMPACTO NO ESTOQUE</b>\n"
 
@@ -2813,10 +2834,10 @@ class TelegramService:
         if hasattr(item, "lote") and item.lote:
             msg += f"   • Lote: {item.lote}\n"
         msg += f"   • Destino: {local}\n"
-        financial_lines = TelegramService._build_saida_financial_lines(saida, item)
-        if financial_lines:
-            msg += "\n💰 <b>REFERÊNCIA DE VALOR</b>\n"
-            for line in financial_lines:
+        reference_icon, reference_title, reference_lines = TelegramService._build_saida_reference_section(saida, item)
+        if reference_lines and reference_title:
+            msg += f"\n{reference_icon} <b>{reference_title}</b>\n"
+            for line in reference_lines:
                 msg += f"{line}\n"
         msg += "\n📊 <b>IMPACTO NO ESTOQUE</b>\n"
 

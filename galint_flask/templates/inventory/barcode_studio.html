@@ -3,7 +3,7 @@
 {% block title %}Editor de Etiquetas{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/barcode-studio.css', v='20260501a') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/barcode-studio.css', v='20260505b') }}">
 {% endblock %}
 
 {% block content %}
@@ -24,10 +24,6 @@
             <button class="btn btn-light" type="button" id="barcodeStudioPrintBtn">
                 <i class="bi bi-printer"></i>
                 Imprimir folha
-            </button>
-            <button class="btn btn-outline-light" type="button" id="barcodeStudioPdfBtn">
-                <i class="bi bi-file-earmark-pdf"></i>
-                Exportar PDF
             </button>
             <button class="btn btn-outline-light" type="button" id="barcodeStudioGridBtn">
                 <i class="bi bi-grid-3x3-gap"></i>
@@ -293,6 +289,15 @@
             </div>
 
             <div id="barcodeStudioPropertiesForm" class="barcode-studio-properties-form d-none">
+                <div class="barcode-studio-properties-actions">
+                    <button class="btn btn-outline-light btn-sm" type="button" id="barcodeStudioSelectAllBtn">
+                        Selecionar todas
+                    </button>
+                    <span class="barcode-studio-properties-hint" id="barcodeStudioSelectionScope">
+                        1 etiqueta base selecionada.
+                    </span>
+                </div>
+
                 <div class="barcode-studio-selection-summary">
                     <div>
                         <span class="summary-label">Codigo</span>
@@ -360,6 +365,39 @@
                             <option value="right">Direita</option>
                         </select>
                     </div>
+                    <div class="col-12">
+                        <div class="barcode-studio-border-config">
+                            <div class="barcode-studio-border-config__head">
+                                <strong>Borda de recorte</strong>
+                                <label class="form-check mb-0">
+                                    <input class="form-check-input" type="checkbox" id="barcodeStudioShowBorderInput">
+                                    <span class="form-check-label">Imprimir borda</span>
+                                </label>
+                            </div>
+                            <div class="row g-3 mt-1">
+                                <div class="col-4">
+                                    <label class="form-label" for="barcodeStudioBorderWidthInput">Espessura (mm)</label>
+                                    <input class="form-control" id="barcodeStudioBorderWidthInput" type="number" min="0.1" max="2" step="0.1">
+                                </div>
+                                <div class="col-4">
+                                    <label class="form-label" for="barcodeStudioBorderStyleInput">Estilo</label>
+                                    <select class="form-select" id="barcodeStudioBorderStyleInput">
+                                        <option value="solid">Solida</option>
+                                        <option value="dashed">Tracejada</option>
+                                    </select>
+                                </div>
+                                <div class="col-4">
+                                    <label class="form-label" for="barcodeStudioBorderColorInput">Cor</label>
+                                    <input class="form-control form-control-color" id="barcodeStudioBorderColorInput" type="color" value="#64748b">
+                                </div>
+                            </div>
+                            <div class="barcode-studio-border-config__actions">
+                                <button class="btn btn-outline-light btn-sm" type="button" id="barcodeStudioApplyBorderToAllBtn">
+                                    Aplicar borda em todas
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="barcode-studio-switches">
@@ -383,17 +421,18 @@
 <script src="{{ url_for('static', filename='vendor/barcode-studio/jspdf-2.5.1.umd.min.js', v='20260504a') }}"></script>
 <script>
     window.GALINT_BARCODE_STUDIO = {{ {
-        "searchApiUrl": barcode_search_api_url,
-        "categoriesApiUrl": barcode_categories_api_url,
-        "categoryItemsApiUrl": barcode_category_items_api_url,
-        "layoutListApiUrl": barcode_layouts_api_url,
-        "layoutDetailUrlTemplate": barcode_layout_detail_url_template,
+        "searchApiUrl": barcode_search_api_url | default('', true),
+        "categoriesApiUrl": barcode_categories_api_url | default('', true),
+        "categoryItemsApiUrl": barcode_category_items_api_url | default('', true),
+        "layoutListApiUrl": barcode_layouts_api_url | default('', true),
+        "layoutDetailUrlTemplate": barcode_layout_detail_url_template | default('', true),
+        "exportPdfApiUrl": barcode_export_pdf_api_url | default('', true),
         "layoutImportUrlTemplate": url_for('inventory.barcode_studio_layout_import_api', token='__TOKEN__'),
-        "layoutFileExtension": barcode_layout_extension,
-        "layoutFormat": barcode_layout_format,
-        "layoutVersion": barcode_layout_version,
-        "internalLayoutsDir": barcode_layouts_internal_dir,
+        "layoutFileExtension": barcode_layout_extension | default('.galintetq', true),
+        "layoutFormat": barcode_layout_format | default('galint-label-layout', true),
+        "layoutVersion": barcode_layout_version | default(1, true),
+        "internalLayoutsDir": barcode_layouts_internal_dir | default('', true),
     } | tojson | safe }};
 </script>
-<script src="{{ url_for('static', filename='js/barcode-studio.js', v='20260504b') }}"></script>
+<script src="{{ url_for('static', filename='js/barcode-studio.js', v='20260505c') }}"></script>
 {% endblock %}

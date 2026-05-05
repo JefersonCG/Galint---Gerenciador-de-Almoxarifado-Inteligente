@@ -722,6 +722,7 @@ ${parent.scripts()}
     const mirrorChannelName = 'galint-operation-mirror-v1';
     const mirrorStorageKey = 'galint.operationMirrorState.v1';
     const mirrorChannel = typeof window.BroadcastChannel !== 'undefined' ? new BroadcastChannel(mirrorChannelName) : null;
+    let itemPreviewRequestId = 0;
     
     // Radio buttons de unidade
     const radioKg = document.getElementById('unidade-kg');
@@ -734,37 +735,77 @@ ${parent.scripts()}
     const labelUnidadeCentimetro = document.getElementById('label-unidade-centimetro');
     const hintUnidade = document.getElementById('hint-unidade');
 
+    function normalizeFractionUnitCode(unitCode) {
+        const normalized = String(unitCode || '').trim().toLowerCase();
+        if (normalized === 'quilo') return 'kg';
+        return normalized;
+    }
+
     function getSelectedUnitBadge(unitCode) {
-        if (unitCode === 'litro') return 'L';
-        if (unitCode === 'kg') return 'kg';
-        if (unitCode === 'metro') return 'm';
-        if (unitCode === 'cm') return 'cm';
+        const normalized = normalizeFractionUnitCode(unitCode);
+        if (normalized === 'litro') return 'L';
+        if (normalized === 'kg') return 'kg';
+        if (normalized === 'metro') return 'm';
+        if (normalized === 'cm') return 'cm';
         return 'un';
     }
 
-    function configureFractionUnitOptions(defaultUnit) {
-        const linearMode = defaultUnit === 'metro';
+    function getPendingItemUnitFactors(item) {
+        const source = item && (item.fracaoFatoresBase || item.fracao_fatores_base);
+        if (!source || typeof source !== 'object') {
+            return {};
+        }
+
+        const factors = {};
+        Object.keys(source).forEach(function(key) {
+            const normalizedKey = normalizeFractionUnitCode(key);
+            const value = Number(source[key]);
+            if (normalizedKey && Number.isFinite(value) && value > 0) {
+                factors[normalizedKey] = value;
+            }
+        });
+        return factors;
+    }
+
+    function configureFractionUnitOptions(defaultUnit, item) {
+        const normalizedDefault = normalizeFractionUnitCode(defaultUnit);
+        const factors = getPendingItemUnitFactors(item);
+        const hasAnyFactors = Object.keys(factors).length > 0;
+        const linearMode = normalizedDefault === 'metro';
 
         labelUnidadeKg.style.display = linearMode ? 'none' : '';
         labelUnidadeLitro.style.display = linearMode ? 'none' : '';
         labelUnidadeMetro.style.display = linearMode ? '' : 'none';
         labelUnidadeCentimetro.style.display = linearMode ? '' : 'none';
 
-        radioKg.disabled = linearMode;
-        radioLitro.disabled = linearMode;
-        radioMetro.disabled = !linearMode;
-        radioCentimetro.disabled = !linearMode;
-
         if (linearMode) {
-            radioMetro.checked = true;
-            radioCentimetro.checked = false;
+            const hasMetro = !hasAnyFactors || !!factors.metro;
+            const hasCentimetro = !hasAnyFactors || !!factors.cm;
+            labelUnidadeMetro.style.display = hasMetro ? '' : 'none';
+            labelUnidadeCentimetro.style.display = hasCentimetro ? '' : 'none';
+            radioKg.disabled = true;
+            radioLitro.disabled = true;
+            radioMetro.disabled = !hasMetro;
+            radioCentimetro.disabled = !hasCentimetro;
+            radioMetro.checked = hasMetro;
+            radioCentimetro.checked = !hasMetro && hasCentimetro;
             radioKg.checked = false;
             radioLitro.checked = false;
             return;
         }
 
-        radioKg.checked = defaultUnit !== 'litro';
-        radioLitro.checked = defaultUnit === 'litro';
+        const hasKg = !hasAnyFactors || !!factors.kg;
+        const hasLitro = !hasAnyFactors || !!factors.litro;
+        labelUnidadeKg.style.display = hasKg ? '' : 'none';
+        labelUnidadeLitro.style.display = hasLitro ? '' : 'none';
+        radioKg.disabled = !hasKg;
+        radioLitro.disabled = !hasLitro;
+        radioMetro.disabled = true;
+        radioCentimetro.disabled = true;
+        const preferLitro = normalizedDefault === 'litro' && hasLitro;
+        const preferKg = normalizedDefault !== 'litro' && hasKg;
+        radioKg.checked = preferKg || (!preferLitro && hasKg);
+        radioLitro.checked = preferLitro || (!radioKg.checked && hasLitro);
         radioMetro.checked = false;
         radioCentimetro.checked = false;
     }
@@ -811,16 +852,229 @@ ${parent.scripts()}
         };
     }
 
-    function buildMirrorPayload(status, item, extra) {
-        const actor = String(inputUsuario.value || '').trim();
-        const local = String(inputLocal.value || '').trim();
-        const operationalContext = getOperationalContext();
+    function getSelectedUnitCode() {
         const unidadeSelecionada = document.querySelector('input[name="unidade-tipo"]:checked');
-        const unidade = unidadeSelecionada ? String(unidadeSelecionada.value || '').trim() : '';
+        return unidadeSelecionada ? normalizeFractionUnitCode(unidadeSelecionada.value) : '';
+    }
+
+    function getPendingItemOperationalFactor(item) {
+        const value = Number(item && item.unitFactorBase);
+        return Number.isFinite(value) && value > 0 ? value : 1;
+    }
+
+    function getSelectedUnitFactorBase(item, unitCode) {
+        const factors = getPendingItemUnitFactors(item);
+        const normalized = normalizeFractionUnitCode(unitCode);
+        const explicitFactor = Number(factors[normalized]);
+        if (Number.isFinite(explicitFactor) && explicitFactor > 0) {
+            return explicitFactor;
+        }
+        if (normalized === 'cm') {
+            return getPendingItemOperationalFactor(item) / 100;
+        }
+        return getPendingItemOperationalFactor(item);
+    }
+
+    function convertSelectedQuantityToCanonicalBase(item, quantity, unitCode) {
+        const rawQuantity = Number(quantity || 0);
+        if (!Number.isFinite(rawQuantity) || rawQuantity <= 0) {
+            return 0;
+        }
+        return rawQuantity * getSelectedUnitFactorBase(item, unitCode);
+    }
+
+    function convertSelectedQuantityToOperationalUnit(item, quantity, unitCode) {
+        const canonicalBase = convertSelectedQuantityToCanonicalBase(item, quantity, unitCode);
+        const operationalFactor = getPendingItemOperationalFactor(item);
+        if (!(canonicalBase > 0) || !(operationalFactor > 0)) {
+            return canonicalBase;
+        }
+        return canonicalBase / operationalFactor;
+    }
+
+    function formatCurrencyBR(value) {
+        const numericValue = Number(value || 0);
+        if (!Number.isFinite(numericValue)) {
+            return '';
+        }
+        return numericValue.toLocaleString('pt-BR', {
+            style: 'currency',
+            currency: 'BRL'
+        });
+    }
+
+    function getPendingItemFinancialReference(item) {
+        const reference = item && (item.valorReferencia || item.valor_referencia);
+        if (!reference || typeof reference !== 'object') {
+            return {
+                hasValue: false,
+                unitPriceBase: 0,
+                unitPriceDisplay: '',
+                unitPriceDisplayFull: '',
+                sourceLabel: ''
+            };
+        }
+
+        const unitPriceBase = Number(reference.valor_unitario_base || 0);
+        return {
+            hasValue: Number.isFinite(unitPriceBase) && unitPriceBase > 0,
+            unitPriceBase: Number.isFinite(unitPriceBase) && unitPriceBase > 0 ? unitPriceBase : 0,
+            unitPriceDisplay: String(reference.valor_unitario_display || '').trim(),
+            unitPriceDisplayFull: String(reference.valor_unitario_display_full || '').trim(),
+            sourceLabel: String(reference.origem_label || '').trim(),
+        };
+    }
+
+    function buildPendingItemConversionDisplay(item, quantity, unitCode) {
+        const rawQuantity = Number(quantity || 0);
+        if (!Number.isFinite(rawQuantity) || rawQuantity <= 0 || !item) {
+            return '';
+        }
+
+        const normalizedUnit = normalizeFractionUnitCode(unitCode);
+        const operationalQuantity = convertSelectedQuantityToOperationalUnit(item, rawQuantity, normalizedUnit);
+        const baseDisplay = formatDecimal(operationalQuantity) + ' ' + String(item.displayUnit || getSelectedUnitBadge(normalizedUnit) || 'un');
+        const packageCapacity = Number(item.packageCapacity || 0);
+        if (packageCapacity > 0 && operationalQuantity > 0) {
+            const packageQuantity = operationalQuantity / packageCapacity;
+            if (Number.isFinite(packageQuantity) && packageQuantity > 0 && Math.abs(packageQuantity - Math.round(packageQuantity)) > 0.000001) {
+                return baseDisplay + ' = ' + formatDecimal(packageQuantity) + ' ' + pluralizePackage(packageQuantity, String(item.packageName || 'embalagem'), String(item.packagePlural || 'embalagens'));
+            }
+        }
+
+        const originalDisplay = formatDecimal(rawQuantity) + ' ' + getSelectedUnitBadge(normalizedUnit);
+        return originalDisplay !== baseDisplay ? (originalDisplay + ' = ' + baseDisplay) : '';
+    }
+
+    function buildPendingItemFinancialSummary(item, quantity, unitCode) {
+        if (!item) {
+            return null;
+        }
+
+        const rawQuantity = Number(quantity || 0);
+        if (!Number.isFinite(rawQuantity) || rawQuantity <= 0) {
+            return null;
+        }
+
+        const reference = getPendingItemFinancialReference(item);
+        const quantityBase = convertSelectedQuantityToCanonicalBase(item, rawQuantity, unitCode);
+        const conversionDisplay = buildPendingItemConversionDisplay(item, rawQuantity, unitCode);
+        if (!reference.hasValue || !(quantityBase > 0)) {
+            return conversionDisplay
+                ? {
+                    totalDisplay: '',
+                    detailDisplay: conversionDisplay,
+                    sourceLabel: '',
+                }
+                : null;
+        }
+
+        const totalValue = reference.unitPriceBase * quantityBase;
+        if (!(totalValue > 0)) {
+            return conversionDisplay
+                ? {
+                    totalDisplay: '',
+                    detailDisplay: conversionDisplay,
+                    sourceLabel: '',
+                }
+                : null;
+        }
+
+        return {
+            totalDisplay: formatCurrencyBR(totalValue),
+            detailDisplay: conversionDisplay || reference.unitPriceDisplay || '',
+            sourceLabel: reference.sourceLabel,
+        };
+    }
+
+    function buildPendingItemFromInfo(codigo, data, baseItem) {
+        const currentItem = baseItem || {};
+        return {
+            ...currentItem,
+            codigo: data.codigo || codigo,
+            descricao: data.descricao || codigo,
+            categoria: data.categoria || currentItem.categoria || '',
+            marca: data.marca || currentItem.marca || '',
+            unidade: data.nome_embalagem || data.unidade || currentItem.unidade || 'un',
+            usuario: String(currentItem.usuario || inputUsuario.value || '').trim(),
+            local: String(currentItem.local || inputLocal.value || '').trim(),
+            defaultFractionUnit: normalizeFractionUnitCode(data.fracao_unidade_padrao || currentItem.defaultFractionUnit || ''),
+            totalBase: Number(data.saldo_total_fracionado ?? data.saldo ?? currentItem.totalBase ?? 0),
+            saldo: data.saldo,
+            saldo_display: data.saldo_display || currentItem.saldo_display || '',
+            displayUnit: String(data.unidade_exibicao_total || currentItem.displayUnit || 'L'),
+            packageCapacity: Number(data.capacidade_embalagem || currentItem.packageCapacity || 0),
+            packageName: String(data.nome_embalagem || currentItem.packageName || 'embalagem'),
+            packagePlural: String(data.nome_embalagem_plural || currentItem.packagePlural || 'embalagens'),
+            fotoUrl: data.foto_url || currentItem.fotoUrl || currentItem.foto_url || null,
+            foto_url: data.foto_url || currentItem.fotoUrl || currentItem.foto_url || null,
+            valorReferencia: data.valor_referencia || currentItem.valorReferencia || currentItem.valor_referencia || null,
+            valor_referencia: data.valor_referencia || currentItem.valorReferencia || currentItem.valor_referencia || null,
+            unitFactorBase: Number(data.devolucao_unidade_fator_base || currentItem.unitFactorBase || 1),
+            fracaoFatoresBase: data.fracao_fatores_base || currentItem.fracaoFatoresBase || currentItem.fracao_fatores_base || {},
+            fracao_fatores_base: data.fracao_fatores_base || currentItem.fracaoFatoresBase || currentItem.fracao_fatores_base || {},
+            _fractionalInfoLoaded: true,
+        };
+    }
+
+    async function fetchFractionalItemInfo(codigo) {
+        const rawCodigo = String(codigo || '').trim();
+        if (!rawCodigo) {
+            throw new Error('Informe o código do item');
+        }
+
+        const params = new URLSearchParams();
+        const identificador = String(inputUsuario.dataset.matricula || inputUsuario.value || '').trim();
+        if (identificador) {
+            params.set('usuario', identificador);
+        }
+
+        const response = await window.galintFetchWithAuth(
+            '/movimentos/item-info/' + encodeURIComponent(rawCodigo) + (params.toString() ? ('?' + params.toString()) : ''),
+            undefined,
+            'Sua sessão expirou ao consultar o item. Faça login novamente.'
+        );
+        const data = await response.json();
+        if (!response.ok || !data || !data.found || !data.descricao) {
+            throw new Error('Item não encontrado');
+        }
+        return data;
+    }
+
+    async function hydratePendingItemPreview(codigo, options) {
+        const extraOptions = options || {};
+        const rawCodigo = String(codigo || '').trim();
+        if (!rawCodigo) {
+            return null;
+        }
+
+        const requestId = ++itemPreviewRequestId;
+        try {
+            const data = await fetchFractionalItemInfo(rawCodigo);
+            if (requestId !== itemPreviewRequestId || String(inputCodigo.value || '').trim() !== rawCodigo) {
+                return null;
+            }
+            pendingItem = buildPendingItemFromInfo(rawCodigo, data, extraOptions.baseItem || pendingItem || {});
+            renderCurrentPreview(pendingItem, extraOptions.status || 'preview');
+            return pendingItem;
+        } catch (error) {
+            if (!extraOptions.silent && !(error && error.isAuthRedirect)) {
+                throw error;
+            }
+            return null;
+        }
+    }
+
+    function buildMirrorPayload(status, item, extra) {
+        const actor = String((item && item.usuario) || inputUsuario.value || '').trim();
+        const local = String((item && item.local) || inputLocal.value || '').trim();
+        const operationalContext = getOperationalContext();
+        const unidade = getSelectedUnitCode();
         const quantidadeAtual = extra && extra.quantidade != null ? extra.quantidade : parseFloat(modalQuantidadeInput.value || '0');
         const quantidadeDisplay = quantidadeAtual && quantidadeAtual > 0
             ? formatDecimal(quantidadeAtual) + ' ' + getSelectedUnitBadge(unidade)
             : '--';
+        const financialSummary = item ? buildPendingItemFinancialSummary(item, quantidadeAtual, unidade) : null;
         const payload = {
             kind: 'fracionada',
             kind_label: 'Saida fracionada',
@@ -847,11 +1101,18 @@ ${parent.scripts()}
                 marca: item.marca || '',
                 foto_url: item.fotoUrl || item.foto_url || '',
                 saldo: item.totalBase,
-                saldo_display: formatDecimal(item.totalBase || 0) + ' ' + String(item.displayUnit || 'L'),
+                saldo_display: String(item.saldo_display || '').trim() || (formatDecimal(item.totalBase || 0) + ' ' + String(item.displayUnit || 'L')),
+                financial: financialSummary ? {
+                    valor_total_display: financialSummary.totalDisplay || '',
+                    valor_detalhe_display: financialSummary.detailDisplay || '',
+                    valor_origem_label: financialSummary.sourceLabel || '',
+                } : null,
             };
             payload.movement = {
                 quantidade: quantidadeAtual || null,
                 quantidade_display: quantidadeDisplay,
+                valor_total_display: financialSummary?.totalDisplay || '',
+                valor_detalhe_display: financialSummary?.detailDisplay || '',
             };
         }
 
@@ -878,14 +1139,34 @@ ${parent.scripts()}
             return;
         }
 
-        const unidadeSelecionada = document.querySelector('input[name="unidade-tipo"]:checked');
-        const unidade = unidadeSelecionada ? String(unidadeSelecionada.value || '').trim() : '';
+        const unidade = getSelectedUnitCode();
         const operationalContext = getOperationalContext();
         const quantidadeAtual = extra && extra.quantidade != null ? extra.quantidade : parseFloat(modalQuantidadeInput.value || '0');
         const quantidadeDisplay = quantidadeAtual && quantidadeAtual > 0
             ? formatDecimal(quantidadeAtual) + ' ' + getSelectedUnitBadge(unidade)
             : 'Aguardando pesagem';
-        const saldoDisplay = formatDecimal(item.totalBase || 0) + ' ' + String(item.displayUnit || 'L');
+        const saldoDisplay = String(item.saldo_display || '').trim() || (formatDecimal(item.totalBase || 0) + ' ' + String(item.displayUnit || 'L'));
+        const financialSummary = buildPendingItemFinancialSummary(item, quantidadeAtual, unidade);
+        const usuarioDisplay = String(item.usuario || inputUsuario.value || '').trim() || 'Nao informado';
+        const localDisplay = String(item.local || inputLocal.value || '').trim() || 'Nao informado';
+        const eyebrowLabel = previewStatus === 'completed'
+            ? '<i class="bi bi-check2-circle"></i> Ultima retirada registrada'
+            : '<i class="bi bi-droplet-half"></i> Retirada pesada';
+        const financialStatHtml = financialSummary && financialSummary.totalDisplay
+            ? '<div class="operation-preview-stat"><span class="operation-preview-stat-label">Valor estimado</span><span class="operation-preview-stat-value">' + escapeHtml(financialSummary.totalDisplay) + '</span></div>'
+            : '';
+        const previewNoteParts = [
+            previewStatus === 'completed'
+                ? 'Ultima retirada registrada. Confira a pesagem antes de iniciar a proxima operacao.'
+                : 'Use a balanca para informar o valor real retirado na unidade operacional exibida.'
+        ];
+        if (financialSummary && financialSummary.detailDisplay) {
+            previewNoteParts.push((financialSummary.totalDisplay ? 'Conversao: ' : 'Equivalencia: ') + financialSummary.detailDisplay + '.');
+        }
+        if (financialSummary && financialSummary.sourceLabel && financialSummary.totalDisplay) {
+            previewNoteParts.push('Referencia de preco: ' + financialSummary.sourceLabel + '.');
+        }
+        const previewNote = previewNoteParts.join(' ').trim();
         const fotoHtml = item.fotoUrl || item.foto_url
             ? '<img src="' + escapeHtml(item.fotoUrl || item.foto_url) + '" alt="' + escapeHtml(item.descricao || item.codigo || 'Item fracionado') + '">'
             : '<div class="operation-preview-placeholder"><i class="bi bi-image"></i><div>Sem foto do item</div></div>';
@@ -894,7 +1175,7 @@ ${parent.scripts()}
         currentItemPreview.innerHTML = '' +
             '<div class="operation-preview-media">' + fotoHtml + '</div>' +
             '<div class="operation-preview-body">' +
-                '<span class="operation-preview-eyebrow"><i class="bi bi-droplet-half"></i> Retirada pesada</span>' +
+                '<span class="operation-preview-eyebrow">' + eyebrowLabel + '</span>' +
                 '<div>' +
                     '<h3 class="operation-preview-title">' + escapeHtml(item.descricao || item.codigo || 'Item') + '</h3>' +
                     '<div class="operation-preview-subtitle">Codigo ' + escapeHtml(item.codigo || '—') + (item.categoria ? ' • ' + escapeHtml(item.categoria) : '') + (item.marca ? ' • ' + escapeHtml(item.marca) : '') + '</div>' +
@@ -902,12 +1183,13 @@ ${parent.scripts()}
                 '<div class="operation-preview-grid">' +
                     '<div class="operation-preview-stat"><span class="operation-preview-stat-label">Quantidade</span><span class="operation-preview-stat-value">' + escapeHtml(quantidadeDisplay) + '</span></div>' +
                     '<div class="operation-preview-stat"><span class="operation-preview-stat-label">Saldo total</span><span class="operation-preview-stat-value">' + escapeHtml(saldoDisplay) + '</span></div>' +
-                    '<div class="operation-preview-stat"><span class="operation-preview-stat-label">Colaborador</span><span class="operation-preview-stat-value">' + escapeHtml(String(inputUsuario.value || '').trim() || 'Nao informado') + '</span></div>' +
-                    '<div class="operation-preview-stat"><span class="operation-preview-stat-label">Local</span><span class="operation-preview-stat-value">' + escapeHtml(String(inputLocal.value || '').trim() || 'Nao informado') + '</span></div>' +
+                    financialStatHtml +
+                    '<div class="operation-preview-stat"><span class="operation-preview-stat-label">Colaborador</span><span class="operation-preview-stat-value">' + escapeHtml(usuarioDisplay) + '</span></div>' +
+                    '<div class="operation-preview-stat"><span class="operation-preview-stat-label">Local</span><span class="operation-preview-stat-value">' + escapeHtml(localDisplay) + '</span></div>' +
                     '<div class="operation-preview-stat"><span class="operation-preview-stat-label">Atividade</span><span class="operation-preview-stat-value">' + escapeHtml(operationalContext.atividade_label || 'Nao informada') + '</span></div>' +
                     '<div class="operation-preview-stat"><span class="operation-preview-stat-label">OS / Centro de custo</span><span class="operation-preview-stat-value">' + escapeHtml([operationalContext.ordem_servico, operationalContext.centro_custo].filter(Boolean).join(' • ') || 'Nao informado') + '</span></div>' +
                 '</div>' +
-                '<div class="operation-preview-note">Use a balanca para informar o valor real retirado na unidade operacional exibida.</div>' +
+                '<div class="operation-preview-note">' + escapeHtml(previewNote) + '</div>' +
             '</div>';
         if (shouldPublish) {
             publishMirrorState(buildMirrorPayload(previewStatus, item, extra));
@@ -985,7 +1267,7 @@ ${parent.scripts()}
 
         const retirado = parseFloat(modalQuantidadeInput.value || '0');
         const saldoTotal = Number(pendingItem.totalBase || 0);
-        const remainingBase = saldoTotal - (Number.isFinite(retirado) ? retirado : 0);
+    const remainingBase = saldoTotal - convertSelectedQuantityToOperationalUnit(pendingItem, retirado, getSelectedUnitCode());
         const displayUnit = String(pendingItem.displayUnit || 'L');
         const isInvalid = remainingBase < -0.000001;
 
@@ -1090,6 +1372,10 @@ ${parent.scripts()}
         inputUsuario.value = func.nome + ' — ' + func.matricula;
         inputUsuario.dataset.matricula = func.matricula;
         dropdownUsuario.classList.remove('show');
+        if (pendingItem) {
+            pendingItem.usuario = String(inputUsuario.value || '').trim();
+            renderCurrentPreview(pendingItem, 'preview');
+        }
         if (!inputLocal.value) {
             inputLocal.focus();
         } else {
@@ -1249,10 +1535,13 @@ ${parent.scripts()}
             marca: item.marca,
             saldo: item.saldo,
             saldo_display: item.saldo_display,
+            usuario: String(inputUsuario.value || '').trim(),
+            local: String(inputLocal.value || '').trim(),
             foto_url: item.foto_url,
             fotoUrl: item.foto_url,
         };
         renderCurrentPreview(pendingItem, 'preview');
+        hydratePendingItemPreview(item.codigo, { baseItem: pendingItem, silent: true });
         updateButtonState();
     }
     
@@ -1342,46 +1631,22 @@ ${parent.scripts()}
         btnRegistrar.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Buscando...';
         
         try {
-            const response = await window.galintFetchWithAuth(
-                '/movimentos/item-info/' + encodeURIComponent(codigo),
-                undefined,
-                'Sua sessão expirou ao consultar o item. Faça login novamente.'
-            );
-            const data = await response.json();
-            
-            if (!data.found || !data.descricao) {
-                throw new Error('Item não encontrado');
-            }
-            
-            if (data.permite_saida_fracionada) {
-                // Abre modal para entrada manual
-                pendingItem = {
-                    codigo: codigo,
-                    descricao: data.descricao,
-                    categoria: data.categoria,
-                    marca: data.marca,
-                    unidade: data.nome_embalagem || data.unidade || 'un',
-                    usuario: usuario,
-                    local: local,
-                    defaultFractionUnit: String(data.fracao_unidade_padrao || '').toLowerCase(),
-                    totalBase: Number(data.saldo_total_fracionado || data.saldo || 0),
-                    displayUnit: String(data.unidade_exibicao_total || 'L'),
-                    packageCapacity: Number(data.capacidade_embalagem || 0),
-                    packageName: String(data.nome_embalagem || 'embalagem'),
-                    packagePlural: String(data.nome_embalagem_plural || 'embalagens'),
-                    fotoUrl: data.foto_url || null
-                };
-                renderCurrentPreview(pendingItem, 'preview');
-                
-                mostrarModalQuantidade(pendingItem);
-                
-            } else {
-                // Item não fracionável - não pode usar esta tela
+            const data = await fetchFractionalItemInfo(codigo);
+            if (!data.permite_saida_fracionada) {
                 alert('Este item não requer saída fracionada. Use a tela de "Registro de Saída" normal.');
                 inputCodigo.value = '';
                 inputCodigo.focus();
+                return;
             }
-            
+
+            pendingItem = buildPendingItemFromInfo(codigo, data, {
+                ...pendingItem,
+                codigo: codigo,
+                usuario: usuario,
+                local: local,
+            });
+            renderCurrentPreview(pendingItem, 'preview');
+            mostrarModalQuantidade(pendingItem);
         } catch (error) {
             if (error && error.isAuthRedirect) {
                 return;
@@ -1404,8 +1669,8 @@ ${parent.scripts()}
 
         exibirFotoItem(item.fotoUrl);
         
-        const defaultUnit = String(item.defaultFractionUnit || '').toLowerCase();
-        configureFractionUnitOptions(defaultUnit);
+        const defaultUnit = normalizeFractionUnitCode(item.defaultFractionUnit || '');
+        configureFractionUnitOptions(defaultUnit, item);
         atualizarUnidadeModal();
         atualizarResumoRetirada();
         
@@ -1474,16 +1739,25 @@ ${parent.scripts()}
             
             if (response.ok) {
                 const data = await response.json();
+                const completedSnapshot = pendingItem ? {
+                    ...pendingItem,
+                    usuario: String(pendingItem.usuario || inputUsuario.value || '').trim(),
+                    local: String(pendingItem.local || inputLocal.value || '').trim(),
+                } : null;
                 
                 // Sucesso - fechar modal e limpar campos
                 modalQuantidade.hide();
                 
                 // Mostrar mensagem de sucesso
                 alert(data.message || 'Saída registrada com sucesso!');
-                publishMirrorState(buildMirrorPayload('completed', pendingItem, { quantidade: quantidade }));
+                if (completedSnapshot) {
+                    publishMirrorState(buildMirrorPayload('completed', completedSnapshot, { quantidade: quantidade }));
+                    renderCurrentPreview(completedSnapshot, 'completed', false, { quantidade: quantidade });
+                }
                 
                 // Limpar campos para nova entrada
                 inputUsuario.value = '';
+                inputUsuario.dataset.matricula = '';
                 inputLocal.value = '';
                 if (inputAtividadeOperacional) {
                     inputAtividadeOperacional.value = '';
@@ -1497,7 +1771,6 @@ ${parent.scripts()}
                 inputCodigo.value = '';
                 btnRegistrar.disabled = true;
                 pendingItem = null;
-                renderCurrentPreview(null, 'idle', false);
                 
                 // Focar no campo de usuário para próxima entrada
                 inputUsuario.focus();
@@ -1539,6 +1812,7 @@ ${parent.scripts()}
 
     inputUsuario.addEventListener('blur', function() {
         if (pendingItem) {
+            pendingItem.usuario = String(inputUsuario.value || '').trim();
             renderCurrentPreview(pendingItem, 'preview');
         }
     });
