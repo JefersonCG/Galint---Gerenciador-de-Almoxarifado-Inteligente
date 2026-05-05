@@ -498,6 +498,24 @@
         font-weight: 600;
         font-size: 0.9rem;
     }
+
+    .item-value-cell {
+        min-width: 140px;
+    }
+
+    .item-value-total {
+        color: #0f172a;
+        font-size: 0.95rem;
+        font-weight: 800;
+        line-height: 1.2;
+    }
+
+    .item-value-detail {
+        margin-top: 0.18rem;
+        color: #64748b;
+        font-size: 0.76rem;
+        line-height: 1.35;
+    }
     
     .alert-info-custom {
         background: linear-gradient(145deg, rgba(15, 23, 42, 0.94) 0%, rgba(30, 41, 59, 0.92) 100%);
@@ -875,10 +893,11 @@
         <table class="table mb-0">
             <thead>
                 <tr>
-                    <th style="width: 25%;">Código</th>
-                    <th style="width: 40%;">Descrição</th>
+                    <th style="width: 18%;">Código</th>
+                    <th style="width: 39%;">Descrição</th>
                     <th style="width: 15%;" class="text-center">Quantidade</th>
-                    <th style="width: 20%;" class="text-end">Ações</th>
+                    <th style="width: 13%;" class="text-end">Valor</th>
+                    <th style="width: 15%;" class="text-end">Ações</th>
                 </tr>
             </thead>
             <tbody id="items-list">
@@ -1307,6 +1326,122 @@ ${parent.scripts()}
         return Number.isFinite(quantidadeDigitada) && quantidadeDigitada > 0 ? quantidadeDigitada : 0;
     }
 
+    function formatCurrencyBR(value) {
+        const numericValue = Number(value);
+        if (!Number.isFinite(numericValue) || numericValue <= 0) {
+            return '';
+        }
+
+        return numericValue.toLocaleString('pt-BR', {
+            style: 'currency',
+            currency: 'BRL'
+        });
+    }
+
+    function getItemFinancialReference(item) {
+        const reference = item && item.valor_referencia && typeof item.valor_referencia === 'object'
+            ? item.valor_referencia
+            : null;
+        const unitPriceBase = Number(reference?.valor_unitario_base);
+        const hasValue = Boolean(reference?.disponivel) && Number.isFinite(unitPriceBase) && unitPriceBase > 0;
+
+        return {
+            hasValue: hasValue,
+            unitPriceBase: hasValue ? unitPriceBase : 0,
+            unitPriceDisplay: String(reference?.valor_unitario_display || '').trim(),
+            unitPriceDisplayFull: String(reference?.valor_unitario_display_full || '').trim(),
+            sourceLabel: String(reference?.origem_label || '').trim(),
+        };
+    }
+
+    function getPackagingDisplayName(item, quantidade) {
+        const numericQuantity = Number(quantidade) || 0;
+        const singularName = String(item?.nome_embalagem || inferPackagingType(item) || '').trim();
+        const pluralName = String(item?.nome_embalagem_plural || '').trim();
+
+        if (!singularName && !pluralName) {
+            return '';
+        }
+
+        if (numericQuantity > 0 && numericQuantity < 2) {
+            return singularName || pluralName;
+        }
+
+        return pluralName || singularName;
+    }
+
+    function buildItemConversionDisplay(item, baseQuantity) {
+        if (!item || !(baseQuantity > 0)) {
+            return '';
+        }
+
+        const previewQuantity = formatPreviewQuantity(item);
+        const baseDisplay = formatBaseQuantityForDisplay(item, baseQuantity);
+        if (previewQuantity && baseDisplay && previewQuantity !== baseDisplay) {
+            return previewQuantity + ' = ' + baseDisplay;
+        }
+
+        const packagingType = inferPackagingType(item);
+        const packagingCapacity = getPackagingCapacity(item);
+        if (!packagingType || !(packagingCapacity > 0) || item.em_embalagens === true) {
+            return '';
+        }
+
+        const packagingQuantity = baseQuantity / packagingCapacity;
+        if (!Number.isFinite(packagingQuantity) || packagingQuantity <= 0) {
+            return '';
+        }
+        if (Math.abs(packagingQuantity - Math.round(packagingQuantity)) <= 0.000001) {
+            return '';
+        }
+
+        const packagingLabel = getPackagingDisplayName(item, packagingQuantity);
+        if (!packagingLabel) {
+            return '';
+        }
+
+        return baseDisplay + ' = ' + formatarNumeroSimples(packagingQuantity) + ' ' + packagingLabel;
+    }
+
+    function buildItemFinancialSummary(item) {
+        const reference = getItemFinancialReference(item);
+        if (!reference.hasValue) {
+            return null;
+        }
+
+        const baseQuantity = getItemRequestedBaseQuantity(item);
+        if (!(baseQuantity > 0)) {
+            return null;
+        }
+
+        const totalValue = reference.unitPriceBase * baseQuantity;
+        if (!(totalValue > 0)) {
+            return null;
+        }
+
+        const conversionDisplay = buildItemConversionDisplay(item, baseQuantity);
+        return {
+            totalValue: totalValue,
+            totalDisplay: formatCurrencyBR(totalValue),
+            detailDisplay: conversionDisplay || reference.unitPriceDisplay || '',
+            detailDisplayFull: conversionDisplay || reference.unitPriceDisplayFull || '',
+            detailKind: conversionDisplay ? 'conversion' : (reference.unitPriceDisplay ? 'unit-price' : ''),
+            sourceLabel: reference.sourceLabel,
+        };
+    }
+
+    function buildItemValueHtml(item) {
+        const summary = buildItemFinancialSummary(item);
+        if (!summary || !summary.totalDisplay) {
+            return '';
+        }
+
+        return '<div class="item-value-total">' + escapeHtml(summary.totalDisplay) + '</div>'
+            + (summary.detailDisplay
+                ? '<div class="item-value-detail">' + escapeHtml(summary.detailDisplay) + '</div>'
+                : '');
+    }
+
     function getPendingBaseQuantityForCode(codigo, options) {
         const normalizedCode = String(codigo || '').trim();
         if (!normalizedCode) {
@@ -1471,6 +1606,8 @@ ${parent.scripts()}
             return null;
         }
 
+        const financial = buildItemFinancialSummary(item);
+
         return {
             codigo: item.codigo || '',
             descricao: item.descricao || item.codigo || '',
@@ -1479,6 +1616,9 @@ ${parent.scripts()}
             usuario: String(item.usuario || inputUsuario.value || '').trim(),
             local: String(item.local || inputLocal.value || '').trim(),
             foto_url: item.foto_url || '',
+            valor_total_display: financial?.totalDisplay || '',
+            valor_detalhe_display: financial?.detailDisplay || '',
+            valor_origem_label: financial?.sourceLabel || '',
             status: status || 'queued',
         };
     }
@@ -1572,6 +1712,7 @@ ${parent.scripts()}
             const adjustedItem = buildAdjustedBalanceItem(item, buildRuntimeStockSnapshot(item, {
                 currentDraftBase: previewDraftBase,
             }));
+            const financial = buildItemFinancialSummary(item);
             payload.item = {
                 codigo: item.codigo || '',
                 descricao: item.descricao || item.codigo || '',
@@ -1580,10 +1721,17 @@ ${parent.scripts()}
                 foto_url: item.foto_url || '',
                 saldo: adjustedItem.saldo,
                 saldo_display: formatarSaldoItem(adjustedItem) || item.saldo_display || '',
+                financial: financial ? {
+                    valor_total_display: financial.totalDisplay,
+                    valor_detalhe_display: financial.detailDisplay,
+                    valor_origem_label: financial.sourceLabel || '',
+                } : null,
             };
             payload.movement = {
                 quantidade: item.quantidade_exibicao || item.quantidade_input || item.quantidade || 1,
                 quantidade_display: formatPreviewQuantity(item),
+                valor_total_display: financial?.totalDisplay || '',
+                valor_detalhe_display: financial?.detailDisplay || '',
             };
         }
 
@@ -2293,7 +2441,8 @@ ${parent.scripts()}
                     saldo: data.saldo,
                     saldo_disponivel: data.saldo_disponivel,
                     saldo_display: data.saldo_display,
-                    foto_url: data.foto_url
+                    foto_url: data.foto_url,
+                    valor_referencia: data.valor_referencia || null
                 };
 
                 currentPreviewItem = { ...pendingItem };
@@ -2332,7 +2481,8 @@ ${parent.scripts()}
                     saldo: data.saldo,
                     saldo_disponivel: data.saldo_disponivel,
                     saldo_display: data.saldo_display,
-                    foto_url: data.foto_url
+                    foto_url: data.foto_url,
+                    valor_referencia: data.valor_referencia || null
                 });
             }
             
@@ -2514,6 +2664,9 @@ ${parent.scripts()}
         if (!targetItem.marca && incomingItem?.marca) {
             targetItem.marca = incomingItem.marca;
         }
+        if (incomingItem?.valor_referencia) {
+            targetItem.valor_referencia = incomingItem.valor_referencia;
+        }
         if (incomingItem?.saldo !== undefined) {
             targetItem.saldo = incomingItem.saldo;
         }
@@ -2614,7 +2767,7 @@ ${parent.scripts()}
         itemsList.innerHTML = activeGroups.map(group => {
             const groupHeader =
                 '<tr class="group-row">' +
-                    '<td colspan="4">' + normalizeGroupLabel(group.usuario, group.local) + '</td>' +
+                    '<td colspan="5">' + normalizeGroupLabel(group.usuario, group.local) + '</td>' +
                 '</tr>';
             const groupItems = group.itens.map(item =>
                 '<tr>' +
@@ -2629,6 +2782,7 @@ ${parent.scripts()}
                         '</div>' +
                     '</td>' +
                     '<td class="text-center"><span class="badge-qty">' + (item.quantidade_exibicao || item.quantidade) + (item.unidade_label ? ' ' + item.unidade_label : '') + '</span></td>' +
+                    '<td class="text-end item-value-cell">' + buildItemValueHtml(item) + '</td>' +
                     '<td class="text-end">' +
                         '<button type="button" class="btn-remove-item" onclick="removeItem(' + item.id + ')">' +
                             '<i class="bi bi-trash me-1"></i>Remover' +

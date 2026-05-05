@@ -26,6 +26,7 @@ from ..services.notification_router import NotificationRouterService
 from ..services.mirror_insights_service import mirror_insights_service
 from ..services.native_panel_launcher import launch_panel as launch_native_panel
 from ..services.legacy_stock_normalizer import infer_packaging_measure, resolve_canonical_unit, resolve_packaging_factor
+from ..services.operation_visual_payload import operation_visual_payload_service
 from ..services.users import user_service
 from ..services.entrada_service import entrada_service
 from ..services.telegram_service import TelegramService
@@ -60,6 +61,7 @@ def buscar_item():
         item_code = str(item_payload.get("codigo") or "").strip()
         item_model = item_models.get(item_code)
         unit_context = _build_saida_unit_context(item_payload, item_model)
+        financial_reference = operation_visual_payload_service.resolve_item_financial_reference(item_model)
         movement_balance_display = _build_saida_balance_display(
             item_payload,
             unit_context,
@@ -72,6 +74,7 @@ def buscar_item():
             "unidade_cadastro": item_payload.get("unidade"),
             "unidade": unit_context.get("devolucao_unidade_label") or item_payload.get("unidade"),
             "saldo_display": movement_balance_display,
+            "valor_referencia": financial_reference,
         })
     return jsonify({"items": enriched_results, "itens": enriched_results})
 
@@ -419,8 +422,14 @@ def _resolve_unit_factor_base(item_model: Item | None, unit_code: str) -> float:
         return 1.0
 
     raw_unit = _infer_unidade(getattr(item_model, "unidade", None))
+    canonical_unit = (resolve_canonical_unit(item_model) or "").strip().lower()
+
+    if unit_code == "unidade" and canonical_unit == "un":
+        return 1.0
+    if unit_code == "par" and canonical_unit == "par":
+        return 1.0
+
     if unit_code == "unidade":
-        canonical_unit = (resolve_canonical_unit(item_model) or "").strip().lower()
         inferred_measure = infer_packaging_measure(item_model)
         inferred_measure_unit = inferred_measure[1] if inferred_measure is not None else None
         if canonical_unit == "un" and inferred_measure_unit in {"kg", "l", "m"}:
@@ -1205,6 +1214,7 @@ def item_info(codigo: str):
                 pending_return = pending_return_by_unit.get(default_return_unit, 0.0)
 
     movement_unit_label = unit_context.get("devolucao_unidade_label") or item.get("unidade")
+    financial_reference = operation_visual_payload_service.resolve_item_financial_reference(item_model)
     movement_balance_display = _build_saida_balance_display(
         item,
         unit_context,
@@ -1274,6 +1284,7 @@ def item_info(codigo: str):
         "permite_saida_em_embalagens": unit_context.get("permite_saida_em_embalagens"),
         "foto_path": foto_path,
         "foto_url": url_for("static", filename=foto_path) if foto_path else None,
+        "valor_referencia": financial_reference,
         "preco_reposicao_fonte": item.get("preco_reposicao_fonte"),
         "preco_reposicao_uf": item.get("preco_reposicao_uf"),
         "preco_reposicao_query": item.get("preco_reposicao_query"),

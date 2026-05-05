@@ -2451,6 +2451,34 @@ class TelegramService:
         except Exception:
             return []
 
+    @staticmethod
+    def _build_saida_financial_lines(
+        saida: Saida,
+        item: Item,
+        *,
+        prefix: str = "   ",
+    ) -> list[str]:
+        try:
+            financial = operation_visual_payload_service.resolve_withdrawal_financial_context(saida, item)
+        except Exception:
+            return []
+
+        total_display = str(financial.get("total_value_display") or "").strip()
+        if not total_display:
+            return []
+
+        detail_display = str(financial.get("detail_display_full") or financial.get("detail_display") or "").strip()
+        detail_kind = str(financial.get("detail_kind") or "").strip().lower()
+        source_label = str(financial.get("origem_label") or "").strip()
+
+        lines = [f"{prefix}• Valor total: <b>{total_display}</b>"]
+        if source_label:
+            lines.append(f"{prefix}• Referência de preço: {source_label}")
+        if detail_display:
+            label = "Conversão" if detail_kind == "conversion" else "Valor unitário"
+            lines.append(f"{prefix}• {label}: {detail_display}")
+        return lines
+
 
 
     @staticmethod
@@ -2714,6 +2742,11 @@ class TelegramService:
         if hasattr(item, "lote") and item.lote:
             msg += f"   • Lote: {item.lote}\n"
         msg += f"   • Destino: {local}\n"
+        financial_lines = TelegramService._build_saida_financial_lines(saida, item)
+        if financial_lines:
+            msg += "\n💰 <b>REFERÊNCIA DE VALOR</b>\n"
+            for line in financial_lines:
+                msg += f"{line}\n"
         msg += f"\n📊 <b>IMPACTO NO ESTOQUE</b>\n"
 
         for line in TelegramService._build_saida_stock_impact_lines(
@@ -2780,6 +2813,11 @@ class TelegramService:
         if hasattr(item, "lote") and item.lote:
             msg += f"   • Lote: {item.lote}\n"
         msg += f"   • Destino: {local}\n"
+        financial_lines = TelegramService._build_saida_financial_lines(saida, item)
+        if financial_lines:
+            msg += "\n💰 <b>REFERÊNCIA DE VALOR</b>\n"
+            for line in financial_lines:
+                msg += f"{line}\n"
         msg += "\n📊 <b>IMPACTO NO ESTOQUE</b>\n"
 
         for line in TelegramService._build_saida_stock_impact_lines(
@@ -3203,6 +3241,9 @@ class TelegramService:
             msg += f"   🏷️ {categoria}\n"
 
             msg += f"   📊 Qtd: <b>{TelegramService._format_saida_quantidade(saida, item)}</b>\n"
+
+            for line in TelegramService._build_saida_financial_lines(saida, item):
+                msg += f"{line}\n"
 
             
 

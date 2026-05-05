@@ -945,6 +945,20 @@
             color: #f8fafc;
         }
 
+        .mirror-batch-value {
+            font-size: 0.8rem;
+            font-weight: 900;
+            color: #fbbf24;
+        }
+
+        .mirror-batch-value-detail {
+            max-width: 18ch;
+            font-size: 0.68rem;
+            line-height: 1.35;
+            color: rgba(226, 232, 240, 0.68);
+            overflow-wrap: anywhere;
+        }
+
         .mirror-batch-status {
             display: inline-flex;
             align-items: center;
@@ -2092,6 +2106,8 @@
                     usuario: String(entry?.usuario || payload?.actor?.nome || '').trim(),
                     local: String(entry?.local || entry?.local_servico || payload?.context?.local_servico || '').trim(),
                     foto_url: String(entry?.foto_url || '').trim(),
+                    valor_total_display: String(entry?.valor_total_display || entry?.financial?.valor_total_display || '').trim(),
+                    valor_detalhe_display: String(entry?.valor_detalhe_display || entry?.financial?.valor_detalhe_display || '').trim(),
                     status: String(entry?.status || payload?.status || 'queued').trim().toLowerCase(),
                 }));
             }
@@ -2271,6 +2287,9 @@
                         : '<div class="mirror-batch-thumb-placeholder"><i class="bi bi-image"></i></div>';
                     const actorLabel = normalizeActorDisplayName(entry.usuario) || 'Colaborador não informado';
                     const localInfo = entry.local ? ` • ${escapeHtml(entry.local)}` : '';
+                    const financialHtml = entry.valor_total_display
+                        ? `<div class="mirror-batch-value">${escapeHtml(entry.valor_total_display)}</div>${entry.valor_detalhe_display ? `<div class="mirror-batch-value-detail">${escapeHtml(entry.valor_detalhe_display)}</div>` : ''}`
+                        : '';
                     return `
                         <article class="mirror-batch-row ${meta.className}">
                             ${thumb}
@@ -2281,6 +2300,7 @@
                             </div>
                             <div class="mirror-batch-side">
                                 <div class="mirror-batch-qty">${escapeHtml(entry.quantidade_display || '--')}</div>
+                                ${financialHtml}
                                 <span class="mirror-batch-status ${meta.className}"><i class="bi ${meta.icon}"></i>${meta.label}</span>
                             </div>
                         </article>

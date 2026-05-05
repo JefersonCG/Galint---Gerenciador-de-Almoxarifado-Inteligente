@@ -39,11 +39,18 @@ class OperationVisualPayloadService:
         actor = saida.usuario or OperationVisualPayloadService._get_user(saida.matricula)
         kind = OperationVisualPayloadService._kind_for_saida(saida, item)
         photo = OperationVisualPayloadService._photo_payload(item)
+        movement = OperationVisualPayloadService._get_saida_stock_movement(saida)
         display = OperationVisualPayloadService.resolve_withdrawal_display_context(
             saida,
             balance_before=balance_before,
             balance_after=balance_after,
             balance_unit=balance_unit,
+            movement=movement,
+        )
+        financial = OperationVisualPayloadService.resolve_withdrawal_financial_context(
+            saida,
+            item,
+            movement=movement,
         )
 
         return {
@@ -57,17 +64,23 @@ class OperationVisualPayloadService:
                 "unidade": display["balance_unit_display"],
                 "saldo": display["balance_after"],
                 "saldo_display": display["balance_after_display"],
+                "financial": financial,
                 **photo,
             },
             "movement": {
                 "id": saida.id_saida,
                 "quantidade": saida.quantidade,
                 "quantidade_display": display["quantity_display"],
+                "quantidade_base": financial.get("quantity_base"),
+                "quantidade_base_display": financial.get("quantity_base_display"),
                 "balance_before": display["balance_before"],
                 "balance_after": display["balance_after"],
                 "balance_unit": display["balance_unit_display"],
                 "balance_before_display": display["balance_before_display"],
                 "balance_after_display": display["balance_after_display"],
+                "valor_total": financial.get("total_value"),
+                "valor_total_display": financial.get("total_value_display"),
+                "valor_detalhe_display": financial.get("detail_display"),
                 "tipo_custodia": saida.tipo_custodia,
                 "fracionada": bool(getattr(saida, "usou_fracao", False)),
             },
@@ -255,9 +268,10 @@ class OperationVisualPayloadService:
         balance_before: float | None = None,
         balance_after: float | None = None,
         balance_unit: str | None = None,
+        movement: StockMovement | None = None,
     ) -> dict[str, Any]:
         item = saida.item
-        movement = OperationVisualPayloadService._get_saida_stock_movement(saida)
+        movement = movement or OperationVisualPayloadService._get_saida_stock_movement(saida)
         resolved_unit = OperationVisualPayloadService._resolve_withdrawal_balance_unit(
             item,
             balance_unit=balance_unit,
@@ -291,6 +305,124 @@ class OperationVisualPayloadService:
                 short=True,
             ),
             "quantity_display": OperationVisualPayloadService.format_saida_quantity_display(saida, item, movement=movement, short=True),
+        }
+
+    @staticmethod
+    def resolve_item_financial_reference(item_data: Item | dict[str, Any] | None) -> dict[str, Any]:
+        purchase_price = OperationVisualPayloadService._resolve_item_price_base(
+            item_data,
+            unit_price_field="preco_compra_unitario",
+            unit_price_base_field="preco_compra_unitario_base",
+            factor_base_field="preco_compra_fator_base",
+        )
+        replacement_price = OperationVisualPayloadService._resolve_item_price_base(
+            item_data,
+            unit_price_field="preco_reposicao_unitario",
+            unit_price_base_field="preco_reposicao_unitario_base",
+            factor_base_field="preco_reposicao_fator_base",
+        )
+
+        source_code = None
+        source_label = None
+        unit_price_base = None
+        if purchase_price is not None and purchase_price > 0:
+            source_code = "nf"
+            source_label = "NF"
+            unit_price_base = purchase_price
+        elif replacement_price is not None and replacement_price > 0:
+            source_code = "estimado"
+            source_label = "Estimado"
+            unit_price_base = replacement_price
+
+        base_unit = OperationVisualPayloadService._resolve_item_base_unit(item_data)
+        unit_price_display = None
+        unit_price_display_full = None
+        if unit_price_base is not None and unit_price_base > 0:
+            unit_price_display = OperationVisualPayloadService._format_currency_with_unit(
+                unit_price_base,
+                base_unit,
+                item_data=item_data,
+            )
+            unit_price_display_full = OperationVisualPayloadService._format_currency_with_unit(
+                unit_price_base,
+                base_unit,
+                item_data=item_data,
+                prefix_with_por=True,
+            )
+
+        return {
+            "disponivel": bool(unit_price_base is not None and unit_price_base > 0),
+            "origem": source_code,
+            "origem_label": source_label,
+            "valor_unitario_base": round(float(unit_price_base), 6) if unit_price_base is not None and unit_price_base > 0 else None,
+            "unidade_base": base_unit,
+            "valor_unitario_display": unit_price_display,
+            "valor_unitario_display_full": unit_price_display_full,
+        }
+
+    @staticmethod
+    def resolve_withdrawal_financial_context(
+        saida: Saida,
+        item: Item | None,
+        *,
+        movement: StockMovement | None = None,
+    ) -> dict[str, Any]:
+        movement = movement or OperationVisualPayloadService._get_saida_stock_movement(saida)
+        reference = OperationVisualPayloadService.resolve_item_financial_reference(item)
+        quantity_base = OperationVisualPayloadService._resolve_quantity_base(saida, movement)
+        if quantity_base is None:
+            quantity_base = OperationVisualPayloadService._parse_float(getattr(saida, "quantidade", None))
+        quantity_base = abs(float(quantity_base or 0.0))
+        base_unit = OperationVisualPayloadService._resolve_withdrawal_balance_unit(
+            item,
+            movement_unit=(movement.unit_base if movement else None),
+        )
+        quantity_base_display = OperationVisualPayloadService._format_value_with_unit(
+            quantity_base,
+            base_unit,
+            item=item,
+            short=False,
+        ) if quantity_base > 0 else None
+
+        original_quantity, original_unit = OperationVisualPayloadService._extract_saida_original_quantity(saida, movement)
+        original_display = OperationVisualPayloadService._format_value_with_unit(
+            original_quantity,
+            original_unit,
+            item=item,
+            short=False,
+        ) if original_quantity is not None and original_unit else None
+
+        conversion_display = OperationVisualPayloadService._resolve_withdrawal_conversion_display(
+            item,
+            quantity_base=quantity_base,
+            quantity_base_display=quantity_base_display,
+            original_quantity=original_quantity,
+            original_unit=original_unit,
+            original_display=original_display,
+        )
+
+        unit_price_base = OperationVisualPayloadService._parse_float(reference.get("valor_unitario_base"))
+        total_value = round(quantity_base * unit_price_base, 2) if unit_price_base is not None and unit_price_base > 0 and quantity_base > 0 else None
+        total_value_display = OperationVisualPayloadService._format_currency(total_value) if total_value is not None and total_value > 0 else None
+        unit_price_display = str(reference.get("valor_unitario_display") or "").strip() or None
+        unit_price_display_full = str(reference.get("valor_unitario_display_full") or "").strip() or None
+
+        detail_display = conversion_display or unit_price_display
+        detail_display_full = conversion_display or unit_price_display_full
+
+        return {
+            **reference,
+            "quantity_base": round(quantity_base, 3) if quantity_base > 0 else None,
+            "quantity_base_display": quantity_base_display,
+            "original_quantity": round(float(original_quantity), 3) if original_quantity is not None else None,
+            "original_unit": OperationVisualPayloadService._normalize_unit(original_unit),
+            "original_display": original_display,
+            "conversion_display": conversion_display,
+            "detail_kind": "conversion" if conversion_display else ("unit_price" if unit_price_display else None),
+            "detail_display": detail_display,
+            "detail_display_full": detail_display_full,
+            "total_value": total_value,
+            "total_value_display": total_value_display,
         }
 
     @staticmethod
@@ -509,6 +641,54 @@ class OperationVisualPayloadService:
             return None
 
     @staticmethod
+    def _read_item_value(item_data: Item | dict[str, Any] | None, field_name: str) -> Any:
+        if item_data is None:
+            return None
+        if isinstance(item_data, dict):
+            return item_data.get(field_name)
+        return getattr(item_data, field_name, None)
+
+    @staticmethod
+    def _resolve_item_base_unit(item_data: Item | dict[str, Any] | None) -> str | None:
+        if isinstance(item_data, Item):
+            try:
+                canonical_unit = OperationVisualPayloadService._normalize_unit(resolve_canonical_unit(item_data))
+                if canonical_unit:
+                    return canonical_unit
+            except Exception:
+                pass
+        unit_value = OperationVisualPayloadService._read_item_value(item_data, "unidade")
+        normalized = OperationVisualPayloadService._normalize_unit(str(unit_value or ""))
+        return normalized or None
+
+    @staticmethod
+    def _resolve_item_price_base(
+        item_data: Item | dict[str, Any] | None,
+        *,
+        unit_price_field: str,
+        unit_price_base_field: str,
+        factor_base_field: str,
+    ) -> float | None:
+        price_base = OperationVisualPayloadService._parse_float(
+            OperationVisualPayloadService._read_item_value(item_data, unit_price_base_field)
+        )
+        if price_base is not None and price_base > 0:
+            return price_base
+
+        raw_price = OperationVisualPayloadService._parse_float(
+            OperationVisualPayloadService._read_item_value(item_data, unit_price_field)
+        )
+        if raw_price is None or raw_price <= 0:
+            return None
+
+        factor_base = OperationVisualPayloadService._parse_float(
+            OperationVisualPayloadService._read_item_value(item_data, factor_base_field)
+        )
+        if factor_base is not None and factor_base > 0:
+            return raw_price / factor_base
+        return raw_price
+
+    @staticmethod
     def _format_number(value: float, *, decimals: int = 3) -> str:
         try:
             value_f = float(value)
@@ -517,6 +697,36 @@ class OperationVisualPayloadService:
         if abs(value_f - round(value_f)) < 1e-9:
             return str(int(round(value_f)))
         return f"{value_f:.{decimals}f}".rstrip("0").rstrip(".").replace(".", ",")
+
+    @staticmethod
+    def _format_currency(value: float | None) -> str | None:
+        if value is None:
+            return None
+        try:
+            value_f = float(value)
+        except Exception:
+            return None
+        formatted = f"{value_f:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+        return f"R$ {formatted}"
+
+    @staticmethod
+    def _format_currency_with_unit(
+        value: float | None,
+        unit: str | None,
+        *,
+        item_data: Item | dict[str, Any] | None = None,
+        prefix_with_por: bool = False,
+    ) -> str | None:
+        currency = OperationVisualPayloadService._format_currency(value)
+        if not currency:
+            return None
+        item_obj = item_data if isinstance(item_data, Item) else None
+        unit_label = OperationVisualPayloadService._display_unit(unit, value=1.0, short=False, item=item_obj)
+        if not unit_label:
+            return currency
+        if prefix_with_por:
+            return f"{currency} por {unit_label}"
+        return f"{currency} {unit_label}"
 
     @staticmethod
     def _display_unit(unit: str | None, *, value: float | None = None, short: bool = False, item: Item | None = None) -> str | None:
@@ -560,6 +770,39 @@ class OperationVisualPayloadService:
         unit_label = OperationVisualPayloadService._display_unit(unit, value=value, short=short, item=item)
         number = OperationVisualPayloadService._format_number(value)
         return f"{number} {unit_label}".strip() if unit_label else number
+
+    @staticmethod
+    def _resolve_withdrawal_conversion_display(
+        item: Item | None,
+        *,
+        quantity_base: float,
+        quantity_base_display: str | None,
+        original_quantity: float | None,
+        original_unit: str | None,
+        original_display: str | None,
+    ) -> str | None:
+        if item is not None:
+            packaging_conversion = OperationVisualPayloadService._format_fractional_packaging_conversion(
+                quantity_base,
+                item,
+                unit_hint=OperationVisualPayloadService._resolve_withdrawal_balance_unit(item),
+            )
+            if packaging_conversion:
+                return packaging_conversion
+
+        normalized_original = OperationVisualPayloadService._normalize_unit(original_unit)
+        normalized_base = OperationVisualPayloadService._resolve_withdrawal_balance_unit(item)
+        if (
+            original_display
+            and quantity_base_display
+            and (
+                normalized_original != normalized_base
+                or original_quantity is None
+                or abs(float(original_quantity) - float(quantity_base or 0.0)) > 1e-6
+            )
+        ):
+            return f"{original_display} = {quantity_base_display}"
+        return None
 
     @staticmethod
     def _resolve_withdrawal_balance_unit(
@@ -695,6 +938,48 @@ class OperationVisualPayloadService:
             if resto_display:
                 return f"{embalagens} {nome_emb} + {resto_display}"
         return f"{embalagens} {nome_emb}"
+
+    @staticmethod
+    def _format_fractional_packaging_conversion(
+        value: float | None,
+        item: Item,
+        *,
+        unit_hint: str | None,
+    ) -> str | None:
+        if value is None:
+            return None
+
+        try:
+            factor = float(resolve_packaging_factor(item) or 0.0)
+        except Exception:
+            factor = 0.0
+        if factor <= 0:
+            return None
+
+        total_value = abs(float(value or 0.0))
+        if total_value <= 0:
+            return None
+
+        packaging_amount = total_value / factor
+        if packaging_amount <= 0 or abs(packaging_amount - round(packaging_amount)) < 1e-6:
+            return None
+
+        base_display = OperationVisualPayloadService._format_value_with_unit(
+            total_value,
+            unit_hint,
+            item=item,
+            short=False,
+        )
+        packaging_unit = item.tipo_embalagem_novo or item.unidade
+        packaging_label = OperationVisualPayloadService._display_unit(
+            packaging_unit,
+            value=packaging_amount,
+            item=item,
+        )
+        if not base_display or not packaging_label:
+            return None
+
+        return f"{base_display} = {OperationVisualPayloadService._format_number(packaging_amount)} {packaging_label}"
 
     @staticmethod
     def _actor_payload(user: Usuario | None, matricula: str | None) -> dict[str, Any]:
