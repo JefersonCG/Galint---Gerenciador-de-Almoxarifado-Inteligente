@@ -60,6 +60,28 @@ def _is_enterprise_mode() -> bool:
     return bool(getattr(current_user, "is_authenticated", False) and session.get("galint_management_access"))
 
 
+def _management_module() -> str:
+    return str(session.get("galint_management_module") or "").strip().lower()
+
+
+def _management_mode_label() -> str:
+    if _management_module() == "mensageria":
+        return "Setor Mensageria"
+    return "Setor Administração"
+
+
+def _build_messenger_navigation(path: str) -> list[dict[str, Any]]:
+    entries: list[dict[str, Any]] = []
+    maintenance_url = _optional_url("pages.mensageria_maintenance")
+    sobre_url = _optional_url("pages.sobre")
+    if maintenance_url:
+        entries.append(_link_item("Manutenção", maintenance_url, "bi-tools", path == maintenance_url))
+    if sobre_url:
+        entries.append({"type": "divider"})
+        entries.append(_link_item("Sobre", sobre_url, "bi-info-circle", path == sobre_url))
+    return entries
+
+
 def _build_enterprise_navigation(path: str, *, is_admin: bool) -> list[dict[str, Any]]:
     entries: list[dict[str, Any]] = []
     sobre_url = _optional_url("pages.sobre")
@@ -98,10 +120,16 @@ def build_sidebar_navigation() -> dict[str, Any]:
     has_management_access = _has_management_access()
 
     if _is_enterprise_mode():
+        if _management_module() == "mensageria":
+            return {
+                "entries": _build_messenger_navigation(path),
+                "footer_user_label": getattr(current_user, "nome", "Visitante") if is_authenticated else "Visitante",
+                "mode_label": "Setor Mensageria",
+            }
         return {
             "entries": _build_enterprise_navigation(path, is_admin=is_admin),
             "footer_user_label": getattr(current_user, "nome", "Visitante") if is_authenticated else "Visitante",
-            "mode_label": "GALINT Enterprise",
+            "mode_label": _management_mode_label(),
         }
 
     dashboard_url = _optional_url("dashboard.index")
@@ -269,6 +297,7 @@ def build_sidebar_navigation() -> dict[str, Any]:
     return {
         "entries": entries,
         "footer_user_label": getattr(current_user, "nome", "Visitante") if is_authenticated else "Visitante",
+        "mode_label": "Setor Almoxarifado",
     }
 
 

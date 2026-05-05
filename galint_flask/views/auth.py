@@ -35,10 +35,7 @@ def _build_login_redirect(*, login_module: str, is_management_login: bool) -> st
 
 def _management_landing_url(usuario, *, login_module: str) -> str:
     if login_module == "mensageria":
-        admin_value = getattr(usuario, "is_admin", 0)
-        is_admin = bool(admin_value) or str(admin_value).strip().lower() in {"1", "true", "sim", "yes"}
-        if is_admin:
-            return url_for("config.notificacoes")
+        return url_for("pages.mensageria_maintenance")
     return url_for("pages.config")
 
 

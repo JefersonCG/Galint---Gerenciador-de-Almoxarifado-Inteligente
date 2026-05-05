@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}Mensageria em manutenção{% endblock %}
+{% block body_class %}messenger-maintenance-page{% endblock %}
+{% block page_header %}{% endblock %}
+{% block extra_css %}
+<style>
+    body.messenger-maintenance-page .app-body {
+        background:
+            radial-gradient(circle at 24% 14%, rgba(14, 165, 233, 0.14), transparent 24rem),
+            radial-gradient(circle at 82% 18%, rgba(34, 197, 94, 0.1), transparent 22rem),
+            linear-gradient(180deg, #dbe7f1 0%, #c8d4df 100%);
+    }
+
+    .messenger-maintenance-shell {
+        min-height: calc(100vh - 3rem);
+        display: grid;
+        place-items: center;
+        padding: clamp(1rem, 3vw, 2.2rem);
+        color: #0f172a;
+    }
+
+    .messenger-maintenance-panel {
+        width: min(58rem, 100%);
+        display: grid;
+        gap: 1.1rem;
+        padding: clamp(1.2rem, 3vw, 2rem);
+        border: 1px solid rgba(15, 23, 42, 0.12);
+        border-radius: 8px;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(241, 245, 249, 0.88));
+        box-shadow: 0 24px 54px rgba(15, 23, 42, 0.16);
+    }
+
+    .messenger-maintenance-mark {
+        width: 3.4rem;
+        height: 3.4rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 8px;
+        background: #0f172a;
+        color: #7dd3fc;
+        font-size: 1.55rem;
+    }
+
+    .messenger-maintenance-kicker {
+        margin: 0;
+        color: #0369a1;
+        font-size: 0.78rem;
+        font-weight: 850;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .messenger-maintenance-title {
+        margin: 0;
+        max-width: 42rem;
+        font-size: clamp(2rem, 4vw, 3.2rem);
+        line-height: 1;
+        font-weight: 950;
+        letter-spacing: 0;
+    }
+
+    .messenger-maintenance-copy {
+        margin: 0;
+        max-width: 44rem;
+        color: #475569;
+        font-size: 1rem;
+        line-height: 1.55;
+        font-weight: 600;
+    }
+
+    .messenger-maintenance-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.65rem;
+        align-items: center;
+    }
+
+    .messenger-maintenance-actions .btn {
+        border-radius: 8px;
+        font-weight: 850;
+    }
+
+    .messenger-maintenance-note {
+        display: grid;
+        gap: 0.45rem;
+        margin-top: 0.35rem;
+        padding-top: 0.95rem;
+        border-top: 1px solid rgba(148, 163, 184, 0.28);
+        color: #64748b;
+        font-size: 0.9rem;
+        line-height: 1.45;
+    }
+</style>
+{% endblock %}
+{% block content %}
+<div class="messenger-maintenance-shell">
+    <section class="messenger-maintenance-panel" aria-labelledby="messenger-maintenance-title">
+        <span class="messenger-maintenance-mark" aria-hidden="true"><i class="bi bi-envelope-paper"></i></span>
+        <div>
+            <p class="messenger-maintenance-kicker">Setor Mensageria</p>
+            <h1 class="messenger-maintenance-title" id="messenger-maintenance-title">Modulo em manutenção</h1>
+        </div>
+        <p class="messenger-maintenance-copy">A Mensageria Condominial ainda nao foi liberada para operacao. Este acesso fica isolado do Almoxarifado e da Administracao para evitar confusao enquanto o modulo de encomendas, notificacoes, ciencia e entrega fisica e preparado.</p>
+        <div class="messenger-maintenance-actions">
+            <form method="post" action="{{ url_for('auth.logout') }}">
+                <button class="btn btn-dark px-4" type="submit"><i class="bi bi-box-arrow-left me-1"></i> Sair e voltar ao login</button>
+            </form>
+        </div>
+        <div class="messenger-maintenance-note">
+            <span>Escopo futuro: recebimento de encomendas, vinculo ao cadastro condominial, notificacao por canal disponivel, registro de ciencia, entrega ao destinatario e trilha auditavel.</span>
+            <span>Enquanto estiver em manutencao, nenhum menu operacional do Almoxarifado deve aparecer aqui.</span>
+        </div>
+    </section>
+</div>
+{% endblock %}

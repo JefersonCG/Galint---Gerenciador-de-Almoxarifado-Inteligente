@@ -558,6 +558,14 @@ def _has_management_access() -> bool:
     return bool(session.get("galint_management_access"))
 
 
+def _management_module() -> str:
+    return str(session.get("galint_management_module") or "").strip().lower()
+
+
+def _is_messenger_session() -> bool:
+    return _management_module() == "mensageria"
+
+
 def _prime_admin_session() -> None:
     try:
         session.setdefault("galint_is_admin", bool(getattr(current_user, "is_admin", 0)))
@@ -661,7 +669,7 @@ def _build_admin_condominium_blueprint(*, mode: str) -> dict[str, object]:
         "quick_facts": [
             {"label": "Blocos iniciais", "value": "9", "note": "Modelo parametrico para outros condominios"},
             {"label": "Andares", "value": "10", "note": "10o pavimento como cobertura"},
-            {"label": "Colunas", "value": "Par e impar", "note": "Estrutura base por bloco"},
+            {"label": "Lados", "value": "Frente e fundos", "note": "Mapa visual dos blocos fica em stand by ate a validacao final"},
             {"label": "Agenda", "value": "Entrada + saida", "note": "Mudanca com janela operacional"},
         ],
         "principles": [
@@ -800,6 +808,95 @@ def _build_admin_condominium_blueprint(*, mode: str) -> dict[str, object]:
             "A mesma base suporta o condominio atual com vaga livre e tambem futuros empreendimentos com regras fixas.",
         ],
         "blocks": _build_condominium_blocks(),
+    }
+
+
+def _build_enterprise_administration_plan() -> dict[str, object]:
+    return {
+        "headline_cards": [
+            {
+                "icon": "bi-speedometer2",
+                "title": "Dashboard Administrativo",
+                "text": "Visao gerencial de suprimentos, custodia, cadastros, agendamentos, pendencias e indicadores executivos sem misturar com a operacao diaria do almoxarifado.",
+                "tags": ["Leitura gerencial", "Alertas", "Indicadores"],
+            },
+            {
+                "icon": "bi-briefcase-fill",
+                "title": "Gestao de Suprimentos",
+                "text": "Fornecedores, documentos fiscais, valor de estoque, projecao de compras e categorias ficam organizados como decisao administrativa.",
+                "tags": ["Compras", "Fiscal", "Estoque"],
+            },
+            {
+                "icon": "bi-person-vcard",
+                "title": "Cadastros Condominiais",
+                "text": "O cadastro mestre parte de Proprietario ou Locatario e conecta unidade, pessoas vinculadas, visitantes, veiculos, condutores e historico.",
+                "tags": ["Titular", "Unidade", "Vinculos"],
+            },
+            {
+                "icon": "bi-building-check",
+                "title": "Prestadores de Servicos",
+                "text": "Empresas prestadoras entram com CNPJ, contrato, area de atuacao e funcionarios recorrentes autorizados por unidade, bloco, periodo ou finalidade.",
+                "tags": ["Empresas", "Funcionarios", "Acesso"],
+            },
+            {
+                "icon": "bi-calendar2-week",
+                "title": "Agendamentos",
+                "text": "Mudancas de entrada e saida, reservas, prestadores agendados e manutencoes programadas amarradas ao cadastro principal.",
+                "tags": ["Mudanca", "Reserva", "Portaria"],
+            },
+            {
+                "icon": "bi-pie-chart-fill",
+                "title": "Power BI e Analitico",
+                "text": "Espaco reservado para paineis executivos de suprimentos, financeiro, ocupacao, manutencao, portaria, prestadores e ocorrencias.",
+                "tags": ["BI", "Relatorios", "Gestao"],
+            },
+        ],
+        "service_provider_points": [
+            "Empresa e a raiz do cadastro: razao social, fantasia, CNPJ, endereco, responsavel, contrato e status operacional.",
+            "Funcionarios recorrentes ficam vinculados a empresa com foto, documento mascarado, funcao, validade de autorizacao e historico de acesso.",
+            "Consulta de CNPJ pela Receita deve preencher empresa prestadora e tambem proprietario pessoa juridica, sempre com fallback manual.",
+            "Todo acesso precisa nascer cadastrado ou vinculado a uma autorizacao: morador, visitante, prestador eventual ou funcionario recorrente.",
+        ],
+        "lgpd_points": [
+            {"title": "Mascaramento por padrao", "text": "CPF, RG, CNH, CNPJ, RENAVAM, placa, telefone e e-mail aparecem parcialmente, com ultimos digitos para conferencia."},
+            {"title": "Revelar e editar com motivo", "text": "Dados sensiveis completos exigem justificativa, perfil autorizado e trilha de auditoria por pessoa, unidade e campo acessado."},
+            {"title": "Notificacao inteligente", "text": "Telegram deve avisar consulta sensivel e alteracao relevante, com agrupamento para evitar excesso em recadastramentos grandes."},
+        ],
+    }
+
+
+def _build_admin_service_providers_blueprint() -> dict[str, object]:
+    return {
+        "hero": {
+            "kicker": "Prestadores de Servicos",
+            "title": "Empresas, equipes recorrentes e autorizacoes de acesso",
+            "summary": "O cadastro de prestadores nasce no nivel da empresa e desce ate os funcionarios que entram no condominio com frequencia para manutencao, reparo, limpeza, tecnologia, seguranca ou apoio operacional.",
+            "badge": "CNPJ + funcionarios vinculados",
+        },
+        "company_fields": [
+            {"label": "Razao social e nome fantasia", "note": "Identificacao principal da empresa prestadora."},
+            {"label": "CNPJ", "note": "Consulta futura na Receita para preencher dados cadastrais e situacao."},
+            {"label": "Endereco e contatos", "note": "Telefone, e-mail, responsavel e canal de emergencia."},
+            {"label": "Contrato e area de atuacao", "note": "Elevador, piscina, portaria, TI, obras, pintura, hidraulica ou outro dominio."},
+            {"label": "Situacao operacional", "note": "Ativa, suspensa, bloqueada ou encerrada, sem apagar historico."},
+        ],
+        "worker_fields": [
+            {"label": "Nome, CPF, RG e foto", "note": "Documento mascarado por padrao e foto para conferencia visual."},
+            {"label": "Empresa vinculada", "note": "Funcionario nao fica solto no sistema; ele pertence a uma prestadora."},
+            {"label": "Funcao e validade", "note": "Eletricista, tecnico, jardineiro, piscineiro, seguranca ou outro papel com periodo autorizado."},
+            {"label": "Escopo de acesso", "note": "Bloco, unidade, setor tecnico, casa de maquinas, horario e finalidade."},
+            {"label": "Historico e bloqueios", "note": "Eventos de entrada, ocorrencias, restricoes e observacoes administrativas."},
+        ],
+        "automation_cards": [
+            {"title": "Receita/CNPJ", "text": "Preenchimento assistido para empresas prestadoras e proprietarios pessoa juridica, com validacao de situacao cadastral quando a API estiver disponivel."},
+            {"title": "Portaria e acesso", "text": "Base preparada para liberar prestador por agenda, unidade, bloco ou chamado, sem depender de anotacao manual."},
+            {"title": "OS e ocorrencias", "text": "Funcionario recorrente pode ser ligado a reparos, manutencoes e futuras ordens de servico."},
+        ],
+        "security_cards": [
+            {"title": "Menor exposicao possivel", "text": "A tela mostra documento mascarado e revela dados completos apenas com motivo e perfil autorizado."},
+            {"title": "Auditoria forte", "text": "Consulta, edicao, autorizacao e bloqueio precisam registrar operador, data, motivo e entidade afetada."},
+            {"title": "Acesso temporario", "text": "Prestador eventual pode ter janela definida sem virar cadastro permanente indevido."},
+        ],
     }
 
 
@@ -944,11 +1041,23 @@ def config():
     if not _has_management_access():
         flash("Acesso restrito a gestores, gerentes e desenvolvedores.", "danger")
         return redirect(url_for("dashboard.index"))
+    if _is_messenger_session():
+        return redirect(url_for("pages.mensageria_maintenance"))
     return render_template(
         "config.html",
         enterprise_sections=build_enterprise_sections(is_admin=bool(getattr(current_user, "is_admin", 0))),
         enterprise_management_overview=_build_enterprise_management_overview(),
+        enterprise_administration_plan=_build_enterprise_administration_plan(),
     )
+
+
+@blueprint.get("/mensageria/manutencao")
+@login_required
+def mensageria_maintenance():
+    if not _has_management_access():
+        flash("Acesso restrito a gestores, gerentes e desenvolvedores.", "danger")
+        return redirect(url_for("dashboard.index"))
+    return render_template("mensageria_maintenance.html")
 
 
 @blueprint.get("/configuracoes/condominio/cadastros")
@@ -957,6 +1066,8 @@ def admin_condominium_registry():
     if not _has_management_access():
         flash("Acesso restrito a gestores, gerentes e desenvolvedores.", "danger")
         return redirect(url_for("dashboard.index"))
+    if _is_messenger_session():
+        return redirect(url_for("pages.mensageria_maintenance"))
     return render_template(
         "config_condominium_blueprint.html",
         blueprint_page=_build_admin_condominium_blueprint(mode="registry"),
@@ -969,9 +1080,25 @@ def admin_condominium_schedule():
     if not _has_management_access():
         flash("Acesso restrito a gestores, gerentes e desenvolvedores.", "danger")
         return redirect(url_for("dashboard.index"))
+    if _is_messenger_session():
+        return redirect(url_for("pages.mensageria_maintenance"))
     return render_template(
         "config_condominium_blueprint.html",
         blueprint_page=_build_admin_condominium_blueprint(mode="schedule"),
+    )
+
+
+@blueprint.get("/configuracoes/condominio/prestadores")
+@login_required
+def admin_service_providers():
+    if not _has_management_access():
+        flash("Acesso restrito a gestores, gerentes e desenvolvedores.", "danger")
+        return redirect(url_for("dashboard.index"))
+    if _is_messenger_session():
+        return redirect(url_for("pages.mensageria_maintenance"))
+    return render_template(
+        "config_service_providers_blueprint.html",
+        service_provider_page=_build_admin_service_providers_blueprint(),
     )
 
 

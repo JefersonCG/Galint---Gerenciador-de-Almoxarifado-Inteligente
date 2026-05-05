@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Enterprise{% endblock %}
+{% block title %}Administração{% endblock %}
 {% block body_class %}enterprise-config-page{% endblock %}
 {% block page_header %}{% endblock %}
 {% block extra_css %}
@@ -153,6 +153,148 @@
         font-weight: 800;
         letter-spacing: 0.02em;
         text-transform: uppercase;
+    }
+
+    .enterprise-admin-plan {
+        display: grid;
+        gap: 0.9rem;
+    }
+
+    .enterprise-admin-heading {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    .enterprise-admin-heading h2 {
+        margin: 0;
+        color: #0f172a;
+        font-size: clamp(1.35rem, 2vw, 1.85rem);
+        font-weight: 900;
+        letter-spacing: 0;
+    }
+
+    .enterprise-admin-heading p {
+        margin: 0.28rem 0 0;
+        max-width: 48rem;
+        color: #475569;
+        font-size: 0.94rem;
+        line-height: 1.55;
+        font-weight: 600;
+    }
+
+    .enterprise-admin-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.85rem;
+    }
+
+    .enterprise-admin-card {
+        min-width: 0;
+        display: grid;
+        gap: 0.68rem;
+        padding: 0.95rem;
+        border: 1px solid rgba(15, 23, 42, 0.12);
+        border-radius: 8px;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(241, 245, 249, 0.82));
+        box-shadow: 0 14px 28px rgba(15, 23, 42, 0.1);
+    }
+
+    .enterprise-admin-card i {
+        width: 2.25rem;
+        height: 2.25rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 8px;
+        background: rgba(15, 23, 42, 0.9);
+        color: #7dd3fc;
+        font-size: 1.08rem;
+    }
+
+    .enterprise-admin-card h3,
+    .enterprise-admin-note h3 {
+        margin: 0;
+        color: #0f172a;
+        font-size: 1rem;
+        line-height: 1.25;
+        font-weight: 850;
+    }
+
+    .enterprise-admin-card p,
+    .enterprise-admin-note p {
+        margin: 0;
+        color: #475569;
+        font-size: 0.86rem;
+        line-height: 1.48;
+        font-weight: 600;
+    }
+
+    .enterprise-admin-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.38rem;
+    }
+
+    .enterprise-admin-tags span {
+        display: inline-flex;
+        align-items: center;
+        min-height: 1.55rem;
+        padding: 0.2rem 0.48rem;
+        border-radius: 999px;
+        background: rgba(14, 165, 233, 0.1);
+        color: #0369a1;
+        font-size: 0.7rem;
+        font-weight: 850;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+
+    .enterprise-admin-split {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(18rem, 0.8fr);
+        gap: 0.9rem;
+    }
+
+    .enterprise-admin-note {
+        min-width: 0;
+        display: grid;
+        gap: 0.65rem;
+        padding: 0.95rem;
+        border-radius: 8px;
+        border: 1px solid rgba(15, 23, 42, 0.12);
+        background: rgba(248, 250, 252, 0.82);
+    }
+
+    .enterprise-admin-list {
+        display: grid;
+        gap: 0.48rem;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+    }
+
+    .enterprise-admin-list li {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.5rem;
+        color: #334155;
+        font-size: 0.84rem;
+        line-height: 1.42;
+        font-weight: 650;
+    }
+
+    .enterprise-admin-list li::before {
+        content: "";
+        width: 0.48rem;
+        height: 0.48rem;
+        flex: 0 0 auto;
+        margin-top: 0.43rem;
+        border-radius: 999px;
+        background: #0ea5e9;
+        box-shadow: 0 0 0 0.18rem rgba(14, 165, 233, 0.12);
     }
 
     .enterprise-config-grid {
@@ -575,6 +717,11 @@
             grid-template-columns: 1fr;
         }
 
+        .enterprise-admin-grid,
+        .enterprise-admin-split {
+            grid-template-columns: 1fr;
+        }
+
         .enterprise-insight-badges {
             justify-content: flex-start;
         }
@@ -637,16 +784,16 @@
 <div class="enterprise-config-shell">
     <section class="enterprise-portal-hero" aria-label="Portal Enterprise com arte principal de gestão">
         <div class="enterprise-portal-copy">
-            <p class="enterprise-portal-kicker"><i class="bi bi-gear-wide-connected"></i> Portal Enterprise</p>
-            <h1 class="enterprise-portal-title">Administração de Alto Nível</h1>
-            <p class="enterprise-portal-subtitle">Condomínio, suprimentos, dashboard, ferramentas, integrações e governança reunidos em um hub visual único para a gestão do ERP.</p>
+            <p class="enterprise-portal-kicker"><i class="bi bi-gear-wide-connected"></i> Setor Administração</p>
+            <h1 class="enterprise-portal-title">Administração do Condomínio</h1>
+            <p class="enterprise-portal-subtitle">Cadastros condominiais, prestadores, suprimentos gerenciais, dashboard, integrações, Power BI e governança reunidos em um hub próprio, separado do Almoxarifado.</p>
         </div>
     </section>
 
     <header class="enterprise-config-header">
         <div>
-            <p class="enterprise-config-kicker">ERP Enterprise</p>
-            <p class="enterprise-config-summary">Selecione um domínio administrativo para abrir os comandos gerenciais do sistema e, logo abaixo, acompanhe as leituras visuais de suprimentos, categorias e custódia sem sair da Administração.</p>
+            <p class="enterprise-config-kicker">Setor Administração</p>
+            <p class="enterprise-config-summary">Selecione um dominio administrativo para abrir os comandos gerenciais do condominio. O almoxarifado continua operacional; aqui ficam gestao, cadastros, prestadores, auditoria, BI e decisoes administrativas.</p>
         </div>
         <div class="enterprise-config-badges" aria-label="Ambiente">
             <span class="enterprise-badge"><i class="bi bi-buildings"></i> Condomínio</span>
@@ -655,6 +802,48 @@
             <span class="enterprise-badge"><i class="bi bi-speedometer2"></i> Dashboard</span>
         </div>
     </header>
+
+    {% if enterprise_administration_plan %}
+    <section class="enterprise-admin-plan" aria-labelledby="enterprise-admin-plan-title">
+        <div class="enterprise-admin-heading">
+            <div>
+                <h2 id="enterprise-admin-plan-title">Arquitetura inicial da Administração</h2>
+                <p>Esta primeira camada organiza o que deve nascer no setor administrativo antes da criacao do mapa visual dos blocos: suprimentos gerenciais, cadastros condominiais, prestadores, agenda, LGPD, auditoria e BI.</p>
+            </div>
+        </div>
+        <div class="enterprise-admin-grid">
+            {% for card in enterprise_administration_plan.headline_cards %}
+            <article class="enterprise-admin-card">
+                <i class="bi {{ card.icon }}" aria-hidden="true"></i>
+                <h3>{{ card.title }}</h3>
+                <p>{{ card.text }}</p>
+                <div class="enterprise-admin-tags" aria-label="Assuntos">
+                    {% for tag in card.tags %}<span>{{ tag }}</span>{% endfor %}
+                </div>
+            </article>
+            {% endfor %}
+        </div>
+        <div class="enterprise-admin-split">
+            <section class="enterprise-admin-note" aria-labelledby="enterprise-service-provider-title">
+                <h3 id="enterprise-service-provider-title"><i class="bi bi-building-check me-1"></i> Prestadores entram na Administração</h3>
+                <ul class="enterprise-admin-list">
+                    {% for item in enterprise_administration_plan.service_provider_points %}
+                    <li>{{ item }}</li>
+                    {% endfor %}
+                </ul>
+            </section>
+            <section class="enterprise-admin-note" aria-labelledby="enterprise-lgpd-title">
+                <h3 id="enterprise-lgpd-title"><i class="bi bi-shield-lock me-1"></i> LGPD e auditoria desde o primeiro cadastro</h3>
+                {% for item in enterprise_administration_plan.lgpd_points %}
+                <div>
+                    <h3>{{ item.title }}</h3>
+                    <p>{{ item.text }}</p>
+                </div>
+                {% endfor %}
+            </section>
+        </div>
+    </section>
+    {% endif %}
 
     <div class="enterprise-config-grid">
         {% for section in enterprise_sections %}
