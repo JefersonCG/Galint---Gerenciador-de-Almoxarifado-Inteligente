@@ -2316,6 +2316,7 @@ ${parent.scripts()}
     });
 
     inputUsuario.addEventListener('blur', function() {
+        syncCurrentGroupContextFromInputs();
         if (currentPreviewItem) {
             currentPreviewItem.usuario = String(inputUsuario.value || '').trim();
             renderCurrentPreview(currentPreviewItem, 'preview');
@@ -2323,9 +2324,14 @@ ${parent.scripts()}
     });
 
     inputLocal.addEventListener('input', function() {
+        const groupSynced = syncCurrentGroupContextFromInputs();
         if (currentPreviewItem) {
             currentPreviewItem.local = String(inputLocal.value || '').trim();
             renderCurrentPreview(currentPreviewItem, 'preview');
+            return;
+        }
+        if (groupSynced) {
+            scheduleMirrorOperatorHeartbeat();
             return;
         }
         scheduleMirrorOperatorHeartbeat();
@@ -2728,6 +2734,45 @@ ${parent.scripts()}
 
         renderCurrentPreview(currentPreviewItem, 'queued');
         renderItems();
+    }
+
+    function getCurrentGroup() {
+        return groups.find((group) => group.id === currentGroupId) || null;
+    }
+
+    function syncCurrentGroupContextFromInputs(options) {
+        const group = getCurrentGroup();
+        if (!group) {
+            return false;
+        }
+
+        const usuario = String(inputUsuario.value || group.usuario || '').trim();
+        const local = String(inputLocal.value || '').trim();
+        let changed = false;
+
+        if (usuario && group.usuario !== usuario) {
+            group.usuario = usuario;
+            changed = true;
+        }
+        if (group.local !== local) {
+            group.local = local;
+            changed = true;
+        }
+
+        group.itens.forEach((entry) => {
+            entry.usuario = group.usuario;
+            entry.local = group.local;
+        });
+
+        if (currentPreviewItem) {
+            currentPreviewItem.usuario = group.usuario;
+            currentPreviewItem.local = group.local;
+        }
+
+        if (changed && (!options || options.render !== false)) {
+            renderItems();
+        }
+        return changed;
     }
 
     function normalizeGroupLabel(usuario, local) {

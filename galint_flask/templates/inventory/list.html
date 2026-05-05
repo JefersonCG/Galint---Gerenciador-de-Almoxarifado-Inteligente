@@ -1745,7 +1745,7 @@
             <div class="modal-header">
                 <div>
                     <h5 class="modal-title" id="priceBatchModalLabel">Pesquisa em lote por categoria</h5>
-                    <div class="small text-white-50">Ao abrir, o GALINT pesquisa automaticamente até 10 itens pendentes de preço nesta categoria.</div>
+                    <div class="small text-white-50">Ao abrir, o GALINT pesquisa automaticamente até 10 itens sem NF/Cupom e sem preço salvo nesta categoria.</div>
                 </div>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
             </div>
@@ -1754,13 +1754,13 @@
                     <div class="price-batch-intro-chip" id="price-batch-category-chip">Categoria</div>
                     <div class="price-batch-intro-copy">
                         <strong>Fila automática de preços pendentes</strong>
-                        <span id="price-batch-intro-note">Selecione os valores desejados e aplique de uma vez. Os itens salvos saem da fila e novos pendentes ocupam o lugar.</span>
+                        <span id="price-batch-intro-note">Selecione os valores desejados e aplique de uma vez. Somente itens sem NF/Cupom entram nesta fila.</span>
                     </div>
                 </div>
 
                 <div class="alert alert-light border mt-3 d-none" id="price-batch-summary"></div>
                 <div class="mt-3 price-batch-results" id="price-batch-results"></div>
-                <div id="price-batch-empty" class="text-muted small d-none">Nenhum item pendente encontrado para esta categoria.</div>
+                <div id="price-batch-empty" class="text-muted small d-none">Nenhum item sem NF/Cupom pendente encontrado para esta categoria.</div>
             </div>
             <div class="modal-footer">
                 <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Fechar</button>
@@ -6066,7 +6066,7 @@
             priceBatchCategoryChip.textContent = category || 'Categoria';
         }
         if (priceBatchIntroNote) {
-            priceBatchIntroNote.textContent = note || 'Selecione os valores desejados e aplique de uma vez. Os itens salvos saem da fila e novos pendentes ocupam o lugar.';
+            priceBatchIntroNote.textContent = note || 'Selecione os valores desejados e aplique de uma vez. Somente itens sem NF/Cupom entram nesta fila.';
         }
     };
 
@@ -6152,12 +6152,12 @@
             <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
                 <div>
                     <strong>${escapeHtml(category || currentBatchCategory || 'Categoria')}</strong>
-                    <span class="text-muted">• pendentes ${Number.isFinite(pendingTotal) ? pendingTotal : 0}</span>
+                    <span class="text-muted">• sem NF/Cupom pendentes ${Number.isFinite(pendingTotal) ? pendingTotal : 0}</span>
                     <span class="text-muted">• exibindo ${Number.isFinite(shown) ? shown : 0} de ${PRICE_BATCH_DEFAULT_LIMIT}</span>
                     <span class="text-muted">• com resultado ${Number.isFinite(withResults) ? withResults : 0}</span>
                     ${failed > 0 ? `<span class="text-muted">• falhas ${failed}</span>` : ''}
                 </div>
-                <div class="small text-muted">${hasMore ? 'A fila continua automaticamente após aplicar.' : 'Esses são os últimos pendentes desta categoria.'}</div>
+                <div class="small text-muted">${hasMore ? 'A fila continua automaticamente após aplicar.' : 'Esses são os últimos pendentes sem NF/Cupom desta categoria.'}</div>
             </div>
             ${currentBatchNotice.message ? `<div class="small mt-2 ${noteToneClass}">${escapeHtml(currentBatchNotice.message)}</div>` : ''}
         `;
@@ -6490,7 +6490,7 @@
             return;
         }
 
-        setBatchIntro(category, 'Buscando automaticamente até 10 itens sem preço salvo nesta categoria.');
+        setBatchIntro(category, 'Buscando automaticamente até 10 itens sem NF/Cupom e sem preço salvo nesta categoria.');
         resultsEl.innerHTML = '<div class="text-muted small">Buscando fila automática de preços…</div>';
         emptyEl.classList.add('d-none');
         summaryEl.classList.add('d-none');
@@ -6521,15 +6521,15 @@
             setBatchIntro(
                 data.categoria || category,
                 pendingTotal > 0
-                    ? 'Selecione os valores desejados e aplique de uma vez. Os itens salvos saem da fila e novos pendentes ocupam o lugar.'
-                    : 'Todos os itens desta categoria já possuem preço de reposição salvo.'
+                    ? 'Selecione os valores desejados e aplique de uma vez. Itens com NF/Cupom ficam fora da pesquisa para preservar o valor documental.'
+                    : 'Nao ha itens sem NF/Cupom pendentes de preco de reposicao nesta categoria.'
             );
 
             if (!currentBatchResults.length) {
                 resultsEl.innerHTML = '';
                 emptyEl.classList.remove('d-none');
                 emptyEl.textContent = pendingTotal <= 0
-                    ? 'Todos os itens desta categoria já têm preço de reposição salvo.'
+                    ? 'Nao ha itens sem NF/Cupom pendentes de preco de reposicao nesta categoria.'
                     : 'Não foi possível montar a fila com itens elegíveis nesta categoria.';
                 updateBatchApplyButton();
                 return;
@@ -6572,7 +6572,7 @@
             emptyEl.classList.add('d-none');
         }
 
-        setBatchIntro(category, 'Buscando automaticamente até 10 itens sem preço salvo nesta categoria.');
+        setBatchIntro(category, 'Buscando automaticamente até 10 itens sem NF/Cupom e sem preço salvo nesta categoria.');
         updateBatchApplyButton();
         priceBatchModalInstance.show();
         await refreshBatchPriceSuggestions();
@@ -6674,7 +6674,7 @@
                     summaryEl.classList.add('d-none');
                     summaryEl.innerHTML = '';
                 }
-                setBatchIntro('', 'Selecione os valores desejados e aplique de uma vez. Os itens salvos saem da fila e novos pendentes ocupam o lugar.');
+                setBatchIntro('', 'Selecione os valores desejados e aplique de uma vez. Somente itens sem NF/Cupom entram nesta fila.');
                 updateBatchApplyButton();
             });
         }

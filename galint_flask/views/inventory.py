@@ -10,7 +10,7 @@ from io import BytesIO
 
 from flask import Blueprint, abort, current_app, flash, jsonify, make_response, redirect, render_template, request, send_file, session, url_for
 from flask_login import login_required, current_user
-from sqlalchemy import and_, func, or_
+from sqlalchemy import and_, func, or_, select
 
 from ..extensions import db
 from ..models import (
@@ -49,6 +49,26 @@ from ..utils.time_service import TimeService
 from .movements import LIQUID_PRODUCT_TYPES
 
 blueprint = Blueprint("inventory", __name__, url_prefix="/itens")
+
+FISCAL_PRICE_DOCUMENT_TYPES = ("nf", "cupom")
+FISCAL_PRICE_VALUE_ORIGINS = ("compra_nf", "compra_cupom")
+NO_FISCAL_DOCUMENT_UPPER_ALIASES = tuple(
+    sorted(
+        {
+            "",
+            "NONE",
+            "N/D",
+            "NAO INFORMADO",
+            "NOTA INTERNA",
+            "SEM COMPROVACAO",
+            "SEM CUPOM",
+            "SEM NF",
+            "SEM NF/CUPOM",
+            "SEM NOTA",
+            *(alias.upper() for alias in finance_service.manual_internal_document_aliases()),
+        }
+    )
+)
 
 
 def _uses_packaging_system(item_data: dict | None) -> bool:
@@ -1103,6 +1123,64 @@ def _enrich_replacement_price_query(item: Item, query: str, selected_unit: str |
         if extra and extra.lower() not in enriched.lower():
             enriched = f"{enriched} {extra}".strip()
     return enriched
+
+
+def _sql_clean_text(column):
+    return func.trim(func.coalesce(column, ""))
+
+
+def _sql_lower_clean(column):
+    return func.lower(_sql_clean_text(column))
+
+
+def _sql_upper_clean(column):
+    return func.upper(_sql_clean_text(column))
+
+
+def _sql_blank_or_manual_document(column):
+    return or_(
+        func.length(_sql_clean_text(column)) == 0,
+        _sql_upper_clean(column).in_(NO_FISCAL_DOCUMENT_UPPER_ALIASES),
+    )
+
+
+def _replacement_price_no_fiscal_backing_filters():
+    document_backed_codes = (
+        select(DocumentoEntradaEstoqueItem.codigo_item)
+        .join(
+            DocumentoEntradaEstoque,
+            DocumentoEntradaEstoque.id_documento == DocumentoEntradaEstoqueItem.documento_id,
+        )
+        .where(_sql_lower_clean(DocumentoEntradaEstoque.tipo_documento).in_(FISCAL_PRICE_DOCUMENT_TYPES))
+    )
+    ledger_backed_codes = (
+        select(FinanceLedgerEntry.codigo_item)
+        .where(
+            or_(
+                _sql_lower_clean(FinanceLedgerEntry.tipo_documento).in_(FISCAL_PRICE_DOCUMENT_TYPES),
+                _sql_lower_clean(FinanceLedgerEntry.origem_valor).in_(FISCAL_PRICE_VALUE_ORIGINS),
+            )
+        )
+    )
+    return (
+        ~Item.codigo_item.in_(document_backed_codes),
+        ~Item.codigo_item.in_(ledger_backed_codes),
+        ~_sql_lower_clean(Item.preco_compra_fonte).in_(FISCAL_PRICE_VALUE_ORIGINS),
+        _sql_blank_or_manual_document(Item.nota_fiscal),
+        _sql_blank_or_manual_document(Item.preco_compra_documento),
+        func.length(_sql_clean_text(Item.preco_compra_chave_acesso)) == 0,
+    )
+
+
+def _item_allows_web_replacement_price(item: Item) -> bool:
+    if not item:
+        return False
+    return db.session.query(
+        Item.query
+        .filter(Item.codigo_item == item.codigo_item)
+        .filter(*_replacement_price_no_fiscal_backing_filters())
+        .exists()
+    ).scalar()
 
 
 def _serialize_batch_price_item(item: Item) -> dict[str, object]:
@@ -3247,6 +3325,11 @@ def sugestoes_preco_reposicao(codigo: str):
     item = Item.query.get(codigo)
     if not item:
         return {"success": False, "message": "Item nÃ£o encontrado"}, 404
+    if not _item_allows_web_replacement_price(item):
+        return {
+            "success": False,
+            "message": "Este item tem NF/Cupom vinculado. A regra do sistema permite busca web somente para itens sem NF/Cupom.",
+        }, 409
 
     query = (request.args.get("q") or "").strip() or (item.descricao or "").strip()
     query = _enrich_replacement_price_query(item, query, request.args.get("unit"))
@@ -3292,6 +3375,7 @@ def sugestoes_preco_reposicao_lote(categoria: str):
                 Item.preco_reposicao_unitario <= 0,
             )
         )
+        .filter(*_replacement_price_no_fiscal_backing_filters())
     )
 
     pending_total = pending_query.count()
@@ -3386,6 +3470,11 @@ def salvar_preco_reposicao(codigo: str):
     item = Item.query.get(codigo)
     if not item:
         return {"success": False, "message": "Item nÃ£o encontrado"}, 404
+    if not _item_allows_web_replacement_price(item):
+        return {
+            "success": False,
+            "message": "Este item tem NF/Cupom vinculado. A regra do sistema permite aplicar busca web somente em itens sem NF/Cupom.",
+        }, 409
 
     payload = request.json or request.form or {}
     raw_price = payload.get("preco_reposicao_unitario")

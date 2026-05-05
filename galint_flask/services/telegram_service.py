@@ -2458,7 +2458,7 @@ class TelegramService:
         *,
         prefix: str = "   ",
     ) -> list[str]:
-        return TelegramService._build_saida_reference_section(saida, item, prefix=prefix)[1]
+        return TelegramService._build_saida_reference_section(saida, item, prefix=prefix)[2]
 
     @staticmethod
     def _build_saida_reference_section(
@@ -3263,8 +3263,15 @@ class TelegramService:
 
             msg += f"   📊 Qtd: <b>{TelegramService._format_saida_quantidade(saida, item)}</b>\n"
 
-            for line in TelegramService._build_saida_financial_lines(saida, item):
-                msg += f"{line}\n"
+            reference_icon, reference_title, reference_lines = TelegramService._build_saida_reference_section(
+                saida,
+                item,
+                prefix="      ",
+            )
+            if reference_lines and reference_title:
+                msg += f"   {reference_icon} <b>{reference_title}</b>\n"
+                for line in reference_lines:
+                    msg += f"{line}\n"
 
             
 
