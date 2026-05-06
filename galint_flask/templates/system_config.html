@@ -1,16 +1,28 @@
 {% extends "base.html" %}
+{% set hide_navigation = true %}
+{% set hide_topbar = true %}
+{% set disable_global_tools = true %}
 {% block title %}Configurações{% endblock %}
 {% block body_class %}system-config-page{% endblock %}
 {% block page_header %}{% endblock %}
 {% block extra_css %}
 <style>
+    body.system-config-page {
+        background: #e4e9ef;
+    }
+
     body.system-config-page .app-body {
+        min-height: 100vh;
         background: linear-gradient(180deg, #e4e9ef 0%, #cfd8e3 100%);
     }
 
     body.system-config-page .content-panel {
+        width: 100%;
+        max-width: none;
+        min-height: 100vh;
         background: rgba(248, 250, 252, 0.78);
-        border-left: 1px solid rgba(15, 23, 42, 0.08);
+        border-left: 0;
+        box-shadow: none;
     }
 
     .system-config-shell {

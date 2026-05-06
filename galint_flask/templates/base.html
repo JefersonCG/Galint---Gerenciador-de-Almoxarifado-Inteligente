@@ -5,8 +5,9 @@
     <meta charset="utf-8">
     <title>{% block title %}{% endblock %}{% if self.title()|trim %} - {% endif %}{{ system_name }}</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    {% set disable_global_tools = maintenance_disable_global_tools|default(false) %}
-    {% set hide_navigation = maintenance_hide_navigation|default(false) %}
+    {% set disable_global_tools = disable_global_tools|default(maintenance_disable_global_tools|default(false)) %}
+    {% set hide_navigation = hide_navigation|default(maintenance_hide_navigation|default(false)) %}
+    {% set hide_topbar = hide_topbar|default(maintenance_hide_topbar|default(false)) %}
     {% set is_administration_surface = current_user.is_authenticated and session.get('galint_management_access') and (session.get('galint_management_module') == 'administracao' or request.path.startswith('/administracao')) %}
     {% set general_search_mode = 'administracao' if is_administration_surface and endpoint_exists('reports.general_search_administration_api') else 'operacional' %}
     {% set general_search_available = current_user.is_authenticated and not disable_global_tools and endpoint_exists('reports.general_search_suggestions_api') and endpoint_exists('reports.general_search_employee_api') and endpoint_exists('reports.general_search_item_api') and endpoint_exists('reports.general_search_daily_api') %}
@@ -182,6 +183,7 @@
 </head>
 
 <body class="layout-shell {% if is_workspace_window %}workspace-window-mode {% endif %}{% block body_class %}{% endblock %}" {% block body_attributes %}{% endblock %}>
+    {% if not hide_topbar %}
     <header class="topbar shadow-sm">
         <div class="d-flex align-items-center gap-2">
             {% if not is_workspace_window %}
@@ -215,6 +217,7 @@
             {% endif %}
         </div>
     </header>
+    {% endif %}
     <div class="app-body">
         {% if not is_workspace_window and not hide_navigation %}
         <aside id="sidebar-column" class="sidebar-column">

@@ -36,7 +36,9 @@ def _build_login_redirect(*, login_module: str, is_management_login: bool) -> st
 def _management_landing_url(usuario, *, login_module: str) -> str:
     if login_module == "mensageria":
         return url_for("pages.mensageria_maintenance")
-    return url_for("pages.administration_dashboard")
+    if login_module == "administracao":
+        return url_for("pages.administration_dashboard")
+    return url_for("pages.config")
 
 
 def _is_management_user(usuario) -> bool:
