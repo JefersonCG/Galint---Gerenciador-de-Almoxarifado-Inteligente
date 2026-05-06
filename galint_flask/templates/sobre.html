@@ -581,6 +581,7 @@
         <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#about-flow" type="button" role="tab">Fluxo operacional</button></li>
         <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#about-projection" type="button" role="tab">Projeção de compras</button></li>
         <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#about-documents" type="button" role="tab">Cadastro documental</button></li>
+        <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#about-condominium-registry" type="button" role="tab">Cadastro condominial</button></li>
         <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#about-typologies" type="button" role="tab">Tipologias e padrões</button></li>
         <li class="nav-item" role="presentation"><button class="nav-link" data-bs-toggle="pill" data-bs-target="#about-docs" type="button" role="tab">Documentação</button></li>
     </ul>
@@ -936,6 +937,62 @@
                         <p>{{ rule.text }}</p>
                     </article>
                     {% endfor %}
+                </div>
+            </div>
+        </section>
+
+        <section class="tab-pane fade about-tab-pane" id="about-condominium-registry" role="tabpanel">
+            <div class="about-section">
+                <div class="about-highlight mb-4">
+                    <div>
+                        <h4><i class="bi bi-person-vcard text-info me-2"></i>Cadastro Mestre do condomínio</h4>
+                        <p>O cadastro prático fica na Administração; aqui mora a regra de negócio: unidade, titular, locatário, visitantes, veículos, condutores, LGPD e histórico precisam nascer em torno do mesmo vínculo.</p>
+                    </div>
+                    {% if endpoint_exists('pages.admin_condominium_registry') %}
+                    <a class="about-cta" href="{{ url_for('pages.admin_condominium_registry') }}">
+                        <i class="bi bi-box-arrow-up-right"></i>
+                        Abrir Cadastro Mestre
+                    </a>
+                    {% endif %}
+                </div>
+
+                <div class="about-process-grid">
+                    <article class="about-process-card">
+                        <div class="about-process-step">01</div>
+                        <h5><i class="bi bi-building me-2"></i>Unidade como centro</h5>
+                        <p>O cadastro começa escolhendo bloco e apartamento. Depois entram titular, proprietário, locatário, moradores vinculados e responsáveis.</p>
+                    </article>
+                    <article class="about-process-card">
+                        <div class="about-process-step">02</div>
+                        <h5><i class="bi bi-people me-2"></i>Pessoas e acessos</h5>
+                        <p>Visitantes autorizados, condutores, prestadores recorrentes e contatos de emergência ficam vinculados ao cadastro principal da unidade.</p>
+                    </article>
+                    <article class="about-process-card">
+                        <div class="about-process-step">03</div>
+                        <h5><i class="bi bi-car-front me-2"></i>Veículos e placas</h5>
+                        <p>Placa, modelo, cor, vaga e condutores autorizados passam a ser informação pesquisável pela Administração e pela portaria no futuro.</p>
+                    </article>
+                    <article class="about-process-card">
+                        <div class="about-process-step">04</div>
+                        <h5><i class="bi bi-shield-lock me-2"></i>LGPD e revelação</h5>
+                        <p>Documentos sensíveis aparecem mascarados por padrão. A revelação completa deve exigir uma segunda confirmação e deixar trilha auditável.</p>
+                    </article>
+                </div>
+            </div>
+
+            <div class="about-section">
+                <div class="about-section-header-row">
+                    <div>
+                        <div class="about-section-eyebrow"><i class="bi bi-clock-history"></i> Histórico da unidade</div>
+                        <h4 class="mb-2">O que fica preparado para as próximas camadas</h4>
+                        <p class="about-section-copy mb-0">Entrada no condomínio, reservas, multas, pendências, ocorrências e audiências judiciais devem apontar para o mesmo cadastro, sem criar fichas soltas.</p>
+                    </div>
+                </div>
+                <div class="about-rule-grid">
+                    <article class="about-rule-card"><h5>Primeiro dia e mudança</h5><p>Registrar quando a pessoa entrou na unidade permite rastrear histórico sem depender de memória operacional.</p></article>
+                    <article class="about-rule-card"><h5>Reservas e agenda</h5><p>Reservas de espaço e compromissos administrativos devem aparecer na lateral do cadastro da pessoa ou unidade.</p></article>
+                    <article class="about-rule-card"><h5>Pendências e multas</h5><p>A tela principal prepara o vínculo; a gestão detalhada de multas e pendências pode nascer em módulo próprio sem duplicar cadastro.</p></article>
+                    <article class="about-rule-card"><h5>Pesquisa Administração</h5><p>Morador, placa, unidade, documento mascarado e compromisso administrativo passam a conversar com a mesma base.</p></article>
                 </div>
             </div>
         </section>

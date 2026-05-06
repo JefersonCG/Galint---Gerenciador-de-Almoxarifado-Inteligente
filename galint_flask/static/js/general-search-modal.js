@@ -184,8 +184,22 @@
         const employeeUrlTemplate = modalEl.dataset.employeeUrlTemplate;
         const itemUrlTemplate = modalEl.dataset.itemUrlTemplate;
         const dailyUrl = modalEl.dataset.dailyUrl;
+        const adminUrl = modalEl.dataset.adminUrl;
+        const searchMode = modalEl.dataset.searchMode || 'operacional';
+        const defaultScope = searchMode === 'administracao' ? 'administracao' : 'funcionario';
 
         const scopeMeta = {
+            administracao: {
+                inputLabel: 'Buscar na Administração',
+                inputPlaceholder: 'Nome do morador, unidade, placa, telefone, documento ou compromisso',
+                inputHelp: 'A busca consulta moradores, unidades, placas em observações e compromissos administrativos.',
+                heroBadgePrimary: 'Consulta administrativa',
+                heroBadgeSecondary: 'Moradores, unidades, placas e agenda no mesmo painel',
+                heroTitle: 'Administração do condomínio em uma busca',
+                heroText: 'Localize dados de moradores, proprietários, unidades, placas registradas em observações e compromissos administrativos sem sair do dashboard.',
+                showDate: false,
+                showPeriod: false,
+            },
             funcionario: {
                 inputLabel: 'Buscar colaborador',
                 inputPlaceholder: 'Digite nome ou matrícula',
@@ -222,7 +236,7 @@
         };
 
         const state = {
-            scope: 'funcionario',
+            scope: defaultScope,
             suggestions: [],
             selectedSuggestion: null,
             suggestionTimer: null,
@@ -348,8 +362,10 @@
                 hideSuggestions();
                 return;
             }
-            const url = new URL(suggestionsUrl, window.location.origin);
-            url.searchParams.set('scope', state.scope);
+            const url = new URL(state.scope === 'administracao' ? adminUrl : suggestionsUrl, window.location.origin);
+            if (state.scope !== 'administracao') {
+                url.searchParams.set('scope', state.scope);
+            }
             url.searchParams.set('q', query);
             try {
                 const payload = await fetchJson(url.toString(), 'Não foi possível buscar sugestões agora.');
@@ -379,6 +395,9 @@
 
         async function resolveSelection() {
             if (state.scope === 'diario') {
+                return null;
+            }
+            if (state.scope === 'administracao') {
                 return null;
             }
             if (state.selectedSuggestion) {
@@ -663,11 +682,112 @@
                     wireExpandableAccordions(resultsEl);
         }
 
+        function renderAdmin(payload) {
+            const summary = payload.summary || {};
+            const owners = Array.isArray(payload.owners) ? payload.owners : [];
+            const units = Array.isArray(payload.units) ? payload.units : [];
+            const vehicles = Array.isArray(payload.vehicles) ? payload.vehicles : [];
+            const events = Array.isArray(payload.events) ? payload.events : [];
+
+            renderSummary([
+                { label: 'Moradores', value: formatNumber(summary.owners_count, 0), help: 'Proprietários, locatários e responsáveis localizados.' },
+                { label: 'Unidades', value: formatNumber(summary.units_count, 0), help: 'Apartamentos, blocos ou status encontrados.' },
+                { label: 'Placas', value: formatNumber(summary.vehicles_count, 0), help: 'Ocorrências em observações e agenda.' },
+                { label: 'Agenda', value: formatNumber(summary.events_count, 0), help: 'Compromissos administrativos relacionados.' },
+            ]);
+
+            if (!owners.length && !units.length && !vehicles.length && !events.length) {
+                setResultsMode(modalEl, false);
+                resultsEl.innerHTML = ''
+                    + '<div class="general-search-empty-state">'
+                    + '<i class="bi bi-buildings"></i>'
+                    + '<h3>Nenhum dado administrativo encontrado</h3>'
+                    + '<p>Busque por nome de morador, unidade, placa, telefone, documento ou compromisso.</p>'
+                    + '</div>';
+                return;
+            }
+
+            setResultsMode(modalEl, true);
+
+            const ownerRows = owners.length
+                ? owners.map((row) => ''
+                    + '<tr>'
+                    + '<td><strong>' + escapeHtml(row.title) + '</strong><br><small class="general-search-inline-note">' + escapeHtml(row.unit_label || row.subtitle || '-') + '</small></td>'
+                    + '<td>' + escapeHtml(row.document || '-') + '</td>'
+                    + '<td>' + escapeHtml(row.phone || '-') + '</td>'
+                    + '<td>' + escapeHtml(row.email || '-') + '</td>'
+                    + '<td>' + buildStatusBadge(row.status || 'Status', row.status === 'ativo' ? 'resolved' : 'pending') + '</td>'
+                    + '<td><a class="btn btn-sm btn-outline-info" href="' + escapeHtml(row.url || '#') + '">Abrir</a></td>'
+                    + '</tr>').join('')
+                : '<tr><td colspan="6" class="text-center py-4">Nenhum morador encontrado.</td></tr>';
+
+            const unitRows = units.length
+                ? units.map((row) => ''
+                    + '<tr>'
+                    + '<td><strong>' + escapeHtml(row.number || '-') + '</strong><br><small class="general-search-inline-note">' + escapeHtml(row.building || '-') + '</small></td>'
+                    + '<td>' + escapeHtml(row.floor || '-') + '</td>'
+                    + '<td>' + buildStatusBadge(row.status || 'Status', row.status === 'ocupado' ? 'resolved' : 'pending') + '</td>'
+                    + '<td class="text-center"><strong>' + escapeHtml(formatNumber(row.owner_count, 0)) + '</strong></td>'
+                    + '<td><a class="btn btn-sm btn-outline-info" href="' + escapeHtml(row.url || '#') + '">Abrir bloco</a></td>'
+                    + '</tr>').join('')
+                : '<tr><td colspan="5" class="text-center py-4">Nenhuma unidade encontrada.</td></tr>';
+
+            const vehicleRows = vehicles.length
+                ? vehicles.map((row) => ''
+                    + '<tr>'
+                    + '<td><strong>' + escapeHtml(row.badge || 'Registro') + '</strong><br><small class="general-search-inline-note">' + escapeHtml(row.source || '-') + '</small></td>'
+                    + '<td><strong>' + escapeHtml(row.title || '-') + '</strong><br><small class="general-search-inline-note">' + escapeHtml(row.subtitle || '-') + '</small></td>'
+                    + '<td>' + escapeHtml(row.context || '-') + '</td>'
+                    + '<td><a class="btn btn-sm btn-outline-info" href="' + escapeHtml(row.url || '#') + '">Abrir</a></td>'
+                    + '</tr>').join('')
+                : '<tr><td colspan="4" class="text-center py-4">Nenhuma placa encontrada em observações ou agenda.</td></tr>';
+
+            const eventRows = events.length
+                ? events.map((row) => ''
+                    + '<tr>'
+                    + '<td>' + escapeHtml(row.date_label || '-') + '</td>'
+                    + '<td>' + escapeHtml(row.time_label || '-') + '</td>'
+                    + '<td><strong>' + escapeHtml(row.title || '-') + '</strong><br><small class="general-search-inline-note">' + escapeHtml(row.related_label || '-') + '</small></td>'
+                    + '<td>' + escapeHtml(row.event_type_label || '-') + '</td>'
+                    + '<td>' + buildStatusBadge(row.status_label || 'Status', row.status === 'cancelado' ? 'pending' : 'resolved') + '</td>'
+                    + '<td><a class="btn btn-sm btn-outline-info" href="' + escapeHtml(row.url || '#') + '">Abrir agenda</a></td>'
+                    + '</tr>').join('')
+                : '<tr><td colspan="6" class="text-center py-4">Nenhum compromisso encontrado.</td></tr>';
+
+            resultsEl.innerHTML = ''
+                + '<div class="general-search-result-stack">'
+                + '<section class="general-search-surface general-search-hero-pane">'
+                + '<span class="general-search-kicker"><i class="bi bi-buildings"></i> Administração em foco</span>'
+                + '<h3>Resultado administrativo</h3>'
+                + '<p class="mt-2 general-search-inline-note">A busca reúne cadastro condominial, unidades, possíveis placas registradas em observações e compromissos da agenda.</p>'
+                + '</section>'
+                + buildExpandableSection('Moradores e proprietários', 'Dados principais vinculados às unidades.', formatNumber(owners.length, 0) + ' registros', buildTableWrapper('<tr><th>Nome</th><th>Documento</th><th>Telefone</th><th>E-mail</th><th>Status</th><th></th></tr>', ownerRows), true, 'general-search-surface')
+                + buildExpandableSection('Unidades e blocos', 'Apartamentos, status e vínculo com bloco.', formatNumber(units.length, 0) + ' unidades', buildTableWrapper('<tr><th>Unidade</th><th>Andar</th><th>Status</th><th class="text-center">Vínculos</th><th></th></tr>', unitRows), false, 'general-search-surface')
+                + buildExpandableSection('Placas e veículos', 'Busca em observações de cadastro e compromissos da agenda até o cadastro dedicado de veículos existir.', formatNumber(vehicles.length, 0) + ' ocorrências', buildTableWrapper('<tr><th>Placa/Origem</th><th>Registro</th><th>Contexto</th><th></th></tr>', vehicleRows), false, 'general-search-surface')
+                + buildExpandableSection('Agenda administrativa', 'Compromissos, audiências, mudanças, reservas e entrevistas.', formatNumber(events.length, 0) + ' compromissos', buildTableWrapper('<tr><th>Data</th><th>Hora</th><th>Compromisso</th><th>Tipo</th><th>Status</th><th></th></tr>', eventRows), false, 'general-search-surface')
+                + '</div>';
+            wireExpandableAccordions(resultsEl);
+        }
+
         async function runSearch() {
             setMessage('', 'info');
             setLoading();
 
             try {
+                if (state.scope === 'administracao') {
+                    const query = String(searchInput.value || '').trim();
+                    if (!query) {
+                        resetResults();
+                        setMessage('Digite morador, unidade, placa, telefone, documento ou compromisso.', 'error');
+                        return;
+                    }
+                    const url = new URL(adminUrl, window.location.origin);
+                    url.searchParams.set('q', query);
+                    const payload = await fetchJson(url.toString(), 'Não foi possível carregar a pesquisa administrativa.');
+                    renderAdmin(payload);
+                    return;
+                }
+
                 if (state.scope === 'diario') {
                     const url = new URL(dailyUrl, window.location.origin);
                     const selectedDate = String(searchDate.value || '').trim() || getLocalDateInputValue();
@@ -719,7 +839,7 @@
 
         function openWithOptions(options) {
             const data = options || {};
-            applyScope(data.scope || 'funcionario');
+            applyScope(data.scope || defaultScope);
             searchInput.value = data.query || '';
             searchDate.value = data.date || getLocalDateInputValue();
             searchPeriod.value = data.period || '0';
@@ -777,15 +897,15 @@
 
         modalEl.addEventListener('hidden.bs.modal', function () {
             resetForm();
-            applyScope('funcionario');
+            applyScope(defaultScope);
         });
 
-        applyScope('funcionario');
+        applyScope(defaultScope);
         resetForm();
 
         const params = new URLSearchParams(window.location.search || '');
         if (params.get('open_general_search') === '1') {
-            const scope = params.get('general_scope') || 'funcionario';
+            const scope = params.get('general_scope') || defaultScope;
             const query = params.get('general_query') || '';
             const date = params.get('general_date') || '';
             const period = params.get('general_period') || '0';

@@ -8,6 +8,8 @@
     data-employee-url-template="{{ url_for('reports.general_search_employee_api', matricula='__MATRICULA__') }}"
     data-item-url-template="{{ url_for('reports.general_search_item_api', codigo_item='__CODIGO__') }}"
     data-daily-url="{{ url_for('reports.general_search_daily_api') }}"
+    data-admin-url="{{ url_for('reports.general_search_administration_api') if endpoint_exists('reports.general_search_administration_api') else '' }}"
+    data-search-mode="{{ general_search_mode|default('operacional') }}"
 >
     <div class="modal-dialog modal-xl modal-dialog-scrollable general-search-modal-dialog">
         <div class="modal-content general-search-modal">
@@ -15,10 +17,10 @@
                 <div class="general-search-header-copy">
                     <span class="general-search-top-badge">
                         <i class="bi bi-stars"></i>
-                        Pesquisa operacional unificada
+                        {{ 'Pesquisa administrativa unificada' if general_search_mode|default('operacional') == 'administracao' else 'Pesquisa operacional unificada' }}
                     </span>
-                    <h5 class="modal-title" id="modalPesquisaGeralLabel">Pesquisa geral</h5>
-                    <p class="mb-0">Consulte colaboradores, itens e retiradas do dia no mesmo modal.</p>
+                    <h5 class="modal-title" id="modalPesquisaGeralLabel">{{ 'Pesquisa Administração' if general_search_mode|default('operacional') == 'administracao' else 'Pesquisa geral' }}</h5>
+                    <p class="mb-0">{{ 'Consulte moradores, unidades, placas, telefones, documentos e compromissos administrativos no mesmo modal.' if general_search_mode|default('operacional') == 'administracao' else 'Consulte colaboradores, itens e retiradas do dia no mesmo modal.' }}</p>
                 </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
             </div>
@@ -50,7 +52,13 @@
                             <h3>Busque sem sair da tela</h3>
                             <p>Escolha o foco, informe o termo e veja o resultado logo abaixo.</p>
                         </div>
-                        <div class="general-search-scope-switch" role="tablist" aria-label="Modo da pesquisa geral">
+                        <div class="general-search-scope-switch {% if general_search_mode|default('operacional') == 'administracao' %}is-admin-mode{% endif %}" role="tablist" aria-label="Modo da pesquisa geral">
+                            {% if general_search_mode|default('operacional') == 'administracao' %}
+                            <button type="button" class="general-search-scope-btn is-active" data-general-search-scope="administracao">
+                                <i class="bi bi-buildings"></i>
+                                <span>Administração</span>
+                            </button>
+                            {% else %}
                             <button type="button" class="general-search-scope-btn is-active" data-general-search-scope="funcionario">
                                 <i class="bi bi-person-badge"></i>
                                 <span>Colaborador</span>
@@ -63,6 +71,7 @@
                                 <i class="bi bi-calendar-week"></i>
                                 <span>Diário</span>
                             </button>
+                            {% endif %}
                         </div>
                     </div>
 
@@ -129,7 +138,7 @@
                     <div class="general-search-empty-state" id="generalSearchEmptyState">
                         <i class="bi bi-radar"></i>
                         <h3>Pesquisa geral pronta</h3>
-                        <p>Escolha colaborador, item ou diário e faça a busca.</p>
+                        <p>{{ 'Busque morador, unidade, placa, telefone, documento ou compromisso administrativo.' if general_search_mode|default('operacional') == 'administracao' else 'Escolha colaborador, item ou diário e faça a busca.' }}</p>
                     </div>
                 </section>
             </div>

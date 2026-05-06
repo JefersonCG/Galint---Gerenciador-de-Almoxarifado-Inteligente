@@ -7,7 +7,7 @@ import traceback
 from dotenv import dotenv_values, load_dotenv
 from flask import Flask
 from flask import jsonify
-from flask import render_template, request
+from flask import render_template, request, url_for
 from werkzeug.exceptions import HTTPException
 
 from .config import load_config
@@ -115,16 +115,28 @@ def create_app(config_name: str | None = None) -> Flask:
         or "Gerenciador de Almoxarifado Inteligente",
     )
 
+    def _system_image_path(slot_key: str) -> str:
+        from .services.config_service import ConfigService
+
+        return ConfigService.get_system_image_path(slot_key)
+
+    def _system_image_url(slot_key: str, version: str = "20260506-system-image") -> str:
+        return url_for("static", filename=_system_image_path(slot_key), v=version)
+
     @app.context_processor
     def _inject_system_name():
         return {
             "system_name": app.config.get("SYSTEM_NAME", "Gerenciador de Almoxarifado Inteligente"),
             "build_sidebar_navigation": build_sidebar_navigation,
+            "system_image_path": _system_image_path,
+            "system_image_url": _system_image_url,
         }
 
     # Helpers globais para templates
     app.jinja_env.globals["endpoint_exists"] = lambda endpoint: endpoint in app.view_functions
     app.jinja_env.globals["build_sidebar_navigation"] = build_sidebar_navigation
+    app.jinja_env.globals["system_image_path"] = _system_image_path
+    app.jinja_env.globals["system_image_url"] = _system_image_url
     
     # Filtro customizado para formatar datas no timezone local
     from .utils.time_service import TimeService
@@ -161,6 +173,9 @@ def create_app(config_name: str | None = None) -> Flask:
 
     # Permite autenticar janelas nativas auxiliares via token assinado local.
     _register_workspace_window_token_auth(app)
+
+    # Modo global para bloquear operação durante atualização/implantação.
+    _register_system_maintenance_guard(app)
 
     # Middleware de monitoramento de inatividade
     _register_inactivity_middleware(app)
@@ -273,6 +288,104 @@ def create_app(config_name: str | None = None) -> Flask:
         app.logger.exception("Falha ao disparar thread de saudação de startup")
 
     return app
+
+
+def _register_system_maintenance_guard(app: Flask) -> None:
+    allowed_endpoints = {
+        "api_health",
+        "auth.login_form",
+        "auth.login_submit",
+        "auth.login_photo_lookup",
+        "auth.logout",
+        "auth.management_login",
+        "auth.session_activity",
+        "static",
+        "_legacy_login_get",
+        "_legacy_login_post",
+        "_legacy_logout_get",
+    }
+    allowed_prefixes = (
+        "/api/health",
+        "/auth/gestao",
+        "/auth/login",
+        "/auth/login-photo",
+        "/auth/logout",
+        "/auth/session-activity",
+        "/favicon.ico",
+        "/login",
+        "/logout",
+        "/static/",
+    )
+
+    def _lock_file_path() -> Path | None:
+        raw_path = str(app.config.get("MAINTENANCE_LOCK_FILE") or "").strip()
+        if not raw_path:
+            return None
+        path = Path(raw_path)
+        if not path.is_absolute():
+            path = Path(app.instance_path) / path
+        return path
+
+    def _read_lock_message(path: Path | None) -> str:
+        if path is None or not path.exists():
+            return ""
+        try:
+            return path.read_text(encoding="utf-8").strip()
+        except OSError:
+            return ""
+
+    def _maintenance_message() -> str:
+        configured = str(app.config.get("MAINTENANCE_MESSAGE") or "").strip()
+        return configured or _read_lock_message(_lock_file_path())
+
+    def _maintenance_enabled() -> bool:
+        if bool(app.config.get("MAINTENANCE_MODE", False)):
+            return True
+        path = _lock_file_path()
+        return bool(path and path.exists())
+
+    def _request_allowed() -> bool:
+        if request.method == "OPTIONS":
+            return True
+        if request.endpoint in allowed_endpoints:
+            return True
+        path = request.path or ""
+        return any(path.startswith(prefix) for prefix in allowed_prefixes)
+
+    @app.before_request
+    def block_requests_during_system_maintenance():
+        if not _maintenance_enabled() or _request_allowed():
+            return None
+
+        message = _maintenance_message()
+        default_message = (
+            "O GALINT esta em manutencao para atualizacao de codigo, compilacao ou implantacao. "
+            "Qualquer perfil que entrar agora vera esta tela ate a liberacao."
+        )
+        if _request_expects_json():
+            return jsonify({
+                "success": False,
+                "error": "SystemMaintenance",
+                "message": message or default_message,
+                "status_code": 503,
+            }), 503
+
+        return render_template(
+            "mensageria_maintenance.html",
+            maintenance_context={
+                "page_title": "Sistema em manutenção",
+                "kicker": "Atualização do sistema",
+                "title": "Sistema em manutenção",
+                "icon": "bi-tools",
+                "copy": message or default_message,
+                "notes": [
+                    "A tela de login continua disponivel; depois de autenticar, o acesso operacional fica bloqueado por seguranca.",
+                    "Nenhuma rotina do Almoxarifado, Administracao ou Mensageria deve ser usada enquanto este modo estiver ativo.",
+                ],
+            },
+            maintenance_disable_global_tools=True,
+            maintenance_hide_navigation=True,
+        ), 503, {"Retry-After": "30"}
 
 
 def _register_inactivity_middleware(app: Flask) -> None:

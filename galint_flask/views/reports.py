@@ -2,15 +2,19 @@
 from __future__ import annotations
 
 import unicodedata
+import re
 from io import BytesIO
 from datetime import datetime, timedelta
 
-from flask import Blueprint, abort, flash, jsonify, redirect, request, send_file, url_for
+from flask import Blueprint, abort, flash, jsonify, redirect, request, send_file, session, url_for
 from flask_login import current_user, login_required
+from sqlalchemy import or_
 
 from galint_flask.utils.time_service import TimeService
 
 from ..services.general_search_service import general_search_service
+from ..models import CondominiumBuilding, CondominiumOwner, CondominiumScheduleEvent, CondominiumUnit
+from ..services.condominium_schedule import event_to_view
 
 bp = Blueprint("reports", __name__, url_prefix="/relatorios")
 
@@ -51,6 +55,215 @@ def _normalize_search(value: str) -> str:
         return ""
     normalized = unicodedata.normalize("NFKD", value)
     return "".join(ch for ch in normalized if not unicodedata.combining(ch))
+
+
+def _normalize_compact(value: object) -> str:
+    normalized = _normalize_search(str(value or "")).upper()
+    return re.sub(r"[^A-Z0-9]", "", normalized)
+
+
+def _has_administration_search_access() -> bool:
+    if not bool(getattr(current_user, "is_authenticated", False)):
+        return False
+    admin_value = getattr(current_user, "is_admin", 0)
+    if str(admin_value or "").strip().lower() in {"1", "true", "sim", "yes"}:
+        return True
+    return bool(session.get("galint_management_access")) and str(session.get("galint_management_module") or "").strip().lower() == "administracao"
+
+
+def _owner_unit_label(owner: CondominiumOwner) -> str:
+    if owner.unit:
+        return owner.unit.full_label()
+    return "Sem unidade vinculada"
+
+
+def _event_date_label(event: CondominiumScheduleEvent) -> str:
+    return event.event_date.strftime("%d/%m/%Y") if event.event_date else "Sem data"
+
+
+def _admin_like_filters(search_term: str):
+    like_term = f"%{search_term}%"
+    compact_term = _normalize_compact(search_term)
+    return like_term, compact_term
+
+
+def _extract_plate_matches(text: object, fallback_query: str = "") -> list[str]:
+    source = _normalize_compact(text)
+    matches = re.findall(r"[A-Z]{3}[0-9][A-Z0-9][0-9]{2}", source)
+    query = _normalize_compact(fallback_query)
+    if query and len(query) >= 5 and query in source and query not in matches:
+        matches.append(query)
+    return matches[:4]
+
+
+def _admin_search_payload(query: str, *, limit: int = 12) -> dict[str, object]:
+    search_term = str(query or "").strip()
+    limit = max(int(limit or 0), 1)
+    like_term, compact_term = _admin_like_filters(search_term)
+
+    owners_query = (
+        CondominiumOwner.query
+        .outerjoin(CondominiumUnit, CondominiumOwner.unit_id == CondominiumUnit.id)
+        .outerjoin(CondominiumBuilding, CondominiumUnit.building_id == CondominiumBuilding.id)
+    )
+    if search_term:
+        owners_query = owners_query.filter(
+            or_(
+                CondominiumOwner.full_name.ilike(like_term),
+                CondominiumOwner.document_number.ilike(like_term),
+                CondominiumOwner.rg.ilike(like_term),
+                CondominiumOwner.cnh.ilike(like_term),
+                CondominiumOwner.phone.ilike(like_term),
+                CondominiumOwner.email.ilike(like_term),
+                CondominiumOwner.emergency_contact.ilike(like_term),
+                CondominiumOwner.notes.ilike(like_term),
+                CondominiumUnit.number.ilike(like_term),
+                CondominiumBuilding.code.ilike(like_term),
+                CondominiumBuilding.name.ilike(like_term),
+            )
+        )
+    owners = owners_query.order_by(CondominiumOwner.status.asc(), CondominiumOwner.full_name.asc()).limit(limit).all()
+
+    units_query = CondominiumUnit.query.join(CondominiumBuilding, CondominiumUnit.building_id == CondominiumBuilding.id)
+    if search_term:
+        units_query = units_query.filter(
+            or_(
+                CondominiumUnit.number.ilike(like_term),
+                CondominiumUnit.status.ilike(like_term),
+                CondominiumUnit.notes.ilike(like_term),
+                CondominiumBuilding.code.ilike(like_term),
+                CondominiumBuilding.name.ilike(like_term),
+            )
+        )
+    units = units_query.order_by(CondominiumBuilding.display_order.asc(), CondominiumUnit.floor_number.asc(), CondominiumUnit.position.asc()).limit(limit).all()
+
+    events_query = (
+        CondominiumScheduleEvent.query
+        .outerjoin(CondominiumUnit, CondominiumScheduleEvent.unit_id == CondominiumUnit.id)
+        .outerjoin(CondominiumBuilding, CondominiumScheduleEvent.building_id == CondominiumBuilding.id)
+        .outerjoin(CondominiumOwner, CondominiumScheduleEvent.owner_id == CondominiumOwner.id)
+    )
+    if search_term:
+        events_query = events_query.filter(
+            or_(
+                CondominiumScheduleEvent.title.ilike(like_term),
+                CondominiumScheduleEvent.event_type.ilike(like_term),
+                CondominiumScheduleEvent.scope.ilike(like_term),
+                CondominiumScheduleEvent.status.ilike(like_term),
+                CondominiumScheduleEvent.contact_name.ilike(like_term),
+                CondominiumScheduleEvent.contact_phone.ilike(like_term),
+                CondominiumScheduleEvent.location.ilike(like_term),
+                CondominiumScheduleEvent.description.ilike(like_term),
+                CondominiumUnit.number.ilike(like_term),
+                CondominiumBuilding.code.ilike(like_term),
+                CondominiumBuilding.name.ilike(like_term),
+                CondominiumOwner.full_name.ilike(like_term),
+            )
+        )
+    events = events_query.order_by(CondominiumScheduleEvent.event_date.desc(), CondominiumScheduleEvent.start_time.asc()).limit(limit).all()
+
+    owner_rows = [
+        {
+            "id": owner.id,
+            "title": owner.full_name,
+            "subtitle": _owner_unit_label(owner),
+            "badge": owner.relationship_type.replace("_", " ").title(),
+            "document": owner.document_number,
+            "phone": owner.phone,
+            "email": owner.email,
+            "status": owner.status,
+            "unit_label": _owner_unit_label(owner),
+            "url": url_for("pages.admin_condominium_registry"),
+        }
+        for owner in owners
+    ]
+
+    unit_rows = [
+        {
+            "id": unit.id,
+            "title": unit.full_label(),
+            "subtitle": f"Status {unit.status or 'N/D'}",
+            "badge": unit.status,
+            "number": unit.number,
+            "building": unit.building.display_name() if unit.building else "Bloco",
+            "floor": unit.floor_number,
+            "owner_count": len([owner for owner in unit.owners if owner.status == "ativo"]),
+            "url": url_for("pages.admin_condominium_blocks_editor", editar=unit.building_id) if unit.building_id else url_for("pages.admin_condominium_blocks_editor"),
+        }
+        for unit in units
+    ]
+
+    event_rows = []
+    for event in events:
+        view = event_to_view(event)
+        event_rows.append(
+            {
+                **view,
+                "title": event.title,
+                "subtitle": f"{_event_date_label(event)} · {event.time_label()} · {event.related_label()}",
+                "badge": view.get("event_type_label"),
+                "date_label": _event_date_label(event),
+                "url": url_for("pages.admin_condominium_schedule", data=event.event_date.isoformat()) if event.event_date else url_for("pages.admin_condominium_schedule"),
+            }
+        )
+
+    vehicle_matches: list[dict[str, object]] = []
+    if compact_term:
+        for owner in owners:
+            context = " ".join(str(value or "") for value in (owner.notes, owner.cnh, owner.emergency_contact))
+            plates = _extract_plate_matches(context, search_term)
+            if plates or compact_term in _normalize_compact(context):
+                vehicle_matches.append(
+                    {
+                        "title": owner.full_name,
+                        "subtitle": _owner_unit_label(owner),
+                        "badge": ", ".join(plates) if plates else "Cadastro",
+                        "source": "Morador/proprietário",
+                        "context": context[:220],
+                        "url": url_for("pages.admin_condominium_registry"),
+                    }
+                )
+        for event in events:
+            context = " ".join(str(value or "") for value in (event.title, event.location, event.description, event.contact_name, event.contact_phone))
+            plates = _extract_plate_matches(context, search_term)
+            if plates or compact_term in _normalize_compact(context):
+                vehicle_matches.append(
+                    {
+                        "title": event.title,
+                        "subtitle": f"{_event_date_label(event)} · {event.related_label()}",
+                        "badge": ", ".join(plates) if plates else "Agenda",
+                        "source": "Agenda",
+                        "context": context[:220],
+                        "url": url_for("pages.admin_condominium_schedule", data=event.event_date.isoformat()) if event.event_date else url_for("pages.admin_condominium_schedule"),
+                    }
+                )
+    vehicle_matches = vehicle_matches[:limit]
+
+    suggestions = []
+    for row in owner_rows[:5]:
+        suggestions.append({"entity_type": "morador", **row})
+    for row in unit_rows[:4]:
+        suggestions.append({"entity_type": "unidade", **row})
+    for row in vehicle_matches[:3]:
+        suggestions.append({"entity_type": "placa", **row})
+    for row in event_rows[:4]:
+        suggestions.append({"entity_type": "agenda", **row})
+
+    return {
+        "scope": "administracao",
+        "query": search_term,
+        "results": suggestions[:limit],
+        "owners": owner_rows,
+        "units": unit_rows,
+        "vehicles": vehicle_matches,
+        "events": event_rows,
+        "summary": {
+            "owners_count": len(owner_rows),
+            "units_count": len(unit_rows),
+            "vehicles_count": len(vehicle_matches),
+            "events_count": len(event_rows),
+        },
+    }
 
 
 def _parse_period_days_arg(raw_value: object, *, default: int = 0) -> int:
@@ -412,6 +625,15 @@ def general_search_daily_api():
         selected_date=selected_date,
         search_term=(request.args.get("search") or "").strip(),
     )
+    return jsonify({"success": True, **payload})
+
+
+@bp.route("/api/pesquisa-geral/administracao")
+@login_required
+def general_search_administration_api():
+    if not _has_administration_search_access():
+        return jsonify({"success": False, "message": "Acesso restrito ao setor Administração."}), 403
+    payload = _admin_search_payload((request.args.get("q") or request.args.get("search") or "").strip())
     return jsonify({"success": True, **payload})
 
 

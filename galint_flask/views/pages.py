@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import html
 import re
+from datetime import date, time as dt_time
 from pathlib import Path
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 from urllib.error import HTTPError, URLError
@@ -11,18 +12,34 @@ from urllib.request import Request, urlopen
 from flask import Blueprint, current_app, flash, jsonify, redirect, render_template, request, send_file, session, url_for
 from flask_login import current_user, login_required
 from werkzeug.exceptions import abort
+from werkzeug.utils import secure_filename
 
+from ..extensions import db
+from ..models import CondominiumBuilding, CondominiumOwner, CondominiumScheduleEvent, CondominiumUnit
 from ..services.backup import BackupService
 from ..services.auth import create_workspace_window_token
 from ..services.backup_restore_jobs import get_job_state, start_restore_job
 from ..services.category_catalog import DEFAULT_INVENTORY_CATEGORIES, category_catalog_service
+from ..services.condominium_schedule import (
+    EVENT_TYPE_LABELS,
+    PRIORITY_LABELS,
+    SCOPE_LABELS,
+    STATUS_LABELS,
+    build_calendar_context,
+    build_schedule_dashboard_summary,
+    due_schedule_notifications,
+    normalize_event_type,
+    normalize_priority,
+    normalize_scope,
+    normalize_status,
+    now_local_naive,
+    today_local,
+)
+from ..services.condominium_structure import UNIT_STATUS_LABELS, build_condominium_block_dashboard, generate_unit_layout, normalize_unit_status, sync_building_units, unit_dashboard_status
 from ..services.conversion_engine import ConversionEngineService, get_conversion_job_state, start_conversion_job
-from ..services.enterprise_navigation import build_enterprise_sections
-from ..services.inventory import inventory_service
 from ..services.native_workspace_launcher import launch_workspace_window, launch_workspace_window_auto
 from ..services.network_settings import load_network_settings, save_network_settings
 from ..services.purchase_projection_runtime_service import purchase_projection_service
-from ..services.tool_custody_service import tool_custody_service
 
 
 blueprint = Blueprint("pages", __name__)
@@ -87,6 +104,437 @@ def _resolve_enterprise_category_icon_url(category_key: object) -> str | None:
     if not asset_path:
         return None
     return url_for("static", filename=asset_path, v="20260504-enterprise-categories")
+
+
+_ADMIN_BLOCKS = (
+    {"number": 1, "name": "Itanhangá", "counts": {"default": 10}},
+    {"number": 2, "name": "Sernambetiba", "counts": {"default": 8}},
+    {"number": 3, "name": "Itaúna", "counts": {"default": 10}},
+    {"number": 4, "name": "Reserva", "counts": {"default": 12, 1: 10}},
+    {"number": 5, "name": "Recreio", "counts": {"default": 8, 1: 6}},
+    {"number": 6, "name": "Pontal", "counts": {"default": 12, 1: 10}},
+    {"number": 7, "name": "Prainha", "counts": {"default": 12, 1: 10}},
+    {"number": 8, "name": "Grumari", "counts": {"default": 10, 1: 9}},
+    {"number": 9, "name": "Pedra Branca", "counts": {"default": 10, 1: 9}},
+)
+
+_ADMIN_REFORM_UNITS = {205, 209, 211, 310, 405, 409, 411, 603, 606, 607, 610, 612, 1010}
+_ADMIN_VACANT_UNITS = {104, 108, 202, 304, 308, 402, 704, 708, 710, 802, 904, 908, 1002}
+
+
+def _admin_floor_unit_count(block: dict[str, object], floor: int) -> int:
+    counts = block.get("counts") if isinstance(block.get("counts"), dict) else {}
+    return int(counts.get(floor) or counts.get("default") or 0)
+
+
+def _default_admin_block(number: int | None) -> dict[str, object] | None:
+    for block in _ADMIN_BLOCKS:
+        if int(block["number"]) == int(number or 0):
+            return block
+    return None
+
+
+def _default_block_custom_units_text(block: dict[str, object]) -> str:
+    lines: list[str] = []
+    for floor in range(1, 11):
+        unit_count = _admin_floor_unit_count(block, floor)
+        units = [str(floor * 100 + position) for position in range(1, unit_count + 1)]
+        lines.append(f"{floor}: {', '.join(units)}")
+    return "\n".join(lines)
+
+
+def _build_admin_block_dashboard_from_defaults() -> dict[str, object]:
+    cards: list[dict[str, object]] = []
+    totals = {"ocupado": 0, "vago": 0, "reforma": 0, "sem_cadastro": 0, "unidades": 0}
+
+    for block in _ADMIN_BLOCKS:
+        floor_counts = [_admin_floor_unit_count(block, floor) for floor in range(1, 11)]
+        max_columns = max(floor_counts) if floor_counts else 0
+        block_totals = {"ocupado": 0, "vago": 0, "reforma": 0, "sem_cadastro": 0, "unidades": 0}
+        floors: list[dict[str, object]] = []
+
+        for floor in range(10, 0, -1):
+            unit_count = _admin_floor_unit_count(block, floor)
+            units: list[dict[str, object]] = []
+            for position in range(1, max_columns + 1):
+                if position > unit_count:
+                    units.append({"empty": True})
+                    continue
+                unit_number = floor * 100 + position
+                status = "sem_cadastro"
+                units.append({"empty": False, "number": unit_number, "status": status, "status_label": UNIT_STATUS_LABELS[status]})
+                block_totals[status] += 1
+                block_totals["unidades"] += 1
+                totals[status] += 1
+                totals["unidades"] += 1
+            floors.append({"floor": floor, "units": units})
+
+        cards.append(
+            {
+                "building_id": None,
+                "editor_model": block["number"],
+                "number": block["number"],
+                "name": block["name"],
+                "max_columns": max_columns,
+                "floors": floors,
+                "totals": block_totals,
+            }
+        )
+
+    return {"cards": cards, "totals": totals, "block_count": len(cards)}
+
+
+def _build_admin_block_dashboard() -> dict[str, object]:
+    return build_condominium_block_dashboard() or _build_admin_block_dashboard_from_defaults()
+
+
+def _current_user_matricula() -> str | None:
+    value = str(getattr(current_user, "matricula", "") or "").strip()
+    return value or None
+
+
+def _form_int(name: str, *, default: int, minimum: int | None = None, maximum: int | None = None) -> int:
+    raw_value = str(request.form.get(name, default) or default).strip()
+    try:
+        value = int(raw_value)
+    except ValueError as exc:
+        raise ValueError(f"Campo numerico invalido: {name}.") from exc
+    if minimum is not None and value < minimum:
+        raise ValueError(f"Campo {name} deve ser maior ou igual a {minimum}.")
+    if maximum is not None and value > maximum:
+        raise ValueError(f"Campo {name} deve ser menor ou igual a {maximum}.")
+    return value
+
+
+def _building_form(building: CondominiumBuilding | None = None) -> dict[str, object]:
+    if building:
+        return {
+            "id": building.id,
+            "code": building.code,
+            "name": building.name,
+            "display_order": building.display_order,
+            "floor_start": building.floor_start,
+            "floor_count": building.floor_count,
+            "units_per_floor": building.units_per_floor,
+            "unit_suffix_start": building.unit_suffix_start,
+            "suffix_width": building.suffix_width,
+            "custom_units_text": building.custom_units_text or "",
+            "notes": building.notes or "",
+            "active": building.active,
+        }
+    return {
+        "id": None,
+        "code": "",
+        "name": "",
+        "display_order": 0,
+        "floor_start": 1,
+        "floor_count": 10,
+        "units_per_floor": 4,
+        "unit_suffix_start": 0,
+        "suffix_width": 2,
+        "custom_units_text": "",
+        "notes": "",
+        "active": True,
+    }
+
+
+def _building_form_from_default(block: dict[str, object]) -> dict[str, object]:
+    block_number = int(block["number"])
+    default_count = _admin_floor_unit_count(block, 1)
+    return {
+        "id": None,
+        "code": str(block_number),
+        "name": block["name"],
+        "display_order": block_number,
+        "floor_start": 1,
+        "floor_count": 10,
+        "units_per_floor": default_count,
+        "unit_suffix_start": 1,
+        "suffix_width": 2,
+        "custom_units_text": _default_block_custom_units_text(block),
+        "notes": "",
+        "active": True,
+        "template_mode": True,
+    }
+
+
+def _building_summaries() -> list[dict[str, object]]:
+    buildings = (
+        CondominiumBuilding.query
+        .order_by(CondominiumBuilding.active.desc(), CondominiumBuilding.display_order.asc(), CondominiumBuilding.id.asc())
+        .all()
+    )
+    summaries: list[dict[str, object]] = []
+    for building in buildings:
+        units = [unit for unit in building.units if unit.active]
+        status_counts = {"ocupado": 0, "vago": 0, "reforma": 0, "sem_cadastro": 0}
+        floors = sorted({int(unit.floor_number or 0) for unit in units})
+        for unit in units:
+            status_counts[unit_dashboard_status(unit)] += 1
+        summaries.append(
+            {
+                "building": building,
+                "units_total": len(units),
+                "floor_total": len(floors),
+                "floor_range": f"{floors[0]} a {floors[-1]}" if floors else "-",
+                "status_counts": status_counts,
+            }
+        )
+    return summaries
+
+
+def _owner_photo_upload(owner_id: int) -> str | None:
+    file = request.files.get("photo")
+    if not file or not file.filename:
+        return None
+    filename = secure_filename(file.filename)
+    extension = Path(filename).suffix.lower()
+    if extension not in {".jpg", ".jpeg", ".png", ".webp"}:
+        raise ValueError("Foto deve ser JPG, PNG ou WEBP.")
+    static_root = Path(current_app.static_folder or (Path(current_app.root_path) / "static"))
+    upload_dir = static_root / "uploads" / "condominio" / "proprietarios"
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    relative_path = Path("uploads") / "condominio" / "proprietarios" / f"proprietario_{owner_id}{extension}"
+    file.save(static_root / relative_path)
+    return relative_path.as_posix()
+
+
+def _condominium_unit_options() -> list[CondominiumUnit]:
+    return (
+        CondominiumUnit.query
+        .join(CondominiumBuilding)
+        .filter(CondominiumUnit.active.is_(True), CondominiumBuilding.active.is_(True))
+        .order_by(
+            CondominiumBuilding.display_order.asc(),
+            CondominiumBuilding.id.asc(),
+            CondominiumUnit.floor_number.asc(),
+            CondominiumUnit.position.asc(),
+            CondominiumUnit.number.asc(),
+        )
+        .all()
+    )
+
+
+def _condominium_owner_rows() -> list[CondominiumOwner]:
+    return (
+        CondominiumOwner.query
+        .outerjoin(CondominiumUnit)
+        .outerjoin(CondominiumBuilding)
+        .order_by(
+            CondominiumOwner.status.asc(),
+            CondominiumBuilding.display_order.asc(),
+            CondominiumUnit.floor_number.asc(),
+            CondominiumUnit.position.asc(),
+            CondominiumOwner.full_name.asc(),
+        )
+        .limit(80)
+        .all()
+    )
+
+
+def _parse_iso_date(raw_value: object, *, default: date | None = None) -> date:
+    value = str(raw_value or "").strip()
+    if not value:
+        if default is not None:
+            return default
+        raise ValueError("Informe uma data valida.")
+    try:
+        return date.fromisoformat(value)
+    except ValueError as exc:
+        raise ValueError("Informe uma data valida.") from exc
+
+
+def _parse_iso_time(raw_value: object) -> dt_time | None:
+    value = str(raw_value or "").strip()
+    if not value:
+        return None
+    try:
+        hour, minute = value.split(":", 1)
+        return dt_time(int(hour), int(minute))
+    except (ValueError, TypeError) as exc:
+        raise ValueError("Informe horario no formato HH:MM.") from exc
+
+
+def _month_date_from_request(selected_date: date) -> date:
+    raw_month = str(request.args.get("mes") or "").strip()
+    if raw_month:
+        try:
+            year_raw, month_raw = raw_month.split("-", 1)
+            return date(int(year_raw), int(month_raw), 1)
+        except ValueError:
+            return date(selected_date.year, selected_date.month, 1)
+    return date(selected_date.year, selected_date.month, 1)
+
+
+def _schedule_form_options() -> dict[str, object]:
+    return {
+        "event_types": EVENT_TYPE_LABELS,
+        "scopes": SCOPE_LABELS,
+        "statuses": STATUS_LABELS,
+        "priorities": PRIORITY_LABELS,
+        "buildings": (
+            CondominiumBuilding.query
+            .filter_by(active=True)
+            .order_by(CondominiumBuilding.display_order.asc(), CondominiumBuilding.id.asc())
+            .all()
+        ),
+        "units": _condominium_unit_options(),
+        "owners": (
+            CondominiumOwner.query
+            .filter_by(status="ativo")
+            .order_by(CondominiumOwner.full_name.asc())
+            .all()
+        ),
+    }
+
+
+def _schedule_event_form(event: CondominiumScheduleEvent | None, *, selected_date: date) -> dict[str, object]:
+    if event:
+        return {
+            "id": event.id,
+            "event_date": event.event_date.isoformat(),
+            "start_time": event.start_time.strftime("%H:%M") if event.start_time else "",
+            "end_time": event.end_time.strftime("%H:%M") if event.end_time else "",
+            "title": event.title,
+            "event_type": event.event_type,
+            "scope": event.scope,
+            "status": event.status,
+            "priority": event.priority,
+            "building_id": event.building_id or "",
+            "unit_id": event.unit_id or "",
+            "owner_id": event.owner_id or "",
+            "contact_name": event.contact_name or "",
+            "contact_phone": event.contact_phone or "",
+            "location": event.location or "",
+            "description": event.description or "",
+            "notify_enabled": event.notify_enabled,
+            "reminder_minutes": event.reminder_minutes,
+        }
+    return {
+        "id": None,
+        "event_date": selected_date.isoformat(),
+        "start_time": "",
+        "end_time": "",
+        "title": "",
+        "event_type": "compromisso",
+        "scope": "administracao",
+        "status": "agendado",
+        "priority": "normal",
+        "building_id": "",
+        "unit_id": "",
+        "owner_id": "",
+        "contact_name": "",
+        "contact_phone": "",
+        "location": "",
+        "description": "",
+        "notify_enabled": True,
+        "reminder_minutes": 30,
+    }
+
+
+def _apply_schedule_event_form(event: CondominiumScheduleEvent) -> None:
+    event_date = _parse_iso_date(request.form.get("event_date"))
+    start_time = _parse_iso_time(request.form.get("start_time"))
+    end_time = _parse_iso_time(request.form.get("end_time"))
+    if start_time and end_time and end_time <= start_time:
+        raise ValueError("Horario final precisa ser depois do horario inicial.")
+
+    title = str(request.form.get("title") or "").strip()
+    if not title:
+        raise ValueError("Informe o titulo do compromisso.")
+
+    unit_id = request.form.get("unit_id", type=int)
+    owner_id = request.form.get("owner_id", type=int)
+    building_id = request.form.get("building_id", type=int)
+    unit = CondominiumUnit.query.get(unit_id) if unit_id else None
+    owner = CondominiumOwner.query.get(owner_id) if owner_id else None
+    if owner and owner.unit and unit and owner.unit_id != unit.id:
+        raise ValueError("O proprietario selecionado nao pertence a unidade escolhida.")
+    if owner and owner.unit and not unit:
+        unit = owner.unit
+    building = unit.building if unit else (CondominiumBuilding.query.get(building_id) if building_id else None)
+
+    reminder_minutes = _form_int("reminder_minutes", default=30, minimum=0, maximum=10080)
+    contact_name = str(request.form.get("contact_name") or "").strip() or (owner.full_name if owner else None)
+    contact_phone = str(request.form.get("contact_phone") or "").strip() or (owner.phone if owner else None)
+
+    event.event_date = event_date
+    event.start_time = start_time
+    event.end_time = end_time
+    event.title = title
+    event.event_type = normalize_event_type(request.form.get("event_type"))
+    event.scope = normalize_scope(request.form.get("scope"))
+    event.status = normalize_status(request.form.get("status"))
+    event.priority = normalize_priority(request.form.get("priority"))
+    event.building = building
+    event.unit = unit
+    event.owner = owner
+    event.contact_name = contact_name
+    event.contact_phone = contact_phone
+    event.location = str(request.form.get("location") or "").strip() or None
+    event.description = str(request.form.get("description") or "").strip() or None
+    event.notify_enabled = bool(request.form.get("notify_enabled"))
+    event.reminder_minutes = reminder_minutes
+    event.notification_acknowledged_at = None
+    event.updated_by_matricula = _current_user_matricula()
+
+
+def _system_setting_item(label: str, endpoint: str, icon: str, family: str, *, enabled: bool = True) -> dict[str, str] | None:
+    if not enabled or endpoint not in current_app.view_functions:
+        return None
+    return {"label": label, "href": url_for(endpoint), "icon": icon, "family": family}
+
+
+def _system_setting_section(label: str, icon: str, items: list[dict[str, str] | None]) -> dict[str, object] | None:
+    visible_items = [item for item in items if item]
+    if not visible_items:
+        return None
+    return {"label": label, "icon": icon, "items": visible_items}
+
+
+def _build_system_settings_hub(*, is_admin: bool) -> dict[str, object]:
+    mobile_panel_enabled = is_admin and bool(current_app.config.get("FEATURE_MOBILE_PANEL_ENABLED", False))
+    sections = [
+        _system_setting_section(
+            "Sistema",
+            "bi-sliders",
+            [
+                _system_setting_item("Empresa", "config.empresa", "bi-building", "Core"),
+                _system_setting_item("Imagens do Sistema", "config.imagens", "bi-images", "Visual"),
+                _system_setting_item("Relatórios", "config.relatorios", "bi-file-earmark-text", "Core"),
+                _system_setting_item("Atualizações", "updates.index", "bi-arrow-clockwise", "Core"),
+                _system_setting_item("Rede", "pages.config_rede", "bi-wifi", "Core"),
+                _system_setting_item("Checklist Final", "pages.backup_final_checklist", "bi-clipboard2-check", "Core"),
+            ],
+        ),
+        _system_setting_section(
+            "Operações Técnicas",
+            "bi-terminal",
+            [
+                _system_setting_item("Notificações", "config.notificacoes", "bi-bell", "Alertas"),
+                _system_setting_item("Telegram", "telegram_config.index", "bi-telegram", "Mensageria"),
+                _system_setting_item("Histórico Telegram", "telegram_config.historico", "bi-clock-history", "Mensageria"),
+                _system_setting_item("Backup", "pages.config_backup", "bi-database", "Dados"),
+                _system_setting_item("ConversionEngine", "pages.config_conversionengine", "bi-cpu", "Restore", enabled=is_admin),
+            ],
+        ),
+        _system_setting_section(
+            "Governança",
+            "bi-shield-check",
+            [
+                _system_setting_item("Usuários", "users.list_users", "bi-people-fill", "Permissões", enabled=is_admin),
+                _system_setting_item("Painel Mobile", "mobile_panel.dashboard", "bi-phone-fill", "Mobile", enabled=mobile_panel_enabled),
+                _system_setting_item("Dispositivos Mobile", "mobile_panel.devices", "bi-phone", "Mobile", enabled=mobile_panel_enabled),
+                _system_setting_item("Versões Mobile", "mobile_panel.versions", "bi-cloud-download", "Mobile", enabled=mobile_panel_enabled),
+                _system_setting_item("Features Mobile", "mobile_panel.features", "bi-toggles2", "Mobile", enabled=mobile_panel_enabled),
+                _system_setting_item("Auditoria Mobile", "mobile_panel.audit", "bi-shield-check", "Mobile", enabled=mobile_panel_enabled),
+                _system_setting_item("Ajuste de Estoque", "config.estoque_ajuste_admin", "bi-shield-lock", "Controle", enabled=is_admin),
+                _system_setting_item("Fornecedores", "config.fornecedores", "bi-building-add", "Cadastro"),
+            ],
+        ),
+    ]
+    visible_sections = [section for section in sections if section]
+    return {"sections": visible_sections, "total_items": sum(len(section["items"]) for section in visible_sections)}
 
 _ABOUT_CATEGORY_REFERENCE_FLOW = (
     {
@@ -549,13 +997,20 @@ def _require_admin() -> None:
         abort(403)
 
 
+def _is_admin_value(value: object) -> bool:
+    return str(value or "").strip().lower() in {"1", "true", "sim", "yes"}
+
+
 def _has_management_access() -> bool:
     if not bool(getattr(current_user, "is_authenticated", False)):
         return False
-    admin_value = getattr(current_user, "is_admin", 0)
-    if bool(admin_value) or str(admin_value).strip().lower() in {"1", "true", "sim", "yes"}:
+    if _is_admin_value(getattr(current_user, "is_admin", 0)):
         return True
     return bool(session.get("galint_management_access"))
+
+
+def _is_registered_admin() -> bool:
+    return _is_admin_value(getattr(current_user, "is_admin", 0))
 
 
 def _management_module() -> str:
@@ -628,15 +1083,16 @@ def _build_workspace_window_url(path: str, token: str) -> str:
 
 def _build_condominium_blocks() -> list[dict[str, object]]:
     blocks: list[dict[str, object]] = []
-    for index in range(1, 10):
+    for block in _ADMIN_BLOCKS:
+        floor_counts = [_admin_floor_unit_count(block, floor) for floor in range(1, 11)]
         blocks.append(
             {
-                "code": f"B{index:02d}",
-                "title": f"Bloco {index}",
+                "code": f"B{int(block['number']):02d}",
+                "title": f"Bloco {block['number']} - Ed. {block['name']}",
                 "floors": 10,
-                "columns": ("Coluna impar", "Coluna par"),
-                "coverage": "10o pavimento reservado para cobertura",
-                "parking_mode": "Modo inicial com vaga livre, preparado para vaga fixa ou mista",
+                "columns": (f"{min(floor_counts)} a {max(floor_counts)} unidades por andar",),
+                "coverage": f"Cobertura com {floor_counts[-1]} unidades",
+                "parking_mode": "Mapa visual do bloco usa a numeracao real informada pelo condominio",
             }
         )
     return blocks
@@ -669,7 +1125,7 @@ def _build_admin_condominium_blueprint(*, mode: str) -> dict[str, object]:
         "quick_facts": [
             {"label": "Blocos iniciais", "value": "9", "note": "Modelo parametrico para outros condominios"},
             {"label": "Andares", "value": "10", "note": "10o pavimento como cobertura"},
-            {"label": "Lados", "value": "Frente e fundos", "note": "Mapa visual dos blocos fica em stand by ate a validacao final"},
+            {"label": "Unidades", "value": "Variavel", "note": "Cada bloco usa sua propria contagem real por andar"},
             {"label": "Agenda", "value": "Entrada + saida", "note": "Mudanca com janela operacional"},
         ],
         "principles": [
@@ -811,60 +1267,6 @@ def _build_admin_condominium_blueprint(*, mode: str) -> dict[str, object]:
     }
 
 
-def _build_enterprise_administration_plan() -> dict[str, object]:
-    return {
-        "headline_cards": [
-            {
-                "icon": "bi-speedometer2",
-                "title": "Dashboard Administrativo",
-                "text": "Visao gerencial de suprimentos, custodia, cadastros, agendamentos, pendencias e indicadores executivos sem misturar com a operacao diaria do almoxarifado.",
-                "tags": ["Leitura gerencial", "Alertas", "Indicadores"],
-            },
-            {
-                "icon": "bi-briefcase-fill",
-                "title": "Gestao de Suprimentos",
-                "text": "Fornecedores, documentos fiscais, valor de estoque, projecao de compras e categorias ficam organizados como decisao administrativa.",
-                "tags": ["Compras", "Fiscal", "Estoque"],
-            },
-            {
-                "icon": "bi-person-vcard",
-                "title": "Cadastros Condominiais",
-                "text": "O cadastro mestre parte de Proprietario ou Locatario e conecta unidade, pessoas vinculadas, visitantes, veiculos, condutores e historico.",
-                "tags": ["Titular", "Unidade", "Vinculos"],
-            },
-            {
-                "icon": "bi-building-check",
-                "title": "Prestadores de Servicos",
-                "text": "Empresas prestadoras entram com CNPJ, contrato, area de atuacao e funcionarios recorrentes autorizados por unidade, bloco, periodo ou finalidade.",
-                "tags": ["Empresas", "Funcionarios", "Acesso"],
-            },
-            {
-                "icon": "bi-calendar2-week",
-                "title": "Agendamentos",
-                "text": "Mudancas de entrada e saida, reservas, prestadores agendados e manutencoes programadas amarradas ao cadastro principal.",
-                "tags": ["Mudanca", "Reserva", "Portaria"],
-            },
-            {
-                "icon": "bi-pie-chart-fill",
-                "title": "Power BI e Analitico",
-                "text": "Espaco reservado para paineis executivos de suprimentos, financeiro, ocupacao, manutencao, portaria, prestadores e ocorrencias.",
-                "tags": ["BI", "Relatorios", "Gestao"],
-            },
-        ],
-        "service_provider_points": [
-            "Empresa e a raiz do cadastro: razao social, fantasia, CNPJ, endereco, responsavel, contrato e status operacional.",
-            "Funcionarios recorrentes ficam vinculados a empresa com foto, documento mascarado, funcao, validade de autorizacao e historico de acesso.",
-            "Consulta de CNPJ pela Receita deve preencher empresa prestadora e tambem proprietario pessoa juridica, sempre com fallback manual.",
-            "Todo acesso precisa nascer cadastrado ou vinculado a uma autorizacao: morador, visitante, prestador eventual ou funcionario recorrente.",
-        ],
-        "lgpd_points": [
-            {"title": "Mascaramento por padrao", "text": "CPF, RG, CNH, CNPJ, RENAVAM, placa, telefone e e-mail aparecem parcialmente, com ultimos digitos para conferencia."},
-            {"title": "Revelar e editar com motivo", "text": "Dados sensiveis completos exigem justificativa, perfil autorizado e trilha de auditoria por pessoa, unidade e campo acessado."},
-            {"title": "Notificacao inteligente", "text": "Telegram deve avisar consulta sensivel e alteracao relevante, com agrupamento para evitar excesso em recadastramentos grandes."},
-        ],
-    }
-
-
 def _build_admin_service_providers_blueprint() -> dict[str, object]:
     return {
         "hero": {
@@ -898,106 +1300,6 @@ def _build_admin_service_providers_blueprint() -> dict[str, object]:
             {"title": "Acesso temporario", "text": "Prestador eventual pode ter janela definida sem virar cadastro permanente indevido."},
         ],
     }
-
-
-def _build_enterprise_management_overview() -> dict[str, object]:
-    snapshot = inventory_service.dashboard_snapshot()
-    visual_catalog = category_catalog_service.list_visual_catalog(include_inactive=True)
-    visual_by_key = {
-        str(row.get("key") or ""): row
-        for row in visual_catalog
-        if str(row.get("key") or "")
-    }
-
-    category_cards: list[dict[str, object]] = []
-    total_category_items = 0
-    total_category_balance = 0.0
-
-    for row in snapshot.get("category_summary") or []:
-        total_itens = int(row.get("total_itens") or 0)
-        saldo_total = float(row.get("saldo_total") or 0.0)
-        category_key = str(row.get("category_key") or "")
-        total_category_items += total_itens
-        total_category_balance += saldo_total
-
-        visual = dict(
-            visual_by_key.get(category_key)
-            or category_catalog_service.get_visual(row.get("categoria"))
-        )
-        unit_breakdown = []
-        for unit in row.get("unit_breakdown") or []:
-            unit_breakdown.append(
-                {
-                    "label": str(unit.get("label") or unit.get("unit_key") or "Unidade"),
-                    "saldo_total": float(unit.get("saldo_total") or 0.0),
-                }
-            )
-        unit_breakdown.sort(key=lambda item: float(item.get("saldo_total") or 0.0), reverse=True)
-
-        category_cards.append(
-            {
-                "label": str(row.get("categoria") or visual.get("label") or "Sem categoria"),
-                "icon_url": _resolve_enterprise_category_icon_url(category_key or visual.get("key")),
-                "icon": str(visual.get("icon") or "📦"),
-                "color": str(visual.get("color") or "#22d3ee"),
-                "soft": str(visual.get("soft") or "rgba(34, 211, 238, 0.22)"),
-                "total_itens": total_itens,
-                "saldo_total": saldo_total,
-                "unit_breakdown": unit_breakdown[:3],
-            }
-        )
-
-    employees = tool_custody_service.get_all_employees_with_tools()
-    employees.sort(
-        key=lambda employee: (
-            0 if employee.get("has_alerts") else 1,
-            -int(employee.get("days_oldest") or 0),
-            str(employee.get("nome") or "").casefold(),
-        )
-    )
-
-    custody_cards: list[dict[str, object]] = []
-    for employee in employees[:6]:
-        ordered_tools = sorted(
-            list(employee.get("tools") or []),
-            key=lambda tool: (
-                -int(tool.get("days_in_use") or 0),
-                str(tool.get("descricao") or "").casefold(),
-            ),
-        )
-        custody_cards.append(
-            {
-                "nome": str(employee.get("nome") or "Funcionário não identificado"),
-                "matricula": str(employee.get("matricula") or "-"),
-                "setor": str(employee.get("setor") or "N/D"),
-                "cargo": str(employee.get("cargo") or "N/D"),
-                "total_ferramentas": int(employee.get("total_ferramentas") or 0),
-                "days_oldest": int(employee.get("days_oldest") or 0),
-                "has_alerts": bool(employee.get("has_alerts")),
-                "alerts_count": int(employee.get("alerts_count") or 0),
-                "tools": [
-                    {
-                        "descricao": str(tool.get("descricao") or "Ferramenta sem descrição"),
-                        "days_in_use": int(tool.get("days_in_use") or 0),
-                        "quantidade": int(tool.get("quantidade") or 0),
-                    }
-                    for tool in ordered_tools[:4]
-                ],
-            }
-        )
-
-    return {
-        "category_cards": category_cards,
-        "category_count": len(category_cards),
-        "total_category_items": total_category_items,
-        "total_category_balance": round(total_category_balance, 1),
-        "custody_cards": custody_cards,
-        "custody_employee_count": len(employees),
-        "custody_total_tools": sum(int(employee.get("total_ferramentas") or 0) for employee in employees),
-        "custody_total_alerts": sum(int(employee.get("alerts_count") or 0) for employee in employees),
-        "custody_overflow": max(len(employees) - len(custody_cards), 0),
-    }
-
 
 @blueprint.post("/workspace/native-open")
 @login_required
@@ -1043,11 +1345,26 @@ def config():
         return redirect(url_for("dashboard.index"))
     if _is_messenger_session():
         return redirect(url_for("pages.mensageria_maintenance"))
+    is_admin = bool(getattr(current_user, "is_admin", 0))
+    return render_template(
+        "system_config.html",
+        system_settings=_build_system_settings_hub(is_admin=is_admin),
+    )
+
+
+@blueprint.get("/administracao")
+@login_required
+def administration_dashboard():
+    if not _has_management_access():
+        flash("Acesso restrito a gestores, gerentes e desenvolvedores.", "danger")
+        return redirect(url_for("dashboard.index"))
+    if _is_messenger_session():
+        return redirect(url_for("pages.mensageria_maintenance"))
     return render_template(
         "config.html",
-        enterprise_sections=build_enterprise_sections(is_admin=bool(getattr(current_user, "is_admin", 0))),
-        enterprise_management_overview=_build_enterprise_management_overview(),
-        enterprise_administration_plan=_build_enterprise_administration_plan(),
+        condominium_block_dashboard=_build_admin_block_dashboard(),
+        agenda_summary=build_schedule_dashboard_summary(),
+        agenda_notifications=due_schedule_notifications(),
     )
 
 
@@ -1060,7 +1377,71 @@ def mensageria_maintenance():
     return render_template("mensageria_maintenance.html")
 
 
-@blueprint.get("/configuracoes/condominio/cadastros")
+def _mask_sensitive_document(value: object) -> str:
+    text = str(value or "").strip()
+    if not text:
+        return "Documento nao informado"
+    if len(text) <= 5:
+        return "***"
+    return f"{text[:3]}***{text[-2:]}"
+
+
+def _owner_notes_from_form() -> str | None:
+    base_notes = str(request.form.get("notes") or "").strip()
+    sections = []
+    for label, field_name in (
+        ("Pessoas vinculadas", "linked_people"),
+        ("Visitantes autorizados", "authorized_visitors"),
+        ("Veiculos e condutores", "vehicles_drivers"),
+    ):
+        value = str(request.form.get(field_name) or "").strip()
+        if value:
+            sections.append(f"[{label}]\n{value}")
+    content = [part for part in (base_notes, *sections) if part]
+    return "\n\n".join(content) or None
+
+
+def _create_condominium_owner_from_request() -> CondominiumOwner:
+    unit_id = request.form.get("unit_id", type=int)
+    unit = CondominiumUnit.query.get(unit_id) if unit_id else None
+    if unit is None or not unit.active or not unit.building or not unit.building.active:
+        raise ValueError("Selecione uma unidade ativa.")
+
+    full_name = str(request.form.get("full_name") or "").strip()
+    document_number = str(request.form.get("document_number") or "").strip()
+    if not full_name:
+        raise ValueError("Informe o nome completo ou razao social.")
+    if not document_number:
+        raise ValueError("Informe CPF ou CNPJ.")
+
+    owner = CondominiumOwner(
+        unit=unit,
+        relationship_type=str(request.form.get("relationship_type") or "proprietario").strip() or "proprietario",
+        person_type=str(request.form.get("person_type") or "fisica").strip() or "fisica",
+        full_name=full_name,
+        document_number=document_number,
+        rg=str(request.form.get("rg") or "").strip() or None,
+        cnh=str(request.form.get("cnh") or "").strip() or None,
+        phone=str(request.form.get("phone") or "").strip() or None,
+        email=str(request.form.get("email") or "").strip() or None,
+        correspondence_address=str(request.form.get("correspondence_address") or "").strip() or None,
+        emergency_contact=str(request.form.get("emergency_contact") or "").strip() or None,
+        occupancy_status=str(request.form.get("occupancy_status") or "nao_informado").strip() or "nao_informado",
+        lgpd_authorized=bool(request.form.get("lgpd_authorized")),
+        notes=_owner_notes_from_form(),
+        created_by_matricula=_current_user_matricula(),
+        updated_by_matricula=_current_user_matricula(),
+    )
+    db.session.add(owner)
+    db.session.flush()
+    photo_path = _owner_photo_upload(owner.id)
+    if photo_path:
+        owner.photo_path = photo_path
+    unit.status = "ocupado"
+    return owner
+
+
+@blueprint.route("/administracao/condominio/cadastros", methods=["GET", "POST"])
 @login_required
 def admin_condominium_registry():
     if not _has_management_access():
@@ -1068,13 +1449,164 @@ def admin_condominium_registry():
         return redirect(url_for("dashboard.index"))
     if _is_messenger_session():
         return redirect(url_for("pages.mensageria_maintenance"))
+    if request.method == "POST":
+        try:
+            _create_condominium_owner_from_request()
+            db.session.commit()
+            flash("Cadastro mestre salvo e unidade marcada como ocupada.", "success")
+            return redirect(url_for("pages.admin_condominium_registry"))
+        except ValueError as exc:
+            db.session.rollback()
+            flash(str(exc), "danger")
+            return redirect(url_for("pages.admin_condominium_registry"))
     return render_template(
-        "config_condominium_blueprint.html",
-        blueprint_page=_build_admin_condominium_blueprint(mode="registry"),
+        "condominium_owners.html",
+        units=_condominium_unit_options(),
+        owners=_condominium_owner_rows(),
+        mask_sensitive_document=_mask_sensitive_document,
     )
 
 
-@blueprint.get("/configuracoes/condominio/agendamentos")
+@blueprint.route("/administracao/condominio/editor-blocos", methods=["GET", "POST"])
+@login_required
+def admin_condominium_blocks_editor():
+    if not _has_management_access():
+        flash("Acesso restrito a gestores, gerentes e desenvolvedores.", "danger")
+        return redirect(url_for("dashboard.index"))
+    if _is_messenger_session():
+        return redirect(url_for("pages.mensageria_maintenance"))
+    if not _is_registered_admin():
+        flash("Somente administrador cadastrado no sistema pode editar os cards dos blocos.", "danger")
+        return redirect(url_for("pages.administration_dashboard"))
+
+    edit_id = request.args.get("editar", type=int)
+    model_number = request.args.get("modelo", type=int)
+    edit_building = CondominiumBuilding.query.get(edit_id) if edit_id else None
+    template_block = _default_admin_block(model_number) if not edit_building else None
+
+    if request.method == "POST":
+        building_id = request.form.get("building_id", type=int)
+        building = CondominiumBuilding.query.get(building_id) if building_id else CondominiumBuilding()
+        if building is None:
+            flash("Bloco nao encontrado.", "danger")
+            return redirect(url_for("pages.admin_condominium_blocks_editor"))
+
+        try:
+            code = str(request.form.get("code") or "").strip()
+            name = str(request.form.get("name") or "").strip()
+            display_order = _form_int("display_order", default=0, minimum=0, maximum=999)
+            if not name:
+                raise ValueError("Informe o nome do bloco ou edificio.")
+            if not code:
+                code = f"B{display_order:02d}" if display_order else name[:12].upper()
+            duplicate = CondominiumBuilding.query.filter(CondominiumBuilding.code == code).first()
+            if duplicate and duplicate.id != building.id:
+                raise ValueError("Ja existe um bloco com esse codigo.")
+
+            building.code = code
+            building.name = name
+            building.display_order = display_order
+            building.floor_start = _form_int("floor_start", default=1, minimum=-10, maximum=300)
+            building.floor_count = _form_int("floor_count", default=1, minimum=1, maximum=300)
+            building.units_per_floor = _form_int("units_per_floor", default=0, minimum=0, maximum=300)
+            building.unit_suffix_start = _form_int("unit_suffix_start", default=0, minimum=0, maximum=9999)
+            building.suffix_width = _form_int("suffix_width", default=2, minimum=1, maximum=4)
+            building.numbering_mode = "floor_suffix"
+            building.custom_units_text = str(request.form.get("custom_units_text") or "").strip() or None
+            building.notes = str(request.form.get("notes") or "").strip() or None
+            building.active = bool(request.form.get("active"))
+            building.updated_by_matricula = _current_user_matricula()
+            if not building.id:
+                building.created_by_matricula = _current_user_matricula()
+                db.session.add(building)
+
+            layout = generate_unit_layout(
+                floor_start=building.floor_start,
+                floor_count=building.floor_count,
+                units_per_floor=building.units_per_floor,
+                unit_suffix_start=building.unit_suffix_start,
+                suffix_width=building.suffix_width,
+                custom_units_text=building.custom_units_text or "",
+            )
+            sync_building_units(building, layout, default_status=request.form.get("initial_status") or "vago")
+            db.session.commit()
+            flash("Editor de blocos atualizado.", "success")
+            return redirect(url_for("pages.admin_condominium_blocks_editor"))
+        except ValueError as exc:
+            db.session.rollback()
+            flash(str(exc), "danger")
+            return redirect(url_for("pages.admin_condominium_blocks_editor", editar=building_id) if building_id else url_for("pages.admin_condominium_blocks_editor"))
+
+    return render_template(
+        "condominium_blocks_editor.html",
+        building_form=_building_form(edit_building) if not template_block else _building_form_from_default(template_block),
+        building_summaries=_building_summaries(),
+        edit_building=edit_building,
+    )
+
+
+@blueprint.post("/administracao/condominio/editor-blocos/<int:building_id>/arquivar")
+@login_required
+def admin_condominium_archive_building(building_id: int):
+    if not _has_management_access():
+        flash("Acesso restrito a gestores, gerentes e desenvolvedores.", "danger")
+        return redirect(url_for("dashboard.index"))
+    if not _is_registered_admin():
+        flash("Somente administrador cadastrado no sistema pode editar os cards dos blocos.", "danger")
+        return redirect(url_for("pages.administration_dashboard"))
+    building = CondominiumBuilding.query.get_or_404(building_id)
+    building.active = False
+    building.updated_by_matricula = _current_user_matricula()
+    for unit in building.units:
+        unit.active = False
+    db.session.commit()
+    flash("Bloco arquivado. Ele saiu do dashboard e da lista de unidades ativas.", "info")
+    return redirect(url_for("pages.admin_condominium_blocks_editor"))
+
+
+@blueprint.route("/administracao/condominio/proprietarios", methods=["GET", "POST"])
+@login_required
+def admin_condominium_owners():
+    if not _has_management_access():
+        flash("Acesso restrito a gestores, gerentes e desenvolvedores.", "danger")
+        return redirect(url_for("dashboard.index"))
+    if _is_messenger_session():
+        return redirect(url_for("pages.mensageria_maintenance"))
+
+    if request.method == "POST":
+        try:
+            _create_condominium_owner_from_request()
+            db.session.commit()
+            flash("Cadastro mestre salvo e unidade marcada como ocupada.", "success")
+        except ValueError as exc:
+            db.session.rollback()
+            flash(str(exc), "danger")
+    return redirect(url_for("pages.admin_condominium_registry"))
+
+
+@blueprint.post("/administracao/condominio/proprietarios/<int:owner_id>/encerrar")
+@login_required
+def admin_condominium_close_owner(owner_id: int):
+    if not _has_management_access():
+        flash("Acesso restrito a gestores, gerentes e desenvolvedores.", "danger")
+        return redirect(url_for("dashboard.index"))
+    owner = CondominiumOwner.query.get_or_404(owner_id)
+    owner.status = "encerrado"
+    owner.updated_by_matricula = _current_user_matricula()
+    if owner.unit:
+        has_active_owner = CondominiumOwner.query.filter(
+            CondominiumOwner.unit_id == owner.unit_id,
+            CondominiumOwner.id != owner.id,
+            CondominiumOwner.status == "ativo",
+        ).first()
+        if not has_active_owner:
+            owner.unit.status = "vago"
+    db.session.commit()
+    flash("Vinculo encerrado.", "info")
+    return redirect(url_for("pages.admin_condominium_registry"))
+
+
+@blueprint.route("/administracao/condominio/agendamentos", methods=["GET", "POST"])
 @login_required
 def admin_condominium_schedule():
     if not _has_management_access():
@@ -1082,13 +1614,69 @@ def admin_condominium_schedule():
         return redirect(url_for("dashboard.index"))
     if _is_messenger_session():
         return redirect(url_for("pages.mensageria_maintenance"))
+
+    if request.method == "POST":
+        event_id = request.form.get("event_id", type=int)
+        event = CondominiumScheduleEvent.query.get(event_id) if event_id else CondominiumScheduleEvent()
+        if event is None:
+            flash("Compromisso nao encontrado.", "danger")
+            return redirect(url_for("pages.admin_condominium_schedule"))
+        try:
+            if not event.id:
+                event.created_by_matricula = _current_user_matricula()
+                db.session.add(event)
+            _apply_schedule_event_form(event)
+            db.session.commit()
+            flash("Compromisso salvo na agenda.", "success")
+            return redirect(url_for("pages.admin_condominium_schedule", data=event.event_date.isoformat(), mes=event.event_date.strftime("%Y-%m")))
+        except ValueError as exc:
+            db.session.rollback()
+            flash(str(exc), "danger")
+            return redirect(url_for("pages.admin_condominium_schedule", data=request.form.get("event_date") or today_local().isoformat(), editar=event_id or None))
+
+    selected_date = _parse_iso_date(request.args.get("data"), default=today_local())
+    month_date = _month_date_from_request(selected_date)
+    edit_id = request.args.get("editar", type=int)
+    edit_event = CondominiumScheduleEvent.query.get(edit_id) if edit_id else None
     return render_template(
-        "config_condominium_blueprint.html",
-        blueprint_page=_build_admin_condominium_blueprint(mode="schedule"),
+        "condominium_schedule.html",
+        calendar_page=build_calendar_context(month_date=month_date, selected_date=selected_date),
+        form_options=_schedule_form_options(),
+        event_form=_schedule_event_form(edit_event, selected_date=selected_date),
+        edit_event=edit_event,
+        agenda_notifications=due_schedule_notifications(),
     )
 
 
-@blueprint.get("/configuracoes/condominio/prestadores")
+@blueprint.post("/administracao/condominio/agendamentos/<int:event_id>/status")
+@login_required
+def admin_condominium_schedule_status(event_id: int):
+    if not _has_management_access():
+        flash("Acesso restrito a gestores, gerentes e desenvolvedores.", "danger")
+        return redirect(url_for("dashboard.index"))
+    event = CondominiumScheduleEvent.query.get_or_404(event_id)
+    event.status = normalize_status(request.form.get("status"))
+    event.updated_by_matricula = _current_user_matricula()
+    db.session.commit()
+    flash("Status do compromisso atualizado.", "success")
+    return redirect(url_for("pages.admin_condominium_schedule", data=event.event_date.isoformat(), mes=event.event_date.strftime("%Y-%m")))
+
+
+@blueprint.post("/administracao/condominio/agendamentos/<int:event_id>/notificacao")
+@login_required
+def admin_condominium_schedule_acknowledge(event_id: int):
+    if not _has_management_access():
+        flash("Acesso restrito a gestores, gerentes e desenvolvedores.", "danger")
+        return redirect(url_for("dashboard.index"))
+    event = CondominiumScheduleEvent.query.get_or_404(event_id)
+    event.notification_acknowledged_at = now_local_naive()
+    event.updated_by_matricula = _current_user_matricula()
+    db.session.commit()
+    flash("Notificacao da agenda confirmada.", "info")
+    return redirect(request.referrer or url_for("pages.admin_condominium_schedule", data=event.event_date.isoformat()))
+
+
+@blueprint.get("/administracao/condominio/prestadores")
 @login_required
 def admin_service_providers():
     if not _has_management_access():
@@ -1100,6 +1688,24 @@ def admin_service_providers():
         "config_service_providers_blueprint.html",
         service_provider_page=_build_admin_service_providers_blueprint(),
     )
+
+
+@blueprint.get("/configuracoes/condominio/cadastros")
+@login_required
+def legacy_admin_condominium_registry():
+    return redirect(url_for("pages.admin_condominium_registry"))
+
+
+@blueprint.get("/configuracoes/condominio/agendamentos")
+@login_required
+def legacy_admin_condominium_schedule():
+    return redirect(url_for("pages.admin_condominium_schedule"))
+
+
+@blueprint.get("/configuracoes/condominio/prestadores")
+@login_required
+def legacy_admin_service_providers():
+    return redirect(url_for("pages.admin_service_providers"))
 
 
 @blueprint.get("/configuracoes/backup")

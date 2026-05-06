@@ -19,9 +19,75 @@ class ConfigService:
 
     EMPRESA_UPLOAD_DIR = Path("uploads") / "empresa"
     LOGIN_BRANDING_CONFIG_FILENAME = "login_branding.json"
+    SYSTEM_IMAGES_CONFIG_FILENAME = "system_images.json"
     DEFAULT_LOGIN_BACKGROUND_PATH = "logo/logo.png"
     DEFAULT_LOGIN_CARD_IMAGE_PATH = "logo/icone-galint.png"
     ALLOWED_IMAGE_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp"}
+    SYSTEM_IMAGE_GROUPS = {
+        "almoxarifado": {
+            "label": "Almoxarifado",
+            "icon": "bi-box-seam",
+            "slots": {
+                "almoxarifado_dashboard_hero": {
+                    "label": "Topo do dashboard",
+                    "description": "Imagem principal para o painel do Almoxarifado.",
+                    "default": "logo/logo.png",
+                },
+                "almoxarifado_cards": {
+                    "label": "Cards operacionais",
+                    "description": "Fundo para cards visuais do estoque e operação.",
+                    "default": "logo/logo.png",
+                },
+            },
+        },
+        "mensageria": {
+            "label": "Mensageria",
+            "icon": "bi-send",
+            "slots": {
+                "mensageria_dashboard_hero": {
+                    "label": "Topo da mensageria",
+                    "description": "Imagem principal para telas de mensageria e manutenção.",
+                    "default": "logo/logo.png",
+                },
+                "mensageria_cards": {
+                    "label": "Cards de mensagens",
+                    "description": "Fundo para cards de comunicação, alertas e integrações.",
+                    "default": "logo/logo.png",
+                },
+            },
+        },
+        "administracao": {
+            "label": "Administração",
+            "icon": "bi-buildings",
+            "slots": {
+                "administracao_dashboard_hero": {
+                    "label": "Topo do Dashboard dos Blocos",
+                    "description": "Imagem do card grande no início do dashboard administrativo.",
+                    "default": "logo/fundoadm.gif",
+                },
+                "administracao_bloco_card": {
+                    "label": "Cards dos blocos",
+                    "description": "Fundo aplicado nos cards de cada bloco/edifício.",
+                    "default": "logo/fundoadm.gif",
+                },
+                "administracao_agenda_hero": {
+                    "label": "Topo da Agenda Condominial",
+                    "description": "Imagem do card grande no início da agenda.",
+                    "default": "logo/fundoadm.gif",
+                },
+                "administracao_editor_hero": {
+                    "label": "Topo do Editor de Blocos",
+                    "description": "Imagem principal da tela de implantação e ajuste dos blocos.",
+                    "default": "logo/fundoadm.gif",
+                },
+                "administracao_cadastro_hero": {
+                    "label": "Topo do Cadastro Mestre",
+                    "description": "Imagem principal da página de cadastro de pessoas e unidades.",
+                    "default": "logo/fundoadm.gif",
+                },
+            },
+        },
+    }
     
     # Templates padrão
     CABECALHO_PADRAO = """{{nome_empresa}}
@@ -126,6 +192,102 @@ class ConfigService:
     @staticmethod
     def _branding_config_path() -> Path:
         return ConfigService._branding_config_dir() / ConfigService.LOGIN_BRANDING_CONFIG_FILENAME
+
+    @staticmethod
+    def _system_images_config_path() -> Path:
+        return ConfigService._branding_config_dir() / ConfigService.SYSTEM_IMAGES_CONFIG_FILENAME
+
+    @staticmethod
+    def _system_image_definitions() -> dict[str, dict[str, str]]:
+        definitions: dict[str, dict[str, str]] = {}
+        for group_key, group in ConfigService.SYSTEM_IMAGE_GROUPS.items():
+            for slot_key, slot in group["slots"].items():
+                definitions[slot_key] = {
+                    "group": group_key,
+                    "label": str(slot["label"]),
+                    "description": str(slot["description"]),
+                    "default": str(slot["default"]),
+                }
+        return definitions
+
+    @staticmethod
+    def get_system_image_config() -> dict[str, str]:
+        definitions = ConfigService._system_image_definitions()
+        config = {slot_key: slot["default"] for slot_key, slot in definitions.items()}
+        config_path = ConfigService._system_images_config_path()
+        if not config_path.exists():
+            return config
+        try:
+            payload = json.loads(config_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            current_app.logger.warning("Não foi possível ler imagens do sistema em %s: %s", config_path, exc)
+            return config
+        if isinstance(payload, dict):
+            for slot_key in definitions:
+                value = payload.get(slot_key)
+                if isinstance(value, str) and value.strip():
+                    config[slot_key] = value.strip().replace('\\', '/')
+        return config
+
+    @staticmethod
+    def get_system_image_path(slot_key: str) -> str:
+        definitions = ConfigService._system_image_definitions()
+        if slot_key not in definitions:
+            return "logo/logo.png"
+        return ConfigService.get_system_image_config().get(slot_key) or definitions[slot_key]["default"]
+
+    @staticmethod
+    def get_system_image_groups() -> list[dict[str, object]]:
+        config = ConfigService.get_system_image_config()
+        groups: list[dict[str, object]] = []
+        for group_key, group in ConfigService.SYSTEM_IMAGE_GROUPS.items():
+            slots = []
+            for slot_key, slot in group["slots"].items():
+                current_path = config.get(slot_key) or str(slot["default"])
+                slots.append(
+                    {
+                        "key": slot_key,
+                        "label": slot["label"],
+                        "description": slot["description"],
+                        "default_path": slot["default"],
+                        "path": current_path,
+                        "is_default": current_path == slot["default"],
+                    }
+                )
+            groups.append({"key": group_key, "label": group["label"], "icon": group["icon"], "slots": slots})
+        return groups
+
+    @staticmethod
+    def update_system_image_config(data: dict[str, str | None]) -> dict[str, str]:
+        definitions = ConfigService._system_image_definitions()
+        config = ConfigService.get_system_image_config()
+        previous_config = dict(config)
+        for slot_key, value in data.items():
+            if slot_key not in definitions:
+                continue
+            normalized = str(value).strip().replace('\\', '/') if value not in (None, "") else definitions[slot_key]["default"]
+            config[slot_key] = normalized
+            old_value = previous_config.get(slot_key)
+            if old_value and old_value != normalized:
+                ConfigService._delete_uploaded_empresa_asset(old_value)
+        ConfigService._system_images_config_path().write_text(json.dumps(config, ensure_ascii=False, indent=2), encoding="utf-8")
+        return config
+
+    @staticmethod
+    def upload_system_image(slot_key: str, file) -> str:
+        if slot_key not in ConfigService._system_image_definitions():
+            raise ValueError("Slot de imagem inválido.")
+        safe_slot = secure_filename(slot_key) or "imagem"
+        return ConfigService._save_empresa_image(file, prefix=f"system_{safe_slot}")
+
+    @staticmethod
+    def clear_system_image(slot_key: str) -> dict[str, str]:
+        definitions = ConfigService._system_image_definitions()
+        if slot_key not in definitions:
+            raise ValueError("Slot de imagem inválido.")
+        current_path = ConfigService.get_system_image_config().get(slot_key)
+        ConfigService._delete_uploaded_empresa_asset(current_path)
+        return ConfigService.update_system_image_config({slot_key: definitions[slot_key]["default"]})
 
     @staticmethod
     def _delete_uploaded_empresa_asset(asset_path: str | None) -> bool:

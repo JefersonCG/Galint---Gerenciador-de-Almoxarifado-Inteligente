@@ -29,6 +29,35 @@ def _build_admin_adjustment_audit_context(*, codigo: str, novo_saldo: float | No
     }
 
 
+@bp.route("/imagens", methods=["GET", "POST"])
+@login_required
+def imagens():
+    """Configurador central das imagens usadas nos módulos do sistema."""
+    if not current_user.is_admin:
+        flash("Acesso negado. Apenas administradores podem alterar imagens do sistema.", "danger")
+        return redirect(url_for("pages.config"))
+
+    if request.method == "POST":
+        slot_key = str(request.form.get("slot_key") or "").strip()
+        action = str(request.form.get("action") or "upload").strip().lower()
+        try:
+            if action == "reset":
+                ConfigService.clear_system_image(slot_key)
+                flash("Imagem restaurada para o padrão do sistema.", "info")
+            else:
+                file = request.files.get("image_file")
+                if not file or not file.filename:
+                    raise ValueError("Escolha uma imagem para atualizar esse ponto do sistema.")
+                image_path = ConfigService.upload_system_image(slot_key, file)
+                ConfigService.update_system_image_config({slot_key: image_path})
+                flash("Imagem atualizada com sucesso.", "success")
+        except ValueError as exc:
+            flash(str(exc), "danger")
+        return redirect(url_for("config.imagens"))
+
+    return render_template("config/system_images.html", image_groups=ConfigService.get_system_image_groups())
+
+
 @bp.route("/empresa", methods=["GET", "POST"])
 @login_required
 def empresa():

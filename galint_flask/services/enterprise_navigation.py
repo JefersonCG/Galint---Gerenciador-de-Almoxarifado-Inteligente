@@ -46,11 +46,12 @@ def build_enterprise_sections(*, is_admin: bool) -> list[dict[str, Any]]:
     sections = [
         _section(
             "condominio",
-            "Condominio",
+            "Condomínio",
             "bi-buildings",
             "enterpriseCondominioMenu",
             [
-                _item("Cadastros", _optional_url("pages.admin_condominium_registry"), "bi-person-vcard", "ADM-001", "Cadastro", "cyan"),
+                _item("Editor de Blocos", _optional_url("pages.admin_condominium_blocks_editor"), "bi-building-gear", "ADM-000", "Estrutura", "cyan"),
+                _item("Cadastro Mestre", _optional_url("pages.admin_condominium_registry"), "bi-person-vcard", "ADM-001", "Cadastro", "cyan"),
                 _item("Agendamentos", _optional_url("pages.admin_condominium_schedule"), "bi-calendar2-week", "ADM-002", "Agenda", "amber"),
                 _item("Prestadores", _optional_url("pages.admin_service_providers"), "bi-building-check", "ADM-003", "Serviços", "green"),
             ],
@@ -109,6 +110,8 @@ def build_enterprise_sections(*, is_admin: bool) -> list[dict[str, Any]]:
             "bi-sliders",
             "enterpriseSistemaMenu",
             [
+                _item("Configurações", _optional_url("pages.config"), "bi-gear-fill", "SYS-000", "Sistema", "cyan"),
+                _item("Imagens do Sistema", _optional_url("config.imagens"), "bi-images", "SYS-IMG", "Visual", "cyan"),
                 _item("Empresa", _optional_url("config.empresa"), "bi-building", "SYS-001", "Core", "cyan"),
                 _item("Relatórios", _optional_url("config.relatorios"), "bi-file-earmark-text", "SYS-002", "Core", "cyan"),
                 _item("Atualizações", _optional_url("updates.index"), "bi-arrow-clockwise", "SYS-003", "Core", "amber"),

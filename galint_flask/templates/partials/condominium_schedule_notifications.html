@@ -1,0 +1,44 @@
+{% if agenda_notifications %}
+<div class="modal fade agenda-alert-modal" id="agendaAlertModal" tabindex="-1" aria-labelledby="agendaAlertModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content agenda-alert-content">
+            <div class="agenda-alert-glow" aria-hidden="true"></div>
+            <div class="modal-header agenda-alert-header">
+                <div>
+                    <span class="agenda-alert-kicker"><i class="bi bi-bell-fill"></i> Agenda</span>
+                    <h2 class="modal-title agenda-alert-title" id="agendaAlertModalTitle">Compromisso pendente</h2>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body agenda-alert-body">
+                {% for notification in agenda_notifications %}
+                <article class="agenda-alert-event">
+                    <div class="agenda-alert-time">{{ notification.time_label }}</div>
+                    <div>
+                        <strong>{{ notification.title }}</strong>
+                        <span>{{ notification.event_type_label }} · {{ notification.related_label }}</span>
+                        {% if notification.location %}<span>{{ notification.location }}</span>{% endif %}
+                    </div>
+                </article>
+                {% endfor %}
+            </div>
+            <div class="modal-footer agenda-alert-footer">
+                <a class="btn btn-outline-light rounded-pill px-4" href="{{ url_for('pages.admin_condominium_schedule', data=agenda_notifications[0].date_iso) }}"><i class="bi bi-calendar2-week me-1"></i> Ver agenda</a>
+                <form method="post" action="{{ url_for('pages.admin_condominium_schedule_acknowledge', event_id=agenda_notifications[0].id) }}">
+                    <button class="btn btn-info rounded-pill px-4" type="submit"><i class="bi bi-check2-circle me-1"></i> Entendi</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        if (!window.bootstrap) return;
+        const modalEl = document.getElementById('agendaAlertModal');
+        if (!modalEl) return;
+        window.setTimeout(function () {
+            bootstrap.Modal.getOrCreateInstance(modalEl).show();
+        }, 420);
+    });
+</script>
+{% endif %}

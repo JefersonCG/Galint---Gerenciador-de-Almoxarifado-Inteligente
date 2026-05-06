@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+{% block title %}Editor de Blocos{% endblock %}
+{% block body_class %}condominium-editor-page{% endblock %}
+{% block extra_css %}
+<style>
+    body.condominium-editor-page .app-body { background: linear-gradient(180deg, #eef5fc 0%, #e3edf7 100%); }
+    body.condominium-editor-page .content-panel { background: rgba(239, 246, 255, 0.92); border-left: 1px solid rgba(148, 163, 184, 0.16); }
+    .condo-editor-shell { position: relative; display: grid; gap: 1.1rem; color: #0f172a; }
+    .condo-editor-shell::before { content: ""; position: absolute; inset: -1rem 0 auto; height: 260px; background: radial-gradient(circle at 10% 20%, rgba(59, 130, 246, 0.12), transparent 32%), radial-gradient(circle at 88% 18%, rgba(16, 185, 129, 0.1), transparent 26%); pointer-events: none; z-index: 0; }
+    .condo-editor-shell > * { position: relative; z-index: 1; }
+    .condo-editor-hero { position: relative; overflow: hidden; display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; min-height: 13rem; padding: clamp(1.15rem, 2.4vw, 1.8rem); border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 26px; background: #0f172a; color: #f8fafc; box-shadow: 0 28px 68px rgba(15, 23, 42, 0.2); }
+    .condo-editor-hero::before { content: ""; position: absolute; inset: 0; z-index: 0; background: url("{{ system_image_url('administracao_editor_hero', '20260506-editor-hero') }}") center center / cover no-repeat; opacity: 0.8; pointer-events: none; }
+    .condo-editor-hero::after { content: ""; position: absolute; inset: 0; z-index: 0; background: linear-gradient(90deg, rgba(15, 23, 42, 0.78) 0%, rgba(15, 23, 42, 0.56) 42%, rgba(30, 64, 175, 0.48) 100%), linear-gradient(180deg, rgba(2, 6, 23, 0.24), rgba(2, 6, 23, 0.46)); pointer-events: none; }
+    .condo-editor-hero > * { position: relative; z-index: 1; }
+    .condo-editor-kicker { display: inline-flex; align-items: center; gap: 0.45rem; width: fit-content; margin: 0 0 0.55rem; padding: 0.32rem 0.64rem; border-radius: 999px; background: rgba(255, 255, 255, 0.09); border: 1px solid rgba(226, 232, 240, 0.14); color: #bae6fd; font-size: 0.68rem; font-weight: 850; letter-spacing: 0.08em; text-transform: uppercase; }
+    .condo-editor-title { margin: 0; font-size: clamp(1.75rem, 3vw, 2.45rem); line-height: 1; font-weight: 950; letter-spacing: 0; color: #f8fafc; text-shadow: 0 8px 18px rgba(2, 6, 23, 0.28); }
+    .condo-editor-copy { max-width: 720px; margin: 0.55rem 0 0; color: rgba(226, 232, 240, 0.84); font-size: 0.94rem; font-weight: 750; }
+    .condo-editor-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; justify-content: flex-end; }
+    .condo-editor-action { min-height: 2.45rem; display: inline-flex; align-items: center; gap: 0.42rem; border-radius: 999px; border: 1px solid rgba(226, 232, 240, 0.16); background: rgba(15, 23, 42, 0.52); color: #f8fafc; font-weight: 850; text-decoration: none; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 12px 24px rgba(15, 23, 42, 0.16); }
+    .condo-editor-action:hover { color: #fff; border-color: rgba(125, 211, 252, 0.46); background: rgba(15, 23, 42, 0.68); }
+    .condo-editor-grid { display: grid; grid-template-columns: minmax(20rem, 0.88fr) minmax(0, 1.12fr); gap: 0.85rem; align-items: start; }
+    .condo-editor-panel { border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 24px; background: #fff; box-shadow: 0 18px 42px rgba(15, 23, 42, 0.08); padding: 0.85rem; }
+    .condo-editor-panel.is-dark { color: #e2e8f0; background: linear-gradient(135deg, #0f172a 0%, #1e293b 68%, #334155 100%); box-shadow: 0 26px 60px rgba(15, 23, 42, 0.18); }
+    .condo-editor-panel-title { margin: 0 0 0.35rem; font-size: 1.02rem; font-weight: 900; }
+    .condo-editor-panel-copy { margin: 0 0 0.7rem; color: rgba(226, 232, 240, 0.72); font-size: 0.82rem; line-height: 1.38; font-weight: 720; }
+    .condo-editor-panel.is-dark .form-label { margin-bottom: 0.28rem; color: #cbd5e1; font-size: 0.78rem; font-weight: 800; }
+    .condo-editor-panel.is-dark .form-control,
+    .condo-editor-panel.is-dark .form-select { min-height: 38px; border-radius: 10px; border: 1px solid rgba(148, 163, 184, 0.22); background: rgba(15, 23, 42, 0.54); color: #f8fafc; box-shadow: none; }
+    .condo-editor-panel.is-dark textarea.form-control { min-height: 78px; }
+    .condo-editor-panel.is-dark .form-control::placeholder { color: #94a3b8; }
+    .condo-editor-panel.is-dark .form-check-label,
+    .condo-editor-panel.is-dark .form-text { color: rgba(226, 232, 240, 0.72); }
+    .condo-editor-save { min-height: 42px; border-radius: 12px; border: 0; background: linear-gradient(135deg, #0ea5e9, #22c55e); color: #fff; font-weight: 900; }
+    .condo-building-list { display: grid; gap: 0.75rem; }
+    .condo-building-card { display: grid; gap: 0.7rem; border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 18px; background: #f8fafc; padding: 0.9rem; }
+    .condo-building-card.is-archived { opacity: 0.62; }
+    .condo-building-top { display: flex; align-items: start; justify-content: space-between; gap: 0.75rem; }
+    .condo-building-top strong { display: block; font-size: 1rem; color: #0f172a; }
+    .condo-building-top span { display: block; color: #64748b; font-size: 0.78rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; }
+    .condo-building-stats { display: flex; gap: 0.42rem; flex-wrap: wrap; }
+    .condo-building-chip { display: inline-flex; align-items: center; gap: 0.35rem; min-height: 1.85rem; padding: 0.28rem 0.58rem; border-radius: 999px; background: #e2e8f0; color: #0f172a; font-size: 0.74rem; font-weight: 850; }
+    .condo-building-card-actions { display: flex; align-items: center; gap: 0.45rem; flex-wrap: wrap; }
+    .condo-empty-state { border: 1px dashed rgba(148, 163, 184, 0.44); border-radius: 18px; padding: 1rem; background: #f8fafc; color: #475569; font-weight: 700; }
+    @media (max-width: 991.98px) { .condo-editor-grid { grid-template-columns: 1fr; } }
+</style>
+{% endblock %}
+{% block content %}
+<div class="condo-editor-shell">
+    <header class="condo-editor-hero">
+        <div>
+            <p class="condo-editor-kicker"><i class="bi bi-buildings"></i> Condomínio</p>
+            <h1 class="condo-editor-title">Editor de Blocos</h1>
+            <p class="condo-editor-copy">Implante torres, andares e unidades com a mesma base visual usada no Dashboard dos Blocos.</p>
+        </div>
+        <div class="condo-editor-actions">
+            <a class="condo-editor-action px-3" href="{{ url_for('pages.administration_dashboard') }}"><i class="bi bi-buildings"></i> Dashboard</a>
+            <a class="condo-editor-action px-3" href="{{ url_for('pages.admin_condominium_registry') }}"><i class="bi bi-person-vcard"></i> Cadastro Mestre</a>
+        </div>
+    </header>
+
+    <div class="condo-editor-grid">
+        <section class="condo-editor-panel is-dark" aria-labelledby="condo-block-form-title">
+            <h2 class="condo-editor-panel-title" id="condo-block-form-title">{{ 'Editar bloco' if building_form.id else ('Implantar bloco' if building_form.template_mode else 'Novo bloco') }}</h2>
+            <p class="condo-editor-panel-copy">Informe a estrutura do bloco; ao salvar, as unidades são geradas e ficam disponíveis no dashboard e no Cadastro Mestre.</p>
+            <form method="post" action="{{ url_for('pages.admin_condominium_blocks_editor') }}">
+                {% if building_form.id %}<input type="hidden" name="building_id" value="{{ building_form.id }}">{% endif %}
+                <div class="row g-2">
+                    <div class="col-md-4">
+                        <label class="form-label" for="code">Código</label>
+                        <input class="form-control" id="code" name="code" value="{{ building_form.code }}" placeholder="B01">
+                    </div>
+                    <div class="col-md-8">
+                        <label class="form-label" for="name">Nome</label>
+                        <input class="form-control" id="name" name="name" value="{{ building_form.name }}" required placeholder="Torre A, Bloco 1, Ed. Itanhangá">
+                    </div>
+                    <div class="col-6 col-md-4">
+                        <label class="form-label" for="display_order">Ordem</label>
+                        <input class="form-control" id="display_order" name="display_order" type="number" min="0" value="{{ building_form.display_order }}">
+                    </div>
+                    <div class="col-6 col-md-4">
+                        <label class="form-label" for="floor_start">Andar inicial</label>
+                        <input class="form-control" id="floor_start" name="floor_start" type="number" value="{{ building_form.floor_start }}">
+                    </div>
+                    <div class="col-6 col-md-4">
+                        <label class="form-label" for="floor_count">Andares</label>
+                        <input class="form-control" id="floor_count" name="floor_count" type="number" min="1" max="300" value="{{ building_form.floor_count }}">
+                    </div>
+                    <div class="col-6 col-md-4">
+                        <label class="form-label" for="units_per_floor">Unid./andar</label>
+                        <input class="form-control" id="units_per_floor" name="units_per_floor" type="number" min="0" max="300" value="{{ building_form.units_per_floor }}">
+                    </div>
+                    <div class="col-6 col-md-4">
+                        <label class="form-label" for="unit_suffix_start">Final inicial</label>
+                        <input class="form-control" id="unit_suffix_start" name="unit_suffix_start" type="number" min="0" max="9999" value="{{ building_form.unit_suffix_start }}">
+                    </div>
+                    <div class="col-6 col-md-4">
+                        <label class="form-label" for="suffix_width">Casas do final</label>
+                        <select class="form-select" id="suffix_width" name="suffix_width">
+                            {% for width in [1, 2, 3, 4] %}<option value="{{ width }}" {% if building_form.suffix_width == width %}selected{% endif %}>{{ width }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="initial_status">Status inicial</label>
+                        <select class="form-select" id="initial_status" name="initial_status">
+                            <option value="vago">Vago</option>
+                            <option value="ocupado">Ocupado</option>
+                            <option value="reforma">Reforma</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6 d-flex align-items-end">
+                        <div class="form-check w-100">
+                            <input class="form-check-input" id="active" name="active" type="checkbox" value="1" {% if building_form.active %}checked{% endif %}>
+                            <label class="form-check-label" for="active">Ativo no dashboard</label>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label" for="custom_units_text">Unidades por andar</label>
+                        <textarea class="form-control" id="custom_units_text" name="custom_units_text" placeholder="1: 100, 101, 102&#10;2: 200, 201, 230&#10;25: 2500, 2501">{{ building_form.custom_units_text }}</textarea>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label" for="notes">Observações</label>
+                        <textarea class="form-control" id="notes" name="notes">{{ building_form.notes }}</textarea>
+                    </div>
+                    <div class="col-12 d-grid">
+                        <button class="condo-editor-save" type="submit"><i class="bi bi-check2-circle me-1"></i> Salvar bloco</button>
+                    </div>
+                </div>
+            </form>
+        </section>
+
+        <section class="condo-editor-panel" aria-labelledby="condo-block-list-title">
+            <h2 class="condo-editor-panel-title" id="condo-block-list-title">Blocos cadastrados</h2>
+            <div class="condo-building-list">
+                {% if building_summaries %}
+                    {% for row in building_summaries %}
+                    {% set building = row.building %}
+                    <article class="condo-building-card {% if not building.active %}is-archived{% endif %}">
+                        <div class="condo-building-top">
+                            <div>
+                                <span>{{ building.code }}</span>
+                                <strong>{{ building.name }}</strong>
+                            </div>
+                            <span class="condo-building-chip">{{ 'Ativo' if building.active else 'Arquivado' }}</span>
+                        </div>
+                        <div class="condo-building-stats">
+                            <span class="condo-building-chip"><i class="bi bi-layers"></i> {{ row.floor_total }} andares</span>
+                            <span class="condo-building-chip"><i class="bi bi-door-open"></i> {{ row.units_total }} unidades</span>
+                            <span class="condo-building-chip"><i class="bi bi-arrow-down-up"></i> {{ row.floor_range }}</span>
+                            <span class="condo-building-chip"><span class="text-success">●</span> {{ row.status_counts.ocupado }}</span>
+                            <span class="condo-building-chip"><span class="text-danger">●</span> {{ row.status_counts.vago }}</span>
+                            <span class="condo-building-chip"><span class="text-warning">●</span> {{ row.status_counts.reforma }}</span>
+                            <span class="condo-building-chip"><span class="text-secondary">●</span> {{ row.status_counts.sem_cadastro }}</span>
+                        </div>
+                        <div class="condo-building-card-actions">
+                            <a class="btn btn-sm btn-dark" href="{{ url_for('pages.admin_condominium_blocks_editor', editar=building.id) }}"><i class="bi bi-pencil-square me-1"></i> Editar</a>
+                            {% if building.active %}
+                            <form method="post" action="{{ url_for('pages.admin_condominium_archive_building', building_id=building.id) }}">
+                                <button class="btn btn-sm btn-outline-danger" type="submit"><i class="bi bi-archive me-1"></i> Arquivar</button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </article>
+                    {% endfor %}
+                {% else %}
+                    <div class="condo-empty-state">Nenhum bloco cadastrado no editor.</div>
+                {% endif %}
+            </div>
+        </section>
+    </div>
+</div>
+{% endblock %}
