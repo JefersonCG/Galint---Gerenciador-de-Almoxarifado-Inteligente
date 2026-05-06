@@ -855,8 +855,9 @@
                 <div id="autocomplete-dropdown-codigo" class="autocomplete-dropdown"></div>
             </div>
             <div class="col-md-3">
-                <label class="form-label"><i class="bi bi-hash me-1"></i>Quantidade (inteira)</label>
-                <input class="form-control" type="number" id="input-quantidade" value="1" min="1" step="1" pattern="[0-9]*">
+                <label class="form-label"><i class="bi bi-hash me-1"></i>Quantidade</label>
+                <input class="form-control" type="number" id="input-quantidade" value="1" min="1" step="1" inputmode="decimal">
+                <div class="form-text text-muted small" id="input-quantidade-helper">Somente números inteiros neste item.</div>
             </div>
             <div class="col-md-3 d-flex align-items-end">
                 <button class="btn btn-add-item w-100" type="button" id="btn-adicionar">
@@ -1049,6 +1050,7 @@ ${parent.scripts()}
     const inputLocal = document.getElementById('input-local');
     const inputCodigo = document.getElementById('input-codigo');
     const inputQuantidade = document.getElementById('input-quantidade');
+    const inputQuantidadeHelper = document.getElementById('input-quantidade-helper');
     const btnAdicionar = document.getElementById('btn-adicionar');
     const btnNovoFuncionario = document.getElementById('btn-novo-funcionario');
     const btnRegistrar = document.getElementById('btn-registrar');
@@ -1097,7 +1099,59 @@ ${parent.scripts()}
     function clearCurrentItemInputs() {
         inputCodigo.value = '';
         inputQuantidade.value = '1';
+        syncQuantityFieldMode(null);
         dropdownCodigo.classList.remove('show');
+    }
+
+    function getDefaultFractionUnitCode(item) {
+        const unitCode = normalizeOperationalUnitCode(
+            item?.fracao_unidade_padrao || item?.devolucao_unidade_codigo || item?.devolucao_unidade_label || ''
+        );
+        if (unitCode === 'kg' || unitCode === 'litro' || unitCode === 'metro') {
+            return unitCode;
+        }
+        return '';
+    }
+
+    function supportsCommonFractional(item) {
+        return Boolean(item?.permite_saida_fracionada) && Boolean(getDefaultFractionUnitCode(item));
+    }
+
+    function getFractionUnitLabel(unitCode) {
+        if (unitCode === 'kg') return 'kg';
+        if (unitCode === 'litro') return 'litros';
+        if (unitCode === 'metro') return 'metros';
+        return 'frações';
+    }
+
+    function readQuantidadeInputValue(fallbackValue) {
+        const normalized = String(inputQuantidade.value || '').replace(',', '.').trim();
+        const parsed = parseFloat(normalized);
+        return Number.isFinite(parsed) ? parsed : (fallbackValue || 0);
+    }
+
+    function syncQuantityFieldMode(item) {
+        const fractionUnitCode = getDefaultFractionUnitCode(item);
+        if (supportsCommonFractional(item)) {
+            inputQuantidade.min = '0.01';
+            inputQuantidade.step = '0.01';
+            inputQuantidade.placeholder = 'Ex.: 2,5';
+            if (inputQuantidadeHelper) {
+                let helperText = 'Saída fracionada disponível: informe em ' + getFractionUnitLabel(fractionUnitCode) + '.';
+                if (fractionUnitCode === 'metro') {
+                    helperText += ' Para rolos, centímetros continuam disponíveis no modal.';
+                }
+                inputQuantidadeHelper.textContent = helperText;
+            }
+            return;
+        }
+
+        inputQuantidade.min = '1';
+        inputQuantidade.step = '1';
+        inputQuantidade.placeholder = '';
+        if (inputQuantidadeHelper) {
+            inputQuantidadeHelper.textContent = 'Somente números inteiros neste item.';
+        }
     }
 
     function normalizePackageText(value) {
@@ -1637,11 +1691,11 @@ ${parent.scripts()}
     }
 
     function buildMirrorDraftPayload() {
-        const quantidadeDigitada = parseInt(inputQuantidade.value, 10) || 1;
+        const quantidadeDigitada = readQuantidadeInputValue(1) || 1;
         return {
             codigo: String(inputCodigo.value || '').trim(),
             quantidade: quantidadeDigitada,
-            quantidade_display: String(quantidadeDigitada),
+            quantidade_display: formatarNumeroSimples(quantidadeDigitada),
             usuario: String(inputUsuario.value || '').trim(),
             local_servico: String(inputLocal.value || '').trim(),
         };
@@ -1872,6 +1926,7 @@ ${parent.scripts()}
         const rawCodigo = String(codigo || '').trim();
         if (!rawCodigo) {
             currentPreviewItem = null;
+            syncQuantityFieldMode(null);
             renderCurrentPreview(null);
             return;
         }
@@ -1891,8 +1946,10 @@ ${parent.scripts()}
                 codigo: data.codigo || rawCodigo,
                 usuario: String(inputUsuario.value || '').trim(),
                 local: String(inputLocal.value || '').trim(),
-                quantidade_input: parseInt(inputQuantidade.value, 10) || 1,
+                quantidade_input: readQuantidadeInputValue(1) || 1,
+                unidade_fracionada: supportsCommonFractional(data) ? getDefaultFractionUnitCode(data) : null,
             };
+            syncQuantityFieldMode(currentPreviewItem);
             renderCurrentPreview(currentPreviewItem, 'preview');
         } catch (error) {
             if (error && error.isAuthRedirect) {
@@ -2282,6 +2339,7 @@ ${parent.scripts()}
             }
             const nomes = nomesEmbalagem[pendingItem.tipo_embalagem] || { singular: 'embalagem', plural: 'embalagens' };
             pendingItem.em_embalagens = true;
+            pendingItem.unidade_fracionada = null;
             pendingItem.quantidade = pendingItem.quantidade_input;
             pendingItem.unidade_label = pendingItem.quantidade_input === 1 ? nomes.singular : nomes.plural;
             pendingItem.quantidade_exibicao = pendingItem.quantidade_input;
@@ -2303,6 +2361,7 @@ ${parent.scripts()}
             const rotuloMedida = obterRotuloMedida(pendingItem, pendingItem.quantidade_input);
             const unidadeBaseSafe = String(pendingItem.quantidade_input === 1 ? rotuloMedida.singular : rotuloMedida.plural);
             pendingItem.em_embalagens = false;
+            pendingItem.unidade_fracionada = supportsCommonFractional(pendingItem) ? getDefaultFractionUnitCode(pendingItem) : null;
             pendingItem.quantidade = pendingItem.quantidade_input;
             pendingItem.unidade_label = unidadeBaseSafe;
             pendingItem.quantidade_exibicao = pendingItem.quantidade_input;
@@ -2323,6 +2382,7 @@ ${parent.scripts()}
             }
             const convertido = pendingItem.quantidade_input / 100;
             pendingItem.em_embalagens = false;
+            pendingItem.unidade_fracionada = 'cm';
             pendingItem.quantidade = convertido;
             pendingItem.unidade_label = 'cm';
             pendingItem.quantidade_exibicao = pendingItem.quantidade_input;
@@ -2343,14 +2403,22 @@ ${parent.scripts()}
         }
     });
     
-    // Força apenas valores inteiros
     inputQuantidade.addEventListener('input', function() {
-        this.value = this.value.replace(/[^0-9]/g, '');
-        if (this.value === '' || parseInt(this.value) < 1) {
-            this.value = '1';
+        if (supportsCommonFractional(currentPreviewItem)) {
+            let normalized = String(this.value || '').replace(',', '.').replace(/[^0-9.]/g, '');
+            const firstDotIndex = normalized.indexOf('.');
+            if (firstDotIndex >= 0) {
+                normalized = normalized.slice(0, firstDotIndex + 1) + normalized.slice(firstDotIndex + 1).replace(/\./g, '');
+            }
+            this.value = normalized;
+        } else {
+            this.value = this.value.replace(/[^0-9]/g, '');
+            if (this.value === '' || parseInt(this.value, 10) < 1) {
+                this.value = '1';
+            }
         }
         if (currentPreviewItem) {
-            currentPreviewItem.quantidade_input = parseInt(this.value, 10) || 1;
+            currentPreviewItem.quantidade_input = readQuantidadeInputValue(0);
             renderCurrentPreview(currentPreviewItem, 'preview');
             return;
         }
@@ -2410,7 +2478,7 @@ ${parent.scripts()}
         const usuario = inputUsuario.value.trim();
         const local = inputLocal.value.trim();
         const codigo = inputCodigo.value.trim();
-        const quantidade = parseInt(inputQuantidade.value) || 1;
+        const quantidade = readQuantidadeInputValue(0);
         
         if (!usuario) {
             alert('Informe o crachá/matrícula');
@@ -2424,7 +2492,7 @@ ${parent.scripts()}
             return;
         }
         
-        if (quantidade < 1) {
+        if (!(quantidade > 0)) {
             alert('Quantidade deve ser maior que zero');
             inputQuantidade.focus();
             return;
@@ -2464,6 +2532,7 @@ ${parent.scripts()}
             // Verificar se o item usa sistema de embalagens
             const tipoEmbalagemDetectado = inferPackagingType(data);
             const capacidadeEmbalagem = getPackagingCapacity(data);
+            const unidadeFracionada = supportsCommonFractional(data) ? getDefaultFractionUnitCode(data) : null;
             if (tipoEmbalagemDetectado && capacidadeEmbalagem > 0) {
                 // Tem embalagem - mostrar modal
                 pendingItem = {
@@ -2483,6 +2552,8 @@ ${parent.scripts()}
                     unidade: data.unidade,
                     categoria: data.categoria,
                     marca: data.marca,
+                    permite_saida_fracionada: data.permite_saida_fracionada,
+                    unidade_fracionada: unidadeFracionada,
                     fracao_unidade_padrao: data.fracao_unidade_padrao,
                     unidade_exibicao_total: data.unidade_exibicao_total,
                     devolucao_unidade_codigo: data.devolucao_unidade_codigo,
@@ -2531,6 +2602,8 @@ ${parent.scripts()}
                     devolucao_unidade_exibicao: data.devolucao_unidade_exibicao,
                     devolucao_unidade_label: data.devolucao_unidade_label,
                     devolucao_unidade_fator_base: data.devolucao_unidade_fator_base,
+                    permite_saida_fracionada: data.permite_saida_fracionada,
+                    unidade_fracionada: unidadeFracionada,
                     fracao_unidade_padrao: data.fracao_unidade_padrao,
                     capacidade_embalagem: data.capacidade_embalagem,
                     permite_saida_em_embalagens: data.permite_saida_em_embalagens,
@@ -2564,12 +2637,13 @@ ${parent.scripts()}
         const permiteCentimetros = item.tipo_embalagem === 'rolo' && normalizarUnidadeMedida(item) === 'metro';
         const baseValidation = validateDraftAgainstRuntimeStock(item, { mode: 'base', silent: true });
         const packageValidation = validateDraftAgainstRuntimeStock(item, { mode: 'package', silent: true });
+        const quantidadePacotesInteira = Math.abs((Number(item.quantidade_input) || 0) - Math.round(Number(item.quantidade_input) || 0)) <= 0.000001;
         const cmValidation = permiteCentimetros
             ? validateDraftAgainstRuntimeStock(item, { mode: 'cm', silent: true })
             : { ok: true };
         const stockSnapshot = buildRuntimeStockSnapshot(item);
         const saldoEmbalagensDisponivel = stockSnapshot.packagingAvailableBeforeDraft;
-        const retiradaEmEmbalagensDisponivel = packageValidation.ok;
+        const retiradaEmEmbalagensDisponivel = packageValidation.ok && quantidadePacotesInteira;
         const saldoUnidadesSoltas = stockSnapshot.capacity > 0
             ? Math.max(0, stockSnapshot.availableBeforeDraft - (saldoEmbalagensDisponivel * stockSnapshot.capacity))
             : stockSnapshot.availableBeforeDraft;
@@ -2775,6 +2849,9 @@ ${parent.scripts()}
         if (incomingItem?.devolucao_unidade_fator_base !== undefined) {
             targetItem.devolucao_unidade_fator_base = incomingItem.devolucao_unidade_fator_base;
         }
+        if (incomingItem?.unidade_fracionada) {
+            targetItem.unidade_fracionada = incomingItem.unidade_fracionada;
+        }
         if (incomingItem?.capacidade_embalagem !== undefined) {
             targetItem.capacidade_embalagem = incomingItem.capacidade_embalagem;
         }
@@ -2867,6 +2944,7 @@ ${parent.scripts()}
         inputLocal.value = '';
         inputCodigo.value = '';
         inputQuantidade.value = '1';
+        syncQuantityFieldMode(null);
         dropdownUsuario.classList.remove('show');
         dropdownCodigo.classList.remove('show');
         currentPreviewItem = null;
@@ -2981,7 +3059,8 @@ ${parent.scripts()}
                         codigo: item.codigo,
                         quantidade: item.quantidade,
                         observacao: item.observacao_unit || null,
-                        em_embalagens: item.em_embalagens
+                        em_embalagens: item.em_embalagens,
+                        unidade_fracionada: item.unidade_fracionada || null
                     }))
                 };
 
@@ -3051,7 +3130,7 @@ ${parent.scripts()}
                     }));
                 }
                 alert('✓ Saídas registradas com sucesso.');
-                resetCurrentGroupForm(true);
+                window.location.reload();
             } else {
                 const erros = failedItems.map(item => item.codigo + ': ' + item.error).join('\n');
                 alert('⚠️ Parte das saídas não foi registrada. Os itens com falha permaneceram na lista.\n' + erros);

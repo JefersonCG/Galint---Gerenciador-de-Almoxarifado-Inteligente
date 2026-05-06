@@ -179,7 +179,7 @@ def build_sidebar_navigation() -> dict[str, Any]:
     )
     estoque_active = _path_matches_any(
         path,
-        [inventory_list_url, barcode_studio_url, central_operacoes_url],
+        [inventory_list_url, barcode_studio_url, central_operacoes_url, projection_url],
     ) or path.startswith("/estoque")
     suprimentos_active = _path_matches_any(
         path,
@@ -217,6 +217,8 @@ def build_sidebar_navigation() -> dict[str, Any]:
         estoque_children.append(_link_item("Editor de Etiquetas", barcode_studio_url, "bi-upc-scan", _path_matches(path, barcode_studio_url)))
     if central_operacoes_url:
         estoque_children.append(_link_item("Central de Operações", central_operacoes_url, "bi-activity", _path_matches(path, central_operacoes_url)))
+    if projection_url:
+        estoque_children.append(_link_item("Projeção", projection_url, "bi-graph-up-arrow", _path_matches(path, projection_url)))
     if estoque_children:
         entries.append(_group_item("Estoque", "bi-boxes", "estoqueMenu", estoque_active, estoque_children))
 
@@ -249,10 +251,8 @@ def build_sidebar_navigation() -> dict[str, Any]:
         power_bi_children.append(_link_item("Consumo", consumo_painel_url, "bi-geo-alt", _path_matches(path, consumo_painel_url)))
     if valor_estoque_url:
         power_bi_children.append(_link_item("Financeiro", valor_estoque_url, "bi-cash-stack", _path_matches(path, valor_estoque_url)))
-    if projection_url:
-        power_bi_children.append(_link_item("Projeção", projection_url, "bi-graph-up-arrow", _path_matches(path, projection_url)))
     if power_bi_children:
-        power_bi_active = _path_matches_any(path, [analytics_url if is_admin else None, consumo_painel_url, valor_estoque_url, projection_url])
+        power_bi_active = _path_matches_any(path, [analytics_url if is_admin else None, consumo_painel_url, valor_estoque_url])
         entries.append(_group_item("Power BI", "bi-pie-chart-fill", "powerBiMenu", power_bi_active, power_bi_children))
 
     if is_admin and users_list_url:

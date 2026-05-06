@@ -751,7 +751,7 @@ def _resolve_usuario(identificador: str | None):
     raise ValueError("Sessão inválida")
 
 
-def _parse_quantidade(raw: str | None) -> int:
+def _parse_quantidade(raw: str | None) -> float:
     try:
         quantidade = float(raw or 0)
     except (TypeError, ValueError):
@@ -766,6 +766,61 @@ def _normalize_tipo_custodia(value: str | None) -> str:
     if raw in {"temporaria", "temporária", "diaria", "diária", "daily", "d"}:
         return "temporaria"
     return "temporaria"
+
+
+def _prepare_saida_quantity(
+    *,
+    item_model: Item | None,
+    quantidade: float,
+    unidade_fracionada: str | None,
+    observacao: str | None,
+    em_embalagens: bool | None,
+) -> dict[str, Any]:
+    quantidade_convertida = float(quantidade or 0)
+    observacao_resolvida = observacao
+    em_embalagens_resolvido = em_embalagens
+    unidade_normalizada = _normalize_saida_unit_code(unidade_fracionada)
+    modo_fracionado = bool(unidade_normalizada)
+    quantidade_retirada_em_litros = None
+    quantidade_retirada_em_quilos = None
+
+    if unidade_normalizada == "kg":
+        em_embalagens_resolvido = False
+        quantidade_retirada_em_quilos = quantidade_convertida
+        if not observacao_resolvida:
+            observacao_resolvida = f"Retirada fracionada: {quantidade_convertida:g} kg"
+    elif unidade_normalizada == "litro":
+        em_embalagens_resolvido = False
+        quantidade_retirada_em_litros = quantidade_convertida
+        if not observacao_resolvida:
+            observacao_resolvida = f"Retirada fracionada: {quantidade_convertida:g} L"
+    elif unidade_normalizada in {"metro", "cm"}:
+        if item_model is None:
+            raise ValueError("Item não encontrado")
+        from_unit = "cm" if unidade_normalizada == "cm" else "m"
+        try:
+            conversion = unit_conversion_engine.convert_item_to_base(item_model, quantidade_convertida, from_unit)
+        except UnitConversionError as exc:
+            raise ValueError(str(exc)) from exc
+        quantidade_convertida = float(conversion.quantity_base or 0.0)
+        em_embalagens_resolvido = False
+        if unidade_normalizada == "cm":
+            observacao_resolvida = (
+                f"Retirada fracionada: {quantidade_convertida:g} M | "
+                f"quantidade original informada: {quantidade:g} CM"
+            )
+        elif not observacao_resolvida or str(observacao_resolvida).strip().lower().startswith("retirada fracionada:"):
+            observacao_resolvida = f"Retirada fracionada: {quantidade_convertida:g} M"
+
+    return {
+        "quantidade": quantidade_convertida,
+        "modo_fracionado": modo_fracionado,
+        "unidade_fracionada": unidade_normalizada,
+        "quantidade_retirada_em_litros": quantidade_retirada_em_litros,
+        "quantidade_retirada_em_quilos": quantidade_retirada_em_quilos,
+        "observacao": observacao_resolvida,
+        "em_embalagens": em_embalagens_resolvido,
+    }
 
 
 def _resolve_devolucao_operadores(source: Any) -> tuple[str | None, Any]:
@@ -883,6 +938,7 @@ def registrar_saida_multipla():
             quantidade = _parse_quantidade(item_data.get("quantidade"))
             observacao = (item_data.get("observacao") or "").strip() or None
             tipo_custodia_item = _normalize_tipo_custodia(item_data.get("tipo_custodia") or tipo_custodia_geral)
+            unidade_fracionada = _normalize_saida_unit_code(item_data.get("unidade_fracionada"))
             operational_context = _merge_operational_context(
                 _collect_operational_context(item_data),
                 operational_context_geral,
@@ -908,11 +964,25 @@ def registrar_saida_multipla():
                 if not item:
                     raise ValueError("Item não encontrado")
 
+                quantidade_preparada = _prepare_saida_quantity(
+                    item_model=item,
+                    quantidade=quantidade,
+                    unidade_fracionada=unidade_fracionada,
+                    observacao=observacao,
+                    em_embalagens=em_embalagens,
+                )
+                quantidade_convertida = float(quantidade_preparada["quantidade"])
+                modo_fracionado = bool(quantidade_preparada["modo_fracionado"])
+                quantidade_retirada_em_litros = quantidade_preparada["quantidade_retirada_em_litros"]
+                quantidade_retirada_em_quilos = quantidade_preparada["quantidade_retirada_em_quilos"]
+                observacao = quantidade_preparada["observacao"]
+                em_embalagens = quantidade_preparada["em_embalagens"]
+
                 is_tool_item = inventory_service._is_tool_item(item)
 
                 if is_tool_item:
-                    quantidade_ferramenta = int(round(float(quantidade)))
-                    if abs(float(quantidade) - float(quantidade_ferramenta)) > 1e-6 or quantidade_ferramenta < 1:
+                    quantidade_ferramenta = int(round(float(quantidade_convertida)))
+                    if abs(float(quantidade_convertida) - float(quantidade_ferramenta)) > 1e-6 or quantidade_ferramenta < 1:
                         raise ValueError("Ferramentas devem sair em quantidade inteira.")
                     if inventory_service._has_active_tool_withdrawal(item.codigo_item, usuario.matricula):
                         raise ValueError(
@@ -931,7 +1001,7 @@ def registrar_saida_multipla():
 
                 payload_saida = MovimentoPayload(
                     codigo=item.codigo_item,
-                    quantidade=float(quantidade),
+                    quantidade=quantidade_convertida,
                     matricula=usuario.matricula,
                     observacao=str(observacao or "").upper() if observacao else None,
                     local_servico=str(local_servico_geral or "").upper() if local_servico_geral else None,
@@ -940,7 +1010,10 @@ def registrar_saida_multipla():
                     ordem_servico=operational_context.get("ordem_servico"),
                     centro_custo=operational_context.get("centro_custo"),
                     em_embalagens=em_embalagens,
-                    canal_saida="ferramentas" if is_tool_item else "materiais",
+                    modo_fracionado=modo_fracionado,
+                    quantidade_retirada_em_litros=quantidade_retirada_em_litros,
+                    quantidade_retirada_em_quilos=quantidade_retirada_em_quilos,
+                    canal_saida="fracionado" if modo_fracionado else ("ferramentas" if is_tool_item else "materiais"),
                 )
                 inventory_service.validate_exit_payload_policy(item, payload_saida)
                 
@@ -957,13 +1030,13 @@ def registrar_saida_multipla():
                     except Exception:
                         saldo_atual = 0.0
 
-                    if saldo_atual < quantidade:
-                        raise ValueError(f"Saldo insuficiente. Disponível: {int(saldo_atual)}")
+                    if saldo_atual < quantidade_convertida:
+                        raise ValueError(f"Saldo insuficiente. Disponível: {saldo_atual:g}")
 
                 ledger_result = inventory_service.mirror_legacy_movement(
                     product_id=item.codigo_item,
                     movement_type="saida",
-                    quantity=float(quantidade),
+                    quantity=quantidade_convertida,
                     payload=payload_saida,
                     metadata={
                         "reference_type": "movements_saida_multipla",
@@ -973,7 +1046,7 @@ def registrar_saida_multipla():
                 # Criar saída diretamente
                 saida = Saida()
                 saida.codigo_item = item.codigo_item
-                saida.quantidade = quantidade
+                saida.quantidade = quantidade_convertida
                 saida.matricula = usuario.matricula
                 saida.data_saida = datetime.now(timezone.utc)
                 saida.observacao = str(observacao or "").upper() if observacao else None
@@ -1121,44 +1194,19 @@ def registrar_saida():
         is_tool_item = inventory_service._is_tool_item(item_model)
         tipo_custodia = _normalize_tipo_custodia(request.form.get("tipo_custodia"))
         
-        # Processar unidade fracionada (kg ou litro)
-        # IMPORTANTE: Não converter para embalagens! O serviço de embalagens já faz isso automaticamente
-        quantidade_convertida = quantidade
-        modo_fracionado = bool(unidade_fracionada)
-        quantidade_retirada_em_litros = None
-        quantidade_retirada_em_quilos = None
-        if unidade_fracionada:
-            # Para kg: enviar direto em kg (unidades base)
-            if unidade_fracionada == 'kg':
-                quantidade_convertida = quantidade  # Ex: 0.4 kg
-                em_embalagens = False  # Indicar que é em unidades base (kg, não baldes)
-                quantidade_retirada_em_quilos = quantidade
-                if not observacao:
-                    observacao = f"Retirada fracionada: {quantidade} kg"
-            # Para litros: enviar direto em litros (unidades base)
-            elif unidade_fracionada == 'litro':
-                quantidade_convertida = quantidade  # Ex: 2.5 litros
-                em_embalagens = False  # Indicar que é em unidades base (litros, não latas)
-                quantidade_retirada_em_litros = quantidade
-                if not observacao:
-                    observacao = f"Retirada fracionada: {quantidade} L"
-            elif unidade_fracionada in {'metro', 'cm'}:
-                if item_model is None:
-                    raise ValueError("Item não encontrado")
-                from_unit = 'cm' if unidade_fracionada == 'cm' else 'm'
-                try:
-                    conversion = unit_conversion_engine.convert_item_to_base(item_model, quantidade, from_unit)
-                except UnitConversionError as exc:
-                    raise ValueError(str(exc)) from exc
-                quantidade_convertida = float(conversion.quantity_base or 0.0)
-                em_embalagens = False
-                if unidade_fracionada == 'cm':
-                    observacao = (
-                        f"Retirada fracionada: {quantidade_convertida:g} M | "
-                        f"quantidade original informada: {quantidade:g} CM"
-                    )
-                elif not observacao or str(observacao).strip().lower().startswith('retirada fracionada:'):
-                    observacao = f"Retirada fracionada: {quantidade_convertida:g} M"
+        quantidade_preparada = _prepare_saida_quantity(
+            item_model=item_model,
+            quantidade=quantidade,
+            unidade_fracionada=unidade_fracionada,
+            observacao=observacao,
+            em_embalagens=em_embalagens,
+        )
+        quantidade_convertida = float(quantidade_preparada["quantidade"])
+        modo_fracionado = bool(quantidade_preparada["modo_fracionado"])
+        quantidade_retirada_em_litros = quantidade_preparada["quantidade_retirada_em_litros"]
+        quantidade_retirada_em_quilos = quantidade_preparada["quantidade_retirada_em_quilos"]
+        observacao = quantidade_preparada["observacao"]
+        em_embalagens = quantidade_preparada["em_embalagens"]
 
         quantidade_ferramenta = None
         if is_tool_item:

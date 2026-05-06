@@ -1754,26 +1754,7 @@ ${parent.scripts()}
                     publishMirrorState(buildMirrorPayload('completed', completedSnapshot, { quantidade: quantidade }));
                     renderCurrentPreview(completedSnapshot, 'completed', false, { quantidade: quantidade });
                 }
-                
-                // Limpar campos para nova entrada
-                inputUsuario.value = '';
-                inputUsuario.dataset.matricula = '';
-                inputLocal.value = '';
-                if (inputAtividadeOperacional) {
-                    inputAtividadeOperacional.value = '';
-                }
-                if (inputOrdemServico) {
-                    inputOrdemServico.value = '';
-                }
-                if (inputCentroCusto) {
-                    inputCentroCusto.value = '';
-                }
-                inputCodigo.value = '';
-                btnRegistrar.disabled = true;
-                pendingItem = null;
-                
-                // Focar no campo de usuário para próxima entrada
-                inputUsuario.focus();
+                window.location.reload();
             } else {
                 // Tentar parsear erro como JSON
                 try {
