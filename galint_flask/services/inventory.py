@@ -1798,6 +1798,17 @@ class InventoryService:
         for key in keys:
             self._runtime_cache.pop(key, None)
 
+    def invalidate_realtime_views(self) -> None:
+        self.clear_runtime_cache("search_items_for_autocomplete")
+        self.clear_runtime_cache("list_items")
+        self.clear_runtime_cache("dashboard_snapshot")
+        try:
+            from .finance_service import FinanceService
+
+            FinanceService.clear_runtime_cache("get_stock_value_report:")
+        except Exception:
+            logger.exception("Falha ao invalidar cache financeiro em tempo real")
+
     @staticmethod
     def _balance_close(left: float, right: float, *, tolerance: float = 1e-6) -> bool:
         return abs(float(left or 0.0) - float(right or 0.0)) <= tolerance
@@ -2451,9 +2462,7 @@ class InventoryService:
             )
             raise
 
-        self.clear_runtime_cache("search_items_for_autocomplete")
-        self.clear_runtime_cache("list_items")
-        self.clear_runtime_cache("dashboard_snapshot")
+        self.invalidate_realtime_views()
 
         snapshot_after = self.get_admin_balance_snapshot(novo_codigo_norm)
         result = {
@@ -4805,8 +4814,8 @@ class InventoryService:
         checksum = (10 - ((odd_sum * 3 + even_sum) % 10)) % 10
         return str(checksum)
 
-    def list_items(self) -> list[dict[str, Any]]:
-        cached = self._get_cached("list_items")
+    def list_items(self, *, use_cache: bool = True) -> list[dict[str, Any]]:
+        cached = self._get_cached("list_items") if use_cache else None
         if cached is not None:
             return [dict(item) for item in cached]
 
@@ -4986,7 +4995,10 @@ class InventoryService:
             )
         if atualizado:
             db.session.commit()
-        return self._set_cached("list_items", [dict(item) for item in resultado], ttl_seconds=5.0)
+        payload = [dict(item) for item in resultado]
+        if not use_cache:
+            return payload
+        return self._set_cached("list_items", payload, ttl_seconds=5.0)
 
     def get_item(self, codigo: str) -> dict[str, Any] | None:
         item = Item.query.get(codigo)
@@ -6362,6 +6374,7 @@ class InventoryService:
         item.estoque_minimo = _calculate_min_stock(novo_saldo)
         
         db.session.commit()
+        self.invalidate_realtime_views()
         if ledger_result is not None:
             inventory_engine.record_operation_audit(ledger_result)
             operation_log_service.notify_telegram(ledger_result.operation_log_id)
@@ -6582,6 +6595,7 @@ class InventoryService:
                 skip_notification=skip_notification,
                 operation_log_id=ledger_result.operation_log_id,
             )
+        self.invalidate_realtime_views()
         
         # Verificar e gerar relatório automático a cada 1000 entradas (apenas para entradas)
         if is_entrada:

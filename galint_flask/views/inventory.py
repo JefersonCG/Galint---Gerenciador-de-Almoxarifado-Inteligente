@@ -186,6 +186,7 @@ def _clear_document_runtime_cache(document_numbers: list[str] | None = None) -> 
         inventory_service.clear_runtime_cache("list_items")
         inventory_service.clear_runtime_cache("dashboard_snapshot")
         inventory_service.clear_runtime_cache("list_notas_fiscais:")
+        finance_service.clear_runtime_cache("get_stock_value_report:")
         finance_service.clear_runtime_cache("list_stock_documents:")
         if document_numbers:
             for numero in document_numbers:

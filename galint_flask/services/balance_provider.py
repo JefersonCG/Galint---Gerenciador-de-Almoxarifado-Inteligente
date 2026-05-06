@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+from collections import defaultdict
 from dataclasses import dataclass
 
 from sqlalchemy import func
 
 from ..extensions import db
 from ..models import Entrada, InventarioEvento, Item, Saida, StockBalance, stock_balance_supports_read_model_ready
-from .legacy_stock_normalizer import resolve_canonical_unit, resolve_packaging_factor
+from .legacy_stock_normalizer import build_normalized_legacy_movements, resolve_canonical_unit, resolve_packaging_factor
 
 
 @dataclass(slots=True)
@@ -94,52 +95,51 @@ class BalanceProvider:
                 legacy_history_ids.update(codigo for (codigo,) in rows if codigo)
 
             if legacy_history_ids:
-                entradas = {
-                    codigo: float(total or 0.0)
-                    for codigo, total in (
-                        db.session.query(
-                            Entrada.codigo_item,
-                            func.coalesce(func.sum(Entrada.quantidade), 0.0),
-                        )
-                        .filter(Entrada.codigo_item.in_(legacy_history_ids))
-                        .group_by(Entrada.codigo_item)
-                        .all()
-                    )
-                    if codigo
-                }
-                saidas = {
-                    codigo: float(total or 0.0)
-                    for codigo, total in (
-                        db.session.query(
-                            Saida.codigo_item,
-                            func.coalesce(func.sum(Saida.quantidade), 0.0),
-                        )
-                        .filter(Saida.codigo_item.in_(legacy_history_ids))
-                        .group_by(Saida.codigo_item)
-                        .all()
-                    )
-                    if codigo
-                }
-                ajustes = {
-                    codigo: float(total or 0.0)
-                    for codigo, total in (
-                        db.session.query(
-                            InventarioEvento.codigo_item,
-                            func.coalesce(func.sum(InventarioEvento.quantidade), 0.0),
-                        )
-                        .filter(InventarioEvento.codigo_item.in_(legacy_history_ids))
-                        .group_by(InventarioEvento.codigo_item)
-                        .all()
-                    )
-                    if codigo
-                }
+                entries_by_product: dict[str, list[Entrada]] = defaultdict(list)
+                exits_by_product: dict[str, list[Saida]] = defaultdict(list)
+                events_by_product: dict[str, list[InventarioEvento]] = defaultdict(list)
+
+                for entry in (
+                    Entrada.query
+                    .filter(Entrada.codigo_item.in_(legacy_history_ids))
+                    .order_by(Entrada.data_entrada.asc(), Entrada.id_entrada.asc())
+                    .all()
+                ):
+                    if entry.codigo_item:
+                        entries_by_product[entry.codigo_item].append(entry)
+
+                for exit_row in (
+                    Saida.query
+                    .filter(Saida.codigo_item.in_(legacy_history_ids))
+                    .order_by(Saida.data_saida.asc(), Saida.id_saida.asc())
+                    .all()
+                ):
+                    if exit_row.codigo_item:
+                        exits_by_product[exit_row.codigo_item].append(exit_row)
+
+                for event in (
+                    InventarioEvento.query
+                    .filter(InventarioEvento.codigo_item.in_(legacy_history_ids))
+                    .order_by(InventarioEvento.data_evento.asc(), InventarioEvento.id_evento.asc())
+                    .all()
+                ):
+                    if event.codigo_item:
+                        events_by_product[event.codigo_item].append(event)
 
                 for product_id in legacy_history_ids:
-                    legacy_balances[product_id] = (
-                        entradas.get(product_id, 0.0)
-                        - saidas.get(product_id, 0.0)
-                        + ajustes.get(product_id, 0.0)
-                    )
+                    item = item_lookup.get(product_id)
+                    if item is None:
+                        legacy_balances[product_id] = 0.0
+                        continue
+                    legacy_balances[product_id] = float(sum(
+                        movement.quantity_base
+                        for movement in build_normalized_legacy_movements(
+                            item,
+                            entries=entries_by_product.get(product_id, []),
+                            exits=exits_by_product.get(product_id, []),
+                            events=events_by_product.get(product_id, []),
+                        )
+                    ))
 
         snapshots: dict[str, BalanceSnapshot] = {}
         for product_id in normalized_ids:
@@ -265,22 +265,10 @@ class BalanceProvider:
 
     @staticmethod
     def _get_legacy_balance(product_id: str) -> float:
-        entradas = (
-            db.session.query(func.coalesce(func.sum(Entrada.quantidade), 0.0))
-            .filter(Entrada.codigo_item == product_id)
-            .scalar()
-        )
-        saidas = (
-            db.session.query(func.coalesce(func.sum(Saida.quantidade), 0.0))
-            .filter(Saida.codigo_item == product_id)
-            .scalar()
-        )
-        ajustes = (
-            db.session.query(func.coalesce(func.sum(InventarioEvento.quantidade), 0.0))
-            .filter(InventarioEvento.codigo_item == product_id)
-            .scalar()
-        )
-        return float(entradas or 0.0) - float(saidas or 0.0) + float(ajustes or 0.0)
+        item = Item.query.get(product_id)
+        if item is None:
+            return 0.0
+        return float(sum(movement.quantity_base for movement in build_normalized_legacy_movements(item)))
 
     @staticmethod
     def _resolve_unit_base(item: Item) -> str | None:

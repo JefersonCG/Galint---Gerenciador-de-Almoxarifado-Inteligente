@@ -8,9 +8,10 @@ from sqlalchemy import or_
 from ..mako_renderer import render_mako_template
 from ..services.ferramentas import ferramentas_service
 from ..services.inventory import inventory_service
+from ..services.operation_visual_payload import operation_visual_payload_service
 from ..services.tool_custody_service import tool_custody_service
 from ..services.users import user_service
-from ..models import RetiradaFerramenta
+from ..models import Item, RetiradaFerramenta
 from ..extensions import db
 
 blueprint = Blueprint("ferramentas", __name__, url_prefix="/ferramentas")
@@ -267,6 +268,8 @@ def item_info(codigo: str):
     if not item:
         return jsonify({"found": False}), 404
 
+    item_model = Item.query.get(codigo)
+    financial_reference = operation_visual_payload_service.resolve_item_financial_reference(item_model)
     foto_path = item.get("foto_path")
     
     return jsonify({
@@ -284,6 +287,7 @@ def item_info(codigo: str):
         "unavailable_reason": item.get("unavailable_reason"),
         "unavailable_detail": item.get("unavailable_detail"),
         "has_open_repair": item.get("has_open_repair"),
+        "valor_referencia": financial_reference,
         "foto_path": foto_path,
         "foto_url": url_for("static", filename=foto_path) if foto_path else None,
     })
@@ -303,6 +307,22 @@ def buscar_item():
         item
         for item in inventory_service.search_items_for_autocomplete(query, limit=20)
         if item.get("is_available") is not False
+    ]
+
+    item_codes = [str(item.get("codigo") or "").strip() for item in resultados if str(item.get("codigo") or "").strip()]
+    item_models = {
+        item.codigo_item: item
+        for item in Item.query.filter(Item.codigo_item.in_(item_codes)).all()
+    } if item_codes else {}
+
+    resultados = [
+        {
+            **item,
+            "valor_referencia": operation_visual_payload_service.resolve_item_financial_reference(
+                item_models.get(str(item.get("codigo") or "").strip())
+            ),
+        }
+        for item in resultados
     ]
     return jsonify({"items": resultados, "itens": resultados})
 

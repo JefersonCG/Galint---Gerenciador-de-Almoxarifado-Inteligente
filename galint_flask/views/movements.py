@@ -1036,6 +1036,7 @@ def registrar_saida_multipla():
             if ledger_result is not None:
                 ledger_result.metadata["reference_id"] = str(saida.id_saida)
                 inventory_service.finalize_ledger_mirror(ledger_result)
+        inventory_service.invalidate_realtime_views()
         
         # Enviar notificação via router (Telegram -> failover GalintNotify)
         try:

@@ -951,6 +951,27 @@
     </div>
 </div>
 
+<div class="modal fade" id="modalErroSaida" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header" style="background: linear-gradient(120deg, #dc2626 0%, #ef4444 100%); color: white;">
+                <h5 class="modal-title" id="modalErroSaidaTitle"><i class="bi bi-exclamation-triangle me-2"></i>Atenção</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-2" id="modalErroSaidaMsg"></p>
+                <div id="modalErroSaidaDetailsWrap" style="display: none;">
+                    <hr>
+                    <ul class="mb-0" id="modalErroSaidaDetails"></ul>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="modal fade" id="modalDevolucaoExpressa" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg express-return-modal">
         <div class="modal-content">
@@ -1119,6 +1140,31 @@ ${parent.scripts()}
     function getOperationalUnitBaseFactor(item) {
         const parsed = parseFloat(item?.devolucao_unidade_fator_base);
         return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
+    }
+
+    function formatStockBalanceBreakdown(item, quantityBase) {
+        const numericBalance = Number(quantityBase) || 0;
+        const capacity = getPackagingCapacity(item);
+        const packagingType = inferPackagingType(item);
+        if (!packagingType || !(capacity > 0)) {
+            return '';
+        }
+
+        const packageCount = Math.floor((numericBalance + STOCK_TOLERANCE) / capacity);
+        const looseQuantity = Math.max(0, numericBalance - (packageCount * capacity));
+        const packageLabel = getPackagingDisplayName(item, packageCount) || packagingType;
+        const looseDisplay = formatBaseQuantityForDisplay(
+            { ...item, tipo_embalagem: '', tipo_embalagem_novo: '', capacidade_embalagem: 0, unidades_por_embalagem: 0 },
+            looseQuantity
+        );
+
+        if (packageCount > 0 && looseQuantity > STOCK_TOLERANCE) {
+            return formatarNumeroSimples(packageCount) + ' ' + packageLabel + ' + ' + looseDisplay;
+        }
+        if (packageCount > 0) {
+            return formatarNumeroSimples(packageCount) + ' ' + packageLabel;
+        }
+        return looseDisplay;
     }
 
     function hasExplicitOperationalUnit(item) {
@@ -1987,6 +2033,10 @@ ${parent.scripts()}
             if (!item || item.saldo === undefined || item.saldo === null) return '';
             
             const saldo = parseFloat(item.saldo) || 0;
+            const packagingBreakdown = formatStockBalanceBreakdown(item, saldo);
+            if (packagingBreakdown) {
+                return packagingBreakdown;
+            }
             if (hasExplicitOperationalUnit(item)) {
                 return formatBaseQuantityForDisplay(item, saldo);
             }
@@ -2634,6 +2684,37 @@ ${parent.scripts()}
             return null;
         }
         return 'UNIDADE=' + extractObservationUnitCode(item) + ';QTD_ORIGINAL=' + formatarNumeroSimples(quantidadeExibicao);
+    }
+
+    function showErrorModal(title, message, details) {
+        const modalEl = document.getElementById('modalErroSaida');
+        const titleEl = document.getElementById('modalErroSaidaTitle');
+        const msgEl = document.getElementById('modalErroSaidaMsg');
+        const detailsWrap = document.getElementById('modalErroSaidaDetailsWrap');
+        const detailsEl = document.getElementById('modalErroSaidaDetails');
+
+        if (!modalEl || !titleEl || !msgEl || !detailsWrap || !detailsEl) {
+            window.alert((title || 'Atenção') + '\n\n' + (message || ''));
+            return;
+        }
+
+        titleEl.textContent = title || 'Atenção';
+        msgEl.textContent = message || '';
+
+        const detailLines = Array.isArray(details) ? details.filter(Boolean) : [];
+        if (detailLines.length > 0) {
+            detailsEl.innerHTML = detailLines.map(detail => '<li>' + escapeHtml(String(detail)) + '</li>').join('');
+            detailsWrap.style.display = 'block';
+        } else {
+            detailsEl.innerHTML = '';
+            detailsWrap.style.display = 'none';
+        }
+
+        try {
+            bootstrap.Modal.getOrCreateInstance(modalEl).show();
+        } catch (error) {
+            window.alert((title || 'Atenção') + '\n\n' + (message || ''));
+        }
     }
 
     function findMatchingQueuedItem(group, item) {

@@ -2494,17 +2494,22 @@ class FinanceService:
             avg_unit = purchase_data.get("avg_unit")
             try:
                 if avg_unit not in (None, ""):
-                    return float(avg_unit)
+                    unit_price = float(avg_unit)
+                    if unit_price > 0:
+                        return unit_price
             except (TypeError, ValueError):
                 pass
 
         if item_data:
-            raw_unit_price = item_data.get("preco_compra_unitario_base")
-            try:
-                if raw_unit_price not in (None, ""):
-                    return float(raw_unit_price)
-            except (TypeError, ValueError):
-                pass
+            for price_key in ("preco_compra_unitario_base", "preco_reposicao_unitario_base"):
+                raw_unit_price = item_data.get(price_key)
+                try:
+                    if raw_unit_price not in (None, ""):
+                        unit_price = float(raw_unit_price)
+                        if unit_price > 0:
+                            return unit_price
+                except (TypeError, ValueError):
+                    pass
 
         return 0.0
 
@@ -3041,16 +3046,16 @@ class FinanceService:
         return charts
 
     @staticmethod
-    def get_stock_value_report(exercise_label: str | None = None) -> dict[str, Any]:
+    def get_stock_value_report(exercise_label: str | None = None, *, use_cache: bool = False) -> dict[str, Any]:
         from .inventory import inventory_service
 
         exercise = FinanceService.resolve_exercise(exercise_label)
         cache_key = f"get_stock_value_report:{exercise['label']}"
-        cached = FinanceService._get_cached(cache_key)
+        cached = FinanceService._get_cached(cache_key) if use_cache else None
         if cached is not None:
             return dict(cached)
 
-        items = [dict(item) for item in inventory_service.list_items()]
+        items = [dict(item) for item in inventory_service.list_items(use_cache=use_cache)]
         item_map = {str(item.get("codigo")): item for item in items}
 
         total_compra_atual = 0.0
@@ -3206,10 +3211,7 @@ class FinanceService:
                 continue
 
             purchase = purchases_by_item.get(code, {})
-            preco_emb = purchase.get("avg_unit")
-            if preco_emb is None:
-                raw_price = item.get("preco_compra_unitario_base")
-                preco_emb = float(raw_price) if raw_price not in (None, "") else 0.0
+            preco_emb = FinanceService._resolve_consumption_unit_price(item, purchase)
             preco_emb = float(preco_emb or 0.0)
             if preco_emb <= 0:
                 fracionado_linhas_ignoradas += 1
@@ -3399,10 +3401,7 @@ class FinanceService:
             category = (item.get("categoria") or "Sem categoria").strip() or "Sem categoria"
             purchase = purchases_by_item.get(code, {})
             consumed_qty = float(consumed_by_item.get(code, 0.0) or 0.0)
-            avg_unit = purchase.get("avg_unit")
-            if avg_unit is None:
-                raw_price = item.get("preco_compra_unitario_base")
-                avg_unit = float(raw_price) if raw_price not in (None, "") else 0.0
+            avg_unit = FinanceService._resolve_consumption_unit_price(item, purchase)
             consumed_value = round(consumed_qty * float(avg_unit or 0.0), 2)
             total_consumido += consumed_value
 
@@ -3480,7 +3479,9 @@ class FinanceService:
             "fracionado_linhas_ignoradas": int(fracionado_linhas_ignoradas),
             "consumo_analitico": consumo_analitico,
         }
-        return FinanceService._set_cached(cache_key, dict(report), ttl_seconds=10.0)
+        if use_cache:
+            return FinanceService._set_cached(cache_key, dict(report), ttl_seconds=10.0)
+        return report
 
     @classmethod
     def get_consumption_panel_report(

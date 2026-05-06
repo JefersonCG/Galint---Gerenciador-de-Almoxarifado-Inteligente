@@ -1257,6 +1257,7 @@ def retirar_multipla_mobile(current_user: Usuario):
             if ledger_result is not None:
                 ledger_result.metadata["reference_id"] = str(saida.id_saida)
                 inventory_service.finalize_ledger_mirror(ledger_result)
+        inventory_service.invalidate_realtime_views()
 
         # Notificar via router (Telegram + inbox mobile)
         try:
@@ -1934,6 +1935,7 @@ def retirar_mobile(current_user: Usuario):
         if ledger_result is not None:
             ledger_result.metadata["reference_id"] = str(saida.id_saida)
             inventory_service.finalize_ledger_mirror(ledger_result)
+        inventory_service.invalidate_realtime_views()
 
         try:
             if usa_embalagens:
@@ -3318,6 +3320,7 @@ def mobile_registrar_documento_fiscal():
             inventory_service.clear_runtime_cache("list_items")
             inventory_service.clear_runtime_cache("list_notas_fiscais:")
             inventory_service.clear_runtime_cache(f"get_nota_fiscal:{nota}")
+            finance_service.clear_runtime_cache("get_stock_value_report:")
             finance_service.clear_runtime_cache("list_stock_documents:")
             finance_service.clear_runtime_cache(f"get_stock_document_by_number:{nota}")
         except Exception:

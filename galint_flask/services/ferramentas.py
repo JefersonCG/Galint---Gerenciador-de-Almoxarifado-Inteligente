@@ -11,6 +11,15 @@ from ..extensions import db
 from ..models import EquipamentoReparo, Item, RetiradaFerramenta, Usuario
 
 
+def _invalidate_tool_runtime_views() -> None:
+    try:
+        from .inventory import inventory_service
+
+        inventory_service.invalidate_realtime_views()
+    except Exception:
+        pass
+
+
 class FerramentasService:
     """Gerencia retiradas temporárias de ferramentas com controle de devolução."""
     
@@ -110,6 +119,7 @@ class FerramentasService:
         
         db.session.add(retirada)
         db.session.commit()
+        _invalidate_tool_runtime_views()
 
         # Notificar retirada via Telegram
         if notify_telegram:
@@ -294,6 +304,7 @@ class FerramentasService:
         
         retirada.registrar_devolucao(observacao)
         db.session.commit()
+        _invalidate_tool_runtime_views()
         
         # Notificar devolução via Telegram
         try:
@@ -409,6 +420,7 @@ class FerramentasService:
         
         retirada.marcar_para_reparo(observacao)
         db.session.commit()
+        _invalidate_tool_runtime_views()
     
     def listar_em_uso(self) -> list[dict[str, Any]]:
         """Lista ferramentas ainda em uso (independente da data)."""

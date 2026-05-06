@@ -380,6 +380,23 @@
         display: inline-block;
     }
 
+    .item-value-cell {
+        min-width: 120px;
+    }
+
+    .item-value-total {
+        color: #0f172a;
+        font-weight: 800;
+        font-size: 0.95rem;
+    }
+
+    .item-value-detail {
+        margin-top: 0.15rem;
+        color: #64748b;
+        font-size: 0.75rem;
+        line-height: 1.3;
+    }
+
     .items-table thead th {
         background: rgba(255, 255, 255, 0.06);
         color: #cbd5e1;
@@ -674,9 +691,10 @@
             <table class="table mb-0">
                 <thead>
                     <tr>
-                        <th style="width: 25%;">Código</th>
-                        <th style="width: 45%;">Descrição</th>
+                        <th style="width: 18%;">Código</th>
+                        <th style="width: 39%;">Descrição</th>
                         <th style="width: 15%;" class="text-center">Quantidade</th>
+                        <th style="width: 13%;" class="text-end">Valor</th>
                         <th style="width: 15%;" class="text-end">Ações</th>
                     </tr>
                 </thead>
@@ -859,6 +877,63 @@ ${parent.scripts()}
         return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
     }
 
+    function formatCurrencyBR(value) {
+        const numericValue = Number(value);
+        if (!Number.isFinite(numericValue) || numericValue <= 0) {
+            return '';
+        }
+        return numericValue.toLocaleString('pt-BR', {
+            style: 'currency',
+            currency: 'BRL'
+        });
+    }
+
+    function getToolFinancialReference(item) {
+        const reference = item && item.valor_referencia && typeof item.valor_referencia === 'object'
+            ? item.valor_referencia
+            : null;
+        const unitPriceBase = Number(reference?.valor_unitario_base);
+        const hasValue = Boolean(reference?.disponivel) && Number.isFinite(unitPriceBase) && unitPriceBase > 0;
+        return {
+            hasValue: hasValue,
+            unitPriceBase: hasValue ? unitPriceBase : 0,
+            unitPriceDisplay: String(reference?.valor_unitario_display || '').trim(),
+            unitPriceDisplayFull: String(reference?.valor_unitario_display_full || '').trim(),
+            sourceLabel: String(reference?.origem_label || '').trim(),
+        };
+    }
+
+    function buildToolFinancialSummary(item) {
+        const reference = getToolFinancialReference(item);
+        if (!reference.hasValue) {
+            return null;
+        }
+        const quantidade = getSanitizedQuantity(item && item.quantidade);
+        const totalValue = reference.unitPriceBase * quantidade;
+        if (!(totalValue > 0)) {
+            return null;
+        }
+        return {
+            totalValue: totalValue,
+            totalDisplay: formatCurrencyBR(totalValue),
+            detailDisplay: quantidade > 1 && reference.unitPriceDisplay
+                ? quantidade + ' x ' + reference.unitPriceDisplay
+                : reference.unitPriceDisplay,
+            sourceLabel: reference.sourceLabel,
+        };
+    }
+
+    function buildToolValueHtml(item) {
+        const summary = buildToolFinancialSummary(item);
+        if (!summary || !summary.totalDisplay) {
+            return '<span class="text-muted small">—</span>';
+        }
+        return '<div class="item-value-total">' + escapeHtml(summary.totalDisplay) + '</div>'
+            + (summary.detailDisplay
+                ? '<div class="item-value-detail">' + escapeHtml(summary.detailDisplay) + '</div>'
+                : '');
+    }
+
     function syncQuantityValue(value) {
         const quantidade = getSanitizedQuantity(value);
         inputQuantidade.value = String(quantidade);
@@ -940,6 +1015,7 @@ ${parent.scripts()}
         const actorName = getCollaboratorDisplayName(actor, item && item.colaborador_nome);
         const local = String((item && item.local) || inputLocal.value || '').trim();
         const observacao = String(inputObservacao && inputObservacao.value ? inputObservacao.value : '').trim();
+        const financial = item ? buildToolFinancialSummary(item) : null;
         const payload = {
             kind: 'ferramenta',
             kind_label: 'Ferramenta',
@@ -966,10 +1042,17 @@ ${parent.scripts()}
                 foto_url: item.foto_url || '',
                 saldo: item.saldo,
                 saldo_display: item.saldo_display || '',
+                financial: financial ? {
+                    valor_total_display: financial.totalDisplay,
+                    valor_detalhe_display: financial.detailDisplay || '',
+                    valor_origem_label: financial.sourceLabel || '',
+                } : null,
             };
             payload.movement = {
                 quantidade: item.quantidade || 1,
                 quantidade_display: String(item.quantidade || 1),
+                valor_total_display: financial?.totalDisplay || '',
+                valor_detalhe_display: financial?.detailDisplay || '',
             };
         }
 
@@ -1004,12 +1087,19 @@ ${parent.scripts()}
         const local = String(item.local || inputLocal.value || '').trim() || 'Nao informado';
         const saldo = String(item.saldo_display || item.saldo || '').trim() || 'Nao informado';
         const observacao = String(item.observacao || (inputObservacao && inputObservacao.value) || '').trim() || 'Sem observacao';
+        const financialSummary = buildToolFinancialSummary(item);
+        const financialStatHtml = financialSummary && financialSummary.totalDisplay
+            ? '<div class="operation-preview-stat"><span class="operation-preview-stat-label">Valor estimado</span><span class="operation-preview-stat-value">' + escapeHtml(financialSummary.totalDisplay) + '</span></div>'
+            : '';
         const eyebrowLabel = previewStatus === 'completed'
             ? '<i class="bi bi-check2-circle"></i> Ultima retirada registrada'
             : '<i class="bi bi-tools"></i> Custodia diaria';
-        const previewNote = previewStatus === 'completed'
+        const previewNoteBase = previewStatus === 'completed'
             ? 'Ultima ferramenta registrada. Confira os dados antes de iniciar a proxima retirada.'
             : observacao;
+        const previewNote = financialSummary && financialSummary.detailDisplay
+            ? previewNoteBase + ' Valor: ' + financialSummary.detailDisplay + (financialSummary.sourceLabel ? ' (' + financialSummary.sourceLabel + ').' : '.')
+            : previewNoteBase;
 
         currentItemPreview.className = 'operation-preview';
         currentItemPreview.innerHTML = '' +
@@ -1023,6 +1113,7 @@ ${parent.scripts()}
                 '<div class="operation-preview-grid">' +
                     '<div class="operation-preview-stat"><span class="operation-preview-stat-label">Quantidade</span><span class="operation-preview-stat-value">' + escapeHtml(String(item.quantidade || 1)) + '</span></div>' +
                     '<div class="operation-preview-stat"><span class="operation-preview-stat-label">Saldo</span><span class="operation-preview-stat-value">' + escapeHtml(saldo) + '</span></div>' +
+                    financialStatHtml +
                     '<div class="operation-preview-stat"><span class="operation-preview-stat-label">Colaborador</span><span class="operation-preview-stat-value">' + escapeHtml(collaboratorLabel) + '</span></div>' +
                     '<div class="operation-preview-stat"><span class="operation-preview-stat-label">Local</span><span class="operation-preview-stat-value">' + escapeHtml(local) + '</span></div>' +
                 '</div>' +
@@ -1220,6 +1311,7 @@ ${parent.scripts()}
             saldo: item.saldo,
             saldo_display: item.saldo_display,
             foto_url: item.foto_url,
+            valor_referencia: item.valor_referencia || null,
             matricula: String(inputMatricula.value || '').trim(),
             colaborador_nome: getCollaboratorDisplayName(inputMatricula.value),
             local: String(inputLocal.value || '').trim(),
@@ -1247,7 +1339,7 @@ ${parent.scripts()}
 
         itemsList.innerHTML = groups.filter(group => group.itens.length > 0).map(group => {
             const localLabel = String(group.local || '').trim();
-            const groupHeader = '<tr class="group-row"><td colspan="4">' + escapeHtml(group.matricula) + (localLabel ? ' <span class="group-meta">• ' + escapeHtml(localLabel) + '</span>' : '') + '</td></tr>';
+            const groupHeader = '<tr class="group-row"><td colspan="5">' + escapeHtml(group.matricula) + (localLabel ? ' <span class="group-meta">• ' + escapeHtml(localLabel) + '</span>' : '') + '</td></tr>';
             const groupItems = group.itens.map(item =>
                 '<tr>' +
                     '<td><code>' + escapeHtml(item.codigo) + '</code></td>' +
@@ -1260,6 +1352,7 @@ ${parent.scripts()}
                         '</div>' +
                     '</td>' +
                     '<td class="text-center"><span class="badge-qty">' + item.quantidade + '</span></td>' +
+                    '<td class="text-end item-value-cell">' + buildToolValueHtml(item) + '</td>' +
                     '<td class="text-end">' +
                         '<button type="button" class="btn-remove-item" onclick="removeItem(' + item.id + ')">' +
                             '<i class="bi bi-trash me-1"></i>Remover' +
@@ -1395,6 +1488,7 @@ ${parent.scripts()}
                 saldo: itemInfo ? itemInfo.saldo : null,
                 saldo_display: itemInfo ? itemInfo.saldo_display : '',
                 foto_url: itemInfo ? itemInfo.foto_url : null,
+                valor_referencia: itemInfo ? (itemInfo.valor_referencia || null) : null,
                 matricula: matriculaAtual,
                 colaborador_nome: getCollaboratorDisplayName(matriculaAtual),
                 local: localAtual,
@@ -1527,6 +1621,7 @@ ${parent.scripts()}
                     saldo: item.saldo,
                     saldo_display: item.saldo_display,
                     foto_url: item.foto_url,
+                    valor_referencia: item.valor_referencia || null,
                     matricula: item.matricula,
                     colaborador_nome: item.colaborador_nome,
                     local: item.local,
@@ -1657,6 +1752,7 @@ ${parent.scripts()}
             local: String(inputLocal.value || '').trim(),
             observacao: String(inputObservacao.value || '').trim(),
             foto_url: itemInfo.foto_url,
+            valor_referencia: itemInfo.valor_referencia || null,
         };
         renderCurrentPreview(currentPreviewItem, 'preview');
     });
