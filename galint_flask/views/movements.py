@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import unicodedata
 import re
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from typing import Any
 
 from flask import Blueprint, abort, current_app, flash, jsonify, redirect, render_template, request, url_for, send_file
@@ -759,6 +759,15 @@ def _parse_quantidade(raw: str | None) -> int:
     return quantidade
 
 
+def _normalize_tipo_custodia(value: str | None) -> str:
+    raw = (value or "").strip().lower()
+    if raw in {"permanente", "perm", "p"}:
+        return "permanente"
+    if raw in {"temporaria", "temporária", "diaria", "diária", "daily", "d"}:
+        return "temporaria"
+    return "temporaria"
+
+
 def _resolve_devolucao_operadores(source: Any) -> tuple[str | None, Any]:
     getter = getattr(source, "get", None)
     if getter is None:
@@ -861,6 +870,7 @@ def registrar_saida_multipla():
         identificador = data.get("usuario")
         usuario = _resolve_usuario(identificador)
         local_servico_geral = data.get("local_servico", "")
+        tipo_custodia_geral = _normalize_tipo_custodia(data.get("tipo_custodia"))
         operational_context_geral = _collect_operational_context(data)
         
         saidas_criadas = []
@@ -872,6 +882,7 @@ def registrar_saida_multipla():
             codigo = (item_data.get("codigo") or "").strip()
             quantidade = _parse_quantidade(item_data.get("quantidade"))
             observacao = (item_data.get("observacao") or "").strip() or None
+            tipo_custodia_item = _normalize_tipo_custodia(item_data.get("tipo_custodia") or tipo_custodia_geral)
             operational_context = _merge_operational_context(
                 _collect_operational_context(item_data),
                 operational_context_geral,
@@ -897,11 +908,26 @@ def registrar_saida_multipla():
                 if not item:
                     raise ValueError("Item não encontrado")
 
-                categoria_text = (item.categoria or '').lower()
-                is_tool_item = 'ferrament' in categoria_text
+                is_tool_item = inventory_service._is_tool_item(item)
 
                 if is_tool_item:
-                    raise ValueError("Ferramentas só podem sair pelo fluxo de Ferramentas/Custódia.")
+                    quantidade_ferramenta = int(round(float(quantidade)))
+                    if abs(float(quantidade) - float(quantidade_ferramenta)) > 1e-6 or quantidade_ferramenta < 1:
+                        raise ValueError("Ferramentas devem sair em quantidade inteira.")
+                    if inventory_service._has_active_tool_withdrawal(item.codigo_item, usuario.matricula):
+                        raise ValueError(
+                            "Retirada bloqueada: este funcionário já possui esta ferramenta em aberto. "
+                            "Faça a devolução antes de nova retirada."
+                        )
+                    item_info = inventory_service.get_item(item.codigo_item)
+                    if item_info and item_info.get("is_available") is False:
+                        raise ValueError(
+                            str(
+                                item_info.get("unavailable_detail")
+                                or item_info.get("unavailable_reason")
+                                or "Ferramenta indisponível para retirada."
+                            )
+                        )
 
                 payload_saida = MovimentoPayload(
                     codigo=item.codigo_item,
@@ -909,11 +935,12 @@ def registrar_saida_multipla():
                     matricula=usuario.matricula,
                     observacao=str(observacao or "").upper() if observacao else None,
                     local_servico=str(local_servico_geral or "").upper() if local_servico_geral else None,
+                    tipo_custodia=tipo_custodia_item,
                     atividade_operacional=operational_context.get("atividade_operacional"),
                     ordem_servico=operational_context.get("ordem_servico"),
                     centro_custo=operational_context.get("centro_custo"),
                     em_embalagens=em_embalagens,
-                    canal_saida="materiais",
+                    canal_saida="ferramentas" if is_tool_item else "materiais",
                 )
                 inventory_service.validate_exit_payload_policy(item, payload_saida)
                 
@@ -957,6 +984,8 @@ def registrar_saida_multipla():
                     order=operational_context.get("ordem_servico"),
                     cost_center=operational_context.get("centro_custo"),
                 )
+                if hasattr(saida, "tipo_custodia"):
+                    saida.tipo_custodia = tipo_custodia_item
 
                 # Se tiver parâmetro de embalagem, adicionar (caso modelo suporte)
                 if em_embalagens is not None and hasattr(saida, 'em_embalagens'):
@@ -965,24 +994,17 @@ def registrar_saida_multipla():
                 db.session.add(saida)
                 ledger_results.append((ledger_result, saida))
                 
-                # Se for ferramenta, criar registro em retiradas_ferramentas
-                try:
-                    if is_tool_item:
-                        retirada = RetiradaFerramenta(
-                            codigo_item=item.codigo_item,
-                            matricula=usuario.matricula,
-                            quantidade=int(quantidade or 1),
-                            local_servico=str(local_servico_geral or '').upper() if local_servico_geral else None,
-                            observacao=str(observacao or '').upper() if observacao else None,
-                            status='em_uso',
-                        )
-                        db.session.add(retirada)
-                except ValueError as ve:
-                    # Exceção de validação deve retornar erro
-                    raise ve
-                except Exception as e:
-                    # Outros erros apenas logam mas não interrompem
-                    current_app.logger.warning(f"Erro ao criar RetiradaFerramenta para {item.codigo_item}: {e}")
+                if is_tool_item and tipo_custodia_item != "permanente":
+                    retirada = RetiradaFerramenta(
+                        codigo_item=item.codigo_item,
+                        matricula=usuario.matricula,
+                        quantidade=quantidade_ferramenta,
+                        local_servico=str(local_servico_geral or '').upper() if local_servico_geral else None,
+                        observacao=str(observacao or '').upper() if observacao else None,
+                        data_prevista_devolucao=date.today(),
+                        status='em_uso',
+                    )
+                    db.session.add(retirada)
                 
                 db.session.flush()
 
@@ -1096,6 +1118,8 @@ def registrar_saida():
 
         # Obter categoria para uso posterior (notificações e alertas)
         categoria = (item_info.get("categoria") or "").strip().lower()
+        is_tool_item = inventory_service._is_tool_item(item_model)
+        tipo_custodia = _normalize_tipo_custodia(request.form.get("tipo_custodia"))
         
         # Processar unidade fracionada (kg ou litro)
         # IMPORTANTE: Não converter para embalagens! O serviço de embalagens já faz isso automaticamente
@@ -1136,12 +1160,19 @@ def registrar_saida():
                 elif not observacao or str(observacao).strip().lower().startswith('retirada fracionada:'):
                     observacao = f"Retirada fracionada: {quantidade_convertida:g} M"
 
+        quantidade_ferramenta = None
+        if is_tool_item:
+            quantidade_ferramenta = int(round(float(quantidade_convertida or 0)))
+            if abs(float(quantidade_convertida or 0) - float(quantidade_ferramenta)) > 1e-6 or quantidade_ferramenta < 1:
+                raise ValueError("Ferramentas devem sair em quantidade inteira.")
+
         payload_kwargs: dict[str, Any] = {
             "codigo": codigo,
             "quantidade": quantidade_convertida,
             "matricula": usuario.id,
             "observacao": observacao,
             "local_servico": local_servico,
+            "tipo_custodia": tipo_custodia,
             "atividade_operacional": operational_context.get("atividade_operacional"),
             "ordem_servico": operational_context.get("ordem_servico"),
             "centro_custo": operational_context.get("centro_custo"),
@@ -1149,11 +1180,23 @@ def registrar_saida():
             "modo_fracionado": modo_fracionado,
             "quantidade_retirada_em_litros": quantidade_retirada_em_litros,
             "quantidade_retirada_em_quilos": quantidade_retirada_em_quilos,
-            "canal_saida": "fracionado" if modo_fracionado else "materiais",
+            "canal_saida": "fracionado" if modo_fracionado else ("ferramentas" if is_tool_item else "materiais"),
         }
 
         payload = MovimentoPayload(**payload_kwargs)
         saida_id = inventory_service.registrar_saida(payload)
+        if is_tool_item and tipo_custodia != "permanente":
+            retirada = RetiradaFerramenta(
+                codigo_item=codigo,
+                matricula=usuario.matricula,
+                quantidade=quantidade_ferramenta or 1,
+                local_servico=str(local_servico or '').upper() if local_servico else None,
+                observacao=str(observacao or '').upper() if observacao else None,
+                data_prevista_devolucao=date.today(),
+                status='em_uso',
+            )
+            db.session.add(retirada)
+            db.session.commit()
         
         # Notificação Telegram já é enviada automaticamente dentro de inventory_service.registrar_saida()
         
