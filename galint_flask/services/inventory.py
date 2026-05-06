@@ -1383,6 +1383,195 @@ def _reconcile_normalized_item_prices(item: Item) -> bool:
     return changed
 
 
+def _purchase_origin_for_document_type(document_type: object) -> str:
+    normalized = str(document_type or "").strip().lower()
+    if normalized == "nf":
+        return "compra_nf"
+    if normalized in {"cupom", "recibo"}:
+        return "compra_cupom"
+    return "compra_documento"
+
+
+def _is_blank_text(value: object) -> bool:
+    return not str(value or "").strip()
+
+
+def _resolve_purchase_candidate_from_row(
+    item: Item,
+    row: DocumentoEntradaEstoqueItem | FinanceLedgerEntry,
+    *,
+    document: DocumentoEntradaEstoque | None = None,
+) -> dict[str, object] | None:
+    quantity = _coerce_price_value(getattr(row, "quantidade", None))
+    raw_value = _coerce_price_value(getattr(row, "valor_unitario", None))
+    total_value = _coerce_price_value(getattr(row, "valor_total", None))
+    if raw_value is None and total_value is not None and quantity is not None and quantity > 0:
+        raw_value = round(float(total_value) / float(quantity), 8)
+    if raw_value is None or raw_value <= 0:
+        return None
+
+    proof = _normalize_historical_item_price_row(item, row, raw_value=float(raw_value))
+    unit_price_base = _coerce_price_value(proof.get("unit_price_base") if proof else None)
+    price_unit = str(proof.get("price_unit") or "").strip().lower() if proof else ""
+    factor_to_base = _coerce_price_value(proof.get("factor_to_base") if proof else None)
+
+    if unit_price_base is None or unit_price_base <= 0:
+        unit_price_base = _coerce_price_value(getattr(row, "valor_unitario_base", None))
+    if unit_price_base is None or unit_price_base <= 0:
+        unit_price_base = float(raw_value)
+
+    if not price_unit:
+        price_unit = str(getattr(row, "unidade_preco", None) or infer_price_unit_for_item(item) or "").strip().lower()
+    if factor_to_base is None or factor_to_base <= 0:
+        factor_to_base = _coerce_price_value(getattr(row, "fator_preco_base", None)) or 1.0
+
+    if document is not None:
+        document_type = document.tipo_documento
+        document_number = document.numero_documento
+        access_key = document.chave_acesso
+        emission_date = document.data_emissao
+        receipt_date = document.data_recebimento
+    else:
+        document_type = getattr(row, "tipo_documento", None)
+        document_number = getattr(row, "numero_documento", None)
+        access_key = getattr(row, "chave_acesso", None)
+        emission_date = getattr(row, "data_emissao_documento", None)
+        receipt_date = getattr(row, "data_recebimento_documento", None)
+
+    document_number = str(document_number or "").strip()
+    if not document_number:
+        return None
+
+    return {
+        "raw_value": float(raw_value),
+        "unit_price_base": float(unit_price_base),
+        "price_unit": price_unit or None,
+        "factor_to_base": float(factor_to_base),
+        "document_number": document_number,
+        "document_type": str(document_type or "").strip().lower() or None,
+        "access_key": str(access_key or "").strip() or None,
+        "emission_date": emission_date,
+        "receipt_date": receipt_date,
+    }
+
+
+def _latest_document_purchase_candidate(item: Item) -> dict[str, object] | None:
+    code = str(getattr(item, "codigo_item", "") or "").strip()
+    if not code or not has_app_context():
+        return None
+
+    fiscal_rows = (
+        db.session.query(DocumentoEntradaEstoqueItem, DocumentoEntradaEstoque)
+        .join(DocumentoEntradaEstoque, DocumentoEntradaEstoque.id_documento == DocumentoEntradaEstoqueItem.documento_id)
+        .filter(DocumentoEntradaEstoqueItem.codigo_item == code)
+        .filter(func.lower(func.coalesce(DocumentoEntradaEstoque.tipo_documento, "")) != "manual")
+        .filter(
+            or_(
+                DocumentoEntradaEstoqueItem.valor_unitario > 0,
+                (DocumentoEntradaEstoqueItem.valor_total > 0) & (DocumentoEntradaEstoqueItem.quantidade > 0),
+            )
+        )
+        .order_by(
+            DocumentoEntradaEstoque.data_recebimento.desc(),
+            DocumentoEntradaEstoque.data_emissao.desc(),
+            DocumentoEntradaEstoqueItem.id_documento_item.desc(),
+        )
+        .limit(25)
+        .all()
+    )
+    for row, document in fiscal_rows:
+        candidate = _resolve_purchase_candidate_from_row(item, row, document=document)
+        if candidate is not None:
+            return candidate
+
+    ledger_rows = (
+        FinanceLedgerEntry.query
+        .filter(FinanceLedgerEntry.codigo_item == code)
+        .filter(func.lower(func.coalesce(FinanceLedgerEntry.tipo_documento, "")) != "manual")
+        .filter(
+            or_(
+                FinanceLedgerEntry.valor_unitario > 0,
+                (FinanceLedgerEntry.valor_total > 0) & (FinanceLedgerEntry.quantidade > 0),
+            )
+        )
+        .order_by(FinanceLedgerEntry.data_lancamento.desc(), FinanceLedgerEntry.id.desc())
+        .limit(25)
+        .all()
+    )
+    for row in ledger_rows:
+        candidate = _resolve_purchase_candidate_from_row(item, row)
+        if candidate is not None:
+            return candidate
+
+    return None
+
+
+def _sync_missing_item_purchase_price_from_history(item: Item) -> bool:
+    current_raw = _coerce_price_value(getattr(item, "preco_compra_unitario", None))
+    current_base = _coerce_price_value(getattr(item, "preco_compra_unitario_base", None))
+    if current_raw is not None and current_raw > 0 and current_base is not None and current_base > 0:
+        return False
+
+    candidate = _latest_document_purchase_candidate(item)
+    if candidate is None:
+        return False
+
+    candidate_raw = _coerce_price_value(candidate.get("raw_value"))
+    if candidate_raw is None or candidate_raw <= 0:
+        return False
+    if current_raw is not None and current_raw > 0 and abs(float(current_raw) - float(candidate_raw)) > 1e-6:
+        return False
+
+    changed = False
+    if current_raw is None or current_raw <= 0:
+        item.preco_compra_unitario = float(candidate_raw)
+        changed = True
+
+    candidate_base = _coerce_price_value(candidate.get("unit_price_base"))
+    if candidate_base is not None and candidate_base > 0 and (current_base is None or current_base <= 0):
+        item.preco_compra_unitario_base = float(candidate_base)
+        changed = True
+
+    candidate_unit = str(candidate.get("price_unit") or "").strip().lower() or None
+    if candidate_unit and _is_blank_text(getattr(item, "preco_compra_unidade_preco", None)):
+        item.preco_compra_unidade_preco = candidate_unit
+        changed = True
+
+    candidate_factor = _coerce_price_value(candidate.get("factor_to_base"))
+    if candidate_factor is not None and candidate_factor > 0 and _coerce_price_value(getattr(item, "preco_compra_fator_base", None)) is None:
+        item.preco_compra_fator_base = float(candidate_factor)
+        changed = True
+
+    document_number = str(candidate.get("document_number") or "").strip()
+    if document_number:
+        if _is_blank_text(getattr(item, "preco_compra_documento", None)):
+            item.preco_compra_documento = document_number
+            changed = True
+        if _is_blank_text(getattr(item, "nota_fiscal", None)):
+            item.nota_fiscal = document_number
+            changed = True
+
+    if _is_blank_text(getattr(item, "preco_compra_fonte", None)):
+        item.preco_compra_fonte = _purchase_origin_for_document_type(candidate.get("document_type"))
+        changed = True
+
+    if candidate.get("access_key") and _is_blank_text(getattr(item, "preco_compra_chave_acesso", None)):
+        item.preco_compra_chave_acesso = str(candidate.get("access_key") or "").strip()
+        changed = True
+    if candidate.get("emission_date") and getattr(item, "preco_compra_data_emissao", None) is None:
+        item.preco_compra_data_emissao = candidate.get("emission_date")
+        changed = True
+    if candidate.get("receipt_date") and getattr(item, "preco_compra_data_recebimento", None) is None:
+        item.preco_compra_data_recebimento = candidate.get("receipt_date")
+        changed = True
+
+    if changed:
+        item.preco_compra_atualizado_em = datetime.utcnow()
+        if _is_blank_text(getattr(item, "preco_compra_atualizado_por", None)):
+            item.preco_compra_atualizado_por = "auditoria_documentos_fiscais"
+    return changed
+
+
 @dataclass(slots=True)
 class MovimentoPayload:
     codigo: str
@@ -4921,6 +5110,9 @@ class InventoryService:
                 item.estoque_minimo = minimo
                 atualizado = True
 
+            if _sync_missing_item_purchase_price_from_history(item):
+                atualizado = True
+
             if _reconcile_normalized_item_prices(item):
                 atualizado = True
 
@@ -5017,6 +5209,8 @@ class InventoryService:
         minimo = _calculate_min_stock(saldo)
         if item.estoque_minimo != minimo:
             item.estoque_minimo = minimo
+            packaging_synced = True
+        if _sync_missing_item_purchase_price_from_history(item):
             packaging_synced = True
         if _reconcile_normalized_item_prices(item):
             packaging_synced = True

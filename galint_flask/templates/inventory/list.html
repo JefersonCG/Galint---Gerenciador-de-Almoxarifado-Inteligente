@@ -6008,7 +6008,8 @@
     const loadItemSnapshot = async (codigo) => {
         const response = await fetch(`/itens/api/${encodeURIComponent(codigo)}`, {
             headers: { 'Accept': 'application/json' },
-            credentials: 'same-origin'
+            credentials: 'same-origin',
+            cache: 'no-store'
         });
         const data = await readJsonResponse(response);
         if (!response.ok || data?.success === false) {
