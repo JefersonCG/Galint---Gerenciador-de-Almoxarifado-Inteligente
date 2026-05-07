@@ -1667,6 +1667,33 @@
     <div id="custody-feed" class="galint-custody-feed-list">
         <p class="text-muted mb-0">Carregando ferramentas em custódia...</p>
     </div>
+    <div class="modal fade" id="custodyReturnModal" tabindex="-1" aria-labelledby="custodyReturnModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered galint-custody-modal-dialog">
+            <div class="modal-content galint-custody-modal-content">
+                <div class="modal-header border-0 pb-0">
+                    <div>
+                        <div class="galint-custody-modal-eyebrow"><i class="bi bi-arrow-return-left"></i> Baixa de ferramentas</div>
+                        <h5 class="modal-title" id="custodyReturnModalLabel">Colaborador</h5>
+                    </div>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body galint-custody-modal-body">
+                    <div id="custodyReturnModalSummary" class="galint-custody-modal-summary"></div>
+                    <p id="custodyReturnModalHint" class="galint-custody-modal-hint">Selecione uma ou mais ferramentas para dar baixa.</p>
+                    <div id="custodyReturnModalTools" class="galint-custody-modal-tools"></div>
+                </div>
+                <div class="modal-footer border-0 pt-0 galint-custody-modal-footer">
+                    <div id="custodyReturnModalSelected" class="galint-custody-modal-selected">Selecione uma ou mais ferramentas.</div>
+                    <div class="d-flex flex-wrap gap-2 ms-auto justify-content-end">
+                        <a id="custodyReturnModalProfile" href="#" class="galint-custody-btn galint-custody-btn-secondary">Ver ficha</a>
+                        <button type="button" id="custodyReturnModalSelectAll" class="galint-custody-btn galint-custody-btn-secondary galint-custody-btn-compact">Selecionar todas</button>
+                        <button type="button" class="galint-custody-btn galint-custody-btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                        <button type="button" id="custodyReturnModalConfirm" class="galint-custody-btn galint-custody-btn-primary" disabled>Baixar selecionadas</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
     {% endif %}
 </div>
 
@@ -2346,6 +2373,16 @@
         box-shadow: 0 34px 78px rgba(15, 23, 42, 0.36);
     }
 
+    .galint-custody-modal-dialog {
+        max-width: min(920px, calc(100vw - 1.5rem));
+    }
+
+    .galint-custody-modal-body {
+        padding-top: 0.5rem;
+        max-height: calc(100vh - 240px);
+        overflow-y: auto;
+    }
+
     .galint-custody-modal-eyebrow {
         display: inline-flex;
         align-items: center;
@@ -2457,6 +2494,21 @@
         margin: 0 0 0.8rem;
         color: rgba(226, 232, 240, 0.78);
         font-size: 0.88rem;
+    }
+
+    .galint-custody-modal-footer {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .galint-custody-modal-tools-empty {
+        padding: 1rem;
+        border-radius: 18px;
+        text-align: center;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px dashed rgba(148, 163, 184, 0.22);
+        color: rgba(226, 232, 240, 0.76);
     }
 
     .galint-custody-modal-selected {
@@ -3145,11 +3197,25 @@
             timeStyle: 'short'
         });
         const endpoint = "{{ url_for('dashboard.custody_active') }}";
+        const custodyModalElement = document.getElementById('custodyReturnModal');
+        const custodyModalLabel = document.getElementById('custodyReturnModalLabel');
+        const custodyModalSummary = document.getElementById('custodyReturnModalSummary');
+        const custodyModalHint = document.getElementById('custodyReturnModalHint');
+        const custodyModalTools = document.getElementById('custodyReturnModalTools');
+        const custodyModalSelected = document.getElementById('custodyReturnModalSelected');
+        const custodyModalProfile = document.getElementById('custodyReturnModalProfile');
+        const custodyModalSelectAll = document.getElementById('custodyReturnModalSelectAll');
+        const custodyModalConfirm = document.getElementById('custodyReturnModalConfirm');
+        const custodyModalInstance = custodyModalElement && window.bootstrap
+            ? bootstrap.Modal.getOrCreateInstance(custodyModalElement)
+            : null;
 
         let currentGroups = [];
         const selectedToolsByGroup = new Map();
         const focusedToolsByGroup = new Map();
         const galleryTimers = new Map();
+        let activeCustodyModalGroupKey = null;
+        let custodyReturnBusy = false;
 
         function formatDate(isoValue) {
             if (!isoValue) {
@@ -3193,6 +3259,10 @@
                 return uniqueValues.join(' • ');
             }
             return `${uniqueValues.slice(0, 2).join(' • ')} +${uniqueValues.length - 2}`;
+        }
+
+        function getCurrentGroupByKey(groupKey) {
+            return currentGroups.find((group) => group.key === groupKey) || null;
         }
 
         function getGroupVisualState(group) {
@@ -3307,15 +3377,12 @@
 
             const focusedItem = orderedItems.find((item) => getItemKey(item) === itemKey) || orderedItems[0];
             const focusedKey = getItemKey(focusedItem);
-            const selectedKeySet = new Set(getSelectedKeys(group.key, orderedItems));
 
             focusedToolsByGroup.set(group.key, focusedKey);
 
             wrapper.querySelectorAll('.js-custody-gallery-slide').forEach((slide) => {
                 const slideKey = slide.getAttribute('data-tool-key') || '';
                 slide.classList.toggle('is-visible', slideKey === focusedKey);
-                slide.classList.toggle('is-selected', selectedKeySet.has(slideKey));
-                slide.setAttribute('aria-pressed', selectedKeySet.has(slideKey) ? 'true' : 'false');
             });
 
             wrapper.querySelectorAll('.js-custody-gallery-dot').forEach((dot) => {
@@ -3323,7 +3390,7 @@
             });
 
             clearGalleryTimer(group.key);
-            if (options.restartTimer === false || orderedItems.length < 2 || selectedKeySet.size) {
+            if (options.restartTimer === false || orderedItems.length < 2) {
                 return;
             }
 
@@ -3405,52 +3472,101 @@
                 });
         }
 
-        function syncGroupSelectionState(group, wrapper, options = {}) {
-            if (!group || !wrapper) {
-                return;
+        function renderCustodyModal(groupKey, options = {}) {
+            const group = getCurrentGroupByKey(groupKey);
+            if (!group || !custodyModalSummary || !custodyModalTools || !custodyModalSelected || !custodyModalConfirm || !custodyModalSelectAll || !custodyModalProfile) {
+                return false;
             }
 
-            const selectedLabel = wrapper.querySelector('.js-custody-selected');
-            const returnButton = wrapper.querySelector('.js-custody-return');
-            const selectAllButton = wrapper.querySelector('.js-custody-select-all');
-            const toolButtons = wrapper.querySelectorAll('.js-custody-tool');
+            activeCustodyModalGroupKey = group.key;
             const orderedItems = getOrderedItems(group);
             const selectedKeys = getSelectedKeys(group.key, orderedItems);
             const selectedKeySet = new Set(selectedKeys);
             const selectedItems = orderedItems.filter((item) => selectedKeySet.has(getItemKey(item)));
-            const fallbackFocusKey = options.focusKey || focusedToolsByGroup.get(group.key) || selectedKeys[0] || (orderedItems[0] ? getItemKey(orderedItems[0]) : '');
+            const isAllSelected = orderedItems.length > 0 && selectedItems.length === orderedItems.length;
+            const statusBadge = group.overdueCount
+                ? `<span class="galint-custody-summary-chip alert"><i class="bi bi-exclamation-circle"></i>${escapeHtml(formatPendingCount(group.overdueCount))}</span>`
+                : '<span class="galint-custody-summary-chip"><i class="bi bi-check-circle"></i>Sem pendências</span>';
 
-            toolButtons.forEach((button) => {
-                const buttonKey = button.getAttribute('data-tool-key') || '';
-                const isSelected = selectedKeySet.has(buttonKey);
-                button.classList.toggle('is-selected', isSelected);
-                button.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
+            if (custodyModalLabel) {
+                custodyModalLabel.textContent = group.usuario || 'Colaborador';
+            }
+
+            custodyModalSummary.innerHTML = `
+                <span class="galint-custody-summary-chip"><i class="bi bi-tools"></i>${escapeHtml(formatToolCount(group.totalTools))}</span>
+                <span class="galint-custody-summary-chip"><i class="bi bi-clock-history"></i>${escapeHtml(formatDays(group.maxDays))}</span>
+                ${statusBadge}
+                <span class="galint-custody-summary-chip"><i class="bi bi-geo-alt"></i>${escapeHtml(formatLocations(group.locations))}</span>
+            `;
+
+            if (custodyModalHint) {
+                custodyModalHint.textContent = orderedItems.length > 1
+                    ? 'Selecione uma ou mais ferramentas desta custódia para dar baixa/devolução.'
+                    : 'Selecione a ferramenta abaixo para dar baixa/devolução.';
+            }
+
+            custodyModalTools.innerHTML = orderedItems.length
+                ? orderedItems.map((item) => `
+                    <button type="button" class="galint-custody-modal-tool js-custody-modal-tool ${selectedKeySet.has(getItemKey(item)) ? 'is-selected' : ''} ${item.atrasada ? 'alert' : ''}" data-tool-key="${escapeHtml(getItemKey(item))}" aria-pressed="${selectedKeySet.has(getItemKey(item)) ? 'true' : 'false'}">
+                        <div class="galint-custody-modal-tool-top">
+                            <div>
+                                <div class="galint-custody-modal-tool-name">${escapeHtml(item.descricao || 'Ferramenta não identificada')}</div>
+                                <div class="galint-custody-modal-tool-code">Código ${escapeHtml(item.codigo || '-')}</div>
+                            </div>
+                            <span class="galint-custody-preview-days ${item.atrasada ? 'is-alert' : ''}">${escapeHtml(formatDays(item.dias_em_uso))}</span>
+                        </div>
+                        <div class="galint-custody-modal-tool-meta">
+                            <span class="galint-custody-summary-chip"><i class="bi bi-geo-alt"></i>${escapeHtml(item.local_servico || 'Local não informado')}</span>
+                            <span class="galint-custody-summary-chip"><i class="bi bi-hash"></i>Qtd ${escapeHtml(item.quantidade || 0)}</span>
+                            <span class="galint-custody-summary-chip"><i class="bi bi-calendar-event"></i>${escapeHtml(formatDate(item.data_retirada_iso))}</span>
+                        </div>
+                    </button>
+                `).join('')
+                : '<div class="galint-custody-modal-tools-empty">Nenhuma ferramenta disponível para baixa neste colaborador.</div>';
+
+            custodyModalTools.querySelectorAll('.js-custody-modal-tool').forEach((toolButton) => {
+                toolButton.addEventListener('click', () => {
+                    if (!custodyReturnBusy) {
+                        toggleModalGroupSelection(group.key, toolButton.getAttribute('data-tool-key') || '');
+                    }
+                });
             });
 
-            if (selectedLabel) {
-                selectedLabel.textContent = buildSelectionMessage(selectedItems);
-                selectedLabel.classList.toggle('is-ready', selectedItems.length > 0);
-            }
-            if (returnButton) {
-                returnButton.disabled = selectedItems.length === 0;
-                returnButton.textContent = buildReturnButtonLabel(selectedItems.length);
-                returnButton.setAttribute('data-group-key', group.key || '');
-            }
+            custodyModalSelected.textContent = buildSelectionMessage(selectedItems);
+            custodyModalSelected.classList.toggle('is-ready', selectedItems.length > 0);
 
-            if (selectAllButton) {
-                const isAllSelected = orderedItems.length > 0 && selectedItems.length === orderedItems.length;
-                selectAllButton.textContent = isAllSelected ? 'Limpar seleção' : 'Selecionar todas';
-                selectAllButton.classList.toggle('is-active', isAllSelected);
-                selectAllButton.setAttribute('aria-pressed', isAllSelected ? 'true' : 'false');
-            }
+            custodyModalProfile.href = `/controle-ferramentas/funcionario/${encodeURIComponent(group.matricula_full || group.matricula || '')}`;
 
-            applyGalleryFocus(group, wrapper, fallbackFocusKey, options);
+            custodyModalSelectAll.style.display = orderedItems.length > 1 ? '' : 'none';
+            custodyModalSelectAll.textContent = isAllSelected ? 'Limpar seleção' : 'Selecionar todas';
+            custodyModalSelectAll.classList.toggle('is-active', isAllSelected);
+            custodyModalSelectAll.disabled = custodyReturnBusy || orderedItems.length <= 1;
+
+            custodyModalConfirm.disabled = custodyReturnBusy || selectedItems.length === 0;
+            custodyModalConfirm.textContent = options.confirmLabel || (custodyReturnBusy ? 'Baixando...' : buildReturnButtonLabel(selectedItems.length));
+
+            return true;
         }
 
-        function toggleGroupSelection(group, wrapper, itemKey) {
+        function openCustodyReturnModal(groupKey) {
+            const group = getCurrentGroupByKey(groupKey);
+            if (!group || !custodyModalInstance) {
+                return;
+            }
+            setSelectedKeys(group.key, []);
+            renderCustodyModal(group.key);
+            custodyModalInstance.show();
+        }
+
+        function toggleModalGroupSelection(groupKey, itemKey) {
+            const group = getCurrentGroupByKey(groupKey);
+            if (!group) {
+                return;
+            }
+
             const orderedItems = getOrderedItems(group);
             if (!orderedItems.some((item) => getItemKey(item) === itemKey)) {
-                syncGroupSelectionState(group, wrapper);
+                renderCustodyModal(group.key);
                 return;
             }
 
@@ -3462,22 +3578,20 @@
             }
 
             setSelectedKeys(group.key, [...nextSelection]);
-            focusedToolsByGroup.set(group.key, itemKey);
-            syncGroupSelectionState(group, wrapper, { focusKey: itemKey, restartTimer: true });
+            renderCustodyModal(group.key);
         }
 
-        function toggleAllGroupSelection(group, wrapper) {
+        function toggleAllModalGroupSelection(groupKey) {
+            const group = getCurrentGroupByKey(groupKey);
+            if (!group) {
+                return;
+            }
+
             const orderedItems = getOrderedItems(group);
             const allKeys = orderedItems.map((item) => getItemKey(item));
             const selectedKeys = getSelectedKeys(group.key, orderedItems);
-            const nextKeys = selectedKeys.length === orderedItems.length ? [] : allKeys;
-            const focusKey = focusedToolsByGroup.get(group.key) || nextKeys[0] || allKeys[0] || '';
-
-            setSelectedKeys(group.key, nextKeys);
-            if (focusKey) {
-                focusedToolsByGroup.set(group.key, focusKey);
-            }
-            syncGroupSelectionState(group, wrapper, { focusKey, restartTimer: true });
+            setSelectedKeys(group.key, selectedKeys.length === orderedItems.length ? [] : allKeys);
+            renderCustodyModal(group.key);
         }
 
         async function submitReturnRequest(item) {
@@ -3521,7 +3635,12 @@
             return result;
         }
 
-        async function handleGroupReturn(group, wrapper, buttonEl) {
+        async function handleGroupReturn(groupKey) {
+            const group = getCurrentGroupByKey(groupKey);
+            if (!group) {
+                return;
+            }
+
             const orderedItems = getOrderedItems(group);
             const selectedItems = getSelectedItems(group, orderedItems);
 
@@ -3543,20 +3662,14 @@
                 return;
             }
 
-            const interactiveButtons = Array.from(wrapper.querySelectorAll('button'));
-            interactiveButtons.forEach((button) => {
-                button.disabled = true;
-            });
-
             try {
+                custodyReturnBusy = true;
                 const failures = [];
                 const failedKeys = [];
 
                 for (let index = 0; index < selectedItems.length; index += 1) {
                     const item = selectedItems[index];
-                    if (buttonEl && document.body.contains(buttonEl)) {
-                        buttonEl.textContent = `Baixando ${index + 1}/${selectedItems.length}`;
-                    }
+                    renderCustodyModal(group.key, { confirmLabel: `Baixando ${index + 1}/${selectedItems.length}` });
 
                     try {
                         await submitReturnRequest(item);
@@ -3567,13 +3680,16 @@
                 }
 
                 setSelectedKeys(group.key, failedKeys);
-                if (failedKeys.length) {
-                    focusedToolsByGroup.set(group.key, failedKeys[0]);
-                } else {
-                    focusedToolsByGroup.delete(group.key);
-                }
 
                 await load();
+
+                const updatedGroup = getCurrentGroupByKey(group.key);
+                if (!updatedGroup) {
+                    activeCustodyModalGroupKey = null;
+                    custodyModalInstance?.hide();
+                } else {
+                    renderCustodyModal(updatedGroup.key);
+                }
 
                 if (failures.length) {
                     const failurePreview = failures
@@ -3582,16 +3698,18 @@
                         .join('\n');
                     const otherFailures = failures.length - Math.min(failures.length, 3);
                     window.alert(`${selectedItems.length - failures.length} baixa(s) concluída(s) e ${failures.length} falha(s).\n\n${failurePreview}${otherFailures > 0 ? `\n• +${otherFailures} outra(s)` : ''}`);
+                } else {
+                    window.alert(selectedItems.length === 1
+                        ? 'Baixa concluída com sucesso.'
+                        : `${selectedItems.length} baixa(s) concluída(s) com sucesso.`);
                 }
             } catch (error) {
                 console.error('Falha ao registrar devolução em lote:', error);
                 window.alert(`Falha ao dar baixa: ${error?.message || 'erro desconhecido'}`);
             } finally {
-                if (document.body.contains(wrapper)) {
-                    interactiveButtons.forEach((button) => {
-                        button.disabled = false;
-                    });
-                    syncGroupSelectionState(group, wrapper, { focusKey: focusedToolsByGroup.get(group.key), restartTimer: true });
+                custodyReturnBusy = false;
+                if (activeCustodyModalGroupKey) {
+                    renderCustodyModal(activeCustodyModalGroupKey);
                 }
             }
         }
@@ -3626,13 +3744,10 @@
                 }
 
                 const orderedItems = getOrderedItems(group);
-                const persistedSelectedKeys = getSelectedKeys(group.key, orderedItems);
-                const selectedKeySet = new Set(persistedSelectedKeys);
                 const persistedFocusKey = focusedToolsByGroup.get(group.key);
                 const focusKey = orderedItems.some((item) => getItemKey(item) === persistedFocusKey)
                     ? persistedFocusKey
-                    : (persistedSelectedKeys[0] || (orderedItems[0] ? getItemKey(orderedItems[0]) : ''));
-                const selectedItems = orderedItems.filter((item) => selectedKeySet.has(getItemKey(item)));
+                    : (orderedItems[0] ? getItemKey(orderedItems[0]) : '');
                 const totalToolsLabel = formatToolCount(group.totalTools);
                 const locationsLabel = escapeHtml(formatLocations(group.locations));
 
@@ -3656,7 +3771,7 @@
                         <div class="galint-custody-gallery">
                             <div class="galint-custody-gallery-frame">
                                 ${orderedItems.map((item, index) => `
-                                    <button type="button" class="galint-custody-gallery-slide js-custody-gallery-slide ${getItemKey(item) === focusKey ? 'is-visible' : ''} ${selectedKeySet.has(getItemKey(item)) ? 'is-selected' : ''}" data-tool-key="${escapeHtml(getItemKey(item))}" aria-label="Exibir foto de ${escapeHtml(item.descricao || 'ferramenta')}" aria-pressed="${selectedKeySet.has(getItemKey(item)) ? 'true' : 'false'}">
+                                    <button type="button" class="galint-custody-gallery-slide js-custody-gallery-slide ${getItemKey(item) === focusKey ? 'is-visible' : ''}" data-tool-key="${escapeHtml(getItemKey(item))}" aria-label="Abrir baixa de ${escapeHtml(item.descricao || 'ferramenta')}">
                                         ${item.foto_url
                                             ? `<img src="${escapeHtml(item.foto_url)}" alt="${escapeHtml(item.descricao || 'Ferramenta')}" loading="lazy">`
                                             : `<div class="galint-custody-gallery-placeholder"><i class="bi bi-image"></i><span>Sem foto desta ferramenta</span></div>`}
@@ -3704,41 +3819,15 @@
                             </div>
                         </div>
                     </div>
-                    <div class="galint-custody-preview-list">
-                        ${orderedItems.map((item) => `
-                            <button type="button" class="galint-custody-preview-item js-custody-tool ${selectedKeySet.has(getItemKey(item)) ? 'is-selected' : ''}" data-tool-key="${escapeHtml(getItemKey(item))}" aria-pressed="${selectedKeySet.has(getItemKey(item)) ? 'true' : 'false'}">
-                                <div class="galint-custody-preview-top">
-                                    <strong>${escapeHtml(item.descricao || 'Item não identificado')}</strong>
-                                    <span class="galint-custody-preview-days ${item.atrasada ? 'is-alert' : ''}">${formatDays(item.dias_em_uso)}</span>
-                                </div>
-                                <span>${escapeHtml(item.local_servico || 'Local não informado')}</span>
-                                <span class="galint-custody-preview-meta">Qtd ${escapeHtml(item.quantidade || 0)} • ${escapeHtml(formatDate(item.data_retirada_iso))}</span>
-                                ${item.observacao ? `<small class="galint-custody-preview-note">${escapeHtml(item.observacao)}</small>` : ''}
-                            </button>
-                        `).join('')}
-                    </div>
-                    <div class="galint-custody-selected-shell">
-                        <div class="galint-custody-selected js-custody-selected ${selectedItems.length ? 'is-ready' : ''}">${escapeHtml(buildSelectionMessage(selectedItems))}</div>
-                        <div class="galint-custody-selection-tools">
-                            <span class="galint-custody-selection-hint">${orderedItems.length > 1 ? 'Clique nas ferramentas para selecionar quantas quiser antes de dar baixa.' : 'Clique na ferramenta para preparar a baixa.'}</span>
-                            ${orderedItems.length > 1 ? `<button type="button" class="galint-custody-btn galint-custody-btn-secondary galint-custody-btn-compact js-custody-select-all ${selectedItems.length === orderedItems.length ? 'is-active' : ''}" data-group-key="${escapeHtml(group.key)}" aria-pressed="${selectedItems.length === orderedItems.length ? 'true' : 'false'}">${selectedItems.length === orderedItems.length ? 'Limpar seleção' : 'Selecionar todas'}</button>` : ''}
-                        </div>
-                    </div>
                     <div class="galint-custody-actions">
                         <a href="/controle-ferramentas/funcionario/${encodeURIComponent(group.matricula_full || group.matricula || '')}" class="galint-custody-btn galint-custody-btn-secondary">Ver ficha</a>
-                        <button type="button" data-group-key="${escapeHtml(group.key)}" class="galint-custody-btn galint-custody-btn-primary js-custody-return" ${selectedItems.length ? '' : 'disabled'}>${buildReturnButtonLabel(selectedItems.length)}</button>
+                        <button type="button" data-group-key="${escapeHtml(group.key)}" class="galint-custody-btn galint-custody-btn-primary js-custody-open-modal">Baixar / devolver</button>
                     </div>
                 `;
 
-                wrapper.querySelectorAll('.js-custody-tool').forEach((toolButton) => {
-                    toolButton.addEventListener('click', () => {
-                        toggleGroupSelection(group, wrapper, toolButton.getAttribute('data-tool-key') || '');
-                    });
-                });
-
                 wrapper.querySelectorAll('.js-custody-gallery-slide').forEach((slideButton) => {
                     slideButton.addEventListener('click', () => {
-                        toggleGroupSelection(group, wrapper, slideButton.getAttribute('data-tool-key') || '');
+                        openCustodyReturnModal(group.key);
                     });
                 });
 
@@ -3762,23 +3851,14 @@
                     });
                 }
 
-                const selectAllButton = wrapper.querySelector('.js-custody-select-all');
-                if (selectAllButton) {
-                    selectAllButton.addEventListener('click', () => {
-                        toggleAllGroupSelection(group, wrapper);
-                    });
-                }
-
-                const returnButton = wrapper.querySelector('.js-custody-return');
+                const returnButton = wrapper.querySelector('.js-custody-open-modal');
                 if (returnButton) {
                     returnButton.addEventListener('click', () => {
-                        if (!returnButton.disabled) {
-                            handleGroupReturn(group, wrapper, returnButton);
-                        }
+                        openCustodyReturnModal(group.key);
                     });
                 }
 
-                syncGroupSelectionState(group, wrapper, { focusKey, restartTimer: true });
+                applyGalleryFocus(group, wrapper, focusKey, { restartTimer: true });
 
                 fragment.appendChild(wrapper);
             });
@@ -3802,10 +3882,42 @@
                 const payload = await response.json();
                 currentGroups = groupByEmployee(payload.items || []);
                 render(currentGroups);
+                if (activeCustodyModalGroupKey && custodyModalElement?.classList.contains('show')) {
+                    const activeGroup = getCurrentGroupByKey(activeCustodyModalGroupKey);
+                    if (activeGroup) {
+                        renderCustodyModal(activeGroup.key);
+                    } else {
+                        activeCustodyModalGroupKey = null;
+                        custodyModalInstance?.hide();
+                    }
+                }
             } catch (error) {
                 console.error('Falha ao atualizar o feed de custódia:', error);
                 custodyContainer.innerHTML = '<p class="text-danger mb-0">Erro ao carregar ferramentas em custódia. Tente novamente em instantes.</p>';
             }
+        }
+
+        if (custodyModalSelectAll) {
+            custodyModalSelectAll.addEventListener('click', () => {
+                if (activeCustodyModalGroupKey && !custodyReturnBusy) {
+                    toggleAllModalGroupSelection(activeCustodyModalGroupKey);
+                }
+            });
+        }
+
+        if (custodyModalConfirm) {
+            custodyModalConfirm.addEventListener('click', () => {
+                if (activeCustodyModalGroupKey && !custodyReturnBusy) {
+                    handleGroupReturn(activeCustodyModalGroupKey);
+                }
+            });
+        }
+
+        if (custodyModalElement) {
+            custodyModalElement.addEventListener('hidden.bs.modal', () => {
+                activeCustodyModalGroupKey = null;
+                custodyReturnBusy = false;
+            });
         }
 
         load();

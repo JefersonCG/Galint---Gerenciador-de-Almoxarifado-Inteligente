@@ -2687,9 +2687,22 @@ ${parent.scripts()}
     function findMatchingGroup(usuario, local) {
         const usuarioKey = normalizeAutocompleteText(usuario);
         const localKey = normalizeAutocompleteText(local);
-        return groups.find((entry) => {
+        const exactMatch = groups.find((entry) => {
             return normalizeAutocompleteText(entry.usuario) === usuarioKey
                 && normalizeAutocompleteText(entry.local) === localKey;
+        }) || null;
+
+        if (exactMatch) {
+            return exactMatch;
+        }
+
+        return groups.find((entry) => {
+            if (normalizeAutocompleteText(entry.usuario) !== usuarioKey) {
+                return false;
+            }
+
+            const entryLocalKey = normalizeAutocompleteText(entry.local);
+            return !localKey || !entryLocalKey;
         }) || null;
     }
 
@@ -2878,6 +2891,12 @@ ${parent.scripts()}
             };
             groups.push(group);
         }
+        const resolvedLocal = local || String(group.local || '').trim();
+        if (resolvedLocal && group.local !== resolvedLocal) {
+            group.local = resolvedLocal;
+        }
+        item.usuario = group.usuario;
+        item.local = resolvedLocal;
         currentGroupId = group.id;
 
         const matchingItem = findMatchingQueuedItem(group, item);
@@ -2906,14 +2925,15 @@ ${parent.scripts()}
 
         const usuario = String(inputUsuario.value || group.usuario || '').trim();
         const local = String(inputLocal.value || '').trim();
+        const effectiveLocal = local || String(group.local || '').trim();
         let changed = false;
 
         if (usuario && group.usuario !== usuario) {
             group.usuario = usuario;
             changed = true;
         }
-        if (group.local !== local) {
-            group.local = local;
+        if (group.local !== effectiveLocal) {
+            group.local = effectiveLocal;
             changed = true;
         }
 
