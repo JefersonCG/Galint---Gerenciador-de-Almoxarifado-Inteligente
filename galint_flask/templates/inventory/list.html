@@ -2054,6 +2054,83 @@
         transform: translateY(-1px);
         box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35);
     }
+
+    .inventory-search-result-row {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .inventory-search-result-main {
+        flex: 1 1 auto;
+        min-width: 0;
+        width: 100%;
+        padding: 0;
+        border: 0;
+        background: transparent;
+        color: inherit;
+        text-align: left;
+    }
+
+    .inventory-search-result-main:hover .fw-semibold,
+    .inventory-search-result-main:focus-visible .fw-semibold {
+        text-decoration: underline;
+    }
+
+    .inventory-search-result-aside {
+        display: flex;
+        flex: 0 0 auto;
+        min-width: 13.5rem;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 0.18rem;
+        text-align: right;
+    }
+
+    .inventory-search-result-total {
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: #0f172a;
+        line-height: 1.1;
+    }
+
+    .inventory-search-result-unit,
+    .inventory-search-result-source {
+        font-size: 0.75rem;
+        line-height: 1.2;
+        color: #64748b;
+    }
+
+    .inventory-search-apply-link {
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: #0d6efd;
+        text-decoration: none;
+    }
+
+    .inventory-search-apply-link:hover {
+        text-decoration: underline;
+    }
+
+    .inventory-search-apply-link.is-disabled {
+        color: #94a3b8;
+        pointer-events: none;
+        cursor: default;
+    }
+
+    @media (max-width: 991.98px) {
+        .inventory-search-result-row {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+
+        .inventory-search-result-aside {
+            min-width: 0;
+            width: 100%;
+            align-items: flex-start;
+            text-align: left;
+        }
+    }
     
     /* Autocomplete customizado */
     #assignMatricula-suggestions {
@@ -5775,6 +5852,58 @@
         return saldoTotal * price;
     };
 
+    const getInventorySearchPriceSource = (item, kind = 'compra') => {
+        if (kind === 'reposicao') {
+            const rawSource = String(item?.preco_reposicao_fonte || '').trim();
+            const uf = String(item?.preco_reposicao_uf || '').trim();
+            const sourceLabel = rawSource || 'Reposição';
+            return uf ? `${sourceLabel} • ${uf}` : sourceLabel;
+        }
+
+        const rawSource = String(item?.preco_compra_fonte || '').trim();
+        const doc = String(item?.preco_compra_documento || '').trim();
+        const normalized = rawSource.toLowerCase();
+        let sourceLabel = rawSource;
+
+        if (normalized === 'compra_nf') {
+            sourceLabel = 'NF';
+        } else if (normalized === 'compra_cupom') {
+            sourceLabel = 'Cupom';
+        } else if (normalized === 'manual') {
+            sourceLabel = 'Manual';
+        } else if (normalized === 'compra_documento') {
+            sourceLabel = 'Documento';
+        } else if (!sourceLabel) {
+            sourceLabel = 'Custo aplicado';
+        }
+
+        return doc ? `${sourceLabel} ${doc}` : sourceLabel;
+    };
+
+    const resolveInventorySearchFinance = (item) => {
+        const precoCompra = Number(item?.preco_compra_unitario);
+        const totalCompra = Number(item?.valor_estoque_compra_total);
+        if (Number.isFinite(precoCompra) && precoCompra > 0) {
+            return {
+                total: Number.isFinite(totalCompra) ? totalCompra : calcStockValue(item, precoCompra, 'compra'),
+                unitText: `${formatBrl(precoCompra)} / ${getPriceUnitLabel(item, 'compra').toLowerCase()}`,
+                sourceText: getInventorySearchPriceSource(item, 'compra'),
+            };
+        }
+
+        const precoReposicao = Number(item?.preco_reposicao_unitario);
+        const totalReposicao = Number(item?.valor_estoque_reposicao_total);
+        if (Number.isFinite(precoReposicao) && precoReposicao > 0) {
+            return {
+                total: Number.isFinite(totalReposicao) ? totalReposicao : calcStockValue(item, precoReposicao, 'reposicao'),
+                unitText: `${formatBrl(precoReposicao)} / ${getPriceUnitLabel(item, 'reposicao').toLowerCase()}`,
+                sourceText: getInventorySearchPriceSource(item, 'reposicao'),
+            };
+        }
+
+        return null;
+    };
+
     const updateFinanceUI = (item) => {
         const compraEl = document.getElementById('item-preco-compra-unit');
         const reposEl = document.getElementById('item-preco-reposicao-unit');
@@ -6729,18 +6858,28 @@
                 || (hasPackaging
                     ? `${item.saldo_embalagens ?? item.saldo ?? 0} ${embalagemNome}`
                     : `${item.saldo || 0} ${item.unidade || 'unidades'}`);
-            const button = document.createElement('button');
-            button.type = 'button';
-            button.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-start';
-            button.innerHTML = `
-                    <div class="me-3">
+            const finance = resolveInventorySearchFinance(item);
+            const applyValueUrl = canEditItems && item.edit_url ? String(item.edit_url).trim() : '';
+            const row = document.createElement('div');
+            row.className = 'list-group-item inventory-search-result-row';
+            row.innerHTML = `
+                    <button type="button" class="inventory-search-result-main" data-open-item="1">
                         <div class="fw-semibold">${escapeHtml(item.descricao)}</div>
                         <div class="small text-muted">Código ${escapeHtml(item.codigo)} • Categoria ${escapeHtml(item.categoria || '—')}${item.marca ? ` • ${escapeHtml(item.marca)}` : ''}</div>
+                    </button>
+                    <div class="inventory-search-result-aside">
+                        <span class="badge bg-primary rounded-pill">Saldo ${escapeHtml(saldoDisplay)}</span>
+                        ${finance ? `
+                            <div class="inventory-search-result-total">${escapeHtml(formatBrl(finance.total))}</div>
+                            <div class="inventory-search-result-unit">${escapeHtml(finance.unitText)}</div>
+                            <div class="inventory-search-result-source">${escapeHtml(finance.sourceText)}</div>
+                        ` : (applyValueUrl
+                            ? `<a class="inventory-search-apply-link" href="${escapeHtml(applyValueUrl)}">Aplique o valor</a>`
+                            : '<span class="inventory-search-apply-link is-disabled">Aplique o valor</span>')}
                     </div>
-                    <span class="badge bg-primary rounded-pill">Saldo ${escapeHtml(saldoDisplay)}</span>
                 `;
-            button.addEventListener('click', () => openItemModal(item));
-            resultsContainer.appendChild(button);
+            row.querySelector('[data-open-item="1"]')?.addEventListener('click', () => openItemModal(item));
+            resultsContainer.appendChild(row);
         });
     };
 

@@ -1817,7 +1817,7 @@ def _build_pre_registered_counters() -> dict[str, int]:
 @blueprint.get("/")
 @login_required
 def list_items():
-    raw_itens = inventory_service.list_items()
+    raw_itens = inventory_service.list_items(use_cache=False)
     itens: list[dict] = []
     for raw in raw_itens:
         item = dict(raw)
