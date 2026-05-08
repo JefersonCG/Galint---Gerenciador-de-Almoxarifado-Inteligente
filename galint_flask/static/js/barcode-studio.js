@@ -1227,6 +1227,17 @@
         }) || null;
     }
 
+    function getBulkEditableItems() {
+        clearInvalidBulkSelection();
+        if (!Array.isArray(state.bulkSelectedIds) || state.bulkSelectedIds.length < 2) {
+            return [];
+        }
+        const selectedIds = new Set(state.bulkSelectedIds);
+        return state.items.filter(function (item) {
+            return selectedIds.has(item.id);
+        });
+    }
+
     function normalizeLabel(item) {
         const preset = getPagePreset();
         item.pageIndex = Math.max(0, parseInt(item.pageIndex, 10) || 0);
@@ -1782,19 +1793,39 @@
         if (!item) {
             return;
         }
+        const bulkItems = getBulkEditableItems();
+        const sharedTargets = bulkItems.length > 1 ? bulkItems : [item];
+        const widthMm = parseFloat(elements.widthInput ? elements.widthInput.value : item.widthMm) || item.widthMm;
+        const heightMm = parseFloat(elements.heightInput ? elements.heightInput.value : item.heightMm) || item.heightMm;
+        const xMm = parseFloat(elements.xInput ? elements.xInput.value : item.xMm) || item.xMm;
+        const yMm = parseFloat(elements.yInput ? elements.yInput.value : item.yMm) || item.yMm;
+        const barcodeHeightMm = parseFloat(elements.barcodeHeightInput ? elements.barcodeHeightInput.value : item.barcodeHeightMm) || item.barcodeHeightMm;
+        const paddingMm = parseFloat(elements.paddingInput ? elements.paddingInput.value : item.paddingMm) || item.paddingMm;
+        const fontSizePx = parseFloat(elements.titleSizeInput ? elements.titleSizeInput.value : item.fontSizePx) || item.fontSizePx;
+        const codeFontSizePx = parseFloat(elements.codeSizeInput ? elements.codeSizeInput.value : item.codeFontSizePx) || item.codeFontSizePx;
+        const align = elements.alignInput ? elements.alignInput.value : item.align;
+        const showName = Boolean(elements.showNameInput && elements.showNameInput.checked);
+        const showCode = Boolean(elements.showCodeInput && elements.showCodeInput.checked);
+        const borderValues = readBorderValues(item);
+
+        sharedTargets.forEach(function (entry) {
+            entry.widthMm = widthMm;
+            entry.heightMm = heightMm;
+            entry.barcodeHeightMm = barcodeHeightMm;
+            entry.paddingMm = paddingMm;
+            entry.fontSizePx = fontSizePx;
+            entry.codeFontSizePx = codeFontSizePx;
+            entry.align = align;
+            entry.showName = showName;
+            entry.showCode = showCode;
+            entry.isSnapping = false;
+            normalizeLabel(entry);
+        });
+
         item.customTitle = String(elements.titleInput ? elements.titleInput.value : item.customTitle).slice(0, 120);
-        item.widthMm = parseFloat(elements.widthInput ? elements.widthInput.value : item.widthMm) || item.widthMm;
-        item.heightMm = parseFloat(elements.heightInput ? elements.heightInput.value : item.heightMm) || item.heightMm;
-        item.xMm = parseFloat(elements.xInput ? elements.xInput.value : item.xMm) || item.xMm;
-        item.yMm = parseFloat(elements.yInput ? elements.yInput.value : item.yMm) || item.yMm;
-        item.barcodeHeightMm = parseFloat(elements.barcodeHeightInput ? elements.barcodeHeightInput.value : item.barcodeHeightMm) || item.barcodeHeightMm;
-        item.paddingMm = parseFloat(elements.paddingInput ? elements.paddingInput.value : item.paddingMm) || item.paddingMm;
-        item.fontSizePx = parseFloat(elements.titleSizeInput ? elements.titleSizeInput.value : item.fontSizePx) || item.fontSizePx;
-        item.codeFontSizePx = parseFloat(elements.codeSizeInput ? elements.codeSizeInput.value : item.codeFontSizePx) || item.codeFontSizePx;
-        Object.assign(item, readBorderValues(item));
-        item.align = elements.alignInput ? elements.alignInput.value : item.align;
-        item.showName = Boolean(elements.showNameInput && elements.showNameInput.checked);
-        item.showCode = Boolean(elements.showCodeInput && elements.showCodeInput.checked);
+        item.xMm = xMm;
+        item.yMm = yMm;
+        Object.assign(item, borderValues);
         item.isSnapping = false;
         normalizeLabel(item);
         renderPage();
@@ -1822,7 +1853,7 @@
             if (!item) {
                 elements.selectionScope.textContent = 'Sem etiqueta base selecionada.';
             } else if (state.bulkSelectedIds.length > 1) {
-                elements.selectionScope.textContent = state.bulkSelectedIds.length + ' etiquetas marcadas para aplicar ajustes em lote de borda.';
+                elements.selectionScope.textContent = state.bulkSelectedIds.length + ' etiquetas marcadas para ajuste em lote de tamanho e fonte. A borda continua com o botao dedicado.';
             } else {
                 elements.selectionScope.textContent = '1 etiqueta base selecionada.';
             }
