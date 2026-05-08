@@ -54,4 +54,4 @@ mkdocs build --strict
 
 ## Como esta base foi montada
 
-As páginas do portal usam inclusão de snippets para reaproveitar os Markdown oficiais da raiz do projeto, evitando duplicação de conteúdo e divergência documental.
+As páginas do portal usam inclusão de snippets centralizados em docs/_sources, com poucas exceções mantidas fora dessa pasta quando a origem real precisa continuar no local atual.

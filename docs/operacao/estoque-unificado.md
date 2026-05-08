@@ -1,1 +1,1 @@
---8<-- "README_ESTOQUE_UNIFICADO.md"
+--8<-- "_sources/operacao/README_ESTOQUE_UNIFICADO.md"

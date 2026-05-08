@@ -1,1 +1,1 @@
---8<-- "GUIA_PENDRIVE_PYTHON_PORTATIL.md"
+--8<-- "_sources/infra/GUIA_PENDRIVE_PYTHON_PORTATIL.md"

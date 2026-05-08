@@ -1,1 +1,1 @@
---8<-- "README_LEDGER_ESTOQUE.md"
+--8<-- "_sources/arquitetura/README_LEDGER_ESTOQUE.md"

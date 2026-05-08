@@ -1,1 +1,1 @@
---8<-- "README_MENSAGERIA_CONDOMINIAL.md"
+--8<-- "_sources/propostas/README_MENSAGERIA_CONDOMINIAL.md"

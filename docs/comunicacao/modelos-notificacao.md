@@ -1,1 +1,1 @@
---8<-- "MODELOS_NOTIFICACAO_FORMATACAO.md"
+--8<-- "_sources/comunicacao/MODELOS_NOTIFICACAO_FORMATACAO.md"

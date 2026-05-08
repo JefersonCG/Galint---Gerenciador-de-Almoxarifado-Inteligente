@@ -1,1 +1,1 @@
---8<-- "CADASTRO_AUTOMATICO_TELEGRAM.md"
+--8<-- "_sources/comunicacao/CADASTRO_AUTOMATICO_TELEGRAM.md"

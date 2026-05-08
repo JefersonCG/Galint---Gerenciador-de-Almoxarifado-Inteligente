@@ -1,1 +1,1 @@
---8<-- "TELEGRAM_MENU_UPGRADE.md"
+--8<-- "_sources/comunicacao/TELEGRAM_MENU_UPGRADE.md"

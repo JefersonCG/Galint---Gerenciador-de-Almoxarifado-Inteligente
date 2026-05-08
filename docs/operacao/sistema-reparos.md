@@ -1,1 +1,1 @@
---8<-- "SISTEMA_REPAROS_README.md"
+--8<-- "_sources/operacao/SISTEMA_REPAROS_README.md"

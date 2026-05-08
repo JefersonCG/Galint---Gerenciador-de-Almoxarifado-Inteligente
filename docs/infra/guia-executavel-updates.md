@@ -1,1 +1,1 @@
---8<-- "GUIA_EXECUTAVEL_E_UPDATES.md"
+--8<-- "_sources/infra/GUIA_EXECUTAVEL_E_UPDATES.md"

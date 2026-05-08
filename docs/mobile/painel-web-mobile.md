@@ -1,1 +1,1 @@
---8<-- "PAINEL_WEB_MOBILE.md"
+--8<-- "_sources/mobile/PAINEL_WEB_MOBILE.md"

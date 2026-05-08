@@ -1,1 +1,1 @@
---8<-- "PG_BACKUP_SETUP.md"
+--8<-- "_sources/infra/PG_BACKUP_SETUP.md"

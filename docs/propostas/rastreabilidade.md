@@ -1,1 +1,1 @@
---8<-- "PROPOSTA_RASTREABILIDADE.md"
+--8<-- "_sources/propostas/PROPOSTA_RASTREABILIDADE.md"

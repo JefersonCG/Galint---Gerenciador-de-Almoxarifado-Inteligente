@@ -1,1 +1,1 @@
---8<-- "README_PLANO_EVOLUCAO_GALINT.md"
+--8<-- "_sources/arquitetura/README_PLANO_EVOLUCAO_GALINT.md"

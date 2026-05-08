@@ -1,1 +1,1 @@
---8<-- "MOBILE_FOTO_IMPLEMENTACAO.md"
+--8<-- "_sources/mobile/MOBILE_FOTO_IMPLEMENTACAO.md"

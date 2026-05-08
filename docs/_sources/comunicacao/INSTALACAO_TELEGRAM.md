@@ -220,7 +220,7 @@ python app.py
 - Busca automática no banco de dados
 - Vinculação automática se encontrar match único
 - Sem necessidade de administrador na maioria dos casos
-- Ver documentação: [CADASTRO_AUTOMATICO_TELEGRAM.md](CADASTRO_AUTOMATICO_TELEGRAM.md)
+- Ver documentação: [Cadastro Automático Telegram](cadastro-automatico-telegram.md)
 
 ✅ **Notificações Automáticas:**
 - Retirada de **QUALQUER material** → mensagem para funcionário + grupo supervisão
@@ -274,10 +274,10 @@ galint_flask/
 scripts/
   add_telegram_support.py        # Migração banco
 
-Documentação/
-  README.md                      # Guia completo (seção Telegram)
-  SETUP_AMBIENTE_DEV.md          # Setup desenvolvimento
-  INSTALACAO_TELEGRAM.md         # Este arquivo
+docs/
+  arquitetura/readme-principal.md   # Guia completo (seção Telegram)
+  infra/setup-ambiente-dev.md       # Setup desenvolvimento
+  comunicacao/instalacao-telegram.md # Este arquivo
 ```
 
 ### **Arquivos Modificados:**
@@ -357,8 +357,8 @@ python scripts\add_telegram_support.py
 
 Para informações detalhadas, consulte:
 
-- **[README.md](README.md)** - Documentação geral do GALINT (inclui seção "Telegram")
-- **[SETUP_AMBIENTE_DEV.md](SETUP_AMBIENTE_DEV.md)** - Setup ambiente desenvolvimento
+- **[README Principal](../arquitetura/readme-principal.md)** - Documentação geral do GALINT (inclui seção "Telegram")
+- **[Setup Ambiente Dev](../infra/setup-ambiente-dev.md)** - Setup ambiente desenvolvimento
 
 ---
 
@@ -367,7 +367,7 @@ Para informações detalhadas, consulte:
 Sistema Telegram totalmente funcional e integrado ao GALINT!
 
 **Em caso de dúvidas:**
-1. Consultar [README.md](README.md) (seção "Troubleshooting" e "Telegram")
+1. Consultar [README Principal](../arquitetura/readme-principal.md) (seção "Troubleshooting" e "Telegram")
 2. Verificar logs do Flask no terminal
 3. Checar histórico de notificações em `/configuracoes/telegram/historico`
 

@@ -1,1 +1,1 @@
---8<-- "GUIA_REPLICACAO_APK.md"
+--8<-- "_sources/mobile/GUIA_REPLICACAO_APK.md"

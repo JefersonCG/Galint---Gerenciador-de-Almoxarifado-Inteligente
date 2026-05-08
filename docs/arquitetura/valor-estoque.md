@@ -1,1 +1,1 @@
---8<-- "FINANCEIRO_VALOR_DE_ESTOQUE.md"
+--8<-- "_sources/arquitetura/FINANCEIRO_VALOR_DE_ESTOQUE.md"

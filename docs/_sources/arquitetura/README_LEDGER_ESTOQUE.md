@@ -1,6 +1,6 @@
 # Documento historico
 
-Este tema foi consolidado em [README_ESTOQUE_UNIFICADO.md](README_ESTOQUE_UNIFICADO.md).
+Este tema foi consolidado em [Estoque Unificado](../operacao/estoque-unificado.md).
 
 Use esse arquivo como referencia canonica para:
 

@@ -1,1 +1,1 @@
---8<-- "INSTALACAO_TELEGRAM.md"
+--8<-- "_sources/comunicacao/INSTALACAO_TELEGRAM.md"
