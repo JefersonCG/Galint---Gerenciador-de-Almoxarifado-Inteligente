@@ -522,7 +522,7 @@ Para dúvidas ou problemas, consulte:
 
 1. **Documentação técnica**: `PROPOSTA_RASTREABILIDADE.md`
 2. **Código-fonte**: `galint_flask/utils/` e `galint_flask/services/`
-3. **Testes**: Execute `test_generators.py` para validar instalação
+3. **Testes**: Execute `scripts/tests/test_generators.py` para validar instalação
 
 ---
 

@@ -109,7 +109,7 @@ Faltam 897 entradas
 
 ### 1. Verificar Status
 ```bash
-python test_entrada_report.py
+python scripts/tests/test_entrada_report.py
 ```
 
 Mostra:
@@ -201,7 +201,7 @@ logger.info(f"PDF enviado para {enviados} administradores")
 
 ### PDF não está sendo gerado
 1. Verificar se há 1000 entradas acumuladas
-2. Executar `python test_entrada_report.py`
+2. Executar `python scripts/tests/test_entrada_report.py`
 3. Verificar logs do sistema
 4. Checar permissões da pasta `instance/reports/`
 

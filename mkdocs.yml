@@ -74,6 +74,7 @@ nav:
   - Visão Geral: visao-geral.md
   - Arquitetura:
       - README Principal: arquitetura/readme-principal.md
+      - Organização da Raiz: arquitetura/organizacao-raiz.md
       - Plano de Evolução: arquitetura/plano-evolucao.md
       - Ledger de Estoque: arquitetura/ledger-estoque.md
       - Valor de Estoque: arquitetura/valor-estoque.md

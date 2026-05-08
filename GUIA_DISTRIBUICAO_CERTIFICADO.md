@@ -396,7 +396,7 @@ python generate_cert_python.py
 - [ ] Certificado instalado localmente (executou `trust_certificate.ps1`)
 - [ ] Certificado exportado (`certs\GALINT-SSL-Certificate.cer`)
 - [ ] Arquivo compartilhado na rede ou distribuído
-- [ ] Servidor HTTPS rodando (`python test_https_adhoc.py`)
+- [ ] Servidor HTTPS rodando (`python scripts/tests/test_https_adhoc.py`)
 
 ### Em Cada PC Cliente:
 - [ ] Arquivo `.cer` copiado/acessado

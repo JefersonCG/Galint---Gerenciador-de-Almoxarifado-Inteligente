@@ -135,7 +135,7 @@ Execute o script de migração:
 .\.venv\Scripts\activate
 
 # Aplicar migração
-python aplicar_migracao_reparos.py
+python scripts/migrations/manual/aplicar_migracao_reparos.py
 ```
 
 Ou aplique manualmente:
@@ -211,7 +211,7 @@ python app.py
 - `galint_flask/templates/reparo/list.html` - Listagem
 - `galint_flask/templates/reparo/detalhes.html` - Detalhes
 - `migrations/add_equipamentos_reparo.sql` - Migração SQL
-- `aplicar_migracao_reparos.py` - Script de migração
+- `scripts/migrations/manual/aplicar_migracao_reparos.py` - Script de migração
 
 **Arquivos modificados:**
 - `galint_flask/models.py` - Adicionado modelo `EquipamentoReparo`

@@ -44,7 +44,9 @@ class BarcodeStudioService:
     @classmethod
     def list_layouts(cls) -> list[dict[str, Any]]:
         entries: list[dict[str, Any]] = []
-        for path in cls.get_layouts_dir().glob(f"*{cls.LAYOUT_EXTENSION}"):
+        for path in cls.get_layouts_dir().rglob(f"*{cls.LAYOUT_EXTENSION}"):
+            if not path.is_file():
+                continue
             try:
                 entries.append(cls._build_layout_response(path, include_snapshot=False))
             except Exception:
@@ -161,7 +163,7 @@ class BarcodeStudioService:
         document = cls._read_layout_document(path)
         saved_at = str(document.get("saved_at") or cls._stat_timestamp(path))
         payload: dict[str, Any] = {
-            "filename": path.name,
+            "filename": cls._to_layout_filename(path),
             "name": str(document.get("name") or path.stem).strip() or path.stem,
             "updated_at": saved_at,
             "saved_at": saved_at,
@@ -265,9 +267,22 @@ class BarcodeStudioService:
         normalized = str(filename or "").strip()
         if not normalized:
             raise ValueError("Arquivo de layout inválido.")
-        if normalized != Path(normalized).name or not normalized.endswith(cls.LAYOUT_EXTENSION):
+        normalized_path = Path(normalized.replace("\\", "/"))
+        if normalized_path.is_absolute() or not normalized.endswith(cls.LAYOUT_EXTENSION):
             raise ValueError("Arquivo de layout inválido.")
-        return cls.get_layouts_dir() / normalized
+        if any(part in {"", ".", ".."} for part in normalized_path.parts):
+            raise ValueError("Arquivo de layout inválido.")
+        resolved_path = (cls.get_layouts_dir() / normalized_path).resolve()
+        layouts_root = cls.get_layouts_dir().resolve()
+        try:
+            resolved_path.relative_to(layouts_root)
+        except ValueError as exc:
+            raise ValueError("Arquivo de layout inválido.") from exc
+        return resolved_path
+
+    @classmethod
+    def _to_layout_filename(cls, path: Path) -> str:
+        return path.relative_to(cls.get_layouts_dir()).as_posix()
 
     @classmethod
     def _slugify_name(cls, name: str) -> str:

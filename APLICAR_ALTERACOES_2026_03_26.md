@@ -9,7 +9,7 @@ Este pacote consolida as mudanças operacionais e de interface feitas hoje no GA
 
 ## 2. Padronização dos itens 5L
 
-- Arquivo: aplicar_migracao_bombona_5l.py
+- Arquivo: scripts/migrations/manual/aplicar_migracao_bombona_5l.py
 - Finalidade: localizar itens líquidos de 5L e normalizar para tipo_embalagem_novo = bombona.
 
 ### Como aplicar em outro ambiente
@@ -19,7 +19,7 @@ Este pacote consolida as mudanças operacionais e de interface feitas hoje no GA
 3. Execute:
 
 ```powershell
-.\.venv\Scripts\python.exe aplicar_migracao_bombona_5l.py
+.\.venv\Scripts\python.exe scripts\migrations\manual\aplicar_migracao_bombona_5l.py
 ```
 
 4. Valide os itens atualizados na tela de estoque.

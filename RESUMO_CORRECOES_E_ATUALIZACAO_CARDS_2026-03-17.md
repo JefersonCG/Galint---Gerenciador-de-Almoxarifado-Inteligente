@@ -6,7 +6,7 @@ Data: 17/03/2026
 
 - adicionado tratamento global de exceções no Flask para responder JSON em rotas de API e renderizar tela HTML em rotas web
 - criada tela dedicada de erro em galint_flask/templates/errors/exception.html com layout no padrão visual dark usado nos cards recentes
-- criada migração idempotente em aplicar_migracao_preco_compra_documento_metadata.py para garantir colunas documentais do financeiro sem depender exclusivamente do Alembic
+- criada migração idempotente em scripts/migrations/manual/aplicar_migracao_preco_compra_documento_metadata.py para garantir colunas documentais do financeiro sem depender exclusivamente do Alembic
 - criado script de diagnóstico em scripts/check_db_schema_preco_compra.py para validar versão de schema e presença das colunas novas
 - preservados os campos de metadados documentais no formulário do item durante a sincronização com o remoto
 - resolvidos conflitos de rebase em README.md e galint_flask/templates/inventory/form.html para permitir publicação segura da master
@@ -43,7 +43,7 @@ Depois:
 
 Arquivos principais:
 
-- aplicar_migracao_preco_compra_documento_metadata.py
+- scripts/migrations/manual/aplicar_migracao_preco_compra_documento_metadata.py
 - scripts/check_db_schema_preco_compra.py
 
 ### 3. Conflitos de publicação ao sincronizar com origin/master
