@@ -1667,33 +1667,6 @@
     <div id="custody-feed" class="galint-custody-feed-list">
         <p class="text-muted mb-0">Carregando ferramentas em custódia...</p>
     </div>
-    <div class="modal fade" id="custodyReturnModal" tabindex="-1" aria-labelledby="custodyReturnModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered galint-custody-modal-dialog">
-            <div class="modal-content galint-custody-modal-content">
-                <div class="modal-header border-0 pb-0">
-                    <div>
-                        <div class="galint-custody-modal-eyebrow"><i class="bi bi-arrow-return-left"></i> Baixa de ferramentas</div>
-                        <h5 class="modal-title" id="custodyReturnModalLabel">Colaborador</h5>
-                    </div>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
-                </div>
-                <div class="modal-body galint-custody-modal-body">
-                    <div id="custodyReturnModalSummary" class="galint-custody-modal-summary"></div>
-                    <p id="custodyReturnModalHint" class="galint-custody-modal-hint">Selecione uma ou mais ferramentas para dar baixa.</p>
-                    <div id="custodyReturnModalTools" class="galint-custody-modal-tools"></div>
-                </div>
-                <div class="modal-footer border-0 pt-0 galint-custody-modal-footer">
-                    <div id="custodyReturnModalSelected" class="galint-custody-modal-selected">Selecione uma ou mais ferramentas.</div>
-                    <div class="d-flex flex-wrap gap-2 ms-auto justify-content-end">
-                        <a id="custodyReturnModalProfile" href="#" class="galint-custody-btn galint-custody-btn-secondary">Ver ficha</a>
-                        <button type="button" id="custodyReturnModalSelectAll" class="galint-custody-btn galint-custody-btn-secondary galint-custody-btn-compact">Selecionar todas</button>
-                        <button type="button" class="galint-custody-btn galint-custody-btn-secondary" data-bs-dismiss="modal">Fechar</button>
-                        <button type="button" id="custodyReturnModalConfirm" class="galint-custody-btn galint-custody-btn-primary" disabled>Baixar selecionadas</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
     {% endif %}
 </div>
 
@@ -3013,6 +2986,36 @@
         {% endif %}
     </div>
 </div>
+
+{% if not shared_view %}
+<div class="modal fade" id="custodyReturnModal" tabindex="-1" aria-labelledby="custodyReturnModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered galint-custody-modal-dialog">
+        <div class="modal-content galint-custody-modal-content">
+            <div class="modal-header border-0 pb-0">
+                <div>
+                    <div class="galint-custody-modal-eyebrow"><i class="bi bi-arrow-return-left"></i> Baixa de ferramentas</div>
+                    <h5 class="modal-title" id="custodyReturnModalLabel">Colaborador</h5>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body galint-custody-modal-body">
+                <div id="custodyReturnModalSummary" class="galint-custody-modal-summary"></div>
+                <p id="custodyReturnModalHint" class="galint-custody-modal-hint">Selecione uma ou mais ferramentas para dar baixa.</p>
+                <div id="custodyReturnModalTools" class="galint-custody-modal-tools"></div>
+            </div>
+            <div class="modal-footer border-0 pt-0 galint-custody-modal-footer">
+                <div id="custodyReturnModalSelected" class="galint-custody-modal-selected">Selecione uma ou mais ferramentas.</div>
+                <div class="d-flex flex-wrap gap-2 ms-auto justify-content-end">
+                    <a id="custodyReturnModalProfile" href="#" class="galint-custody-btn galint-custody-btn-secondary">Ver ficha</a>
+                    <button type="button" id="custodyReturnModalSelectAll" class="galint-custody-btn galint-custody-btn-secondary galint-custody-btn-compact">Selecionar todas</button>
+                    <button type="button" class="galint-custody-btn galint-custody-btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                    <button type="button" id="custodyReturnModalConfirm" class="galint-custody-btn galint-custody-btn-primary" disabled>Baixar selecionadas</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
 
 <div class="modal fade" id="minStockModal" tabindex="-1" aria-labelledby="minStockModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
