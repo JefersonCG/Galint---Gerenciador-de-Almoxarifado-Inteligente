@@ -670,6 +670,26 @@
         return state.bulkSelectedIds.indexOf(itemId) !== -1;
     }
 
+    function toggleItemBulkSelection(itemId, options) {
+        const settings = options || {};
+        if (!itemId) {
+            return;
+        }
+        clearInvalidBulkSelection();
+        if (isBulkSelected(itemId)) {
+            state.bulkSelectedIds = state.bulkSelectedIds.filter(function (entryId) {
+                return entryId !== itemId;
+            });
+        } else {
+            state.bulkSelectedIds = state.bulkSelectedIds.concat([itemId]);
+        }
+        if (settings.keepSelected !== true) {
+            state.selectedId = itemId;
+        }
+        renderPage();
+        renderProperties();
+    }
+
     function selectAllItemsForBulk() {
         clearInvalidBulkSelection();
         if (!state.items.length) {
@@ -1582,6 +1602,24 @@
     }
 
     function removeSelectedItem() {
+        clearInvalidBulkSelection();
+        const bulkIds = Array.isArray(state.bulkSelectedIds) ? state.bulkSelectedIds.slice() : [];
+        if (bulkIds.length > 1) {
+            if (!window.confirm('Excluir ' + bulkIds.length + ' etiquetas selecionadas da folha?')) {
+                return;
+            }
+            const bulkIdSet = new Set(bulkIds);
+            state.items = state.items.filter(function (item) {
+                return !bulkIdSet.has(item.id);
+            });
+            clearBulkSelection();
+            state.selectedId = state.items.length ? state.items[Math.max(0, state.items.length - 1)].id : null;
+            renderPage();
+            renderProperties();
+            setFeedback(bulkIds.length + ' etiquetas removidas da folha.', 'muted');
+            return;
+        }
+
         if (!state.selectedId) {
             setFeedback('Selecione uma etiqueta para remover.', 'warning');
             return;
@@ -1590,6 +1628,7 @@
         state.items = state.items.filter(function (item) {
             return item.id !== state.selectedId;
         });
+        clearBulkSelection();
         state.selectedId = state.items.length ? state.items[Math.max(0, state.items.length - 1)].id : null;
         renderPage();
         renderProperties();
@@ -1849,11 +1888,16 @@
                 ? 'Limpar selecao em lote'
                 : 'Selecionar todas';
         }
+        if (elements.removeBtn) {
+            elements.removeBtn.textContent = state.bulkSelectedIds.length > 1
+                ? 'Remover selecionadas'
+                : 'Remover selecionado';
+        }
         if (elements.selectionScope) {
             if (!item) {
                 elements.selectionScope.textContent = 'Sem etiqueta base selecionada.';
             } else if (state.bulkSelectedIds.length > 1) {
-                elements.selectionScope.textContent = state.bulkSelectedIds.length + ' etiquetas marcadas para ajuste em lote de tamanho e fonte. A borda continua com o botao dedicado.';
+                elements.selectionScope.textContent = state.bulkSelectedIds.length + ' etiquetas marcadas. Voce pode ajustar em lote ou remover somente essas selecionadas.';
             } else {
                 elements.selectionScope.textContent = '1 etiqueta base selecionada.';
             }
@@ -1974,7 +2018,12 @@
                     '<div class="barcode-studio-label__cut-border" aria-hidden="true"></div>' +
                     '<div class="barcode-studio-label__chrome">' +
                         '<span class="barcode-studio-label__tag"><i class="bi bi-upc"></i>' + escapeHtml(item.codigo) + '</span>' +
-                        '<span>' + item.widthMm.toFixed(1) + ' x ' + item.heightMm.toFixed(1) + ' mm</span>' +
+                        '<div class="barcode-studio-label__chrome-actions">' +
+                            '<span>' + item.widthMm.toFixed(1) + ' x ' + item.heightMm.toFixed(1) + ' mm</span>' +
+                            '<button type="button" class="barcode-studio-label__selector ' + (isBulkSelected(item.id) ? 'is-active' : '') + '" data-bulk-toggle="' + escapeHtml(item.id) + '" aria-pressed="' + (isBulkSelected(item.id) ? 'true' : 'false') + '" aria-label="Marcar etiqueta ' + escapeHtml(item.codigo) + ' para exclusao ou ajuste em lote">' +
+                                '<i class="bi ' + (isBulkSelected(item.id) ? 'bi-check2-square' : 'bi-square') + '"></i>' +
+                            '</button>' +
+                        '</div>' +
                     '</div>' +
                     '<div class="barcode-studio-label__body" style="padding:' + item.paddingMm + 'mm;text-align:' + item.align + ';">' +
                         (item.showName ? '<div class="barcode-studio-label__title" style="font-size:' + item.fontSizePx + 'px;">' + escapeHtml(item.customTitle) + '</div>' : '') +
@@ -1982,6 +2031,17 @@
                         (item.showCode ? '<div class="barcode-studio-label__code" style="font-size:' + item.codeFontSizePx + 'px;">' + escapeHtml(item.codigo) + '</div>' : '') +
                     '</div>' +
                     '<div class="barcode-studio-resize-handle" aria-hidden="true"></div>';
+                const selectorButton = label.querySelector('[data-bulk-toggle]');
+                if (selectorButton) {
+                    selectorButton.addEventListener('pointerdown', function (event) {
+                        event.stopPropagation();
+                    });
+                    selectorButton.addEventListener('click', function (event) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        toggleItemBulkSelection(item.id);
+                    });
+                }
                 label.addEventListener('pointerdown', onLabelPointerDown);
                 sheet.appendChild(label);
                 renderBarcode(label, item);
@@ -2003,8 +2063,16 @@
         if (!item) {
             return;
         }
+
+        if (event.target && event.target.closest && event.target.closest('[data-bulk-toggle]')) {
+            event.preventDefault();
+            return;
+        }
+
         state.selectedId = item.id;
-        clearBulkSelection();
+        if (!isBulkSelected(item.id)) {
+            clearBulkSelection();
+        }
         renderProperties();
         renderPage();
 
