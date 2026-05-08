@@ -1101,7 +1101,7 @@ def _build_condominium_blocks() -> list[dict[str, object]]:
 def _build_admin_condominium_blueprint(*, mode: str) -> dict[str, object]:
     schedule_mode = mode == "schedule"
     hero = {
-        "kicker": "Agenda condominial" if schedule_mode else "Cadastro mestre",
+        "kicker": "Agenda condominial" if schedule_mode else "Cadastro de morador",
         "title": "Agendamento de Mudancas e Reservas" if schedule_mode else "Cadastros Relacionais do Condominio",
         "summary": (
             "A agenda nasce amarrada ao cadastro principal: responsavel, unidade, janela de acesso, placa do veiculo, apoio de prestadores e historico operacional."
@@ -1115,7 +1115,7 @@ def _build_admin_condominium_blueprint(*, mode: str) -> dict[str, object]:
         "hero": hero,
         "focus_section": "agendamentos" if schedule_mode else "cadastro-mestre",
         "anchors": [
-            {"id": "cadastro-mestre", "label": "Cadastro mestre"},
+            {"id": "cadastro-mestre", "label": "Cadastro de morador"},
             {"id": "estrutura", "label": "Blocos e unidades"},
             {"id": "vinculos", "label": "Vinculos e acessos"},
             {"id": "agendamentos", "label": "Agendamento"},
@@ -1453,7 +1453,7 @@ def admin_condominium_registry():
         try:
             _create_condominium_owner_from_request()
             db.session.commit()
-            flash("Cadastro mestre salvo e unidade marcada como ocupada.", "success")
+            flash("Cadastro de morador salvo e unidade marcada como ocupada.", "success")
             return redirect(url_for("pages.admin_condominium_registry"))
         except ValueError as exc:
             db.session.rollback()
@@ -1476,7 +1476,7 @@ def admin_condominium_blocks_editor():
     if _is_messenger_session():
         return redirect(url_for("pages.mensageria_maintenance"))
     if not _is_registered_admin():
-        flash("Somente administrador cadastrado no sistema pode editar os cards dos blocos.", "danger")
+        flash("Somente administrador cadastrado no sistema pode editar os cards dos edifícios.", "danger")
         return redirect(url_for("pages.administration_dashboard"))
 
     edit_id = request.args.get("editar", type=int)
@@ -1496,12 +1496,12 @@ def admin_condominium_blocks_editor():
             name = str(request.form.get("name") or "").strip()
             display_order = _form_int("display_order", default=0, minimum=0, maximum=999)
             if not name:
-                raise ValueError("Informe o nome do bloco ou edificio.")
+                raise ValueError("Informe o nome do edifício.")
             if not code:
                 code = f"B{display_order:02d}" if display_order else name[:12].upper()
             duplicate = CondominiumBuilding.query.filter(CondominiumBuilding.code == code).first()
             if duplicate and duplicate.id != building.id:
-                raise ValueError("Ja existe um bloco com esse codigo.")
+                raise ValueError("Já existe um edifício com esse código.")
 
             building.code = code
             building.name = name
@@ -1530,7 +1530,7 @@ def admin_condominium_blocks_editor():
             )
             sync_building_units(building, layout, default_status=request.form.get("initial_status") or "vago")
             db.session.commit()
-            flash("Editor de blocos atualizado.", "success")
+            flash("Editor de edifícios atualizado.", "success")
             return redirect(url_for("pages.admin_condominium_blocks_editor"))
         except ValueError as exc:
             db.session.rollback()
@@ -1552,7 +1552,7 @@ def admin_condominium_archive_building(building_id: int):
         flash("Acesso restrito a gestores, gerentes e desenvolvedores.", "danger")
         return redirect(url_for("dashboard.index"))
     if not _is_registered_admin():
-        flash("Somente administrador cadastrado no sistema pode editar os cards dos blocos.", "danger")
+        flash("Somente administrador cadastrado no sistema pode editar os cards dos edifícios.", "danger")
         return redirect(url_for("pages.administration_dashboard"))
     building = CondominiumBuilding.query.get_or_404(building_id)
     building.active = False
@@ -1560,7 +1560,49 @@ def admin_condominium_archive_building(building_id: int):
     for unit in building.units:
         unit.active = False
     db.session.commit()
-    flash("Bloco arquivado. Ele saiu do dashboard e da lista de unidades ativas.", "info")
+    flash("Edifício arquivado. Ele saiu do dashboard e da lista de unidades ativas.", "info")
+    return redirect(url_for("pages.admin_condominium_blocks_editor"))
+
+
+@blueprint.post("/administracao/condominio/editor-blocos/<int:building_id>/excluir")
+@login_required
+def admin_condominium_delete_building(building_id: int):
+    if not _has_management_access():
+        flash("Acesso restrito a gestores, gerentes e desenvolvedores.", "danger")
+        return redirect(url_for("dashboard.index"))
+    if not _is_registered_admin():
+        flash("Somente administrador cadastrado no sistema pode editar os cards dos edifícios.", "danger")
+        return redirect(url_for("pages.administration_dashboard"))
+
+    building = CondominiumBuilding.query.get_or_404(building_id)
+    actor_id = _current_user_matricula()
+    unit_ids = [int(unit.id) for unit in building.units]
+
+    if unit_ids:
+        owners = CondominiumOwner.query.filter(CondominiumOwner.unit_id.in_(unit_ids)).all()
+        for owner in owners:
+            owner.unit_id = None
+            owner.updated_by_matricula = actor_id
+
+    related_events = CondominiumScheduleEvent.query.filter(CondominiumScheduleEvent.building_id == building.id).all()
+    if unit_ids:
+        seen_event_ids = {int(event.id) for event in related_events}
+        unit_events = CondominiumScheduleEvent.query.filter(CondominiumScheduleEvent.unit_id.in_(unit_ids)).all()
+        for event in unit_events:
+            if int(event.id) not in seen_event_ids:
+                related_events.append(event)
+                seen_event_ids.add(int(event.id))
+
+    for event in related_events:
+        if event.building_id == building.id:
+            event.building_id = None
+        if event.unit_id in unit_ids:
+            event.unit_id = None
+        event.updated_by_matricula = actor_id
+
+    db.session.delete(building)
+    db.session.commit()
+    flash("Edifício excluído com sucesso.", "info")
     return redirect(url_for("pages.admin_condominium_blocks_editor"))
 
 
@@ -1577,7 +1619,7 @@ def admin_condominium_owners():
         try:
             _create_condominium_owner_from_request()
             db.session.commit()
-            flash("Cadastro mestre salvo e unidade marcada como ocupada.", "success")
+            flash("Cadastro de morador salvo e unidade marcada como ocupada.", "success")
         except ValueError as exc:
             db.session.rollback()
             flash(str(exc), "danger")
@@ -1638,12 +1680,14 @@ def admin_condominium_schedule():
     month_date = _month_date_from_request(selected_date)
     edit_id = request.args.get("editar", type=int)
     edit_event = CondominiumScheduleEvent.query.get(edit_id) if edit_id else None
+    open_event_modal = str(request.args.get("abrir_modal") or "").strip().lower() in {"1", "true", "yes", "sim"} or bool(edit_event)
     return render_template(
         "condominium_schedule.html",
         calendar_page=build_calendar_context(month_date=month_date, selected_date=selected_date),
         form_options=_schedule_form_options(),
         event_form=_schedule_event_form(edit_event, selected_date=selected_date),
         edit_event=edit_event,
+        open_event_modal=open_event_modal,
         agenda_notifications=due_schedule_notifications(),
     )
 

@@ -59,12 +59,20 @@
     .agenda-event-actions { display: flex; gap: 0.4rem; flex-wrap: wrap; }
     .agenda-empty-state { border: 1px dashed rgba(148, 163, 184, 0.44); border-radius: 16px; background: #f8fafc; color: #475569; padding: 0.9rem; font-weight: 750; }
     .agenda-form-grid { display: grid; gap: 0.85rem; }
-    .agenda-panel.is-dark .form-label { color: #cbd5e1; font-weight: 850; }
-    .agenda-panel.is-dark .form-control, .agenda-panel.is-dark .form-select { min-height: 44px; border-radius: 12px; border: 1px solid rgba(148, 163, 184, 0.22); background: rgba(15, 23, 42, 0.54); color: #f8fafc; box-shadow: none; }
-    .agenda-panel.is-dark textarea.form-control { min-height: 96px; }
-    .agenda-panel.is-dark .form-control::placeholder { color: #94a3b8; }
-    .agenda-panel.is-dark .form-check-label { color: rgba(226,232,240,0.86); font-weight: 800; }
+    .agenda-panel.is-dark .form-label, .agenda-modal-content .form-label { color: #cbd5e1; font-weight: 850; }
+    .agenda-panel.is-dark .form-control, .agenda-panel.is-dark .form-select, .agenda-modal-content .form-control, .agenda-modal-content .form-select { min-height: 44px; border-radius: 12px; border: 1px solid rgba(148, 163, 184, 0.22); background: rgba(15, 23, 42, 0.54); color: #f8fafc; box-shadow: none; }
+    .agenda-panel.is-dark textarea.form-control, .agenda-modal-content textarea.form-control { min-height: 96px; }
+    .agenda-panel.is-dark .form-control::placeholder, .agenda-modal-content .form-control::placeholder { color: #94a3b8; }
+    .agenda-panel.is-dark .form-check-label, .agenda-modal-content .form-check-label { color: rgba(226,232,240,0.86); font-weight: 800; }
     .agenda-save-btn { min-height: 46px; border-radius: 14px; border: 0; background: linear-gradient(135deg, #0ea5e9, #22c55e); color: #fff; font-weight: 950; }
+    .agenda-modal-hint { color: #64748b; font-size: 0.74rem; font-weight: 800; }
+    .agenda-modal .modal-dialog { max-width: min(920px, calc(100vw - 1.5rem)); }
+    .agenda-modal-content { border: 1px solid rgba(148, 163, 184, 0.22); border-radius: 24px; background: linear-gradient(135deg, #0f172a 0%, #1e293b 68%, #334155 100%); color: #e2e8f0; box-shadow: 0 26px 60px rgba(15, 23, 42, 0.24); }
+    .agenda-modal-content .modal-header { align-items: start; border-bottom-color: rgba(148, 163, 184, 0.18); }
+    .agenda-modal-content .modal-title { font-size: 1.08rem; font-weight: 950; }
+    .agenda-modal-content .modal-body { padding: 1rem 1rem 1.1rem; }
+    .agenda-modal-content .btn-close { filter: invert(1) grayscale(1) brightness(200%); opacity: 0.82; }
+    .agenda-modal-content .btn-close:hover { opacity: 1; }
     .agenda-alert-content { position: relative; overflow: hidden; border-radius: 26px; border: 1px solid rgba(125, 211, 252, 0.24); background: linear-gradient(135deg, #0f172a 0%, #172554 62%, #1e3a8a 100%); color: #f8fafc; box-shadow: 0 30px 90px rgba(15, 23, 42, 0.38); }
     .agenda-alert-glow { position: absolute; inset: 0; background: radial-gradient(circle at 16% 14%, rgba(34,211,238,0.28), transparent 30%), radial-gradient(circle at 88% 20%, rgba(248,113,113,0.18), transparent 24%); pointer-events: none; }
     .agenda-alert-header, .agenda-alert-body, .agenda-alert-footer { position: relative; z-index: 1; border-color: rgba(226,232,240,0.14); }
@@ -111,7 +119,7 @@
                 <div class="agenda-week">
                     {% for day in week %}
                         {% if day['date'] %}
-                        <a class="agenda-day {% if day['is_today'] %}is-today{% endif %} {% if day['is_selected'] %}is-selected{% endif %} {% if day['is_holiday'] %}is-holiday{% endif %}" href="{{ url_for('pages.admin_condominium_schedule', data=day['date_iso'], mes=calendar_page.month_date.strftime('%Y-%m')) }}" {% if day['is_holiday'] %}title="{{ day['holiday_name'] }}"{% endif %}>
+                        <a class="agenda-day {% if day['is_today'] %}is-today{% endif %} {% if day['is_selected'] %}is-selected{% endif %} {% if day['is_holiday'] %}is-holiday{% endif %}" href="{{ url_for('pages.admin_condominium_schedule', data=day['date_iso'], mes=calendar_page.month_date.strftime('%Y-%m')) }}" data-day-url="{{ url_for('pages.admin_condominium_schedule', data=day['date_iso'], mes=calendar_page.month_date.strftime('%Y-%m')) }}" data-day-modal-url="{{ url_for('pages.admin_condominium_schedule', data=day['date_iso'], mes=calendar_page.month_date.strftime('%Y-%m'), abrir_modal=1) }}" {% if day['is_holiday'] %}title="{{ day['holiday_name'] }}"{% endif %}>
                             <span class="agenda-day-number">{{ day['day_number'] }} {% if day['event_count'] %}<span class="agenda-day-count">{{ day['event_count'] }}</span>{% endif %}</span>
                             {% if day['is_holiday'] %}<span class="agenda-holiday-name">{{ day['holiday_name'] }}</span>{% endif %}
                             {% for event in day['events'] %}
@@ -132,8 +140,9 @@
             <div class="agenda-panel-head">
                 <div>
                     <h2 class="agenda-panel-title">{{ calendar_page.selected_date.strftime('%d/%m/%Y') }}</h2>
+                    <div class="agenda-modal-hint">Duplo clique em uma data para abrir o compromisso em modal.</div>
                 </div>
-                <a class="btn btn-sm btn-dark rounded-pill" href="#agendaEventForm"><i class="bi bi-plus-circle me-1"></i> Novo</a>
+                <button class="btn btn-sm btn-dark rounded-pill" type="button" data-bs-toggle="modal" data-bs-target="#agendaEventModal"><i class="bi bi-plus-circle me-1"></i> Novo</button>
             </div>
             <div class="agenda-day-list">
                 {% if calendar_page.selected_events %}
@@ -153,7 +162,7 @@
                             {% if event.location %}<span class="agenda-tag"><i class="bi bi-pin-map"></i> {{ event.location }}</span>{% endif %}
                         </div>
                         <div class="agenda-event-actions">
-                            <a class="btn btn-sm btn-outline-dark" href="{{ url_for('pages.admin_condominium_schedule', data=event.date_iso, mes=calendar_page.month_date.strftime('%Y-%m'), editar=event.id) }}"><i class="bi bi-pencil-square me-1"></i> Editar</a>
+                            <a class="btn btn-sm btn-outline-dark" href="{{ url_for('pages.admin_condominium_schedule', data=event.date_iso, mes=calendar_page.month_date.strftime('%Y-%m'), editar=event.id, abrir_modal=1) }}"><i class="bi bi-pencil-square me-1"></i> Editar</a>
                             <form method="post" action="{{ url_for('pages.admin_condominium_schedule_status', event_id=event.id) }}"><input type="hidden" name="status" value="concluido"><button class="btn btn-sm btn-outline-success" type="submit">Concluir</button></form>
                             <form method="post" action="{{ url_for('pages.admin_condominium_schedule_status', event_id=event.id) }}"><input type="hidden" name="status" value="cancelado"><button class="btn btn-sm btn-outline-danger" type="submit">Cancelar</button></form>
                         </div>
@@ -166,37 +175,88 @@
         </aside>
     </div>
 
-    <section class="agenda-panel is-dark" id="agendaEventForm" aria-labelledby="agenda-form-title">
-        <div class="agenda-panel-head">
-            <div>
-                <h2 class="agenda-panel-title" id="agenda-form-title">{{ 'Editar compromisso' if event_form.id else 'Novo compromisso' }}</h2>
+    <div class="modal fade agenda-modal" id="agendaEventModal" tabindex="-1" aria-labelledby="agenda-form-title" aria-hidden="true" data-auto-open="{{ 'true' if open_event_modal else 'false' }}">
+        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content agenda-modal-content">
+                <div class="modal-header">
+                    <div>
+                        <h2 class="modal-title" id="agenda-form-title">{{ 'Editar compromisso' if event_form.id else 'Novo compromisso' }}</h2>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        {% if event_form.id %}<a class="btn btn-outline-light btn-sm rounded-pill" href="{{ url_for('pages.admin_condominium_schedule', data=calendar_page.selected_date.isoformat(), mes=calendar_page.month_date.strftime('%Y-%m')) }}">Limpar edição</a>{% endif %}
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                    </div>
+                </div>
+                <div class="modal-body">
+                    <form id="agendaEventForm" method="post" action="{{ url_for('pages.admin_condominium_schedule') }}">
+                        {% if event_form.id %}<input type="hidden" name="event_id" value="{{ event_form.id }}">{% endif %}
+                        <div class="row g-3">
+                            <div class="col-md-3"><label class="form-label" for="event_date">Data</label><input class="form-control" id="event_date" name="event_date" type="date" value="{{ event_form.event_date }}" required></div>
+                            <div class="col-md-2"><label class="form-label" for="start_time">Início</label><input class="form-control" id="start_time" name="start_time" type="time" value="{{ event_form.start_time }}"></div>
+                            <div class="col-md-2"><label class="form-label" for="end_time">Fim</label><input class="form-control" id="end_time" name="end_time" type="time" value="{{ event_form.end_time }}"></div>
+                            <div class="col-md-5"><label class="form-label" for="title">Título</label><input class="form-control" id="title" name="title" value="{{ event_form.title }}" required></div>
+                            <div class="col-md-3"><label class="form-label" for="event_type">Tipo</label><select class="form-select" id="event_type" name="event_type">{% for key, label in form_options['event_types'].items() %}<option value="{{ key }}" {% if event_form.event_type == key %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+                            <div class="col-md-3"><label class="form-label" for="scope">Escopo</label><select class="form-select" id="scope" name="scope">{% for key, label in form_options['scopes'].items() %}<option value="{{ key }}" {% if event_form.scope == key %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+                            <div class="col-md-3"><label class="form-label" for="status">Status</label><select class="form-select" id="status" name="status">{% for key, label in form_options['statuses'].items() %}<option value="{{ key }}" {% if event_form.status == key %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+                            <div class="col-md-3"><label class="form-label" for="priority">Prioridade</label><select class="form-select" id="priority" name="priority">{% for key, label in form_options['priorities'].items() %}<option value="{{ key }}" {% if event_form.priority == key %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+                            <div class="col-md-4"><label class="form-label" for="building_id">Bloco/edifício</label><select class="form-select" id="building_id" name="building_id"><option value="">Não vincular</option>{% for building in form_options.buildings %}<option value="{{ building.id }}" {% if event_form.building_id == building.id %}selected{% endif %}>{{ building.display_name() }}</option>{% endfor %}</select></div>
+                            <div class="col-md-4"><label class="form-label" for="unit_id">Unidade</label><select class="form-select" id="unit_id" name="unit_id"><option value="">Não vincular</option>{% for unit in form_options.units %}<option value="{{ unit.id }}" {% if event_form.unit_id == unit.id %}selected{% endif %}>{{ unit.full_label() }}</option>{% endfor %}</select></div>
+                            <div class="col-md-4"><label class="form-label" for="owner_id">Proprietário/morador</label><select class="form-select" id="owner_id" name="owner_id"><option value="">Não vincular</option>{% for owner in form_options.owners %}<option value="{{ owner.id }}" {% if event_form.owner_id == owner.id %}selected{% endif %}>{{ owner.full_name }}</option>{% endfor %}</select></div>
+                            <div class="col-md-4"><label class="form-label" for="contact_name">Responsável</label><input class="form-control" id="contact_name" name="contact_name" value="{{ event_form.contact_name }}"></div>
+                            <div class="col-md-4"><label class="form-label" for="contact_phone">Telefone</label><input class="form-control" id="contact_phone" name="contact_phone" value="{{ event_form.contact_phone }}"></div>
+                            <div class="col-md-4"><label class="form-label" for="location">Local</label><input class="form-control" id="location" name="location" value="{{ event_form.location }}"></div>
+                            <div class="col-md-3"><label class="form-label" for="reminder_minutes">Avisar antes</label><select class="form-select" id="reminder_minutes" name="reminder_minutes">{% for minutes, label in [(0, 'Na hora'), (15, '15 min'), (30, '30 min'), (60, '1 hora'), (120, '2 horas'), (1440, '1 dia')] %}<option value="{{ minutes }}" {% if event_form.reminder_minutes == minutes %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+                            <div class="col-md-3 d-flex align-items-end"><div class="form-check"><input class="form-check-input" id="notify_enabled" name="notify_enabled" type="checkbox" value="1" {% if event_form.notify_enabled %}checked{% endif %}><label class="form-check-label" for="notify_enabled">Modal de notificação</label></div></div>
+                            <div class="col-12"><label class="form-label" for="description">Observações</label><textarea class="form-control" id="description" name="description">{{ event_form.description }}</textarea></div>
+                            <div class="col-12 d-grid"><button class="agenda-save-btn" type="submit"><i class="bi bi-check2-circle me-1"></i> Salvar na agenda</button></div>
+                        </div>
+                    </form>
+                </div>
             </div>
-            {% if event_form.id %}<a class="btn btn-outline-light btn-sm rounded-pill" href="{{ url_for('pages.admin_condominium_schedule', data=calendar_page.selected_date.isoformat(), mes=calendar_page.month_date.strftime('%Y-%m')) }}">Limpar edição</a>{% endif %}
         </div>
-        <form method="post" action="{{ url_for('pages.admin_condominium_schedule') }}">
-            {% if event_form.id %}<input type="hidden" name="event_id" value="{{ event_form.id }}">{% endif %}
-            <div class="row g-3">
-                <div class="col-md-3"><label class="form-label" for="event_date">Data</label><input class="form-control" id="event_date" name="event_date" type="date" value="{{ event_form.event_date }}" required></div>
-                <div class="col-md-2"><label class="form-label" for="start_time">Início</label><input class="form-control" id="start_time" name="start_time" type="time" value="{{ event_form.start_time }}"></div>
-                <div class="col-md-2"><label class="form-label" for="end_time">Fim</label><input class="form-control" id="end_time" name="end_time" type="time" value="{{ event_form.end_time }}"></div>
-                <div class="col-md-5"><label class="form-label" for="title">Título</label><input class="form-control" id="title" name="title" value="{{ event_form.title }}" required></div>
-                <div class="col-md-3"><label class="form-label" for="event_type">Tipo</label><select class="form-select" id="event_type" name="event_type">{% for key, label in form_options['event_types'].items() %}<option value="{{ key }}" {% if event_form.event_type == key %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
-                <div class="col-md-3"><label class="form-label" for="scope">Escopo</label><select class="form-select" id="scope" name="scope">{% for key, label in form_options['scopes'].items() %}<option value="{{ key }}" {% if event_form.scope == key %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
-                <div class="col-md-3"><label class="form-label" for="status">Status</label><select class="form-select" id="status" name="status">{% for key, label in form_options['statuses'].items() %}<option value="{{ key }}" {% if event_form.status == key %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
-                <div class="col-md-3"><label class="form-label" for="priority">Prioridade</label><select class="form-select" id="priority" name="priority">{% for key, label in form_options['priorities'].items() %}<option value="{{ key }}" {% if event_form.priority == key %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
-                <div class="col-md-4"><label class="form-label" for="building_id">Bloco/edifício</label><select class="form-select" id="building_id" name="building_id"><option value="">Não vincular</option>{% for building in form_options.buildings %}<option value="{{ building.id }}" {% if event_form.building_id == building.id %}selected{% endif %}>{{ building.display_name() }}</option>{% endfor %}</select></div>
-                <div class="col-md-4"><label class="form-label" for="unit_id">Unidade</label><select class="form-select" id="unit_id" name="unit_id"><option value="">Não vincular</option>{% for unit in form_options.units %}<option value="{{ unit.id }}" {% if event_form.unit_id == unit.id %}selected{% endif %}>{{ unit.full_label() }}</option>{% endfor %}</select></div>
-                <div class="col-md-4"><label class="form-label" for="owner_id">Proprietário/morador</label><select class="form-select" id="owner_id" name="owner_id"><option value="">Não vincular</option>{% for owner in form_options.owners %}<option value="{{ owner.id }}" {% if event_form.owner_id == owner.id %}selected{% endif %}>{{ owner.full_name }}</option>{% endfor %}</select></div>
-                <div class="col-md-4"><label class="form-label" for="contact_name">Responsável</label><input class="form-control" id="contact_name" name="contact_name" value="{{ event_form.contact_name }}"></div>
-                <div class="col-md-4"><label class="form-label" for="contact_phone">Telefone</label><input class="form-control" id="contact_phone" name="contact_phone" value="{{ event_form.contact_phone }}"></div>
-                <div class="col-md-4"><label class="form-label" for="location">Local</label><input class="form-control" id="location" name="location" value="{{ event_form.location }}"></div>
-                <div class="col-md-3"><label class="form-label" for="reminder_minutes">Avisar antes</label><select class="form-select" id="reminder_minutes" name="reminder_minutes">{% for minutes, label in [(0, 'Na hora'), (15, '15 min'), (30, '30 min'), (60, '1 hora'), (120, '2 horas'), (1440, '1 dia')] %}<option value="{{ minutes }}" {% if event_form.reminder_minutes == minutes %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
-                <div class="col-md-3 d-flex align-items-end"><div class="form-check"><input class="form-check-input" id="notify_enabled" name="notify_enabled" type="checkbox" value="1" {% if event_form.notify_enabled %}checked{% endif %}><label class="form-check-label" for="notify_enabled">Modal de notificação</label></div></div>
-                <div class="col-12"><label class="form-label" for="description">Observações</label><textarea class="form-control" id="description" name="description">{{ event_form.description }}</textarea></div>
-                <div class="col-12 d-grid"><button class="agenda-save-btn" type="submit"><i class="bi bi-check2-circle me-1"></i> Salvar na agenda</button></div>
-            </div>
-        </form>
-    </section>
+    </div>
 </div>
 {% include 'partials/condominium_schedule_notifications.html' %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+    (function () {
+        const modalEl = document.getElementById('agendaEventModal');
+        const dayLinks = document.querySelectorAll('.agenda-day[data-day-url]');
+        let navigationTimer = null;
+
+        dayLinks.forEach((link) => {
+            link.addEventListener('click', (event) => {
+                const targetUrl = link.dataset.dayUrl;
+                if (!targetUrl) {
+                    return;
+                }
+                event.preventDefault();
+                window.clearTimeout(navigationTimer);
+                navigationTimer = window.setTimeout(() => {
+                    window.location.assign(targetUrl);
+                }, 220);
+            });
+
+            link.addEventListener('dblclick', (event) => {
+                const targetUrl = link.dataset.dayModalUrl;
+                if (!targetUrl) {
+                    return;
+                }
+                event.preventDefault();
+                window.clearTimeout(navigationTimer);
+                window.location.assign(targetUrl);
+            });
+        });
+
+        if (!modalEl || !window.bootstrap) {
+            return;
+        }
+
+        if (modalEl.dataset.autoOpen === 'true') {
+            bootstrap.Modal.getOrCreateInstance(modalEl).show();
+        }
+    })();
+</script>
 {% endblock %}

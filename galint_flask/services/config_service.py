@@ -76,12 +76,12 @@ class ConfigService:
                     "default": "logo/fundoadm.gif",
                 },
                 "administracao_editor_hero": {
-                    "label": "Topo do Editor de Blocos",
+                    "label": "Topo do Editor de Edifício",
                     "description": "Imagem principal da tela de implantação e ajuste dos blocos.",
                     "default": "logo/fundoadm.gif",
                 },
                 "administracao_cadastro_hero": {
-                    "label": "Topo do Cadastro Mestre",
+                    "label": "Topo do Cadastro de Morador",
                     "description": "Imagem principal da página de cadastro de pessoas e unidades.",
                     "default": "logo/fundoadm.gif",
                 },

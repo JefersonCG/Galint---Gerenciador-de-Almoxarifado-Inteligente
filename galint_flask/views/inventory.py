@@ -2354,6 +2354,7 @@ def purchase_projection_page():
         active_saved_summary=_build_purchase_projection_summary_entry(active_saved_summary) if active_saved_summary else None,
         summary_history=_list_purchase_projection_summary_entries(),
         summary_form_title=(active_saved_summary.title if active_saved_summary else _default_purchase_projection_summary_title()),
+        can_export_projection=_is_admin(current_user),
     )
 
 
@@ -2515,7 +2516,7 @@ def purchase_projection_api():
 @blueprint.post("/projecao-compras/export.xlsx")
 @login_required
 def purchase_projection_export_xlsx():
-    _require_admin_or_supervisor()
+    _require_admin()
     filters = _request_purchase_projection_filters(request.form)
     report, _ = _sync_purchase_projection_report(filters, request.form, flash_feedback=False)
     if not int((report.get("cart") or {}).get("selected_count") or 0):
@@ -3953,6 +3954,7 @@ def delete_inactive_items_by_category(categoria: str):
 @login_required
 def category_report(categoria: str):
     """Gera relatório de itens de uma categoria em PDF ou XLSX."""
+    _require_admin()
     requested_format = (request.args.get("format") or "pdf").strip().lower()
     if requested_format not in {"pdf", "xlsx"}:
         flash("Formato inválido. Use PDF ou XLSX.", "danger")

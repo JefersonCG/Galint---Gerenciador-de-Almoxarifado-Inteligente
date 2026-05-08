@@ -996,7 +996,9 @@
                     >Selecionar todos</button>
                     <button class="d-none" type="submit" aria-hidden="true" tabindex="-1">Salvar seleção</button>
                     <span class="projection-sync-status" id="projection-sync-status">Carrinho salvo automaticamente.</span>
+                    {% if can_export_projection %}
                     <button class="btn btn-success" id="projection-export-button" type="submit" formaction="{{ url_for('inventory.purchase_projection_export_xlsx') }}">Exportar XLS final</button>
+                    {% endif %}
                     <noscript>
                         <button class="btn btn-primary" type="submit">Salvar seleção</button>
                     </noscript>

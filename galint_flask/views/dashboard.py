@@ -54,6 +54,11 @@ _DASHBOARD_MONTH_ICONS = (
 )
 
 
+def _require_admin() -> None:
+    if not bool(getattr(current_user, "is_admin", False)):
+        abort(403)
+
+
 def _format_codigo_barra(value: object) -> str:
     if value is None:
         return "N/D"
@@ -314,6 +319,7 @@ def download_report(tipo: str):
 @blueprint.get("/relatorio/produtos-em-falta.xlsx")
 @login_required
 def download_low_stock_template():
+    _require_admin()
     data = inventory_service.report_low_stock()
     headers = ["Descrição", "Marca/Fabricante", "Setor", "Qtd. Est.", "Código"]
     rows = [
@@ -566,6 +572,7 @@ def _build_table_report_pdf(
 @blueprint.get("/relatorio/perdas.xlsx")
 @login_required
 def download_loss_template():
+    _require_admin()
     dados = inventory_service.report_inventory_events("perda")
     headers = ["Data", "Código", "Tipo", "Quantidade", "Responsável", "Descrição"]
     rows = [
@@ -596,6 +603,7 @@ def download_loss_template():
 @blueprint.get("/relatorio/avariados.xlsx")
 @login_required
 def download_avariados_template():
+    _require_admin()
     dados = inventory_service.report_inventory_events("avari")
     headers = ["Data", "Código", "Tipo", "Quantidade", "Responsável", "Descrição"]
     rows = [

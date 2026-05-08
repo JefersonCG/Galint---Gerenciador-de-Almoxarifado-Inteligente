@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Cadastro Mestre{% endblock %}
+{% block title %}Cadastro de Morador{% endblock %}
 {% block body_class %}condominium-owner-page{% endblock %}
 {% block extra_css %}
 <style>
@@ -47,16 +47,16 @@
     <header class="condo-owner-header">
         <div>
             <p class="condo-owner-kicker"><i class="bi bi-person-vcard"></i> Condomínio</p>
-            <h1 class="condo-owner-title">Cadastro Mestre</h1>
+            <h1 class="condo-owner-title">Cadastro de Morador</h1>
             <p class="condo-owner-summary">Centralize titular da unidade, locatário, moradores vinculados, visitantes autorizados, condutores, veículos e autorização LGPD em um cadastro único.</p>
         </div>
-        <div class="condo-owner-side-card" aria-label="Resumo do cadastro mestre">
+        <div class="condo-owner-side-card" aria-label="Resumo do cadastro de morador">
             <strong>{{ owners|length }} registros recentes</strong>
             <span>Documentos aparecem mascarados por padrão.</span>
             <span>Reservas, multas e pendências ficam preparados para vínculo futuro.</span>
         </div>
         <div class="condo-owner-actions">
-            <a class="btn btn-dark condo-owner-action" href="{{ url_for('pages.admin_condominium_blocks_editor') }}"><i class="bi bi-building-gear me-1"></i> Editor de Blocos</a>
+            <a class="btn btn-dark condo-owner-action" href="{{ url_for('pages.admin_condominium_blocks_editor') }}"><i class="bi bi-building-gear me-1"></i> Editor de Edifício</a>
             <a class="btn btn-outline-dark condo-owner-action" href="{{ url_for('pages.administration_dashboard') }}"><i class="bi bi-buildings me-1"></i> Dashboard</a>
         </div>
     </header>
