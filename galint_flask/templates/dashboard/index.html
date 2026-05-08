@@ -2350,10 +2350,19 @@
         max-width: min(920px, calc(100vw - 1.5rem));
     }
 
+    #custodyReturnModal {
+        position: fixed;
+        inset: 0;
+    }
+
     .galint-custody-modal-body {
         padding-top: 0.5rem;
         max-height: calc(100vh - 240px);
         overflow-y: auto;
+    }
+
+    .content-panel.galint-custody-modal-open {
+        overflow: hidden;
     }
 
     .galint-custody-modal-eyebrow {
@@ -3201,6 +3210,7 @@
         });
         const endpoint = "{{ url_for('dashboard.custody_active') }}";
         const custodyModalElement = document.getElementById('custodyReturnModal');
+        const contentPanelElement = document.querySelector('.content-panel');
         const custodyModalLabel = document.getElementById('custodyReturnModalLabel');
         const custodyModalSummary = document.getElementById('custodyReturnModalSummary');
         const custodyModalHint = document.getElementById('custodyReturnModalHint');
@@ -3209,6 +3219,11 @@
         const custodyModalProfile = document.getElementById('custodyReturnModalProfile');
         const custodyModalSelectAll = document.getElementById('custodyReturnModalSelectAll');
         const custodyModalConfirm = document.getElementById('custodyReturnModalConfirm');
+
+        if (custodyModalElement && custodyModalElement.parentElement !== document.body) {
+            document.body.appendChild(custodyModalElement);
+        }
+
         const custodyModalInstance = custodyModalElement && window.bootstrap
             ? bootstrap.Modal.getOrCreateInstance(custodyModalElement)
             : null;
@@ -3917,7 +3932,12 @@
         }
 
         if (custodyModalElement) {
+            custodyModalElement.addEventListener('show.bs.modal', () => {
+                contentPanelElement?.classList.add('galint-custody-modal-open');
+            });
+
             custodyModalElement.addEventListener('hidden.bs.modal', () => {
+                contentPanelElement?.classList.remove('galint-custody-modal-open');
                 activeCustodyModalGroupKey = null;
                 custodyReturnBusy = false;
             });
