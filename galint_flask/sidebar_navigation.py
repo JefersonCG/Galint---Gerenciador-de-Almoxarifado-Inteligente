@@ -199,6 +199,8 @@ def build_sidebar_navigation() -> dict[str, Any]:
             backup_url,
             restore_backup_url,
             conversionengine_url,
+            users_list_url,
+            mobile_panel_url,
         ],
     )
 
@@ -255,14 +257,13 @@ def build_sidebar_navigation() -> dict[str, Any]:
         power_bi_active = _path_matches_any(path, [analytics_url if is_admin else None, consumo_painel_url, valor_estoque_url])
         entries.append(_group_item("Power BI", "bi-pie-chart-fill", "powerBiMenu", power_bi_active, power_bi_children))
 
-    if is_admin and users_list_url:
-        entries.append(_link_item("Usuários", users_list_url, "bi-people-fill", _path_matches(path, users_list_url)))
-    if is_admin and mobile_panel_url:
-        entries.append(_link_item("Painel Mobile", mobile_panel_url, "bi-phone-fill", path.startswith(mobile_panel_url)))
-
     if has_management_access:
         entries.append({"type": "divider"})
         configuracoes_children: list[dict[str, Any]] = []
+        if is_admin and users_list_url:
+            configuracoes_children.append(_link_item("Usuários", users_list_url, "bi-people-fill", _path_matches(path, users_list_url)))
+        if is_admin and mobile_panel_url:
+            configuracoes_children.append(_link_item("Painel Mobile", mobile_panel_url, "bi-phone-fill", path.startswith(mobile_panel_url)))
         if empresa_url:
             configuracoes_children.append(_link_item("Empresa", empresa_url, "bi-building", _path_matches(path, empresa_url)))
         if relatorios_config_url:
