@@ -450,10 +450,10 @@ class BarcodeStudioService:
                     continue
 
                 width_mm = max(24.0, min(_as_float(raw_item.get("widthMm"), 72.0), max(24.0, page_width_mm - 4.0)))
-                height_mm = max(20.0, min(_as_float(raw_item.get("heightMm"), 40.0), max(20.0, page_height_mm - 4.0)))
+                height_mm = max(5.0, min(_as_float(raw_item.get("heightMm"), 40.0), max(5.0, page_height_mm - 4.0)))
                 x_mm = max(0.0, min(_as_float(raw_item.get("xMm"), 0.0), max(0.0, page_width_mm - width_mm)))
                 y_mm = max(0.0, min(_as_float(raw_item.get("yMm"), 0.0), max(0.0, page_height_mm - height_mm)))
-                padding_mm = max(1.0, min(_as_float(raw_item.get("paddingMm"), 3.0), 12.0))
+                padding_mm = max(0.2, min(_as_float(raw_item.get("paddingMm"), 3.0), min(12.0, max(0.2, height_mm / 4.0))))
 
                 width_pt = width_mm * mm
                 height_pt = height_mm * mm
@@ -463,7 +463,7 @@ class BarcodeStudioService:
                 content_left_pt = x_pt + padding_pt
                 content_right_pt = x_pt + width_pt - padding_pt
                 available_width_pt = max(12.0, content_right_pt - content_left_pt)
-                available_height_pt = max(12.0, height_pt - (padding_pt * 2.0))
+                available_height_pt = max(1.0, height_pt - (padding_pt * 2.0))
 
                 align = str(raw_item.get("align") or "center").strip().lower()
                 if align not in {"left", "center", "right"}:
@@ -479,7 +479,7 @@ class BarcodeStudioService:
                 show_code = _as_bool(raw_item.get("showCode"), True) and bool(payload)
                 title_font_pt = max(6.0, min(_as_float(raw_item.get("fontSizePx"), 14.0) * 0.75, 24.0))
                 code_font_pt = max(6.0, min(_as_float(raw_item.get("codeFontSizePx"), 11.0) * 0.75, 18.0))
-                desired_barcode_pt = max(12.0, _as_float(raw_item.get("barcodeHeightMm"), 18.0) * mm)
+                desired_barcode_pt = max(1.0 * mm, _as_float(raw_item.get("barcodeHeightMm"), 18.0) * mm)
                 show_border = _as_bool(raw_item.get("showBorder"), True)
                 border_width_pt = max(0.0, min(_as_float(raw_item.get("borderWidthMm"), 0.3), 2.0) * mm)
                 rendered_border_width_pt = max(min_visible_border_pt, border_width_pt) if border_width_pt > 0 else 0.0

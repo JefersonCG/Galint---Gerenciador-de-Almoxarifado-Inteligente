@@ -8,6 +8,9 @@
         portrait: { label: 'A4 retrato', widthMm: 210, heightMm: 297 },
         landscape: { label: 'A4 paisagem', widthMm: 297, heightMm: 210 },
     };
+    const MIN_LABEL_HEIGHT_MM = 5;
+    const MIN_BARCODE_HEIGHT_MM = 1;
+    const MIN_LABEL_PADDING_MM = 0.2;
 
     const state = {
         items: [],
@@ -321,6 +324,14 @@
         return Math.round(Number(value || 0) * 10) / 10;
     }
 
+    function getMaxBarcodeHeightMm(labelHeightMm) {
+        return Math.max(MIN_BARCODE_HEIGHT_MM, Number(labelHeightMm || 0) - 1);
+    }
+
+    function getMaxPaddingMm(labelHeightMm) {
+        return Math.min(12, Math.max(MIN_LABEL_PADDING_MM, Number(labelHeightMm || 0) / 4));
+    }
+
     function normalizeFixedItemSize(rawSize, presetOverride) {
         if (!rawSize || typeof rawSize !== 'object') {
             return null;
@@ -333,7 +344,7 @@
         }
         return {
             widthMm: roundMm(clamp(widthValue, 24, Math.max(24, preset.widthMm - 4))),
-            heightMm: roundMm(clamp(heightValue, 20, Math.max(20, preset.heightMm - 4))),
+            heightMm: roundMm(clamp(heightValue, MIN_LABEL_HEIGHT_MM, Math.max(MIN_LABEL_HEIGHT_MM, preset.heightMm - 4))),
         };
     }
 
@@ -539,8 +550,8 @@
             }
             item.widthMm = metrics.cellWidth;
             item.heightMm = metrics.cellHeight;
-            item.barcodeHeightMm = clamp(metrics.cellHeight * 0.46, 10, Math.max(10, metrics.cellHeight - 6));
-            item.paddingMm = clamp(metrics.cellWidth * 0.05, 1.5, 4);
+            item.barcodeHeightMm = clamp(metrics.cellHeight * 0.46, MIN_BARCODE_HEIGHT_MM, getMaxBarcodeHeightMm(metrics.cellHeight));
+            item.paddingMm = clamp(metrics.cellWidth * 0.05, MIN_LABEL_PADDING_MM, Math.min(4, getMaxPaddingMm(metrics.cellHeight)));
             item.isSnapping = false;
             normalizeLabel(item);
         });
@@ -1234,7 +1245,7 @@
                 item.isSnapping = true;
             }
             if (heightSnap.guide != null) {
-                item.heightMm = Math.max(20, heightSnap.value - item.yMm);
+                item.heightMm = Math.max(MIN_LABEL_HEIGHT_MM, heightSnap.value - item.yMm);
                 showGuide('y', heightSnap.guide);
                 item.isSnapping = true;
             }
@@ -1262,11 +1273,11 @@
         const preset = getPagePreset();
         item.pageIndex = Math.max(0, parseInt(item.pageIndex, 10) || 0);
         item.widthMm = clamp(Number(item.widthMm || 72), 24, preset.widthMm - 4);
-        item.heightMm = clamp(Number(item.heightMm || 40), 20, preset.heightMm - 4);
+        item.heightMm = clamp(Number(item.heightMm || 40), MIN_LABEL_HEIGHT_MM, preset.heightMm - 4);
         item.xMm = clamp(Number(item.xMm || state.page.marginMm), 0, Math.max(0, preset.widthMm - item.widthMm));
         item.yMm = clamp(Number(item.yMm || state.page.marginMm), 0, Math.max(0, preset.heightMm - item.heightMm));
-        item.barcodeHeightMm = clamp(Number(item.barcodeHeightMm || 18), 8, Math.max(8, item.heightMm - 4));
-        item.paddingMm = clamp(Number(item.paddingMm || 3), 1, 12);
+        item.barcodeHeightMm = clamp(Number(item.barcodeHeightMm || 18), MIN_BARCODE_HEIGHT_MM, getMaxBarcodeHeightMm(item.heightMm));
+        item.paddingMm = clamp(Number(item.paddingMm || 3), MIN_LABEL_PADDING_MM, getMaxPaddingMm(item.heightMm));
         item.fontSizePx = clamp(Number(item.fontSizePx || 14), 8, 30);
         item.codeFontSizePx = clamp(Number(item.codeFontSizePx || 11), 8, 24);
         item.showBorder = item.showBorder !== false;
@@ -1569,7 +1580,7 @@
                 heightMm: itemSize.heightMm,
                 xMm: clamp(state.page.marginMm + (offset * 8), startX, maxX),
                 yMm: clamp(state.page.marginMm + (offset * 8), startY, maxY),
-                barcodeHeightMm: clamp(18, 8, Math.max(8, itemSize.heightMm - 4)),
+                barcodeHeightMm: clamp(18, MIN_BARCODE_HEIGHT_MM, getMaxBarcodeHeightMm(itemSize.heightMm)),
                 paddingMm: 3,
                 fontSizePx: 14,
                 codeFontSizePx: 11,
@@ -1805,7 +1816,7 @@
         state.items.forEach(function (entry) {
             entry.widthMm = fixedItemSize.widthMm;
             entry.heightMm = fixedItemSize.heightMm;
-            entry.barcodeHeightMm = clamp(Number(entry.barcodeHeightMm || 18), 8, Math.max(8, fixedItemSize.heightMm - 4));
+            entry.barcodeHeightMm = clamp(Number(entry.barcodeHeightMm || 18), MIN_BARCODE_HEIGHT_MM, getMaxBarcodeHeightMm(fixedItemSize.heightMm));
             entry.isSnapping = false;
             normalizeLabel(entry);
         });
@@ -1951,7 +1962,7 @@
                 displayValue: false,
                 margin: 0,
                 width: item.widthMm < 48 ? 1 : 1.35,
-                height: Math.max(20, Math.round(mmToPx(item.barcodeHeightMm))),
+                height: Math.max(8, Math.round(mmToPx(item.barcodeHeightMm))),
                 background: '#ffffff',
                 lineColor: '#111827',
             });

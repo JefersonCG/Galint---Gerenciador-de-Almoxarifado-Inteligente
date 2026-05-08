@@ -272,7 +272,7 @@
                     </div>
                     <div class="col-6">
                         <label class="form-label" for="barcodeStudioPresetHeightInput">Altura predefinida (mm)</label>
-                        <input class="form-control" id="barcodeStudioPresetHeightInput" type="number" min="18" max="180" step="0.5" value="40">
+                        <input class="form-control" id="barcodeStudioPresetHeightInput" type="number" min="5" max="180" step="0.5" value="40">
                     </div>
                 </div>
                 <div class="barcode-studio-dimension-lock-actions">
@@ -331,7 +331,7 @@
                     </div>
                     <div class="col-6">
                         <label class="form-label" for="barcodeStudioHeightInput">Altura (mm)</label>
-                        <input class="form-control" id="barcodeStudioHeightInput" type="number" min="18" max="180" step="0.5">
+                        <input class="form-control" id="barcodeStudioHeightInput" type="number" min="5" max="180" step="0.5">
                     </div>
                     <div class="col-6">
                         <label class="form-label" for="barcodeStudioXInput">Posicao X (mm)</label>
@@ -343,11 +343,11 @@
                     </div>
                     <div class="col-6">
                         <label class="form-label" for="barcodeStudioBarcodeHeightInput">Altura do barcode (mm)</label>
-                        <input class="form-control" id="barcodeStudioBarcodeHeightInput" type="number" min="8" max="120" step="0.5">
+                        <input class="form-control" id="barcodeStudioBarcodeHeightInput" type="number" min="1" max="120" step="0.5">
                     </div>
                     <div class="col-6">
                         <label class="form-label" for="barcodeStudioPaddingInput">Margem interna (mm)</label>
-                        <input class="form-control" id="barcodeStudioPaddingInput" type="number" min="1" max="12" step="0.5">
+                        <input class="form-control" id="barcodeStudioPaddingInput" type="number" min="0.2" max="12" step="0.1">
                     </div>
                     <div class="col-6">
                         <label class="form-label" for="barcodeStudioTitleSizeInput">Fonte do nome (px)</label>
@@ -434,5 +434,5 @@
         "internalLayoutsDir": barcode_layouts_internal_dir | default('', true),
     } | tojson | safe }};
 </script>
-<script src="{{ url_for('static', filename='js/barcode-studio.js', v='20260508b') }}"></script>
+<script src="{{ url_for('static', filename='js/barcode-studio.js', v='20260508c') }}"></script>
 {% endblock %}
