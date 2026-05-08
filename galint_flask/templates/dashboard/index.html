@@ -2346,6 +2346,19 @@
         box-shadow: 0 34px 78px rgba(15, 23, 42, 0.36);
     }
 
+    .galint-custody-modal-content .modal-header {
+        align-items: flex-start;
+    }
+
+    .galint-custody-modal-content .modal-title {
+        margin: 0;
+        font-size: clamp(1.55rem, 2vw, 2.2rem);
+        font-weight: 800;
+        letter-spacing: -0.02em;
+        line-height: 1.05;
+        color: #f8fafc;
+    }
+
     .galint-custody-modal-dialog {
         max-width: min(920px, calc(100vw - 1.5rem));
     }
@@ -2384,26 +2397,26 @@
     .galint-custody-modal-summary {
         display: flex;
         flex-wrap: wrap;
-        gap: 0.6rem;
-        margin-bottom: 1rem;
+        gap: 0.45rem;
+        margin-bottom: 0.7rem;
     }
 
     .galint-custody-modal-hint {
-        margin: 0 0 0.9rem;
-        color: rgba(191, 219, 254, 0.82);
-        font-size: 0.84rem;
+        margin: 0 0 0.75rem;
+        color: rgba(191, 219, 254, 0.72);
+        font-size: 0.76rem;
     }
 
     .galint-custody-summary-chip {
         display: inline-flex;
         align-items: center;
         gap: 0.5rem;
-        padding: 0.7rem 0.9rem;
+        padding: 0.52rem 0.72rem;
         border-radius: 999px;
         background: rgba(255, 255, 255, 0.08);
         border: 1px solid rgba(148, 163, 184, 0.18);
         color: #f8fafc;
-        font-size: 0.84rem;
+        font-size: 0.74rem;
         font-weight: 600;
     }
 
@@ -2445,6 +2458,54 @@
         box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.34), 0 18px 32px rgba(15, 23, 42, 0.24);
     }
 
+    .galint-custody-modal-tool-main {
+        display: grid;
+        grid-template-columns: 88px minmax(0, 1fr);
+        gap: 0.95rem;
+        align-items: start;
+    }
+
+    .galint-custody-modal-tool-thumb {
+        width: 88px;
+        height: 88px;
+        border-radius: 18px;
+        overflow: hidden;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        background: rgba(15, 23, 42, 0.44);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    }
+
+    .galint-custody-modal-tool-thumb img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .galint-custody-modal-tool-placeholder {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.35rem;
+        color: rgba(191, 219, 254, 0.74);
+        font-size: 0.66rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        text-align: center;
+        padding: 0.55rem;
+    }
+
+    .galint-custody-modal-tool-placeholder i {
+        font-size: 1.15rem;
+    }
+
+    .galint-custody-modal-tool-content {
+        min-width: 0;
+    }
+
     .galint-custody-modal-tool-top {
         display: flex;
         justify-content: space-between;
@@ -2454,22 +2515,28 @@
     }
 
     .galint-custody-modal-tool-name {
-        font-size: 1rem;
+        font-size: 1.1rem;
         font-weight: 700;
         color: #ffffff;
-        margin-bottom: 0.15rem;
+        margin-bottom: 0.08rem;
     }
 
     .galint-custody-modal-tool-code {
-        font-size: 0.82rem;
-        color: rgba(191, 219, 254, 0.84);
+        font-size: 0.72rem;
+        color: rgba(191, 219, 254, 0.72);
     }
 
     .galint-custody-modal-tool-meta {
         display: flex;
         flex-wrap: wrap;
-        gap: 0.5rem;
-        margin-bottom: 0.75rem;
+        gap: 0.45rem;
+        margin-bottom: 0;
+    }
+
+    .galint-custody-modal-tool-meta .galint-custody-summary-chip {
+        font-size: 0.7rem;
+        padding: 0.42rem 0.62rem;
+        color: rgba(226, 232, 240, 0.92);
     }
 
     .galint-custody-modal-tool-note {
@@ -2578,6 +2645,15 @@
         .galint-custody-modal-selected {
             width: 100%;
             padding-right: 0;
+        }
+
+        .galint-custody-modal-tool-main {
+            grid-template-columns: 1fr;
+        }
+
+        .galint-custody-modal-tool-thumb {
+            width: 100%;
+            height: 168px;
         }
     }
 </style>
@@ -3526,17 +3602,26 @@
             custodyModalTools.innerHTML = orderedItems.length
                 ? orderedItems.map((item) => `
                     <button type="button" class="galint-custody-modal-tool js-custody-modal-tool ${selectedKeySet.has(getItemKey(item)) ? 'is-selected' : ''} ${item.atrasada ? 'alert' : ''}" data-tool-key="${escapeHtml(getItemKey(item))}" aria-pressed="${selectedKeySet.has(getItemKey(item)) ? 'true' : 'false'}">
-                        <div class="galint-custody-modal-tool-top">
-                            <div>
-                                <div class="galint-custody-modal-tool-name">${escapeHtml(item.descricao || 'Ferramenta não identificada')}</div>
-                                <div class="galint-custody-modal-tool-code">Código ${escapeHtml(item.codigo || '-')}</div>
+                        <div class="galint-custody-modal-tool-main">
+                            <div class="galint-custody-modal-tool-thumb">
+                                ${item.foto_url
+                                    ? `<img src="${escapeHtml(item.foto_url)}" alt="${escapeHtml(item.descricao || 'Ferramenta')}" loading="lazy" decoding="async">`
+                                    : `<div class="galint-custody-modal-tool-placeholder"><i class="bi bi-image"></i><span>Sem foto</span></div>`}
                             </div>
-                            <span class="galint-custody-preview-days ${item.atrasada ? 'is-alert' : ''}">${escapeHtml(formatDays(item.dias_em_uso))}</span>
-                        </div>
-                        <div class="galint-custody-modal-tool-meta">
-                            <span class="galint-custody-summary-chip"><i class="bi bi-geo-alt"></i>${escapeHtml(item.local_servico || 'Local não informado')}</span>
-                            <span class="galint-custody-summary-chip"><i class="bi bi-hash"></i>Qtd ${escapeHtml(item.quantidade || 0)}</span>
-                            <span class="galint-custody-summary-chip"><i class="bi bi-calendar-event"></i>${escapeHtml(formatDate(item.data_retirada_iso))}</span>
+                            <div class="galint-custody-modal-tool-content">
+                                <div class="galint-custody-modal-tool-top">
+                                    <div>
+                                        <div class="galint-custody-modal-tool-name">${escapeHtml(item.descricao || 'Ferramenta não identificada')}</div>
+                                        <div class="galint-custody-modal-tool-code">Código ${escapeHtml(item.codigo || '-')}</div>
+                                    </div>
+                                    <span class="galint-custody-preview-days ${item.atrasada ? 'is-alert' : ''}">${escapeHtml(formatDays(item.dias_em_uso))}</span>
+                                </div>
+                                <div class="galint-custody-modal-tool-meta">
+                                    <span class="galint-custody-summary-chip"><i class="bi bi-geo-alt"></i>${escapeHtml(item.local_servico || 'Local não informado')}</span>
+                                    <span class="galint-custody-summary-chip"><i class="bi bi-hash"></i>Qtd ${escapeHtml(item.quantidade || 0)}</span>
+                                    <span class="galint-custody-summary-chip"><i class="bi bi-calendar-event"></i>${escapeHtml(formatDate(item.data_retirada_iso))}</span>
+                                </div>
+                            </div>
                         </div>
                     </button>
                 `).join('')
