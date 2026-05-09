@@ -6,6 +6,7 @@ from ..services.config_service import ConfigService
 from ..services.finance_service import finance_service
 from ..services.galint_notify_service import GalintNotifyService
 from ..services.inventory import inventory_service
+from ..services.notification_template_service import NotificationTemplateService
 from ..services.notification_router import NotificationRouterService
 from ..services.telegram_service import TelegramService
 from ..extensions import db
@@ -370,6 +371,87 @@ def notificacoes_testar():
         "success" if result.get("success") else "danger",
     )
     return redirect(url_for("config.notificacoes"))
+
+
+@bp.route("/editor-notificacoes", methods=["GET", "POST"])
+@login_required
+def editor_notificacoes():
+    if not current_user.is_admin:
+        flash("Acesso negado. Apenas administradores podem alterar modelos de notificação.", "danger")
+        return redirect(url_for("dashboard.index"))
+
+    models = NotificationTemplateService.list_models()
+    if not models:
+        flash("Nenhum modelo de notificação está disponível.", "warning")
+        return redirect(url_for("config.notificacoes"))
+
+    rotation = NotificationTemplateService.describe_current_rotation()
+    selected_model_id = (request.values.get("model") or rotation.get("model_id") or models[0].get("id") or "").strip()
+    if not NotificationTemplateService.get_model(selected_model_id):
+        selected_model_id = str(models[0].get("id") or "")
+
+    if request.method == "POST":
+        action = (request.form.get("action") or "save").strip().lower()
+        try:
+            if action == "save":
+                NotificationTemplateService.update_model(
+                    selected_model_id,
+                    {
+                        "name": request.form.get("name") or "",
+                        "description": request.form.get("description") or "",
+                        "user_template": request.form.get("user_template") or "",
+                        "supervisor_template": request.form.get("supervisor_template") or "",
+                        "supervisor_batch_template": request.form.get("supervisor_batch_template") or "",
+                    },
+                )
+                flash("Modelo salvo com sucesso.", "success")
+            elif action == "preview_telegram":
+                matricula = (request.form.get("matricula") or "").strip()
+                template_kind = (request.form.get("template_kind") or "user").strip().lower()
+                if not matricula:
+                    raise ValueError("Selecione uma matrícula para enviar o preview.")
+                telegram_user = TelegramUser.query.filter_by(matricula=matricula, enabled=True).first()
+                if not telegram_user:
+                    raise ValueError("Usuário não possui vínculo Telegram ativo.")
+                usuario = Usuario.query.filter_by(matricula=matricula).first()
+                preview_context = NotificationTemplateService.sample_context()
+                if usuario:
+                    preview_context["employee_name"] = usuario.nome or preview_context["employee_name"]
+                    preview_context["employee_id"] = usuario.matricula or preview_context["employee_id"]
+                preview_message = NotificationTemplateService.render(
+                    template_kind,
+                    preview_context,
+                    model_id=selected_model_id,
+                )
+                result = TelegramService.send_message(str(telegram_user.chat_id), preview_message)
+                if result.get("success"):
+                    flash("Preview do modelo enviado ao Telegram.", "success")
+                else:
+                    flash(f"Falha ao enviar preview: {result.get('error')}", "danger")
+            else:
+                flash("Ação de editor não reconhecida.", "warning")
+        except ValueError as exc:
+            flash(str(exc), "danger")
+        return redirect(url_for("config.editor_notificacoes", model=selected_model_id))
+
+    selected_model = NotificationTemplateService.get_model(selected_model_id) or models[0]
+
+    def _safe_preview(kind: str) -> str:
+        try:
+            return NotificationTemplateService.render(kind, NotificationTemplateService.sample_context(), model_id=selected_model_id)
+        except Exception as exc:
+            return f"Erro ao renderizar preview: {exc}"
+
+    return render_template(
+        "config_notification_editor.html",
+        models=models,
+        selected_model=selected_model,
+        rotation=rotation,
+        preview_user=_safe_preview("user"),
+        preview_supervisor=_safe_preview("supervisor"),
+        preview_supervisor_batch=_safe_preview("supervisor_batch"),
+        usuarios=Usuario.query.order_by(Usuario.nome.asc()).all(),
+    )
 
 
 @bp.route("/preview-cabecalho")

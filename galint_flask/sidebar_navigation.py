@@ -166,6 +166,7 @@ def build_sidebar_navigation() -> dict[str, Any]:
     rede_url = _optional_url("pages.config_rede")
     telegram_url = _optional_url("telegram_config.index")
     notificacoes_url = _optional_url("config.notificacoes")
+    editor_notificacoes_url = _optional_url("config.editor_notificacoes")
     backup_url = _optional_url("pages.config_backup")
     restore_backup_url = _optional_url("pages.restore_backup")
     conversionengine_url = _optional_url("pages.config_conversionengine")
@@ -196,6 +197,7 @@ def build_sidebar_navigation() -> dict[str, Any]:
             rede_url,
             telegram_url,
             notificacoes_url,
+            editor_notificacoes_url,
             backup_url,
             restore_backup_url,
             conversionengine_url,
@@ -276,6 +278,8 @@ def build_sidebar_navigation() -> dict[str, Any]:
             configuracoes_children.append(_link_item("Telegram", telegram_url, "bi-telegram", _path_matches(path, telegram_url)))
         if notificacoes_url:
             configuracoes_children.append(_link_item("Notificações", notificacoes_url, "bi-broadcast-pin", _path_matches(path, notificacoes_url)))
+        if editor_notificacoes_url:
+            configuracoes_children.append(_link_item("Editor de Notificações", editor_notificacoes_url, "bi-pencil-square", _path_matches(path, editor_notificacoes_url)))
         if backup_url:
             configuracoes_children.append(_link_item("Backup", backup_url, "bi-database", _path_matches(path, backup_url) or _path_matches(path, restore_backup_url)))
         if conversionengine_url:

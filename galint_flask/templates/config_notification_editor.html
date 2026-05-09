@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+{% block title %}Editor de Notificações{% endblock %}
+
+{% block extra_css %}
+<style>
+    .notify-editor-shell { background: radial-gradient(circle at top left, rgba(14, 165, 233, 0.12), transparent 26%), linear-gradient(180deg, #07111f 0%, #0b1729 100%); border: 1px solid rgba(59, 130, 246, 0.18); border-radius: 28px; padding: 1.4rem; color: #e5eefc; box-shadow: 0 24px 56px rgba(2, 8, 23, 0.42); }
+    .notify-editor-hero { display: flex; justify-content: space-between; gap: 1rem; align-items: start; padding: 1.4rem; border-radius: 24px; background: linear-gradient(135deg, rgba(8, 15, 30, 0.96), rgba(16, 28, 49, 0.95)); border: 1px solid rgba(125, 211, 252, 0.18); }
+    .notify-editor-rotation { min-width: 290px; border-radius: 18px; padding: 1rem; background: linear-gradient(180deg, rgba(13, 24, 42, 0.95), rgba(17, 31, 54, 0.88)); border: 1px solid rgba(148, 163, 184, 0.14); }
+    .notify-editor-grid { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 1rem; margin-top: 1rem; }
+    .notify-editor-secondary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; margin-top: 1rem; }
+    .notify-editor-card { background: linear-gradient(180deg, rgba(9, 18, 34, 0.98), rgba(12, 24, 43, 0.96)); border: 1px solid rgba(148, 163, 184, 0.14); border-radius: 24px; box-shadow: 0 18px 40px rgba(2, 8, 23, 0.32); }
+    .notify-editor-card .card-body, .notify-editor-card .card-header { background: transparent; color: #e5eefc; border-color: rgba(148, 163, 184, 0.12); }
+    .notify-editor-model-list { display: grid; gap: 0.8rem; }
+    .notify-editor-model-link { display: block; padding: 1rem; border-radius: 18px; text-decoration: none; color: #dbe8fb; background: rgba(15, 28, 49, 0.7); border: 1px solid rgba(148, 163, 184, 0.14); }
+    .notify-editor-model-link:hover { color: #fff; border-color: rgba(125, 211, 252, 0.28); background: rgba(17, 31, 54, 0.92); }
+    .notify-editor-model-link.active { background: linear-gradient(135deg, rgba(8, 145, 178, 0.26), rgba(15, 118, 110, 0.24)); border-color: rgba(103, 232, 249, 0.24); box-shadow: 0 10px 24px rgba(8, 145, 178, 0.18); }
+    .notify-editor-badge { display: inline-flex; padding: 0.28rem 0.72rem; border-radius: 999px; font-size: 0.74rem; font-weight: 700; background: rgba(34, 197, 94, 0.18); color: #bbf7d0; }
+    .notify-editor-label { display: block; margin-bottom: 0.45rem; font-weight: 700; color: #f8fbff; }
+    .notify-editor-input, .notify-editor-select { width: 100%; background: rgba(7, 17, 31, 0.92); color: #f8fbff; border: 1px solid rgba(56, 189, 248, 0.22); border-radius: 16px; padding: 0.82rem 0.95rem; box-shadow: none; }
+    .notify-editor-input:focus, .notify-editor-select:focus { outline: none; border-color: rgba(56, 189, 248, 0.48); box-shadow: 0 0 0 0.18rem rgba(14, 165, 233, 0.12); }
+    .notify-editor-textarea { min-height: 220px; resize: vertical; font-family: Consolas, "Courier New", monospace; line-height: 1.45; }
+    .notify-editor-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+    .notify-editor-shell .btn-primary { background: linear-gradient(135deg, #0284c7, #0f766e); border-color: rgba(125, 211, 252, 0.24); }
+    .notify-editor-shell .btn-outline-light { color: #dbe8fb; border-color: rgba(148,163,184,0.28); background: rgba(15, 28, 49, 0.52); }
+    .notify-editor-shell .btn-outline-light:hover { background: rgba(30, 41, 59, 0.92); color: #ffffff; }
+    .notify-editor-preview { white-space: pre-wrap; margin: 0; padding: 1rem; border-radius: 18px; background: rgba(7, 17, 31, 0.9); border: 1px solid rgba(56, 189, 248, 0.16); color: #dbe8fb; max-height: 420px; overflow: auto; }
+    .notify-editor-hint { border-radius: 18px; padding: 1rem; background: rgba(15, 28, 49, 0.76); border: 1px solid rgba(148, 163, 184, 0.12); }
+    @media (max-width: 1100px) { .notify-editor-grid, .notify-editor-secondary { grid-template-columns: 1fr; } .notify-editor-hero { flex-direction: column; } .notify-editor-rotation { width: 100%; } }
+</style>
+{% endblock %}
+
+{% block page_header %}{% endblock %}
+{% block content %}
+<div class="notify-editor-shell">
+    <section class="notify-editor-hero">
+        <div>
+            <div class="notify-editor-badge mb-3">Editor de Notificações</div>
+            <h1 class="mb-2" style="font-size: clamp(2rem, 3.5vw, 3rem); font-weight: 900; letter-spacing: -0.04em; color: #f8fbff;">Circuito mensal de custódia</h1>
+            <p class="mb-0" style="max-width: 56rem; color: #bfd1e8;">Edite os 5 modelos da escala mensal, visualize a mensagem pronta e envie um preview direto ao Telegram antes de colocá-la em produção.</p>
+        </div>
+        <div class="notify-editor-rotation">
+            <div class="small text-uppercase" style="letter-spacing: 0.08em; color: #7dd3fc;">Modelo ativo neste mês</div>
+            <div style="font-size: 1.18rem; font-weight: 800; color: #f8fbff;">{{ rotation.model_name }}</div>
+            <div class="small mt-2" style="color: #b5c5dc;">{{ rotation.month }}</div>
+            <div class="small mt-2" style="color: #9fb0c8;">{{ rotation.description }}</div>
+            <div class="mt-3"><a class="btn btn-outline-light rounded-pill px-4" href="{{ url_for('config.notificacoes') }}">Voltar ao painel</a></div>
+        </div>
+    </section>
+
+    <div class="notify-editor-grid">
+        <div class="notify-editor-card card">
+            <div class="card-header"><h5 class="mb-1">Modelos da escala</h5><p class="mb-0 text-muted">Janeiro começa no 1º modelo e o circuito roda automaticamente ao longo do ano.</p></div>
+            <div class="card-body">
+                <div class="notify-editor-model-list">
+                    {% for model in models %}
+                    <a class="notify-editor-model-link {% if model.id == selected_model.id %}active{% endif %}" href="{{ url_for('config.editor_notificacoes', model=model.id) }}">
+                        <strong>{{ loop.index }}. {{ model.name }}</strong>
+                        <div class="small mt-2" style="color: #9fb0c8;">{{ model.description }}</div>
+                        {% if model.id == rotation.model_id %}
+                        <div class="small mt-2" style="color: #86efac; font-weight: 700;">Ativo no mês atual</div>
+                        {% endif %}
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div class="notify-editor-card card">
+            <div class="card-header"><h5 class="mb-1">Editar modelo</h5><p class="mb-0 text-muted">Use variáveis já preenchidas pelo sistema como {{ '{{ employee_name }}' }}, {{ '{{ item_name }}' }} e {{ '{{ stock_impact_section }}' }}.</p></div>
+            <div class="card-body">
+                <form method="POST">
+                    <input type="hidden" name="action" value="save">
+                    <input type="hidden" name="model" value="{{ selected_model.id }}">
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="notify-editor-label">Nome</label>
+                            <input class="notify-editor-input" type="text" name="name" value="{{ selected_model.name }}" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="notify-editor-label">Descrição</label>
+                            <input class="notify-editor-input" type="text" name="description" value="{{ selected_model.description }}">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="notify-editor-label">Modelo para colaborador</label>
+                        <textarea class="notify-editor-input notify-editor-textarea" name="user_template" required>{{ selected_model.user_template }}</textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="notify-editor-label">Modelo para supervisão</label>
+                        <textarea class="notify-editor-input notify-editor-textarea" name="supervisor_template" required>{{ selected_model.supervisor_template }}</textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="notify-editor-label">Modelo para supervisão em lote</label>
+                        <textarea class="notify-editor-input notify-editor-textarea" name="supervisor_batch_template" required>{{ selected_model.supervisor_batch_template }}</textarea>
+                    </div>
+                    <div class="notify-editor-actions">
+                        <button class="btn btn-primary rounded-pill px-4" type="submit">Salvar modelo</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="notify-editor-secondary">
+        <div class="notify-editor-card card">
+            <div class="card-header"><h5 class="mb-1">Preview renderizado</h5><p class="mb-0 text-muted">Amostras montadas com contexto de custódia para validar texto, ordem e blocos.</p></div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="notify-editor-label">Colaborador</label>
+                    <pre class="notify-editor-preview">{{ preview_user }}</pre>
+                </div>
+                <div class="mb-3">
+                    <label class="notify-editor-label">Supervisão</label>
+                    <pre class="notify-editor-preview">{{ preview_supervisor }}</pre>
+                </div>
+                <div>
+                    <label class="notify-editor-label">Supervisão em lote</label>
+                    <pre class="notify-editor-preview">{{ preview_supervisor_batch }}</pre>
+                </div>
+            </div>
+        </div>
+
+        <div class="notify-editor-card card">
+            <div class="card-header"><h5 class="mb-1">Aplicar ao Telegram</h5><p class="mb-0 text-muted">Envie um preview do modelo selecionado para um usuário com vínculo ativo no bot.</p></div>
+            <div class="card-body">
+                <form method="POST" class="mb-4">
+                    <input type="hidden" name="action" value="preview_telegram">
+                    <input type="hidden" name="model" value="{{ selected_model.id }}">
+                    <div class="mb-3">
+                        <label class="notify-editor-label">Tipo de preview</label>
+                        <select class="notify-editor-select" name="template_kind">
+                            <option value="user">Mensagem do colaborador</option>
+                            <option value="supervisor">Mensagem da supervisão</option>
+                            <option value="supervisor_batch">Mensagem da supervisão em lote</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="notify-editor-label">Matrícula de destino</label>
+                        <select class="notify-editor-select" name="matricula" required>
+                            {% for usuario in usuarios %}
+                            <option value="{{ usuario.matricula }}">{{ usuario.nome }} ({{ usuario.matricula }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="notify-editor-actions">
+                        <button class="btn btn-outline-light rounded-pill px-4" type="submit">Enviar preview ao Telegram</button>
+                    </div>
+                </form>
+
+                <div class="notify-editor-hint">
+                    <strong style="color: #f8fbff;">Variáveis principais disponíveis</strong>
+                    <div class="small mt-2" style="color: #b5c5dc; line-height: 1.7;">{{ '{{ employee_name }}' }}, {{ '{{ employee_id }}' }}, {{ '{{ item_name }}' }}, {{ '{{ quantity_display }}' }}, {{ '{{ category }}' }}, {{ '{{ destination_display }}' }}, {{ '{{ assigned_at }}' }}, {{ '{{ responsibility_section }}' }}, {{ '{{ supervisor_summary_section }}' }}, {{ '{{ reference_section }}' }}, {{ '{{ stock_impact_section }}' }}, {{ '{{ assignment_list }}' }}, {{ '{{ total_people }}' }}, {{ '{{ total_assignments }}' }}.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

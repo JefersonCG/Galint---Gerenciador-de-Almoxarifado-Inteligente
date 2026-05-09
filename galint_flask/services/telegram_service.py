@@ -59,6 +59,7 @@ from ..models import (
 )
 from .category_catalog import category_catalog_service
 from .material_return_metadata import extract_material_return_metadata, format_material_return_actor_label
+from .notification_template_service import NotificationTemplateService
 from .operation_visual_payload import operation_visual_payload_service
 
 import threading
@@ -2857,57 +2858,42 @@ class TelegramService:
     @staticmethod
     def format_permanent_custody_message_user(saida: Saida, usuario: Usuario, item: Item) -> str:
         """Formata mensagem de custódia permanente para o funcionário."""
-        categoria = (item.categoria or "Geral").strip() or "Geral"
-        data_fmt = TimeService.format_local(saida.data_saida)
-        quantidade_fmt = TelegramService._format_saida_quantidade(saida, item)
-
-        emoji_map = {
-            "ferramentas": "🔧",
-            "material elétrico": "⚡",
-            "material eletrico": "⚡",
-            "material hidráulico": "🚰",
-            "material hidraulico": "🚰",
-            "material piscina": "🏊",
-            "equipamento": "⚙️",
-            "liquido": "💧",
-            "líquido": "💧",
-        }
-        emoji = emoji_map.get(categoria.lower(), "📦")
-        
-        # Determinar se é ferramenta ou material
-        is_ferramenta = "ferrament" in categoria.lower()
-        tipo_item = "🔧 FERRAMENTA" if is_ferramenta else "📦 MATERIAL"
-
-        msg = f"🔐 <b>CUSTÓDIA PERMANENTE ATRIBUÍDA</b>\n\n"
-        msg += f"━━━━━━━━━━━━━━━━━━━━━━━━\n"
-        msg += f"{tipo_item}\n"
-        msg += f"{emoji} <b>{item.descricao}</b>\n"
-        msg += f"━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
-        msg += f"👤 <b>VOCÊ ESTÁ RESPONSÁVEL POR:</b>\n"
-        msg += f"   • Material: <b>{item.descricao}</b>\n"
-        msg += f"   • Categoria: {categoria}\n"
-        msg += f"   • Quantidade: {quantidade_fmt}\n"
-        if hasattr(item, "lote") and item.lote:
-            msg += f"   • Lote: {item.lote}\n"
-        msg += f"   • Data de atribuição: {data_fmt}\n\n"
-        msg += f"📌 <b>TIPO DE CUSTÓDIA</b>\n"
-        msg += f"   • <b>PERMANENTE</b> - Este material está sob sua\n"
-        msg += f"     responsabilidade por tempo indefinido.\n\n"
-        msg += f"⚠️ <b>IMPORTANTE</b>\n"
-        msg += f"   • Você é responsável pela conservação\n"
-        msg += f"   • Mantenha em local seguro\n"
-        msg += f"   • Comunique qualquer problema ou dano\n"
-        msg += "\n━━━━━━━━━━━━━━━━━━━━━━━━\n"
-        msg += f"⏰ Registro em {data_fmt}\n"
-        return msg
+        try:
+            return NotificationTemplateService.render(
+                "user",
+                TelegramService._build_permanent_custody_single_context(saida, usuario, item),
+            )
+        except Exception:
+            logger.exception("Erro ao renderizar notificacao de custodia para colaborador.")
+            return (
+                "🔐 <b>CUSTODIA PERMANENTE ATRIBUIDA</b>\n\n"
+                f"👤 {usuario.nome} ({usuario.matricula})\n"
+                f"📦 {item.descricao}\n"
+                f"📊 {TelegramService._format_saida_quantidade(saida, item)}\n"
+                f"⏰ {TimeService.format_local(saida.data_saida)}"
+            )
 
     @staticmethod
     def format_permanent_custody_message_supervisor(saida: Saida, usuario: Usuario, item: Item) -> str:
         """Formata mensagem de custódia permanente para supervisão."""
-        categoria = (item.categoria or "Geral").strip() or "Geral"
-        data_fmt = TimeService.format_local(saida.data_saida)
-        quantidade_fmt = TelegramService._format_saida_quantidade(saida, item)
+        try:
+            return NotificationTemplateService.render(
+                "supervisor",
+                TelegramService._build_permanent_custody_single_context(saida, usuario, item),
+            )
+        except Exception:
+            logger.exception("Erro ao renderizar notificacao de custodia para supervisao.")
+            return (
+                "🛰️ <b>CUSTODIA PERMANENTE ATRIBUIDA</b>\n\n"
+                f"👤 {usuario.nome} ({usuario.matricula})\n"
+                f"📦 {item.descricao}\n"
+                f"📊 {TelegramService._format_saida_quantidade(saida, item)}\n"
+                f"⏰ {TimeService.format_local(saida.data_saida)}"
+            )
 
+    @staticmethod
+    def _permanent_custody_category_meta(item: Item) -> dict[str, Any]:
+        categoria = (item.categoria or "Geral").strip() or "Geral"
         emoji_map = {
             "ferramentas": "🔧",
             "material elétrico": "⚡",
@@ -2919,38 +2905,71 @@ class TelegramService:
             "liquido": "💧",
             "líquido": "💧",
         }
-        emoji = emoji_map.get(categoria.lower(), "📦")
-        
-        # Determinar se é ferramenta ou material
         is_ferramenta = "ferrament" in categoria.lower()
-        tipo_item = "🔧 FERRAMENTA" if is_ferramenta else "📦 MATERIAL"
+        return {
+            "category": categoria,
+            "category_emoji": emoji_map.get(categoria.lower(), "📦"),
+            "item_type_label": "Ferramenta" if is_ferramenta else "Material",
+            "is_ferramenta": is_ferramenta,
+        }
 
-        msg = f"🔐 <b>CUSTÓDIA PERMANENTE ATRIBUÍDA</b>\n\n"
-        msg += f"━━━━━━━━━━━━━━━━━━━━━━━━\n"
-        msg += f"{tipo_item}\n"
-        msg += f"{emoji} <b>{item.descricao}</b>\n"
-        msg += f"━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
-        msg += "👤 <b>RESPONSÁVEL PELA CUSTÓDIA</b>\n"
-        msg += f"   • Nome: {usuario.nome}\n"
-        msg += f"   • Matrícula: {usuario.matricula}\n"
-        msg += f"   • Data de atribuição: {data_fmt}\n\n"
-        msg += "📋 <b>INFORMAÇÕES DO MATERIAL</b>\n"
-        msg += f"   • Categoria: {categoria}\n"
-        msg += f"   • Quantidade: {quantidade_fmt}\n"
-        if hasattr(item, "lote") and item.lote:
-            msg += f"   • Lote: {item.lote}\n"
-        msg += "\n"
-        msg += "📌 <b>TIPO DE CUSTÓDIA</b>\n"
-        msg += f"   • <b>PERMANENTE</b> - Material atribuído por tempo\n"
-        msg += f"     indefinido ao funcionário.\n"
-        msg += "\n📊 <b>IMPACTO NO ESTOQUE</b>\n"
+    @staticmethod
+    def _build_saida_reference_text(saida: Saida, item: Item) -> str:
+        _icon, title, lines = TelegramService._build_saida_reference_section(saida, item, prefix="• ")
+        if not lines:
+            return ""
+        text_lines: list[str] = []
+        if title:
+            text_lines.append(f"• {title}")
+        text_lines.extend(lines)
+        return "\n".join(text_lines)
 
-        for line in TelegramService._build_saida_stock_impact_lines(saida, item):
-            msg += f"{line}\n"
+    @staticmethod
+    def _build_saida_stock_impact_text(saida: Saida, item: Item) -> str:
+        return "\n".join(TelegramService._build_saida_stock_impact_lines(saida, item))
 
-        msg += "\n━━━━━━━━━━━━━━━━━━━━━━━━\n"
-        msg += f"⏰ Registro em {data_fmt}\n"
-        return msg
+    @staticmethod
+    def _build_permanent_custody_single_context(saida: Saida, usuario: Usuario, item: Item) -> dict[str, str]:
+        meta = TelegramService._permanent_custody_category_meta(item)
+        local = (saida.local_servico or "NÃO INFORMADO").strip() or "NÃO INFORMADO"
+        data_fmt = TimeService.format_local(saida.data_saida)
+        quantidade_fmt = TelegramService._format_saida_quantidade(saida, item)
+        lot = str(getattr(item, "lote", "") or "").strip()
+        if meta["is_ferramenta"]:
+            responsibility_lines = [
+                "• Este item permanece sob sua guarda por prazo indeterminado",
+                "• Mantenha a ferramenta em local seguro",
+                "• Comunique imediatamente dano, perda, quebra ou troca de frente",
+                "• Em caso de devolucao ou transferencia, a regularizacao deve ser registrada",
+            ]
+        else:
+            responsibility_lines = [
+                "• Este item permanece sob sua guarda por prazo indeterminado",
+                "• Mantenha o material em local seguro",
+                "• Comunique imediatamente dano, perda, avaria ou troca de frente",
+                "• Em caso de devolucao ou transferencia, a regularizacao deve ser registrada",
+            ]
+        supervisor_summary_lines = [
+            "• Custodia permanente vinculada ao colaborador informado",
+            f"• Tipo do item: {meta['item_type_label']} | Categoria: {meta['category']}",
+            f"• Destino/local informado: {local}",
+            f"• Quantidade controlada: {quantidade_fmt}",
+        ]
+        return {
+            "category_emoji": str(meta["category_emoji"]),
+            "item_name": str(item.descricao or "Item sem descrição"),
+            "employee_name": str(usuario.nome or "Colaborador não informado"),
+            "employee_id": str(usuario.matricula or "-"),
+            "quantity_display": quantidade_fmt,
+            "category": str(meta["category"]),
+            "lot": lot,
+            "destination_display": local,
+            "assigned_at": data_fmt,
+            "responsibility_section": "\n".join(responsibility_lines),
+            "supervisor_summary_section": "\n".join(supervisor_summary_lines),
+            "reference_section": TelegramService._build_saida_reference_text(saida, item),
+            "stock_impact_section": TelegramService._build_saida_stock_impact_text(saida, item),
+        }
 
     @staticmethod
 
@@ -3328,15 +3347,31 @@ class TelegramService:
     @staticmethod
     def format_multiple_permanent_custody_message_supervisor(saidas: list[Saida]) -> str:
         """Formata mensagem unificada para custódia permanente atribuída em lote."""
-        if not saidas:
-            return ""
+        try:
+            return NotificationTemplateService.render(
+                "supervisor_batch",
+                TelegramService._build_multiple_permanent_custody_context(saidas),
+            )
+        except Exception:
+            logger.exception("Erro ao renderizar notificacao em lote de custodia permanente.")
+            return f"🛰️ <b>CUSTODIA PERMANENTE EM LOTE</b>\n\n📦 Registros: {len(saidas)}"
 
+    @staticmethod
+    def _build_multiple_permanent_custody_context(saidas: list[Saida]) -> dict[str, str]:
         saidas_ordenadas = sorted(
             [saida for saida in saidas if saida and saida.item and saida.usuario],
             key=lambda registro: (registro.data_saida or datetime.min, registro.id_saida or 0),
         )
         if not saidas_ordenadas:
-            return ""
+            return {
+                "batch_title": "Lote sem registros válidos",
+                "assigned_at": "-",
+                "total_people": "0",
+                "total_assignments": "0",
+                "total_quantity_display": "0",
+                "assignment_list": "Nenhuma atribuição válida encontrada.",
+                "stock_impact_section": "",
+            }
 
         primeira = saidas_ordenadas[0]
         item_referencia = primeira.item
@@ -3345,22 +3380,6 @@ class TelegramService:
         total_pessoas = len({saida.matricula for saida in saidas_ordenadas if saida.matricula})
         total_atribuicoes = len(saidas_ordenadas)
         total_quantidade = sum(float(saida.quantidade or 0) for saida in saidas_ordenadas)
-
-        categoria = ((item_referencia.categoria or "Geral").strip() if item_referencia else "Geral") or "Geral"
-        emoji_map = {
-            "ferramentas": "🔧",
-            "material elétrico": "⚡",
-            "material eletrico": "⚡",
-            "material hidráulico": "🚰",
-            "material hidraulico": "🚰",
-            "material piscina": "🏊",
-            "equipamento": "⚙️",
-            "liquido": "💧",
-            "líquido": "💧",
-        }
-        emoji = emoji_map.get(categoria.lower(), "📦")
-        is_ferramenta = "ferrament" in categoria.lower()
-        tipo_item = "🔧 FERRAMENTA" if is_ferramenta else "📦 MATERIAL"
         mesma_referencia = len(item_codes) == 1 and item_referencia is not None
 
         def _fmt_amount(value: float, decimals: int = 6) -> str:
@@ -3372,47 +3391,24 @@ class TelegramService:
                 return str(int(round(value_f)))
             return f"{value_f:.{decimals}f}".rstrip("0").rstrip(".")
 
-        msg = f"🔐 <b>CUSTÓDIA PERMANENTE ATRIBUÍDA</b>\n\n"
-        msg += f"━━━━━━━━━━━━━━━━━━━━━━━━\n"
-        if mesma_referencia:
-            msg += f"{tipo_item}\n"
-            msg += f"{emoji} <b>{item_referencia.descricao}</b>\n"
-        else:
-            msg += "📋 <b>ATRIBUIÇÃO EM LOTE</b>\n"
-            msg += f"📦 <b>{total_atribuicoes} registros de custódia</b>\n"
-        msg += f"━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
-        msg += "👥 <b>RESPONSÁVEIS PELA CUSTÓDIA</b>\n"
-        msg += f"   • Colaboradores: {total_pessoas}\n"
-        msg += f"   • Total de atribuições: {total_atribuicoes}\n"
-        msg += f"   • Data de atribuição: {data_fmt}\n\n"
-        msg += "📋 <b>INFORMAÇÕES DO MATERIAL</b>\n"
-        if mesma_referencia:
-            msg += f"   • Categoria: {categoria}\n"
-            msg += f"   • Quantidade total: {_fmt_amount(total_quantidade)} {item_referencia.unidade or 'un'}\n"
-            if hasattr(item_referencia, 'lote') and item_referencia.lote:
-                msg += f"   • Lote: {item_referencia.lote}\n"
-        else:
-            msg += f"   • Itens distintos: {len(item_codes)}\n"
-            msg += f"   • Quantidade total atribuída: {_fmt_amount(total_quantidade)}\n"
-        msg += "\n"
-        msg += "👤 <b>ATRIBUIÇÕES REGISTRADAS</b>\n"
+        assignment_lines: list[str] = []
         for idx, saida in enumerate(saidas_ordenadas, 1):
             quantidade_fmt = TelegramService._format_saida_quantidade(saida, saida.item)
-            msg += f"   {idx}. {saida.usuario.nome} (Mat. {saida.usuario.matricula})\n"
-            if not mesma_referencia:
-                msg += f"      • Item: {saida.item.descricao}\n"
-            msg += f"      • Quantidade: {quantidade_fmt}\n"
-        msg += "\n"
-        msg += "📌 <b>TIPO DE CUSTÓDIA</b>\n"
-        msg += "   • <b>PERMANENTE</b> - Material atribuído por tempo\n"
-        msg += "     indefinido aos funcionários.\n"
+            if mesma_referencia:
+                assignment_lines.append(
+                    f"{idx}. {saida.usuario.nome} ({saida.usuario.matricula}) - {quantidade_fmt}"
+                )
+            else:
+                assignment_lines.append(
+                    f"{idx}. {saida.usuario.nome} ({saida.usuario.matricula}) - {saida.item.descricao} - {quantidade_fmt}"
+                )
 
+        stock_impact_lines: list[str] = []
         if mesma_referencia:
             try:
                 saldo_atual = float(item_referencia.get_saldo_atual() or 0)
                 saldo_anterior = saldo_atual + float(total_quantidade or 0)
                 unidade = operation_visual_payload_service._resolve_withdrawal_balance_unit(item_referencia)
-                msg += "\n📊 <b>IMPACTO NO ESTOQUE</b>\n"
                 saldo_anterior_display = operation_visual_payload_service.format_balance_display(
                     saldo_anterior,
                     item_referencia,
@@ -3426,19 +3422,35 @@ class TelegramService:
                     short=False,
                 )
                 if saldo_anterior_display:
-                    msg += f"   • Saldo anterior: {saldo_anterior_display}\n"
+                    stock_impact_lines.append(f"• Saldo anterior: {saldo_anterior_display}")
                 if saldo_atual_display:
-                    msg += f"   • Nova disponibilidade: <b>{saldo_atual_display}</b>\n"
+                    stock_impact_lines.append(f"• Nova disponibilidade: {saldo_atual_display}")
                 if saldo_atual <= 0:
-                    msg += "   • ⚠️ <b>STATUS: ESTOQUE ZERADO</b>\n"
+                    stock_impact_lines.append("• Status: estoque zerado")
                 elif saldo_atual < 3:
-                    msg += "   • ⚠️ STATUS: Estoque baixo\n"
+                    stock_impact_lines.append("• Status: estoque baixo")
             except Exception:
-                pass
+                logger.exception("Erro ao montar impacto consolidado de estoque para custodia em lote.")
+        else:
+            stock_impact_lines.append(f"• Itens distintos no lote: {len(item_codes)}")
+            stock_impact_lines.append(f"• Quantidade total atribuida: {_fmt_amount(total_quantidade)}")
 
-        msg += "\n━━━━━━━━━━━━━━━━━━━━━━━━\n"
-        msg += f"⏰ Registro em {data_fmt}\n"
-        return msg
+        if mesma_referencia:
+            total_quantity_display = f"{_fmt_amount(total_quantidade)} {item_referencia.unidade or 'un'}"
+            batch_title = str(item_referencia.descricao or "Lote de custodia")
+        else:
+            total_quantity_display = _fmt_amount(total_quantidade)
+            batch_title = f"{total_atribuicoes} registros de custodia permanente"
+
+        return {
+            "batch_title": batch_title,
+            "assigned_at": data_fmt,
+            "total_people": str(total_pessoas),
+            "total_assignments": str(total_atribuicoes),
+            "total_quantity_display": total_quantity_display,
+            "assignment_list": "\n".join(assignment_lines),
+            "stock_impact_section": "\n".join(stock_impact_lines),
+        }
 
 
 

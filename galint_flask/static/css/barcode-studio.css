@@ -5,6 +5,29 @@
     min-height: 100vh;
 }
 
+.barcode-studio-page {
+    height: 100vh;
+    overflow: hidden;
+}
+
+.barcode-studio-page .app-body {
+    min-height: 0;
+    overflow: hidden;
+}
+
+.barcode-studio-page .content-panel {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 0;
+}
+
+.barcode-studio-page .barcode-studio-shell {
+    flex: 1 1 auto;
+    min-height: 0;
+    height: 100%;
+}
+
 .barcode-studio-hero {
     display: flex;
     justify-content: space-between;
@@ -63,6 +86,8 @@
     align-items: stretch;
     flex: 1 1 auto;
     overflow: hidden;
+    min-height: 0;
+    grid-template-rows: minmax(0, 1fr);
 }
 
 .barcode-studio-panel {
@@ -74,12 +99,21 @@
     overflow: hidden;
     display: flex;
     flex-direction: column;
+    min-height: 0;
 }
 
 .barcode-studio-panel-search,
 .barcode-studio-panel-properties,
 .barcode-studio-panel-preview {
     padding: 1rem;
+}
+
+.barcode-studio-panel-search,
+.barcode-studio-panel-preview,
+.barcode-studio-panel-properties,
+.barcode-studio-workbench,
+.barcode-studio-sheets {
+    min-height: 0;
 }
 
 .barcode-studio-panel-head {
@@ -418,6 +452,10 @@
 .barcode-studio-panel-preview .barcode-studio-workbench {
     /* make the central workbench take available vertical space and scroll internally */
     flex: 1 1 auto;
+    overflow-y: auto;
+}
+
+.barcode-studio-panel-search {
     overflow-y: auto;
 }
 
