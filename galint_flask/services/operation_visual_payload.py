@@ -315,13 +315,6 @@ class OperationVisualPayloadService:
             unit_price_base_field="preco_compra_unitario_base",
             factor_base_field="preco_compra_fator_base",
         )
-        replacement_price = OperationVisualPayloadService._resolve_item_price_base(
-            item_data,
-            unit_price_field="preco_reposicao_unitario",
-            unit_price_base_field="preco_reposicao_unitario_base",
-            factor_base_field="preco_reposicao_fator_base",
-        )
-
         source_code = None
         source_label = None
         unit_price_base = None
@@ -329,10 +322,6 @@ class OperationVisualPayloadService:
             source_code = "nf"
             source_label = "NF"
             unit_price_base = purchase_price
-        elif replacement_price is not None and replacement_price > 0:
-            source_code = "estimado"
-            source_label = "Estimado"
-            unit_price_base = replacement_price
 
         base_unit = OperationVisualPayloadService._resolve_item_base_unit(item_data)
         unit_price_display = None
