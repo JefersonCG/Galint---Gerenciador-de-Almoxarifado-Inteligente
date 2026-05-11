@@ -1,0 +1,272 @@
+{
+  "generated_at": "2026-05-11T14:41:38.297161",
+  "applied": true,
+  "only_numbers": [
+    "019220",
+    "019221",
+    "019222",
+    "019223",
+    "019224",
+    "019226"
+  ],
+  "document_groups": [
+    {
+      "identity": "19220",
+      "canonical_number": "019220",
+      "canonical_document_id": 116,
+      "documents": [
+        {
+          "id_documento": 116,
+          "numero_documento": "19220",
+          "fornecedor_id": 26,
+          "fornecedor_nome": "A C MILAN DISTRIBUIDORA",
+          "cnpj_emitente": "18.877.269/0001-16",
+          "criado_em": "2026-05-11T10:49:12.178397",
+          "itens": [
+            {
+              "id_documento_item": 394,
+              "codigo_item": "789987456654101",
+              "quantidade": 1.0,
+              "unidade_quantidade": "fardo",
+              "quantidade_base": 24.0,
+              "valor_unitario": 127.7,
+              "valor_total": 127.7,
+              "status_processamento": "processado",
+              "stock_movement_id": 10171
+            }
+          ]
+        }
+      ],
+      "safe_duplicates": [],
+      "unsafe_duplicates": []
+    },
+    {
+      "identity": "19221",
+      "canonical_number": "019221",
+      "canonical_document_id": 118,
+      "documents": [
+        {
+          "id_documento": 118,
+          "numero_documento": "19221",
+          "fornecedor_id": 26,
+          "fornecedor_nome": "A C MILAN DISTRIBUIDORA",
+          "cnpj_emitente": "18.877.269/0001-16",
+          "criado_em": "2026-05-11T10:51:38.694140",
+          "itens": [
+            {
+              "id_documento_item": 396,
+              "codigo_item": "789987456654101",
+              "quantidade": 1.0,
+              "unidade_quantidade": "fardo",
+              "quantidade_base": 24.0,
+              "valor_unitario": 127.7,
+              "valor_total": 127.7,
+              "status_processamento": "processado",
+              "stock_movement_id": 10173
+            }
+          ]
+        }
+      ],
+      "safe_duplicates": [],
+      "unsafe_duplicates": []
+    },
+    {
+      "identity": "19223",
+      "canonical_number": "019223",
+      "canonical_document_id": 120,
+      "documents": [
+        {
+          "id_documento": 115,
+          "numero_documento": "19223",
+          "fornecedor_id": 26,
+          "fornecedor_nome": "A C MILAN DISTRIBUIDORA",
+          "cnpj_emitente": "18.877.269/0001-16",
+          "criado_em": "2026-05-11T10:46:00.032946",
+          "itens": [
+            {
+              "id_documento_item": 393,
+              "codigo_item": "789987456654101",
+              "quantidade": 1.0,
+              "unidade_quantidade": "fardo",
+              "quantidade_base": 24.0,
+              "valor_unitario": 127.7,
+              "valor_total": 127.7,
+              "status_processamento": "processado",
+              "stock_movement_id": 10170
+            }
+          ]
+        },
+        {
+          "id_documento": 120,
+          "numero_documento": "019223",
+          "fornecedor_id": 26,
+          "fornecedor_nome": "A C MILAN DISTRIBUIDORA",
+          "cnpj_emitente": "18.877.269/0001-16",
+          "criado_em": "2026-05-11T10:54:34.135125",
+          "itens": [
+            {
+              "id_documento_item": 398,
+              "codigo_item": "789987456654101",
+              "quantidade": 1.0,
+              "unidade_quantidade": "fardo",
+              "quantidade_base": 24.0,
+              "valor_unitario": 127.7,
+              "valor_total": 127.7,
+              "status_processamento": "processado",
+              "stock_movement_id": 10175
+            }
+          ]
+        }
+      ],
+      "safe_duplicates": [
+        {
+          "document_id": 115,
+          "numero_documento": "19223",
+          "reasons": []
+        }
+      ],
+      "unsafe_duplicates": []
+    },
+    {
+      "identity": "19224",
+      "canonical_number": "019224",
+      "canonical_document_id": 122,
+      "documents": [
+        {
+          "id_documento": 117,
+          "numero_documento": "19224",
+          "fornecedor_id": 26,
+          "fornecedor_nome": "A C MILAN DISTRIBUIDORA",
+          "cnpj_emitente": "18.877.269/0001-16",
+          "criado_em": "2026-05-11T10:50:52.858962",
+          "itens": [
+            {
+              "id_documento_item": 395,
+              "codigo_item": "789987456654101",
+              "quantidade": 1.0,
+              "unidade_quantidade": "fardo",
+              "quantidade_base": 24.0,
+              "valor_unitario": 127.7,
+              "valor_total": 127.7,
+              "status_processamento": "processado",
+              "stock_movement_id": 10172
+            }
+          ]
+        },
+        {
+          "id_documento": 122,
+          "numero_documento": "019224",
+          "fornecedor_id": 26,
+          "fornecedor_nome": "A C MILAN DISTRIBUIDORA",
+          "cnpj_emitente": "18.877.269/0001-16",
+          "criado_em": "2026-05-11T11:04:32.179764",
+          "itens": [
+            {
+              "id_documento_item": 400,
+              "codigo_item": "789987456654101",
+              "quantidade": 1.0,
+              "unidade_quantidade": "fardo",
+              "quantidade_base": 24.0,
+              "valor_unitario": 127.7,
+              "valor_total": 127.7,
+              "status_processamento": "processado",
+              "stock_movement_id": 10177
+            }
+          ]
+        }
+      ],
+      "safe_duplicates": [
+        {
+          "document_id": 117,
+          "numero_documento": "19224",
+          "reasons": []
+        }
+      ],
+      "unsafe_duplicates": []
+    }
+  ],
+  "actions": [
+    {
+      "action": "rename_document_number",
+      "document_id": 116,
+      "from": "19220",
+      "to": "019220",
+      "ledger_rows_updated": 1,
+      "movement_metadata_updated": 1
+    },
+    {
+      "action": "rename_document_number",
+      "document_id": 118,
+      "from": "19221",
+      "to": "019221",
+      "ledger_rows_updated": 1,
+      "movement_metadata_updated": 1
+    },
+    {
+      "action": "delete_duplicate_document",
+      "document_id": 115,
+      "numero_documento": "19223",
+      "removed_document_item_ids": [
+        393
+      ],
+      "reversal_results": [
+        {
+          "success": true,
+          "reversed": true,
+          "documento_item_id": 393,
+          "stock_movement_id": 10179,
+          "operation_log_id": 1423,
+          "balance_before": 192.0,
+          "balance_after": 168.0,
+          "quantity_base": 24.0,
+          "unit_base": "un",
+          "reason": "erro_digitacao"
+        }
+      ],
+      "finance_ledger_deleted": 1
+    },
+    {
+      "action": "delete_duplicate_document",
+      "document_id": 117,
+      "numero_documento": "19224",
+      "removed_document_item_ids": [
+        395
+      ],
+      "reversal_results": [
+        {
+          "success": true,
+          "reversed": true,
+          "documento_item_id": 395,
+          "stock_movement_id": 10180,
+          "operation_log_id": 1424,
+          "balance_before": 168.0,
+          "balance_after": 144.0,
+          "quantity_base": 24.0,
+          "unit_base": "un",
+          "reason": "erro_digitacao"
+        }
+      ],
+      "finance_ledger_deleted": 1
+    },
+    {
+      "action": "delete_duplicate_finance_ledger_entries",
+      "identity": "19224",
+      "signature": [
+        "19224",
+        "789987456654101",
+        1.0,
+        "fardo",
+        24.0,
+        127.7,
+        5.320833,
+        "fardo",
+        24.0,
+        127.7
+      ],
+      "kept_entry_id": 439,
+      "removed_entry_ids": [
+        438
+      ]
+    }
+  ]
+}

@@ -42,6 +42,7 @@ from ..services.item_foto_service import ItemFotoService
 from ..services.price_normalization import infer_document_quantity_unit_for_item, infer_price_unit_for_item, normalize_document_line, normalize_item_price
 from ..services.purchase_projection_runtime_service import purchase_projection_service
 from ..services.price_suggestion_service import price_suggestion_service
+from ..services.potential_supplier_service import potential_supplier_service
 from ..services.telegram_service import TelegramService
 from ..services.inventory_category_summary import build_category_balance_summary, build_category_value_summary
 from ..utils.barcode_generator import generate_barcode, get_barcode_path
@@ -252,12 +253,30 @@ def _request_purchase_projection_manual_quantities(source=None) -> dict[str, obj
     return manual_quantities
 
 
+def _request_purchase_projection_potential_quotes(source=None) -> dict[str, object]:
+    source = source or request.form
+    if hasattr(source, "items"):
+        items = list(source.items())
+    else:
+        items = []
+    quote_ids: dict[str, object] = {}
+    for key, value in items:
+        key_text = str(key or "")
+        if not key_text.startswith("potential_quote__"):
+            continue
+        codigo_item = key_text.removeprefix("potential_quote__").strip()
+        if not codigo_item:
+            continue
+        quote_ids[codigo_item] = value
+    return quote_ids
+
+
 def _purchase_projection_cart_session_key() -> str:
     return "inventory_purchase_projection_cart"
 
 
 def _purchase_projection_cart_session_version() -> int:
-    return 2
+    return 3
 
 
 def _purchase_projection_active_summary_session_key() -> str:
@@ -412,31 +431,50 @@ def _purchase_projection_redirect(filters: dict[str, object] | None, *, anchor: 
     return redirect(target)
 
 
-def _get_purchase_projection_cart_state() -> dict[str, str]:
+def _get_purchase_projection_cart_state() -> dict[str, dict[str, str]]:
     raw = session.get(_purchase_projection_cart_session_key())
     if not isinstance(raw, dict):
         return {}
-    if int(raw.get("version") or 0) != _purchase_projection_cart_session_version():
+    raw_version = int(raw.get("version") or 0)
+    if raw_version not in {2, _purchase_projection_cart_session_version()}:
         return {}
     items = raw.get("items") if isinstance(raw.get("items"), dict) else raw
     if not isinstance(items, dict):
         return {}
-    normalized: dict[str, str] = {}
-    for codigo_item, manual_value in items.items():
+    normalized: dict[str, dict[str, str]] = {}
+    for codigo_item, raw_value in items.items():
         codigo_norm = str(codigo_item or "").strip()
         if not codigo_norm:
             continue
-        normalized[codigo_norm] = "" if manual_value is None else str(manual_value)
+        if isinstance(raw_value, dict):
+            manual_value = raw_value.get("quantity")
+            quote_value = raw_value.get("potential_quote_id")
+        else:
+            manual_value = raw_value
+            quote_value = ""
+        normalized[codigo_norm] = {
+            "quantity": "" if manual_value is None else str(manual_value),
+            "potential_quote_id": "" if quote_value in (None, "") else str(quote_value),
+        }
     return normalized
 
 
 def _set_purchase_projection_cart_state(items: dict[str, object]) -> None:
-    normalized: dict[str, str] = {}
-    for codigo_item, manual_value in dict(items or {}).items():
+    normalized: dict[str, dict[str, str]] = {}
+    for codigo_item, raw_value in dict(items or {}).items():
         codigo_norm = str(codigo_item or "").strip()
         if not codigo_norm:
             continue
-        normalized[codigo_norm] = "" if manual_value is None else str(manual_value)
+        if isinstance(raw_value, dict):
+            manual_value = raw_value.get("quantity")
+            quote_value = raw_value.get("potential_quote_id")
+        else:
+            manual_value = raw_value
+            quote_value = ""
+        normalized[codigo_norm] = {
+            "quantity": "" if manual_value is None else str(manual_value),
+            "potential_quote_id": "" if quote_value in (None, "") else str(quote_value),
+        }
     session[_purchase_projection_cart_session_key()] = {
         "version": _purchase_projection_cart_session_version(),
         "items": normalized,
@@ -444,9 +482,11 @@ def _set_purchase_projection_cart_state(items: dict[str, object]) -> None:
     session.modified = True
 
 
-def _purchase_projection_cart_payload_from_session() -> tuple[list[str], dict[str, object]]:
+def _purchase_projection_cart_payload_from_session() -> tuple[list[str], dict[str, object], dict[str, object]]:
     cart_items = _get_purchase_projection_cart_state()
-    return list(cart_items.keys()), dict(cart_items)
+    manual_quantities = {code: state.get("quantity", "") for code, state in cart_items.items()}
+    potential_quote_ids = {code: state.get("potential_quote_id", "") for code, state in cart_items.items()}
+    return list(cart_items.keys()), manual_quantities, potential_quote_ids
 
 
 def _request_purchase_projection_category_action(source=None) -> dict[str, object]:
@@ -471,12 +511,25 @@ def _merge_purchase_projection_cart_state(
     *,
     selected_codes: list[str] | tuple[str, ...] | set[str] | None = None,
     manual_quantities: dict[str, object] | None = None,
+    potential_quote_ids: dict[str, object] | None = None,
     add_category: str | None = None,
     remove_category: str | None = None,
     clear: bool = False,
-) -> tuple[dict[str, str], dict[str, object]]:
-    updated = {str(codigo): "" if valor is None else str(valor) for codigo, valor in dict(cart_items or {}).items() if str(codigo or "").strip()}
+) -> tuple[dict[str, dict[str, str]], dict[str, object]]:
+    updated: dict[str, dict[str, str]] = {}
+    for codigo, raw_value in dict(cart_items or {}).items():
+        codigo_norm = str(codigo or "").strip()
+        if not codigo_norm:
+            continue
+        if isinstance(raw_value, dict):
+            updated[codigo_norm] = {
+                "quantity": "" if raw_value.get("quantity") is None else str(raw_value.get("quantity")),
+                "potential_quote_id": "" if raw_value.get("potential_quote_id") in (None, "") else str(raw_value.get("potential_quote_id")),
+            }
+        else:
+            updated[codigo_norm] = {"quantity": "" if raw_value is None else str(raw_value), "potential_quote_id": ""}
     manual_map = {str(codigo or "").strip(): valor for codigo, valor in dict(manual_quantities or {}).items() if str(codigo or "").strip()}
+    quote_map = {str(codigo or "").strip(): valor for codigo, valor in dict(potential_quote_ids or {}).items() if str(codigo or "").strip()}
     selected_set = {str(code or "").strip() for code in (selected_codes or []) if str(code or "").strip()}
     rows_by_code: dict[str, dict[str, object]] = {}
     rows_by_category: dict[str, list[str]] = defaultdict(list)
@@ -496,9 +549,11 @@ def _merge_purchase_projection_cart_state(
         category_codes = rows_by_category.get(category_key) or []
         for codigo_item in category_codes:
             row = rows_by_code.get(codigo_item) or {}
-            updated[codigo_item] = str(
-                manual_map.get(codigo_item, row.get("manual_quantity_value") or updated.get(codigo_item) or "")
-            )
+            current_state = updated.get(codigo_item) or {}
+            updated[codigo_item] = {
+                "quantity": str(manual_map.get(codigo_item, row.get("manual_quantity_value") or current_state.get("quantity") or "")),
+                "potential_quote_id": str(quote_map.get(codigo_item, row.get("selected_potential_quote_id") or current_state.get("potential_quote_id") or "")),
+            }
         return updated, {
             "action": "add_category",
             "category_name": add_category,
@@ -522,10 +577,14 @@ def _merge_purchase_projection_cart_state(
     changed_count = 0
     for codigo_item, row in rows_by_code.items():
         if codigo_item in selected_set:
-            new_value = str(manual_map.get(codigo_item, row.get("manual_quantity_value") or updated.get(codigo_item) or ""))
-            if updated.get(codigo_item) != new_value:
+            current_state = updated.get(codigo_item) or {}
+            new_state = {
+                "quantity": str(manual_map.get(codigo_item, row.get("manual_quantity_value") or current_state.get("quantity") or "")),
+                "potential_quote_id": str(quote_map.get(codigo_item, row.get("selected_potential_quote_id") or current_state.get("potential_quote_id") or "")),
+            }
+            if updated.get(codigo_item) != new_state:
                 changed_count += 1
-            updated[codigo_item] = new_value
+            updated[codigo_item] = new_state
             continue
         if codigo_item in updated:
             updated.pop(codigo_item, None)
@@ -552,28 +611,31 @@ def _sync_purchase_projection_report(
     *,
     flash_feedback: bool = False,
 ) -> tuple[dict[str, object], dict[str, object]]:
-    selected_codes, manual_quantities = _purchase_projection_cart_payload_from_session()
+    selected_codes, manual_quantities, potential_quote_ids = _purchase_projection_cart_payload_from_session()
     base_report = purchase_projection_service.build_projection_report(
         **filters,
         selected_codes=selected_codes,
         manual_quantities=manual_quantities,
+        potential_quote_ids=potential_quote_ids,
     )
     merged_cart, outcome = _merge_purchase_projection_cart_state(
         _get_purchase_projection_cart_state(),
         list(base_report.get("rows") or []),
         selected_codes=_request_purchase_projection_selected_codes(source),
         manual_quantities=_request_purchase_projection_manual_quantities(source),
+        potential_quote_ids=_request_purchase_projection_potential_quotes(source),
         **_request_purchase_projection_category_action(source),
     )
     _set_purchase_projection_cart_state(merged_cart)
     if flash_feedback:
         _flash_purchase_projection_cart_feedback(outcome)
 
-    synced_codes, synced_manual_quantities = _purchase_projection_cart_payload_from_session()
+    synced_codes, synced_manual_quantities, synced_potential_quote_ids = _purchase_projection_cart_payload_from_session()
     report = purchase_projection_service.build_projection_report(
         **filters,
         selected_codes=synced_codes,
         manual_quantities=synced_manual_quantities,
+        potential_quote_ids=synced_potential_quote_ids,
     )
     return report, outcome
 
@@ -590,6 +652,7 @@ def _build_purchase_projection_sync_payload(report: dict[str, object]) -> dict[s
                 "requested_quantity_base": requested_quantity_base,
                 "requested_total_value": row.get("requested_total_value"),
                 "manual_quantity_value": str(row.get("manual_quantity_value") or ""),
+                "selected_potential_quote_id": str(row.get("selected_potential_quote_id") or ""),
             }
         )
     return {
@@ -2333,11 +2396,12 @@ def purchase_projection_page():
         if str(request.form.get("clear_projection_cart") or "").strip() == "1":
             _set_purchase_projection_active_summary_id(None)
     else:
-        selected_codes, manual_quantities = _purchase_projection_cart_payload_from_session()
+        selected_codes, manual_quantities, potential_quote_ids = _purchase_projection_cart_payload_from_session()
         report = purchase_projection_service.build_projection_report(
             **filters,
             selected_codes=selected_codes,
             manual_quantities=manual_quantities,
+            potential_quote_ids=potential_quote_ids,
         )
     active_saved_summary = _get_active_purchase_projection_summary()
     return render_template(
@@ -2493,6 +2557,43 @@ def purchase_projection_sync():
     return _json_no_store(_build_purchase_projection_sync_payload(report))
 
 
+@blueprint.post("/projecao-compras/potenciais/sync")
+@login_required
+def purchase_projection_potential_suppliers_sync():
+    _require_admin_or_supervisor()
+    filters = _request_purchase_projection_filters(request.form)
+    report, _ = _sync_purchase_projection_report(filters, request.form, flash_feedback=False)
+    selected_codes = _request_purchase_projection_selected_codes(request.form)
+    visible_codes = [str(row.get("codigo_item") or "").strip() for row in report.get("rows") or []]
+    target_codes = [code for code in (selected_codes or visible_codes) if code]
+    target_codes = target_codes[:12]
+    items = {item.codigo_item: item for item in Item.query.filter(Item.codigo_item.in_(target_codes)).all()} if target_codes else {}
+    updated_count = 0
+    for codigo_item in target_codes:
+        item = items.get(codigo_item)
+        if not item:
+            continue
+        query = _enrich_replacement_price_query(item, _build_replacement_price_query(item), infer_price_unit_for_item(item))
+        suggestions_payload = price_suggestion_service.get_replacement_suggestions(
+            query=query,
+            uf=_resolve_replacement_price_uf(None),
+            limit=5,
+        )
+        captured = potential_supplier_service.capture_suggestions(
+            item,
+            list(suggestions_payload.get("suggestions") or []),
+            query=str(suggestions_payload.get("query") or query),
+            uf=str(suggestions_payload.get("uf") or "") or None,
+            price_unit=infer_price_unit_for_item(item),
+            actor_matricula=_purchase_projection_actor_matricula(),
+        )
+        if captured:
+            updated_count += 1
+    db.session.commit()
+    flash(f"Potenciais Fornecedores atualizados para {updated_count} item(ns) da projeção.", "success" if updated_count else "info")
+    return _purchase_projection_redirect(filters, anchor="projection-operational-list")
+
+
 @blueprint.get("/projecao-compras/api")
 @login_required
 def purchase_projection_api():
@@ -2500,14 +2601,18 @@ def purchase_projection_api():
     filters = _request_purchase_projection_filters(request.args)
     selected_codes = _request_purchase_projection_selected_codes(request.args)
     manual_quantities = _request_purchase_projection_manual_quantities(request.args)
+    potential_quote_ids = _request_purchase_projection_potential_quotes(request.args)
     if not selected_codes:
-        selected_codes, session_manual_quantities = _purchase_projection_cart_payload_from_session()
+        selected_codes, session_manual_quantities, session_potential_quote_ids = _purchase_projection_cart_payload_from_session()
         if not manual_quantities:
             manual_quantities = session_manual_quantities
+        if not potential_quote_ids:
+            potential_quote_ids = session_potential_quote_ids
     report = purchase_projection_service.build_projection_report(
         **filters,
         selected_codes=selected_codes,
         manual_quantities=manual_quantities,
+        potential_quote_ids=potential_quote_ids,
     )
     return _json_no_store(report)
 
@@ -4505,6 +4610,80 @@ def get_item_history_api(codigo: str):
             ],
         }
     )
+
+
+def _build_item_comparative_payload(item: Item) -> dict[str, object]:
+    reference = potential_supplier_service.build_reference(item)
+    quotes = potential_supplier_service.list_item_quotes(
+        item.codigo_item,
+        reference_price_base=reference.get("unit_price_base"),
+        limit=12,
+    )
+    best_quote = quotes[0] if quotes else None
+    return {
+        "success": True,
+        "codigo": item.codigo_item,
+        "item": {
+            "codigo": item.codigo_item,
+            "descricao": item.descricao,
+            "marca": item.marca,
+            "categoria": item.categoria,
+            "unidade": item.unidade,
+        },
+        "reference": reference,
+        "best_quote": best_quote,
+        "potential_quotes": quotes,
+        "summary": {
+            "quote_count": len(quotes),
+            "has_reference_price": reference.get("unit_price_base") is not None,
+            "has_potential_supplier": bool(quotes),
+        },
+    }
+
+
+@blueprint.get("/api/<codigo>/comparativo")
+@login_required
+def get_item_purchase_comparative_api(codigo: str):
+    item = Item.query.get(codigo)
+    if not item:
+        return jsonify({"success": False, "message": "Item não encontrado."}), 404
+    return _json_no_store(_build_item_comparative_payload(item))
+
+
+@blueprint.post("/api/<codigo>/potenciais/sync")
+@login_required
+def sync_item_potential_suppliers_api(codigo: str):
+    _require_admin_or_supervisor()
+    item = Item.query.get(codigo)
+    if not item:
+        return jsonify({"success": False, "message": "Item não encontrado."}), 404
+
+    payload = request.get_json(silent=True) or request.form or {}
+    raw_query = str(payload.get("query") or "").strip()
+    raw_unit = str(payload.get("price_unit") or "").strip() or infer_price_unit_for_item(item)
+    query = _enrich_replacement_price_query(item, raw_query or _build_replacement_price_query(item), raw_unit)
+    uf = _resolve_replacement_price_uf(str(payload.get("uf") or "").strip() or None)
+    try:
+        limit = max(1, min(int(payload.get("limit") or 8), 20))
+    except (TypeError, ValueError):
+        limit = 8
+
+    suggestions_payload = price_suggestion_service.get_replacement_suggestions(query=query, uf=uf, limit=limit)
+    potential_supplier_service.capture_suggestions(
+        item,
+        list(suggestions_payload.get("suggestions") or []),
+        query=str(suggestions_payload.get("query") or query),
+        uf=str(suggestions_payload.get("uf") or uf or "") or None,
+        price_unit=raw_unit,
+        actor_matricula=_purchase_projection_actor_matricula(),
+    )
+    db.session.commit()
+
+    response = _build_item_comparative_payload(item)
+    response["providers"] = suggestions_payload.get("providers") or []
+    response["stats"] = suggestions_payload.get("stats") or {}
+    response["query"] = suggestions_payload.get("query") or query
+    return _json_no_store(response)
 
 
 @blueprint.get("/api/nf-autofill")

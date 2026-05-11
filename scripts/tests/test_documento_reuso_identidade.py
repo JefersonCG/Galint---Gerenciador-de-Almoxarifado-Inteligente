@@ -69,6 +69,61 @@ class DocumentoReusoIdentidadeTests(unittest.TestCase):
 
         self.assertIs(selected, newer)
 
+    def test_resolve_unique_nf_existing_document_returns_existing_document(self) -> None:
+        existing = _make_document(
+            7,
+            numero_documento="12345",
+            fornecedor_id=10,
+            fornecedor_nome="Fornecedor A",
+            cnpj_emitente="11.111.111/0001-11",
+            chave_acesso="35190400000000000000550010000000011000000011",
+        )
+
+        selected = FinanceService._resolve_unique_nf_existing_document(
+            [existing],
+            numero_documento="12345",
+            supplier_id=10,
+            supplier_name="Fornecedor A",
+            cnpj_emitente="11.111.111/0001-11",
+            chave_acesso="35190400000000000000550010000000011000000011",
+        )
+
+        self.assertIs(selected, existing)
+
+    def test_resolve_unique_nf_existing_document_reuses_requested_number_duplicate(self) -> None:
+        documents = [
+            _make_document(1, numero_documento="12345", fornecedor_id=10, fornecedor_nome="Fornecedor A"),
+            _make_document(2, numero_documento="012345", fornecedor_id=10, fornecedor_nome="Fornecedor A"),
+        ]
+
+        selected = FinanceService._resolve_unique_nf_existing_document(
+            documents,
+            numero_documento="012345",
+        )
+
+        self.assertIs(selected, documents[1])
+
+    def test_normalize_nf_identity_number_ignores_left_zeroes(self) -> None:
+        self.assertEqual(FinanceService.normalize_nf_identity_number("019224"), "19224")
+        self.assertEqual(FinanceService.normalize_nf_identity_number("19224"), "19224")
+
+    def test_resolve_unique_nf_existing_document_raises_for_supplier_conflict(self) -> None:
+        existing = _make_document(
+            7,
+            numero_documento="12345",
+            fornecedor_id=10,
+            fornecedor_nome="Fornecedor A",
+            cnpj_emitente="11.111.111/0001-11",
+        )
+
+        with self.assertRaisesRegex(ValueError, "outro fornecedor"):
+            FinanceService._resolve_unique_nf_existing_document(
+                [existing],
+                numero_documento="12345",
+                supplier_id=99,
+                supplier_name="Fornecedor B",
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

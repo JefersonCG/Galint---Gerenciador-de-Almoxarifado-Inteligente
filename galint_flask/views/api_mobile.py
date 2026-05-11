@@ -3267,7 +3267,7 @@ def mobile_registrar_documento_fiscal():
 
         if documento and documento.movimenta_estoque and document_item is not None:
             item_model = document_item.item or db.session.get(Item, document_item.codigo_item)
-            if item_model is not None:
+            if item_model is not None and (item_criado_na_nf or bool(getattr(item_model, "pre_cadastro_pendente", False))):
                 item_model.pre_cadastro_pendente = True
                 item_model.pre_cadastro_origem = "nf"
                 item_model.pre_cadastro_documento_item_id = document_item.id_documento_item
@@ -3370,7 +3370,8 @@ def mobile_registrar_documento_fiscal():
         elif pre_registration_count:
             message = "Documento registrado. O item novo ficou em pre-cadastro antes de entrar no estoque."
         elif stock_process_result and stock_process_result.get("processed"):
-            message = "Documento registrado e item incorporado ao estoque."
+            processed_count = int(stock_process_result.get("processed") or 0)
+            message = f"Documento registrado. {processed_count} item(ns) foram incorporados ao estoque e já estão disponíveis para liberação."
 
         return jsonify({
             "success": True,

@@ -6,26 +6,27 @@
 }
 
 .barcode-studio-page {
-    height: 100vh;
-    overflow: hidden;
+    min-height: 100vh;
+    overflow-x: hidden;
+    overflow-y: auto;
 }
 
 .barcode-studio-page .app-body {
-    min-height: 0;
-    overflow: hidden;
+    min-height: 100vh;
+    overflow: visible;
 }
 
 .barcode-studio-page .content-panel {
     display: flex;
     flex-direction: column;
-    overflow: hidden;
-    min-height: 0;
+    overflow: visible;
+    min-height: 100vh;
 }
 
 .barcode-studio-page .barcode-studio-shell {
     flex: 1 1 auto;
-    min-height: 0;
-    height: 100%;
+    min-height: 100%;
+    height: auto;
 }
 
 .barcode-studio-hero {
@@ -83,11 +84,11 @@
     display: grid;
     grid-template-columns: minmax(300px, 340px) minmax(0, 1fr) minmax(280px, 320px);
     gap: 1rem;
-    align-items: stretch;
+    align-items: start;
     flex: 1 1 auto;
-    overflow: hidden;
+    overflow: visible;
     min-height: 0;
-    grid-template-rows: minmax(0, 1fr);
+    grid-template-rows: auto;
 }
 
 .barcode-studio-panel {
@@ -450,9 +451,8 @@
 }
 
 .barcode-studio-panel-preview .barcode-studio-workbench {
-    /* make the central workbench take available vertical space and scroll internally */
-    flex: 1 1 auto;
-    overflow-y: auto;
+    flex: 0 0 auto;
+    overflow: visible;
 }
 
 .barcode-studio-panel-search {
@@ -465,7 +465,8 @@
 }
 
 .barcode-studio-sheet-wrap {
-    overflow: auto;
+    overflow-x: auto;
+    overflow-y: visible;
     padding-bottom: 0.35rem;
 }
 

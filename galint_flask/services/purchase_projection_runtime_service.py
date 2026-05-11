@@ -23,6 +23,7 @@ from ..models import (
 )
 from .legacy_stock_normalizer import infer_packaging_measure, resolve_canonical_unit, resolve_packaging_factor
 from .operation_visual_payload import OperationVisualPayloadService
+from .potential_supplier_service import potential_supplier_service
 from ..utils.report_branding import get_company_header_lines
 
 
@@ -184,6 +185,7 @@ class PurchaseProjectionService:
         include_inactive: object = None,
         selected_codes: list[str] | tuple[str, ...] | set[str] | None = None,
         manual_quantities: dict[str, object] | None = None,
+        potential_quote_ids: dict[str, object] | None = None,
     ) -> dict[str, Any]:
         filters = cls.normalize_filters(
             window_days=window_days,
@@ -245,11 +247,27 @@ class PurchaseProjectionService:
             )
             for item in item_map.values()
         ]
+        reference_prices = {
+            str(row.get("codigo_item") or "").strip(): row.get("price_unit_base")
+            for row in all_rows
+            if str(row.get("codigo_item") or "").strip()
+        }
+        potential_quotes = potential_supplier_service.list_best_quotes_by_item(
+            product_ids,
+            limit_per_item=5,
+            reference_prices=reference_prices,
+        )
+        cls._attach_potential_quotes(all_rows, potential_quotes, potential_quote_ids=potential_quote_ids)
         row_lookup = {str(row.get("codigo_item") or "").strip(): row for row in all_rows if str(row.get("codigo_item") or "").strip()}
         rows = [row_lookup[codigo_item] for codigo_item in filtered_codes if codigo_item in row_lookup]
         visible_rows = [row for row in rows if cls._status_matches_filter(str(filters["status"]), row)]
         visible_rows.sort(key=cls._row_sort_key)
-        cart = cls._apply_selection(all_rows, selected_codes=selected_codes, manual_quantities=manual_quantities)
+        cart = cls._apply_selection(
+            all_rows,
+            selected_codes=selected_codes,
+            manual_quantities=manual_quantities,
+            potential_quote_ids=potential_quote_ids,
+        )
         return {
             "compatibility": cls.get_architecture_compatibility(),
             "generated_at": datetime.utcnow().isoformat(),
@@ -271,7 +289,7 @@ class PurchaseProjectionService:
         cart = dict(report.get("cart") or {})
         requested_by = dict(requested_by or {})
 
-        total_columns = 8
+        total_columns = 18
         end_column = get_column_letter(total_columns)
         border = Border(
             left=Side(style="thin", color="CBD5E1"),
@@ -314,14 +332,24 @@ class PurchaseProjectionService:
         requested_at_label = str(requested_by.get("requested_at") or report.get("generated_at") or "").strip()
 
         headers = [
-            "Fornecedor",
-            "CNPJ",
+            "Fornecedor Fiscal",
+            "CNPJ Fiscal",
             "Descricao",
             "Marca",
             "Categoria",
             "Pedido",
-            "Preco Unitario",
-            "Total Estimado",
+            "Preco Atual",
+            "Total Atual",
+            "Potencial Fornecedor",
+            "CNPJ Potencial",
+            "Link Produto",
+            "Preco Potencial",
+            "Total Potencial",
+            "Variacao",
+            "Economia Potencial",
+            "Fonte Cotacao",
+            "Contato",
+            "Endereco",
         ]
         header_row = current_row
         for column_index, header in enumerate(headers, start=1):
@@ -330,7 +358,7 @@ class PurchaseProjectionService:
             cell.font = Font(bold=True, size=12, color="FFFFFF")
             cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
             cell.border = border
-            cell.protection = locked_protection if column_index in {6, 7, 8} else unlocked_protection
+            cell.protection = locked_protection if column_index in {6, 7, 8, 12, 13, 15} else unlocked_protection
         sheet.row_dimensions[header_row].height = 24
         sheet.freeze_panes = f"A{header_row + 1}"
 
@@ -368,6 +396,8 @@ class PurchaseProjectionService:
 
                 for item in items:
                     supplier = dict(item.get("supplier") or {})
+                    potential_quote = dict(item.get("selected_potential_quote") or {})
+                    potential_supplier = dict(potential_quote.get("supplier") or {})
                     row_index = current_data_row
                     values = [
                         str(supplier.get("name") or "Sem fornecedor identificado").strip() or "Sem fornecedor identificado",
@@ -378,6 +408,16 @@ class PurchaseProjectionService:
                         cls._format_number_input_value(item.get("requested_quantity_input") or 0.0),
                         item.get("price_unit_request") if cls._is_positive_number(item.get("price_unit_request")) else item.get("price_unit_base"),
                         item.get("requested_total_value"),
+                        str(potential_supplier.get("display_name") or "").strip(),
+                        str(potential_supplier.get("cnpj") or "").strip(),
+                        str(potential_quote.get("product_url") or "").strip(),
+                        potential_quote.get("unit_price_base"),
+                        potential_quote.get("requested_total_value"),
+                        str(potential_quote.get("variation_display") or "").strip(),
+                        potential_quote.get("estimated_savings_total"),
+                        str(potential_quote.get("source_name") or "").strip(),
+                        str(potential_supplier.get("contact_url") or potential_quote.get("product_url") or "").strip(),
+                        str(potential_supplier.get("address_display") or "").strip(),
                     ]
                     for column_index, value in enumerate(values, start=1):
                         cell = sheet.cell(row=row_index, column=column_index, value=value)
@@ -389,16 +429,19 @@ class PurchaseProjectionService:
                             cell.alignment = Alignment(horizontal="center", vertical="center")
                             cell.protection = locked_protection
                             cell.font = Font(size=12, bold=True, color="0F172A")
-                        if column_index in {7, 8}:
+                        if column_index in {7, 8, 12, 13, 15}:
                             cell.alignment = Alignment(horizontal="right", vertical="center")
                             cell.protection = locked_protection
-                        if column_index in {7, 8} and isinstance(value, (int, float)):
+                        if column_index in {7, 8, 12, 13, 15} and isinstance(value, (int, float)):
                             cell.number_format = 'R$ #,##0.00'
                             cell.fill = value_fill
                             cell.font = Font(size=12, italic=True, color="0F172A")
+                        if column_index in {11, 17} and value:
+                            cell.hyperlink = str(value)
+                            cell.style = "Hyperlink"
                     if row_index % 2 == 0:
                         for column_index in range(1, total_columns + 1):
-                            if column_index in {7, 8}:
+                            if column_index in {7, 8, 12, 13, 15}:
                                 continue
                             sheet.cell(row=row_index, column=column_index).fill = PatternFill(start_color="F8FAFC", end_color="F8FAFC", fill_type="solid")
                     sheet.row_dimensions[row_index].height = 24
@@ -444,6 +487,29 @@ class PurchaseProjectionService:
                 subtotal_value_cell.protection = locked_protection
                 subtotal_value_cell.number_format = 'R$ #,##0.00'
 
+                subtotal_potential_value = sum(
+                    float(((item.get("selected_potential_quote") or {}).get("requested_total_value")) or 0.0)
+                    for item in items
+                )
+                subtotal_savings_value = sum(
+                    float(((item.get("selected_potential_quote") or {}).get("estimated_savings_total")) or 0.0)
+                    for item in items
+                )
+                for column_index in range(9, total_columns + 1):
+                    value = ""
+                    if column_index == 13:
+                        value = subtotal_potential_value
+                    elif column_index == 15:
+                        value = subtotal_savings_value
+                    cell = sheet.cell(row=subtotal_row, column=column_index, value=value)
+                    cell.fill = category_total_fill
+                    cell.border = border
+                    cell.protection = locked_protection
+                    if column_index in {13, 15}:
+                        cell.font = Font(bold=True, size=12, color="166534")
+                        cell.alignment = Alignment(horizontal="right", vertical="center")
+                        cell.number_format = 'R$ #,##0.00'
+
                 current_data_row += 1
                 if category_index < len(export_categories):
                     current_data_row += 1
@@ -466,6 +532,24 @@ class PurchaseProjectionService:
             ) if export_categories else "0",
             7: "",
             8: float(cart.get("requested_value_total") or 0.0) if export_categories else 0,
+            9: "",
+            10: "",
+            11: "",
+            12: "",
+            13: sum(
+                float(((item.get("selected_potential_quote") or {}).get("requested_total_value")) or 0.0)
+                for group in export_categories
+                for item in (group.get("items") or [])
+            ) if export_categories else 0,
+            14: "",
+            15: sum(
+                float(((item.get("selected_potential_quote") or {}).get("estimated_savings_total")) or 0.0)
+                for group in export_categories
+                for item in (group.get("items") or [])
+            ) if export_categories else 0,
+            16: "",
+            17: "",
+            18: "",
         }
         for column_index in range(6, total_columns + 1):
             cell = sheet.cell(row=total_row, column=column_index, value=total_formulas[column_index])
@@ -474,7 +558,7 @@ class PurchaseProjectionService:
             cell.alignment = Alignment(horizontal="center", vertical="center") if column_index == 6 else Alignment(horizontal="right", vertical="center")
             cell.border = border
             cell.protection = locked_protection
-            if column_index == 8:
+            if column_index in {8, 13, 15}:
                 cell.number_format = 'R$ #,##0.00'
 
         footer_row = total_row + 3
@@ -496,6 +580,16 @@ class PurchaseProjectionService:
         sheet.column_dimensions["F"].width = 16
         sheet.column_dimensions["G"].width = 20
         sheet.column_dimensions["H"].width = 18
+        sheet.column_dimensions["I"].width = 30
+        sheet.column_dimensions["J"].width = 20
+        sheet.column_dimensions["K"].width = 42
+        sheet.column_dimensions["L"].width = 18
+        sheet.column_dimensions["M"].width = 18
+        sheet.column_dimensions["N"].width = 14
+        sheet.column_dimensions["O"].width = 20
+        sheet.column_dimensions["P"].width = 20
+        sheet.column_dimensions["Q"].width = 42
+        sheet.column_dimensions["R"].width = 34
         sheet.page_setup.orientation = "landscape"
         sheet.protection.sheet = True
         sheet.protection.enable()
@@ -846,6 +940,10 @@ class PurchaseProjectionService:
             "price_reference_document": (procurement.get("price") or {}).get("document_number"),
             "price_reference_type": (procurement.get("price") or {}).get("document_type"),
             "price_reference_date": (procurement.get("price") or {}).get("document_date"),
+            "potential_quotes": [],
+            "recommended_potential_quote": None,
+            "selected_potential_quote": None,
+            "selected_potential_quote_id": "",
             "status": status,
             "status_label": cls.STATUS_LABELS.get(status, status),
             "status_badge_class": cls.STATUS_BADGE_CLASSES.get(status, "secondary"),
@@ -930,15 +1028,50 @@ class PurchaseProjectionService:
         }
 
     @classmethod
+    def _attach_potential_quotes(
+        cls,
+        rows: list[dict[str, Any]],
+        potential_quotes: dict[str, list[dict[str, Any]]],
+        *,
+        potential_quote_ids: dict[str, object] | None = None,
+    ) -> None:
+        quote_map = {
+            str(code or "").strip(): str(value or "").strip()
+            for code, value in dict(potential_quote_ids or {}).items()
+            if str(code or "").strip()
+        }
+        for row in rows:
+            codigo = str(row.get("codigo_item") or "").strip()
+            quotes = list(potential_quotes.get(codigo) or [])
+            selected_quote_id = quote_map.get(codigo) or ""
+            selected_quote = None
+            if selected_quote_id:
+                selected_quote = next((quote for quote in quotes if str(quote.get("id") or "") == selected_quote_id), None)
+                if selected_quote is None:
+                    selected_quote = potential_supplier_service.get_quote(
+                        selected_quote_id,
+                        reference_price_base=row.get("price_unit_base"),
+                    )
+                    if selected_quote:
+                        quotes.append(selected_quote)
+            recommended_quote = quotes[0] if quotes else None
+            row["potential_quotes"] = quotes
+            row["recommended_potential_quote"] = recommended_quote
+            row["selected_potential_quote"] = selected_quote
+            row["selected_potential_quote_id"] = str((selected_quote or {}).get("id") or "")
+
+    @classmethod
     def _apply_selection(
         cls,
         rows: list[dict[str, Any]],
         *,
         selected_codes: list[str] | tuple[str, ...] | set[str] | None,
         manual_quantities: dict[str, object] | None,
+        potential_quote_ids: dict[str, object] | None = None,
     ) -> dict[str, Any]:
         selected_set = {str(code or "").strip() for code in (selected_codes or []) if str(code or "").strip()}
         manual_map = {str(code or "").strip(): value for code, value in dict(manual_quantities or {}).items() if str(code or "").strip()}
+        potential_map = {str(code or "").strip(): str(value or "").strip() for code, value in dict(potential_quote_ids or {}).items() if str(code or "").strip()}
         groups: dict[str, dict[str, Any]] = {}
         category_groups: dict[str, dict[str, Any]] = {}
         messages: list[str] = []
@@ -987,6 +1120,33 @@ class PurchaseProjectionService:
                 total_value += float(row["requested_total_value"] or 0.0)
             else:
                 row["requested_total_value"] = None
+            selected_quote_id = potential_map.get(codigo) or str(row.get("selected_potential_quote_id") or "").strip()
+            selected_quote = None
+            if selected_quote_id:
+                selected_quote = next(
+                    (
+                        quote
+                        for quote in list(row.get("potential_quotes") or [])
+                        if str(quote.get("id") or "") == selected_quote_id
+                    ),
+                    None,
+                )
+            if selected_quote:
+                quote_payload = dict(selected_quote)
+                quote_price_base = quote_payload.get("unit_price_base")
+                if cls._is_positive_number(quote_price_base):
+                    potential_total = round(float(quote_price_base) * requested_quantity, 2)
+                    quote_payload["requested_total_value"] = potential_total
+                    quote_payload["requested_total_display"] = cls._format_brl(potential_total)
+                    if cls._is_positive_number(price_unit_base):
+                        savings_total = round((float(price_unit_base) - float(quote_price_base)) * requested_quantity, 2)
+                        quote_payload["estimated_savings_total"] = savings_total
+                        quote_payload["estimated_savings_display"] = cls._format_brl(savings_total)
+                row["selected_potential_quote"] = quote_payload
+                row["selected_potential_quote_id"] = str(quote_payload.get("id") or "")
+            else:
+                row["selected_potential_quote"] = None
+                row["selected_potential_quote_id"] = ""
             total_quantity += requested_quantity
 
             supplier = dict(row.get("supplier") or {})
@@ -1349,6 +1509,14 @@ class PurchaseProjectionService:
         amount = float(value or 0.0)
         formatted = f"R$ {amount:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
         return f"{formatted}/{cls._normalize_unit(unit_base) or 'base'}"
+
+    @classmethod
+    def _format_brl(cls, value: object) -> str:
+        try:
+            amount = float(value or 0.0)
+        except (TypeError, ValueError):
+            amount = 0.0
+        return f"R$ {amount:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
     @classmethod
     def _format_currency_per_request(cls, value: object, request_contract: dict[str, Any] | None) -> str | None:

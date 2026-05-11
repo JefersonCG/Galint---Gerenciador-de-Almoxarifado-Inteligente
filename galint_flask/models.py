@@ -1880,6 +1880,107 @@ class FinanceSupplierPreference(db.Model):
     fornecedor: Mapped[FinanceSupplier] = relationship("FinanceSupplier")
 
 
+class PotentialSupplier(db.Model):
+    __tablename__ = "potential_suppliers"
+    __table_args__ = (
+        UniqueConstraint("source_name", "marketplace_seller_id", name="uq_potential_suppliers_source_seller"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    display_name: Mapped[str] = mapped_column(String(160), nullable=False, index=True)
+    legal_name: Mapped[str | None] = mapped_column(String(180), nullable=True)
+    cnpj: Mapped[str | None] = mapped_column(String(18), nullable=True, index=True)
+    source_name: Mapped[str | None] = mapped_column(String(80), nullable=True, index=True)
+    source_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    website: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    marketplace_seller_id: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    address_line: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    city: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    state: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    postal_code: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    phone: Mapped[str | None] = mapped_column(String(60), nullable=True)
+    email: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    contact_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(String(30), nullable=False, default="capturado", index=True)
+    confidence_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    metadata_json: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    created_by_matricula: Mapped[str | None] = mapped_column(ForeignKey("usuarios.matricula", ondelete="SET NULL"), nullable=True)
+    updated_by_matricula: Mapped[str | None] = mapped_column(ForeignKey("usuarios.matricula", ondelete="SET NULL"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    quotes: Mapped[list["ItemPotentialSupplierQuote"]] = relationship(
+        "ItemPotentialSupplierQuote",
+        back_populates="potential_supplier",
+        cascade="all, delete-orphan",
+    )
+    created_by: Mapped["Usuario | None"] = relationship("Usuario", foreign_keys=[created_by_matricula])
+    updated_by: Mapped["Usuario | None"] = relationship("Usuario", foreign_keys=[updated_by_matricula])
+
+    def display_address(self) -> str:
+        parts = [self.address_line, self.city, self.state, self.postal_code]
+        return " - ".join(str(part).strip() for part in parts if str(part or "").strip())
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "id": self.id,
+            "display_name": self.display_name,
+            "legal_name": self.legal_name,
+            "cnpj": self.cnpj,
+            "source_name": self.source_name,
+            "source_url": self.source_url,
+            "website": self.website,
+            "marketplace_seller_id": self.marketplace_seller_id,
+            "address_line": self.address_line,
+            "city": self.city,
+            "state": self.state,
+            "postal_code": self.postal_code,
+            "address_display": self.display_address(),
+            "phone": self.phone,
+            "email": self.email,
+            "contact_url": self.contact_url,
+            "status": self.status,
+            "confidence_score": self.confidence_score,
+            "notes": self.notes,
+            "metadata": dict(self.metadata_json or {}),
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+
+class ItemPotentialSupplierQuote(db.Model):
+    __tablename__ = "item_potential_supplier_quotes"
+    __table_args__ = (
+        UniqueConstraint("codigo_item", "product_url", name="uq_item_potential_quote_item_url"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    codigo_item: Mapped[str] = mapped_column(ForeignKey("itens.codigo_item", ondelete="CASCADE"), nullable=False, index=True)
+    potential_supplier_id: Mapped[int] = mapped_column(ForeignKey("potential_suppliers.id", ondelete="CASCADE"), nullable=False, index=True)
+    source_name: Mapped[str | None] = mapped_column(String(80), nullable=True, index=True)
+    offer_title: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    product_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    currency: Mapped[str] = mapped_column(String(10), nullable=False, default="BRL")
+    unit_price: Mapped[float] = mapped_column(Float, nullable=False)
+    price_unit: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    unit_price_base: Mapped[float | None] = mapped_column(Float, nullable=True, index=True)
+    factor_to_base: Mapped[float | None] = mapped_column(Float, nullable=True)
+    uf: Mapped[str | None] = mapped_column(String(2), nullable=True)
+    freight_value: Mapped[float | None] = mapped_column(Float, nullable=True)
+    lead_time_days: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    quote_status: Mapped[str] = mapped_column(String(30), nullable=False, default="capturada", index=True)
+    capture_query: Mapped[str | None] = mapped_column(Text, nullable=True)
+    metadata_json: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    captured_by_matricula: Mapped[str | None] = mapped_column(ForeignKey("usuarios.matricula", ondelete="SET NULL"), nullable=True)
+    captured_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow, index=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    item: Mapped["Item"] = relationship("Item", backref=backref("potential_supplier_quotes", cascade="all, delete-orphan"))
+    potential_supplier: Mapped[PotentialSupplier] = relationship("PotentialSupplier", back_populates="quotes")
+    captured_by: Mapped["Usuario | None"] = relationship("Usuario", foreign_keys=[captured_by_matricula])
+
+
 class CompraPeriodoFechamento(db.Model):
     """Fechamento operacional de compras por período e fornecedor."""
     __tablename__ = "compra_periodo_fechamentos"

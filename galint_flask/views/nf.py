@@ -5,13 +5,22 @@ from collections import defaultdict
 from datetime import date, datetime
 from typing import Any
 
-from flask import Blueprint, abort, current_app, flash, jsonify, redirect, render_template, request, url_for
+from flask import Blueprint, abort, current_app, flash, jsonify, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required
 from sqlalchemy import Date, and_, cast, func, or_
 from sqlalchemy.orm import joinedload
 
 from ..extensions import db
-from ..models import CompraPeriodoFechamento, DocumentoEntradaEstoque, DocumentoEntradaEstoqueItem, Entrada, FinanceLedgerEntry, Item, TelegramOutbox
+from ..models import (
+    CompraPeriodoFechamento,
+    DocumentoEntradaEstoque,
+    DocumentoEntradaEstoqueItem,
+    Entrada,
+    FinanceLedgerEntry,
+    FinanceSupplier,
+    Item,
+    TelegramOutbox,
+)
 from ..services.category_catalog import DEFAULT_INVENTORY_CATEGORY_NAME, category_catalog_service
 from ..services.document_integrity_service import allow_document_quantity_update
 from ..services.finance_service import MANUAL_INTERNAL_DOCUMENT_NUMBER, finance_service
@@ -20,9 +29,12 @@ from ..services.nf_deletion_audit_sqlite import log_document_item_deletion
 from ..services.inventory import BASE_ITEM_UNIT_OPTIONS, ensure_base_item_unit, inventory_service, normalize_base_item_unit
 from ..services.price_normalization import (
     infer_document_quantity_unit_for_item,
+    infer_price_unit_for_item,
+    normalize_item_price,
     normalize_document_line,
     should_autofix_packaged_document_unit,
 )
+from ..services.price_suggestion_service import price_suggestion_service
 
 blueprint = Blueprint("nf", __name__, url_prefix="/nf")
 
@@ -51,6 +63,184 @@ LEGACY_OPERATIONAL_TAB_ALIASES = {
     "pendencias": "processaveis",
 }
 MANUAL_SHARED_DOCUMENT_NUMBER = MANUAL_INTERNAL_DOCUMENT_NUMBER
+
+NFE_UF_CODES = {
+    "11": "RO",
+    "12": "AC",
+    "13": "AM",
+    "14": "RR",
+    "15": "PA",
+    "16": "AP",
+    "17": "TO",
+    "21": "MA",
+    "22": "PI",
+    "23": "CE",
+    "24": "RN",
+    "25": "PB",
+    "26": "PE",
+    "27": "AL",
+    "28": "SE",
+    "29": "BA",
+    "31": "MG",
+    "32": "ES",
+    "33": "RJ",
+    "35": "SP",
+    "41": "PR",
+    "42": "SC",
+    "43": "RS",
+    "50": "MS",
+    "51": "MT",
+    "52": "GO",
+    "53": "DF",
+}
+NFE_MODEL_LABELS = {
+    "55": "NF-e",
+    "65": "NFC-e",
+}
+
+
+def _calculate_nfe_access_key_digit(first_43_digits: str) -> int:
+    total = 0
+    weight = 2
+    for digit in reversed(first_43_digits):
+        total += int(digit) * weight
+        weight = 2 if weight == 9 else weight + 1
+    remainder = total % 11
+    result = 11 - remainder
+    return 0 if result >= 10 else result
+
+
+def _decode_nfe_access_key(raw_value: str | None) -> tuple[dict[str, Any] | None, str | None]:
+    digits = "".join(ch for ch in (raw_value or "") if ch.isdigit())
+    if len(digits) != 44:
+        return None, "Informe uma chave de acesso com 44 dígitos."
+
+    expected_digit = _calculate_nfe_access_key_digit(digits[:43])
+    if str(expected_digit) != digits[-1]:
+        return None, "A chave informada não passou na validação do dígito verificador."
+
+    year_month = digits[2:6]
+    month = int(year_month[2:4])
+    if month < 1 or month > 12:
+        return None, "A chave informada contém um mês de emissão inválido."
+
+    cnpj_digits = digits[6:20]
+    model_code = digits[20:22]
+    serie_raw = digits[22:25]
+    number_raw = digits[25:34]
+    uf_code = digits[:2]
+    year = 2000 + int(year_month[:2])
+
+    return {
+        "chave_acesso": digits,
+        "uf_codigo": uf_code,
+        "uf": NFE_UF_CODES.get(uf_code),
+        "ano": year,
+        "mes": month,
+        "ano_mes": f"{year:04d}-{month:02d}",
+        "cnpj_emitente": finance_service.normalize_cnpj(cnpj_digits),
+        "cnpj_emitente_digitos": cnpj_digits,
+        "modelo_codigo": model_code,
+        "modelo_label": NFE_MODEL_LABELS.get(model_code, f"Modelo {model_code}"),
+        "serie": serie_raw.lstrip("0") or "0",
+        "serie_chave": serie_raw,
+        "numero_documento": number_raw.lstrip("0") or "0",
+        "numero_documento_chave": number_raw,
+        "tipo_emissao": digits[34:35],
+        "codigo_numerico": digits[35:43],
+        "digito_verificador": digits[-1],
+    }, None
+
+
+def _find_supplier_by_cnpj(cnpj: str | None) -> FinanceSupplier | None:
+    normalized = finance_service.normalize_cnpj(cnpj)
+    digits = "".join(ch for ch in (cnpj or "") if ch.isdigit())
+    if not normalized and not digits:
+        return None
+    return (
+        FinanceSupplier.query
+        .filter(or_(FinanceSupplier.cnpj == normalized, FinanceSupplier.cnpj == digits))
+        .order_by(FinanceSupplier.ativo.desc(), FinanceSupplier.id.asc())
+        .first()
+    )
+
+
+def _document_model_preview(documento: DocumentoEntradaEstoque | None) -> dict[str, Any] | None:
+    if not documento:
+        return None
+    return {
+        "id_documento": documento.id_documento,
+        "numero_documento": documento.numero_documento,
+        "tipo_documento": documento.tipo_documento,
+        "fornecedor_id": documento.fornecedor_id,
+        "fornecedor_nome": documento.nome_emitente() or documento.fornecedor_nome,
+        "cnpj_emitente": documento.cnpj_emitente,
+        "data_emissao": documento.data_emissao.isoformat() if documento.data_emissao else None,
+        "data_recebimento": documento.data_recebimento.isoformat() if documento.data_recebimento else None,
+        "chave_acesso": documento.chave_acesso,
+        "movimenta_estoque": bool(documento.movimenta_estoque),
+        "status_integracao": documento.status_integracao,
+        "mensagem_integracao": documento.mensagem_integracao,
+    }
+
+
+def _build_manual_replacement_query(
+    *,
+    item: Item | None = None,
+    descricao: str | None = None,
+    marca: str | None = None,
+    embalagem: str | None = None,
+    conteudo: float | None = None,
+) -> str:
+    if item is not None:
+        stored_query = (item.preco_reposicao_query or "").strip()
+        if stored_query:
+            return stored_query
+        descricao = item.descricao
+        marca = item.marca
+        embalagem = item.tipo_embalagem_novo
+        conteudo = item.unidades_por_embalagem or item.grandeza_referencia or item.litros_por_embalagem
+
+    parts = [
+        (descricao or "").strip(),
+        (marca or "").strip(),
+    ]
+    embalagem_clean = (embalagem or "").strip()
+    if embalagem_clean:
+        parts.append(embalagem_clean)
+    if conteudo:
+        parts.append(str(conteudo).rstrip("0").rstrip(".") if isinstance(conteudo, float) else str(conteudo))
+    return " ".join(part for part in parts if part).strip()
+
+
+def _apply_manual_replacement_price_to_item(
+    item: Item | None,
+    *,
+    price: float | None,
+    price_unit: str | None = None,
+    source: str | None = None,
+    uf: str | None = None,
+    query: str | None = None,
+    url: str | None = None,
+    actor: str | None = None,
+) -> None:
+    if item is None or price is None or price <= 0:
+        return
+
+    unit = (price_unit or "").strip().lower() or (item.preco_reposicao_unidade_preco or "").strip().lower() or infer_price_unit_for_item(item)
+    normalized = normalize_item_price(item, unit_price=price, price_unit=unit)
+    item.preco_reposicao_unitario = float(price)
+    item.preco_reposicao_unitario_base = float(normalized.unit_price_base)
+    item.preco_reposicao_unidade_preco = normalized.price_unit
+    item.preco_reposicao_fator_base = float(normalized.factor_to_base)
+    item.preco_reposicao_fonte = (source or item.preco_reposicao_fonte or "Documentos Fiscais").strip()
+    item.preco_reposicao_uf = (uf or item.preco_reposicao_uf or "").strip().upper() or None
+    item.preco_reposicao_query = (query or item.preco_reposicao_query or _build_manual_replacement_query(item=item)).strip() or None
+    item.preco_reposicao_url = (url or item.preco_reposicao_url or "").strip() or None
+    item.preco_reposicao_atualizado_em = datetime.utcnow()
+    item.preco_reposicao_atualizado_por = actor
+    item.ultima_edicao_em = datetime.utcnow()
+    item.ultima_edicao_por = actor
 
 
 def _normalize_operational_tab(tab_value: str | None) -> str:
@@ -747,6 +937,35 @@ def _flash_document_stock_processing_errors(process_result: dict[str, Any] | Non
     flash(f"{errors} item(ns) do documento falharam ao entrar no estoque.", "danger")
 
 
+def _document_type_stock_label(tipo_documento: str | None) -> str:
+    normalized = (tipo_documento or "").strip().lower()
+    if normalized == "cupom":
+        return "cupom"
+    if normalized == "manual":
+        return "documento interno"
+    return "NF"
+
+
+def _queue_stock_available_notice(
+    documento: DocumentoEntradaEstoque | None,
+    process_result: dict[str, Any] | None,
+) -> None:
+    if documento is None or not process_result:
+        return
+    try:
+        processed_count = int(process_result.get("processed") or 0)
+    except (TypeError, ValueError):
+        processed_count = 0
+    if processed_count <= 0:
+        return
+
+    session["nf_stock_available_notice"] = {
+        "count": processed_count,
+        "document_number": documento.numero_documento,
+        "document_type": _document_type_stock_label(documento.tipo_documento),
+    }
+
+
 def _item_matches_seeded_nf_pre_registration(
     item_model: Item | None,
     *,
@@ -763,8 +982,6 @@ def _item_matches_seeded_nf_pre_registration(
         str(getattr(item_model, "nota_fiscal", "") or "").strip(),
         str(getattr(item_model, "preco_compra_documento", "") or "").strip(),
     }
-    if numero:
-        candidate_numbers.add(numero)
     candidate_numbers.discard("")
     if numero not in candidate_numbers:
         return False
@@ -808,11 +1025,17 @@ def _mark_item_for_nf_pre_registration(
 
     already_pending = bool(getattr(item_model, "pre_cadastro_pendente", False))
     origin_nf = (getattr(item_model, "pre_cadastro_origem", "") or "").strip().lower() == "nf"
+    finished_nf_pre_registration = bool(
+        origin_nf
+        and not already_pending
+        and getattr(item_model, "pre_cadastro_finalizado_em", None) is not None
+    )
     seeded_by_document = _item_matches_seeded_nf_pre_registration(
         item_model,
         document_number=document_number,
     )
-    if not force and not already_pending and not origin_nf and not seeded_by_document:
+    needs_pre_registration = already_pending or seeded_by_document or (origin_nf and not finished_nf_pre_registration)
+    if not needs_pre_registration:
         return False
 
     changed = False
@@ -874,7 +1097,7 @@ def _mark_manual_nf_document_items_for_pre_registration(
         if item_id is not None
     }
     if not normalized_forced_ids:
-        return _mark_document_items_for_nf_pre_registration(pending_items, force=True)
+        return _mark_document_items_for_nf_pre_registration(pending_items)
 
     forced_items: list[DocumentoEntradaEstoqueItem] = []
     regular_items: list[DocumentoEntradaEstoqueItem] = []
@@ -1407,6 +1630,83 @@ def documento_detalhes(numero: str):
     return jsonify({"success": True, "document": payload})
 
 
+@blueprint.get("/api/chave-acesso/preview")
+@login_required
+def chave_acesso_preview():
+    _require_admin()
+    decoded, error = _decode_nfe_access_key(request.args.get("chave"))
+    if error or decoded is None:
+        return jsonify({"success": False, "message": error or "Chave de acesso inválida."}), 400
+
+    supplier = _find_supplier_by_cnpj(decoded.get("cnpj_emitente"))
+    document = (
+        DocumentoEntradaEstoque.query
+        .options(joinedload(DocumentoEntradaEstoque.fornecedor))
+        .filter(DocumentoEntradaEstoque.chave_acesso == decoded["chave_acesso"])
+        .order_by(DocumentoEntradaEstoque.id_documento.desc())
+        .first()
+    )
+    if document is None:
+        candidates = finance_service._find_nf_documents_by_identity(decoded["numero_documento"])
+        document = finance_service._select_preferred_nf_document(
+            candidates,
+            numero_documento=decoded["numero_documento"],
+        )
+
+    messages = [
+        "Chave lida. O número, série, modelo e CNPJ foram extraídos da própria chave fiscal."
+    ]
+    if document:
+        messages.append("Documento já encontrado no GALINT; os dados locais podem ser reaproveitados.")
+    else:
+        messages.append("Itens, valores e data exata da emissão dependem do XML da NF ou de consulta SEFAZ com certificado digital.")
+
+    return jsonify(
+        {
+            "success": True,
+            "access_key": decoded,
+            "supplier": supplier.to_dict() if supplier else None,
+            "document": _document_model_preview(document),
+            "integration": {
+                "status": "decoded_only",
+                "requires_xml_or_certificate": True,
+            },
+            "messages": messages,
+        }
+    )
+
+
+@blueprint.get("/api/precos/reposicao/sugestoes")
+@login_required
+def sugestoes_preco_reposicao_manual():
+    _require_admin()
+    item = None
+    codigo = (request.args.get("codigo") or "").strip()
+    if codigo:
+        item = Item.query.get(codigo)
+
+    query = (request.args.get("q") or "").strip()
+    if not query:
+        query = _build_manual_replacement_query(
+            item=item,
+            descricao=request.args.get("descricao"),
+            marca=request.args.get("marca"),
+            embalagem=request.args.get("embalagem"),
+            conteudo=_parse_optional_float(request.args.get("conteudo"), fallback=None),
+        )
+    if not query:
+        return jsonify({"success": False, "message": "Informe descrição, item ou termo para buscar preço."}), 400
+
+    uf = (request.args.get("uf") or "").strip().upper() or None
+    try:
+        data = price_suggestion_service.get_replacement_suggestions(query=query, uf=uf, limit=20)
+    except Exception:
+        current_app.logger.exception("Erro ao buscar sugestão de preço no lançamento sem NF")
+        return jsonify({"success": False, "message": "Erro interno ao buscar preço."}), 500
+    data["success"] = True
+    return jsonify(data)
+
+
 @blueprint.get("/")
 @login_required
 def nf_index():
@@ -1425,6 +1725,7 @@ def nf_index():
         codigo_prefill=codigo_prefill,
         nota_detalhes=nota_detalhes,
         can_manage=can_manage,
+        stock_available_notice=session.pop("nf_stock_available_notice", None),
         preferred_suppliers=finance_service.list_suppliers(limit=100),
         period_dashboard=period_dashboard,
         document_category_options=_build_document_category_options(),
@@ -1478,6 +1779,7 @@ def registrar_nf():
     preco_reposicao_uf = (request.form.get("preco_reposicao_uf") or "").strip().upper() or None
     preco_reposicao_url = (request.form.get("preco_reposicao_url") or "").strip() or None
     preco_reposicao_query = (request.form.get("preco_reposicao_query") or "").strip() or None
+    preco_reposicao_unidade_preco = (request.form.get("preco_reposicao_unidade_preco") or "").strip().lower() or None
     foto_url = (request.form.get("foto_url") or "").strip() or None
     tipo_documento = _resolve_registration_document_type(
         ui_mode=ui_mode,
@@ -1604,6 +1906,18 @@ def registrar_nf():
             item_criado_na_nf = True
 
         preco_unitario = float(preco_unitario_raw) if preco_unitario_raw else None
+        item_model = Item.query.get(codigo)
+        if tipo_documento == "manual" and item_model is not None and preco_unitario is not None and preco_unitario > 0:
+            _apply_manual_replacement_price_to_item(
+                item_model,
+                price=preco_unitario,
+                price_unit=preco_reposicao_unidade_preco,
+                source=preco_reposicao_fonte or "Documentos Fiscais",
+                uf=preco_reposicao_uf,
+                query=preco_reposicao_query,
+                url=preco_reposicao_url,
+                actor=getattr(current_user, "nome", None) or getattr(current_user, "id", None),
+            )
         item = inventory_service.get_item(codigo) or {}
 
         document_result = finance_service.register_stock_document_entry(
@@ -1629,6 +1943,8 @@ def registrar_nf():
         )
         document_item = document_result.get("document_item")
         documento = document_result.get("document")
+        for duplicate_notice in document_result.get("duplicate_notices") or []:
+            flash(duplicate_notice, "warning")
         pre_registration_count = 0
         if documento and documento.movimenta_estoque and document_item is not None:
             pre_registration_count = _mark_manual_nf_document_items_for_pre_registration(
@@ -1640,6 +1956,7 @@ def registrar_nf():
             documento,
             item_ids=[document_item.id_documento_item] if document_item is not None else None,
         )
+        _queue_stock_available_notice(documento, stock_process_result)
         _clear_nf_runtime_cache(documento.numero_documento)
         if not documento.movimenta_estoque:
             flash("Documento fiscal registrado apenas no financeiro. O estoque não foi movimentado por opção do lançamento.", "info")
@@ -1861,6 +2178,20 @@ def editar_documento(documento_id: int):
             observacao=observacao,
         )
 
+        if tipo_documento == "nf":
+            finance_service._resolve_unique_nf_existing_document(
+                [
+                    existing_document
+                    for existing_document in finance_service._find_nf_documents_by_identity(numero_documento)
+                    if existing_document.id_documento != documento.id_documento
+                ],
+                numero_documento=numero_documento,
+                chave_acesso=chave_acesso,
+                cnpj_emitente=supplier_cnpj,
+                supplier_id=supplier_id,
+                supplier_name=supplier_name,
+            )
+
         supplier = finance_service._resolve_supplier_for_document(
             supplier_id=supplier_id,
             supplier_name=supplier_name,
@@ -1965,6 +2296,7 @@ def editar_documento(documento_id: int):
             documento,
             item_ids=process_item_ids,
         )
+        _queue_stock_available_notice(documento, stock_process_result)
         _clear_nf_runtime_cache(documento.numero_documento)
 
         if sync_result["auto_confirmed"]:
@@ -2094,6 +2426,7 @@ def adicionar_item_documento(documento_id: int):
             documento,
             item_ids=affected_item_ids,
         )
+        _queue_stock_available_notice(documento, stock_process_result)
         _clear_nf_runtime_cache(documento.numero_documento)
         if sync_result["skipped"]:
             flash(

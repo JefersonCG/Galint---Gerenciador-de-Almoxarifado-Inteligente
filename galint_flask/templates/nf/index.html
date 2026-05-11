@@ -2617,6 +2617,7 @@
                         <input type="hidden" id="preco_reposicao_fonte" name="preco_reposicao_fonte">
                         <input type="hidden" id="preco_reposicao_uf" name="preco_reposicao_uf">
                         <input type="hidden" id="preco_reposicao_url" name="preco_reposicao_url">
+                        <input type="hidden" id="preco_reposicao_unidade_preco" name="preco_reposicao_unidade_preco">
                         <input type="hidden" id="foto_url" name="foto_url">
                         <input type="hidden" id="preco_reposicao_query" name="preco_reposicao_query">
                     </div>
@@ -2664,7 +2665,11 @@
                             </div>
                             <div class="col-md-7 docf-field-lock-shell" data-chave-acesso-group data-doc-lock-field="chave" data-doc-visible-modes="nf">
                                 <label class="form-label" for="chave_acesso">Chave de acesso</label>
-                                <input class="form-control form-control-sm" id="chave_acesso" name="chave_acesso" placeholder="44 dígitos da NF-e / NFC-e">
+                                <div class="input-group">
+                                    <input class="form-control form-control-sm" id="chave_acesso" name="chave_acesso" placeholder="44 dígitos da NF-e / NFC-e">
+                                    <button class="docf-btn-secondary docf-btn-compact" type="button" id="btn-ler-chave-acesso" data-chave-lookup-button data-help-label="Ler chave" data-help-text="Lê a chave fiscal para preencher os dados possíveis no cadastro.">Ler chave</button>
+                                </div>
+                                <div class="docf-field-hint" id="chave_acesso_lookup_status"></div>
                                 <div class="docf-field-lock-note" data-doc-lock-note></div>
                             </div>
                         </div>
@@ -2680,6 +2685,7 @@
                             <div class="col-md-6">
                                 <label class="form-label" for="preco_unitario">Valor unitário (R$)</label>
                                 <input class="form-control form-control-sm" id="preco_unitario" name="preco_unitario" type="number" min="0" step="0.01">
+                                <div class="docf-field-hint" id="manual_price_lookup_status"></div>
                             </div>
                             <div class="col-12">
                                 <div class="docf-live-calc docf-live-calc-main" id="nf-main-live-calc">
@@ -2856,7 +2862,7 @@
                     <div class="docf-panel warning mt-3 mb-0">
                         <strong>Consulta bloqueada:</strong> {{ nota_detalhes.mensagem_integracao }}
                         <div class="mt-2">
-                            <button class="docf-btn-secondary" type="button" disabled data-help-label="Consultar NF pela chave" data-help-text="Função reservada para consulta automática futura via chave fiscal.">Consultar NF pela chave (em breve)</button>
+                            <button class="docf-btn-secondary" type="button" disabled data-help-label="Consulta SEFAZ" data-help-text="A consulta oficial da NF-e exige XML ou certificado digital autorizado.">Consulta oficial exige XML/certificado</button>
                         </div>
                     </div>
                     {% endif %}
@@ -3138,6 +3144,34 @@
         {% endif %}
     </div>
 </div>
+{% if stock_available_notice %}
+{% set stock_notice_count = stock_available_notice.get('count', 0)|int %}
+{% set stock_notice_type = stock_available_notice.get('document_type') or 'NF' %}
+{% set stock_notice_number = stock_available_notice.get('document_number') or '' %}
+{% set stock_notice_join = 'da' if stock_notice_type == 'NF' else 'do' %}
+<div class="modal fade" id="docfStockAvailableModal" tabindex="-1" aria-labelledby="docfStockAvailableModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content docf-card" style="border-radius: 20px;">
+            <div class="modal-header border-0 pb-0">
+                <div>
+                    <div class="docf-kicker">Estoque atualizado</div>
+                    <h5 class="modal-title docf-card-title" id="docfStockAvailableModalLabel">Itens disponíveis para liberação</h5>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body pt-2">
+                <div class="docf-panel info mb-0">
+                    <strong>{{ stock_notice_count }} {% if stock_notice_count == 1 %}item{% else %}itens{% endif %} {{ stock_notice_join }} {{ stock_notice_type }}{% if stock_notice_number %} {{ stock_notice_number }}{% endif %} {% if stock_notice_count == 1 %}entrou{% else %}entraram{% endif %} no estoque.</strong>
+                    <span class="d-block docf-muted mt-1">{% if stock_notice_count == 1 %}O item já possuía cadastro, então não foi enviado para pré-cadastro e já está disponível{% else %}Os itens já possuíam cadastro, então não foram enviados para pré-cadastro e já estão disponíveis{% endif %} para liberação.</span>
+                </div>
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button type="button" class="docf-btn-primary" data-bs-dismiss="modal">Entendi</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
 <div class="modal fade" id="docfPhotoAssistantModal" tabindex="-1" aria-labelledby="docfPhotoAssistantModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content docf-card docf-photo-modal" style="border-radius: 20px;">
@@ -3233,11 +3267,13 @@
     const replacementSourceInput = document.getElementById('preco_reposicao_fonte');
     const replacementUfInput = document.getElementById('preco_reposicao_uf');
     const replacementUrlInput = document.getElementById('preco_reposicao_url');
+    const replacementUnitInput = document.getElementById('preco_reposicao_unidade_preco');
     const replacementQueryInput = document.getElementById('preco_reposicao_query');
     const photoUrlInput = document.getElementById('foto_url');
     const newItemPhotoButton = document.getElementById('novo_item_photo_assistant_button');
     const newItemPhotoStatus = document.getElementById('novo_item_photo_status');
     const photoAssistantModalEl = document.getElementById('docfPhotoAssistantModal');
+    const stockAvailableModalEl = document.getElementById('docfStockAvailableModal');
     const photoAssistantQueryInput = document.getElementById('docf-photo-query');
     const photoAssistantCopyButton = document.getElementById('docf-photo-copy-btn');
     const photoAssistantGoogleButton = document.getElementById('docf-photo-google-btn');
@@ -3261,11 +3297,16 @@
     const emissionDateInput = document.getElementById('data_emissao');
     const receiptDateInput = document.getElementById('data_recebimento');
     const chaveAcessoInput = document.getElementById('chave_acesso');
+    const precoUnitarioInput = document.getElementById('preco_unitario');
+    const manualPriceLookupStatus = document.getElementById('manual_price_lookup_status');
     const financeObservationInput = document.getElementById('finance_observacao');
     const lookupCnpjButton = document.getElementById('btn-buscar-cnpj');
+    const lookupAccessKeyButton = document.getElementById('btn-ler-chave-acesso');
+    const accessKeyLookupStatus = document.getElementById('chave_acesso_lookup_status');
     const tipoDocumentoInput = document.getElementById('finance_tipo_documento');
     const origemValorInput = document.getElementById('finance_origem_valor');
     const comprovacaoInput = document.getElementById('finance_comprovacao_status');
+    const nfBaseUrl = {{ url_for('nf.nf_index')|tojson }};
     const modeButtons = document.querySelectorAll('[data-doc-mode]');
     const docModeTitle = document.getElementById('doc-mode-title');
     const docModeText = document.getElementById('doc-mode-text');
@@ -3304,6 +3345,7 @@
         precoReposicaoFonte: replacementSourceInput?.value || '',
         precoReposicaoUf: replacementUfInput?.value || '',
         precoReposicaoUrl: replacementUrlInput?.value || '',
+        precoReposicaoUnidadePreco: replacementUnitInput?.value || '',
         precoReposicaoQuery: replacementQueryInput?.value || '',
         fotoUrl: photoUrlInput?.value || '',
     };
@@ -3311,10 +3353,13 @@
     let newItemDescriptionTimer = null;
     let supplierTimer = null;
     let notaTimer = null;
+    let manualPriceTimer = null;
     let notaSuggestions = [];
     let newItemDescriptionSuggestions = [];
     let helpHideTimer = null;
     let activeExistingItemCode = String(itemCodigoInput?.value || '').trim();
+    let activeExistingItemPayload = null;
+    let manualPriceLookupSeq = 0;
     let photoAssistantModal = null;
     const manualSharedDocumentNumber = 'NOTA INTERNA';
     const generatedBarcodeCodeUrl = {% if endpoint_exists('nf.novo_codigo_barras') %}`{{ url_for('nf.novo_codigo_barras') }}`{% else %}'/nf/novo-codigo-barras'{% endif %};
@@ -3396,6 +3441,7 @@
 
     function clearExistingItemAutofill() {
         activeExistingItemCode = '';
+        activeExistingItemPayload = null;
         if (novoCodigoInput) {
             novoCodigoInput.value = newItemFieldDefaults.novoCodigo;
         }
@@ -3426,6 +3472,9 @@
         if (replacementUrlInput) {
             replacementUrlInput.value = newItemFieldDefaults.precoReposicaoUrl;
         }
+        if (replacementUnitInput) {
+            replacementUnitInput.value = newItemFieldDefaults.precoReposicaoUnidadePreco;
+        }
         if (replacementQueryInput) {
             replacementQueryInput.value = newItemFieldDefaults.precoReposicaoQuery;
         }
@@ -3434,6 +3483,7 @@
         }
         updateNewItemSummary();
         syncReplacementQuery();
+        setManualPriceLookupStatus('');
     }
 
     function applyExistingItemAutofill(item) {
@@ -3453,6 +3503,7 @@
         );
 
         activeExistingItemCode = codigo;
+        activeExistingItemPayload = item;
 
         if (novoCodigoInput) {
             novoCodigoInput.value = codigo;
@@ -3484,6 +3535,9 @@
         if (replacementUrlInput) {
             replacementUrlInput.value = String(item.preco_reposicao_url || '').trim();
         }
+        if (replacementUnitInput) {
+            replacementUnitInput.value = String(item.preco_reposicao_unidade_preco || '').trim().toLowerCase();
+        }
         if (replacementQueryInput) {
             replacementQueryInput.value = String(item.preco_reposicao_query || '').trim();
         }
@@ -3497,6 +3551,7 @@
             syncReplacementQuery();
         }
         hideNewItemDescriptionResults();
+        autoFillManualReplacementPrice({ reason: 'item' });
     }
 
     async function loadExistingItemAutofill(codigo) {
@@ -3832,12 +3887,27 @@
         });
     }
 
+    const scheduleManualPriceLookup = () => {
+        if (manualPriceTimer) clearTimeout(manualPriceTimer);
+        manualPriceTimer = window.setTimeout(() => {
+            if (isManualRegistrationMode() && !activeExistingItemPayload) {
+                autoFillManualReplacementPrice({ reason: 'new-item' });
+            }
+        }, 700);
+    };
+
     [novoCodigoInput, novaDescricaoInput, novaCategoriaInput, novaMarcaInput, novaUnidadeInput, novaUnidadeDocumentalInput, novoConteudoEmbalagemInput].forEach((element) => {
         if (element) {
-            element.addEventListener('input', updateNewItemSummary);
-            element.addEventListener('change', updateNewItemSummary);
-            element.addEventListener('input', syncReplacementQuery);
-            element.addEventListener('change', syncReplacementQuery);
+            element.addEventListener('input', () => {
+                updateNewItemSummary();
+                syncReplacementQuery();
+                scheduleManualPriceLookup();
+            });
+            element.addEventListener('change', () => {
+                updateNewItemSummary();
+                syncReplacementQuery();
+                scheduleManualPriceLookup();
+            });
         }
     });
 
@@ -3868,6 +3938,11 @@
         photoAssistantModalEl.addEventListener('hidden.bs.modal', () => {
             setPhotoAssistantFeedback('');
         });
+    }
+    if (stockAvailableModalEl && window.bootstrap) {
+        window.setTimeout(() => {
+            bootstrap.Modal.getOrCreateInstance(stockAvailableModalEl).show();
+        }, 250);
     }
 
     if (newItemPhotoButton && photoAssistantModal) {
@@ -4029,13 +4104,13 @@
             origem: 'valor_estimado',
             comprovacao: 'sem_comprovacao',
             buttonMode: 'manual',
-            title: 'Compra sem NF formal',
-            text: 'Use somente para não perder rastreabilidade. O sistema centraliza tudo na nota interna compartilhada NOTA INTERNA.',
+            title: 'Regularização sem NF/Cupom',
+            text: 'Use para itens legados do almoxarifado quando a NF ou cupom original não existe mais. O valor entra como estimativa de reposição.',
             numeroLabel: 'Documento interno compartilhado',
             numeroHelp: 'Este fluxo usa automaticamente a nota interna compartilhada NOTA INTERNA para manter tudo no mesmo bucket.',
             badge: 'Bucket NOTA INTERNA',
-            guidance: 'Explique a compra na observação e complete o item novo com fonte, link e imagem para facilitar o pré-cadastro.',
-            submitLabel: 'Registrar compra sem NF',
+            guidance: 'O sistema usa valor estimado, lançamento manual e busca de preço para aproximar o custo de reposição do item legado.',
+            submitLabel: 'Registrar regularização sem NF',
             activeFields: ['Item / valor', 'Observação financeira', 'Pré-cadastro comercial'],
             lockedFields: ['Número do documento', 'Datas automáticas do dia', 'Loja / CNPJ', 'Chave de acesso'],
             lockNumber: true,
@@ -4539,6 +4614,155 @@
         return quantityFormatter.format(value);
     };
 
+    function setManualPriceLookupStatus(message) {
+        if (!manualPriceLookupStatus) return;
+        manualPriceLookupStatus.textContent = message || '';
+    }
+
+    function isManualRegistrationMode() {
+        return normalizeDocumentTypeValue(currentRegistrationMode || docModeSubmitInput?.value || '') === 'manual';
+    }
+
+    function readPositiveNumber(value) {
+        const parsed = Number(String(value ?? '').replace(',', '.'));
+        return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+    }
+
+    function setAutoUnitPrice(value, sourceLabel) {
+        const price = readPositiveNumber(value);
+        if (!precoUnitarioInput || price === null) return false;
+        if (precoUnitarioInput.dataset.userEdited === '1' && precoUnitarioInput.dataset.autoManaged !== '1') {
+            return false;
+        }
+        precoUnitarioInput.value = formatDecimalInput(price);
+        precoUnitarioInput.dataset.autoManaged = '1';
+        precoUnitarioInput.dataset.autoPriceSource = sourceLabel || 'reposicao';
+        precoUnitarioInput.dataset.suppressUserEdited = '1';
+        precoUnitarioInput.dispatchEvent(new Event('input', { bubbles: true }));
+        delete precoUnitarioInput.dataset.suppressUserEdited;
+        return true;
+    }
+
+    function syncReplacementHiddenFields(payload) {
+        const data = payload || {};
+        if (replacementSourceInput && data.source !== undefined) replacementSourceInput.value = String(data.source || '').trim();
+        if (replacementUfInput && data.uf !== undefined) replacementUfInput.value = String(data.uf || '').trim().toUpperCase();
+        if (replacementUrlInput && data.url !== undefined) replacementUrlInput.value = String(data.url || '').trim();
+        if (replacementUnitInput && data.unit !== undefined) replacementUnitInput.value = String(data.unit || '').trim().toLowerCase();
+        if (replacementQueryInput && data.query !== undefined) replacementQueryInput.value = String(data.query || '').trim();
+    }
+
+    function buildManualPriceQuery(item) {
+        const selected = item || activeExistingItemPayload || {};
+        const stored = String(replacementQueryInput?.value || selected.preco_reposicao_query || '').trim();
+        if (stored) return stored;
+        const descricao = String(selected.descricao || novaDescricaoInput?.value || '').trim();
+        const marca = String(selected.marca || novaMarcaInput?.value || '').trim();
+        const embalagem = String(selected.tipo_embalagem_novo || novaUnidadeDocumentalInput?.value || '').trim();
+        const conteudo = String(
+            selected.unidades_por_embalagem || selected.capacidade_embalagem || selected.grandeza_referencia || novoConteudoEmbalagemInput?.value || ''
+        ).trim();
+        return [descricao, marca, embalagem, conteudo].filter(Boolean).join(' ').trim();
+    }
+
+    function chooseApiReplacementPrice(data) {
+        const suggestions = Array.isArray(data?.suggestions) ? data.suggestions : [];
+        const median = readPositiveNumber(data?.stats?.median);
+        if (!median && !suggestions.length) return null;
+        if (!suggestions.length) {
+            return { price: median, source: 'API de preço (mediana)', url: null };
+        }
+        if (!median) {
+            const first = suggestions.find((suggestion) => readPositiveNumber(suggestion?.price) !== null);
+            return first ? { price: readPositiveNumber(first.price), source: first.source || 'API de preço', url: first.url || null } : null;
+        }
+        let closest = null;
+        suggestions.forEach((suggestion) => {
+            const price = readPositiveNumber(suggestion?.price);
+            if (price === null) return;
+            const distance = Math.abs(price - median);
+            if (!closest || distance < closest.distance) {
+                closest = { suggestion, distance };
+            }
+        });
+        return {
+            price: median,
+            source: closest?.suggestion?.source ? `${closest.suggestion.source} (mediana)` : 'API de preço (mediana)',
+            url: closest?.suggestion?.url || null
+        };
+    }
+
+    async function autoFillManualReplacementPrice(options = {}) {
+        if (!isManualRegistrationMode()) {
+            setManualPriceLookupStatus('');
+            return;
+        }
+
+        const item = activeExistingItemPayload || null;
+        const codigo = String(itemCodigoInput?.value || item?.codigo || '').trim();
+        const query = buildManualPriceQuery(item);
+        const lookupSeq = ++manualPriceLookupSeq;
+
+        const savedPrice = readPositiveNumber(item?.preco_reposicao_unitario);
+        if (savedPrice !== null) {
+            setAutoUnitPrice(savedPrice, 'reposicao_salva');
+            syncReplacementHiddenFields({
+                source: item?.preco_reposicao_fonte || replacementSourceInput?.value || 'Documentos Fiscais',
+                uf: item?.preco_reposicao_uf || replacementUfInput?.value || '',
+                url: item?.preco_reposicao_url || replacementUrlInput?.value || '',
+                unit: item?.preco_reposicao_unidade_preco || replacementUnitInput?.value || '',
+                query: item?.preco_reposicao_query || query
+            });
+            setManualPriceLookupStatus(`Valor de reposição salvo aplicado: ${formatCurrencyPreview(savedPrice)}. Atualizando referência pela API...`);
+        } else if (!query) {
+            setManualPriceLookupStatus('Informe ou selecione o item para buscar o valor estimado automaticamente.');
+            return;
+        } else {
+            setManualPriceLookupStatus('Buscando valor estimado pela API de preços...');
+        }
+
+        if (!query) return;
+
+        try {
+            const params = new URLSearchParams({ q: query });
+            if (codigo) params.set('codigo', codigo);
+            const uf = String(replacementUfInput?.value || '').trim();
+            if (uf) params.set('uf', uf);
+            const response = await fetch(`${nfBaseUrl}api/precos/reposicao/sugestoes?${params.toString()}`, {
+                headers: { 'Accept': 'application/json' },
+                credentials: 'same-origin'
+            });
+            const data = await response.json();
+            if (lookupSeq !== manualPriceLookupSeq || !isManualRegistrationMode()) return;
+            if (!response.ok || data.success === false) {
+                throw new Error(data.message || 'Não foi possível buscar preço.');
+            }
+            const chosen = chooseApiReplacementPrice(data);
+            if (!chosen || readPositiveNumber(chosen.price) === null) {
+                setManualPriceLookupStatus(savedPrice !== null
+                    ? `Valor salvo mantido: ${formatCurrencyPreview(savedPrice)}. A API não trouxe preço útil agora.`
+                    : 'A API não encontrou preço útil para este item agora.');
+                return;
+            }
+            const applied = setAutoUnitPrice(chosen.price, 'api_preco');
+            syncReplacementHiddenFields({
+                source: chosen.source || 'API de preço',
+                uf: data.uf || replacementUfInput?.value || '',
+                url: chosen.url || '',
+                unit: item?.preco_reposicao_unidade_preco || replacementUnitInput?.value || '',
+                query: data.query || query
+            });
+            setManualPriceLookupStatus(applied
+                ? `Valor estimado preenchido pela API: ${formatCurrencyPreview(readPositiveNumber(chosen.price))}.`
+                : `API encontrou ${formatCurrencyPreview(readPositiveNumber(chosen.price))}, mas mantive o valor digitado manualmente.`);
+        } catch (error) {
+            if (lookupSeq !== manualPriceLookupSeq || !isManualRegistrationMode()) return;
+            setManualPriceLookupStatus(savedPrice !== null
+                ? `Valor salvo mantido: ${formatCurrencyPreview(savedPrice)}. API indisponível agora.`
+                : (error.message || 'API de preço indisponível agora.'));
+        }
+    }
+
     const setCalculationPreviewState = (previewEl, state) => {
         if (!previewEl || !state) return;
         const badge = previewEl.querySelector('[data-calc-badge]');
@@ -4831,6 +5055,7 @@
         const preserveLayout = form === nfForm;
         const chaveGroup = form.querySelector('[data-chave-acesso-group]');
         const chaveInput = chaveGroup?.querySelector('input[name="chave_acesso"]') || form.querySelector('input[name="chave_acesso"]');
+        const chaveLookupButton = chaveGroup?.querySelector('[data-chave-lookup-button]');
         const supplierCnpjField = form.querySelector('input[name="supplier_cnpj"]');
         const supplierLookupButton = form.querySelector('[data-cnpj-lookup-button]');
         const supplierNameField = form.querySelector('input[name="supplier_name"], input[name="finance_supplier_search"]');
@@ -4844,6 +5069,9 @@
             if (!isNf) {
                 chaveInput.value = '';
             }
+        }
+        if (chaveLookupButton) {
+            chaveLookupButton.disabled = !isNf;
         }
         if (supplierCnpjField) {
             supplierCnpjField.disabled = !allowsSupplierCnpj;
@@ -5017,6 +5245,11 @@
         applyRegistrationFieldStates(normalizedModeName);
         applyRegistrationVisibility(normalizedModeName);
         currentRegistrationMode = normalizedModeName;
+        if (normalizedModeName === 'manual') {
+            autoFillManualReplacementPrice({ reason: 'mode' });
+        } else {
+            setManualPriceLookupStatus('');
+        }
     };
 
     document.querySelectorAll('select[name="finance_tipo_documento"], select[name="tipo_documento"]').forEach((selectElement) => {
@@ -5100,6 +5333,9 @@
             event.preventDefault();
             event.stopPropagation();
             normalizeAccessKeyInput(chaveField);
+            if (chaveField.id === 'chave_acesso') {
+                lookupAccessKeyForForm(chaveField.closest('form'), { showErrors: true });
+            }
         });
     });
 
@@ -5158,11 +5394,101 @@
         }
     };
 
+    const setAccessKeyLookupStatus = (message) => {
+        if (!accessKeyLookupStatus) return;
+        accessKeyLookupStatus.textContent = message || '';
+    };
+
+    const applyAccessKeyPayloadToForm = async (form, data) => {
+        if (!form || !data) return;
+        const accessKey = data.access_key || {};
+        const documentPayload = data.document || null;
+        const keyField = form.querySelector('input[name="chave_acesso"]');
+        const numberField = form.querySelector('input[name="nota_fiscal"]');
+        const supplierCnpjField = form.querySelector('input[name="supplier_cnpj"]');
+        const emissionField = form.querySelector('input[name="data_emissao"]');
+        const receiptField = form.querySelector('input[name="data_recebimento"]');
+
+        if (keyField && accessKey.chave_acesso) {
+            keyField.value = accessKey.chave_acesso;
+        }
+        if (numberField) {
+            numberField.value = documentPayload?.numero_documento || accessKey.numero_documento || numberField.value;
+        }
+        if (supplierCnpjField) {
+            const cnpj = documentPayload?.cnpj_emitente || accessKey.cnpj_emitente || '';
+            if (cnpj) {
+                supplierCnpjField.value = formatCnpjInputValue(cnpj);
+                delete supplierCnpjField.dataset.lastLookupDigits;
+            }
+        }
+        if (emissionField && documentPayload?.data_emissao) {
+            emissionField.value = documentPayload.data_emissao;
+        }
+        if (receiptField && documentPayload?.data_recebimento) {
+            receiptField.value = documentPayload.data_recebimento;
+        }
+
+        if (data.supplier) {
+            applySupplierPayloadToForm(form, data.supplier);
+        } else if (documentPayload?.fornecedor_nome || documentPayload?.fornecedor_id || documentPayload?.cnpj_emitente) {
+            applySupplierPayloadToForm(form, {
+                id: documentPayload.fornecedor_id || '',
+                nome_exibicao: documentPayload.fornecedor_nome || '',
+                cnpj: documentPayload.cnpj_emitente || ''
+            });
+        } else {
+            await lookupSupplierByCnpjForForm(form, { showErrors: false });
+        }
+
+        setAccessKeyLookupStatus((data.messages || []).join(' '));
+    };
+
+    const lookupAccessKeyForForm = async (form, { showErrors = false } = {}) => {
+        if (!form) return null;
+        const keyField = form.querySelector('input[name="chave_acesso"]');
+        if (!keyField || keyField.disabled) return null;
+        normalizeAccessKeyInput(keyField);
+        const digits = (keyField.value || '').replace(/\D/g, '');
+        if (digits.length !== 44) {
+            const message = 'Informe uma chave de acesso com 44 dígitos.';
+            setAccessKeyLookupStatus(message);
+            if (showErrors) alert(message);
+            return null;
+        }
+        setAccessKeyLookupStatus('Lendo chave fiscal...');
+        try {
+            const response = await fetch(`${nfBaseUrl}api/chave-acesso/preview?chave=${encodeURIComponent(digits)}`, {
+                headers: { 'Accept': 'application/json' },
+                credentials: 'same-origin'
+            });
+            const data = await response.json();
+            if (!response.ok || data.success === false) {
+                throw new Error(data.message || 'Não foi possível ler a chave de acesso.');
+            }
+            await applyAccessKeyPayloadToForm(form, data);
+            return data;
+        } catch (error) {
+            const message = error.message || 'Não foi possível ler a chave de acesso.';
+            setAccessKeyLookupStatus(message);
+            if (showErrors) alert(message);
+            return null;
+        }
+    };
+
     document.querySelectorAll('.docf-form').forEach((form) => {
         syncItemRowTotals(form);
     });
 
     syncMainRegistrationTotalPreview();
+
+    precoUnitarioInput?.addEventListener('input', () => {
+        if (precoUnitarioInput.dataset.suppressUserEdited === '1') {
+            return;
+        }
+        precoUnitarioInput.dataset.userEdited = '1';
+        precoUnitarioInput.dataset.autoManaged = '0';
+    });
 
     document.querySelectorAll('[data-add-item-form]').forEach((form) => {
         syncAddItemFormTotals(form);
@@ -5417,6 +5743,19 @@
         } finally {
             lookupCnpjButton.disabled = false;
             lookupCnpjButton.textContent = 'Consultar';
+        }
+    });
+
+    lookupAccessKeyButton?.addEventListener('click', async () => {
+        const registrationForm = lookupAccessKeyButton.closest('form');
+        if (!registrationForm || !chaveAcessoInput || chaveAcessoInput.disabled) return;
+        lookupAccessKeyButton.disabled = true;
+        lookupAccessKeyButton.textContent = 'Lendo...';
+        try {
+            await lookupAccessKeyForForm(registrationForm, { showErrors: true });
+        } finally {
+            lookupAccessKeyButton.disabled = false;
+            lookupAccessKeyButton.textContent = 'Ler chave';
         }
     });
 

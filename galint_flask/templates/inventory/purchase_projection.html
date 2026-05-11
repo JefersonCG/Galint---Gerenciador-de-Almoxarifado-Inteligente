@@ -315,6 +315,19 @@
         border-bottom-width: 1px;
     }
 
+    .projection-potential-select {
+        min-width: 220px;
+        font-size: 0.78rem;
+    }
+
+    .projection-potential-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        font-size: 0.78rem;
+        text-decoration: none;
+    }
+
     .projection-table td {
         vertical-align: top;
     }
@@ -766,6 +779,9 @@
                                 <span class="projection-cart-item-meta">Equivale a {{ item.requested_quantity_base_display }} na unidade base</span>
                                 {% endif %}
                                 <span class="projection-cart-item-meta">{{ item.supplier.name or 'Sem fornecedor identificado' }}{% if item.marca %} • {{ item.marca }}{% endif %}</span>
+                                {% if item.selected_potential_quote and item.selected_potential_quote.supplier %}
+                                <span class="projection-cart-item-meta">Potencial: {{ item.selected_potential_quote.supplier.display_name }} • {{ item.selected_potential_quote.unit_price_base_display }}</span>
+                                {% endif %}
                             </span>
                             <span>{{ brl(item.requested_total_value) }}</span>
                         </div>
@@ -953,6 +969,14 @@
                         <span>Preço</span>
                         <strong>{{ row.price_display or '-' }}</strong>
                     </div>
+                    <div class="projection-item-card-metric">
+                        <span>Potencial Fornecedor</span>
+                        <strong>{{ (row.recommended_potential_quote.supplier.display_name if row.recommended_potential_quote and row.recommended_potential_quote.supplier else None) or 'Sem cotação' }}</strong>
+                    </div>
+                    <div class="projection-item-card-metric">
+                        <span>Comparativo</span>
+                        <strong>{{ (row.recommended_potential_quote.variation_display if row.recommended_potential_quote else None) or '-' }}</strong>
+                    </div>
                 </div>
 
                 {% if row.validation_notes %}
@@ -996,6 +1020,7 @@
                     >Selecionar todos</button>
                     <button class="d-none" type="submit" aria-hidden="true" tabindex="-1">Salvar seleção</button>
                     <span class="projection-sync-status" id="projection-sync-status">Carrinho salvo automaticamente.</span>
+                    <button class="btn btn-outline-primary" type="submit" formaction="{{ url_for('inventory.purchase_projection_potential_suppliers_sync') }}">Atualizar potenciais</button>
                     <button class="btn btn-success" id="projection-export-button" type="submit" formaction="{{ url_for('inventory.purchase_projection_export_xlsx') }}">Exportar XLS final</button>
                     <noscript>
                         <button class="btn btn-primary" type="submit">Salvar seleção</button>
@@ -1017,12 +1042,13 @@
                             <th>Qtd. pedido</th>
                             <th>Fornecedor</th>
                             <th>Preço</th>
+                            <th>Potencial Fornecedor</th>
                             <th>Status e validações</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for row in rows %}
-                        <tr class="{% if row.status == 'critical' %}table-danger{% elif row.status == 'attention' %}table-warning{% endif %}{% if row.selected %} is-selected{% endif %}" data-projection-row data-projection-code="{{ row.codigo_item }}" data-price-unit-base="{{ row.price_unit_base if row.price_unit_base is not none else '' }}" data-request-factor-base="{{ row.request_quantity_factor_base if row.request_quantity_factor_base is not none else 1 }}" data-server-selected="{{ '1' if (row.requested_quantity_base if row.requested_quantity_base is not none else 0) > 0 else '0' }}" data-server-requested-quantity-base="{{ row.requested_quantity_base if row.requested_quantity_base is not none else '' }}" data-server-requested-total-value="{{ row.requested_total_value if row.requested_total_value is not none else '' }}">
+                        <tr class="{% if row.status == 'critical' %}table-danger{% elif row.status == 'attention' %}table-warning{% endif %}{% if row.selected %} is-selected{% endif %}" data-projection-row data-projection-code="{{ row.codigo_item }}" data-price-unit-base="{{ row.price_unit_base if row.price_unit_base is not none else '' }}" data-request-factor-base="{{ row.request_quantity_factor_base if row.request_quantity_factor_base is not none else 1 }}" data-server-selected="{{ '1' if (row.requested_quantity_base if row.requested_quantity_base is not none else 0) > 0 else '0' }}" data-server-requested-quantity-base="{{ row.requested_quantity_base if row.requested_quantity_base is not none else '' }}" data-server-requested-total-value="{{ row.requested_total_value if row.requested_total_value is not none else '' }}" data-server-potential-quote-id="{{ row.selected_potential_quote_id or '' }}">
                             <td>
                                 <div class="form-check">
                                     <input class="form-check-input" data-projection-select type="checkbox" name="selected_items" value="{{ row.codigo_item }}" {% if row.selected %}checked{% endif %}>
@@ -1084,6 +1110,29 @@
                                 {% endif %}
                             </td>
                             <td>
+                                {% if row.potential_quotes %}
+                                <select class="form-select form-select-sm projection-potential-select" name="potential_quote__{{ row.codigo_item }}" data-projection-potential-quote>
+                                    <option value="">Usar apenas fornecedor fiscal</option>
+                                    {% for quote in row.potential_quotes %}
+                                    <option value="{{ quote.id }}" {% if row.selected_potential_quote_id and row.selected_potential_quote_id|string == quote.id|string %}selected{% endif %}>
+                                        {{ quote.supplier.display_name if quote.supplier else 'Potencial Fornecedor' }} · {{ quote.unit_price_base_display }} · {{ quote.variation_display }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                {% set active_quote = row.selected_potential_quote or row.recommended_potential_quote %}
+                                {% if active_quote %}
+                                <div class="projection-muted mt-1">
+                                    {% if active_quote.supplier and active_quote.supplier.cnpj %}{{ active_quote.supplier.cnpj }}{% else %}CNPJ pendente{% endif %}
+                                </div>
+                                {% if active_quote.product_url %}
+                                <a class="projection-potential-link" href="{{ active_quote.product_url }}" target="_blank" rel="noopener">Abrir link</a>
+                                {% endif %}
+                                {% endif %}
+                                {% else %}
+                                <div class="projection-muted">Sem Potencial Fornecedor capturado.</div>
+                                {% endif %}
+                            </td>
+                            <td>
                                 <div class="projection-badges mb-2">
                                     <span class="badge text-bg-{{ row.status_badge_class }}">{{ row.status_label }}</span>
                                 </div>
@@ -1103,7 +1152,7 @@
                         </tr>
                         {% else %}
                         <tr>
-                            <td colspan="11" class="text-center text-muted py-4">Nenhum item encontrado para os filtros atuais.</td>
+                            <td colspan="12" class="text-center text-muted py-4">Nenhum item encontrado para os filtros atuais.</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -1206,6 +1255,11 @@
                     const requestedBaseDisplay = item?.requested_quantity_base_display || '';
                     const supplierName = item?.supplier?.name || 'Sem fornecedor identificado';
                     const brandText = item?.marca ? ` • ${escapeHtml(item.marca)}` : '';
+                    const potential = item?.selected_potential_quote || null;
+                    const potentialSupplier = potential?.supplier?.display_name || '';
+                    const potentialLine = potentialSupplier
+                        ? `<span class="projection-cart-item-meta">Potencial: ${escapeHtml(potentialSupplier)} • ${escapeHtml(potential?.unit_price_base_display || '-')}</span>`
+                        : '';
                     const baseNote = requestedBaseDisplay && requestedBaseDisplay !== requestedDisplay
                         ? `<span class="projection-cart-item-meta">Equivale a ${escapeHtml(requestedBaseDisplay)} na unidade base</span>`
                         : '';
@@ -1215,6 +1269,7 @@
                                 <span>${escapeHtml(item?.descricao || '')} <span class="projection-muted">${escapeHtml(requestedDisplay)}</span></span>
                                 ${baseNote}
                                 <span class="projection-cart-item-meta">${escapeHtml(supplierName)}${brandText}</span>
+                                ${potentialLine}
                             </span>
                             <span>${currencyFormatter.format(Number(item?.requested_total_value || 0))}</span>
                         </div>
@@ -1255,6 +1310,7 @@
                 row.dataset.serverSelected = payloadRow.in_cart ? '1' : '0';
                 row.dataset.serverRequestedQuantityBase = payloadRow.requested_quantity_base ?? '';
                 row.dataset.serverRequestedTotalValue = payloadRow.requested_total_value ?? '';
+                row.dataset.serverPotentialQuoteId = payloadRow.selected_potential_quote_id ?? '';
 
                 const checkbox = row.querySelector('[data-projection-select]');
                 if (checkbox instanceof HTMLInputElement) {
@@ -1269,6 +1325,15 @@
                 ) {
                     quantityInput.value = payloadRow.manual_quantity_value;
                 }
+
+                const potentialSelect = row.querySelector('[data-projection-potential-quote]');
+                if (
+                    potentialSelect instanceof HTMLSelectElement
+                    && document.activeElement !== potentialSelect
+                    && typeof payloadRow.selected_potential_quote_id === 'string'
+                ) {
+                    potentialSelect.value = payloadRow.selected_potential_quote_id;
+                }
             });
         };
 
@@ -1281,12 +1346,14 @@
             rows.forEach((row) => {
                 const checkbox = row.querySelector('[data-projection-select]');
                 const quantityInput = row.querySelector('[data-projection-quantity]');
+                const potentialSelect = row.querySelector('[data-projection-potential-quote]');
                 const isSelected = checkbox instanceof HTMLInputElement && checkbox.checked;
                 const serverSelected = row.dataset.serverSelected === '1';
                 const serverQuantity = parseQuantity(row.dataset.serverRequestedQuantityBase || '0');
                 const serverValue = Number.parseFloat(String(row.dataset.serverRequestedTotalValue || '').replace(',', '.')) || 0;
                 const requestFactorBase = Number.parseFloat(String(row.dataset.requestFactorBase || '1').replace(',', '.')) || 1;
                 const quantity = parseQuantity(quantityInput instanceof HTMLInputElement ? quantityInput.value : '0');
+                const selectedPotentialId = potentialSelect instanceof HTMLSelectElement ? potentialSelect.value : '';
                 const quantityBase = quantity * requestFactorBase;
                 const localInCart = isSelected && quantityBase > 0;
                 row.classList.toggle('is-selected', isSelected);
@@ -1305,7 +1372,11 @@
                     }
                 }
 
-                if (localInCart !== serverSelected || (localInCart && Math.abs(quantityBase - serverQuantity) > 1e-6)) {
+                if (
+                    localInCart !== serverSelected
+                    || (localInCart && Math.abs(quantityBase - serverQuantity) > 1e-6)
+                    || (localInCart && selectedPotentialId !== (row.dataset.serverPotentialQuoteId || ''))
+                ) {
                     hasPendingChanges = true;
                 }
             });
@@ -1462,7 +1533,7 @@
             if (!(event.target instanceof HTMLElement)) {
                 return;
             }
-            if (event.target.matches('[data-projection-select], [data-projection-quantity]')) {
+            if (event.target.matches('[data-projection-select], [data-projection-quantity], [data-projection-potential-quote]')) {
                 updateSelectionPreview();
                 scheduleCartSync(event.target.matches('[data-projection-select]') ? 120 : 220);
             }

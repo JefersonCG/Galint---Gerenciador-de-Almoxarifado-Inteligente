@@ -1533,6 +1533,9 @@
                 <button class="galint-tab-btn" type="button" data-tab="barcode">
                     <i class="bi bi-upc-scan me-1"></i> Código de barras
                 </button>
+                <button class="galint-tab-btn" type="button" data-tab="comparative">
+                    <i class="bi bi-bar-chart-line me-1"></i> Comparativos
+                </button>
                 <button class="galint-tab-btn" type="button" data-tab="history">
                     <i class="bi bi-clock-history me-1"></i> Histórico
                 </button>
@@ -1617,6 +1620,54 @@
                         <p class="mb-3"><strong>Código:</strong> <span id="barcode-codigo" class="fs-4">—</span></p>
                         <div class="galint-barcode-container">
                             <img id="item-barcode-large-img" alt="Código de barras do item" />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Aba Comparativos -->
+                <div class="galint-tab-content" id="tab-comparative">
+                    <div class="galint-comparative-shell">
+                        <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+                            <div>
+                                <h6 class="mb-1">Comparativo de compra</h6>
+                                <p class="text-muted small mb-0">Preço fiscal preservado, cotações web tratadas como Potencial Fornecedor.</p>
+                            </div>
+                            <button class="btn btn-sm btn-outline-info" type="button" id="btn-sync-potential-suppliers">
+                                <i class="bi bi-arrow-clockwise me-1"></i> Atualizar potenciais
+                            </button>
+                        </div>
+                        <div class="galint-comparative-summary" id="item-comparative-summary">
+                            <div class="galint-comparative-card">
+                                <span>Referência NF/Cupom</span>
+                                <strong id="item-comparative-reference">—</strong>
+                            </div>
+                            <div class="galint-comparative-card">
+                                <span>Melhor potencial</span>
+                                <strong id="item-comparative-best">—</strong>
+                            </div>
+                            <div class="galint-comparative-card">
+                                <span>Variação</span>
+                                <strong id="item-comparative-variation">—</strong>
+                            </div>
+                        </div>
+                        <div class="table-responsive mt-3">
+                            <table class="table table-sm table-hover galint-comparative-table">
+                                <thead>
+                                    <tr>
+                                        <th>Potencial Fornecedor</th>
+                                        <th>CNPJ</th>
+                                        <th>Preço</th>
+                                        <th>Variação</th>
+                                        <th>Fonte</th>
+                                        <th>Contato</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="item-comparative-tbody">
+                                    <tr>
+                                        <td colspan="6" class="text-center text-muted">Comparativo ainda não carregado</td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
@@ -2546,6 +2597,69 @@
         background: rgba(14, 116, 144, 0.26);
         color: #ffffff;
         box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.14);
+    }
+
+    .galint-comparative-shell {
+        background: rgba(8, 15, 28, 0.42);
+        border: 1px solid rgba(125, 211, 252, 0.14);
+        border-radius: 16px;
+        padding: 1rem;
+        color: #edf4ff;
+    }
+
+    .galint-comparative-summary {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.75rem;
+    }
+
+    .galint-comparative-card {
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(148, 163, 184, 0.14);
+        border-radius: 12px;
+        padding: 0.8rem;
+    }
+
+    .galint-comparative-card span {
+        display: block;
+        color: #d1ddee;
+        font-size: 0.76rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+    }
+
+    .galint-comparative-card strong {
+        color: #ffffff;
+        font-size: 1rem;
+    }
+
+    .galint-comparative-table {
+        color: #e5eefc;
+    }
+
+    .galint-comparative-table th {
+        color: #bfdbfe;
+        border-color: rgba(148, 163, 184, 0.18);
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+    }
+
+    .galint-comparative-table td {
+        border-color: rgba(148, 163, 184, 0.12);
+        vertical-align: top;
+    }
+
+    .galint-comparative-link {
+        color: #93c5fd;
+        text-decoration: none;
+        font-weight: 700;
+    }
+
+    @media (max-width: 768px) {
+        .galint-comparative-summary {
+            grid-template-columns: 1fr;
+        }
     }
 
     /* Modal de sugestões de preço */
@@ -5904,6 +6018,19 @@
         return null;
     };
 
+    const hasFiscalPurchaseBacking = (item) => {
+        const fiscalSources = new Set(['compra_nf', 'compra_cupom']);
+        const source = String(item?.preco_compra_fonte || '').trim().toLowerCase();
+        const financeType = String(item?.finance_tipo_documento || '').trim().toLowerCase();
+        const accessKey = String(item?.preco_compra_chave_acesso || '').trim();
+        const document = String(item?.preco_compra_documento || item?.nota_fiscal || '').trim().toUpperCase();
+        const manualDocs = new Set(['', 'N/D', 'SEM NF', 'SEM CUPOM', 'SEM NF/CUPOM', 'SEM NOTA', 'NOTA INTERNA', 'SEM COMPROVACAO']);
+        return fiscalSources.has(source)
+            || ['nf', 'cupom'].includes(financeType)
+            || accessKey.length >= 20
+            || (document && !manualDocs.has(document));
+    };
+
     const updateFinanceUI = (item) => {
         const compraEl = document.getElementById('item-preco-compra-unit');
         const reposEl = document.getElementById('item-preco-reposicao-unit');
@@ -5945,7 +6072,7 @@
         metaEl.innerHTML = parts.length ? parts.join('<br>') : '—';
 
         if (btnBuscar) {
-            btnBuscar.style.display = canManage ? '' : 'none';
+            btnBuscar.style.display = canManage && !hasFiscalPurchaseBacking(item) ? '' : 'none';
             btnBuscar.onclick = () => openPriceModal(item);
         }
     };
@@ -6131,6 +6258,127 @@
                     <td colspan="4" class="text-center text-muted">${escapeHtml(String(err?.message || err || 'Histórico indisponível'))}</td>
                 </tr>
             `;
+        }
+    };
+
+    const renderItemComparative = (payload) => {
+        const referenceEl = document.getElementById('item-comparative-reference');
+        const bestEl = document.getElementById('item-comparative-best');
+        const variationEl = document.getElementById('item-comparative-variation');
+        const tbody = document.getElementById('item-comparative-tbody');
+        const reference = payload?.reference || {};
+        const quotes = Array.isArray(payload?.potential_quotes) ? payload.potential_quotes : [];
+        const best = payload?.best_quote || quotes[0] || null;
+
+        if (referenceEl) {
+            referenceEl.textContent = reference.price_display_base || reference.price_display || '—';
+        }
+        if (bestEl) {
+            bestEl.textContent = best?.unit_price_base_display || best?.unit_price_display || '—';
+        }
+        if (variationEl) {
+            variationEl.textContent = best?.variation_display || '—';
+            variationEl.classList.toggle('text-success', Number(best?.variation_percent || 0) < 0);
+            variationEl.classList.toggle('text-warning', Number(best?.variation_percent || 0) > 0);
+        }
+        if (!tbody) {
+            return;
+        }
+        if (!quotes.length) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="text-center text-muted">Nenhum Potencial Fornecedor capturado para este item</td>
+                </tr>
+            `;
+            return;
+        }
+        tbody.innerHTML = quotes.map((quote) => {
+            const supplier = quote?.supplier || {};
+            const contact = supplier.contact_url || quote.product_url || '';
+            const address = supplier.address_display ? `<div class="text-muted small">${escapeHtml(supplier.address_display)}</div>` : '';
+            return `
+                <tr>
+                    <td>
+                        <div class="fw-semibold">${escapeHtml(supplier.display_name || 'Potencial Fornecedor')}</div>
+                        ${address}
+                    </td>
+                    <td>${escapeHtml(supplier.cnpj || 'Pendente')}</td>
+                    <td>
+                        <div class="fw-semibold">${escapeHtml(quote.unit_price_base_display || quote.unit_price_display || '—')}</div>
+                        <div class="text-muted small">${escapeHtml(quote.offer_title || '')}</div>
+                    </td>
+                    <td>${escapeHtml(quote.variation_display || '—')}</td>
+                    <td>${escapeHtml(quote.source_name || '—')}</td>
+                    <td>${contact ? `<a class="galint-comparative-link" href="${escapeHtml(contact)}" target="_blank" rel="noopener">Abrir</a>` : '—'}</td>
+                </tr>
+            `;
+        }).join('');
+    };
+
+    const loadItemComparative = async (codigo) => {
+        const tbody = document.getElementById('item-comparative-tbody');
+        if (tbody) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="text-center text-muted">Carregando comparativo...</td>
+                </tr>
+            `;
+        }
+        try {
+            const response = await fetch(`/itens/api/${encodeURIComponent(codigo)}/comparativo`, {
+                headers: { 'Accept': 'application/json' },
+                credentials: 'same-origin',
+                cache: 'no-store',
+            });
+            const payload = await readJsonResponse(response);
+            if (!response.ok || !payload?.success) {
+                throw new Error(payload?.message || 'Falha ao carregar comparativo');
+            }
+            renderItemComparative(payload);
+        } catch (err) {
+            if (tbody) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="text-center text-muted">${escapeHtml(String(err?.message || err || 'Comparativo indisponível'))}</td>
+                    </tr>
+                `;
+            }
+        }
+    };
+
+    const syncItemPotentialSuppliers = async (codigo) => {
+        const button = document.getElementById('btn-sync-potential-suppliers');
+        if (button instanceof HTMLButtonElement) {
+            button.disabled = true;
+            button.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Atualizando...';
+        }
+        try {
+            const response = await fetch(`/itens/api/${encodeURIComponent(codigo)}/potenciais/sync`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                credentials: 'same-origin',
+                cache: 'no-store',
+                body: JSON.stringify({ limit: 8 }),
+            });
+            const payload = await readJsonResponse(response);
+            if (!response.ok || !payload?.success) {
+                throw new Error(payload?.message || 'Falha ao atualizar potenciais');
+            }
+            renderItemComparative(payload);
+        } catch (err) {
+            const tbody = document.getElementById('item-comparative-tbody');
+            if (tbody) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="text-center text-muted">${escapeHtml(String(err?.message || err || 'Falha ao atualizar'))}</td>
+                    </tr>
+                `;
+            }
+        } finally {
+            if (button instanceof HTMLButtonElement) {
+                button.disabled = false;
+                button.innerHTML = '<i class="bi bi-arrow-clockwise me-1"></i> Atualizar potenciais';
+            }
         }
     };
 
@@ -6995,6 +7243,12 @@
         }
         
         loadItemHistory(currentItem.codigo);
+        loadItemComparative(currentItem.codigo);
+        const syncPotentialBtn = document.getElementById('btn-sync-potential-suppliers');
+        if (syncPotentialBtn) {
+            syncPotentialBtn.style.display = canManage ? '' : 'none';
+            syncPotentialBtn.onclick = () => syncItemPotentialSuppliers(currentItem.codigo);
+        }
         
         // Preparar botões do footer
         const hasManageLinks = Boolean(currentItem.edit_url);

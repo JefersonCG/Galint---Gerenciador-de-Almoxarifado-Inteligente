@@ -57,6 +57,13 @@ class PriceSuggestion:
     url: str | None
     uf: str | None
     uf_raw: str | None
+    seller_name: str | None = None
+    seller_identifier: str | None = None
+    seller_cnpj: str | None = None
+    seller_city: str | None = None
+    seller_state: str | None = None
+    seller_address: str | None = None
+    seller_contact_url: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -67,6 +74,13 @@ class PriceSuggestion:
             "url": self.url,
             "uf": self.uf,
             "uf_raw": self.uf_raw,
+            "seller_name": self.seller_name,
+            "seller_identifier": self.seller_identifier,
+            "seller_cnpj": self.seller_cnpj,
+            "seller_city": self.seller_city,
+            "seller_state": self.seller_state,
+            "seller_address": self.seller_address,
+            "seller_contact_url": self.seller_contact_url,
         }
 
 
@@ -337,6 +351,9 @@ class PriceSuggestionService:
                     url=final_url,
                     uf=None,
                     uf_raw=None,
+                    seller_name=source_host or None,
+                    seller_identifier=source_host or None,
+                    seller_contact_url=final_url,
                 )
             )
         return suggestions[:limit]
@@ -452,6 +469,14 @@ class PriceSuggestionService:
                 or _dig(r, "address", "state", "id")
             )
             uf_item = _normalize_uf(uf_raw)
+            seller_id = r.get("seller_id") or _dig(r, "seller", "id")
+            seller_name = _dig(r, "seller", "nickname") or r.get("official_store_name")
+            seller_city = _dig(r, "seller_address", "city", "name") or _dig(r, "address", "city_name")
+            seller_state = (
+                _dig(r, "seller_address", "state", "name")
+                or _dig(r, "address", "state_name")
+                or uf_item
+            )
             parsed.append(
                 PriceSuggestion(
                     source="Mercado Livre",
@@ -461,6 +486,11 @@ class PriceSuggestionService:
                     url=url_item,
                     uf=uf_item,
                     uf_raw=str(uf_raw) if uf_raw else None,
+                    seller_name=str(seller_name).strip() if seller_name else None,
+                    seller_identifier=str(seller_id).strip() if seller_id else None,
+                    seller_city=str(seller_city).strip() if seller_city else None,
+                    seller_state=str(seller_state).strip() if seller_state else None,
+                    seller_contact_url=url_item,
                 )
             )
         return parsed
@@ -493,6 +523,7 @@ class PriceSuggestionService:
                     url=url_item,
                     uf=uf,
                     uf_raw=uf,
+                    seller_contact_url=url_item,
                 )
             )
             if len(parsed) >= limit:

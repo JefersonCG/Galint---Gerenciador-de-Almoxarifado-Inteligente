@@ -748,6 +748,219 @@ class FinanceService:
         return None
 
     @staticmethod
+    def normalize_nf_identity_number(numero_documento: str | None) -> str:
+        raw = (numero_documento or "").strip()
+        if not raw:
+            return ""
+        digits = re.sub(r"\D+", "", raw)
+        if digits:
+            return digits.lstrip("0") or "0"
+        return re.sub(r"\s+", "", raw).upper()
+
+    @staticmethod
+    def _find_nf_documents_by_identity(numero_documento: str) -> list[DocumentoEntradaEstoque]:
+        identity = FinanceService.normalize_nf_identity_number(numero_documento)
+        if not identity:
+            return []
+        rows = (
+            DocumentoEntradaEstoque.query
+            .filter(DocumentoEntradaEstoque.tipo_documento == "nf")
+            .order_by(DocumentoEntradaEstoque.id_documento.desc())
+            .all()
+        )
+        return [
+            row
+            for row in rows
+            if FinanceService.normalize_nf_identity_number(row.numero_documento) == identity
+        ]
+
+    @staticmethod
+    def _select_preferred_nf_document(
+        documents: list[DocumentoEntradaEstoque],
+        *,
+        numero_documento: str,
+    ) -> DocumentoEntradaEstoque | None:
+        if not documents:
+            return None
+        requested = (numero_documento or "").strip()
+
+        def sort_key(document: DocumentoEntradaEstoque) -> tuple[bool, bool, int, tuple[int, datetime, int]]:
+            existing_number = (document.numero_documento or "").strip()
+            return (
+                existing_number == requested,
+                existing_number.startswith("0"),
+                len(existing_number),
+                FinanceService._stock_document_priority(document),
+            )
+
+        return sorted(documents, key=sort_key, reverse=True)[0]
+
+    @staticmethod
+    def _validate_nf_existing_document_identity(
+        document: DocumentoEntradaEstoque,
+        *,
+        numero_documento: str,
+        chave_acesso: str | None = None,
+        cnpj_emitente: str | None = None,
+        supplier_id: int | None = None,
+        supplier_name: str | None = None,
+    ) -> None:
+        normalized_key = (chave_acesso or "").strip() or None
+        existing_key = (getattr(document, "chave_acesso", None) or "").strip() or None
+        if normalized_key and existing_key and existing_key != normalized_key:
+            raise ValueError(
+                f"A NF {numero_documento} já está cadastrada com outra chave de acesso. "
+                "Edite o documento existente ou exclua-o antes de recadastrar."
+            )
+
+        normalized_cnpj = FinanceService.normalize_cnpj(cnpj_emitente) or None
+        existing_cnpj = FinanceService.normalize_cnpj(getattr(document, "cnpj_emitente", None)) or None
+        if normalized_cnpj and existing_cnpj and existing_cnpj != normalized_cnpj:
+            raise ValueError(
+                f"A NF {numero_documento} já está cadastrada para outro emitente. "
+                "Edite o documento existente ou exclua-o antes de recadastrar."
+            )
+
+        existing_supplier_id = getattr(document, "fornecedor_id", None)
+        if supplier_id is not None and existing_supplier_id is not None and int(existing_supplier_id) != int(supplier_id):
+            raise ValueError(
+                f"A NF {numero_documento} já está vinculada a outro fornecedor. "
+                "Edite o documento existente ou exclua-o antes de recadastrar."
+            )
+
+        requested_name = (supplier_name or "").strip().lower()
+        existing_name = (getattr(document, "fornecedor_nome", None) or "").strip().lower()
+        if requested_name and existing_name and requested_name != existing_name and not any(
+            [supplier_id, existing_supplier_id, normalized_cnpj, existing_cnpj]
+        ):
+            raise ValueError(
+                f"A NF {numero_documento} já está cadastrada com outro emitente informado. "
+                "Edite o documento existente ou exclua-o antes de recadastrar."
+            )
+
+    @staticmethod
+    def _resolve_unique_nf_existing_document(
+        documents: list[DocumentoEntradaEstoque],
+        *,
+        numero_documento: str,
+        chave_acesso: str | None = None,
+        cnpj_emitente: str | None = None,
+        supplier_id: int | None = None,
+        supplier_name: str | None = None,
+    ) -> DocumentoEntradaEstoque | None:
+        if not documents:
+            return None
+
+        ordered = sorted(
+            documents,
+            key=FinanceService._stock_document_priority,
+            reverse=True,
+        )
+        requested_identity = FinanceService.normalize_nf_identity_number(numero_documento)
+        existing_identities = {
+            FinanceService.normalize_nf_identity_number(document.numero_documento)
+            for document in ordered
+        }
+        if len(existing_identities) > 1 or requested_identity not in existing_identities:
+            raise ValueError(
+                f"A NF {numero_documento} conflita com documentos fiscais de outra numeração. "
+                "Revise o cadastro antes de continuar."
+            )
+
+        requested_has_identity = any([supplier_id, cnpj_emitente, supplier_name])
+        if not requested_has_identity:
+            supplier_identities = {
+                FinanceService._stock_document_supplier_identity(document)
+                for document in ordered
+                if FinanceService._stock_document_supplier_identity(document)
+            }
+            if len(supplier_identities) > 1:
+                raise ValueError(
+                    f"A NF {numero_documento} já está cadastrada para fornecedores diferentes. "
+                    "Informe o fornecedor ou CNPJ correto para evitar mistura documental."
+                )
+
+        for document in ordered:
+            FinanceService._validate_nf_existing_document_identity(
+                document,
+                numero_documento=numero_documento,
+                chave_acesso=chave_acesso,
+                cnpj_emitente=cnpj_emitente,
+                supplier_id=supplier_id,
+                supplier_name=supplier_name,
+            )
+
+        document = FinanceService._select_preferred_nf_document(ordered, numero_documento=numero_documento)
+        if document is None:
+            raise ValueError(
+                f"Não foi possível localizar o cadastro existente da NF {numero_documento}."
+            )
+
+        return document
+
+    @staticmethod
+    def _numbers_match(left: object, right: object, *, tolerance: float = 1e-6) -> bool:
+        if left in (None, "") and right in (None, ""):
+            return True
+        if left in (None, "") or right in (None, ""):
+            return False
+        try:
+            return abs(float(left) - float(right)) <= tolerance
+        except (TypeError, ValueError):
+            return str(left).strip() == str(right).strip()
+
+    @staticmethod
+    def _find_equivalent_nf_document_item(
+        document: DocumentoEntradaEstoque | None,
+        *,
+        codigo_item: str,
+        quantidade: float,
+        unidade_quantidade: str | None,
+        quantidade_base: float | None,
+        valor_unitario: float | None,
+        valor_total: float | None,
+        unidade_preco: str | None,
+        valor_unitario_base: float | None,
+    ) -> DocumentoEntradaEstoqueItem | None:
+        if document is None:
+            return None
+
+        quantity_unit = (unidade_quantidade or "").strip().lower()
+        price_unit = (unidade_preco or "").strip().lower()
+        candidates: list[DocumentoEntradaEstoqueItem] = []
+        for row in document.itens:
+            if row.codigo_item != codigo_item:
+                continue
+            if (row.unidade_quantidade or "").strip().lower() != quantity_unit:
+                continue
+            if (row.unidade_preco or "").strip().lower() != price_unit:
+                continue
+            if not FinanceService._numbers_match(row.quantidade, quantidade):
+                continue
+            if not FinanceService._numbers_match(row.quantidade_base, quantidade_base):
+                continue
+            if not FinanceService._numbers_match(row.valor_unitario, valor_unitario):
+                continue
+            if not FinanceService._numbers_match(row.valor_unitario_base, valor_unitario_base):
+                continue
+            if not FinanceService._numbers_match(row.valor_total, valor_total):
+                continue
+            candidates.append(row)
+
+        if not candidates:
+            return None
+
+        candidates.sort(
+            key=lambda row: (
+                1 if (row.status_processamento or "").strip().lower() == "processado" else 0,
+                int(row.stock_movement_id or 0),
+                int(row.id_documento_item or 0),
+            ),
+            reverse=True,
+        )
+        return candidates[0]
+
+    @staticmethod
     def _find_reusable_legacy_document_item(
         document: DocumentoEntradaEstoque | None,
         *,
@@ -1692,6 +1905,36 @@ class FinanceService:
             )
         )
 
+        existing_nf_document = None
+        existing_nf_documents: list[DocumentoEntradaEstoque] = []
+        duplicate_notices: list[str] = []
+        if tipo == "nf":
+            existing_nf_documents = FinanceService._find_nf_documents_by_identity(numero)
+            existing_nf_document = FinanceService._resolve_unique_nf_existing_document(
+                existing_nf_documents,
+                numero_documento=numero,
+                chave_acesso=chave,
+                cnpj_emitente=cnpj,
+                supplier_id=supplier.id if supplier else supplier_id,
+                supplier_name=supplier_display,
+            )
+            if existing_nf_document is not None:
+                previous_number = (existing_nf_document.numero_documento or "").strip()
+                exact_duplicate_exists = any(
+                    document.id_documento != existing_nf_document.id_documento
+                    and (document.numero_documento or "").strip() == numero
+                    for document in existing_nf_documents
+                )
+                if previous_number and previous_number != numero and not exact_duplicate_exists:
+                    existing_nf_document.numero_documento = numero
+                    duplicate_notices.append(
+                        f"A NF {numero} já existia como {previous_number}; o sistema reaproveitou o documento e normalizou a numeração."
+                    )
+                elif len(existing_nf_documents) > 1:
+                    duplicate_notices.append(
+                        f"A NF {numero} já possuía cadastro equivalente; o sistema bloqueou novo lançamento duplicado."
+                    )
+
         aliases = FinanceService.manual_internal_document_aliases() if tipo == "manual" and FinanceService.is_manual_internal_document_number(numero) else (numero,)
 
         document_query = DocumentoEntradaEstoque.query.filter(
@@ -1707,6 +1950,8 @@ class FinanceService:
             document_query.order_by(DocumentoEntradaEstoque.id_documento.desc()).all(),
             require_unambiguous_identity=not bool(cnpj or supplier),
         )
+        if document is None and existing_nf_document is not None:
+            document = existing_nf_document
         reused_legacy_placeholder = False
         if document is None and tipo == "nf":
             legacy_placeholder = FinanceService._find_legacy_placeholder_document(numero)
@@ -1777,6 +2022,7 @@ class FinanceService:
         total = normalized_line["total_value"]
         linked_entry_id = None if document_only else entrada_id
         item_row = None
+        reused_equivalent_document_item = False
         if reused_legacy_placeholder:
             item_row = FinanceService._find_reusable_legacy_document_item(
                 document,
@@ -1786,6 +2032,25 @@ class FinanceService:
                 valor_unitario=unit,
                 valor_total=total,
             )
+
+        if item_row is None and tipo == "nf":
+            equivalent_item = FinanceService._find_equivalent_nf_document_item(
+                document,
+                codigo_item=codigo,
+                quantidade=qty,
+                unidade_quantidade=normalized_line["quantity_unit"],
+                quantidade_base=normalized_line["quantity_base"],
+                valor_unitario=unit,
+                valor_total=total,
+                unidade_preco=normalized_line["price_unit"],
+                valor_unitario_base=normalized_line["unit_price_base"],
+            )
+            if equivalent_item is not None:
+                item_row = equivalent_item
+                reused_equivalent_document_item = True
+                duplicate_notices.append(
+                    f"A NF {numero} já tinha esta mesma linha de item; o recadastro foi descartado e o item existente foi mantido."
+                )
 
         if item_row is None:
             item_row = DocumentoEntradaEstoqueItem(
@@ -1821,12 +2086,15 @@ class FinanceService:
             item_row.lote = (lote or "").strip() or None
             item_row.data_validade = data_validade
             item_row.observacao = (observacao or "").strip() or None
-            if linked_entry_id is not None and item_row.entrada_id is None:
-                item_row.entrada_id = linked_entry_id
-            if item_row.entrada_id is not None:
+            if reused_equivalent_document_item and item_row.stock_movement_id is not None:
                 item_row.status_processamento = "processado"
                 item_row.processado_em = item_row.processado_em or datetime.utcnow()
-            else:
+            elif linked_entry_id is not None and item_row.entrada_id is None:
+                item_row.entrada_id = linked_entry_id
+            if not reused_equivalent_document_item and item_row.entrada_id is not None:
+                item_row.status_processamento = "processado"
+                item_row.processado_em = item_row.processado_em or datetime.utcnow()
+            elif not reused_equivalent_document_item:
                 item_row.status_processamento = "pendente"
                 item_row.processado_em = None
 
@@ -1853,6 +2121,7 @@ class FinanceService:
             "document": document,
             "document_item": item_row,
             "supplier": supplier,
+            "duplicate_notices": duplicate_notices,
         }
 
     @staticmethod
