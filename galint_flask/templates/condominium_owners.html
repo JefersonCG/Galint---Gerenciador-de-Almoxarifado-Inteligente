@@ -1,0 +1,206 @@
+{% extends "base.html" %}
+{% block title %}Cadastro de Morador{% endblock %}
+{% block body_class %}condominium-owner-page{% endblock %}
+{% block extra_css %}
+<style>
+    body.condominium-owner-page .app-body { background: linear-gradient(180deg, #eef5fc 0%, #e3edf7 100%); }
+    body.condominium-owner-page .content-panel { background: rgba(239, 246, 255, 0.92); border-left: 1px solid rgba(148, 163, 184, 0.16); }
+    .condo-owner-shell { display: grid; gap: 1rem; color: #0f172a; }
+    .condo-owner-header { position: relative; overflow: hidden; display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; min-height: 13.5rem; padding: clamp(1.15rem, 2.4vw, 1.8rem); border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 26px; background: #0f172a; color: #f8fafc; box-shadow: 0 28px 68px rgba(15, 23, 42, 0.2); }
+    .condo-owner-header::before { content: ""; position: absolute; inset: 0; z-index: 0; background: url("{{ system_image_url('administracao_cadastro_hero', '20260506-cadastro-hero') }}") center center / cover no-repeat; opacity: 0.8; pointer-events: none; }
+    .condo-owner-header::after { content: ""; position: absolute; inset: 0; z-index: 0; background: linear-gradient(90deg, rgba(15, 23, 42, 0.84) 0%, rgba(15, 23, 42, 0.58) 46%, rgba(30, 64, 175, 0.5) 100%), linear-gradient(180deg, rgba(2, 6, 23, 0.24), rgba(2, 6, 23, 0.48)); pointer-events: none; }
+    .condo-owner-header > * { position: relative; z-index: 1; }
+    .condo-owner-kicker { display: inline-flex; align-items: center; gap: 0.45rem; width: fit-content; margin: 0 0 0.55rem; padding: 0.32rem 0.64rem; border-radius: 999px; background: rgba(255,255,255,0.09); border: 1px solid rgba(226,232,240,0.14); color: #bae6fd; font-size: 0.68rem; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; }
+    .condo-owner-title { margin: 0; font-size: clamp(1.8rem, 3vw, 2.55rem); line-height: 1; font-weight: 950; letter-spacing: 0; color: #f8fafc; text-shadow: 0 8px 18px rgba(2, 6, 23, 0.28); }
+    .condo-owner-summary { margin: 0.65rem 0 0; max-width: 48rem; color: rgba(226, 232, 240, 0.84); font-weight: 750; line-height: 1.45; }
+    .condo-owner-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    .condo-owner-action { min-height: 2.4rem; border-radius: 12px; font-weight: 850; }
+    .condo-owner-grid { display: grid; grid-template-columns: minmax(21rem, 0.95fr) minmax(0, 1.05fr); gap: 1rem; align-items: start; }
+    .condo-owner-panel { border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 24px; background: #fff; box-shadow: 0 18px 42px rgba(15, 23, 42, 0.08); padding: 1rem; }
+    .condo-owner-panel.is-dark { color: #e2e8f0; background: linear-gradient(135deg, #0f172a 0%, #1e293b 68%, #334155 100%); box-shadow: 0 26px 60px rgba(15, 23, 42, 0.18); }
+    .condo-owner-panel-title { margin: 0 0 0.75rem; font-size: 1.08rem; font-weight: 900; }
+    .condo-owner-panel.is-dark .form-label { color: #cbd5e1; font-weight: 800; }
+    .condo-owner-panel.is-dark .form-control,
+    .condo-owner-panel.is-dark .form-select { min-height: 44px; border-radius: 12px; border: 1px solid rgba(148, 163, 184, 0.22); background: rgba(15, 23, 42, 0.54); color: #f8fafc; box-shadow: none; }
+    .condo-owner-panel.is-dark textarea.form-control { min-height: 92px; }
+    .condo-owner-panel.is-dark .form-control::placeholder { color: #94a3b8; }
+    .condo-owner-panel.is-dark .form-check-label { color: rgba(226, 232, 240, 0.86); font-weight: 800; }
+    .condo-owner-save { min-height: 46px; border-radius: 14px; border: 0; background: linear-gradient(135deg, #0ea5e9, #22c55e); color: #fff; font-weight: 900; }
+    .condo-owner-list { display: grid; gap: 0.7rem; }
+    .condo-owner-card { display: grid; gap: 0.62rem; border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 18px; background: #f8fafc; padding: 0.85rem; }
+    .condo-owner-card.is-closed { opacity: 0.64; }
+    .condo-owner-card-top { display: flex; justify-content: space-between; gap: 0.75rem; align-items: start; }
+    .condo-owner-name { display: block; color: #0f172a; font-weight: 900; }
+    .condo-owner-unit { display: block; color: #64748b; font-size: 0.78rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; }
+    .condo-owner-tags { display: flex; flex-wrap: wrap; gap: 0.42rem; }
+    .condo-owner-tag { display: inline-flex; min-height: 1.75rem; align-items: center; gap: 0.34rem; padding: 0.25rem 0.54rem; border-radius: 999px; background: #e2e8f0; color: #0f172a; font-size: 0.74rem; font-weight: 850; }
+    .condo-owner-side-card { display: grid; gap: 0.5rem; border-radius: 18px; background: rgba(15, 23, 42, 0.42); border: 1px solid rgba(226, 232, 240, 0.13); padding: 0.85rem; color: #e2e8f0; }
+    .condo-owner-side-card strong { color: #fff; }
+    .condo-owner-side-card span { color: rgba(226, 232, 240, 0.76); font-size: 0.78rem; font-weight: 800; }
+    .condo-owner-lgpd { display: inline-flex; align-items: center; gap: 0.35rem; color: #0369a1; font-size: 0.72rem; font-weight: 900; }
+    .condo-empty-state { border: 1px dashed rgba(148, 163, 184, 0.44); border-radius: 18px; padding: 1rem; background: #f8fafc; color: #475569; font-weight: 700; }
+    @media (max-width: 991.98px) { .condo-owner-grid { grid-template-columns: 1fr; } }
+</style>
+{% endblock %}
+{% block content %}
+<div class="condo-owner-shell">
+    <header class="condo-owner-header">
+        <div>
+            <p class="condo-owner-kicker"><i class="bi bi-person-vcard"></i> Condomínio</p>
+            <h1 class="condo-owner-title">Cadastro de Morador</h1>
+            <p class="condo-owner-summary">Centralize titular da unidade, locatário, moradores vinculados, visitantes autorizados, condutores, veículos e autorização LGPD em um cadastro único.</p>
+        </div>
+        <div class="condo-owner-side-card" aria-label="Resumo do cadastro de morador">
+            <strong>{{ owners|length }} registros recentes</strong>
+            <span>Documentos aparecem mascarados por padrão.</span>
+            <span>Reservas, multas e pendências ficam preparados para vínculo futuro.</span>
+        </div>
+        <div class="condo-owner-actions">
+            <a class="btn btn-dark condo-owner-action" href="{{ url_for('pages.admin_condominium_blocks_editor') }}"><i class="bi bi-building-gear me-1"></i> Editor de Edifício</a>
+            <a class="btn btn-outline-dark condo-owner-action" href="{{ url_for('pages.administration_dashboard') }}"><i class="bi bi-buildings me-1"></i> Dashboard</a>
+        </div>
+    </header>
+
+    <div class="condo-owner-grid">
+        <section class="condo-owner-panel is-dark" aria-labelledby="condo-owner-form-title">
+            <h2 class="condo-owner-panel-title" id="condo-owner-form-title">Cadastrar pessoa ou vínculo</h2>
+            <form method="post" action="{{ url_for('pages.admin_condominium_registry') }}" enctype="multipart/form-data">
+                <div class="row g-3">
+                    <div class="col-12">
+                        <label class="form-label" for="unit_id">Unidade</label>
+                        <select class="form-select" id="unit_id" name="unit_id" required {% if not units %}disabled{% endif %}>
+                            <option value="">Selecione</option>
+                            {% for unit in units %}
+                            <option value="{{ unit.id }}">{{ unit.full_label() }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="relationship_type">Vínculo</label>
+                        <select class="form-select" id="relationship_type" name="relationship_type">
+                            <option value="titular_unidade">Titular da unidade</option>
+                            <option value="proprietario">Proprietário</option>
+                            <option value="locatario">Locatário</option>
+                            <option value="morador_vinculado">Morador vinculado</option>
+                            <option value="representante">Representante</option>
+                            <option value="visitante_autorizado">Visitante autorizado</option>
+                            <option value="condutor">Condutor</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="person_type">Tipo</label>
+                        <select class="form-select" id="person_type" name="person_type">
+                            <option value="fisica">Pessoa física</option>
+                            <option value="juridica">Pessoa jurídica</option>
+                        </select>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label" for="full_name">Nome completo ou razão social</label>
+                        <input class="form-control" id="full_name" name="full_name" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="document_number">CPF/CNPJ</label>
+                        <input class="form-control" id="document_number" name="document_number" required>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label" for="rg">RG</label>
+                        <input class="form-control" id="rg" name="rg">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label" for="cnh">CNH</label>
+                        <input class="form-control" id="cnh" name="cnh">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="phone">Telefone</label>
+                        <input class="form-control" id="phone" name="phone">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="email">E-mail</label>
+                        <input class="form-control" id="email" name="email" type="email">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="occupancy_status">Ocupação</label>
+                        <select class="form-select" id="occupancy_status" name="occupancy_status">
+                            <option value="nao_informado">Não informado</option>
+                            <option value="reside">Reside na unidade</option>
+                            <option value="nao_reside">Não reside</option>
+                            <option value="imovel_vago">Imóvel vago</option>
+                            <option value="administradora">Administradora</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="photo">Foto</label>
+                        <input class="form-control" id="photo" name="photo" type="file" accept="image/png,image/jpeg,image/webp">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label" for="correspondence_address">Endereço de correspondência</label>
+                        <textarea class="form-control" id="correspondence_address" name="correspondence_address"></textarea>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label" for="emergency_contact">Contato de emergência</label>
+                        <input class="form-control" id="emergency_contact" name="emergency_contact">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label" for="linked_people">Pessoas vinculadas</label>
+                        <textarea class="form-control" id="linked_people" name="linked_people" placeholder="Ex.: cônjuge, filhos, responsáveis, prestador recorrente da unidade"></textarea>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label" for="authorized_visitors">Visitantes autorizados</label>
+                        <textarea class="form-control" id="authorized_visitors" name="authorized_visitors" placeholder="Nome, documento parcial, relação e observações de acesso"></textarea>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label" for="vehicles_drivers">Veículos e condutores</label>
+                        <textarea class="form-control" id="vehicles_drivers" name="vehicles_drivers" placeholder="Placa, modelo, cor, vaga, condutores autorizados"></textarea>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label" for="notes">Observações</label>
+                        <textarea class="form-control" id="notes" name="notes"></textarea>
+                    </div>
+                    <div class="col-12">
+                        <div class="form-check">
+                            <input class="form-check-input" id="lgpd_authorized" name="lgpd_authorized" type="checkbox" value="1">
+                            <label class="form-check-label" for="lgpd_authorized">Autorização LGPD registrada</label>
+                        </div>
+                    </div>
+                    <div class="col-12 d-grid">
+                        <button class="condo-owner-save" type="submit" {% if not units %}disabled{% endif %}><i class="bi bi-check2-circle me-1"></i> Salvar cadastro</button>
+                    </div>
+                </div>
+            </form>
+        </section>
+
+        <section class="condo-owner-panel" aria-labelledby="condo-owner-list-title">
+            <h2 class="condo-owner-panel-title" id="condo-owner-list-title">Cadastros recentes</h2>
+            <div class="condo-owner-list">
+                {% if owners %}
+                    {% for owner in owners %}
+                    <article class="condo-owner-card {% if owner.status != 'ativo' %}is-closed{% endif %}">
+                        <div class="condo-owner-card-top">
+                            <div>
+                                <span class="condo-owner-unit">{{ owner.unit.full_label() if owner.unit else 'Sem unidade' }}</span>
+                                <strong class="condo-owner-name">{{ owner.full_name }}</strong>
+                            </div>
+                            <span class="condo-owner-tag">{{ owner.status|title }}</span>
+                        </div>
+                        <div class="condo-owner-tags">
+                            <span class="condo-owner-tag"><i class="bi bi-person-vcard"></i> {{ owner.relationship_type|replace('_', ' ')|title }}</span>
+                            <span class="condo-owner-tag"><i class="bi bi-card-text"></i> {{ mask_sensitive_document(owner.document_number) }}</span>
+                            <span class="condo-owner-lgpd"><i class="bi bi-shield-lock"></i> LGPD</span>
+                            {% if owner.phone %}<span class="condo-owner-tag"><i class="bi bi-telephone"></i> {{ owner.phone }}</span>{% endif %}
+                            {% if owner.email %}<span class="condo-owner-tag"><i class="bi bi-envelope"></i> {{ owner.email }}</span>{% endif %}
+                        </div>
+                        {% if owner.status == 'ativo' %}
+                        <form method="post" action="{{ url_for('pages.admin_condominium_close_owner', owner_id=owner.id) }}">
+                            <button class="btn btn-sm btn-outline-danger" type="submit"><i class="bi bi-x-circle me-1"></i> Encerrar vínculo</button>
+                        </form>
+                        {% endif %}
+                    </article>
+                    {% endfor %}
+                {% else %}
+                    <div class="condo-empty-state">Nenhum proprietário cadastrado.</div>
+                {% endif %}
+            </div>
+        </section>
+    </div>
+</div>
+{% endblock %}

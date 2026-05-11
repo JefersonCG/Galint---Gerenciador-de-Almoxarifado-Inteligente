@@ -93,6 +93,9 @@ class BaseConfig:
     FEATURE_LIVE_FEED_ENABLED = _env_flag("GALINT_FEATURE_LIVE_FEED", False)
     FEATURE_MOBILE_PANEL_ENABLED = _env_flag("GALINT_FEATURE_MOBILE_PANEL", True)
     FEATURE_WORKSPACE_WINDOWS_ENABLED = _env_flag("GALINT_FEATURE_WORKSPACE_WINDOWS", False)
+    MAINTENANCE_MODE = _env_flag("GALINT_MAINTENANCE_MODE", False) or _env_flag("GALINT_SYSTEM_MAINTENANCE", False)
+    MAINTENANCE_LOCK_FILE = os.environ.get("GALINT_MAINTENANCE_LOCK_FILE") or str(BASE_DIR / "instance" / "system_maintenance.lock")
+    MAINTENANCE_MESSAGE = (os.environ.get("GALINT_MAINTENANCE_MESSAGE") or "").strip()
 
 
 class DevelopmentConfig(BaseConfig):
@@ -119,3 +122,6 @@ def load_config(app, config_name: str | None) -> None:
     config_class = CONFIG_MAP.get(target, DevelopmentConfig)
     app.config.from_object(config_class)
     app.config["SQLALCHEMY_DATABASE_URI"] = _resolve_database_uri()
+    app.config["MAINTENANCE_MODE"] = _env_flag("GALINT_MAINTENANCE_MODE", False) or _env_flag("GALINT_SYSTEM_MAINTENANCE", False)
+    app.config["MAINTENANCE_LOCK_FILE"] = os.environ.get("GALINT_MAINTENANCE_LOCK_FILE") or str(BASE_DIR / "instance" / "system_maintenance.lock")
+    app.config["MAINTENANCE_MESSAGE"] = (os.environ.get("GALINT_MAINTENANCE_MESSAGE") or "").strip()

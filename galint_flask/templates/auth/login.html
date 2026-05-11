@@ -2,7 +2,7 @@
 {% set is_management_login = ((request.args.get('gestao', '') or '')|lower) in ['1', 'true', 'sim', 'yes'] %}
 {% set requested_login_module = ((request.args.get('module', '') or '')|lower) %}
 {% set active_login_module = requested_login_module if requested_login_module in ['almoxarifado', 'mensageria', 'administracao', 'gestao'] else 'almoxarifado' %}
-{% block title %}{% if is_management_login %}Acesso gerencial{% else %}Login{% endif %}{% endblock %}
+{% block title %}{% if is_management_login %}Configurações do Sistema{% else %}Login{% endif %}{% endblock %}
 {% block body_class %}{% if is_management_login %}auth-management-page{% else %}auth-login-page{% endif %}{% endblock %}
 {% set login_background_path = (login_branding.login_background_path if login_branding else None) or 'logo/logo.png' %}
 {% set login_card_image_path = (login_branding.login_card_image_path if login_branding else None) or (empresa_config.logo_path if empresa_config and empresa_config.logo_path else 'logo/icone-galint.png') %}
@@ -969,7 +969,7 @@
 {% endblock %}
 {% block content %}
 {% if is_management_login %}
-<section class="management-login-stage" aria-label="Acesso gerencial">
+<section class="management-login-stage" aria-label="Acesso às configurações do sistema">
     <a class="management-login-back" href="{{ url_for('auth.login_form') }}" aria-label="Voltar ao portal">
         <i class="bi bi-gear-fill" aria-hidden="true"></i>
     </a>
@@ -991,7 +991,7 @@
     </div>
 </section>
 {% else %}
-<a class="login-management-entry" href="{{ url_for('auth.login_form') }}?gestao=1" data-module="gestao" data-module-title="Gestão" aria-label="Acesso gerencial">
+<a class="login-management-entry" href="{{ url_for('auth.login_form') }}?gestao=1" data-module="gestao" data-module-title="Configurações" aria-label="Acesso às configurações do sistema">
     <i class="bi bi-gear-fill" aria-hidden="true"></i>
 </a>
 <div class="login-module-feedback" id="login-module-feedback" role="status" aria-live="polite"></div>
@@ -1372,7 +1372,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function moduleAccessMessage(moduleName, moduleTitle) {
         if (moduleName === 'gestao') {
-            return 'Acesso gerencial';
+            return 'Acesso às configurações do sistema';
         }
         return 'Acesso ao ' + (moduleTitle || moduleName || 'módulo');
     }
@@ -1396,7 +1396,7 @@ document.addEventListener('DOMContentLoaded', function () {
         managementEntry.addEventListener('click', function (event) {
             event.preventDefault();
             revealLoginShell(managementEntry.dataset.module || 'gestao');
-            showPortalFeedback(moduleAccessMessage(managementEntry.dataset.module || 'gestao', managementEntry.dataset.moduleTitle || 'Gestão'));
+            showPortalFeedback(moduleAccessMessage(managementEntry.dataset.module || 'gestao', managementEntry.dataset.moduleTitle || 'Configurações'));
         });
     }
 

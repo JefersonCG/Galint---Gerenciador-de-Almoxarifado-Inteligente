@@ -209,6 +209,10 @@
     width: 100%;
 }
 
+.general-search-scope-switch.is-admin-mode {
+    grid-template-columns: 1fr;
+}
+
 .general-search-scope-btn {
     display: inline-flex;
     align-items: center;
@@ -837,6 +841,22 @@
 
 .general-search-modal.is-results-mode .general-search-body {
     gap: 0.8rem;
+}
+
+#modalPesquisaGeral[data-search-mode="administracao"] .general-search-modal {
+    background:
+        linear-gradient(180deg, rgba(242, 247, 255, 0.98), rgba(226, 236, 249, 0.96) 46%, rgba(214, 228, 244, 0.98) 100%);
+    border-color: rgba(59, 130, 246, 0.2);
+    color: #0f172a;
+    box-shadow: 0 30px 82px rgba(15, 23, 42, 0.34);
+}
+
+#modalPesquisaGeral[data-search-mode="administracao"] .general-search-header {
+    background: linear-gradient(180deg, rgba(239, 246, 255, 0.98), rgba(218, 231, 248, 0.95));
+}
+
+#modalPesquisaGeral[data-search-mode="administracao"] .general-search-body {
+    background: linear-gradient(180deg, rgba(232, 240, 252, 0.62), rgba(219, 234, 254, 0.5));
 }
 
 @media (max-width: 1279.98px) {

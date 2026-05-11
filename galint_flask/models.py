@@ -1,10 +1,10 @@
 """SQLAlchemy models mirroring the legacy schema."""
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time as dt_time, timedelta
 
 from flask_login import UserMixin
-from sqlalchemy import BigInteger, Boolean, CheckConstraint, Date, DateTime, Enum, Float, ForeignKey, Integer, String, Text, UniqueConstraint, func, inspect as sa_inspect
+from sqlalchemy import BigInteger, Boolean, CheckConstraint, Date, DateTime, Enum, Float, ForeignKey, Integer, String, Text, Time, UniqueConstraint, func, inspect as sa_inspect
 from sqlalchemy.dialects.postgresql import INET, JSONB, UUID
 from sqlalchemy.orm import Mapped, backref, mapped_column, relationship, validates
 from sqlalchemy.types import TypeDecorator
@@ -49,6 +49,148 @@ class InventoryCategory(db.Model):
             "criado_em": self.criado_em.isoformat() if self.criado_em else None,
             "atualizado_em": self.atualizado_em.isoformat() if self.atualizado_em else None,
         }
+
+
+class CondominiumBuilding(db.Model):
+    __tablename__ = "condominium_buildings"
+    __table_args__ = (
+        UniqueConstraint("code", name="uq_condominium_buildings_code"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    code: Mapped[str] = mapped_column(String(30), nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+    display_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    floor_start: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    floor_count: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    units_per_floor: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    unit_suffix_start: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    suffix_width: Mapped[int] = mapped_column(Integer, nullable=False, default=2)
+    numbering_mode: Mapped[str] = mapped_column(String(30), nullable=False, default="floor_suffix")
+    custom_units_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, index=True)
+    created_by_matricula: Mapped[str | None] = mapped_column(ForeignKey("usuarios.matricula", ondelete="SET NULL"), nullable=True)
+    updated_by_matricula: Mapped[str | None] = mapped_column(ForeignKey("usuarios.matricula", ondelete="SET NULL"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
+
+    units: Mapped[list["CondominiumUnit"]] = relationship(
+        "CondominiumUnit",
+        back_populates="building",
+        cascade="all, delete-orphan",
+        order_by="CondominiumUnit.floor_number.desc(), CondominiumUnit.position.asc(), CondominiumUnit.number.asc()",
+    )
+    created_by: Mapped["Usuario | None"] = relationship("Usuario", foreign_keys=[created_by_matricula])
+    updated_by: Mapped["Usuario | None"] = relationship("Usuario", foreign_keys=[updated_by_matricula])
+
+    def display_name(self) -> str:
+        code = (self.code or "").strip()
+        name = (self.name or "").strip()
+        return f"{code} - {name}" if code else name
+
+
+class CondominiumUnit(db.Model):
+    __tablename__ = "condominium_units"
+    __table_args__ = (
+        UniqueConstraint("building_id", "number", name="uq_condominium_units_building_number"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    building_id: Mapped[int] = mapped_column(ForeignKey("condominium_buildings.id", ondelete="CASCADE"), nullable=False, index=True)
+    number: Mapped[str] = mapped_column(String(40), nullable=False)
+    floor_number: Mapped[int] = mapped_column(Integer, nullable=False, default=1, index=True)
+    position: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="vago", index=True)
+    unit_type: Mapped[str] = mapped_column(String(30), nullable=False, default="residencial")
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
+
+    building: Mapped[CondominiumBuilding] = relationship("CondominiumBuilding", back_populates="units")
+    owners: Mapped[list["CondominiumOwner"]] = relationship("CondominiumOwner", back_populates="unit", order_by="CondominiumOwner.full_name.asc()")
+
+    def full_label(self) -> str:
+        building_name = self.building.display_name() if self.building else "Bloco"
+        return f"{building_name} / Unidade {self.number}"
+
+
+class CondominiumOwner(db.Model):
+    __tablename__ = "condominium_owners"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    unit_id: Mapped[int | None] = mapped_column(ForeignKey("condominium_units.id", ondelete="SET NULL"), nullable=True, index=True)
+    relationship_type: Mapped[str] = mapped_column(String(30), nullable=False, default="proprietario", index=True)
+    person_type: Mapped[str] = mapped_column(String(20), nullable=False, default="fisica")
+    full_name: Mapped[str] = mapped_column(String(180), nullable=False, index=True)
+    document_number: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    rg: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    cnh: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    phone: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    email: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    correspondence_address: Mapped[str | None] = mapped_column(Text, nullable=True)
+    emergency_contact: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    occupancy_status: Mapped[str] = mapped_column(String(30), nullable=False, default="nao_informado")
+    photo_path: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    lgpd_authorized: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="ativo", index=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_by_matricula: Mapped[str | None] = mapped_column(ForeignKey("usuarios.matricula", ondelete="SET NULL"), nullable=True)
+    updated_by_matricula: Mapped[str | None] = mapped_column(ForeignKey("usuarios.matricula", ondelete="SET NULL"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
+
+    unit: Mapped[CondominiumUnit | None] = relationship("CondominiumUnit", back_populates="owners")
+    created_by: Mapped["Usuario | None"] = relationship("Usuario", foreign_keys=[created_by_matricula])
+    updated_by: Mapped["Usuario | None"] = relationship("Usuario", foreign_keys=[updated_by_matricula])
+
+
+class CondominiumScheduleEvent(db.Model):
+    __tablename__ = "condominium_schedule_events"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    event_date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
+    start_time: Mapped[dt_time | None] = mapped_column(Time, nullable=True)
+    end_time: Mapped[dt_time | None] = mapped_column(Time, nullable=True)
+    title: Mapped[str] = mapped_column(String(180), nullable=False)
+    event_type: Mapped[str] = mapped_column(String(40), nullable=False, default="compromisso", index=True)
+    scope: Mapped[str] = mapped_column(String(40), nullable=False, default="administracao", index=True)
+    status: Mapped[str] = mapped_column(String(24), nullable=False, default="agendado", index=True)
+    priority: Mapped[str] = mapped_column(String(20), nullable=False, default="normal")
+    building_id: Mapped[int | None] = mapped_column(ForeignKey("condominium_buildings.id", ondelete="SET NULL"), nullable=True, index=True)
+    unit_id: Mapped[int | None] = mapped_column(ForeignKey("condominium_units.id", ondelete="SET NULL"), nullable=True, index=True)
+    owner_id: Mapped[int | None] = mapped_column(ForeignKey("condominium_owners.id", ondelete="SET NULL"), nullable=True, index=True)
+    contact_name: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    contact_phone: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    location: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    notify_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    reminder_minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=30)
+    notification_acknowledged_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    created_by_matricula: Mapped[str | None] = mapped_column(ForeignKey("usuarios.matricula", ondelete="SET NULL"), nullable=True)
+    updated_by_matricula: Mapped[str | None] = mapped_column(ForeignKey("usuarios.matricula", ondelete="SET NULL"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now(), onupdate=func.now())
+
+    building: Mapped[CondominiumBuilding | None] = relationship("CondominiumBuilding")
+    unit: Mapped[CondominiumUnit | None] = relationship("CondominiumUnit")
+    owner: Mapped[CondominiumOwner | None] = relationship("CondominiumOwner")
+    created_by: Mapped["Usuario | None"] = relationship("Usuario", foreign_keys=[created_by_matricula])
+    updated_by: Mapped["Usuario | None"] = relationship("Usuario", foreign_keys=[updated_by_matricula])
+
+    def time_label(self) -> str:
+        start = self.start_time.strftime("%H:%M") if self.start_time else "Dia todo"
+        if self.end_time:
+            return f"{start} - {self.end_time.strftime('%H:%M')}"
+        return start
+
+    def related_label(self) -> str:
+        if self.unit:
+            return self.unit.full_label()
+        if self.building:
+            return self.building.display_name()
+        return "Condomínio"
 
 
 class Item(db.Model):

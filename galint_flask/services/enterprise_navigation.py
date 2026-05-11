@@ -46,11 +46,12 @@ def build_enterprise_sections(*, is_admin: bool) -> list[dict[str, Any]]:
     sections = [
         _section(
             "condominio",
-            "Condominio",
+            "Condomínio",
             "bi-buildings",
             "enterpriseCondominioMenu",
             [
-                _item("Cadastros", _optional_url("pages.admin_condominium_registry"), "bi-person-vcard", "ADM-001", "Cadastro", "cyan"),
+                _item("Editor de Edifício", _optional_url("pages.admin_condominium_blocks_editor"), "bi-building-gear", "ADM-000", "Estrutura", "cyan"),
+                _item("Cadastro de Morador", _optional_url("pages.admin_condominium_registry"), "bi-person-vcard", "ADM-001", "Cadastro", "cyan"),
                 _item("Agendamentos", _optional_url("pages.admin_condominium_schedule"), "bi-calendar2-week", "ADM-002", "Agenda", "amber"),
                 _item("Prestadores", _optional_url("pages.admin_service_providers"), "bi-building-check", "ADM-003", "Serviços", "green"),
             ],
@@ -105,14 +106,25 @@ def build_enterprise_sections(*, is_admin: bool) -> list[dict[str, Any]]:
         ),
         _section(
             "sistema",
-            "Sistema",
+            "Configurações",
             "bi-sliders",
             "enterpriseSistemaMenu",
             [
+                _item("Configurações", _optional_url("pages.config"), "bi-gear-fill", "SYS-000", "Sistema", "cyan"),
+                _item("Imagens do Sistema", _optional_url("config.imagens"), "bi-images", "SYS-IMG", "Visual", "cyan"),
                 _item("Empresa", _optional_url("config.empresa"), "bi-building", "SYS-001", "Core", "cyan"),
                 _item("Relatórios", _optional_url("config.relatorios"), "bi-file-earmark-text", "SYS-002", "Core", "cyan"),
                 _item("Atualizações", _optional_url("updates.index"), "bi-arrow-clockwise", "SYS-003", "Core", "amber"),
                 _item("Rede", _optional_url("pages.config_rede"), "bi-wifi", "SYS-004", "Core", "amber"),
+                _item("Usuários", _optional_url("users.list_users", enabled=is_admin), "bi-people-fill", "SYS-006", "Acesso", "violet"),
+                _item(
+                    "Painel Mobile",
+                    _optional_url("mobile_panel.dashboard", enabled=mobile_panel_enabled),
+                    "bi-phone-fill",
+                    "SYS-007",
+                    "Mobile",
+                    "violet",
+                ),
                 _item("Checklist Final", _optional_url("pages.backup_final_checklist"), "bi-clipboard2-check", "SYS-005", "Core", "green"),
             ],
         ),

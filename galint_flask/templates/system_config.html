@@ -1,0 +1,208 @@
+{% extends "base.html" %}
+{% set hide_navigation = true %}
+{% set hide_topbar = true %}
+{% set disable_global_tools = true %}
+{% block title %}Configurações{% endblock %}
+{% block body_class %}system-config-page{% endblock %}
+{% block page_header %}{% endblock %}
+{% block extra_css %}
+<style>
+    body.system-config-page {
+        background: #e4e9ef;
+    }
+
+    body.system-config-page .app-body {
+        min-height: 100vh;
+        background: linear-gradient(180deg, #e4e9ef 0%, #cfd8e3 100%);
+    }
+
+    body.system-config-page .content-panel {
+        width: 100%;
+        max-width: none;
+        min-height: 100vh;
+        background: rgba(248, 250, 252, 0.78);
+        border-left: 0;
+        box-shadow: none;
+    }
+
+    .system-config-shell {
+        display: grid;
+        gap: 1rem;
+        color: #0f172a;
+    }
+
+    .system-config-header {
+        display: flex;
+        align-items: end;
+        justify-content: space-between;
+        gap: 1rem;
+        flex-wrap: wrap;
+        padding-bottom: 0.8rem;
+        border-bottom: 1px solid rgba(15, 23, 42, 0.12);
+    }
+
+    .system-config-kicker {
+        margin: 0 0 0.24rem;
+        color: #0369a1;
+        font-size: 0.74rem;
+        font-weight: 850;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .system-config-title {
+        margin: 0;
+        font-size: clamp(1.7rem, 3vw, 2.35rem);
+        line-height: 1;
+        font-weight: 950;
+        letter-spacing: 0;
+    }
+
+    .system-config-count {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.42rem;
+        min-height: 2rem;
+        padding: 0.34rem 0.72rem;
+        border-radius: 999px;
+        background: #0f172a;
+        color: #f8fafc;
+        font-size: 0.76rem;
+        font-weight: 850;
+        white-space: nowrap;
+    }
+
+    .system-config-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+        gap: 0.9rem;
+        align-items: start;
+    }
+
+    .system-config-section {
+        display: grid;
+        gap: 0.55rem;
+        min-width: 0;
+    }
+
+    .system-config-section-title {
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+        margin: 0;
+        color: #1e293b;
+        font-size: 0.82rem;
+        font-weight: 900;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+    }
+
+    .system-config-section-title i {
+        color: #0284c7;
+    }
+
+    .system-config-links {
+        display: grid;
+        gap: 0.5rem;
+    }
+
+    .system-config-link {
+        display: grid;
+        grid-template-columns: 2.35rem minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 0.62rem;
+        min-height: 3.25rem;
+        padding: 0.58rem 0.72rem;
+        border: 1px solid rgba(15, 23, 42, 0.12);
+        border-radius: 8px;
+        background: rgba(248, 250, 252, 0.92);
+        color: #0f172a;
+        text-decoration: none;
+        box-shadow: 0 10px 20px rgba(15, 23, 42, 0.08);
+    }
+
+    .system-config-link:hover,
+    .system-config-link:focus-visible {
+        color: #0369a1;
+        border-color: rgba(14, 165, 233, 0.36);
+        outline: none;
+    }
+
+    .system-config-icon {
+        width: 2.25rem;
+        height: 2.25rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 8px;
+        background: #0f172a;
+        color: #7dd3fc;
+        font-size: 1.02rem;
+    }
+
+    .system-config-label {
+        display: grid;
+        gap: 0.08rem;
+        min-width: 0;
+    }
+
+    .system-config-label strong {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 0.94rem;
+        font-weight: 900;
+    }
+
+    .system-config-label span {
+        color: #64748b;
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+    }
+
+    .system-config-link > .bi-arrow-right-short {
+        color: #64748b;
+        font-size: 1.3rem;
+    }
+
+    @media (max-width: 575.98px) {
+        .system-config-link {
+            grid-template-columns: 2.35rem minmax(0, 1fr);
+        }
+
+        .system-config-link > .bi-arrow-right-short {
+            display: none;
+        }
+    }
+</style>
+{% endblock %}
+{% block content %}
+<div class="system-config-shell">
+    <header class="system-config-header">
+        <div>
+            <p class="system-config-kicker">Engrenagem</p>
+            <h1 class="system-config-title">Configurações do Sistema</h1>
+        </div>
+        <span class="system-config-count"><i class="bi bi-sliders"></i> {{ system_settings.total_items }} acessos</span>
+    </header>
+
+    <section class="system-config-grid" aria-label="Configurações do sistema">
+        {% for section in system_settings.sections %}
+        <div class="system-config-section">
+            <h2 class="system-config-section-title"><i class="bi {{ section['icon'] }}"></i> {{ section['label'] }}</h2>
+            <div class="system-config-links">
+                {% for item in section['items'] %}
+                <a class="system-config-link" href="{{ item['href'] }}">
+                    <span class="system-config-icon"><i class="bi {{ item['icon'] }}"></i></span>
+                    <span class="system-config-label"><strong>{{ item['label'] }}</strong><span>{{ item['family'] }}</span></span>
+                    <i class="bi bi-arrow-right-short" aria-hidden="true"></i>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </section>
+</div>
+{% endblock %}
