@@ -133,6 +133,8 @@ class CondominiumOwner(db.Model):
     emergency_contact: Mapped[str | None] = mapped_column(String(160), nullable=True)
     occupancy_status: Mapped[str] = mapped_column(String(30), nullable=False, default="nao_informado")
     photo_path: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    registry_data_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    attachment_checklist_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     lgpd_authorized: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="ativo", index=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
