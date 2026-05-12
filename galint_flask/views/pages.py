@@ -504,7 +504,8 @@ def _build_system_settings_hub(*, is_admin: bool) -> dict[str, object]:
                 _system_setting_item("Relatórios", "config.relatorios", "bi-file-earmark-text", "Core"),
                 _system_setting_item("Atualizações", "updates.index", "bi-arrow-clockwise", "Core"),
                 _system_setting_item("Rede", "pages.config_rede", "bi-wifi", "Core"),
-                _system_setting_item("Checklist Final", "pages.backup_final_checklist", "bi-clipboard2-check", "Core"),
+                _system_setting_item("Backup", "pages.config_backup", "bi-database", "Dados"),
+                _system_setting_item("ConversionEngine", "pages.config_conversionengine", "bi-cpu", "Restore", enabled=is_admin),
             ],
         ),
         _system_setting_section(
@@ -514,8 +515,6 @@ def _build_system_settings_hub(*, is_admin: bool) -> dict[str, object]:
                 _system_setting_item("Notificações", "config.notificacoes", "bi-bell", "Alertas"),
                 _system_setting_item("Telegram", "telegram_config.index", "bi-telegram", "Mensageria"),
                 _system_setting_item("Histórico Telegram", "telegram_config.historico", "bi-clock-history", "Mensageria"),
-                _system_setting_item("Backup", "pages.config_backup", "bi-database", "Dados"),
-                _system_setting_item("ConversionEngine", "pages.config_conversionengine", "bi-cpu", "Restore", enabled=is_admin),
             ],
         ),
         _system_setting_section(

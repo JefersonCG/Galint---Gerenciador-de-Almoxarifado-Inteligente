@@ -125,7 +125,8 @@ def build_enterprise_sections(*, is_admin: bool) -> list[dict[str, Any]]:
                     "Mobile",
                     "violet",
                 ),
-                _item("Checklist Final", _optional_url("pages.backup_final_checklist"), "bi-clipboard2-check", "SYS-005", "Core", "green"),
+                _item("Backup", _optional_url("pages.config_backup"), "bi-database", "SYS-008", "Dados", "amber"),
+                _item("ConversionEngine", _optional_url("pages.config_conversionengine", enabled=is_admin), "bi-cpu", "SYS-009", "Restore", "violet"),
             ],
         ),
         _section(
@@ -137,8 +138,6 @@ def build_enterprise_sections(*, is_admin: bool) -> list[dict[str, Any]]:
                 _item("Notificações", _optional_url("config.notificacoes"), "bi-broadcast-pin", "OPS-001", "Integração", "green"),
                 _item("Telegram", _optional_url("telegram_config.index"), "bi-telegram", "OPS-002", "Integração", "cyan"),
                 _item("Histórico Telegram", _optional_url("telegram_config.historico"), "bi-clock-history", "OPS-003", "Integração", "cyan"),
-                _item("Backup", _optional_url("pages.config_backup"), "bi-database", "OPS-004", "Infra", "amber"),
-                _item("ConversionEngine", _optional_url("pages.config_conversionengine"), "bi-cpu", "OPS-005", "Infra", "violet"),
             ],
         ),
         _section(

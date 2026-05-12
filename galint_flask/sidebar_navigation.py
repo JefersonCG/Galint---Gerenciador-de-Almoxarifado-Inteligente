@@ -116,6 +116,11 @@ def _build_messenger_navigation(path: str) -> list[dict[str, Any]]:
 def _build_system_settings_navigation(path: str, *, is_admin: bool) -> list[dict[str, Any]]:
     entries: list[dict[str, Any]] = []
     sobre_url = _optional_url("pages.sobre")
+    if not is_admin:
+        if sobre_url:
+            entries.append(_link_item("Sobre", sobre_url, "bi-info-circle", path == sobre_url))
+        return entries
+
     mobile_panel_enabled = is_admin and bool(current_app.config.get("FEATURE_MOBILE_PANEL_ENABLED", False))
 
     config_root_url = _optional_url("pages.config")
@@ -398,7 +403,7 @@ def build_sidebar_navigation() -> dict[str, Any]:
         power_bi_active = _path_matches_any(path, [analytics_url if is_admin else None, consumo_painel_url, valor_estoque_url])
         entries.append(_group_item("Power BI", "bi-pie-chart-fill", "powerBiMenu", power_bi_active, power_bi_children))
 
-    if has_management_access:
+    if is_admin:
         entries.append({"type": "divider"})
         configuracoes_children: list[dict[str, Any]] = []
         if config_root_url:
