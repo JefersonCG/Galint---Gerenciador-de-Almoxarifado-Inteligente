@@ -1,8 +1,6 @@
-"""Serviço para envio de mensagens via Telegram Bot API."""
+﻿"""Serviço para envio de mensagens via Telegram Bot API."""
 
 from __future__ import annotations
-
-
 
 import logging
 
@@ -25,6 +23,8 @@ import os
 
 
 import requests
+
+from flask import current_app
 
 
 
@@ -55,6 +55,8 @@ from ..models import (
     TelegramUser,
 
     Usuario,
+
+    WithdrawalIntention,
 
 )
 from .category_catalog import category_catalog_service
@@ -176,12 +178,12 @@ class TelegramService:
 
         )
 
-    
+
     @staticmethod
     def _fmt_number(value: float, decimals: int = 0) -> str:
         """
         Formata número com separador de milhar (ponto) e vírgula para decimal.
-        
+
         Exemplos:
             1000 → "1.000"
             1000.5 → "1.000,5" (se decimals > 0)
@@ -191,11 +193,11 @@ class TelegramService:
             value_f = float(value)
         except Exception:
             return "0"
-        
+
         # Se é número inteiro ou decimals=0, retornar como inteiro formatado
         if decimals == 0 or abs(value_f - round(value_f)) < 1e-9:
             return f"{int(round(value_f)):,}".replace(",", ".")
-        
+
         # Caso contrário, formatar com decimais (vírgula para decimal, ponto para milhar)
         formatted = f"{value_f:,.{decimals}f}".replace(",", "X").replace(".", ",").replace("X", ".")
         return formatted.rstrip("0").rstrip(",")
@@ -377,7 +379,7 @@ class TelegramService:
 
         return recipients
 
-    
+
 
     @staticmethod
 
@@ -385,7 +387,7 @@ class TelegramService:
 
         """Verifica se o usuário deve receber notificação baseado em suas preferências.
 
-        
+
 
         Args:
 
@@ -395,7 +397,7 @@ class TelegramService:
 
             is_return: True se for devolução, False se for retirada
 
-            
+
 
         Returns:
 
@@ -601,7 +603,7 @@ class TelegramService:
                     "reason": "recent_same_message",
                     "notification_id": recent_same.id,
                 }
-            
+
             # Verificação também na tabela TelegramOutbox (fila de pendentes)
             recent_pending = (
                 db.session.query(TelegramOutbox)
@@ -1888,7 +1890,7 @@ class TelegramService:
 
             payload = {"url": webhook_url}
 
-            
+
 
             response = requests.post(url, json=payload, timeout=10)
 
@@ -1992,7 +1994,7 @@ class TelegramService:
 
                 params["allowed_updates"] = allowed_updates
 
-            
+
 
             response = requests.get(url, params=params, timeout=timeout + 5)
 
@@ -2081,11 +2083,11 @@ class TelegramService:
     @staticmethod
     def send_alert_to_user(nome_usuario: str, mensagem: str) -> bool:
         """Envia alerta para um usuário específico do Telegram pelo nome.
-        
+
         Args:
             nome_usuario: Nome do usuário no banco (ex: "Jeferson dos Santos")
             mensagem: Texto da mensagem a enviar (HTML)
-            
+
         Returns:
             bool: True se enviado com sucesso
         """
@@ -2094,30 +2096,30 @@ class TelegramService:
             usuario = db.session.query(Usuario).filter(
                 func.upper(Usuario.nome) == nome_usuario.upper()
             ).first()
-            
+
             if not usuario:
                 logger.warning(f"Usuário não encontrado: {nome_usuario}")
                 return False
-            
+
             # Buscar configuração Telegram do usuário
             telegram_user = db.session.query(TelegramUser).filter_by(
                 matricula=usuario.matricula,
                 enabled=True
             ).first()
-            
+
             if not telegram_user:
                 logger.warning(f"Usuário {nome_usuario} não tem Telegram configurado")
                 return False
-            
+
             # Enviar mensagem
             result = TelegramService.send_message(
                 chat_id=telegram_user.chat_id,
                 text=mensagem,
                 parse_mode="HTML"
             )
-            
+
             return result.get("success", False)
-            
+
         except Exception as e:
             logger.error(f"Erro ao enviar alerta para {nome_usuario}: {e}")
             return False
@@ -2175,6 +2177,7 @@ class TelegramService:
         *,
         caption: str | None = None,
         parse_mode: str | None = "HTML",
+        reply_markup: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
 
         config = TelegramService.get_config()
@@ -2193,6 +2196,8 @@ class TelegramService:
                 data["caption"] = caption
             if parse_mode:
                 data["parse_mode"] = parse_mode
+            if reply_markup:
+                data["reply_markup"] = json.dumps(reply_markup, ensure_ascii=False)
 
             if re.match(r"^https?://", photo, flags=re.IGNORECASE):
                 data["photo"] = photo
@@ -2508,7 +2513,7 @@ class TelegramService:
     def _format_balance_totals(item: Item, prefix: str = "   ", saldo_override: float = None) -> str:
 
         """Gera linhas de saldo total em Kg/Litros/Metros e detalhes de caixa/pacote.
-        
+
         Args:
             item: Item do estoque
             prefix: Prefixo para cada linha
@@ -2616,7 +2621,7 @@ class TelegramService:
 
             nome_singular = "caixa" if tipo_emb == "caixa" else ("fardo" if tipo_emb == "fardo" else ("saco" if tipo_emb == "saco" else "pacote"))
 
-            
+
             # Modelo 3: Formato hierárquico detalhado
 
             lines.append(f"{prefix}📦 Total de {nome.lower()}: {TelegramService._fmt_number(embalagens)}")
@@ -2746,7 +2751,7 @@ class TelegramService:
             "líquido": "💧",
         }
         emoji = emoji_map.get(categoria.lower(), "📦")
-        
+
         # Determinar se é ferramenta ou material
         is_ferramenta = "ferrament" in categoria.lower()
         tipo_item = "🔧 FERRAMENTA" if is_ferramenta else "📦 MATERIAL"
@@ -2815,7 +2820,7 @@ class TelegramService:
             "líquido": "💧",
         }
         emoji = emoji_map.get(categoria.lower(), "📦")
-        
+
         # Determinar se é ferramenta ou material
         is_ferramenta = "ferrament" in categoria.lower()
         tipo_item = "🔧 FERRAMENTA" if is_ferramenta else "📦 MATERIAL"
@@ -3209,7 +3214,7 @@ class TelegramService:
 
         local = (saidas[0].local_servico or "NÃO INFORMADO").strip() or "NÃO INFORMADO"
 
-        
+
 
         msg = f"⚠️ <b>RETIRADA MÚLTIPLA DE MATERIAL</b>\n\n"
 
@@ -3248,7 +3253,7 @@ class TelegramService:
 
             categoria = (item.categoria or "Geral").strip() or "Geral"
 
-            
+
 
             # Emoji baseado na categoria
 
@@ -3292,7 +3297,7 @@ class TelegramService:
                 for line in reference_lines:
                     msg += f"{line}\n"
 
-            
+
 
             # Saldo restante
 
@@ -3654,7 +3659,7 @@ class TelegramService:
 
         devolvedor = entradas[0].usuario
 
-        
+
 
         if is_devolucao:
 
@@ -3678,7 +3683,7 @@ class TelegramService:
 
             msg = f"📥 <b>ENTRADA MÚLTIPLA DE MATERIAL</b>\n\n"
 
-        
+
 
         msg += f"📦 <b>Total de itens:</b> {len(entradas)}\n"
 
@@ -3702,7 +3707,7 @@ class TelegramService:
 
             categoria = (item.categoria or "Geral").strip() or "Geral"
 
-            
+
 
             # Emoji baseado na categoria
 
@@ -3734,7 +3739,7 @@ class TelegramService:
 
             msg += f"   🏷️ {categoria}\n"
 
-            
+
 
             # Para devolução múltipla, não usar o símbolo + (acréscimo)
 
@@ -3746,7 +3751,7 @@ class TelegramService:
 
                 msg += f"   📊 Qtd: <b>+{entrada.quantidade}</b> {item.unidade or 'un'}\n"
 
-            
+
 
             # Saldo após entrada/devolução
 
@@ -3922,7 +3927,7 @@ class TelegramService:
 
         data_fmt = TimeService.format_local(eventos[0].data_evento)
 
-        
+
 
         msg = f"🔄 <b>AJUSTE MÚLTIPLO DE INVENTÁRIO</b>\n\n"
 
@@ -3940,7 +3945,7 @@ class TelegramService:
 
             item = Item.query.filter_by(codigo_item=evento.codigo_item).first() if evento.codigo_item else None
 
-            
+
 
             if item:
 
@@ -3958,7 +3963,7 @@ class TelegramService:
 
                 unidade = 'un'
 
-            
+
 
             # Emoji baseado na categoria
 
@@ -4000,13 +4005,13 @@ class TelegramService:
 
             msg += f"   📝 Tipo: {evento.tipo or 'Ajuste'}\n"
 
-            
+
 
             if evento.descricao:
 
                 msg += f"   💬 Obs: {evento.descricao[:50]}\n"
 
-            
+
 
             # Saldo após ajuste
 
@@ -4266,7 +4271,7 @@ class TelegramService:
 
                                 update_id = update.get("update_id") or 0
 
-                                
+
 
                                 # Handle Message
 
@@ -4284,7 +4289,7 @@ class TelegramService:
 
                                             pass
 
-                                
+
 
                                 # Handle Callback Query (fixes buttons not working)
 
@@ -4358,7 +4363,7 @@ class TelegramService:
 
     _last_withdrawal_time: dict[str, datetime] = {}
 
-    
+
 
     @staticmethod
 
@@ -4370,7 +4375,7 @@ class TelegramService:
 
         from flask_login import current_user
 
-        
+
 
         # Usar ID da sessão Flask + matrícula do usuário
 
@@ -4380,7 +4385,7 @@ class TelegramService:
 
         return f"{user_id}:{session_id}"
 
-    
+
 
     @staticmethod
 
@@ -4390,7 +4395,7 @@ class TelegramService:
 
         from datetime import timedelta
 
-        
+
 
         last_time = TelegramService._last_withdrawal_time.get(session_key)
 
@@ -4398,7 +4403,7 @@ class TelegramService:
 
             return False
 
-        
+
 
         # Agrupar se última saída foi há menos de 60 segundos
 
@@ -4406,7 +4411,7 @@ class TelegramService:
 
         return (datetime.utcnow() - last_time) < time_window
 
-    
+
 
     @staticmethod
 
@@ -4422,7 +4427,7 @@ class TelegramService:
 
         TelegramService._last_withdrawal_time[session_key] = datetime.utcnow()
 
-    
+
 
     @staticmethod
 
@@ -4442,7 +4447,7 @@ class TelegramService:
 
         return saidas
 
-    
+
 
     @staticmethod
 
@@ -4457,7 +4462,7 @@ class TelegramService:
 
         """Envia notificações para retirada de ferramenta.
 
-        
+
 
         Args:
 
@@ -4467,7 +4472,7 @@ class TelegramService:
 
         """
         logger.debug(f"[notify_withdrawal] Chamada recebida para saida_id={saida_id}, force_single={force_single}")
-        
+
         if not TelegramService.is_enabled():
 
             return {"success": False, "error": "Telegram não está habilitado"}
@@ -4498,7 +4503,7 @@ class TelegramService:
         )
         media_payload = operation_visual_payload_service.build_media_payload(visual_payload)
 
-        
+
 
         # AGRUPAMENTO: Detectar múltiplas saídas em sequência
 
@@ -4508,7 +4513,7 @@ class TelegramService:
 
                 session_key = TelegramService._get_session_key()
 
-                
+
 
                 # Verificar se deve agrupar (já houve saída recente)
 
@@ -4712,12 +4717,12 @@ class TelegramService:
     @staticmethod
     def notify_permanent_custody(saida_id: int) -> dict[str, Any]:
         """Envia notificações para custódia permanente de ferramenta.
-        
+
         Args:
             saida_id: ID da saída registrada com tipo_custodia='permanente'
         """
         logger.debug(f"[notify_permanent_custody] Chamada recebida para saida_id={saida_id}")
-        
+
         if not TelegramService.is_enabled():
             return {"success": False, "error": "Telegram não está habilitado"}
 
@@ -4818,13 +4823,13 @@ class TelegramService:
 
         """Finaliza e envia notificações para saídas agrupadas pendentes.
 
-        
+
 
         Args:
 
             session_key: Chave da sessão (se None, usa sessão atual)
 
-        
+
 
         Returns:
 
@@ -4842,19 +4847,19 @@ class TelegramService:
 
                 return {"success": False, "error": "Não foi possível obter chave da sessão"}
 
-        
+
 
         # Obter e limpar pendentes
 
         pending_ids = TelegramService._get_and_clear_pending(session_key)
 
-        
+
 
         if not pending_ids:
 
             return {"success": True, "message": "Nenhuma saída pendente"}
 
-        
+
 
         # Se houver apenas 1 saída, enviar notificação individual
 
@@ -4862,7 +4867,7 @@ class TelegramService:
 
             return TelegramService.notify_withdrawal(pending_ids[0], force_single=True)
 
-        
+
 
         # Se houver 2 ou mais, enviar notificação múltipla
 
@@ -4880,7 +4885,7 @@ class TelegramService:
 
         }
 
-    
+
 
     @staticmethod
 
@@ -4942,7 +4947,7 @@ class TelegramService:
 
             titulo = f"DEVOLUÇÃO DE {categoria_titulo}"
 
-            
+
 
             msg = f"✅ <b>{titulo}</b>\n\n"
 
@@ -4970,7 +4975,7 @@ class TelegramService:
 
             msg = f"📥 <b>{titulo}</b>\n\n"
 
-        
+
 
         msg += f"📦 <b>Total de itens:</b> 1\n"
 
@@ -4992,7 +4997,7 @@ class TelegramService:
 
             msg += f"   📊 Qtd: <b>+{quantidade}</b> {unidade}\n"
 
-        
+
 
         # Saldo após entrada/devolução
 
@@ -5052,7 +5057,7 @@ class TelegramService:
 
                 msg += "\n" + totals
 
-        
+
 
         return msg
 
@@ -5408,7 +5413,7 @@ class TelegramService:
 
                         continue
 
-                
+
 
                 # Usar message_type e key apropriados para devolução
 
@@ -5424,7 +5429,7 @@ class TelegramService:
 
                     key = f"new_entry:{entrada_id}:admin:{admin.chat_id}"
 
-                
+
 
                 q = TelegramService.enqueue_outbox_message(
 
@@ -5990,7 +5995,7 @@ class TelegramService:
 
             saldo = item.get_saldo_atual()
 
-            
+
 
         data_fmt = TimeService.now_local().strftime("%d/%m/%Y %H:%M")
 
@@ -6105,7 +6110,7 @@ class TelegramService:
 
         """Notifica administradores que um novo item foi cadastrado.
 
-        
+
 
         Esta notificação é UNIFICADA e substitui as notificações separadas de:
 
@@ -6113,7 +6118,7 @@ class TelegramService:
 
         - new_entry (entrada inicial de estoque)
 
-        
+
 
         Formato: Model 1 - Compact and Direct
 
@@ -6141,7 +6146,7 @@ class TelegramService:
 
         data_cadastro = None
 
-        
+
 
         try:
 
@@ -6151,7 +6156,7 @@ class TelegramService:
 
             pass
 
-        
+
 
         if entrada_inicial:
 
@@ -6163,7 +6168,7 @@ class TelegramService:
 
                 data_cadastro = TimeService.format_local(entrada_inicial.data_entrada)
 
-        
+
 
         # Se não temos a entrada mas o item existe, buscar última entrada
 
@@ -6199,7 +6204,7 @@ class TelegramService:
 
                 pass
 
-        
+
 
         # Fallback para data atual se não conseguiu obter
 
@@ -6209,7 +6214,7 @@ class TelegramService:
 
             data_cadastro = TimeService.format_local(datetime.now())
 
-        
+
 
         # Emoji baseado na categoria
 
@@ -6239,7 +6244,7 @@ class TelegramService:
 
         # emoji = emoji_map.get(categoria_lower, "📦")
 
-        
+
 
         # Formatar estoque inicial
 
@@ -6247,7 +6252,7 @@ class TelegramService:
 
         unidade = item.unidade or 'un'
 
-        
+
 
         try:
 
@@ -6265,7 +6270,7 @@ class TelegramService:
 
             estoque_str = f"{saldo_inicial} {unidade}"
 
-        
+
 
         # FORMATO MODEL 1: Compact and Direct
 
@@ -6277,7 +6282,7 @@ class TelegramService:
 
         text += f"📊 Estoque inicial: <b>{estoque_str}</b>"
 
-        
+
 
         # Adicionar informações específicas de equipamento
 
@@ -6305,7 +6310,7 @@ class TelegramService:
 
                 text += f"\n└─ Local: {item.local_instalacao}"
 
-        
+
 
         text += "\n"
 
@@ -6455,7 +6460,7 @@ class TelegramService:
 
         houve_alteracao_dados = False
 
-        
+
 
         if prev:
 
@@ -6543,7 +6548,7 @@ class TelegramService:
 
         data_fmt = TimeService.now_local().strftime("%d/%m/%Y %H:%M")
 
-        
+
 
         text = f"{icone_tipo} <b>AJUSTE DE ESTOQUE - {tipo_ajuste}</b>\n\n"
 
@@ -6559,7 +6564,7 @@ class TelegramService:
 
         text += "\n━━━━━━━━━━━━━━━━━\n\n"
 
-        
+
 
         # Adicionar informações específicas de equipamento
 
@@ -6605,7 +6610,7 @@ class TelegramService:
 
             text += f"└─ Saldo atual: <b>{new_balance}</b> {item.unidade or 'un'}\n"
 
-            
+
 
             # Adicionar saldo em medidas para itens com embalagens
 
@@ -6629,7 +6634,7 @@ class TelegramService:
 
             text += f"💼 <b>Saldo atual:</b> {new_balance} {item.unidade or 'un'}"
 
-            
+
 
             # Adicionar saldo em medidas para itens com embalagens
 
@@ -6940,7 +6945,7 @@ class TelegramService:
             nome = html.escape(str(emp.get("nome") or "N/D"))
             matricula = html.escape(str(emp.get("matricula") or ""))
             setor = html.escape(str(emp.get("setor") or "N/D"))
-            
+
             # Card estruturado para cada funcionário
             body_lines.append("\n┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓")
             body_lines.append(f"┃ <b>{nome}</b>")
@@ -6948,19 +6953,19 @@ class TelegramService:
             body_lines.append(f"┃ Mat: <code>{matricula}</code>")
             body_lines.append(f"┃ Setor: {setor}")
             body_lines.append("┃")
-            
+
             for t in tools:
                 codigo = html.escape(str(t.get("codigo_item") or "-"))
                 desc = html.escape(str(t.get("descricao") or "Sem descrição"))
                 local = html.escape(str(t.get("local_servico") or "Não informado"))
                 days = int(t.get("days_in_use") or 0)
-                
+
                 body_lines.append(f"┃ 🔧 Item: <code>{codigo}</code>")
                 body_lines.append(f"┃    {desc}")
                 body_lines.append(f"┃    📍 {local} | ⏳ {days} dias")
                 if t != tools[-1]:  # Adiciona linha em branco entre itens, exceto no último
                     body_lines.append("┃")
-            
+
             body_lines.append("┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛")
 
         message_text = (header + "\n".join(body_lines)).strip()
@@ -7047,7 +7052,7 @@ class TelegramService:
 
             "Até amanhã! 👋",
 
-            
+
 
             "⏰ <b>17h - Hora de Descansar!</b> ⏰\n\n"
 
@@ -7057,7 +7062,7 @@ class TelegramService:
 
             "Nos vemos amanhã com energia renovada! 🚀",
 
-            
+
 
             "✨ <b>Expediente Encerrado!</b> ✨\n\n"
 
@@ -7067,7 +7072,7 @@ class TelegramService:
 
             "Tenha uma excelente noite! 🌙",
 
-            
+
 
             "🌟 <b>Fim do Dia de Trabalho!</b> 🌟\n\n"
 
@@ -7077,7 +7082,7 @@ class TelegramService:
 
             "Até logo! 👋",
 
-            
+
 
             "🎊 <b>17h00 - Hora de Ir!</b> 🎊\n\n"
 
@@ -7089,29 +7094,29 @@ class TelegramService:
 
         ]
 
-        
+
 
         message_text = random.choice(mensagens)
 
-        
+
 
         # Buscar todos os usuários Telegram ativos
 
         telegram_users = db.session.query(TelegramUser).filter_by(enabled=True).all()
 
-        
+
 
         if not telegram_users:
 
             return {"success": True, "sent": 0, "message": "Nenhum usuário Telegram ativo"}
 
-        
+
 
         results = {"sent": [], "failed": []}
 
         today_str = TimeService.now_local().date().isoformat()
 
-        
+
 
         for telegram_user in telegram_users:
 
@@ -7121,7 +7126,7 @@ class TelegramService:
 
                 recipient_name = usuario.nome if usuario else telegram_user.matricula
 
-                
+
 
                 key = f"end_of_workday:{today_str}:chat:{telegram_user.chat_id}"
 
@@ -7141,7 +7146,7 @@ class TelegramService:
 
                 )
 
-                
+
 
                 if q.get("success"):
 
@@ -7155,7 +7160,7 @@ class TelegramService:
 
                 results["failed"].append(f"chat_id {telegram_user.chat_id}: {str(e)}")
 
-        
+
 
         try:
 
@@ -7167,7 +7172,7 @@ class TelegramService:
 
             return {"success": False, "error": "Falha ao persistir mensagens"}
 
-        
+
 
         return {
 
@@ -7701,7 +7706,7 @@ class TelegramService:
 
                     "━━━━━━━━━━━━━━━━━━━━\n\n"
 
-                    "Escolha uma opção abaixo:" 
+                    "Escolha uma opção abaixo:"
 
                 ),
 
@@ -8499,13 +8504,13 @@ class TelegramService:
 
             descricao = (s.item.descricao if s.item else "Item removido") or "-"
 
-            
+
 
             # Formatar observação: sempre incluir local se existir
 
             obs_parts = []
 
-            
+
 
             # Se for fracionado, extrair apenas valor retirado e local
 
@@ -8517,7 +8522,7 @@ class TelegramService:
 
                 local = (s.local_servico or "").strip()
 
-                
+
 
                 fracao_info = []
 
@@ -8529,7 +8534,7 @@ class TelegramService:
 
                     fracao_info.append(f"{float(retirada_quilos):.2f}kg")
 
-                
+
 
                 if fracao_info:
 
@@ -8547,7 +8552,7 @@ class TelegramService:
 
                 obs_original = (s.observacao or "").strip()
 
-                
+
 
                 if local:
 
@@ -8557,7 +8562,7 @@ class TelegramService:
 
                     obs_parts.append(obs_original)
 
-            
+
 
             # Adicionar informação de devolução se houver
 
@@ -8567,11 +8572,11 @@ class TelegramService:
 
                 obs_parts.append(f"DEVOLUÇÃO: {devolvido_qtd:g}")
 
-            
+
 
             observacao = " | ".join(obs_parts) if obs_parts else "-"
 
-            
+
 
             data_fmt = _format_data_hora(s.data_saida)
 
@@ -8985,6 +8990,14 @@ class TelegramService:
 
 
 
+            if data.startswith("psug:"):
+
+                TelegramService._handle_purchase_suggestion_callback(chat_id, data)
+
+                return
+
+
+
             if data.startswith("details:"):
 
                 codigo_item = data.split(":", 1)[1].strip()
@@ -9027,7 +9040,7 @@ class TelegramService:
 
                     return
 
-                
+
 
                 # Limpar conversa anterior
 
@@ -9041,7 +9054,7 @@ class TelegramService:
 
                     db.session.rollback()
 
-                
+
 
                 # Iniciar fluxo com código de barras já preenchido
 
@@ -9049,7 +9062,7 @@ class TelegramService:
 
                 TelegramService._item_create_update(chat_id, "item_create:descricao", meta)
 
-                
+
 
                 TelegramService.send_message(
 
@@ -9165,6 +9178,14 @@ class TelegramService:
 
 
 
+            # Fallback de identificação por imagem sem código de barras.
+
+            if TelegramService._handle_image_identification_text(chat_id, t):
+
+                return True
+
+
+
             # Wrap handler logic to ensure exceptions are logged and an error
 
             # message is sent back to the user, avoiding silent failures.
@@ -9238,6 +9259,8 @@ class TelegramService:
             if norm in ("cancelar",) or t in ("❌ Cancelar",):
 
                 # Em reply keyboard, "Cancelar" volta ao menu principal
+
+                TelegramService._clear_image_identification_state(chat_id)
 
                 if TelegramService._is_privileged_user(user):
 
@@ -9675,7 +9698,7 @@ class TelegramService:
 
     # ---- Barcode scanning and withdrawal via Telegram ----
 
-    
+
 
     @staticmethod
 
@@ -9685,7 +9708,7 @@ class TelegramService:
 
         Verifica se o usuário tem permissão para fazer retiradas via Telegram.
 
-        
+
 
         Returns:
 
@@ -9697,19 +9720,19 @@ class TelegramService:
 
             telegram_user = db.session.query(TelegramUser).filter_by(
 
-                chat_id=str(chat_id), 
+                chat_id=str(chat_id),
 
                 enabled=True
 
             ).first()
 
-            
+
 
             if not telegram_user:
 
                 return False, None
 
-            
+
 
             # Verificar se tem permissão de retirada
 
@@ -9717,11 +9740,11 @@ class TelegramService:
 
                 return False, telegram_user
 
-            
+
 
             return True, telegram_user
 
-            
+
 
         except Exception as e:
 
@@ -9763,7 +9786,7 @@ class TelegramService:
 
             return False, None
 
-    
+
 
     @staticmethod
 
@@ -9773,13 +9796,13 @@ class TelegramService:
 
         Handler para comando /scanear - Instruções para escanear código de barras.
 
-        
+
 
         Args:
 
             chat_id: ID do chat do Telegram
 
-            
+
 
         Returns:
 
@@ -9793,7 +9816,7 @@ class TelegramService:
 
             can_withdraw, telegram_user = TelegramService._can_user_withdraw_via_telegram(chat_id)
 
-            
+
 
             if not telegram_user:
 
@@ -9811,7 +9834,7 @@ class TelegramService:
 
                 )
 
-            
+
 
             if not can_withdraw:
 
@@ -9829,7 +9852,7 @@ class TelegramService:
 
                 )
 
-            
+
 
             # Verificar se bibliotecas estão disponíveis
 
@@ -9837,11 +9860,25 @@ class TelegramService:
 
                 from ..utils.barcode_photo_processor import BarcodePhotoProcessor
 
-                
+
 
                 if not BarcodePhotoProcessor.is_available():
 
                     missing = BarcodePhotoProcessor.get_missing_libraries()
+
+                    action_hint = "Use os botões abaixo para sugerir compra, cadastrar ou buscar manualmente."
+
+                    if not suggestion_entry and allowed:
+
+                        action_hint = "Use os botões abaixo para cadastrar ou buscar manualmente."
+
+                    elif not suggestion_entry:
+
+                        action_hint = "Use /estoque para buscar manualmente."
+
+                    elif not allowed:
+
+                        action_hint = "Use os botões abaixo para sugerir compra ou buscar manualmente."
 
                     return TelegramService.send_message(
 
@@ -9875,7 +9912,7 @@ class TelegramService:
 
                 )
 
-            
+
 
             # Enviar instruções
 
@@ -9909,11 +9946,11 @@ class TelegramService:
 
             )
 
-            
+
 
             return TelegramService.send_message(chat_id, message, parse_mode="HTML")
 
-            
+
 
         except Exception as e:
 
@@ -9941,9 +9978,13 @@ class TelegramService:
 
         try:
 
+            if TelegramService._handle_image_identification_text(chat_id, text):
+
+                return {"success": True}
+
             can_withdraw, telegram_user = TelegramService._can_user_withdraw_via_telegram(chat_id)
 
-            
+
 
             if not telegram_user:
 
@@ -9957,15 +9998,15 @@ class TelegramService:
 
                 )
 
-            
 
-            # Se permitir digitar, não precisa validar se can_withdraw para CONSULTA, 
+
+            # Se permitir digitar, não precisa validar se can_withdraw para CONSULTA,
 
             # mas _show_item_from_barcode vai mostrar os botões de retirada.
 
             # Se quisermos bloquear retirada mas permitir consulta, ok.
 
-            
+
 
             return TelegramService._show_item_from_barcode(chat_id, text, telegram_user)
 
@@ -9977,7 +10018,539 @@ class TelegramService:
 
             return TelegramService.send_message(chat_id, f"❌ Erro: {e}")
 
-    
+    @staticmethod
+
+    def _ensure_withdrawal_intentions_table_for_telegram() -> None:
+
+        bind = db.session.get_bind()
+
+        WithdrawalIntention.__table__.create(bind=bind, checkfirst=True)
+
+    @staticmethod
+
+    def _telegram_user_display_name(telegram_user: TelegramUser | None) -> str:
+
+        if not telegram_user:
+
+            return "Colaborador"
+
+        try:
+
+            nome = str(getattr(getattr(telegram_user, "usuario", None), "nome", "") or "").strip()
+
+            if nome:
+
+                return nome
+
+        except Exception:
+
+            pass
+
+        return str(getattr(telegram_user, "matricula", "") or "").strip() or "Colaborador"
+
+    @staticmethod
+
+    def _save_purchase_suggestion_photo(image_bytes: bytes, chat_id: str) -> str | None:
+
+        if not image_bytes:
+
+            return None
+
+        try:
+
+            static_root = Path(current_app.static_folder or (Path(current_app.root_path) / "static"))
+
+        except Exception:
+
+            static_root = Path(__file__).resolve().parents[1] / "static"
+
+        relative_dir = Path("uploads") / "telegram_purchase_suggestions"
+
+        target_dir = static_root / relative_dir
+
+        target_dir.mkdir(parents=True, exist_ok=True)
+
+        digest = hashlib.sha1(
+
+            image_bytes + str(chat_id).encode("utf-8") + str(datetime.utcnow().timestamp()).encode("ascii")
+
+        ).hexdigest()[:18]
+
+        filename = f"telegram_sugestao_{digest}.jpg"
+
+        target_path = target_dir / filename
+
+        target_path.write_bytes(image_bytes)
+
+        return (relative_dir / filename).as_posix()
+
+    @staticmethod
+
+    def _create_purchase_suggestion_entry(
+
+        chat_id: str,
+
+        image_bytes: bytes | None,
+
+        telegram_user: TelegramUser | None,
+
+        *,
+
+        source: str,
+
+        search_query: str | None = None,
+
+        error_msg: str | None = None,
+
+        visual_result: dict[str, Any] | None = None,
+
+        matches: list[dict[str, Any]] | None = None,
+
+        barcode_data: str | None = None,
+
+    ) -> WithdrawalIntention | None:
+
+        try:
+
+            TelegramService._ensure_withdrawal_intentions_table_for_telegram()
+
+            photo_path = TelegramService._save_purchase_suggestion_photo(image_bytes or b"", chat_id)
+
+            visual_text = str((visual_result or {}).get("text") or "").strip()
+
+            candidate_matches = list(matches or (visual_result or {}).get("matches") or [])
+
+            candidate_snapshots = []
+
+            for match in candidate_matches[:5]:
+
+                candidate_snapshots.append(
+
+                    {
+
+                        "codigo_item": str(match.get("codigo_item") or "").strip(),
+
+                        "descricao": str(match.get("descricao") or "").strip(),
+
+                        "score": float(match.get("score") or 0),
+
+                        "saldo": str(match.get("saldo") or "").strip(),
+
+                    }
+
+                )
+
+            query_text = (search_query or visual_text or barcode_data or "Foto enviada pelo Telegram").strip()
+
+            metadata = {
+
+                "kind": "purchase_suggestion",
+
+                "status": "awaiting_user_confirmation",
+
+                "source": source,
+
+                "telegram_chat_id": str(chat_id),
+
+                "telegram_matricula": str(getattr(telegram_user, "matricula", "") or "").strip() or None,
+
+                "photo_path": photo_path,
+
+                "visual_text": visual_text,
+
+                "barcode_data": str(barcode_data or "").strip() or None,
+
+                "error_msg": str(error_msg or "").strip()[:240] or None,
+
+                "text_provider": str((visual_result or {}).get("text_provider") or "").strip() or None,
+
+                "candidate_matches": candidate_snapshots,
+
+            }
+
+            entry = WithdrawalIntention(
+
+                user_matricula=str(getattr(telegram_user, "matricula", "") or "").strip() or None,
+
+                user_name=TelegramService._telegram_user_display_name(telegram_user),
+
+                search_query=query_text[:240],
+
+                requested_quantity=None,
+
+                candidate_count=len(candidate_snapshots),
+
+                top_item_code=None,
+
+                top_item_description=(query_text[:240] or "Sugestão enviada por foto"),
+
+                top_item_photo_path=photo_path,
+
+                top_item_stock_text="Sugestão de compra",
+
+                top_item_stock_status="sugestao",
+
+                is_compatible=False,
+
+                metadata_json=metadata,
+
+            )
+
+            db.session.add(entry)
+
+            db.session.commit()
+
+            return entry
+
+        except Exception:
+
+            db.session.rollback()
+
+            logger.exception("Erro ao criar sugestao de compra via Telegram")
+
+            return None
+
+    @staticmethod
+
+    def _purchase_suggestion_keyboard(entry_id: int) -> dict[str, Any]:
+
+        return {
+
+            "inline_keyboard": [
+
+                [{"text": "Enviar como sugestão de compra", "callback_data": f"psug:yes:{entry_id}"}],
+
+                [{"text": "Não enviar", "callback_data": f"psug:no:{entry_id}"}],
+
+            ]
+
+        }
+
+    @staticmethod
+
+    def _send_purchase_suggestion_prompt(chat_id: str, entry: WithdrawalIntention | None) -> dict[str, Any] | None:
+
+        if not entry or not getattr(entry, "id", None):
+
+            return None
+
+        return TelegramService.send_message(
+
+            chat_id,
+
+            (
+
+                "🛒 <b>Quer enviar esta foto como sugestão para compra?</b>\n\n"
+
+                "Ela aparecerá para a administração na aba <b>Sugestões para Compra</b>, com a foto que você mandou. "
+
+                "Se o item já existir no estoque, a equipe pode te responder pelo Telegram com o item correto."
+
+            ),
+
+            parse_mode="HTML",
+
+            reply_markup=TelegramService._purchase_suggestion_keyboard(int(entry.id)),
+
+        )
+
+    @staticmethod
+
+    def _handle_purchase_suggestion_callback(chat_id: str, data: str) -> None:
+
+        parts = data.split(":")
+
+        if len(parts) != 3:
+
+            TelegramService.send_message(chat_id, "❌ Opção inválida.", parse_mode=None)
+
+            return
+
+        action = parts[1]
+
+        try:
+
+            entry_id = int(parts[2])
+
+        except Exception:
+
+            TelegramService.send_message(chat_id, "❌ Sugestão inválida.", parse_mode=None)
+
+            return
+
+        entry = WithdrawalIntention.query.get(entry_id)
+
+        metadata = dict(getattr(entry, "metadata_json", None) or {}) if entry else {}
+
+        if not entry or metadata.get("kind") != "purchase_suggestion":
+
+            TelegramService.send_message(chat_id, "❌ Sugestão não encontrada.", parse_mode=None)
+
+            return
+
+        if str(metadata.get("telegram_chat_id") or "") != str(chat_id):
+
+            TelegramService.send_message(chat_id, "❌ Esta sugestão pertence a outro atendimento.", parse_mode=None)
+
+            return
+
+        now_iso = TimeService.now_local().isoformat()
+
+        try:
+
+            if action == "yes":
+
+                metadata["status"] = "confirmed"
+
+                metadata["confirmed_at"] = now_iso
+
+                entry.is_compatible = True
+
+                entry.viewed_at = None
+
+                entry.metadata_json = metadata
+
+                db.session.commit()
+
+                TelegramService._clear_image_identification_state(chat_id)
+
+                TelegramService.send_message(
+
+                    chat_id,
+
+                    "✅ Sugestão enviada para a administração com a foto. Você será avisado se a equipe identificar o item correto.",
+
+                    parse_mode=None,
+
+                )
+
+                return
+
+            if action == "no":
+
+                metadata["status"] = "dismissed"
+
+                metadata["dismissed_at"] = now_iso
+
+                entry.is_compatible = False
+
+                entry.metadata_json = metadata
+
+                db.session.commit()
+
+                TelegramService.send_message(chat_id, "Tudo bem. A foto não foi enviada como sugestão de compra.", parse_mode=None)
+
+                return
+
+        except Exception:
+
+            db.session.rollback()
+
+            logger.exception("Erro ao atualizar sugestao de compra via Telegram")
+
+            TelegramService.send_message(chat_id, "❌ Não consegui registrar sua escolha agora. Tente novamente.", parse_mode=None)
+
+            return
+
+        TelegramService.send_message(chat_id, "❌ Opção inválida.", parse_mode=None)
+
+    @staticmethod
+
+    def _image_identification_suggestion_id(state: str | None) -> int | None:
+
+        parts = str(state or "").split(":")
+
+        if len(parts) < 3:
+
+            return None
+
+        try:
+
+            return int(parts[2])
+
+        except Exception:
+
+            return None
+
+    @staticmethod
+
+    def _set_image_identification_state(chat_id: str, suggestion_id: int | None = None) -> None:
+
+        """Ativa estado temporário para identificar item por descrição após falha no scanner."""
+
+        try:
+
+            conv = TelegramConversation.query.filter_by(chat_id=str(chat_id)).first()
+
+            if not conv:
+
+                conv = TelegramConversation(chat_id=str(chat_id))
+
+                db.session.add(conv)
+
+            conv.state = "image_identification:awaiting_description"
+
+            if suggestion_id:
+
+                conv.state = f"{conv.state}:{int(suggestion_id)}"
+
+            db.session.commit()
+
+        except Exception:
+
+            db.session.rollback()
+
+    @staticmethod
+
+    def _clear_image_identification_state(chat_id: str) -> None:
+
+        """Limpa estado de identificação por imagem quando não for mais necessário."""
+
+        try:
+
+            conv = TelegramConversation.query.filter_by(chat_id=str(chat_id)).first()
+
+            if conv and (conv.state or "").startswith("image_identification:"):
+
+                db.session.delete(conv)
+
+                db.session.commit()
+
+        except Exception:
+
+            db.session.rollback()
+
+    @staticmethod
+
+    def _handle_image_identification_text(chat_id: str, text: str) -> bool:
+
+        """Processa busca por descrição para fallback de foto sem barcode."""
+
+        conv = TelegramConversation.query.filter_by(chat_id=str(chat_id)).first()
+
+        if not conv or not conv.state or not conv.state.startswith("image_identification:"):
+
+            return False
+
+        term = (text or "").strip()
+
+        if not term:
+
+            TelegramService.send_message(
+
+                chat_id,
+
+                "📝 Envie o nome do item para eu tentar localizar no estoque.",
+
+                parse_mode=None,
+
+            )
+
+            return True
+
+        if term.startswith("/") and not term.lower().startswith("/estoque"):
+
+            TelegramService.send_message(
+
+                chat_id,
+
+                "📝 Me envie a descrição do item (ex.: luva nitrílica preta) ou use /cancelar.",
+
+                parse_mode=None,
+
+            )
+
+            return True
+
+        from .visual_item_identifier import VisualItemIdentifier
+
+        matches = VisualItemIdentifier.search_by_text(term, limit=5)
+
+        if not matches:
+
+            suggestion_id = TelegramService._image_identification_suggestion_id(conv.state)
+
+            suggestion_entry = WithdrawalIntention.query.get(suggestion_id) if suggestion_id else None
+
+            suggestion_line = ""
+
+            if suggestion_entry:
+
+                suggestion_line = "\n\n🛒 Se esse item não estiver cadastrado ou precisar comprar, envie a foto como sugestão pelo botão abaixo."
+
+            TelegramService.send_message(
+
+                chat_id,
+
+                (
+
+                    f"❌ Não encontrei itens parecidos com: <b>{html.escape(term)}</b>\n\n"
+
+                    "Tente informar outra descrição, marca, categoria ou parte do código.\n"
+
+                    "Ex.: <i>fita isolante preta</i>, <i>tinta piso cinza</i>, <i>3M</i>."
+
+                    f"{suggestion_line}"
+
+                ),
+
+                parse_mode="HTML",
+
+                reply_markup=TelegramService._purchase_suggestion_keyboard(int(suggestion_entry.id)) if suggestion_entry else None,
+
+            )
+
+            return True
+
+        TelegramService._clear_image_identification_state(chat_id)
+
+        _, telegram_user = TelegramService._can_user_withdraw_via_telegram(chat_id)
+
+        if len(matches) == 1 and telegram_user:
+
+            TelegramService._show_item_details_with_withdrawal_option(chat_id, matches[0]["item"], telegram_user)
+
+            return True
+
+        if len(matches) == 1:
+
+            TelegramService._send_item_details(chat_id, matches[0]["codigo_item"])
+
+            return True
+
+        message = (
+
+            "🔎 <b>Busca Aproximada Pela Imagem</b>\n"
+
+            "━━━━━━━━━━━━━━━━━━━━\n\n"
+
+            f"Encontrei <b>{len(matches)}</b> itens parecidos com <i>{html.escape(term)}</i>:\n\n"
+
+        )
+
+        for idx, match in enumerate(matches, 1):
+
+            unidade = (match.get("unidade") or "un").strip()
+
+            message += (
+
+                f"<b>{idx}.</b> <code>{html.escape(match.get('codigo_item') or '-')}</code> "
+
+                f"<i>{html.escape(str(match.get('score') or 0))}%</i>\n"
+
+                f"   📝 {html.escape((match.get('descricao') or 'Sem descrição')[:60])}\n"
+
+                f"   📊 Saldo: {html.escape(str(match.get('saldo')))} {html.escape(unidade)}\n"
+
+            )
+
+        message += "\n💡 Envie o <b>código</b> do item desejado para abrir os detalhes e opções de retirada."
+
+        TelegramService.send_message(chat_id, message, parse_mode="HTML")
+
+        return True
+
+
 
     @staticmethod
 
@@ -9987,7 +10560,7 @@ class TelegramService:
 
         Handler para processar fotos enviadas ao bot.
 
-        
+
 
         Args:
 
@@ -9995,7 +10568,7 @@ class TelegramService:
 
             photo_sizes: Lista de tamanhos da foto (Telegram envia múltiplos tamanhos)
 
-            
+
 
         Returns:
 
@@ -10009,7 +10582,7 @@ class TelegramService:
 
             can_withdraw, telegram_user = TelegramService._can_user_withdraw_via_telegram(chat_id)
 
-            
+
 
             if not telegram_user:
 
@@ -10023,7 +10596,7 @@ class TelegramService:
 
                 )
 
-            
+
 
             if not can_withdraw:
 
@@ -10039,7 +10612,7 @@ class TelegramService:
 
                 )
 
-            
+
 
             # Importar processador
 
@@ -10059,21 +10632,15 @@ class TelegramService:
 
                 )
 
-            
+
+
+            scanner_error = None
 
             if not BarcodePhotoProcessor.is_available():
 
-                return TelegramService.send_message(
+                scanner_error = "Scanner de código de barras indisponível"
 
-                    chat_id,
 
-                    "❌ Scanner de código de barras indisponível.",
-
-                    parse_mode=None
-
-                )
-
-            
 
             # Obter token do bot
 
@@ -10091,7 +10658,7 @@ class TelegramService:
 
                 )
 
-            
+
 
             # Escolher a melhor resolução (última é a maior)
 
@@ -10107,13 +10674,13 @@ class TelegramService:
 
                 )
 
-            
+
 
             best_photo = photo_sizes[-1]  # Maior resolução
 
             file_id = best_photo.get("file_id")
 
-            
+
 
             if not file_id:
 
@@ -10127,7 +10694,7 @@ class TelegramService:
 
                 )
 
-            
+
 
             # Enviar mensagem de processamento
 
@@ -10141,49 +10708,37 @@ class TelegramService:
 
             )
 
-            
 
-            # Processar foto
 
-            result = BarcodePhotoProcessor.process_telegram_photo(config.bot_token, file_id)
+            # Baixar e processar foto uma vez para barcode e identificação visual.
 
-            
+            image_bytes = BarcodePhotoProcessor.download_telegram_photo(config.bot_token, file_id)
 
-            if not result.get("success"):
-
-                error_msg = result.get("error", "Erro desconhecido")
+            if not image_bytes:
 
                 return TelegramService.send_message(
 
                     chat_id,
 
-                    f"❌ <b>Código de Barras Não Encontrado</b>\n\n"
+                    "❌ Não foi possível baixar a foto do Telegram.",
 
-                    f"Não foi possível detectar um código de barras na imagem.\n\n"
-
-                    f"💡 <b>Dicas:</b>\n"
-
-                    f"• Certifique-se de que o código está em foco\n"
-
-                    f"• Melhore a iluminação\n"
-
-                    f"• Evite reflexos e sombras\n"
-
-                    f"• Use /scanear para ver instruções\n\n"
-
-                    f"<i>Detalhes: {error_msg}</i>",
-
-                    parse_mode="HTML"
+                    parse_mode=None
 
                 )
 
-            
+            barcodes = []
 
-            # Códigos de barras encontrados
+            if not scanner_error:
 
-            barcodes = result.get("barcodes", [])
+                barcodes = BarcodePhotoProcessor.decode_barcode_from_image(image_bytes)
 
-            
+            if not barcodes:
+
+                error_msg = scanner_error or "Nenhum código de barras detectado na imagem"
+
+                return TelegramService._handle_photo_without_barcode(chat_id, image_bytes, error_msg, telegram_user)
+
+
 
             if len(barcodes) > 1:
 
@@ -10191,15 +10746,15 @@ class TelegramService:
 
                 return TelegramService._handle_multiple_barcodes(chat_id, barcodes)
 
-            
+
 
             # Um código encontrado - buscar item
 
             barcode_data = barcodes[0]["data"]
 
-            return TelegramService._show_item_from_barcode(chat_id, barcode_data, telegram_user)
+            return TelegramService._show_item_from_barcode(chat_id, barcode_data, telegram_user, image_bytes=image_bytes)
 
-            
+
 
         except Exception as e:
 
@@ -10215,7 +10770,281 @@ class TelegramService:
 
             )
 
-    
+
+
+    @staticmethod
+
+    def _handle_photo_without_barcode(chat_id: str, image_bytes: bytes, error_msg: str, telegram_user: TelegramUser) -> dict[str, Any]:
+
+        """Tenta identificar item pela imagem quando o barcode não foi detectado."""
+
+        try:
+
+            from .visual_item_identifier import VisualItemIdentifier
+
+            result = VisualItemIdentifier.identify_image(image_bytes, limit=5)
+
+            if result.get("matches"):
+
+                TelegramService._clear_image_identification_state(chat_id)
+
+                return TelegramService._send_visual_identification_matches(chat_id, result, telegram_user, image_bytes=image_bytes)
+
+            suggestion_entry = TelegramService._create_purchase_suggestion_entry(
+
+                chat_id,
+
+                image_bytes,
+
+                telegram_user,
+
+                source="photo_without_barcode_no_match",
+
+                search_query=str(result.get("text") or "").strip() or None,
+
+                error_msg=error_msg,
+
+                visual_result=result,
+
+            )
+
+            TelegramService._set_image_identification_state(
+
+                chat_id,
+
+                int(suggestion_entry.id) if suggestion_entry else None,
+
+            )
+
+            text_error = result.get("text_error")
+
+            provider = result.get("text_provider") or "none"
+
+            extra = ""
+
+            if provider in ("none", "tesseract") and text_error:
+
+                extra = f"\n<i>OCR local: {html.escape(str(text_error)[:120])}</i>"
+
+            if provider in ("none", "tesseract"):
+
+                extra += "\n<i>Visão automática não configurada. Configure GALINT_OPENAI_API_KEY para reconhecer objetos como lâmpada, cola, tinta e ferramentas sem digitar.</i>"
+
+            suggestion_hint = "\n🛒 Se preferir, use o botão abaixo para enviar a foto como sugestão de compra.\n" if suggestion_entry else ""
+
+            return TelegramService.send_message(
+
+                chat_id,
+
+                f"❌ <b>Código de Barras Não Encontrado</b>\n\n"
+
+                f"Não consegui identificar automaticamente esta foto com segurança.\n\n"
+
+                f"📝 Envie uma descrição curta do item que aparece na imagem.\n"
+
+                f"Ex.: <i>lâmpada led</i>, <i>TEKBOND 793</i>, <i>cola instantânea 20g</i>.\n\n"
+
+                f"💡 <b>Dicas:</b>\n"
+
+                f"• Fotografe o rótulo mais perto e reto\n"
+
+                f"• Garanta boa iluminação\n"
+
+                f"• Use /cancelar para sair deste modo\n"
+
+                f"{suggestion_hint}\n"
+
+                f"<i>Detalhes: {html.escape(error_msg)}</i>{extra}",
+
+                parse_mode="HTML",
+
+                reply_markup=TelegramService._purchase_suggestion_keyboard(int(suggestion_entry.id)) if suggestion_entry else None,
+
+            )
+
+        except Exception as exc:
+
+            logger.exception("Erro no fallback visual da foto: %s", exc)
+
+            suggestion_entry = TelegramService._create_purchase_suggestion_entry(
+
+                chat_id,
+
+                image_bytes,
+
+                telegram_user,
+
+                source="photo_without_barcode_error",
+
+                error_msg=f"{error_msg}; {exc}",
+
+            )
+
+            TelegramService._set_image_identification_state(
+
+                chat_id,
+
+                int(suggestion_entry.id) if suggestion_entry else None,
+
+            )
+
+            return TelegramService.send_message(
+
+                chat_id,
+
+                f"❌ <b>Código de Barras Não Encontrado</b>\n\n"
+
+                f"Também falhei ao identificar pela imagem. Envie uma descrição curta do item.\n\n"
+
+                f"🛒 Se for um item para compra, use o botão abaixo para enviar a foto como sugestão.\n\n"
+
+                f"<i>Detalhes: {html.escape(error_msg)}</i>",
+
+                parse_mode="HTML",
+
+                reply_markup=TelegramService._purchase_suggestion_keyboard(int(suggestion_entry.id)) if suggestion_entry else None,
+
+            )
+
+    @staticmethod
+
+    def _send_visual_identification_matches(
+
+        chat_id: str,
+
+        result: dict[str, Any],
+
+        telegram_user: TelegramUser,
+
+        *,
+
+        image_bytes: bytes | None = None,
+
+    ) -> dict[str, Any]:
+
+        """Envia resultado da identificação visual, abrindo direto quando a confiança é alta."""
+
+        from .visual_item_identifier import VisualItemIdentifier
+
+        matches = list(result.get("matches") or [])
+
+        if not matches:
+
+            return TelegramService.send_message(chat_id, "❌ Nenhum item parecido encontrado pela imagem.", parse_mode=None)
+
+        top = matches[0]
+
+        second_score = float(matches[1].get("score") or 0) if len(matches) > 1 else 0.0
+
+        top_score = float(top.get("score") or 0)
+
+        recognized_text = str(result.get("text") or "").strip()
+
+        required_score = VisualItemIdentifier.AUTO_CONFIRM_SCORE if recognized_text else 94.0
+
+        required_gap = 10.0 if recognized_text else 18.0
+
+        if top_score >= required_score and (top_score - second_score >= required_gap or len(matches) == 1):
+
+            lines = [
+
+                "✅ <b>Item identificado pela imagem</b>",
+
+                "━━━━━━━━━━━━━━━━━━━━",
+
+                f"<b>{html.escape(top.get('descricao') or 'Item')}</b>",
+
+                f"Código: <code>{html.escape(top.get('codigo_item') or '-')}</code>",
+
+                f"Confiança: <b>{html.escape(str(top_score))}%</b>",
+
+            ]
+
+            if recognized_text:
+
+                lines.append(f"Leitura: <i>{html.escape(recognized_text[:90])}</i>")
+
+            TelegramService.send_message(chat_id, "\n".join(lines), parse_mode="HTML")
+
+            if telegram_user:
+
+                return TelegramService._show_item_details_with_withdrawal_option(chat_id, top["item"], telegram_user)
+
+            return TelegramService._send_item_details(chat_id, top["codigo_item"])
+
+        message = (
+
+            "🔎 <b>Possíveis itens pela imagem</b>\n"
+
+            "━━━━━━━━━━━━━━━━━━━━\n\n"
+
+        )
+
+        if recognized_text:
+
+            message += f"Leitura: <i>{html.escape(recognized_text[:120])}</i>\n\n"
+
+        for idx, match in enumerate(matches, 1):
+
+            unidade = (match.get("unidade") or "un").strip()
+
+            reasons = ", ".join(match.get("reasons") or [])
+
+            message += (
+
+                f"<b>{idx}.</b> <code>{html.escape(match.get('codigo_item') or '-')}</code> "
+
+                f"<i>{html.escape(str(match.get('score') or 0))}%</i>\n"
+
+                f"   📝 {html.escape((match.get('descricao') or 'Sem descrição')[:60])}\n"
+
+                f"   📊 Saldo: {html.escape(str(match.get('saldo')))} {html.escape(unidade)}\n"
+
+            )
+
+            if reasons:
+
+                message += f"   🔍 {html.escape(reasons[:80])}\n"
+
+        suggestion_entry = None
+
+        if image_bytes:
+
+            suggestion_entry = TelegramService._create_purchase_suggestion_entry(
+
+                chat_id,
+
+                image_bytes,
+
+                telegram_user,
+
+                source="photo_without_barcode_ambiguous",
+
+                search_query=recognized_text or None,
+
+                visual_result=result,
+
+                matches=matches,
+
+            )
+
+        message += "\n💡 Envie o <b>código</b> do item correto para abrir detalhes e retirada."
+
+        if suggestion_entry:
+
+            message += "\n\n🛒 Se nenhum deles for o item, envie a foto como sugestão de compra pelo botão abaixo."
+
+        return TelegramService.send_message(
+
+            chat_id,
+
+            message,
+
+            parse_mode="HTML",
+
+            reply_markup=TelegramService._purchase_suggestion_keyboard(int(suggestion_entry.id)) if suggestion_entry else None,
+
+        )
 
     @staticmethod
 
@@ -10225,7 +11054,7 @@ class TelegramService:
 
         Handler para quando múltiplos códigos de barras são detectados.
 
-        
+
 
         Args:
 
@@ -10233,7 +11062,7 @@ class TelegramService:
 
             barcodes: Lista de códigos detectados
 
-            
+
 
         Returns:
 
@@ -10251,19 +11080,19 @@ class TelegramService:
 
         )
 
-        
+
 
         for idx, barcode in enumerate(barcodes[:5], 1):  # Limitar a 5
 
             message += f"{idx}. <code>{barcode['data']}</code> ({barcode['type']})\n"
 
-        
+
 
         if len(barcodes) > 5:
 
             message += f"\n... e mais {len(barcodes) - 5} códigos.\n"
 
-        
+
 
         message += (
 
@@ -10271,21 +11100,33 @@ class TelegramService:
 
         )
 
-        
+
 
         return TelegramService.send_message(chat_id, message, parse_mode="HTML")
 
-    
+
 
     @staticmethod
 
-    def _show_item_from_barcode(chat_id: str, barcode_data: str, telegram_user: TelegramUser) -> dict[str, Any]:
+    def _show_item_from_barcode(
+
+        chat_id: str,
+
+        barcode_data: str,
+
+        telegram_user: TelegramUser,
+
+        *,
+
+        image_bytes: bytes | None = None,
+
+    ) -> dict[str, Any]:
 
         """
 
         Busca item pelo código de barras e exibe informações.
 
-        
+
 
         Args:
 
@@ -10295,7 +11136,7 @@ class TelegramService:
 
             telegram_user: Usuário do Telegram
 
-            
+
 
         Returns:
 
@@ -10309,7 +11150,7 @@ class TelegramService:
 
             item = db.session.query(Item).filter_by(codigo_item=barcode_data).first()
 
-            
+
 
             if not item:
 
@@ -10321,7 +11162,7 @@ class TelegramService:
 
                 ).limit(5).all()
 
-                
+
 
                 if not items:
 
@@ -10329,29 +11170,73 @@ class TelegramService:
 
                     allowed, _ = TelegramService._can_user_create_item_via_telegram(chat_id)
 
-                    
+
+
+                    suggestion_entry = None
+
+                    if image_bytes:
+
+                        suggestion_entry = TelegramService._create_purchase_suggestion_entry(
+
+                            chat_id,
+
+                            image_bytes,
+
+                            telegram_user,
+
+                            source="barcode_not_found",
+
+                            search_query=barcode_data,
+
+                            barcode_data=barcode_data,
+
+                        )
 
                     # Criar botão inline para cadastrar com código pré-preenchido
 
                     inline_keyboard = None
 
+                    keyboard_rows = []
+
+                    if suggestion_entry:
+
+                        keyboard_rows.append([
+
+                            {"text": "Enviar como sugestão de compra", "callback_data": f"psug:yes:{suggestion_entry.id}"}
+
+                        ])
+
                     if allowed:
 
-                        inline_keyboard = {
-
-                            "inline_keyboard": [[
+                        keyboard_rows.append([
 
                                 {"text": "🆕 Cadastrar este item", "callback_data": f"create_item:{barcode_data}"}
 
-                            ], [
+                        ])
+
+                    keyboard_rows.append([
 
                                 {"text": "🔍 Buscar manualmente", "callback_data": "menu:items"}
 
-                            ]]
+                    ])
+
+                    if suggestion_entry:
+
+                        keyboard_rows.append([
+
+                            {"text": "Não enviar sugestão", "callback_data": f"psug:no:{suggestion_entry.id}"}
+
+                        ])
+
+                    if keyboard_rows:
+
+                        inline_keyboard = {
+
+                            "inline_keyboard": keyboard_rows
 
                         }
 
-                    
+
 
                     return TelegramService.send_message(
 
@@ -10363,7 +11248,7 @@ class TelegramService:
 
                         f"O item não está cadastrado no sistema.\n\n"
 
-                        f"💡 {'Use o botão abaixo para cadastrar ou' if allowed else 'Use /estoque para'} buscar manualmente.",
+                        f"💡 {action_hint}",
 
                         parse_mode="HTML",
 
@@ -10371,7 +11256,7 @@ class TelegramService:
 
                     )
 
-                
+
 
                 if len(items) == 1:
 
@@ -10401,13 +11286,13 @@ class TelegramService:
 
                     return TelegramService.send_message(chat_id, message, parse_mode="HTML")
 
-            
+
 
             # Item encontrado - mostrar informações
 
             return TelegramService._show_item_details_with_withdrawal_option(chat_id, item, telegram_user)
 
-            
+
 
         except Exception as e:
 
@@ -10423,15 +11308,15 @@ class TelegramService:
 
             )
 
-    
+
 
     @staticmethod
 
     def _show_item_details_with_withdrawal_option(
 
-        chat_id: str, 
+        chat_id: str,
 
-        item: Item, 
+        item: Item,
 
         telegram_user: TelegramUser
 
@@ -10441,7 +11326,7 @@ class TelegramService:
 
         Exibe detalhes do item com opção de fazer retirada.
 
-        
+
 
         Args:
 
@@ -10451,7 +11336,7 @@ class TelegramService:
 
             telegram_user: Usuário do Telegram
 
-            
+
 
         Returns:
 
@@ -10538,7 +11423,7 @@ class TelegramService:
 
             emoji = emoji_map.get(categoria.lower(), "📦")
 
-            
+
 
             # Status do estoque
 
@@ -10560,7 +11445,7 @@ class TelegramService:
 
                 status_text = "DISPONÍVEL"
 
-            
+
 
             # Montar mensagem
 
@@ -10578,29 +11463,29 @@ class TelegramService:
 
             )
 
-            
+
 
             if item.marca:
 
                 message += f"🏭 <b>Marca:</b> {html.escape(item.marca)}\n"
 
-            
+
 
             if item.localizacao:
 
                 message += f"📍 <b>Localização:</b> {html.escape(item.localizacao)}\n"
 
-            
+
 
             message += f"\n📊 <b>Estoque Atual:</b> {html.escape(estoque_str)}\n"
 
-            
+
 
             if item.estoque_minimo:
 
                 message += f"📉 <b>Estoque Mínimo:</b> {item.estoque_minimo} {item.unidade or 'un'}\n"
 
-            
+
 
             # Botões de ação
 
@@ -10624,13 +11509,13 @@ class TelegramService:
 
             message += "\n\nℹ️ <i>Devoluções só via APK ou painel Web.</i>"
 
-            
+
 
             # Verificar permissão de edição
 
             allowed_edit, _ = TelegramService._can_user_create_item_via_telegram(chat_id)
 
-            
+
 
             keyboard["inline_keyboard"].append([
 
@@ -10638,7 +11523,7 @@ class TelegramService:
 
             ])
 
-            
+
 
             if allowed_edit:
 
@@ -10648,7 +11533,7 @@ class TelegramService:
 
                 ])
 
-            
+
 
             keyboard["inline_keyboard"].append([
 
@@ -10656,15 +11541,15 @@ class TelegramService:
 
             ])
 
-            
+
 
             message += "\n\n💡 <i>Escolha uma ação abaixo:</i>"
 
-            
+
 
             return TelegramService.send_message(chat_id, message, parse_mode="HTML", reply_markup=keyboard)
 
-            
+
 
         except Exception as e:
 
@@ -11893,7 +12778,7 @@ class TelegramService:
 
                 TelegramService._item_edit_update(chat_id, "item_edit:categoria", {})
 
-            
+
 
             meta = TelegramService._item_edit_get_meta(chat_id)
 
@@ -11927,7 +12812,7 @@ class TelegramService:
 
                 TelegramService._item_edit_update(chat_id, "item_edit:unidade", {})
 
-            
+
 
             meta = TelegramService._item_edit_get_meta(chat_id)
 
@@ -11961,7 +12846,7 @@ class TelegramService:
 
                 TelegramService._item_edit_update(chat_id, "item_edit:marca", {})
 
-            
+
 
             meta = TelegramService._item_edit_get_meta(chat_id)
 
@@ -11995,7 +12880,7 @@ class TelegramService:
 
                 TelegramService._item_edit_update(chat_id, "item_edit:localizacao", {})
 
-            
+
 
             meta = TelegramService._item_edit_get_meta(chat_id)
 
@@ -12029,11 +12914,11 @@ class TelegramService:
 
                 TelegramService._item_edit_update(chat_id, "item_edit:confirm", {})
 
-            
+
 
             meta = TelegramService._item_edit_get_meta(chat_id)
 
-            
+
 
             resumo = (
 
@@ -12045,7 +12930,7 @@ class TelegramService:
 
             )
 
-            
+
 
             if "descricao" in meta:
 
@@ -12067,17 +12952,17 @@ class TelegramService:
 
                 resumo += f"📍 Localização: {html.escape(meta['localizacao'])}\n"
 
-            
+
 
             if not any(k in meta for k in ["descricao", "categoria", "unidade", "marca", "localizacao"]):
 
                 resumo += "\n<i>Nenhuma alteração foi feita.</i>\n"
 
-            
+
 
             resumo += "\n\nDigite <b>CONFIRMAR</b> para salvar ou <b>CANCELAR</b> para sair."
 
-            
+
 
             TelegramService.send_message(chat_id, resumo, parse_mode="HTML")
 
@@ -12109,7 +12994,7 @@ class TelegramService:
 
             item_id = meta.get("item_id")
 
-            
+
 
             if not item_id:
 
@@ -12229,7 +13114,7 @@ class TelegramService:
 
                 current = {}
 
-            
+
 
             item_meta = current.get("item_edit") if isinstance(current.get("item_edit"), dict) else {}
 

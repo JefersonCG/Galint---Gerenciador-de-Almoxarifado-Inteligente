@@ -25,6 +25,9 @@
                     <a class="sidebar-link ps-4 {% if child.active %}active{% endif %}" href="{{ child.href }}">
                         <i class="bi {{ child.icon }}"></i>
                         <span>{{ child.label }}</span>
+                        {% if child.badge_count %}
+                        <span class="badge rounded-pill bg-danger ms-auto">{{ child.badge_count if child.badge_count < 100 else '99+' }}</span>
+                        {% endif %}
                     </a>
                     {% endfor %}
                 </div>
@@ -42,6 +45,9 @@
                 <a class="sidebar-link {% if entry.active %}active{% endif %}" href="{{ entry.href }}">
                     {% if entry.icon %}<i class="bi {{ entry.icon }}"></i>{% endif %}
                     <span>{{ entry.label }}</span>
+                    {% if entry.badge_count %}
+                    <span class="badge rounded-pill bg-danger ms-auto">{{ entry.badge_count if entry.badge_count < 100 else '99+' }}</span>
+                    {% endif %}
                 </a>
                 {% endif %}
             {% endfor %}

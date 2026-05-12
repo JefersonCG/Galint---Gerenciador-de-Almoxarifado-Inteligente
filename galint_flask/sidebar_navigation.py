@@ -26,14 +26,17 @@ def _path_matches_any(path: str, targets: list[str | None]) -> bool:
     return any(_path_matches(path, target) for target in targets)
 
 
-def _link_item(label: str, href: str, icon: str, active: bool) -> dict[str, Any]:
-    return {
+def _link_item(label: str, href: str, icon: str, active: bool, badge_count: int | None = None) -> dict[str, Any]:
+    item = {
         "type": "link",
         "label": label,
         "href": href,
         "icon": icon,
         "active": active,
     }
+    if isinstance(badge_count, int) and badge_count > 0:
+        item["badge_count"] = badge_count
+    return item
 
 
 def _group_item(label: str, icon: str, collapse_id: str, active: bool, children: list[dict[str, Any]]) -> dict[str, Any]:
@@ -58,6 +61,30 @@ def _has_management_access() -> bool:
 
 def _is_enterprise_mode() -> bool:
     return bool(getattr(current_user, "is_authenticated", False) and session.get("galint_management_access"))
+
+
+def _is_supervisor(user) -> bool:
+    if not user:
+        return False
+    setor = str(getattr(user, "setor", "") or "").strip().lower()
+    cargo = str(getattr(user, "cargo", "") or "").strip().lower()
+    return "supervisor" in setor or "supervisor" in cargo
+
+
+def _get_pending_withdrawal_intentions_count(*, enabled: bool) -> int:
+    if not enabled:
+        return 0
+    try:
+        from .models import WithdrawalIntention
+
+        return int(
+            WithdrawalIntention.query.filter(
+                WithdrawalIntention.is_compatible.is_(True),
+                WithdrawalIntention.viewed_at.is_(None),
+            ).count()
+        )
+    except Exception:
+        return 0
 
 
 def _management_module() -> str:
@@ -237,6 +264,7 @@ def build_sidebar_navigation() -> dict[str, Any]:
     entrada_page_url = _optional_url("movements.entrada_page")
 
     inventory_list_url = _optional_url("inventory.list_items")
+    withdrawal_intentions_url = f"{inventory_list_url}?open_intentions=1" if inventory_list_url else None
     barcode_studio_url = _optional_url("inventory.barcode_studio_page")
     consumo_painel_url = _optional_url("inventory.consumption_dashboard")
     central_operacoes_url = _optional_url("operations.central_operations")
@@ -271,6 +299,8 @@ def build_sidebar_navigation() -> dict[str, Any]:
     sobre_url = _optional_url("pages.sobre")
 
     inventory_list_active = _path_matches(path, inventory_list_url) and not _path_matches(path, barcode_studio_url)
+    can_manage_intentions = is_admin or _is_supervisor(current_user)
+    withdrawal_intentions_badge = _get_pending_withdrawal_intentions_count(enabled=can_manage_intentions)
 
     lancamentos_active = _path_matches_any(
         path,
@@ -278,7 +308,7 @@ def build_sidebar_navigation() -> dict[str, Any]:
     )
     estoque_active = _path_matches_any(
         path,
-        [inventory_list_url, barcode_studio_url, central_operacoes_url, projection_url],
+        [inventory_list_url, withdrawal_intentions_url, barcode_studio_url, central_operacoes_url, projection_url],
     ) or path.startswith("/estoque")
     suprimentos_active = _path_matches_any(
         path,
@@ -316,6 +346,16 @@ def build_sidebar_navigation() -> dict[str, Any]:
     estoque_children: list[dict[str, Any]] = []
     if inventory_list_url:
         estoque_children.append(_link_item("Itens Cadastrados", inventory_list_url, "bi-card-list", inventory_list_active))
+    if withdrawal_intentions_url and can_manage_intentions:
+        estoque_children.append(
+            _link_item(
+                "Intenções de Retirada",
+                withdrawal_intentions_url,
+                "bi-bell-fill",
+                _path_matches(path, inventory_list_url) and str(request.args.get("open_intentions") or "").strip() in {"1", "true", "True"},
+                badge_count=withdrawal_intentions_badge,
+            )
+        )
     if barcode_studio_url:
         estoque_children.append(_link_item("Editor de Etiquetas", barcode_studio_url, "bi-upc-scan", _path_matches(path, barcode_studio_url)))
     if central_operacoes_url:

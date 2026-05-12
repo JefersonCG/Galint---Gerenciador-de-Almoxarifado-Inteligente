@@ -3,14 +3,16 @@ from __future__ import annotations
 
 from collections import defaultdict
 from datetime import date, datetime
+import html
 import json
+from pathlib import Path
 from unicodedata import normalize as unicode_normalize
 
 from io import BytesIO
 
 from flask import Blueprint, abort, current_app, flash, jsonify, make_response, redirect, render_template, request, send_file, session, url_for
 from flask_login import login_required, current_user
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import and_, func, inspect as sa_inspect, or_, select
 
 from ..extensions import db
 from ..models import (
@@ -21,6 +23,7 @@ from ..models import (
     PurchaseProjectionSummary,
     PurchaseProjectionSummaryRevision,
     Usuario,
+    WithdrawalIntention,
 )
 from ..services.barcode_studio_service import barcode_studio_service
 from ..services.category_catalog import (
@@ -147,6 +150,99 @@ def _is_supervisor(user) -> bool:
 def _require_admin_or_supervisor() -> None:
     if not (_is_admin(current_user) or _is_supervisor(current_user)):
         abort(403)
+
+
+def _can_manage_withdrawal_intentions(user=None) -> bool:
+    principal = user or current_user
+    return _is_admin(principal) or _is_supervisor(principal)
+
+
+def _ensure_withdrawal_intentions_table() -> None:
+    bind = db.session.get_bind()
+    inspector = None
+    try:
+        inspector = sa_inspect(bind)
+    except Exception:
+        inspector = None
+
+    try:
+        has_table = bool(inspector and inspector.has_table("withdrawal_intentions"))
+    except Exception:
+        has_table = False
+
+    if not has_table:
+        WithdrawalIntention.__table__.create(bind=bind, checkfirst=True)
+
+
+def _safe_float_or_none(value) -> float | None:
+    if value is None:
+        return None
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError):
+        return None
+    return parsed if parsed > 0 else None
+
+
+def _serialize_withdrawal_intention(entry: WithdrawalIntention) -> dict[str, object]:
+    stock_status = str(entry.top_item_stock_status or "").strip().lower()
+    return {
+        "id": int(entry.id),
+        "user_matricula": str(entry.user_matricula or "").strip() or None,
+        "user_name": str(entry.user_name or "").strip() or "Colaborador",
+        "search_query": str(entry.search_query or "").strip(),
+        "requested_quantity": float(entry.requested_quantity) if entry.requested_quantity is not None else None,
+        "candidate_count": int(entry.candidate_count or 0),
+        "top_item": {
+            "codigo": str(entry.top_item_code or "").strip() or None,
+            "descricao": str(entry.top_item_description or "").strip() or None,
+            "foto_path": str(entry.top_item_photo_path or "").strip() or None,
+            "saldo_texto": str(entry.top_item_stock_text or "").strip() or None,
+            "status": stock_status or "disponivel",
+        },
+        "is_compatible": bool(entry.is_compatible),
+        "viewed_at": entry.viewed_at.isoformat() if entry.viewed_at else None,
+        "created_at": entry.created_at.isoformat() if entry.created_at else None,
+    }
+
+
+def _withdrawal_intention_metadata(entry: WithdrawalIntention) -> dict[str, object]:
+    raw = getattr(entry, "metadata_json", None)
+    return dict(raw) if isinstance(raw, dict) else {}
+
+
+def _withdrawal_intention_kind(entry: WithdrawalIntention) -> str:
+    return str(_withdrawal_intention_metadata(entry).get("kind") or "withdrawal_intention").strip()
+
+
+def _is_purchase_suggestion(entry: WithdrawalIntention) -> bool:
+    return _withdrawal_intention_kind(entry) == "purchase_suggestion"
+
+
+def _purchase_suggestion_status(entry: WithdrawalIntention) -> str:
+    return str(_withdrawal_intention_metadata(entry).get("status") or "confirmed").strip() or "confirmed"
+
+
+def _serialize_purchase_suggestion(entry: WithdrawalIntention) -> dict[str, object]:
+    metadata = _withdrawal_intention_metadata(entry)
+    photo_path = str(metadata.get("photo_path") or entry.top_item_photo_path or "").strip() or None
+    return {
+        "id": int(entry.id),
+        "user_matricula": str(entry.user_matricula or "").strip() or None,
+        "user_name": str(entry.user_name or "").strip() or "Colaborador",
+        "search_query": str(entry.search_query or "").strip(),
+        "photo_path": photo_path,
+        "visual_text": str(metadata.get("visual_text") or "").strip(),
+        "barcode_data": str(metadata.get("barcode_data") or "").strip(),
+        "source": str(metadata.get("source") or "telegram_photo").strip(),
+        "status": _purchase_suggestion_status(entry),
+        "candidate_count": int(entry.candidate_count or 0),
+        "candidate_matches": metadata.get("candidate_matches") if isinstance(metadata.get("candidate_matches"), list) else [],
+        "answered_item": metadata.get("answered_item") if isinstance(metadata.get("answered_item"), dict) else None,
+        "answered_at": str(metadata.get("answered_at") or "").strip() or None,
+        "viewed_at": entry.viewed_at.isoformat() if entry.viewed_at else None,
+        "created_at": entry.created_at.isoformat() if entry.created_at else None,
+    }
 
 
 def _finance_unlock_session_key() -> str:
@@ -1891,6 +1987,7 @@ def list_items():
     can_manage = _is_admin(current_user)
     can_edit_items = can_manage or _is_supervisor(current_user)
     can_create = can_manage or _is_supervisor(current_user)
+    can_manage_intentions = _can_manage_withdrawal_intentions(current_user)
     
     # Carregar lista de usuários para modal de atribuição (apenas se admin)
     users_list = []
@@ -1942,8 +2039,256 @@ def list_items():
         category_cards=category_cards,
         selected_category=request.args.get("categoria", "").strip(),
         users_list=users_list,
+        can_manage_intentions=can_manage_intentions,
+        open_withdrawal_intentions=str(request.args.get("open_intentions") or "").strip() in {"1", "true", "True"},
         operational_activity_options=OPERATIONAL_ACTIVITY_OPTIONS,
     )
+
+
+@blueprint.post("/intencoes-retirada")
+@login_required
+def create_withdrawal_intention():
+    payload = request.get_json(silent=True) or {}
+    query = str(payload.get("search_query") or "").strip()
+    if not query:
+        return _json_no_store({"success": False, "message": "Pesquisa inválida."}), 400
+
+    candidate_count = int(payload.get("candidate_count") or 0)
+    is_compatible = bool(payload.get("is_compatible", candidate_count > 0))
+    if not is_compatible or candidate_count <= 0:
+        return _json_no_store({"success": True, "created": False})
+
+    top_item = payload.get("top_item") if isinstance(payload.get("top_item"), dict) else {}
+
+    try:
+        _ensure_withdrawal_intentions_table()
+        entry = WithdrawalIntention(
+            user_matricula=str(getattr(current_user, "id", "") or "").strip() or None,
+            user_name=str(getattr(current_user, "nome", "") or getattr(current_user, "id", "") or "").strip() or "Colaborador",
+            search_query=query[:240],
+            requested_quantity=_safe_float_or_none(payload.get("requested_quantity")),
+            candidate_count=max(1, candidate_count),
+            top_item_code=str(top_item.get("codigo") or "").strip()[:80] or None,
+            top_item_description=str(top_item.get("descricao") or "").strip()[:240] or None,
+            top_item_photo_path=str(top_item.get("foto_path") or "").strip()[:240] or None,
+            top_item_stock_text=str(top_item.get("saldo_texto") or "").strip()[:80] or None,
+            top_item_stock_status=str(top_item.get("status") or "").strip().lower()[:20] or "disponivel",
+            is_compatible=True,
+            metadata_json={
+                "raw_query": query,
+                "candidate_count": max(1, candidate_count),
+            },
+        )
+        db.session.add(entry)
+        db.session.commit()
+    except Exception as exc:
+        db.session.rollback()
+        return _json_no_store({"success": False, "message": f"Não foi possível registrar a intenção ({exc})."}), 500
+
+    return _json_no_store({"success": True, "created": True, "entry": _serialize_withdrawal_intention(entry)})
+
+
+@blueprint.get("/intencoes-retirada/api")
+@login_required
+def list_withdrawal_intentions():
+    if not _can_manage_withdrawal_intentions(current_user):
+        abort(403)
+
+    include_viewed = str(request.args.get("include_viewed") or "").strip() in {"1", "true", "True"}
+    limit = max(1, min(int(request.args.get("limit") or 40), 200))
+
+    try:
+        _ensure_withdrawal_intentions_table()
+        query = WithdrawalIntention.query.filter(WithdrawalIntention.is_compatible.is_(True))
+        if not include_viewed:
+            query = query.filter(WithdrawalIntention.viewed_at.is_(None))
+        rows = query.order_by(WithdrawalIntention.created_at.desc()).limit(max(limit * 4, 200)).all()
+        withdrawal_rows = [row for row in rows if not _is_purchase_suggestion(row)][:limit]
+        purchase_suggestion_rows = [
+            row
+            for row in rows
+            if _is_purchase_suggestion(row) and _purchase_suggestion_status(row) in {"confirmed", "answered"}
+        ][:limit]
+        unviewed_rows = (
+            WithdrawalIntention.query.filter(
+                WithdrawalIntention.is_compatible.is_(True),
+                WithdrawalIntention.viewed_at.is_(None),
+            )
+            .order_by(WithdrawalIntention.created_at.desc())
+            .limit(1000)
+            .all()
+        )
+        pending_count = sum(1 for row in unviewed_rows if not _is_purchase_suggestion(row))
+        purchase_suggestions_pending_count = sum(
+            1
+            for row in unviewed_rows
+            if _is_purchase_suggestion(row) and _purchase_suggestion_status(row) in {"confirmed", "answered"}
+        )
+    except Exception as exc:
+        return _json_no_store({"success": False, "message": f"Falha ao carregar intenções ({exc})."}), 500
+
+    return _json_no_store(
+        {
+            "success": True,
+            "pending_count": pending_count,
+            "purchase_suggestions_pending_count": purchase_suggestions_pending_count,
+            "total_pending_count": pending_count + purchase_suggestions_pending_count,
+            "items": [_serialize_withdrawal_intention(row) for row in withdrawal_rows],
+            "purchase_suggestions": [_serialize_purchase_suggestion(row) for row in purchase_suggestion_rows],
+        }
+    )
+
+
+@blueprint.post("/intencoes-retirada/marcar-visualizadas")
+@login_required
+def mark_withdrawal_intentions_viewed():
+    if not _can_manage_withdrawal_intentions(current_user):
+        abort(403)
+
+    try:
+        _ensure_withdrawal_intentions_table()
+        now_value = TimeService.now_local()
+        updated = (
+            WithdrawalIntention.query.filter(
+                WithdrawalIntention.is_compatible.is_(True),
+                WithdrawalIntention.viewed_at.is_(None),
+            ).update({"viewed_at": now_value}, synchronize_session=False)
+        )
+        db.session.commit()
+    except Exception as exc:
+        db.session.rollback()
+        return _json_no_store({"success": False, "message": f"Falha ao atualizar intenções ({exc})."}), 500
+
+    return _json_no_store({"success": True, "updated": int(updated or 0)})
+
+
+@blueprint.post("/intencoes-retirada/sugestoes-compra/<int:entry_id>/responder")
+@login_required
+def respond_purchase_suggestion(entry_id: int):
+    if not _can_manage_withdrawal_intentions(current_user):
+        abort(403)
+
+    payload = request.get_json(silent=True) or {}
+    item_code = str(payload.get("item_code") or "").strip()
+    if not item_code:
+        return _json_no_store({"success": False, "message": "Informe o código do item."}), 400
+
+    try:
+        _ensure_withdrawal_intentions_table()
+        entry = db.session.get(WithdrawalIntention, entry_id)
+        if not entry or not _is_purchase_suggestion(entry):
+            return _json_no_store({"success": False, "message": "Sugestão não encontrada."}), 404
+        metadata = _withdrawal_intention_metadata(entry)
+        chat_id = str(metadata.get("telegram_chat_id") or "").strip()
+        if not chat_id:
+            return _json_no_store({"success": False, "message": "Sugestão sem usuário Telegram vinculado."}), 400
+
+        item = Item.query.filter_by(codigo_item=item_code).first()
+        if not item:
+            return _json_no_store({"success": False, "message": "Item não encontrado no cadastro."}), 404
+
+        try:
+            saldo_atual = item.get_saldo_atual()
+        except Exception:
+            saldo_atual = "N/D"
+        unidade = str(getattr(item, "unidade", None) or "un").strip() or "un"
+        admin_name = str(getattr(current_user, "nome", "") or getattr(current_user, "id", "") or "Administração").strip()
+        message = (
+            "✅ <b>Conferimos sua sugestão de compra</b>\n\n"
+            "Pelo que foi enviado, este parece ser o item correto no estoque:\n\n"
+            f"<b>{html.escape(str(item.descricao or 'Item'))}</b>\n"
+            f"Código: <code>{html.escape(str(item.codigo_item or ''))}</code>\n"
+            f"Saldo atual: <b>{html.escape(str(saldo_atual))} {html.escape(unidade)}</b>\n\n"
+            "Se for esse mesmo, toque em <b>Fazer retirada</b> ou envie o código do item."
+        )
+        keyboard = {
+            "inline_keyboard": [
+                [{"text": "Fazer retirada", "callback_data": f"withdraw:{item.codigo_item}"}],
+                [{"text": "Ver detalhes", "callback_data": f"details:{item.codigo_item}"}],
+            ]
+        }
+        photo_to_send = None
+        stock_photo_path = str(getattr(item, "foto_path", "") or "").strip()
+        if stock_photo_path.startswith(("http://", "https://")):
+            photo_to_send = stock_photo_path
+        elif stock_photo_path:
+            safe_parts = [part for part in stock_photo_path.replace("\\", "/").split("/") if part and part not in {".", ".."}]
+            if safe_parts and safe_parts[0].lower() == "static":
+                safe_parts = safe_parts[1:]
+            local_photo = Path(current_app.static_folder or "") / Path(*safe_parts)
+            if local_photo.is_file():
+                photo_to_send = str(local_photo)
+
+        sent_with_photo = False
+        if photo_to_send:
+            send_result = TelegramService.send_photo(
+                chat_id,
+                photo_to_send,
+                caption=message,
+                parse_mode="HTML",
+                reply_markup=keyboard,
+            )
+            sent_with_photo = bool(send_result.get("success"))
+            if not sent_with_photo:
+                send_result = TelegramService.send_message(chat_id, message, parse_mode="HTML", reply_markup=keyboard)
+        else:
+            send_result = TelegramService.send_message(chat_id, message, parse_mode="HTML", reply_markup=keyboard)
+        if not send_result.get("success"):
+            return _json_no_store(
+                {"success": False, "message": f"Não foi possível enviar ao Telegram ({send_result.get('error')})."}
+            ), 502
+
+        metadata["status"] = "answered"
+        metadata["answered_at"] = TimeService.now_local().isoformat()
+        metadata["answered_by"] = admin_name
+        metadata["answered_item"] = {
+            "codigo": str(item.codigo_item or ""),
+            "descricao": str(item.descricao or ""),
+            "saldo": str(saldo_atual),
+            "unidade": unidade,
+            "foto_path": stock_photo_path or None,
+            "sent_with_photo": sent_with_photo,
+        }
+        entry.metadata_json = metadata
+        entry.top_item_code = str(item.codigo_item or "")[:80] or None
+        entry.top_item_description = str(item.descricao or "")[:240] or None
+        entry.top_item_stock_text = f"{saldo_atual} {unidade}"[:80]
+        entry.top_item_stock_status = "respondido"
+        db.session.commit()
+    except Exception as exc:
+        db.session.rollback()
+        return _json_no_store({"success": False, "message": f"Falha ao responder sugestão ({exc})."}), 500
+
+    return _json_no_store({"success": True, "entry": _serialize_purchase_suggestion(entry)})
+
+
+@blueprint.post("/intencoes-retirada/sugestoes-compra/<int:entry_id>/arquivar")
+@login_required
+def archive_purchase_suggestion(entry_id: int):
+    if not _can_manage_withdrawal_intentions(current_user):
+        abort(403)
+
+    try:
+        _ensure_withdrawal_intentions_table()
+        entry = db.session.get(WithdrawalIntention, entry_id)
+        if not entry or not _is_purchase_suggestion(entry):
+            return _json_no_store({"success": False, "message": "Sugestão não encontrada."}), 404
+
+        metadata = _withdrawal_intention_metadata(entry)
+        metadata["status"] = "archived"
+        metadata["archived_at"] = TimeService.now_local().isoformat()
+        metadata["archived_by"] = str(
+            getattr(current_user, "nome", "") or getattr(current_user, "id", "") or "Administração"
+        ).strip()
+        entry.metadata_json = metadata
+        entry.is_compatible = False
+        entry.viewed_at = entry.viewed_at or TimeService.now_local()
+        db.session.commit()
+    except Exception as exc:
+        db.session.rollback()
+        return _json_no_store({"success": False, "message": f"Falha ao arquivar sugestão ({exc})."}), 500
+
+    return _json_no_store({"success": True, "archived": True})
 
 
 def _serialize_barcode_studio_item(raw_item: dict | None) -> dict[str, object]:

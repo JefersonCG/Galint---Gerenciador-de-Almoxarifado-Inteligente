@@ -850,6 +850,32 @@ class StockMovement(db.Model):
     item: Mapped[Item] = relationship("Item", back_populates="stock_movements")
 
 
+class WithdrawalIntention(db.Model):
+    __tablename__ = "withdrawal_intentions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_matricula: Mapped[str | None] = mapped_column(
+        ForeignKey("usuarios.matricula", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    user_name: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    search_query: Mapped[str] = mapped_column(String(240), nullable=False, index=True)
+    requested_quantity: Mapped[float | None] = mapped_column(Float, nullable=True)
+    candidate_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    top_item_code: Mapped[str | None] = mapped_column(String(80), nullable=True, index=True)
+    top_item_description: Mapped[str | None] = mapped_column(String(240), nullable=True)
+    top_item_photo_path: Mapped[str | None] = mapped_column(String(240), nullable=True)
+    top_item_stock_text: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    top_item_stock_status: Mapped[str | None] = mapped_column(String(20), nullable=True, index=True)
+    is_compatible: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, index=True)
+    metadata_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    viewed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=func.now(), index=True)
+
+    user: Mapped["Usuario | None"] = relationship("Usuario", foreign_keys=[user_matricula])
+
+
 class StockBalance(db.Model):
     __tablename__ = "stock_balances"
 

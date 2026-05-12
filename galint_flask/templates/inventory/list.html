@@ -1861,6 +1861,49 @@
     </div>
 </div>
 
+<div class="modal fade" id="withdrawalIntentionsModal" tabindex="-1" aria-labelledby="withdrawalIntentionsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content galint-bs-modal galint-bs-modal--amber">
+            <div class="modal-header">
+                <div>
+                    <h5 class="modal-title" id="withdrawalIntentionsModalLabel">Intenções de Retirada</h5>
+                    <div class="small text-muted">Histórico de pesquisas compatíveis para preparação de retirada.</div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                    <div class="small text-muted" id="withdrawal-intentions-summary">Carregando intenções...</div>
+                    <button class="btn btn-outline-light btn-sm" type="button" id="withdrawal-intentions-refresh-btn">
+                        <i class="bi bi-arrow-clockwise me-1"></i> Atualizar
+                    </button>
+                </div>
+                <ul class="nav nav-tabs withdrawal-intentions-tabs" id="withdrawal-intentions-tabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="withdrawal-intentions-list-tab" data-bs-toggle="tab" data-bs-target="#withdrawal-intentions-list-pane" type="button" role="tab" aria-controls="withdrawal-intentions-list-pane" aria-selected="true">Intenções de Retirada</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="purchase-suggestions-tab" data-bs-toggle="tab" data-bs-target="#purchase-suggestions-pane" type="button" role="tab" aria-controls="purchase-suggestions-pane" aria-selected="false">Sugestões para Compra</button>
+                    </li>
+                </ul>
+                <div class="tab-content pt-3">
+                    <div class="tab-pane fade show active" id="withdrawal-intentions-list-pane" role="tabpanel" aria-labelledby="withdrawal-intentions-list-tab" tabindex="0">
+                        <div class="withdrawal-intentions-list" id="withdrawal-intentions-list"></div>
+                        <div class="text-muted small d-none" id="withdrawal-intentions-empty">Nenhuma intenção de retirada pendente no momento.</div>
+                    </div>
+                    <div class="tab-pane fade" id="purchase-suggestions-pane" role="tabpanel" aria-labelledby="purchase-suggestions-tab" tabindex="0">
+                        <div class="withdrawal-intentions-list" id="purchase-suggestions-list"></div>
+                        <div class="text-muted small d-none" id="purchase-suggestions-empty">Nenhuma sugestão de compra enviada por foto no momento.</div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Fechar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="modal fade" id="photoAssistantModal" tabindex="-1" aria-labelledby="photoAssistantModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-scrollable photo-assistant-dialog">
         <div class="modal-content photo-assistant-modal galint-dark-surface">
@@ -1947,6 +1990,184 @@
 <!-- SweetAlert2 para modais amigáveis -->
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <style>
+    .withdrawal-intentions-list {
+        display: grid;
+        gap: 0.75rem;
+    }
+
+    .withdrawal-intentions-tabs {
+        border-color: rgba(148, 163, 184, 0.22);
+    }
+
+    .withdrawal-intentions-tabs .nav-link {
+        color: #cbd5e1;
+        border-color: transparent;
+        border-radius: 0.5rem 0.5rem 0 0;
+    }
+
+    .withdrawal-intentions-tabs .nav-link.active {
+        color: #f8fafc;
+        background: rgba(15, 23, 42, 0.78);
+        border-color: rgba(148, 163, 184, 0.28) rgba(148, 163, 184, 0.28) rgba(15, 23, 42, 0.78);
+    }
+
+    .withdrawal-intention-card {
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        border-radius: 0.75rem;
+        padding: 0.8rem 0.9rem;
+        background: rgba(15, 23, 42, 0.7);
+    }
+
+    .withdrawal-intention-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 0.75rem;
+        margin-bottom: 0.55rem;
+    }
+
+    .withdrawal-intention-title {
+        margin: 0;
+        color: #f8fafc;
+        font-size: 0.98rem;
+        font-weight: 700;
+    }
+
+    .withdrawal-intention-meta {
+        font-size: 0.78rem;
+        color: #94a3b8;
+    }
+
+    .withdrawal-intention-query {
+        margin: 0;
+        color: #e2e8f0;
+        font-size: 0.9rem;
+    }
+
+    .withdrawal-intention-item {
+        display: flex;
+        align-items: center;
+        gap: 0.65rem;
+        margin-top: 0.65rem;
+    }
+
+    .withdrawal-intention-item-photo {
+        width: 52px;
+        height: 52px;
+        border-radius: 0.5rem;
+        object-fit: cover;
+        border: 1px solid rgba(148, 163, 184, 0.25);
+        background: rgba(15, 23, 42, 0.9);
+    }
+
+    .withdrawal-intention-item-photo.is-placeholder {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #94a3b8;
+    }
+
+    .purchase-suggestion-photo {
+        width: 92px;
+        height: 92px;
+        border-radius: 0.5rem;
+        object-fit: cover;
+        border: 1px solid rgba(148, 163, 184, 0.28);
+        background: rgba(15, 23, 42, 0.9);
+        flex: 0 0 auto;
+    }
+
+    .purchase-suggestion-actions {
+        display: grid;
+        grid-template-columns: minmax(160px, 1fr) auto auto;
+        gap: 0.5rem;
+        margin-top: 0.75rem;
+    }
+
+    .purchase-suggestion-field {
+        position: relative;
+        min-width: 0;
+    }
+
+    .purchase-suggestion-autocomplete {
+        position: absolute;
+        z-index: 30;
+        top: calc(100% + 0.25rem);
+        left: 0;
+        right: 0;
+        max-height: 260px;
+        overflow: auto;
+        border: 1px solid rgba(148, 163, 184, 0.28);
+        border-radius: 0.5rem;
+        background: #020617;
+        box-shadow: 0 16px 34px rgba(2, 8, 23, 0.38);
+    }
+
+    .purchase-suggestion-option {
+        width: 100%;
+        display: block;
+        text-align: left;
+        border: 0;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+        padding: 0.55rem 0.65rem;
+        color: #e2e8f0;
+        background: transparent;
+    }
+
+    .purchase-suggestion-option:hover,
+    .purchase-suggestion-option:focus {
+        background: rgba(59, 130, 246, 0.16);
+        outline: none;
+    }
+
+    .purchase-suggestion-option-title {
+        font-weight: 700;
+        font-size: 0.86rem;
+    }
+
+    .purchase-suggestion-option-meta {
+        margin-top: 0.18rem;
+        color: #94a3b8;
+        font-size: 0.76rem;
+    }
+
+    .purchase-suggestion-candidates {
+        margin-top: 0.55rem;
+        color: #94a3b8;
+        font-size: 0.8rem;
+    }
+
+    @media (max-width: 575.98px) {
+        .purchase-suggestion-actions {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .withdrawal-intention-stock-status {
+        font-size: 0.75rem;
+        border-radius: 999px;
+        padding: 0.18rem 0.56rem;
+        border: 1px solid transparent;
+    }
+
+    .withdrawal-intention-stock-status.is-available {
+        color: #86efac;
+        border-color: rgba(34, 197, 94, 0.4);
+        background: rgba(34, 197, 94, 0.12);
+    }
+
+    .withdrawal-intention-stock-status.is-low {
+        color: #fde68a;
+        border-color: rgba(245, 158, 11, 0.38);
+        background: rgba(245, 158, 11, 0.12);
+    }
+
+    .withdrawal-intention-stock-status.is-zero {
+        color: #fca5a5;
+        border-color: rgba(239, 68, 68, 0.5);
+        background: rgba(239, 68, 68, 0.14);
+    }
+
     #assignModal .modal-content {
         background: linear-gradient(145deg, #0f172a 0%, #1e293b 100%);
         border: 1px solid rgba(148,163,184,0.18);
@@ -5247,8 +5468,15 @@
     }};
         const canManage = {{ 'true' if can_manage else 'false' }};
         const canEditItems = {{ 'true' if can_edit_items else 'false' }};
+        const canManageIntentions = {{ 'true' if can_manage_intentions else 'false' }};
+        const openWithdrawalIntentions = {{ 'true' if open_withdrawal_intentions else 'false' }};
         const selectedCategory = {{ selected_category | tojson | safe }};
         const preRegisteredApiUrl = '/itens/api/pre-cadastrados';
+        const withdrawalIntentionsCreateUrl = {{ url_for('inventory.create_withdrawal_intention') | tojson | safe }};
+        const withdrawalIntentionsListUrl = {{ url_for('inventory.list_withdrawal_intentions') | tojson | safe }};
+        const withdrawalIntentionsMarkViewedUrl = {{ url_for('inventory.mark_withdrawal_intentions_viewed') | tojson | safe }};
+        const purchaseSuggestionRespondUrlTemplate = {{ url_for('inventory.respond_purchase_suggestion', entry_id=0) | tojson | safe }};
+        const purchaseSuggestionArchiveUrlTemplate = {{ url_for('inventory.archive_purchase_suggestion', entry_id=0) | tojson | safe }};
 
     const searchInput = document.getElementById('inventory-search');
     const searchClear = document.getElementById('inventory-search-clear');
@@ -5283,6 +5511,14 @@
     const preRegisteredDocSummary = document.getElementById('pre-registered-doc-summary');
     const preRegisteredFinishButton = document.getElementById('pre-registered-finish-btn');
     const preRegisteredButtonBadge = document.getElementById('preRegisteredButtonBadge');
+    const withdrawalIntentionsModalElement = document.getElementById('withdrawalIntentionsModal');
+    const withdrawalIntentionsModalInstance = withdrawalIntentionsModalElement ? new bootstrap.Modal(withdrawalIntentionsModalElement) : null;
+    const withdrawalIntentionsList = document.getElementById('withdrawal-intentions-list');
+    const withdrawalIntentionsEmpty = document.getElementById('withdrawal-intentions-empty');
+    const purchaseSuggestionsList = document.getElementById('purchase-suggestions-list');
+    const purchaseSuggestionsEmpty = document.getElementById('purchase-suggestions-empty');
+    const withdrawalIntentionsSummary = document.getElementById('withdrawal-intentions-summary');
+    const withdrawalIntentionsRefreshBtn = document.getElementById('withdrawal-intentions-refresh-btn');
     const applyPhotoUrlEndpoint = {{ url_for('inventory.aplicar_foto_url_global') | tojson | safe }};
     const applyPhotoUploadEndpoint = {{ (url_for('inventory.aplicar_foto_upload_global') if endpoint_exists('inventory.aplicar_foto_upload_global') else '/itens/foto/upload') | tojson | safe }};
     let currentPhotoItem = null;
@@ -5290,6 +5526,11 @@
     let photoAssistantClipboardMonitorId = null;
     let lastAutoFilledPhotoUrl = '';
     let preRegisteredSelection = null;
+    let knownWithdrawalIntentionIds = new Set();
+    let withdrawalIntentionsPollHandle = null;
+    let withdrawalIntentionsFetchInFlight = null;
+    let deferredWithdrawalIntentionsPayload = null;
+    let purchaseSuggestionInteractionHoldUntil = 0;
 
     const priceModalElement = document.getElementById('priceSuggestionsModal');
     const priceModalInstance = priceModalElement ? new bootstrap.Modal(priceModalElement) : null;
@@ -5403,6 +5644,15 @@
         return `/static/${normalized}?v=${Date.now()}`;
     };
 
+    const buildStableStaticPhotoUrl = (fotoPath, versionHint = '') => {
+        const normalized = String(fotoPath || '').trim().replace(/^\/+/, '').replace(/^static\//i, '');
+        if (!normalized) {
+            return '';
+        }
+        const version = String(versionHint || '').trim();
+        return `/static/${normalized}${version ? `?v=${encodeURIComponent(version)}` : ''}`;
+    };
+
     const formatBrl = (value) => {
         const num = Number(value);
         if (!Number.isFinite(num) || num <= 0) return '—';
@@ -5440,6 +5690,610 @@
         preRegisteredButtonBadge.title = items > 0
             ? `${items} item(ns) pendente(s) em ${documents} documento(s)`
             : 'Nenhum documento pendente';
+    };
+
+    const showGalintToast = ({ title = 'GALINT', message = '', tone = 'danger', delay = 10000 } = {}) => {
+        const stack = document.getElementById('galintFlashToastStack');
+        if (!stack || !window.bootstrap) {
+            return;
+        }
+        const toneNormalized = String(tone || 'danger').trim().toLowerCase();
+        const iconByTone = {
+            success: 'bi-check-circle-fill',
+            info: 'bi-info-circle-fill',
+            warning: 'bi-exclamation-triangle-fill',
+            danger: 'bi-bell-fill',
+        };
+        const iconClass = iconByTone[toneNormalized] || iconByTone.danger;
+
+        const toastEl = document.createElement('div');
+        toastEl.className = `toast galint-flash-toast toast-${toneNormalized}`;
+        toastEl.setAttribute('role', 'alert');
+        toastEl.setAttribute('aria-live', 'assertive');
+        toastEl.setAttribute('aria-atomic', 'true');
+        toastEl.innerHTML = `
+            <div class="toast-header">
+                <span class="galint-flash-toast-icon"><i class="bi ${iconClass}"></i></span>
+                <strong class="me-auto galint-flash-toast-label">${escapeHtml(title)}</strong>
+                <span class="galint-flash-toast-time">agora</span>
+                <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Fechar"></button>
+            </div>
+            <div class="toast-body">${escapeHtml(message)}</div>
+        `;
+        stack.appendChild(toastEl);
+        const toast = bootstrap.Toast.getOrCreateInstance(toastEl, {
+            autohide: true,
+            delay: Number(delay) > 0 ? Number(delay) : 10000,
+        });
+        toastEl.addEventListener('hidden.bs.toast', () => toastEl.remove(), { once: true });
+        toast.show();
+    };
+
+    const resolveIntentionStockStatus = (item) => {
+        const saldo = Number(item?.saldo_unidades_total ?? item?.saldo ?? 0);
+        if (!Number.isFinite(saldo) || saldo <= 0) {
+            return 'zero';
+        }
+        if (saldo <= 3) {
+            return 'baixo';
+        }
+        return 'disponivel';
+    };
+
+    const resolveIntentionStockText = (item) => {
+        const hasPackaging = item?.tipo_embalagem_novo && item?.unidades_por_embalagem;
+        const embalagemNome = item?.tipo_embalagem_novo || 'embalagem';
+        return String(item?.saldo_display || '').trim()
+            || (hasPackaging
+                ? `${item?.saldo_embalagens ?? item?.saldo ?? 0} ${embalagemNome}`
+                : `${item?.saldo ?? 0} ${item?.unidade || 'unidades'}`);
+    };
+
+    const updateSidebarIntentionsBadge = (pendingCount) => {
+        const count = Number(pendingCount || 0);
+        const target = document.querySelector('.sidebar-menu a.sidebar-link[href*="open_intentions=1"]');
+        if (!target) {
+            return;
+        }
+        let badgeEl = target.querySelector('.badge');
+        if (count <= 0) {
+            if (badgeEl) {
+                badgeEl.remove();
+            }
+            return;
+        }
+        if (!badgeEl) {
+            badgeEl = document.createElement('span');
+            badgeEl.className = 'badge rounded-pill bg-danger ms-auto';
+            target.appendChild(badgeEl);
+        }
+        badgeEl.textContent = count > 99 ? '99+' : String(count);
+    };
+
+    const renderWithdrawalIntentionsList = (itemsPayload) => {
+        if (!withdrawalIntentionsList || !withdrawalIntentionsEmpty) {
+            return;
+        }
+        const entries = Array.isArray(itemsPayload) ? itemsPayload : [];
+        withdrawalIntentionsList.innerHTML = '';
+        withdrawalIntentionsEmpty.classList.toggle('d-none', entries.length > 0);
+
+        entries.forEach((entry) => {
+            const topItem = entry?.top_item || {};
+            const stockStatus = String(topItem?.status || 'disponivel').toLowerCase();
+            const statusClass = stockStatus === 'zero'
+                ? 'is-zero'
+                : stockStatus === 'baixo'
+                    ? 'is-low'
+                    : 'is-available';
+            const statusLabel = stockStatus === 'zero'
+                ? 'Estoque zerado'
+                : stockStatus === 'baixo'
+                    ? 'Estoque baixo'
+                    : 'Estoque disponível';
+            const createdAt = entry?.created_at
+                ? new Date(entry.created_at).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
+                : 'agora';
+            const photoPath = String(topItem?.foto_path || '').trim();
+            const photoUrl = buildStableStaticPhotoUrl(photoPath, entry?.id || entry?.created_at || '');
+            const photoMarkup = photoPath
+                ? `<img class="withdrawal-intention-item-photo" src="${escapeHtml(photoUrl)}" alt="Item pesquisado" loading="lazy">`
+                : '<span class="withdrawal-intention-item-photo is-placeholder"><i class="bi bi-image"></i></span>';
+
+            const card = document.createElement('article');
+            card.className = 'withdrawal-intention-card';
+            card.innerHTML = `
+                <div class="withdrawal-intention-head">
+                    <div>
+                        <p class="withdrawal-intention-title">${escapeHtml(entry?.user_name || 'Colaborador')}</p>
+                        <div class="withdrawal-intention-meta">${escapeHtml(createdAt)} • ${escapeHtml(String(entry?.candidate_count || 0))} candidato(s)</div>
+                    </div>
+                    <span class="withdrawal-intention-stock-status ${statusClass}">${escapeHtml(statusLabel)}</span>
+                </div>
+                <p class="withdrawal-intention-query">Pesquisou: <strong>${escapeHtml(entry?.search_query || '')}</strong>${entry?.requested_quantity ? ` • Qtde: ${escapeHtml(String(entry.requested_quantity))}` : ''}</p>
+                <div class="withdrawal-intention-item">
+                    ${photoMarkup}
+                    <div>
+                        <div class="fw-semibold">${escapeHtml(topItem?.descricao || 'Item sugerido não identificado')}</div>
+                        <div class="small text-muted">Código ${escapeHtml(topItem?.codigo || '—')} • ${escapeHtml(topItem?.saldo_texto || 'Saldo indisponível')}</div>
+                    </div>
+                </div>
+            `;
+            withdrawalIntentionsList.appendChild(card);
+        });
+    };
+
+    const purchaseSuggestionRespondUrl = (entryId) => {
+        return purchaseSuggestionRespondUrlTemplate.replace('/0/responder', `/${encodeURIComponent(String(entryId))}/responder`);
+    };
+
+    const purchaseSuggestionArchiveUrl = (entryId) => {
+        return purchaseSuggestionArchiveUrlTemplate.replace('/0/arquivar', `/${encodeURIComponent(String(entryId))}/arquivar`);
+    };
+
+    const formatPurchaseSuggestionMoney = (value) => {
+        const numeric = Number(value);
+        if (!Number.isFinite(numeric) || numeric <= 0) {
+            return 'sem preço';
+        }
+        return numeric.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    };
+
+    const buildPurchaseSuggestionItemMeta = (item) => {
+        const saldo = String(item?.saldo_display || item?.saldo || 'saldo N/D').trim();
+        const compra = formatPurchaseSuggestionMoney(item?.preco_compra_unitario);
+        const reposicao = formatPurchaseSuggestionMoney(item?.preco_reposicao_unitario);
+        return `Saldo ${saldo} • Compra ${compra} • Reposição ${reposicao}`;
+    };
+
+    const findPurchaseSuggestionMatches = (term) => {
+        const normalizedTerm = normalize(term);
+        if (!normalizedTerm) {
+            return [];
+        }
+        const tokens = normalizedTerm.split(/\s+/).filter(Boolean);
+        return items
+            .map((item) => {
+                const codigo = String(item?.codigo || '');
+                const descricao = String(item?.descricao || '');
+                const marca = String(item?.marca || item?.setor || '');
+                const searchable = normalize(`${codigo} ${descricao} ${marca} ${item?.categoria || ''}`);
+                const codeNormalized = normalize(codigo);
+                const startsWithCode = codeNormalized.startsWith(normalizedTerm);
+                const exactCode = codeNormalized === normalizedTerm;
+                const tokenMatches = tokens.every((token) => searchable.includes(token));
+                if (!exactCode && !startsWithCode && !tokenMatches) {
+                    return null;
+                }
+                const score = (exactCode ? 120 : 0) + (startsWithCode ? 80 : 0) + (tokenMatches ? 40 : 0);
+                return { item, score };
+            })
+            .filter(Boolean)
+            .sort((a, b) => b.score - a.score || String(a.item.descricao || '').localeCompare(String(b.item.descricao || ''), 'pt-BR'))
+            .slice(0, 8)
+            .map((entry) => entry.item);
+    };
+
+    const renderPurchaseSuggestionsList = (itemsPayload) => {
+        if (!purchaseSuggestionsList || !purchaseSuggestionsEmpty) {
+            return;
+        }
+        const entries = Array.isArray(itemsPayload) ? itemsPayload : [];
+        purchaseSuggestionsList.innerHTML = '';
+        purchaseSuggestionsEmpty.classList.toggle('d-none', entries.length > 0);
+
+        entries.forEach((entry) => {
+            const createdAt = entry?.created_at
+                ? new Date(entry.created_at).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
+                : 'agora';
+            const status = String(entry?.status || 'confirmed').toLowerCase();
+            const statusLabel = status === 'answered' ? 'Respondida' : 'Pendente';
+            const photoPath = String(entry?.photo_path || '').trim();
+            const photoUrl = buildStableStaticPhotoUrl(photoPath, entry?.id || entry?.created_at || '');
+            const photoMarkup = photoPath
+                ? `<img class="purchase-suggestion-photo" src="${escapeHtml(photoUrl)}" alt="Foto enviada pelo Telegram" loading="lazy">`
+                : '<span class="purchase-suggestion-photo withdrawal-intention-item-photo is-placeholder"><i class="bi bi-image"></i></span>';
+            const candidates = Array.isArray(entry?.candidate_matches) ? entry.candidate_matches : [];
+            const candidateMarkup = candidates.length
+                ? `<div class="purchase-suggestion-candidates">Possíveis no sistema: ${candidates.slice(0, 3).map((candidate) => `${escapeHtml(candidate?.codigo_item || '-')} ${escapeHtml(candidate?.descricao || '')}`).join(' • ')}</div>`
+                : '';
+            const answeredItem = entry?.answered_item || null;
+            const answeredMarkup = answeredItem
+                ? `<div class="small text-success mt-2">Respondido com ${escapeHtml(answeredItem.codigo || '')} • ${escapeHtml(answeredItem.descricao || '')}</div>`
+                : '';
+            const card = document.createElement('article');
+            card.className = 'withdrawal-intention-card';
+            card.dataset.purchaseSuggestionId = String(entry?.id || '');
+            card.innerHTML = `
+                <div class="withdrawal-intention-head">
+                    <div>
+                        <p class="withdrawal-intention-title">${escapeHtml(entry?.user_name || 'Colaborador')}</p>
+                        <div class="withdrawal-intention-meta">${escapeHtml(createdAt)} • foto enviada pelo Telegram</div>
+                    </div>
+                    <span class="withdrawal-intention-stock-status ${status === 'answered' ? 'is-available' : 'is-low'}">${escapeHtml(statusLabel)}</span>
+                </div>
+                <div class="withdrawal-intention-item align-items-start">
+                    ${photoMarkup}
+                    <div class="flex-grow-1">
+                        <p class="withdrawal-intention-query mb-1">Sugestão: <strong>${escapeHtml(entry?.search_query || 'Foto sem descrição')}</strong></p>
+                        ${entry?.visual_text ? `<div class="small text-muted">Leitura: ${escapeHtml(entry.visual_text)}</div>` : ''}
+                        ${entry?.barcode_data ? `<div class="small text-muted">Código lido: ${escapeHtml(entry.barcode_data)}</div>` : ''}
+                        ${candidateMarkup}
+                        ${answeredMarkup}
+                        <div class="purchase-suggestion-actions">
+                            <div class="purchase-suggestion-field">
+                                <input class="form-control form-control-sm purchase-suggestion-item-code" value="${escapeHtml(answeredItem?.codigo || '')}" placeholder="Código, nome ou marca do item existente" autocomplete="off">
+                                <div class="purchase-suggestion-autocomplete d-none"></div>
+                            </div>
+                            <button class="btn btn-sm btn-primary purchase-suggestion-resend-btn" type="button" data-action="respond-purchase-suggestion">
+                                <i class="bi bi-send me-1"></i> Enviar item ao usuário
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger purchase-suggestion-archive-btn" type="button" data-action="archive-purchase-suggestion">
+                                <i class="bi bi-trash me-1"></i> Excluir da lista
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            purchaseSuggestionsList.appendChild(card);
+        });
+    };
+
+    const isWithdrawalIntentionsModalOpen = () => Boolean(withdrawalIntentionsModalElement?.classList.contains('show'));
+
+    const holdPurchaseSuggestionInteraction = (durationMs = 8000) => {
+        purchaseSuggestionInteractionHoldUntil = Date.now() + durationMs;
+    };
+
+    const isPurchaseSuggestionInteractionActive = () => {
+        if (Date.now() < purchaseSuggestionInteractionHoldUntil) {
+            return true;
+        }
+        const activeEl = document.activeElement;
+        if (activeEl?.closest?.('#purchase-suggestions-list')) {
+            return true;
+        }
+        return Boolean(purchaseSuggestionsList?.querySelector('.purchase-suggestion-autocomplete:not(.d-none)'));
+    };
+
+    const renderWithdrawalIntentionsPayload = (entries, purchaseSuggestions) => {
+        renderWithdrawalIntentionsList(entries);
+        renderPurchaseSuggestionsList(purchaseSuggestions);
+    };
+
+    const applyDeferredWithdrawalIntentionsPayload = () => {
+        if (!deferredWithdrawalIntentionsPayload || isPurchaseSuggestionInteractionActive()) {
+            return;
+        }
+        const payload = deferredWithdrawalIntentionsPayload;
+        deferredWithdrawalIntentionsPayload = null;
+        renderWithdrawalIntentionsPayload(payload.entries, payload.purchaseSuggestions);
+    };
+
+    const fetchWithdrawalIntentions = async ({ notifyNew = false, includeViewed = true, render = isWithdrawalIntentionsModalOpen(), forceRender = false } = {}) => {
+        if (!canManageIntentions) {
+            return;
+        }
+        if (withdrawalIntentionsFetchInFlight && !forceRender) {
+            return withdrawalIntentionsFetchInFlight;
+        }
+        const requestPromise = (async () => {
+        const url = `${withdrawalIntentionsListUrl}?limit=80&include_viewed=${includeViewed ? '1' : '0'}&_ts=${Date.now()}`;
+        const response = await fetch(url, {
+            headers: { 'Accept': 'application/json' },
+            credentials: 'same-origin',
+            cache: 'no-store',
+        });
+        const payload = await readJsonResponse(response);
+        if (!response.ok || payload?.success === false) {
+            throw new Error(payload?.message || 'Não foi possível carregar as intenções de retirada.');
+        }
+
+        const entries = Array.isArray(payload.items) ? payload.items : [];
+        const purchaseSuggestions = Array.isArray(payload.purchase_suggestions) ? payload.purchase_suggestions : [];
+        const pendingCount = Number(payload.pending_count || 0);
+        const purchasePendingCount = Number(payload.purchase_suggestions_pending_count || 0);
+        const totalPendingCount = Number(payload.total_pending_count ?? (pendingCount + purchasePendingCount));
+        updateSidebarIntentionsBadge(totalPendingCount);
+        if (withdrawalIntentionsSummary) {
+            withdrawalIntentionsSummary.textContent = totalPendingCount > 0
+                ? `${pendingCount} intenção(ões) de retirada e ${purchasePendingCount} sugestão(ões) de compra pendente(s).`
+                : 'Sem pendências no momento.';
+        }
+        const shouldRender = Boolean(render) && (forceRender || !isPurchaseSuggestionInteractionActive());
+        if (shouldRender) {
+            deferredWithdrawalIntentionsPayload = null;
+            renderWithdrawalIntentionsPayload(entries, purchaseSuggestions);
+        } else if (render) {
+            deferredWithdrawalIntentionsPayload = { entries, purchaseSuggestions };
+        }
+
+        if (notifyNew && entries.length) {
+            entries.forEach((entry) => {
+                const entryId = Number(entry?.id || 0);
+                if (!entryId || knownWithdrawalIntentionIds.has(entryId)) {
+                    return;
+                }
+                knownWithdrawalIntentionIds.add(entryId);
+                showGalintToast({
+                    title: 'Intenções de Retirada',
+                    message: `${entry?.user_name || 'Colaborador'} pesquisou "${entry?.search_query || ''}" e recebeu ${entry?.candidate_count || 0} candidato(s).`,
+                    tone: 'danger',
+                    delay: 10000,
+                });
+            });
+        }
+
+        if (notifyNew && purchaseSuggestions.length) {
+            purchaseSuggestions.forEach((entry) => {
+                const entryId = Number(entry?.id || 0);
+                if (!entryId || knownWithdrawalIntentionIds.has(entryId)) {
+                    return;
+                }
+                knownWithdrawalIntentionIds.add(entryId);
+                showGalintToast({
+                    title: 'Sugestão para Compra',
+                    message: `${entry?.user_name || 'Colaborador'} enviou uma foto para conferência.`,
+                    tone: 'danger',
+                    delay: 10000,
+                });
+            });
+        }
+
+        if (!notifyNew) {
+            entries.forEach((entry) => {
+                const entryId = Number(entry?.id || 0);
+                if (entryId) {
+                    knownWithdrawalIntentionIds.add(entryId);
+                }
+            });
+            purchaseSuggestions.forEach((entry) => {
+                const entryId = Number(entry?.id || 0);
+                if (entryId) {
+                    knownWithdrawalIntentionIds.add(entryId);
+                }
+            });
+        }
+        })();
+        withdrawalIntentionsFetchInFlight = requestPromise;
+        try {
+            return await requestPromise;
+        } finally {
+            if (withdrawalIntentionsFetchInFlight === requestPromise) {
+                withdrawalIntentionsFetchInFlight = null;
+            }
+        }
+    };
+
+    const hidePurchaseSuggestionAutocomplete = (input) => {
+        const panel = input?.closest('.purchase-suggestion-field')?.querySelector('.purchase-suggestion-autocomplete');
+        if (!panel) {
+            return;
+        }
+        panel.classList.add('d-none');
+        panel.innerHTML = '';
+    };
+
+    const renderPurchaseSuggestionAutocomplete = (input) => {
+        const field = input?.closest('.purchase-suggestion-field');
+        const panel = field?.querySelector('.purchase-suggestion-autocomplete');
+        if (!input || !panel) {
+            return;
+        }
+        const matches = findPurchaseSuggestionMatches(input.value);
+        if (!matches.length) {
+            panel.classList.add('d-none');
+            panel.innerHTML = '';
+            return;
+        }
+        panel.innerHTML = matches.map((item) => `
+            <button class="purchase-suggestion-option" type="button" data-item-code="${escapeHtml(item.codigo || '')}">
+                <div class="purchase-suggestion-option-title">${escapeHtml(item.codigo || '-')} • ${escapeHtml(item.descricao || 'Sem descrição')}</div>
+                <div class="purchase-suggestion-option-meta">${escapeHtml(item.marca || item.categoria || 'Sem marca')} • ${escapeHtml(buildPurchaseSuggestionItemMeta(item))}</div>
+            </button>
+        `).join('');
+        panel.classList.remove('d-none');
+    };
+
+    purchaseSuggestionsList?.addEventListener('click', async (event) => {
+        const option = event.target.closest('.purchase-suggestion-option');
+        const button = event.target.closest('[data-action="respond-purchase-suggestion"]');
+        const archiveButton = event.target.closest('[data-action="archive-purchase-suggestion"]');
+
+        if (option || button || archiveButton || event.target.closest('.purchase-suggestion-field')) {
+            event.stopPropagation();
+            holdPurchaseSuggestionInteraction(button || archiveButton ? 15000 : 8000);
+        }
+
+        if (option) {
+            const field = option.closest('.purchase-suggestion-field');
+            const input = field?.querySelector('.purchase-suggestion-item-code');
+            if (input) {
+                input.value = option.dataset.itemCode || '';
+                input.dataset.selectedItemCode = input.value;
+                hidePurchaseSuggestionAutocomplete(input);
+                input.focus();
+            }
+            return;
+        }
+
+        if (archiveButton) {
+            const card = archiveButton.closest('[data-purchase-suggestion-id]');
+            const entryId = Number(card?.dataset?.purchaseSuggestionId || 0);
+            if (!entryId) {
+                return;
+            }
+            const confirmed = window.confirm('Excluir esta sugestão da lista? Ela será arquivada no histórico.');
+            if (!confirmed) {
+                return;
+            }
+            archiveButton.disabled = true;
+            try {
+                const response = await fetch(purchaseSuggestionArchiveUrl(entryId), {
+                    method: 'POST',
+                    headers: { 'Accept': 'application/json' },
+                    credentials: 'same-origin',
+                });
+                const payload = await readJsonResponse(response);
+                if (!response.ok || payload?.success === false) {
+                    throw new Error(payload?.message || 'Não foi possível excluir a sugestão.');
+                }
+                showGalintToast({ title: 'Sugestões para Compra', message: 'Sugestão removida da lista e preservada no histórico.', tone: 'success' });
+                await fetchWithdrawalIntentions({ notifyNew: false, includeViewed: true, render: true, forceRender: true });
+            } catch (error) {
+                showGalintToast({ title: 'Sugestões para Compra', message: error?.message || 'Falha ao excluir sugestão.', tone: 'danger' });
+            } finally {
+                archiveButton.disabled = false;
+            }
+            return;
+        }
+
+        if (!button) {
+            return;
+        }
+        const card = button.closest('[data-purchase-suggestion-id]');
+        const entryId = Number(card?.dataset?.purchaseSuggestionId || 0);
+        const input = card?.querySelector('.purchase-suggestion-item-code');
+        const itemCode = String(input?.value || '').trim();
+        if (!entryId || !itemCode) {
+            showGalintToast({ title: 'Sugestões para Compra', message: 'Informe o código do item existente.', tone: 'danger' });
+            input?.focus();
+            return;
+        }
+        button.disabled = true;
+        try {
+            const response = await fetch(purchaseSuggestionRespondUrl(entryId), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                },
+                credentials: 'same-origin',
+                body: JSON.stringify({ item_code: itemCode }),
+            });
+            const payload = await readJsonResponse(response);
+            if (!response.ok || payload?.success === false) {
+                throw new Error(payload?.message || 'Não foi possível enviar a resposta.');
+            }
+            showGalintToast({ title: 'Sugestões para Compra', message: 'Item enviado ao usuário pelo Telegram.', tone: 'success' });
+            await fetchWithdrawalIntentions({ notifyNew: false, includeViewed: true, render: true, forceRender: true });
+        } catch (error) {
+            showGalintToast({ title: 'Sugestões para Compra', message: error?.message || 'Falha ao responder sugestão.', tone: 'danger' });
+        } finally {
+            button.disabled = false;
+        }
+    });
+
+    purchaseSuggestionsList?.addEventListener('input', (event) => {
+        const input = event.target.closest('.purchase-suggestion-item-code');
+        if (!input) {
+            return;
+        }
+        holdPurchaseSuggestionInteraction();
+        input.dataset.selectedItemCode = '';
+        renderPurchaseSuggestionAutocomplete(input);
+    });
+
+    purchaseSuggestionsList?.addEventListener('focusin', (event) => {
+        const input = event.target.closest('.purchase-suggestion-item-code');
+        if (input) {
+            holdPurchaseSuggestionInteraction();
+            renderPurchaseSuggestionAutocomplete(input);
+        }
+    });
+
+    purchaseSuggestionsList?.addEventListener('focusout', () => {
+        window.setTimeout(applyDeferredWithdrawalIntentionsPayload, 9000);
+    });
+
+    purchaseSuggestionsList?.addEventListener('keydown', (event) => {
+        const input = event.target.closest('.purchase-suggestion-item-code');
+        if (!input) {
+            return;
+        }
+        holdPurchaseSuggestionInteraction();
+        if (event.key === 'Escape') {
+            hidePurchaseSuggestionAutocomplete(input);
+            return;
+        }
+        if (event.key === 'Enter') {
+            const firstOption = input.closest('.purchase-suggestion-field')?.querySelector('.purchase-suggestion-option');
+            if (firstOption) {
+                event.preventDefault();
+                firstOption.click();
+            }
+        }
+    });
+
+    document.addEventListener('click', (event) => {
+        if (event.target.closest('.purchase-suggestion-field')) {
+            return;
+        }
+        purchaseSuggestionsList?.querySelectorAll('.purchase-suggestion-item-code').forEach((input) => hidePurchaseSuggestionAutocomplete(input));
+        applyDeferredWithdrawalIntentionsPayload();
+    });
+
+    document.addEventListener('click', (event) => {
+        const link = event.target.closest('.sidebar-menu a.sidebar-link[href*="open_intentions=1"]');
+        if (!link || !withdrawalIntentionsModalInstance) {
+            return;
+        }
+        const targetUrl = new URL(link.href, window.location.href);
+        if (targetUrl.pathname !== window.location.pathname) {
+            return;
+        }
+        event.preventDefault();
+        withdrawalIntentionsModalInstance.show();
+        const currentUrl = new URL(window.location.href);
+        currentUrl.searchParams.delete('open_intentions');
+        const query = currentUrl.searchParams.toString();
+        window.history.replaceState({}, document.title, `${currentUrl.pathname}${query ? `?${query}` : ''}${currentUrl.hash || ''}`);
+    });
+
+    const markWithdrawalIntentionsAsViewed = async () => {
+        if (!canManageIntentions) {
+            return;
+        }
+        try {
+            await fetch(withdrawalIntentionsMarkViewedUrl, {
+                method: 'POST',
+                headers: { 'Accept': 'application/json' },
+                credentials: 'same-origin',
+            });
+        } catch (_) {
+        }
+    };
+
+    const registerWithdrawalIntentionFromSearch = async (query, matches) => {
+        const trimmed = String(query || '').trim();
+        if (!trimmed || !Array.isArray(matches) || !matches.length) {
+            return;
+        }
+        const topItem = matches[0] || {};
+        const stockStatus = resolveIntentionStockStatus(topItem);
+        try {
+            await fetch(withdrawalIntentionsCreateUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                },
+                credentials: 'same-origin',
+                body: JSON.stringify({
+                    search_query: trimmed,
+                    candidate_count: matches.length,
+                    is_compatible: true,
+                    top_item: {
+                        codigo: String(topItem?.codigo || '').trim(),
+                        descricao: String(topItem?.descricao || '').trim(),
+                        foto_path: String(topItem?.foto_path || '').trim(),
+                        saldo_texto: resolveIntentionStockText(topItem),
+                        status: stockStatus,
+                    },
+                }),
+            });
+        } catch (_) {
+        }
     };
 
     const normalizePreRegisteredDocuments = (payload) => {
@@ -5661,6 +6515,57 @@
         renderPreRegisteredDocSummary(null);
         setPreRegisteredStatus('A lista carrega automaticamente ao abrir. Selecione um item pendente para finalizar o cadastro.', 'muted');
     });
+
+    withdrawalIntentionsRefreshBtn?.addEventListener('click', async () => {
+        if (withdrawalIntentionsRefreshBtn) {
+            withdrawalIntentionsRefreshBtn.disabled = true;
+        }
+        try {
+            await fetchWithdrawalIntentions({ notifyNew: false, includeViewed: true, render: true, forceRender: true });
+        } catch (error) {
+            if (withdrawalIntentionsSummary) {
+                withdrawalIntentionsSummary.textContent = String(error?.message || 'Falha ao atualizar intenções de retirada.');
+            }
+        } finally {
+            if (withdrawalIntentionsRefreshBtn) {
+                withdrawalIntentionsRefreshBtn.disabled = false;
+            }
+        }
+    });
+
+    withdrawalIntentionsModalElement?.addEventListener('shown.bs.modal', async () => {
+        try {
+            await fetchWithdrawalIntentions({ notifyNew: false, includeViewed: true, render: true, forceRender: true });
+            await markWithdrawalIntentionsAsViewed();
+            updateSidebarIntentionsBadge(0);
+            if (withdrawalIntentionsSummary) {
+                const withdrawalCount = withdrawalIntentionsList?.children?.length || 0;
+                const purchaseCount = purchaseSuggestionsList?.children?.length || 0;
+                withdrawalIntentionsSummary.textContent = withdrawalCount || purchaseCount
+                    ? `${withdrawalCount} intenção(ões) e ${purchaseCount} sugestão(ões) carregada(s). Pendências marcadas como vistas.`
+                    : 'Sem pendências no momento.';
+            }
+        } catch (_) {
+        }
+    });
+
+    if (canManageIntentions) {
+        fetchWithdrawalIntentions({ notifyNew: false, includeViewed: true, render: false }).catch(() => {});
+        withdrawalIntentionsPollHandle = window.setInterval(() => {
+            fetchWithdrawalIntentions({ notifyNew: true, includeViewed: true, render: isWithdrawalIntentionsModalOpen() }).catch(() => {});
+        }, 15000);
+    }
+
+    if (openWithdrawalIntentions && withdrawalIntentionsModalInstance) {
+        window.setTimeout(() => {
+            withdrawalIntentionsModalInstance.show();
+            const url = new URL(window.location.href);
+            url.searchParams.delete('open_intentions');
+            const query = url.searchParams.toString();
+            const nextUrl = `${url.pathname}${query ? `?${query}` : ''}${url.hash || ''}`;
+            window.history.replaceState({}, document.title, nextUrl);
+        }, 180);
+    }
 
     const setPhotoAssistantFeedback = (message, variant = 'info') => {
         if (!photoFeedback) {
@@ -7514,6 +8419,7 @@
                 event.preventDefault();
                 const matches = findMatches(event.target.value);
                 if (matches.length) {
+                    registerWithdrawalIntentionFromSearch(event.target.value, matches);
                     openItemModal(matches[0]);
                 }
             } else if (event.key === 'Escape') {
