@@ -1633,6 +1633,7 @@
                             <div>
                                 <h6 class="mb-1">Comparativo de compra</h6>
                                 <p class="text-muted small mb-0">Preço fiscal preservado, cotações web tratadas como Potencial Fornecedor.</p>
+                                <div class="small text-muted mt-1" id="item-comparative-status"></div>
                             </div>
                             <button class="btn btn-sm btn-outline-info" type="button" id="btn-sync-potential-suppliers">
                                 <i class="bi bi-arrow-clockwise me-1"></i> Atualizar potenciais
@@ -1745,20 +1746,20 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
             </div>
             <div class="modal-body">
-                <div class="row g-3 align-items-end">
-                    <div class="col-md-6">
+                <div class="row g-3 align-items-end price-suggest-toolbar">
+                    <div class="col-md-6 price-suggest-toolbar__query">
                         <label class="form-label" for="price-query">Busca</label>
                         <input class="form-control" id="price-query" placeholder="Ex.: cimento 50kg Votoran">
                     </div>
-                    <div class="col-md-2">
+                    <div class="col-md-2 price-suggest-toolbar__uf">
                         <label class="form-label" for="price-uf">UF</label>
                         <input class="form-control text-uppercase" id="price-uf" maxlength="2" placeholder="SP">
                     </div>
-                    <div class="col-md-2">
+                    <div class="col-md-2 price-suggest-toolbar__unit">
                         <label class="form-label" for="price-unit">Unidade</label>
                         <select class="form-select" id="price-unit"></select>
                     </div>
-                    <div class="col-md-2 d-grid">
+                    <div class="col-md-2 d-grid price-suggest-toolbar__action">
                         <button class="btn btn-primary" type="button" id="price-refresh-btn">
                             <i class="bi bi-search me-1"></i> Pesquisar
                         </button>
@@ -2812,6 +2813,11 @@
         border-color: rgba(125, 211, 252, 0.36);
         color: #eff6ff;
         background: rgba(8, 15, 28, 0.28);
+        flex-shrink: 0;
+        min-width: 152px;
+        padding-inline: 0.85rem;
+        white-space: nowrap;
+        font-weight: 700;
     }
 
     #btn-buscar-preco-reposicao:hover,
@@ -2886,6 +2892,11 @@
     }
 
     /* Modal de sugestões de preço */
+    #priceSuggestionsModal .modal-dialog {
+        max-width: min(960px, calc(100vw - 1rem));
+        margin: 0.75rem auto;
+    }
+
     #priceSuggestionsModal .price-suggest-modal {
         border: none;
         border-radius: 14px;
@@ -2908,6 +2919,40 @@
     #priceSuggestionsModal .modal-body {
         background: linear-gradient(180deg, rgba(15,23,42,0.96) 0%, rgba(17,24,39,0.94) 100%);
         color: #e2e8f0;
+        overflow-x: hidden;
+    }
+
+    #priceSuggestionsModal .price-suggest-toolbar {
+        --bs-gutter-x: 0;
+        --bs-gutter-y: 0;
+        display: grid;
+        grid-template-columns: minmax(0, 1.9fr) minmax(84px, 0.55fr) minmax(130px, 0.7fr) minmax(152px, 0.75fr);
+        gap: 1rem;
+        margin: 0;
+    }
+
+    #priceSuggestionsModal .price-suggest-toolbar > [class*="col-"] {
+        width: auto;
+        max-width: none;
+        min-width: 0;
+        padding: 0;
+    }
+
+    #priceSuggestionsModal #price-query,
+    #priceSuggestionsModal #price-uf,
+    #priceSuggestionsModal #price-unit,
+    #priceSuggestionsModal #price-refresh-btn {
+        min-height: 48px;
+    }
+
+    #priceSuggestionsModal #price-refresh-btn {
+        width: 100%;
+        white-space: nowrap;
+    }
+
+    #priceSuggestionsModal .price-results {
+        min-width: 0;
+        overflow-x: hidden;
     }
 
     .price-results {
@@ -3668,6 +3713,16 @@
 
     /* Responsividade */
     @media (max-width: 768px) {
+        #priceSuggestionsModal .modal-dialog {
+            max-width: calc(100vw - 0.75rem);
+            margin: 0.375rem auto;
+        }
+
+        #priceSuggestionsModal .price-suggest-toolbar {
+            grid-template-columns: minmax(0, 1fr);
+            gap: 0.85rem;
+        }
+
         .galint-tab-btn {
             font-size: 0.85rem;
             padding: 0.875rem 1rem;
@@ -5472,7 +5527,6 @@
         const openWithdrawalIntentions = {{ 'true' if open_withdrawal_intentions else 'false' }};
         const selectedCategory = {{ selected_category | tojson | safe }};
         const preRegisteredApiUrl = '/itens/api/pre-cadastrados';
-        const withdrawalIntentionsCreateUrl = {{ url_for('inventory.create_withdrawal_intention') | tojson | safe }};
         const withdrawalIntentionsListUrl = {{ url_for('inventory.list_withdrawal_intentions') | tojson | safe }};
         const withdrawalIntentionsMarkViewedUrl = {{ url_for('inventory.mark_withdrawal_intentions_viewed') | tojson | safe }};
         const purchaseSuggestionRespondUrlTemplate = {{ url_for('inventory.respond_purchase_suggestion', entry_id=0) | tojson | safe }};
@@ -6259,38 +6313,6 @@
                 method: 'POST',
                 headers: { 'Accept': 'application/json' },
                 credentials: 'same-origin',
-            });
-        } catch (_) {
-        }
-    };
-
-    const registerWithdrawalIntentionFromSearch = async (query, matches) => {
-        const trimmed = String(query || '').trim();
-        if (!trimmed || !Array.isArray(matches) || !matches.length) {
-            return;
-        }
-        const topItem = matches[0] || {};
-        const stockStatus = resolveIntentionStockStatus(topItem);
-        try {
-            await fetch(withdrawalIntentionsCreateUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                },
-                credentials: 'same-origin',
-                body: JSON.stringify({
-                    search_query: trimmed,
-                    candidate_count: matches.length,
-                    is_compatible: true,
-                    top_item: {
-                        codigo: String(topItem?.codigo || '').trim(),
-                        descricao: String(topItem?.descricao || '').trim(),
-                        foto_path: String(topItem?.foto_path || '').trim(),
-                        saldo_texto: resolveIntentionStockText(topItem),
-                        status: stockStatus,
-                    },
-                }),
             });
         } catch (_) {
         }
@@ -7168,7 +7190,34 @@
         }
     };
 
-    const renderItemComparative = (payload) => {
+    const setItemComparativeStatus = (message, variant = 'muted') => {
+        const statusEl = document.getElementById('item-comparative-status');
+        if (!statusEl) {
+            return;
+        }
+        const normalized = String(message || '').trim();
+        statusEl.textContent = normalized;
+        statusEl.className = 'small mt-1';
+        if (!normalized) {
+            statusEl.classList.add('text-muted');
+            return;
+        }
+        if (variant === 'danger') {
+            statusEl.classList.add('text-danger');
+            return;
+        }
+        if (variant === 'success') {
+            statusEl.classList.add('text-success');
+            return;
+        }
+        if (variant === 'info') {
+            statusEl.classList.add('text-info');
+            return;
+        }
+        statusEl.classList.add('text-muted');
+    };
+
+    const renderItemComparative = (payload, options = {}) => {
         const referenceEl = document.getElementById('item-comparative-reference');
         const bestEl = document.getElementById('item-comparative-best');
         const variationEl = document.getElementById('item-comparative-variation');
@@ -7176,6 +7225,8 @@
         const reference = payload?.reference || {};
         const quotes = Array.isArray(payload?.potential_quotes) ? payload.potential_quotes : [];
         const best = payload?.best_quote || quotes[0] || null;
+        const mode = String(options?.mode || '').trim().toLowerCase();
+        const query = String(payload?.query || '').trim();
 
         if (referenceEl) {
             referenceEl.textContent = reference.price_display_base || reference.price_display || '—';
@@ -7190,6 +7241,17 @@
         }
         if (!tbody) {
             return;
+        }
+        if (mode === 'sync') {
+            const summary = quotes.length
+                ? `${quotes.length} potencial(is) atualizado(s)${query ? ` para "${query}"` : ''}.`
+                : `Sincronização concluída${query ? ` para "${query}"` : ''}, mas nenhum potencial novo foi encontrado.`;
+            setItemComparativeStatus(summary, quotes.length ? 'success' : 'info');
+        } else if (mode === 'load') {
+            const summary = quotes.length
+                ? `${quotes.length} potencial(is) carregado(s) para este item.`
+                : 'Nenhum Potencial Fornecedor salvo para este item.';
+            setItemComparativeStatus(summary, 'muted');
         }
         if (!quotes.length) {
             tbody.innerHTML = `
@@ -7224,6 +7286,7 @@
 
     const loadItemComparative = async (codigo) => {
         const tbody = document.getElementById('item-comparative-tbody');
+        setItemComparativeStatus('Carregando comparativo...', 'muted');
         if (tbody) {
             tbody.innerHTML = `
                 <tr>
@@ -7241,8 +7304,9 @@
             if (!response.ok || !payload?.success) {
                 throw new Error(payload?.message || 'Falha ao carregar comparativo');
             }
-            renderItemComparative(payload);
+            renderItemComparative(payload, { mode: 'load' });
         } catch (err) {
+            setItemComparativeStatus(String(err?.message || err || 'Comparativo indisponível'), 'danger');
             if (tbody) {
                 tbody.innerHTML = `
                     <tr>
@@ -7255,6 +7319,7 @@
 
     const syncItemPotentialSuppliers = async (codigo) => {
         const button = document.getElementById('btn-sync-potential-suppliers');
+        setItemComparativeStatus('Atualizando potenciais...', 'info');
         if (button instanceof HTMLButtonElement) {
             button.disabled = true;
             button.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Atualizando...';
@@ -7271,8 +7336,9 @@
             if (!response.ok || !payload?.success) {
                 throw new Error(payload?.message || 'Falha ao atualizar potenciais');
             }
-            renderItemComparative(payload);
+            renderItemComparative(payload, { mode: 'sync' });
         } catch (err) {
+            setItemComparativeStatus(String(err?.message || err || 'Falha ao atualizar potenciais'), 'danger');
             const tbody = document.getElementById('item-comparative-tbody');
             if (tbody) {
                 tbody.innerHTML = `
@@ -8419,7 +8485,6 @@
                 event.preventDefault();
                 const matches = findMatches(event.target.value);
                 if (matches.length) {
-                    registerWithdrawalIntentionFromSearch(event.target.value, matches);
                     openItemModal(matches[0]);
                 }
             } else if (event.key === 'Escape') {

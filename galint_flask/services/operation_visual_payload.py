@@ -561,19 +561,31 @@ class OperationVisualPayloadService:
     @staticmethod
     def _get_saida_stock_movement(saida: Saida) -> StockMovement | None:
         try:
-            movement = (
+            def _candidate_rank(row: StockMovement) -> tuple[float, int, int, int]:
+                metadata = row.metadata_json if isinstance(row.metadata_json, dict) else {}
+                legacy_payload = metadata.get("legacy_payload") if isinstance(metadata.get("legacy_payload"), dict) else {}
+                input_quantity = OperationVisualPayloadService._parse_float(metadata.get("input_quantity"))
+                row_quantity = abs(float(row.quantity_base or 0.0))
+                delta = abs((row.created_at - saida.data_saida).total_seconds()) if row.created_at and saida.data_saida else 999999.0
+                local_penalty = 0 if str(legacy_payload.get("local_servico") or "").strip().casefold() == str(saida.local_servico or "").strip().casefold() else 1
+                qty_match = input_quantity if input_quantity is not None else row_quantity
+                qty_penalty = 0 if abs(float(qty_match or 0.0) - abs(float(saida.quantidade or 0.0))) <= 1e-6 else 1
+                reference_type = str(row.reference_type or "").strip().lower()
+                reference_penalty = 0 if reference_type == "legacy_movimento" else (0 if reference_type.startswith("movements_saida") else 1)
+                return (delta, reference_penalty, local_penalty, qty_penalty, -int(row.id or 0))
+
+            exact_candidates = (
                 StockMovement.query
                 .filter(
                     StockMovement.product_id == saida.codigo_item,
-                    StockMovement.reference_type == "legacy_movimento",
                     StockMovement.reference_id == str(saida.id_saida),
                     StockMovement.movement_type == "saida",
                 )
                 .order_by(StockMovement.created_at.desc(), StockMovement.id.desc())
-                .first()
+                .all()
             )
-            if movement is not None:
-                return movement
+            if exact_candidates:
+                return sorted(exact_candidates, key=_candidate_rank)[0]
 
             if saida.data_saida is None:
                 return None
@@ -584,7 +596,6 @@ class OperationVisualPayloadService:
                 StockMovement.query
                 .filter(
                     StockMovement.product_id == saida.codigo_item,
-                    StockMovement.reference_type == "legacy_movimento",
                     StockMovement.movement_type == "saida",
                     StockMovement.created_at >= window_start,
                     StockMovement.created_at <= window_end,
@@ -594,17 +605,6 @@ class OperationVisualPayloadService:
             )
             if not candidates:
                 return None
-
-            def _candidate_rank(row: StockMovement) -> tuple[float, int, int, int]:
-                metadata = row.metadata_json if isinstance(row.metadata_json, dict) else {}
-                legacy_payload = metadata.get("legacy_payload") if isinstance(metadata.get("legacy_payload"), dict) else {}
-                input_quantity = OperationVisualPayloadService._parse_float(metadata.get("input_quantity"))
-                row_quantity = abs(float(row.quantity_base or 0.0))
-                delta = abs((row.created_at - saida.data_saida).total_seconds()) if row.created_at and saida.data_saida else 999999.0
-                local_penalty = 0 if str(legacy_payload.get("local_servico") or "").strip().casefold() == str(saida.local_servico or "").strip().casefold() else 1
-                qty_match = input_quantity if input_quantity is not None else row_quantity
-                qty_penalty = 0 if abs(float(qty_match or 0.0) - abs(float(saida.quantidade or 0.0))) <= 1e-6 else 1
-                return (delta, local_penalty, qty_penalty, -int(row.id or 0))
 
             return sorted(candidates, key=_candidate_rank)[0]
         except Exception:
